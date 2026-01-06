@@ -1,0 +1,100 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up MagicLight Services",
+        "description": "This integration provides services to control MagicLight. Make sure the MagicLight addon is installed and running before proceeding.",
+        "data": {}
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to addon",
+      "unknown": "Unexpected error"
+    },
+    "abort": {
+      "already_configured": "Integration is already configured"
+    }
+  },
+  "services": {
+    "step_up": {
+      "name": "Step Up",
+      "description": "Increase brightness by one step along the magic curve",
+      "fields": {
+        "area_id": {
+          "name": "Area",
+          "description": "The area(s) to control"
+        }
+      }
+    },
+    "step_down": {
+      "name": "Step Down",
+      "description": "Decrease brightness by one step along the magic curve",
+      "fields": {
+        "area_id": {
+          "name": "Area",
+          "description": "The area(s) to control"
+        }
+      }
+    },
+    "dim_up": {
+      "name": "Dim Up",
+      "description": "Raise the brightness curve without changing MagicLight color",
+      "fields": {
+        "area_id": {
+          "name": "Area",
+          "description": "The area(s) to brighten"
+        }
+      }
+    },
+    "dim_down": {
+      "name": "Dim Down",
+      "description": "Lower the brightness curve without changing MagicLight color",
+      "fields": {
+        "area_id": {
+          "name": "Area",
+          "description": "The area(s) to dim"
+        }
+      }
+    },
+    "reset": {
+      "name": "Reset",
+      "description": "Reset area to current time, enable MagicLight, and apply magic",
+      "fields": {
+        "area_id": {
+          "name": "Area",
+          "description": "The area(s) to reset"
+        }
+      }
+    },
+    "magiclight_on": {
+      "name": "MagicLight On",
+      "description": "Turn on lights and enable MagicLight mode for an area",
+      "fields": {
+        "area_id": {
+          "name": "Area",
+          "description": "The area(s) to enable MagicLight for"
+        }
+      }
+    },
+    "magiclight_off": {
+      "name": "MagicLight Off",
+      "description": "Disable MagicLight mode for an area (lights remain unchanged)",
+      "fields": {
+        "area_id": {
+          "name": "Area",
+          "description": "The area(s) to disable MagicLight for"
+        }
+      }
+    },
+    "magiclight_toggle": {
+      "name": "MagicLight Toggle",
+      "description": "Smart toggle - turns on lights with MagicLight if off, turns off lights and disables MagicLight if on",
+      "fields": {
+        "area_id": {
+          "name": "Area",
+          "description": "The area(s) to toggle"
+        }
+      }
+    }
+  }
+}

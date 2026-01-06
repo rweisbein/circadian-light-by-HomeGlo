@@ -1,0 +1,11 @@
+{
+  "domain": "magiclight",
+  "name": "MagicLight Integration",
+  "codeowners": ["@tkthundr"],
+  "config_flow": true,
+  "dependencies": ["light"],
+  "documentation": "https://github.com/dtconceptsnc/magiclight",
+  "issue_tracker": "https://github.com/dtconceptsnc/magiclight/issues",
+  "requirements": ["ulid-transform"],
+  "version": "2.1.0"
+}
