@@ -1,5 +1,5 @@
 {
-  "domain": "circadian_light",
+  "domain": "magiclight",
   "name": "Circadian Light by HomeGlo",
   "codeowners": ["@rweisbein"],
   "config_flow": true,
