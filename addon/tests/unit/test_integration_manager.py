@@ -64,7 +64,7 @@ def _make_stubbed_script(*, bundle_path: Path, dest_base: Path, repo_info: Path,
 
 
 def _create_repo_info(path: Path) -> None:
-    path.write_text("url: 'https://github.com/dtconceptsnc/magiclight'\n", encoding="utf-8")
+    path.write_text("url: 'https://github.com/rweisbein/circadian-light-by-HomeGlo'\n", encoding="utf-8")
 
 
 @pytest.mark.parametrize("manage_blueprints", ["true", "false"])

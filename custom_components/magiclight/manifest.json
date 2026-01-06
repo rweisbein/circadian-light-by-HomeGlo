@@ -1,11 +1,11 @@
 {
-  "domain": "magiclight",
-  "name": "MagicLight Integration",
-  "codeowners": ["@tkthundr"],
+  "domain": "circadian_light",
+  "name": "Circadian Light by HomeGlo",
+  "codeowners": ["@rweisbein"],
   "config_flow": true,
   "dependencies": ["light"],
-  "documentation": "https://github.com/dtconceptsnc/magiclight",
-  "issue_tracker": "https://github.com/dtconceptsnc/magiclight/issues",
+  "documentation": "https://github.com/rweisbein/circadian-light-by-HomeGlo",
+  "issue_tracker": "https://github.com/rweisbein/circadian-light-by-HomeGlo/issues",
   "requirements": ["ulid-transform"],
   "version": "2.1.0"
 }

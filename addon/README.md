@@ -1,6 +1,6 @@
-# MagicLight Add-on for Home Assistant
+# Circadian Light by HomeGlo Add-on for Home Assistant
 
-MagicLight Add-on provides intelligent adaptive lighting control that automatically adjusts your lights based on the sun's position throughout the day.
+Circadian Light by HomeGlo provides intelligent adaptive lighting control that automatically adjusts your lights based on the sun's position throughout the day.
 
 ## Features
 
@@ -14,13 +14,13 @@ MagicLight Add-on provides intelligent adaptive lighting control that automatica
 
 ## Installation
 
-1. Add the MagicLight repository to your Home Assistant:
+1. Add the Circadian Light repository to your Home Assistant:
    - Navigate to **Settings** → **Add-ons** → **Add-on Store**
    - Click the three dots menu → **Repositories**
-   - Add: `https://github.com/dtconceptsnc/magiclight`
+   - Add: `https://github.com/rweisbein/circadian-light-by-HomeGlo`
 
-2. Install the MagicLight add-on:
-   - Find "MagicLight" in the add-on store
+2. Install the Circadian Light add-on:
+   - Find "Circadian Light by HomeGlo" in the add-on store
    - Click **Install**
 
 3. Start the add-on:
@@ -163,7 +163,7 @@ View real-time activity:
 ## Support
 
 For issues or feature requests, please visit:
-https://github.com/dtconceptsnc/magiclight/issues
+https://github.com/rweisbein/circadian-light-by-HomeGlo/issues
 
 ## License
 

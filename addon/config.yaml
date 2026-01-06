@@ -1,9 +1,9 @@
 # https://developers.home-assistant.io/docs/add-ons/configuration#add-on-config
-name: MagicLight
+name: Circadian Light by HomeGlo
 version: "4.2.024-alpha"
-slug: magiclight
+slug: circadian-light
 description: Connects to Home Assistant WebSocket API and listens for switch events
-url: "https://github.com/dtconceptsnc/magiclight"
+url: "https://github.com/rweisbein/circadian-light-by-HomeGlo"
 arch:
   - armhf
   - armv7
@@ -19,7 +19,7 @@ ingress: true
 ingress_port: 8099
 ingress_entry: /
 panel_icon: mdi:lightbulb
-panel_title: MagicLight
+panel_title: Circadian Light
 panel_admin: false
 options:
   manage_integration: true

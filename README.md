@@ -1,8 +1,8 @@
-# MagicLight - Adaptive Lighting for Home Assistant
+# Circadian Light by HomeGlo - Adaptive Lighting for Home Assistant
 
-![MagicLight Light Designer](.github/assets/designer.png)
+![Circadian Light Designer](.github/assets/designer.png)
 
-Transform your home's ambiance with MagicLight, the intelligent lighting system that automatically adjusts your lights throughout the day to match natural sunlight patterns.
+Transform your home's ambiance with Circadian Light by HomeGlo, the intelligent lighting system that automatically adjusts your lights throughout the day to match natural sunlight patterns.
 
 ## ✨ Features
 
@@ -12,15 +12,15 @@ Transform your home's ambiance with MagicLight, the intelligent lighting system 
 
 ## 📦 Installation
 
-> **⚠️ IMPORTANT**: Install the MagicLight Home Assistant add-on and then restart Home Assistant. The add-on includes the adaptive lighting engine, Light Designer, services, and blueprints—no separate integration required.
+> **⚠️ IMPORTANT**: Install the Circadian Light Home Assistant add-on and then restart Home Assistant. The add-on includes the adaptive lighting engine, Light Designer, services, and blueprints—no separate integration required.
 
 ### Step 1: Install the Home Assistant Add-on
 
-[![Add MagicLight Repository](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fdtconceptsnc%2Fmagiclight)
+[![Add Circadian Light Repository](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Frweisbein%2Fcircadian-light-by-HomeGlo)
 
-1. Click the button above to add the MagicLight repository to your Home Assistant
+1. Click the button above to add the Circadian Light repository to your Home Assistant
 2. Navigate to **Settings** → **Add-ons** → **Add-on Store**
-3. Find "MagicLight" and click Install
+3. Find "Circadian Light by HomeGlo" and click Install
 4. Start the add-on and check the logs
 
 ### Step 2: Restart Home Assistant
@@ -59,15 +59,14 @@ MagicLight registers a set of service primitives under the `magiclight` domain. 
 
 ## 👥 Contributors
 
-- [@tkthundr](https://github.com/tkthundr)
 - [@rweisbein](https://github.com/rweisbein)
 
 ## 📄 License
 
-MagicLight is released under the MIT License. See [LICENSE](LICENSE) for details.
+Circadian Light by HomeGlo is released under the MIT License. See [LICENSE](LICENSE) for details.
 
 ---
 
-**Need Help?** Join our [Discord community](https://discord.gg/TUvSrtRt), open an [issue](https://github.com/dtconceptsnc/magiclight/issues), or check our [documentation](https://github.com/dtconceptsnc/magiclight/wiki).
+**Need Help?** Open an [issue](https://github.com/rweisbein/circadian-light-by-HomeGlo/issues) or check our [documentation](https://github.com/rweisbein/circadian-light-by-HomeGlo/wiki).
 
-**Love MagicLight?** Give us a ⭐ on GitHub!
+**Love Circadian Light?** Give us a ⭐ on GitHub!
