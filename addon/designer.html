@@ -243,16 +243,28 @@ input[type=range]::-moz-range-thumb {
 .dual-track {
   position: relative;
   flex: 1;
-  height: 4px;
+  height: 6px;
   background: rgba(255,255,255,0.3);
-  border-radius: 2px;
+  border-radius: 3px;
+}
+.dual-track.color-track {
+  height: 8px;
+  border-radius: 4px;
 }
 .dual-fill {
   position: absolute;
   top: 0;
-  height: 4px;
+  height: 100%;
   background: var(--accent);
-  border-radius: 2px;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.dual-mask {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background: rgba(0,0,0,0.7);
+  pointer-events: none;
 }
 .dual-range input[type=range] {
   position: absolute;
@@ -266,34 +278,97 @@ input[type=range]::-moz-range-thumb {
 }
 .dual-chip.right { text-align: right; }
 
+/* Color Value Chip Button */
+.color-value-chip {
+  border: none;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  min-width: 80px;
+  text-align: center;
+}
+.color-value-chip:hover {
+  filter: brightness(1.1);
+}
+
+/* Color Slider Popup */
+.color-controls-wrap {
+  position: relative;
+  display: inline-block;
+}
+.color-slider-popup {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #101010;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 10px;
+  padding: 12px 14px;
+  box-shadow: 0 12px 24px rgba(0,0,0,0.45);
+  min-width: 280px;
+  display: none;
+  z-index: 50;
+}
+.color-slider-popup.is-open {
+  display: block;
+}
+.color-slider-popup .dual-track {
+  height: 10px;
+  border-radius: 5px;
+}
+.color-slider-popup input[type=range] {
+  height: 20px;
+}
+
+/* Offset Slider Rows */
+.offset-slider-row {
+  display: grid;
+  grid-template-columns: 60px 1fr 140px;
+  gap: 10px;
+  align-items: center;
+  margin: 8px 0;
+}
+.offset-slider-row label {
+  font-size: 0.8rem;
+  color: var(--muted2);
+  text-transform: lowercase;
+}
+.offset-slider-row .offset-text {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
 /* Solar Rules */
 .solar-rule {
-  display: grid;
-  grid-template-columns: 200px 1fr;
-  gap: 16px;
-  align-items: start;
-  padding: 12px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 0;
   border-bottom: 1px solid var(--line);
 }
 .solar-rule:last-child { border-bottom: none; }
 .solar-rule-header {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  align-items: center;
+  gap: 16px;
 }
 .solar-rule-title {
-  font-size: 0.95rem;
+  font-size: 1rem;
   font-weight: 600;
   color: var(--text);
 }
 .solar-rule-toggle {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 .solar-rule-toggle input[type=checkbox] {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   accent-color: #7CFF72;
 }
 .solar-rule-controls {
@@ -308,7 +383,17 @@ input[type=range]::-moz-range-thumb {
   border: 1px solid var(--line);
   background: var(--panel2);
   color: var(--text);
+  font-size: 0.9rem;
 }
+.solar-rule-offsets {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-left: 12px;
+  border-left: 2px solid rgba(255,255,255,0.1);
+  margin-left: 8px;
+}
+
 
 /* Buttons */
 .btn {
@@ -472,8 +557,9 @@ input[type=range]::-moz-range-thumb {
       <label>Color range</label>
       <span class="dual-chip" id="color-min-display">500 K</span>
       <div class="dual-range">
-        <div class="dual-track">
-          <div class="dual-fill" id="color-fill"></div>
+        <div class="dual-track color-track" id="color-track">
+          <div class="dual-mask" id="color-mask-left"></div>
+          <div class="dual-mask" id="color-mask-right"></div>
         </div>
         <input type="range" id="color-min" min="500" max="6500" step="100" value="500">
         <input type="range" id="color-max" min="500" max="6500" step="100" value="6500">
@@ -519,9 +605,32 @@ input[type=range]::-moz-range-thumb {
           <option value="sunrise">Before sunrise</option>
           <option value="sunset">After sunset</option>
         </select>
-        <span>Target:</span>
-        <input type="range" id="warm-night-target" min="500" max="4000" step="100" value="2700" style="width:120px">
-        <span id="warm-night-target-display">2700 K</span>
+        <div class="color-controls-wrap">
+          <button type="button" class="color-value-chip" id="warm-night-target-chip">2700 K</button>
+          <div class="color-slider-popup" id="warm-night-popup">
+            <div class="dual-range">
+              <div class="dual-track color-track" id="warm-night-track"></div>
+              <input type="range" id="warm-night-target" min="500" max="4000" step="100" value="2700">
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="solar-rule-offsets" id="warm-night-offsets">
+        <div class="offset-slider-row" data-window="sunset">
+          <label>Start</label>
+          <input type="range" id="warm-night-start" min="-180" max="180" step="5" value="-60">
+          <span class="offset-text" id="warm-night-start-text">60 min before sunset</span>
+        </div>
+        <div class="offset-slider-row" data-window="sunrise">
+          <label>End</label>
+          <input type="range" id="warm-night-end" min="-180" max="180" step="5" value="60">
+          <span class="offset-text" id="warm-night-end-text">60 min after sunrise</span>
+        </div>
+        <div class="offset-slider-row">
+          <label>Fade</label>
+          <input type="range" id="warm-night-fade" min="0" max="180" step="5" value="60">
+          <span class="offset-text" id="warm-night-fade-text">60 min</span>
+        </div>
       </div>
     </div>
 
@@ -536,10 +645,35 @@ input[type=range]::-moz-range-thumb {
       <div class="solar-rule-controls">
         <select id="cool-day-mode">
           <option value="all">All day</option>
+          <option value="sunrise">After sunrise</option>
+          <option value="sunset">Before sunset</option>
         </select>
-        <span>Target:</span>
-        <input type="range" id="cool-day-target" min="4000" max="6500" step="100" value="6500" style="width:120px">
-        <span id="cool-day-target-display">6500 K</span>
+        <div class="color-controls-wrap">
+          <button type="button" class="color-value-chip" id="cool-day-target-chip">6500 K</button>
+          <div class="color-slider-popup" id="cool-day-popup">
+            <div class="dual-range">
+              <div class="dual-track color-track" id="cool-day-track"></div>
+              <input type="range" id="cool-day-target" min="4000" max="6500" step="100" value="6500">
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="solar-rule-offsets" id="cool-day-offsets">
+        <div class="offset-slider-row" data-window="sunrise">
+          <label>Start</label>
+          <input type="range" id="cool-day-start" min="-180" max="180" step="5" value="0">
+          <span class="offset-text" id="cool-day-start-text">at sunrise</span>
+        </div>
+        <div class="offset-slider-row" data-window="sunset">
+          <label>End</label>
+          <input type="range" id="cool-day-end" min="-180" max="180" step="5" value="0">
+          <span class="offset-text" id="cool-day-end-text">at sunset</span>
+        </div>
+        <div class="offset-slider-row">
+          <label>Fade</label>
+          <input type="range" id="cool-day-fade" min="0" max="180" step="5" value="60">
+          <span class="offset-text" id="cool-day-fade-text">60 min</span>
+        </div>
       </div>
     </div>
   </div>
@@ -596,14 +730,23 @@ let config = {
   warm_night_enabled: false,
   warm_night_mode: 'all',
   warm_night_target: 2700,
+  warm_night_start: -60,  // minutes offset from sunset (negative = before)
+  warm_night_end: 60,     // minutes offset from sunrise (positive = after)
+  warm_night_fade: 60,    // fade duration in minutes
   cool_day_enabled: false,
   cool_day_mode: 'all',
   cool_day_target: 6500,
+  cool_day_start: 0,      // minutes offset from sunrise
+  cool_day_end: 0,        // minutes offset from sunset
+  cool_day_fade: 60,      // fade duration in minutes
   activity_preset: 'adult',
   latitude: 35.0,
   longitude: -78.6,
   timezone: 'US/Eastern'
 };
+
+// Current sun times (cached for solar rules)
+let sunTimes = { sunrise: 6, sunset: 18, solarNoon: 12, solarMid: 0 };
 
 // Runtime midpoints (can diverge from base wake/bed times)
 let runtimeState = {
@@ -711,6 +854,181 @@ function readableTextColor(bgColor) {
   const b = parseInt(match[3]);
   const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
   return luminance > 0.5 ? '#000' : '#fff';
+}
+
+// Generate color gradient for slider tracks
+function updateColorGradients() {
+  const minK = config.min_color_temp;
+  const maxK = config.max_color_temp;
+  const steps = 16;
+
+  // Main color track
+  const colorTrack = document.getElementById('color-track');
+  if (colorTrack) {
+    const stops = [];
+    for (let i = 0; i <= steps; i++) {
+      const k = 500 + (6000 * i / steps);
+      stops.push(`${cctToRGB(k)} ${(i / steps) * 100}%`);
+    }
+    colorTrack.style.background = `linear-gradient(90deg, ${stops.join(',')})`;
+
+    // Update masks
+    const maskLeft = document.getElementById('color-mask-left');
+    const maskRight = document.getElementById('color-mask-right');
+    if (maskLeft && maskRight) {
+      const leftPct = ((minK - 500) / 6000) * 100;
+      const rightPct = ((maxK - 500) / 6000) * 100;
+      maskLeft.style.left = '0%';
+      maskLeft.style.width = `${leftPct}%`;
+      maskRight.style.left = `${rightPct}%`;
+      maskRight.style.width = `${100 - rightPct}%`;
+    }
+  }
+
+  // Warm night track
+  const warmTrack = document.getElementById('warm-night-track');
+  if (warmTrack) {
+    const stops = [];
+    for (let i = 0; i <= steps; i++) {
+      const k = minK + ((maxK - minK) * i / steps);
+      stops.push(`${cctToRGB(k)} ${(i / steps) * 100}%`);
+    }
+    warmTrack.style.background = `linear-gradient(90deg, ${stops.join(',')})`;
+  }
+
+  // Cool day track
+  const coolTrack = document.getElementById('cool-day-track');
+  if (coolTrack) {
+    const stops = [];
+    for (let i = 0; i <= steps; i++) {
+      const k = minK + ((maxK - minK) * i / steps);
+      stops.push(`${cctToRGB(k)} ${(i / steps) * 100}%`);
+    }
+    coolTrack.style.background = `linear-gradient(90deg, ${stops.join(',')})`;
+  }
+
+  // Update target chips
+  updateColorChips();
+}
+
+function updateColorChips() {
+  const warmChip = document.getElementById('warm-night-target-chip');
+  if (warmChip) {
+    const k = config.warm_night_target;
+    warmChip.textContent = `${k} K`;
+    warmChip.style.background = cctToRGB(k);
+    warmChip.style.color = readableTextColor(cctToRGB(k));
+  }
+
+  const coolChip = document.getElementById('cool-day-target-chip');
+  if (coolChip) {
+    const k = config.cool_day_target;
+    coolChip.textContent = `${k} K`;
+    coolChip.style.background = cctToRGB(k);
+    coolChip.style.color = readableTextColor(cctToRGB(k));
+  }
+}
+
+// Apply solar color rules to CCT curve
+function adjustCCTForSolarRules(cctArray, hoursArray, sunrise, sunset) {
+  const rules = [];
+
+  // Warm at night rule
+  if (config.warm_night_enabled) {
+    const startOffsetHrs = config.warm_night_start / 60;
+    const endOffsetHrs = config.warm_night_end / 60;
+    const fadeHrs = config.warm_night_fade / 60;
+
+    let windowStart, windowEnd;
+    if (config.warm_night_mode === 'all') {
+      windowStart = sunset + startOffsetHrs;
+      windowEnd = sunrise + 24 + endOffsetHrs; // next day sunrise
+    } else if (config.warm_night_mode === 'sunset') {
+      windowStart = sunset + startOffsetHrs;
+      windowEnd = sunrise + 24; // until midnight effectively
+    } else { // sunrise
+      windowStart = sunset;
+      windowEnd = sunrise + endOffsetHrs;
+    }
+
+    rules.push({
+      mode: 'warm',
+      target: config.warm_night_target,
+      windowStart,
+      windowEnd,
+      fadeHours: fadeHrs,
+      alignEnd: false
+    });
+  }
+
+  // Cool during day rule
+  if (config.cool_day_enabled) {
+    const startOffsetHrs = config.cool_day_start / 60;
+    const endOffsetHrs = config.cool_day_end / 60;
+    const fadeHrs = config.cool_day_fade / 60;
+
+    let windowStart, windowEnd;
+    if (config.cool_day_mode === 'all') {
+      windowStart = sunrise + startOffsetHrs;
+      windowEnd = sunset + endOffsetHrs;
+    } else if (config.cool_day_mode === 'sunrise') {
+      windowStart = sunrise + startOffsetHrs;
+      windowEnd = sunset;
+    } else { // sunset
+      windowStart = sunrise;
+      windowEnd = sunset + endOffsetHrs;
+    }
+
+    rules.push({
+      mode: 'cool',
+      target: config.cool_day_target,
+      windowStart,
+      windowEnd,
+      fadeHours: fadeHrs,
+      alignEnd: false
+    });
+  }
+
+  // Apply rules
+  const fwd = (a, b) => ((b - a) % 24 + 24) % 24;
+  const alignTime = (time, reference) => {
+    let t = time;
+    while (t < reference - 12) t += 24;
+    while (t > reference + 12) t -= 24;
+    return t;
+  };
+
+  rules.forEach(rule => {
+    if (!rule.target) return;
+    let { windowStart, windowEnd } = rule;
+    const totalSpan = fwd(windowStart, windowEnd);
+    if (totalSpan <= 0) return;
+
+    for (let i = 0; i < cctArray.length; i++) {
+      const alignedHour = alignTime(hoursArray[i], windowStart);
+      const distFromStart = fwd(windowStart, alignedHour);
+      if (distFromStart < 0 || distFromStart > totalSpan) continue;
+
+      let weight = 1;
+      if (rule.fadeHours > 0.01) {
+        if (distFromStart < rule.fadeHours) {
+          weight = distFromStart / rule.fadeHours;
+        }
+      }
+
+      if (weight <= 0) continue;
+      if (weight > 1) weight = 1;
+
+      const current = cctArray[i];
+      if (rule.mode === 'cool') {
+        if (current >= rule.target) continue;
+        cctArray[i] = current + (rule.target - current) * weight;
+      } else if (rule.mode === 'warm') {
+        if (current <= rule.target) continue;
+        cctArray[i] = current + (rule.target - current) * weight;
+      }
+    }
+  });
 }
 
 // ============================================================
@@ -851,7 +1169,14 @@ function renderChart() {
   const dateStr = getSelectedDateISO();
   const { sunrise, sunset, solarNoon, solarMid } = getSunTimes(config.latitude, config.longitude, dateStr);
 
+  // Cache sun times for color rules
+  sunTimes = { sunrise, sunset, solarNoon, solarMid };
+
   const data = calculateCurveData();
+
+  // Apply solar color rules to CCT
+  adjustCCTForSolarRules(data.cct, data.hours, sunrise, sunset);
+
   graphData = data;
 
   const { hours, brightness, cct, phase, tAscend, tDescend } = data;
@@ -1029,29 +1354,37 @@ function renderChart() {
     line: { color: DESCEND_COLORS.axis, width: 1.5 }
   });
 
-  // X-axis labels in order:
-  // 1. Time labels (handled by xaxis ticktext)
-  // 2. Phase labels (ascend starts, wake, descend starts, bed) at y = -0.08
-  // 3. Solar labels (sunrise, sunset, etc.) at y = -0.15, muted grey
+  // X-axis labels (from top to bottom):
+  // 1. Time labels (handled by xaxis ticktext at y=0)
+  // 2. Phase labels (ascend starts, wake, descend starts, bed) at y = -0.14
+  // 3. Solar labels (sunrise, sunset, etc.) at y = -0.20, muted grey
 
+  // Phase labels with vertical lines
   const phaseLabels = [
-    { label: 'ascend starts', x: ascendStart, color: ASCEND_COLORS.text },
-    { label: 'wake', x: wrap24(config.wake_time), color: ASCEND_COLORS.text },
-    { label: 'descend starts', x: descendStart, color: DESCEND_COLORS.text },
-    { label: 'bed', x: wrap24(config.bed_time), color: DESCEND_COLORS.text }
+    { label: 'ascend starts', x: ascendStart, color: ASCEND_COLORS.text, lineColor: ASCEND_COLORS.axis, solid: true },
+    { label: 'wake', x: wrap24(config.wake_time), color: ASCEND_COLORS.text, lineColor: ASCEND_COLORS.axis, solid: false },
+    { label: 'descend starts', x: descendStart, color: DESCEND_COLORS.text, lineColor: DESCEND_COLORS.axis, solid: true },
+    { label: 'bed', x: wrap24(config.bed_time), color: DESCEND_COLORS.text, lineColor: DESCEND_COLORS.axis, solid: false }
   ];
 
   phaseLabels.forEach(marker => {
+    // Vertical line from label to axis
+    shapes.push({
+      type: 'line', xref: 'x', yref: 'paper',
+      x0: marker.x, x1: marker.x, y0: -0.08, y1: marker.solid ? 1 : 0,
+      line: { color: marker.lineColor, width: marker.solid ? 1.6 : 1, dash: marker.solid ? 'solid' : 'dot' }
+    });
     annotations.push({
-      x: marker.x, y: -0.08, xref: 'x', yref: 'paper',
+      x: marker.x, y: -0.14, xref: 'x', yref: 'paper',
       text: marker.label,
       showarrow: false,
       font: { size: 11, color: marker.color }
     });
   });
 
-  // Solar labels - all same muted grey color
-  const solarLabelColor = 'rgba(200,200,200,0.7)';
+  // Solar labels - all same muted grey color, lower position
+  const solarLabelColor = 'rgba(215,215,215,0.8)';
+  const solarLineColor = 'rgba(200,200,200,0.35)';
   const solarLabels = [
     { label: 'sunrise', x: wrap24(sunrise) },
     { label: 'sunset', x: wrap24(sunset) },
@@ -1063,11 +1396,11 @@ function renderChart() {
     if (!Number.isFinite(marker.x)) return;
     shapes.push({
       type: 'line', xref: 'x', yref: 'paper',
-      x0: marker.x, x1: marker.x, y0: -0.12, y1: 0,
-      line: { color: solarLabelColor, width: 1, dash: 'dot' }
+      x0: marker.x, x1: marker.x, y0: -0.135, y1: 0,
+      line: { color: solarLineColor, width: 1, dash: 'dot' }
     });
     annotations.push({
-      x: marker.x, y: -0.16, xref: 'x', yref: 'paper',
+      x: marker.x, y: -0.20, xref: 'x', yref: 'paper',
       text: marker.label,
       showarrow: false,
       font: { size: 10, color: solarLabelColor }
@@ -1081,7 +1414,7 @@ function renderChart() {
   const layout = {
     paper_bgcolor: '#0a0a0a',
     plot_bgcolor: '#0a0a0a',
-    margin: { t: 40, r: 40, l: 50, b: 100 },
+    margin: { t: 40, r: 40, l: 50, b: 120 },  // Extra bottom margin for solar labels
     legend: { orientation: 'h', x: 0, y: 1.1, font: { color: '#c8c8c8' } },
     hovermode: 'closest',
     xaxis: {
@@ -1124,15 +1457,23 @@ function renderChart() {
 // ============================================================
 
 function initChartInteractivity() {
-  const chartWrapper = document.querySelector('.chart-wrapper');
   const chart = document.getElementById('chart');
-  if (!chartWrapper || chartWrapper._interactivityInitialized) return;
+  if (!chart || chart._interactivityInitialized) return;
 
+  const chartWrapper = document.querySelector('.chart-wrapper');
   const hoverLabel = document.getElementById('time-hover-label');
 
+  // Helper to get plot area (Plotly creates this after rendering)
+  const getPlotArea = () => {
+    // Try multiple selectors for Plotly's plot area
+    return chart.querySelector('.cartesianlayer .plot') ||
+           chart.querySelector('.plot-container .plot') ||
+           chart.querySelector('.nsewdrag');
+  };
+
   // Mouse move for time hover label at top
-  chartWrapper.addEventListener('mousemove', (ev) => {
-    const plotArea = chart.querySelector('.cartesianlayer .plot');
+  chart.addEventListener('mousemove', (ev) => {
+    const plotArea = getPlotArea();
     if (!plotArea) return;
 
     const rect = plotArea.getBoundingClientRect();
@@ -1144,8 +1485,10 @@ function initChartInteractivity() {
       return;
     }
 
+    const layout = chart._fullLayout;
+    const xRange = layout?.xaxis?.range || [0, 24];
     const ratio = (ev.clientX - rect.left) / rect.width;
-    const xVal = ratio * 24;
+    const xVal = xRange[0] + ratio * (xRange[1] - xRange[0]);
     const wrapperRect = chartWrapper.getBoundingClientRect();
 
     hoverLabel.textContent = fmtTime(xVal);
@@ -1163,16 +1506,19 @@ function initChartInteractivity() {
     hoverLabel.style.background = chipColor;
     hoverLabel.style.color = readableTextColor(chipColor);
     hoverLabel.style.opacity = '1';
-  });
+  }, true);  // Use capture phase
 
-  chartWrapper.addEventListener('mouseleave', () => {
+  chart.addEventListener('mouseleave', () => {
     hoverLabel.style.opacity = '0';
-  });
+  }, true);
 
-  // Click for cursor placement
-  chartWrapper.addEventListener('click', (ev) => {
-    const plotArea = chart.querySelector('.cartesianlayer .plot');
-    if (!plotArea) return;
+  // Click for cursor placement - use capture to get events before Plotly
+  chart.addEventListener('click', (ev) => {
+    const plotArea = getPlotArea();
+    if (!plotArea) {
+      console.log('No plot area found');
+      return;
+    }
 
     const rect = plotArea.getBoundingClientRect();
     if (ev.clientX < rect.left || ev.clientX > rect.right ||
@@ -1180,18 +1526,22 @@ function initChartInteractivity() {
       return;
     }
 
+    const layout = chart._fullLayout;
+    const xRange = layout?.xaxis?.range || [0, 24];
     const ratio = (ev.clientX - rect.left) / rect.width;
-    cursorHour = ratio * 24;
+    const xVal = xRange[0] + ratio * (xRange[1] - xRange[0]);
+
+    cursorHour = xVal;
     applyCursor();
-  });
+  }, true);  // Use capture phase
 
   // Double click to clear cursor
-  chartWrapper.addEventListener('dblclick', () => {
+  chart.addEventListener('dblclick', () => {
     cursorHour = null;
     applyCursor();
-  });
+  }, true);
 
-  chartWrapper._interactivityInitialized = true;
+  chart._interactivityInitialized = true;
 }
 
 function applyCursor() {
@@ -1289,11 +1639,20 @@ function syncConfigFromUI() {
   config.warm_night_enabled = document.getElementById('warm-night-enabled').checked;
   config.warm_night_mode = document.getElementById('warm-night-mode').value;
   config.warm_night_target = parseInt(document.getElementById('warm-night-target').value);
+  config.warm_night_start = parseInt(document.getElementById('warm-night-start')?.value || -60);
+  config.warm_night_end = parseInt(document.getElementById('warm-night-end')?.value || 60);
+  config.warm_night_fade = parseInt(document.getElementById('warm-night-fade')?.value || 60);
+
   config.cool_day_enabled = document.getElementById('cool-day-enabled').checked;
   config.cool_day_mode = document.getElementById('cool-day-mode').value;
   config.cool_day_target = parseInt(document.getElementById('cool-day-target').value);
+  config.cool_day_start = parseInt(document.getElementById('cool-day-start')?.value || 0);
+  config.cool_day_end = parseInt(document.getElementById('cool-day-end')?.value || 0);
+  config.cool_day_fade = parseInt(document.getElementById('cool-day-fade')?.value || 60);
 
   resetRuntimeMidpoints();
+  updateColorGradients();
+  constrainWakeBedSliders();
 }
 
 function syncUIFromConfig() {
@@ -1313,9 +1672,22 @@ function syncUIFromConfig() {
   document.getElementById('warm-night-enabled').checked = config.warm_night_enabled;
   document.getElementById('warm-night-mode').value = config.warm_night_mode;
   document.getElementById('warm-night-target').value = config.warm_night_target;
+  const warmStart = document.getElementById('warm-night-start');
+  const warmEnd = document.getElementById('warm-night-end');
+  const warmFade = document.getElementById('warm-night-fade');
+  if (warmStart) warmStart.value = config.warm_night_start;
+  if (warmEnd) warmEnd.value = config.warm_night_end;
+  if (warmFade) warmFade.value = config.warm_night_fade;
+
   document.getElementById('cool-day-enabled').checked = config.cool_day_enabled;
   document.getElementById('cool-day-mode').value = config.cool_day_mode;
   document.getElementById('cool-day-target').value = config.cool_day_target;
+  const coolStart = document.getElementById('cool-day-start');
+  const coolEnd = document.getElementById('cool-day-end');
+  const coolFade = document.getElementById('cool-day-fade');
+  if (coolStart) coolStart.value = config.cool_day_start;
+  if (coolEnd) coolEnd.value = config.cool_day_end;
+  if (coolFade) coolFade.value = config.cool_day_fade;
 
   document.getElementById('activity-preset').value = config.activity_preset || 'adult';
 
@@ -1330,10 +1702,65 @@ function syncUIFromConfig() {
   updateDisplay('brightness-min-display', `${config.min_brightness}%`);
   updateDisplay('brightness-max-display', `${config.max_brightness}%`);
   updateDisplay('step-count-display', `${config.max_dim_steps} steps`);
-  updateDisplay('warm-night-target-display', `${config.warm_night_target} K`);
-  updateDisplay('cool-day-target-display', `${config.cool_day_target} K`);
 
   updateDualFills();
+  updateColorGradients();
+  updateOffsetDisplays();
+  constrainWakeBedSliders();
+}
+
+// Update offset text displays
+function updateOffsetDisplays() {
+  const formatOffset = (val, baseEvent) => {
+    const absVal = Math.abs(val);
+    if (val === 0) return `at ${baseEvent}`;
+    const direction = val < 0 ? 'before' : 'after';
+    return `${absVal} min ${direction} ${baseEvent}`;
+  };
+
+  updateDisplay('warm-night-start-text', formatOffset(config.warm_night_start, 'sunset'));
+  updateDisplay('warm-night-end-text', formatOffset(config.warm_night_end, 'sunrise'));
+  updateDisplay('warm-night-fade-text', `${config.warm_night_fade} min`);
+  updateDisplay('cool-day-start-text', formatOffset(config.cool_day_start, 'sunrise'));
+  updateDisplay('cool-day-end-text', formatOffset(config.cool_day_end, 'sunset'));
+  updateDisplay('cool-day-fade-text', `${config.cool_day_fade} min`);
+}
+
+// Constrain wake slider to between ascend_start and descend_start
+// Constrain bed slider to between descend_start and ascend_start (wrapping)
+function constrainWakeBedSliders() {
+  const wakeSlider = document.getElementById('wake-time');
+  const bedSlider = document.getElementById('bed-time');
+  if (!wakeSlider || !bedSlider) return;
+
+  // Wake must be between ascend_start and descend_start
+  const ascendStart = config.ascend_start;
+  let descendStart = config.descend_start;
+  if (descendStart <= ascendStart) descendStart += 24;
+
+  wakeSlider.min = ascendStart;
+  wakeSlider.max = descendStart;
+
+  // Clamp current value
+  let wakeVal = parseFloat(wakeSlider.value);
+  if (wakeVal < ascendStart) wakeVal = ascendStart;
+  if (wakeVal > descendStart) wakeVal = descendStart;
+  wakeSlider.value = wakeVal;
+  config.wake_time = wakeVal % 24;
+  updateDisplay('wake-time-display', formatHour(config.wake_time));
+
+  // Bed must be between descend_start and ascend_start+24
+  bedSlider.min = config.descend_start;
+  bedSlider.max = config.descend_start + 24 - (descendStart - ascendStart);
+
+  let bedVal = parseFloat(bedSlider.value);
+  const bedMin = parseFloat(bedSlider.min);
+  const bedMax = parseFloat(bedSlider.max);
+  if (bedVal < bedMin) bedVal = bedMin;
+  if (bedVal > bedMax) bedVal = bedMax;
+  bedSlider.value = bedVal;
+  config.bed_time = bedVal % 24;
+  updateDisplay('bed-time-display', formatHour(config.bed_time));
 }
 
 function updateDualFills() {
@@ -1381,12 +1808,56 @@ function setupEventListeners() {
   updateSliderValue('brightness-max', 'brightness-max-display', v => `${v}%`);
   updateSliderValue('step-count', 'step-count-display', v => `${v} steps`);
 
-  updateSliderValue('warm-night-target', 'warm-night-target-display', v => `${v} K`);
-  updateSliderValue('cool-day-target', 'cool-day-target-display', v => `${v} K`);
+  // Warm/cool target sliders (inside popups)
+  document.getElementById('warm-night-target')?.addEventListener('input', () => {
+    config.warm_night_target = parseInt(document.getElementById('warm-night-target').value);
+    updateColorChips();
+    renderChart();
+  });
+  document.getElementById('cool-day-target')?.addEventListener('input', () => {
+    config.cool_day_target = parseInt(document.getElementById('cool-day-target').value);
+    updateColorChips();
+    renderChart();
+  });
+
+  // Offset sliders
+  ['warm-night-start', 'warm-night-end', 'warm-night-fade', 'cool-day-start', 'cool-day-end', 'cool-day-fade'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('input', () => {
+        syncConfigFromUI();
+        updateOffsetDisplays();
+        renderChart();
+      });
+    }
+  });
 
   ['warm-night-enabled', 'cool-day-enabled', 'warm-night-mode', 'cool-day-mode'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('change', () => { syncConfigFromUI(); renderChart(); });
+  });
+
+  // Color chip buttons - toggle popups
+  document.getElementById('warm-night-target-chip')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const popup = document.getElementById('warm-night-popup');
+    const other = document.getElementById('cool-day-popup');
+    if (other) other.classList.remove('is-open');
+    popup?.classList.toggle('is-open');
+  });
+  document.getElementById('cool-day-target-chip')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const popup = document.getElementById('cool-day-popup');
+    const other = document.getElementById('warm-night-popup');
+    if (other) other.classList.remove('is-open');
+    popup?.classList.toggle('is-open');
+  });
+
+  // Close popups when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.color-controls-wrap')) {
+      document.querySelectorAll('.color-slider-popup').forEach(p => p.classList.remove('is-open'));
+    }
   });
 
   document.getElementById('activity-preset').addEventListener('change', (e) => {

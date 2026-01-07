@@ -1,5 +1,40 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 5.0.3-alpha
+**Enhancement - Light Designer Comprehensive Improvements**
+
+**X-Axis Labels:**
+- Phase labels (ascend starts, wake, descend starts, bed) now at y=-0.14
+- Solar labels (sunrise, sunset, solar noon/midnight) now at y=-0.20
+- Proper vertical separation between time, phase, and solar labels
+
+**Click Cursor:**
+- Fixed click detection using capture phase events
+- Multiple fallback selectors for Plotly plot area
+- Now properly places cursor on graph click
+
+**Slider Constraints:**
+- Wake time slider constrained between ascend_start and descend_start
+- Bed time slider constrained between descend_start and next ascend_start
+- Values automatically clamped when boundaries change
+
+**Color Range Slider:**
+- Track now displays full CCT color gradient (500K-6500K)
+- Masks show inactive range outside selected min/max
+
+**Solar Color Rules - Warm at Night:**
+- Color adjustment now applies to graph when enabled
+- New offset sliders: Start (before sunset), End (after sunrise), Fade duration
+- Button opens colored popup slider to select target temperature
+- Chip button shows current temperature with CCT-colored background
+
+**Solar Color Rules - Cool During Day:**
+- Color adjustment now applies to graph when enabled
+- Mode options: All day, After sunrise, Before sunset
+- New offset sliders: Start (from sunrise), End (from sunset), Fade duration
+- Button opens colored popup slider to select target temperature
+- Chip button shows current temperature with CCT-colored background
+
 ## 5.0.2-alpha
 **Fix - Light Designer Chart Rendering**
 
