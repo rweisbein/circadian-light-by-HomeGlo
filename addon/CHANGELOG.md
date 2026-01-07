@@ -1,5 +1,46 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 5.0.0-alpha
+**Major Release - Ascend/Descend Lighting Model**
+
+**BREAKING CHANGE**: Complete redesign of the adaptive lighting model. Existing configurations will be reset.
+
+**New Features:**
+- **Ascend/Descend Model**: Replaced rise/fall terminology with clearer ascend/descend phases
+  - Ascend phase: Light brightness and color temperature rise (morning)
+  - Descend phase: Light brightness and color temperature fall (evening)
+- **Activity Presets**: Pre-configured timing patterns for different lifestyles
+  - Young Child, Adult, Night Owl, Dusk Bat, Early Shift Worker, Late Shift Worker
+- **Solar Color Rules**: New rules for automatic color temperature adjustments
+  - "Warm at night" rule: Force warmer colors around sunset and before sunrise
+  - "Cool during day" rule: Push colors cooler during bright daylight hours
+  - Configurable fade transitions between modes
+- **Cursor Controls**: Independent brightness and color adjustments
+  - Step Up/Down: Adjust both brightness and color midpoints
+  - Bright Up/Down: Adjust only brightness midpoint
+  - Color Up/Down: Adjust only color midpoint
+  - Reset: Return to base wake/bed time positions
+- **48-Hour Unwrapping**: Cross-midnight schedule handling for shift workers and night owls
+- **Speed-to-Slope Mapping**: New 1-10 speed scale for intuitive curve steepness control
+
+**UI Changes:**
+- Rebuilt Light Designer with Ascend/Descend panels
+- Activity preset selector for quick configuration
+- Date slider for previewing seasonal variations
+- Solar color rules configuration
+- New x-axis labels: "ascend starts", "wake", "descend starts", "bed"
+
+**Technical Changes:**
+- New configuration schema with `ascend_start`, `descend_start`, `wake_time`, `bed_time`
+- Speed parameters use 1-10 scale mapped to logistic slopes
+- Separate runtime midpoints for brightness and color (not persisted)
+- New API endpoints: `/api/presets`, `/api/sun_times`
+- Updated webserver configuration defaults
+
+**Migration:**
+- Old configurations will be ignored; users start fresh with new model
+- Legacy designer preserved as `designer_legacy.html` for reference
+
 ## 4.2.024-alpha
 **Enhancement - Hue Room Group Targeting**
 

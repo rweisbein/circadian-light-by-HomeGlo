@@ -15,7 +15,11 @@ from zoneinfo import ZoneInfo
 from astral import LocationInfo
 from astral.sun import sun
 
-from brain import DEFAULT_MAX_DIM_STEPS, calculate_dimming_step, get_adaptive_lighting, AdaptiveLighting
+from brain import (
+    DEFAULT_MAX_DIM_STEPS, calculate_dimming_step, get_adaptive_lighting,
+    AdaptiveLighting, ACTIVITY_PRESETS, apply_activity_preset, get_preset_names,
+    calculate_sun_times
+)
 
 logger = logging.getLogger(__name__)
 
@@ -333,6 +337,8 @@ class LightDesignerServer:
         self.app.router.add_route('GET', '/{path:.*}/api/steps', self.get_step_sequences)
         self.app.router.add_route('GET', '/{path:.*}/api/curve', self.get_curve_data)
         self.app.router.add_route('GET', '/{path:.*}/api/time', self.get_time)
+        self.app.router.add_route('GET', '/{path:.*}/api/presets', self.get_presets)
+        self.app.router.add_route('GET', '/{path:.*}/api/sun_times', self.get_sun_times)
         self.app.router.add_route('GET', '/{path:.*}/health', self.health_check)
 
         # Direct API routes (for non-ingress access)
@@ -341,8 +347,10 @@ class LightDesignerServer:
         self.app.router.add_get('/api/steps', self.get_step_sequences)
         self.app.router.add_get('/api/curve', self.get_curve_data)
         self.app.router.add_get('/api/time', self.get_time)
+        self.app.router.add_get('/api/presets', self.get_presets)
+        self.app.router.add_get('/api/sun_times', self.get_sun_times)
         self.app.router.add_get('/health', self.health_check)
-        
+
         # Handle root and any other paths (catch-all must be last)
         self.app.router.add_get('/', self.serve_designer)
         self.app.router.add_get('/{path:.*}', self.serve_designer)
@@ -414,6 +422,54 @@ class LightDesignerServer:
         """Health check endpoint."""
         return web.json_response({"status": "healthy"})
 
+    async def get_presets(self, request: Request) -> Response:
+        """Get available activity presets."""
+        try:
+            presets = {}
+            for name in get_preset_names():
+                preset = ACTIVITY_PRESETS.get(name, {})
+                presets[name] = {
+                    "wake_time": preset.get("wake_time", 6.0),
+                    "bed_time": preset.get("bed_time", 22.0),
+                    "ascend_start": preset.get("ascend_start", 3.0),
+                    "descend_start": preset.get("descend_start", 12.0),
+                }
+            return web.json_response({
+                "presets": presets,
+                "names": get_preset_names()
+            })
+        except Exception as e:
+            logger.error(f"Error getting presets: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def get_sun_times(self, request: Request) -> Response:
+        """Get sun times for a specific date (for date slider preview)."""
+        try:
+            # Get parameters from query
+            date_str = request.query.get('date')
+            lat = float(request.query.get('latitude', 35.0))
+            lon = float(request.query.get('longitude', -78.6))
+
+            if not date_str:
+                # Default to today
+                date_str = datetime.now().strftime('%Y-%m-%d')
+
+            # Calculate sun times using brain.py function
+            sun_times = calculate_sun_times(lat, lon, date_str)
+
+            return web.json_response({
+                "date": date_str,
+                "latitude": lat,
+                "longitude": lon,
+                "sunrise": sun_times.get("sunrise"),
+                "sunset": sun_times.get("sunset"),
+                "solar_noon": sun_times.get("solar_noon"),
+                "solar_midnight": sun_times.get("solar_midnight"),
+            })
+        except Exception as e:
+            logger.error(f"Error getting sun times: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
     async def get_time(self, request: Request) -> Response:
         """Get current server time in Home Assistant timezone."""
         try:
@@ -475,28 +531,55 @@ class LightDesignerServer:
 
     def apply_query_overrides(self, config: dict, query) -> dict:
         """Apply UI query parameters to a config dict for live previews."""
-        numeric_params = [
-            'month',
+        # Float parameters (ascend/descend model)
+        float_params = [
             'min_color_temp', 'max_color_temp',
             'min_brightness', 'max_brightness',
-            'mid_bri_up', 'steep_bri_up', 'mid_cct_up', 'steep_cct_up',
-            'mid_bri_dn', 'steep_bri_dn', 'mid_cct_dn', 'steep_cct_dn'
+            'ascend_start', 'descend_start',
+            'wake_time', 'bed_time',
+            'latitude', 'longitude',
+            'warm_night_target', 'warm_night_fade',
+            'warm_night_sunset_start', 'warm_night_sunrise_end',
+            'cool_day_target', 'cool_day_fade',
+            'cool_day_sunrise_start', 'cool_day_sunset_end',
         ]
 
-        for param_name in numeric_params:
+        # Integer parameters
+        int_params = [
+            'month', 'wake_speed', 'bed_speed', 'max_dim_steps'
+        ]
+
+        for param_name in float_params:
             if param_name in query:
                 raw_value = query[param_name]
                 try:
-                    if param_name == 'month':
-                        config[param_name] = int(float(raw_value))
-                    else:
-                        config[param_name] = float(raw_value)
+                    config[param_name] = float(raw_value)
                 except (ValueError, TypeError):
                     logger.warning(f"Invalid value for {param_name}: {raw_value}")
 
-        for param_name in ['mirror_up', 'mirror_dn']:
+        for param_name in int_params:
+            if param_name in query:
+                raw_value = query[param_name]
+                try:
+                    config[param_name] = int(float(raw_value))
+                except (ValueError, TypeError):
+                    logger.warning(f"Invalid value for {param_name}: {raw_value}")
+
+        # Boolean parameters
+        bool_params = [
+            'warm_night_enabled', 'cool_day_enabled', 'use_ha_location'
+        ]
+        for param_name in bool_params:
             if param_name in query:
                 config[param_name] = query[param_name].lower() in ('true', '1', 'yes', 'on')
+
+        # String parameters
+        string_params = [
+            'activity_preset', 'warm_night_mode', 'cool_day_mode', 'timezone'
+        ]
+        for param_name in string_params:
+            if param_name in query:
+                config[param_name] = query[param_name]
 
         return config
 
@@ -550,33 +633,57 @@ class LightDesignerServer:
         Order of precedence (later wins):
           defaults -> options.json -> designer_config.json
         """
-        # Defaults used by UI when nothing saved yet
+        # Defaults using new ascend/descend model
         config: dict = {
+            # Color range
             "color_mode": "kelvin",
             "min_color_temp": 500,
             "max_color_temp": 6500,
+
+            # Brightness range
             "min_brightness": 1,
             "max_brightness": 100,
-            # Morning (up) parameters - simplified, no gain/offset/decay
-            "mid_bri_up": 6.0,
-            "steep_bri_up": 1.5,
-            "mid_cct_up": 6.0,
-            "steep_cct_up": 1.5,
-            # Evening (down) parameters - simplified, no gain/offset/decay
-            "mid_bri_dn": 8.0,
-            "steep_bri_dn": 1.3,
-            "mid_cct_dn": 8.0,
-            "steep_cct_dn": 1.3,
-            # Mirror flags (default ON)
-            "mirror_up": True,
-            "mirror_dn": True,
-            # Dimming steps
-            "max_dim_steps": DEFAULT_MAX_DIM_STEPS,
-            # Location settings (UI preview only)
+
+            # Ascend/Descend timing (hours 0-24)
+            "ascend_start": 3.0,
+            "descend_start": 12.0,
+            "wake_time": 6.0,
+            "bed_time": 22.0,
+
+            # Speed (1-10 scale)
+            "wake_speed": 8,
+            "bed_speed": 6,
+
+            # Warm at night rule
+            "warm_night_enabled": False,
+            "warm_night_mode": "all",  # "all", "sunrise", "sunset"
+            "warm_night_target": 2700,
+            "warm_night_sunset_start": -60,  # minutes before sunset
+            "warm_night_sunrise_end": 60,    # minutes after sunrise
+            "warm_night_fade": 60,           # fade duration in minutes
+
+            # Cool during day rule
+            "cool_day_enabled": False,
+            "cool_day_mode": "all",
+            "cool_day_target": 6500,
+            "cool_day_sunrise_start": 0,
+            "cool_day_sunset_end": 0,
+            "cool_day_fade": 60,
+
+            # Activity preset
+            "activity_preset": "adult",
+
+            # Location (default to HA, allow override)
             "latitude": 35.0,
             "longitude": -78.6,
             "timezone": "US/Eastern",
-            "month": 6
+            "use_ha_location": True,
+
+            # Dimming steps
+            "max_dim_steps": DEFAULT_MAX_DIM_STEPS,
+
+            # UI preview settings
+            "month": 6,
         }
 
         # Merge supervisor-managed options.json (if present)
