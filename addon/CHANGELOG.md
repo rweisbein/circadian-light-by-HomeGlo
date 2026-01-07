@@ -1,5 +1,32 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 5.0.4-alpha
+**Enhancement - Cursor Controls and Graph Lines**
+
+**Solar Color Rules:**
+- Warm-at-night fade now applies at BOTH sunrise and sunset (was only sunset)
+- Cool-during-day fade now applies at both ends as well
+- Proper fade-in and fade-out transitions
+
+**Cursor Buttons:**
+- Buttons now stacked vertically (up above down) like reference design
+- Color buttons show CCT-colored background
+- Bright buttons show brightness fill gradient
+- Step buttons show both color AND brightness visual
+- `tintColorByBrightness` function dims colors based on brightness level
+
+**Cursor Line:**
+- Line is now dotted (dash: 'dot') instead of solid
+- Line extends below x-axis to "cursor" label at y=-0.26
+- Line has gap around the cursor point
+- White (#fdfdfd) color for visibility
+
+**Graph Vertical Lines:**
+- Wake and Bed times now have dotted vertical lines extending up the full graph
+- Sunrise and Sunset now have muted grey dotted lines extending up the full graph
+- Solar noon and solar midnight lines stop at x-axis (don't extend up)
+- All phase labels (ascend/descend starts, wake, bed) have lines going up
+
 ## 5.0.3-alpha
 **Enhancement - Light Designer Comprehensive Improvements**
 
