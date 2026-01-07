@@ -1,5 +1,27 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 5.0.2-alpha
+**Fix - Light Designer Chart Rendering**
+
+**Bug Fixes:**
+- Fixed click cursor not responding to clicks (event listener now on chart wrapper)
+- Fixed x-axis label layering: time labels at baseline, phase labels below, solar labels at bottom
+- Solar time labels now use consistent muted grey color
+- Sun brightness curve now renders as line-only (removed fill)
+- Phase shading now renders ABOVE the curve (ascend blue, descend dark)
+- Hover callout now shows CCT-colored background with format: `{pct}% • {kelvin}K • {ascending/descending}`
+- Time hover label now separate at top with phase-colored background
+
+## 5.0.1-alpha
+**Enhancement - Light Designer Visual Improvements**
+
+**UI Changes:**
+- Added color-gradient curve showing actual CCT colors along the lighting curve
+- Added sun brightness curve (Haurwitz model) for solar irradiance visualization
+- Added solar time markers (sunrise, sunset, solar noon, solar midnight)
+- Added clickable cursor system for adjusting midpoints on the graph
+- Improved chart styling to match reference design
+
 ## 5.0.0-alpha
 **Major Release - Ascend/Descend Lighting Model**
 
