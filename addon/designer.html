@@ -134,7 +134,7 @@ input[type=range]::-moz-range-thumb {
 }
 
 /* Chart Section */
-#chart { height: 400px; }
+#chart { height: 450px; position: relative; }
 .chart-date-control {
   display: flex;
   align-items: center;
@@ -142,9 +142,43 @@ input[type=range]::-moz-range-thumb {
   margin-bottom: 8px;
 }
 .chart-date-display {
-  font-size: 0.9rem;
-  color: var(--muted);
+  font-size: 0.95rem;
+  color: var(--text);
   min-width: 80px;
+  font-weight: 600;
+}
+
+/* Time hover label */
+.time-hover-label {
+  position: absolute;
+  top: 8px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 100;
+  transform: translateX(-50%);
+}
+
+/* Cursor callout */
+.graph-cursor-callout {
+  position: absolute;
+  bottom: 60px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 100;
+  transform: translateX(-50%);
+  background: rgba(30, 144, 255, 0.9);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.3);
 }
 
 /* Cursor Controls */
@@ -156,6 +190,7 @@ input[type=range]::-moz-range-thumb {
   padding-top: 16px;
   border-top: 1px solid var(--line);
 }
+.cursor-controls.hidden { display: none; }
 .cursor-stack {
   display: flex;
   flex-direction: column;
@@ -267,16 +302,6 @@ input[type=range]::-moz-range-thumb {
   border: 1px solid var(--line);
   background: var(--panel2);
   color: var(--text);
-}
-.temp-chip {
-  display: inline-flex;
-  align-items: center;
-  padding: 6px 12px;
-  border-radius: 999px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  border: none;
-  cursor: pointer;
 }
 
 /* Buttons */
@@ -396,12 +421,15 @@ input[type=range]::-moz-range-thumb {
   <div class="section-block">
     <div class="chart-date-control">
       <span class="chart-date-display" id="chart-date-display">Today</span>
-      <input type="range" id="chart-date-slider" min="0" max="364" value="0">
+      <input type="range" id="chart-date-slider" min="0" max="364" value="0" style="flex:1">
     </div>
-    <div id="chart"></div>
+    <div id="chart">
+      <div class="time-hover-label" id="time-hover-label"></div>
+      <div class="graph-cursor-callout" id="cursor-callout"></div>
+    </div>
 
     <!-- Cursor Controls -->
-    <div class="cursor-controls">
+    <div class="cursor-controls hidden" id="cursor-controls">
       <div class="cursor-stack">
         <span class="cursor-stack-label">Step</span>
         <div class="cursor-btn-row">
@@ -515,8 +543,20 @@ input[type=range]::-moz-range-thumb {
 // Circadian Light Designer - Ascend/Descend Model
 // ============================================================
 
-const SPEED_LABELS = ['', 'Very Slow', 'Slow', 'Gentle', 'Soft', 'Medium', 'Crisp', 'Quick', 'Fast', 'Swift', 'Instant'];
+const GRAPH_Y_MAX = 150;
+const SPEED_LABELS = ['', 'Calm', 'Gentle', 'Soft', 'Smooth', 'Balanced', 'Crisp', 'Fast', 'Snappy', 'Quick', 'Sharp'];
 const SPEED_TO_SLOPE = [0, 0.4, 0.6, 0.8, 1.0, 1.3, 1.7, 2.3, 3.0, 4.0, 5.5];
+
+const ASCEND_COLORS = {
+  text: '#7ec8ff',
+  axis: 'rgba(120,190,255,0.6)',
+  hoverBg: 'rgba(100,180,255,0.9)'
+};
+const DESCEND_COLORS = {
+  text: '#ffd47a',
+  axis: 'rgba(255,220,128,0.6)',
+  hoverBg: 'rgba(255,200,100,0.9)'
+};
 
 // Activity Presets
 const ACTIVITY_PRESETS = {
@@ -561,6 +601,98 @@ let runtimeState = {
   color_bed_mid: null
 };
 
+// Cursor state
+let cursorHour = null;
+let graphData = null;
+
+// ============================================================
+// Solar Calculation Helpers
+// ============================================================
+
+const rad = d => d * Math.PI / 180;
+
+function wrap24(x) {
+  return ((x % 24) + 24) % 24;
+}
+
+function dayOfYear(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00');
+  const s = new Date(d.getFullYear(), 0, 0);
+  return Math.floor((d - s) / 86400000);
+}
+
+function solarDeclination(doy) {
+  return (23.44 * Math.PI / 180) * Math.sin(2 * Math.PI * (284 + doy) / 365);
+}
+
+function getSunTimes(lat, lon, dateStr) {
+  const date = new Date(dateStr || new Date().toISOString());
+  const n = Math.floor((date - new Date(date.getFullYear(), 0, 0)) / 86400000);
+  const J = n + ((lon < 0 ? 360 + lon : lon) / 360);
+  const M = (357.5291 + 0.9856 * J) % 360;
+  const C = 1.9148 * Math.sin(rad(M)) + 0.02 * Math.sin(rad(2 * M)) + 0.0003 * Math.sin(rad(3 * M));
+  const L = (M + 102.9372 + C + 180) % 360;
+  const D = Math.asin(Math.sin(rad(L)) * Math.sin(rad(23.44)));
+  const cosH0 = (Math.cos(rad(90.833)) - Math.sin(rad(lat)) * Math.sin(D)) / (Math.cos(rad(lat)) * Math.cos(D));
+
+  // Handle polar day/night
+  if (cosH0 < -1 || cosH0 > 1) {
+    const sn = 12 - date.getTimezoneOffset() / 60 - (lon / 15);
+    return { sunrise: sn - 6, sunset: sn + 6, solarNoon: sn, solarMid: (sn + 12) % 24 };
+  }
+
+  const H0 = Math.acos(cosH0);
+  const dl = (2 * H0 * 180 / Math.PI) / 15;
+  const tz = -date.getTimezoneOffset() / 60;
+  const sn = 12 + tz - (lon / 15);
+  return { sunrise: sn - dl / 2, sunset: sn + dl / 2, solarNoon: sn, solarMid: (sn + 12) % 24 };
+}
+
+function getSelectedDateISO() {
+  const slider = document.getElementById('chart-date-slider');
+  const dayOffset = slider ? parseInt(slider.value) : 0;
+  const now = new Date();
+  const target = new Date(now.getFullYear(), 0, 1 + dayOffset);
+  return target.toISOString().split('T')[0];
+}
+
+// ============================================================
+// Color Helpers
+// ============================================================
+
+function cctToRGB(k) {
+  k = Math.max(500, Math.min(10000, k));
+  const t = k / 100;
+  let r, g, b;
+
+  if (t <= 66) {
+    r = 255;
+    g = 99.47 * Math.log(t) - 161.12;
+    b = t <= 19 ? 0 : 138.52 * Math.log(t - 10) - 305.04;
+  } else {
+    r = 329.7 * Math.pow(t - 60, -0.133);
+    g = 288.12 * Math.pow(t - 60, -0.075);
+    b = 255;
+  }
+
+  // Warm/cool bias for nicer look
+  const s = (k - 5000) / 5000;
+  const blueBoost = 1 + 0.8 * Math.max(0, s);
+  const redDamp = 1 - 0.4 * Math.max(0, s);
+  r = Math.max(0, Math.min(255, r * redDamp));
+  g = Math.max(0, Math.min(255, g));
+  b = Math.max(0, Math.min(255, b * blueBoost));
+  return `rgb(${r | 0},${g | 0},${b | 0})`;
+}
+
+function colorWithAlpha(rgb, alpha) {
+  const match = rgb.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+  if (match) {
+    return `rgba(${match[1]},${match[2]},${match[3]},${alpha})`;
+  }
+  return rgb;
+}
+
 // ============================================================
 // Utility Functions
 // ============================================================
@@ -574,6 +706,10 @@ function formatHour(h) {
   return min === 0 ? `${hr12}:00${suffix}` : `${hr12}:${min.toString().padStart(2, '0')}${suffix}`;
 }
 
+function fmtTime(h) {
+  return formatHour(h);
+}
+
 function logistic(x, midpoint, slope, y0, y1) {
   try {
     const expVal = Math.exp(-slope * (x - midpoint));
@@ -583,7 +719,10 @@ function logistic(x, midpoint, slope, y0, y1) {
   }
 }
 
-// 48-hour unwrapping for cross-midnight handling
+// ============================================================
+// Curve Calculation
+// ============================================================
+
 function getNormalizedPhases(ascendStart, descendStart) {
   let ds = descendStart;
   if (ds <= ascendStart) ds += 24;
@@ -596,69 +735,92 @@ function unwrapHour48(hour, ascendStart) {
 
 function liftMidpoint(mid, phaseStart, phaseEnd) {
   let m = mid;
-  while (m < phaseStart) m += 24;
-  while (m > phaseEnd) m -= 24;
+  let safety = 0;
+  while (m < phaseStart && safety++ < 10) m += 24;
+  safety = 0;
+  while (m > phaseEnd && safety++ < 10) m -= 24;
   return m;
 }
 
-// ============================================================
-// Curve Calculation
-// ============================================================
+function calculateCurveData() {
+  const tAscend = config.ascend_start;
+  let tDescend = config.descend_start;
+  if (tDescend <= tAscend) tDescend += 24;
 
-function calculateBrightnessAtHour(hour, cfg, runtime) {
-  const { ascendStart, descendStart } = getNormalizedPhases(cfg.ascend_start, cfg.descend_start);
-  const h48 = unwrapHour48(hour, ascendStart);
+  const wakeMid = runtimeState.brightness_wake_mid ?? config.wake_time;
+  const bedMid = runtimeState.brightness_bed_mid ?? config.bed_time;
+  const colorWakeMid = runtimeState.color_wake_mid ?? config.wake_time;
+  const colorBedMid = runtimeState.color_bed_mid ?? config.bed_time;
 
-  const bMin = cfg.min_brightness / 100;
-  const bMax = cfg.max_brightness / 100;
+  const kAscend = SPEED_TO_SLOPE[config.wake_speed] || 1.3;
+  const kDescend = SPEED_TO_SLOPE[config.bed_speed] || 1.3;
 
-  const kAscend = SPEED_TO_SLOPE[cfg.wake_speed];
-  const kDescend = SPEED_TO_SLOPE[cfg.bed_speed];
+  const bMin = config.min_brightness / 100;
+  const bMax = config.max_brightness / 100;
+  const cLow = config.min_color_temp;
+  const cHigh = config.max_color_temp;
 
-  const inAscend = h48 >= ascendStart && h48 < descendStart;
+  // Generate 480 samples (20 per hour)
+  const hours = Array.from({ length: 480 }, (_, i) => (i * 3) / 60);
 
-  const wakeMid = runtime.brightness_wake_mid ?? cfg.wake_time;
-  const bedMid = runtime.brightness_bed_mid ?? cfg.bed_time;
+  const brightness = hours.map(h => {
+    const h48 = h < tAscend ? h + 24 : h;
+    const inAscend = h48 >= tAscend && h48 < tDescend;
 
-  let value;
-  if (inAscend) {
-    const wakeMid48 = liftMidpoint(wakeMid, ascendStart, descendStart);
-    value = logistic(h48, wakeMid48, kAscend, bMin, bMax);
-  } else {
-    const descendEnd = ascendStart + 24;
-    const bedMid48 = liftMidpoint(bedMid, descendStart, descendEnd);
-    value = logistic(h48, bedMid48, -kDescend, bMin, bMax);
-  }
+    let wakeMid48 = wakeMid;
+    let safety = 0;
+    while (wakeMid48 < tAscend && safety++ < 10) wakeMid48 += 24;
+    safety = 0;
+    while (wakeMid48 > tDescend && safety++ < 10) wakeMid48 -= 24;
 
-  return Math.max(cfg.min_brightness, Math.min(cfg.max_brightness, value * 100));
-}
+    let bedMid48 = bedMid;
+    safety = 0;
+    while (bedMid48 < tDescend && safety++ < 10) bedMid48 += 24;
+    safety = 0;
+    while (bedMid48 > tDescend + 24 && safety++ < 10) bedMid48 -= 24;
 
-function calculateColorAtHour(hour, cfg, runtime) {
-  const { ascendStart, descendStart } = getNormalizedPhases(cfg.ascend_start, cfg.descend_start);
-  const h48 = unwrapHour48(hour, ascendStart);
+    if (inAscend) {
+      return logistic(h48, wakeMid48, kAscend, bMin, bMax);
+    } else {
+      const hDescend48 = (h48 < tDescend) ? h48 + 24 : h48;
+      return logistic(hDescend48, bedMid48, -kDescend, bMin, bMax);
+    }
+  });
 
-  const cMin = cfg.min_color_temp;
-  const cMax = cfg.max_color_temp;
+  const colorCurve = hours.map(h => {
+    const h48 = h < tAscend ? h + 24 : h;
+    const inAscend = h48 >= tAscend && h48 < tDescend;
 
-  const kAscend = SPEED_TO_SLOPE[cfg.wake_speed];
-  const kDescend = SPEED_TO_SLOPE[cfg.bed_speed];
+    let colorWakeMid48 = colorWakeMid;
+    let safety = 0;
+    while (colorWakeMid48 < tAscend && safety++ < 10) colorWakeMid48 += 24;
+    safety = 0;
+    while (colorWakeMid48 > tDescend && safety++ < 10) colorWakeMid48 -= 24;
 
-  const inAscend = h48 >= ascendStart && h48 < descendStart;
+    let colorBedMid48 = colorBedMid;
+    safety = 0;
+    while (colorBedMid48 < tDescend && safety++ < 10) colorBedMid48 += 24;
+    safety = 0;
+    while (colorBedMid48 > tDescend + 24 && safety++ < 10) colorBedMid48 -= 24;
 
-  const colorWakeMid = runtime.color_wake_mid ?? cfg.wake_time;
-  const colorBedMid = runtime.color_bed_mid ?? cfg.bed_time;
+    let normalized;
+    if (inAscend) {
+      normalized = logistic(h48, colorWakeMid48, kAscend, 0, 1);
+    } else {
+      const hDescend48 = (h48 < tDescend) ? h48 + 24 : h48;
+      normalized = logistic(hDescend48, colorBedMid48, -kDescend, 0, 1);
+    }
+    return Math.max(0, Math.min(1, normalized));
+  });
 
-  let value;
-  if (inAscend) {
-    const wakeMid48 = liftMidpoint(colorWakeMid, ascendStart, descendStart);
-    value = logistic(h48, wakeMid48, kAscend, cMin, cMax);
-  } else {
-    const descendEnd = ascendStart + 24;
-    const bedMid48 = liftMidpoint(colorBedMid, descendStart, descendEnd);
-    value = logistic(h48, bedMid48, -kDescend, cMin, cMax);
-  }
+  const cct = colorCurve.map(v => cLow + (cHigh - cLow) * v);
 
-  return Math.max(cfg.min_color_temp, Math.min(cfg.max_color_temp, value));
+  const phase = hours.map(h => {
+    const h48 = h < tAscend ? h + 24 : h;
+    return h48 < tDescend ? 'Ascend' : 'Descend';
+  });
+
+  return { hours, brightness, cct, phase };
 }
 
 // ============================================================
@@ -666,73 +828,339 @@ function calculateColorAtHour(hour, cfg, runtime) {
 // ============================================================
 
 function renderChart() {
-  const hours = [];
-  const brightness = [];
-  const color = [];
+  const dateStr = getSelectedDateISO();
+  const { sunrise, sunset, solarNoon, solarMid } = getSunTimes(config.latitude, config.longitude, dateStr);
 
-  for (let h = 0; h < 24; h += 0.1) {
-    hours.push(h);
-    brightness.push(calculateBrightnessAtHour(h, config, runtimeState));
-    color.push(calculateColorAtHour(h, config, runtimeState));
+  const data = calculateCurveData();
+  graphData = data;
+
+  const { hours, brightness, cct, phase } = data;
+  const brightnessPct = brightness.map(v => v * 100);
+
+  // Build color-gradient traces
+  const traces = [];
+  const step = 2;
+
+  for (let i = step; i < hours.length; i += step) {
+    const color = cctToRGB(cct[i]);
+    const fillColor = colorWithAlpha(color, 0.5);
+    const x0 = hours[i - step];
+    const x1 = hours[i];
+    const y0 = brightnessPct[i - step];
+    const y1 = brightnessPct[i];
+
+    // Filled area under curve
+    traces.push({
+      type: 'scatter',
+      mode: 'lines',
+      x: [x0, x1, x1, x0],
+      y: [y0, y1, 0, 0],
+      fill: 'toself',
+      line: { width: 0 },
+      fillcolor: fillColor,
+      hoverinfo: 'skip',
+      showlegend: false
+    });
+
+    // Colored line segment
+    traces.push({
+      type: 'scatter',
+      mode: 'lines',
+      x: [x0, x1],
+      y: [y0, y1],
+      line: { width: 3, color },
+      hoverinfo: 'skip',
+      showlegend: false
+    });
   }
 
-  const briTrace = {
-    x: hours,
-    y: brightness,
-    name: 'Brightness',
-    type: 'scatter',
-    mode: 'lines',
-    line: { color: '#66b8ff', width: 2 },
-    yaxis: 'y'
-  };
+  // Sun brightness curve
+  const lat = config.latitude;
+  const latRad = lat * Math.PI / 180;
+  const doyToday = dayOfYear(dateStr);
+  const doyWinter = dayOfYear(`${new Date(dateStr).getFullYear()}-12-21`);
+  const deltaToday = solarDeclination(doyToday);
+  const deltaWinter = solarDeclination(doyWinter);
 
-  const colorTrace = {
-    x: hours,
-    y: color,
-    name: 'Color Temp',
+  const H = hours.map(hh => (hh - solarNoon) * (Math.PI / 12));
+
+  function zenith(phi, delta, Hr) {
+    const c = Math.sin(phi) * Math.sin(delta) + Math.cos(phi) * Math.cos(delta) * Math.cos(Hr);
+    return Math.acos(Math.max(-1, Math.min(1, c)));
+  }
+
+  function ghiHaurwitz(z) {
+    if (z >= Math.PI / 2) return 0;
+    const mu = Math.cos(z);
+    return 1098 * mu * Math.exp(-0.057 / mu);
+  }
+
+  const ghiToday = H.map(Hr => ghiHaurwitz(zenith(latRad, deltaToday, Hr)));
+  const ghiWinter = H.map(Hr => ghiHaurwitz(zenith(latRad, deltaWinter, Hr)));
+  const alpha = 1.5 / Math.max(...ghiWinter, 0.001);
+  const sunScaledPct = ghiToday.map(v => v * alpha * 100);
+
+  // Sun curve trace
+  traces.push({
     type: 'scatter',
     mode: 'lines',
-    line: { color: '#ffd47a', width: 2 },
-    yaxis: 'y2'
-  };
+    x: hours,
+    y: sunScaledPct,
+    line: { width: 1.5, color: 'rgba(255,220,100,0.25)' },
+    fill: 'tozeroy',
+    fillcolor: 'rgba(255,220,100,0.08)',
+    hoverinfo: 'skip',
+    showlegend: false
+  });
+
+  // Hover trace for interactivity
+  const hoverTexts = brightnessPct.map((v, i) => {
+    const pct = Math.round(v);
+    const k = Math.round(cct[i]);
+    return `${fmtTime(hours[i])}<br>${pct}% · ${k}K`;
+  });
+
+  traces.push({
+    type: 'scatter',
+    mode: 'lines',
+    x: hours,
+    y: brightnessPct,
+    line: { width: 0, color: 'transparent' },
+    text: hoverTexts,
+    hoverinfo: 'text',
+    hoverlabel: { bgcolor: '#222', bordercolor: '#444', font: { color: '#fff' } },
+    showlegend: false
+  });
+
+  // Shapes and annotations
+  const shapes = [];
+  const annotations = [];
+
+  // Ascend/Descend phase regions
+  const ascendStart = wrap24(config.ascend_start);
+  const descendStart = wrap24(config.descend_start);
+
+  // Phase separator lines
+  shapes.push({
+    type: 'line', xref: 'x', yref: 'paper',
+    x0: ascendStart, x1: ascendStart, y0: 0, y1: 1,
+    line: { color: ASCEND_COLORS.axis, width: 1.5 }
+  });
+  shapes.push({
+    type: 'line', xref: 'x', yref: 'paper',
+    x0: descendStart, x1: descendStart, y0: 0, y1: 1,
+    line: { color: DESCEND_COLORS.axis, width: 1.5 }
+  });
+
+  // Solar markers
+  const solarMarkers = [
+    { label: 'sunrise', x: wrap24(sunrise), color: 'rgba(255,200,100,0.8)' },
+    { label: 'sunset', x: wrap24(sunset), color: 'rgba(255,150,80,0.8)' },
+    { label: 'solar noon', x: wrap24(solarNoon), color: 'rgba(255,255,150,0.6)' },
+    { label: 'solar midnight', x: wrap24(solarMid), color: 'rgba(100,120,180,0.6)' }
+  ];
+
+  solarMarkers.forEach(marker => {
+    if (!Number.isFinite(marker.x)) return;
+    shapes.push({
+      type: 'line', xref: 'x', yref: 'paper',
+      x0: marker.x, x1: marker.x, y0: -0.08, y1: 0,
+      line: { color: marker.color, width: 1, dash: 'dot' }
+    });
+    annotations.push({
+      x: marker.x, y: -0.12, xref: 'x', yref: 'paper',
+      text: marker.label,
+      showarrow: false,
+      font: { size: 10, color: marker.color }
+    });
+  });
+
+  // Axis markers for timing controls
+  const axisMarkers = [
+    { label: 'ascend starts', x: ascendStart, color: ASCEND_COLORS.text },
+    { label: 'wake', x: wrap24(config.wake_time), color: ASCEND_COLORS.text },
+    { label: 'descend starts', x: descendStart, color: DESCEND_COLORS.text },
+    { label: 'bed', x: wrap24(config.bed_time), color: DESCEND_COLORS.text }
+  ];
+
+  axisMarkers.forEach(marker => {
+    annotations.push({
+      x: marker.x, y: -0.05, xref: 'x', yref: 'paper',
+      text: marker.label,
+      showarrow: false,
+      font: { size: 11, color: marker.color }
+    });
+  });
+
+  // Store base shapes/annotations for cursor updates
+  window.baseShapes = shapes.slice();
+  window.baseAnnotations = annotations.slice();
 
   const layout = {
-    paper_bgcolor: 'transparent',
-    plot_bgcolor: 'transparent',
-    margin: { l: 60, r: 60, t: 20, b: 50 },
+    paper_bgcolor: '#0a0a0a',
+    plot_bgcolor: '#0a0a0a',
+    margin: { t: 30, r: 40, l: 50, b: 80 },
+    hovermode: 'closest',
     xaxis: {
-      title: '',
       range: [0, 24],
-      tickvals: [config.ascend_start, config.wake_time, config.descend_start, config.bed_time % 24],
-      ticktext: ['ascend starts', 'wake', 'descend starts', 'bed'],
-      tickfont: { color: '#aaa', size: 11 },
-      gridcolor: '#333',
-      linecolor: '#444'
+      dtick: 2,
+      tickvals: [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24],
+      ticktext: ['12a', '2a', '4a', '6a', '8a', '10a', '12p', '2p', '4p', '6p', '8p', '10p', '12a'],
+      gridcolor: 'rgba(80,100,130,0.22)',
+      tickfont: { color: '#c8c8c8' },
+      ticklen: 4,
+      tickcolor: 'rgba(160,190,220,0.2)'
     },
     yaxis: {
-      title: 'Brightness %',
-      titlefont: { color: '#66b8ff' },
-      tickfont: { color: '#66b8ff' },
-      range: [0, 100],
-      gridcolor: '#333',
-      linecolor: '#444'
+      range: [0, GRAPH_Y_MAX],
+      gridcolor: 'rgba(80,100,130,0.22)',
+      tickfont: { color: '#c8c8c8' },
+      ticklen: 4,
+      title: 'Brightness (%)',
+      titlefont: { color: '#c8c8c8' }
     },
-    yaxis2: {
-      title: 'Color Temp K',
-      titlefont: { color: '#ffd47a' },
-      tickfont: { color: '#ffd47a' },
-      overlaying: 'y',
-      side: 'right',
-      range: [config.min_color_temp, config.max_color_temp],
-      gridcolor: 'transparent'
-    },
-    showlegend: false,
-    hovermode: 'x unified'
+    shapes,
+    annotations
   };
 
-  const chartConfig = { responsive: true, displayModeBar: false };
+  Plotly.react('chart', traces, layout, { displayModeBar: false }).then(() => {
+    initChartInteractivity();
+  });
 
-  Plotly.react('chart', [briTrace, colorTrace], layout, chartConfig);
+  // Update date display
+  const dateDisplay = document.getElementById('chart-date-display');
+  if (dateDisplay) {
+    const d = new Date(dateStr + 'T12:00:00');
+    dateDisplay.textContent = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+}
+
+// ============================================================
+// Chart Interactivity
+// ============================================================
+
+function initChartInteractivity() {
+  const chart = document.getElementById('chart');
+  if (!chart || chart._interactivityInitialized) return;
+
+  const hoverLabel = document.getElementById('time-hover-label');
+  const cursorCallout = document.getElementById('cursor-callout');
+
+  // Mouse move for time hover
+  chart.addEventListener('mousemove', (ev) => {
+    const plotArea = chart.querySelector('.cartesianlayer .plot');
+    if (!plotArea) return;
+
+    const rect = plotArea.getBoundingClientRect();
+    const inside = ev.clientX >= rect.left && ev.clientX <= rect.right &&
+                   ev.clientY >= rect.top && ev.clientY <= rect.bottom;
+
+    if (!inside) {
+      hoverLabel.style.opacity = '0';
+      return;
+    }
+
+    const ratio = (ev.clientX - rect.left) / rect.width;
+    const xVal = ratio * 24;
+    const chartRect = chart.getBoundingClientRect();
+
+    hoverLabel.textContent = fmtTime(xVal);
+    hoverLabel.style.left = `${ev.clientX - chartRect.left}px`;
+
+    // Color based on phase
+    const tAscend = config.ascend_start;
+    let tDescend = config.descend_start;
+    if (tDescend <= tAscend) tDescend += 24;
+    let h = xVal;
+    if (h < tAscend) h += 24;
+    const inAscend = h < tDescend;
+    const chipColor = inAscend ? ASCEND_COLORS.hoverBg : DESCEND_COLORS.hoverBg;
+
+    hoverLabel.style.background = chipColor;
+    hoverLabel.style.color = '#fff';
+    hoverLabel.style.opacity = '1';
+  });
+
+  chart.addEventListener('mouseleave', () => {
+    hoverLabel.style.opacity = '0';
+  });
+
+  // Click for cursor placement
+  chart.addEventListener('click', (ev) => {
+    const plotArea = chart.querySelector('.cartesianlayer .plot');
+    if (!plotArea) return;
+
+    const rect = plotArea.getBoundingClientRect();
+    if (ev.clientX < rect.left || ev.clientX > rect.right ||
+        ev.clientY < rect.top || ev.clientY > rect.bottom) {
+      return;
+    }
+
+    const ratio = (ev.clientX - rect.left) / rect.width;
+    cursorHour = ratio * 24;
+    applyCursor();
+  });
+
+  // Double click to clear cursor
+  chart.addEventListener('dblclick', () => {
+    cursorHour = null;
+    applyCursor();
+  });
+
+  chart._interactivityInitialized = true;
+}
+
+function applyCursor() {
+  const chart = document.getElementById('chart');
+  const cursorControls = document.getElementById('cursor-controls');
+  const cursorCallout = document.getElementById('cursor-callout');
+
+  if (!chart || !window.baseShapes) return;
+
+  const shapes = window.baseShapes.slice();
+  const annotations = window.baseAnnotations ? window.baseAnnotations.slice() : [];
+
+  if (cursorHour === null) {
+    Plotly.relayout(chart, { shapes, annotations });
+    cursorControls.classList.add('hidden');
+    cursorCallout.style.opacity = '0';
+    return;
+  }
+
+  // Add cursor line
+  shapes.push({
+    type: 'line', xref: 'x', yref: 'paper',
+    x0: cursorHour, x1: cursorHour, y0: 0, y1: 1,
+    line: { color: 'rgba(255,255,255,0.8)', width: 2 }
+  });
+
+  // Find nearest data point
+  if (graphData) {
+    const idx = graphData.hours.findIndex(h => h >= cursorHour);
+    if (idx >= 0) {
+      const bri = Math.round(graphData.brightness[idx] * 100);
+      const cct = Math.round(graphData.cct[idx]);
+
+      // Update callout
+      const plotArea = chart.querySelector('.cartesianlayer .plot');
+      if (plotArea) {
+        const rect = plotArea.getBoundingClientRect();
+        const chartRect = chart.getBoundingClientRect();
+        const x = rect.left + (cursorHour / 24) * rect.width - chartRect.left;
+
+        cursorCallout.textContent = `${fmtTime(cursorHour)} · ${bri}% · ${cct}K`;
+        cursorCallout.style.left = `${x}px`;
+        cursorCallout.style.opacity = '1';
+
+        // Color based on phase
+        const phase = graphData.phase[idx];
+        cursorCallout.style.background = phase === 'Ascend' ? ASCEND_COLORS.hoverBg : DESCEND_COLORS.hoverBg;
+      }
+    }
+  }
+
+  Plotly.relayout(chart, { shapes, annotations });
+  cursorControls.classList.remove('hidden');
 }
 
 // ============================================================
@@ -776,7 +1204,6 @@ function syncConfigFromUI() {
   config.cool_day_mode = document.getElementById('cool-day-mode').value;
   config.cool_day_target = parseInt(document.getElementById('cool-day-target').value);
 
-  // Reset runtime midpoints when config changes
   resetRuntimeMidpoints();
 }
 
@@ -822,7 +1249,6 @@ function syncUIFromConfig() {
 }
 
 function updateDualFills() {
-  // Color range fill
   const colorMin = parseInt(document.getElementById('color-min').value);
   const colorMax = parseInt(document.getElementById('color-max').value);
   const colorFill = document.getElementById('color-fill');
@@ -833,7 +1259,6 @@ function updateDualFills() {
     colorFill.style.width = `${right - left}%`;
   }
 
-  // Brightness range fill
   const briMin = parseInt(document.getElementById('brightness-min').value);
   const briMax = parseInt(document.getElementById('brightness-max').value);
   const briFill = document.getElementById('brightness-fill');
@@ -894,6 +1319,11 @@ function setupEventListeners() {
     }
   });
 
+  // Date slider
+  document.getElementById('chart-date-slider').addEventListener('input', () => {
+    renderChart();
+  });
+
   // Cursor controls
   document.getElementById('cursor-step-up')?.addEventListener('click', () => stepCursor('up', true, true));
   document.getElementById('cursor-step-down')?.addEventListener('click', () => stepCursor('down', true, true));
@@ -904,6 +1334,7 @@ function setupEventListeners() {
   document.getElementById('cursor-reset')?.addEventListener('click', () => {
     resetRuntimeMidpoints();
     renderChart();
+    applyCursor();
   });
 
   // Dual range fills
@@ -916,15 +1347,18 @@ function setupEventListeners() {
 }
 
 function stepCursor(direction, adjustBrightness, adjustColor) {
-  const stepSize = 0.5; // hours
+  if (cursorHour === null) return;
+
+  const stepSize = 0.5;
   const sign = direction === 'up' ? 1 : -1;
 
-  // Determine current phase based on current hour
-  const now = new Date();
-  const currentHour = now.getHours() + now.getMinutes() / 60;
-  const { ascendStart, descendStart } = getNormalizedPhases(config.ascend_start, config.descend_start);
-  const h48 = unwrapHour48(currentHour, ascendStart);
-  const inAscend = h48 >= ascendStart && h48 < descendStart;
+  // Determine phase based on cursor position
+  const tAscend = config.ascend_start;
+  let tDescend = config.descend_start;
+  if (tDescend <= tAscend) tDescend += 24;
+  let h = cursorHour;
+  if (h < tAscend) h += 24;
+  const inAscend = h < tDescend;
 
   if (adjustBrightness) {
     if (inAscend) {
@@ -943,6 +1377,7 @@ function stepCursor(direction, adjustBrightness, adjustColor) {
   }
 
   renderChart();
+  applyCursor();
 }
 
 // ============================================================
@@ -990,9 +1425,14 @@ async function saveConfig() {
 // ============================================================
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Load saved config if available from server injection
-  if (window.savedConfig) {
-    Object.assign(config, window.savedConfig);
+  // Set date slider to today
+  const slider = document.getElementById('chart-date-slider');
+  if (slider) {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), 0, 1);
+    const diff = now - start;
+    const dayOfYear = Math.floor(diff / 86400000);
+    slider.value = dayOfYear;
   }
 
   resetRuntimeMidpoints();
@@ -1000,7 +1440,7 @@ document.addEventListener('DOMContentLoaded', () => {
   syncUIFromConfig();
   renderChart();
 
-  // Load config from API (will override if available)
+  // Load config from API
   loadConfig();
 });
 </script>
