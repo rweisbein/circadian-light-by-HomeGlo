@@ -351,6 +351,8 @@ class LightDesignerServer:
         self.app.router.add_route('GET', '/{path:.*}/api/presets', self.get_presets)
         self.app.router.add_route('GET', '/{path:.*}/api/sun_times', self.get_sun_times)
         self.app.router.add_route('GET', '/{path:.*}/health', self.health_check)
+        self.app.router.add_route('GET', '/{path:.*}/api/areas', self.get_areas)
+        self.app.router.add_route('POST', '/{path:.*}/api/apply-light', self.apply_light)
 
         # Direct API routes (for non-ingress access)
         self.app.router.add_get('/api/config', self.get_config)
