@@ -6,8 +6,8 @@ configuration:
     name: Maximum Color Temperature
     description: Maximum color temperature in Kelvin (coolest/most blue light)
   manage_integration:
-    name: Manage MagicLight Integration
-    description: Automatically install and update the MagicLight custom integration inside Home Assistant
+    name: Manage Circadian Light Integration
+    description: Automatically install and update the Circadian Light custom integration inside Home Assistant
   manage_blueprints:
-    name: Manage MagicLight Blueprints
-    description: Ensure supported switches receive MagicLight Hue Dimmer automations in areas with lights
+    name: Manage Circadian Light Blueprints
+    description: Ensure supported switches receive Circadian Light Hue Dimmer automations in areas with lights

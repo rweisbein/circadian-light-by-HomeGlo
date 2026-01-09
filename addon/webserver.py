@@ -15,10 +15,20 @@ from zoneinfo import ZoneInfo
 from astral import LocationInfo
 from astral.sun import sun
 
+import state
 from brain import (
-    DEFAULT_MAX_DIM_STEPS, calculate_dimming_step, get_adaptive_lighting,
-    AdaptiveLighting, ACTIVITY_PRESETS, apply_activity_preset, get_preset_names,
-    calculate_sun_times
+    CircadianLight,
+    Config,
+    AreaState,
+    DEFAULT_MAX_DIM_STEPS,
+    # Backwards compatibility
+    calculate_dimming_step,
+    get_adaptive_lighting,
+    AdaptiveLighting,
+    ACTIVITY_PRESETS,
+    apply_activity_preset,
+    get_preset_names,
+    calculate_sun_times,
 )
 
 logger = logging.getLogger(__name__)
@@ -403,16 +413,21 @@ class LightDesignerServer:
         """Save curve configuration."""
         try:
             data = await request.json()
-            
+
             # Load existing config
             config = await self.load_config()
-            
+
             # Update with new curve parameters
             config.update(data)
-            
+
             # Save to file
             await self.save_config_to_file(config)
-            
+
+            # Reset all area runtime state on config save
+            # This ensures areas use the new config values
+            state.reset_all_areas()
+            logger.info("Config saved - all area runtime state has been reset")
+
             return web.json_response({"status": "success", "config": config})
         except Exception as e:
             logger.error(f"Error saving config: {e}")

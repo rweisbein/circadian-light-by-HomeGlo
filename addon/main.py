@@ -14,10 +14,14 @@ from websockets.client import WebSocketClientProtocol
 
 from ha_blueprint_manager import BlueprintAutomationManager
 
-from primitives import MagicLightPrimitives
+import state
+from primitives import CircadianLightPrimitives
 from brain import (
-    get_adaptive_lighting,
+    CircadianLight,
+    Config,
+    AreaState,
     ColorMode,
+    get_current_hour,
     DEFAULT_MAX_DIM_STEPS,
     DEFAULT_MIN_BRIGHTNESS,
     DEFAULT_MAX_BRIGHTNESS,
@@ -59,23 +63,21 @@ class HomeAssistantWebSocketClient:
         self.area_to_light_entity = {}  # Map area aliases to their grouped light entity
         self.area_group_map: Dict[str, Dict[str, str]] = {}  # Normalized area key -> {"zha_group": entity, "hue_group": entity, ...}
         self.group_entity_info: Dict[str, Dict[str, Any]] = {}  # Metadata for grouped light entities
-        self.primitives = MagicLightPrimitives(self)  # Initialize primitives handler
+        self.primitives = CircadianLightPrimitives(self)  # Initialize primitives handler
         self.light_controller = None  # Will be initialized after websocket connection
         self.latitude = None  # Home Assistant latitude
         self.longitude = None  # Home Assistant longitude
         self.timezone = None  # Home Assistant timezone
         self.periodic_update_task = None  # Task for periodic light updates
-        self.magic_mode_areas = set()  # Track which areas are in magic mode
-        self.magic_mode_time_offsets = {}  # Track time offsets for dimming along curve
-        self.magic_mode_brightness_offsets = {}  # Track brightness adjustments (percentage) along the curve
+        # State is managed by state.py module (per-area midpoints, bounds, etc.)
         self.cached_states = {}  # Cache of entity states
         self.last_states_update = None  # Timestamp of last states update
         self.area_parity_cache = {}  # Cache of area ZHA parity status
 
-        # Restore previously persisted magic mode state (if any)
-        self._load_magic_mode_state()
+        # Initialize state module (loads from circadian_state.json)
+        state.init()
 
-        manage_blueprints_env = os.getenv("MANAGE_MAGICLIGHT_BLUEPRINTS", "true").lower()
+        manage_blueprints_env = os.getenv("MANAGE_CIRCADIAN_BLUEPRINTS", "true").lower()
         self.manage_blueprints = manage_blueprints_env not in ("false", "0", "no")
         self.blueprint_manager = BlueprintAutomationManager(self, enabled=self.manage_blueprints)
 
@@ -192,7 +194,7 @@ class HomeAssistantWebSocketClient:
         friendly_name: str,
         attributes: Optional[Dict[str, Any]] = None,
     ) -> None:
-        """Update grouped light mappings for ZHA Magic groups and Hue rooms."""
+        """Update grouped light mappings for ZHA Circadian groups and Hue rooms."""
         if not entity_id or not entity_id.startswith("light."):
             return
 
@@ -244,25 +246,25 @@ class HomeAssistantWebSocketClient:
             logger.debug(f"Registered Hue grouped light '{entity_id}' for area '{area_name or area_id}'")
             return
 
-        # Detect Magic_ ZHA group entities
-        if "magic_" not in entity_lower and "magic_" not in friendly_lower:
+        # Detect Circadian_ ZHA group entities
+        if "circadian_" not in entity_lower and "circadian_" not in friendly_lower:
             return
 
         area_name = None
 
         # Try to extract from friendly_name first (preserving case)
-        if "Magic_" in friendly_name:
-            parts = friendly_name.split("Magic_")
+        if "Circadian_" in friendly_name:
+            parts = friendly_name.split("Circadian_")
             if len(parts) >= 2:
                 area_name = parts[-1].strip()
-        elif "magic_" in friendly_lower:
-            idx = friendly_lower.index("magic_")
-            area_name = friendly_name[idx + 6:].strip()
+        elif "circadian_" in friendly_lower:
+            idx = friendly_lower.index("circadian_")
+            area_name = friendly_name[idx + 10:].strip()
 
         # If not found in friendly_name, try entity_id
-        if not area_name and "magic_" in entity_lower:
-            idx = entity_lower.index("magic_")
-            area_name = entity_id[idx + 6:]
+        if not area_name and "circadian_" in entity_lower:
+            idx = entity_lower.index("circadian_")
+            area_name = entity_id[idx + 10:]
             area_name = area_name.replace("light.", "")
 
         if area_name:
@@ -272,7 +274,7 @@ class HomeAssistantWebSocketClient:
                 area_id=None,
                 group_type="zha_group",
             )
-            logger.debug(f"Registered Magic ZHA group '{entity_id}' for area '{area_name}'")
+            logger.debug(f"Registered Circadian ZHA group '{entity_id}' for area '{area_name}'")
 
     # Backwards compatibility for tests and legacy callers
     def _update_zha_group_mapping(self, entity_id: str, friendly_name: str) -> None:
@@ -493,7 +495,7 @@ class HomeAssistantWebSocketClient:
         target = {target_type: target_value}
 
         # Debug log exactly what we're sending
-        logger.info(f"MagicLight sending light.turn_on with data: {service_data}, target: {target}")
+        logger.info(f"Circadian Light sending light.turn_on with data: {service_data}, target: {target}")
 
         # Call the service
         await self.call_service("light", "turn_on", service_data, target)
@@ -594,87 +596,10 @@ class HomeAssistantWebSocketClient:
             return data_dir
 
     def _get_state_file_path(self) -> str:
-        """Return the path used for persisting magic mode state."""
-        return os.path.join(self._get_data_directory(), "magic_mode_state.json")
+        """Return the path used for persisting state (deprecated, use state.py)."""
+        return os.path.join(self._get_data_directory(), "circadian_state.json")
 
-    def _load_magic_mode_state(self) -> None:
-        """Load previously saved magic mode state from disk."""
 
-        path = self._get_state_file_path()
-
-        if not os.path.exists(path):
-            logger.debug("No persisted magic mode state found at %s", path)
-            return
-
-        try:
-            with open(path, "r", encoding="utf-8") as file:
-                data = json.load(file)
-        except Exception as err:  # noqa: B902 - broad to avoid crash on malformed file
-            logger.warning("Failed to load magic mode state from %s: %s", path, err)
-            return
-
-        restored_areas: set[str] = set()
-
-        raw_areas = data.get("magic_mode_areas") or data.get("areas") or []
-        if isinstance(raw_areas, list):
-            restored_areas = {str(area) for area in raw_areas if isinstance(area, str) and area.strip()}
-
-        raw_time_offsets = data.get("time_offsets") or {}
-        if isinstance(raw_time_offsets, dict):
-            for area, value in raw_time_offsets.items():
-                area_key = str(area)
-                try:
-                    # Persisted values may be floats or ints; coerce to float for consistency
-                    offset_value = float(value)
-                except (TypeError, ValueError):
-                    logger.debug("Skipping invalid time offset for area %s: %s", area_key, value)
-                    continue
-                self.magic_mode_time_offsets[area_key] = offset_value
-
-        raw_brightness_offsets = data.get("brightness_offsets") or {}
-        if isinstance(raw_brightness_offsets, dict):
-            for area, value in raw_brightness_offsets.items():
-                area_key = str(area)
-                try:
-                    brightness_offset = float(value)
-                except (TypeError, ValueError):
-                    logger.debug("Skipping invalid brightness offset for area %s: %s", area_key, value)
-                    continue
-                self.magic_mode_brightness_offsets[area_key] = brightness_offset
-
-        if restored_areas:
-            for area in restored_areas:
-                self.magic_mode_time_offsets.setdefault(area, 0.0)
-                self.magic_mode_brightness_offsets.setdefault(area, 0.0)
-            self.magic_mode_areas.update(restored_areas)
-            logger.info(
-                "Restored magic mode state for %d area(s): %s",
-                len(restored_areas),
-                ", ".join(sorted(restored_areas)),
-            )
-        else:
-            logger.debug("Magic mode state file contained no active areas")
-
-    def save_magic_mode_state(self) -> None:
-        """Persist the current magic mode state to disk."""
-
-        path = self._get_state_file_path()
-
-        state_payload = {
-            "magic_mode_areas": sorted(self.magic_mode_areas),
-            "time_offsets": {area: float(value) for area, value in self.magic_mode_time_offsets.items()},
-            "brightness_offsets": {
-                area: float(value) for area, value in self.magic_mode_brightness_offsets.items()
-            },
-        }
-
-        try:
-            with open(path, "w", encoding="utf-8") as file:
-                json.dump(state_payload, file, indent=2, sort_keys=True)
-        except Exception as err:  # noqa: B902 - broad to avoid crashing the add-on
-            logger.error("Failed to save magic mode state to %s: %s", path, err)
-
-    
     def _update_color_mode_from_config(self, merged_config: Dict[str, Any]):
         """Update color mode from configuration if available.
         
@@ -771,48 +696,34 @@ class HomeAssistantWebSocketClient:
         # None of the areas had lights on
         return False
     
-    def enable_magic_mode(self, area_id: str):
-        """Enable magic mode for an area.
+    def enable_circadian_mode(self, area_id: str):
+        """Enable Circadian Light mode for an area.
 
         Args:
-            area_id: The area ID to enable magic mode for
+            area_id: The area ID to enable Circadian Light for
         """
-        self.magic_mode_areas.add(area_id)
-
-        # Use existing offset if available, otherwise set to 0
-        if area_id not in self.magic_mode_time_offsets:
-            self.magic_mode_time_offsets[area_id] = 0
-            logger.info(f"Magic mode enabled for area {area_id}, offset set to 0")
-        else:
-            logger.info(f"Magic mode enabled for area {area_id}, keeping existing offset: {self.magic_mode_time_offsets[area_id]} minutes")
-
-        # Initialize brightness adjustment storage if needed
-        if area_id not in self.magic_mode_brightness_offsets:
-            self.magic_mode_brightness_offsets[area_id] = 0.0
-
-        self.save_magic_mode_state()
-    
-    async def disable_magic_mode(self, area_id: str):
-        """Disable magic mode for an area.
-
-        Args:
-            area_id: The area ID to disable magic mode for
-        """
-        # Check if magic mode was actually enabled
-        was_enabled = area_id in self.magic_mode_areas
-
-        # Remove from magic mode areas but keep the offset in magic_mode_time_offsets
-        self.magic_mode_areas.discard(area_id)
-
-        # Debug logging to confirm area removal
-        logger.info(f"Removed area {area_id} from magic_mode_areas. Current magic areas: {list(self.magic_mode_areas)}")
+        was_enabled = state.is_enabled(area_id)
+        state.set_enabled(area_id, True)
 
         if not was_enabled:
-            logger.info(f"Magic mode already disabled for area {area_id}")
+            logger.info(f"Circadian Light enabled for area {area_id}")
+        else:
+            logger.debug(f"Circadian Light already enabled for area {area_id}")
+
+    async def disable_circadian_mode(self, area_id: str):
+        """Disable Circadian Light mode for an area.
+
+        Args:
+            area_id: The area ID to disable Circadian Light for
+        """
+        was_enabled = state.is_enabled(area_id)
+
+        if not was_enabled:
+            logger.info(f"Circadian Light already disabled for area {area_id}")
             return
 
-        logger.info(f"Magic mode disabled for area {area_id}")
-        self.save_magic_mode_state()
+        state.set_enabled(area_id, False)
+        logger.info(f"Circadian Light disabled for area {area_id}")
     
     def get_brightness_step_pct(self) -> float:
         """Return the configured brightness step size in percent."""
@@ -837,27 +748,11 @@ class HomeAssistantWebSocketClient:
         Args:
             area_id: The area ID to get lighting values for
             current_time: Optional datetime to use for calculations (for time simulation)
-            apply_time_offset: Whether to apply the magic mode time offset
-            
+            apply_time_offset: Whether to apply time offset (unused, kept for API compatibility)
+
         Returns:
             Dict containing adaptive lighting values
         """
-        # Apply magic mode time offset if applicable
-        if apply_time_offset and area_id in self.magic_mode_time_offsets:
-            offset_minutes = self.magic_mode_time_offsets[area_id]
-            if offset_minutes != 0:
-                from datetime import timedelta
-                from zoneinfo import ZoneInfo
-                
-                # Get current time or use provided time
-                if current_time is None:
-                    tzinfo = ZoneInfo(self.timezone) if self.timezone else None
-                    current_time = datetime.now(tzinfo)
-                
-                # Apply the offset
-                current_time = current_time + timedelta(minutes=offset_minutes)
-                logger.info(f"Applying time offset of {offset_minutes} minutes for area {area_id}")
-        
         # Load curve parameters by merging supervisor options and designer overrides
         curve_params = {}
         merged_config: Dict[str, Any] = {}
@@ -963,159 +858,127 @@ class HomeAssistantWebSocketClient:
 
         lighting_values = dict(lighting_values)
 
-        if apply_brightness_adjustment:
-            brightness_offset = self.magic_mode_brightness_offsets.get(area_id, 0.0)
-            if brightness_offset:
-                min_bri, max_bri = self.get_brightness_bounds()
-                span = max(0, max_bri - min_bri)
-
-                if span > 0:
-                    adjustment = span * (brightness_offset / 100.0)
-                    adjusted = lighting_values['brightness'] + adjustment
-                    adjusted = max(min_bri, min(max_bri, adjusted))
-
-                    if abs(adjusted - lighting_values['brightness']) > 1e-6:
-                        logger.info(
-                            f"Applying brightness offset for {area_id}: base {lighting_values['brightness']}% -> "
-                            f"{adjusted}% (offset {brightness_offset:+.2f}%)"
-                        )
-                    lighting_values['brightness'] = int(round(adjusted))
-                else:
-                    logger.debug(
-                        f"Brightness span is zero for area {area_id}; skipping offset adjustment"
-                    )
-
         if 'brightness' in lighting_values:
             lighting_values['brightness'] = int(round(lighting_values['brightness']))
 
         return lighting_values
     
-    async def update_lights_in_magic_mode(self, area_id: str):
-        """Update lights in an area with adaptive lighting if in magic mode.
-        
+    async def update_lights_in_circadian_mode(self, area_id: str):
+        """Update lights in an area with adaptive lighting if Circadian Light is enabled.
+
         Args:
             area_id: The area ID to update
         """
         try:
-            # Only update if area is in magic mode
-            if area_id not in self.magic_mode_areas:
-                logger.debug(f"Area {area_id} not in magic mode, skipping update")
+            # Only update if area is enabled and not frozen
+            if not state.is_enabled(area_id):
+                logger.debug(f"Area {area_id} not in Circadian mode, skipping update")
                 return
-            
-            # Get adaptive lighting values using centralized method
+
+            if state.is_frozen(area_id):
+                logger.debug(f"Area {area_id} is frozen, skipping update")
+                return
+
+            # Get adaptive lighting values using new brain.py
             lighting_values = await self.get_adaptive_lighting_for_area(area_id)
-            
+
             # Use the centralized light control function
             await self.turn_on_lights_adaptive(area_id, lighting_values, transition=2)
-            
+
         except Exception as e:
             logger.error(f"Error updating lights in area {area_id}: {e}")
-    
-    async def reset_offsets_at_solar_midnight(self, last_check: Optional[datetime]) -> Optional[datetime]:
-        """Reset all manual offsets to 0 at solar midnight.
-        
+
+    async def reset_state_at_phase_change(self, last_check: Optional[datetime]) -> Optional[datetime]:
+        """Reset all area runtime state at phase transitions (ascend/descend).
+
+        State resets when crossing ascend_start or descend_start times.
+
         Args:
-            last_check: The last time we checked for solar midnight
-            
+            last_check: The last time we checked for phase change
+
         Returns:
             The updated last check time
         """
-        if not (self.latitude and self.longitude and self.timezone):
-            return last_check
-            
-        from datetime import timedelta
         from zoneinfo import ZoneInfo
-        from astral import LocationInfo
-        from astral.sun import sun
-        
-        # Get current time in the correct timezone
-        tzinfo = ZoneInfo(self.timezone)
+
+        # Get current time
+        tzinfo = ZoneInfo(self.timezone) if self.timezone else None
         now = datetime.now(tzinfo)
-        
-        # Calculate solar events for today
-        loc = LocationInfo(latitude=self.latitude, longitude=self.longitude, timezone=self.timezone)
-        solar_events = sun(loc.observer, date=now.date(), tzinfo=tzinfo)
-        solar_noon = solar_events["noon"]
-        
-        # Calculate solar midnight (12 hours from solar noon)
-        if solar_noon.hour >= 12:
-            solar_midnight = solar_noon - timedelta(hours=12)
-        else:
-            solar_midnight = solar_noon + timedelta(hours=12)
-        
+
         # Initialize last check if needed
         if last_check is None:
             return now
-            
-        # Check if we've passed solar midnight since last check
-        if last_check < solar_midnight <= now:
-            # We've crossed solar midnight - reset all offsets
-            logger.info(f"Solar midnight reached at {solar_midnight.strftime('%H:%M:%S')} - resetting all manual offsets to 0")
-            
-            # Reset all tracked offsets (time and brightness)
-            areas_with_offsets = list(
-                set(self.magic_mode_time_offsets.keys())
-                | set(self.magic_mode_brightness_offsets.keys())
-            )
 
-            state_changed = False
-            for area_id in areas_with_offsets:
-                # Reset current offset
-                old_offset = self.magic_mode_time_offsets.get(area_id, 0)
-                if old_offset != 0:
-                    logger.info(f"Resetting offset for area {area_id}: {old_offset} -> 0 minutes")
-                    self.magic_mode_time_offsets[area_id] = 0
-                    state_changed = True
+        # Load config to get phase times
+        config_dict = {}
+        data_dir = self._get_data_directory()
+        for filename in ["options.json", "designer_config.json"]:
+            path = os.path.join(data_dir, filename)
+            if os.path.exists(path):
+                try:
+                    with open(path, 'r') as f:
+                        part = json.load(f)
+                        if isinstance(part, dict):
+                            config_dict.update(part)
+                except Exception:
+                    pass
 
-                # Reset brightness adjustment for the new solar day
-                brightness_offset = self.magic_mode_brightness_offsets.get(area_id, 0.0)
-                if abs(brightness_offset) > 1e-6:
-                    logger.info(
-                        f"Resetting brightness offset for area {area_id}: {brightness_offset:+.2f}% -> 0%"
-                    )
-                    self.magic_mode_brightness_offsets[area_id] = 0.0
-                    state_changed = True
+        config = Config.from_dict(config_dict)
 
-                # Update lights in this area if it's in magic mode
-                if area_id in self.magic_mode_areas:
-                    await self.update_lights_in_magic_mode(area_id)
+        # Convert hours to today's datetime
+        ascend_dt = now.replace(
+            hour=int(config.ascend_start),
+            minute=int((config.ascend_start % 1) * 60),
+            second=0,
+            microsecond=0
+        )
+        descend_dt = now.replace(
+            hour=int(config.descend_start),
+            minute=int((config.descend_start % 1) * 60),
+            second=0,
+            microsecond=0
+        )
 
-            if state_changed:
-                self.save_magic_mode_state()
-            
-            return now
-        elif now.date() != last_check.date():
-            # New day - update last check
-            return now
-            
-        return last_check
-    
+        # Check if we've crossed a phase boundary
+        crossed_ascend = last_check < ascend_dt <= now
+        crossed_descend = last_check < descend_dt <= now
+
+        if crossed_ascend or crossed_descend:
+            phase = "ascend" if crossed_ascend else "descend"
+            logger.info(f"Phase change to {phase} - resetting all area runtime state")
+            state.reset_all_areas()
+
+            # Update all enabled areas with new values
+            for area_id in state.get_unfrozen_enabled_areas():
+                await self.update_lights_in_circadian_mode(area_id)
+
+        return now
+
     async def periodic_light_updater(self):
-        """Periodically update lights in areas that have magic mode enabled."""
-        last_solar_midnight_check = None
+        """Periodically update lights in areas that have Circadian Light enabled."""
+        last_phase_check = None
 
         while True:
             try:
-                # Wait for 60 seconds
-                await asyncio.sleep(60)
+                # Wait for 30 seconds
+                await asyncio.sleep(30)
 
-                # Check if we should reset offsets at solar midnight
-                last_solar_midnight_check = await self.reset_offsets_at_solar_midnight(last_solar_midnight_check)
+                # Check if we should reset state at phase changes
+                last_phase_check = await self.reset_state_at_phase_change(last_phase_check)
 
-                # Get all areas in magic mode
-                magic_areas = list(self.magic_mode_areas)
+                # Get all enabled, unfrozen areas from state module
+                circadian_areas = state.get_unfrozen_enabled_areas()
 
-                if not magic_areas:
-                    logger.debug("No areas in magic mode for periodic update")
+                if not circadian_areas:
+                    logger.debug("No areas enabled for Circadian Light update")
                     continue
 
-                logger.info(f"Running periodic light update for {len(magic_areas)} areas in magic mode")
-                logger.info(f"Areas in magic mode: {magic_areas}")
+                logger.info(f"Running periodic light update for {len(circadian_areas)} Circadian areas")
 
-                # Update lights in all magic mode areas
-                for area_id in magic_areas:
-                    logger.info(f"Updating lights in magic mode area: {area_id}")
-                    await self.update_lights_in_magic_mode(area_id)
+                # Update lights in all enabled areas
+                for area_id in circadian_areas:
+                    logger.debug(f"Updating lights in Circadian area: {area_id}")
+                    await self.update_lights_in_circadian_mode(area_id)
 
             except asyncio.CancelledError:
                 logger.info("Periodic light updater cancelled")
@@ -1153,8 +1016,8 @@ class HomeAssistantWebSocketClient:
             for area_id, area_info in areas.items():
                 area_name = area_info.get('name', '')
                 
-                # Skip the Magic_Zigbee_Groups area - it's just for organizing group entities
-                if area_name == 'Magic_Zigbee_Groups':
+                # Skip the Circadian_Zigbee_Groups area - it's just for organizing group entities
+                if area_name == 'Circadian_Zigbee_Groups':
                     continue
                     
                 zha_lights = area_info.get('zha_lights', [])
@@ -1216,111 +1079,126 @@ class HomeAssistantWebSocketClient:
             
             # logger.debug(f"Event data: {json.dumps(event_data, indent=2)}")
             
-            # Handle custom magiclight service calls
-            if event_type == "call_service" and event_data.get("domain") == "magiclight":
+            # Handle custom service calls for "circadian" domain
+            if event_type == "call_service" and event_data.get("domain") == "circadian":
+                domain = event_data.get("domain")
                 service = event_data.get("service")
                 service_data = event_data.get("service_data", {})
-                
+                area_id = service_data.get("area_id")
+
+                # Helper to get area list
+                def get_areas():
+                    if not area_id:
+                        return None
+                    return area_id if isinstance(area_id, list) else [area_id]
+
+                # Map services to primitives
                 if service == "step_up":
-                    area_id = service_data.get("area_id")
-                    logger.info(f"Received magiclight.step_up service call for area: {area_id}")
-                    
-                    # Handle both single area (string) and multiple areas (list)
-                    if area_id:
-                        area_list = area_id if isinstance(area_id, list) else [area_id]
-                        for area in area_list:
-                            logger.info(f"Processing step_up for area: {area}")
+                    areas = get_areas()
+                    if areas:
+                        for area in areas:
+                            logger.info(f"[{domain}] step_up for area: {area}")
                             await self.primitives.step_up(area, "service_call")
                     else:
                         logger.warning("step_up called without area_id")
-                        
+
                 elif service == "step_down":
-                    area_id = service_data.get("area_id")
-                    logger.info(f"Received magiclight.step_down service call for area: {area_id}")
-                    
-                    # Handle both single area (string) and multiple areas (list)
-                    if area_id:
-                        area_list = area_id if isinstance(area_id, list) else [area_id]
-                        for area in area_list:
-                            logger.info(f"Processing step_down for area: {area}")
+                    areas = get_areas()
+                    if areas:
+                        for area in areas:
+                            logger.info(f"[{domain}] step_down for area: {area}")
                             await self.primitives.step_down(area, "service_call")
                     else:
                         logger.warning("step_down called without area_id")
-                        
+
+                elif service in ("bright_up", "dim_up"):
+                    areas = get_areas()
+                    if areas:
+                        for area in areas:
+                            logger.info(f"[{domain}] bright_up for area: {area}")
+                            await self.primitives.bright_up(area, "service_call")
+                    else:
+                        logger.warning("bright_up called without area_id")
+
+                elif service in ("bright_down", "dim_down"):
+                    areas = get_areas()
+                    if areas:
+                        for area in areas:
+                            logger.info(f"[{domain}] bright_down for area: {area}")
+                            await self.primitives.bright_down(area, "service_call")
+                    else:
+                        logger.warning("bright_down called without area_id")
+
+                elif service == "color_up":
+                    areas = get_areas()
+                    if areas:
+                        for area in areas:
+                            logger.info(f"[{domain}] color_up for area: {area}")
+                            await self.primitives.color_up(area, "service_call")
+                    else:
+                        logger.warning("color_up called without area_id")
+
+                elif service == "color_down":
+                    areas = get_areas()
+                    if areas:
+                        for area in areas:
+                            logger.info(f"[{domain}] color_down for area: {area}")
+                            await self.primitives.color_down(area, "service_call")
+                    else:
+                        logger.warning("color_down called without area_id")
+
+                elif service in ("circadian_on", "on"):
+                    areas = get_areas()
+                    if areas:
+                        for area in areas:
+                            logger.info(f"[{domain}] circadian_on for area: {area}")
+                            await self.primitives.circadian_on(area, "service_call")
+                    else:
+                        logger.warning("circadian_on called without area_id")
+
+                elif service in ("circadian_off", "off"):
+                    areas = get_areas()
+                    if areas:
+                        for area in areas:
+                            logger.info(f"[{domain}] circadian_off for area: {area}")
+                            await self.primitives.circadian_off(area, "service_call")
+                    else:
+                        logger.warning("circadian_off called without area_id")
+
+                elif service in ("circadian_toggle", "toggle"):
+                    areas = get_areas()
+                    if areas:
+                        logger.info(f"[{domain}] circadian_toggle for areas: {areas}")
+                        await self.primitives.circadian_toggle_multiple(areas, "service_call")
+                    else:
+                        logger.warning("circadian_toggle called without area_id")
+
+                elif service == "freeze":
+                    areas = get_areas()
+                    if areas:
+                        for area in areas:
+                            logger.info(f"[{domain}] freeze for area: {area}")
+                            await self.primitives.freeze(area, "service_call")
+                    else:
+                        logger.warning("freeze called without area_id")
+
+                elif service == "unfreeze":
+                    areas = get_areas()
+                    if areas:
+                        for area in areas:
+                            logger.info(f"[{domain}] unfreeze for area: {area}")
+                            await self.primitives.unfreeze(area, "service_call")
+                    else:
+                        logger.warning("unfreeze called without area_id")
+
                 elif service == "reset":
-                    area_id = service_data.get("area_id")
-                    logger.info(f"Received magiclight.reset service call for area: {area_id}")
-                    
-                    # Handle both single area (string) and multiple areas (list)
-                    if area_id:
-                        area_list = area_id if isinstance(area_id, list) else [area_id]
-                        for area in area_list:
-                            logger.info(f"Processing reset for area: {area}")
+                    areas = get_areas()
+                    if areas:
+                        for area in areas:
+                            logger.info(f"[{domain}] reset for area: {area}")
                             await self.primitives.reset(area, "service_call")
                     else:
                         logger.warning("reset called without area_id")
-
-                elif service == "dim_up":
-                    area_id = service_data.get("area_id")
-                    logger.info(f"Received magiclight.dim_up service call for area: {area_id}")
-
-                    if area_id:
-                        area_list = area_id if isinstance(area_id, list) else [area_id]
-                        for area in area_list:
-                            logger.info(f"Processing dim_up for area: {area}")
-                            await self.primitives.dim_up(area, "service_call")
-                    else:
-                        logger.warning("dim_up called without area_id")
-
-                elif service == "dim_down":
-                    area_id = service_data.get("area_id")
-                    logger.info(f"Received magiclight.dim_down service call for area: {area_id}")
-
-                    if area_id:
-                        area_list = area_id if isinstance(area_id, list) else [area_id]
-                        for area in area_list:
-                            logger.info(f"Processing dim_down for area: {area}")
-                            await self.primitives.dim_down(area, "service_call")
-                    else:
-                        logger.warning("dim_down called without area_id")
-
-                elif service == "magiclight_on":
-                    area_id = service_data.get("area_id")
-                    logger.info(f"Received magiclight.magiclight_on service call for area: {area_id}")
-                    
-                    # Handle both single area (string) and multiple areas (list)
-                    if area_id:
-                        area_list = area_id if isinstance(area_id, list) else [area_id]
-                        for area in area_list:
-                            logger.info(f"Processing magiclight_on for area: {area}")
-                            await self.primitives.magiclight_on(area, "service_call")
-                    else:
-                        logger.warning("magiclight_on called without area_id")
-                        
-                elif service == "magiclight_off":
-                    area_id = service_data.get("area_id")
-                    logger.info(f"Received magiclight.magiclight_off service call for area: {area_id}")
-                    
-                    # Handle both single area (string) and multiple areas (list)
-                    if area_id:
-                        area_list = area_id if isinstance(area_id, list) else [area_id]
-                        for area in area_list:
-                            logger.info(f"Processing magiclight_off for area: {area}")
-                            await self.primitives.magiclight_off(area, "service_call")
-                    else:
-                        logger.warning("magiclight_off called without area_id")
-                        
-                elif service == "magiclight_toggle":
-                    area_id = service_data.get("area_id")
-                    logger.info(f"Received magiclight.magiclight_toggle service call for area: {area_id}")
-                    
-                    # Handle both single area (string) and multiple areas (list)
-                    if area_id:
-                        area_list = area_id if isinstance(area_id, list) else [area_id]
-                        # For toggle, we need to check ALL areas together to make a single decision
-                        await self.primitives.magiclight_toggle_multiple(area_list, "service_call")
-                    else:
-                        logger.warning("magiclight_toggle called without area_id")
             
             
             # Handle device registry updates (when devices are added/removed/modified)
@@ -1407,9 +1285,9 @@ class HomeAssistantWebSocketClient:
                             self.sun_data = attributes
                             logger.info(f"Initial sun data: elevation={self.sun_data.get('elevation')}")
                         
-                        # Detect ZHA group light entities (Magic_AREA pattern)
+                        # Detect ZHA group light entities (Circadian_AREA pattern)
                         if entity_id.startswith("light."):
-                            # Check both entity_id and friendly_name for Magic_ pattern
+                            # Check both entity_id and friendly_name for Circadian_ pattern
                             friendly_name = attributes.get("friendly_name", "")
                             
                             # Debug log all light entities
@@ -1444,7 +1322,7 @@ class HomeAssistantWebSocketClient:
                         logger.info(f"Total: {len(self.group_entity_info)} grouped entities mapped to areas")
                         logger.info("=" * 50)
                     else:
-                        logger.warning("No grouped light entities discovered (Magic_ ZHA or Hue rooms)")
+                        logger.warning("No grouped light entities discovered (Circadian_ ZHA or Hue rooms)")
             
             # Handle config result
             elif result and isinstance(result, dict):
@@ -1595,9 +1473,9 @@ class HomeAssistantWebSocketClient:
                     
                     grouped_count = len(self.group_entity_info)
                     if grouped_count > 0:
-                        logger.info(f"✓ Found {grouped_count} grouped light entities (Hue rooms or Magic ZHA groups)")
+                        logger.info(f"✓ Found {grouped_count} grouped light entities (Hue rooms or Circadian ZHA groups)")
                     else:
-                        logger.warning("⚠ No grouped light entities detected (no Hue rooms or Magic_ ZHA groups found)")
+                        logger.warning("⚠ No grouped light entities detected (no Hue rooms or Circadian_ ZHA groups found)")
                 
                 
                 # Get Home Assistant configuration (lat/lng/tz)

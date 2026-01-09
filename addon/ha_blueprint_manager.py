@@ -1,4 +1,4 @@
-"""Home Assistant blueprint automation manager for MagicLight."""
+"""Home Assistant blueprint automation manager for Circadian Light."""
 
 from __future__ import annotations
 
@@ -34,22 +34,22 @@ def _blueprint_tag_constructor(loader, tag_suffix, node):
 
 BlueprintLoader.add_multi_constructor('!', _blueprint_tag_constructor)
 
-ALIAS_PREFIX = "MagicLight Hue Dimmer – "
-BLUEPRINT_DESCRIPTION = "Managed automatically by the MagicLight add-on."
+ALIAS_PREFIX = "Circadian Light Hue Dimmer – "
+BLUEPRINT_DESCRIPTION = "Managed automatically by the Circadian Light add-on."
 BLUEPRINT_PATH_VARIANTS = (
     Path("/config/blueprints/automation"),
     Path("/config/blueprints/automations"),
 )
 CONFIG_BLUEPRINT_AUT_ROOT = Path("/config/blueprints/automation")
 CONFIG_BLUEPRINT_SCR_ROOT = Path("/config/blueprints/script")
-BLUEPRINT_MARKER_FILENAME = ".managed_by_magiclight_addon"
-BLUEPRINT_SOURCE_ENV_VAR = "MAGICLIGHT_BLUEPRINT_SOURCE_BASE"
+BLUEPRINT_MARKER_FILENAME = ".managed_by_circadian_addon"
+BLUEPRINT_SOURCE_ENV_VAR = "CIRCADIAN_BLUEPRINT_SOURCE_BASE"
 
 AUTOMATIONS_FILE = Path("/config/automations.yaml")
 AUTOMATIONS_DIR = Path("/config/automations")
 CONFIG_PATH = Path("/config/configuration.yaml")
-MANAGED_BLOCK_START = "# --- MagicLight managed automations (auto-generated) ---"
-MANAGED_BLOCK_END = "# --- MagicLight managed automations end ---"
+MANAGED_BLOCK_START = "# --- Circadian Light managed automations (auto-generated) ---"
+MANAGED_BLOCK_END = "# --- Circadian Light managed automations end ---"
 
 INCLUDE_FILE_PATTERN = re.compile(r"^\s*automation:\s*!include\s+(?P<path>[^#\s]+)", re.MULTILINE)
 INCLUDE_DIR_PATTERN = re.compile(
@@ -116,21 +116,21 @@ class BlueprintAutomationManager:
                 if self._persist_managed_automations(storage_path, storage_mode, []):
                     removed_any = True
                     self.logger.debug(
-                        "Cleared MagicLight automations from %s (%s).",
+                        "Cleared Circadian Light automations from %s (%s).",
                         storage_path,
                         storage_mode,
                     )
 
             if not found_any and not removed_any:
                 self.logger.info(
-                    "No MagicLight blueprint automations to remove (%s).",
+                    "No Circadian Light blueprint automations to remove (%s).",
                     reason,
                 )
                 return
 
             if not removed_any:
                 self.logger.debug(
-                    "MagicLight automation store unchanged when attempting removal (%s).",
+                    "Circadian Light automation store unchanged when attempting removal (%s).",
                     reason,
                 )
                 return
@@ -139,13 +139,13 @@ class BlueprintAutomationManager:
                 await self.ws_client.call_service("automation", "reload", {})
             except Exception as err:  # pragma: no cover - defensive log
                 self.logger.error(
-                    "Failed to reload automations after pruning MagicLight entries (%s): %s",
+                    "Failed to reload automations after pruning Circadian Light entries (%s): %s",
                     reason,
                     err,
                 )
             else:
                 self.logger.info(
-                    "Removed MagicLight blueprint automations (%s).",
+                    "Removed Circadian Light blueprint automations (%s).",
                     reason,
                 )
 
@@ -156,7 +156,7 @@ class BlueprintAutomationManager:
 
             if not self._ensure_blueprint_files():
                 self.logger.warning(
-                    "MagicLight blueprint files are unavailable; skipping automation sync (%s).",
+                    "Circadian Light blueprint files are unavailable; skipping automation sync (%s).",
                     reason,
                 )
                 return
@@ -164,7 +164,7 @@ class BlueprintAutomationManager:
             blueprint_path = self._locate_blueprint_file()
             if not blueprint_path:
                 self.logger.warning(
-                    "MagicLight blueprint %s/%s not found; skipping automation sync.",
+                    "Circadian Light blueprint %s/%s not found; skipping automation sync.",
                     self.namespace,
                     self.blueprint_filename,
                 )
@@ -226,18 +226,18 @@ class BlueprintAutomationManager:
             if changes_made:
                 await self.ws_client.call_service("automation", "reload", {})
                 self.logger.info(
-                    "Reloaded automations after MagicLight blueprint sync (%s).",
+                    "Reloaded automations after Circadian Light blueprint sync (%s).",
                     reason,
                 )
             else:
                 if desired_automations or existing_managed:
                     self.logger.info(
-                        "MagicLight blueprint automations already synchronized (%s).",
+                        "Circadian Light blueprint automations already synchronized (%s).",
                         reason,
                     )
                 else:
                     self.logger.info(
-                        "No MagicLight-compatible switches discovered; skipping automation creation (%s).",
+                        "No Circadian Light-compatible switches discovered; skipping automation creation (%s).",
                         reason,
                     )
 
@@ -371,7 +371,7 @@ class BlueprintAutomationManager:
         try:
             data = json.loads(marker_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as err:
-            self.logger.debug("Failed to read MagicLight blueprint marker %s: %s", marker_path, err)
+            self.logger.debug("Failed to read Circadian Light blueprint marker %s: %s", marker_path, err)
             return {}
         return data if isinstance(data, dict) else {}
 
@@ -423,7 +423,7 @@ class BlueprintAutomationManager:
             marker_path.parent.mkdir(parents=True, exist_ok=True)
             marker_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
         except OSError as err:
-            self.logger.error("Failed to write MagicLight blueprint marker %s: %s", marker_path, err)
+            self.logger.error("Failed to write Circadian Light blueprint marker %s: %s", marker_path, err)
 
     def _sync_blueprint_category(
         self,
@@ -477,7 +477,7 @@ class BlueprintAutomationManager:
             if self._directory_contains_yaml(destinations["automation"]):
                 return True
             self.logger.warning(
-                "No MagicLight blueprint source discovered; automation blueprints unavailable."
+                "No Circadian Light blueprint source discovered; automation blueprints unavailable."
             )
             return False
 
@@ -522,7 +522,7 @@ class BlueprintAutomationManager:
             script_checksums,
         )
         self.logger.info(
-            "Installed MagicLight blueprints from %s into %s.",
+            "Installed Circadian Light blueprints from %s into %s.",
             source_label,
             destinations["automation"]
         )
@@ -543,14 +543,14 @@ class BlueprintAutomationManager:
             try:
                 marker_path.unlink()
             except OSError as err:
-                self.logger.debug("Failed to remove MagicLight blueprint marker %s: %s", marker_path, err)
+                self.logger.debug("Failed to remove Circadian Light blueprint marker %s: %s", marker_path, err)
             else:
                 removed_any = True
 
         if removed_any:
-            self.logger.info("Removed MagicLight blueprints (%s).", reason)
+            self.logger.info("Removed Circadian Light blueprints (%s).", reason)
         else:
-            self.logger.debug("No MagicLight blueprints to remove (%s).", reason)
+            self.logger.debug("No Circadian Light blueprints to remove (%s).", reason)
 
     async def remove_blueprint_files(self, reason: str) -> None:
         async with self._lock:
@@ -601,7 +601,7 @@ class BlueprintAutomationManager:
                 and not self._storage_warning_emitted
             ):
                 self.logger.warning(
-                    "Unable to detect an automation include in configuration.yaml; assuming 'automations.yaml' is loaded. If you use storage mode, please add an include for MagicLight to manage automations."
+                    "Unable to detect an automation include in configuration.yaml; assuming 'automations.yaml' is loaded. If you use storage mode, please add an include for Circadian Light to manage automations."
                 )
                 self._storage_warning_emitted = True
 
@@ -671,7 +671,7 @@ class BlueprintAutomationManager:
             data = yaml.load(block, Loader=BlueprintLoader) or []
         except yaml.YAMLError as err:
             self.logger.error(
-                "Failed to parse MagicLight automation block in %s: %s",
+                "Failed to parse Circadian Light automation block in %s: %s",
                 storage_path,
                 err,
             )

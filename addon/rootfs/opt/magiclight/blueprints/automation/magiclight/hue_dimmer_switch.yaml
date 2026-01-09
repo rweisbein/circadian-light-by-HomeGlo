@@ -1,7 +1,7 @@
 blueprint:
-  name: MagicLight Hue Dimmer Switch
+  name: Circadian Light Hue Dimmer Switch
   description: >
-    Control Hue Dimmer Switches via MagicLight
+    Control Hue Dimmer Switches via Circadian Light
   domain: automation
   input:
     switch_device:
@@ -168,7 +168,7 @@ action:
               # - condition: trigger
               #   id: hue_on_legacy
         sequence:
-          - service: magiclight.magiclight_toggle
+          - service: circadian.circadian_toggle
             data:
               area_id: "{{ area_targets }}"
 
@@ -183,7 +183,7 @@ action:
               # - condition: trigger
               #   id: hue_off_legacy
         sequence:
-          - service: magiclight.reset
+          - service: circadian.reset
             data:
               area_id: "{{ area_targets }}"
 
@@ -198,7 +198,7 @@ action:
               # - condition: trigger
               #   id: hue_up_legacy
         sequence:
-          - service: magiclight.step_up
+          - service: circadian.step_up
             data:
               area_id: "{{ area_targets }}"
 
@@ -213,7 +213,7 @@ action:
               # - condition: trigger
               #   id: hue_down_legacy
         sequence:
-          - service: magiclight.step_down
+          - service: circadian.step_down
             data:
               area_id: "{{ area_targets }}"
 
@@ -226,7 +226,7 @@ action:
               - condition: trigger
                 id: hue_off_double
         sequence:
-          - service: magiclight.magiclight_off
+          - service: circadian.circadian_off
             data:
               area_id: "{{ area_targets }}"
 
@@ -235,7 +235,7 @@ action:
           - condition: trigger
             id: zha_triple_off
         sequence:
-          - service: magiclight.magiclight_off
+          - service: circadian.circadian_off
             data:
               area_id: "{{ area_targets }}"
           - repeat:

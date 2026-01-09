@@ -1,7 +1,7 @@
 blueprint:
-  name: MagicLight Hue Dimmer Switch (Test)
+  name: Circadian Light Hue Dimmer Switch (Test)
   description: >
-    Experimental Hue Dimmer Switch controls for MagicLight with extended dimming tests
+    Experimental Hue Dimmer Switch controls for Circadian Light with extended dimming tests
   domain: automation
   input:
     switch_device:
@@ -181,7 +181,7 @@ action:
               # - condition: trigger
               #   id: hue_on_legacy
         sequence:
-          - service: magiclight.magiclight_toggle
+          - service: circadian.circadian_toggle
             data:
               area_id: "{{ area_targets }}"
 
@@ -196,7 +196,7 @@ action:
               # - condition: trigger
               #   id: hue_off_legacy
         sequence:
-          - service: magiclight.reset
+          - service: circadian.reset
             data:
               area_id: "{{ area_targets }}"
 
@@ -211,7 +211,7 @@ action:
               # - condition: trigger
               #   id: hue_up_legacy
         sequence:
-          - service: magiclight.dim_up
+          - service: circadian.bright_up
             data:
               area_id: "{{ area_targets }}"
 
@@ -226,7 +226,7 @@ action:
               # - condition: trigger
               #   id: hue_down_legacy
         sequence:
-          - service: magiclight.dim_down
+          - service: circadian.bright_down
             data:
               area_id: "{{ area_targets }}"
 
@@ -239,7 +239,7 @@ action:
               - condition: trigger
                 id: hue_up_double
         sequence:
-          - service: magiclight.step_up
+          - service: circadian.step_up
             data:
               area_id: "{{ area_targets }}"
 
@@ -252,7 +252,7 @@ action:
               - condition: trigger
                 id: hue_down_double
         sequence:
-          - service: magiclight.step_down
+          - service: circadian.step_down
             data:
               area_id: "{{ area_targets }}"
 
@@ -261,7 +261,7 @@ action:
           - condition: trigger
             id: zha_triple_off
         sequence:
-          - service: magiclight.magiclight_off
+          - service: circadian.circadian_off
             data:
               area_id: "{{ area_targets }}"
           - repeat:

@@ -1,5 +1,216 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 5.0.27-alpha
+**Enhancement - Color Stepping Works with Solar Rules**
+
+**Changed:**
+- Color Up/Down now operates on DISPLAYED color (after solar rules), not base curve
+- At 7:30pm with warm_night showing 2700K: Color Down → 2100K (actually changes the color)
+- Color Up can now override warm_night ceiling: 2700K → 3300K raises the temporary ceiling
+
+**Added:**
+- `runtimeState.warm_night_ceiling`: Can only increase above config target (via Color Up)
+- `runtimeState.cool_day_floor`: Can only decrease below config target (via Color Down)
+- Temporary ceiling/floor chips appear next to target chips when values differ
+- Graph reflects the temporary ceiling/floor values
+
+**Reset behavior:**
+- Ceiling/floor reset on: page refresh, Reset button, phase transition (ascend↔descend)
+- Clicking cursor from Ascend to Descend (or vice versa) resets all runtime state
+
+## 5.0.26-alpha
+**Bugfix - Cursor Button Stepping Fixes**
+
+**Fixed:**
+- Fixed `getBrightnessAtCursor()` using `window.graphData` instead of local `graphData` variable
+- Bright Down button now works correctly (was silently failing due to undefined graphData)
+- Added `getDisplayedCCTAtCursor()` function to read CCT after solar rules are applied
+- Color buttons now correctly detect when solar rules are blocking changes
+- Color Up shows × when warm_night is pulling displayed CCT below base curve
+- Color Down shows × when at warm_night_target (can't go warmer)
+- Step buttons now use solar-aware color extreme detection
+
+## 5.0.25-alpha
+**Enhancement - Fixed Value Step Increments**
+
+**Changed:**
+- Bright Up/Down now changes brightness by fixed increment: `(max - min) / steps`
+  - With 10 steps and 1-100% range: each click = 10% change
+- Color Up/Down now changes CCT by fixed increment: `(max_K - min_K) / steps`
+  - With 10 steps and 500-6500K range: each click = 600K change
+- Step Up/Down still shifts both midpoints together by time (keeps them locked)
+- Uses inverse logistic function to calculate midpoint needed for target value
+
+**Added:**
+- "At extreme" visual indicator (×) on buttons when value is at min/max
+- Button becomes semi-transparent and non-functional at extremes
+- Bright Up shows × when at max brightness
+- Bright Down shows × when at min brightness
+- Color Up shows × when at max CCT
+- Color Down shows × when at min CCT
+- Step buttons show × only when BOTH brightness and color at same extreme
+
+## 5.0.20-alpha
+**UI - Timeline Badge Positioning**
+
+**Added:**
+- Ascend/Descend start time badges now slide along a horizontal timeline
+- Position reflects time of day (0h=left, 12h=center, 24h=right)
+- Subtle line provides visual context for time placement
+- Smooth transition animation when switching presets
+
+## 5.0.17-alpha
+**Enhancement - Hover Callouts for X-Axis Labels**
+
+**Added:**
+- Hovering over phase labels (ascend starts, wake, descend starts, bed) shows time callout
+- Hovering over solar labels (sunrise, sunset, solar noon, solar midnight) shows time callout
+- Phase label callouts use phase colors (blue for ascend, gold for descend)
+- Solar label callouts use neutral grey background
+- Cursor callout already shows: time • brightness% • CCT K • phase
+
+## 5.0.16-alpha
+**Enhancement - Solar-Based Preset Times**
+
+**Added:**
+- Young Child preset now uses solar midnight (rounded) for ascend start
+- Young Child and Adult presets now use solar noon (rounded) for descend start
+- Times are calculated dynamically based on configured location and selected date
+- Other presets (Night Owl, Dusk Bat, Shift workers) use fixed times as before
+
+## 5.0.14-alpha
+**UI - Subtle Yellow Tint for Descend**
+
+**Changed:**
+- Descend section block now has a very subtle warm yellow tint (6% opacity)
+- Descend phase on graph now shaded with subtle yellow (8% opacity)
+- Previous: dark gray/black; now: barely perceptible warm glow
+
+## 5.0.13-alpha
+**UI - Time Badges in Section Headers**
+
+**Added:**
+- Ascend and Descend section headers now show start time as a badge/pill
+- Example: `Ascend [4:00a]` and `Descend [12:00p]`
+- Badges update automatically when switching activity presets
+- Styled with phase-appropriate colors (blue for ascend, gold for descend)
+
+## 5.0.12-alpha
+**UI - Hide Ascend/Descend Start Sliders**
+
+**Changed:**
+- Ascend starts and Descend starts sliders are now hidden
+- Controls remain in code for future "custom" activity preset
+- Users adjust timing via activity presets; wake/bed times remain adjustable
+
+## 5.0.11-alpha
+**Bugfix - Preset Slider Constraint Order**
+
+**Fixed:**
+- Switching presets now correctly applies wake/bed times regardless of previous preset
+- Previously, slider constraints from the old preset would clamp new values incorrectly
+- Example: Switching from Adult to Overnight Shift Early showed noon instead of 10am bedtime
+- New `updateWakeBedSliderConstraints()` function updates min/max BEFORE setting values
+
+## 5.0.10-alpha
+**Enhancement - Solar Rules in Activity Presets**
+
+**Added:**
+- Activity presets now include "Warm at night" and "Cool during day" settings
+- Young, Adult, Night Owl: warm_night_enabled = true
+- Dusk Bat, Overnight Shift Early/Late: warm_night_enabled = false
+- All presets: cool_day_enabled = false (per llm_access reference)
+- Selecting a preset now automatically updates the solar rule checkboxes
+
+## 5.0.9-alpha
+**Bugfix - Activity Preset Midnight Wrap**
+
+**Fixed:**
+- Activity presets with bed times after midnight (Night Owl 2am, Dusk Bat 6am) now display correctly
+- Previously, bed times like 2:00am were incorrectly clamped to descend_start (e.g., 4pm)
+- Slider values now properly add 24 hours when bed_time wraps around midnight
+- Affected presets: Night Owl, Dusk Bat
+
+## 5.0.8-alpha
+**Enhancement - Phase Name Labels on Graph**
+
+**Ascend/Descend Labels:**
+- Added "Ascend" and "Descend" labels above the curve at y=115 (above 100% brightness)
+- Labels appear in the center of each phase segment
+- If a phase wraps around midnight (spans > 1 hour on each side), it shows labels on both sides
+- Labels use phase colors: blue for Ascend, gold for Descend
+- Segments shorter than 1 hour are skipped to avoid clutter
+
+## 5.0.7-alpha
+**Enhancement - Location Section, Always Show Wake/Bed Labels**
+
+**Collapsible Location Section:**
+- Added collapsible "Location" section in Brightness & Color panel
+- Shows current lat/long in collapsed header (e.g., "35.00°N, 78.60°W")
+- "Use Home Assistant location" checkbox (default: on)
+- When unchecked, lat/long fields become editable for manual override
+- Location changes re-render the chart with updated solar times
+
+**Wake/Bed Labels Always Visible:**
+- Bright and Color button stacks now always show wake/bed time label
+- Previously only showed when adjusted; now shows even at base value
+- Label displays "wake X:XXa" during ascend phase, "bed X:XXp" during descend
+
+## 5.0.6-alpha
+**Enhancement - Solar Rule Mode Dropdown, Midpoint Labels**
+
+**Warm-at-Night Mode Dropdown:**
+- "all night" - applies warming from sunset to sunrise (full night)
+- "before sunrise" - applies warming from solar midnight to sunrise only
+- "after sunset" - applies warming from sunset to solar midnight only
+
+**Cool-During-Day Mode Dropdown:**
+- "all day" - applies cooling from sunrise to sunset (full day)
+- "after sunrise" - applies cooling from sunrise to solar noon only
+- "before sunset" - applies cooling from solar noon to sunset only
+
+**Midpoint Labels Under Buttons:**
+- Bright and Color button stacks now show midpoint label when adjusted
+- Label shows "wake X:XXa" or "bed X:XXa" depending on cursor phase
+- Label only appears when runtime midpoint differs from base wake/bed time
+- Label clears when cursor is removed or reset
+
+## 5.0.5-alpha
+**Enhancement - Button NEXT Values, Dual Sliders, UI Reorganization**
+
+**Cursor Button Colors:**
+- Buttons now show what action WILL DO (next step values) instead of current state
+- Brightness buttons show next brightness percentage fill
+- Color buttons show next CCT color
+- Step buttons show next values for both brightness and color
+
+**Dual Range Sliders:**
+- Fixed left handle not being grabbable (z-index and pointer-events fix)
+- Both handles now properly draggable on color range and brightness range sliders
+
+**UI Reorganization:**
+- Removed separate "Solar Color Rules" section
+- Warm-at-night and Cool-during-day now integrated into "Brightness & Color" section
+- Grouped layout with label on left, controls on right (like llm_access)
+- Controls grey out when checkbox is unchecked
+- Removed "Enable" label (checkbox presence is sufficient)
+
+**Label Changes:**
+- "Step increments" renamed to just "Increments"
+
+**Cursor Callout:**
+- Callout now positioned at fixed Y above 100% brightness line (like llm_access)
+- Follows cursor horizontally but stays at consistent vertical position
+
+**Cursor Ball:**
+- Added CCT-colored ball marker at cursor intersection with graph
+- Ball has white border ring for visibility
+- Ball color matches the CCT at that time point
+
+**Reset Button:**
+- Reset button now clears the cursor (hides step/bright/color buttons)
+- Also resets runtime midpoints as before
+
 ## 5.0.4-alpha
 **Enhancement - Cursor Controls and Graph Lines**
 

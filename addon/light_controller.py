@@ -555,83 +555,82 @@ class ZigBeeController(LightController):
             logger.error(f"Failed to check ZHA parity for area {area_id}: {e}")
             return False
     
-    async def ensure_magic_area_exists(self) -> str:
-        """Ensure the 'Magic_Zigbee_Groups' area exists for storing ZHA group entities.
-        
+    async def ensure_circadian_area_exists(self) -> str:
+        """Ensure the 'Circadian_Zigbee_Groups' area exists for storing ZHA group entities.
+
         Returns:
-            The area_id of the Magic_Zigbee_Groups area
+            The area_id of the Circadian_Zigbee_Groups area
         """
         try:
             # Get current areas
             areas_result = await self.ws_client.send_message_wait_response({"type": "config/area_registry/list"})
-            
-            # Check if Magic_Zigbee_Groups area exists
-            magic_area_id = None
+
+            # Check if Circadian_Zigbee_Groups area exists
+            circadian_area_id = None
             if areas_result:
                 for area in areas_result:
-                    if area.get("name") == "Magic_Zigbee_Groups":
-                        magic_area_id = area.get("area_id")
-                        logger.info(f"Found existing Magic_Zigbee_Groups area with ID: {magic_area_id}")
+                    if area.get("name") == "Circadian_Zigbee_Groups":
+                        circadian_area_id = area.get("area_id")
+                        logger.info(f"Found existing Circadian_Zigbee_Groups area with ID: {circadian_area_id}")
                         break
-            
-            # Create Magic_Zigbee_Groups area if it doesn't exist
-            if not magic_area_id:
-                logger.info("Creating Magic_Zigbee_Groups area for ZHA groups...")
+
+            # Create Circadian_Zigbee_Groups area if it doesn't exist
+            if not circadian_area_id:
+                logger.info("Creating Circadian_Zigbee_Groups area for ZHA groups...")
                 result = await self.ws_client.send_message_wait_response({
                     "type": "config/area_registry/create",
-                    "name": "Magic_Zigbee_Groups"
+                    "name": "Circadian_Zigbee_Groups"
                 })
                 if result and "area_id" in result:
-                    magic_area_id = result["area_id"]
-                    logger.info(f"Created Magic_Zigbee_Groups area with ID: {magic_area_id}")
+                    circadian_area_id = result["area_id"]
+                    logger.info(f"Created Circadian_Zigbee_Groups area with ID: {circadian_area_id}")
                 else:
-                    logger.error("Failed to create Magic_Zigbee_Groups area")
-            
-            return magic_area_id
-            
+                    logger.error("Failed to create Circadian_Zigbee_Groups area")
+
+            return circadian_area_id
+
         except Exception as e:
-            logger.error(f"Failed to ensure Magic_Zigbee_Groups area exists: {e}")
+            logger.error(f"Failed to ensure Circadian_Zigbee_Groups area exists: {e}")
             return None
     
-    async def move_group_entity_to_magic_area(self, group_name: str, magic_area_id: str) -> bool:
-        """Find the entity_id for a ZHA group and move it to the Magic_Zigbee_Groups area.
-        
+    async def move_group_entity_to_circadian_area(self, group_name: str, circadian_area_id: str) -> bool:
+        """Find the entity_id for a ZHA group and move it to the Circadian_Zigbee_Groups area.
+
         Args:
-            group_name: The name of the ZHA group (e.g., "Magic_Living_Room")
-            magic_area_id: The area_id of the Magic_Zigbee_Groups area
-            
+            group_name: The name of the ZHA group (e.g., "Circadian_Living_Room")
+            circadian_area_id: The area_id of the Circadian_Zigbee_Groups area
+
         Returns:
             True if successful
         """
         try:
             # Get entity registry to find the group entity
             entity_registry = await self.ws_client.send_message_wait_response({"type": "config/entity_registry/list"})
-            
+
             if entity_registry:
                 for entity in entity_registry:
                     entity_id = entity.get("entity_id", "")
                     # ZHA group entities typically have the group name in their entity_id
-                    # They're usually like light.glo_living_room or similar
                     if entity_id.startswith("light.") and group_name.lower().replace("_", "") in entity_id.lower().replace("_", ""):
-                        # Found the group entity, move it to Glo area
+                        # Found the group entity, move it to Circadian area
                         logger.info(f"Found group entity {entity_id} for group {group_name}")
-                        
+
                         # Check current area
                         current_area = entity.get("area_id")
-                        if current_area != magic_area_id:
-                            success = await self.move_entity_to_area(entity_id, magic_area_id)
+                        if current_area != circadian_area_id:
+                            success = await self.move_entity_to_area(entity_id, circadian_area_id)
                             if success:
-                                logger.info(f"Moved ZHA group entity {entity_id} to Magic_Zigbee_Groups area")
+                                logger.info(f"Moved ZHA group entity {entity_id} to Circadian_Zigbee_Groups area")
                             return success
                         else:
-                            logger.info(f"Group entity {entity_id} already in Magic_Zigbee_Groups area")
+                            logger.info(f"Group entity {entity_id} already in Circadian_Zigbee_Groups area")
                             return True
-            
+
             logger.warning(f"Could not find entity for ZHA group {group_name}")
             return False
-            
+
         except Exception as e:
-            logger.error(f"Failed to move group entity to Glo_Zigbee_Groups area: {e}")
+            logger.error(f"Failed to move group entity to Circadian_Zigbee_Groups area: {e}")
             return False
     
     async def move_entity_to_area(self, entity_id: str, area_id: str) -> bool:
@@ -676,11 +675,11 @@ class ZigBeeController(LightController):
         """
         try:
             logger.info("Starting ZHA group synchronization with areas...")
-            
-            # Ensure Magic_Zigbee_Groups area exists for our groups
-            magic_area_id = await self.ensure_magic_area_exists()
-            if not magic_area_id:
-                logger.warning("Could not ensure Magic_Zigbee_Groups area exists, groups may be placed in random areas")
+
+            # Ensure Circadian_Zigbee_Groups area exists for our groups
+            circadian_area_id = await self.ensure_circadian_area_exists()
+            if not circadian_area_id:
+                logger.warning("Could not ensure Circadian_Zigbee_Groups area exists, groups may be placed in random areas")
             
             # Get current ZHA groups
             existing_groups = await self.list_zha_groups()
@@ -720,8 +719,8 @@ class ZigBeeController(LightController):
                     logger.info(f"Area '{area_name}' has {len(non_zha_lights)} non-ZHA lights, skipping ZHA group creation (will use area-based control)")
                     continue
                 
-                # Group name format: "Magic_<area_name>"
-                group_name = f"Magic_{area_name.replace(' ', '_')}"
+                # Group name format: "Circadian_<area_name>"
+                group_name = f"Circadian_{area_name.replace(' ', '_')}"
                 expected_group_names.add(group_name)
                 
                 # Prepare members list
@@ -822,9 +821,9 @@ class ZigBeeController(LightController):
                     # Store mapping
                     self.area_to_group_id[area_name] = existing_group['group_id']
                     
-                    # Move existing group entity to Magic area if needed
-                    if magic_area_id:
-                        await self.move_group_entity_to_magic_area(group_name, magic_area_id)
+                    # Move existing group entity to Circadian area if needed
+                    if circadian_area_id:
+                        await self.move_group_entity_to_circadian_area(group_name, circadian_area_id)
                 else:
                     # Create new group with random 16-bit group ID
                     # Generate random 16-bit integer (0-65535)
@@ -843,15 +842,15 @@ class ZigBeeController(LightController):
                             if g.get('name') == group_name:
                                 self.area_to_group_id[area_name] = g['group_id']
                                 
-                                # Find the entity_id for this group and move it to Magic area
-                                if magic_area_id:
-                                    await self.move_group_entity_to_magic_area(group_name, magic_area_id)
+                                # Find the entity_id for this group and move it to Circadian area
+                                if circadian_area_id:
+                                    await self.move_group_entity_to_circadian_area(group_name, circadian_area_id)
                                 
                                 break
             
-            # Delete groups for areas that no longer exist (only our Magic_ groups)
+            # Delete groups for areas that no longer exist (only our Circadian_ groups)
             for group_name, group in existing_groups_by_name.items():
-                if group_name.startswith('Magic_') and group_name not in expected_group_names:
+                if group_name.startswith('Circadian_') and group_name not in expected_group_names:
                     logger.info(f"Removing obsolete ZHA group '{group_name}'")
                     await self.manage_group(GroupCommand(
                         name=group_name,
