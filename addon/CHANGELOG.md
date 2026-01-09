@@ -1,5 +1,22 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.1.0
+**Feature - Live Design Mode**
+
+**Added:**
+- Live Design: Preview lighting changes in real-time on actual lights
+- Area selector dropdown in Designer UI (populated from Home Assistant areas)
+- Enable/Disable toggle for Live Design mode
+- `/api/areas` endpoint to fetch Home Assistant areas
+- `/api/apply-light` endpoint to control lights via HA REST API
+
+**Usage:**
+1. Select an area from the dropdown in the Designer
+2. Click "Enable" to activate Live Design
+3. Click anywhere on the chart to set lights to that position's values
+4. Use Step/Bright/Color buttons - lights update in real-time
+5. Click "Disable" when done designing
+
 ## 5.0.27-alpha
 **Enhancement - Color Stepping Works with Solar Rules**
 

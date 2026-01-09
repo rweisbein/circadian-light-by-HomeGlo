@@ -740,6 +740,47 @@ input[type=range]::-moz-range-thumb {
   font-weight: 600;
 }
 
+/* Live Design Controls */
+.live-design-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+  margin-top: 8px;
+  gap: 16px;
+}
+.live-design-controls label {
+  font-size: 0.9rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+.live-design-controls select {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.35);
+  background: rgba(255,255,255,0.06);
+  color: #fff;
+  min-width: 180px;
+  font-size: 0.9rem;
+}
+.live-design-controls select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.live-design-controls .btn.active {
+  background: var(--accent);
+  color: #fff;
+}
+.live-design-status {
+  font-size: 0.8rem;
+  color: var(--muted2);
+  margin-left: 8px;
+}
+.live-design-status.active {
+  color: #4ade80;
+}
+
 /* Responsive */
 @media (max-width: 640px) {
   .param-row { grid-template-columns: 1fr; gap: 4px; }
@@ -877,6 +918,16 @@ input[type=range]::-moz-range-thumb {
           <button class="btn" id="cursor-reset">Reset</button>
         </div>
       </div>
+    </div>
+
+    <!-- Live Design Controls -->
+    <div class="live-design-controls" id="live-design-controls">
+      <label for="live-area-select">Live Design:</label>
+      <select id="live-area-select">
+        <option value="">Select Area</option>
+      </select>
+      <button class="btn" id="live-design-toggle">Enable</button>
+      <span class="live-design-status" id="live-design-status"></span>
     </div>
   </div>
 
@@ -1152,6 +1203,10 @@ let runtimeState = {
 let cursorHour = null;
 let graphData = null;
 let lastCursorPhase = null;  // Track phase for reset on transition
+
+// Live Design state
+let liveDesignEnabled = false;
+let liveDesignAreaId = null;
 
 // ============================================================
 // Solar Calculation Helpers
@@ -2156,6 +2211,7 @@ function initChartInteractivity() {
 
     cursorHour = xVal;
     applyCursor();
+    applyLiveLight();  // Live Design: apply to selected area
   }, true);  // Use capture phase
 
   // Double click to clear cursor
@@ -3239,6 +3295,7 @@ function stepCursor(direction, adjustBrightness, adjustColor) {
 
     renderChart();
     applyCursor();
+    applyLiveLight();  // Live Design: apply to selected area
     return;
   }
 
@@ -3385,6 +3442,7 @@ function stepCursor(direction, adjustBrightness, adjustColor) {
 
   renderChart();
   applyCursor();
+  applyLiveLight();  // Live Design: apply to selected area
 }
 
 // ============================================================
@@ -3428,6 +3486,173 @@ async function saveConfig() {
 }
 
 // ============================================================
+// Live Design Functions
+// ============================================================
+
+/**
+ * Load areas from Home Assistant and populate the dropdown.
+ */
+async function loadLiveDesignAreas() {
+  const select = document.getElementById('live-area-select');
+  if (!select) return;
+
+  try {
+    const response = await fetch('/api/areas');
+    if (!response.ok) {
+      console.warn('Failed to load areas:', response.status);
+      return;
+    }
+    const areas = await response.json();
+
+    // Clear existing options except the placeholder
+    while (select.options.length > 1) {
+      select.remove(1);
+    }
+
+    // Add area options
+    areas.forEach(area => {
+      const option = document.createElement('option');
+      option.value = area.area_id;
+      option.textContent = area.name;
+      select.appendChild(option);
+    });
+  } catch (err) {
+    console.error('Error loading areas:', err);
+  }
+}
+
+/**
+ * Get the brightness and color temperature at the current cursor position.
+ * @returns {Object|null} {brightness, colorTemp} or null if cursor not set
+ */
+function getCursorLightValues() {
+  if (cursorHour === null || !graphData) return null;
+
+  const { hours, bris, ccts } = graphData;
+  if (!hours || !bris || !ccts) return null;
+
+  // Find the index closest to cursorHour
+  let idx = 0;
+  let minDiff = Math.abs(hours[0] - cursorHour);
+  for (let i = 1; i < hours.length; i++) {
+    const diff = Math.abs(hours[i] - cursorHour);
+    if (diff < minDiff) {
+      minDiff = diff;
+      idx = i;
+    }
+  }
+
+  return {
+    brightness: bris[idx],
+    colorTemp: ccts[idx]
+  };
+}
+
+/**
+ * Apply the current cursor lighting values to the selected area.
+ */
+async function applyLiveLight() {
+  if (!liveDesignEnabled || !liveDesignAreaId) return;
+
+  const values = getCursorLightValues();
+  if (!values) return;
+
+  const statusEl = document.getElementById('live-design-status');
+
+  try {
+    const response = await fetch('/api/apply-light', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        area_id: liveDesignAreaId,
+        brightness: Math.round(values.brightness),
+        color_temp: Math.round(values.colorTemp)
+      })
+    });
+
+    if (response.ok) {
+      if (statusEl) {
+        statusEl.textContent = `${Math.round(values.brightness)}% / ${Math.round(values.colorTemp)}K`;
+        statusEl.classList.add('active');
+      }
+    } else {
+      console.warn('Failed to apply light:', response.status);
+      if (statusEl) {
+        statusEl.textContent = 'Error';
+        statusEl.classList.remove('active');
+      }
+    }
+  } catch (err) {
+    console.error('Error applying live light:', err);
+    if (statusEl) {
+      statusEl.textContent = 'Error';
+      statusEl.classList.remove('active');
+    }
+  }
+}
+
+/**
+ * Set up Live Design event listeners.
+ */
+function setupLiveDesign() {
+  const toggleBtn = document.getElementById('live-design-toggle');
+  const areaSelect = document.getElementById('live-area-select');
+  const statusEl = document.getElementById('live-design-status');
+
+  if (toggleBtn) {
+    toggleBtn.addEventListener('click', () => {
+      // Require an area to be selected before enabling
+      if (!liveDesignEnabled && !liveDesignAreaId) {
+        if (statusEl) {
+          statusEl.textContent = 'Select an area first';
+          statusEl.classList.remove('active');
+        }
+        return;
+      }
+
+      liveDesignEnabled = !liveDesignEnabled;
+      toggleBtn.textContent = liveDesignEnabled ? 'Disable' : 'Enable';
+      toggleBtn.classList.toggle('active', liveDesignEnabled);
+
+      if (statusEl) {
+        if (liveDesignEnabled) {
+          statusEl.textContent = 'Click chart or use buttons';
+          statusEl.classList.add('active');
+        } else {
+          statusEl.textContent = '';
+          statusEl.classList.remove('active');
+        }
+      }
+
+      // If just enabled and cursor is already set, apply immediately
+      if (liveDesignEnabled && cursorHour !== null) {
+        applyLiveLight();
+      }
+    });
+  }
+
+  if (areaSelect) {
+    areaSelect.addEventListener('change', (e) => {
+      liveDesignAreaId = e.target.value || null;
+
+      // Reset status when area changes
+      if (statusEl) {
+        if (liveDesignAreaId && liveDesignEnabled) {
+          statusEl.textContent = 'Click chart or use buttons';
+          statusEl.classList.add('active');
+        } else {
+          statusEl.textContent = '';
+          statusEl.classList.remove('active');
+        }
+      }
+    });
+  }
+
+  // Load areas from HA
+  loadLiveDesignAreas();
+}
+
+// ============================================================
 // Initialize
 // ============================================================
 
@@ -3443,6 +3668,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   resetRuntimeMidpoints();
   setupEventListeners();
+  setupLiveDesign();
   syncUIFromConfig();
   renderChart();
 

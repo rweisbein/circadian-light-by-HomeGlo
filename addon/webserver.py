@@ -6,7 +6,7 @@ import json
 import logging
 import math
 import os
-from aiohttp import web
+from aiohttp import web, ClientSession
 from aiohttp.web import Request, Response
 import aiofiles
 from pathlib import Path
@@ -360,6 +360,10 @@ class LightDesignerServer:
         self.app.router.add_get('/api/presets', self.get_presets)
         self.app.router.add_get('/api/sun_times', self.get_sun_times)
         self.app.router.add_get('/health', self.health_check)
+
+        # Live Design API routes
+        self.app.router.add_get('/api/areas', self.get_areas)
+        self.app.router.add_post('/api/apply-light', self.apply_light)
 
         # Handle root and any other paths (catch-all must be last)
         self.app.router.add_get('/', self.serve_designer)
@@ -734,7 +738,141 @@ class LightDesignerServer:
         except Exception as e:
             logger.error(f"Error saving config to file: {e}")
             raise
-    
+
+    # -------------------------------------------------------------------------
+    # Live Design API endpoints
+    # -------------------------------------------------------------------------
+
+    def _get_ha_api_config(self) -> tuple:
+        """Get Home Assistant API URL and token from environment.
+
+        Returns:
+            Tuple of (base_url, token) or (None, None) if not available.
+        """
+        # Check for REST URL first (set by run script)
+        rest_url = os.environ.get('HA_REST_URL')
+        token = os.environ.get('HA_TOKEN')
+
+        if rest_url and token:
+            return rest_url, token
+
+        # Fall back to constructing URL from host/port
+        host = os.environ.get('HA_HOST')
+        port = os.environ.get('HA_PORT', '8123')
+        use_ssl = os.environ.get('HA_USE_SSL', 'false').lower() == 'true'
+
+        if host and token:
+            protocol = 'https' if use_ssl else 'http'
+            return f"{protocol}://{host}:{port}/api", token
+
+        return None, None
+
+    async def get_areas(self, request: Request) -> Response:
+        """Fetch areas from Home Assistant area registry."""
+        base_url, token = self._get_ha_api_config()
+
+        if not base_url or not token:
+            logger.warning("Home Assistant API not configured for Live Design")
+            return web.json_response(
+                {'error': 'Home Assistant API not configured'},
+                status=503
+            )
+
+        try:
+            async with ClientSession() as session:
+                headers = {'Authorization': f'Bearer {token}'}
+                async with session.get(
+                    f'{base_url}/config/area_registry/list',
+                    headers=headers
+                ) as resp:
+                    if resp.status != 200:
+                        logger.error(f"Failed to fetch areas: {resp.status}")
+                        return web.json_response(
+                            {'error': f'HA API returned {resp.status}'},
+                            status=resp.status
+                        )
+                    data = await resp.json()
+                    # Return simplified area list with id and name
+                    areas = [
+                        {'area_id': a['area_id'], 'name': a['name']}
+                        for a in data
+                    ]
+                    # Sort by name for UI
+                    areas.sort(key=lambda x: x['name'].lower())
+                    return web.json_response(areas)
+        except Exception as e:
+            logger.error(f"Error fetching areas from HA: {e}")
+            return web.json_response(
+                {'error': str(e)},
+                status=500
+            )
+
+    async def apply_light(self, request: Request) -> Response:
+        """Apply brightness and color temperature to lights in an area."""
+        base_url, token = self._get_ha_api_config()
+
+        if not base_url or not token:
+            logger.warning("Home Assistant API not configured for Live Design")
+            return web.json_response(
+                {'error': 'Home Assistant API not configured'},
+                status=503
+            )
+
+        try:
+            data = await request.json()
+            area_id = data.get('area_id')
+            brightness = data.get('brightness')
+            color_temp = data.get('color_temp')
+
+            if not area_id:
+                return web.json_response(
+                    {'error': 'area_id is required'},
+                    status=400
+                )
+
+            service_data = {
+                'area_id': area_id,
+                'transition': 0.3,
+            }
+
+            if brightness is not None:
+                service_data['brightness_pct'] = int(brightness)
+
+            if color_temp is not None:
+                service_data['kelvin'] = int(color_temp)
+
+            async with ClientSession() as session:
+                headers = {
+                    'Authorization': f'Bearer {token}',
+                    'Content-Type': 'application/json',
+                }
+                async with session.post(
+                    f'{base_url}/services/light/turn_on',
+                    headers=headers,
+                    json=service_data
+                ) as resp:
+                    if resp.status not in (200, 201):
+                        logger.error(f"Failed to apply light: {resp.status}")
+                        return web.json_response(
+                            {'error': f'HA API returned {resp.status}'},
+                            status=resp.status
+                        )
+                    logger.info(
+                        f"Live Design: Applied {brightness}% / {color_temp}K to area {area_id}"
+                    )
+                    return web.json_response({'status': 'ok'})
+        except json.JSONDecodeError:
+            return web.json_response(
+                {'error': 'Invalid JSON'},
+                status=400
+            )
+        except Exception as e:
+            logger.error(f"Error applying light: {e}")
+            return web.json_response(
+                {'error': str(e)},
+                status=500
+            )
+
     async def start(self):
         """Start the web server."""
         runner = web.AppRunner(self.app)
