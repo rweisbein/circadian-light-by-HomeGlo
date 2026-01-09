@@ -27,8 +27,8 @@ pytest tests/unit/test_new_algorithm.py
 
 ### Run specific test class or method
 ```bash
-pytest tests/unit/test_new_algorithm.py::TestSimplifiedAdaptiveLighting
-pytest tests/unit/test_new_algorithm.py::TestSimplifiedAdaptiveLighting::test_noon_values
+pytest tests/unit/test_new_algorithm.py::TestSimplifiedCircadianLighting
+pytest tests/unit/test_new_algorithm.py::TestSimplifiedCircadianLighting::test_noon_values
 ```
 
 ### Run with verbose output
@@ -59,10 +59,10 @@ Tests use pytest. Basic structure:
 
 ```python
 import pytest
-from homeglo.brain import get_adaptive_lighting
+from homeglo.brain import get_circadian_lighting
 
 def test_something():
-    result = get_adaptive_lighting(...)
+    result = get_circadian_lighting(...)
     assert result['brightness'] > 0
 
 class TestFeature:
@@ -85,6 +85,6 @@ def test_config():
     }
 
 def test_with_config(test_config):
-    result = get_adaptive_lighting(config=test_config)
+    result = get_circadian_lighting(config=test_config)
     assert result is not None
 ```

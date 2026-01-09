@@ -22,7 +22,7 @@ from brain import (
     AreaState,
     ColorMode,
     get_current_hour,
-    get_adaptive_lighting,
+    get_circadian_lighting,
     DEFAULT_MAX_DIM_STEPS,
     DEFAULT_MIN_BRIGHTNESS,
     DEFAULT_MAX_BRIGHTNESS,
@@ -384,7 +384,7 @@ class HomeAssistantWebSocketClient:
         if "entity_id" in final_service_data:
             final_target["entity_id"] = final_service_data.pop("entity_id")
         
-        # Note: ZHA group vs area-based control is now handled in turn_on_lights_adaptive
+        # Note: ZHA group vs area-based control is now handled in turn_on_lights_circadian
         # based on whether the area has ZHA parity (all lights are ZHA)
         # This call_service method remains generic and doesn't auto-substitute
         
@@ -456,41 +456,41 @@ class HomeAssistantWebSocketClient:
         logger.info(f"Using area-based control for area '{area_id}'")
         return "area_id", area_id
     
-    async def turn_on_lights_adaptive(
+    async def turn_on_lights_circadian(
         self,
         area_id: str,
-        adaptive_values: Dict[str, Any],
+        circadian_values: Dict[str, Any],
         transition: int = 1,
         *,
         include_color: bool = True,
     ) -> None:
-        """Turn on lights with adaptive values using the light controller.
-        
+        """Turn on lights with circadian values using the light controller.
+
         Args:
             area_id: The area ID to control lights in
-            adaptive_values: Adaptive lighting values from get_adaptive_lighting
+            circadian_values: Circadian lighting values from get_circadian_lighting
             transition: Transition time in seconds (default 1)
             include_color: Whether to include color data when turning on lights
         """
         # Determine the best target for this area
         target_type, target_value = await self.determine_light_target(area_id)
-        
+
         # Build service data
         service_data = {
             "transition": transition
         }
-        
+
         # Add brightness
-        if 'brightness' in adaptive_values:
-            service_data["brightness_pct"] = adaptive_values['brightness']
-        
+        if 'brightness' in circadian_values:
+            service_data["brightness_pct"] = circadian_values['brightness']
+
         # Add color data based on the configured color mode
-        if include_color and self.color_mode == ColorMode.KELVIN and 'kelvin' in adaptive_values:
-            service_data["kelvin"] = adaptive_values['kelvin']
-        elif include_color and self.color_mode == ColorMode.RGB and 'rgb' in adaptive_values:
-            service_data["rgb_color"] = adaptive_values['rgb']
-        elif include_color and self.color_mode == ColorMode.XY and 'xy' in adaptive_values:
-            service_data["xy_color"] = adaptive_values['xy']
+        if include_color and self.color_mode == ColorMode.KELVIN and 'kelvin' in circadian_values:
+            service_data["kelvin"] = circadian_values['kelvin']
+        elif include_color and self.color_mode == ColorMode.RGB and 'rgb' in circadian_values:
+            service_data["rgb_color"] = circadian_values['rgb']
+        elif include_color and self.color_mode == ColorMode.XY and 'xy' in circadian_values:
+            service_data["xy_color"] = circadian_values['xy']
 
         # Build target
         target = {target_type: target_value}
@@ -735,24 +735,24 @@ class HomeAssistantWebSocketClient:
         """Return the configured min/max brightness bounds."""
         return int(self.min_brightness), int(self.max_brightness)
 
-    async def get_adaptive_lighting_for_area(
+    async def get_circadian_lighting_for_area(
         self,
         area_id: str,
         current_time: Optional[datetime] = None,
         apply_time_offset: bool = True,
         apply_brightness_adjustment: bool = True,
     ) -> Dict[str, Any]:
-        """Get adaptive lighting values for a specific area.
-        
-        This is the centralized method that should be used for all adaptive lighting calculations.
-        
+        """Get circadian lighting values for a specific area.
+
+        This is the centralized method that should be used for all circadian lighting calculations.
+
         Args:
             area_id: The area ID to get lighting values for
             current_time: Optional datetime to use for calculations (for time simulation)
             apply_time_offset: Whether to apply time offset (unused, kept for API compatibility)
 
         Returns:
-            Dict containing adaptive lighting values
+            Dict containing circadian lighting values
         """
         # Load curve parameters by merging supervisor options and designer overrides
         curve_params = {}
@@ -845,17 +845,17 @@ class HomeAssistantWebSocketClient:
         # Store curve parameters for dimming calculations
         self.curve_params = curve_params
 
-        # Get adaptive lighting values with new morning/evening curves
-        lighting_values = get_adaptive_lighting(
+        # Get circadian lighting values with new morning/evening curves
+        lighting_values = get_circadian_lighting(
             latitude=self.latitude,
             longitude=self.longitude,
             timezone=self.timezone,
             current_time=current_time,
             **curve_params
         )
-        
+
         # Log the calculation
-        logger.info(f"Adaptive lighting for area {area_id}: {lighting_values['kelvin']}K, {lighting_values['brightness']}%")
+        logger.info(f"Circadian lighting for area {area_id}: {lighting_values['kelvin']}K, {lighting_values['brightness']}%")
 
         lighting_values = dict(lighting_values)
 
@@ -865,7 +865,7 @@ class HomeAssistantWebSocketClient:
         return lighting_values
     
     async def update_lights_in_circadian_mode(self, area_id: str):
-        """Update lights in an area with adaptive lighting if Circadian Light is enabled.
+        """Update lights in an area with circadian lighting if Circadian Light is enabled.
 
         Args:
             area_id: The area ID to update
@@ -880,11 +880,11 @@ class HomeAssistantWebSocketClient:
                 logger.debug(f"Area {area_id} is frozen, skipping update")
                 return
 
-            # Get adaptive lighting values using new brain.py
-            lighting_values = await self.get_adaptive_lighting_for_area(area_id)
+            # Get circadian lighting values using brain.py
+            lighting_values = await self.get_circadian_lighting_for_area(area_id)
 
             # Use the centralized light control function
-            await self.turn_on_lights_adaptive(area_id, lighting_values, transition=2)
+            await self.turn_on_lights_circadian(area_id, lighting_values, transition=2)
 
         except Exception as e:
             logger.error(f"Error updating lights in area {area_id}: {e}")
@@ -1482,7 +1482,7 @@ class HomeAssistantWebSocketClient:
                 # Get Home Assistant configuration (lat/lng/tz)
                 config_loaded = await self.get_config()
                 if not config_loaded:
-                    logger.warning("⚠ Failed to load Home Assistant configuration - adaptive lighting may not work correctly")
+                    logger.warning("⚠ Failed to load Home Assistant configuration - circadian lighting may not work correctly")
                 
                 # Sync ZHA groups with all areas (includes parity cache refresh)
                 await self.sync_zha_groups()

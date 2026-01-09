@@ -1218,6 +1218,414 @@ function wrap24(x) {
   return ((x % 24) + 24) % 24;
 }
 
+// Check if hour is within a time window (handles midnight wrap-around)
+function isInTimeWindow(hour, windowStart, windowEnd) {
+  hour = wrap24(hour);
+  windowStart = wrap24(windowStart);
+  windowEnd = wrap24(windowEnd);
+
+  if (windowStart > windowEnd) {
+    // Wraps around midnight
+    return hour >= windowStart || hour <= windowEnd;
+  } else {
+    return hour >= windowStart && hour <= windowEnd;
+  }
+}
+
+// Get warm_night window boundaries based on current config and sun times
+function getWarmNightWindow() {
+  if (!config || !sunTimes || !config.warm_night_enabled) return null;
+
+  const { sunrise, sunset } = sunTimes;
+  const solarMid = wrap24(sunTimes.solarMid);
+  const startOffsetHrs = config.warm_night_start / 60;
+  const endOffsetHrs = config.warm_night_end / 60;
+  const mode = config.warm_night_mode;
+
+  let windowStart, windowEnd;
+  if (mode === 'sunrise') {
+    windowStart = solarMid;
+    windowEnd = wrap24(sunrise + endOffsetHrs);
+  } else if (mode === 'sunset') {
+    windowStart = wrap24(sunset + startOffsetHrs);
+    windowEnd = solarMid;
+  } else {
+    windowStart = wrap24(sunset + startOffsetHrs);
+    windowEnd = wrap24(sunrise + endOffsetHrs);
+  }
+
+  return { windowStart, windowEnd };
+}
+
+// Get cool_day window boundaries based on current config and sun times
+function getCoolDayWindow() {
+  if (!config || !sunTimes || !config.cool_day_enabled) return null;
+
+  const { sunrise, sunset } = sunTimes;
+  const solarNoon = wrap24(sunTimes.solarNoon);
+  const startOffsetHrs = config.cool_day_start / 60;
+  const endOffsetHrs = config.cool_day_end / 60;
+  const mode = config.cool_day_mode;
+
+  let windowStart, windowEnd;
+  if (mode === 'sunrise') {
+    windowStart = wrap24(sunrise + startOffsetHrs);
+    windowEnd = solarNoon;
+  } else if (mode === 'sunset') {
+    windowStart = solarNoon;
+    windowEnd = wrap24(sunset + endOffsetHrs);
+  } else {
+    windowStart = wrap24(sunrise + startOffsetHrs);
+    windowEnd = wrap24(sunset + endOffsetHrs);
+  }
+
+  return { windowStart, windowEnd };
+}
+
+// ============================================================
+// Single-Point Value Calculation (source of truth)
+// ============================================================
+
+/**
+ * Check if hour is in window and calculate fade weight.
+ */
+function getWindowWeight(hour, windowStart, windowEnd, fadeHrs) {
+  const h = wrap24(hour);
+  let inWindow = false;
+  let distFromStart = 0;
+  let distToEnd = 0;
+
+  if (windowStart > windowEnd) {
+    // Wraps around midnight
+    inWindow = h >= windowStart || h <= windowEnd;
+    if (inWindow) {
+      distFromStart = h >= windowStart ? (h - windowStart) : (h + 24 - windowStart);
+      distToEnd = h <= windowEnd ? (windowEnd - h) : (windowEnd + 24 - h);
+    }
+  } else {
+    // Normal range
+    inWindow = h >= windowStart && h <= windowEnd;
+    if (inWindow) {
+      distFromStart = h - windowStart;
+      distToEnd = windowEnd - h;
+    }
+  }
+
+  if (!inWindow) {
+    return { inWindow: false, weight: 0 };
+  }
+
+  // Calculate fade weight
+  let weight = 1;
+  if (fadeHrs > 0.01) {
+    if (distFromStart < fadeHrs) {
+      weight = Math.min(weight, distFromStart / fadeHrs);
+    }
+    if (distToEnd < fadeHrs) {
+      weight = Math.min(weight, distToEnd / fadeHrs);
+    }
+  }
+
+  return { inWindow: true, weight };
+}
+
+/**
+ * Apply warm_night and cool_day solar rules to a single CCT value at a given hour.
+ */
+function applySolarRuleAtHour(baseCCT, hour) {
+  if (!sunTimes) return baseCCT;
+
+  let cct = baseCCT;
+  const { sunrise, sunset, solarNoon, solarMid } = sunTimes;
+
+  // Warm at night - ceiling
+  if (config.warm_night_enabled) {
+    const warmTarget = runtimeState.warm_night_ceiling ?? config.warm_night_target;
+
+    if (cct > warmTarget) {
+      const fadeHrs = config.warm_night_fade / 60;
+      const startOffsetHrs = config.warm_night_start / 60;
+      const endOffsetHrs = config.warm_night_end / 60;
+      const mode = config.warm_night_mode;
+
+      let windowStart, windowEnd;
+      if (mode === 'sunrise') {
+        windowStart = wrap24(solarMid);
+        windowEnd = wrap24(sunrise + endOffsetHrs);
+      } else if (mode === 'sunset') {
+        windowStart = wrap24(sunset + startOffsetHrs);
+        windowEnd = wrap24(solarMid);
+      } else {
+        windowStart = wrap24(sunset + startOffsetHrs);
+        windowEnd = wrap24(sunrise + endOffsetHrs);
+      }
+
+      const { inWindow, weight } = getWindowWeight(hour, windowStart, windowEnd, fadeHrs);
+      if (inWindow && weight > 0) {
+        cct = cct + (warmTarget - cct) * weight;
+      }
+    }
+  }
+
+  // Cool during day - floor
+  if (config.cool_day_enabled) {
+    const coolTarget = runtimeState.cool_day_floor ?? config.cool_day_target;
+
+    if (cct < coolTarget) {
+      const fadeHrs = config.cool_day_fade / 60;
+      const startOffsetHrs = config.cool_day_start / 60;
+      const endOffsetHrs = config.cool_day_end / 60;
+      const mode = config.cool_day_mode;
+
+      let windowStart, windowEnd;
+      if (mode === 'sunrise') {
+        windowStart = wrap24(sunrise + startOffsetHrs);
+        windowEnd = wrap24(solarNoon);
+      } else if (mode === 'sunset') {
+        windowStart = wrap24(solarNoon);
+        windowEnd = wrap24(sunset + endOffsetHrs);
+      } else {
+        windowStart = wrap24(sunrise + startOffsetHrs);
+        windowEnd = wrap24(sunset + endOffsetHrs);
+      }
+
+      const { inWindow, weight } = getWindowWeight(hour, windowStart, windowEnd, fadeHrs);
+      if (inWindow && weight > 0) {
+        cct = cct + (coolTarget - cct) * weight;
+      }
+    }
+  }
+
+  return cct;
+}
+
+/**
+ * Calculate brightness, CCT, and phase at a specific hour.
+ * Single source of truth for curve + solar rule calculations.
+ */
+function getValuesAtTime(hour) {
+  // Phase detection
+  const tAscend = config.ascend_start;
+  let tDescend = config.descend_start;
+  if (tDescend <= tAscend) tDescend += 24;
+
+  const h48 = hour < tAscend ? hour + 24 : hour;
+  const inAscend = h48 >= tAscend && h48 < tDescend;
+  const phase = inAscend ? 'Ascend' : 'Descend';
+
+  // Slopes
+  const kAscend = SPEED_TO_SLOPE[config.wake_speed] || 1.3;
+  const kDescend = SPEED_TO_SLOPE[config.bed_speed] || 1.3;
+
+  // Bounds
+  const bMin = (runtimeState.min_brightness ?? config.min_brightness) / 100;
+  const bMax = (runtimeState.max_brightness ?? config.max_brightness) / 100;
+  const cLow = runtimeState.min_color_temp ?? config.min_color_temp;
+  const cHigh = runtimeState.max_color_temp ?? config.max_color_temp;
+
+  // Brightness midpoints
+  const wakeMid = runtimeState.brightness_wake_mid ?? config.wake_time;
+  const bedMid = runtimeState.brightness_bed_mid ?? config.bed_time;
+
+  let wakeMid48 = wakeMid;
+  while (wakeMid48 < tAscend) wakeMid48 += 24;
+  while (wakeMid48 > tDescend) wakeMid48 -= 24;
+
+  let bedMid48 = bedMid;
+  while (bedMid48 < tDescend) bedMid48 += 24;
+  while (bedMid48 > tDescend + 24) bedMid48 -= 24;
+
+  // Calculate brightness
+  let brightnessNorm;
+  if (inAscend) {
+    brightnessNorm = logistic(h48, wakeMid48, kAscend, bMin, bMax);
+  } else {
+    const hDescend48 = h48 < tDescend ? h48 + 24 : h48;
+    brightnessNorm = logistic(hDescend48, bedMid48, -kDescend, bMin, bMax);
+  }
+  const brightness = brightnessNorm * 100;
+
+  // Color midpoints
+  const colorWakeMid = runtimeState.color_wake_mid ?? config.wake_time;
+  const colorBedMid = runtimeState.color_bed_mid ?? config.bed_time;
+
+  let colorWakeMid48 = colorWakeMid;
+  while (colorWakeMid48 < tAscend) colorWakeMid48 += 24;
+  while (colorWakeMid48 > tDescend) colorWakeMid48 -= 24;
+
+  let colorBedMid48 = colorBedMid;
+  while (colorBedMid48 < tDescend) colorBedMid48 += 24;
+  while (colorBedMid48 > tDescend + 24) colorBedMid48 -= 24;
+
+  // Calculate base CCT
+  let colorNorm;
+  if (inAscend) {
+    colorNorm = logistic(h48, colorWakeMid48, kAscend, 0, 1);
+  } else {
+    const hDescend48 = h48 < tDescend ? h48 + 24 : h48;
+    colorNorm = logistic(hDescend48, colorBedMid48, -kDescend, 0, 1);
+  }
+  colorNorm = Math.max(0, Math.min(1, colorNorm));
+  let cct = cLow + (cHigh - cLow) * colorNorm;
+
+  // Apply solar rules
+  cct = applySolarRuleAtHour(cct, hour);
+
+  return { brightness, cct, phase };
+}
+
+/**
+ * Calculate what step up/down would produce.
+ * Simulates stepCursor logic to preview button results.
+ * @param {Object} cursorPoint - Current cursor point with x (hour), y (brightness), cct
+ * @returns {Object} { upBri, upCCT, downBri, downCCT }
+ */
+function getStepPreview(cursorPoint) {
+  // Defensive check
+  if (!cursorPoint || !config) {
+    return { upBri: 100, upCCT: 4000, downBri: 10, downCCT: 2700 };
+  }
+
+  const hour = cursorPoint.x;
+  const currentBri = cursorPoint.y;
+  const currentCCT = cursorPoint.cct;
+
+  const steps = config.max_dim_steps || 10;
+  const configMinBri = config.min_brightness;
+  const configMaxBri = config.max_brightness;
+  const configMinCCT = config.min_color_temp;
+  const configMaxCCT = config.max_color_temp;
+
+  // Current runtime bounds
+  const bMin = runtimeState.min_brightness ?? configMinBri;
+  const bMax = runtimeState.max_brightness ?? configMaxBri;
+  const cMin = runtimeState.min_color_temp ?? configMinCCT;
+  const cMax = runtimeState.max_color_temp ?? configMaxCCT;
+
+  // Step size based on config range
+  const briStep = (configMaxBri - configMinBri) / steps;
+
+  // Absolute limits
+  const ABSOLUTE_MIN_BRI = 0;
+  const ABSOLUTE_MAX_BRI = 100;
+  const ABSOLUTE_MIN_CCT = 500;
+  const ABSOLUTE_MAX_CCT = 6500;
+
+  // Phase detection
+  const tAscend = config.ascend_start;
+  let tDescend = config.descend_start;
+  if (tDescend <= tAscend) tDescend += 24;
+  const h48 = hour < tAscend ? hour + 24 : hour;
+  const inAscend = h48 >= tAscend && h48 < tDescend;
+
+  const kAscend = SPEED_TO_SLOPE[config.wake_speed] || 1.3;
+  const kDescend = SPEED_TO_SLOPE[config.bed_speed] || 1.3;
+  const slope = inAscend ? kAscend : -kDescend;
+
+  // Check lock state
+  const brightnessLocked = document.getElementById('brightness-range-locked')?.checked;
+
+  // Helper: calculate CCT for a target brightness (simulates curve traversal)
+  function getStepResultCCT(direction, targetBri) {
+    const atConfigMax = direction === 'up' && currentBri >= bMax - 0.5;
+    const atConfigMin = direction === 'down' && currentBri <= bMin + 0.5;
+
+    if ((atConfigMax || atConfigMin) && !brightnessLocked) {
+      // Pushing beyond bounds - proportional push
+      const briAbsoluteLimit = direction === 'up' ? ABSOLUTE_MAX_BRI : ABSOLUTE_MIN_BRI;
+      const briCurrentBound = direction === 'up' ? bMax : bMin;
+      const briHeadroom = Math.abs(briAbsoluteLimit - briCurrentBound);
+      const briPushAmount = Math.min(briStep, briHeadroom);
+      const pushPercent = briHeadroom > 0 ? briPushAmount / briHeadroom : 0;
+
+      const cctAbsoluteLimit = direction === 'up' ? ABSOLUTE_MAX_CCT : ABSOLUTE_MIN_CCT;
+      const cctHeadroom = Math.abs(cctAbsoluteLimit - currentCCT);
+      const cctPushAmount = pushPercent * cctHeadroom;
+
+      return direction === 'up' ? currentCCT + cctPushAmount : currentCCT - cctPushAmount;
+    }
+
+    // Within bounds - traverse the diverged curve
+    // Find virtual time T' where brightness curve = targetBri
+    const briMid = inAscend
+      ? (runtimeState.brightness_wake_mid ?? config.wake_time)
+      : (runtimeState.brightness_bed_mid ?? config.bed_time);
+    const colorMid = inAscend
+      ? (runtimeState.color_wake_mid ?? config.wake_time)
+      : (runtimeState.color_bed_mid ?? config.bed_time);
+
+    // Lift midpoints into 48h space
+    let briMid48 = briMid;
+    let colorMid48 = colorMid;
+    if (inAscend) {
+      while (briMid48 < tAscend) briMid48 += 24;
+      while (colorMid48 < tAscend) colorMid48 += 24;
+    } else {
+      while (briMid48 < tDescend) briMid48 += 24;
+      while (colorMid48 < tDescend) colorMid48 += 24;
+    }
+
+    // Calculate virtual time T' where brightness = targetBri
+    const bMinNorm = bMin / 100;
+    const bMaxNorm = bMax / 100;
+    const clampedBri = Math.max(bMin + 0.1, Math.min(bMax - 0.1, targetBri));
+    const targetBriNorm = clampedBri / 100;
+    const briRatio = (targetBriNorm - bMinNorm) / (bMaxNorm - bMinNorm);
+
+    // Avoid division issues at extremes
+    if (briRatio <= 0.001 || briRatio >= 0.999) {
+      // At extreme, just use current CCT
+      return currentCCT;
+    }
+
+    const virtualTime = briMid48 + Math.log(briRatio / (1 - briRatio)) / slope;
+
+    // Get color at virtual time from color curve (base curve)
+    let colorNorm;
+    if (inAscend) {
+      colorNorm = logistic(virtualTime, colorMid48, slope, 0, 1);
+    } else {
+      const vtDescend = virtualTime < tDescend ? virtualTime + 24 : virtualTime;
+      colorNorm = logistic(vtDescend, colorMid48, slope, 0, 1);
+    }
+    colorNorm = Math.max(0, Math.min(1, colorNorm));
+    const baseCCT = cMin + (cMax - cMin) * colorNorm;
+
+    // Apply solar rules at the CURSOR hour (since that's where we stay)
+    return applySolarRuleAtHour(baseCCT, hour);
+  }
+
+  // Calculate step up preview
+  let upBri = Math.min(ABSOLUTE_MAX_BRI, currentBri + briStep);
+  const atAbsoluteMaxBri = currentBri >= ABSOLUTE_MAX_BRI - 0.5;
+  const atConfigMaxBri = currentBri >= bMax - 0.5;
+  let upCCT;
+
+  if (atAbsoluteMaxBri || (atConfigMaxBri && brightnessLocked)) {
+    // Can't step up further
+    upBri = currentBri;
+    upCCT = currentCCT;
+  } else {
+    upCCT = getStepResultCCT('up', upBri);
+  }
+
+  // Calculate step down preview
+  let downBri = Math.max(ABSOLUTE_MIN_BRI, currentBri - briStep);
+  const atAbsoluteMinBri = currentBri <= ABSOLUTE_MIN_BRI + 0.5;
+  const atConfigMinBri = currentBri <= bMin + 0.5;
+  let downCCT;
+
+  if (atAbsoluteMinBri || (atConfigMinBri && brightnessLocked)) {
+    // Can't step down further
+    downBri = currentBri;
+    downCCT = currentCCT;
+  } else {
+    downCCT = getStepResultCCT('down', downBri);
+  }
+
+  return { upBri, upCCT, downBri, downCCT };
+}
+
 function dayOfYear(dateStr) {
   const d = new Date(dateStr + 'T12:00:00');
   const s = new Date(d.getFullYear(), 0, 0);
@@ -2089,7 +2497,7 @@ function renderChart() {
   const layout = {
     paper_bgcolor: '#0a0a0a',
     plot_bgcolor: '#0a0a0a',
-    margin: { t: 40, r: 40, l: 50, b: 60 },
+    margin: { t: 40, r: 40, l: 50, b: 100 },
     legend: { orientation: 'h', x: 0, y: 1.1, font: { color: '#c8c8c8' } },
     hovermode: 'closest',
     xaxis: {
@@ -2268,7 +2676,7 @@ function applyCursor() {
 
   // Cursor line style - dotted white
   const cursorLineStyle = { color: '#fdfdfd', width: 2, dash: 'dot' };
-  const cursorLabelY = -0.10;
+  const cursorLabelY = -0.26;
 
   // Add cursor line with gap around the point
   if (cursorPoint) {
@@ -2300,7 +2708,7 @@ function applyCursor() {
   // Cursor line below x-axis to label
   shapes.push({
     type: 'line', xref: 'x', yref: 'paper',
-    x0: cursorHour, x1: cursorHour, y0: cursorLabelY + 0.02, y1: 0,
+    x0: cursorHour, x1: cursorHour, y0: cursorLabelY + 0.05, y1: 0,
     line: cursorLineStyle, layer: 'above'
   });
 
@@ -2454,8 +2862,14 @@ function updateCursorButtons(point) {
   // Use absolute limits since bounds can be pushed
   const nextBriUp = Math.min(ABSOLUTE_MAX_BRI, currentPct + deltaPct);
   const nextBriDown = Math.max(ABSOLUTE_MIN_BRI, currentPct - deltaPct);
+
+  // Color buttons can push through solar rules - no clamping
   const nextColorUp = Math.min(ABSOLUTE_MAX_CCT, currentCCT + deltaCCT);
   const nextColorDown = Math.max(ABSOLUTE_MIN_CCT, currentCCT - deltaCCT);
+
+  // Step buttons follow the curve - calculate what stepping would produce
+  // This simulates the stepCursor logic: find virtual time, get base CCT, apply solar rules
+  const stepPreview = getStepPreview(point);
 
   // Helper to style a button
   const styleBtn = (btn, targetBri, targetColor, mode) => {
@@ -2493,9 +2907,9 @@ function updateCursorButtons(point) {
   styleBtn(colorUp, null, nextColorUp, 'color');
   styleBtn(colorDown, null, nextColorDown, 'color');
 
-  // Style step buttons with NEXT values for both
-  styleBtn(stepUp, nextBriUp, nextColorUp, 'combo');
-  styleBtn(stepDown, nextBriDown, nextColorDown, 'combo');
+  // Style step buttons with calculated step preview values (follows curve with solar rules)
+  styleBtn(stepUp, stepPreview.upBri, stepPreview.upCCT, 'combo');
+  styleBtn(stepDown, stepPreview.downBri, stepPreview.downCCT, 'combo');
 
   // Update callouts with next values
   const briUpCallout = document.getElementById('bright-up-callout');
@@ -2511,11 +2925,11 @@ function updateCursorButtons(point) {
   if (briDownCallout) briDownCallout.textContent = `${Math.round(nextBriDown)}%`;
   if (colorUpCallout) colorUpCallout.textContent = `${Math.round(nextColorUp)} K`;
   if (colorDownCallout) colorDownCallout.textContent = `${Math.round(nextColorDown)} K`;
-  // Step shows both brightness and color
-  if (stepUpBriCallout) stepUpBriCallout.textContent = `${Math.round(nextBriUp)}%`;
-  if (stepUpCctCallout) stepUpCctCallout.textContent = `${Math.round(nextColorUp)}K`;
-  if (stepDownBriCallout) stepDownBriCallout.textContent = `${Math.round(nextBriDown)}%`;
-  if (stepDownCctCallout) stepDownCctCallout.textContent = `${Math.round(nextColorDown)}K`;
+  // Step shows both brightness and color (follows curve with solar rules applied)
+  if (stepUpBriCallout) stepUpBriCallout.textContent = `${Math.round(stepPreview.upBri)}%`;
+  if (stepUpCctCallout) stepUpCctCallout.textContent = `${Math.round(stepPreview.upCCT)}K`;
+  if (stepDownBriCallout) stepDownBriCallout.textContent = `${Math.round(stepPreview.downBri)}%`;
+  if (stepDownCctCallout) stepDownCctCallout.textContent = `${Math.round(stepPreview.downCCT)}K`;
 
   // Check lock states
   const brightnessLocked = document.getElementById('brightness-range-locked')?.checked;

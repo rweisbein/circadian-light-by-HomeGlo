@@ -1,4 +1,4 @@
-# Circadian Light by HomeGlo - Adaptive Lighting for Home Assistant
+# Circadian Light by HomeGlo - Circadian Lighting for Home Assistant
 
 ![Circadian Light Designer](.github/assets/designer.png)
 
@@ -12,7 +12,7 @@ Transform your home's ambiance with Circadian Light by HomeGlo, the intelligent 
 
 ## 📦 Installation
 
-> **⚠️ IMPORTANT**: Install the Circadian Light Home Assistant add-on and then restart Home Assistant. The add-on includes the adaptive lighting engine, Light Designer, services, and blueprints—no separate integration required.
+> **⚠️ IMPORTANT**: Install the Circadian Light Home Assistant add-on and then restart Home Assistant. The add-on includes the circadian lighting engine, Light Designer, services, and blueprints—no separate integration required.
 
 ### Step 1: Install the Home Assistant Add-on
 
@@ -38,7 +38,7 @@ Transform your home's ambiance with Circadian Light by HomeGlo, the intelligent 
 The blueprint provides smart button mappings:
 - **ON button**: Smart toggle (turns lights on with MagicLight or off)
 - **OFF button**: Reset to current time and enable MagicLight
-- **UP/DOWN buttons**: Step brightness along the adaptive curve
+- **UP/DOWN buttons**: Step brightness along the circadian curve
 
 ## 🛠️ Service Primitives
 
@@ -49,7 +49,7 @@ MagicLight registers a set of service primitives under the `magiclight` domain. 
 - `magiclight.dim_up` – Raises brightness while keeping the current color temperature; in MagicLight mode it adjusts the brightness offset, otherwise it issues a standard Home Assistant brightness step.
 - `magiclight.dim_down` – Lowers brightness without touching color temperature, following the same MagicLight-aware logic as `dim_up`.
 - `magiclight.reset` – Clears any offsets, re-enables MagicLight, and reapplies the lighting that matches the current time.
-- `magiclight.magiclight_on` – Enables MagicLight for the area and turns lights on with the adaptive values for the active curve position.
+- `magiclight.magiclight_on` – Enables MagicLight for the area and turns lights on with the circadian values for the active curve position.
 - `magiclight.magiclight_off` – Disables MagicLight but leaves the lights exactly as they are, saving the current TimeLocation for later.
 - `magiclight.magiclight_toggle` – Smart toggle: if any lights in the target areas are on it turns everything off and disables MagicLight; otherwise it turns them on with MagicLight active.
 

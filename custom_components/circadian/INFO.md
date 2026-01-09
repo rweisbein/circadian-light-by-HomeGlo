@@ -6,8 +6,8 @@ This integration provides services to control the HomeGlo addon for Home Assista
 
 ### Services
 
-- **`homeglo.step_up`** - Increase brightness by one step along the adaptive lighting curve
-- **`homeglo.step_down`** - Decrease brightness by one step along the adaptive lighting curve
+- **`homeglo.step_up`** - Increase brightness by one step along the circadian lighting curve
+- **`homeglo.step_down`** - Decrease brightness by one step along the circadian lighting curve
 
 ## Requirements
 

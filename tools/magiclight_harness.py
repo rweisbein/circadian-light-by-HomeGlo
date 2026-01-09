@@ -300,7 +300,7 @@ class HarnessClient(HomeAssistantWebSocketClient):
         # Never connect in the harness
         self.websocket = None
 
-        # Configure adaptive lighting defaults
+        # Configure circadian lighting defaults
         self.max_dim_steps = max_dim_steps
         self.config = {"max_dim_steps": max_dim_steps}
         self.curve_params = {}
@@ -414,7 +414,7 @@ class HarnessClient(HomeAssistantWebSocketClient):
             elif domain == "light" and service == "turn_off":
                 state["is_on"] = False
 
-        # Log direct brightness adjustments (skip adaptive turn_on duplicates)
+        # Log direct brightness adjustments (skip circadian turn_on duplicates)
         if not (
             domain == "light"
             and service == "turn_on"
@@ -429,17 +429,17 @@ class HarnessClient(HomeAssistantWebSocketClient):
                 affected_areas=affected,
             )
 
-    async def turn_on_lights_adaptive(
+    async def turn_on_lights_circadian(
         self,
         area_id: str,
-        adaptive_values: Dict[str, Any],
+        circadian_values: Dict[str, Any],
         transition: int = 1,
         *,
         include_color: bool = True,
     ) -> None:
-        await super().turn_on_lights_adaptive(
+        await super().turn_on_lights_circadian(
             area_id,
-            adaptive_values,
+            circadian_values,
             transition,
             include_color=include_color,
         )
@@ -456,9 +456,9 @@ class HarnessClient(HomeAssistantWebSocketClient):
             applied["color_skipped"] = True
 
         self._log(
-            "turn_on_lights_adaptive",
+            "turn_on_lights_circadian",
             area_id=area_id,
-            requested_values=dict(adaptive_values),
+            requested_values=dict(circadian_values),
             applied_values=applied,
             transition=transition,
             include_color=include_color,

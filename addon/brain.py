@@ -919,11 +919,10 @@ def get_current_hour() -> float:
 
 
 # ---------------------------------------------------------------------------
-# Backwards compatibility stubs for webserver.py
-# These will be removed once webserver.py is updated to use new API
+# Backwards compatibility aliases (deprecated - use CircadianLight directly)
 # ---------------------------------------------------------------------------
 
-# Alias for old class name
+# Deprecated alias - use CircadianLight
 AdaptiveLighting = CircadianLight
 
 # Activity presets (simplified for backwards compatibility)
@@ -950,11 +949,11 @@ def apply_activity_preset(preset_name: str, config: dict) -> dict:
     return config
 
 
-def get_adaptive_lighting(
+def get_circadian_lighting(
     current_time=None,
     **kwargs
 ) -> Dict[str, Any]:
-    """Backwards compatibility wrapper for CircadianLight.calculate_lighting.
+    """Get circadian lighting values for a given time.
 
     Returns dict with brightness, kelvin, rgb, xy keys.
     """
@@ -979,6 +978,10 @@ def get_adaptive_lighting(
         "xy": result.xy,
         "phase": result.phase,
     }
+
+
+# Deprecated alias - use get_circadian_lighting
+get_adaptive_lighting = get_circadian_lighting
 
 
 def calculate_dimming_step(

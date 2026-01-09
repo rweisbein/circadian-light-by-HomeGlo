@@ -22,10 +22,8 @@ from brain import (
     Config,
     AreaState,
     DEFAULT_MAX_DIM_STEPS,
-    # Backwards compatibility
     calculate_dimming_step,
-    get_adaptive_lighting,
-    AdaptiveLighting,
+    get_circadian_lighting,
     ACTIVITY_PRESETS,
     apply_activity_preset,
     get_preset_names,
@@ -79,7 +77,7 @@ def calculate_step_sequence(current_hour: float, action: str, max_steps: int, co
         for step_num in range(max_steps):
             if step_num == 0:
                 # First "step" is the current position
-                lighting_values = get_adaptive_lighting(
+                lighting_values = get_circadian_lighting(
                     latitude=config.get('latitude'),
                     longitude=config.get('longitude'),
                     timezone=config.get('timezone'),
@@ -136,7 +134,7 @@ def calculate_step_sequence(current_hour: float, action: str, max_steps: int, co
         if not steps:
             try:
                 # Try to get just the current position without stepping
-                lighting_values = get_adaptive_lighting(
+                lighting_values = get_circadian_lighting(
                     latitude=config.get('latitude'),
                     longitude=config.get('longitude'),
                     timezone=config.get('timezone'),
@@ -185,7 +183,7 @@ def generate_curve_data(config: dict) -> dict:
         solar_noon = solar_events["noon"]
         solar_midnight = solar_events["noon"] - timedelta(hours=12)
 
-        # Use the get_adaptive_lighting function to get values at each time point
+        # Use the get_circadian_lighting function to get values at each time point
         # We'll call it for each sample point
 
         # Sample at 0.1 hour intervals (matching JavaScript)
@@ -216,8 +214,8 @@ def generate_curve_data(config: dict) -> dict:
             # Calculate hour of day (0-24 scale) for plotting
             clock_hour = current_time.hour + current_time.minute / 60.0
 
-            # Get adaptive lighting values using the main function
-            lighting_values = get_adaptive_lighting(
+            # Get circadian lighting values using the main function
+            lighting_values = get_circadian_lighting(
                 latitude=latitude,
                 longitude=longitude,
                 timezone=timezone,
@@ -499,7 +497,7 @@ class LightDesignerServer:
         try:
             from datetime import datetime
             from zoneinfo import ZoneInfo
-            from brain import get_adaptive_lighting
+            from brain import get_circadian_lighting
 
             # Get location from environment variables (set by main.py)
             latitude = float(os.getenv("HASS_LATITUDE", "35.0"))
@@ -520,8 +518,8 @@ class LightDesignerServer:
             # Load current configuration to use same parameters as UI
             config = await self.load_config()
 
-            # Get current adaptive lighting values for comparison using same config as UI
-            lighting_values = get_adaptive_lighting(
+            # Get current circadian lighting values for comparison using same config as UI
+            lighting_values = get_circadian_lighting(
                 latitude=latitude,
                 longitude=longitude,
                 timezone=timezone,

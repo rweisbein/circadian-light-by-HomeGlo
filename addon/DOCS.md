@@ -22,6 +22,6 @@ morning/evening curve parameters.
 
 ## How It Works
 
-This add-on connects to Home Assistant's WebSocket API and listens for ZHA switch events. When a switch's top button is pressed, it automatically turns on lights in the corresponding area with adaptive lighting based on the sun's position.
+This add-on connects to Home Assistant's WebSocket API and listens for ZHA switch events. When a switch's top button is pressed, it automatically turns on lights in the corresponding area with circadian lighting based on the sun's position.
 
-The adaptive lighting adjusts both brightness and color temperature throughout the day to provide natural, comfortable lighting.
+The circadian lighting adjusts both brightness and color temperature throughout the day to provide natural, comfortable lighting.

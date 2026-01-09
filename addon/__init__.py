@@ -1,12 +1,17 @@
 from .brain import (
-    AdaptiveLighting,
+    CircadianLight,
     calculate_dimming_step,
+    get_circadian_lighting,
+    # Deprecated aliases
+    AdaptiveLighting,
     get_adaptive_lighting,
 )
 
 __all__ = [
-    "AdaptiveLighting",
+    "CircadianLight",
     "calculate_dimming_step",
+    "get_circadian_lighting",
+    # Deprecated aliases
+    "AdaptiveLighting",
     "get_adaptive_lighting",
 ]
-

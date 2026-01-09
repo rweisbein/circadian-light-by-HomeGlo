@@ -4,10 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 MagicLight is a dual-component Home Assistant project:
-1. **Add-on** (`addon/`): Docker-based Home Assistant add-on that provides adaptive lighting based on sun position
+1. **Add-on** (`addon/`): Docker-based Home Assistant add-on that provides circadian lighting based on sun position
 2. **Custom Integration** (`custom_components/magiclight/`): HACS-installable integration providing MagicLight service primitives
 
-The add-on connects to Home Assistant's WebSocket API, listens for ZHA switch events, and automatically adjusts lights in corresponding areas with adaptive lighting based on the sun's position.
+The add-on connects to Home Assistant's WebSocket API, listens for ZHA switch events, and automatically adjusts lights in corresponding areas with circadian lighting based on the sun's position.
 
 ## Development Commands
 
@@ -72,11 +72,11 @@ docker buildx build --platform linux/amd64,linux/arm64,linux/arm/v7 -t magicligh
 
 ### Core Components
 - `addon/main.py`: WebSocket client that connects to Home Assistant, handles authentication, subscribes to events, and processes ZHA switch button presses
-- `addon/brain.py`: Adaptive lighting calculator that determines color temperature and brightness based on sun position and configurable curves
+- `addon/brain.py`: Circadian lighting calculator that determines color temperature and brightness based on sun position and configurable curves
 - `addon/light_controller.py`: Multi-protocol light controller with factory pattern for ZigBee, Z-Wave, WiFi, Matter
 - `addon/switch.py`: Switch command processor handling button press events and light control
 - `addon/webserver.py`: Web server for Light Designer interface accessible via Home Assistant ingress
-- `addon/designer.html`: Interactive web UI for configuring adaptive lighting curves
+- `addon/designer.html`: Interactive web UI for configuring circadian lighting curves
 - `addon/primitives.py`: Core service implementations for MagicLight operations
 
 ### Custom Integration Components
@@ -144,10 +144,10 @@ GitHub Actions workflows (`.github/workflows/`):
 1. WebSocket receives event (ZHA button or service call)
 2. Device/area mapping resolved via registries
 3. Sun position calculated from cached state
-4. Adaptive values computed based on curves
+4. Circadian values computed based on curves
 5. Appropriate lights controlled via factory pattern
 
-#### Adaptive Lighting Algorithm
+#### Circadian Lighting Algorithm
 - Solar time position (-1 to 1 scale)
 - Separate morning/evening curves
 - Configurable midpoint and steepness
@@ -171,10 +171,10 @@ GitHub Actions workflows (`.github/workflows/`):
 - Step markers for dimming visualization
 
 ## Service Primitives
-- `magiclight_on`: Enable MagicLight mode and turn on with adaptive lighting
+- `magiclight_on`: Enable MagicLight mode and turn on with circadian lighting
 - `magiclight_off`: Disable MagicLight mode only (lights unchanged)
 - `magiclight_toggle`: Smart toggle based on light state
-- `step_up`/`step_down`: Adjust along adaptive curve
+- `step_up`/`step_down`: Adjust along circadian curve
 - `reset`: Reset to current time position
 
 ## Blueprint Automation

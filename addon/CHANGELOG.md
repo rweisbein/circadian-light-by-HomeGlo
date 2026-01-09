@@ -1,5 +1,26 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.2.5
+**Refactor - Rename "adaptive" to "circadian" throughout codebase**
+
+**Changed:**
+- Renamed `AdaptiveLighting` class to `CircadianLight` (alias kept for backwards compatibility)
+- Renamed `get_adaptive_lighting()` to `get_circadian_lighting()` (alias kept)
+- Renamed `turn_on_lights_adaptive()` to `turn_on_lights_circadian()`
+- Renamed `get_adaptive_lighting_for_area()` to `get_circadian_lighting_for_area()`
+- Updated all documentation to use "circadian" terminology
+- Updated test class and function names
+
+## 6.2.4
+**Bugfix - Accurate Step button labels with solar rules**
+
+**Fixed:**
+- Step Up/Down button labels now correctly show predicted CCT values
+- Labels properly reflect curve traversal with solar rules (warm at night, cool during day)
+- Step Down no longer incorrectly shows cooler/higher CCT when warm at night is active
+- Added `getStepPreview()` function as single source of truth for step calculations
+- Added `applySolarRuleAtHour()` for single-point solar rule application
+
 ## 6.2.3
 **UI - Reduce vertical space below chart**
 

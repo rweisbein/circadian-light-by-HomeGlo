@@ -1,14 +1,14 @@
 # Circadian Light by HomeGlo Add-on for Home Assistant
 
-Circadian Light by HomeGlo provides intelligent adaptive lighting control that automatically adjusts your lights based on the sun's position throughout the day.
+Circadian Light by HomeGlo provides intelligent circadian lighting control that automatically adjusts your lights based on the sun's position throughout the day.
 
 ## Features
 
 - **Automatic Light Control**: Responds to ZHA switch button presses to control lights in the same area
-- **Adaptive Lighting**: Adjusts color temperature and brightness based on sun elevation
+- **Circadian Lighting**: Adjusts color temperature and brightness based on sun elevation
 - **Multi-Protocol Support**: Controls ZigBee, Z-Wave, WiFi, and Matter lights
 - **ZHA Group Management**: Automatically creates and syncs ZigBee groups for efficient control
-- **Light Designer**: Built-in web interface for customizing adaptive lighting curves
+- **Light Designer**: Built-in web interface for customizing circadian lighting curves
 - **Magic Mode**: Lights automatically update when physical switches are used
 - **Energy Efficient**: Optimized group control reduces ZigBee network traffic
 
@@ -73,7 +73,7 @@ When you press a ZHA-compatible switch:
 1. MagicLight detects the button press event
 2. Identifies all lights in the same area as the switch
 3. Calculates optimal lighting based on current sun position
-4. Updates all lights with adaptive values
+4. Updates all lights with circadian values
 
 ### Switch Integration
 
@@ -95,7 +95,7 @@ MagicLight automatically manages ZigBee groups for optimal performance:
 
 ### Manual Testing
 
-Test adaptive lighting for any area:
+Test circadian lighting for any area:
 ```bash
 # Via Home Assistant CLI
 ha addon logs magiclight --follow
@@ -142,7 +142,7 @@ View real-time activity:
 - Persistent connection with automatic reconnection
 - Subscribes to ZHA events and state changes
 
-### Adaptive Algorithm
+### Circadian Algorithm
 - Solar position: -1 (sunrise) to 0 (noon) to 1 (sunset)
 - Separate morning/evening curves with midpoint control
 - Brightness steps: 10%, 30%, 50%, 70%, 100%
@@ -152,7 +152,7 @@ View real-time activity:
 ```
 /addon/
 ├── main.py              # WebSocket client and event handler
-├── brain.py             # Adaptive lighting calculations
+├── brain.py             # Circadian lighting calculations
 ├── light_controller.py  # Multi-protocol light control
 ├── switch.py           # Switch command processing
 ├── webserver.py        # Light Designer server

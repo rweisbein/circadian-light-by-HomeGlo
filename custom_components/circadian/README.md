@@ -1,10 +1,10 @@
 # Circadian Light by HomeGlo Integration for Home Assistant
 
-The Circadian Light custom integration provides Home Assistant services for controlling lights with adaptive lighting based on the sun's position. It works in conjunction with the Circadian Light add-on to provide flexible automation capabilities.
+The Circadian Light custom integration provides Home Assistant services for controlling lights with circadian lighting based on the sun's position. It works in conjunction with the Circadian Light add-on to provide flexible automation capabilities.
 
 ## Prerequisites
 
-**Important**: The Circadian Light integration requires the Circadian Light add-on to be installed and running. The add-on handles adaptive lighting calculations, sun position tracking, and light control logic.
+**Important**: The Circadian Light integration requires the Circadian Light add-on to be installed and running. The add-on handles circadian lighting calculations, sun position tracking, and light control logic.
 
 ## Installation
 
@@ -24,22 +24,22 @@ The Circadian Light custom integration provides Home Assistant services for cont
 ## Available Services
 
 ### `magiclight.magiclight_on`
-Enable MagicLight mode and set lights to current time position with adaptive values.
+Enable MagicLight mode and set lights to current time position with circadian values.
 
 ### `magiclight.magiclight_off`  
 Disable MagicLight mode without changing light state. Saves current time offset for later restoration.
 
 ### `magiclight.magiclight_toggle`
-Smart toggle based on light state. If lights are on, turns them off and disables MagicLight. If lights are off, enables MagicLight and turns them on with adaptive values.
+Smart toggle based on light state. If lights are on, turns them off and disables MagicLight. If lights are off, enables MagicLight and turns them on with circadian values.
 
 ### `magiclight.step_up`
-Increase brightness by one step along the adaptive lighting curve (brightens and cools).
+Increase brightness by one step along the circadian lighting curve (brightens and cools).
 
 ### `magiclight.step_down`
-Decrease brightness by one step along the adaptive lighting curve (dims and warms).
+Decrease brightness by one step along the circadian lighting curve (dims and warms).
 
 ### `magiclight.reset`
-Reset time offset to current time, enable MagicLight, and apply current adaptive lighting.
+Reset time offset to current time, enable MagicLight, and apply current circadian lighting.
 
 **Service Data (all services):**
 ```yaml

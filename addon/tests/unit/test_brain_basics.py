@@ -1,8 +1,8 @@
 from datetime import datetime
 
 from brain import (
-    get_adaptive_lighting,
-    AdaptiveLighting,
+    get_circadian_lighting,
+    CircadianLight,
     calculate_dimming_step,
 )
 
@@ -10,9 +10,9 @@ from brain import (
 SF = dict(latitude=37.7749, longitude=-122.4194, timezone="America/Los_Angeles")
 
 
-def test_get_adaptive_lighting_basic_ranges():
+def test_get_circadian_lighting_basic_ranges():
     now = datetime(2024, 6, 21, 12, 0, 0)  # noon solstice, deterministic
-    result = get_adaptive_lighting(current_time=now, **SF)
+    result = get_circadian_lighting(current_time=now, **SF)
 
     # Expected keys present
     for key in ("kelvin", "brightness", "rgb", "xy", "sun_position", "solar_time"):
@@ -30,11 +30,11 @@ def test_get_adaptive_lighting_basic_ranges():
 
 
 def test_color_conversion_roundtrips_in_ranges():
-    al = AdaptiveLighting()
+    cl = CircadianLight()
     for kelvin in (2000, 3000, 4000, 5000, 6500):
-        x, y = al.color_temperature_to_xy(kelvin)
+        x, y = cl.color_temperature_to_xy(kelvin)
         assert 0 <= x <= 1 and 0 <= y <= 1
-        r, g, b = al.color_temperature_to_rgb(kelvin)
+        r, g, b = cl.color_temperature_to_rgb(kelvin)
         assert all(0 <= c <= 255 for c in (r, g, b))
 
 
@@ -48,16 +48,15 @@ def test_calculate_dimming_step_has_target_time():
 
 
 def test_brightness_and_cct_vary_over_day():
-    al = AdaptiveLighting(
+    cl = CircadianLight(
         solar_midnight=datetime(2024, 1, 1, 0, 0, 0),
         solar_noon=datetime(2024, 1, 1, 12, 0, 0),
     )
     morning = datetime(2024, 1, 1, 9, 0, 0)
     evening = datetime(2024, 1, 1, 21, 0, 0)
-    bri_m = al.calculate_brightness(morning)
-    bri_e = al.calculate_brightness(evening)
-    cct_m = al.calculate_color_temperature(morning)
-    cct_e = al.calculate_color_temperature(evening)
+    bri_m = cl.calculate_brightness(morning)
+    bri_e = cl.calculate_brightness(evening)
+    cct_m = cl.calculate_color_temperature(morning)
+    cct_e = cl.calculate_color_temperature(evening)
     # They should not be identical across halves
     assert bri_m != bri_e or cct_m != cct_e
-
