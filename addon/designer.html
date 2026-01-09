@@ -2211,7 +2211,6 @@ function initChartInteractivity() {
 
     cursorHour = xVal;
     applyCursor();
-    applyLiveLight();  // Live Design: apply to selected area
   }, true);  // Use capture phase
 
   // Double click to clear cursor
@@ -3298,7 +3297,6 @@ function stepCursor(direction, adjustBrightness, adjustColor) {
 
     renderChart();
     applyCursor();
-    applyLiveLight();  // Live Design: apply to selected area
     return;
   }
 
@@ -3445,7 +3443,6 @@ function stepCursor(direction, adjustBrightness, adjustColor) {
 
   renderChart();
   applyCursor();
-  applyLiveLight();  // Live Design: apply to selected area
 }
 
 // ============================================================
