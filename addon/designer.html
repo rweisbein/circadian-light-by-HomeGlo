@@ -3564,12 +3564,26 @@ function getCursorLightValues() {
  * Apply the current cursor lighting values to the selected area.
  */
 async function applyLiveLight() {
-  if (!liveDesignEnabled || !liveDesignAreaId) return;
+  console.log('[Live Design] applyLiveLight called, enabled=', liveDesignEnabled, 'areaId=', liveDesignAreaId);
+  if (!liveDesignEnabled || !liveDesignAreaId) {
+    console.log('[Live Design] Skipping - not enabled or no area selected');
+    return;
+  }
 
   const values = getCursorLightValues();
-  if (!values) return;
+  console.log('[Live Design] Cursor values:', values);
+  if (!values) {
+    console.log('[Live Design] No cursor values available');
+    return;
+  }
 
   const statusEl = document.getElementById('live-design-status');
+
+  console.log('[Live Design] Sending to API:', {
+    area_id: liveDesignAreaId,
+    brightness: Math.round(values.brightness),
+    color_temp: Math.round(values.colorTemp)
+  });
 
   try {
     const response = await fetch('./api/apply-light', {
