@@ -5,15 +5,15 @@
 # ==============================================================================
 
 # ---------------------------------------------------------------
-# 0. Ensure MagicLight integration files are installed
+# 0. Ensure Circadian Light integration files are installed
 # ---------------------------------------------------------------
-MAGICLIGHT_SOURCE="/opt/magiclight/custom_components/magiclight"
-MAGICLIGHT_DEST_BASE="/config/custom_components"
-MAGICLIGHT_DEST=""
-MAGICLIGHT_MARKER=""
-MAGICLIGHT_REPOSITORY_INFO="/opt/magiclight/repository.yaml"
-MAGICLIGHT_BLUEPRINT_SOURCE_BASE="${MAGICLIGHT_BLUEPRINT_SOURCE_BASE:-/opt/magiclight/blueprints}"
-export MAGICLIGHT_BLUEPRINT_SOURCE_BASE
+CIRCADIAN_SOURCE="/opt/magiclight/custom_components/circadian"
+CIRCADIAN_DEST_BASE="/config/custom_components"
+CIRCADIAN_DEST=""
+CIRCADIAN_MARKER=""
+CIRCADIAN_REPOSITORY_INFO="/opt/magiclight/repository.yaml"
+CIRCADIAN_BLUEPRINT_SOURCE_BASE="${CIRCADIAN_BLUEPRINT_SOURCE_BASE:-/opt/magiclight/blueprints}"
+export CIRCADIAN_BLUEPRINT_SOURCE_BASE
 
 normalize_bool() {
     local raw="$1"
@@ -36,27 +36,27 @@ normalize_bool() {
     esac
 }
 
-MANAGE_MAGICLIGHT_INTEGRATION="$(normalize_bool "$(bashio::config 'manage_integration')")"
-export MANAGE_MAGICLIGHT_INTEGRATION
+MANAGE_CIRCADIAN_INTEGRATION="$(normalize_bool "$(bashio::config 'manage_integration')")"
+export MANAGE_CIRCADIAN_INTEGRATION
 
-MANAGE_MAGICLIGHT_BLUEPRINTS="$(normalize_bool "$(bashio::config 'manage_blueprints')")"
-export MANAGE_MAGICLIGHT_BLUEPRINTS
+MANAGE_CIRCADIAN_BLUEPRINTS="$(normalize_bool "$(bashio::config 'manage_blueprints')")"
+export MANAGE_CIRCADIAN_BLUEPRINTS
 
 build_default_download_url() {
     local repo_url repo branch
 
-    repo_url="$(awk -F"'" '/^[[:space:]]*url:/ {print $2}' "${MAGICLIGHT_REPOSITORY_INFO}" 2>/dev/null)"
+    repo_url="$(awk -F"'" '/^[[:space:]]*url:/ {print $2}' "${CIRCADIAN_REPOSITORY_INFO}" 2>/dev/null)"
     branch="main"
 
     if [ -z "${repo_url}" ]; then
-        repo="dtconceptsnc/magiclight"
+        repo="rweisbein/circadian-light-by-HomeGlo"
     else
         repo="${repo_url#https://github.com/}"
         repo="${repo%.git}"
         repo="${repo#/}"
         repo="${repo%/}"
         if [ -z "${repo}" ]; then
-            repo="dtconceptsnc/magiclight"
+            repo="rweisbein/circadian-light-by-HomeGlo"
         fi
     fi
 
@@ -99,26 +99,26 @@ download_integration_source() {
     fi
 
     tmp_dir="$(mktemp -d)"
-    archive_path="${tmp_dir}/magiclight.tar.gz"
+    archive_path="${tmp_dir}/circadian.tar.gz"
 
-    bashio::log.info "Downloading MagicLight integration from ${download_url}..."
+    bashio::log.info "Downloading Circadian Light integration from ${download_url}..."
 
     if ! curl -sSL -o "${archive_path}" "${download_url}"; then
-        bashio::log.error "Failed to download MagicLight integration archive."
+        bashio::log.error "Failed to download Circadian Light integration archive."
         rm -rf "${tmp_dir}"
         return 1
     fi
 
     if ! tar -xzf "${archive_path}" -C "${tmp_dir}"; then
-        bashio::log.error "Failed to extract MagicLight integration archive."
+        bashio::log.error "Failed to extract Circadian Light integration archive."
         rm -rf "${tmp_dir}"
         return 1
     fi
 
-    source_path="$(find "${tmp_dir}" -maxdepth 3 -type d -path '*/custom_components/magiclight' | head -n 1)"
+    source_path="$(find "${tmp_dir}" -maxdepth 3 -type d -path '*/custom_components/circadian' | head -n 1)"
 
     if [ -z "${source_path}" ]; then
-        bashio::log.error "Could not locate custom_components/magiclight in downloaded archive."
+        bashio::log.error "Could not locate custom_components/circadian in downloaded archive."
         rm -rf "${tmp_dir}"
         return 1
     fi
@@ -139,10 +139,10 @@ download_integration_source() {
 
     blueprint_base="${repo_root}/blueprints"
     if [ -d "${blueprint_base}" ]; then
-        mkdir -p "$(dirname "${MAGICLIGHT_BLUEPRINT_SOURCE_BASE}")"
-        if rm -rf "${MAGICLIGHT_BLUEPRINT_SOURCE_BASE}" && \
-           cp -a "${blueprint_base}" "${MAGICLIGHT_BLUEPRINT_SOURCE_BASE}"; then
-            bashio::log.info "Staged blueprints from downloaded archive to ${MAGICLIGHT_BLUEPRINT_SOURCE_BASE}"
+        mkdir -p "$(dirname "${CIRCADIAN_BLUEPRINT_SOURCE_BASE}")"
+        if rm -rf "${CIRCADIAN_BLUEPRINT_SOURCE_BASE}" && \
+           cp -a "${blueprint_base}" "${CIRCADIAN_BLUEPRINT_SOURCE_BASE}"; then
+            bashio::log.info "Staged blueprints from downloaded archive to ${CIRCADIAN_BLUEPRINT_SOURCE_BASE}"
         else
             bashio::log.warning "Failed to stage blueprints from downloaded archive."
         fi
@@ -155,14 +155,14 @@ download_integration_source() {
 }
 
 prepare_destination() {
-    local base="${MAGICLIGHT_DEST_BASE}"
+    local base="${CIRCADIAN_DEST_BASE}"
 
     if mkdir -p "${base}" 2>/dev/null; then
         bashio::log.info "Ensured Home Assistant custom_components directory at ${base}."
     fi
 
-    MAGICLIGHT_DEST="${base}/magiclight"
-    MAGICLIGHT_MARKER="${MAGICLIGHT_DEST}/.managed_by_magiclight_addon"
+    CIRCADIAN_DEST="${base}/circadian"
+    CIRCADIAN_MARKER="${CIRCADIAN_DEST}/.managed_by_circadian_addon"
 
     bashio::log.info "Using custom_components directory: ${base}"
 }
@@ -172,7 +172,7 @@ copy_bundled_integration() {
 
     target_path="$1"
 
-    if [ ! -d "${MAGICLIGHT_SOURCE}" ]; then
+    if [ ! -d "${CIRCADIAN_SOURCE}" ]; then
         return 1
     fi
 
@@ -182,22 +182,22 @@ copy_bundled_integration() {
 
     mkdir -p "$(dirname "${target_path}")"
 
-    if ! cp -a "${MAGICLIGHT_SOURCE}" "${target_path}"; then
+    if ! cp -a "${CIRCADIAN_SOURCE}" "${target_path}"; then
         return 1
     fi
 
     return 0
 }
 
-manage_magiclight_integration() {
+manage_circadian_integration() {
     local download_url expected_source current_source current_version addon_version
 
-    if [ "${MANAGE_MAGICLIGHT_INTEGRATION}" = "false" ]; then
-        if bashio::fs.directory_exists "${MAGICLIGHT_DEST}" && [ -f "${MAGICLIGHT_MARKER}" ]; then
-            bashio::log.info "Removing MagicLight integration installed by the add-on..."
-            rm -rf "${MAGICLIGHT_DEST}"
+    if [ "${MANAGE_CIRCADIAN_INTEGRATION}" = "false" ]; then
+        if bashio::fs.directory_exists "${CIRCADIAN_DEST}" && [ -f "${CIRCADIAN_MARKER}" ]; then
+            bashio::log.info "Removing Circadian Light integration installed by the add-on..."
+            rm -rf "${CIRCADIAN_DEST}"
         else
-            bashio::log.info "Skipping MagicLight integration management (disabled in options)."
+            bashio::log.info "Skipping Circadian Light integration management (disabled in options)."
         fi
         return
     fi
@@ -213,16 +213,16 @@ manage_magiclight_integration() {
 
     if [ -n "${download_url}" ]; then
         expected_source="${download_url}"
-    elif [ -d "${MAGICLIGHT_SOURCE}" ]; then
+    elif [ -d "${CIRCADIAN_SOURCE}" ]; then
         expected_source="bundled"
     else
         expected_source="$(build_default_download_url)"
     fi
 
-    if [ -f "${MAGICLIGHT_MARKER}" ]; then
-        current_source=$(sed -n 's/^source=//p' "${MAGICLIGHT_MARKER}")
-        current_version=$(sed -n 's/^addon_version=//p' "${MAGICLIGHT_MARKER}")
-        current_integration_version=$(sed -n 's/^integration_version=//p' "${MAGICLIGHT_MARKER}")
+    if [ -f "${CIRCADIAN_MARKER}" ]; then
+        current_source=$(sed -n 's/^source=//p' "${CIRCADIAN_MARKER}")
+        current_version=$(sed -n 's/^addon_version=//p' "${CIRCADIAN_MARKER}")
+        current_integration_version=$(sed -n 's/^integration_version=//p' "${CIRCADIAN_MARKER}")
     else
         current_source=""
         current_version=""
@@ -230,13 +230,13 @@ manage_magiclight_integration() {
     fi
 
     expected_integration_version=""
-    if [ "${expected_source}" = "bundled" ] && [ -f "${MAGICLIGHT_SOURCE}/manifest.json" ]; then
-        expected_integration_version=$(read_manifest_version "${MAGICLIGHT_SOURCE}/manifest.json" || echo "")
+    if [ "${expected_source}" = "bundled" ] && [ -f "${CIRCADIAN_SOURCE}/manifest.json" ]; then
+        expected_integration_version=$(read_manifest_version "${CIRCADIAN_SOURCE}/manifest.json" || echo "")
     fi
 
     dest_manifest_version=""
-    if [ -f "${MAGICLIGHT_DEST}/manifest.json" ]; then
-        dest_manifest_version=$(read_manifest_version "${MAGICLIGHT_DEST}/manifest.json" || echo "")
+    if [ -f "${CIRCADIAN_DEST}/manifest.json" ]; then
+        dest_manifest_version=$(read_manifest_version "${CIRCADIAN_DEST}/manifest.json" || echo "")
     fi
 
     integration_versions_match="false"
@@ -253,74 +253,70 @@ manage_magiclight_integration() {
         fi
     fi
 
-    if bashio::fs.directory_exists "${MAGICLIGHT_DEST}" && \
+    if bashio::fs.directory_exists "${CIRCADIAN_DEST}" && \
         [ "${current_source}" = "${expected_source}" ] && \
         [ "${integration_versions_match}" = "true" ]; then
-        bashio::log.info "MagicLight integration already up to date (source: ${expected_source})."
-        if [ -n "${MAGICLIGHT_FALLBACK_BASE:-}" ] && \
-           [ -d "${MAGICLIGHT_FALLBACK_BASE}/magiclight" ]; then
-            bashio::log.info "Mirror already present at ${MAGICLIGHT_FALLBACK_BASE}/magiclight."
-        fi
+        bashio::log.info "Circadian Light integration already up to date (source: ${expected_source})."
         return
     fi
 
-    if bashio::fs.directory_exists "${MAGICLIGHT_DEST}"; then
-        if [ -f "${MAGICLIGHT_MARKER}" ]; then
-            bashio::log.info "Updating existing MagicLight integration managed by the add-on..."
+    if bashio::fs.directory_exists "${CIRCADIAN_DEST}"; then
+        if [ -f "${CIRCADIAN_MARKER}" ]; then
+            bashio::log.info "Updating existing Circadian Light integration managed by the add-on..."
         else
-            bashio::log.warning "MagicLight integration already present; replacing with managed copy."
+            bashio::log.warning "Circadian Light integration already present; replacing with managed copy."
         fi
-        rm -rf "${MAGICLIGHT_DEST}"
+        rm -rf "${CIRCADIAN_DEST}"
     else
-        bashio::log.info "Installing MagicLight custom integration..."
+        bashio::log.info "Installing Circadian Light custom integration..."
     fi
 
     if [ -n "${download_url}" ]; then
-        if ! download_integration_source "${MAGICLIGHT_DEST}" "${download_url}"; then
-            bashio::log.error "Unable to deploy MagicLight integration from ${download_url}."
+        if ! download_integration_source "${CIRCADIAN_DEST}" "${download_url}"; then
+            bashio::log.error "Unable to deploy Circadian Light integration from ${download_url}."
             return
         fi
-    elif [ -d "${MAGICLIGHT_SOURCE}" ]; then
-        bashio::log.info "Copying MagicLight integration bundled with the add-on..."
-        if ! copy_bundled_integration "${MAGICLIGHT_DEST}"; then
-            bashio::log.error "Bundled MagicLight integration missing; attempting download instead."
-            if ! download_integration_source "${MAGICLIGHT_DEST}" ""; then
-                bashio::log.error "Unable to deploy MagicLight integration."
+    elif [ -d "${CIRCADIAN_SOURCE}" ]; then
+        bashio::log.info "Copying Circadian Light integration bundled with the add-on..."
+        if ! copy_bundled_integration "${CIRCADIAN_DEST}"; then
+            bashio::log.error "Bundled Circadian Light integration missing; attempting download instead."
+            if ! download_integration_source "${CIRCADIAN_DEST}" ""; then
+                bashio::log.error "Unable to deploy Circadian Light integration."
                 return
             fi
         fi
     else
-        bashio::log.info "Downloading MagicLight integration from main branch..."
-        if ! download_integration_source "${MAGICLIGHT_DEST}" ""; then
-            bashio::log.error "Unable to deploy MagicLight integration."
+        bashio::log.info "Downloading Circadian Light integration from main branch..."
+        if ! download_integration_source "${CIRCADIAN_DEST}" ""; then
+            bashio::log.error "Unable to deploy Circadian Light integration."
             return
         fi
     fi
 
     {
         echo "addon_version=${addon_version}"
-        integration_version=$(read_manifest_version "${MAGICLIGHT_DEST}/manifest.json" || echo "")
+        integration_version=$(read_manifest_version "${CIRCADIAN_DEST}/manifest.json" || echo "")
         echo "integration_version=${integration_version}"
         echo "source=${expected_source}"
         echo "updated_at=$(date -Iseconds)"
-    } > "${MAGICLIGHT_MARKER}"
+    } > "${CIRCADIAN_MARKER}"
 
-    if ! bashio::fs.directory_exists "${MAGICLIGHT_DEST}"; then
-        bashio::log.error "MagicLight integration deployment failed; destination not found after copy."
+    if ! bashio::fs.directory_exists "${CIRCADIAN_DEST}"; then
+        bashio::log.error "Circadian Light integration deployment failed; destination not found after copy."
         return
     fi
 
-    if [ ! -f "${MAGICLIGHT_DEST}/manifest.json" ]; then
-        bashio::log.warning "MagicLight integration manifest not found at ${MAGICLIGHT_DEST}/manifest.json."
-        bashio::log.warning "Directory contents: $(ls -A "${MAGICLIGHT_DEST}" 2>/dev/null || echo '(empty)')"
+    if [ ! -f "${CIRCADIAN_DEST}/manifest.json" ]; then
+        bashio::log.warning "Circadian Light integration manifest not found at ${CIRCADIAN_DEST}/manifest.json."
+        bashio::log.warning "Directory contents: $(ls -A "${CIRCADIAN_DEST}" 2>/dev/null || echo '(empty)')"
     else
-        bashio::log.info "MagicLight integration manifest detected at ${MAGICLIGHT_DEST}/manifest.json."
+        bashio::log.info "Circadian Light integration manifest detected at ${CIRCADIAN_DEST}/manifest.json."
     fi
 
-    bashio::log.info "MagicLight integration deployed to ${MAGICLIGHT_DEST}."
+    bashio::log.info "Circadian Light integration deployed to ${CIRCADIAN_DEST}."
 
     if [ -n "${SUPERVISOR_TOKEN:-}" ]; then
-        discovery_payload='{"service":"magiclight","config":{}}'
+        discovery_payload='{"service":"circadian","config":{}}'
         bashio::log.info "Publishing discovery payload to supervisor..."
         if curl -sS -X POST "http://supervisor/addons/self/discovery" \
             -H "Authorization: Bearer ${SUPERVISOR_TOKEN}" \
@@ -333,11 +329,11 @@ manage_magiclight_integration() {
     fi
 }
 
-if [ "${MAGICLIGHT_SKIP_MAIN:-}" = "1" ]; then
+if [ "${CIRCADIAN_SKIP_MAIN:-}" = "1" ]; then
     return 0 2>/dev/null || exit 0
 fi
 
-manage_magiclight_integration
+manage_circadian_integration
 
 # ---------------------------------------------------------------
 # 1. Detect mode
@@ -351,12 +347,12 @@ fi
 if [ -n "${SUPERVISOR_TOKEN:-}" ]; then
     MODE="ADDON"
     bashio::log.info "Running in addon mode (SUPERVISOR_TOKEN present)"
-    
+
     # In addon mode, use supervisor proxy URLs
     export HA_WEBSOCKET_URL="ws://supervisor/core/api/websocket"
     export HA_REST_URL="http://supervisor/core/api"
     export HA_TOKEN="${SUPERVISOR_TOKEN}"
-    
+
     # These are not used in URL mode but kept for compatibility
     export HA_HOST="supervisor"
     export HA_PORT="80"
@@ -364,41 +360,41 @@ if [ -n "${SUPERVISOR_TOKEN:-}" ]; then
 else
     MODE="STANDALONE"
     bashio::log.info "Running in standalone mode (no supervisor token)"
-    
+
     # Try to get config from bashio first, then fall back to env vars
     CONFIG_HOST=$(bashio::config 'host')
     CONFIG_PORT=$(bashio::config 'port')
     CONFIG_TOKEN=$(bashio::config 'token')
     CONFIG_USE_SSL=$(bashio::config 'use_ssl')
-    
+
     # Set host
     if [ "${CONFIG_HOST}" != "null" ] && [ -n "${CONFIG_HOST}" ]; then
         export HA_HOST="${CONFIG_HOST}"
     else
         export HA_HOST="${HA_HOST:-localhost}"
     fi
-    
+
     # Set port
     if [ "${CONFIG_PORT}" != "null" ] && [ -n "${CONFIG_PORT}" ]; then
         export HA_PORT="${CONFIG_PORT}"
     else
         export HA_PORT="${HA_PORT:-8123}"
     fi
-    
+
     # Set token
     if [ "${CONFIG_TOKEN}" != "null" ] && [ -n "${CONFIG_TOKEN}" ]; then
         export HA_TOKEN="${CONFIG_TOKEN}"
     else
         export HA_TOKEN="${HA_TOKEN:-}"
     fi
-    
+
     # Set SSL
     if [ "${CONFIG_USE_SSL}" != "null" ] && [ -n "${CONFIG_USE_SSL}" ]; then
         export HA_USE_SSL="${CONFIG_USE_SSL}"
     else
         export HA_USE_SSL="${HA_USE_SSL:-false}"
     fi
-    
+
     # Build WebSocket URL
     if [ "${HA_USE_SSL}" = "true" ]; then
         export HA_WEBSOCKET_URL="wss://${HA_HOST}:${HA_PORT}/api/websocket"
