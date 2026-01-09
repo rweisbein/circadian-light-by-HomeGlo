@@ -1,5 +1,16 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.2.0
+**Enhancement - Live Design pauses Circadian updates**
+
+**Added:**
+- Live Design now automatically pauses Circadian mode for the selected area
+- When enabled, periodic updates won't override your Live Design changes
+- Circadian mode is automatically re-enabled when you disable Live Design
+- Switching areas while Live Design is active properly swaps Circadian state
+- `/api/circadian-mode` endpoint to enable/disable Circadian for an area
+- Status indicator shows "Circadian paused - designing" when active
+
 ## 6.1.0
 **Feature - Live Design Mode**
 

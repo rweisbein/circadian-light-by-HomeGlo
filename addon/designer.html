@@ -3618,6 +3618,29 @@ async function applyLiveLight() {
 }
 
 /**
+ * Enable or disable Circadian mode for an area via API.
+ */
+async function setCircadianMode(areaId, enabled) {
+  if (!areaId) return;
+
+  try {
+    const response = await fetch('./api/circadian-mode', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ area_id: areaId, enabled })
+    });
+
+    if (response.ok) {
+      console.log(`[Live Design] Circadian mode ${enabled ? 'enabled' : 'disabled'} for ${areaId}`);
+    } else {
+      console.warn('[Live Design] Failed to set circadian mode:', response.status);
+    }
+  } catch (err) {
+    console.error('[Live Design] Error setting circadian mode:', err);
+  }
+}
+
+/**
  * Set up Live Design event listeners.
  */
 function setupLiveDesign() {
@@ -3626,7 +3649,7 @@ function setupLiveDesign() {
   const statusEl = document.getElementById('live-design-status');
 
   if (toggleBtn) {
-    toggleBtn.addEventListener('click', () => {
+    toggleBtn.addEventListener('click', async () => {
       // Require an area to be selected before enabling
       if (!liveDesignEnabled && !liveDesignAreaId) {
         if (statusEl) {
@@ -3640,13 +3663,28 @@ function setupLiveDesign() {
       toggleBtn.textContent = liveDesignEnabled ? 'Disable' : 'Enable';
       toggleBtn.classList.toggle('active', liveDesignEnabled);
 
+      // Disable/enable Circadian mode for the area
+      if (liveDesignEnabled) {
+        // Disable Circadian so periodic updates don't override Live Design
+        await setCircadianMode(liveDesignAreaId, false);
+      } else {
+        // Re-enable Circadian when done with Live Design
+        await setCircadianMode(liveDesignAreaId, true);
+      }
+
       if (statusEl) {
         if (liveDesignEnabled) {
-          statusEl.textContent = 'Click chart or use buttons';
+          statusEl.textContent = 'Circadian paused - designing';
           statusEl.classList.add('active');
         } else {
-          statusEl.textContent = '';
+          statusEl.textContent = 'Circadian resumed';
           statusEl.classList.remove('active');
+          // Clear status after a moment
+          setTimeout(() => {
+            if (!liveDesignEnabled && statusEl) {
+              statusEl.textContent = '';
+            }
+          }, 2000);
         }
       }
 
@@ -3658,13 +3696,26 @@ function setupLiveDesign() {
   }
 
   if (areaSelect) {
-    areaSelect.addEventListener('change', (e) => {
+    areaSelect.addEventListener('change', async (e) => {
+      const oldAreaId = liveDesignAreaId;
       liveDesignAreaId = e.target.value || null;
+
+      // If Live Design is active and area changed, swap Circadian mode
+      if (liveDesignEnabled) {
+        if (oldAreaId) {
+          // Re-enable Circadian for the old area
+          await setCircadianMode(oldAreaId, true);
+        }
+        if (liveDesignAreaId) {
+          // Disable Circadian for the new area
+          await setCircadianMode(liveDesignAreaId, false);
+        }
+      }
 
       // Reset status when area changes
       if (statusEl) {
         if (liveDesignAreaId && liveDesignEnabled) {
-          statusEl.textContent = 'Click chart or use buttons';
+          statusEl.textContent = 'Circadian paused - designing';
           statusEl.classList.add('active');
         } else {
           statusEl.textContent = '';

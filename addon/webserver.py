@@ -353,6 +353,7 @@ class LightDesignerServer:
         self.app.router.add_route('GET', '/{path:.*}/health', self.health_check)
         self.app.router.add_route('GET', '/{path:.*}/api/areas', self.get_areas)
         self.app.router.add_route('POST', '/{path:.*}/api/apply-light', self.apply_light)
+        self.app.router.add_route('POST', '/{path:.*}/api/circadian-mode', self.set_circadian_mode)
 
         # Direct API routes (for non-ingress access)
         self.app.router.add_get('/api/config', self.get_config)
@@ -367,6 +368,7 @@ class LightDesignerServer:
         # Live Design API routes
         self.app.router.add_get('/api/areas', self.get_areas)
         self.app.router.add_post('/api/apply-light', self.apply_light)
+        self.app.router.add_post('/api/circadian-mode', self.set_circadian_mode)
 
         # Handle root and any other paths (catch-all must be last)
         self.app.router.add_get('/', self.serve_designer)
@@ -929,6 +931,38 @@ class LightDesignerServer:
             )
         except Exception as e:
             logger.error(f"Error applying light: {e}")
+            return web.json_response(
+                {'error': str(e)},
+                status=500
+            )
+
+    async def set_circadian_mode(self, request: Request) -> Response:
+        """Enable or disable Circadian mode for an area.
+
+        Used by Live Design to pause automatic updates while designing.
+        """
+        try:
+            data = await request.json()
+            area_id = data.get('area_id')
+            enabled = data.get('enabled', True)
+
+            if not area_id:
+                return web.json_response(
+                    {'error': 'area_id is required'},
+                    status=400
+                )
+
+            state.set_enabled(area_id, enabled)
+            logger.info(f"[Live Design] Circadian mode {'enabled' if enabled else 'disabled'} for area {area_id}")
+
+            return web.json_response({'status': 'ok', 'enabled': enabled})
+        except json.JSONDecodeError:
+            return web.json_response(
+                {'error': 'Invalid JSON'},
+                status=400
+            )
+        except Exception as e:
+            logger.error(f"Error setting circadian mode: {e}")
             return web.json_response(
                 {'error': str(e)},
                 status=500
