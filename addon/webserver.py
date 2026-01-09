@@ -780,14 +780,14 @@ class LightDesignerServer:
         return None, None, None
 
     async def _fetch_areas_via_websocket(self, ws_url: str, token: str) -> list:
-        """Fetch areas from Home Assistant via WebSocket API.
+        """Fetch areas that have lights from Home Assistant via WebSocket API.
 
         Args:
             ws_url: WebSocket URL (e.g., ws://supervisor/core/api/websocket)
             token: Home Assistant auth token
 
         Returns:
-            List of area dicts with area_id and name
+            List of area dicts with area_id and name (only areas with lights)
         """
         logger.info(f"[Live Design] Connecting to WebSocket: {ws_url}")
         try:
@@ -820,20 +820,50 @@ class LightDesignerServer:
                 }))
                 logger.info("[Live Design] Requested area registry")
 
-                # Get response
-                msg = json.loads(await ws.recv())
-                logger.info(f"[Live Design] Area response success={msg.get('success')}, has result={bool(msg.get('result'))}")
-                if msg.get('success') and msg.get('result'):
-                    areas = [
-                        {'area_id': a['area_id'], 'name': a['name']}
-                        for a in msg['result']
-                    ]
-                    areas.sort(key=lambda x: x['name'].lower())
-                    logger.info(f"[Live Design] Returning {len(areas)} areas")
-                    return areas
-                else:
-                    logger.error(f"[Live Design] Failed to get areas: {msg}")
+                # Get area response
+                area_msg = json.loads(await ws.recv())
+                if not area_msg.get('success') or not area_msg.get('result'):
+                    logger.error(f"[Live Design] Failed to get areas: {area_msg}")
                     return []
+
+                all_areas = {a['area_id']: a['name'] for a in area_msg['result']}
+                logger.info(f"[Live Design] Found {len(all_areas)} total areas")
+
+                # Request entity registry to find areas with lights
+                await ws.send(json.dumps({
+                    'id': 2,
+                    'type': 'config/entity_registry/list'
+                }))
+                logger.info("[Live Design] Requested entity registry")
+
+                # Get entity response
+                entity_msg = json.loads(await ws.recv())
+                if not entity_msg.get('success') or not entity_msg.get('result'):
+                    logger.error(f"[Live Design] Failed to get entities: {entity_msg}")
+                    # Fall back to returning all areas
+                    areas = [{'area_id': k, 'name': v} for k, v in all_areas.items()]
+                    areas.sort(key=lambda x: x['name'].lower())
+                    return areas
+
+                # Find area_ids that have at least one light entity
+                areas_with_lights = set()
+                for entity in entity_msg['result']:
+                    entity_id = entity.get('entity_id', '')
+                    area_id = entity.get('area_id')
+                    if entity_id.startswith('light.') and area_id:
+                        areas_with_lights.add(area_id)
+
+                logger.info(f"[Live Design] Found {len(areas_with_lights)} areas with lights")
+
+                # Return only areas that have lights
+                areas = [
+                    {'area_id': area_id, 'name': all_areas[area_id]}
+                    for area_id in areas_with_lights
+                    if area_id in all_areas
+                ]
+                areas.sort(key=lambda x: x['name'].lower())
+                logger.info(f"[Live Design] Returning {len(areas)} areas with lights")
+                return areas
 
         except Exception as e:
             logger.error(f"[Live Design] WebSocket error: {e}", exc_info=True)

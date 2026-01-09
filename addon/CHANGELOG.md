@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.2.1
+**Enhancement - Filter areas by lights**
+
+**Changed:**
+- Live Design dropdown now only shows areas that have lights
+- Areas without `light.*` entities are filtered out
+
 ## 6.2.0
 **Enhancement - Live Design pauses Circadian updates**
 
