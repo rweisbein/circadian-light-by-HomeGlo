@@ -22,6 +22,7 @@ from brain import (
     AreaState,
     ColorMode,
     get_current_hour,
+    get_adaptive_lighting,
     DEFAULT_MAX_DIM_STEPS,
     DEFAULT_MIN_BRIGHTNESS,
     DEFAULT_MAX_BRIGHTNESS,
