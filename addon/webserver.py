@@ -829,9 +829,27 @@ class LightDesignerServer:
                 all_areas = {a['area_id']: a['name'] for a in area_msg['result']}
                 logger.info(f"[Live Design] Found {len(all_areas)} total areas")
 
-                # Request entity registry to find areas with lights
+                # Request device registry (lights often get area from device)
                 await ws.send(json.dumps({
                     'id': 2,
+                    'type': 'config/device_registry/list'
+                }))
+                logger.info("[Live Design] Requested device registry")
+
+                # Get device response
+                device_msg = json.loads(await ws.recv())
+                device_areas = {}
+                if device_msg.get('success') and device_msg.get('result'):
+                    for device in device_msg['result']:
+                        device_id = device.get('id')
+                        area_id = device.get('area_id')
+                        if device_id and area_id:
+                            device_areas[device_id] = area_id
+                logger.info(f"[Live Design] Found {len(device_areas)} devices with areas")
+
+                # Request entity registry to find light entities
+                await ws.send(json.dumps({
+                    'id': 3,
                     'type': 'config/entity_registry/list'
                 }))
                 logger.info("[Live Design] Requested entity registry")
@@ -846,12 +864,20 @@ class LightDesignerServer:
                     return areas
 
                 # Find area_ids that have at least one light entity
+                # Check both direct entity area and area via device
                 areas_with_lights = set()
                 for entity in entity_msg['result']:
                     entity_id = entity.get('entity_id', '')
+                    if not entity_id.startswith('light.'):
+                        continue
+                    # Check direct area assignment
                     area_id = entity.get('area_id')
-                    if entity_id.startswith('light.') and area_id:
+                    if area_id:
                         areas_with_lights.add(area_id)
+                    # Check area via device
+                    device_id = entity.get('device_id')
+                    if device_id and device_id in device_areas:
+                        areas_with_lights.add(device_areas[device_id])
 
                 logger.info(f"[Live Design] Found {len(areas_with_lights)} areas with lights")
 

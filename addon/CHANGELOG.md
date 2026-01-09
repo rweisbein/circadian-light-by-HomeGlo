@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.2.2
+**Bugfix - Fix area filtering for device-assigned lights**
+
+**Fixed:**
+- Areas now correctly detected when lights are assigned via device (not entity)
+- Fetches device registry to map device_id → area_id
+- Checks both direct entity area and area inherited from device
+
 ## 6.2.1
 **Enhancement - Filter areas by lights**
 
