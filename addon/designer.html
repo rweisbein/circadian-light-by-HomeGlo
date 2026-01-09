@@ -2089,7 +2089,7 @@ function renderChart() {
   const layout = {
     paper_bgcolor: '#0a0a0a',
     plot_bgcolor: '#0a0a0a',
-    margin: { t: 40, r: 40, l: 50, b: 140 },  // Extra bottom margin for cursor label at -0.26
+    margin: { t: 40, r: 40, l: 50, b: 60 },
     legend: { orientation: 'h', x: 0, y: 1.1, font: { color: '#c8c8c8' } },
     hovermode: 'closest',
     xaxis: {
@@ -2268,7 +2268,7 @@ function applyCursor() {
 
   // Cursor line style - dotted white
   const cursorLineStyle = { color: '#fdfdfd', width: 2, dash: 'dot' };
-  const cursorLabelY = -0.26;
+  const cursorLabelY = -0.10;
 
   // Add cursor line with gap around the point
   if (cursorPoint) {

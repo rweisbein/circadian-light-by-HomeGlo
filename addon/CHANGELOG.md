@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.2.3
+**UI - Reduce vertical space below chart**
+
+**Changed:**
+- Reduced chart bottom margin from 140px to 60px
+- Moved cursor label closer to x-axis (y=-0.10 instead of -0.26)
+
 ## 6.2.2
 **Bugfix - Fix area filtering for device-assigned lights**
 
