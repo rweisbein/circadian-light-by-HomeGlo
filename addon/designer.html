@@ -3499,7 +3499,7 @@ async function loadLiveDesignAreas() {
   console.log('[Live Design] Loading areas...');
 
   try {
-    const response = await fetch('/api/areas');
+    const response = await fetch('./api/areas');
     console.log('[Live Design] API response status:', response.status);
 
     if (!response.ok) {
@@ -3572,7 +3572,7 @@ async function applyLiveLight() {
   const statusEl = document.getElementById('live-design-status');
 
   try {
-    const response = await fetch('/api/apply-light', {
+    const response = await fetch('./api/apply-light', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
