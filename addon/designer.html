@@ -3540,8 +3540,8 @@ async function loadLiveDesignAreas() {
 function getCursorLightValues() {
   if (cursorHour === null || !graphData) return null;
 
-  const { hours, bris, ccts } = graphData;
-  if (!hours || !bris || !ccts) return null;
+  const { hours, brightnessPct, cct } = graphData;
+  if (!hours || !brightnessPct || !cct) return null;
 
   // Find the index closest to cursorHour
   let idx = 0;
@@ -3555,8 +3555,8 @@ function getCursorLightValues() {
   }
 
   return {
-    brightness: bris[idx],
-    colorTemp: ccts[idx]
+    brightness: brightnessPct[idx],
+    colorTemp: cct[idx]
   };
 }
 
