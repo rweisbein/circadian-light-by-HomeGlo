@@ -8,6 +8,7 @@ import math
 import os
 from aiohttp import web, ClientSession
 from aiohttp.web import Request, Response
+import websockets
 import aiofiles
 from pathlib import Path
 from datetime import datetime, timedelta
@@ -747,59 +748,107 @@ class LightDesignerServer:
         """Get Home Assistant API URL and token from environment.
 
         Returns:
-            Tuple of (base_url, token) or (None, None) if not available.
+            Tuple of (rest_url, ws_url, token) or (None, None, None) if not available.
         """
-        # Check for REST URL first (set by run script)
-        rest_url = os.environ.get('HA_REST_URL')
         token = os.environ.get('HA_TOKEN')
+        if not token:
+            return None, None, None
 
-        if rest_url and token:
-            return rest_url, token
+        # Check for explicit URLs first (set by run script in addon mode)
+        rest_url = os.environ.get('HA_REST_URL')
+        ws_url = os.environ.get('HA_WEBSOCKET_URL')
 
-        # Fall back to constructing URL from host/port
+        if rest_url and ws_url:
+            return rest_url, ws_url, token
+
+        # Fall back to constructing URLs from host/port
         host = os.environ.get('HA_HOST')
         port = os.environ.get('HA_PORT', '8123')
         use_ssl = os.environ.get('HA_USE_SSL', 'false').lower() == 'true'
 
-        if host and token:
-            protocol = 'https' if use_ssl else 'http'
-            return f"{protocol}://{host}:{port}/api", token
+        if host:
+            http_protocol = 'https' if use_ssl else 'http'
+            ws_protocol = 'wss' if use_ssl else 'ws'
+            rest_url = f"{http_protocol}://{host}:{port}/api"
+            ws_url = f"{ws_protocol}://{host}:{port}/api/websocket"
+            return rest_url, ws_url, token
 
-        return None, None
+        return None, None, None
+
+    async def _fetch_areas_via_websocket(self, ws_url: str, token: str) -> list:
+        """Fetch areas from Home Assistant via WebSocket API.
+
+        Args:
+            ws_url: WebSocket URL (e.g., ws://supervisor/core/api/websocket)
+            token: Home Assistant auth token
+
+        Returns:
+            List of area dicts with area_id and name
+        """
+        try:
+            async with websockets.connect(ws_url) as ws:
+                # Wait for auth_required message
+                msg = json.loads(await ws.recv())
+                if msg.get('type') != 'auth_required':
+                    logger.error(f"Unexpected WS message: {msg}")
+                    return []
+
+                # Send auth
+                await ws.send(json.dumps({
+                    'type': 'auth',
+                    'access_token': token
+                }))
+
+                # Wait for auth response
+                msg = json.loads(await ws.recv())
+                if msg.get('type') != 'auth_ok':
+                    logger.error(f"WS auth failed: {msg}")
+                    return []
+
+                # Request area registry
+                await ws.send(json.dumps({
+                    'id': 1,
+                    'type': 'config/area_registry/list'
+                }))
+
+                # Get response
+                msg = json.loads(await ws.recv())
+                if msg.get('success') and msg.get('result'):
+                    areas = [
+                        {'area_id': a['area_id'], 'name': a['name']}
+                        for a in msg['result']
+                    ]
+                    areas.sort(key=lambda x: x['name'].lower())
+                    return areas
+                else:
+                    logger.error(f"Failed to get areas: {msg}")
+                    return []
+
+        except Exception as e:
+            logger.error(f"WebSocket error fetching areas: {e}")
+            return []
 
     async def get_areas(self, request: Request) -> Response:
         """Fetch areas from Home Assistant area registry."""
-        base_url, token = self._get_ha_api_config()
+        rest_url, ws_url, token = self._get_ha_api_config()
 
-        if not base_url or not token:
+        if not token:
             logger.warning("Home Assistant API not configured for Live Design")
             return web.json_response(
                 {'error': 'Home Assistant API not configured'},
                 status=503
             )
 
+        if not ws_url:
+            logger.warning("WebSocket URL not available for Live Design")
+            return web.json_response(
+                {'error': 'WebSocket URL not configured'},
+                status=503
+            )
+
         try:
-            async with ClientSession() as session:
-                headers = {'Authorization': f'Bearer {token}'}
-                async with session.get(
-                    f'{base_url}/config/area_registry/list',
-                    headers=headers
-                ) as resp:
-                    if resp.status != 200:
-                        logger.error(f"Failed to fetch areas: {resp.status}")
-                        return web.json_response(
-                            {'error': f'HA API returned {resp.status}'},
-                            status=resp.status
-                        )
-                    data = await resp.json()
-                    # Return simplified area list with id and name
-                    areas = [
-                        {'area_id': a['area_id'], 'name': a['name']}
-                        for a in data
-                    ]
-                    # Sort by name for UI
-                    areas.sort(key=lambda x: x['name'].lower())
-                    return web.json_response(areas)
+            areas = await self._fetch_areas_via_websocket(ws_url, token)
+            return web.json_response(areas)
         except Exception as e:
             logger.error(f"Error fetching areas from HA: {e}")
             return web.json_response(
@@ -809,9 +858,9 @@ class LightDesignerServer:
 
     async def apply_light(self, request: Request) -> Response:
         """Apply brightness and color temperature to lights in an area."""
-        base_url, token = self._get_ha_api_config()
+        rest_url, ws_url, token = self._get_ha_api_config()
 
-        if not base_url or not token:
+        if not rest_url or not token:
             logger.warning("Home Assistant API not configured for Live Design")
             return web.json_response(
                 {'error': 'Home Assistant API not configured'},
@@ -847,7 +896,7 @@ class LightDesignerServer:
                     'Content-Type': 'application/json',
                 }
                 async with session.post(
-                    f'{base_url}/services/light/turn_on',
+                    f'{rest_url}/services/light/turn_on',
                     headers=headers,
                     json=service_data
                 ) as resp:
