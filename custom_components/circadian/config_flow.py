@@ -18,14 +18,14 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         await self.async_set_unique_id(DOMAIN)
         self._abort_if_unique_id_configured()
         _LOGGER.info("[%s] Creating entry via USER step.", DOMAIN)
-        return self.async_create_entry(title="MagicLight", data={})
+        return self.async_create_entry(title="Circadian Light", data={})
 
     async def async_step_import(self, user_input: dict[str, Any]) -> FlowResult:
         """Called from __init__.py on startup."""
         await self.async_set_unique_id(DOMAIN)
         self._abort_if_unique_id_configured()
         _LOGGER.info("[%s] Creating entry via IMPORT step.", DOMAIN)
-        return self.async_create_entry(title="MagicLight", data={})
+        return self.async_create_entry(title="Circadian Light", data={})
 
     async def async_step_hassio(self, discovery_info: dict[str, Any]) -> FlowResult:
         """Optional: auto-create via Supervisor discovery as well."""

@@ -1,0 +1,167 @@
+step_up:
+  name: Step Up
+  description: Increase brightness and shift color along the circadian curve
+  icon: mdi:brightness-5
+  fields:
+    area_id:
+      name: Area
+      description: The area(s) to control
+      required: true
+      example: ["living_room", "kitchen"]
+      selector:
+        area:
+          multiple: true
+
+step_down:
+  name: Step Down
+  description: Decrease brightness and shift color along the circadian curve
+  icon: mdi:brightness-4
+  fields:
+    area_id:
+      name: Area
+      description: The area(s) to control
+      required: true
+      example: ["living_room", "kitchen"]
+      selector:
+        area:
+          multiple: true
+
+bright_up:
+  name: Bright Up
+  description: Increase brightness only (color unchanged)
+  icon: mdi:brightness-7
+  fields:
+    area_id:
+      name: Area
+      description: The area(s) to brighten
+      required: true
+      example: ["living_room", "kitchen"]
+      selector:
+        area:
+          multiple: true
+
+bright_down:
+  name: Bright Down
+  description: Decrease brightness only (color unchanged)
+  icon: mdi:brightness-3
+  fields:
+    area_id:
+      name: Area
+      description: The area(s) to dim
+      required: true
+      example: ["living_room", "kitchen"]
+      selector:
+        area:
+          multiple: true
+
+color_up:
+  name: Color Up
+  description: Shift color warmer/cooler along the curve (brightness unchanged)
+  icon: mdi:palette
+  fields:
+    area_id:
+      name: Area
+      description: The area(s) to adjust color
+      required: true
+      example: ["living_room", "kitchen"]
+      selector:
+        area:
+          multiple: true
+
+color_down:
+  name: Color Down
+  description: Shift color cooler/warmer along the curve (brightness unchanged)
+  icon: mdi:palette-outline
+  fields:
+    area_id:
+      name: Area
+      description: The area(s) to adjust color
+      required: true
+      example: ["living_room", "kitchen"]
+      selector:
+        area:
+          multiple: true
+
+reset:
+  name: Reset
+  description: Reset area to current time values and enable Circadian Light
+  icon: mdi:restore
+  fields:
+    area_id:
+      name: Area
+      description: The area(s) to reset
+      required: true
+      example: ["living_room", "kitchen"]
+      selector:
+        area:
+          multiple: true
+
+circadian_on:
+  name: Circadian On
+  description: Turn on lights and enable Circadian Light mode for an area
+  icon: mdi:lightbulb-on
+  fields:
+    area_id:
+      name: Area
+      description: The area(s) to enable Circadian Light for
+      required: true
+      example: ["living_room", "kitchen"]
+      selector:
+        area:
+          multiple: true
+
+circadian_off:
+  name: Circadian Off
+  description: Disable Circadian Light mode for an area (lights remain unchanged)
+  icon: mdi:lightbulb-off
+  fields:
+    area_id:
+      name: Area
+      description: The area(s) to disable Circadian Light for
+      required: true
+      example: ["living_room", "kitchen"]
+      selector:
+        area:
+          multiple: true
+
+circadian_toggle:
+  name: Circadian Toggle
+  description: Smart toggle - turns on with Circadian Light if off, turns off if on
+  icon: mdi:lightbulb-auto
+  fields:
+    area_id:
+      name: Area
+      description: The area(s) to toggle
+      required: true
+      example: ["living_room", "kitchen"]
+      selector:
+        area:
+          multiple: true
+
+freeze:
+  name: Freeze
+  description: Pause automatic updates for an area (keeps current light state)
+  icon: mdi:snowflake
+  fields:
+    area_id:
+      name: Area
+      description: The area(s) to freeze
+      required: true
+      example: ["living_room", "kitchen"]
+      selector:
+        area:
+          multiple: true
+
+unfreeze:
+  name: Unfreeze
+  description: Resume automatic updates for an area
+  icon: mdi:snowflake-off
+  fields:
+    area_id:
+      name: Area
+      description: The area(s) to unfreeze
+      required: true
+      example: ["living_room", "kitchen"]
+      selector:
+        area:
+          multiple: true
