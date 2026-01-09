@@ -785,12 +785,14 @@ class LightDesignerServer:
         Returns:
             List of area dicts with area_id and name
         """
+        logger.info(f"[Live Design] Connecting to WebSocket: {ws_url}")
         try:
             async with websockets.connect(ws_url) as ws:
                 # Wait for auth_required message
                 msg = json.loads(await ws.recv())
+                logger.info(f"[Live Design] WS received: {msg.get('type')}")
                 if msg.get('type') != 'auth_required':
-                    logger.error(f"Unexpected WS message: {msg}")
+                    logger.error(f"[Live Design] Unexpected WS message: {msg}")
                     return []
 
                 # Send auth
@@ -798,11 +800,13 @@ class LightDesignerServer:
                     'type': 'auth',
                     'access_token': token
                 }))
+                logger.info("[Live Design] Sent auth")
 
                 # Wait for auth response
                 msg = json.loads(await ws.recv())
+                logger.info(f"[Live Design] Auth response: {msg.get('type')}")
                 if msg.get('type') != 'auth_ok':
-                    logger.error(f"WS auth failed: {msg}")
+                    logger.error(f"[Live Design] WS auth failed: {msg}")
                     return []
 
                 # Request area registry
@@ -810,37 +814,42 @@ class LightDesignerServer:
                     'id': 1,
                     'type': 'config/area_registry/list'
                 }))
+                logger.info("[Live Design] Requested area registry")
 
                 # Get response
                 msg = json.loads(await ws.recv())
+                logger.info(f"[Live Design] Area response success={msg.get('success')}, has result={bool(msg.get('result'))}")
                 if msg.get('success') and msg.get('result'):
                     areas = [
                         {'area_id': a['area_id'], 'name': a['name']}
                         for a in msg['result']
                     ]
                     areas.sort(key=lambda x: x['name'].lower())
+                    logger.info(f"[Live Design] Returning {len(areas)} areas")
                     return areas
                 else:
-                    logger.error(f"Failed to get areas: {msg}")
+                    logger.error(f"[Live Design] Failed to get areas: {msg}")
                     return []
 
         except Exception as e:
-            logger.error(f"WebSocket error fetching areas: {e}")
+            logger.error(f"[Live Design] WebSocket error: {e}", exc_info=True)
             return []
 
     async def get_areas(self, request: Request) -> Response:
         """Fetch areas from Home Assistant area registry."""
         rest_url, ws_url, token = self._get_ha_api_config()
 
+        logger.info(f"[Live Design] get_areas called - ws_url={ws_url}, has_token={bool(token)}")
+
         if not token:
-            logger.warning("Home Assistant API not configured for Live Design")
+            logger.warning("[Live Design] No HA token configured")
             return web.json_response(
                 {'error': 'Home Assistant API not configured'},
                 status=503
             )
 
         if not ws_url:
-            logger.warning("WebSocket URL not available for Live Design")
+            logger.warning("[Live Design] No WebSocket URL configured")
             return web.json_response(
                 {'error': 'WebSocket URL not configured'},
                 status=503
@@ -848,9 +857,10 @@ class LightDesignerServer:
 
         try:
             areas = await self._fetch_areas_via_websocket(ws_url, token)
+            logger.info(f"[Live Design] Returning {len(areas)} areas to client")
             return web.json_response(areas)
         except Exception as e:
-            logger.error(f"Error fetching areas from HA: {e}")
+            logger.error(f"[Live Design] Error fetching areas: {e}")
             return web.json_response(
                 {'error': str(e)},
                 status=500

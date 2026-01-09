@@ -3496,13 +3496,24 @@ async function loadLiveDesignAreas() {
   const select = document.getElementById('live-area-select');
   if (!select) return;
 
+  console.log('[Live Design] Loading areas...');
+
   try {
     const response = await fetch('/api/areas');
+    console.log('[Live Design] API response status:', response.status);
+
     if (!response.ok) {
-      console.warn('Failed to load areas:', response.status);
+      const text = await response.text();
+      console.warn('[Live Design] Failed to load areas:', response.status, text);
       return;
     }
     const areas = await response.json();
+    console.log('[Live Design] Received areas:', areas);
+
+    if (!Array.isArray(areas) || areas.length === 0) {
+      console.warn('[Live Design] No areas returned or invalid response');
+      return;
+    }
 
     // Clear existing options except the placeholder
     while (select.options.length > 1) {
@@ -3516,8 +3527,9 @@ async function loadLiveDesignAreas() {
       option.textContent = area.name;
       select.appendChild(option);
     });
+    console.log('[Live Design] Added', areas.length, 'areas to dropdown');
   } catch (err) {
-    console.error('Error loading areas:', err);
+    console.error('[Live Design] Error loading areas:', err);
   }
 }
 
