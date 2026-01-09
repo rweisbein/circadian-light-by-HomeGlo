@@ -2369,6 +2369,9 @@ function applyCursor() {
 
     // Update cursor button styles with NEXT values
     updateCursorButtons(cursorPoint);
+
+    // Live Design: update lights when cursor values change
+    applyLiveLight();
   }
 
   cursorControls.classList.remove('hidden');
