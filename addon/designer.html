@@ -3690,9 +3690,9 @@ function stepCursor(direction, adjustBrightness, adjustColor) {
     // Calculate target brightness
     let targetBri = currentBri + sign * briStep;
 
-    // Check if at config bounds
-    const atConfigMax = direction === 'up' && currentBri >= bMax - 0.5;
-    const atConfigMin = direction === 'down' && currentBri <= bMin + 0.5;
+    // Check if at or would exceed config bounds (triggers pushing behavior)
+    const atConfigMax = direction === 'up' && (currentBri >= bMax - 0.5 || targetBri >= bMax);
+    const atConfigMin = direction === 'down' && (currentBri <= bMin + 0.5 || targetBri <= bMin);
 
     // Check if at absolute limits
     const atAbsoluteMax = currentBri >= ABSOLUTE_MAX_BRI - 0.5;
@@ -3757,6 +3757,11 @@ function stepCursor(direction, adjustBrightness, adjustColor) {
           runtimeState.solar_rule_color_limit = Math.max(ABSOLUTE_MIN_CCT, targetCCT);
         }
       }
+
+      // When pushing bounds, don't update midpoints - just render with new bounds
+      renderChart();
+      applyCursor();
+      return;
 
     } else {
       // === WITHIN BOUNDS - TRAVERSE DIVERGED CURVE ===

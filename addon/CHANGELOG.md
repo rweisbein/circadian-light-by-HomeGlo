@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.2.7
+**Bugfix - Step down wraparound at bounds**
+
+**Fixed:**
+- Step down no longer causes brightness to jump to high values when reaching minimum
+- Now triggers "pushing bounds" behavior when step would exceed config limits (not just when already at limit)
+- Prevents garbage midpoint calculations that caused infinite cycling
+
 ## 6.2.6
 **UI - Solar rule slider constraints and tooltips**
 

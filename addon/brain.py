@@ -644,9 +644,12 @@ class CircadianLight:
         current_bri = CircadianLight.calculate_brightness_at_hour(hour, config, state)
         current_cct = CircadianLight.calculate_color_at_hour(hour, config, state, apply_solar_rules=True)
 
-        # Check if at config bounds
-        at_config_max = direction == "up" and current_bri >= b_max - 0.5
-        at_config_min = direction == "down" and current_bri <= b_min + 0.5
+        # Calculate target brightness
+        target_bri_initial = current_bri + (1 if direction == "up" else -1) * bri_step
+
+        # Check if at or would exceed config bounds (triggers pushing behavior)
+        at_config_max = direction == "up" and (current_bri >= b_max - 0.5 or target_bri_initial >= b_max)
+        at_config_min = direction == "down" and (current_bri <= b_min + 0.5 or target_bri_initial <= b_min)
 
         # Check if at absolute limits
         at_absolute_max = current_bri >= ABSOLUTE_MAX_BRI - 0.5
@@ -702,6 +705,17 @@ class CircadianLight:
                     cool_floor = state.solar_rule_color_limit if state.solar_rule_color_limit is not None else config.cool_day_target
                     if target_cct < cool_floor:
                         state_updates["solar_rule_color_limit"] = max(ABSOLUTE_MIN_CCT, int(target_cct))
+
+            # When pushing bounds, return immediately with new bounds - don't update midpoints
+            rgb = CircadianLight.color_temperature_to_rgb(int(target_cct))
+            xy = CircadianLight.color_temperature_to_xy(int(target_cct))
+            return StepResult(
+                brightness=int(target_bri),
+                color_temp=int(target_cct),
+                rgb=rgb,
+                xy=xy,
+                state_updates=state_updates
+            )
 
         else:
             # === WITHIN BOUNDS - TRAVERSE DIVERGED CURVE ===
