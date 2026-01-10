@@ -26,24 +26,24 @@ _state_file_path: Optional[str] = None
 
 
 def _get_default_area_state() -> Dict[str, Any]:
-    """Return default state for a new area."""
+    """Return default state for a new area.
+
+    Only one phase (Ascend/Descend) is active at a time, so we only need
+    one midpoint per axis rather than separate wake/bed values.
+    """
     return {
         "enabled": False,
         "frozen": False,
-        # Midpoints - these start at base config values (wake_time/bed_time)
-        # and can diverge through button presses
-        "brightness_wake_mid": None,  # None means "use config wake_time"
-        "brightness_bed_mid": None,   # None means "use config bed_time"
-        "color_wake_mid": None,       # None means "use config wake_time"
-        "color_bed_mid": None,        # None means "use config bed_time"
-        # Runtime bounds - these start at config bounds and can be pushed
-        "runtime_min_bri": None,      # None means "use config min_brightness"
-        "runtime_max_bri": None,      # None means "use config max_brightness"
-        "runtime_min_cct": None,      # None means "use config min_color_temp"
-        "runtime_max_cct": None,      # None means "use config max_color_temp"
-        # Solar rule overrides
-        "runtime_warm_night_target": None,  # None means "use config warm_night_target"
-        "runtime_cool_day_target": None,    # None means "use config cool_day_target"
+        # Midpoints (None = use config wake_time/bed_time based on phase)
+        "brightness_mid": None,
+        "color_mid": None,
+        # Solar rule limit (None = use config target for active rule)
+        "solar_rule_color_limit": None,
+        # Runtime bounds (None = use config bounds)
+        "min_brightness": None,
+        "max_brightness": None,
+        "min_color_temp": None,
+        "max_color_temp": None,
     }
 
 

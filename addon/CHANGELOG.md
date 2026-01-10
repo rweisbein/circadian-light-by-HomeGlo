@@ -1,5 +1,20 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.2.6
+**UI - Solar rule slider constraints and tooltips**
+
+**Changed:**
+- Renamed "Warm at night" to "Warm night" and "Cool during day" to "Cool day"
+- Warm night and Cool day target sliders now constrained to color range bounds
+- Warm night target cannot go below Cool day target (prevents conflicting rules)
+- Slider track gradients update dynamically to reflect valid range
+- Added info icon tooltips explaining Warm night and Cool day functionality
+
+**Fixed:**
+- Rebuilt test suite to match current brain.py API (139 tests passing)
+- Fixed blueprint manager test environment variable name
+- Added platform skip markers for Linux-only integration tests
+
 ## 6.2.5
 **Refactor - Rename "adaptive" to "circadian" throughout codebase**
 

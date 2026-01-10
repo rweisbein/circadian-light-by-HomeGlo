@@ -1,14 +1,26 @@
-"""Tests for shell-based MagicLight integration management helpers."""
+"""Tests for shell-based MagicLight integration management helpers.
+
+These tests run shell scripts that require a Home Assistant environment.
+They are skipped on non-Linux platforms (macOS, Windows) since they require
+the /config directory structure and bashio utilities.
+"""
 
 from __future__ import annotations
 
 import os
 import subprocess
+import sys
 import textwrap
 from pathlib import Path
 
 import pytest
 
+
+# Skip all tests in this module on non-Linux platforms
+pytestmark = pytest.mark.skipif(
+    sys.platform != "linux",
+    reason="Integration manager tests require Linux/Home Assistant environment"
+)
 
 RUN_SCRIPT = Path(__file__).resolve().parents[2] / "rootfs" / "etc" / "services.d" / "example" / "run"
 

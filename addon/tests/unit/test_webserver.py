@@ -75,8 +75,13 @@ class TestLightDesignerServer(AioHTTPTestCase):
         self.assertEqual(data["color_mode"], "kelvin")
         self.assertEqual(data["min_color_temp"], 500)
         self.assertEqual(data["max_color_temp"], 6500)
-        self.assertIn("mid_bri_up", data)
-        self.assertIn("steep_bri_up", data)
+        # Check new ascend/descend model keys
+        self.assertIn("ascend_start", data)
+        self.assertIn("descend_start", data)
+        self.assertIn("wake_time", data)
+        self.assertIn("bed_time", data)
+        self.assertIn("wake_speed", data)
+        self.assertIn("bed_speed", data)
 
     @unittest_run_loop
     async def test_get_config_with_options_file(self):
@@ -100,7 +105,7 @@ class TestLightDesignerServer(AioHTTPTestCase):
     async def test_get_config_with_designer_file(self):
         """Test configuration loading with designer overrides."""
         # Create designer_config.json
-        designer_config = {"mid_bri_up": 7.5, "steep_cct_dn": 2.0}
+        designer_config = {"wake_time": 7.5, "bed_speed": 4}
         with open(self.designer_file, 'w') as f:
             json.dump(designer_config, f)
 
@@ -109,19 +114,19 @@ class TestLightDesignerServer(AioHTTPTestCase):
         data = await resp.json()
 
         # Check that designer config overrides defaults
-        self.assertEqual(data["mid_bri_up"], 7.5)
-        self.assertEqual(data["steep_cct_dn"], 2.0)
+        self.assertEqual(data["wake_time"], 7.5)
+        self.assertEqual(data["bed_speed"], 4)
 
     @unittest_run_loop
     async def test_get_config_precedence(self):
         """Test configuration precedence: defaults < options < designer."""
         # Create options.json
-        options = {"color_mode": "xy", "mid_bri_up": 5.0}
+        options = {"color_mode": "xy", "wake_time": 5.0}
         with open(self.options_file, 'w') as f:
             json.dump(options, f)
 
         # Create designer_config.json (should override options)
-        designer_config = {"mid_bri_up": 8.0, "max_brightness": 95}
+        designer_config = {"wake_time": 8.0, "max_brightness": 95}
         with open(self.designer_file, 'w') as f:
             json.dump(designer_config, f)
 
@@ -130,7 +135,7 @@ class TestLightDesignerServer(AioHTTPTestCase):
         data = await resp.json()
 
         # Designer should win over options
-        self.assertEqual(data["mid_bri_up"], 8.0)
+        self.assertEqual(data["wake_time"], 8.0)
         self.assertEqual(data["max_brightness"], 95)
         # Options should win over defaults
         self.assertEqual(data["color_mode"], "xy")
@@ -139,8 +144,8 @@ class TestLightDesignerServer(AioHTTPTestCase):
     async def test_save_config(self):
         """Test saving configuration."""
         new_config = {
-            "mid_bri_up": 7.0,
-            "steep_bri_dn": 1.8,
+            "wake_time": 7.0,
+            "bed_speed": 5,
             "color_mode": "rgb"
         }
 
@@ -155,14 +160,14 @@ class TestLightDesignerServer(AioHTTPTestCase):
             saved_config = json.load(f)
 
         # Should include new values plus defaults
-        self.assertEqual(saved_config["mid_bri_up"], 7.0)
-        self.assertEqual(saved_config["steep_bri_dn"], 1.8)
+        self.assertEqual(saved_config["wake_time"], 7.0)
+        self.assertEqual(saved_config["bed_speed"], 5)
         self.assertEqual(saved_config["color_mode"], "rgb")
 
     @unittest_run_loop
     async def test_save_config_with_ingress_path(self):
         """Test saving configuration with ingress path."""
-        new_config = {"mid_bri_up": 6.5}
+        new_config = {"wake_time": 6.5}
 
         resp = await self.client.request("POST", "/ingress/prefix/api/config", json=new_config)
         self.assertEqual(resp.status, 200)

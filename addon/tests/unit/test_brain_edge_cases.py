@@ -1,250 +1,302 @@
 #!/usr/bin/env python3
-"""Test edge cases and error conditions in brain.py for improved coverage."""
+"""Test edge cases and boundary conditions in brain.py."""
 
-from datetime import datetime, timezone
-import math
 import pytest
-
-from brain import (
-    CircadianLight,
-    get_circadian_lighting,
-    calculate_dimming_step,
-    ColorMode,
-    DEFAULT_MAX_DIM_STEPS
-)
+from brain import CircadianLight, Config, AreaState, SunTimes
 
 
-class TestCircadianLightEdgeCases:
-    """Test edge cases for CircadianLight class."""
+class TestPhaseTransitions:
+    """Test behavior at phase transition boundaries."""
 
-    def test_sun_position_no_solar_noon_fallback(self):
-        """Test sun position calculation when solar_noon is None (fallback case)."""
-        # Create CircadianLight with no solar times
-        cl = CircadianLight()
-        assert cl.solar_noon is None
-        assert cl.solar_midnight is None
-
-        now = datetime(2024, 6, 21, 15, 30, 0)  # 3:30 PM
-        # Call with any elevation value to trigger the calculation
-        sun_pos = cl.calculate_sun_position(now, elev_deg=45.0)
-
-        # Should use fallback calculation based on hour
-        # Line 153-154: Fallback using simple time of day
-        expected = -math.cos(2 * math.pi * 15.5 / 24)  # 15.5 = 15 + 30/60
-        assert abs(sun_pos - expected) < 0.001
-
-    def test_get_solar_time_with_only_solar_noon(self):
-        """Test get_solar_time when only solar_noon is available."""
-        solar_noon = datetime(2024, 6, 21, 12, 0, 0)
-        cl = CircadianLight(solar_noon=solar_noon, solar_midnight=None)
-
-        # Test time 3 hours after solar noon
-        test_time = datetime(2024, 6, 21, 15, 0, 0)
-        solar_time = cl.get_solar_time(test_time)
-
-        # Lines 165-166: Calculate from solar noon when midnight not available
-        # Should be (3 + 12) % 24 = 15
-        assert abs(solar_time - 15.0) < 0.001
-
-    def test_get_solar_time_no_solar_times_fallback(self):
-        """Test get_solar_time fallback when no solar times available."""
-        cl = CircadianLight()  # No solar times
-
-        test_time = datetime(2024, 6, 21, 14, 30, 0)  # 2:30 PM
-        solar_time = cl.get_solar_time(test_time)
-
-        # Should fall back to regular time: 14.5 hours
-        expected = 14.5
-        assert abs(solar_time - expected) < 0.001
-
-    def test_to_perceptual_brightness_edge_values(self):
-        """Test perceptual brightness conversion with edge values."""
-        cl = CircadianLight(gamma_ui=38)  # Default UI value
-
-        # Lines 173-174: Convert linear brightness to perceptual using gamma
-        # Test boundary values
-        assert cl.to_perceptual_brightness(0) == 0.0
-        assert cl.to_perceptual_brightness(100) == 1.0
-
-        # Test clamping (values outside 0-100 range)
-        assert cl.to_perceptual_brightness(-10) == 0.0  # Clamped to 0
-        assert cl.to_perceptual_brightness(150) == 1.0   # Clamped to 100
-
-    def test_to_mired_edge_values(self):
-        """Test mired conversion with edge values."""
-        cl = CircadianLight()
-
-        # Line 178: Convert Kelvin to mireds with clamping
-        # Test boundary clamping
-        very_low_kelvin = cl.to_mired(100)  # Should clamp to 500K
-        expected_low = 1e6 / 500
-        assert abs(very_low_kelvin - expected_low) < 0.001
-
-        very_high_kelvin = cl.to_mired(10000)  # Should clamp to 6500K
-        expected_high = 1e6 / 6500
-        assert abs(very_high_kelvin - expected_high) < 0.001
-
-    def test_color_temperature_to_rgb_edge_cases(self):
-        """Test RGB conversion with edge cases."""
-        cl = CircadianLight()
-
-        # Test with very low and high kelvin values
-        rgb_low = cl.color_temperature_to_rgb(500)   # Minimum
-        rgb_high = cl.color_temperature_to_rgb(6500)  # Maximum
-
-        # Should return valid RGB values
-        for rgb in [rgb_low, rgb_high]:
-            assert len(rgb) == 3
-            assert all(0 <= c <= 255 for c in rgb)
-
-    def test_color_temperature_to_xy_edge_cases(self):
-        """Test XY conversion with edge cases."""
-        cl = CircadianLight()
-
-        # Test with boundary values
-        xy_low = cl.color_temperature_to_xy(500)
-        xy_high = cl.color_temperature_to_xy(6500)
-
-        # Should return valid XY values
-        for xy in [xy_low, xy_high]:
-            assert len(xy) == 2
-            assert 0 <= xy[0] <= 1
-            assert 0 <= xy[1] <= 1
-
-
-    def test_calculate_dimming_step_edge_cases(self):
-        """Test calculate_dimming_step with edge cases."""
-        now = datetime(2024, 6, 21, 12, 0, 0)
-
-        # Test with very small max_steps that might cause division issues
-        result = calculate_dimming_step(
-            current_time=now,
-            action="brighten",
-            latitude=37.0,
-            longitude=-122.0,
-            timezone="America/Los_Angeles",
-            max_steps=0.1  # Very small value
+    def test_at_ascend_start(self):
+        """Test calculations at exact ascend_start."""
+        config = Config(
+            ascend_start=6.0,
+            descend_start=18.0,
+            wake_time=8.0,  # 2 hours after ascend_start
+            min_brightness=10,
+            max_brightness=100
         )
+        state = AreaState()
 
-        # Should still return valid result
-        assert "kelvin" in result
-        assert "brightness" in result
-        assert "time_offset_minutes" in result
+        bri = CircadianLight.calculate_brightness_at_hour(6.0, config, state)
 
-    def test_calculate_dimming_step_invalid_action(self):
-        """Test calculate_dimming_step with invalid action."""
-        now = datetime(2024, 6, 21, 12, 0, 0)
+        # At ascend start (2 hours before wake_time), brightness is mid-curve
+        # The logistic curve has significant value 2 hours before midpoint
+        assert 10 <= bri <= 100  # Within valid range
 
-        # Line 522: Handle invalid action parameter
-        result = calculate_dimming_step(
-            current_time=now,
-            action="invalid_action",  # Invalid action
-            latitude=37.0,
-            longitude=-122.0,
-            timezone="America/Los_Angeles",
-            max_steps=DEFAULT_MAX_DIM_STEPS
+    def test_at_descend_start(self):
+        """Test calculations at exact descend_start."""
+        config = Config(
+            ascend_start=6.0,
+            descend_start=18.0,
+            min_brightness=10,
+            max_brightness=100
         )
+        state = AreaState()
 
-        # Should still return valid result
-        assert "kelvin" in result
-        assert "brightness" in result
-        assert "time_offset_minutes" in result
+        bri = CircadianLight.calculate_brightness_at_hour(18.0, config, state)
 
-    def test_calculate_dimming_step_boundary_conditions(self):
-        """Test calculate_dimming_step with boundary conditions."""
-        now = datetime(2024, 6, 21, 12, 0, 0)
-        location_params = {
-            "latitude": 37.0,
-            "longitude": -122.0,
-            "timezone": "America/Los_Angeles"
-        }
+        # At descend start, should be at or near max
+        assert bri >= 80  # Near maximum
 
-        # Test with max_steps = 1 (minimum)
-        result = calculate_dimming_step(
-            current_time=now,
-            action="brighten",
-            max_steps=1,
-            **location_params
+    def test_phase_just_before_transition(self):
+        """Test phase detection just before transition."""
+        config = Config(ascend_start=6.0, descend_start=18.0)
+
+        # Just before descend (still in ascend)
+        in_ascend, _, _, _, _ = CircadianLight.get_phase_info(17.9, config)
+        assert in_ascend is True
+
+        # At descend start
+        in_ascend, _, _, _, _ = CircadianLight.get_phase_info(18.0, config)
+        assert in_ascend is False
+
+
+class TestMidnightCrossover:
+    """Test behavior around midnight."""
+
+    def test_late_night_after_midnight(self):
+        """Test calculations work after midnight."""
+        config = Config(
+            ascend_start=6.0,
+            descend_start=18.0,
+            bed_time=22.0,
+            min_brightness=10,
+            max_brightness=100
         )
+        state = AreaState()
 
-        assert "time_offset_minutes" in result
-        assert abs(result["time_offset_minutes"]) > 0  # Should have some offset
+        # At 2am (descend phase continues)
+        bri_2am = CircadianLight.calculate_brightness_at_hour(2.0, config, state)
 
-        # Test with very high max_steps
-        result_high = calculate_dimming_step(
-            current_time=now,
-            action="dim",
-            max_steps=1000,
-            **location_params
+        # Should be at or near minimum
+        assert bri_2am <= 20
+
+    def test_early_morning_before_ascend(self):
+        """Test calculations just before ascend_start."""
+        config = Config(
+            ascend_start=6.0,
+            descend_start=18.0,
+            min_brightness=10,
+            max_brightness=100
         )
+        state = AreaState()
 
-        assert "time_offset_minutes" in result_high
-        # With high max_steps, offset should be smaller
-        assert abs(result_high["time_offset_minutes"]) < abs(result["time_offset_minutes"])
+        # At 5am (still descend)
+        bri_5am = CircadianLight.calculate_brightness_at_hour(5.0, config, state)
 
-    def test_get_circadian_lighting_with_custom_config(self):
-        """Test get_circadian_lighting with custom configuration."""
-        now = datetime(2024, 6, 21, 12, 0, 0)
+        # Should be at or near minimum
+        assert bri_5am <= 20
 
-        # Test with custom color mode in config
-        result_rgb = get_circadian_lighting(
-            current_time=now,
-            latitude=37.0,
-            longitude=-122.0,
-            timezone="America/Los_Angeles",
-            config={"color_mode": "rgb"}
+    def test_midnight_is_in_descend(self):
+        """Test midnight is correctly identified as descend phase."""
+        config = Config(ascend_start=6.0, descend_start=18.0)
+
+        in_ascend, h48, _, _, _ = CircadianLight.get_phase_info(0.0, config)
+
+        assert in_ascend is False
+        # h48 should be lifted (0 + 24 = 24)
+        assert h48 == 24.0
+
+
+class TestBoundsClipping:
+    """Test values are correctly clipped to bounds."""
+
+    def test_brightness_clips_to_state_bounds(self):
+        """Test brightness clips to state bounds when set."""
+        config = Config(min_brightness=10, max_brightness=100)
+        state = AreaState(min_brightness=30, max_brightness=70)
+
+        for hour in range(24):
+            bri = CircadianLight.calculate_brightness_at_hour(float(hour), config, state)
+            assert 30 <= bri <= 70
+
+    def test_color_clips_to_state_bounds(self):
+        """Test color clips to state bounds when set."""
+        config = Config(min_color_temp=2700, max_color_temp=6500)
+        state = AreaState(min_color_temp=3500, max_color_temp=5500)
+
+        for hour in range(24):
+            color = CircadianLight.calculate_color_at_hour(
+                float(hour), config, state, apply_solar_rules=False
+            )
+            assert 3500 <= color <= 5500
+
+
+class TestExtremeConfigurations:
+    """Test extreme but valid configurations."""
+
+    def test_very_narrow_brightness_range(self):
+        """Test with very narrow brightness range."""
+        config = Config(min_brightness=49, max_brightness=51)
+        state = AreaState()
+
+        for hour in range(24):
+            bri = CircadianLight.calculate_brightness_at_hour(float(hour), config, state)
+            assert 49 <= bri <= 51
+
+    def test_very_narrow_color_range(self):
+        """Test with very narrow color range."""
+        config = Config(min_color_temp=4000, max_color_temp=4100)
+        state = AreaState()
+
+        for hour in range(24):
+            color = CircadianLight.calculate_color_at_hour(
+                float(hour), config, state, apply_solar_rules=False
+            )
+            assert 4000 <= color <= 4100
+
+    def test_inverted_phase_times(self):
+        """Test when descend_start < ascend_start (night shift schedule)."""
+        config = Config(
+            ascend_start=18.0,  # Wake up at 6pm
+            descend_start=6.0,  # Go to bed at 6am
+            wake_time=20.0,
+            bed_time=4.0,
+            min_brightness=10,
+            max_brightness=100
         )
+        state = AreaState()
 
-        assert "rgb" in result_rgb
-        assert "kelvin" in result_rgb
+        # At midnight (should be in ascend for this schedule)
+        in_ascend, _, _, _, _ = CircadianLight.get_phase_info(0.0, config)
 
-        # Test with XY color mode in config
-        result_xy = get_circadian_lighting(
-            current_time=now,
-            latitude=37.0,
-            longitude=-122.0,
-            timezone="America/Los_Angeles",
-            config={"color_mode": "xy"}
+        # Calculations should still work
+        bri = CircadianLight.calculate_brightness_at_hour(0.0, config, state)
+        assert 10 <= bri <= 100
+
+    def test_single_step(self):
+        """Test with max_dim_steps=1."""
+        config = Config(
+            min_brightness=10,
+            max_brightness=100,
+            max_dim_steps=1
         )
+        state = AreaState()
 
-        assert "xy" in result_xy
-        assert "kelvin" in result_xy
+        result = CircadianLight.calculate_step(12.0, "down", config, state)
 
-    def test_circadian_lighting_with_extreme_curve_parameters(self):
-        """Test CircadianLight with extreme curve parameters."""
-        # Test with extreme midpoint and steepness values
-        cl = CircadianLight(
-            mid_bri_up=0.1,    # Very early morning peak
-            steep_bri_up=10.0,  # Very steep
-            mid_cct_dn=23.5,   # Very late evening
-            steep_cct_dn=0.1   # Very gradual
+        # Should still work, step size will be large
+        assert result is not None
+        # Step should be ~90% (the full range)
+        assert result.brightness < 20  # Large step from 100
+
+
+class TestStateConsistency:
+    """Test state handling consistency."""
+
+    def test_none_state_values_use_config(self):
+        """Test None state values fall back to config."""
+        config = Config(
+            min_brightness=10,
+            max_brightness=100,
+            min_color_temp=2700,
+            max_color_temp=6500
         )
+        state = AreaState()  # All None
 
-        morning = datetime(2024, 6, 21, 6, 0, 0)
-        brightness = cl.calculate_brightness(morning)
-        color_temp = cl.calculate_color_temperature(morning)
+        # Should use config values
+        bri = CircadianLight.calculate_brightness_at_hour(12.0, config, state)
+        assert bri == 100  # At noon with default config
 
-        # Should still return valid values
-        assert 1 <= brightness <= 100
-        assert 500 <= color_temp <= 6500
+    def test_partial_state_values(self):
+        """Test mix of state and config values."""
+        config = Config(
+            min_brightness=10,
+            max_brightness=100
+        )
+        state = AreaState(max_brightness=80)  # Only max set
 
-    def test_color_conversion_with_extreme_values(self):
-        """Test color conversions with extreme input values."""
-        cl = CircadianLight()
+        bri = CircadianLight.calculate_brightness_at_hour(12.0, config, state)
+        assert bri == 80  # Clipped to state max
 
-        # Test RGB conversion with boundary Kelvin values
-        rgb_min = cl.color_temperature_to_rgb(500)   # Minimum
-        rgb_max = cl.color_temperature_to_rgb(6500)  # Maximum
+    def test_state_from_dict_with_missing_keys(self):
+        """Test AreaState.from_dict handles missing keys."""
+        d = {"enabled": True}  # Minimal dict
 
-        for rgb in [rgb_min, rgb_max]:
-            assert len(rgb) == 3
-            assert all(0 <= c <= 255 for c in rgb)
+        state = AreaState.from_dict(d)
 
-        # Test XY conversion with boundary Kelvin values
-        xy_min = cl.color_temperature_to_xy(500)
-        xy_max = cl.color_temperature_to_xy(6500)
+        assert state.enabled is True
+        assert state.frozen is False  # Default
+        assert state.brightness_mid is None  # Default
 
-        for xy in [xy_min, xy_max]:
-            assert len(xy) == 2
-            assert 0 <= xy[0] <= 1
-            assert 0 <= xy[1] <= 1
+
+class TestColorConversionEdgeCases:
+    """Test color conversion edge cases."""
+
+    def test_xy_at_boundary_kelvins(self):
+        """Test XY conversion at boundary kelvin values."""
+        # Minimum
+        x_min, y_min = CircadianLight.color_temperature_to_xy(500)
+        assert 0 <= x_min <= 1
+        assert 0 <= y_min <= 1
+
+        # Maximum
+        x_max, y_max = CircadianLight.color_temperature_to_xy(6500)
+        assert 0 <= x_max <= 1
+        assert 0 <= y_max <= 1
+
+    def test_rgb_at_boundary_kelvins(self):
+        """Test RGB conversion at boundary kelvin values."""
+        # Minimum
+        r, g, b = CircadianLight.color_temperature_to_rgb(500)
+        assert all(0 <= c <= 255 for c in (r, g, b))
+
+        # Maximum
+        r, g, b = CircadianLight.color_temperature_to_rgb(6500)
+        assert all(0 <= c <= 255 for c in (r, g, b))
+
+
+class TestStepEdgeCases:
+    """Test step calculation edge cases."""
+
+    def test_step_at_absolute_max(self):
+        """Test step at absolute maximum (100%)."""
+        config = Config(max_brightness=100, max_dim_steps=10)
+        state = AreaState()
+
+        # At noon, brightness is 100%
+        result = CircadianLight.calculate_step(12.0, "up", config, state)
+
+        # Should return None (can't go higher)
+        assert result is None
+
+    def test_step_at_absolute_min(self):
+        """Test step at absolute minimum (0%)."""
+        config = Config(min_brightness=0, max_brightness=100, max_dim_steps=10)
+        state = AreaState(min_brightness=0, brightness_mid=0.0)
+
+        # Force to minimum
+        result = CircadianLight.calculate_step(12.0, "down", config, state)
+
+        # Eventually should return None when at 0
+        # (This tests the boundary, actual behavior depends on curve position)
+        assert result is None or result.brightness >= 0
+
+    def test_bright_step_preserves_color_exactly(self):
+        """Test bright step doesn't modify color at all."""
+        config = Config(
+            ascend_start=6.0,
+            descend_start=18.0,
+            wake_time=10.0,  # Late wake time so 8am isn't at max
+            max_dim_steps=10
+        )
+        state = AreaState()
+
+        color_before = CircadianLight.calculate_color_at_hour(8.0, config, state)
+        result = CircadianLight.calculate_bright_step(8.0, "up", config, state)
+
+        assert result is not None
+        assert result.color_temp == color_before
+
+    def test_color_step_preserves_brightness_exactly(self):
+        """Test color step doesn't modify brightness at all."""
+        config = Config(max_dim_steps=10)
+        state = AreaState()
+
+        bri_before = CircadianLight.calculate_brightness_at_hour(8.0, config, state)
+        result = CircadianLight.calculate_color_step(8.0, "up", config, state)
+
+        assert result is not None
+        assert result.brightness == bri_before

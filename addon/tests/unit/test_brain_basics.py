@@ -1,62 +1,306 @@
-from datetime import datetime
+#!/usr/bin/env python3
+"""Test basic brain.py functionality - dataclasses and core calculations."""
 
-from brain import (
-    get_circadian_lighting,
-    CircadianLight,
-    calculate_dimming_step,
-)
+import pytest
+from brain import CircadianLight, Config, AreaState, SunTimes
 
 
-SF = dict(latitude=37.7749, longitude=-122.4194, timezone="America/Los_Angeles")
+class TestDataclasses:
+    """Test Config, AreaState, and SunTimes dataclasses."""
+
+    def test_config_defaults(self):
+        """Test Config has sensible defaults."""
+        config = Config()
+
+        # Phase timing defaults
+        assert config.ascend_start == 3.0
+        assert config.descend_start == 12.0
+        assert config.wake_time == 6.0
+        assert config.bed_time == 22.0
+
+        # Bounds defaults
+        assert config.min_brightness == 1
+        assert config.max_brightness == 100
+        assert config.min_color_temp == 500
+        assert config.max_color_temp == 6500
+
+        # Solar rule defaults
+        assert config.warm_night_enabled is False
+        assert config.cool_day_enabled is False
+
+    def test_config_custom_values(self):
+        """Test Config accepts custom values."""
+        config = Config(
+            ascend_start=5.0,
+            descend_start=20.0,
+            min_brightness=10,
+            max_brightness=90,
+            warm_night_enabled=True,
+            warm_night_target=2700
+        )
+
+        assert config.ascend_start == 5.0
+        assert config.descend_start == 20.0
+        assert config.min_brightness == 10
+        assert config.max_brightness == 90
+        assert config.warm_night_enabled is True
+
+    def test_area_state_defaults(self):
+        """Test AreaState has correct defaults."""
+        state = AreaState()
+
+        assert state.enabled is False
+        assert state.frozen is False
+        assert state.brightness_mid is None
+        assert state.color_mid is None
+        assert state.solar_rule_color_limit is None
+        assert state.min_brightness is None
+        assert state.max_brightness is None
+        assert state.min_color_temp is None
+        assert state.max_color_temp is None
+
+    def test_area_state_to_dict(self):
+        """Test AreaState serialization."""
+        state = AreaState(
+            enabled=True,
+            frozen=False,
+            brightness_mid=10.5,
+            color_mid=11.2,
+            solar_rule_color_limit=3000
+        )
+
+        d = state.to_dict()
+
+        assert d["enabled"] is True
+        assert d["frozen"] is False
+        assert d["brightness_mid"] == 10.5
+        assert d["color_mid"] == 11.2
+        assert d["solar_rule_color_limit"] == 3000
+
+    def test_area_state_from_dict(self):
+        """Test AreaState deserialization."""
+        d = {
+            "enabled": True,
+            "frozen": True,
+            "brightness_mid": 8.0,
+            "color_mid": 9.0,
+            "min_brightness": 20,
+            "max_brightness": 80
+        }
+
+        state = AreaState.from_dict(d)
+
+        assert state.enabled is True
+        assert state.frozen is True
+        assert state.brightness_mid == 8.0
+        assert state.color_mid == 9.0
+        assert state.min_brightness == 20
+        assert state.max_brightness == 80
+
+    def test_area_state_roundtrip(self):
+        """Test AreaState serialization roundtrip."""
+        original = AreaState(
+            enabled=True,
+            frozen=False,
+            brightness_mid=10.5,
+            color_mid=11.2,
+            solar_rule_color_limit=3000,
+            min_brightness=20,
+            max_brightness=90,
+            min_color_temp=2000,
+            max_color_temp=5000
+        )
+
+        restored = AreaState.from_dict(original.to_dict())
+
+        assert restored.enabled == original.enabled
+        assert restored.frozen == original.frozen
+        assert restored.brightness_mid == original.brightness_mid
+        assert restored.color_mid == original.color_mid
+        assert restored.solar_rule_color_limit == original.solar_rule_color_limit
+        assert restored.min_brightness == original.min_brightness
+        assert restored.max_brightness == original.max_brightness
+
+    def test_sun_times_defaults(self):
+        """Test SunTimes has defaults."""
+        sun = SunTimes()
+
+        assert sun.sunrise == 6.0
+        assert sun.sunset == 18.0
+        assert sun.solar_noon == 12.0
+        assert sun.solar_mid == 0.0
+
+    def test_sun_times_custom(self):
+        """Test SunTimes accepts custom values."""
+        sun = SunTimes(sunrise=5.5, sunset=20.5, solar_noon=13.0, solar_mid=1.0)
+
+        assert sun.sunrise == 5.5
+        assert sun.sunset == 20.5
+        assert sun.solar_noon == 13.0
+        assert sun.solar_mid == 1.0
 
 
-def test_get_circadian_lighting_basic_ranges():
-    now = datetime(2024, 6, 21, 12, 0, 0)  # noon solstice, deterministic
-    result = get_circadian_lighting(current_time=now, **SF)
+class TestBrightnessCalculation:
+    """Test calculate_brightness_at_hour."""
 
-    # Expected keys present
-    for key in ("kelvin", "brightness", "rgb", "xy", "sun_position", "solar_time"):
-        assert key in result
+    def test_brightness_increases_during_ascend(self):
+        """Test brightness increases from ascend_start to wake_time."""
+        config = Config(
+            ascend_start=6.0,
+            descend_start=18.0,
+            wake_time=8.0,
+            bed_time=22.0,
+            min_brightness=10,
+            max_brightness=100
+        )
+        state = AreaState()
 
-    # Ranges: defaults are 500–6500K and 1–100%
-    assert 500 <= result["kelvin"] <= 6500
-    assert 1 <= result["brightness"] <= 100
+        bri_6am = CircadianLight.calculate_brightness_at_hour(6.0, config, state)
+        bri_7am = CircadianLight.calculate_brightness_at_hour(7.0, config, state)
+        bri_8am = CircadianLight.calculate_brightness_at_hour(8.0, config, state)
+        bri_12pm = CircadianLight.calculate_brightness_at_hour(12.0, config, state)
 
-    # Color representations look sane
-    r, g, b = result["rgb"]
-    assert all(0 <= c <= 255 for c in (r, g, b))
-    x, y = result["xy"]
-    assert 0 <= x <= 1 and 0 <= y <= 1
+        assert bri_6am < bri_7am < bri_8am
+        assert bri_12pm == config.max_brightness
+
+    def test_brightness_decreases_during_descend(self):
+        """Test brightness decreases from descend_start toward bed_time."""
+        config = Config(
+            ascend_start=6.0,
+            descend_start=18.0,
+            wake_time=8.0,
+            bed_time=22.0,
+            min_brightness=10,
+            max_brightness=100
+        )
+        state = AreaState()
+
+        bri_6pm = CircadianLight.calculate_brightness_at_hour(18.0, config, state)
+        bri_8pm = CircadianLight.calculate_brightness_at_hour(20.0, config, state)
+        bri_10pm = CircadianLight.calculate_brightness_at_hour(22.0, config, state)
+
+        assert bri_6pm > bri_8pm > bri_10pm
+
+    def test_brightness_respects_bounds(self):
+        """Test brightness stays within config bounds."""
+        config = Config(
+            min_brightness=20,
+            max_brightness=80
+        )
+        state = AreaState()
+
+        for hour in range(24):
+            bri = CircadianLight.calculate_brightness_at_hour(float(hour), config, state)
+            assert config.min_brightness <= bri <= config.max_brightness
+
+    def test_brightness_with_state_midpoint(self):
+        """Test brightness calculation with pushed midpoint."""
+        config = Config(
+            ascend_start=6.0,
+            descend_start=18.0,
+            wake_time=8.0,
+            min_brightness=10,
+            max_brightness=100
+        )
+
+        # Without state midpoint
+        state_default = AreaState()
+        bri_default = CircadianLight.calculate_brightness_at_hour(7.0, config, state_default)
+
+        # With earlier midpoint (should be brighter at same time)
+        state_early = AreaState(brightness_mid=6.5)
+        bri_early = CircadianLight.calculate_brightness_at_hour(7.0, config, state_early)
+
+        assert bri_early > bri_default
 
 
-def test_color_conversion_roundtrips_in_ranges():
-    cl = CircadianLight()
-    for kelvin in (2000, 3000, 4000, 5000, 6500):
-        x, y = cl.color_temperature_to_xy(kelvin)
-        assert 0 <= x <= 1 and 0 <= y <= 1
-        r, g, b = cl.color_temperature_to_rgb(kelvin)
-        assert all(0 <= c <= 255 for c in (r, g, b))
+class TestColorCalculation:
+    """Test calculate_color_at_hour."""
+
+    def test_color_increases_during_ascend(self):
+        """Test color temp increases (warmer to cooler) during ascend."""
+        config = Config(
+            ascend_start=6.0,
+            descend_start=18.0,
+            wake_time=8.0,
+            min_color_temp=2700,
+            max_color_temp=6500
+        )
+        state = AreaState()
+
+        color_6am = CircadianLight.calculate_color_at_hour(6.0, config, state)
+        color_8am = CircadianLight.calculate_color_at_hour(8.0, config, state)
+        color_12pm = CircadianLight.calculate_color_at_hour(12.0, config, state)
+
+        assert color_6am < color_8am < color_12pm
+
+    def test_color_respects_bounds(self):
+        """Test color stays within config bounds."""
+        config = Config(
+            min_color_temp=3000,
+            max_color_temp=5000
+        )
+        state = AreaState()
+
+        for hour in range(24):
+            color = CircadianLight.calculate_color_at_hour(float(hour), config, state, apply_solar_rules=False)
+            assert config.min_color_temp <= color <= config.max_color_temp
 
 
-def test_calculate_dimming_step_has_target_time():
-    now = datetime(2024, 6, 21, 19, 0, 0)  # evening
-    out = calculate_dimming_step(current_time=now, action="dim", **SF)
-    assert "target_time" in out and out["target_time"] != now
-    assert "time_offset_minutes" in out
-    assert 500 <= out["kelvin"] <= 6500
-    assert 1 <= out["brightness"] <= 100
+class TestColorConversions:
+    """Test color space conversions."""
+
+    def test_kelvin_to_xy_valid_range(self):
+        """Test XY values are in valid range."""
+        for kelvin in [2000, 2700, 4000, 5000, 6500]:
+            x, y = CircadianLight.color_temperature_to_xy(kelvin)
+            assert 0 <= x <= 1, f"x={x} out of range for {kelvin}K"
+            assert 0 <= y <= 1, f"y={y} out of range for {kelvin}K"
+
+    def test_kelvin_to_rgb_valid_range(self):
+        """Test RGB values are in valid range."""
+        for kelvin in [2000, 2700, 4000, 5000, 6500]:
+            r, g, b = CircadianLight.color_temperature_to_rgb(kelvin)
+            assert 0 <= r <= 255, f"r={r} out of range for {kelvin}K"
+            assert 0 <= g <= 255, f"g={g} out of range for {kelvin}K"
+            assert 0 <= b <= 255, f"b={b} out of range for {kelvin}K"
+
+    def test_warm_temps_are_reddish(self):
+        """Test warm color temps produce reddish RGB."""
+        r, g, b = CircadianLight.color_temperature_to_rgb(2700)
+        assert r > b, "Warm temp should have more red than blue"
+
+    def test_cool_temps_are_bluish(self):
+        """Test cool color temps produce bluish RGB."""
+        r, g, b = CircadianLight.color_temperature_to_rgb(6500)
+        assert b >= r * 0.8, "Cool temp should have significant blue"
 
 
-def test_brightness_and_cct_vary_over_day():
-    cl = CircadianLight(
-        solar_midnight=datetime(2024, 1, 1, 0, 0, 0),
-        solar_noon=datetime(2024, 1, 1, 12, 0, 0),
-    )
-    morning = datetime(2024, 1, 1, 9, 0, 0)
-    evening = datetime(2024, 1, 1, 21, 0, 0)
-    bri_m = cl.calculate_brightness(morning)
-    bri_e = cl.calculate_brightness(evening)
-    cct_m = cl.calculate_color_temperature(morning)
-    cct_e = cl.calculate_color_temperature(evening)
-    # They should not be identical across halves
-    assert bri_m != bri_e or cct_m != cct_e
+class TestPhaseInfo:
+    """Test get_phase_info helper."""
+
+    def test_ascend_phase_morning(self):
+        """Test morning hours are in ascend phase."""
+        config = Config(ascend_start=6.0, descend_start=18.0)
+
+        in_ascend, h48, t_ascend, t_descend, slope = CircadianLight.get_phase_info(10.0, config)
+
+        assert in_ascend is True
+        assert slope > 0  # Positive slope for ascend
+
+    def test_descend_phase_evening(self):
+        """Test evening hours are in descend phase."""
+        config = Config(ascend_start=6.0, descend_start=18.0)
+
+        in_ascend, h48, t_ascend, t_descend, slope = CircadianLight.get_phase_info(20.0, config)
+
+        assert in_ascend is False
+        assert slope < 0  # Negative slope for descend
+
+    def test_late_night_is_descend(self):
+        """Test late night (after midnight) is still in descend phase."""
+        config = Config(ascend_start=6.0, descend_start=18.0)
+
+        in_ascend, h48, t_ascend, t_descend, slope = CircadianLight.get_phase_info(2.0, config)
+
+        assert in_ascend is False

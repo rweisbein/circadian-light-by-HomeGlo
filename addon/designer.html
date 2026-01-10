@@ -582,6 +582,49 @@ input[type=range]::-moz-range-thumb {
   font-weight: 600;
   color: var(--text);
 }
+.info-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 16px;
+  height: 16px;
+  margin-left: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.5);
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 50%;
+  cursor: pointer;
+  vertical-align: middle;
+  user-select: none;
+  transition: all 0.15s ease;
+}
+.info-icon:hover {
+  color: rgba(255,255,255,0.8);
+  border-color: rgba(255,255,255,0.5);
+}
+.info-tooltip {
+  display: none;
+  position: absolute;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 280px;
+  padding: 10px 12px;
+  background: rgba(30,30,35,0.98);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 400;
+  line-height: 1.4;
+  color: rgba(255,255,255,0.85);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  z-index: 100;
+}
+.info-tooltip.is-open {
+  display: block;
+}
 .color-rule-toggle {
   margin-left: 0;
 }
@@ -983,7 +1026,7 @@ input[type=range]::-moz-range-thumb {
     <div class="color-rule-grid">
       <div class="color-rule-stack" data-color-row="night">
         <div class="color-rule-stack-label">
-          <label class="color-rule-label">Warm at night</label>
+          <label class="color-rule-label">Warm night<span class="info-icon" data-tooltip="warm-night-info">i<span class="info-tooltip" id="warm-night-info">Sets a minimum warmth when sun isn't up; if your Circadian curve is cool (high Kelvin) between sunset and the next day's sunrise, this applies warming.</span></span></label>
           <div class="color-rule-toggle">
             <input type="checkbox" id="warm-night-enabled">
           </div>
@@ -1033,7 +1076,7 @@ input[type=range]::-moz-range-thumb {
 
       <div class="color-rule-stack" data-color-row="daylight">
         <div class="color-rule-stack-label">
-          <label class="color-rule-label">Cool during day</label>
+          <label class="color-rule-label">Cool day<span class="info-icon" data-tooltip="cool-day-info">i<span class="info-tooltip" id="cool-day-info">Sets a minimum coolness when the sun is up; if your Circadian curve is warm (low Kelvin) between sunrise and sunset, this applies cooling.</span></span></label>
           <div class="color-rule-toggle">
             <input type="checkbox" id="cool-day-enabled">
           </div>
@@ -1181,22 +1224,20 @@ let config = {
 // Current sun times (cached for solar rules)
 let sunTimes = { sunrise: 6, sunset: 18, solarNoon: 12, solarMid: 0 };
 
-// Runtime midpoints (can diverge from base wake/bed times)
-// Also runtime ceiling/floor for solar rules (can only go UP for warm_night, DOWN for cool_day)
-// And runtime bounds that can be pushed beyond config limits via cursor controls
+// Runtime state for current phase (resets at phase transitions)
+// Only one phase is active at a time, so we only need one midpoint per axis
 let runtimeState = {
-  brightness_wake_mid: null,
-  brightness_bed_mid: null,
-  color_wake_mid: null,
-  color_bed_mid: null,
-  warm_night_ceiling: null,  // Can only increase above config.warm_night_target
-  cool_day_floor: null,      // Can only decrease below config.cool_day_target
+  enabled: false,              // Whether circadian lighting is active
+  frozen: false,               // Whether to freeze at current position (stop following time)
+  brightness_mid: null,        // Current phase's brightness midpoint (falls back to wake_time or bed_time)
+  color_mid: null,             // Current phase's color midpoint (falls back to wake_time or bed_time)
+  solar_rule_color_limit: null, // Pushed ceiling/floor for active solar rule
   // Brightness bounds (can be pushed beyond config via Bright Up/Down)
-  max_brightness: null,      // Can only increase above config.max_brightness (absolute max: 100)
-  min_brightness: null,      // Can only decrease below config.min_brightness (absolute min: 0)
+  max_brightness: null,        // Can only increase above config.max_brightness (absolute max: 100)
+  min_brightness: null,        // Can only decrease below config.min_brightness (absolute min: 0)
   // Color bounds (can be pushed beyond config via Color Up/Down)
-  max_color_temp: null,      // Can only increase above config.max_color_temp (absolute max: 6500)
-  min_color_temp: null       // Can only decrease below config.min_color_temp (absolute min: 500)
+  max_color_temp: null,        // Can only increase above config.max_color_temp (absolute max: 6500)
+  min_color_temp: null         // Can only decrease below config.min_color_temp (absolute min: 500)
 };
 
 // Cursor state
@@ -1338,9 +1379,9 @@ function applySolarRuleAtHour(baseCCT, hour) {
   let cct = baseCCT;
   const { sunrise, sunset, solarNoon, solarMid } = sunTimes;
 
-  // Warm at night - ceiling
+  // Warm night - ceiling
   if (config.warm_night_enabled) {
-    const warmTarget = runtimeState.warm_night_ceiling ?? config.warm_night_target;
+    const warmTarget = runtimeState.solar_rule_color_limit ?? config.warm_night_target;
 
     if (cct > warmTarget) {
       const fadeHrs = config.warm_night_fade / 60;
@@ -1367,9 +1408,9 @@ function applySolarRuleAtHour(baseCCT, hour) {
     }
   }
 
-  // Cool during day - floor
+  // Cool day - floor
   if (config.cool_day_enabled) {
-    const coolTarget = runtimeState.cool_day_floor ?? config.cool_day_target;
+    const coolTarget = runtimeState.solar_rule_color_limit ?? config.cool_day_target;
 
     if (cct < coolTarget) {
       const fadeHrs = config.cool_day_fade / 60;
@@ -1423,9 +1464,9 @@ function getValuesAtTime(hour) {
   const cLow = runtimeState.min_color_temp ?? config.min_color_temp;
   const cHigh = runtimeState.max_color_temp ?? config.max_color_temp;
 
-  // Brightness midpoints
-  const wakeMid = runtimeState.brightness_wake_mid ?? config.wake_time;
-  const bedMid = runtimeState.brightness_bed_mid ?? config.bed_time;
+  // Brightness midpoint (runtimeState applies to current phase only)
+  const wakeMid = inAscend ? (runtimeState.brightness_mid ?? config.wake_time) : config.wake_time;
+  const bedMid = !inAscend ? (runtimeState.brightness_mid ?? config.bed_time) : config.bed_time;
 
   let wakeMid48 = wakeMid;
   while (wakeMid48 < tAscend) wakeMid48 += 24;
@@ -1445,9 +1486,9 @@ function getValuesAtTime(hour) {
   }
   const brightness = brightnessNorm * 100;
 
-  // Color midpoints
-  const colorWakeMid = runtimeState.color_wake_mid ?? config.wake_time;
-  const colorBedMid = runtimeState.color_bed_mid ?? config.bed_time;
+  // Color midpoint (runtimeState applies to current phase only)
+  const colorWakeMid = inAscend ? (runtimeState.color_mid ?? config.wake_time) : config.wake_time;
+  const colorBedMid = !inAscend ? (runtimeState.color_mid ?? config.bed_time) : config.bed_time;
 
   let colorWakeMid48 = colorWakeMid;
   while (colorWakeMid48 < tAscend) colorWakeMid48 += 24;
@@ -1547,12 +1588,8 @@ function getStepPreview(cursorPoint) {
 
     // Within bounds - traverse the diverged curve
     // Find virtual time T' where brightness curve = targetBri
-    const briMid = inAscend
-      ? (runtimeState.brightness_wake_mid ?? config.wake_time)
-      : (runtimeState.brightness_bed_mid ?? config.bed_time);
-    const colorMid = inAscend
-      ? (runtimeState.color_wake_mid ?? config.wake_time)
-      : (runtimeState.color_bed_mid ?? config.bed_time);
+    const briMid = runtimeState.brightness_mid ?? (inAscend ? config.wake_time : config.bed_time);
+    const colorMid = runtimeState.color_mid ?? (inAscend ? config.wake_time : config.bed_time);
 
     // Lift midpoints into 48h space
     let briMid48 = briMid;
@@ -1760,23 +1797,29 @@ function updateColorGradients() {
     }
   }
 
-  // Warm night track
+  // Warm night track - gradient matches slider's dynamic bounds
   const warmTrack = document.getElementById('warm-night-track');
-  if (warmTrack) {
+  const warmSlider = document.getElementById('warm-night-target');
+  if (warmTrack && warmSlider) {
+    const warmMin = parseInt(warmSlider.min) || minK;
+    const warmMax = parseInt(warmSlider.max) || maxK;
     const stops = [];
     for (let i = 0; i <= steps; i++) {
-      const k = minK + ((maxK - minK) * i / steps);
+      const k = warmMin + ((warmMax - warmMin) * i / steps);
       stops.push(`${cctToRGB(k)} ${(i / steps) * 100}%`);
     }
     warmTrack.style.background = `linear-gradient(90deg, ${stops.join(',')})`;
   }
 
-  // Cool day track
+  // Cool day track - gradient matches slider's dynamic bounds
   const coolTrack = document.getElementById('cool-day-track');
-  if (coolTrack) {
+  const coolSlider = document.getElementById('cool-day-target');
+  if (coolTrack && coolSlider) {
+    const coolMin = parseInt(coolSlider.min) || minK;
+    const coolMax = parseInt(coolSlider.max) || maxK;
     const stops = [];
     for (let i = 0; i <= steps; i++) {
-      const k = minK + ((maxK - minK) * i / steps);
+      const k = coolMin + ((coolMax - coolMin) * i / steps);
       stops.push(`${cctToRGB(k)} ${(i / steps) * 100}%`);
     }
     coolTrack.style.background = `linear-gradient(90deg, ${stops.join(',')})`;
@@ -1803,27 +1846,33 @@ function updateColorChips() {
     coolChip.style.color = readableTextColor(cctToRGB(k));
   }
 
-  // Update temporary ceiling/floor chips
+  // Update temporary ceiling/floor chips (solar_rule_color_limit applies to active rule)
   const warmCeilingChip = document.getElementById('warm-night-ceiling-chip');
+  const coolFloorChip = document.getElementById('cool-day-floor-chip');
+  const limit = runtimeState.solar_rule_color_limit;
+
+  // Check which rule is active at cursor position
+  const warmWindow = getWarmNightWindow();
+  const coolWindow = getCoolDayWindow();
+  const inWarmWindow = warmWindow && warmWindow.inWindow;
+  const inCoolWindow = coolWindow && coolWindow.inWindow;
+
   if (warmCeilingChip) {
-    const ceiling = runtimeState.warm_night_ceiling;
-    if (ceiling !== null && ceiling !== config.warm_night_target) {
-      warmCeilingChip.textContent = `→ ${Math.round(ceiling)} K`;
-      warmCeilingChip.style.background = cctToRGB(ceiling);
-      warmCeilingChip.style.color = readableTextColor(cctToRGB(ceiling));
+    if (inWarmWindow && limit !== null && limit !== config.warm_night_target) {
+      warmCeilingChip.textContent = `→ ${Math.round(limit)} K`;
+      warmCeilingChip.style.background = cctToRGB(limit);
+      warmCeilingChip.style.color = readableTextColor(cctToRGB(limit));
       warmCeilingChip.classList.remove('hidden');
     } else {
       warmCeilingChip.classList.add('hidden');
     }
   }
 
-  const coolFloorChip = document.getElementById('cool-day-floor-chip');
   if (coolFloorChip) {
-    const floor = runtimeState.cool_day_floor;
-    if (floor !== null && floor !== config.cool_day_target) {
-      coolFloorChip.textContent = `→ ${Math.round(floor)} K`;
-      coolFloorChip.style.background = cctToRGB(floor);
-      coolFloorChip.style.color = readableTextColor(cctToRGB(floor));
+    if (inCoolWindow && limit !== null && limit !== config.cool_day_target) {
+      coolFloorChip.textContent = `→ ${Math.round(limit)} K`;
+      coolFloorChip.style.background = cctToRGB(limit);
+      coolFloorChip.style.color = readableTextColor(cctToRGB(limit));
       coolFloorChip.classList.remove('hidden');
     } else {
       coolFloorChip.classList.add('hidden');
@@ -1913,13 +1962,13 @@ function adjustCCTForSolarRules(cctArray, hoursArray, sunrise, sunset) {
   const solarMid = wrap24(sunTimes.solarMid);  // solar midnight
   const solarNoon = wrap24(sunTimes.solarNoon);
 
-  // Warm at night rule
+  // Warm night rule
   if (config.warm_night_enabled) {
     const startOffsetHrs = config.warm_night_start / 60;  // offset from sunset
     const endOffsetHrs = config.warm_night_end / 60;      // offset from sunrise
     const mode = config.warm_night_mode;
-    // Use runtime ceiling if set (can only be higher than config target)
-    const warmTarget = runtimeState.warm_night_ceiling ?? config.warm_night_target;
+    // Use runtime limit if set (can only be higher than config target)
+    const warmTarget = runtimeState.solar_rule_color_limit ?? config.warm_night_target;
 
     // Determine window based on mode
     let windowStart, windowEnd;
@@ -1983,13 +2032,13 @@ function adjustCCTForSolarRules(cctArray, hoursArray, sunrise, sunset) {
     }
   }
 
-  // Cool during day rule
+  // Cool day rule
   if (config.cool_day_enabled) {
     const startOffsetHrs = config.cool_day_start / 60;  // offset from sunrise
     const endOffsetHrs = config.cool_day_end / 60;      // offset from sunset
     const mode = config.cool_day_mode;
-    // Use runtime floor if set (can only be lower than config target)
-    const coolTarget = runtimeState.cool_day_floor ?? config.cool_day_target;
+    // Use runtime limit if set (can only be lower than config target)
+    const coolTarget = runtimeState.solar_rule_color_limit ?? config.cool_day_target;
 
     // Determine window based on mode
     let windowStart, windowEnd;
@@ -2089,10 +2138,15 @@ function calculateCurveData() {
   let tDescend = config.descend_start;
   if (tDescend <= tAscend) tDescend += 24;
 
-  const wakeMid = runtimeState.brightness_wake_mid ?? config.wake_time;
-  const bedMid = runtimeState.brightness_bed_mid ?? config.bed_time;
-  const colorWakeMid = runtimeState.color_wake_mid ?? config.wake_time;
-  const colorBedMid = runtimeState.color_bed_mid ?? config.bed_time;
+  // Determine current phase from cursor position for runtimeState application
+  const cursorH48 = cursorHour !== null ? (cursorHour < tAscend ? cursorHour + 24 : cursorHour) : tAscend;
+  const cursorInAscend = cursorH48 >= tAscend && cursorH48 < tDescend;
+
+  // runtimeState midpoints apply to current phase only
+  const wakeMid = cursorInAscend ? (runtimeState.brightness_mid ?? config.wake_time) : config.wake_time;
+  const bedMid = !cursorInAscend ? (runtimeState.brightness_mid ?? config.bed_time) : config.bed_time;
+  const colorWakeMid = cursorInAscend ? (runtimeState.color_mid ?? config.wake_time) : config.wake_time;
+  const colorBedMid = !cursorInAscend ? (runtimeState.color_mid ?? config.bed_time) : config.bed_time;
 
   const kAscend = SPEED_TO_SLOPE[config.wake_speed] || 1.3;
   const kDescend = SPEED_TO_SLOPE[config.bed_speed] || 1.3;
@@ -2666,7 +2720,7 @@ function applyCursor() {
 
       // Reset runtime state on phase transition (ascend ↔ descend)
       if (lastCursorPhase !== null && cursorPoint.phase !== lastCursorPhase) {
-        resetRuntimeMidpoints();
+        resetRuntimeState();
         // Re-render chart with reset state
         renderChart();
       }
@@ -2816,12 +2870,8 @@ function updateCursorButtons(point) {
   const phaseLabel = inAscend ? 'wake' : 'bed';
 
   // Get current runtime midpoints (always show, even if equal to base)
-  const currentBriMid = inAscend
-    ? (runtimeState.brightness_wake_mid ?? config.wake_time)
-    : (runtimeState.brightness_bed_mid ?? config.bed_time);
-  const currentColorMid = inAscend
-    ? (runtimeState.color_wake_mid ?? config.wake_time)
-    : (runtimeState.color_bed_mid ?? config.bed_time);
+  const currentBriMid = runtimeState.brightness_mid ?? (inAscend ? config.wake_time : config.bed_time);
+  const currentColorMid = runtimeState.color_mid ?? (inAscend ? config.wake_time : config.bed_time);
 
   // Always show the wake/bed time label
   if (brightMidInfo) {
@@ -2950,9 +3000,16 @@ function updateCursorButtons(point) {
   // For color extremes, check the DISPLAYED CCT
   const displayedCCT = currentCCT;  // point.cct is already the displayed CCT
 
-  // Color max: either at color range limit, or at warm_night ceiling if locked
-  const warmCeiling = runtimeState.warm_night_ceiling ?? config.warm_night_target;
-  const coolFloor = runtimeState.cool_day_floor ?? config.cool_day_target;
+  // Color max: either at color range limit, or at solar rule limit if locked
+  // solar_rule_color_limit applies to whichever rule is active
+  const warmWindow = getWarmNightWindow();
+  const coolWindow = getCoolDayWindow();
+  const warmCeiling = (warmWindow?.inWindow && runtimeState.solar_rule_color_limit !== null)
+    ? runtimeState.solar_rule_color_limit
+    : config.warm_night_target;
+  const coolFloor = (coolWindow?.inWindow && runtimeState.solar_rule_color_limit !== null)
+    ? runtimeState.solar_rule_color_limit
+    : config.cool_day_target;
 
   let cctAtMax = displayedCCT >= cctMaxLimit - 10;
   if (config.warm_night_enabled && warmNightLocked && displayedCCT >= warmCeiling - 10) {
@@ -3041,6 +3098,9 @@ function syncConfigFromUI() {
   config.max_brightness = parseInt(document.getElementById('brightness-max').value);
   config.max_dim_steps = parseInt(document.getElementById('step-count').value);
 
+  // Constrain solar target sliders to color range (clamps values if needed)
+  updateSolarTargetSliderConstraints();
+
   config.warm_night_enabled = document.getElementById('warm-night-enabled').checked;
   config.warm_night_mode = document.getElementById('warm-night-mode').value;
   config.warm_night_target = parseInt(document.getElementById('warm-night-target').value);
@@ -3055,7 +3115,7 @@ function syncConfigFromUI() {
   config.cool_day_end = parseInt(document.getElementById('cool-day-end')?.value || 0);
   config.cool_day_fade = parseInt(document.getElementById('cool-day-fade')?.value || 60);
 
-  resetRuntimeMidpoints();
+  resetRuntimeState();
   updateColorGradients();
   constrainWakeBedSliders();
 }
@@ -3090,6 +3150,9 @@ function syncUIFromConfig() {
   document.getElementById('brightness-min').value = config.min_brightness;
   document.getElementById('brightness-max').value = config.max_brightness;
   document.getElementById('step-count').value = config.max_dim_steps;
+
+  // Update solar target slider constraints based on color range
+  updateSolarTargetSliderConstraints();
 
   document.getElementById('warm-night-enabled').checked = config.warm_night_enabled;
   document.getElementById('warm-night-mode').value = config.warm_night_mode;
@@ -3158,7 +3221,7 @@ function syncColorRuleRows() {
   const warmEnabled = config.warm_night_enabled;
   const coolEnabled = config.cool_day_enabled;
 
-  // Warm at night body
+  // Warm night body
   const warmBody = document.getElementById('warm-night-body');
   if (warmBody) {
     warmBody.classList.toggle('is-disabled', !warmEnabled);
@@ -3167,7 +3230,7 @@ function syncColorRuleRows() {
     });
   }
 
-  // Cool during day body
+  // Cool day body
   const coolBody = document.getElementById('cool-day-body');
   if (coolBody) {
     coolBody.classList.toggle('is-disabled', !coolEnabled);
@@ -3228,6 +3291,47 @@ function updateWakeBedSliderConstraints() {
   bedSlider.max = config.descend_start + 24 - (descendStart - ascendStart);
 }
 
+// Constrain warm_night_target and cool_day_target sliders to color range
+// and enforce warm_night_target >= cool_day_target (ceiling >= floor)
+// by setting dynamic slider bounds - you can't push one past the other
+function updateSolarTargetSliderConstraints() {
+  const warmSlider = document.getElementById('warm-night-target');
+  const coolSlider = document.getElementById('cool-day-target');
+  if (!warmSlider || !coolSlider) return;
+
+  const minTemp = config.min_color_temp;
+  const maxTemp = config.max_color_temp;
+
+  let warmVal = parseInt(warmSlider.value);
+  let coolVal = parseInt(coolSlider.value);
+
+  // Clamp both to color range first
+  warmVal = Math.max(minTemp, Math.min(maxTemp, warmVal));
+  coolVal = Math.max(minTemp, Math.min(maxTemp, coolVal));
+
+  // If color range change caused warm < cool, clamp cool down to warm
+  if (warmVal < coolVal) {
+    coolVal = warmVal;
+  }
+
+  // Set dynamic bounds:
+  // - warm can't go below cool (min = coolVal)
+  // - cool can't go above warm (max = warmVal)
+  warmSlider.min = coolVal;
+  warmSlider.max = maxTemp;
+  coolSlider.min = minTemp;
+  coolSlider.max = warmVal;
+
+  // Apply values
+  warmSlider.value = warmVal;
+  coolSlider.value = coolVal;
+  config.warm_night_target = warmVal;
+  config.cool_day_target = coolVal;
+
+  // Update track gradients to match new bounds
+  updateColorGradients();
+}
+
 // Constrain wake slider to between ascend_start and descend_start
 // Constrain bed slider to between descend_start and ascend_start (wrapping)
 function constrainWakeBedSliders() {
@@ -3282,14 +3386,15 @@ function updateDualFills() {
   }
 }
 
-function resetRuntimeMidpoints() {
-  runtimeState.brightness_wake_mid = config.wake_time;
-  runtimeState.brightness_bed_mid = config.bed_time;
-  runtimeState.color_wake_mid = config.wake_time;
-  runtimeState.color_bed_mid = config.bed_time;
-  // Reset solar rule ceiling/floor
-  runtimeState.warm_night_ceiling = null;
-  runtimeState.cool_day_floor = null;
+function resetRuntimeState() {
+  // Reset turns on circadian lighting and resets to default curve
+  runtimeState.enabled = true;
+  runtimeState.frozen = false;
+  // Reset midpoints to follow config
+  runtimeState.brightness_mid = null;
+  runtimeState.color_mid = null;
+  // Reset solar rule limit
+  runtimeState.solar_rule_color_limit = null;
   // Reset brightness/color bounds
   runtimeState.max_brightness = null;
   runtimeState.min_brightness = null;
@@ -3316,14 +3421,16 @@ function setupEventListeners() {
   updateSliderValue('step-count', 'step-count-display', v => `${v} steps`);
 
   // Warm/cool target sliders (inside popups)
+  // Call updateSolarTargetSliderConstraints to update dynamic bounds
+  // (warm can't go below cool, cool can't go above warm)
   document.getElementById('warm-night-target')?.addEventListener('input', () => {
     config.warm_night_target = parseInt(document.getElementById('warm-night-target').value);
-    updateColorChips();
+    updateSolarTargetSliderConstraints();
     renderChart();
   });
   document.getElementById('cool-day-target')?.addEventListener('input', () => {
     config.cool_day_target = parseInt(document.getElementById('cool-day-target').value);
-    updateColorChips();
+    updateSolarTargetSliderConstraints();
     renderChart();
   });
 
@@ -3365,6 +3472,24 @@ function setupEventListeners() {
     if (!e.target.closest('.color-controls-wrap')) {
       document.querySelectorAll('.color-slider-popup').forEach(p => p.classList.remove('is-open'));
     }
+    // Close info tooltips when clicking outside
+    if (!e.target.closest('.info-icon') && !e.target.closest('.info-tooltip')) {
+      document.querySelectorAll('.info-tooltip').forEach(t => t.classList.remove('is-open'));
+    }
+  });
+
+  // Info icon click handlers - toggle tooltip visibility
+  document.querySelectorAll('.info-icon').forEach(icon => {
+    icon.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const tooltipId = icon.getAttribute('data-tooltip');
+      const tooltip = document.getElementById(tooltipId);
+      // Close other tooltips
+      document.querySelectorAll('.info-tooltip').forEach(t => {
+        if (t.id !== tooltipId) t.classList.remove('is-open');
+      });
+      tooltip?.classList.toggle('is-open');
+    });
   });
 
   document.getElementById('activity-preset').addEventListener('change', (e) => {
@@ -3394,7 +3519,7 @@ function setupEventListeners() {
         config.descend_start = preset.descend_start;
       }
 
-      resetRuntimeMidpoints();
+      resetRuntimeState();
       syncUIFromConfig();
       renderChart();
     }
@@ -3412,7 +3537,7 @@ function setupEventListeners() {
   document.getElementById('cursor-color-down')?.addEventListener('click', () => stepCursor('down', false, true));
   document.getElementById('cursor-reset')?.addEventListener('click', () => {
     // Reset runtime state but keep cursor position
-    resetRuntimeMidpoints();
+    resetRuntimeState();
     renderChart();
     applyCursor();
   });
@@ -3487,15 +3612,15 @@ function getBaseCCTAtCursor() {
   let tDescend = config.descend_start;
   if (tDescend <= tAscend) tDescend += 24;
 
-  const colorWakeMid = runtimeState.color_wake_mid ?? config.wake_time;
-  const colorBedMid = runtimeState.color_bed_mid ?? config.bed_time;
   const kAscend = SPEED_TO_SLOPE[config.wake_speed] || 1.3;
   const kDescend = SPEED_TO_SLOPE[config.bed_speed] || 1.3;
 
   let h48 = cursorHour < tAscend ? cursorHour + 24 : cursorHour;
   const inAscend = h48 >= tAscend && h48 < tDescend;
 
-  let colorMid48 = inAscend ? colorWakeMid : colorBedMid;
+  // runtimeState.color_mid applies to current phase only
+  const colorMid = runtimeState.color_mid ?? (inAscend ? config.wake_time : config.bed_time);
+  let colorMid48 = colorMid;
   if (inAscend) {
     while (colorMid48 < tAscend) colorMid48 += 24;
     while (colorMid48 > tDescend) colorMid48 -= 24;
@@ -3616,9 +3741,9 @@ function stepCursor(direction, adjustBrightness, adjustColor) {
         if (targetCCT > cMax) {
           runtimeState.max_color_temp = Math.min(ABSOLUTE_MAX_CCT, targetCCT);
         }
-        const warmCeiling = runtimeState.warm_night_ceiling ?? config.warm_night_target;
+        const warmCeiling = runtimeState.solar_rule_color_limit ?? config.warm_night_target;
         if (config.warm_night_enabled && targetCCT > warmCeiling) {
-          runtimeState.warm_night_ceiling = Math.min(ABSOLUTE_MAX_CCT, targetCCT);
+          runtimeState.solar_rule_color_limit = Math.min(ABSOLUTE_MAX_CCT, targetCCT);
         }
       } else {
         // Step Down = warmer
@@ -3627,9 +3752,9 @@ function stepCursor(direction, adjustBrightness, adjustColor) {
         if (targetCCT < cMin) {
           runtimeState.min_color_temp = Math.max(ABSOLUTE_MIN_CCT, targetCCT);
         }
-        const coolFloor = runtimeState.cool_day_floor ?? config.cool_day_target;
+        const coolFloor = runtimeState.solar_rule_color_limit ?? config.cool_day_target;
         if (config.cool_day_enabled && targetCCT < coolFloor) {
-          runtimeState.cool_day_floor = Math.max(ABSOLUTE_MIN_CCT, targetCCT);
+          runtimeState.solar_rule_color_limit = Math.max(ABSOLUTE_MIN_CCT, targetCCT);
         }
       }
 
@@ -3639,12 +3764,8 @@ function stepCursor(direction, adjustBrightness, adjustColor) {
       // Then get color at T' from color curve (using its own midpoint)
 
       // Get current midpoints
-      const briMid = inAscend
-        ? (runtimeState.brightness_wake_mid ?? config.wake_time)
-        : (runtimeState.brightness_bed_mid ?? config.bed_time);
-      const colorMid = inAscend
-        ? (runtimeState.color_wake_mid ?? config.wake_time)
-        : (runtimeState.color_bed_mid ?? config.bed_time);
+      const briMid = runtimeState.brightness_mid ?? (inAscend ? config.wake_time : config.bed_time);
+      const colorMid = runtimeState.color_mid ?? (inAscend ? config.wake_time : config.bed_time);
 
       // Lift midpoints into 48h space
       let briMid48 = briMid;
@@ -3701,13 +3822,8 @@ function stepCursor(direction, adjustBrightness, adjustColor) {
     const newBriMid = inverseMidpoint(calcTime, targetBriNorm, slope, bMinNorm, bMaxNorm);
     const newColorMid = inverseMidpoint(calcTime, targetCCTNorm, slope, 0, 1);
 
-    if (inAscend) {
-      runtimeState.brightness_wake_mid = newBriMid;
-      runtimeState.color_wake_mid = newColorMid;
-    } else {
-      runtimeState.brightness_bed_mid = newBriMid;
-      runtimeState.color_bed_mid = newColorMid;
-    }
+    runtimeState.brightness_mid = newBriMid;
+    runtimeState.color_mid = newColorMid;
 
     renderChart();
     applyCursor();
@@ -3769,11 +3885,7 @@ function stepCursor(direction, adjustBrightness, adjustColor) {
 
     const newMid = inverseMidpoint(calcTime, targetNorm, slope, bMinNorm, bMaxNorm);
 
-    if (inAscend) {
-      runtimeState.brightness_wake_mid = newMid;
-    } else {
-      runtimeState.brightness_bed_mid = newMid;
-    }
+    runtimeState.brightness_mid = newMid;
   }
 
   // Color only: fixed value increments based on DISPLAYED color
@@ -3821,22 +3933,23 @@ function stepCursor(direction, adjustBrightness, adjustColor) {
     const effectiveMax = runtimeState.max_color_temp ?? config.max_color_temp;
     targetCCT = Math.max(effectiveMin, Math.min(effectiveMax, targetCCT));
 
-    // Get current runtime ceiling/floor for solar rules
-    const currentWarmCeiling = runtimeState.warm_night_ceiling ?? config.warm_night_target;
-    const currentCoolFloor = runtimeState.cool_day_floor ?? config.cool_day_target;
+    // Get current runtime limit for solar rules (applies to whichever is active)
+    const currentLimit = runtimeState.solar_rule_color_limit;
+    const warmCeiling = currentLimit ?? config.warm_night_target;
+    const coolFloor = currentLimit ?? config.cool_day_target;
 
     // Check if solar rule locks are enabled
     const warmNightLocked = document.getElementById('warm-night-locked')?.checked;
     const coolDayLocked = document.getElementById('cool-day-locked')?.checked;
 
     // Color Up (cooler): may need to raise warm_night ceiling
-    if (direction === 'up' && config.warm_night_enabled && targetCCT > currentWarmCeiling && !warmNightLocked) {
-      runtimeState.warm_night_ceiling = targetCCT;
+    if (direction === 'up' && config.warm_night_enabled && targetCCT > warmCeiling && !warmNightLocked) {
+      runtimeState.solar_rule_color_limit = targetCCT;
     }
 
     // Color Down (warmer): may need to lower cool_day floor
-    if (direction === 'down' && config.cool_day_enabled && targetCCT < currentCoolFloor && !coolDayLocked) {
-      runtimeState.cool_day_floor = targetCCT;
+    if (direction === 'down' && config.cool_day_enabled && targetCCT < coolFloor && !coolDayLocked) {
+      runtimeState.solar_rule_color_limit = targetCCT;
     }
 
     // Now adjust the color midpoint so base curve = target
@@ -3848,11 +3961,7 @@ function stepCursor(direction, adjustBrightness, adjustColor) {
 
     const newMid = inverseMidpoint(calcTime, targetNorm, slope, 0, 1);
 
-    if (inAscend) {
-      runtimeState.color_wake_mid = newMid;
-    } else {
-      runtimeState.color_bed_mid = newMid;
-    }
+    runtimeState.color_mid = newMid;
   }
 
   renderChart();
@@ -3869,7 +3978,7 @@ async function loadConfig() {
     if (resp.ok) {
       const data = await resp.json();
       Object.assign(config, data);
-      resetRuntimeMidpoints();
+      resetRuntimeState();
       syncUIFromConfig();
       renderChart();
     }
@@ -4157,7 +4266,7 @@ document.addEventListener('DOMContentLoaded', () => {
     slider.value = dayOfYear;
   }
 
-  resetRuntimeMidpoints();
+  resetRuntimeState();
   setupEventListeners();
   setupLiveDesign();
   syncUIFromConfig();

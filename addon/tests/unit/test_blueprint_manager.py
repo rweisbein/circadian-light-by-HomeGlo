@@ -113,7 +113,7 @@ def _prepare_blueprint_env(tmp_path: Path, monkeypatch, include_mode: str) -> Di
     monkeypatch.setattr(hbm, "CONFIG_BLUEPRINT_AUT_ROOT", config_blueprint_aut)
     monkeypatch.setattr(hbm, "CONFIG_BLUEPRINT_SCR_ROOT", config_blueprint_scr)
     monkeypatch.setattr(hbm, "BLUEPRINT_PATH_VARIANTS", (config_blueprint_aut,))
-    monkeypatch.setenv("MAGICLIGHT_BLUEPRINT_SOURCE_BASE", str(source_base))
+    monkeypatch.setenv("CIRCADIAN_BLUEPRINT_SOURCE_BASE", str(source_base))
 
     return {
         "config_dir": config_dir,
