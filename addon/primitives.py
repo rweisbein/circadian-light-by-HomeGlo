@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Circadian Light Primitives - Core actions triggered via service calls or switches."""
 
+import json
 import logging
+import os
 from typing import Any, Dict, Optional
 
 import state
@@ -14,6 +16,16 @@ from brain import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _get_data_directory() -> str:
+    """Get the appropriate data directory based on environment."""
+    if os.path.exists("/data"):
+        return "/data"
+    else:
+        data_dir = os.path.join(os.path.dirname(__file__), ".data")
+        os.makedirs(data_dir, exist_ok=True)
+        return data_dir
 
 
 class CircadianLightPrimitives:
@@ -31,7 +43,7 @@ class CircadianLightPrimitives:
         self._config_loader = config_loader
 
     def _get_config(self) -> Config:
-        """Load the global config."""
+        """Load the global config from config files."""
         config_dict = {}
 
         # Try config loader first
@@ -41,7 +53,21 @@ class CircadianLightPrimitives:
             except Exception as e:
                 logger.warning(f"Config loader failed: {e}")
 
-        # Fall back to client config
+        # Load from config files directly (same as update_lights_in_circadian_mode)
+        if not config_dict:
+            data_dir = _get_data_directory()
+            for filename in ["options.json", "designer_config.json"]:
+                path = os.path.join(data_dir, filename)
+                if os.path.exists(path):
+                    try:
+                        with open(path, 'r') as f:
+                            part = json.load(f)
+                            if isinstance(part, dict):
+                                config_dict.update(part)
+                    except Exception as e:
+                        logger.debug(f"Could not load config from {path}: {e}")
+
+        # Fall back to client config if still empty
         if not config_dict and hasattr(self.client, "config"):
             config_dict = self.client.config or {}
 

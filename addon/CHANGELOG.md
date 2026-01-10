@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.2.9
+**Bugfix - Primitives now load config from files**
+
+**Fixed:**
+- Primitives (reset, step_up, step_down, etc.) now load config directly from `designer_config.json`
+- Previously relied on `client.config` which wasn't always populated
+- Config bounds (min/max brightness, min/max color temp) are now respected by all services
+
 ## 6.2.8
 **Bugfix - Periodic updater now respects stepped values**
 
