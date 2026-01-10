@@ -867,6 +867,9 @@ class HomeAssistantWebSocketClient:
     async def update_lights_in_circadian_mode(self, area_id: str):
         """Update lights in an area with circadian lighting if Circadian Light is enabled.
 
+        This method respects per-area stepped state (brightness_mid, color_mid, pushed bounds)
+        that was set via step_up/step_down buttons.
+
         Args:
             area_id: The area ID to update
         """
@@ -880,8 +883,39 @@ class HomeAssistantWebSocketClient:
                 logger.debug(f"Area {area_id} is frozen, skipping update")
                 return
 
-            # Get circadian lighting values using brain.py
-            lighting_values = await self.get_circadian_lighting_for_area(area_id)
+            # Get area state (includes stepped midpoints and pushed bounds)
+            area_state = AreaState.from_dict(state.get_area(area_id))
+
+            # Load config
+            config_dict = {}
+            data_dir = self._get_data_directory()
+            for filename in ["options.json", "designer_config.json"]:
+                path = os.path.join(data_dir, filename)
+                if os.path.exists(path):
+                    try:
+                        with open(path, 'r') as f:
+                            part = json.load(f)
+                            if isinstance(part, dict):
+                                config_dict.update(part)
+                    except Exception as e:
+                        logger.debug(f"Could not load config from {path}: {e}")
+
+            config = Config.from_dict(config_dict)
+            hour = get_current_hour()
+
+            # Calculate lighting using area state (respects stepped values)
+            result = CircadianLight.calculate_lighting(hour, config, area_state)
+
+            # Build values dict for turn_on_lights_circadian
+            lighting_values = {
+                'brightness': result.brightness,
+                'kelvin': result.color_temp,
+                'rgb': result.rgb,
+                'xy': result.xy,
+            }
+
+            # Log the calculation
+            logger.info(f"Periodic update for area {area_id}: {result.color_temp}K, {result.brightness}%")
 
             # Use the centralized light control function
             await self.turn_on_lights_circadian(area_id, lighting_values, transition=2)

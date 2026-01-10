@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.2.8
+**Bugfix - Periodic updater now respects stepped values**
+
+**Fixed:**
+- Periodic light updates (every 30s) now respect per-area stepped state
+- Step down values no longer reset to default curve values after a few seconds
+- Uses `CircadianLight.calculate_lighting()` with area state instead of ignoring stepped midpoints/bounds
+
 ## 6.2.7
 **Bugfix - Step down wraparound at bounds**
 
