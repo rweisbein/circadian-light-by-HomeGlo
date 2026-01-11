@@ -103,17 +103,12 @@ trigger:
       command: "down_double_press"
     id: zha_down_double
 
-  # ZHA quadruple-press events
+  # ZHA triple-press events
   - platform: event
     event_type: zha_event
     event_data:
-      command: "on_quadruple_press"
-    id: zha_on_quad
-  - platform: event
-    event_type: zha_event
-    event_data:
-      command: "off_quadruple_press"
-    id: zha_off_quad
+      command: "off_triple_press"
+    id: zha_off_triple
 
   # ZHA hold events (fires repeatedly while held)
   - platform: event
@@ -194,17 +189,6 @@ action:
           - service: circadian.broadcast
             data:
               area_id: "{{ first_area }}"
-
-      # Power quadruple -> enable + britelite
-      - conditions:
-          - condition: trigger
-            id: zha_on_quad
-        sequence:
-          - service: circadian.set
-            data:
-              area_id: "{{ area_targets }}"
-              preset: britelite
-              enable: true
 
       # ========================================================================
       # UP (BRIGHTER) BUTTON
@@ -319,10 +303,21 @@ action:
             data:
               area_id: "{{ area_targets }}"
 
-      # Hue quadruple -> reset
+      # Hue double -> wake/bed preset
       - conditions:
           - condition: trigger
-            id: zha_off_quad
+            id: zha_off_double
+        sequence:
+          - service: circadian.set
+            data:
+              area_id: "{{ area_targets }}"
+              preset: wake
+              enable: true
+
+      # Hue triple -> reset
+      - conditions:
+          - condition: trigger
+            id: zha_off_triple
         sequence:
           - service: circadian.reset
             data:
