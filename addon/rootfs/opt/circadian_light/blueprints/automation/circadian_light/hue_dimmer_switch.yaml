@@ -195,18 +195,16 @@ action:
             data:
               area_id: "{{ first_area }}"
 
-      # Power quadruple -> on + britelite
+      # Power quadruple -> enable + britelite
       - conditions:
           - condition: trigger
             id: zha_on_quad
         sequence:
-          - service: circadian.circadian_on
-            data:
-              area_id: "{{ area_targets }}"
           - service: circadian.set
             data:
               area_id: "{{ area_targets }}"
               preset: britelite
+              enable: true
 
       # ========================================================================
       # UP (BRIGHTER) BUTTON
@@ -239,12 +237,13 @@ action:
                   - service: circadian.step_up
                     data:
                       area_id: "{{ area_targets }}"
-            # Else (lights off) -> on with nitelite preset
+            # Else (lights off) -> enable + nitelite
             default:
-              - service: circadian.circadian_on
+              - service: circadian.set
                 data:
                   area_id: "{{ area_targets }}"
                   preset: nitelite
+                  enable: true
 
       # Up hold -> bright_up (repeats while held)
       - conditions:
@@ -286,12 +285,13 @@ action:
                   - service: circadian.step_down
                     data:
                       area_id: "{{ area_targets }}"
-            # Else (lights off) -> on with nitelite preset
+            # Else (lights off) -> enable + nitelite
             default:
-              - service: circadian.circadian_on
+              - service: circadian.set
                 data:
                   area_id: "{{ area_targets }}"
                   preset: nitelite
+                  enable: true
 
       # Down hold -> bright_down (repeats while held)
       - conditions:

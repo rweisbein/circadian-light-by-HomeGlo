@@ -350,45 +350,28 @@ class CircadianLightPrimitives:
     # Circadian On / Off / Toggle
     # -------------------------------------------------------------------------
 
-    async def circadian_on(self, area_id: str, source: str = "service_call", preset: str = None):
+    async def circadian_on(self, area_id: str, source: str = "service_call"):
         """Enable Circadian Light mode and turn on lights.
 
         Args:
             area_id: The area ID to control
             source: Source of the action
-            preset: Optional preset to apply (nitelite, britelite, wake, bed)
         """
-        preset_note = f" with preset={preset}" if preset else ""
-        logger.info(f"[{source}] Enabling Circadian Light for area {area_id}{preset_note}")
+        logger.info(f"[{source}] Enabling Circadian Light for area {area_id}")
 
-        # Enable in state (even if already enabled, we may need to apply preset)
+        was_enabled = state.is_enabled(area_id)
+
+        if was_enabled:
+            logger.info(f"Circadian Light already enabled for area {area_id}")
+            return
+
+        # Enable in state
         state.set_enabled(area_id, True)
 
+        # Calculate and apply current lighting
         config = self._get_config()
-
-        # Apply preset if specified
-        if preset:
-            if preset == "nitelite":
-                frozen_hour = config.ascend_start
-                state.set_frozen_at(area_id, frozen_hour)
-            elif preset == "britelite":
-                frozen_hour = config.descend_start
-                state.set_frozen_at(area_id, frozen_hour)
-            elif preset in ("wake", "bed"):
-                current_hour = get_current_hour()
-                in_ascend, h48, t_ascend, t_descend, slope = CircadianLight.get_phase_info(
-                    current_hour, config
-                )
-                # Set midpoint to current time, NOT frozen
-                state.update_area(area_id, {
-                    "brightness_mid": h48,
-                    "color_mid": h48,
-                    "frozen_at": None,
-                })
-
-        # Calculate and apply lighting
         area_state = self._get_area_state(area_id)
-        hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
+        hour = get_current_hour()
 
         result = CircadianLight.calculate_lighting(hour, config, area_state)
         await self._apply_lighting(area_id, result.brightness, result.color_temp)
@@ -474,7 +457,8 @@ class CircadianLightPrimitives:
 
     async def set(
         self, area_id: str, source: str = "service_call",
-        preset: str = None, frozen_at: float = None, copy_from: str = None
+        preset: str = None, frozen_at: float = None, copy_from: str = None,
+        enable: bool = False
     ):
         """Configure area state with presets, frozen_at, or copy settings.
 
@@ -492,9 +476,15 @@ class CircadianLightPrimitives:
             preset: Optional preset name (wake, bed, nitelite, britelite)
             frozen_at: Optional specific hour (0-24) to freeze at
             copy_from: Optional area_id to copy settings from
+            enable: If True, also enable the area (default False = don't change enabled status)
         """
         config = self._get_config()
         current_hour = get_current_hour()
+
+        # Enable the area first if requested
+        if enable:
+            state.set_enabled(area_id, True)
+            logger.info(f"[{source}] Enabled area {area_id}")
 
         # Priority 1: copy_from another area
         if copy_from:
@@ -539,18 +529,17 @@ class CircadianLightPrimitives:
         if preset:
             if preset in ("wake", "bed"):
                 # Set midpoint to current time (produces ~50% values), NOT frozen
-                # Get phase info to set midpoint properly
-                in_ascend, slope, default_mid, phase_start, phase_end = CircadianLight.get_phase_info(
+                # get_phase_info returns: (in_ascend, h48, t_ascend, t_descend, slope)
+                in_ascend, h48, t_ascend, t_descend, slope = CircadianLight.get_phase_info(
                     current_hour, config
                 )
-                lifted_hour = CircadianLight.lift_midpoint_to_phase(current_hour, phase_start, phase_end)
 
                 state.update_area(area_id, {
-                    "brightness_mid": lifted_hour,
-                    "color_mid": lifted_hour,
+                    "brightness_mid": h48,
+                    "color_mid": h48,
                     "frozen_at": None,  # NOT frozen
                 })
-                logger.info(f"[{source}] Set {area_id} to {preset} preset (midpoint={lifted_hour:.2f}, unfrozen)")
+                logger.info(f"[{source}] Set {area_id} to {preset} preset (midpoint={h48:.2f}, unfrozen)")
 
             elif preset == "nitelite":
                 # Freeze at ascend_start (minimum values)

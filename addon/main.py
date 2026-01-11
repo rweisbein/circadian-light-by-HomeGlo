@@ -1189,11 +1189,10 @@ class HomeAssistantWebSocketClient:
 
                 elif service in ("circadian_on", "on"):
                     areas = get_areas()
-                    preset = service_data.get("preset")  # Optional: nitelite, britelite, wake, bed
                     if areas:
                         for area in areas:
-                            logger.info(f"[{domain}] circadian_on for area: {area} (preset={preset})")
-                            await self.primitives.circadian_on(area, "service_call", preset=preset)
+                            logger.info(f"[{domain}] circadian_on for area: {area}")
+                            await self.primitives.circadian_on(area, "service_call")
                     else:
                         logger.warning("circadian_on called without area_id")
 
@@ -1219,10 +1218,11 @@ class HomeAssistantWebSocketClient:
                     preset = service_data.get("preset")  # wake, bed, nitelite, britelite
                     frozen_at = service_data.get("frozen_at")  # Optional specific hour (0-24)
                     copy_from = service_data.get("copy_from")  # Optional area_id to copy from
+                    enable = service_data.get("enable", False)  # Optional: also enable the area
                     if areas:
                         for area in areas:
-                            logger.info(f"[{domain}] set for area: {area} (preset={preset}, frozen_at={frozen_at}, copy_from={copy_from})")
-                            await self.primitives.set(area, "service_call", preset=preset, frozen_at=frozen_at, copy_from=copy_from)
+                            logger.info(f"[{domain}] set for area: {area} (preset={preset}, frozen_at={frozen_at}, copy_from={copy_from}, enable={enable})")
+                            await self.primitives.set(area, "service_call", preset=preset, frozen_at=frozen_at, copy_from=copy_from, enable=enable)
                     else:
                         logger.warning("set called without area_id")
 

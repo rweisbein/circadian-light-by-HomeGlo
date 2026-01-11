@@ -1,7 +1,19 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.7.7
+**Feature - Add enable parameter to set primitive**
+
+**Added:**
+- `set` now accepts optional `enable` parameter to enable area atomically with preset
+- Added `set`, `freeze_toggle`, and `broadcast` service definitions to integration
+
+**Changed:**
+- Blueprint now uses `circadian.set` with `preset` and `enable: true` for nitelite/britelite
+- Fixes issue where lights would turn on with wrong values when off
+- Fixed tuple unpacking bug in `set` for wake/bed presets
+
 ## 6.7.6
-**Feature - Add preset parameter to circadian_on**
+**Feature - Add preset parameter to circadian_on** (reverted in 6.7.7)
 
 **Added:**
 - `circadian_on` now accepts optional `preset` parameter (nitelite, britelite, wake, bed)

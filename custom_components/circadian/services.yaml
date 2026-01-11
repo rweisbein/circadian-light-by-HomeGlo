@@ -109,18 +109,6 @@ circadian_on:
       selector:
         area:
           multiple: true
-    preset:
-      name: Preset
-      description: Optional preset to apply (nitelite, britelite, wake, bed)
-      required: false
-      example: nitelite
-      selector:
-        select:
-          options:
-            - nitelite
-            - britelite
-            - wake
-            - bed
 
 circadian_off:
   name: Circadian Off
@@ -177,3 +165,81 @@ unfreeze:
       selector:
         area:
           multiple: true
+
+set:
+  name: Set
+  description: Configure area state with presets or specific settings
+  icon: mdi:cog
+  fields:
+    area_id:
+      name: Area
+      description: The area(s) to configure
+      required: true
+      example: ["living_room", "kitchen"]
+      selector:
+        area:
+          multiple: true
+    preset:
+      name: Preset
+      description: Preset to apply (nitelite, britelite, wake, bed)
+      required: false
+      example: nitelite
+      selector:
+        select:
+          options:
+            - nitelite
+            - britelite
+            - wake
+            - bed
+    frozen_at:
+      name: Frozen At
+      description: Specific hour (0-24) to freeze at
+      required: false
+      example: 12.5
+      selector:
+        number:
+          min: 0
+          max: 24
+          step: 0.1
+          mode: box
+    copy_from:
+      name: Copy From
+      description: Area ID to copy settings from
+      required: false
+      example: living_room
+      selector:
+        area:
+    enable:
+      name: Enable
+      description: Also enable the area (default false)
+      required: false
+      default: false
+      selector:
+        boolean:
+
+freeze_toggle:
+  name: Freeze Toggle
+  description: Toggle freeze state with visual effect
+  icon: mdi:snowflake-alert
+  fields:
+    area_id:
+      name: Area
+      description: The area(s) to toggle freeze state
+      required: true
+      example: ["living_room", "kitchen"]
+      selector:
+        area:
+          multiple: true
+
+broadcast:
+  name: Broadcast
+  description: Copy settings from source area to all other areas
+  icon: mdi:broadcast
+  fields:
+    area_id:
+      name: Source Area
+      description: The area to copy settings FROM
+      required: true
+      example: living_room
+      selector:
+        area:
