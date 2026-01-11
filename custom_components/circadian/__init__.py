@@ -23,8 +23,9 @@ from .const import (
     SERVICE_CIRCADIAN_ON,
     SERVICE_CIRCADIAN_OFF,
     SERVICE_CIRCADIAN_TOGGLE,
-    SERVICE_FREEZE,
-    SERVICE_UNFREEZE,
+    SERVICE_FREEZE_TOGGLE,
+    SERVICE_SET,
+    SERVICE_BROADCAST,
     ATTR_AREA_ID,
 )
 
@@ -124,13 +125,17 @@ async def _register_services(hass: HomeAssistant) -> None:
         area_id = call.data.get(ATTR_AREA_ID)
         _LOGGER.info("[%s] circadian_toggle called: area_id=%s", DOMAIN, area_id)
 
-    async def handle_freeze(call: ServiceCall) -> None:
+    async def handle_freeze_toggle(call: ServiceCall) -> None:
         area_id = call.data.get(ATTR_AREA_ID)
-        _LOGGER.info("[%s] freeze called: area_id=%s", DOMAIN, area_id)
+        _LOGGER.info("[%s] freeze_toggle called: area_id=%s", DOMAIN, area_id)
 
-    async def handle_unfreeze(call: ServiceCall) -> None:
+    async def handle_set(call: ServiceCall) -> None:
         area_id = call.data.get(ATTR_AREA_ID)
-        _LOGGER.info("[%s] unfreeze called: area_id=%s", DOMAIN, area_id)
+        _LOGGER.info("[%s] set called: area_id=%s", DOMAIN, area_id)
+
+    async def handle_broadcast(call: ServiceCall) -> None:
+        area_id = call.data.get(ATTR_AREA_ID)
+        _LOGGER.info("[%s] broadcast called: area_id=%s", DOMAIN, area_id)
 
     # Schema for services - area_id can be a string or list of strings
     area_schema = vol.Schema({
@@ -149,8 +154,9 @@ async def _register_services(hass: HomeAssistant) -> None:
         (SERVICE_CIRCADIAN_ON, handle_circadian_on),
         (SERVICE_CIRCADIAN_OFF, handle_circadian_off),
         (SERVICE_CIRCADIAN_TOGGLE, handle_circadian_toggle),
-        (SERVICE_FREEZE, handle_freeze),
-        (SERVICE_UNFREEZE, handle_unfreeze),
+        (SERVICE_FREEZE_TOGGLE, handle_freeze_toggle),
+        (SERVICE_SET, handle_set),
+        (SERVICE_BROADCAST, handle_broadcast),
     ]
 
     for service_name, handler in services:
@@ -178,7 +184,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             SERVICE_COLOR_UP, SERVICE_COLOR_DOWN,
             SERVICE_RESET,
             SERVICE_CIRCADIAN_ON, SERVICE_CIRCADIAN_OFF, SERVICE_CIRCADIAN_TOGGLE,
-            SERVICE_FREEZE, SERVICE_UNFREEZE,
+            SERVICE_FREEZE_TOGGLE, SERVICE_SET, SERVICE_BROADCAST,
         ]
         for service_name in services:
             hass.services.async_remove(DOMAIN, service_name)

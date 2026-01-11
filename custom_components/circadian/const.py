@@ -14,8 +14,9 @@ SERVICE_RESET: Final = "reset"
 SERVICE_CIRCADIAN_ON: Final = "circadian_on"
 SERVICE_CIRCADIAN_OFF: Final = "circadian_off"
 SERVICE_CIRCADIAN_TOGGLE: Final = "circadian_toggle"
-SERVICE_FREEZE: Final = "freeze"
-SERVICE_UNFREEZE: Final = "unfreeze"
+SERVICE_FREEZE_TOGGLE: Final = "freeze_toggle"
+SERVICE_SET: Final = "set"
+SERVICE_BROADCAST: Final = "broadcast"
 
 # Service attributes
 ATTR_AREA_ID: Final = "area_id"
