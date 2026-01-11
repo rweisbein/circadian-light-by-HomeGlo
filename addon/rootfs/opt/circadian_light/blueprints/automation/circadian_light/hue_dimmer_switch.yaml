@@ -115,6 +115,18 @@ trigger:
       command: "off_quadruple_press"
     id: zha_off_quad
 
+  # ZHA hold events (fires repeatedly while held)
+  - platform: event
+    event_type: zha_event
+    event_data:
+      command: "up_hold"
+    id: zha_up_hold
+  - platform: event
+    event_type: zha_event
+    event_data:
+      command: "down_hold"
+    id: zha_down_hold
+
   # Hue Bridge single-press (subtype: 1=ON, 2=UP, 3=DOWN, 4=OFF)
   - platform: event
     event_type: hue_event
@@ -237,6 +249,15 @@ action:
                   area_id: "{{ area_targets }}"
                   preset: nitelite
 
+      # Up hold -> bright_up (repeats while held)
+      - conditions:
+          - condition: trigger
+            id: zha_up_hold
+        sequence:
+          - service: circadian.bright_up
+            data:
+              area_id: "{{ area_targets }}"
+
       # ========================================================================
       # DOWN (DIMMER) BUTTON
       # ========================================================================
@@ -277,6 +298,15 @@ action:
                 data:
                   area_id: "{{ area_targets }}"
                   preset: nitelite
+
+      # Down hold -> bright_down (repeats while held)
+      - conditions:
+          - condition: trigger
+            id: zha_down_hold
+        sequence:
+          - service: circadian.bright_down
+            data:
+              area_id: "{{ area_targets }}"
 
       # ========================================================================
       # HUE BUTTON
