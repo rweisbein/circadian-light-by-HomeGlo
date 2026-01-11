@@ -760,6 +760,9 @@ class CircadianLight:
 
             target_cct = c_min + (c_max - c_min) * color_norm
 
+            # Apply solar rules to target color (warm_night ceiling, cool_day floor)
+            target_cct = CircadianLight._apply_solar_rules(target_cct, hour, config, state)
+
         # Clamp to effective bounds
         effective_bri_min = state_updates.get("min_brightness", state.min_brightness if state.min_brightness is not None else config_min_bri)
         effective_bri_max = state_updates.get("max_brightness", state.max_brightness if state.max_brightness is not None else config_max_bri)

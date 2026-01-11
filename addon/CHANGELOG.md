@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.3.1
+**Bugfix - Step applies solar rules to color**
+
+**Fixed:**
+- Step up/down now applies solar rules (warm_night/cool_day) to calculated color
+- Previously, stepping while warm_night was active would jump to cooler temps because solar rules weren't applied to the curve calculation
+
 ## 6.3.0
 **Feature - Time-based freeze with presets and smooth unfreeze**
 
