@@ -4,6 +4,7 @@
 import json
 import logging
 import os
+import time
 from typing import Any, Dict, Optional
 
 import state
@@ -41,6 +42,7 @@ class CircadianLightPrimitives:
         """
         self.client = websocket_client
         self._config_loader = config_loader
+        self._last_freeze_toggle_time = 0.0  # Debounce guard for freeze_toggle
 
     def _get_config(self) -> Config:
         """Load the global config from config files."""
@@ -613,12 +615,13 @@ class CircadianLightPrimitives:
         frozen_color = frozen_result.color_temp
 
         # Get phase info for current time to determine slope
-        in_ascend, slope, default_mid, phase_start, phase_end = CircadianLight.get_phase_info(
+        # get_phase_info returns: (in_ascend, h48, t_ascend, t_descend, slope)
+        in_ascend, h48, t_ascend, t_descend, slope = CircadianLight.get_phase_info(
             current_hour, config
         )
 
-        # Lift current hour to 48h space for proper midpoint calculation
-        lifted_hour = CircadianLight.lift_midpoint_to_phase(current_hour, phase_start, phase_end)
+        # h48 is already the current hour lifted to 48h space
+        lifted_hour = h48
 
         # Get bounds
         b_min = area_state.min_brightness if area_state.min_brightness is not None else config.min_brightness
@@ -645,8 +648,8 @@ class CircadianLightPrimitives:
     async def freeze_toggle(self, area_id: str, source: str = "service_call"):
         """Toggle freeze state with visual effect.
 
-        Unfrozen → Frozen: dim to 0% over 1s, flash up to frozen values
-        Frozen → Unfrozen: dim to 0% over 1s, rise to unfrozen values
+        Unfrozen → Frozen: dim to 0% over 1s, brighten instantly
+        Frozen → Unfrozen: dim to 0% over 1s, brighten over 1s
 
         Args:
             area_id: The area ID
@@ -669,7 +672,7 @@ class CircadianLightPrimitives:
             # Was frozen → unfreeze (re-anchor midpoints)
             self._unfreeze_internal(area_id, source)
 
-            # Rise to unfrozen values
+            # Rise to unfrozen values over 1s
             area_state = self._get_area_state(area_id)
             hour = get_current_hour()
             result = CircadianLight.calculate_lighting(hour, config, area_state)
@@ -682,12 +685,79 @@ class CircadianLightPrimitives:
             frozen_at = get_current_hour()
             state.set_frozen_at(area_id, frozen_at)
 
-            # Flash up to frozen values
+            # Flash up to frozen values instantly
             area_state = self._get_area_state(area_id)
             result = CircadianLight.calculate_lighting(frozen_at, config, area_state)
-            await self._apply_lighting(area_id, result.brightness, result.color_temp, transition=0.3)
+            await self._apply_lighting(area_id, result.brightness, result.color_temp, transition=0)
 
             logger.info(f"[{source}] Freeze toggle: {area_id} frozen at hour {frozen_at:.2f}")
+
+    async def freeze_toggle_multiple(self, area_ids: list, source: str = "service_call"):
+        """Toggle freeze state for multiple areas with single visual effect.
+
+        All areas dim together, then brighten together (one bounce, not multiple).
+        Includes debounce guard to prevent double-trigger from switch events.
+
+        Args:
+            area_ids: List of area IDs
+            source: Source of the action
+        """
+        import asyncio
+
+        # Debounce guard: ignore calls within 3 seconds of the last one
+        now = time.time()
+        if now - self._last_freeze_toggle_time < 3.0:
+            logger.debug(f"[{source}] freeze_toggle_multiple debounced (called too soon)")
+            return
+        self._last_freeze_toggle_time = now
+
+        if not area_ids:
+            return
+
+        config = self._get_config()
+
+        # Filter to enabled areas only
+        enabled_areas = [a for a in area_ids if state.is_enabled(a)]
+        if not enabled_areas:
+            logger.info(f"[{source}] No enabled areas for freeze_toggle_multiple")
+            return
+
+        # Check freeze state of first area (all should be same, but use first as reference)
+        is_frozen = state.is_frozen(enabled_areas[0])
+
+        # Dim ALL areas to 0% over 1 second
+        for area_id in enabled_areas:
+            await self._apply_lighting(area_id, 0, 2700, include_color=False, transition=1.0)
+
+        await asyncio.sleep(1.1)  # Wait for transition to complete
+
+        if is_frozen:
+            # Was frozen → unfreeze all
+            for area_id in enabled_areas:
+                self._unfreeze_internal(area_id, source)
+
+            # Rise ALL areas to unfrozen values over 1s
+            hour = get_current_hour()
+            for area_id in enabled_areas:
+                area_state = self._get_area_state(area_id)
+                result = CircadianLight.calculate_lighting(hour, config, area_state)
+                await self._apply_lighting(area_id, result.brightness, result.color_temp, transition=1.0)
+
+            logger.info(f"[{source}] Freeze toggle: {len(enabled_areas)} area(s) unfrozen")
+
+        else:
+            # Was unfrozen → freeze all at current time
+            frozen_at = get_current_hour()
+            for area_id in enabled_areas:
+                state.set_frozen_at(area_id, frozen_at)
+
+            # Flash ALL areas up to frozen values instantly
+            for area_id in enabled_areas:
+                area_state = self._get_area_state(area_id)
+                result = CircadianLight.calculate_lighting(frozen_at, config, area_state)
+                await self._apply_lighting(area_id, result.brightness, result.color_temp, transition=0)
+
+            logger.info(f"[{source}] Freeze toggle: {len(enabled_areas)} area(s) frozen at hour {frozen_at:.2f}")
 
     # -------------------------------------------------------------------------
     # Reset

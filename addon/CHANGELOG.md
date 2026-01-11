@@ -1,5 +1,38 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.7.3
+**Bugfix - Fix unfreeze producing negative midpoints**
+
+**Fixed:**
+- Fixed tuple unpacking order in `_unfreeze_internal` for `get_phase_info` return values
+- Was incorrectly using hour (h48) as slope, causing negative midpoint calculations
+- Unfreeze now correctly re-anchors midpoints and maintains proper lighting values
+
+## 6.7.2
+**Bugfix - Debounce freeze_toggle to prevent double-bounce**
+
+**Fixed:**
+- Added 3-second debounce guard to freeze_toggle_multiple to prevent double-triggering
+- Fixes issue where switch button press caused lights to bounce twice (down-up-down-up)
+
+## 6.7.1
+**Improvement - Bundle integration with addon**
+
+**Changed:**
+- Custom integration now bundled in addon rootfs for reliable deployment
+- Fixes "unknown action" errors when HA cached old integration version
+
+## 6.7.0
+**Feature - Long-press hold support and freeze_toggle visual improvements**
+
+**Added:**
+- Long-press (hold) support for brighter/dimmer buttons: bright_up/bright_down
+- ZHA up_hold and down_hold triggers in hue_dimmer_switch blueprint
+
+**Changed:**
+- freeze_toggle timing: freeze brightens instantly (transition=0), unfreeze brightens over 1s
+- Added freeze_toggle_multiple for batched operation (all areas dim/brighten together)
+
 ## 6.6.0
 **Refactor - Full rename from MagicLight to Circadian Light**
 

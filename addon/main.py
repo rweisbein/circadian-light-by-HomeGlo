@@ -1228,9 +1228,8 @@ class HomeAssistantWebSocketClient:
                 elif service == "freeze_toggle":
                     areas = get_areas()
                     if areas:
-                        for area in areas:
-                            logger.info(f"[{domain}] freeze_toggle for area: {area}")
-                            await self.primitives.freeze_toggle(area, "service_call")
+                        logger.info(f"[{domain}] freeze_toggle for areas: {areas}")
+                        await self.primitives.freeze_toggle_multiple(areas, "service_call")
                     else:
                         logger.warning("freeze_toggle called without area_id")
 
