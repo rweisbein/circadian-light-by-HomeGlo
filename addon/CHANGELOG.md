@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.7.4
+**Improvement - Fine-tune freeze_toggle animation timing**
+
+**Changed:**
+- Freeze (on): dim over 0.8s, flash on instantly
+- Unfreeze (off): dim over 0.4s, rise over 1s
+
 ## 6.7.3
 **Bugfix - Fix unfreeze producing negative midpoints**
 
