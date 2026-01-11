@@ -453,34 +453,146 @@ class CircadianLightPrimitives:
     # Freeze / Unfreeze
     # -------------------------------------------------------------------------
 
-    async def freeze(self, area_id: str, source: str = "service_call"):
-        """Freeze an area - pause periodic updates but keep Circadian mode active.
+    async def freeze(
+        self, area_id: str, source: str = "service_call", preset: str = None
+    ):
+        """Freeze an area at a specific time position.
+
+        When frozen, calculations use frozen_at instead of current time.
+        Stepping while frozen shifts midpoints but keeps frozen_at.
 
         Args:
             area_id: The area ID
             source: Source of the action
+            preset: Optional preset - None/"current", "nitelite", or "britelite"
         """
-        logger.info(f"[{source}] Freezing area {area_id}")
-        state.set_frozen(area_id, True)
+        config = self._get_config()
+
+        if preset == "nitelite":
+            # Freeze at beginning of ascend phase (minimum values)
+            frozen_at = config.ascend_start
+            logger.info(f"[{source}] Freezing area {area_id} at nitelite (hour {frozen_at})")
+        elif preset == "britelite":
+            # Freeze at beginning of descend phase (maximum values)
+            frozen_at = config.descend_start
+            logger.info(f"[{source}] Freezing area {area_id} at britelite (hour {frozen_at})")
+        else:
+            # Freeze at current time
+            frozen_at = get_current_hour()
+            logger.info(f"[{source}] Freezing area {area_id} at current time (hour {frozen_at:.2f})")
+
+        state.set_frozen_at(area_id, frozen_at)
+
+        # Apply the frozen values immediately if enabled
+        if state.is_enabled(area_id):
+            area_state = self._get_area_state(area_id)
+            result = CircadianLight.calculate_lighting(frozen_at, config, area_state)
+            await self._apply_lighting(area_id, result.brightness, result.color_temp)
 
     async def unfreeze(self, area_id: str, source: str = "service_call"):
-        """Unfreeze an area - resume periodic updates.
+        """Unfreeze an area with smooth transition (re-anchor midpoints).
+
+        Re-anchors midpoints so current time produces the same values as
+        the frozen position, then clears frozen_at. No sudden jump.
 
         Args:
             area_id: The area ID
             source: Source of the action
         """
-        logger.info(f"[{source}] Unfreezing area {area_id}")
-        state.set_frozen(area_id, False)
+        from brain import inverse_midpoint
 
-        # Immediately apply current values
-        if state.is_enabled(area_id):
-            config = self._get_config()
+        frozen_at = state.get_frozen_at(area_id)
+        if frozen_at is None:
+            logger.info(f"[{source}] Area {area_id} already unfrozen")
+            return
+
+        logger.info(f"[{source}] Unfreezing area {area_id} (re-anchoring from hour {frozen_at:.2f})")
+
+        config = self._get_config()
+        area_state = self._get_area_state(area_id)
+        current_hour = get_current_hour()
+
+        # Calculate current frozen values
+        frozen_result = CircadianLight.calculate_lighting(frozen_at, config, area_state)
+        frozen_bri = frozen_result.brightness
+        frozen_color = frozen_result.color_temp
+
+        # Get phase info for current time to determine slope
+        in_ascend, slope, default_mid, phase_start, phase_end = CircadianLight.get_phase_info(
+            current_hour, config
+        )
+
+        # Lift current hour to 48h space for proper midpoint calculation
+        lifted_hour = CircadianLight.lift_midpoint_to_phase(current_hour, phase_start, phase_end)
+
+        # Get bounds
+        b_min = area_state.min_brightness if area_state.min_brightness is not None else config.min_brightness
+        b_max = area_state.max_brightness if area_state.max_brightness is not None else config.max_brightness
+        c_min = area_state.min_color_temp if area_state.min_color_temp is not None else config.min_color_temp
+        c_max = area_state.max_color_temp if area_state.max_color_temp is not None else config.max_color_temp
+
+        # Calculate new midpoints that produce frozen values at current time
+        new_bri_mid = inverse_midpoint(lifted_hour, frozen_bri, slope, b_min, b_max)
+        new_color_mid = inverse_midpoint(lifted_hour, frozen_color, slope, c_min, c_max)
+
+        # Update state with new midpoints and clear frozen_at
+        state.update_area(area_id, {
+            "brightness_mid": new_bri_mid,
+            "color_mid": new_color_mid,
+            "frozen_at": None,
+        })
+
+        logger.info(
+            f"Unfrozen area {area_id}: re-anchored midpoints to "
+            f"bri_mid={new_bri_mid:.2f}, color_mid={new_color_mid:.2f}"
+        )
+
+    async def freeze_toggle(self, area_id: str, source: str = "service_call"):
+        """Toggle freeze state with visual effect.
+
+        Unfrozen → Frozen: dim to 0% over 1s, flash up to frozen values
+        Frozen → Unfrozen: dim to 0% over 1s, rise to unfrozen values
+
+        Args:
+            area_id: The area ID
+            source: Source of the action
+        """
+        import asyncio
+
+        is_frozen = state.is_frozen(area_id)
+        config = self._get_config()
+
+        if not state.is_enabled(area_id):
+            logger.info(f"[{source}] Area {area_id} not enabled, skipping freeze_toggle")
+            return
+
+        # Dim to 0% over 1 second
+        await self._apply_lighting(area_id, 0, 2700, include_color=False, transition=1.0)
+        await asyncio.sleep(1.1)  # Wait for transition to complete
+
+        if is_frozen:
+            # Was frozen → unfreeze
+            await self.unfreeze(area_id, source)
+
+            # Rise to unfrozen values
             area_state = self._get_area_state(area_id)
             hour = get_current_hour()
-
             result = CircadianLight.calculate_lighting(hour, config, area_state)
-            await self._apply_lighting(area_id, result.brightness, result.color_temp)
+            await self._apply_lighting(area_id, result.brightness, result.color_temp, transition=1.0)
+
+            logger.info(f"[{source}] Freeze toggle: {area_id} unfrozen")
+
+        else:
+            # Was unfrozen → freeze at current time
+            frozen_at = get_current_hour()
+            state.set_frozen_at(area_id, frozen_at)
+
+            # Flash up to frozen values
+            area_state = self._get_area_state(area_id)
+            result = CircadianLight.calculate_lighting(frozen_at, config, area_state)
+            await self._apply_lighting(area_id, result.brightness, result.color_temp, transition=0.3)
+
+            logger.info(f"[{source}] Freeze toggle: {area_id} frozen at hour {frozen_at:.2f}")
 
     # -------------------------------------------------------------------------
     # Reset
@@ -489,8 +601,8 @@ class CircadianLightPrimitives:
     async def reset(self, area_id: str, source: str = "service_call"):
         """Reset area to base config values.
 
-        Resets midpoints and bounds to config defaults, unfreezes,
-        enables Circadian mode, and applies current time values.
+        Resets midpoints, bounds, and frozen_at to defaults.
+        Enables Circadian mode and applies current time values.
 
         Args:
             area_id: The area ID
@@ -498,12 +610,11 @@ class CircadianLightPrimitives:
         """
         logger.info(f"[{source}] Resetting area {area_id}")
 
-        # Reset state (preserves enabled/frozen, clears midpoints/bounds)
+        # Reset state (clears midpoints/bounds/frozen_at, preserves only enabled)
         state.reset_area(area_id)
 
-        # Enable and unfreeze
+        # Enable (frozen_at is already cleared by reset_area)
         state.set_enabled(area_id, True)
-        state.set_frozen(area_id, False)
 
         # Apply current time values
         config = self._get_config()

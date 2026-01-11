@@ -1,5 +1,24 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.3.0
+**Feature - Time-based freeze with presets and smooth unfreeze**
+
+**Changed:**
+- `frozen` boolean replaced with `frozen_at` (hour 0-24) - freeze now captures a time position
+- When frozen, calculations use `frozen_at` instead of current time
+- Frozen areas still receive periodic updates (outputting same values)
+- Stepping while frozen shifts midpoints but keeps `frozen_at` - allows adjustments without unfreezing
+- `reset` now clears `frozen_at` (unfreezes)
+
+**Added:**
+- `freeze` accepts `preset` parameter: `"nitelite"` (min values), `"britelite"` (max values), or `None` (current)
+- `unfreeze` now re-anchors midpoints so curve continues smoothly from frozen position (no sudden jump)
+- New `freeze_toggle` primitive with visual effect (dim to 0%, then rise to new state)
+- `AreaState.is_frozen` property for convenient frozen status check
+
+**Fixed:**
+- Frozen state persists across toggle off, circadian_off, and phase changes (only cleared by explicit unfreeze or reset)
+
 ## 6.2.9
 **Bugfix - Primitives now load config from files**
 

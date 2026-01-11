@@ -870,20 +870,18 @@ class HomeAssistantWebSocketClient:
         This method respects per-area stepped state (brightness_mid, color_mid, pushed bounds)
         that was set via step_up/step_down buttons.
 
+        If the area is frozen (frozen_at is set), uses frozen_at instead of current time.
+
         Args:
             area_id: The area ID to update
         """
         try:
-            # Only update if area is enabled and not frozen
+            # Only update if area is enabled
             if not state.is_enabled(area_id):
                 logger.debug(f"Area {area_id} not in Circadian mode, skipping update")
                 return
 
-            if state.is_frozen(area_id):
-                logger.debug(f"Area {area_id} is frozen, skipping update")
-                return
-
-            # Get area state (includes stepped midpoints and pushed bounds)
+            # Get area state (includes stepped midpoints, pushed bounds, and frozen_at)
             area_state = AreaState.from_dict(state.get_area(area_id))
 
             # Load config
@@ -901,7 +899,13 @@ class HomeAssistantWebSocketClient:
                         logger.debug(f"Could not load config from {path}: {e}")
 
             config = Config.from_dict(config_dict)
-            hour = get_current_hour()
+
+            # Use frozen_at if set, otherwise current time
+            if area_state.frozen_at is not None:
+                hour = area_state.frozen_at
+                logger.debug(f"Area {area_id} is frozen at hour {hour:.2f}")
+            else:
+                hour = get_current_hour()
 
             # Calculate lighting using area state (respects stepped values)
             result = CircadianLight.calculate_lighting(hour, config, area_state)
@@ -915,7 +919,8 @@ class HomeAssistantWebSocketClient:
             }
 
             # Log the calculation
-            logger.info(f"Periodic update for area {area_id}: {result.color_temp}K, {result.brightness}%")
+            frozen_note = f" (frozen at {hour:.1f}h)" if area_state.frozen_at is not None else ""
+            logger.info(f"Periodic update for area {area_id}{frozen_note}: {result.color_temp}K, {result.brightness}%")
 
             # Use the centralized light control function
             await self.turn_on_lights_circadian(area_id, lighting_values, transition=2)
@@ -1210,10 +1215,11 @@ class HomeAssistantWebSocketClient:
 
                 elif service == "freeze":
                     areas = get_areas()
+                    preset = service_data.get("preset")  # None, "nitelite", or "britelite"
                     if areas:
                         for area in areas:
-                            logger.info(f"[{domain}] freeze for area: {area}")
-                            await self.primitives.freeze(area, "service_call")
+                            logger.info(f"[{domain}] freeze for area: {area} (preset={preset})")
+                            await self.primitives.freeze(area, "service_call", preset=preset)
                     else:
                         logger.warning("freeze called without area_id")
 
@@ -1225,6 +1231,15 @@ class HomeAssistantWebSocketClient:
                             await self.primitives.unfreeze(area, "service_call")
                     else:
                         logger.warning("unfreeze called without area_id")
+
+                elif service == "freeze_toggle":
+                    areas = get_areas()
+                    if areas:
+                        for area in areas:
+                            logger.info(f"[{domain}] freeze_toggle for area: {area}")
+                            await self.primitives.freeze_toggle(area, "service_call")
+                    else:
+                        logger.warning("freeze_toggle called without area_id")
 
                 elif service == "reset":
                     areas = get_areas()

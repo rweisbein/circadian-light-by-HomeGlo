@@ -163,7 +163,7 @@ class AreaState:
     one midpoint per axis rather than separate wake/bed values.
     """
     enabled: bool = False              # Whether circadian lighting is active
-    frozen: bool = False               # Whether to freeze at current position
+    frozen_at: Optional[float] = None  # Hour (0-24) to freeze at, None = unfrozen
 
     # Midpoints (None = use config wake_time/bed_time based on phase)
     brightness_mid: Optional[float] = None
@@ -178,12 +178,17 @@ class AreaState:
     min_color_temp: Optional[int] = None
     max_color_temp: Optional[int] = None
 
+    @property
+    def is_frozen(self) -> bool:
+        """Check if this area is frozen."""
+        return self.frozen_at is not None
+
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "AreaState":
         """Create AreaState from a dictionary."""
         return cls(
             enabled=d.get("enabled", False),
-            frozen=d.get("frozen", False),
+            frozen_at=d.get("frozen_at"),
             brightness_mid=d.get("brightness_mid"),
             color_mid=d.get("color_mid"),
             solar_rule_color_limit=d.get("solar_rule_color_limit"),
@@ -197,7 +202,7 @@ class AreaState:
         """Convert to dictionary for storage."""
         return {
             "enabled": self.enabled,
-            "frozen": self.frozen,
+            "frozen_at": self.frozen_at,
             "brightness_mid": self.brightness_mid,
             "color_mid": self.color_mid,
             "solar_rule_color_limit": self.solar_rule_color_limit,

@@ -33,7 +33,8 @@ def _get_default_area_state() -> Dict[str, Any]:
     """
     return {
         "enabled": False,
-        "frozen": False,
+        # frozen_at: None = unfrozen, float = frozen at that hour (0-24)
+        "frozen_at": None,
         # Midpoints (None = use config wake_time/bed_time based on phase)
         "brightness_mid": None,
         "color_mid": None,
@@ -150,17 +151,30 @@ def set_enabled(area_id: str, enabled: bool) -> None:
     logger.info(f"Circadian Light {'enabled' if enabled else 'disabled'} for area {area_id}")
 
 
-def set_frozen(area_id: str, frozen: bool) -> None:
-    """Freeze or unfreeze an area.
+def set_frozen_at(area_id: str, frozen_at: Optional[float]) -> None:
+    """Set the frozen time for an area.
 
-    When frozen, periodic updates are paused but primitives still work.
+    When frozen_at is set, calculations use that hour instead of current time.
+    Periodic updates still run but output the same values.
 
     Args:
         area_id: The area ID
-        frozen: Whether to freeze or unfreeze
+        frozen_at: Hour to freeze at (0-24), or None to unfreeze
     """
-    update_area(area_id, {"frozen": frozen})
-    logger.info(f"Area {area_id} {'frozen' if frozen else 'unfrozen'}")
+    update_area(area_id, {"frozen_at": frozen_at})
+    if frozen_at is not None:
+        logger.info(f"Area {area_id} frozen at hour {frozen_at:.2f}")
+    else:
+        logger.info(f"Area {area_id} unfrozen")
+
+
+def get_frozen_at(area_id: str) -> Optional[float]:
+    """Get the frozen time for an area.
+
+    Returns:
+        The frozen hour (0-24), or None if not frozen.
+    """
+    return get_area(area_id).get("frozen_at")
 
 
 def is_enabled(area_id: str) -> bool:
@@ -170,7 +184,7 @@ def is_enabled(area_id: str) -> bool:
 
 def is_frozen(area_id: str) -> bool:
     """Check if an area is frozen."""
-    return get_area(area_id).get("frozen", False)
+    return get_area(area_id).get("frozen_at") is not None
 
 
 def get_enabled_areas() -> List[str]:
@@ -179,17 +193,23 @@ def get_enabled_areas() -> List[str]:
 
 
 def get_unfrozen_enabled_areas() -> List[str]:
-    """Get list of enabled areas that are not frozen (for periodic updates)."""
+    """Get list of enabled areas that are not frozen (for periodic updates).
+
+    Note: With frozen_at, frozen areas still get periodic updates but use
+    frozen_at instead of current time. This function returns areas that
+    are enabled, regardless of frozen status, since all enabled areas
+    need periodic updates now.
+    """
     return [
         area_id for area_id, state in _state.items()
-        if state.get("enabled", False) and not state.get("frozen", False)
+        if state.get("enabled", False)
     ]
 
 
 def reset_area(area_id: str) -> None:
-    """Reset an area's runtime state to defaults (midpoints and bounds).
+    """Reset an area's runtime state to defaults (midpoints, bounds, frozen_at).
 
-    Preserves enabled and frozen status.
+    Preserves only enabled status. Clears frozen_at (unfreezes).
 
     Args:
         area_id: The area ID
@@ -200,7 +220,7 @@ def reset_area(area_id: str) -> None:
     current = _state[area_id]
     preserved = {
         "enabled": current.get("enabled", False),
-        "frozen": current.get("frozen", False),
+        # frozen_at is NOT preserved - reset clears it
     }
 
     _state[area_id] = _get_default_area_state()

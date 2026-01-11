@@ -218,7 +218,8 @@ class TestStateConsistency:
         state = AreaState.from_dict(d)
 
         assert state.enabled is True
-        assert state.frozen is False  # Default
+        assert state.frozen_at is None  # Default
+        assert state.is_frozen is False  # Default
         assert state.brightness_mid is None  # Default
 
 

@@ -50,7 +50,8 @@ class TestDataclasses:
         state = AreaState()
 
         assert state.enabled is False
-        assert state.frozen is False
+        assert state.frozen_at is None
+        assert state.is_frozen is False
         assert state.brightness_mid is None
         assert state.color_mid is None
         assert state.solar_rule_color_limit is None
@@ -63,7 +64,7 @@ class TestDataclasses:
         """Test AreaState serialization."""
         state = AreaState(
             enabled=True,
-            frozen=False,
+            frozen_at=14.5,
             brightness_mid=10.5,
             color_mid=11.2,
             solar_rule_color_limit=3000
@@ -72,7 +73,7 @@ class TestDataclasses:
         d = state.to_dict()
 
         assert d["enabled"] is True
-        assert d["frozen"] is False
+        assert d["frozen_at"] == 14.5
         assert d["brightness_mid"] == 10.5
         assert d["color_mid"] == 11.2
         assert d["solar_rule_color_limit"] == 3000
@@ -81,7 +82,7 @@ class TestDataclasses:
         """Test AreaState deserialization."""
         d = {
             "enabled": True,
-            "frozen": True,
+            "frozen_at": 20.0,
             "brightness_mid": 8.0,
             "color_mid": 9.0,
             "min_brightness": 20,
@@ -91,7 +92,8 @@ class TestDataclasses:
         state = AreaState.from_dict(d)
 
         assert state.enabled is True
-        assert state.frozen is True
+        assert state.frozen_at == 20.0
+        assert state.is_frozen is True
         assert state.brightness_mid == 8.0
         assert state.color_mid == 9.0
         assert state.min_brightness == 20
@@ -101,7 +103,7 @@ class TestDataclasses:
         """Test AreaState serialization roundtrip."""
         original = AreaState(
             enabled=True,
-            frozen=False,
+            frozen_at=14.5,
             brightness_mid=10.5,
             color_mid=11.2,
             solar_rule_color_limit=3000,
@@ -114,7 +116,7 @@ class TestDataclasses:
         restored = AreaState.from_dict(original.to_dict())
 
         assert restored.enabled == original.enabled
-        assert restored.frozen == original.frozen
+        assert restored.frozen_at == original.frozen_at
         assert restored.brightness_mid == original.brightness_mid
         assert restored.color_mid == original.color_mid
         assert restored.solar_rule_color_limit == original.solar_rule_color_limit
