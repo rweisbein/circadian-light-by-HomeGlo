@@ -649,7 +649,7 @@ class CircadianLightPrimitives:
         """Toggle freeze state with visual effect.
 
         Unfrozen → Frozen: dim over 0.8s, brighten instantly
-        Frozen → Unfrozen: dim over 0.4s, brighten over 1s
+        Frozen → Unfrozen: dim over 0.8s, brighten over 1s
 
         Args:
             area_id: The area ID
@@ -664,10 +664,10 @@ class CircadianLightPrimitives:
             logger.info(f"[{source}] Area {area_id} not enabled, skipping freeze_toggle")
             return
 
-        # Different timing based on direction:
-        # Freeze (off): dim 0.8s, flash on instantly
-        # Unfreeze (on): dim 0.4s, rise over 1s
-        dim_duration = 0.4 if is_frozen else 0.8
+        # Both directions dim over 0.8s
+        # Freeze: flash on instantly
+        # Unfreeze: rise over 1s
+        dim_duration = 0.8
 
         await self._apply_lighting(area_id, 0, 2700, include_color=False, transition=dim_duration)
         await asyncio.sleep(dim_duration + 0.1)  # Wait for transition to complete
@@ -729,10 +729,10 @@ class CircadianLightPrimitives:
         # Check freeze state of first area (all should be same, but use first as reference)
         is_frozen = state.is_frozen(enabled_areas[0])
 
-        # Different timing based on direction:
-        # Freeze (off): dim 0.8s, flash on instantly
-        # Unfreeze (on): dim 0.4s, rise over 1s
-        dim_duration = 0.4 if is_frozen else 0.8
+        # Both directions dim over 0.8s
+        # Freeze: flash on instantly
+        # Unfreeze: rise over 1s
+        dim_duration = 0.8
 
         # Dim ALL areas to 0%
         for area_id in enabled_areas:

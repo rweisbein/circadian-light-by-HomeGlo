@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.7.5
+**Improvement - Unified freeze_toggle dim duration**
+
+**Changed:**
+- Both freeze and unfreeze now dim over 0.8s
+- Freeze: dim 0.8s, flash on instantly
+- Unfreeze: dim 0.8s, rise over 1s
+
 ## 6.7.4
 **Improvement - Fine-tune freeze_toggle animation timing**
 
