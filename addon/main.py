@@ -1216,10 +1216,11 @@ class HomeAssistantWebSocketClient:
                 elif service == "freeze":
                     areas = get_areas()
                     preset = service_data.get("preset")  # None, "nitelite", or "britelite"
+                    hour = service_data.get("hour")  # Optional specific hour (0-24)
                     if areas:
                         for area in areas:
-                            logger.info(f"[{domain}] freeze for area: {area} (preset={preset})")
-                            await self.primitives.freeze(area, "service_call", preset=preset)
+                            logger.info(f"[{domain}] freeze for area: {area} (preset={preset}, hour={hour})")
+                            await self.primitives.freeze(area, "service_call", preset=preset, hour=hour)
                     else:
                         logger.warning("freeze called without area_id")
 

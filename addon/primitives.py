@@ -454,7 +454,8 @@ class CircadianLightPrimitives:
     # -------------------------------------------------------------------------
 
     async def freeze(
-        self, area_id: str, source: str = "service_call", preset: str = None
+        self, area_id: str, source: str = "service_call",
+        preset: str = None, hour: float = None
     ):
         """Freeze an area at a specific time position.
 
@@ -465,10 +466,15 @@ class CircadianLightPrimitives:
             area_id: The area ID
             source: Source of the action
             preset: Optional preset - None/"current", "nitelite", or "britelite"
+            hour: Optional specific hour (0-24) to freeze at. Takes priority over preset.
         """
         config = self._get_config()
 
-        if preset == "nitelite":
+        # Priority: hour > preset > current time
+        if hour is not None:
+            frozen_at = float(hour)
+            logger.info(f"[{source}] Freezing area {area_id} at hour {frozen_at:.2f}")
+        elif preset == "nitelite":
             # Freeze at beginning of ascend phase (minimum values)
             frozen_at = config.ascend_start
             logger.info(f"[{source}] Freezing area {area_id} at nitelite (hour {frozen_at})")

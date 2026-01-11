@@ -12,6 +12,7 @@
 
 **Added:**
 - `freeze` accepts `preset` parameter: `"nitelite"` (min values), `"britelite"` (max values), or `None` (current)
+- `freeze` accepts `hour` parameter: specific hour (0-24) to freeze at (takes priority over preset)
 - `unfreeze` now re-anchors midpoints so curve continues smoothly from frozen position (no sudden jump)
 - New `freeze_toggle` primitive with visual effect (dim to 0%, then rise to new state)
 - `AreaState.is_frozen` property for convenient frozen status check
