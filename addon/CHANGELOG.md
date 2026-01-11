@@ -1,5 +1,16 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.7.6
+**Feature - Add preset parameter to circadian_on**
+
+**Added:**
+- `circadian_on` now accepts optional `preset` parameter (nitelite, britelite, wake, bed)
+- Enables atomic enable+preset in single call for reliable operation
+
+**Changed:**
+- Blueprint now uses single `circadian_on` with `preset: nitelite` instead of two calls
+- Fixes issue where lights would turn on with wrong values when off
+
 ## 6.7.5
 **Improvement - Unified freeze_toggle dim duration**
 

@@ -1189,10 +1189,11 @@ class HomeAssistantWebSocketClient:
 
                 elif service in ("circadian_on", "on"):
                     areas = get_areas()
+                    preset = service_data.get("preset")  # Optional: nitelite, britelite, wake, bed
                     if areas:
                         for area in areas:
-                            logger.info(f"[{domain}] circadian_on for area: {area}")
-                            await self.primitives.circadian_on(area, "service_call")
+                            logger.info(f"[{domain}] circadian_on for area: {area} (preset={preset})")
+                            await self.primitives.circadian_on(area, "service_call", preset=preset)
                     else:
                         logger.warning("circadian_on called without area_id")
 

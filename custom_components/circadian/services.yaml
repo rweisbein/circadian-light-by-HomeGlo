@@ -109,6 +109,18 @@ circadian_on:
       selector:
         area:
           multiple: true
+    preset:
+      name: Preset
+      description: Optional preset to apply (nitelite, britelite, wake, bed)
+      required: false
+      example: nitelite
+      selector:
+        select:
+          options:
+            - nitelite
+            - britelite
+            - wake
+            - bed
 
 circadian_off:
   name: Circadian Off

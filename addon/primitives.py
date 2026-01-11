@@ -350,28 +350,45 @@ class CircadianLightPrimitives:
     # Circadian On / Off / Toggle
     # -------------------------------------------------------------------------
 
-    async def circadian_on(self, area_id: str, source: str = "service_call"):
+    async def circadian_on(self, area_id: str, source: str = "service_call", preset: str = None):
         """Enable Circadian Light mode and turn on lights.
 
         Args:
             area_id: The area ID to control
             source: Source of the action
+            preset: Optional preset to apply (nitelite, britelite, wake, bed)
         """
-        logger.info(f"[{source}] Enabling Circadian Light for area {area_id}")
+        preset_note = f" with preset={preset}" if preset else ""
+        logger.info(f"[{source}] Enabling Circadian Light for area {area_id}{preset_note}")
 
-        was_enabled = state.is_enabled(area_id)
-
-        if was_enabled:
-            logger.info(f"Circadian Light already enabled for area {area_id}")
-            return
-
-        # Enable in state
+        # Enable in state (even if already enabled, we may need to apply preset)
         state.set_enabled(area_id, True)
 
-        # Calculate and apply current lighting
         config = self._get_config()
+
+        # Apply preset if specified
+        if preset:
+            if preset == "nitelite":
+                frozen_hour = config.ascend_start
+                state.set_frozen_at(area_id, frozen_hour)
+            elif preset == "britelite":
+                frozen_hour = config.descend_start
+                state.set_frozen_at(area_id, frozen_hour)
+            elif preset in ("wake", "bed"):
+                current_hour = get_current_hour()
+                in_ascend, h48, t_ascend, t_descend, slope = CircadianLight.get_phase_info(
+                    current_hour, config
+                )
+                # Set midpoint to current time, NOT frozen
+                state.update_area(area_id, {
+                    "brightness_mid": h48,
+                    "color_mid": h48,
+                    "frozen_at": None,
+                })
+
+        # Calculate and apply lighting
         area_state = self._get_area_state(area_id)
-        hour = get_current_hour()
+        hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
 
         result = CircadianLight.calculate_lighting(hour, config, area_state)
         await self._apply_lighting(area_id, result.brightness, result.color_temp)

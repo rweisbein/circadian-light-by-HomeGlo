@@ -239,12 +239,9 @@ action:
                   - service: circadian.step_up
                     data:
                       area_id: "{{ area_targets }}"
-            # Else (lights off) -> on + nitelite
+            # Else (lights off) -> on with nitelite preset
             default:
               - service: circadian.circadian_on
-                data:
-                  area_id: "{{ area_targets }}"
-              - service: circadian.set
                 data:
                   area_id: "{{ area_targets }}"
                   preset: nitelite
@@ -289,12 +286,9 @@ action:
                   - service: circadian.step_down
                     data:
                       area_id: "{{ area_targets }}"
-            # Else (lights off) -> on + nitelite
+            # Else (lights off) -> on with nitelite preset
             default:
               - service: circadian.circadian_on
-                data:
-                  area_id: "{{ area_targets }}"
-              - service: circadian.set
                 data:
                   area_id: "{{ area_targets }}"
                   preset: nitelite
