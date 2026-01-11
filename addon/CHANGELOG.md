@@ -1,5 +1,19 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.7.9
+**Update - Add long-press Power button for britelite**
+
+**Added:**
+- Power long-press → britelite preset
+
+**Button mapping:**
+| Button | 1x | 2x | 3x | Long-press |
+|--------|----|----|-----|------------|
+| Power | Toggle | Broadcast | - | Britelite |
+| Up | Step up (off: nitelite) | - | - | Bright up |
+| Down | Step down (off: nitelite) | - | - | Bright down |
+| Hue | Freeze toggle | Wake/bed | Reset | - |
+
 ## 6.7.8
 **Update - Revised button mappings for Hue Dimmer Switch**
 
@@ -7,15 +21,6 @@
 - Hue button: 2x → wake/bed preset, 3x → reset (was 4x)
 - Removed: Power 4x → britelite
 - Removed: Hue 4x → reset (moved to 3x)
-
-**Button mapping:**
-| Button | 1x | 2x | Long-press |
-|--------|----|----|------------|
-| Power | Toggle | Broadcast | - |
-| Up | Step up (off: nitelite) | - | Bright up |
-| Down | Step down (off: nitelite) | - | Bright down |
-| Hue | Freeze toggle | Wake/bed | - |
-| Hue 3x | Reset | | |
 
 ## 6.7.7
 **Feature - Add enable parameter to set primitive**

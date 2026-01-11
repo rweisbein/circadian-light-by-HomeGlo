@@ -114,6 +114,11 @@ trigger:
   - platform: event
     event_type: zha_event
     event_data:
+      command: "on_hold"
+    id: zha_on_hold
+  - platform: event
+    event_type: zha_event
+    event_data:
       command: "up_hold"
     id: zha_up_hold
   - platform: event
@@ -189,6 +194,17 @@ action:
           - service: circadian.broadcast
             data:
               area_id: "{{ first_area }}"
+
+      # Power hold -> britelite
+      - conditions:
+          - condition: trigger
+            id: zha_on_hold
+        sequence:
+          - service: circadian.set
+            data:
+              area_id: "{{ area_targets }}"
+              preset: britelite
+              enable: true
 
       # ========================================================================
       # UP (BRIGHTER) BUTTON
