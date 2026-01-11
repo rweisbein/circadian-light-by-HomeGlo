@@ -3,10 +3,10 @@
 ## Configuration Options
 
 ### manage_integration
-Automatically install and update the MagicLight custom integration inside Home Assistant.
+Automatically install and update the Circadian Light custom integration inside Home Assistant.
 
 ### manage_blueprints
-Ensure supported switches receive MagicLight Hue Dimmer automations in areas with lights.
+Ensure supported switches receive Circadian Light Hue Dimmer automations in areas with lights.
 
 ## Designer Settings
 

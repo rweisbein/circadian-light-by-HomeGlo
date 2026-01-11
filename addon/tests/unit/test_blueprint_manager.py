@@ -1,4 +1,4 @@
-"""Tests for MagicLight blueprint automation manager file reconciliation."""
+"""Tests for Circadian Light blueprint automation manager file reconciliation."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ from ha_blueprint_manager import (
 
 MINIMAL_BLUEPRINT = """\
 blueprint:
-  name: MagicLight Hue Dimmer Switch
+  name: Circadian Light Hue Dimmer Switch
   description: Test blueprint
   domain: automation
   input:
@@ -85,11 +85,11 @@ def _prepare_blueprint_env(tmp_path: Path, monkeypatch, include_mode: str) -> Di
     automations_dir = config_dir / "automations"
 
     source_base = tmp_path / "blueprint_source"
-    automation_source = source_base / "automation" / "magiclight"
+    automation_source = source_base / "automation" / "circadian_light"
     automation_source.mkdir(parents=True)
     (automation_source / "hue_dimmer_switch.yaml").write_text(MINIMAL_BLUEPRINT, encoding="utf-8")
 
-    script_source = source_base / "script" / "magiclight"
+    script_source = source_base / "script" / "circadian_light"
     script_source.mkdir(parents=True)
     (script_source / "dummy.yaml").write_text("{}\n", encoding="utf-8")
 
@@ -119,9 +119,9 @@ def _prepare_blueprint_env(tmp_path: Path, monkeypatch, include_mode: str) -> Di
         "config_dir": config_dir,
         "automations_file": automations_file,
         "automations_dir": automations_dir,
-        "blueprint_aut_dest": config_blueprint_aut / "magiclight",
-        "blueprint_scr_dest": config_blueprint_scr / "magiclight",
-        "blueprint_marker": (config_blueprint_aut / "magiclight") / hbm.BLUEPRINT_MARKER_FILENAME,
+        "blueprint_aut_dest": config_blueprint_aut / "circadian_light",
+        "blueprint_scr_dest": config_blueprint_scr / "circadian_light",
+        "blueprint_marker": (config_blueprint_aut / "circadian_light") / hbm.BLUEPRINT_MARKER_FILENAME,
     }
 
 
@@ -191,9 +191,9 @@ async def test_reconcile_writes_block_to_automations_yaml(tmp_path, monkeypatch)
     assert isinstance(parsed, list) and len(parsed) == 1
 
     entry = parsed[0]
-    assert entry["id"] == "magiclight_area_1"
+    assert entry["id"] == "circadian_light_area_1"
     assert entry["alias"] == f"{ALIAS_PREFIX}Living Room"
-    assert entry["use_blueprint"]["path"] == "magiclight/hue_dimmer_switch.yaml"
+    assert entry["use_blueprint"]["path"] == "circadian_light/hue_dimmer_switch.yaml"
     assert entry["use_blueprint"]["input"]["switch_device"] == ["device-1"]
     assert entry["use_blueprint"]["input"]["target_areas"] == ["area-1"]
 
@@ -240,7 +240,7 @@ async def test_reconcile_writes_include_dir_file(tmp_path, monkeypatch):
     manager = BlueprintAutomationManager(ws_client, enabled=True)
     await manager.reconcile_now("startup")
 
-    managed_path = helpers["automations_dir"] / "magiclight_managed.yaml"
+    managed_path = helpers["automations_dir"] / "circadian_light_managed.yaml"
     assert managed_path.is_file()
 
     blueprint_dest = helpers["blueprint_aut_dest"]
@@ -250,7 +250,7 @@ async def test_reconcile_writes_include_dir_file(tmp_path, monkeypatch):
     assert isinstance(data, list) and len(data) == 1
 
     entry = data[0]
-    assert entry["id"] == "magiclight_area_1"
+    assert entry["id"] == "circadian_light_area_1"
     assert entry["alias"] == f"{ALIAS_PREFIX}Living Room"
 
     ws_client.call_service.assert_awaited_once_with("automation", "reload", {})
@@ -267,11 +267,11 @@ async def test_purge_managed_automations_removes_block(tmp_path, monkeypatch):
 
     existing = [
         {
-            "id": "magiclight_area_1",
+            "id": "circadian_light_area_1",
             "alias": f"{ALIAS_PREFIX}Living Room",
-            "description": "Managed automatically by the MagicLight add-on.",
+            "description": "Managed automatically by the Circadian Light add-on.",
             "use_blueprint": {
-                "path": "magiclight/hue_dimmer_switch.yaml",
+                "path": "circadian_light/hue_dimmer_switch.yaml",
                 "input": {
                     "switch_device": ["device-1"],
                     "target_areas": ["area-1"],
@@ -309,11 +309,11 @@ async def test_purge_managed_automations_removes_include_dir_file(tmp_path, monk
 
     existing = [
         {
-            "id": "magiclight_area_1",
+            "id": "circadian_light_area_1",
             "alias": f"{ALIAS_PREFIX}Living Room",
-            "description": "Managed automatically by the MagicLight add-on.",
+            "description": "Managed automatically by the Circadian Light add-on.",
             "use_blueprint": {
-                "path": "magiclight/hue_dimmer_switch.yaml",
+                "path": "circadian_light/hue_dimmer_switch.yaml",
                 "input": {
                     "switch_device": ["device-1"],
                     "target_areas": ["area-1"],
@@ -322,7 +322,7 @@ async def test_purge_managed_automations_removes_include_dir_file(tmp_path, monk
         }
     ]
 
-    managed_path = helpers["automations_dir"] / "magiclight_managed.yaml"
+    managed_path = helpers["automations_dir"] / "circadian_light_managed.yaml"
     managed_path.write_text(
         yaml.safe_dump(existing, sort_keys=False),
         encoding="utf-8",

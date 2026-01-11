@@ -18,28 +18,28 @@ The Circadian Light custom integration provides Home Assistant services for cont
 
 ### Manual Installation
 
-1. Copy `custom_components/magiclight` to your Home Assistant's `custom_components` directory
+1. Copy `custom_components/circadian` to your Home Assistant's `custom_components` directory
 2. Restart Home Assistant and add the integration
 
 ## Available Services
 
-### `magiclight.magiclight_on`
-Enable MagicLight mode and set lights to current time position with circadian values.
+### `circadian.circadian_on`
+Enable Circadian Light mode and set lights to current time position with circadian values.
 
-### `magiclight.magiclight_off`  
-Disable MagicLight mode without changing light state. Saves current time offset for later restoration.
+### `circadian.circadian_off`  
+Disable Circadian Light mode without changing light state. Saves current time offset for later restoration.
 
-### `magiclight.magiclight_toggle`
-Smart toggle based on light state. If lights are on, turns them off and disables MagicLight. If lights are off, enables MagicLight and turns them on with circadian values.
+### `circadian.circadian_toggle`
+Smart toggle based on light state. If lights are on, turns them off and disables Circadian Light. If lights are off, enables Circadian Light and turns them on with circadian values.
 
-### `magiclight.step_up`
+### `circadian.step_up`
 Increase brightness by one step along the circadian lighting curve (brightens and cools).
 
-### `magiclight.step_down`
+### `circadian.step_down`
 Decrease brightness by one step along the circadian lighting curve (dims and warms).
 
-### `magiclight.reset`
-Reset time offset to current time, enable MagicLight, and apply current circadian lighting.
+### `circadian.reset`
+Reset time offset to current time, enable Circadian Light, and apply current circadian lighting.
 
 **Service Data (all services):**
 ```yaml
@@ -58,7 +58,7 @@ automation:
         type: remote_button_short_press
         subtype: turn_on
     action:
-      - service: magiclight.magiclight_toggle
+      - service: circadian.circadian_toggle
         data:
           area_id: living_room
 ```

@@ -32,11 +32,11 @@ Circadian Light by HomeGlo provides intelligent circadian lighting control that 
 ### Add-on Options
 
 ```yaml
-manage_integration: true    # Keep the bundled MagicLight integration in sync automatically
+manage_integration: true    # Keep the bundled Circadian Light integration in sync automatically
 manage_blueprints: true     # Auto-apply the Hue Dimmer blueprint to supported switches
 ```
 
-- `manage_integration` keeps the MagicLight custom integration deployed in `/config/custom_components`.
+- `manage_integration` keeps the Circadian Light custom integration deployed in `/config/custom_components`.
 - `manage_blueprints` scans for compatible Hue dimmer switches and creates managed automations per area that contain lights.
 - Color handling (color mode, temperature range, curves) is managed from the Light Designer UI.
 
@@ -52,7 +52,7 @@ Access the Light Designer through the Home Assistant sidebar when the add-on is 
    - Customize warmth progression
    - Fine-tune dimming behavior
 
-3. **Color Output**: Choose how MagicLight drives your fixtures
+3. **Color Output**: Choose how Circadian Light drives your fixtures
    - `kelvin` for color temperature commands (default)
    - `rgb` for direct RGB output
    - `xy` for CIE xy coordinates on capable lights
@@ -70,22 +70,22 @@ Access the Light Designer through the Home Assistant sidebar when the add-on is 
 ### Switch Integration
 
 When you press a ZHA-compatible switch:
-1. MagicLight detects the button press event
+1. Circadian Light detects the button press event
 2. Identifies all lights in the same area as the switch
 3. Calculates optimal lighting based on current sun position
 4. Updates all lights with circadian values
 
 ### Switch Integration
 
-MagicLight supports Philips Hue Dimmer Switches via the included blueprint. The add-on copies it into `/config/blueprints/automation/magiclight` on startup so it is ready for use without manual import. Other switches require custom automations using the MagicLight integration services.
+Circadian Light supports Philips Hue Dimmer Switches via the included blueprint. The add-on copies it into `/config/blueprints/automation/circadian_light` on startup so it is ready for use without manual import. Other switches require custom automations using the Circadian Light integration services.
 
 ### Light Control
 
-MagicLight controls all Home Assistant light entities including ZigBee, Z-Wave, WiFi, and Matter lights. For ZigBee lights, it automatically creates and manages efficient group commands.
+Circadian Light controls all Home Assistant light entities including ZigBee, Z-Wave, WiFi, and Matter lights. For ZigBee lights, it automatically creates and manages efficient group commands.
 
 ### ZHA Group Management
 
-MagicLight automatically manages ZigBee groups for optimal performance:
+Circadian Light automatically manages ZigBee groups for optimal performance:
 - Creates groups with "Magic_" prefix in a dedicated area
 - Syncs group membership when devices change areas
 - Uses efficient group commands for all-ZigBee areas
@@ -98,7 +98,7 @@ MagicLight automatically manages ZigBee groups for optimal performance:
 Test circadian lighting for any area:
 ```bash
 # Via Home Assistant CLI
-ha addon logs magiclight --follow
+ha addon logs circadian_light --follow
 ```
 
 ### Monitoring

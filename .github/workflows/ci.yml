@@ -38,5 +38,5 @@ jobs:
 
       - name: Run tests
         run: |
-          pytest --cov=magiclight --cov-report=term-missing
+          pytest --cov=circadian_light --cov-report=term-missing
 

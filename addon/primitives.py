@@ -450,53 +450,145 @@ class CircadianLightPrimitives:
             logger.info(f"Turned on {len(area_ids)} area(s) with Circadian Light")
 
     # -------------------------------------------------------------------------
-    # Freeze / Unfreeze
+    # Set - Configure area state (presets, frozen_at, copy_from)
     # -------------------------------------------------------------------------
 
-    async def freeze(
+    async def set(
         self, area_id: str, source: str = "service_call",
-        preset: str = None, hour: float = None
+        preset: str = None, frozen_at: float = None, copy_from: str = None
     ):
-        """Freeze an area at a specific time position.
+        """Configure area state with presets, frozen_at, or copy settings.
 
-        When frozen, calculations use frozen_at instead of current time.
-        Stepping while frozen shifts midpoints but keeps frozen_at.
+        Presets:
+            - wake: Set midpoint to current time (50% values), NOT frozen
+            - bed: Same as wake - set midpoint to current time, NOT frozen
+            - nitelite: Freeze at ascend_start (minimum values)
+            - britelite: Freeze at descend_start (maximum values)
+
+        Priority: copy_from > frozen_at > preset
 
         Args:
             area_id: The area ID
             source: Source of the action
-            preset: Optional preset - None/"current", "nitelite", or "britelite"
-            hour: Optional specific hour (0-24) to freeze at. Takes priority over preset.
+            preset: Optional preset name (wake, bed, nitelite, britelite)
+            frozen_at: Optional specific hour (0-24) to freeze at
+            copy_from: Optional area_id to copy settings from
         """
         config = self._get_config()
+        current_hour = get_current_hour()
 
-        # Priority: hour > preset > current time
-        if hour is not None:
-            frozen_at = float(hour)
-            logger.info(f"[{source}] Freezing area {area_id} at hour {frozen_at:.2f}")
-        elif preset == "nitelite":
-            # Freeze at beginning of ascend phase (minimum values)
-            frozen_at = config.ascend_start
-            logger.info(f"[{source}] Freezing area {area_id} at nitelite (hour {frozen_at})")
-        elif preset == "britelite":
-            # Freeze at beginning of descend phase (maximum values)
-            frozen_at = config.descend_start
-            logger.info(f"[{source}] Freezing area {area_id} at britelite (hour {frozen_at})")
-        else:
-            # Freeze at current time
-            frozen_at = get_current_hour()
-            logger.info(f"[{source}] Freezing area {area_id} at current time (hour {frozen_at:.2f})")
+        # Priority 1: copy_from another area
+        if copy_from:
+            source_state = state.get_area(copy_from)
+            if source_state:
+                # Copy all relevant state from source area
+                state.update_area(area_id, {
+                    "frozen_at": source_state.get("frozen_at"),
+                    "brightness_mid": source_state.get("brightness_mid"),
+                    "color_mid": source_state.get("color_mid"),
+                    "min_brightness": source_state.get("min_brightness"),
+                    "max_brightness": source_state.get("max_brightness"),
+                    "min_color_temp": source_state.get("min_color_temp"),
+                    "max_color_temp": source_state.get("max_color_temp"),
+                    "solar_rule_color_limit": source_state.get("solar_rule_color_limit"),
+                })
+                logger.info(f"[{source}] Copied settings from {copy_from} to {area_id}")
 
-        state.set_frozen_at(area_id, frozen_at)
+                # Apply if enabled
+                if state.is_enabled(area_id):
+                    area_state = self._get_area_state(area_id)
+                    hour = area_state.frozen_at if area_state.frozen_at is not None else current_hour
+                    result = CircadianLight.calculate_lighting(hour, config, area_state)
+                    await self._apply_lighting(area_id, result.brightness, result.color_temp)
+                return
+            else:
+                logger.warning(f"[{source}] copy_from area {copy_from} not found")
 
-        # Apply the frozen values immediately if enabled
-        if state.is_enabled(area_id):
-            area_state = self._get_area_state(area_id)
-            result = CircadianLight.calculate_lighting(frozen_at, config, area_state)
-            await self._apply_lighting(area_id, result.brightness, result.color_temp)
+        # Priority 2: explicit frozen_at
+        if frozen_at is not None:
+            state.set_frozen_at(area_id, float(frozen_at))
+            logger.info(f"[{source}] Set {area_id} frozen_at={frozen_at:.2f}")
 
-    async def unfreeze(self, area_id: str, source: str = "service_call"):
-        """Unfreeze an area with smooth transition (re-anchor midpoints).
+            # Apply if enabled
+            if state.is_enabled(area_id):
+                area_state = self._get_area_state(area_id)
+                result = CircadianLight.calculate_lighting(frozen_at, config, area_state)
+                await self._apply_lighting(area_id, result.brightness, result.color_temp)
+            return
+
+        # Priority 3: preset
+        if preset:
+            if preset in ("wake", "bed"):
+                # Set midpoint to current time (produces ~50% values), NOT frozen
+                # Get phase info to set midpoint properly
+                in_ascend, slope, default_mid, phase_start, phase_end = CircadianLight.get_phase_info(
+                    current_hour, config
+                )
+                lifted_hour = CircadianLight.lift_midpoint_to_phase(current_hour, phase_start, phase_end)
+
+                state.update_area(area_id, {
+                    "brightness_mid": lifted_hour,
+                    "color_mid": lifted_hour,
+                    "frozen_at": None,  # NOT frozen
+                })
+                logger.info(f"[{source}] Set {area_id} to {preset} preset (midpoint={lifted_hour:.2f}, unfrozen)")
+
+            elif preset == "nitelite":
+                # Freeze at ascend_start (minimum values)
+                frozen_hour = config.ascend_start
+                state.set_frozen_at(area_id, frozen_hour)
+                logger.info(f"[{source}] Set {area_id} to nitelite preset (frozen_at={frozen_hour})")
+
+            elif preset == "britelite":
+                # Freeze at descend_start (maximum values)
+                frozen_hour = config.descend_start
+                state.set_frozen_at(area_id, frozen_hour)
+                logger.info(f"[{source}] Set {area_id} to britelite preset (frozen_at={frozen_hour})")
+
+            else:
+                logger.warning(f"[{source}] Unknown preset: {preset}")
+                return
+
+            # Apply if enabled
+            if state.is_enabled(area_id):
+                area_state = self._get_area_state(area_id)
+                hour = area_state.frozen_at if area_state.frozen_at is not None else current_hour
+                result = CircadianLight.calculate_lighting(hour, config, area_state)
+                await self._apply_lighting(area_id, result.brightness, result.color_temp)
+
+    async def broadcast(self, source_area_id: str, source: str = "service_call"):
+        """Copy settings from source area to all other areas.
+
+        Copies frozen_at, midpoints, bounds, and solar_rule_color_limit
+        from the source area to every other known area.
+
+        Args:
+            source_area_id: The area to copy settings FROM
+            source: Source of the action
+        """
+        all_areas = state.get_all_areas()
+
+        if source_area_id not in all_areas:
+            logger.warning(f"[{source}] broadcast: source area {source_area_id} not found")
+            return
+
+        target_areas = [a for a in all_areas.keys() if a != source_area_id]
+
+        if not target_areas:
+            logger.info(f"[{source}] broadcast: no other areas to copy to")
+            return
+
+        logger.info(f"[{source}] Broadcasting settings from {source_area_id} to {len(target_areas)} area(s)")
+
+        for target_area in target_areas:
+            await self.set(target_area, source, copy_from=source_area_id)
+
+    # -------------------------------------------------------------------------
+    # Freeze Toggle (kept for manual toggling)
+    # -------------------------------------------------------------------------
+
+    def _unfreeze_internal(self, area_id: str, source: str = "internal"):
+        """Internal unfreeze: re-anchor midpoints so curve continues smoothly.
 
         Re-anchors midpoints so current time produces the same values as
         the frozen position, then clears frozen_at. No sudden jump.
@@ -509,10 +601,7 @@ class CircadianLightPrimitives:
 
         frozen_at = state.get_frozen_at(area_id)
         if frozen_at is None:
-            logger.info(f"[{source}] Area {area_id} already unfrozen")
             return
-
-        logger.info(f"[{source}] Unfreezing area {area_id} (re-anchoring from hour {frozen_at:.2f})")
 
         config = self._get_config()
         area_state = self._get_area_state(area_id)
@@ -549,7 +638,7 @@ class CircadianLightPrimitives:
         })
 
         logger.info(
-            f"Unfrozen area {area_id}: re-anchored midpoints to "
+            f"[{source}] Unfrozen {area_id}: re-anchored midpoints to "
             f"bri_mid={new_bri_mid:.2f}, color_mid={new_color_mid:.2f}"
         )
 
@@ -577,8 +666,8 @@ class CircadianLightPrimitives:
         await asyncio.sleep(1.1)  # Wait for transition to complete
 
         if is_frozen:
-            # Was frozen → unfreeze
-            await self.unfreeze(area_id, source)
+            # Was frozen → unfreeze (re-anchor midpoints)
+            self._unfreeze_internal(area_id, source)
 
             # Rise to unfrozen values
             area_state = self._get_area_state(area_id)

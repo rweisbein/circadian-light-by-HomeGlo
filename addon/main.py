@@ -1213,25 +1213,17 @@ class HomeAssistantWebSocketClient:
                     else:
                         logger.warning("circadian_toggle called without area_id")
 
-                elif service == "freeze":
+                elif service == "set":
                     areas = get_areas()
-                    preset = service_data.get("preset")  # None, "nitelite", or "britelite"
-                    hour = service_data.get("hour")  # Optional specific hour (0-24)
+                    preset = service_data.get("preset")  # wake, bed, nitelite, britelite
+                    frozen_at = service_data.get("frozen_at")  # Optional specific hour (0-24)
+                    copy_from = service_data.get("copy_from")  # Optional area_id to copy from
                     if areas:
                         for area in areas:
-                            logger.info(f"[{domain}] freeze for area: {area} (preset={preset}, hour={hour})")
-                            await self.primitives.freeze(area, "service_call", preset=preset, hour=hour)
+                            logger.info(f"[{domain}] set for area: {area} (preset={preset}, frozen_at={frozen_at}, copy_from={copy_from})")
+                            await self.primitives.set(area, "service_call", preset=preset, frozen_at=frozen_at, copy_from=copy_from)
                     else:
-                        logger.warning("freeze called without area_id")
-
-                elif service == "unfreeze":
-                    areas = get_areas()
-                    if areas:
-                        for area in areas:
-                            logger.info(f"[{domain}] unfreeze for area: {area}")
-                            await self.primitives.unfreeze(area, "service_call")
-                    else:
-                        logger.warning("unfreeze called without area_id")
+                        logger.warning("set called without area_id")
 
                 elif service == "freeze_toggle":
                     areas = get_areas()
@@ -1250,8 +1242,18 @@ class HomeAssistantWebSocketClient:
                             await self.primitives.reset(area, "service_call")
                     else:
                         logger.warning("reset called without area_id")
-            
-            
+
+                elif service == "broadcast":
+                    areas = get_areas()
+                    if areas:
+                        # Use first area as source
+                        source_area = areas[0]
+                        logger.info(f"[{domain}] broadcast from source area: {source_area}")
+                        await self.primitives.broadcast(source_area, "service_call")
+                    else:
+                        logger.warning("broadcast called without area_id")
+
+
             # Handle device registry updates (when devices are added/removed/modified)
             elif event_type == "device_registry_updated":
                 action = event_data.get("action")

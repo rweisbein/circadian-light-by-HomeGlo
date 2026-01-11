@@ -26,7 +26,7 @@ Transform your home's ambiance with Circadian Light by HomeGlo, the intelligent 
 ### Step 2: Restart Home Assistant
 
 1. Restart from **Settings** → **System** → **Restart** (or use the power menu)
-2. Wait for Home Assistant to come back online; MagicLight services will be ready
+2. Wait for Home Assistant to come back online; Circadian Light services will be ready
 
 ## 🚀 Quick Start
 
@@ -36,22 +36,22 @@ Transform your home's ambiance with Circadian Light by HomeGlo, the intelligent 
 4. **Enjoy** perfect lighting throughout the day!
 
 The blueprint provides smart button mappings:
-- **ON button**: Smart toggle (turns lights on with MagicLight or off)
-- **OFF button**: Reset to current time and enable MagicLight
+- **ON button**: Smart toggle (turns lights on with Circadian Light or off)
+- **OFF button**: Reset to current time and enable Circadian Light
 - **UP/DOWN buttons**: Step brightness along the circadian curve
 
 ## 🛠️ Service Primitives
 
-MagicLight registers a set of service primitives under the `magiclight` domain. These are the same calls the add-on and blueprints use, so you can trigger them from automations, scripts, dashboards, or the Developer Tools. Every service accepts an `area_id` field that can be a single area or a list for grouped control.
+Circadian Light registers a set of service primitives under the `circadian_light` domain. These are the same calls the add-on and blueprints use, so you can trigger them from automations, scripts, dashboards, or the Developer Tools. Every service accepts an `area_id` field that can be a single area or a list for grouped control.
 
-- `magiclight.step_up` – Moves the area forward along the MagicLight curve, brightening and cooling the lights by advancing the stored TimeLocation offset.
-- `magiclight.step_down` – Moves backward along the curve, dimming and warming the lights by reducing the TimeLocation offset.
-- `magiclight.dim_up` – Raises brightness while keeping the current color temperature; in MagicLight mode it adjusts the brightness offset, otherwise it issues a standard Home Assistant brightness step.
-- `magiclight.dim_down` – Lowers brightness without touching color temperature, following the same MagicLight-aware logic as `dim_up`.
-- `magiclight.reset` – Clears any offsets, re-enables MagicLight, and reapplies the lighting that matches the current time.
-- `magiclight.magiclight_on` – Enables MagicLight for the area and turns lights on with the circadian values for the active curve position.
-- `magiclight.magiclight_off` – Disables MagicLight but leaves the lights exactly as they are, saving the current TimeLocation for later.
-- `magiclight.magiclight_toggle` – Smart toggle: if any lights in the target areas are on it turns everything off and disables MagicLight; otherwise it turns them on with MagicLight active.
+- `circadian_light.step_up` – Moves the area forward along the Circadian Light curve, brightening and cooling the lights by advancing the stored TimeLocation offset.
+- `circadian_light.step_down` – Moves backward along the curve, dimming and warming the lights by reducing the TimeLocation offset.
+- `circadian_light.dim_up` – Raises brightness while keeping the current color temperature; in Circadian Light mode it adjusts the brightness offset, otherwise it issues a standard Home Assistant brightness step.
+- `circadian_light.dim_down` – Lowers brightness without touching color temperature, following the same Circadian Light-aware logic as `dim_up`.
+- `circadian_light.reset` – Clears any offsets, re-enables Circadian Light, and reapplies the lighting that matches the current time.
+- `circadian_light.circadian_light_on` – Enables Circadian Light for the area and turns lights on with the circadian values for the active curve position.
+- `circadian_light.circadian_light_off` – Disables Circadian Light but leaves the lights exactly as they are, saving the current TimeLocation for later.
+- `circadian_light.circadian_light_toggle` – Smart toggle: if any lights in the target areas are on it turns everything off and disables Circadian Light; otherwise it turns them on with Circadian Light active.
 
 ## 🙏 Influences
 

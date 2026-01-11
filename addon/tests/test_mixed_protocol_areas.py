@@ -8,9 +8,9 @@ from unittest.mock import AsyncMock, MagicMock, patch, Mock
 
 import pytest
 
-# Add magiclight directory to Python path
-magiclight_path = Path(__file__).parent.parent / 'magiclight'
-sys.path.insert(0, str(magiclight_path))
+# Add circadian_light directory to Python path
+circadian_light_path = Path(__file__).parent.parent / 'circadian_light'
+sys.path.insert(0, str(circadian_light_path))
 
 
 from light_controller import ZigBeeController, Protocol

@@ -69,7 +69,7 @@ case $(uname -m) in
         ;;
 esac
 
-echo "Building MagicLight addon for $ARCH (no cache)..."
+echo "Building Circadian Light addon for $ARCH (no cache)..."
 echo "Using repository root as Docker build context: ${REPO_ROOT}"
 
 docker run --rm -it --name builder --privileged \
@@ -79,16 +79,16 @@ docker run --rm -it --name builder --privileged \
     -t /data/addon \
     --test \
     --${ARCH} \
-    -i magiclight-${ARCH} \
+    -i circadian_light-${ARCH} \
     -d local \
     --no-cache
 
-echo "Build complete! Image: local/magiclight-${ARCH}:latest"
+echo "Build complete! Image: local/circadian_light-${ARCH}:latest"
 
 # Run the container if requested
 if [ "$RUN_AFTER_BUILD" = true ]; then
     echo ""
-    echo "Running MagicLight container..."
+    echo "Running Circadian Light container..."
     echo "Press Ctrl+C to stop"
     echo ""
 
@@ -115,10 +115,10 @@ if [ "$RUN_AFTER_BUILD" = true ]; then
 
     # The builder creates images with 'local/' prefix
     docker run --rm -it \
-        --name magiclight-test \
+        --name circadian_light-test \
         ${ENV_FILE} \
         -p "${HOST_PORT}:8099" \
-        local/magiclight-${ARCH}:latest
+        local/circadian_light-${ARCH}:latest
 
     echo ""
     echo "Light Designer web UI should be available at: http://localhost:${HOST_PORT}"

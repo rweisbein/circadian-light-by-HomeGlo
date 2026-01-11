@@ -1,4 +1,4 @@
-"""Tests for shell-based MagicLight integration management helpers.
+"""Tests for shell-based Circadian Light integration management helpers.
 
 These tests run shell scripts that require a Home Assistant environment.
 They are skipped on non-Linux platforms (macOS, Windows) since they require
@@ -39,13 +39,13 @@ def _make_stubbed_script(*, bundle_path: Path, dest_base: Path, repo_info: Path,
         #!/usr/bin/env bash
         set -euo pipefail
 
-        export MAGICLIGHT_SKIP_MAIN=1
+        export CIRCADIAN_SKIP_MAIN=1
 
         bashio::config() {{
             case "$1" in
-                'manage_integration') echo "${{MAGICLIGHT_TEST_CFG_MANAGE_INTEGRATION:-true}}" ;;
-                'manage_blueprints') echo "${{MAGICLIGHT_TEST_CFG_MANAGE_BLUEPRINTS:-true}}" ;;
-                'integration_download_url') echo "${{MAGICLIGHT_TEST_CFG_DOWNLOAD_URL:-}}" ;;
+                'manage_integration') echo "${{CIRCADIAN_TEST_CFG_MANAGE_INTEGRATION:-true}}" ;;
+                'manage_blueprints') echo "${{CIRCADIAN_TEST_CFG_MANAGE_BLUEPRINTS:-true}}" ;;
+                'integration_download_url') echo "${{CIRCADIAN_TEST_CFG_DOWNLOAD_URL:-}}" ;;
                 *) echo "" ;;
             esac
         }}
@@ -55,20 +55,20 @@ def _make_stubbed_script(*, bundle_path: Path, dest_base: Path, repo_info: Path,
         bashio::log.warning() {{ printf 'WARN: %s\n' "$*"; }}
         bashio::log.error() {{ printf 'ERROR: %s\n' "$*" >&2; }}
 
-        bashio::addon.version() {{ echo "${{MAGICLIGHT_TEST_ADDON_VERSION:-0.0.0}}"; }}
+        bashio::addon.version() {{ echo "${{CIRCADIAN_TEST_ADDON_VERSION:-0.0.0}}"; }}
         bashio::fs.directory_exists() {{ [[ -d "$1" ]]; }}
 
         source "{RUN_SCRIPT}"
 
-        MAGICLIGHT_SOURCE="{bundle_path}"
-        MAGICLIGHT_DEST_BASE="{dest_base}"
-        MAGICLIGHT_DEST="{dest_dir}"
-        MAGICLIGHT_MARKER="{marker_path}"
-        MAGICLIGHT_REPOSITORY_INFO="{repo_info}"
-        MAGICLIGHT_BUNDLED_BLUEPRINT_BASE="{bundle_path.parent.parent}"  # keep lookups in temp tree
+        CIRCADIAN_SOURCE="{bundle_path}"
+        CIRCADIAN_DEST_BASE="{dest_base}"
+        CIRCADIAN_DEST="{dest_dir}"
+        CIRCADIAN_MARKER="{marker_path}"
+        CIRCADIAN_REPOSITORY_INFO="{repo_info}"
+        CIRCADIAN_BUNDLED_BLUEPRINT_BASE="{bundle_path.parent.parent}"  # keep lookups in temp tree
 
         SUPERVISOR_TOKEN=""
-        MAGICLIGHT_FALLBACK_BASE=""
+        CIRCADIAN_FALLBACK_BASE=""
 
         {extra_body}
         """
@@ -81,23 +81,23 @@ def _create_repo_info(path: Path) -> None:
 
 @pytest.mark.parametrize("manage_blueprints", ["true", "false"])
 def test_manage_integration_installs_bundled_copy(tmp_path: Path, manage_blueprints: str) -> None:
-    bundle = tmp_path / "bundle" / "custom_components" / "magiclight"
+    bundle = tmp_path / "bundle" / "custom_components" / "circadian"
     bundle.mkdir(parents=True)
-    (bundle / "manifest.json").write_text('{"name": "MagicLight", "version": "1.2.3"}', encoding="utf-8")
+    (bundle / "manifest.json").write_text('{"name": "Circadian Light", "version": "1.2.3"}', encoding="utf-8")
 
     repo_info = tmp_path / "repository.yaml"
     _create_repo_info(repo_info)
 
     dest_base = tmp_path / "config" / "custom_components"
-    marker = dest_base / "magiclight" / ".managed_by_magiclight_addon"
+    marker = dest_base / "circadian" / ".managed_by_circadian_addon"
 
     env = os.environ.copy()
     env.update(
         {
-            "MAGICLIGHT_TEST_CFG_MANAGE_INTEGRATION": "true",
-            "MAGICLIGHT_TEST_CFG_MANAGE_BLUEPRINTS": manage_blueprints,
-            "MAGICLIGHT_TEST_CFG_DOWNLOAD_URL": "",
-            "MAGICLIGHT_TEST_ADDON_VERSION": "9.9.9",
+            "CIRCADIAN_TEST_CFG_MANAGE_INTEGRATION": "true",
+            "CIRCADIAN_TEST_CFG_MANAGE_BLUEPRINTS": manage_blueprints,
+            "CIRCADIAN_TEST_CFG_DOWNLOAD_URL": "",
+            "CIRCADIAN_TEST_ADDON_VERSION": "9.9.9",
             "PATH": os.environ["PATH"],
         }
     )
@@ -107,13 +107,13 @@ def test_manage_integration_installs_bundled_copy(tmp_path: Path, manage_bluepri
         dest_base=dest_base,
         repo_info=repo_info,
         marker_path=marker,
-        extra_body="prepare_destination\nmanage_magiclight_integration\n",
+        extra_body="prepare_destination\nmanage_circadian_integration\n",
     )
 
     result = _run_shell_script(script, env=env, cwd=tmp_path)
     assert result.returncode == 0
 
-    installed_manifest = dest_base / "magiclight" / "manifest.json"
+    installed_manifest = dest_base / "circadian" / "manifest.json"
     assert installed_manifest.is_file()
 
     marker_content = marker.read_text(encoding="utf-8")
@@ -123,27 +123,27 @@ def test_manage_integration_installs_bundled_copy(tmp_path: Path, manage_bluepri
 
 
 def test_manage_integration_removes_managed_copy_when_disabled(tmp_path: Path) -> None:
-    bundle = tmp_path / "bundle" / "custom_components" / "magiclight"
+    bundle = tmp_path / "bundle" / "custom_components" / "circadian"
     bundle.mkdir(parents=True)
-    (bundle / "manifest.json").write_text('{"name": "MagicLight", "version": "0.1.0"}', encoding="utf-8")
+    (bundle / "manifest.json").write_text('{"name": "Circadian Light", "version": "0.1.0"}', encoding="utf-8")
 
     repo_info = tmp_path / "repository.yaml"
     _create_repo_info(repo_info)
 
     dest_base = tmp_path / "config" / "custom_components"
-    dest_dir = dest_base / "magiclight"
+    dest_dir = dest_base / "circadian"
     dest_dir.mkdir(parents=True)
     (dest_dir / "manifest.json").write_text("{}", encoding="utf-8")
-    marker = dest_dir / ".managed_by_magiclight_addon"
+    marker = dest_dir / ".managed_by_circadian_addon"
     marker.write_text("source=bundled\naddon_version=1.0\nintegration_version=0.0.1\n", encoding="utf-8")
 
     env = os.environ.copy()
     env.update(
         {
-            "MAGICLIGHT_TEST_CFG_MANAGE_INTEGRATION": "false",
-            "MAGICLIGHT_TEST_CFG_MANAGE_BLUEPRINTS": "false",
-            "MAGICLIGHT_TEST_CFG_DOWNLOAD_URL": "",
-            "MAGICLIGHT_TEST_ADDON_VERSION": "9.9.9",
+            "CIRCADIAN_TEST_CFG_MANAGE_INTEGRATION": "false",
+            "CIRCADIAN_TEST_CFG_MANAGE_BLUEPRINTS": "false",
+            "CIRCADIAN_TEST_CFG_DOWNLOAD_URL": "",
+            "CIRCADIAN_TEST_ADDON_VERSION": "9.9.9",
             "PATH": os.environ["PATH"],
         }
     )
@@ -153,7 +153,7 @@ def test_manage_integration_removes_managed_copy_when_disabled(tmp_path: Path) -
         dest_base=dest_base,
         repo_info=repo_info,
         marker_path=marker,
-        extra_body="manage_magiclight_integration\n",
+        extra_body="manage_circadian_integration\n",
     )
 
     result = _run_shell_script(script, env=env, cwd=tmp_path)

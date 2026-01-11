@@ -1,13 +1,13 @@
-"""MagicLight standalone test harness.
+"""CircadianLight standalone test harness.
 
 This harness lets you exercise the custom integration service handlers and the
 add-on primitives without a running Home Assistant instance. It spins up the
-real `MagicLightPrimitives` and `HomeAssistantWebSocketClient` (subclassed to
+real `CircadianLightPrimitives` and `HomeAssistantWebSocketClient` (subclassed to
 stub network calls) so you can observe exactly which service payloads the
 add-on would send.
 
 Example usage:
-    python tools/magiclight_harness.py step_up kitchen --magic-mode --lights-on --max-steps 24
+    python tools/circadian_light_harness.py step_up kitchen --magic-mode --lights-on --max-steps 24
 
 The script can also be imported by tests to drive more structured scenarios.
 """
@@ -95,7 +95,7 @@ def _install_test_stubs() -> None:
         config_entries_mod = types.ModuleType("homeassistant.config_entries")
 
         class ConfigEntry:  # pragma: no cover - simple stub
-            def __init__(self, entry_id: str = "test", data: Dict[str, Any] | None = None, title: str = "MagicLight Harness") -> None:
+            def __init__(self, entry_id: str = "test", data: Dict[str, Any] | None = None, title: str = "CircadianLight Harness") -> None:
                 self.entry_id = entry_id
                 self.data = data or {}
                 self.title = title
@@ -190,15 +190,15 @@ def _install_test_stubs() -> None:
 
 _install_test_stubs()
 
-import custom_components.magiclight as magiclight_integration
-from custom_components.magiclight.const import (
+import custom_components.circadian as circadian_light_integration
+from custom_components.circadian.const import (
     ATTR_AREA_ID,
     DOMAIN,
     SERVICE_DIM_DOWN,
     SERVICE_DIM_UP,
-    SERVICE_MAGICLIGHT_OFF,
-    SERVICE_MAGICLIGHT_ON,
-    SERVICE_MAGICLIGHT_TOGGLE,
+    SERVICE_CIRCADIAN_OFF,
+    SERVICE_CIRCADIAN_ON,
+    SERVICE_CIRCADIAN_TOGGLE,
     SERVICE_RESET,
     SERVICE_STEP_DOWN,
     SERVICE_STEP_UP,
@@ -281,9 +281,9 @@ SERVICE_TO_METHOD = {
     SERVICE_DIM_UP: "dim_up",
     SERVICE_DIM_DOWN: "dim_down",
     SERVICE_RESET: "reset",
-    SERVICE_MAGICLIGHT_ON: "magiclight_on",
-    SERVICE_MAGICLIGHT_OFF: "magiclight_off",
-    SERVICE_MAGICLIGHT_TOGGLE: "magiclight_toggle",
+    SERVICE_CIRCADIAN_ON: "circadian_light_on",
+    SERVICE_CIRCADIAN_OFF: "circadian_light_off",
+    SERVICE_CIRCADIAN_TOGGLE: "circadian_light_toggle",
 }
 
 
@@ -465,7 +465,7 @@ class HarnessClient(HomeAssistantWebSocketClient):
         )
 
 
-class MagicLightHarness:
+class CircadianLightHarness:
     """Coordinates the fake hass core and the harness websocket client."""
 
     def __init__(self, *, max_dim_steps: int = DEFAULT_MAX_DIM_STEPS) -> None:
@@ -477,7 +477,7 @@ class MagicLightHarness:
 
     async def setup(self) -> None:
         if not self._setup_complete:
-            await magiclight_integration.async_setup(self.hass, {})
+            await circadian_light_integration.async_setup(self.hass, {})
             self._setup_complete = True
 
     def configure_area(self, *args: Any, **kwargs: Any) -> None:
@@ -502,8 +502,8 @@ class MagicLightHarness:
         area_value = call.data[ATTR_AREA_ID]
         source = "test_harness"
 
-        if call.service == SERVICE_MAGICLIGHT_TOGGLE and isinstance(area_value, list):
-            await primitives.magiclight_toggle_multiple(area_value, source=source)
+        if call.service == SERVICE_CIRCADIAN_TOGGLE and isinstance(area_value, list):
+            await primitives.circadian_light_toggle_multiple(area_value, source=source)
             return
 
         if isinstance(area_value, list):
@@ -518,11 +518,11 @@ class MagicLightHarness:
 # ----------------------------------------------------------------------------
 
 def _build_arg_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Exercise MagicLight primitives without Home Assistant")
+    parser = argparse.ArgumentParser(description="Exercise CircadianLight primitives without Home Assistant")
     parser.add_argument(
         "service",
         choices=sorted(SERVICE_TO_METHOD.keys()),
-        help="MagicLight service to invoke",
+        help="CircadianLight service to invoke",
     )
     parser.add_argument(
         "areas",
@@ -559,7 +559,7 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         "--max-steps",
         type=int,
         default=DEFAULT_MAX_DIM_STEPS,
-        help="Number of dimming steps for MagicLight curve calculations",
+        help="Number of dimming steps for CircadianLight curve calculations",
     )
     parser.add_argument(
         "--verbose",
@@ -586,7 +586,7 @@ async def _run_from_cli(args: argparse.Namespace) -> None:
     else:
         logging.basicConfig(level=logging.INFO)
 
-    harness = MagicLightHarness(max_dim_steps=args.max_steps)
+    harness = CircadianLightHarness(max_dim_steps=args.max_steps)
     await harness.setup()
 
     for area in args.areas:

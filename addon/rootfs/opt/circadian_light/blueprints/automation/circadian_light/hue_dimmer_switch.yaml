@@ -1,0 +1,305 @@
+blueprint:
+  name: Circadian Light Hue Dimmer Switch
+  description: >
+    Control Hue Dimmer Switches via Circadian Light with freeze and broadcast support
+  domain: automation
+  input:
+    switch_device:
+      name: Switch Device(s)
+      description: The Hue/ZHA switch device(s) to use
+      selector:
+        device:
+          multiple: true
+          filter:
+            - integration: zha
+              manufacturer: Signify Netherlands B.V.
+              model: RWL021
+            - integration: zha
+              manufacturer: Signify Netherlands B.V.
+              model: RWL022
+            - integration: zha
+              manufacturer: Philips
+              model: RWL021
+            - integration: zha
+              manufacturer: Philips
+              model: RWL020
+            - integration: zha
+              manufacturer: Signify Netherlands B.V.
+              model: RDM002
+            - integration: zha
+              manufacturer: Signify Netherlands B.V.
+              model: ROM001
+            - integration: zha
+              manufacturer: Signify Netherlands B.V.
+              model: RDM003
+            - integration: zha
+              manufacturer: Philips
+              model: ROM001
+            - integration: zha
+              manufacturer: Philips
+              model: RDM003
+            - integration: hue
+              manufacturer: Signify Netherlands B.V.
+              model: Hue dimmer switch (RWL022)
+            - integration: hue
+              manufacturer: Signify Netherlands B.V.
+              model: Hue dimmer switch (RWL021)
+            - integration: hue
+              manufacturer: Signify Netherlands B.V.
+              model: Hue dimmer switch
+    target_areas:
+      name: Target Areas
+      description: The area(s) to control when buttons are pressed
+      selector:
+        area:
+          multiple: true
+
+mode: restart
+max_exceeded: silent
+
+# -- Triggers ------------------------------------------------------------------
+trigger:
+  # ZHA single-press events
+  - platform: event
+    event_type: zha_event
+    event_data:
+      command: "on_press"
+    id: zha_on
+  - platform: event
+    event_type: zha_event
+    event_data:
+      command: "off_press"
+    id: zha_off
+  - platform: event
+    event_type: zha_event
+    event_data:
+      command: "up_press"
+    id: zha_up
+  - platform: event
+    event_type: zha_event
+    event_data:
+      command: "down_press"
+    id: zha_down
+
+  # ZHA double-press events
+  - platform: event
+    event_type: zha_event
+    event_data:
+      command: "on_double_press"
+    id: zha_on_double
+  - platform: event
+    event_type: zha_event
+    event_data:
+      command: "off_double_press"
+    id: zha_off_double
+  - platform: event
+    event_type: zha_event
+    event_data:
+      command: "up_double_press"
+    id: zha_up_double
+  - platform: event
+    event_type: zha_event
+    event_data:
+      command: "down_double_press"
+    id: zha_down_double
+
+  # ZHA quadruple-press events
+  - platform: event
+    event_type: zha_event
+    event_data:
+      command: "on_quadruple_press"
+    id: zha_on_quad
+  - platform: event
+    event_type: zha_event
+    event_data:
+      command: "off_quadruple_press"
+    id: zha_off_quad
+
+  # Hue Bridge single-press (subtype: 1=ON, 2=UP, 3=DOWN, 4=OFF)
+  - platform: event
+    event_type: hue_event
+    event_data:
+      type: short_release
+      subtype: 1
+    id: hue_on
+  - platform: event
+    event_type: hue_event
+    event_data:
+      type: short_release
+      subtype: 4
+    id: hue_off
+  - platform: event
+    event_type: hue_event
+    event_data:
+      type: short_release
+      subtype: 2
+    id: hue_up
+  - platform: event
+    event_type: hue_event
+    event_data:
+      type: short_release
+      subtype: 3
+    id: hue_down
+
+# -- Variables -----------------------------------------------------------------
+variables:
+  areas: !input target_areas
+  switches: !input switch_device
+  area_targets: "{{ areas if areas is iterable and areas is not string else [areas] }}"
+  first_area: "{{ area_targets[0] if area_targets else none }}"
+
+# -- Actions -------------------------------------------------------------------
+action:
+  # Only proceed if the event came from one of our configured devices
+  - condition: template
+    value_template: >
+      {% set ds = switches if switches is iterable else [switches] %}
+      {{ trigger.event.data.device_id in ds }}
+
+  - choose:
+      # ========================================================================
+      # POWER BUTTON
+      # ========================================================================
+
+      # Power single -> circadian_toggle
+      - conditions:
+          - condition: or
+            conditions:
+              - condition: trigger
+                id: zha_on
+              - condition: trigger
+                id: hue_on
+        sequence:
+          - service: circadian.circadian_toggle
+            data:
+              area_id: "{{ area_targets }}"
+
+      # Power double -> broadcast (copy settings to all areas)
+      - conditions:
+          - condition: trigger
+            id: zha_on_double
+        sequence:
+          - service: circadian.broadcast
+            data:
+              area_id: "{{ first_area }}"
+
+      # Power quadruple -> on + britelite
+      - conditions:
+          - condition: trigger
+            id: zha_on_quad
+        sequence:
+          - service: circadian.circadian_on
+            data:
+              area_id: "{{ area_targets }}"
+          - service: circadian.set
+            data:
+              area_id: "{{ area_targets }}"
+              preset: britelite
+
+      # ========================================================================
+      # UP (BRIGHTER) BUTTON
+      # ========================================================================
+
+      # Up single -> step_up if lights on, else on + nitelite
+      - conditions:
+          - condition: or
+            conditions:
+              - condition: trigger
+                id: zha_up
+              - condition: trigger
+                id: hue_up
+        sequence:
+          - choose:
+              # If any light is on in target areas -> step_up
+              - conditions:
+                  - condition: template
+                    value_template: >
+                      {% set ns = namespace(any_on=false) %}
+                      {% for area in area_targets %}
+                        {% for state in states.light | selectattr('entity_id', 'search', 'light.') | list %}
+                          {% if area_id(state.entity_id) == area and state.state == 'on' %}
+                            {% set ns.any_on = true %}
+                          {% endif %}
+                        {% endfor %}
+                      {% endfor %}
+                      {{ ns.any_on }}
+                sequence:
+                  - service: circadian.step_up
+                    data:
+                      area_id: "{{ area_targets }}"
+            # Else (lights off) -> on + nitelite
+            default:
+              - service: circadian.circadian_on
+                data:
+                  area_id: "{{ area_targets }}"
+              - service: circadian.set
+                data:
+                  area_id: "{{ area_targets }}"
+                  preset: nitelite
+
+      # ========================================================================
+      # DOWN (DIMMER) BUTTON
+      # ========================================================================
+
+      # Down single -> step_down if lights on, else on + nitelite
+      - conditions:
+          - condition: or
+            conditions:
+              - condition: trigger
+                id: zha_down
+              - condition: trigger
+                id: hue_down
+        sequence:
+          - choose:
+              # If any light is on in target areas -> step_down
+              - conditions:
+                  - condition: template
+                    value_template: >
+                      {% set ns = namespace(any_on=false) %}
+                      {% for area in area_targets %}
+                        {% for state in states.light | selectattr('entity_id', 'search', 'light.') | list %}
+                          {% if area_id(state.entity_id) == area and state.state == 'on' %}
+                            {% set ns.any_on = true %}
+                          {% endif %}
+                        {% endfor %}
+                      {% endfor %}
+                      {{ ns.any_on }}
+                sequence:
+                  - service: circadian.step_down
+                    data:
+                      area_id: "{{ area_targets }}"
+            # Else (lights off) -> on + nitelite
+            default:
+              - service: circadian.circadian_on
+                data:
+                  area_id: "{{ area_targets }}"
+              - service: circadian.set
+                data:
+                  area_id: "{{ area_targets }}"
+                  preset: nitelite
+
+      # ========================================================================
+      # HUE BUTTON
+      # ========================================================================
+
+      # Hue single -> freeze_toggle
+      - conditions:
+          - condition: or
+            conditions:
+              - condition: trigger
+                id: zha_off
+              - condition: trigger
+                id: hue_off
+        sequence:
+          - service: circadian.freeze_toggle
+            data:
+              area_id: "{{ area_targets }}"
+
+      # Hue quadruple -> reset
+      - conditions:
+          - condition: trigger
+            id: zha_off_quad
+        sequence:
+          - service: circadian.reset
+            data:
+              area_id: "{{ area_targets }}"

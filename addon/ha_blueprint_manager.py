@@ -66,7 +66,7 @@ class BlueprintAutomationManager:
         ws_client,
         *,
         enabled: bool,
-        namespace: str = "magiclight",
+        namespace: str = "circadian_light",
         blueprint_filename: str = "hue_dimmer_switch.yaml",
     ) -> None:
         self.ws_client = ws_client
@@ -283,7 +283,7 @@ class BlueprintAutomationManager:
         candidates.append(module_dir / "blueprints")
         candidates.append(module_dir.parent / "blueprints")
 
-        candidates.append(Path("/opt/magiclight/blueprints"))
+        candidates.append(Path("/opt/circadian_light/blueprints"))
         candidates.append(Path("/app/blueprints"))
 
         unique: List[Path] = []
@@ -587,7 +587,7 @@ class BlueprintAutomationManager:
                 include_detected = True
                 include_dir = self._resolve_include_path(match.group("path"))
                 if include_dir:
-                    candidates.append((include_dir / "magiclight_managed.yaml", "dir"))
+                    candidates.append((include_dir / "circadian_light_managed.yaml", "dir"))
 
             for match in INCLUDE_FILE_PATTERN.finditer(config_text):
                 include_detected = True
@@ -607,7 +607,7 @@ class BlueprintAutomationManager:
 
         fallback_candidates = [
             (AUTOMATIONS_FILE, "file"),
-            (AUTOMATIONS_DIR / "magiclight_managed.yaml", "dir"),
+            (AUTOMATIONS_DIR / "circadian_light_managed.yaml", "dir"),
         ]
 
         candidates.extend(fallback_candidates)
@@ -790,7 +790,7 @@ class BlueprintAutomationManager:
         sanitized = re.sub(r"[^a-zA-Z0-9_]+", "_", area_id or "").strip("_")
         if not sanitized:
             sanitized = "area"
-        return f"magiclight_{sanitized.lower()}"
+        return f"circadian_light_{sanitized.lower()}"
 
     # ---------- Blueprint parsing ----------
 

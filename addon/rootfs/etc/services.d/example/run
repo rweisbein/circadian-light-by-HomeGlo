@@ -7,12 +7,12 @@
 # ---------------------------------------------------------------
 # 0. Ensure Circadian Light integration files are installed
 # ---------------------------------------------------------------
-CIRCADIAN_SOURCE="/opt/magiclight/custom_components/circadian"
+CIRCADIAN_SOURCE="/opt/circadian_light/custom_components/circadian"
 CIRCADIAN_DEST_BASE="/config/custom_components"
 CIRCADIAN_DEST=""
 CIRCADIAN_MARKER=""
-CIRCADIAN_REPOSITORY_INFO="/opt/magiclight/repository.yaml"
-CIRCADIAN_BLUEPRINT_SOURCE_BASE="${CIRCADIAN_BLUEPRINT_SOURCE_BASE:-/opt/magiclight/blueprints}"
+CIRCADIAN_REPOSITORY_INFO="/opt/circadian_light/repository.yaml"
+CIRCADIAN_BLUEPRINT_SOURCE_BASE="${CIRCADIAN_BLUEPRINT_SOURCE_BASE:-/opt/circadian_light/blueprints}"
 export CIRCADIAN_BLUEPRINT_SOURCE_BASE
 
 normalize_bool() {

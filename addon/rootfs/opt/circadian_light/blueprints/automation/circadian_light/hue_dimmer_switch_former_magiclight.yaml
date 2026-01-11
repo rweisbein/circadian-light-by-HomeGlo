@@ -1,7 +1,7 @@
 blueprint:
-  name: Circadian Light Hue Dimmer Switch
+  name: Circadian Light Hue Dimmer Switch (Former MagicLight)
   description: >
-    Control Hue Dimmer Switches via Circadian Light
+    Legacy button mappings from MagicLight. Control Hue Dimmer Switches via Circadian Light
   domain: automation
   input:
     switch_device:

@@ -3,9 +3,9 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Repository Overview
-MagicLight is a dual-component Home Assistant project:
+Circadian Light is a dual-component Home Assistant project:
 1. **Add-on** (`addon/`): Docker-based Home Assistant add-on that provides circadian lighting based on sun position
-2. **Custom Integration** (`custom_components/magiclight/`): HACS-installable integration providing MagicLight service primitives
+2. **Custom Integration** (`custom_components/circadian/`): HACS-installable integration providing Circadian Light service primitives
 
 The add-on connects to Home Assistant's WebSocket API, listens for ZHA switch events, and automatically adjusts lights in corresponding areas with circadian lighting based on the sun's position.
 
@@ -14,7 +14,7 @@ The add-on connects to Home Assistant's WebSocket API, listens for ZHA switch ev
 ### Testing
 ```bash
 # Run tests with coverage (CI-compatible)
-pytest --cov=magiclight --cov-report=term-missing
+pytest --cov=circadian_light --cov-report=term-missing
 
 # Run tests with coverage (local development)
 pytest addon/tests/ --cov=addon --cov-report=term-missing
@@ -65,7 +65,7 @@ cd addon && ./build_local.sh --run
 cd addon && ./build_local.sh --run --port 8100
 
 # Build multi-architecture images (for release)
-docker buildx build --platform linux/amd64,linux/arm64,linux/arm/v7 -t magiclight .
+docker buildx build --platform linux/amd64,linux/arm64,linux/arm/v7 -t circadian_light .
 ```
 
 ## Architecture
@@ -77,13 +77,13 @@ docker buildx build --platform linux/amd64,linux/arm64,linux/arm/v7 -t magicligh
 - `addon/switch.py`: Switch command processor handling button press events and light control
 - `addon/webserver.py`: Web server for Light Designer interface accessible via Home Assistant ingress
 - `addon/designer.html`: Interactive web UI for configuring circadian lighting curves
-- `addon/primitives.py`: Core service implementations for MagicLight operations
+- `addon/primitives.py`: Core service implementations for Circadian Light operations
 
 ### Custom Integration Components
-- `custom_components/magiclight/__init__.py`: Service registration and event forwarding
-- `custom_components/magiclight/config_flow.py`: Configuration flow handling (minimal, service-only)
-- `custom_components/magiclight/const.py`: Service names and constants
-- `custom_components/magiclight/services.yaml`: Service definitions and parameters
+- `custom_components/circadian/__init__.py`: Service registration and event forwarding
+- `custom_components/circadian/config_flow.py`: Configuration flow handling (minimal, service-only)
+- `custom_components/circadian/const.py`: Service names and constants
+- `custom_components/circadian/services.yaml`: Service definitions and parameters
 
 ### Key Architectural Patterns
 
@@ -95,7 +95,7 @@ The custom integration doesn't manage state or entities - it only registers serv
 4. This avoids complexity of state management in the integration
 
 #### WebSocket Event Flow
-1. Custom integration service called → fires `magiclight_service_event`
+1. Custom integration service called → fires `circadian_light_service_event`
 2. Add-on subscribes to these events via WebSocket
 3. Events contain service name and area parameter
 4. Add-on executes appropriate primitive based on service
@@ -171,14 +171,14 @@ GitHub Actions workflows (`.github/workflows/`):
 - Step markers for dimming visualization
 
 ## Service Primitives
-- `magiclight_on`: Enable MagicLight mode and turn on with circadian lighting
-- `magiclight_off`: Disable MagicLight mode only (lights unchanged)
-- `magiclight_toggle`: Smart toggle based on light state
+- `circadian_light_on`: Enable Circadian Light mode and turn on with circadian lighting
+- `circadian_light_off`: Disable Circadian Light mode only (lights unchanged)
+- `circadian_light_toggle`: Smart toggle based on light state
 - `step_up`/`step_down`: Adjust along circadian curve
 - `reset`: Reset to current time position
 
 ## Blueprint Automation
-`blueprints/automation/magiclight/hue_dimmer_switch.yaml`:
+`blueprints/automation/circadian_light/hue_dimmer_switch.yaml`:
 - Multiple ZHA switch support
 - Multiple area targeting
 - Button mappings to service primitives
@@ -188,13 +188,13 @@ When creating commits:
 1. Run tests: `pytest addon/tests/`
 2. Check formatting: `black --check addon/*.py addon/tests/`
 3. Lint: `flake8 addon/ addon/tests/ --select=E9,F63,F7,F82`
-4. Update version in `addon/config.yaml` and `custom_components/magiclight/manifest.json`
+4. Update version in `addon/config.yaml` and `custom_components/circadian/manifest.json`
 5. Add entry to `addon/CHANGELOG.md`
 6. Use conventional commit format
 
 ## Repository Notes
 - Repository URLs need consolidation (multiple references exist)
 - HACS installation via custom repository URL
-- Docker Hub images published to `dtconceptsnc/magiclight`
+- Docker Hub images published to `dtconceptsnc/circadian_light`
 - make sure to source .venv/bin/activate
 - dont update the integration (custom_components) if no changes were made in there

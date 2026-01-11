@@ -1,5 +1,44 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.6.0
+**Refactor - Full rename from MagicLight to Circadian Light**
+
+**Changed:**
+- Renamed all internal references from "magiclight" to "circadian_light"
+- Blueprint namespace: `/blueprints/automation/circadian_light/`
+- Addon path: `/opt/circadian_light/`
+- Updated all documentation, tests, and configuration files
+
+## 6.5.0
+**Feature - New button mappings and broadcast primitive**
+
+**Added:**
+- New `broadcast` primitive copies settings from source area to all other areas
+- New `hue_dimmer_switch.yaml` blueprint with updated button mappings:
+  - Power: toggle (1x), broadcast (2x), on+britelite (4x)
+  - Brighter: step_up if on, on+nitelite if off
+  - Dimmer: step_down if on, on+nitelite if off
+  - Hue: freeze_toggle (1x), reset (4x)
+- Support for quadruple-press ZHA events
+
+**Changed:**
+- Renamed original blueprint to `hue_dimmer_switch_former_magiclight.yaml` (legacy)
+
+## 6.4.0
+**Feature - New `set` primitive for state configuration**
+
+**Added:**
+- New `set` primitive handles presets, frozen_at, and copy_from in one unified interface
+- Presets: `wake`/`bed` (midpoint = current time, NOT frozen), `nitelite`/`britelite` (frozen at phase boundary)
+- `copy_from` parameter copies all lighting state from another area (for "share settings" feature)
+- Priority order: copy_from > frozen_at > preset
+
+**Removed:**
+- `freeze` and `unfreeze` primitives (functionality moved to `set` and `freeze_toggle`)
+
+**Changed:**
+- `freeze_toggle` uses internal unfreeze logic (re-anchor midpoints for smooth transition)
+
 ## 6.3.1
 **Bugfix - Step applies solar rules to color**
 
@@ -504,8 +543,8 @@
 **Enhancement - Blueprint Disable Cleanup**
 
 **Improvements:**
-- Added double-press OFF handling to the bundled Hue dimmer blueprint, routing the action to `magiclight.magiclight_off` for a fast shutoff.
-- When `manage_blueprints` is disabled the add-on now removes previously deployed MagicLight blueprints and purges managed automations on startup, keeping Home Assistant free of stale artifacts.
+- Added double-press OFF handling to the bundled Hue dimmer blueprint, routing the action to `circadian.circadian_off` for a fast shutoff.
+- When `manage_blueprints` is disabled the add-on now removes previously deployed Circadian Light blueprints and purges managed automations on startup, keeping Home Assistant free of stale artifacts.
 
 **Testing:**
 - `pytest addon/tests/unit/test_blueprint_manager.py addon/tests/unit/test_integration_manager.py`
@@ -560,14 +599,14 @@
 **Enhancement - Blueprint Deployment Sync**
 
 **Improvements:**
-- Added runtime blueprint installer so add-on deployments (and remote repo downloads) copy `magiclight` automation/script blueprints into Home Assistant's `/config/blueprints` tree automatically.
+- Added runtime blueprint installer so add-on deployments (and remote repo downloads) copy `circadian` automation/script blueprints into Home Assistant's `/config/blueprints` tree automatically.
 - Reorganized repository blueprints to follow Home Assistant's directory structure, eliminating duplicate storage and simplifying packaging.
 
 ## 4.2.0
 **Feature - Automatic Integration Management**
 
 **Improvements:**
-- Add-on now deploys the `magiclight` custom integration on startup by default, installing updates automatically and removing the managed copy when the toggle is disabled.
+- Add-on now deploys the `circadian` custom integration on startup by default, installing updates automatically and removing the managed copy when the toggle is disabled.
 - Added `manage_integration` option to let advanced users opt out of automatic deployment while still providing a clean uninstall path.
 - Added `integration_repo` option (branch via optional `owner/repo#branch` format) so release vs. staging sources can be switched without rebuilding the add-on. *(Removed in 4.2.007-alpha; the add-on now infers the repository from `repository.yaml`.)*
 - Relocated the local build helper to the repository root to package both add-on and integration assets from a single entry point.
@@ -583,9 +622,9 @@
 **Enhancement - Philips Hue Button Support**
 
 **Improvements:**
-- Added automatic handling for Philips/Signify ROM001 and RDM003 Hue buttons so they register with the MagicLight switch blueprint while avoiding Zigbee light grouping.
+- Added automatic handling for Philips/Signify ROM001 and RDM003 Hue buttons so they register with the Circadian Light switch blueprint while avoiding Zigbee light grouping.
 - Prevented these button devices from being misidentified as lights when building ZHA groups, keeping Zigbee lighting parity accurate.
-- Added optional triple-press action that triggers a random-color splash while pausing MagicLight control.
+- Added optional triple-press action that triggers a random-color splash while pausing Circadian Light control.
 
 ## 4.0.9
  - Revert designer to client side curve render
@@ -659,12 +698,12 @@
 - Enhanced logging to distinguish between current and recall offset operations
 
 ## 4.0.3
-**Bug Fix - MagicLight On State Preservation & Light Designer Enhancement**
+**Bug Fix - Circadian Light On State Preservation & Light Designer Enhancement**
 
 **Bug Fixes:**
-- Fixed MagicLight On to preserve stepped-down state when MagicLight is already enabled
-- Resolved issue where motion-triggered MagicLight On would reset lights to current time instead of maintaining user's stepped adjustments
-- MagicLight On now only updates lights when MagicLight was previously disabled, preserving any manual step adjustments when already active
+- Fixed Circadian Light On to preserve stepped-down state when Circadian Light is already enabled
+- Resolved issue where motion-triggered Circadian Light On would reset lights to current time instead of maintaining user's stepped adjustments
+- Circadian Light On now only updates lights when Circadian Light was previously disabled, preserving any manual step adjustments when already active
 
 **Enhancements:**
 - Added live pulsing "now" marker in Light Designer that automatically tracks current time
@@ -675,11 +714,11 @@
 
 **Bug Fixes:**
 - Fixed reset primitive to properly clear saved TimeLocation offsets
-- Resolved issue where stepped-down state persisted after reset when MagicLight was re-enabled
+- Resolved issue where stepped-down state persisted after reset when Circadian Light was re-enabled
 - Reset now correctly ensures area starts fresh at current time without restoring previous offsets
 
 ## 4.0.0
-**Major Release - MagicLight & Test Suite**
+**Major Release - Circadian Light & Test Suite**
 
 **Testing Infrastructure:**
 - Added comprehensive test suite with 2,400+ lines of test coverage
