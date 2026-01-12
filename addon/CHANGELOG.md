@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.7
+**Debug - Add logging for preset apply troubleshooting**
+
+**Added:**
+- Debug logging for nitelite/britelite preset application
+- Logs frozen_at, calculated values, and service_data sent to HA
+
 ## 6.8.6
 **Fix - Step/bright/color operations now use frozen hour when frozen**
 
