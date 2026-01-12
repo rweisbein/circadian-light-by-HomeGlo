@@ -103,7 +103,8 @@ class CircadianLightPrimitives:
             logger.info(f"[{source}] Step up for area {area_id}")
 
             config = self._get_config()
-            hour = get_current_hour()
+            # Use frozen hour if frozen, otherwise current time
+            hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
 
             result = CircadianLight.calculate_step(
                 hour=hour,
@@ -148,7 +149,8 @@ class CircadianLightPrimitives:
             logger.info(f"[{source}] Step down for area {area_id}")
 
             config = self._get_config()
-            hour = get_current_hour()
+            # Use frozen hour if frozen, otherwise current time
+            hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
 
             result = CircadianLight.calculate_step(
                 hour=hour,
@@ -194,7 +196,8 @@ class CircadianLightPrimitives:
             logger.info(f"[{source}] Bright up for area {area_id}")
 
             config = self._get_config()
-            hour = get_current_hour()
+            # Use frozen hour if frozen, otherwise current time
+            hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
 
             result = CircadianLight.calculate_bright_step(
                 hour=hour,
@@ -234,7 +237,8 @@ class CircadianLightPrimitives:
             logger.info(f"[{source}] Bright down for area {area_id}")
 
             config = self._get_config()
-            hour = get_current_hour()
+            # Use frozen hour if frozen, otherwise current time
+            hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
 
             result = CircadianLight.calculate_bright_step(
                 hour=hour,
@@ -278,7 +282,8 @@ class CircadianLightPrimitives:
             logger.info(f"[{source}] Color up for area {area_id}")
 
             config = self._get_config()
-            hour = get_current_hour()
+            # Use frozen hour if frozen, otherwise current time
+            hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
 
             result = CircadianLight.calculate_color_step(
                 hour=hour,
@@ -318,7 +323,8 @@ class CircadianLightPrimitives:
             logger.info(f"[{source}] Color down for area {area_id}")
 
             config = self._get_config()
-            hour = get_current_hour()
+            # Use frozen hour if frozen, otherwise current time
+            hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
 
             result = CircadianLight.calculate_color_step(
                 hour=hour,

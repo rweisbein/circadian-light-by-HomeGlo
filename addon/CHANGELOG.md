@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.6
+**Fix - Step/bright/color operations now use frozen hour when frozen**
+
+**Fixed:**
+- step_up, step_down, bright_up, bright_down, color_up, color_down now use the frozen hour if area is frozen
+- Previously used current real time, which caused inconsistent behavior when stepping from nitelite/britelite
+- Now stepping from nitelite (frozen at min) properly steps up from that position
+
 ## 6.8.5
 **Fix - Step down wrapping around to top at bottom**
 
