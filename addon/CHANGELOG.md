@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.1
+**Fix - Remove global debounce from freeze_toggle**
+
+**Fixed:**
+- Removed 3-second debounce from freeze_toggle that was blocking different areas
+- The debounce was added for duplicate automation issue but that was fixed by removing duplicate automations
+
 ## 6.8.0
 **Fix - Force automation reload when blueprint files are updated**
 

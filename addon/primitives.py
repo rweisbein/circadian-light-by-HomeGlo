@@ -42,7 +42,6 @@ class CircadianLightPrimitives:
         """
         self.client = websocket_client
         self._config_loader = config_loader
-        self._last_freeze_toggle_time = 0.0  # Debounce guard for freeze_toggle
 
     def _get_config(self) -> Config:
         """Load the global config from config files."""
@@ -706,20 +705,12 @@ class CircadianLightPrimitives:
         """Toggle freeze state for multiple areas with single visual effect.
 
         All areas dim together, then brighten together (one bounce, not multiple).
-        Includes debounce guard to prevent double-trigger from switch events.
 
         Args:
             area_ids: List of area IDs
             source: Source of the action
         """
         import asyncio
-
-        # Debounce guard: ignore calls within 3 seconds of the last one
-        now = time.time()
-        if now - self._last_freeze_toggle_time < 3.0:
-            logger.debug(f"[{source}] freeze_toggle_multiple debounced (called too soon)")
-            return
-        self._last_freeze_toggle_time = now
 
         if not area_ids:
             return
