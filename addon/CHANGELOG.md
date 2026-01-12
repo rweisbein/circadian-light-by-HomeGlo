@@ -1,5 +1,14 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.4
+**Refactor - Clean up reset and preset behavior**
+
+**Changed:**
+- `reset` primitive no longer forces enable - preserves enabled status, only applies lighting if already enabled
+- All presets now call `reset_area()` first, then apply preset-specific settings (thin presets)
+- `wake`/`bed` presets now also reset bounds (previously only set midpoints)
+- Consistent behavior: presets clear all adjustments before applying
+
 ## 6.8.3
 **Fix - Britelite/nitelite presets now reset pushed bounds**
 

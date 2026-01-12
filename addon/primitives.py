@@ -526,49 +526,32 @@ class CircadianLightPrimitives:
 
         # Priority 3: preset
         if preset:
+            # Reset state first (clears midpoints, bounds, frozen_at; preserves enabled)
+            state.reset_area(area_id)
+
             if preset in ("wake", "bed"):
-                # Set midpoint to current time (produces ~50% values), NOT frozen
+                # Set midpoint to current time (produces ~50% values), stays unfrozen
                 # get_phase_info returns: (in_ascend, h48, t_ascend, t_descend, slope)
                 in_ascend, h48, t_ascend, t_descend, slope = CircadianLight.get_phase_info(
                     current_hour, config
                 )
-
                 state.update_area(area_id, {
                     "brightness_mid": h48,
                     "color_mid": h48,
-                    "frozen_at": None,  # NOT frozen
                 })
-                logger.info(f"[{source}] Set {area_id} to {preset} preset (midpoint={h48:.2f}, unfrozen)")
+                logger.info(f"[{source}] Set {area_id} to {preset} preset (midpoint={h48:.2f})")
 
             elif preset == "nitelite":
-                # Freeze at ascend_start (minimum values), reset all state
+                # Freeze at ascend_start (minimum values)
                 frozen_hour = config.ascend_start
-                state.update_area(area_id, {
-                    "frozen_at": frozen_hour,
-                    "brightness_mid": None,
-                    "color_mid": None,
-                    "min_brightness": None,
-                    "max_brightness": None,
-                    "min_color_temp": None,
-                    "max_color_temp": None,
-                    "solar_rule_color_limit": None,
-                })
-                logger.info(f"[{source}] Set {area_id} to nitelite preset (frozen_at={frozen_hour}, state reset)")
+                state.set_frozen_at(area_id, frozen_hour)
+                logger.info(f"[{source}] Set {area_id} to nitelite preset (frozen_at={frozen_hour})")
 
             elif preset == "britelite":
-                # Freeze at descend_start (maximum values), reset all state
+                # Freeze at descend_start (maximum values)
                 frozen_hour = config.descend_start
-                state.update_area(area_id, {
-                    "frozen_at": frozen_hour,
-                    "brightness_mid": None,
-                    "color_mid": None,
-                    "min_brightness": None,
-                    "max_brightness": None,
-                    "min_color_temp": None,
-                    "max_color_temp": None,
-                    "solar_rule_color_limit": None,
-                })
-                logger.info(f"[{source}] Set {area_id} to britelite preset (frozen_at={frozen_hour}, state reset)")
+                state.set_frozen_at(area_id, frozen_hour)
+                logger.info(f"[{source}] Set {area_id} to britelite preset (frozen_at={frozen_hour})")
 
             else:
                 logger.warning(f"[{source}] Unknown preset: {preset}")
@@ -791,7 +774,7 @@ class CircadianLightPrimitives:
         """Reset area to base config values.
 
         Resets midpoints, bounds, and frozen_at to defaults.
-        Enables Circadian mode and applies current time values.
+        Preserves enabled status. Only applies lighting if already enabled.
 
         Args:
             area_id: The area ID
@@ -802,21 +785,21 @@ class CircadianLightPrimitives:
         # Reset state (clears midpoints/bounds/frozen_at, preserves only enabled)
         state.reset_area(area_id)
 
-        # Enable (frozen_at is already cleared by reset_area)
-        state.set_enabled(area_id, True)
+        # Apply current time values only if enabled
+        if state.is_enabled(area_id):
+            config = self._get_config()
+            area_state = self._get_area_state(area_id)
+            hour = get_current_hour()
 
-        # Apply current time values
-        config = self._get_config()
-        area_state = self._get_area_state(area_id)
-        hour = get_current_hour()
+            result = CircadianLight.calculate_lighting(hour, config, area_state)
+            await self._apply_lighting(area_id, result.brightness, result.color_temp)
 
-        result = CircadianLight.calculate_lighting(hour, config, area_state)
-        await self._apply_lighting(area_id, result.brightness, result.color_temp)
-
-        logger.info(
-            f"Reset complete for area {area_id}: "
-            f"{result.brightness}%, {result.color_temp}K"
-        )
+            logger.info(
+                f"Reset complete for area {area_id}: "
+                f"{result.brightness}%, {result.color_temp}K"
+            )
+        else:
+            logger.info(f"Reset complete for area {area_id} (not enabled, no lighting change)")
 
     # -------------------------------------------------------------------------
     # Helper methods
