@@ -551,7 +551,7 @@ class CircadianLightPrimitives:
                 # Freeze at ascend_start (minimum values)
                 frozen_hour = config.ascend_start
                 state.set_frozen_at(area_id, frozen_hour)
-                logger.info(f"[{source}] Set {area_id} to nitelite preset (frozen_at={frozen_hour})")
+                logger.info(f"[{source}] Set {area_id} to nitelite preset (frozen_at={frozen_hour}, ascend_start={config.ascend_start}, descend_start={config.descend_start})")
 
             elif preset == "britelite":
                 # Freeze at descend_start (maximum values)
@@ -567,7 +567,9 @@ class CircadianLightPrimitives:
             if state.is_enabled(area_id):
                 area_state = self._get_area_state(area_id)
                 hour = area_state.frozen_at if area_state.frozen_at is not None else current_hour
+                logger.info(f"[{source}] Preset apply: area_state.frozen_at={area_state.frozen_at}, using hour={hour}")
                 result = CircadianLight.calculate_lighting(hour, config, area_state)
+                logger.info(f"[{source}] Preset calculated: brightness={result.brightness}%, color_temp={result.color_temp}K at hour={hour}")
                 await self._apply_lighting(area_id, result.brightness, result.color_temp)
 
     async def broadcast(self, source_area_id: str, source: str = "service_call"):
@@ -837,6 +839,8 @@ class CircadianLightPrimitives:
 
         if include_color:
             service_data["kelvin"] = color_temp
+
+        logger.info(f"_apply_lighting: {target_type}={target_value}, service_data={service_data}")
 
         await self.client.call_service(
             "light", "turn_on", service_data, {target_type: target_value}
