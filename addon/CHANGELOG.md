@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.3
+**Fix - Britelite/nitelite presets now reset pushed bounds**
+
+**Fixed:**
+- Britelite and nitelite presets now reset all area state (bounds, midpoints) before applying
+- Previously, pushed min/max bounds from stepping would persist, causing britelite to not be bright
+
 ## 6.8.2
 **Fix - Prevent step_down from turning lights off**
 

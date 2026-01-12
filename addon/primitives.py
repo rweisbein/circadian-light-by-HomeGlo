@@ -541,16 +541,34 @@ class CircadianLightPrimitives:
                 logger.info(f"[{source}] Set {area_id} to {preset} preset (midpoint={h48:.2f}, unfrozen)")
 
             elif preset == "nitelite":
-                # Freeze at ascend_start (minimum values)
+                # Freeze at ascend_start (minimum values), reset all state
                 frozen_hour = config.ascend_start
-                state.set_frozen_at(area_id, frozen_hour)
-                logger.info(f"[{source}] Set {area_id} to nitelite preset (frozen_at={frozen_hour})")
+                state.update_area(area_id, {
+                    "frozen_at": frozen_hour,
+                    "brightness_mid": None,
+                    "color_mid": None,
+                    "min_brightness": None,
+                    "max_brightness": None,
+                    "min_color_temp": None,
+                    "max_color_temp": None,
+                    "solar_rule_color_limit": None,
+                })
+                logger.info(f"[{source}] Set {area_id} to nitelite preset (frozen_at={frozen_hour}, state reset)")
 
             elif preset == "britelite":
-                # Freeze at descend_start (maximum values)
+                # Freeze at descend_start (maximum values), reset all state
                 frozen_hour = config.descend_start
-                state.set_frozen_at(area_id, frozen_hour)
-                logger.info(f"[{source}] Set {area_id} to britelite preset (frozen_at={frozen_hour})")
+                state.update_area(area_id, {
+                    "frozen_at": frozen_hour,
+                    "brightness_mid": None,
+                    "color_mid": None,
+                    "min_brightness": None,
+                    "max_brightness": None,
+                    "min_color_temp": None,
+                    "max_color_temp": None,
+                    "solar_rule_color_limit": None,
+                })
+                logger.info(f"[{source}] Set {area_id} to britelite preset (frozen_at={frozen_hour}, state reset)")
 
             else:
                 logger.warning(f"[{source}] Unknown preset: {preset}")
