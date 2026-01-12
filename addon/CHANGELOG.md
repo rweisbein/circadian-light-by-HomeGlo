@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.5
+**Fix - Step down wrapping around to top at bottom**
+
+**Fixed:**
+- Added absolute limit check in "within bounds" traversal path
+- Previously, midpoint wrapping (`% 24`) caused brightness to flip from min back to max
+- Step now properly returns None (at limit) when target brightness would exceed absolute limits
+
 ## 6.8.4
 **Refactor - Clean up reset and preset behavior**
 

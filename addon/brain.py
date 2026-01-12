@@ -726,6 +726,12 @@ class CircadianLight:
             # === WITHIN BOUNDS - TRAVERSE DIVERGED CURVE ===
             target_bri = current_bri + sign * bri_step
 
+            # Check if target would exceed absolute limits
+            if target_bri <= ABSOLUTE_MIN_BRI:
+                return None  # At absolute minimum
+            if target_bri >= ABSOLUTE_MAX_BRI:
+                return None  # At absolute maximum
+
             # Get midpoints (state midpoints apply to current phase only)
             default_mid = config.wake_time if in_ascend else config.bed_time
             bri_mid = state.brightness_mid if state.brightness_mid is not None else default_mid
