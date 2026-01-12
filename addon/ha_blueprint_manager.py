@@ -154,7 +154,8 @@ class BlueprintAutomationManager:
             if not self.enabled:
                 return
 
-            if not self._ensure_blueprint_files():
+            blueprint_ok, blueprints_installed = self._ensure_blueprint_files()
+            if not blueprint_ok:
                 self.logger.warning(
                     "Circadian Light blueprint files are unavailable; skipping automation sync (%s).",
                     reason,
@@ -223,12 +224,19 @@ class BlueprintAutomationManager:
                 desired_automations,
             )
 
-            if changes_made:
+            # Force reload if blueprint files were updated OR automation config changed
+            if changes_made or blueprints_installed:
                 await self.ws_client.call_service("automation", "reload", {})
-                self.logger.info(
-                    "Reloaded automations after Circadian Light blueprint sync (%s).",
-                    reason,
-                )
+                if blueprints_installed:
+                    self.logger.info(
+                        "Reloaded automations after blueprint update (%s).",
+                        reason,
+                    )
+                else:
+                    self.logger.info(
+                        "Reloaded automations after Circadian Light blueprint sync (%s).",
+                        reason,
+                    )
             else:
                 if desired_automations or existing_managed:
                     self.logger.info(
@@ -468,18 +476,24 @@ class BlueprintAutomationManager:
 
         return automation_files, script_files
 
-    def _ensure_blueprint_files(self) -> bool:
+    def _ensure_blueprint_files(self) -> Tuple[bool, bool]:
+        """Ensure blueprint files are installed.
+
+        Returns:
+            Tuple of (success, was_installed) where was_installed indicates
+            if blueprint files were freshly copied (requiring reload).
+        """
         destinations = self._blueprint_destinations()
         marker_path = self._blueprint_marker_path()
 
         source = self._discover_blueprint_source()
         if not source:
             if self._directory_contains_yaml(destinations["automation"]):
-                return True
+                return (True, False)
             self.logger.warning(
                 "No Circadian Light blueprint source discovered; automation blueprints unavailable."
             )
-            return False
+            return (False, False)
 
         source_label = source.get("label", "unknown")
         source_automation_files = self._collect_yaml_names(source.get("automation"))
@@ -490,7 +504,7 @@ class BlueprintAutomationManager:
                 source_label,
                 self.namespace,
             )
-            return False
+            return (False, False)
 
         source_script_files = self._collect_yaml_names(source.get("script"))
         source_script_checksums = self._collect_yaml_checksums(source.get("script"))
@@ -504,11 +518,14 @@ class BlueprintAutomationManager:
             source_automation_checksums,
             source_script_checksums,
         ):
-            return True
+            self.logger.debug(
+                "Blueprint files already up-to-date (checksums match); skipping reinstall."
+            )
+            return (True, False)
 
         installed = self._install_blueprint_source(source, destinations)
         if not installed:
-            return False
+            return (False, False)
 
         automation_files, script_files = installed
         automation_checksums = self._collect_yaml_checksums(destinations["automation"])
@@ -526,7 +543,7 @@ class BlueprintAutomationManager:
             source_label,
             destinations["automation"]
         )
-        return True
+        return (True, True)
 
     def _remove_blueprint_files(self, reason: str) -> None:
         destinations = self._blueprint_destinations()

@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.0
+**Fix - Force automation reload when blueprint files are updated**
+
+**Fixed:**
+- Blueprint file updates now properly trigger `automation.reload` in Home Assistant
+- Previously, if blueprint content changed but automation configuration (area/device mappings) stayed the same, HA would not reload and use stale blueprint
+- Added debug logging when blueprint files are skipped due to matching checksums
+
 ## 6.7.9
 **Update - Add long-press Power button for britelite**
 
