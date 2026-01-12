@@ -20,3 +20,7 @@ SERVICE_BROADCAST: Final = "broadcast"
 
 # Service attributes
 ATTR_AREA_ID: Final = "area_id"
+ATTR_PRESET: Final = "preset"
+ATTR_FROZEN_AT: Final = "frozen_at"
+ATTR_COPY_FROM: Final = "copy_from"
+ATTR_ENABLE: Final = "enable"
