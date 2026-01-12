@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.2
+**Fix - Prevent step_down from turning lights off**
+
+**Fixed:**
+- Changed `ABSOLUTE_MIN_BRI` from 0 to 1 to match designer limits
+- Stepping down to minimum now keeps lights at 1% instead of turning them off
+
 ## 6.8.1
 **Fix - Remove global debounce from freeze_toggle**
 

@@ -38,7 +38,7 @@ class ColorMode(Enum):
 # ---------------------------------------------------------------------------
 
 # Absolute limits (hardcoded, never exceeded)
-ABSOLUTE_MIN_BRI = 0
+ABSOLUTE_MIN_BRI = 1
 ABSOLUTE_MAX_BRI = 100
 ABSOLUTE_MIN_CCT = 500
 ABSOLUTE_MAX_CCT = 6500
