@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.7
+**Fix - Color temperature not applied when turning on lights from off**
+
+**Fixed:**
+- When lights are OFF and turned on with color, some bulbs (especially ZigBee/Hue) ignore the color temperature
+- Now uses two-step approach: turn on with brightness first, then apply color after 300ms delay
+- Fixes nitelite/britelite presets starting cold/white when lights were off
+
 ## 6.8.6
 **Fix - Step/bright/color operations now use frozen hour when frozen**
 

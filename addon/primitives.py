@@ -828,19 +828,48 @@ class CircadianLightPrimitives:
             include_color: Whether to include color in the command
             transition: Transition time in seconds
         """
+        import asyncio
+
         target_type, target_value = await self.client.determine_light_target(area_id)
 
-        service_data = {
-            "brightness_pct": brightness,
-            "transition": transition,
-        }
+        # Check if lights are currently off - some bulbs (especially ZigBee/Hue)
+        # don't apply color temperature when turning on from off state.
+        # In that case, we need to turn on first, then set color.
+        lights_currently_off = not await self.client.any_lights_on_in_area(area_id)
 
-        if include_color:
-            service_data["kelvin"] = color_temp
+        if lights_currently_off and include_color:
+            # Two-step turn on: brightness first, then color after brief delay
+            service_data = {
+                "brightness_pct": brightness,
+                "transition": transition,
+            }
+            await self.client.call_service(
+                "light", "turn_on", service_data, {target_type: target_value}
+            )
 
-        await self.client.call_service(
-            "light", "turn_on", service_data, {target_type: target_value}
-        )
+            # Brief delay to let bulbs initialize, then set color
+            await asyncio.sleep(0.3)
+
+            service_data = {
+                "kelvin": color_temp,
+                "transition": 0.3,
+            }
+            await self.client.call_service(
+                "light", "turn_on", service_data, {target_type: target_value}
+            )
+        else:
+            # Normal single-call path (lights already on, or color not needed)
+            service_data = {
+                "brightness_pct": brightness,
+                "transition": transition,
+            }
+
+            if include_color:
+                service_data["kelvin"] = color_temp
+
+            await self.client.call_service(
+                "light", "turn_on", service_data, {target_type: target_value}
+            )
 
     async def _apply_color_only(
         self, area_id: str, color_temp: int, transition: float = 0.4
