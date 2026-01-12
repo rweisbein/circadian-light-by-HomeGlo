@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.8
+**Fix - circadian_toggle and circadian_on now respect frozen_at**
+
+**Fixed:**
+- `circadian_toggle` and `circadian_on` now use frozen_at if set when turning lights on
+- Previously used current time, causing frozen areas to flash wrong values before periodic update corrected them
+- Example: bathroom frozen for party → turn off → turn on → now correctly restores frozen lighting
+
 ## 6.8.7
 **Debug - Add logging for preset apply troubleshooting**
 

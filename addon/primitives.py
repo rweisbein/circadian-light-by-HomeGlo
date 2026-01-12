@@ -373,17 +373,17 @@ class CircadianLightPrimitives:
         # Enable in state
         state.set_enabled(area_id, True)
 
-        # Calculate and apply current lighting
+        # Calculate and apply lighting (use frozen_at if set, otherwise current time)
         config = self._get_config()
         area_state = self._get_area_state(area_id)
-        hour = get_current_hour()
+        hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
 
         result = CircadianLight.calculate_lighting(hour, config, area_state)
         await self._apply_lighting(area_id, result.brightness, result.color_temp)
 
         logger.info(
             f"Circadian Light enabled for area {area_id}: "
-            f"{result.brightness}%, {result.color_temp}K"
+            f"{result.brightness}%, {result.color_temp}K (hour={hour:.2f})"
         )
 
     async def circadian_off(self, area_id: str, source: str = "service_call"):
@@ -445,11 +445,12 @@ class CircadianLightPrimitives:
         else:
             # Turn on all areas with Circadian values
             config = self._get_config()
-            hour = get_current_hour()
 
             for area_id in area_ids:
                 state.set_enabled(area_id, True)
                 area_state = self._get_area_state(area_id)
+                # Use frozen_at if set, otherwise current time
+                hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
 
                 result = CircadianLight.calculate_lighting(hour, config, area_state)
                 await self._apply_lighting(area_id, result.brightness, result.color_temp)
