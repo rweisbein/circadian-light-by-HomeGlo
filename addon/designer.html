@@ -176,7 +176,7 @@ input[type=range]::-moz-range-thumb {
 }
 
 /* Chart Section */
-.chart-wrapper { position: relative; }
+.chart-wrapper { position: relative; margin-bottom: 32px; }
 #chart { height: 450px; }
 .chart-date-control {
   display: flex;
@@ -196,10 +196,10 @@ input[type=range]::-moz-range-thumb {
   flex: 1;
 }
 
-/* Time hover label - at top of chart, shows time with phase color */
+/* Time hover label - above x-axis, shows time with phase color */
 .time-hover-label {
   position: absolute;
-  top: 10px;
+  bottom: 70px;
   padding: 4px 9px;
   border-radius: 8px;
   border: 1px solid rgba(255,255,255,0.3);
@@ -219,6 +219,7 @@ input[type=range]::-moz-range-thumb {
 /* Cursor callout - shows values at cursor position */
 .graph-cursor-callout {
   position: absolute;
+  bottom: -8px;
   padding: 4px 10px;
   border-radius: 8px;
   border: 1px solid rgba(255,255,255,0.35);
@@ -240,16 +241,23 @@ input[type=range]::-moz-range-thumb {
   justify-content: center;
   gap: 40px;
   margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid var(--line);
 }
 .cursor-controls.hidden { display: none; }
+.cursor-divider {
+  width: 1px;
+  background: rgba(255,255,255,0.2);
+  align-self: stretch;
+  margin: 8px 10px;
+}
 .cursor-stack {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 6px;
   width: 100px;
+}
+.cursor-stack.wide {
+  width: auto;
 }
 .cursor-stack-label {
   font-size: 0.9rem;
@@ -298,6 +306,40 @@ input[type=range]::-moz-range-thumb {
   padding: 4px 10px;
   font-size: 0.85rem;
 }
+.cursor-btn.time-nav {
+  width: 115px;
+  height: 52px;
+  padding: 8px 12px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  overflow: visible;
+}
+.time-nav-header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  position: relative;
+  z-index: 1;
+}
+.time-nav-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.time-nav-time {
+  font-size: 0.6rem;
+  opacity: 0.75;
+}
+.time-nav-values {
+  font-size: 0.6rem;
+  opacity: 0.9;
+  white-space: nowrap;
+  position: relative;
+  z-index: 1;
+}
+.time-nav-values:empty, .time-nav-time:empty {
+  display: none;
+}
 .cursor-btn::after {
   content: '';
   position: absolute;
@@ -324,27 +366,17 @@ input[type=range]::-moz-range-thumb {
   cursor: not-allowed;
 }
 .cursor-btn.at-extreme {
-  opacity: 0.5;
+  opacity: 0.6;
   cursor: not-allowed;
 }
 .cursor-btn.at-extreme .btn-arrow {
-  opacity: 0.3;
-}
-.cursor-btn.at-extreme::before {
-  content: '×';
-  position: absolute;
-  font-size: 1.4rem;
-  font-weight: 400;
-  color: var(--btn-text);
-  opacity: 0.7;
-  z-index: 2;
+  opacity: 0.4;
 }
 .cursor-midpoint-info {
-  font-size: 0.7rem;
+  font-size: 0.65rem;
+  font-weight: 400;
   color: var(--muted);
-  min-height: 16px;
-  text-align: center;
-  opacity: 0.85;
+  opacity: 0.75;
 }
 
 /* Button callouts showing next value */
@@ -353,13 +385,17 @@ input[type=range]::-moz-range-thumb {
   z-index: 1;
   font-size: 0.6rem;
   font-weight: 500;
-  margin-left: 4px;
   opacity: 0.85;
+  min-width: 32px;
+  text-align: center;
+}
+.btn-callout.left {
+  margin-right: 4px;
+}
+.btn-callout.right {
+  margin-left: 4px;
 }
 .btn-callout:empty {
-  display: none;
-}
-.cursor-btn.at-extreme .btn-callout {
   display: none;
 }
 
@@ -922,56 +958,61 @@ input[type=range]::-moz-range-thumb {
 
     <!-- Cursor Controls -->
     <div class="cursor-controls hidden" id="cursor-controls">
-      <div class="cursor-stack">
-        <span class="cursor-stack-label">Time</span>
+      <div class="cursor-stack wide">
+        <span class="cursor-stack-label">Cursor</span>
         <div class="cursor-btn-row horizontal">
-          <button class="cursor-btn small" id="cursor-time-minus" title="-5 minutes">-5</button>
-          <button class="cursor-btn small" id="cursor-time-now" title="Now">Now</button>
-          <button class="cursor-btn small" id="cursor-time-plus" title="+5 minutes">+5</button>
+          <button class="cursor-btn time-nav" id="cursor-time-minus" title="-5 minutes">
+            <span class="time-nav-header"><span class="time-nav-label">-5</span> <span class="time-nav-time" id="time-minus-time"></span></span>
+            <span class="time-nav-values" id="time-minus-values"></span>
+          </button>
+          <button class="cursor-btn time-nav" id="cursor-time-plus" title="+5 minutes">
+            <span class="time-nav-header"><span class="time-nav-label">+5</span> <span class="time-nav-time" id="time-plus-time"></span></span>
+            <span class="time-nav-values" id="time-plus-values"></span>
+          </button>
+          <button class="btn" id="cursor-time-now" title="Now">Now</button>
         </div>
       </div>
+      <div class="cursor-divider"></div>
       <div class="cursor-stack">
         <span class="cursor-stack-label">Step</span>
         <div class="cursor-btn-row">
           <button class="cursor-btn wide" id="cursor-step-up" data-mode="combo" title="Step Up">
+            <span class="btn-callout left" id="step-up-bri-callout"></span>
             <span class="btn-arrow">↑</span>
-            <span class="btn-callout" id="step-up-bri-callout"></span>
-            <span class="btn-callout" id="step-up-cct-callout"></span>
+            <span class="btn-callout right" id="step-up-cct-callout"></span>
           </button>
           <button class="cursor-btn wide" id="cursor-step-down" data-mode="combo" title="Step Down">
+            <span class="btn-callout left" id="step-down-bri-callout"></span>
             <span class="btn-arrow">↓</span>
-            <span class="btn-callout" id="step-down-bri-callout"></span>
-            <span class="btn-callout" id="step-down-cct-callout"></span>
+            <span class="btn-callout right" id="step-down-cct-callout"></span>
           </button>
         </div>
       </div>
       <div class="cursor-stack">
-        <span class="cursor-stack-label">Bright</span>
+        <span class="cursor-stack-label">Bright <span class="cursor-midpoint-info" id="brightness-midpoint-info"></span></span>
         <div class="cursor-btn-row">
           <button class="cursor-btn" id="cursor-bright-up" data-mode="brightness" title="Brighten">
+            <span class="btn-callout left" id="bright-up-callout"></span>
             <span class="btn-arrow">↑</span>
-            <span class="btn-callout" id="bright-up-callout"></span>
           </button>
           <button class="cursor-btn" id="cursor-bright-down" data-mode="brightness" title="Dim">
+            <span class="btn-callout left" id="bright-down-callout"></span>
             <span class="btn-arrow">↓</span>
-            <span class="btn-callout" id="bright-down-callout"></span>
           </button>
         </div>
-        <span class="cursor-midpoint-info" id="brightness-midpoint-info"></span>
       </div>
       <div class="cursor-stack">
-        <span class="cursor-stack-label">Color</span>
+        <span class="cursor-stack-label">Color <span class="cursor-midpoint-info" id="color-midpoint-info"></span></span>
         <div class="cursor-btn-row">
           <button class="cursor-btn" id="cursor-color-up" data-mode="color" title="Cooler">
             <span class="btn-arrow">↑</span>
-            <span class="btn-callout" id="color-up-callout"></span>
+            <span class="btn-callout right" id="color-up-callout"></span>
           </button>
           <button class="cursor-btn" id="cursor-color-down" data-mode="color" title="Warmer">
             <span class="btn-arrow">↓</span>
-            <span class="btn-callout" id="color-down-callout"></span>
+            <span class="btn-callout right" id="color-down-callout"></span>
           </button>
         </div>
-        <span class="cursor-midpoint-info" id="color-midpoint-info"></span>
       </div>
       <div class="cursor-stack">
         <span class="cursor-stack-label">&nbsp;</span>
@@ -2813,21 +2854,14 @@ function applyCursor() {
       const ratio = (cursorHour - xRange[0]) / (xRange[1] - xRange[0] || 1);
       const leftPx = rect.left + ratio * rect.width - wrapperRect.left;
 
-      // Fixed Y position above 100% brightness line (like llm_access)
-      const fixedY = 125;
-      const normalized = Math.max(0, Math.min(1, fixedY / GRAPH_Y_MAX));
-      const chartHeight = chart.clientHeight || 0;
-      const fixedTop = Math.max(0, (1 - normalized) * chartHeight - 18);
-
       cursorCallout.textContent = `${fmtTime(cursorHour)} • ${bri}% • ${cctVal}K • ${phaseWord}`;
       cursorCallout.style.left = `${leftPx}px`;
-      cursorCallout.style.top = `${fixedTop}px`;
       cursorCallout.style.opacity = '1';
 
       // Color callout based on CCT
-      cursorCallout.style.background = 'rgba(5,5,5,0.85)';
-      cursorCallout.style.color = '#fff';
-      cursorCallout.style.borderColor = 'rgba(255,255,255,0.35)';
+      cursorCallout.style.background = color;
+      cursorCallout.style.color = readableTextColor(color);
+      cursorCallout.style.borderColor = 'rgba(255,255,255,0.5)';
     }
 
     // Update cursor ball marker (CCT-colored with white border)
@@ -2885,18 +2919,17 @@ function updateCursorButtons(point) {
 
   // Determine phase (ascend = wake, descend = bed)
   const inAscend = point.phase === 'Ascend';
-  const phaseLabel = inAscend ? 'wake' : 'bed';
 
   // Get current runtime midpoints (always show, even if equal to base)
   const currentBriMid = runtimeState.brightness_mid ?? (inAscend ? config.wake_time : config.bed_time);
   const currentColorMid = runtimeState.color_mid ?? (inAscend ? config.wake_time : config.bed_time);
 
-  // Always show the wake/bed time label
+  // Show just the time next to the label
   if (brightMidInfo) {
-    brightMidInfo.textContent = `${phaseLabel} ${fmtTime(currentBriMid)}`;
+    brightMidInfo.textContent = fmtTime(currentBriMid);
   }
   if (colorMidInfo) {
-    colorMidInfo.textContent = `${phaseLabel} ${fmtTime(currentColorMid)}`;
+    colorMidInfo.textContent = fmtTime(currentColorMid);
   }
 
   // Calculate step increments (based on config range)
@@ -2989,16 +3022,6 @@ function updateCursorButtons(point) {
   const stepDownBriCallout = document.getElementById('step-down-bri-callout');
   const stepDownCctCallout = document.getElementById('step-down-cct-callout');
 
-  if (briUpCallout) briUpCallout.textContent = `${Math.round(nextBriUp)}%`;
-  if (briDownCallout) briDownCallout.textContent = `${Math.round(nextBriDown)}%`;
-  if (colorUpCallout) colorUpCallout.textContent = `${Math.round(nextColorUp)} K`;
-  if (colorDownCallout) colorDownCallout.textContent = `${Math.round(nextColorDown)} K`;
-  // Step shows both brightness and color (follows curve with solar rules applied)
-  if (stepUpBriCallout) stepUpBriCallout.textContent = `${Math.round(stepPreview.upBri)}%`;
-  if (stepUpCctCallout) stepUpCctCallout.textContent = `${Math.round(stepPreview.upCCT)}K`;
-  if (stepDownBriCallout) stepDownBriCallout.textContent = `${Math.round(stepPreview.downBri)}%`;
-  if (stepDownCctCallout) stepDownCctCallout.textContent = `${Math.round(stepPreview.downCCT)}K`;
-
   // Check lock states
   const brightnessLocked = document.getElementById('brightness-range-locked')?.checked;
   const colorRangeLocked = document.getElementById('color-range-locked')?.checked;
@@ -3039,23 +3062,93 @@ function updateCursorButtons(point) {
     cctAtMin = true;  // Can't lower floor when locked
   }
 
-  // Brightness buttons
-  brightUp?.classList.toggle('at-extreme', briAtMax);
-  brightDown?.classList.toggle('at-extreme', briAtMin);
-
-  // Color buttons - based on DISPLAYED CCT extremes
-  colorUp?.classList.toggle('at-extreme', cctAtMax);
-  colorDown?.classList.toggle('at-extreme', cctAtMin);
-
   // Step buttons: brightness-primary, at extreme based on brightness only
-  // At absolute limit, or at config limit AND locked
   const stepUpAtExtreme = currentPct >= ABSOLUTE_MAX_BRI - 0.5 ||
     (currentPct >= effectiveMaxPct - 0.5 && brightnessLocked);
   const stepDownAtExtreme = currentPct <= ABSOLUTE_MIN_BRI + 0.5 ||
     (currentPct <= effectiveMinPct + 0.5 && brightnessLocked);
 
+  // Update callouts - show "max"/"min" with current value when at extreme
+  if (briUpCallout) {
+    briUpCallout.textContent = briAtMax ? `max ${Math.round(currentPct)}%` : `${Math.round(nextBriUp)}%`;
+  }
+  if (briDownCallout) {
+    briDownCallout.textContent = briAtMin ? `min ${Math.round(currentPct)}%` : `${Math.round(nextBriDown)}%`;
+  }
+  if (colorUpCallout) {
+    colorUpCallout.textContent = cctAtMax ? `max ${Math.round(displayedCCT)}K` : `${Math.round(nextColorUp)}K`;
+  }
+  if (colorDownCallout) {
+    colorDownCallout.textContent = cctAtMin ? `min ${Math.round(displayedCCT)}K` : `${Math.round(nextColorDown)}K`;
+  }
+  // Step shows both brightness and color
+  if (stepUpBriCallout) {
+    stepUpBriCallout.textContent = stepUpAtExtreme ? `max ${Math.round(currentPct)}%` : `${Math.round(stepPreview.upBri)}%`;
+  }
+  if (stepUpCctCallout) {
+    stepUpCctCallout.textContent = stepUpAtExtreme ? `${Math.round(displayedCCT)}K` : `${Math.round(stepPreview.upCCT)}K`;
+  }
+  if (stepDownBriCallout) {
+    stepDownBriCallout.textContent = stepDownAtExtreme ? `min ${Math.round(currentPct)}%` : `${Math.round(stepPreview.downBri)}%`;
+  }
+  if (stepDownCctCallout) {
+    stepDownCctCallout.textContent = stepDownAtExtreme ? `${Math.round(displayedCCT)}K` : `${Math.round(stepPreview.downCCT)}K`;
+  }
+
+  // Toggle at-extreme class for styling
+  brightUp?.classList.toggle('at-extreme', briAtMax);
+  brightDown?.classList.toggle('at-extreme', briAtMin);
+  colorUp?.classList.toggle('at-extreme', cctAtMax);
+  colorDown?.classList.toggle('at-extreme', cctAtMin);
   stepUp?.classList.toggle('at-extreme', stepUpAtExtreme);
   stepDown?.classList.toggle('at-extreme', stepDownAtExtreme);
+
+  // Update time navigation button values
+  const timeMinusBtn = document.getElementById('cursor-time-minus');
+  const timePlusBtn = document.getElementById('cursor-time-plus');
+  const timeMinusTime = document.getElementById('time-minus-time');
+  const timePlusTime = document.getElementById('time-plus-time');
+  const timeMinusValues = document.getElementById('time-minus-values');
+  const timePlusValues = document.getElementById('time-plus-values');
+
+  // Helper to format hour as H:MMa/p
+  const formatTime = (hour) => {
+    const h = ((hour % 24) + 24) % 24;
+    const hours24 = Math.floor(h);
+    const mins = Math.round((h - hours24) * 60);
+    const isPM = hours24 >= 12;
+    let hours12 = hours24 % 12;
+    if (hours12 === 0) hours12 = 12;
+    return `${hours12}:${mins.toString().padStart(2, '0')}${isPM ? 'p' : 'a'}`;
+  };
+
+  if (graphData && cursorHour !== null) {
+    const samplesPerHour = graphData.brightnessPct.length / 24;
+
+    // Helper to get values at a specific hour
+    const getValuesAtHour = (hour) => {
+      const h = ((hour % 24) + 24) % 24;  // Normalize to 0-24
+      const idx = Math.min(graphData.brightnessPct.length - 1, Math.max(0, Math.round(h * samplesPerHour)));
+      return {
+        bri: Math.round(graphData.brightnessPct[idx]),
+        cct: Math.round(graphData.cct[idx])
+      };
+    };
+
+    // -5 minutes from cursor
+    const minusHour = cursorHour - 5/60;
+    const minusVals = getValuesAtHour(minusHour);
+    if (timeMinusTime) timeMinusTime.textContent = formatTime(minusHour);
+    if (timeMinusValues) timeMinusValues.textContent = `${minusVals.bri}% ${minusVals.cct}K`;
+    styleBtn(timeMinusBtn, minusVals.bri, minusVals.cct, 'combo');
+
+    // +5 minutes from cursor
+    const plusHour = cursorHour + 5/60;
+    const plusVals = getValuesAtHour(plusHour);
+    if (timePlusTime) timePlusTime.textContent = formatTime(plusHour);
+    if (timePlusValues) timePlusValues.textContent = `${plusVals.bri}% ${plusVals.cct}K`;
+    styleBtn(timePlusBtn, plusVals.bri, plusVals.cct, 'combo');
+  }
 }
 
 // Tint color by brightness (dim for low brightness)
@@ -4319,7 +4412,13 @@ document.addEventListener('DOMContentLoaded', () => {
   setupEventListeners();
   setupLiveDesign();
   syncUIFromConfig();
+
+  // Set cursor to current time on page load
+  const now = new Date();
+  cursorHour = now.getHours() + now.getMinutes() / 60;
+
   renderChart();
+  applyCursor();
 
   loadConfig();
 });
