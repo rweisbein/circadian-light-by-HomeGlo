@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.10
+**Fix - Designer step wrap-around prevention**
+
+**Fixed:**
+- Added absolute limit check in designer's "within bounds" stepping path
+- Prevents step down from wrapping around to top of curve (matching brain.py fix from 6.8.5)
+
 ## 6.8.9
 **Fix - Designer step down minimum now matches backend (1%)**
 

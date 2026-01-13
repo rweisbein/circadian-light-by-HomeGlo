@@ -3768,6 +3768,14 @@ function stepCursor(direction, adjustBrightness, adjustColor) {
       // Find virtual time T' where brightness curve = targetBri
       // Then get color at T' from color curve (using its own midpoint)
 
+      // Check if target would exceed absolute limits (prevents wrap-around)
+      if (targetBri <= ABSOLUTE_MIN_BRI) {
+        return; // At absolute minimum
+      }
+      if (targetBri >= ABSOLUTE_MAX_BRI) {
+        return; // At absolute maximum
+      }
+
       // Get current midpoints
       const briMid = runtimeState.brightness_mid ?? (inAscend ? config.wake_time : config.bed_time);
       const colorMid = runtimeState.color_mid ?? (inAscend ? config.wake_time : config.bed_time);
