@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.11
+**Feature - Designer cursor time navigation buttons**
+
+**Added:**
+- Time navigation buttons in cursor controls: -5, Now, +5
+- "Now" sets cursor to current time
+- +5/-5 moves cursor by 5 minutes with wrap-around at midnight
+
 ## 6.8.10
 **Fix - Designer step wrap-around prevention**
 

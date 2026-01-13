@@ -264,6 +264,10 @@ input[type=range]::-moz-range-thumb {
   align-items: center;
   width: 100%;
 }
+.cursor-btn-row.horizontal {
+  flex-direction: row;
+  justify-content: center;
+}
 .cursor-btn {
   --btn-bg: rgba(255,255,255,0.06);
   --btn-text: #fff;
@@ -287,6 +291,12 @@ input[type=range]::-moz-range-thumb {
 }
 .cursor-btn.wide {
   width: 140px;
+}
+.cursor-btn.small {
+  width: auto;
+  min-width: 40px;
+  padding: 4px 10px;
+  font-size: 0.85rem;
 }
 .cursor-btn::after {
   content: '';
@@ -912,6 +922,14 @@ input[type=range]::-moz-range-thumb {
 
     <!-- Cursor Controls -->
     <div class="cursor-controls hidden" id="cursor-controls">
+      <div class="cursor-stack">
+        <span class="cursor-stack-label">Time</span>
+        <div class="cursor-btn-row horizontal">
+          <button class="cursor-btn small" id="cursor-time-minus" title="-5 minutes">-5</button>
+          <button class="cursor-btn small" id="cursor-time-now" title="Now">Now</button>
+          <button class="cursor-btn small" id="cursor-time-plus" title="+5 minutes">+5</button>
+        </div>
+      </div>
       <div class="cursor-stack">
         <span class="cursor-stack-label">Step</span>
         <div class="cursor-btn-row">
@@ -3538,6 +3556,24 @@ function setupEventListeners() {
   document.getElementById('cursor-reset')?.addEventListener('click', () => {
     // Reset runtime state but keep cursor position
     resetRuntimeState();
+    renderChart();
+    applyCursor();
+  });
+
+  // Time navigation buttons
+  document.getElementById('cursor-time-now')?.addEventListener('click', () => {
+    const now = new Date();
+    cursorHour = now.getHours() + now.getMinutes() / 60;
+    renderChart();
+    applyCursor();
+  });
+  document.getElementById('cursor-time-plus')?.addEventListener('click', () => {
+    cursorHour = (cursorHour + 5/60) % 24;  // +5 minutes, wrap at 24
+    renderChart();
+    applyCursor();
+  });
+  document.getElementById('cursor-time-minus')?.addEventListener('click', () => {
+    cursorHour = (cursorHour - 5/60 + 24) % 24;  // -5 minutes, wrap at 0
     renderChart();
     applyCursor();
   });
