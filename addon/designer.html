@@ -1234,7 +1234,7 @@ let runtimeState = {
   solar_rule_color_limit: null, // Pushed ceiling/floor for active solar rule
   // Brightness bounds (can be pushed beyond config via Bright Up/Down)
   max_brightness: null,        // Can only increase above config.max_brightness (absolute max: 100)
-  min_brightness: null,        // Can only decrease below config.min_brightness (absolute min: 0)
+  min_brightness: null,        // Can only decrease below config.min_brightness (absolute min: 1)
   // Color bounds (can be pushed beyond config via Color Up/Down)
   max_color_temp: null,        // Can only increase above config.max_color_temp (absolute max: 6500)
   min_color_temp: null         // Can only decrease below config.min_color_temp (absolute min: 500)
@@ -1547,7 +1547,7 @@ function getStepPreview(cursorPoint) {
   const briStep = (configMaxBri - configMinBri) / steps;
 
   // Absolute limits
-  const ABSOLUTE_MIN_BRI = 0;
+  const ABSOLUTE_MIN_BRI = 1;
   const ABSOLUTE_MAX_BRI = 100;
   const ABSOLUTE_MIN_CCT = 500;
   const ABSOLUTE_MAX_CCT = 6500;
@@ -2900,7 +2900,7 @@ function updateCursorButtons(point) {
   const effectiveMaxCCT = runtimeState.max_color_temp ?? configMaxCCT;
 
   // Absolute limits
-  const ABSOLUTE_MIN_BRI = 0;
+  const ABSOLUTE_MIN_BRI = 1;
   const ABSOLUTE_MAX_BRI = 100;
   const ABSOLUTE_MIN_CCT = 500;
   const ABSOLUTE_MAX_CCT = 6500;
@@ -3659,7 +3659,7 @@ function stepCursor(direction, adjustBrightness, adjustColor) {
   // For Step Up/Down: brightness-primary, traverse diverged curve
   if (adjustBrightness && adjustColor) {
     // Absolute limits (hardcoded, never exceeded)
-    const ABSOLUTE_MIN_BRI = 0;
+    const ABSOLUTE_MIN_BRI = 1;
     const ABSOLUTE_MAX_BRI = 100;
     const ABSOLUTE_MIN_CCT = 500;
     const ABSOLUTE_MAX_CCT = 6500;
@@ -3838,7 +3838,7 @@ function stepCursor(direction, adjustBrightness, adjustColor) {
   // Brightness only: fixed value increments
   if (adjustBrightness && !adjustColor) {
     // Absolute limits
-    const ABSOLUTE_MIN_BRI = 0;
+    const ABSOLUTE_MIN_BRI = 1;
     const ABSOLUTE_MAX_BRI = 100;
 
     // Use runtime bounds if set, otherwise config

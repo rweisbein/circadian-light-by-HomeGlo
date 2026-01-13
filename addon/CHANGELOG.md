@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.9
+**Fix - Designer step down minimum now matches backend (1%)**
+
+**Fixed:**
+- Changed ABSOLUTE_MIN_BRI from 0 to 1 in designer.html to match brain.py
+- Step down now stops at 1% instead of 0%
+
 ## 6.8.8
 **Fix - circadian_toggle and circadian_on now respect frozen_at**
 
