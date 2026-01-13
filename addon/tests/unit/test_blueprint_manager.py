@@ -151,7 +151,7 @@ def _build_fixtures(*, integration: str = "zha") -> Dict[str, List[Dict[str, Any
             "entity_id": "light.magic_living_room",
             "attributes": {
                 "area_id": area_id,
-                "friendly_name": "Magic_Living Room",
+                "friendly_name": "Circadian_Living Room",
             },
         }
     ]

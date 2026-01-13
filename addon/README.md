@@ -86,7 +86,7 @@ Circadian Light controls all Home Assistant light entities including ZigBee, Z-W
 ### ZHA Group Management
 
 Circadian Light automatically manages ZigBee groups for optimal performance:
-- Creates groups with "Magic_" prefix in a dedicated area
+- Creates groups with "Circadian_" prefix in a dedicated area
 - Syncs group membership when devices change areas
 - Uses efficient group commands for all-ZigBee areas
 - Falls back to area control for mixed-protocol setups

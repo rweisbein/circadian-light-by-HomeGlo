@@ -248,7 +248,7 @@ class TestZigBeeController:
     async def test_create_group_success(self):
         """Test successful group creation."""
         command = GroupCommand(
-            name="Magic_Kitchen",
+            name="Circadian_Kitchen",
             members=[{"ieee": "00:11:22:33:44:55", "endpoint_id": 1}]
         )
 
@@ -259,7 +259,7 @@ class TestZigBeeController:
         assert result is True
         self.mock_ws_client.send_message_wait_response.assert_called_once_with({
             "type": "zha/group/add",
-            "group_name": "Magic_Kitchen",
+            "group_name": "Circadian_Kitchen",
             "members": command.members
         })
 
@@ -267,7 +267,7 @@ class TestZigBeeController:
     async def test_manage_group_add_members(self):
         """Test adding members to group."""
         command = GroupCommand(
-            name="Magic_Kitchen",
+            name="Circadian_Kitchen",
             group_id=100,
             members=[{"ieee": "00:11:22:33:44:66", "endpoint_id": 1}],
             operation="add_members"
@@ -288,7 +288,7 @@ class TestZigBeeController:
     async def test_manage_group_remove_members(self):
         """Test removing members from group."""
         command = GroupCommand(
-            name="Magic_Kitchen",
+            name="Circadian_Kitchen",
             group_id=100,
             members=[{"ieee": "00:11:22:33:44:55", "endpoint_id": 1}],
             operation="remove_members"

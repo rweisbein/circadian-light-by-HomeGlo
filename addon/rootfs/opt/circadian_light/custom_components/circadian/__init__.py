@@ -27,6 +27,10 @@ from .const import (
     SERVICE_SET,
     SERVICE_BROADCAST,
     ATTR_AREA_ID,
+    ATTR_PRESET,
+    ATTR_FROZEN_AT,
+    ATTR_COPY_FROM,
+    ATTR_ENABLE,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -131,7 +135,12 @@ async def _register_services(hass: HomeAssistant) -> None:
 
     async def handle_set(call: ServiceCall) -> None:
         area_id = call.data.get(ATTR_AREA_ID)
-        _LOGGER.info("[%s] set called: area_id=%s", DOMAIN, area_id)
+        preset = call.data.get(ATTR_PRESET)
+        frozen_at = call.data.get(ATTR_FROZEN_AT)
+        copy_from = call.data.get(ATTR_COPY_FROM)
+        enable = call.data.get(ATTR_ENABLE, False)
+        _LOGGER.info("[%s] set called: area_id=%s, preset=%s, frozen_at=%s, copy_from=%s, enable=%s",
+                     DOMAIN, area_id, preset, frozen_at, copy_from, enable)
 
     async def handle_broadcast(call: ServiceCall) -> None:
         area_id = call.data.get(ATTR_AREA_ID)
@@ -142,8 +151,17 @@ async def _register_services(hass: HomeAssistant) -> None:
         vol.Required(ATTR_AREA_ID): vol.Any(cv.string, [cv.string]),
     })
 
-    # Register all services
-    services = [
+    # Schema for set service - includes additional optional parameters
+    set_schema = vol.Schema({
+        vol.Required(ATTR_AREA_ID): vol.Any(cv.string, [cv.string]),
+        vol.Optional(ATTR_PRESET): vol.In(["nitelite", "britelite", "wake", "bed"]),
+        vol.Optional(ATTR_FROZEN_AT): vol.Coerce(float),
+        vol.Optional(ATTR_COPY_FROM): cv.string,
+        vol.Optional(ATTR_ENABLE, default=False): cv.boolean,
+    })
+
+    # Register services with area_schema
+    area_services = [
         (SERVICE_STEP_UP, handle_step_up),
         (SERVICE_STEP_DOWN, handle_step_down),
         (SERVICE_BRIGHT_UP, handle_bright_up),
@@ -155,13 +173,16 @@ async def _register_services(hass: HomeAssistant) -> None:
         (SERVICE_CIRCADIAN_OFF, handle_circadian_off),
         (SERVICE_CIRCADIAN_TOGGLE, handle_circadian_toggle),
         (SERVICE_FREEZE_TOGGLE, handle_freeze_toggle),
-        (SERVICE_SET, handle_set),
         (SERVICE_BROADCAST, handle_broadcast),
     ]
 
-    for service_name, handler in services:
+    for service_name, handler in area_services:
         hass.services.async_register(DOMAIN, service_name, handler, schema=area_schema)
         _LOGGER.debug("[%s] Registered service: %s.%s", DOMAIN, DOMAIN, service_name)
+
+    # Register set service with its own schema
+    hass.services.async_register(DOMAIN, SERVICE_SET, handle_set, schema=set_schema)
+    _LOGGER.debug("[%s] Registered service: %s.%s", DOMAIN, DOMAIN, SERVICE_SET)
 
     _LOGGER.info("[%s] Services registered successfully", DOMAIN)
 

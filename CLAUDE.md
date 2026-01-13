@@ -155,8 +155,8 @@ GitHub Actions workflows (`.github/workflows/`):
 - Color space conversions (Kelvin → RGB → XY)
 
 #### ZHA Group Management
-- Auto-creates/syncs groups with "Magic_" prefix
-- Dedicated "Magic_Zigbee_Groups" area
+- Auto-creates/syncs groups with "Circadian_" prefix
+- Dedicated "Circadian_Zigbee_Groups" area
 - Smart method selection based on area composition
 - Efficient group control for ZHA-only areas
 
