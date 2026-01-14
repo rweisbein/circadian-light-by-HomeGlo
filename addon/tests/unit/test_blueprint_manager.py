@@ -177,7 +177,8 @@ async def test_reconcile_writes_block_to_automations_yaml(tmp_path, monkeypatch)
     automations_file = helpers["automations_file"]
     content = automations_file.read_text(encoding="utf-8")
 
-    assert MANAGED_BLOCK_START in content
+    # New implementation identifies managed automations by ID pattern, not markers
+    assert "circadian_light_area_1" in content
 
     blueprint_dest = helpers["blueprint_aut_dest"]
     assert (blueprint_dest / "hue_dimmer_switch.yaml").is_file()
@@ -186,8 +187,7 @@ async def test_reconcile_writes_block_to_automations_yaml(tmp_path, monkeypatch)
     marker_data = json.loads(marker_path.read_text(encoding="utf-8"))
     assert marker_data["automation_files"] == ["hue_dimmer_switch.yaml"]
 
-    block = manager._extract_managed_block(content)
-    parsed = yaml.safe_load(block)
+    parsed = yaml.safe_load(content)
     assert isinstance(parsed, list) and len(parsed) == 1
 
     entry = parsed[0]
@@ -220,8 +220,7 @@ async def test_hue_switch_automation_disabled_by_default(tmp_path, monkeypatch):
 
     automations_file = helpers["automations_file"]
     content = automations_file.read_text(encoding="utf-8")
-    block = manager._extract_managed_block(content)
-    parsed = yaml.safe_load(block)
+    parsed = yaml.safe_load(content)
 
     assert isinstance(parsed, list) and len(parsed) == 1
     entry = parsed[0]
@@ -281,16 +280,18 @@ async def test_purge_managed_automations_removes_block(tmp_path, monkeypatch):
     ]
 
     automations_file = helpers["automations_file"]
+    # Write as proper YAML list (new implementation doesn't use markers)
     automations_file.write_text(
-        manager._render_managed_block(existing),
+        yaml.safe_dump(existing, sort_keys=False),
         encoding="utf-8",
     )
 
     await manager.purge_managed_automations("test-disabled")
 
     contents = automations_file.read_text(encoding="utf-8")
-    assert MANAGED_BLOCK_START not in contents
-    assert contents.strip() == ""
+    # After purge, file should be empty list
+    parsed = yaml.safe_load(contents)
+    assert parsed == []
     ws_client.call_service.assert_awaited_once_with("automation", "reload", {})
 
     ws_client.call_service.reset_mock()

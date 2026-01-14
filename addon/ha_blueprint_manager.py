@@ -51,6 +51,9 @@ CONFIG_PATH = Path("/config/configuration.yaml")
 MANAGED_BLOCK_START = "# --- Circadian Light managed automations (auto-generated) ---"
 MANAGED_BLOCK_END = "# --- Circadian Light managed automations end ---"
 
+# ID patterns for identifying managed automations (including legacy MagicLight)
+MANAGED_ID_PREFIXES = ("circadian_light_", "magiclight_")
+
 INCLUDE_FILE_PATTERN = re.compile(r"^\s*automation:\s*!include\s+(?P<path>[^#\s]+)", re.MULTILINE)
 INCLUDE_DIR_PATTERN = re.compile(
     r"^\s*automation:\s*!include_dir_merge_list\s+(?P<path>[^#\s]+)",
@@ -685,19 +688,36 @@ class BlueprintAutomationManager:
             self.logger.error("Failed to read %s: %s", storage_path, err)
             return []
 
+        # First try to find marked block
         block = self._extract_managed_block(text)
-        if not block:
-            return []
+        if block:
+            try:
+                data = yaml.load(block, Loader=BlueprintLoader) or []
+                if isinstance(data, list) and data:
+                    return data
+            except yaml.YAMLError as err:
+                self.logger.error(
+                    "Failed to parse Circadian Light automation block in %s: %s",
+                    storage_path,
+                    err,
+                )
+
+        # Fallback: find entries by ID pattern (handles marker-stripped files)
         try:
-            data = yaml.load(block, Loader=BlueprintLoader) or []
+            all_automations = yaml.load(text, Loader=BlueprintLoader) or []
         except yaml.YAMLError as err:
-            self.logger.error(
-                "Failed to parse Circadian Light automation block in %s: %s",
-                storage_path,
-                err,
-            )
+            self.logger.error("Failed to parse %s: %s", storage_path, err)
             return []
-        return data if isinstance(data, list) else []
+
+        if not isinstance(all_automations, list):
+            return []
+
+        managed = [
+            a for a in all_automations
+            if isinstance(a, dict) and isinstance(a.get("id"), str)
+            and a["id"].startswith(MANAGED_ID_PREFIXES)
+        ]
+        return managed
 
     def _persist_managed_automations(
         self,
@@ -750,10 +770,41 @@ class BlueprintAutomationManager:
                 self.logger.error("Failed to read %s: %s", storage_path, err)
                 existing_text = ""
 
-        new_block = self._render_managed_block(automations)
-        updated_text = self._replace_managed_block(existing_text, new_block)
+        # Parse existing automations and filter out managed entries by ID
+        try:
+            all_automations = yaml.load(existing_text, Loader=BlueprintLoader) if existing_text.strip() else []
+        except yaml.YAMLError as err:
+            self.logger.error("Failed to parse %s: %s", storage_path, err)
+            all_automations = []
 
-        if updated_text == existing_text:
+        if not isinstance(all_automations, list):
+            all_automations = []
+
+        # Remove any existing managed entries (by ID pattern)
+        unmanaged = [
+            a for a in all_automations
+            if not (isinstance(a, dict) and isinstance(a.get("id"), str)
+                    and a["id"].startswith(MANAGED_ID_PREFIXES))
+        ]
+
+        # Also strip any existing marker blocks from the text
+        cleaned_text = self._strip_managed_block(existing_text)
+
+        # Combine: unmanaged entries + new managed entries
+        combined = list(unmanaged) + list(automations)
+
+        if not combined:
+            # Write empty list
+            updated_text = "[]\n"
+        else:
+            updated_text = yaml.safe_dump(
+                combined,
+                sort_keys=False,
+                default_flow_style=False,
+                allow_unicode=True,
+            )
+
+        if updated_text.strip() == existing_text.strip():
             return False
 
         storage_path.parent.mkdir(parents=True, exist_ok=True)
@@ -806,6 +857,14 @@ class BlueprintAutomationManager:
         )
         match = pattern.search(text)
         return match.group(1) if match else ""
+
+    def _strip_managed_block(self, text: str) -> str:
+        """Remove the managed block markers and content from text."""
+        pattern = re.compile(
+            rf"{re.escape(MANAGED_BLOCK_START)}\n.*?{re.escape(MANAGED_BLOCK_END)}\n?",
+            re.DOTALL,
+        )
+        return pattern.sub("", text)
 
     def _automation_id_for_area(self, area_id: str) -> str:
         sanitized = re.sub(r"[^a-zA-Z0-9_]+", "_", area_id or "").strip("_")
