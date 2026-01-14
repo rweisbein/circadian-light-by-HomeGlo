@@ -188,6 +188,7 @@ class BlueprintAutomationManager:
 
             storage_path, storage_mode = self._determine_automation_storage()
             existing_managed = self._load_managed_automations(storage_path, storage_mode)
+            existing_ids = {a.get("id") for a in existing_managed if a.get("id")}
 
             desired_automations: List[Dict[str, Any]] = []
             sorted_candidates = sorted(
@@ -202,9 +203,10 @@ class BlueprintAutomationManager:
                 area_name = areas.get(area_id, {}).get("name", area_id)
                 desired_devices = sorted(set(switch_devices))
                 alias = f"{ALIAS_PREFIX}{area_name}"
+                automation_id = self._automation_id_for_area(area_id)
 
                 automation_entry: Dict[str, Any] = {
-                        "id": self._automation_id_for_area(area_id),
+                        "id": automation_id,
                         "alias": alias,
                         "description": BLUEPRINT_DESCRIPTION,
                         "use_blueprint": {
@@ -213,7 +215,9 @@ class BlueprintAutomationManager:
                         },
                     }
 
-                if desired_devices and self._automation_should_default_disabled(desired_devices, device_integrations):
+                # Only set initial_state for NEW automations (not existing ones)
+                is_new = automation_id not in existing_ids
+                if is_new and desired_devices and self._automation_should_default_disabled(desired_devices, device_integrations):
                     automation_entry["initial_state"] = False
 
                 desired_automations.append(automation_entry)
