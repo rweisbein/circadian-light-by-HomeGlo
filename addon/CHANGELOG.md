@@ -1,5 +1,19 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.15
+**Feature - Separate increment controls for Step, Bright, and Color buttons**
+
+**Added:**
+- Individual increment inputs next to Step, Bright, and Color button labels in designer
+- `step_increments`, `brightness_increments`, `color_increments` config fields (default to master Increments value)
+- Master Increments slider now updates all three individual inputs when changed
+- Button tooltips now show target values (e.g., "Step Up to 46% at 3600K")
+
+**Fixed:**
+- Speed clamping (1-10 range) applied consistently across all designer calculations
+- Step button callouts now correctly use step_increments instead of brightness_increments
+- Changing increment values no longer resets cursor midpoints
+
 ## 6.8.11
 **Feature - Designer cursor time navigation buttons**
 

@@ -87,6 +87,9 @@ class Config:
 
     # Steps
     max_dim_steps: int = DEFAULT_MAX_DIM_STEPS
+    step_increments: int = None  # For Step Up/Down (defaults to max_dim_steps)
+    brightness_increments: int = None  # For Brighten/Dim (defaults to max_dim_steps)
+    color_increments: int = None  # For Cooler/Warmer (defaults to max_dim_steps)
 
     # Solar rules - warm at night
     warm_night_enabled: bool = False
@@ -119,6 +122,9 @@ class Config:
             min_color_temp=d.get("min_color_temp", DEFAULT_MIN_COLOR_TEMP),
             max_color_temp=d.get("max_color_temp", DEFAULT_MAX_COLOR_TEMP),
             max_dim_steps=d.get("max_dim_steps", DEFAULT_MAX_DIM_STEPS),
+            step_increments=d.get("step_increments"),
+            brightness_increments=d.get("brightness_increments"),
+            color_increments=d.get("color_increments"),
             # Warm at night
             warm_night_enabled=d.get("warm_night_enabled", False),
             warm_night_mode=d.get("warm_night_mode", "all"),
@@ -628,7 +634,7 @@ class CircadianLight:
         """
         in_ascend, h48, t_ascend, t_descend, slope = CircadianLight.get_phase_info(hour, config)
         sign = 1 if direction == "up" else -1
-        steps = config.max_dim_steps or 10
+        steps = config.step_increments or config.max_dim_steps or 10
 
         # Config bounds
         config_min_bri = config.min_brightness
@@ -833,7 +839,7 @@ class CircadianLight:
         """
         in_ascend, h48, t_ascend, t_descend, slope = CircadianLight.get_phase_info(hour, config)
         sign = 1 if direction == "up" else -1
-        steps = config.max_dim_steps or 10
+        steps = config.brightness_increments or config.max_dim_steps or 10
 
         # Bounds
         b_min = state.min_brightness if state.min_brightness is not None else config.min_brightness
@@ -919,7 +925,7 @@ class CircadianLight:
         """
         in_ascend, h48, t_ascend, t_descend, slope = CircadianLight.get_phase_info(hour, config)
         sign = 1 if direction == "up" else -1
-        steps = config.max_dim_steps or 10
+        steps = config.color_increments or config.max_dim_steps or 10
 
         # Bounds
         c_min = state.min_color_temp if state.min_color_temp is not None else config.min_color_temp
