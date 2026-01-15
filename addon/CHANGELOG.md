@@ -1,5 +1,22 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.16
+**Feature - Save triggers immediate light refresh + UI polish**
+
+**Added:**
+- `circadian.refresh` service that signals the 30s periodic updater to run immediately
+- Save button now triggers refresh of all enabled areas using same code path as 30s loop
+- Button callouts show "-" when delta rounds to 0 (instead of "+0%" or "-0K")
+- Button callouts show "at max"/"at min" when at extreme bounds
+- Button tooltips show "at maximum/minimum" text when at extremes
+
+**Changed:**
+- "Save Configuration" button renamed to "Save"
+- Refresh uses asyncio.Event to wake periodic updater (truly same code path, not duplicate)
+
+**Fixed:**
+- Removed `reset_all_areas()` from config save - was incorrectly clearing user's stepped positions
+
 ## 6.8.15
 **Feature - Separate increment controls for Step, Bright, and Color buttons**
 

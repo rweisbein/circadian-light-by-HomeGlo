@@ -896,7 +896,7 @@ input[type=range]::-moz-range-thumb {
   <div class="header">
     <h1>Circadian Light by HomeGlo</h1>
     <div class="header-actions">
-      <button id="save-config" class="btn btn-primary">Save Configuration</button>
+      <button id="save-config" class="btn btn-primary">Save</button>
     </div>
   </div>
   <div id="save-status"></div>
@@ -3172,36 +3172,36 @@ function updateCursorButtons(point) {
 
   if (briUpCallout) {
     const briUpDelta = Math.round(actualBriUp - currentPct);
-    briUpCallout.textContent = briAtMax ? `max ${Math.round(currentPct)}%` : `+${briUpDelta}%`;
+    briUpCallout.textContent = briAtMax ? 'at max' : (briUpDelta === 0 ? '-' : `+${briUpDelta}%`);
   }
   if (briDownCallout) {
     const briDownDelta = Math.round(currentPct - actualBriDown);
-    briDownCallout.textContent = briAtMin ? `min ${Math.round(currentPct)}%` : `-${briDownDelta}%`;
+    briDownCallout.textContent = briAtMin ? 'at min' : (briDownDelta === 0 ? '-' : `-${briDownDelta}%`);
   }
   if (colorUpCallout) {
     const colorUpDelta = Math.round(actualColorUp - displayedCCT);
-    colorUpCallout.textContent = cctAtMax ? `max ${Math.round(displayedCCT)}K` : `+${colorUpDelta}K`;
+    colorUpCallout.textContent = cctAtMax ? 'at max' : (colorUpDelta === 0 ? '-' : `+${colorUpDelta}K`);
   }
   if (colorDownCallout) {
     const colorDownDelta = Math.round(displayedCCT - actualColorDown);
-    colorDownCallout.textContent = cctAtMin ? `min ${Math.round(displayedCCT)}K` : `-${colorDownDelta}K`;
+    colorDownCallout.textContent = cctAtMin ? 'at min' : (colorDownDelta === 0 ? '-' : `-${colorDownDelta}K`);
   }
   // Step buttons use stepPreview (which uses step_increments)
   if (stepUpBriCallout) {
     const stepUpBriDelta = Math.round(stepPreview.upBri - currentPct);
-    stepUpBriCallout.textContent = stepUpAtExtreme ? `max ${Math.round(currentPct)}%` : `+${stepUpBriDelta}%`;
+    stepUpBriCallout.textContent = stepUpAtExtreme ? 'at max' : (stepUpBriDelta === 0 ? '-' : `+${stepUpBriDelta}%`);
   }
   if (stepUpCctCallout) {
     const stepUpCctDelta = Math.round(stepPreview.upCCT - displayedCCT);
-    stepUpCctCallout.textContent = stepUpAtExtreme ? `${Math.round(displayedCCT)}K` : `+${stepUpCctDelta}K`;
+    stepUpCctCallout.textContent = stepUpAtExtreme ? '-' : (stepUpCctDelta === 0 ? '-' : `+${stepUpCctDelta}K`);
   }
   if (stepDownBriCallout) {
     const stepDownBriDelta = Math.round(currentPct - stepPreview.downBri);
-    stepDownBriCallout.textContent = stepDownAtExtreme ? `min ${Math.round(currentPct)}%` : `-${stepDownBriDelta}%`;
+    stepDownBriCallout.textContent = stepDownAtExtreme ? 'at min' : (stepDownBriDelta === 0 ? '-' : `-${stepDownBriDelta}%`);
   }
   if (stepDownCctCallout) {
     const stepDownCctDelta = Math.round(displayedCCT - stepPreview.downCCT);
-    stepDownCctCallout.textContent = stepDownAtExtreme ? `${Math.round(displayedCCT)}K` : `-${stepDownCctDelta}K`;
+    stepDownCctCallout.textContent = stepDownAtExtreme ? '-' : (stepDownCctDelta === 0 ? '-' : `-${stepDownCctDelta}K`);
   }
 
   // Toggle at-extreme class for styling
@@ -3212,13 +3212,25 @@ function updateCursorButtons(point) {
   stepUp?.classList.toggle('at-extreme', stepUpAtExtreme);
   stepDown?.classList.toggle('at-extreme', stepDownAtExtreme);
 
-  // Update button titles with target values
-  if (brightUp) brightUp.title = `Brighten to ${Math.round(actualBriUp)}%`;
-  if (brightDown) brightDown.title = `Dim to ${Math.round(actualBriDown)}%`;
-  if (colorUp) colorUp.title = `Cooler to ${Math.round(actualColorUp)}K`;
-  if (colorDown) colorDown.title = `Warmer to ${Math.round(actualColorDown)}K`;
-  if (stepUp) stepUp.title = `Step Up to ${Math.round(stepPreview.upBri)}% at ${Math.round(stepPreview.upCCT)}K`;
-  if (stepDown) stepDown.title = `Step Down to ${Math.round(stepPreview.downBri)}% at ${Math.round(stepPreview.downCCT)}K`;
+  // Update button titles with target values (or "at maximum/minimum" when at extreme)
+  if (brightUp) brightUp.title = briAtMax
+    ? `at maximum ${Math.round(currentPct)}%`
+    : `Brighten to ${Math.round(actualBriUp)}%`;
+  if (brightDown) brightDown.title = briAtMin
+    ? `at minimum ${Math.round(currentPct)}%`
+    : `Dim to ${Math.round(actualBriDown)}%`;
+  if (colorUp) colorUp.title = cctAtMax
+    ? `at maximum ${Math.round(displayedCCT)}K`
+    : `Cooler to ${Math.round(actualColorUp)}K`;
+  if (colorDown) colorDown.title = cctAtMin
+    ? `at minimum ${Math.round(displayedCCT)}K`
+    : `Warmer to ${Math.round(actualColorDown)}K`;
+  if (stepUp) stepUp.title = stepUpAtExtreme
+    ? `at max: ${Math.round(currentPct)}% @ ${Math.round(displayedCCT)}K`
+    : `Step Up to ${Math.round(stepPreview.upBri)}% at ${Math.round(stepPreview.upCCT)}K`;
+  if (stepDown) stepDown.title = stepDownAtExtreme
+    ? `at min: ${Math.round(currentPct)}% @ ${Math.round(stepPreview.downCCT)}K`
+    : `Step Down to ${Math.round(stepPreview.downBri)}% at ${Math.round(stepPreview.downCCT)}K`;
 
   // Update time navigation button values
   const timeMinusBtn = document.getElementById('cursor-time-minus');
@@ -4286,7 +4298,12 @@ async function saveConfig() {
     });
 
     if (resp.ok) {
-      statusEl.innerHTML = '<div class="success">Configuration saved successfully!</div>';
+      const result = await resp.json();
+      if (result.refreshed) {
+        statusEl.innerHTML = '<div class="success">Saved and refreshing lights...</div>';
+      } else {
+        statusEl.innerHTML = '<div class="success">Configuration saved!</div>';
+      }
     } else {
       statusEl.innerHTML = '<div class="error">Failed to save configuration</div>';
     }

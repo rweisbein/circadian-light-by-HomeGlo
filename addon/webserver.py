@@ -430,12 +430,31 @@ class LightDesignerServer:
             # Save to file
             await self.save_config_to_file(config)
 
-            # Reset all area runtime state on config save
-            # This ensures areas use the new config values
-            state.reset_all_areas()
-            logger.info("Config saved - all area runtime state has been reset")
+            # Trigger refresh of enabled areas via circadian.refresh service
+            # This goes through main.py using the same path as the 30s refresh
+            refreshed = False
+            rest_url, _, token = self._get_ha_api_config()
+            if rest_url and token:
+                try:
+                    async with ClientSession() as session:
+                        headers = {
+                            'Authorization': f'Bearer {token}',
+                            'Content-Type': 'application/json',
+                        }
+                        async with session.post(
+                            f'{rest_url}/services/circadian/refresh',
+                            headers=headers,
+                            json={}
+                        ) as resp:
+                            if resp.status in (200, 201):
+                                logger.info("Triggered circadian.refresh after config save")
+                                refreshed = True
+                            else:
+                                logger.warning(f"Failed to trigger refresh: {resp.status}")
+                except Exception as e:
+                    logger.warning(f"Could not trigger refresh: {e}")
 
-            return web.json_response({"status": "success", "config": config})
+            return web.json_response({"status": "success", "config": config, "refreshed": refreshed})
         except Exception as e:
             logger.error(f"Error saving config: {e}")
             return web.json_response({"error": str(e)}, status=500)

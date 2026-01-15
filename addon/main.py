@@ -70,6 +70,7 @@ class HomeAssistantWebSocketClient:
         self.longitude = None  # Home Assistant longitude
         self.timezone = None  # Home Assistant timezone
         self.periodic_update_task = None  # Task for periodic light updates
+        self.refresh_event = asyncio.Event()  # Signal to trigger immediate refresh
         # State is managed by state.py module (per-area midpoints, bounds, etc.)
         self.cached_states = {}  # Cache of entity states
         self.last_states_update = None  # Timestamp of last states update
@@ -995,13 +996,22 @@ class HomeAssistantWebSocketClient:
         return now
 
     async def periodic_light_updater(self):
-        """Periodically update lights in areas that have Circadian Light enabled."""
+        """Periodically update lights in areas that have Circadian Light enabled.
+
+        Runs every 30 seconds, or immediately when refresh_event is signaled.
+        """
         last_phase_check = None
 
         while True:
             try:
-                # Wait for 30 seconds
-                await asyncio.sleep(30)
+                # Wait for 30 seconds OR until refresh_event is signaled
+                triggered_by_event = False
+                try:
+                    await asyncio.wait_for(self.refresh_event.wait(), timeout=30)
+                    self.refresh_event.clear()
+                    triggered_by_event = True
+                except asyncio.TimeoutError:
+                    pass  # Normal 30s tick
 
                 # Check if we should reset state at phase changes
                 last_phase_check = await self.reset_state_at_phase_change(last_phase_check)
@@ -1013,7 +1023,8 @@ class HomeAssistantWebSocketClient:
                     logger.debug("No areas enabled for Circadian Light update")
                     continue
 
-                logger.info(f"Running periodic light update for {len(circadian_areas)} Circadian areas")
+                trigger_source = "refresh signal" if triggered_by_event else "periodic (30s)"
+                logger.info(f"Running light update ({trigger_source}) for {len(circadian_areas)} Circadian areas")
 
                 # Update lights in all enabled areas
                 for area_id in circadian_areas:
@@ -1252,6 +1263,12 @@ class HomeAssistantWebSocketClient:
                         await self.primitives.broadcast(source_area, "service_call")
                     else:
                         logger.warning("broadcast called without area_id")
+
+                elif service == "refresh":
+                    # Signal the periodic updater to run immediately
+                    # This uses the exact same code path as the 30s refresh
+                    logger.info(f"[{domain}] refresh requested - signaling periodic updater")
+                    self.refresh_event.set()
 
 
             # Handle device registry updates (when devices are added/removed/modified)
