@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.21
+**Fix - Step down getting stuck near minimum**
+
+**Fixed:**
+- Step down now reaches absolute minimum (1%) even when step size overshoots
+- Previously returned None when target_bri went below 1 (e.g., 12% - 16.5% = -4.5%)
+- Now clamps to 1% and continues, only returns None if already at 1%
+
 ## 6.8.20
 **Transition timing refinements**
 

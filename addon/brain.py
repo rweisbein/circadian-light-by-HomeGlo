@@ -732,11 +732,15 @@ class CircadianLight:
             # === WITHIN BOUNDS - TRAVERSE DIVERGED CURVE ===
             target_bri = current_bri + sign * bri_step
 
-            # Check if target would exceed absolute limits
-            if target_bri <= ABSOLUTE_MIN_BRI:
-                return None  # At absolute minimum
-            if target_bri >= ABSOLUTE_MAX_BRI:
-                return None  # At absolute maximum
+            # Clamp target to absolute limits (instead of returning None)
+            # This allows stepping to the limit even if the step size overshoots
+            target_bri = max(ABSOLUTE_MIN_BRI, min(ABSOLUTE_MAX_BRI, target_bri))
+
+            # If already at the limit and trying to go further, return None
+            if direction == "down" and current_bri <= ABSOLUTE_MIN_BRI + 0.5 and target_bri <= ABSOLUTE_MIN_BRI:
+                return None  # Already at absolute minimum
+            if direction == "up" and current_bri >= ABSOLUTE_MAX_BRI - 0.5 and target_bri >= ABSOLUTE_MAX_BRI:
+                return None  # Already at absolute maximum
 
             # Get midpoints (state midpoints apply to current phase only)
             default_mid = config.wake_time if in_ascend else config.bed_time
