@@ -1,12 +1,22 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.26
+**Improvement - Smooth bounce depth scaling**
+
+**Changed:**
+- Bounce depth now scales smoothly with brightness (no more abrupt threshold)
+- Lower brightness = deeper dip for consistent visual feedback at all levels
+- At 100%: dip to 50% (50% depth)
+- At 50%: dip to 12.5% (75% depth)
+- At 20%: dip to 2% (90% depth)
+- At 10%: dip to ~0% (95% depth)
+- Always 0.3s down, 0.3s up
+
 ## 6.8.25
 **Feature - Visual bounce when hitting bounds**
 
 **Added:**
 - Lights now bounce when step/bright/color operations hit their configured limits
-- If brightness < 10%: flash off then on (quick blink)
-- If brightness >= 10%: dim to 50% of current brightness over 0.3s, then restore over 0.3s
 - Provides clear visual feedback that you've reached the min or max bound
 
 ## 6.8.24

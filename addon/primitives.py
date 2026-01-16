@@ -878,8 +878,13 @@ class CircadianLightPrimitives:
     async def _bounce_at_limit(self, area_id: str, current_brightness: int, current_color: int):
         """Visual bounce effect when hitting a bound limit.
 
-        If brightness < 10%: flash off then on
-        If brightness >= 10%: dim to 50% of current brightness over 0.3s, then restore
+        Dip depth scales with brightness - lower brightness = deeper dip.
+        At 100%: dip to 50% (50% depth)
+        At 50%: dip to 12.5% (75% depth)
+        At 20%: dip to 2% (90% depth)
+        At 10%: dip to 0.5% (95% depth)
+
+        Always 0.3s down, 0.3s up.
 
         Args:
             area_id: The area ID
@@ -888,19 +893,15 @@ class CircadianLightPrimitives:
         """
         import asyncio
 
-        if current_brightness < 10:
-            # Flash off then on
-            await self._apply_lighting(area_id, 0, current_color, include_color=False, transition=0.1)
-            await asyncio.sleep(0.15)
-            await self._apply_lighting(area_id, current_brightness, current_color, transition=0.1)
-        else:
-            # Dim to 50% then restore
-            dim_brightness = max(1, current_brightness // 2)
-            await self._apply_lighting(area_id, dim_brightness, current_color, include_color=False, transition=0.3)
-            await asyncio.sleep(0.35)
-            await self._apply_lighting(area_id, current_brightness, current_color, transition=0.3)
+        # Depth scales from 50% (at 100 brightness) to 100% (at 0 brightness)
+        depth_ratio = 0.5 + (100 - current_brightness) / 200
+        dim_brightness = max(0, int(current_brightness * (1 - depth_ratio)))
 
-        logger.info(f"Bounce effect for area {area_id} at {current_brightness}%")
+        await self._apply_lighting(area_id, dim_brightness, current_color, include_color=False, transition=0.3)
+        await asyncio.sleep(0.35)
+        await self._apply_lighting(area_id, current_brightness, current_color, transition=0.3)
+
+        logger.info(f"Bounce effect for area {area_id}: {current_brightness}% -> {dim_brightness}% -> {current_brightness}%")
 
     async def _standard_brightness_step(
         self, area_id: str, direction: int, source: str
