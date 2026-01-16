@@ -924,7 +924,7 @@ class HomeAssistantWebSocketClient:
             logger.info(f"Periodic update for area {area_id}{frozen_note}: {result.color_temp}K, {result.brightness}%")
 
             # Use the centralized light control function
-            await self.turn_on_lights_circadian(area_id, lighting_values, transition=2)
+            await self.turn_on_lights_circadian(area_id, lighting_values, transition=0.5)
 
         except Exception as e:
             logger.error(f"Error updating lights in area {area_id}: {e}")

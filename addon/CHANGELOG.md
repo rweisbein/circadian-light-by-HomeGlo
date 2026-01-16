@@ -1,5 +1,14 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.20
+**Transition timing refinements**
+
+**Changed:**
+- 30-second periodic refresh: 2s → 0.5s (faster response)
+- Freeze/unfreeze dim phase: 0.8s → 0.5s (snappier)
+- Unfreeze rise phase: 1s → 2s (intentionally slow, signals resuming circadian)
+- Freeze rise phase: instant (0s) - unchanged
+
 ## 6.8.19
 **Fix - Warm Night CT persistence + faster transitions**
 
@@ -9,8 +18,6 @@
 
 **Changed:**
 - Light transitions reduced from 1s to 0.5s for turn_on and turn_off operations
-- 30-second periodic refresh still uses 2s transition (intentionally slower)
-- Freeze/unfreeze "rise" effect still uses 1s (intentional visual design)
 
 ## 6.8.18
 **Fix - Save button now properly triggers light refresh**
