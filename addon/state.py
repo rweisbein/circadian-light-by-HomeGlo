@@ -38,13 +38,6 @@ def _get_default_area_state() -> Dict[str, Any]:
         # Midpoints (None = use config wake_time/bed_time based on phase)
         "brightness_mid": None,
         "color_mid": None,
-        # Solar rule limit (None = use config target for active rule)
-        "solar_rule_color_limit": None,
-        # Runtime bounds (None = use config bounds)
-        "min_brightness": None,
-        "max_brightness": None,
-        "min_color_temp": None,
-        "max_color_temp": None,
     }
 
 

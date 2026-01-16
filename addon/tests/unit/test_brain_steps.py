@@ -78,47 +78,6 @@ class TestCalculateStep:
         for i in range(len(brightness_values) - 1):
             assert brightness_values[i] > brightness_values[i + 1]
 
-    def test_step_pushes_bounds_at_limit(self, config):
-        """Test stepping pushes bounds when at config limit."""
-        state = AreaState()
-
-        # Step down many times to reach min_brightness
-        for _ in range(15):
-            result = CircadianLight.calculate_step(12.0, "down", config, state)
-            if result is None:
-                break
-
-            # Update state
-            for key, value in result.state_updates.items():
-                setattr(state, key, value)
-
-        # Should have pushed min_brightness below config value
-        assert state.min_brightness is not None
-        assert state.min_brightness < config.min_brightness
-
-    def test_step_respects_brightness_locked(self, config):
-        """Test step respects brightness_locked parameter."""
-        state = AreaState()
-
-        # Step down to reach config min
-        for _ in range(12):
-            result = CircadianLight.calculate_step(12.0, "down", config, state)
-            if result is None:
-                break
-            for key, value in result.state_updates.items():
-                setattr(state, key, value)
-
-        # Now try to step with brightness_locked - should return None
-        result = CircadianLight.calculate_step(
-            12.0, "down", config, state, brightness_locked=True
-        )
-
-        # At this point we're at or below min, so with lock it should return None
-        # or not push bounds further
-        if result is not None:
-            assert "min_brightness" not in result.state_updates
-
-
 class TestCalculateBrightStep:
     """Test calculate_bright_step (brightness only)."""
 
@@ -178,32 +137,32 @@ class TestCalculateBrightStep:
         assert result is not None
         assert result.color_temp == current_color
 
-    def test_bright_step_at_max_pushes_bound(self, config):
-        """Test bright step at max pushes max_brightness."""
+    def test_bright_step_at_max_returns_none(self, config):
+        """Test bright step at max returns None."""
         state = AreaState()
 
         # At noon, brightness is at max (100%)
         result = CircadianLight.calculate_bright_step(12.0, "up", config, state)
 
-        # Should return None since we're at absolute max (100%)
+        # Should return None since we're at config max
         assert result is None
 
-    def test_bright_step_at_min_pushes_bound(self, config):
-        """Test bright step at min pushes min_brightness."""
+    def test_bright_step_at_min_returns_none(self, config):
+        """Test bright step at min returns None."""
         state = AreaState()
 
-        # Step down multiple times to reach min
+        # Step down multiple times to reach config min
         for _ in range(15):
             result = CircadianLight.calculate_bright_step(12.0, "down", config, state)
             if result is None:
-                break
+                break  # At config min
 
             for key, value in result.state_updates.items():
                 setattr(state, key, value)
 
-        # Should have pushed min_brightness
-        assert state.min_brightness is not None
-        assert state.min_brightness < config.min_brightness
+        # One more step should return None (at config min)
+        result = CircadianLight.calculate_bright_step(12.0, "down", config, state)
+        assert result is None
 
 
 class TestCalculateColorStep:
@@ -263,21 +222,6 @@ class TestCalculateColorStep:
 
         assert result is not None
         assert result.brightness == current_bri
-
-    def test_color_step_pushes_solar_rule_limit(self, config):
-        """Test color step pushes solar_rule_color_limit when needed."""
-        config.warm_night_enabled = True
-        config.warm_night_target = 3000
-
-        state = AreaState()
-
-        # At evening, warm night might be active
-        # Color up should push through warm ceiling if needed
-        result = CircadianLight.calculate_color_step(20.0, "up", config, state)
-
-        if result is not None and result.color_temp > config.warm_night_target:
-            assert "solar_rule_color_limit" in result.state_updates
-
 
 class TestStepResult:
     """Test StepResult structure."""

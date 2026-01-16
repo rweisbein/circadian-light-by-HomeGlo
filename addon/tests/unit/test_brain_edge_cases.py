@@ -100,30 +100,6 @@ class TestMidnightCrossover:
         assert h48 == 24.0
 
 
-class TestBoundsClipping:
-    """Test values are correctly clipped to bounds."""
-
-    def test_brightness_clips_to_state_bounds(self):
-        """Test brightness clips to state bounds when set."""
-        config = Config(min_brightness=10, max_brightness=100)
-        state = AreaState(min_brightness=30, max_brightness=70)
-
-        for hour in range(24):
-            bri = CircadianLight.calculate_brightness_at_hour(float(hour), config, state)
-            assert 30 <= bri <= 70
-
-    def test_color_clips_to_state_bounds(self):
-        """Test color clips to state bounds when set."""
-        config = Config(min_color_temp=2700, max_color_temp=6500)
-        state = AreaState(min_color_temp=3500, max_color_temp=5500)
-
-        for hour in range(24):
-            color = CircadianLight.calculate_color_at_hour(
-                float(hour), config, state, apply_solar_rules=False
-            )
-            assert 3500 <= color <= 5500
-
-
 class TestExtremeConfigurations:
     """Test extreme but valid configurations."""
 
@@ -200,17 +176,6 @@ class TestStateConsistency:
         bri = CircadianLight.calculate_brightness_at_hour(12.0, config, state)
         assert bri == 100  # At noon with default config
 
-    def test_partial_state_values(self):
-        """Test mix of state and config values."""
-        config = Config(
-            min_brightness=10,
-            max_brightness=100
-        )
-        state = AreaState(max_brightness=80)  # Only max set
-
-        bri = CircadianLight.calculate_brightness_at_hour(12.0, config, state)
-        assert bri == 80  # Clipped to state max
-
     def test_state_from_dict_with_missing_keys(self):
         """Test AreaState.from_dict handles missing keys."""
         d = {"enabled": True}  # Minimal dict
@@ -263,17 +228,16 @@ class TestStepEdgeCases:
         # Should return None (can't go higher)
         assert result is None
 
-    def test_step_at_absolute_min(self):
-        """Test step at absolute minimum (0%)."""
-        config = Config(min_brightness=0, max_brightness=100, max_dim_steps=10)
-        state = AreaState(min_brightness=0, brightness_mid=0.0)
+    def test_step_at_config_min(self):
+        """Test step at config minimum."""
+        config = Config(min_brightness=1, max_brightness=100, max_dim_steps=10)
+        state = AreaState(brightness_mid=0.0)  # Early midpoint pushes brightness down
 
         # Force to minimum
         result = CircadianLight.calculate_step(12.0, "down", config, state)
 
-        # Eventually should return None when at 0
-        # (This tests the boundary, actual behavior depends on curve position)
-        assert result is None or result.brightness >= 0
+        # Should return None when at config min, or a valid brightness otherwise
+        assert result is None or result.brightness >= config.min_brightness
 
     def test_bright_step_preserves_color_exactly(self):
         """Test bright step doesn't modify color at all."""

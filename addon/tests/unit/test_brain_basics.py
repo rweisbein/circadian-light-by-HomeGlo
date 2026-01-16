@@ -54,11 +54,6 @@ class TestDataclasses:
         assert state.is_frozen is False
         assert state.brightness_mid is None
         assert state.color_mid is None
-        assert state.solar_rule_color_limit is None
-        assert state.min_brightness is None
-        assert state.max_brightness is None
-        assert state.min_color_temp is None
-        assert state.max_color_temp is None
 
     def test_area_state_to_dict(self):
         """Test AreaState serialization."""
@@ -67,7 +62,6 @@ class TestDataclasses:
             frozen_at=14.5,
             brightness_mid=10.5,
             color_mid=11.2,
-            solar_rule_color_limit=3000
         )
 
         d = state.to_dict()
@@ -76,7 +70,6 @@ class TestDataclasses:
         assert d["frozen_at"] == 14.5
         assert d["brightness_mid"] == 10.5
         assert d["color_mid"] == 11.2
-        assert d["solar_rule_color_limit"] == 3000
 
     def test_area_state_from_dict(self):
         """Test AreaState deserialization."""
@@ -85,8 +78,6 @@ class TestDataclasses:
             "frozen_at": 20.0,
             "brightness_mid": 8.0,
             "color_mid": 9.0,
-            "min_brightness": 20,
-            "max_brightness": 80
         }
 
         state = AreaState.from_dict(d)
@@ -96,8 +87,6 @@ class TestDataclasses:
         assert state.is_frozen is True
         assert state.brightness_mid == 8.0
         assert state.color_mid == 9.0
-        assert state.min_brightness == 20
-        assert state.max_brightness == 80
 
     def test_area_state_roundtrip(self):
         """Test AreaState serialization roundtrip."""
@@ -106,11 +95,6 @@ class TestDataclasses:
             frozen_at=14.5,
             brightness_mid=10.5,
             color_mid=11.2,
-            solar_rule_color_limit=3000,
-            min_brightness=20,
-            max_brightness=90,
-            min_color_temp=2000,
-            max_color_temp=5000
         )
 
         restored = AreaState.from_dict(original.to_dict())
@@ -119,9 +103,6 @@ class TestDataclasses:
         assert restored.frozen_at == original.frozen_at
         assert restored.brightness_mid == original.brightness_mid
         assert restored.color_mid == original.color_mid
-        assert restored.solar_rule_color_limit == original.solar_rule_color_limit
-        assert restored.min_brightness == original.min_brightness
-        assert restored.max_brightness == original.max_brightness
 
     def test_sun_times_defaults(self):
         """Test SunTimes has defaults."""

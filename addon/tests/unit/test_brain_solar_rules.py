@@ -112,19 +112,6 @@ class TestWarmNightRule:
         # Inside window (past fade), should be clamped
         assert color_inside <= config.warm_night_target
 
-    def test_warm_night_with_pushed_limit(self, config, sun_times):
-        """Test warm night respects pushed solar_rule_color_limit."""
-        config.warm_night_mode = "all"
-        state = AreaState(solar_rule_color_limit=4000)  # Pushed higher
-
-        color = CircadianLight.calculate_color_at_hour(
-            20.0, config, state, apply_solar_rules=True, sun_times=sun_times
-        )
-
-        # Should use pushed limit (4000) instead of target (2700)
-        assert color <= 4000
-
-
 class TestCoolDayRule:
     """Test cool_day solar rule."""
 
@@ -195,17 +182,6 @@ class TestCoolDayRule:
 
         assert color >= config.cool_day_target
 
-    def test_cool_day_with_pushed_limit(self, config, sun_times):
-        """Test cool day respects pushed solar_rule_color_limit."""
-        config.cool_day_mode = "all"
-        state = AreaState(solar_rule_color_limit=4000)  # Pushed lower
-
-        color = CircadianLight.calculate_color_at_hour(
-            8.0, config, state, apply_solar_rules=True, sun_times=sun_times
-        )
-
-        # Should use pushed limit (4000) instead of target (5000)
-        assert color >= 4000
 
 
 class TestSolarRuleInteraction:

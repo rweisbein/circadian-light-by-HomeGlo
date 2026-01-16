@@ -1062,7 +1062,6 @@ input[type=range]::-moz-range-thumb {
         <input type="range" id="color-max" class="range-max" min="500" max="6500" step="100" value="6500">
       </div>
       <span class="dual-chip right" id="color-max-display">6500 K</span>
-      <label class="lock-checkbox-wrap" title="Lock color range bounds"><input type="checkbox" id="color-range-locked"><span class="lock-icon">🔒</span></label>
     </div>
 
     <div class="param-row" style="grid-template-columns: 140px 60px 1fr 60px 28px;">
@@ -1076,16 +1075,6 @@ input[type=range]::-moz-range-thumb {
         <input type="range" id="brightness-max" class="range-max" min="1" max="100" step="1" value="100">
       </div>
       <span class="dual-chip right" id="brightness-max-display">100%</span>
-      <label class="lock-checkbox-wrap" title="Lock brightness range bounds"><input type="checkbox" id="brightness-range-locked"><span class="lock-icon">🔒</span></label>
-    </div>
-
-    <!-- Temporary bounds indicator (shown when runtime bounds differ from config) -->
-    <div class="temp-bounds-row hidden" id="temp-bounds-row">
-      <span class="temp-bounds-label">Temporary:</span>
-      <span class="temp-ceiling-chip hidden" id="temp-bri-min-chip"></span>
-      <span class="temp-ceiling-chip hidden" id="temp-bri-max-chip"></span>
-      <span class="temp-ceiling-chip hidden" id="temp-color-min-chip"></span>
-      <span class="temp-ceiling-chip hidden" id="temp-color-max-chip"></span>
     </div>
 
     <div class="param-row">
@@ -1112,8 +1101,6 @@ input[type=range]::-moz-range-thumb {
             </select>
             <div class="color-controls-wrap">
               <button type="button" class="color-value-chip" id="warm-night-target-chip">2700 K</button>
-              <span class="temp-ceiling-chip hidden" id="warm-night-ceiling-chip">→ 3300 K</span>
-              <label class="lock-checkbox-wrap" title="Lock warm night ceiling"><input type="checkbox" id="warm-night-locked"><span class="lock-icon">🔒</span></label>
               <div class="color-slider-popup" id="warm-night-popup">
                 <div class="dual-range">
                   <div class="dual-track color-track" id="warm-night-track"></div>
@@ -1162,8 +1149,6 @@ input[type=range]::-moz-range-thumb {
             </select>
             <div class="color-controls-wrap">
               <button type="button" class="color-value-chip" id="cool-day-target-chip">6500 K</button>
-              <span class="temp-ceiling-chip hidden" id="cool-day-floor-chip">→ 5000 K</span>
-              <label class="lock-checkbox-wrap" title="Lock cool day floor"><input type="checkbox" id="cool-day-locked"><span class="lock-icon">🔒</span></label>
               <div class="color-slider-popup" id="cool-day-popup">
                 <div class="dual-range">
                   <div class="dual-track color-track" id="cool-day-track"></div>
@@ -1306,13 +1291,6 @@ let runtimeState = {
   frozen: false,               // Whether to freeze at current position (stop following time)
   brightness_mid: null,        // Current phase's brightness midpoint (falls back to wake_time or bed_time)
   color_mid: null,             // Current phase's color midpoint (falls back to wake_time or bed_time)
-  solar_rule_color_limit: null, // Pushed ceiling/floor for active solar rule
-  // Brightness bounds (can be pushed beyond config via Bright Up/Down)
-  max_brightness: null,        // Can only increase above config.max_brightness (absolute max: 100)
-  min_brightness: null,        // Can only decrease below config.min_brightness (absolute min: 1)
-  // Color bounds (can be pushed beyond config via Color Up/Down)
-  max_color_temp: null,        // Can only increase above config.max_color_temp (absolute max: 6500)
-  min_color_temp: null         // Can only decrease below config.min_color_temp (absolute min: 500)
 };
 
 // Cursor state
@@ -1456,7 +1434,7 @@ function applySolarRuleAtHour(baseCCT, hour) {
 
   // Warm night - ceiling
   if (config.warm_night_enabled) {
-    const warmTarget = runtimeState.solar_rule_color_limit ?? config.warm_night_target;
+    const warmTarget = config.warm_night_target;
 
     if (cct > warmTarget) {
       const fadeHrs = config.warm_night_fade / 60;
@@ -1485,7 +1463,7 @@ function applySolarRuleAtHour(baseCCT, hour) {
 
   // Cool day - floor
   if (config.cool_day_enabled) {
-    const coolTarget = runtimeState.solar_rule_color_limit ?? config.cool_day_target;
+    const coolTarget = config.cool_day_target;
 
     if (cct < coolTarget) {
       const fadeHrs = config.cool_day_fade / 60;
@@ -1533,11 +1511,11 @@ function getValuesAtTime(hour) {
   const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, config.wake_speed))];
   const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, config.bed_speed))];
 
-  // Bounds
-  const bMin = (runtimeState.min_brightness ?? config.min_brightness) / 100;
-  const bMax = (runtimeState.max_brightness ?? config.max_brightness) / 100;
-  const cLow = runtimeState.min_color_temp ?? config.min_color_temp;
-  const cHigh = runtimeState.max_color_temp ?? config.max_color_temp;
+  // Config bounds (only use these, no runtime overrides)
+  const bMin = config.min_brightness / 100;
+  const bMax = config.max_brightness / 100;
+  const cLow = config.min_color_temp;
+  const cHigh = config.max_color_temp;
 
   // Brightness midpoint (runtimeState applies to current phase only)
   const wakeMid = inAscend ? (runtimeState.brightness_mid ?? config.wake_time) : config.wake_time;
@@ -1608,25 +1586,15 @@ function getStepPreview(cursorPoint) {
 
   // Step Up/Down uses step_increments
   const steps = config.step_increments ?? config.max_dim_steps ?? 10;
-  const configMinBri = config.min_brightness;
-  const configMaxBri = config.max_brightness;
-  const configMinCCT = config.min_color_temp;
-  const configMaxCCT = config.max_color_temp;
 
-  // Current runtime bounds
-  const bMin = runtimeState.min_brightness ?? configMinBri;
-  const bMax = runtimeState.max_brightness ?? configMaxBri;
-  const cMin = runtimeState.min_color_temp ?? configMinCCT;
-  const cMax = runtimeState.max_color_temp ?? configMaxCCT;
+  // Config bounds (only use these, no runtime overrides)
+  const bMin = config.min_brightness;
+  const bMax = config.max_brightness;
+  const cMin = config.min_color_temp;
+  const cMax = config.max_color_temp;
 
   // Step size based on config range
-  const briStep = (configMaxBri - configMinBri) / steps;
-
-  // Absolute limits
-  const ABSOLUTE_MIN_BRI = 1;
-  const ABSOLUTE_MAX_BRI = 100;
-  const ABSOLUTE_MIN_CCT = 500;
-  const ABSOLUTE_MAX_CCT = 6500;
+  const briStep = (bMax - bMin) / steps;
 
   // Phase detection
   const tAscend = config.ascend_start;
@@ -1640,31 +1608,9 @@ function getStepPreview(cursorPoint) {
   const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, config.bed_speed))];
   const slope = inAscend ? kAscend : -kDescend;
 
-  // Check lock state
-  const brightnessLocked = document.getElementById('brightness-range-locked')?.checked;
-
   // Helper: calculate CCT for a target brightness (simulates curve traversal)
-  function getStepResultCCT(direction, targetBri) {
-    const atConfigMax = direction === 'up' && currentBri >= bMax - 0.5;
-    const atConfigMin = direction === 'down' && currentBri <= bMin + 0.5;
-
-    if ((atConfigMax || atConfigMin) && !brightnessLocked) {
-      // Pushing beyond bounds - proportional push
-      const briAbsoluteLimit = direction === 'up' ? ABSOLUTE_MAX_BRI : ABSOLUTE_MIN_BRI;
-      const briCurrentBound = direction === 'up' ? bMax : bMin;
-      const briHeadroom = Math.abs(briAbsoluteLimit - briCurrentBound);
-      const briPushAmount = Math.min(briStep, briHeadroom);
-      const pushPercent = briHeadroom > 0 ? briPushAmount / briHeadroom : 0;
-
-      const cctAbsoluteLimit = direction === 'up' ? ABSOLUTE_MAX_CCT : ABSOLUTE_MIN_CCT;
-      const cctHeadroom = Math.abs(cctAbsoluteLimit - currentCCT);
-      const cctPushAmount = pushPercent * cctHeadroom;
-
-      return direction === 'up' ? currentCCT + cctPushAmount : currentCCT - cctPushAmount;
-    }
-
+  function getStepResultCCT(targetBri) {
     // Within bounds - traverse the diverged curve
-    // Find virtual time T' where brightness curve = targetBri
     const briMid = runtimeState.brightness_mid ?? (inAscend ? config.wake_time : config.bed_time);
     const colorMid = runtimeState.color_mid ?? (inAscend ? config.wake_time : config.bed_time);
 
@@ -1688,7 +1634,6 @@ function getStepPreview(cursorPoint) {
 
     // Avoid division issues at extremes
     if (briRatio <= 0.001 || briRatio >= 0.999) {
-      // At extreme, just use current CCT
       return currentCCT;
     }
 
@@ -1705,36 +1650,34 @@ function getStepPreview(cursorPoint) {
     colorNorm = Math.max(0, Math.min(1, colorNorm));
     const baseCCT = cMin + (cMax - cMin) * colorNorm;
 
-    // Clamp to effective bounds (matches stepCursor behavior - no solar rules here)
+    // Clamp to config bounds
     return Math.max(cMin, Math.min(cMax, baseCCT));
   }
 
-  // Calculate step up preview
-  let upBri = Math.min(ABSOLUTE_MAX_BRI, currentBri + briStep);
-  const atAbsoluteMaxBri = currentBri >= ABSOLUTE_MAX_BRI - 0.5;
-  const atConfigMaxBri = currentBri >= bMax - 0.5;
-  let upCCT;
+  // Check if at config bounds
+  const atMaxBri = currentBri >= bMax - 0.5;
+  const atMinBri = currentBri <= bMin + 0.5;
 
-  if (atAbsoluteMaxBri || (atConfigMaxBri && brightnessLocked)) {
-    // Can't step up further
+  // Calculate step up preview
+  let upBri, upCCT;
+  if (atMaxBri) {
+    // At config bound, can't go further
     upBri = currentBri;
     upCCT = currentCCT;
   } else {
-    upCCT = getStepResultCCT('up', upBri);
+    upBri = Math.min(bMax, currentBri + briStep);
+    upCCT = getStepResultCCT(upBri);
   }
 
   // Calculate step down preview
-  let downBri = Math.max(ABSOLUTE_MIN_BRI, currentBri - briStep);
-  const atAbsoluteMinBri = currentBri <= ABSOLUTE_MIN_BRI + 0.5;
-  const atConfigMinBri = currentBri <= bMin + 0.5;
-  let downCCT;
-
-  if (atAbsoluteMinBri || (atConfigMinBri && brightnessLocked)) {
-    // Can't step down further
+  let downBri, downCCT;
+  if (atMinBri) {
+    // At config bound, can't go further
     downBri = currentBri;
     downCCT = currentCCT;
   } else {
-    downCCT = getStepResultCCT('down', downBri);
+    downBri = Math.max(bMin, currentBri - briStep);
+    downCCT = getStepResultCCT(downBri);
   }
 
   return { upBri, upCCT, downBri, downCCT };
@@ -1923,113 +1866,6 @@ function updateColorChips() {
     coolChip.style.color = readableTextColor(cctToRGB(k));
   }
 
-  // Update temporary ceiling/floor chips (solar_rule_color_limit applies to active rule)
-  const warmCeilingChip = document.getElementById('warm-night-ceiling-chip');
-  const coolFloorChip = document.getElementById('cool-day-floor-chip');
-  const limit = runtimeState.solar_rule_color_limit;
-
-  // Check which rule is active at cursor position
-  const warmWindow = getWarmNightWindow();
-  const coolWindow = getCoolDayWindow();
-  const inWarmWindow = warmWindow && warmWindow.inWindow;
-  const inCoolWindow = coolWindow && coolWindow.inWindow;
-
-  if (warmCeilingChip) {
-    if (inWarmWindow && limit !== null && limit !== config.warm_night_target) {
-      warmCeilingChip.textContent = `→ ${Math.round(limit)} K`;
-      warmCeilingChip.style.background = cctToRGB(limit);
-      warmCeilingChip.style.color = readableTextColor(cctToRGB(limit));
-      warmCeilingChip.classList.remove('hidden');
-    } else {
-      warmCeilingChip.classList.add('hidden');
-    }
-  }
-
-  if (coolFloorChip) {
-    if (inCoolWindow && limit !== null && limit !== config.cool_day_target) {
-      coolFloorChip.textContent = `→ ${Math.round(limit)} K`;
-      coolFloorChip.style.background = cctToRGB(limit);
-      coolFloorChip.style.color = readableTextColor(cctToRGB(limit));
-      coolFloorChip.classList.remove('hidden');
-    } else {
-      coolFloorChip.classList.add('hidden');
-    }
-  }
-
-  // Update temporary brightness/color bound chips
-  updateTempBoundsChips();
-}
-
-function updateTempBoundsChips() {
-  const tempBoundsRow = document.getElementById('temp-bounds-row');
-  let anyVisible = false;
-
-  // Brightness min chip
-  const briMinChip = document.getElementById('temp-bri-min-chip');
-  if (briMinChip) {
-    const rtMin = runtimeState.min_brightness;
-    if (rtMin !== null && rtMin !== config.min_brightness) {
-      briMinChip.textContent = `Min: ${Math.round(rtMin)}%`;
-      briMinChip.classList.remove('hidden');
-      anyVisible = true;
-    } else {
-      briMinChip.classList.add('hidden');
-    }
-  }
-
-  // Brightness max chip
-  const briMaxChip = document.getElementById('temp-bri-max-chip');
-  if (briMaxChip) {
-    const rtMax = runtimeState.max_brightness;
-    if (rtMax !== null && rtMax !== config.max_brightness) {
-      briMaxChip.textContent = `Max: ${Math.round(rtMax)}%`;
-      briMaxChip.classList.remove('hidden');
-      anyVisible = true;
-    } else {
-      briMaxChip.classList.add('hidden');
-    }
-  }
-
-  // Color min chip
-  const colorMinChip = document.getElementById('temp-color-min-chip');
-  if (colorMinChip) {
-    const rtMin = runtimeState.min_color_temp;
-    if (rtMin !== null && rtMin !== config.min_color_temp) {
-      const k = Math.round(rtMin);
-      colorMinChip.textContent = `Min: ${k} K`;
-      colorMinChip.style.background = cctToRGB(k);
-      colorMinChip.style.color = readableTextColor(cctToRGB(k));
-      colorMinChip.classList.remove('hidden');
-      anyVisible = true;
-    } else {
-      colorMinChip.classList.add('hidden');
-    }
-  }
-
-  // Color max chip
-  const colorMaxChip = document.getElementById('temp-color-max-chip');
-  if (colorMaxChip) {
-    const rtMax = runtimeState.max_color_temp;
-    if (rtMax !== null && rtMax !== config.max_color_temp) {
-      const k = Math.round(rtMax);
-      colorMaxChip.textContent = `Max: ${k} K`;
-      colorMaxChip.style.background = cctToRGB(k);
-      colorMaxChip.style.color = readableTextColor(cctToRGB(k));
-      colorMaxChip.classList.remove('hidden');
-      anyVisible = true;
-    } else {
-      colorMaxChip.classList.add('hidden');
-    }
-  }
-
-  // Show/hide the entire row
-  if (tempBoundsRow) {
-    if (anyVisible) {
-      tempBoundsRow.classList.remove('hidden');
-    } else {
-      tempBoundsRow.classList.add('hidden');
-    }
-  }
 }
 
 // Apply solar color rules to CCT curve
@@ -2044,8 +1880,7 @@ function adjustCCTForSolarRules(cctArray, hoursArray, sunrise, sunset) {
     const startOffsetHrs = config.warm_night_start / 60;  // offset from sunset
     const endOffsetHrs = config.warm_night_end / 60;      // offset from sunrise
     const mode = config.warm_night_mode;
-    // Use runtime limit if set (can only be higher than config target)
-    const warmTarget = runtimeState.solar_rule_color_limit ?? config.warm_night_target;
+    const warmTarget = config.warm_night_target;
 
     // Determine window based on mode
     let windowStart, windowEnd;
@@ -2114,8 +1949,7 @@ function adjustCCTForSolarRules(cctArray, hoursArray, sunrise, sunset) {
     const startOffsetHrs = config.cool_day_start / 60;  // offset from sunrise
     const endOffsetHrs = config.cool_day_end / 60;      // offset from sunset
     const mode = config.cool_day_mode;
-    // Use runtime limit if set (can only be lower than config target)
-    const coolTarget = runtimeState.solar_rule_color_limit ?? config.cool_day_target;
+    const coolTarget = config.cool_day_target;
 
     // Determine window based on mode
     let windowStart, windowEnd;
@@ -2236,9 +2070,9 @@ function calculateBrightnessAtHour(hour) {
   const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, config.wake_speed))];
   const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, config.bed_speed))];
 
-  // Use runtime bounds if set, otherwise config
-  const bMin = (runtimeState.min_brightness ?? config.min_brightness) / 100;
-  const bMax = (runtimeState.max_brightness ?? config.max_brightness) / 100;
+  // Config bounds (only use these, no runtime overrides)
+  const bMin = config.min_brightness / 100;
+  const bMax = config.max_brightness / 100;
 
   // Phase detection for this hour
   const h48 = hour < tAscend ? hour + 24 : hour;
@@ -2296,9 +2130,9 @@ function calculateColorAtHour(hour, applySolar = true) {
   const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, config.wake_speed))];
   const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, config.bed_speed))];
 
-  // Use runtime bounds if set, otherwise config
-  const cLow = runtimeState.min_color_temp ?? config.min_color_temp;
-  const cHigh = runtimeState.max_color_temp ?? config.max_color_temp;
+  // Config bounds (only use these, no runtime overrides)
+  const cLow = config.min_color_temp;
+  const cHigh = config.max_color_temp;
 
   // Phase detection for this hour
   const h48 = hour < tAscend ? hour + 24 : hour;
@@ -3037,29 +2871,17 @@ function updateCursorButtons(point) {
   const rangeCCT = Math.max(0, configMaxCCT - configMinCCT);
   const deltaCCT = colorSteps > 0 ? rangeCCT / colorSteps : 0;
 
-  // Current bounds (runtime or config)
-  const effectiveMinPct = runtimeState.min_brightness ?? configMinPct;
-  const effectiveMaxPct = runtimeState.max_brightness ?? configMaxPct;
-  const effectiveMinCCT = runtimeState.min_color_temp ?? configMinCCT;
-  const effectiveMaxCCT = runtimeState.max_color_temp ?? configMaxCCT;
-
-  // Absolute limits
-  const ABSOLUTE_MIN_BRI = 1;
-  const ABSOLUTE_MAX_BRI = 100;
-  const ABSOLUTE_MIN_CCT = 500;
-  const ABSOLUTE_MAX_CCT = 6500;
-
   const currentPct = point.y;
   const currentCCT = point.cct;
 
   // Calculate NEXT values (what the button will produce)
-  // Use absolute limits since bounds can be pushed
-  const nextBriUp = Math.min(ABSOLUTE_MAX_BRI, currentPct + deltaPct);
-  const nextBriDown = Math.max(ABSOLUTE_MIN_BRI, currentPct - deltaPct);
+  // Clamp to config bounds (no more pushing beyond)
+  const nextBriUp = Math.min(configMaxPct, currentPct + deltaPct);
+  const nextBriDown = Math.max(configMinPct, currentPct - deltaPct);
 
-  // Color buttons can push through solar rules - no clamping
-  const nextColorUp = Math.min(ABSOLUTE_MAX_CCT, currentCCT + deltaCCT);
-  const nextColorDown = Math.max(ABSOLUTE_MIN_CCT, currentCCT - deltaCCT);
+  // Color buttons clamp to config bounds
+  const nextColorUp = Math.min(configMaxCCT, currentCCT + deltaCCT);
+  const nextColorDown = Math.max(configMinCCT, currentCCT - deltaCCT);
 
   // Step buttons follow the curve - calculate what stepping would produce
   // This simulates the stepCursor logic: find virtual time, get base CCT, apply solar rules
@@ -3115,60 +2937,26 @@ function updateCursorButtons(point) {
   const stepDownBriCallout = document.getElementById('step-down-bri-callout');
   const stepDownCctCallout = document.getElementById('step-down-cct-callout');
 
-  // Check lock states
-  const brightnessLocked = document.getElementById('brightness-range-locked')?.checked;
-  const colorRangeLocked = document.getElementById('color-range-locked')?.checked;
-  const warmNightLocked = document.getElementById('warm-night-locked')?.checked;
-  const coolDayLocked = document.getElementById('cool-day-locked')?.checked;
-
-  // Determine effective limits based on lock state
-  const briMaxLimit = brightnessLocked ? effectiveMaxPct : ABSOLUTE_MAX_BRI;
-  const briMinLimit = brightnessLocked ? effectiveMinPct : ABSOLUTE_MIN_BRI;
-  const cctMaxLimit = colorRangeLocked ? effectiveMaxCCT : ABSOLUTE_MAX_CCT;
-  const cctMinLimit = colorRangeLocked ? effectiveMinCCT : ABSOLUTE_MIN_CCT;
-
-  // Check for "at extreme" states
-  const briAtMax = currentPct >= briMaxLimit - 0.5;
-  const briAtMin = currentPct <= briMinLimit + 0.5;
-
   // For color extremes, check the DISPLAYED CCT
   const displayedCCT = currentCCT;  // point.cct is already the displayed CCT
 
-  // Color max: either at color range limit, or at solar rule limit if locked
-  // solar_rule_color_limit applies to whichever rule is active
-  const warmWindow = getWarmNightWindow();
-  const coolWindow = getCoolDayWindow();
-  const warmCeiling = (warmWindow?.inWindow && runtimeState.solar_rule_color_limit !== null)
-    ? runtimeState.solar_rule_color_limit
-    : config.warm_night_target;
-  const coolFloor = (coolWindow?.inWindow && runtimeState.solar_rule_color_limit !== null)
-    ? runtimeState.solar_rule_color_limit
-    : config.cool_day_target;
-
-  let cctAtMax = displayedCCT >= cctMaxLimit - 10;
-  if (config.warm_night_enabled && warmNightLocked && displayedCCT >= warmCeiling - 10) {
-    cctAtMax = true;  // Can't raise ceiling when locked
-  }
-
-  let cctAtMin = displayedCCT <= cctMinLimit + 10;
-  if (config.cool_day_enabled && coolDayLocked && displayedCCT <= coolFloor + 10) {
-    cctAtMin = true;  // Can't lower floor when locked
-  }
+  // Check for "at extreme" states (using config bounds only)
+  const briAtMax = currentPct >= configMaxPct - 0.5;
+  const briAtMin = currentPct <= configMinPct + 0.5;
+  const cctAtMax = displayedCCT >= configMaxCCT - 10;
+  const cctAtMin = displayedCCT <= configMinCCT + 10;
 
   // Step buttons: brightness-primary, at extreme based on brightness only
-  const stepUpAtExtreme = currentPct >= ABSOLUTE_MAX_BRI - 0.5 ||
-    (currentPct >= effectiveMaxPct - 0.5 && brightnessLocked);
-  const stepDownAtExtreme = currentPct <= ABSOLUTE_MIN_BRI + 0.5 ||
-    (currentPct <= effectiveMinPct + 0.5 && brightnessLocked);
+  const stepUpAtExtreme = currentPct >= configMaxPct - 0.5;
+  const stepDownAtExtreme = currentPct <= configMinPct + 0.5;
 
   // Update callouts - show "max"/"min" with current value when at extreme, otherwise show delta
-  // Use same starting point that stepCursor click handler uses to ensure preview matches actual behavior
   const clickBri = getBrightnessAtCursor() ?? currentPct;
   const clickCct = getDisplayedCCTAtCursor() ?? displayedCCT;
-  const actualBriUp = Math.min(ABSOLUTE_MAX_BRI, clickBri + deltaPct);
-  const actualBriDown = Math.max(ABSOLUTE_MIN_BRI, clickBri - deltaPct);
-  const actualColorUp = Math.min(ABSOLUTE_MAX_CCT, clickCct + deltaCCT);
-  const actualColorDown = Math.max(ABSOLUTE_MIN_CCT, clickCct - deltaCCT);
+  const actualBriUp = Math.min(configMaxPct, clickBri + deltaPct);
+  const actualBriDown = Math.max(configMinPct, clickBri - deltaPct);
+  const actualColorUp = Math.min(configMaxCCT, clickCct + deltaCCT);
+  const actualColorDown = Math.max(configMinCCT, clickCct - deltaCCT);
 
   if (briUpCallout) {
     const briUpDelta = Math.round(actualBriUp - currentPct);
@@ -3676,13 +3464,6 @@ function resetRuntimeState() {
   // Reset midpoints to follow config
   runtimeState.brightness_mid = null;
   runtimeState.color_mid = null;
-  // Reset solar rule limit
-  runtimeState.solar_rule_color_limit = null;
-  // Reset brightness/color bounds
-  runtimeState.max_brightness = null;
-  runtimeState.min_brightness = null;
-  runtimeState.max_color_temp = null;
-  runtimeState.min_color_temp = null;
 }
 
 // ============================================================
@@ -3958,176 +3739,71 @@ function stepCursor(direction, adjustBrightness, adjustColor) {
 
   // For Step Up/Down: brightness-primary, traverse diverged curve
   if (adjustBrightness && adjustColor) {
-    // Absolute limits (hardcoded, never exceeded)
-    const ABSOLUTE_MIN_BRI = 1;
-    const ABSOLUTE_MAX_BRI = 100;
-    const ABSOLUTE_MIN_CCT = 500;
-    const ABSOLUTE_MAX_CCT = 6500;
-
-    // Config bounds
-    const configMinBri = config.min_brightness;
-    const configMaxBri = config.max_brightness;
-    const configMinCCT = config.min_color_temp;
-    const configMaxCCT = config.max_color_temp;
-
-    // Current runtime bounds (may have been pushed)
-    const bMin = runtimeState.min_brightness ?? configMinBri;
-    const bMax = runtimeState.max_brightness ?? configMaxBri;
-    const cMin = runtimeState.min_color_temp ?? configMinCCT;
-    const cMax = runtimeState.max_color_temp ?? configMaxCCT;
+    // Config bounds (only use these, no runtime overrides)
+    const bMin = config.min_brightness;
+    const bMax = config.max_brightness;
+    const cMin = config.min_color_temp;
+    const cMax = config.max_color_temp;
 
     // Step size based on config range
-    const briStep = (configMaxBri - configMinBri) / steps;
+    const briStep = (bMax - bMin) / steps;
 
     // Current values
     const currentBri = getBrightnessAtCursor();
     const currentCCT = getDisplayedCCTAtCursor();
     if (currentBri === null || currentCCT === null) return;
 
-    // Check lock state
-    const brightnessLocked = document.getElementById('brightness-range-locked')?.checked;
+    // Check if at config bounds
+    const atMax = direction === 'up' && currentBri >= bMax - 0.5;
+    const atMin = direction === 'down' && currentBri <= bMin + 0.5;
+
+    if (atMax || atMin) {
+      return; // At config bound, can't go further
+    }
 
     // Calculate target brightness
     let targetBri = currentBri + sign * briStep;
 
-    // Check if at or would exceed config bounds (triggers pushing behavior)
-    const atConfigMax = direction === 'up' && (currentBri >= bMax - 0.5 || targetBri >= bMax);
-    const atConfigMin = direction === 'down' && (currentBri <= bMin + 0.5 || targetBri <= bMin);
+    // Clamp to config bounds
+    targetBri = Math.max(bMin, Math.min(bMax, targetBri));
 
-    // Check if at absolute limits
-    const atAbsoluteMax = currentBri >= ABSOLUTE_MAX_BRI - 0.5;
-    const atAbsoluteMin = currentBri <= ABSOLUTE_MIN_BRI + 0.5;
+    // Get current midpoints
+    const briMid = runtimeState.brightness_mid ?? (inAscend ? config.wake_time : config.bed_time);
+    const colorMid = runtimeState.color_mid ?? (inAscend ? config.wake_time : config.bed_time);
 
-    if ((direction === 'up' && atAbsoluteMax) || (direction === 'down' && atAbsoluteMin)) {
-      return; // At absolute limit, can't go further
-    }
-
-    if ((atConfigMax || atConfigMin) && brightnessLocked) {
-      return; // At config bound and locked, can't push
-    }
-
-    let targetCCT;
-
-    if (atConfigMax || atConfigMin) {
-      // === PUSHING BEYOND CONFIG BOUNDS ===
-      // Push brightness and color proportionally toward absolute limits
-
-      const briAbsoluteLimit = direction === 'up' ? ABSOLUTE_MAX_BRI : ABSOLUTE_MIN_BRI;
-      const briCurrentBound = direction === 'up' ? bMax : bMin;
-      const briHeadroom = Math.abs(briAbsoluteLimit - briCurrentBound);
-
-      // How much to push (capped by headroom and step size)
-      const briPushAmount = Math.min(briStep, briHeadroom);
-      const pushPercent = briHeadroom > 0 ? briPushAmount / briHeadroom : 0;
-
-      // Push brightness
-      if (direction === 'up') {
-        targetBri = bMax + briPushAmount;
-        runtimeState.max_brightness = Math.min(ABSOLUTE_MAX_BRI, targetBri);
-      } else {
-        targetBri = bMin - briPushAmount;
-        runtimeState.min_brightness = Math.max(ABSOLUTE_MIN_BRI, targetBri);
-      }
-
-      // Push color proportionally
-      const cctAbsoluteLimit = direction === 'up' ? ABSOLUTE_MAX_CCT : ABSOLUTE_MIN_CCT;
-      const cctHeadroom = Math.abs(cctAbsoluteLimit - currentCCT);
-      const cctPushAmount = pushPercent * cctHeadroom;
-
-      if (direction === 'up') {
-        // Step Up = cooler
-        targetCCT = currentCCT + cctPushAmount;
-        // Push through any limiting bounds
-        if (targetCCT > cMax) {
-          runtimeState.max_color_temp = Math.min(ABSOLUTE_MAX_CCT, targetCCT);
-        }
-        const warmCeiling = runtimeState.solar_rule_color_limit ?? config.warm_night_target;
-        if (config.warm_night_enabled && targetCCT > warmCeiling) {
-          runtimeState.solar_rule_color_limit = Math.min(ABSOLUTE_MAX_CCT, targetCCT);
-        }
-      } else {
-        // Step Down = warmer
-        targetCCT = currentCCT - cctPushAmount;
-        // Push through any limiting bounds
-        if (targetCCT < cMin) {
-          runtimeState.min_color_temp = Math.max(ABSOLUTE_MIN_CCT, targetCCT);
-        }
-        const coolFloor = runtimeState.solar_rule_color_limit ?? config.cool_day_target;
-        if (config.cool_day_enabled && targetCCT < coolFloor) {
-          runtimeState.solar_rule_color_limit = Math.max(ABSOLUTE_MIN_CCT, targetCCT);
-        }
-      }
-
-      // When pushing bounds, don't update midpoints - just render with new bounds
-      renderChart();
-      applyCursor();
-      return;
-
+    // Lift midpoints into 48h space
+    let briMid48 = briMid;
+    let colorMid48 = colorMid;
+    if (inAscend) {
+      while (briMid48 < tAscend) briMid48 += 24;
+      while (colorMid48 < tAscend) colorMid48 += 24;
     } else {
-      // === WITHIN BOUNDS - TRAVERSE DIVERGED CURVE ===
-      // Find virtual time T' where brightness curve = targetBri
-      // Then get color at T' from color curve (using its own midpoint)
-
-      // Check if target would exceed absolute limits (prevents wrap-around)
-      if (targetBri <= ABSOLUTE_MIN_BRI) {
-        return; // At absolute minimum
-      }
-      if (targetBri >= ABSOLUTE_MAX_BRI) {
-        return; // At absolute maximum
-      }
-
-      // Get current midpoints
-      const briMid = runtimeState.brightness_mid ?? (inAscend ? config.wake_time : config.bed_time);
-      const colorMid = runtimeState.color_mid ?? (inAscend ? config.wake_time : config.bed_time);
-
-      // Lift midpoints into 48h space
-      let briMid48 = briMid;
-      let colorMid48 = colorMid;
-      if (inAscend) {
-        while (briMid48 < tAscend) briMid48 += 24;
-        while (colorMid48 < tAscend) colorMid48 += 24;
-      } else {
-        while (briMid48 < tDescend) briMid48 += 24;
-        while (colorMid48 < tDescend) colorMid48 += 24;
-      }
-
-      // Calculate virtual time T' where brightness = targetBri
-      // logistic: y = y0 + (y1-y0) / (1 + exp(-k*(t-mid)))
-      // Solving for t: t = mid + ln(ratio/(1-ratio)) / k
-      const bMinNorm = bMin / 100;
-      const bMaxNorm = bMax / 100;
-      const targetBriNorm = Math.max(bMinNorm + 0.001, Math.min(bMaxNorm - 0.001, targetBri / 100));
-      const briRatio = (targetBriNorm - bMinNorm) / (bMaxNorm - bMinNorm);
-      const virtualTime = briMid48 + Math.log(briRatio / (1 - briRatio)) / slope;
-
-      // Get color at virtual time from color curve (base curve, no solar rules)
-      const cMinNorm = 0;
-      const cMaxNorm = 1;
-      let colorNorm;
-      if (inAscend) {
-        colorNorm = logistic(virtualTime, colorMid48, slope, cMinNorm, cMaxNorm);
-      } else {
-        const vtDescend = virtualTime < tDescend ? virtualTime + 24 : virtualTime;
-        colorNorm = logistic(vtDescend, colorMid48, slope, cMinNorm, cMaxNorm);
-      }
-      targetCCT = cMin + (cMax - cMin) * colorNorm;
+      while (briMid48 < tDescend) briMid48 += 24;
+      while (colorMid48 < tDescend) colorMid48 += 24;
     }
 
-    // Clamp targets to current effective bounds
-    const effectiveBriMin = runtimeState.min_brightness ?? configMinBri;
-    const effectiveBriMax = runtimeState.max_brightness ?? configMaxBri;
-    const effectiveCCTMin = runtimeState.min_color_temp ?? configMinCCT;
-    const effectiveCCTMax = runtimeState.max_color_temp ?? configMaxCCT;
+    // Calculate virtual time T' where brightness = targetBri
+    const bMinNorm = bMin / 100;
+    const bMaxNorm = bMax / 100;
+    const targetBriNorm = Math.max(bMinNorm + 0.001, Math.min(bMaxNorm - 0.001, targetBri / 100));
+    const briRatio = (targetBriNorm - bMinNorm) / (bMaxNorm - bMinNorm);
+    const virtualTime = briMid48 + Math.log(briRatio / (1 - briRatio)) / slope;
 
-    targetBri = Math.max(effectiveBriMin, Math.min(effectiveBriMax, targetBri));
-    targetCCT = Math.max(effectiveCCTMin, Math.min(effectiveCCTMax, targetCCT));
+    // Get color at virtual time from color curve (base curve)
+    let colorNorm;
+    if (inAscend) {
+      colorNorm = logistic(virtualTime, colorMid48, slope, 0, 1);
+    } else {
+      const vtDescend = virtualTime < tDescend ? virtualTime + 24 : virtualTime;
+      colorNorm = logistic(vtDescend, colorMid48, slope, 0, 1);
+    }
+    let targetCCT = cMin + (cMax - cMin) * colorNorm;
+
+    // Clamp color to config bounds
+    targetCCT = Math.max(cMin, Math.min(cMax, targetCCT));
 
     // Now adjust midpoints so current time gives these target values
-    const targetBriNorm = targetBri / 100;
-    const bMinNorm = effectiveBriMin / 100;
-    const bMaxNorm = effectiveBriMax / 100;
-
-    const targetCCTNorm = (targetCCT - effectiveCCTMin) / (effectiveCCTMax - effectiveCCTMin);
+    const targetCCTNorm = (targetCCT - cMin) / (cMax - cMin);
 
     let calcTime = h48;
     if (!inAscend && h48 < tDescend) calcTime = h48 + 24;
@@ -4145,54 +3821,33 @@ function stepCursor(direction, adjustBrightness, adjustColor) {
 
   // Brightness only: fixed value increments
   if (adjustBrightness && !adjustColor) {
-    // Absolute limits
-    const ABSOLUTE_MIN_BRI = 1;
-    const ABSOLUTE_MAX_BRI = 100;
-
-    // Use runtime bounds if set, otherwise config
-    const bMin = runtimeState.min_brightness ?? config.min_brightness;
-    const bMax = runtimeState.max_brightness ?? config.max_brightness;
-    const briStep = (config.max_brightness - config.min_brightness) / steps;  // Step based on config range
+    // Config bounds (only use these, no runtime overrides)
+    const bMin = config.min_brightness;
+    const bMax = config.max_brightness;
+    const briStep = (bMax - bMin) / steps;
 
     const currentBri = getBrightnessAtCursor();
     if (currentBri === null) return;
 
+    // Check if at config bounds
+    const atMax = direction === 'up' && currentBri >= bMax - 0.5;
+    const atMin = direction === 'down' && currentBri <= bMin + 0.5;
+
+    if (atMax || atMin) {
+      return; // At config bound, can't go further
+    }
+
     // Calculate target
     let targetBri = currentBri + sign * briStep;
 
-    // Check if brightness range is locked
-    const brightnessLocked = document.getElementById('brightness-range-locked')?.checked;
+    // Clamp to config bounds
+    targetBri = Math.max(bMin, Math.min(bMax, targetBri));
 
-    // Check if we need to push bounds
-    if (direction === 'up' && currentBri >= bMax - 0.5) {
-      // At current max - push the bound up if not at absolute limit
-      if (bMax >= ABSOLUTE_MAX_BRI - 0.5 || brightnessLocked) {
-        return;  // At absolute max or locked, can't go higher
-      }
-      const newMax = Math.min(ABSOLUTE_MAX_BRI, bMax + briStep);
-      runtimeState.max_brightness = newMax;
-      targetBri = newMax;
-    } else if (direction === 'down' && currentBri <= bMin + 0.5) {
-      // At current min - push the bound down if not at absolute limit
-      if (bMin <= ABSOLUTE_MIN_BRI + 0.5 || brightnessLocked) {
-        return;  // At absolute min or locked, can't go lower
-      }
-      const newMin = Math.max(ABSOLUTE_MIN_BRI, bMin - briStep);
-      runtimeState.min_brightness = newMin;
-      targetBri = newMin;
-    }
-
-    // Clamp target to current bounds (after potential push)
-    const effectiveMin = runtimeState.min_brightness ?? config.min_brightness;
-    const effectiveMax = runtimeState.max_brightness ?? config.max_brightness;
-    targetBri = Math.max(effectiveMin, Math.min(effectiveMax, targetBri));
-
-    // Reverse-solve midpoint using effective bounds
+    // Reverse-solve midpoint
     const targetNorm = targetBri / 100;
-    const bMinNorm = effectiveMin / 100;
-    const bMaxNorm = effectiveMax / 100;
+    const bMinNorm = bMin / 100;
+    const bMaxNorm = bMax / 100;
 
-    // Get the correct time representation for inverse calculation
     let calcTime = h48;
     if (!inAscend && h48 < tDescend) calcTime = h48 + 24;
 
@@ -4203,71 +3858,31 @@ function stepCursor(direction, adjustBrightness, adjustColor) {
 
   // Color only: fixed value increments based on DISPLAYED color
   if (adjustColor && !adjustBrightness) {
-    // Absolute limits
-    const ABSOLUTE_MIN_CCT = 500;
-    const ABSOLUTE_MAX_CCT = 6500;
-
-    // Use runtime bounds if set, otherwise config
-    const cMin = runtimeState.min_color_temp ?? config.min_color_temp;
-    const cMax = runtimeState.max_color_temp ?? config.max_color_temp;
-    const cctStep = (config.max_color_temp - config.min_color_temp) / steps;  // Step based on config range
+    // Config bounds (only use these, no runtime overrides)
+    const cMin = config.min_color_temp;
+    const cMax = config.max_color_temp;
+    const cctStep = (cMax - cMin) / steps;
 
     // Get DISPLAYED CCT (after solar rules) - this is what user sees
     const displayedCCT = getDisplayedCCTAtCursor();
     if (displayedCCT === null) return;
 
+    // Check if at config bounds (within 10K)
+    const atMax = direction === 'up' && displayedCCT >= cMax - 10;
+    const atMin = direction === 'down' && displayedCCT <= cMin + 10;
+
+    if (atMax || atMin) {
+      return; // At config bound, can't go further
+    }
+
     // Calculate target
     let targetCCT = displayedCCT + sign * cctStep;
 
-    // Check if color range is locked
-    const colorRangeLocked = document.getElementById('color-range-locked')?.checked;
-
-    // Check if we need to push bounds
-    if (direction === 'up' && displayedCCT >= cMax - 10) {
-      // At current max - push the bound up if not at absolute limit
-      if (cMax >= ABSOLUTE_MAX_CCT - 10 || colorRangeLocked) {
-        return;  // At absolute max or locked, can't go higher
-      }
-      const newMax = Math.min(ABSOLUTE_MAX_CCT, cMax + cctStep);
-      runtimeState.max_color_temp = newMax;
-      targetCCT = newMax;
-    } else if (direction === 'down' && displayedCCT <= cMin + 10) {
-      // At current min - push the bound down if not at absolute limit
-      if (cMin <= ABSOLUTE_MIN_CCT + 10 || colorRangeLocked) {
-        return;  // At absolute min or locked, can't go lower
-      }
-      const newMin = Math.max(ABSOLUTE_MIN_CCT, cMin - cctStep);
-      runtimeState.min_color_temp = newMin;
-      targetCCT = newMin;
-    }
-
-    // Effective bounds after potential push
-    const effectiveMin = runtimeState.min_color_temp ?? config.min_color_temp;
-    const effectiveMax = runtimeState.max_color_temp ?? config.max_color_temp;
-    targetCCT = Math.max(effectiveMin, Math.min(effectiveMax, targetCCT));
-
-    // Get current runtime limit for solar rules (applies to whichever is active)
-    const currentLimit = runtimeState.solar_rule_color_limit;
-    const warmCeiling = currentLimit ?? config.warm_night_target;
-    const coolFloor = currentLimit ?? config.cool_day_target;
-
-    // Check if solar rule locks are enabled
-    const warmNightLocked = document.getElementById('warm-night-locked')?.checked;
-    const coolDayLocked = document.getElementById('cool-day-locked')?.checked;
-
-    // Color Up (cooler): may need to raise warm_night ceiling
-    if (direction === 'up' && config.warm_night_enabled && targetCCT > warmCeiling && !warmNightLocked) {
-      runtimeState.solar_rule_color_limit = targetCCT;
-    }
-
-    // Color Down (warmer): may need to lower cool_day floor
-    if (direction === 'down' && config.cool_day_enabled && targetCCT < coolFloor && !coolDayLocked) {
-      runtimeState.solar_rule_color_limit = targetCCT;
-    }
+    // Clamp to config bounds
+    targetCCT = Math.max(cMin, Math.min(cMax, targetCCT));
 
     // Now adjust the color midpoint so base curve = target
-    // (With ceiling/floor adjusted, the target will be displayed correctly)
-    const targetNorm = (targetCCT - effectiveMin) / (effectiveMax - effectiveMin);
+    const targetNorm = (targetCCT - cMin) / (cMax - cMin);
 
     let calcTime = h48;
     if (!inAscend && h48 < tDescend) calcTime = h48 + 24;

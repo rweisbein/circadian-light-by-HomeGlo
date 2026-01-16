@@ -111,8 +111,6 @@ class CircadianLightPrimitives:
                 direction="up",
                 config=config,
                 state=area_state,
-                brightness_locked=False,
-                color_locked=False,
             )
 
             if result is None:
@@ -157,8 +155,6 @@ class CircadianLightPrimitives:
                 direction="down",
                 config=config,
                 state=area_state,
-                brightness_locked=False,
-                color_locked=False,
             )
 
             if result is None:
@@ -204,7 +200,6 @@ class CircadianLightPrimitives:
                 direction="up",
                 config=config,
                 state=area_state,
-                brightness_locked=False,
             )
 
             if result is None:
@@ -245,7 +240,6 @@ class CircadianLightPrimitives:
                 direction="down",
                 config=config,
                 state=area_state,
-                brightness_locked=False,
             )
 
             if result is None:
@@ -290,9 +284,6 @@ class CircadianLightPrimitives:
                 direction="up",
                 config=config,
                 state=area_state,
-                color_locked=False,
-                warm_night_locked=False,
-                cool_day_locked=False,
             )
 
             if result is None:
@@ -331,9 +322,6 @@ class CircadianLightPrimitives:
                 direction="down",
                 config=config,
                 state=area_state,
-                color_locked=False,
-                warm_night_locked=False,
-                cool_day_locked=False,
             )
 
             if result is None:
@@ -496,16 +484,11 @@ class CircadianLightPrimitives:
         if copy_from:
             source_state = state.get_area(copy_from)
             if source_state:
-                # Copy all relevant state from source area
+                # Copy relevant state from source area (midpoints and frozen_at only)
                 state.update_area(area_id, {
                     "frozen_at": source_state.get("frozen_at"),
                     "brightness_mid": source_state.get("brightness_mid"),
                     "color_mid": source_state.get("color_mid"),
-                    "min_brightness": source_state.get("min_brightness"),
-                    "max_brightness": source_state.get("max_brightness"),
-                    "min_color_temp": source_state.get("min_color_temp"),
-                    "max_color_temp": source_state.get("max_color_temp"),
-                    "solar_rule_color_limit": source_state.get("solar_rule_color_limit"),
                 })
                 logger.info(f"[{source}] Copied settings from {copy_from} to {area_id}")
 
@@ -638,11 +621,11 @@ class CircadianLightPrimitives:
         # h48 is already the current hour lifted to 48h space
         lifted_hour = h48
 
-        # Get bounds
-        b_min = area_state.min_brightness if area_state.min_brightness is not None else config.min_brightness
-        b_max = area_state.max_brightness if area_state.max_brightness is not None else config.max_brightness
-        c_min = area_state.min_color_temp if area_state.min_color_temp is not None else config.min_color_temp
-        c_max = area_state.max_color_temp if area_state.max_color_temp is not None else config.max_color_temp
+        # Use config bounds (no more runtime overrides)
+        b_min = config.min_brightness
+        b_max = config.max_brightness
+        c_min = config.min_color_temp
+        c_max = config.max_color_temp
 
         # Calculate new midpoints that produce frozen values at current time
         new_bri_mid = inverse_midpoint(lifted_hour, frozen_bri, slope, b_min, b_max)

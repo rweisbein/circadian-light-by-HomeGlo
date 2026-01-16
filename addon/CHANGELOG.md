@@ -1,5 +1,27 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.24
+**Simplification - Remove "pushing bounds" functionality**
+
+**Removed:**
+- Removed ability for step/bright/color buttons to push beyond configured min/max bounds
+- Removed 4 lock checkboxes from designer UI (brightness-range-locked, color-range-locked, warm-night-locked, cool-day-locked)
+- Removed temporary ceiling/floor chips for solar rules
+- Removed temp-bounds-row display showing pushed min/max values
+- Removed 5 state fields: `min_brightness`, `max_brightness`, `min_color_temp`, `max_color_temp`, `solar_rule_color_limit`
+
+**Changed:**
+- Step, Bright, and Color operations now strictly operate within configured min/max bounds
+- Solar rules (warm_night, cool_day) now always use their configured targets directly
+- Midpoint-based curve traversal preserved - buttons still shift along the circadian curve
+- Simplified state management: AreaState now only tracks `enabled`, `frozen_at`, `brightness_mid`, `color_mid`
+- Cleaner, more predictable behavior - configured bounds are always respected
+
+**Why:**
+- The "pushing" feature added complexity without clear user benefit
+- Temporary bound adjustments were confusing and difficult to understand
+- Simpler model: set your desired min/max in config, and that's what you get
+
 ## 6.8.23
 **Fix - Step down only moving by small amounts near minimum**
 
