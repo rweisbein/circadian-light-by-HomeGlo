@@ -438,7 +438,7 @@ class CircadianLightPrimitives:
                 state.set_enabled(area_id, False)
                 target_type, target_value = await self.client.determine_light_target(area_id)
                 await self.client.call_service(
-                    "light", "turn_off", {"transition": 1}, {target_type: target_value}
+                    "light", "turn_off", {"transition": 0.5}, {target_type: target_value}
                 )
             logger.info(f"Turned off {len(area_ids)} area(s)")
 

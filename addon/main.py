@@ -461,7 +461,7 @@ class HomeAssistantWebSocketClient:
         self,
         area_id: str,
         circadian_values: Dict[str, Any],
-        transition: int = 1,
+        transition: float = 0.5,
         *,
         include_color: bool = True,
     ) -> None:

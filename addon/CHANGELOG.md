@@ -1,5 +1,17 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.19
+**Fix - Warm Night CT persistence + faster transitions**
+
+**Fixed:**
+- Warm Night CT (and other solar rule settings) now persist after leaving designer
+- Bug: `updateSolarTargetSliderConstraints()` was called before slider values were set from config, causing it to read HTML defaults and overwrite the loaded config
+
+**Changed:**
+- Light transitions reduced from 1s to 0.5s for turn_on and turn_off operations
+- 30-second periodic refresh still uses 2s transition (intentionally slower)
+- Freeze/unfreeze "rise" effect still uses 1s (intentional visual design)
+
 ## 6.8.18
 **Fix - Save button now properly triggers light refresh**
 

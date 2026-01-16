@@ -3432,9 +3432,8 @@ function syncUIFromConfig() {
   document.getElementById('brightness-increments').value = effectiveBriInc;
   document.getElementById('color-increments').value = effectiveColorInc;
 
-  // Update solar target slider constraints based on color range
-  updateSolarTargetSliderConstraints();
-
+  // Set warm/cool slider values FROM CONFIG BEFORE calling updateSolarTargetSliderConstraints
+  // (that function reads slider values, so they must be set first to avoid overwriting config)
   document.getElementById('warm-night-enabled').checked = config.warm_night_enabled;
   document.getElementById('warm-night-mode').value = config.warm_night_mode;
   document.getElementById('warm-night-target').value = config.warm_night_target;
@@ -3454,6 +3453,9 @@ function syncUIFromConfig() {
   if (coolStart) coolStart.value = config.cool_day_start;
   if (coolEnd) coolEnd.value = config.cool_day_end;
   if (coolFade) coolFade.value = config.cool_day_fade;
+
+  // Now update constraints (reads slider values, enforces warm >= cool)
+  updateSolarTargetSliderConstraints();
 
   document.getElementById('activity-preset').value = config.activity_preset || 'adult';
 
