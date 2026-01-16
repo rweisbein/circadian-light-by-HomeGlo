@@ -619,71 +619,44 @@ class CircadianLight:
         c_min = config.min_color_temp
         c_max = config.max_color_temp
 
-        # Step size based on config range
+        # Step sizes based on config range
         bri_step = (b_max - b_min) / steps
+        cct_step = (c_max - c_min) / steps
 
         # Current values
         current_bri = CircadianLight.calculate_brightness_at_hour(hour, config, state)
         current_cct = CircadianLight.calculate_color_at_hour(hour, config, state, apply_solar_rules=True)
 
         # Safe margin to avoid asymptote issues in midpoint calculation
-        safe_margin = max(1.0, (b_max - b_min) * 0.01)
+        safe_margin_bri = max(1.0, (b_max - b_min) * 0.01)
+        safe_margin_cct = max(10, (c_max - c_min) * 0.01)
 
         # Check if at config bounds (within safe margin)
-        at_max = direction == "up" and current_bri >= b_max - safe_margin
-        at_min = direction == "down" and current_bri <= b_min + safe_margin
+        at_max = direction == "up" and current_bri >= b_max - safe_margin_bri
+        at_min = direction == "down" and current_bri <= b_min + safe_margin_bri
 
         if at_max or at_min:
             return None  # At config bound, can't go further
 
-        # Calculate target brightness
+        # Calculate target brightness and color (both step proportionally)
         target_bri = current_bri + sign * bri_step
+        target_cct = current_cct + sign * cct_step
 
         # Clamp to safe bounds
-        target_bri = max(b_min + safe_margin, min(b_max - safe_margin, target_bri))
-
-        # Get midpoints (state midpoints apply to current phase only)
-        default_mid = config.wake_time if in_ascend else config.bed_time
-        bri_mid = state.brightness_mid if state.brightness_mid is not None else default_mid
-        color_mid = state.color_mid if state.color_mid is not None else default_mid
-
-        # Lift midpoints into 48h space
-        if in_ascend:
-            bri_mid48 = CircadianLight.lift_midpoint_to_phase(bri_mid, t_ascend, t_descend)
-            color_mid48 = CircadianLight.lift_midpoint_to_phase(color_mid, t_ascend, t_descend)
-        else:
-            descend_end = t_ascend + 24
-            bri_mid48 = CircadianLight.lift_midpoint_to_phase(bri_mid, t_descend, descend_end)
-            color_mid48 = CircadianLight.lift_midpoint_to_phase(color_mid, t_descend, descend_end)
-
-        # Find virtual time where brightness = target
-        b_min_norm = b_min / 100.0
-        b_max_norm = b_max / 100.0
-        target_bri_norm = max(b_min_norm + 0.001, min(b_max_norm - 0.001, target_bri / 100.0))
-        bri_ratio = (target_bri_norm - b_min_norm) / (b_max_norm - b_min_norm)
-
-        try:
-            virtual_time = bri_mid48 + math.log(bri_ratio / (1 - bri_ratio)) / slope
-        except (ValueError, ZeroDivisionError):
-            virtual_time = h48
-
-        # Get color at virtual time from color curve
-        if in_ascend:
-            color_norm = logistic(virtual_time, color_mid48, slope, 0, 1)
-        else:
-            vt_descend = virtual_time + 24 if virtual_time < t_descend else virtual_time
-            color_norm = logistic(vt_descend, color_mid48, slope, 0, 1)
-
-        target_cct = c_min + (c_max - c_min) * color_norm
+        target_bri = max(b_min + safe_margin_bri, min(b_max - safe_margin_bri, target_bri))
+        target_cct = max(c_min + safe_margin_cct, min(c_max - safe_margin_cct, target_cct))
 
         # Apply solar rules to target color (warm_night ceiling, cool_day floor)
         target_cct = CircadianLight._apply_solar_rules(target_cct, hour, config, state)
 
-        # Clamp color to config bounds
+        # Clamp color to config bounds again after solar rules
         target_cct = max(c_min, min(c_max, target_cct))
 
-        # Adjust midpoints so current time gives target values
-        target_cct_norm = (target_cct - c_min) / (c_max - c_min)
+        # Calculate new midpoints that produce these target values at current time
+        b_min_norm = b_min / 100.0
+        b_max_norm = b_max / 100.0
+        target_bri_norm = max(b_min_norm + 0.001, min(b_max_norm - 0.001, target_bri / 100.0))
+        target_cct_norm = max(0.001, min(0.999, (target_cct - c_min) / (c_max - c_min)))
 
         calc_time = h48
         if not in_ascend and h48 < t_descend:
@@ -693,8 +666,8 @@ class CircadianLight:
         new_color_mid = inverse_midpoint(calc_time, target_cct_norm, slope, 0, 1)
 
         # Clamp midpoints to valid range (prevents wrap-around issues)
-        new_bri_mid = max(0, min(24, new_bri_mid % 24))
-        new_color_mid = max(0, min(24, new_color_mid % 24))
+        new_bri_mid = max(0, min(23.99, new_bri_mid % 24))
+        new_color_mid = max(0, min(23.99, new_color_mid % 24))
 
         state_updates: Dict[str, Any] = {
             "brightness_mid": new_bri_mid,

@@ -1,5 +1,14 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.28
+**Fix - Color jumps to wrong value after stepping at bounds**
+
+**Fixed:**
+- Step operations now calculate color proportionally instead of using virtual time
+- Prevents color jumping to extreme values (e.g., 922K) after repeated step-ups
+- Both brightness and color now step by their respective step sizes
+- Freeze toggle timing: dim reduced to 0.3s, unfreeze rise reduced to 1s
+
 ## 6.8.27
 **Fix - Step operations wrap-around at bounds**
 
