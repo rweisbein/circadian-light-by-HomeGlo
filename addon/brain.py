@@ -676,12 +676,18 @@ class CircadianLight:
         target_bri: float
         target_cct: float
 
-        if at_config_max or at_config_min:
-            # === PUSHING BEYOND CONFIG BOUNDS ===
-            bri_absolute_limit = ABSOLUTE_MAX_BRI if direction == "up" else ABSOLUTE_MIN_BRI
-            bri_current_bound = b_max if direction == "up" else b_min
-            bri_headroom = abs(bri_absolute_limit - bri_current_bound)
+        # Check if we have headroom to push bounds
+        bri_absolute_limit = ABSOLUTE_MAX_BRI if direction == "up" else ABSOLUTE_MIN_BRI
+        bri_current_bound = b_max if direction == "up" else b_min
+        bri_headroom = abs(bri_absolute_limit - bri_current_bound)
 
+        # Only enter pushing mode if there's actually room to push
+        # If headroom = 0 but we're not at the bound yet, use traversal instead
+        can_push = bri_headroom > 0.5
+        use_pushing_mode = (at_config_max or at_config_min) and can_push
+
+        if use_pushing_mode:
+            # === PUSHING BEYOND CONFIG BOUNDS ===
             bri_push_amount = min(bri_step, bri_headroom)
             push_percent = bri_push_amount / bri_headroom if bri_headroom > 0 else 0
 

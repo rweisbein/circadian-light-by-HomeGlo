@@ -1,5 +1,14 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.22
+**Fix - Step down stuck when bounds already at absolute limit**
+
+**Fixed:**
+- When min_brightness bound was already pushed to 1% (absolute limit), stepping from 8% did nothing
+- Issue: code entered "pushing mode" but had no headroom to push, so target stayed at bound
+- Fix: only use pushing mode if there's >0.5% headroom to push; otherwise use curve traversal
+- This allows stepping to reach 1% even after bounds are fully pushed
+
 ## 6.8.21
 **Fix - Step down getting stuck near minimum**
 
