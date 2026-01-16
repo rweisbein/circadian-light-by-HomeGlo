@@ -658,9 +658,10 @@ class CircadianLight:
         # Calculate target brightness
         target_bri_initial = current_bri + (1 if direction == "up" else -1) * bri_step
 
-        # Check if at or would exceed config bounds (triggers pushing behavior)
-        at_config_max = direction == "up" and (current_bri >= b_max - 0.5 or target_bri_initial >= b_max)
-        at_config_min = direction == "down" and (current_bri <= b_min + 0.5 or target_bri_initial <= b_min)
+        # Check if CURRENTLY at config bounds (within 0.5%)
+        # Note: we only push when AT the bound, not when step would overshoot
+        at_config_max = direction == "up" and current_bri >= b_max - 0.5
+        at_config_min = direction == "down" and current_bri <= b_min + 0.5
 
         # Check if at absolute limits
         at_absolute_max = current_bri >= ABSOLUTE_MAX_BRI - 0.5
@@ -681,8 +682,9 @@ class CircadianLight:
         bri_current_bound = b_max if direction == "up" else b_min
         bri_headroom = abs(bri_absolute_limit - bri_current_bound)
 
-        # Only enter pushing mode if there's actually room to push
-        # If headroom = 0 but we're not at the bound yet, use traversal instead
+        # Only enter pushing mode if:
+        # 1. We're at the config bound (at_config_max/min)
+        # 2. There's room to push (headroom > 0.5)
         can_push = bri_headroom > 0.5
         use_pushing_mode = (at_config_max or at_config_min) and can_push
 

@@ -1,5 +1,15 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.23
+**Fix - Step down only moving by small amounts near minimum**
+
+**Fixed:**
+- Step down from 9% to 1% was only moving 2% per press instead of going to 1%
+- Root cause: `at_config_min` triggered when step would OVERSHOOT the bound, not just when AT the bound
+- This caused "pushing mode" to activate when far from the bound, limiting step to headroom (2%)
+- Fix: only enter pushing mode when current_bri is actually AT the config bound (within 0.5%)
+- Now stepping from 9% properly traverses curve to 1% in one step
+
 ## 6.8.22
 **Fix - Step down stuck when bounds already at absolute limit**
 
