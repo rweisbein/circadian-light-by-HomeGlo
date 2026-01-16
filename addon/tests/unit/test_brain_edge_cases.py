@@ -257,7 +257,12 @@ class TestStepEdgeCases:
 
     def test_color_step_preserves_brightness_exactly(self):
         """Test color step doesn't modify brightness at all."""
-        config = Config(max_dim_steps=10)
+        config = Config(
+            ascend_start=6.0,
+            descend_start=18.0,
+            wake_time=10.0,  # Late wake time so 8am isn't at max
+            max_dim_steps=10
+        )
         state = AreaState()
 
         bri_before = CircadianLight.calculate_brightness_at_hour(8.0, config, state)

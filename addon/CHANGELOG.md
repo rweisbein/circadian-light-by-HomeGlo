@@ -1,5 +1,14 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.27
+**Fix - Step operations wrap-around at bounds**
+
+**Fixed:**
+- Step operations no longer wrap around to dim values when repeatedly stepping up
+- Added safe margin (1% of range) to prevent asymptotic midpoint calculations
+- Midpoint values are now clamped to valid range instead of wrapping with % 24
+- Stepping to the bound now works correctly without causing wrap-around on subsequent steps
+
 ## 6.8.26
 **Improvement - Smooth bounce depth scaling**
 

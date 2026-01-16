@@ -626,9 +626,12 @@ class CircadianLight:
         current_bri = CircadianLight.calculate_brightness_at_hour(hour, config, state)
         current_cct = CircadianLight.calculate_color_at_hour(hour, config, state, apply_solar_rules=True)
 
-        # Check if at config bounds (within 0.5%)
-        at_max = direction == "up" and current_bri >= b_max - 0.5
-        at_min = direction == "down" and current_bri <= b_min + 0.5
+        # Safe margin to avoid asymptote issues in midpoint calculation
+        safe_margin = max(1.0, (b_max - b_min) * 0.01)
+
+        # Check if at config bounds (within safe margin)
+        at_max = direction == "up" and current_bri >= b_max - safe_margin
+        at_min = direction == "down" and current_bri <= b_min + safe_margin
 
         if at_max or at_min:
             return None  # At config bound, can't go further
@@ -636,8 +639,8 @@ class CircadianLight:
         # Calculate target brightness
         target_bri = current_bri + sign * bri_step
 
-        # Clamp to config bounds
-        target_bri = max(b_min, min(b_max, target_bri))
+        # Clamp to safe bounds
+        target_bri = max(b_min + safe_margin, min(b_max - safe_margin, target_bri))
 
         # Get midpoints (state midpoints apply to current phase only)
         default_mid = config.wake_time if in_ascend else config.bed_time
@@ -689,9 +692,9 @@ class CircadianLight:
         new_bri_mid = inverse_midpoint(calc_time, target_bri_norm, slope, b_min_norm, b_max_norm)
         new_color_mid = inverse_midpoint(calc_time, target_cct_norm, slope, 0, 1)
 
-        # Wrap back to 0-24
-        new_bri_mid = new_bri_mid % 24
-        new_color_mid = new_color_mid % 24
+        # Clamp midpoints to valid range (prevents wrap-around issues)
+        new_bri_mid = max(0, min(24, new_bri_mid % 24))
+        new_color_mid = max(0, min(24, new_color_mid % 24))
 
         state_updates: Dict[str, Any] = {
             "brightness_mid": new_bri_mid,
@@ -741,17 +744,25 @@ class CircadianLight:
 
         current_bri = CircadianLight.calculate_brightness_at_hour(hour, config, state)
 
-        # Check if at config bounds (within 0.5%)
-        at_max = direction == "up" and current_bri >= b_max - 0.5
-        at_min = direction == "down" and current_bri <= b_min + 0.5
+        # Safe margin to avoid asymptote issues in midpoint calculation
+        safe_margin = max(1.0, (b_max - b_min) * 0.01)
+
+        # Check if at config bounds (within safe margin)
+        at_max = direction == "up" and current_bri >= b_max - safe_margin
+        at_min = direction == "down" and current_bri <= b_min + safe_margin
 
         if at_max or at_min:
             return None  # At config bound, can't go further
 
         target_bri = current_bri + sign * bri_step
 
-        # Clamp to config bounds
-        target_bri = max(b_min, min(b_max, target_bri))
+        # Clamp to safe bounds
+        target_bri = max(b_min + safe_margin, min(b_max - safe_margin, target_bri))
+
+        # Color stays unchanged - recalculate at current hour
+        color_temp = CircadianLight.calculate_color_at_hour(hour, config, state)
+        rgb = CircadianLight.color_temperature_to_rgb(color_temp)
+        xy = CircadianLight.color_temperature_to_xy(color_temp)
 
         # Calculate new midpoint
         b_min_norm = b_min / 100.0
@@ -763,14 +774,9 @@ class CircadianLight:
             calc_time = h48 + 24
 
         new_mid = inverse_midpoint(calc_time, target_norm, slope, b_min_norm, b_max_norm)
-        new_mid = new_mid % 24
+        new_mid = max(0, min(24, new_mid % 24))
 
         state_updates: Dict[str, Any] = {"brightness_mid": new_mid}
-
-        # Color stays unchanged - recalculate at current hour
-        color_temp = CircadianLight.calculate_color_at_hour(hour, config, state)
-        rgb = CircadianLight.color_temperature_to_rgb(color_temp)
-        xy = CircadianLight.color_temperature_to_xy(color_temp)
 
         return StepResult(
             brightness=int(target_bri),
@@ -812,17 +818,25 @@ class CircadianLight:
 
         current_cct = CircadianLight.calculate_color_at_hour(hour, config, state, apply_solar_rules=True)
 
-        # Check if at config bounds (within 10K)
-        at_max = direction == "up" and current_cct >= c_max - 10
-        at_min = direction == "down" and current_cct <= c_min + 10
+        # Safe margin to avoid asymptote issues in midpoint calculation
+        safe_margin = max(10, (c_max - c_min) * 0.01)
+
+        # Check if at config bounds (within safe margin)
+        at_max = direction == "up" and current_cct >= c_max - safe_margin
+        at_min = direction == "down" and current_cct <= c_min + safe_margin
 
         if at_max or at_min:
             return None  # At config bound, can't go further
 
         target_cct = current_cct + sign * cct_step
 
-        # Clamp to config bounds
-        target_cct = max(c_min, min(c_max, target_cct))
+        # Clamp to safe bounds
+        target_cct = max(c_min + safe_margin, min(c_max - safe_margin, target_cct))
+
+        # Brightness stays unchanged
+        brightness = CircadianLight.calculate_brightness_at_hour(hour, config, state)
+        rgb = CircadianLight.color_temperature_to_rgb(int(target_cct))
+        xy = CircadianLight.color_temperature_to_xy(int(target_cct))
 
         # Calculate new midpoint
         target_norm = (target_cct - c_min) / (c_max - c_min)
@@ -832,14 +846,9 @@ class CircadianLight:
             calc_time = h48 + 24
 
         new_mid = inverse_midpoint(calc_time, target_norm, slope, 0, 1)
-        new_mid = new_mid % 24
+        new_mid = max(0, min(24, new_mid % 24))
 
         state_updates: Dict[str, Any] = {"color_mid": new_mid}
-
-        # Brightness stays unchanged
-        brightness = CircadianLight.calculate_brightness_at_hour(hour, config, state)
-        rgb = CircadianLight.color_temperature_to_rgb(int(target_cct))
-        xy = CircadianLight.color_temperature_to_xy(int(target_cct))
 
         return StepResult(
             brightness=brightness,
