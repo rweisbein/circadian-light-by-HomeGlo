@@ -115,6 +115,10 @@ class CircadianLightPrimitives:
 
             if result is None:
                 logger.info(f"Step up at limit for area {area_id}")
+                # Bounce effect at limit
+                current_bri = CircadianLight.calculate_brightness_at_hour(hour, config, area_state)
+                current_cct = CircadianLight.calculate_color_at_hour(hour, config, area_state, apply_solar_rules=True)
+                await self._bounce_at_limit(area_id, current_bri, current_cct)
                 return
 
             # Update state
@@ -159,6 +163,10 @@ class CircadianLightPrimitives:
 
             if result is None:
                 logger.info(f"Step down at limit for area {area_id}")
+                # Bounce effect at limit
+                current_bri = CircadianLight.calculate_brightness_at_hour(hour, config, area_state)
+                current_cct = CircadianLight.calculate_color_at_hour(hour, config, area_state, apply_solar_rules=True)
+                await self._bounce_at_limit(area_id, current_bri, current_cct)
                 return
 
             # Update state
@@ -204,6 +212,10 @@ class CircadianLightPrimitives:
 
             if result is None:
                 logger.info(f"Bright up at limit for area {area_id}")
+                # Bounce effect at limit
+                current_bri = CircadianLight.calculate_brightness_at_hour(hour, config, area_state)
+                current_cct = CircadianLight.calculate_color_at_hour(hour, config, area_state, apply_solar_rules=True)
+                await self._bounce_at_limit(area_id, current_bri, current_cct)
                 return
 
             # Update state
@@ -244,6 +256,10 @@ class CircadianLightPrimitives:
 
             if result is None:
                 logger.info(f"Bright down at limit for area {area_id}")
+                # Bounce effect at limit
+                current_bri = CircadianLight.calculate_brightness_at_hour(hour, config, area_state)
+                current_cct = CircadianLight.calculate_color_at_hour(hour, config, area_state, apply_solar_rules=True)
+                await self._bounce_at_limit(area_id, current_bri, current_cct)
                 return
 
             # Update state
@@ -288,6 +304,10 @@ class CircadianLightPrimitives:
 
             if result is None:
                 logger.info(f"Color up at limit for area {area_id}")
+                # Bounce effect at limit
+                current_bri = CircadianLight.calculate_brightness_at_hour(hour, config, area_state)
+                current_cct = CircadianLight.calculate_color_at_hour(hour, config, area_state, apply_solar_rules=True)
+                await self._bounce_at_limit(area_id, current_bri, current_cct)
                 return
 
             # Update state
@@ -326,6 +346,10 @@ class CircadianLightPrimitives:
 
             if result is None:
                 logger.info(f"Color down at limit for area {area_id}")
+                # Bounce effect at limit
+                current_bri = CircadianLight.calculate_brightness_at_hour(hour, config, area_state)
+                current_cct = CircadianLight.calculate_color_at_hour(hour, config, area_state, apply_solar_rules=True)
+                await self._bounce_at_limit(area_id, current_bri, current_cct)
                 return
 
             # Update state
@@ -850,6 +874,33 @@ class CircadianLightPrimitives:
         await self.client.call_service(
             "light", "turn_on", service_data, {target_type: target_value}
         )
+
+    async def _bounce_at_limit(self, area_id: str, current_brightness: int, current_color: int):
+        """Visual bounce effect when hitting a bound limit.
+
+        If brightness < 10%: flash off then on
+        If brightness >= 10%: dim to 50% of current brightness over 0.3s, then restore
+
+        Args:
+            area_id: The area ID
+            current_brightness: Current brightness percentage
+            current_color: Current color temperature in Kelvin
+        """
+        import asyncio
+
+        if current_brightness < 10:
+            # Flash off then on
+            await self._apply_lighting(area_id, 0, current_color, include_color=False, transition=0.1)
+            await asyncio.sleep(0.15)
+            await self._apply_lighting(area_id, current_brightness, current_color, transition=0.1)
+        else:
+            # Dim to 50% then restore
+            dim_brightness = max(1, current_brightness // 2)
+            await self._apply_lighting(area_id, dim_brightness, current_color, include_color=False, transition=0.3)
+            await asyncio.sleep(0.35)
+            await self._apply_lighting(area_id, current_brightness, current_color, transition=0.3)
+
+        logger.info(f"Bounce effect for area {area_id} at {current_brightness}%")
 
     async def _standard_brightness_step(
         self, area_id: str, direction: int, source: str
