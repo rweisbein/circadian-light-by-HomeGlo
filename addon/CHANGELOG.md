@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.18
+**Fix - Save button now properly triggers light refresh**
+
+**Fixed:**
+- Changed circadian.refresh call from REST API to WebSocket API
+- REST API was returning 400 because `circadian` isn't a registered HA service domain
+- WebSocket call_service events are properly intercepted by main.py
+
 ## 6.8.17
 **Fix - asyncio.Event "different loop" error causing log spam**
 

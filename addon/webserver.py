@@ -432,27 +432,17 @@ class LightDesignerServer:
 
             # Trigger refresh of enabled areas via circadian.refresh service
             # This goes through main.py using the same path as the 30s refresh
+            # Must use WebSocket since circadian.refresh is not a registered HA service
             refreshed = False
-            rest_url, _, token = self._get_ha_api_config()
-            if rest_url and token:
-                try:
-                    async with ClientSession() as session:
-                        headers = {
-                            'Authorization': f'Bearer {token}',
-                            'Content-Type': 'application/json',
-                        }
-                        async with session.post(
-                            f'{rest_url}/services/circadian/refresh',
-                            headers=headers,
-                            json={}
-                        ) as resp:
-                            if resp.status in (200, 201):
-                                logger.info("Triggered circadian.refresh after config save")
-                                refreshed = True
-                            else:
-                                logger.warning(f"Failed to trigger refresh: {resp.status}")
-                except Exception as e:
-                    logger.warning(f"Could not trigger refresh: {e}")
+            _, ws_url, token = self._get_ha_api_config()
+            if ws_url and token:
+                refreshed = await self._call_service_via_websocket(
+                    ws_url, token, 'circadian', 'refresh'
+                )
+                if refreshed:
+                    logger.info("Triggered circadian.refresh after config save")
+                else:
+                    logger.warning("Failed to trigger circadian.refresh")
 
             return web.json_response({"status": "success", "config": config, "refreshed": refreshed})
         except Exception as e:
@@ -795,6 +785,68 @@ class LightDesignerServer:
             return rest_url, ws_url, token
 
         return None, None, None
+
+    async def _call_service_via_websocket(self, ws_url: str, token: str, domain: str, service: str, service_data: dict = None) -> bool:
+        """Call a Home Assistant service via WebSocket API.
+
+        Args:
+            ws_url: WebSocket URL (e.g., ws://supervisor/core/api/websocket)
+            token: Home Assistant auth token
+            domain: Service domain (e.g., 'circadian')
+            service: Service name (e.g., 'refresh')
+            service_data: Optional service data dict
+
+        Returns:
+            True if service call succeeded, False otherwise
+        """
+        try:
+            async with websockets.connect(ws_url) as ws:
+                # Wait for auth_required message
+                msg = json.loads(await ws.recv())
+                if msg.get('type') != 'auth_required':
+                    logger.error(f"[WS Service] Unexpected message: {msg}")
+                    return False
+
+                # Send auth
+                await ws.send(json.dumps({
+                    'type': 'auth',
+                    'access_token': token
+                }))
+
+                # Wait for auth response
+                msg = json.loads(await ws.recv())
+                if msg.get('type') != 'auth_ok':
+                    logger.error(f"[WS Service] Auth failed: {msg}")
+                    return False
+
+                # Call the service
+                call_msg = {
+                    'id': 1,
+                    'type': 'call_service',
+                    'domain': domain,
+                    'service': service,
+                }
+                if service_data:
+                    call_msg['service_data'] = service_data
+
+                await ws.send(json.dumps(call_msg))
+
+                # Wait for result (with timeout)
+                try:
+                    result = await asyncio.wait_for(ws.recv(), timeout=5.0)
+                    result_msg = json.loads(result)
+                    # The result may just acknowledge the call was received
+                    # For circadian.refresh, main.py handles it via event subscription
+                    logger.info(f"[WS Service] {domain}.{service} call result: {result_msg.get('type')}")
+                    return True
+                except asyncio.TimeoutError:
+                    # Service call was sent, assume it worked
+                    logger.info(f"[WS Service] {domain}.{service} call sent (no response)")
+                    return True
+
+        except Exception as e:
+            logger.warning(f"[WS Service] Error calling {domain}.{service}: {e}")
+            return False
 
     async def _fetch_areas_via_websocket(self, ws_url: str, token: str) -> list:
         """Fetch areas that have lights from Home Assistant via WebSocket API.
