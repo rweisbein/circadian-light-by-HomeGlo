@@ -1705,8 +1705,8 @@ function getStepPreview(cursorPoint) {
     colorNorm = Math.max(0, Math.min(1, colorNorm));
     const baseCCT = cMin + (cMax - cMin) * colorNorm;
 
-    // Apply solar rules at the CURSOR hour (since that's where we stay)
-    return applySolarRuleAtHour(baseCCT, hour);
+    // Clamp to effective bounds (matches stepCursor behavior - no solar rules here)
+    return Math.max(cMin, Math.min(cMax, baseCCT));
   }
 
   // Calculate step up preview
@@ -3187,21 +3187,31 @@ function updateCursorButtons(point) {
     colorDownCallout.textContent = cctAtMin ? 'at min' : (colorDownDelta === 0 ? '-' : `-${colorDownDelta}K`);
   }
   // Step buttons use stepPreview (which uses step_increments)
+  // Helper to format delta with proper sign
+  const formatDelta = (delta, suffix, expectedPositive) => {
+    if (delta === 0) return '-';
+    // If delta is in wrong direction, show "-" (no valid change)
+    if (expectedPositive && delta < 0) return '-';
+    if (!expectedPositive && delta > 0) return '-';
+    const sign = delta > 0 ? '+' : '';
+    return `${sign}${delta}${suffix}`;
+  };
+
   if (stepUpBriCallout) {
     const stepUpBriDelta = Math.round(stepPreview.upBri - currentPct);
-    stepUpBriCallout.textContent = stepUpAtExtreme ? 'at max' : (stepUpBriDelta === 0 ? '-' : `+${stepUpBriDelta}%`);
+    stepUpBriCallout.textContent = stepUpAtExtreme ? 'at max' : formatDelta(stepUpBriDelta, '%', true);
   }
   if (stepUpCctCallout) {
     const stepUpCctDelta = Math.round(stepPreview.upCCT - displayedCCT);
-    stepUpCctCallout.textContent = stepUpAtExtreme ? '-' : (stepUpCctDelta === 0 ? '-' : `+${stepUpCctDelta}K`);
+    stepUpCctCallout.textContent = stepUpAtExtreme ? '-' : formatDelta(stepUpCctDelta, 'K', true);
   }
   if (stepDownBriCallout) {
-    const stepDownBriDelta = Math.round(currentPct - stepPreview.downBri);
-    stepDownBriCallout.textContent = stepDownAtExtreme ? 'at min' : (stepDownBriDelta === 0 ? '-' : `-${stepDownBriDelta}%`);
+    const stepDownBriDelta = Math.round(stepPreview.downBri - currentPct);
+    stepDownBriCallout.textContent = stepDownAtExtreme ? 'at min' : formatDelta(stepDownBriDelta, '%', false);
   }
   if (stepDownCctCallout) {
-    const stepDownCctDelta = Math.round(displayedCCT - stepPreview.downCCT);
-    stepDownCctCallout.textContent = stepDownAtExtreme ? '-' : (stepDownCctDelta === 0 ? '-' : `-${stepDownCctDelta}K`);
+    const stepDownCctDelta = Math.round(stepPreview.downCCT - displayedCCT);
+    stepDownCctCallout.textContent = stepDownAtExtreme ? '-' : formatDelta(stepDownCctDelta, 'K', false);
   }
 
   // Toggle at-extreme class for styling

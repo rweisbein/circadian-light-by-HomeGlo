@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.17
+**Fix - asyncio.Event "different loop" error causing log spam**
+
+**Fixed:**
+- Created `refresh_event` lazily inside the running event loop instead of in `__init__`
+- Prevents "got Future attached to a different loop" errors that were flooding logs
+- Added null check in refresh service handler for safety
+
 ## 6.8.16
 **Feature - Save triggers immediate light refresh + UI polish**
 

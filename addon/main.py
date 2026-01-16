@@ -70,7 +70,7 @@ class HomeAssistantWebSocketClient:
         self.longitude = None  # Home Assistant longitude
         self.timezone = None  # Home Assistant timezone
         self.periodic_update_task = None  # Task for periodic light updates
-        self.refresh_event = asyncio.Event()  # Signal to trigger immediate refresh
+        self.refresh_event = None  # Will be created lazily in the running event loop
         # State is managed by state.py module (per-area midpoints, bounds, etc.)
         self.cached_states = {}  # Cache of entity states
         self.last_states_update = None  # Timestamp of last states update
@@ -1000,6 +1000,10 @@ class HomeAssistantWebSocketClient:
 
         Runs every 30 seconds, or immediately when refresh_event is signaled.
         """
+        # Create the Event lazily in the running event loop to avoid "different loop" errors
+        if self.refresh_event is None:
+            self.refresh_event = asyncio.Event()
+
         last_phase_check = None
 
         while True:
@@ -1268,7 +1272,10 @@ class HomeAssistantWebSocketClient:
                     # Signal the periodic updater to run immediately
                     # This uses the exact same code path as the 30s refresh
                     logger.info(f"[{domain}] refresh requested - signaling periodic updater")
-                    self.refresh_event.set()
+                    if self.refresh_event is not None:
+                        self.refresh_event.set()
+                    else:
+                        logger.warning(f"[{domain}] refresh_event not yet initialized, skipping signal")
 
 
             # Handle device registry updates (when devices are added/removed/modified)
