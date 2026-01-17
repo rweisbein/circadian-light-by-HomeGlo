@@ -225,10 +225,23 @@ class BlueprintAutomationManager:
 
                 desired_automations.append(automation_entry)
 
+            # Only create new automations, never update existing ones (preserves user customizations)
+            existing_by_id = {a.get("id"): a for a in existing_managed if a.get("id")}
+            final_automations: List[Dict[str, Any]] = []
+
+            for desired in desired_automations:
+                automation_id = desired.get("id")
+                if automation_id and automation_id in existing_by_id:
+                    # Keep existing automation (preserves user customizations)
+                    final_automations.append(existing_by_id[automation_id])
+                else:
+                    # Create new automation
+                    final_automations.append(desired)
+
             changes_made = self._persist_managed_automations(
                 storage_path,
                 storage_mode,
-                desired_automations,
+                final_automations,
             )
 
             # Force reload if blueprint files were updated OR automation config changed

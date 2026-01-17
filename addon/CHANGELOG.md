@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.29
+**Improvement - Blueprint automations preserve user customizations**
+
+**Changed:**
+- Automations are now only created, never updated after initial creation
+- User customizations (added areas, removed buttons) are preserved across addon restarts
+- To reset an automation to stock, delete it and the addon will recreate it
+
 ## 6.8.28
 **Fix - Color jumps to wrong value after stepping at bounds**
 
