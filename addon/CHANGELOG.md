@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.33
+**Fix - Live Design now uses XY color mode**
+
+**Fixed:**
+- Designer's Live Design feature now uses XY color instead of kelvin
+- Enables full warm color range (orange/red below 2000K) when previewing in designer
+
 ## 6.8.32
 **Fix - Periodic updater now uses XY color mode**
 

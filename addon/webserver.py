@@ -1027,7 +1027,9 @@ class LightDesignerServer:
                 service_data['brightness_pct'] = int(brightness)
 
             if color_temp is not None:
-                service_data['kelvin'] = int(color_temp)
+                # Use XY color for full color range (including warm orange/red below 2000K)
+                xy = CircadianLight.color_temperature_to_xy(int(color_temp))
+                service_data['xy_color'] = list(xy)
 
             async with ClientSession() as session:
                 headers = {
@@ -1045,8 +1047,9 @@ class LightDesignerServer:
                             {'error': f'HA API returned {resp.status}'},
                             status=resp.status
                         )
+                    xy_str = f", xy={service_data.get('xy_color')}" if 'xy_color' in service_data else ""
                     logger.info(
-                        f"Live Design: Applied {brightness}% / {color_temp}K to area {area_id}"
+                        f"Live Design: Applied {brightness}% / {color_temp}K{xy_str} to area {area_id}"
                     )
                     return web.json_response({'status': 'ok'})
         except json.JSONDecodeError:
