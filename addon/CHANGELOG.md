@@ -1,5 +1,19 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.34
+**Feature - Extended warm color range into red**
+
+**Added:**
+- Extended `color_temperature_to_xy` to interpolate beyond Planckian locus limits
+- Below 1200K, colors now smoothly transition from orange towards red (at 500K)
+- Documented the physics: Planckian locus peaks at ~1200K then starts cooling;
+  we extend it by interpolating towards a target red point for circadian lighting
+
+**Technical Details:**
+- 1200K+: Standard Planckian locus formula (blackbody radiation)
+- 500K-1200K: Linear interpolation from warmest Planckian (0.5946, 0.3881) to target red (0.675, 0.322)
+- This creates a perceptually smooth orange → red gradient for nighttime/mood lighting
+
 ## 6.8.33
 **Fix - Live Design now uses XY color mode**
 

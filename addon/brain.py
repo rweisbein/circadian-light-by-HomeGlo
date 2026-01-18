@@ -871,12 +871,89 @@ class CircadianLight:
             int(max(0, min(255, round(b * 255)))),
         )
 
+    # -------------------------------------------------------------------------
+    # Extended warm color constants
+    # -------------------------------------------------------------------------
+    #
+    # The Planckian locus (blackbody radiation curve) models the color of heated
+    # objects at different temperatures. However, it has limitations:
+    #
+    # - Above ~1200K: The formula works well, giving warm white → orange colors
+    # - Below ~1200K: The x-coordinate peaks and then DECREASES, making colors
+    #   appear cooler instead of warmer. This is physically accurate (real
+    #   blackbodies don't glow "redder" at lower temps) but not what we want
+    #   for circadian lighting where "lower = warmer/redder" is the expectation.
+    #
+    # Solution: Below a threshold (PLANCKIAN_WARM_LIMIT), we interpolate from
+    # the warmest Planckian point towards a target red point. This extends the
+    # color range beyond physical blackbody radiation into true red territory.
+    #
+    # The interpolation range:
+    # - PLANCKIAN_WARM_LIMIT (1200K): Warmest Planckian point, orange (~0.5946, 0.3881)
+    # - EXTENDED_RED_LIMIT (500K): Target red point (~0.675, 0.322)
+    #
+    # Between these limits, we linearly interpolate to create a smooth gradient
+    # from orange to red that "feels right" for circadian/mood lighting.
+    # -------------------------------------------------------------------------
+
+    PLANCKIAN_WARM_LIMIT = 1200  # Below this, Planckian locus starts cooling
+    EXTENDED_RED_LIMIT = 500     # Our minimum "temperature" for deepest red
+
+    # Warmest point on Planckian locus (calculated at 1200K)
+    PLANCKIAN_WARM_XY = (0.5946, 0.3881)
+
+    # Target red point - approximates Hue bulb's red gamut corner
+    # This is a saturated red-orange that color bulbs can actually produce
+    TARGET_RED_XY = (0.675, 0.322)
+
     @staticmethod
     def color_temperature_to_xy(cct: float) -> Tuple[float, float]:
-        """Convert color temperature to CIE 1931 x,y coordinates."""
-        T = max(1000, min(cct, 25000))
+        """Convert color temperature to CIE 1931 x,y coordinates.
+
+        For temperatures >= 1200K:
+            Uses the standard Planckian locus formula (blackbody radiation curve).
+            This gives accurate color temperature representation from cool white
+            (6500K) through warm white (2700K) to orange (1200K).
+
+        For temperatures < 1200K:
+            The Planckian locus breaks down here - it starts getting COOLER
+            instead of warmer. We extend the range by interpolating from the
+            warmest Planckian point (orange at 1200K) towards a target red
+            point (at 500K). This creates a smooth orange → red gradient
+            for very warm/night lighting scenarios.
+
+        Args:
+            cct: Color temperature in Kelvin (500-25000 supported)
+
+        Returns:
+            Tuple of (x, y) CIE 1931 chromaticity coordinates
+        """
+        # Extended warm range: interpolate towards red below Planckian limit
+        if cct < CircadianLight.PLANCKIAN_WARM_LIMIT:
+            # Clamp to our minimum
+            cct = max(CircadianLight.EXTENDED_RED_LIMIT, cct)
+
+            # Calculate interpolation factor: 0 at warm limit, 1 at red limit
+            # Example: 1200K → t=0 (full orange), 500K → t=1 (full red)
+            t = (CircadianLight.PLANCKIAN_WARM_LIMIT - cct) / (
+                CircadianLight.PLANCKIAN_WARM_LIMIT - CircadianLight.EXTENDED_RED_LIMIT
+            )
+
+            # Linear interpolation from warm Planckian point to target red
+            x = CircadianLight.PLANCKIAN_WARM_XY[0] + t * (
+                CircadianLight.TARGET_RED_XY[0] - CircadianLight.PLANCKIAN_WARM_XY[0]
+            )
+            y = CircadianLight.PLANCKIAN_WARM_XY[1] + t * (
+                CircadianLight.TARGET_RED_XY[1] - CircadianLight.PLANCKIAN_WARM_XY[1]
+            )
+
+            return (x, y)
+
+        # Standard Planckian locus formula for 1200K and above
+        T = min(cct, 25000)
         invT = 1000.0 / T
 
+        # Calculate x coordinate using McCamy's approximation
         if T <= 4000:
             x = (-0.2661239 * invT**3
                  - 0.2343589 * invT**2
@@ -888,6 +965,7 @@ class CircadianLight:
                  + 0.2226347 * invT
                  + 0.240390)
 
+        # Calculate y coordinate based on temperature range
         if T <= 2222:
             y = (-1.1063814 * x**3
                  - 1.34811020 * x**2
