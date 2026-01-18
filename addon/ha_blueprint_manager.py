@@ -233,7 +233,11 @@ class BlueprintAutomationManager:
                 automation_id = desired.get("id")
                 if automation_id and automation_id in existing_by_id:
                     # Keep existing automation (preserves user customizations)
-                    final_automations.append(existing_by_id[automation_id])
+                    existing = existing_by_id[automation_id].copy()
+                    # Remove initial_state so HA doesn't reset enabled/disabled on reload
+                    # (initial_state only matters for first creation; after that HA tracks state internally)
+                    existing.pop("initial_state", None)
+                    final_automations.append(existing)
                 else:
                     # Create new automation
                     final_automations.append(desired)

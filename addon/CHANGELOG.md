@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.40
+**Fix - Manually enabled automations stay enabled after addon restart**
+
+**Fixed:**
+- Automations that were manually enabled no longer get disabled when addon restarts
+- Removed `initial_state` from existing automations before persisting to YAML
+- `initial_state: False` only applies to newly created automations, not existing ones
+
 ## 6.8.39
 **Swap step and bright for up/down buttons**
 
