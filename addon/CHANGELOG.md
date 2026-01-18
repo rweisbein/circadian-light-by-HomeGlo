@@ -1,5 +1,14 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.39
+**Swap step and bright for up/down buttons**
+
+**Changed:**
+- **Up button**: 1x bright_up (was step_up), hold step_up (was bright_up)
+- **Down button**: 1x bright_down (was step_down), hold step_down (was bright_down)
+
+Single press now adjusts brightness only; hold steps along the curve (brightness + color).
+
 ## 6.8.38
 **Fix - Step button preview shows wrong CCT near brightness bounds**
 

@@ -227,8 +227,8 @@ variables:
 # -- Actions -------------------------------------------------------------------
 # Button mapping:
 #   on-off: 1x toggle, 2x broadcast, 3x-5x reserved, hold RESERVED
-#   up:     1x step_up, 2x color_up, 3x britelite, 4x-5x reserved, hold bright_up
-#   down:   1x step_down, 2x color_down, 3x nitelite, 4x-5x reserved, hold bright_down
+#   up:     1x bright_up, 2x color_up, 3x britelite, 4x-5x reserved, hold step_up
+#   down:   1x bright_down, 2x color_down, 3x nitelite, 4x-5x reserved, hold step_down
 #   hue:    1x reserved, 2x reset, 3x freeze_toggle, 4x wake/bed, 5x reserved, hold RESERVED
 action:
   # Only proceed if the event came from one of our configured devices
@@ -272,10 +272,10 @@ action:
 
       # ========================================================================
       # UP (BRIGHTER) BUTTON
-      # 1x: step_up, 2x: color_up, 3x: britelite, 4x-5x: reserved, hold: bright_up
+      # 1x: bright_up, 2x: color_up, 3x: britelite, 4x-5x: reserved, hold: step_up
       # ========================================================================
 
-      # Up 1x -> step_up if lights on, else on + nitelite
+      # Up 1x -> bright_up if lights on, else on + nitelite
       - conditions:
           - condition: or
             conditions:
@@ -285,7 +285,7 @@ action:
                 id: hue_up
         sequence:
           - choose:
-              # If any light is on in target areas -> step_up
+              # If any light is on in target areas -> bright_up
               - conditions:
                   - condition: template
                     value_template: >
@@ -299,7 +299,7 @@ action:
                       {% endfor %}
                       {{ ns.any_on }}
                 sequence:
-                  - service: circadian.step_up
+                  - service: circadian.bright_up
                     data:
                       area_id: "{{ area_targets }}"
             # Else (lights off) -> enable + nitelite
@@ -333,21 +333,21 @@ action:
       # Up 4x -> reserved
       # Up 5x -> reserved
 
-      # Up hold -> bright_up
+      # Up hold -> step_up
       - conditions:
           - condition: trigger
             id: zha_up_hold
         sequence:
-          - service: circadian.bright_up
+          - service: circadian.step_up
             data:
               area_id: "{{ area_targets }}"
 
       # ========================================================================
       # DOWN (DIMMER) BUTTON
-      # 1x: step_down, 2x: color_down, 3x: nitelite, 4x-5x: reserved, hold: bright_down
+      # 1x: bright_down, 2x: color_down, 3x: nitelite, 4x-5x: reserved, hold: step_down
       # ========================================================================
 
-      # Down 1x -> step_down if lights on, else on + nitelite
+      # Down 1x -> bright_down if lights on, else on + nitelite
       - conditions:
           - condition: or
             conditions:
@@ -357,7 +357,7 @@ action:
                 id: hue_down
         sequence:
           - choose:
-              # If any light is on in target areas -> step_down
+              # If any light is on in target areas -> bright_down
               - conditions:
                   - condition: template
                     value_template: >
@@ -371,7 +371,7 @@ action:
                       {% endfor %}
                       {{ ns.any_on }}
                 sequence:
-                  - service: circadian.step_down
+                  - service: circadian.bright_down
                     data:
                       area_id: "{{ area_targets }}"
             # Else (lights off) -> enable + nitelite
@@ -405,12 +405,12 @@ action:
       # Down 4x -> reserved
       # Down 5x -> reserved
 
-      # Down hold -> bright_down
+      # Down hold -> step_down
       - conditions:
           - condition: trigger
             id: zha_down_hold
         sequence:
-          - service: circadian.bright_down
+          - service: circadian.step_down
             data:
               area_id: "{{ area_targets }}"
 
