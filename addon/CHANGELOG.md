@@ -1,5 +1,21 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.35
+**Feature - Live Design capability-based color mode**
+
+**Added:**
+- Live Design now detects light capabilities when enabled for an area
+- Color-capable lights receive XY color for full warm range (including orange/red below 2000K)
+- CT-only lights receive color_temp_kelvin (clamped to 2000K minimum)
+- Capability cache is per-area, fetched lazily when Live Design is activated
+- Concurrent service calls prevent "popcorning" effect in mixed areas
+
+**Technical Details:**
+- `_fetch_area_light_capabilities()` queries HA via WebSocket for lights in the area
+- Checks `supported_color_modes` attribute to classify lights as color vs CT-only
+- Cache variables (`live_design_color_lights`, `live_design_ct_lights`) hold entity IDs
+- Cache cleared when Live Design is disabled or area changes
+
 ## 6.8.34
 **Feature - Extended warm color range into red**
 

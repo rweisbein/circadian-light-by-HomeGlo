@@ -321,7 +321,7 @@ class LightDesignerServer:
         self.port = port
         self.app = web.Application()
         self.setup_routes()
-        
+
         # Detect environment and set appropriate paths
         # In Home Assistant, /data directory exists. In dev, use local directory
         if os.path.exists("/data"):
@@ -333,10 +333,16 @@ class LightDesignerServer:
             # Create directory if it doesn't exist
             os.makedirs(self.data_dir, exist_ok=True)
             logger.info(f"Development mode: using {self.data_dir} for configuration storage")
-        
+
         # Set file paths based on data directory
         self.options_file = os.path.join(self.data_dir, "options.json")
         self.designer_file = os.path.join(self.data_dir, "designer_config.json")
+
+        # Live Design capability cache (one area at a time)
+        # Populated when Live Design is enabled for an area
+        self.live_design_area: str = None  # Currently active Live Design area
+        self.live_design_color_lights: list = []  # Color-capable lights in area
+        self.live_design_ct_lights: list = []  # CT-only lights in area
         
     def setup_routes(self):
         """Set up web routes."""
@@ -786,6 +792,105 @@ class LightDesignerServer:
 
         return None, None, None
 
+    async def _fetch_area_light_capabilities(self, ws_url: str, token: str, area_id: str) -> tuple:
+        """Fetch light capabilities for an area via WebSocket.
+
+        Queries HA for lights in the specified area and determines which support
+        color modes (xy/rgb/hs) vs CT-only.
+
+        Args:
+            ws_url: WebSocket URL
+            token: HA auth token
+            area_id: Area to fetch lights for
+
+        Returns:
+            Tuple of (color_lights, ct_lights) - lists of entity_ids
+        """
+        color_lights = []
+        ct_lights = []
+
+        try:
+            async with websockets.connect(ws_url) as ws:
+                # Authenticate
+                msg = json.loads(await ws.recv())
+                if msg.get('type') != 'auth_required':
+                    logger.error(f"[Live Design] Unexpected WS message: {msg}")
+                    return [], []
+
+                await ws.send(json.dumps({'type': 'auth', 'access_token': token}))
+                msg = json.loads(await ws.recv())
+                if msg.get('type') != 'auth_ok':
+                    logger.error(f"[Live Design] WS auth failed: {msg}")
+                    return [], []
+
+                # Fetch device registry (for device -> area mapping)
+                await ws.send(json.dumps({'id': 1, 'type': 'config/device_registry/list'}))
+                device_msg = json.loads(await ws.recv())
+                device_areas = {}
+                if device_msg.get('success') and device_msg.get('result'):
+                    for device in device_msg['result']:
+                        device_id = device.get('id')
+                        dev_area = device.get('area_id')
+                        if device_id and dev_area:
+                            device_areas[device_id] = dev_area
+
+                # Fetch entity registry (for entity -> area/device mapping)
+                await ws.send(json.dumps({'id': 2, 'type': 'config/entity_registry/list'}))
+                entity_msg = json.loads(await ws.recv())
+                if not entity_msg.get('success') or not entity_msg.get('result'):
+                    logger.error(f"[Live Design] Failed to get entities: {entity_msg}")
+                    return [], []
+
+                # Find light entities in this area
+                area_light_entities = []
+                for entity in entity_msg['result']:
+                    entity_id = entity.get('entity_id', '')
+                    if not entity_id.startswith('light.'):
+                        continue
+
+                    # Check if entity is in our area (directly or via device)
+                    entity_area = entity.get('area_id')
+                    if not entity_area:
+                        device_id = entity.get('device_id')
+                        if device_id:
+                            entity_area = device_areas.get(device_id)
+
+                    if entity_area == area_id:
+                        area_light_entities.append(entity_id)
+
+                if not area_light_entities:
+                    logger.info(f"[Live Design] No lights found in area {area_id}")
+                    return [], []
+
+                # Fetch states to get supported_color_modes
+                await ws.send(json.dumps({'id': 3, 'type': 'get_states'}))
+                states_msg = json.loads(await ws.recv())
+                if not states_msg.get('success') or not states_msg.get('result'):
+                    logger.error(f"[Live Design] Failed to get states: {states_msg}")
+                    return [], []
+
+                # Build lookup of entity_id -> state
+                state_lookup = {s.get('entity_id'): s for s in states_msg['result']}
+
+                # Classify lights by color capability
+                for entity_id in area_light_entities:
+                    state = state_lookup.get(entity_id, {})
+                    attrs = state.get('attributes', {})
+                    modes = set(attrs.get('supported_color_modes', []))
+
+                    # Check if light supports any color mode (xy, rgb, hs)
+                    if 'xy' in modes or 'rgb' in modes or 'hs' in modes:
+                        color_lights.append(entity_id)
+                    else:
+                        ct_lights.append(entity_id)
+
+                logger.info(f"[Live Design] Area {area_id}: {len(color_lights)} color lights, {len(ct_lights)} CT-only lights")
+                return color_lights, ct_lights
+
+        except Exception as e:
+            logger.error(f"[Live Design] Error fetching light capabilities: {e}", exc_info=True)
+            return [], []
+
     async def _call_service_via_websocket(self, ws_url: str, token: str, domain: str, service: str, service_data: dict = None) -> bool:
         """Call a Home Assistant service via WebSocket API.
 
@@ -996,7 +1101,12 @@ class LightDesignerServer:
             )
 
     async def apply_light(self, request: Request) -> Response:
-        """Apply brightness and color temperature to lights in an area."""
+        """Apply brightness and color temperature to lights in an area.
+
+        Uses cached light capabilities to send appropriate commands:
+        - Color-capable lights: xy_color for full color range
+        - CT-only lights: color_temp_kelvin (clamped to 2000K minimum)
+        """
         rest_url, ws_url, token = self._get_ha_api_config()
 
         if not rest_url or not token:
@@ -1018,40 +1128,96 @@ class LightDesignerServer:
                     status=400
                 )
 
-            service_data = {
-                'area_id': area_id,
-                'transition': 0.3,
+            headers = {
+                'Authorization': f'Bearer {token}',
+                'Content-Type': 'application/json',
             }
 
-            if brightness is not None:
-                service_data['brightness_pct'] = int(brightness)
+            # Check if we have cached capabilities for this area
+            if self.live_design_area == area_id and (self.live_design_color_lights or self.live_design_ct_lights):
+                # Use capability-based splitting
+                async with ClientSession() as session:
+                    tasks = []
 
-            if color_temp is not None:
-                # Use XY color for full color range (including warm orange/red below 2000K)
-                xy = CircadianLight.color_temperature_to_xy(int(color_temp))
-                service_data['xy_color'] = list(xy)
+                    # Color-capable lights: use xy_color
+                    if self.live_design_color_lights:
+                        color_data = {
+                            'entity_id': self.live_design_color_lights,
+                            'transition': 0.3,
+                        }
+                        if brightness is not None:
+                            color_data['brightness_pct'] = int(brightness)
+                        if color_temp is not None:
+                            xy = CircadianLight.color_temperature_to_xy(int(color_temp))
+                            color_data['xy_color'] = list(xy)
 
-            async with ClientSession() as session:
-                headers = {
-                    'Authorization': f'Bearer {token}',
-                    'Content-Type': 'application/json',
+                        tasks.append(session.post(
+                            f'{rest_url}/services/light/turn_on',
+                            headers=headers,
+                            json=color_data
+                        ))
+
+                    # CT-only lights: use color_temp_kelvin
+                    if self.live_design_ct_lights:
+                        ct_data = {
+                            'entity_id': self.live_design_ct_lights,
+                            'transition': 0.3,
+                        }
+                        if brightness is not None:
+                            ct_data['brightness_pct'] = int(brightness)
+                        if color_temp is not None:
+                            ct_data['color_temp_kelvin'] = max(2000, int(color_temp))
+
+                        tasks.append(session.post(
+                            f'{rest_url}/services/light/turn_on',
+                            headers=headers,
+                            json=ct_data
+                        ))
+
+                    # Execute all requests concurrently
+                    if tasks:
+                        responses = await asyncio.gather(*tasks)
+                        for resp in responses:
+                            if resp.status not in (200, 201):
+                                logger.error(f"Failed to apply light: {resp.status}")
+
+                logger.info(
+                    f"Live Design: Applied {brightness}% / {color_temp}K to area {area_id} "
+                    f"({len(self.live_design_color_lights)} color, {len(self.live_design_ct_lights)} CT)"
+                )
+                return web.json_response({'status': 'ok'})
+
+            else:
+                # Fallback: no cached capabilities, use area-based with XY
+                service_data = {
+                    'area_id': area_id,
+                    'transition': 0.3,
                 }
-                async with session.post(
-                    f'{rest_url}/services/light/turn_on',
-                    headers=headers,
-                    json=service_data
-                ) as resp:
-                    if resp.status not in (200, 201):
-                        logger.error(f"Failed to apply light: {resp.status}")
-                        return web.json_response(
-                            {'error': f'HA API returned {resp.status}'},
-                            status=resp.status
-                        )
-                    xy_str = f", xy={service_data.get('xy_color')}" if 'xy_color' in service_data else ""
-                    logger.info(
-                        f"Live Design: Applied {brightness}% / {color_temp}K{xy_str} to area {area_id}"
-                    )
-                    return web.json_response({'status': 'ok'})
+
+                if brightness is not None:
+                    service_data['brightness_pct'] = int(brightness)
+
+                if color_temp is not None:
+                    xy = CircadianLight.color_temperature_to_xy(int(color_temp))
+                    service_data['xy_color'] = list(xy)
+
+                async with ClientSession() as session:
+                    async with session.post(
+                        f'{rest_url}/services/light/turn_on',
+                        headers=headers,
+                        json=service_data
+                    ) as resp:
+                        if resp.status not in (200, 201):
+                            logger.error(f"Failed to apply light: {resp.status}")
+                            return web.json_response(
+                                {'error': f'HA API returned {resp.status}'},
+                                status=resp.status
+                            )
+
+                logger.info(
+                    f"Live Design (fallback): Applied {brightness}% / {color_temp}K to area {area_id}"
+                )
+                return web.json_response({'status': 'ok'})
         except json.JSONDecodeError:
             return web.json_response(
                 {'error': 'Invalid JSON'},
@@ -1068,6 +1234,8 @@ class LightDesignerServer:
         """Enable or disable Circadian mode for an area.
 
         Used by Live Design to pause automatic updates while designing.
+        When circadian mode is disabled (enabled=False), Live Design becomes active
+        and we fetch light capabilities for that area.
         """
         try:
             data = await request.json()
@@ -1081,6 +1249,29 @@ class LightDesignerServer:
                 )
 
             state.set_enabled(area_id, enabled)
+
+            if not enabled:
+                # Live Design is starting - fetch light capabilities for this area
+                rest_url, ws_url, token = self._get_ha_api_config()
+                if ws_url and token:
+                    color_lights, ct_lights = await self._fetch_area_light_capabilities(ws_url, token, area_id)
+                    self.live_design_area = area_id
+                    self.live_design_color_lights = color_lights
+                    self.live_design_ct_lights = ct_lights
+                    logger.info(f"[Live Design] Started for area {area_id}: {len(color_lights)} color, {len(ct_lights)} CT-only")
+                else:
+                    logger.warning("[Live Design] Cannot fetch capabilities - no HA API config")
+                    self.live_design_area = area_id
+                    self.live_design_color_lights = []
+                    self.live_design_ct_lights = []
+            else:
+                # Live Design is ending - clear cache
+                if self.live_design_area == area_id:
+                    logger.info(f"[Live Design] Ended for area {area_id}")
+                    self.live_design_area = None
+                    self.live_design_color_lights = []
+                    self.live_design_ct_lights = []
+
             logger.info(f"[Live Design] Circadian mode {'enabled' if enabled else 'disabled'} for area {area_id}")
 
             return web.json_response({'status': 'ok', 'enabled': enabled})
