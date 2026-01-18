@@ -1,5 +1,25 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.36
+**Reorganize Hue dimmer switch button mappings (v2)**
+
+**Changed:**
+- **Power button**: 1x toggle, 2x broadcast, 3x-5x reserved, hold RESERVED (magic button)
+- **Up button**: 1x step_up, 2x color_up, 3x britelite, 4x-5x reserved, hold bright_up
+- **Down button**: 1x step_down, 2x color_down, 3x nitelite, 4x-5x reserved, hold bright_down
+- **Hue button**: 1x reserved (scope), 2x reset, 3x freeze_toggle, 4x wake/bed, 5x reserved, hold RESERVED
+
+**Key changes from v6.8.30:**
+- Up/Down 2x now does color step (was brightness step)
+- Up/Down 3x now sets preset (was color step)
+- Up/Down hold now does brightness step (was preset)
+- Hue 1x now reserved for scope (was freeze_toggle)
+- Hue 3x now freeze_toggle (was wake/bed)
+- Hue 4x now wake/bed (new)
+
+**Added:**
+- Quadruple-press and quintuple-press triggers for all buttons (reserved for future use)
+
 ## 6.8.35
 **Feature - Live Design capability-based color mode**
 

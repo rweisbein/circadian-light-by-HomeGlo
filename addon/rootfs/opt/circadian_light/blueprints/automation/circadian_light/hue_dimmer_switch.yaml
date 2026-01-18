@@ -125,12 +125,61 @@ trigger:
       command: "down_triple_press"
     id: zha_down_triple
 
+  # ZHA quadruple-press events
+  - platform: event
+    event_type: zha_event
+    event_data:
+      command: "on_quadruple_press"
+    id: zha_on_quadruple
+  - platform: event
+    event_type: zha_event
+    event_data:
+      command: "off_quadruple_press"
+    id: zha_off_quadruple
+  - platform: event
+    event_type: zha_event
+    event_data:
+      command: "up_quadruple_press"
+    id: zha_up_quadruple
+  - platform: event
+    event_type: zha_event
+    event_data:
+      command: "down_quadruple_press"
+    id: zha_down_quadruple
+
+  # ZHA quintuple-press events
+  - platform: event
+    event_type: zha_event
+    event_data:
+      command: "on_quintuple_press"
+    id: zha_on_quintuple
+  - platform: event
+    event_type: zha_event
+    event_data:
+      command: "off_quintuple_press"
+    id: zha_off_quintuple
+  - platform: event
+    event_type: zha_event
+    event_data:
+      command: "up_quintuple_press"
+    id: zha_up_quintuple
+  - platform: event
+    event_type: zha_event
+    event_data:
+      command: "down_quintuple_press"
+    id: zha_down_quintuple
+
   # ZHA hold events (fires repeatedly while held)
   - platform: event
     event_type: zha_event
     event_data:
       command: "on_hold"
     id: zha_on_hold
+  - platform: event
+    event_type: zha_event
+    event_data:
+      command: "off_hold"
+    id: zha_off_hold
   - platform: event
     event_type: zha_event
     event_data:
@@ -176,6 +225,11 @@ variables:
   first_area: "{{ area_targets[0] if area_targets else none }}"
 
 # -- Actions -------------------------------------------------------------------
+# Button mapping:
+#   on-off: 1x toggle, 2x broadcast, 3x-5x reserved, hold RESERVED
+#   up:     1x step_up, 2x color_up, 3x britelite, 4x-5x reserved, hold bright_up
+#   down:   1x step_down, 2x color_down, 3x nitelite, 4x-5x reserved, hold bright_down
+#   hue:    1x reserved, 2x reset, 3x freeze_toggle, 4x wake/bed, 5x reserved, hold RESERVED
 action:
   # Only proceed if the event came from one of our configured devices
   - condition: template
@@ -185,10 +239,11 @@ action:
 
   - choose:
       # ========================================================================
-      # POWER BUTTON
+      # POWER BUTTON (on-off)
+      # 1x: toggle, 2x: broadcast, 3x-5x: reserved, hold: RESERVED
       # ========================================================================
 
-      # Power single -> circadian_toggle
+      # Power 1x -> circadian_toggle
       - conditions:
           - condition: or
             conditions:
@@ -201,7 +256,7 @@ action:
             data:
               area_id: "{{ area_targets }}"
 
-      # Power double -> broadcast (copy settings to all areas)
+      # Power 2x -> broadcast (copy settings to all areas)
       - conditions:
           - condition: trigger
             id: zha_on_double
@@ -210,13 +265,17 @@ action:
             data:
               area_id: "{{ first_area }}"
 
-      # Power hold -> reserved for magic button
+      # Power 3x -> reserved
+      # Power 4x -> reserved
+      # Power 5x -> reserve for Emergency toggle
+      # Power hold -> RESERVED for magic button
 
       # ========================================================================
       # UP (BRIGHTER) BUTTON
+      # 1x: step_up, 2x: color_up, 3x: britelite, 4x-5x: reserved, hold: bright_up
       # ========================================================================
 
-      # Up single -> step_up if lights on, else on + nitelite
+      # Up 1x -> step_up if lights on, else on + nitelite
       - conditions:
           - condition: or
             conditions:
@@ -251,28 +310,19 @@ action:
                   preset: nitelite
                   enable: true
 
-      # Up double -> bright_up
+      # Up 2x -> color_up
       - conditions:
           - condition: trigger
             id: zha_up_double
-        sequence:
-          - service: circadian.bright_up
-            data:
-              area_id: "{{ area_targets }}"
-
-      # Up triple -> color_up
-      - conditions:
-          - condition: trigger
-            id: zha_up_triple
         sequence:
           - service: circadian.color_up
             data:
               area_id: "{{ area_targets }}"
 
-      # Up hold -> britelite preset
+      # Up 3x -> britelite preset
       - conditions:
           - condition: trigger
-            id: zha_up_hold
+            id: zha_up_triple
         sequence:
           - service: circadian.set
             data:
@@ -280,11 +330,24 @@ action:
               preset: britelite
               enable: true
 
+      # Up 4x -> reserved
+      # Up 5x -> reserved
+
+      # Up hold -> bright_up
+      - conditions:
+          - condition: trigger
+            id: zha_up_hold
+        sequence:
+          - service: circadian.bright_up
+            data:
+              area_id: "{{ area_targets }}"
+
       # ========================================================================
       # DOWN (DIMMER) BUTTON
+      # 1x: step_down, 2x: color_down, 3x: nitelite, 4x-5x: reserved, hold: bright_down
       # ========================================================================
 
-      # Down single -> step_down if lights on, else on + nitelite
+      # Down 1x -> step_down if lights on, else on + nitelite
       - conditions:
           - condition: or
             conditions:
@@ -319,28 +382,19 @@ action:
                   preset: nitelite
                   enable: true
 
-      # Down double -> bright_down
+      # Down 2x -> color_down
       - conditions:
           - condition: trigger
             id: zha_down_double
-        sequence:
-          - service: circadian.bright_down
-            data:
-              area_id: "{{ area_targets }}"
-
-      # Down triple -> color_down
-      - conditions:
-          - condition: trigger
-            id: zha_down_triple
         sequence:
           - service: circadian.color_down
             data:
               area_id: "{{ area_targets }}"
 
-      # Down hold -> nitelite preset
+      # Down 3x -> nitelite preset
       - conditions:
           - condition: trigger
-            id: zha_down_hold
+            id: zha_down_triple
         sequence:
           - service: circadian.set
             data:
@@ -348,24 +402,26 @@ action:
               preset: nitelite
               enable: true
 
-      # ========================================================================
-      # HUE BUTTON
-      # ========================================================================
+      # Down 4x -> reserved
+      # Down 5x -> reserved
 
-      # Hue single -> freeze_toggle
+      # Down hold -> bright_down
       - conditions:
-          - condition: or
-            conditions:
-              - condition: trigger
-                id: zha_off
-              - condition: trigger
-                id: hue_off
+          - condition: trigger
+            id: zha_down_hold
         sequence:
-          - service: circadian.freeze_toggle
+          - service: circadian.bright_down
             data:
               area_id: "{{ area_targets }}"
 
-      # Hue double -> reset
+      # ========================================================================
+      # HUE BUTTON (off)
+      # 1x: reserved (scope), 2x: reset, 3x: freeze_toggle, 4x: wake/bed, 5x: reserved, hold: RESERVED
+      # ========================================================================
+
+      # Hue 1x -> reserved for scope
+
+      # Hue 2x -> reset
       - conditions:
           - condition: trigger
             id: zha_off_double
@@ -374,10 +430,19 @@ action:
             data:
               area_id: "{{ area_targets }}"
 
-      # Hue triple -> wake/bed preset (set midpoint = now)
+      # Hue 3x -> freeze_toggle
       - conditions:
           - condition: trigger
             id: zha_off_triple
+        sequence:
+          - service: circadian.freeze_toggle
+            data:
+              area_id: "{{ area_targets }}"
+
+      # Hue 4x -> wake/bed preset (set midpoint = now)
+      - conditions:
+          - condition: trigger
+            id: zha_off_quadruple
         sequence:
           - service: circadian.set
             data:
@@ -385,4 +450,5 @@ action:
               preset: wake
               enable: true
 
-      # Hue hold -> reserved for magic button
+      # Hue 5x -> reserve for Emergency reset
+      # Hue hold -> RESERVED for magic button
