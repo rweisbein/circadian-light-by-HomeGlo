@@ -1,5 +1,14 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.38
+**Fix - Step button preview shows wrong CCT near brightness bounds**
+
+**Fixed:**
+- Step up/down button tooltips now show correct CCT when near max/min brightness
+- Previously, stepping up near max brightness would preview 500K (min CCT) instead of current CCT
+- Widened the bounds-detection threshold in `getStepResultCCT` from 0.999 to 0.99
+- This prevents the virtual time calculation from extrapolating to extreme values
+
 ## 6.8.37
 **Fix - Frozen lights stay frozen across phase transitions**
 

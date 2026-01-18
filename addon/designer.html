@@ -1632,8 +1632,10 @@ function getStepPreview(cursorPoint) {
     const targetBriNorm = clampedBri / 100;
     const briRatio = (targetBriNorm - bMinNorm) / (bMaxNorm - bMinNorm);
 
-    // Avoid division issues at extremes
-    if (briRatio <= 0.001 || briRatio >= 0.999) {
+    // Avoid extreme virtual time values near bounds
+    // The 0.99/0.01 threshold catches edge cases where virtual time would
+    // extrapolate far beyond the curve, producing bogus CCT values
+    if (briRatio <= 0.01 || briRatio >= 0.99) {
       return currentCCT;
     }
 
