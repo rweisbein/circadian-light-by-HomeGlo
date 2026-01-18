@@ -1,5 +1,18 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.31
+**Feature - Extended warm color range for color-capable bulbs**
+
+**Added:**
+- Light capability detection: caches `supported_color_modes` for each light on startup
+- Area-to-light mapping for per-bulb control
+- Color-capable lights now use XY color mode for full color range (including warm orange/red below 2000K)
+- CT-only lights continue to use color_temp_kelvin (clamped to 2000K minimum)
+- Mixed areas send concurrent commands: one for color lights, one for CT lights (no popcorning)
+
+**Changed:**
+- Updated deprecated `kelvin` parameter to `color_temp_kelvin` for HA 2026.1 compatibility
+
 ## 6.8.30
 **Reorganize Hue dimmer switch button mappings**
 

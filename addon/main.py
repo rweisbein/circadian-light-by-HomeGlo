@@ -7,7 +7,7 @@ import logging
 import os
 import sys
 from datetime import datetime
-from typing import Dict, Any, List, Optional, Sequence, Union
+from typing import Dict, Any, List, Optional, Sequence, Set, Tuple, Union
 
 import websockets
 from websockets.client import WebSocketClientProtocol
@@ -75,6 +75,10 @@ class HomeAssistantWebSocketClient:
         self.cached_states = {}  # Cache of entity states
         self.last_states_update = None  # Timestamp of last states update
         self.area_parity_cache = {}  # Cache of area ZHA parity status
+
+        # Light capability cache for color mode detection
+        self.light_color_modes: Dict[str, Set[str]] = {}  # entity_id -> set of supported color modes
+        self.area_lights: Dict[str, List[str]] = {}  # area_id -> list of light entity_ids
 
         # Initialize state module (loads from circadian_state.json)
         state.init()
@@ -487,7 +491,7 @@ class HomeAssistantWebSocketClient:
 
         # Add color data based on the configured color mode
         if include_color and self.color_mode == ColorMode.KELVIN and 'kelvin' in circadian_values:
-            service_data["kelvin"] = circadian_values['kelvin']
+            service_data["color_temp_kelvin"] = circadian_values['kelvin']
         elif include_color and self.color_mode == ColorMode.RGB and 'rgb' in circadian_values:
             service_data["rgb_color"] = circadian_values['rgb']
         elif include_color and self.color_mode == ColorMode.XY and 'xy' in circadian_values:
@@ -545,10 +549,110 @@ class HomeAssistantWebSocketClient:
         
         await self.websocket.send(json.dumps(states_msg))
         logger.info(f"Requested states (id: {message_id})")
-        
+
         return message_id
-        
-        
+
+    async def build_light_capability_cache(self) -> None:
+        """Build the light capability cache from entity and device registries.
+
+        Populates:
+        - self.light_color_modes: entity_id -> set of supported color modes
+        - self.area_lights: area_id -> list of light entity_ids
+        """
+        logger.info("Building light capability cache...")
+
+        # Fetch entity registry
+        entity_result = await self.send_message_wait_response({"type": "config/entity_registry/list"})
+        entities = entity_result if isinstance(entity_result, list) else []
+
+        # Fetch device registry for area mapping
+        device_result = await self.send_message_wait_response({"type": "config/device_registry/list"})
+        devices = device_result if isinstance(device_result, list) else []
+
+        # Build device_id -> area_id mapping
+        device_area_map: Dict[str, str] = {}
+        for device in devices:
+            if isinstance(device, dict):
+                device_id = device.get("id")
+                area_id = device.get("area_id")
+                if device_id and area_id:
+                    device_area_map[device_id] = area_id
+
+        # Clear existing caches
+        self.light_color_modes.clear()
+        self.area_lights.clear()
+
+        # Process light entities
+        for entity in entities:
+            if not isinstance(entity, dict):
+                continue
+
+            entity_id = entity.get("entity_id", "")
+            if not entity_id.startswith("light."):
+                continue
+
+            # Get area - either direct or via device
+            area_id = entity.get("area_id")
+            if not area_id:
+                device_id = entity.get("device_id")
+                if device_id:
+                    area_id = device_area_map.get(device_id)
+
+            # Skip entities with no area
+            if not area_id:
+                continue
+
+            # Add to area_lights mapping
+            if area_id not in self.area_lights:
+                self.area_lights[area_id] = []
+            self.area_lights[area_id].append(entity_id)
+
+            # Get color modes from cached state
+            state = self.cached_states.get(entity_id, {})
+            attributes = state.get("attributes", {})
+            supported_modes = attributes.get("supported_color_modes", [])
+
+            if supported_modes:
+                self.light_color_modes[entity_id] = set(supported_modes)
+            else:
+                # Default to color_temp if no modes specified (legacy lights)
+                self.light_color_modes[entity_id] = {"color_temp"}
+
+        logger.info(f"✓ Light capability cache built: {len(self.light_color_modes)} lights across {len(self.area_lights)} areas")
+
+        # Log summary of color capabilities
+        color_capable = sum(1 for modes in self.light_color_modes.values() if "xy" in modes or "rgb" in modes or "hs" in modes)
+        ct_only = len(self.light_color_modes) - color_capable
+        logger.info(f"  Color-capable lights: {color_capable}, CT-only lights: {ct_only}")
+
+    def get_lights_by_color_capability(self, area_id: str) -> Tuple[List[str], List[str]]:
+        """Get lights in an area split by color capability.
+
+        Args:
+            area_id: The area ID
+
+        Returns:
+            Tuple of (color_capable_lights, ct_only_lights)
+            - color_capable_lights: lights that support xy, rgb, or hs color modes
+            - ct_only_lights: lights that only support color_temp mode
+        """
+        lights = self.area_lights.get(area_id, [])
+
+        color_capable = []
+        ct_only = []
+
+        for entity_id in lights:
+            modes = self.light_color_modes.get(entity_id, {"color_temp"})
+
+            # Check if light supports any color mode (xy, rgb, hs)
+            if "xy" in modes or "rgb" in modes or "hs" in modes:
+                color_capable.append(entity_id)
+            else:
+                ct_only.append(entity_id)
+
+        return color_capable, ct_only
+
+
     async def get_config(self) -> bool:
         """Get Home Assistant configuration and wait for response.
         
@@ -1553,8 +1657,10 @@ class HomeAssistantWebSocketClient:
                         logger.info(f"✓ Found {grouped_count} grouped light entities (Hue rooms or Circadian ZHA groups)")
                     else:
                         logger.warning("⚠ No grouped light entities detected (no Hue rooms or Circadian_ ZHA groups found)")
-                
-                
+
+                # Build light capability cache for color mode detection
+                await self.build_light_capability_cache()
+
                 # Get Home Assistant configuration (lat/lng/tz)
                 config_loaded = await self.get_config()
                 if not config_loaded:
