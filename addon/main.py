@@ -471,40 +471,70 @@ class HomeAssistantWebSocketClient:
     ) -> None:
         """Turn on lights with circadian values using the light controller.
 
+        Splits lights by color capability:
+        - Color-capable lights (xy/rgb/hs): Use xy_color for full color range
+        - CT-only lights: Use color_temp_kelvin (clamped to 2000K minimum)
+
         Args:
             area_id: The area ID to control lights in
             circadian_values: Circadian lighting values from get_circadian_lighting
-            transition: Transition time in seconds (default 1)
+            transition: Transition time in seconds (default 0.5)
             include_color: Whether to include color data when turning on lights
         """
-        # Determine the best target for this area
-        target_type, target_value = await self.determine_light_target(area_id)
+        brightness = circadian_values.get('brightness')
+        kelvin = circadian_values.get('kelvin')
+        xy = circadian_values.get('xy')
 
-        # Build service data
-        service_data = {
-            "transition": transition
-        }
+        color_lights, ct_lights = self.get_lights_by_color_capability(area_id)
 
-        # Add brightness
-        if 'brightness' in circadian_values:
-            service_data["brightness_pct"] = circadian_values['brightness']
+        # If no lights found in cache, fall back to area-based control
+        if not color_lights and not ct_lights:
+            target_type, target_value = await self.determine_light_target(area_id)
+            service_data = {"transition": transition}
+            if brightness is not None:
+                service_data["brightness_pct"] = brightness
+            if include_color and kelvin is not None:
+                service_data["color_temp_kelvin"] = max(2000, kelvin)
 
-        # Add color data based on the configured color mode
-        if include_color and self.color_mode == ColorMode.KELVIN and 'kelvin' in circadian_values:
-            service_data["color_temp_kelvin"] = circadian_values['kelvin']
-        elif include_color and self.color_mode == ColorMode.RGB and 'rgb' in circadian_values:
-            service_data["rgb_color"] = circadian_values['rgb']
-        elif include_color and self.color_mode == ColorMode.XY and 'xy' in circadian_values:
-            service_data["xy_color"] = circadian_values['xy']
+            logger.info(f"Circadian update (fallback): {target_type}={target_value}, {service_data}")
+            await self.call_service("light", "turn_on", service_data, {target_type: target_value})
+            return
 
-        # Build target
-        target = {target_type: target_value}
+        tasks: List[asyncio.Task] = []
 
-        # Debug log exactly what we're sending
-        logger.info(f"Circadian Light sending light.turn_on with data: {service_data}, target: {target}")
+        # Color-capable lights: use xy_color for full color range
+        if color_lights:
+            color_data = {"transition": transition}
+            if brightness is not None:
+                color_data["brightness_pct"] = brightness
+            if include_color and xy is not None:
+                color_data["xy_color"] = list(xy)
 
-        # Call the service
-        await self.call_service("light", "turn_on", service_data, target)
+            logger.info(f"Circadian update (color): {len(color_lights)} lights, xy={xy}, brightness={brightness}%")
+            tasks.append(
+                asyncio.create_task(
+                    self.call_service("light", "turn_on", color_data, {"entity_id": color_lights})
+                )
+            )
+
+        # CT-only lights: use color_temp_kelvin (clamped to 2000K min)
+        if ct_lights:
+            ct_data = {"transition": transition}
+            if brightness is not None:
+                ct_data["brightness_pct"] = brightness
+            if include_color and kelvin is not None:
+                ct_data["color_temp_kelvin"] = max(2000, kelvin)
+
+            logger.info(f"Circadian update (CT): {len(ct_lights)} lights, kelvin={kelvin}, brightness={brightness}%")
+            tasks.append(
+                asyncio.create_task(
+                    self.call_service("light", "turn_on", ct_data, {"entity_id": ct_lights})
+                )
+            )
+
+        # Run all tasks concurrently
+        if tasks:
+            await asyncio.gather(*tasks)
         
     async def get_states(self) -> List[Dict[str, Any]]:
         """Get all entity states.

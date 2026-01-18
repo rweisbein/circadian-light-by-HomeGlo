@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.32
+**Fix - Periodic updater now uses XY color mode**
+
+**Fixed:**
+- Periodic light updater (60-second refresh) now uses capability-based color mode
+- Color-capable lights receive XY color, CT-only lights receive color_temp_kelvin
+
 ## 6.8.31
 **Feature - Extended warm color range for color-capable bulbs**
 
