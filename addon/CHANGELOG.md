@@ -1,5 +1,17 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.30
+**Reorganize Hue dimmer switch button mappings**
+
+**Changed:**
+- **Power button**: 1x toggle, 2x broadcast, hold reserved
+- **Up button**: 1x step, 2x bright_up, 3x color_up, hold britelite
+- **Down button**: 1x step, 2x bright_down, 3x color_down, hold nitelite
+- **Hue button**: 1x freeze_toggle, 2x reset, 3x wake/bed preset, hold reserved
+
+**Added:**
+- Triple-press triggers for up, down, and on buttons
+
 ## 6.8.29
 **Improvement - Blueprint automations preserve user customizations**
 

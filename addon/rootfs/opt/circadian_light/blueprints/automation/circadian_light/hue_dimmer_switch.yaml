@@ -107,8 +107,23 @@ trigger:
   - platform: event
     event_type: zha_event
     event_data:
+      command: "on_triple_press"
+    id: zha_on_triple
+  - platform: event
+    event_type: zha_event
+    event_data:
       command: "off_triple_press"
     id: zha_off_triple
+  - platform: event
+    event_type: zha_event
+    event_data:
+      command: "up_triple_press"
+    id: zha_up_triple
+  - platform: event
+    event_type: zha_event
+    event_data:
+      command: "down_triple_press"
+    id: zha_down_triple
 
   # ZHA hold events (fires repeatedly while held)
   - platform: event
@@ -195,16 +210,7 @@ action:
             data:
               area_id: "{{ first_area }}"
 
-      # Power hold -> britelite
-      - conditions:
-          - condition: trigger
-            id: zha_on_hold
-        sequence:
-          - service: circadian.set
-            data:
-              area_id: "{{ area_targets }}"
-              preset: britelite
-              enable: true
+      # Power hold -> reserved for magic button
 
       # ========================================================================
       # UP (BRIGHTER) BUTTON
@@ -245,14 +251,34 @@ action:
                   preset: nitelite
                   enable: true
 
-      # Up hold -> bright_up (repeats while held)
+      # Up double -> bright_up
       - conditions:
           - condition: trigger
-            id: zha_up_hold
+            id: zha_up_double
         sequence:
           - service: circadian.bright_up
             data:
               area_id: "{{ area_targets }}"
+
+      # Up triple -> color_up
+      - conditions:
+          - condition: trigger
+            id: zha_up_triple
+        sequence:
+          - service: circadian.color_up
+            data:
+              area_id: "{{ area_targets }}"
+
+      # Up hold -> britelite preset
+      - conditions:
+          - condition: trigger
+            id: zha_up_hold
+        sequence:
+          - service: circadian.set
+            data:
+              area_id: "{{ area_targets }}"
+              preset: britelite
+              enable: true
 
       # ========================================================================
       # DOWN (DIMMER) BUTTON
@@ -293,14 +319,34 @@ action:
                   preset: nitelite
                   enable: true
 
-      # Down hold -> bright_down (repeats while held)
+      # Down double -> bright_down
       - conditions:
           - condition: trigger
-            id: zha_down_hold
+            id: zha_down_double
         sequence:
           - service: circadian.bright_down
             data:
               area_id: "{{ area_targets }}"
+
+      # Down triple -> color_down
+      - conditions:
+          - condition: trigger
+            id: zha_down_triple
+        sequence:
+          - service: circadian.color_down
+            data:
+              area_id: "{{ area_targets }}"
+
+      # Down hold -> nitelite preset
+      - conditions:
+          - condition: trigger
+            id: zha_down_hold
+        sequence:
+          - service: circadian.set
+            data:
+              area_id: "{{ area_targets }}"
+              preset: nitelite
+              enable: true
 
       # ========================================================================
       # HUE BUTTON
@@ -319,10 +365,19 @@ action:
             data:
               area_id: "{{ area_targets }}"
 
-      # Hue double -> wake/bed preset
+      # Hue double -> reset
       - conditions:
           - condition: trigger
             id: zha_off_double
+        sequence:
+          - service: circadian.reset
+            data:
+              area_id: "{{ area_targets }}"
+
+      # Hue triple -> wake/bed preset (set midpoint = now)
+      - conditions:
+          - condition: trigger
+            id: zha_off_triple
         sequence:
           - service: circadian.set
             data:
@@ -330,11 +385,4 @@ action:
               preset: wake
               enable: true
 
-      # Hue triple -> reset
-      - conditions:
-          - condition: trigger
-            id: zha_off_triple
-        sequence:
-          - service: circadian.reset
-            data:
-              area_id: "{{ area_targets }}"
+      # Hue hold -> reserved for magic button
