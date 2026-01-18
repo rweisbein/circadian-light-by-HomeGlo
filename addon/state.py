@@ -223,13 +223,21 @@ def reset_area(area_id: str) -> None:
 
 
 def reset_all_areas() -> None:
-    """Reset runtime state for all areas.
+    """Reset runtime state for all areas (midpoints only).
 
-    Called when config is saved. Preserves enabled and frozen status.
+    Called at phase transitions (ascend/descend). Preserves enabled AND frozen status.
+    Use reset_area() for explicit user resets that should clear frozen.
     """
     for area_id in list(_state.keys()):
-        reset_area(area_id)
-    logger.info(f"Reset runtime state for all {len(_state)} area(s)")
+        current = _state[area_id]
+        preserved = {
+            "enabled": current.get("enabled", False),
+            "frozen_at": current.get("frozen_at"),  # Preserve frozen state
+        }
+        _state[area_id] = _get_default_area_state()
+        _state[area_id].update(preserved)
+    _save()
+    logger.info(f"Reset midpoints for all {len(_state)} area(s) (frozen state preserved)")
 
 
 def remove_area(area_id: str) -> None:

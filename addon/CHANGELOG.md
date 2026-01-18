@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.37
+**Fix - Frozen lights stay frozen across phase transitions**
+
+**Fixed:**
+- Phase changes (ascend/descend) no longer unfreeze lights
+- `reset_all_areas()` now preserves `frozen_at` state (only resets midpoints)
+- Explicit reset primitive (`reset_area()`) still clears frozen state as expected
+
 ## 6.8.36
 **Reorganize Hue dimmer switch button mappings (v2)**
 
