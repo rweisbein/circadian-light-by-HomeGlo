@@ -15,6 +15,7 @@ from websockets.client import WebSocketClientProtocol
 from ha_blueprint_manager import BlueprintAutomationManager
 
 import state
+import glozone
 from primitives import CircadianLightPrimitives
 from brain import (
     CircadianLight,
@@ -883,6 +884,7 @@ class HomeAssistantWebSocketClient:
         """Get circadian lighting values for a specific area.
 
         This is the centralized method that should be used for all circadian lighting calculations.
+        Uses zone-aware configuration - gets the preset config for the area's zone.
 
         Args:
             area_id: The area ID to get lighting values for
@@ -892,23 +894,11 @@ class HomeAssistantWebSocketClient:
         Returns:
             Dict containing circadian lighting values
         """
-        # Load curve parameters by merging supervisor options and designer overrides
+        # Get zone-aware config for this area (preset settings + global settings)
+        merged_config = glozone.get_effective_config_for_area(area_id)
+
+        # Load curve parameters from the merged config
         curve_params = {}
-        merged_config: Dict[str, Any] = {}
-        
-        data_dir = self._get_data_directory()
-        
-        # Load configs from appropriate directory
-        for filename in ["options.json", "designer_config.json"]:
-            path = os.path.join(data_dir, filename)
-            if os.path.exists(path):
-                try:
-                    with open(path, 'r') as f:
-                        part = json.load(f)
-                        if isinstance(part, dict):
-                            merged_config.update(part)
-                except Exception as e:
-                    logger.debug(f"Could not load config from {path}: {e}")
 
         # Keep merged config available to other components
         try:
@@ -1009,6 +999,7 @@ class HomeAssistantWebSocketClient:
         that was set via step_up/step_down buttons.
 
         If the area is frozen (frozen_at is set), uses frozen_at instead of current time.
+        Uses zone-aware configuration - gets the preset config for the area's zone.
 
         Args:
             area_id: The area ID to update
@@ -1022,20 +1013,8 @@ class HomeAssistantWebSocketClient:
             # Get area state (includes stepped midpoints, pushed bounds, and frozen_at)
             area_state = AreaState.from_dict(state.get_area(area_id))
 
-            # Load config
-            config_dict = {}
-            data_dir = self._get_data_directory()
-            for filename in ["options.json", "designer_config.json"]:
-                path = os.path.join(data_dir, filename)
-                if os.path.exists(path):
-                    try:
-                        with open(path, 'r') as f:
-                            part = json.load(f)
-                            if isinstance(part, dict):
-                                config_dict.update(part)
-                    except Exception as e:
-                        logger.debug(f"Could not load config from {path}: {e}")
-
+            # Get zone-aware config for this area
+            config_dict = glozone.get_effective_config_for_area(area_id)
             config = Config.from_dict(config_dict)
 
             # Use frozen_at if set, otherwise current time
@@ -1067,9 +1046,13 @@ class HomeAssistantWebSocketClient:
             logger.error(f"Error updating lights in area {area_id}: {e}")
 
     async def reset_state_at_phase_change(self, last_check: Optional[datetime]) -> Optional[datetime]:
-        """Reset all area runtime state at phase transitions (ascend/descend).
+        """Reset all area and zone runtime state at phase transitions (ascend/descend).
 
         State resets when crossing ascend_start or descend_start times.
+        Resets both area runtime state and GloZone runtime state.
+
+        Note: Currently uses the first preset's phase times for the global check.
+        Future enhancement: per-zone phase checks for different schedules.
 
         Args:
             last_check: The last time we checked for phase change
@@ -1078,6 +1061,7 @@ class HomeAssistantWebSocketClient:
             The updated last check time
         """
         from zoneinfo import ZoneInfo
+        import glozone_state
 
         # Get current time
         tzinfo = ZoneInfo(self.timezone) if self.timezone else None
@@ -1087,21 +1071,17 @@ class HomeAssistantWebSocketClient:
         if last_check is None:
             return now
 
-        # Load config to get phase times
-        config_dict = {}
-        data_dir = self._get_data_directory()
-        for filename in ["options.json", "designer_config.json"]:
-            path = os.path.join(data_dir, filename)
-            if os.path.exists(path):
-                try:
-                    with open(path, 'r') as f:
-                        part = json.load(f)
-                        if isinstance(part, dict):
-                            config_dict.update(part)
-                except Exception:
-                    pass
+        # Load config (uses first preset for phase times)
+        # Future: could check per-zone phase times
+        raw_config = glozone.load_config_from_files()
+        presets = raw_config.get("circadian_presets", {})
 
-        config = Config.from_dict(config_dict)
+        if not presets:
+            return now
+
+        # Use first preset's phase times for global check
+        first_preset = list(presets.values())[0]
+        config = Config.from_dict(first_preset)
 
         # Convert hours to today's datetime
         ascend_dt = now.replace(
@@ -1123,7 +1103,12 @@ class HomeAssistantWebSocketClient:
 
         if crossed_ascend or crossed_descend:
             phase = "ascend" if crossed_ascend else "descend"
-            logger.info(f"Phase change to {phase} - resetting all area runtime state")
+            logger.info(f"Phase change to {phase} - resetting all zone and area runtime state")
+
+            # Reset all GloZone runtime state (preserves frozen zones)
+            glozone_state.reset_all_zones()
+
+            # Reset all area runtime state (preserves frozen areas)
             state.reset_all_areas()
 
             # Update all enabled areas with new values

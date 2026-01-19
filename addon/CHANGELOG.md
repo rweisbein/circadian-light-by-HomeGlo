@@ -1,5 +1,25 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.55
+**GloZone Phase 2: Core Logic - Zone-Aware Config**
+
+**Added:**
+- `glozone.load_config_from_files()` - Centralized config loading with migration
+- `glozone.get_effective_config_for_area()` - Get merged preset + global config for an area
+- `glozone.reload_config()` - Force reload from disk
+
+**Changed:**
+- `main.py` now uses zone-aware config for all circadian calculations
+- `get_circadian_lighting_for_area()` uses area's zone preset
+- `update_lights_in_circadian_mode()` uses area's zone preset
+- `reset_state_at_phase_change()` now also resets GloZone runtime state
+- Phase boundary check uses first preset's times (note: future enhancement for per-zone)
+
+**Technical:**
+- Config loading moved from inline file reads to `glozone.load_config_from_files()`
+- Preset settings and global settings properly merged for backward compatibility
+- Areas now get their lighting values based on their zone's preset
+
 ## 6.8.54
 **GloZone Phase 1: Data Model & Storage**
 

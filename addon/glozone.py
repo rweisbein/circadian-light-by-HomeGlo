@@ -237,3 +237,199 @@ def get_area_zone_and_preset(area_id: str) -> Tuple[str, str, Dict[str, Any]]:
     preset_name = get_preset_for_zone(zone_name) or DEFAULT_PRESET
     preset_config = get_preset_config(preset_name)
     return zone_name, preset_name, preset_config
+
+
+# Settings that are per-preset (not global)
+PRESET_SETTINGS = {
+    "color_mode", "min_color_temp", "max_color_temp",
+    "min_brightness", "max_brightness",
+    "ascend_start", "descend_start", "wake_time", "bed_time",
+    "wake_speed", "bed_speed",
+    "warm_night_enabled", "warm_night_mode", "warm_night_target",
+    "warm_night_sunset_start", "warm_night_sunrise_end", "warm_night_fade",
+    "cool_day_enabled", "cool_day_mode", "cool_day_target",
+    "cool_day_sunrise_start", "cool_day_sunset_end", "cool_day_fade",
+    "activity_preset", "max_dim_steps",
+}
+
+# Settings that are global (not per-preset)
+GLOBAL_SETTINGS = {
+    "latitude", "longitude", "timezone", "use_ha_location", "month",
+}
+
+
+def _get_data_directory() -> str:
+    """Get the appropriate data directory based on environment."""
+    if os.path.exists("/data"):
+        return "/data"
+    else:
+        # Development mode - use local .data directory
+        data_dir = os.path.join(os.path.dirname(__file__), ".data")
+        os.makedirs(data_dir, exist_ok=True)
+        return data_dir
+
+
+def _migrate_config(config: Dict[str, Any]) -> Dict[str, Any]:
+    """Migrate old flat config to new GloZone format.
+
+    Args:
+        config: The loaded config dict
+
+    Returns:
+        Migrated config dict (or original if already migrated)
+    """
+    # Check if already migrated
+    if "circadian_presets" in config and "glozones" in config:
+        return config
+
+    logger.info("Migrating config to GloZone format...")
+
+    # Extract preset settings from flat config
+    preset_config = {}
+    for key in PRESET_SETTINGS:
+        if key in config:
+            preset_config[key] = config[key]
+
+    # Extract global settings
+    global_config = {}
+    for key in GLOBAL_SETTINGS:
+        if key in config:
+            global_config[key] = config[key]
+
+    # Build new config structure
+    new_config = {
+        "circadian_presets": {
+            DEFAULT_PRESET: preset_config
+        },
+        "glozones": {
+            DEFAULT_ZONE: {
+                "preset": DEFAULT_PRESET,
+                "areas": []
+            }
+        },
+    }
+
+    # Add global settings
+    new_config.update(global_config)
+
+    logger.info(f"Migration complete: created preset '{DEFAULT_PRESET}' "
+                f"and zone '{DEFAULT_ZONE}'")
+
+    return new_config
+
+
+def load_config_from_files(data_dir: Optional[str] = None) -> Dict[str, Any]:
+    """Load and migrate config from files.
+
+    Loads options.json and designer_config.json, merges them,
+    and migrates to GloZone format if needed.
+
+    Args:
+        data_dir: Optional data directory path. If None, auto-detected.
+
+    Returns:
+        The loaded and migrated config dict
+    """
+    global _config
+
+    if data_dir is None:
+        data_dir = _get_data_directory()
+
+    # Start with defaults
+    config: Dict[str, Any] = {
+        "color_mode": "kelvin",
+        "min_color_temp": 500,
+        "max_color_temp": 6500,
+        "min_brightness": 1,
+        "max_brightness": 100,
+        "ascend_start": 3.0,
+        "descend_start": 12.0,
+        "wake_time": 6.0,
+        "bed_time": 22.0,
+        "wake_speed": 8,
+        "bed_speed": 6,
+        "warm_night_enabled": False,
+        "warm_night_mode": "all",
+        "warm_night_target": 2700,
+        "warm_night_sunset_start": -60,
+        "warm_night_sunrise_end": 60,
+        "warm_night_fade": 60,
+        "cool_day_enabled": False,
+        "cool_day_mode": "all",
+        "cool_day_target": 6500,
+        "cool_day_sunrise_start": 0,
+        "cool_day_sunset_end": 0,
+        "cool_day_fade": 60,
+        "activity_preset": "adult",
+        "latitude": 35.0,
+        "longitude": -78.6,
+        "timezone": "US/Eastern",
+        "use_ha_location": True,
+        "max_dim_steps": 10,
+        "month": 6,
+    }
+
+    # Load and merge config files
+    for filename in ["options.json", "designer_config.json"]:
+        path = os.path.join(data_dir, filename)
+        if os.path.exists(path):
+            try:
+                with open(path, 'r') as f:
+                    part = json.load(f)
+                    if isinstance(part, dict):
+                        config.update(part)
+            except Exception as e:
+                logger.debug(f"Could not load config from {path}: {e}")
+
+    # Migrate to GloZone format
+    config = _migrate_config(config)
+
+    # Cache the config
+    _config = config
+
+    return config
+
+
+def get_effective_config_for_area(area_id: str, include_global: bool = True) -> Dict[str, Any]:
+    """Get the effective configuration for an area.
+
+    Combines the preset settings for the area's zone with global settings.
+    This provides a flat config dict that can be used with existing code.
+
+    Args:
+        area_id: The area ID
+        include_global: Whether to include global settings (latitude, etc.)
+
+    Returns:
+        Flat config dict with all settings merged
+    """
+    # Ensure config is loaded
+    if _config is None:
+        load_config_from_files()
+
+    result = {}
+
+    # Get preset config for this area
+    preset_config = get_preset_config_for_area(area_id)
+    result.update(preset_config)
+
+    # Add global settings if requested
+    if include_global and _config:
+        for key in GLOBAL_SETTINGS:
+            if key in _config:
+                result[key] = _config[key]
+
+    return result
+
+
+def reload_config() -> Dict[str, Any]:
+    """Reload config from files.
+
+    Forces a fresh load from disk, useful after config changes.
+
+    Returns:
+        The reloaded config dict
+    """
+    global _config
+    _config = None
+    return load_config_from_files()
