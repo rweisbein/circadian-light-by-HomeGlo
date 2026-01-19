@@ -760,8 +760,8 @@ class LightDesignerServer:
 
         Old format: flat dict with all settings
         New format: {
-            circadian_presets: {"Preset 1": {...preset settings...}},
-            glozones: {"Unassigned": {preset: "Preset 1", areas: []}},
+            circadian_presets: {"Glo Preset 1": {...preset settings...}},
+            glozones: {"Unassigned": {preset: "Glo Preset 1", areas: []}},
             ...global settings...
         }
 
@@ -1850,7 +1850,7 @@ class LightDesignerServer:
             return web.json_response({"error": str(e)}, status=500)
 
     async def update_circadian_preset(self, request: Request) -> Response:
-        """Update a circadian preset."""
+        """Update a circadian preset (settings or rename)."""
         try:
             name = request.match_info.get("name")
             data = await request.json()
@@ -1858,10 +1858,33 @@ class LightDesignerServer:
             config = await self.load_raw_config()
 
             if name not in config.get("circadian_presets", {}):
-                return web.json_response({"error": f"Preset '{name}' not found"}, status=404)
+                return web.json_response({"error": f"Glo Preset '{name}' not found"}, status=404)
 
-            # Update the preset settings
-            config["circadian_presets"][name].update(data)
+            # Handle rename if "name" field is provided
+            new_name = data.pop("name", None)
+            if new_name and new_name != name:
+                if name == glozone.DEFAULT_PRESET:
+                    return web.json_response(
+                        {"error": f"Cannot rename default Glo Preset '{name}'"},
+                        status=400
+                    )
+                if new_name in config.get("circadian_presets", {}):
+                    return web.json_response(
+                        {"error": f"Glo Preset '{new_name}' already exists"},
+                        status=400
+                    )
+                # Rename the preset
+                config["circadian_presets"][new_name] = config["circadian_presets"].pop(name)
+                # Update all zones using this preset
+                for zone_name, zone_data in config.get("glozones", {}).items():
+                    if zone_data.get("preset") == name:
+                        zone_data["preset"] = new_name
+                logger.info(f"Renamed circadian preset: {name} -> {new_name}")
+                name = new_name
+
+            # Update the preset settings if any remain
+            if data:
+                config["circadian_presets"][name].update(data)
 
             await self.save_config_to_file(config)
             glozone.set_config(config)
@@ -1977,7 +2000,7 @@ class LightDesignerServer:
             return web.json_response({"error": str(e)}, status=500)
 
     async def update_glozone(self, request: Request) -> Response:
-        """Update a GloZone (preset or areas)."""
+        """Update a GloZone (preset, areas, or rename)."""
         try:
             name = request.match_info.get("name")
             data = await request.json()
@@ -1985,14 +2008,32 @@ class LightDesignerServer:
             config = await self.load_raw_config()
 
             if name not in config.get("glozones", {}):
-                return web.json_response({"error": f"Zone '{name}' not found"}, status=404)
+                return web.json_response({"error": f"Glo Zone '{name}' not found"}, status=404)
+
+            # Handle rename if "name" field is provided
+            new_name = data.pop("name", None)
+            if new_name and new_name != name:
+                if name == glozone.DEFAULT_ZONE:
+                    return web.json_response(
+                        {"error": f"Cannot rename default Glo Zone '{name}'"},
+                        status=400
+                    )
+                if new_name in config.get("glozones", {}):
+                    return web.json_response(
+                        {"error": f"Glo Zone '{new_name}' already exists"},
+                        status=400
+                    )
+                # Rename the zone
+                config["glozones"][new_name] = config["glozones"].pop(name)
+                logger.info(f"Renamed GloZone: {name} -> {new_name}")
+                name = new_name
 
             # Update preset if provided
             if "preset" in data:
                 preset = data["preset"]
                 if preset not in config.get("circadian_presets", {}):
                     return web.json_response(
-                        {"error": f"Preset '{preset}' not found"},
+                        {"error": f"Glo Preset '{preset}' not found"},
                         status=400
                     )
                 config["glozones"][name]["preset"] = preset

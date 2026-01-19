@@ -1,5 +1,27 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.60
+**UI Improvements: Rename Support & Terminology Updates**
+
+**Rename Functionality:**
+- Added rename support for Glo Zones via detail panel Rename button
+- Added rename support for Glo Presets via Rename button in list
+- API endpoints now support renaming via `name` field in PUT requests
+- Renaming a Glo Preset automatically updates all Glo Zones using it
+
+**Terminology Updates:**
+- "Zone" → "Glo Zone" throughout UI
+- "Preset" → "Glo Preset" throughout UI
+- "Activity Preset" → "Circadian Pattern"
+- Default preset renamed from "Preset 1" to "Glo Preset 1"
+
+**UI Labels Updated:**
+- Section header: "Glo Zones & Glo Presets"
+- Tab labels: "Glo Zones", "Glo Presets"
+- Buttons: "+ Add Glo Zone", "+ Add Glo Preset"
+- Detail panel label: "Glo Preset" dropdown
+- Modal titles: "Create Glo Zone", "Rename Glo Zone", etc.
+
 ## 6.8.59
 **GloZone Phase 6: Designer UI**
 
@@ -137,7 +159,7 @@ HUE:    1x=glo_down, 2x=wake/bed, 3x=freeze_toggle, hold=RESERVED
 **Changed:**
 - Config now stored in GloZone format with `circadian_presets` and `glozones` sections
 - Automatic migration from flat config to new format on first load
-- Existing settings become "Preset 1", all areas go to "Unassigned" zone
+- Existing settings become "Glo Preset 1", all areas go to "Unassigned" zone
 - `load_config()` returns effective flat config for backward compatibility
 - `save_config()` properly handles both flat and structured saves
 

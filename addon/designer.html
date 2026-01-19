@@ -1034,6 +1034,21 @@ input[type=range]::-moz-range-thumb {
   font-weight: 600;
   font-size: 1rem;
 }
+.glozone-rename-btn {
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.glozone-rename-btn:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
 .glozone-detail-row {
   display: flex;
   align-items: center;
@@ -1175,10 +1190,10 @@ input[type=range]::-moz-range-thumb {
   <!-- GloZone Management -->
   <div class="section-block glozone-section">
     <div class="glozone-header">
-      <h2>Zones &amp; Presets</h2>
+      <h2>Glo Zones &amp; Glo Presets</h2>
       <div class="glozone-tabs">
-        <button class="glozone-tab active" data-tab="zones">Zones</button>
-        <button class="glozone-tab" data-tab="presets">Presets</button>
+        <button class="glozone-tab active" data-tab="zones">Glo Zones</button>
+        <button class="glozone-tab" data-tab="presets">Glo Presets</button>
       </div>
     </div>
 
@@ -1187,21 +1202,22 @@ input[type=range]::-moz-range-thumb {
       <div class="glozone-list" id="zones-list">
         <!-- Zone items will be populated by JavaScript -->
       </div>
-      <button class="glozone-add" id="add-zone-btn">+ Add Zone</button>
+      <button class="glozone-add" id="add-zone-btn">+ Add Glo Zone</button>
 
       <!-- Zone Detail Panel (shown when a zone is selected) -->
       <div class="glozone-detail" id="zone-detail" style="display: none;">
         <div class="glozone-detail-header">
           <span class="glozone-detail-title" id="zone-detail-title">Zone Name</span>
+          <button class="glozone-rename-btn" id="zone-rename-btn">Rename</button>
         </div>
         <div class="glozone-detail-row">
-          <label>Preset</label>
+          <label>Glo Preset</label>
           <select id="zone-preset-select">
             <!-- Presets populated by JavaScript -->
           </select>
         </div>
         <div class="area-assignment">
-          <div class="area-assignment-header">Areas in this zone:</div>
+          <div class="area-assignment-header">Areas in this Glo Zone:</div>
           <div class="area-chips" id="zone-areas">
             <!-- Area chips populated by JavaScript -->
           </div>
@@ -1220,20 +1236,20 @@ input[type=range]::-moz-range-thumb {
       <div class="glozone-list" id="presets-list">
         <!-- Preset items will be populated by JavaScript -->
       </div>
-      <button class="glozone-add" id="add-preset-btn">+ Add Preset</button>
+      <button class="glozone-add" id="add-preset-btn">+ Add Glo Preset</button>
     </div>
   </div>
 
   <!-- Modal for Creating/Editing Zones and Presets -->
   <div class="glozone-modal-overlay" id="glozone-modal">
     <div class="glozone-modal">
-      <h3 id="modal-title">Create Zone</h3>
+      <h3 id="modal-title">Create Glo Zone</h3>
       <div class="glozone-detail-row">
         <label>Name</label>
         <input type="text" id="modal-name-input" placeholder="Enter name">
       </div>
       <div class="glozone-detail-row" id="modal-preset-row" style="display: none;">
-        <label>Preset</label>
+        <label>Glo Preset</label>
         <select id="modal-preset-select">
           <!-- Presets populated by JavaScript -->
         </select>
@@ -1245,9 +1261,9 @@ input[type=range]::-moz-range-thumb {
     </div>
   </div>
 
-  <!-- Activity Preset -->
+  <!-- Circadian Pattern -->
   <div class="activity-select">
-    <label for="activity-preset">Activity Preset</label>
+    <label for="activity-preset">Circadian Pattern</label>
     <select id="activity-preset">
       <option value="young">Young Child</option>
       <option value="adult" selected>Adult</option>
@@ -4715,7 +4731,7 @@ function renderZonesList() {
 
   const zoneNames = Object.keys(glozonesData);
   if (zoneNames.length === 0) {
-    container.innerHTML = '<div class="glozone-empty">No zones configured. Add a zone to get started.</div>';
+    container.innerHTML = '<div class="glozone-empty">No Glo Zones configured. Add a Glo Zone to get started.</div>';
     return;
   }
 
@@ -4727,7 +4743,7 @@ function renderZonesList() {
       <div class="glozone-item ${selectedZone === zoneName ? 'selected' : ''}" data-zone="${zoneName}">
         <div class="glozone-item-info">
           <span class="glozone-item-name">${zoneName}</span>
-          <span class="glozone-item-meta">${zone.preset || 'Preset 1'} &bull; ${areaCount} area${areaCount !== 1 ? 's' : ''}</span>
+          <span class="glozone-item-meta">${zone.preset || 'Glo Preset 1'} &bull; ${areaCount} area${areaCount !== 1 ? 's' : ''}</span>
         </div>
         <div class="glozone-item-actions">
           <button class="edit" data-zone="${zoneName}">Edit</button>
@@ -4763,26 +4779,31 @@ function renderPresetsList() {
 
   const presetNames = Object.keys(presetsData);
   if (presetNames.length === 0) {
-    container.innerHTML = '<div class="glozone-empty">No presets configured.</div>';
+    container.innerHTML = '<div class="glozone-empty">No Glo Presets configured.</div>';
     return;
   }
 
   container.innerHTML = presetNames.map(presetName => {
-    const isDefault = presetName === 'Preset 1';
+    const isDefault = presetName === 'Glo Preset 1';
     // Count zones using this preset
     const zonesUsing = Object.entries(glozonesData).filter(([_, z]) => z.preset === presetName).length;
     return `
       <div class="glozone-item" data-preset="${presetName}">
         <div class="glozone-item-info">
           <span class="glozone-item-name">${presetName}</span>
-          <span class="glozone-item-meta">Used by ${zonesUsing} zone${zonesUsing !== 1 ? 's' : ''}</span>
+          <span class="glozone-item-meta">Used by ${zonesUsing} Glo Zone${zonesUsing !== 1 ? 's' : ''}</span>
         </div>
         <div class="glozone-item-actions">
+          ${!isDefault ? `<button class="rename" data-preset="${presetName}">Rename</button>` : ''}
           ${!isDefault ? `<button class="delete" data-preset="${presetName}">Delete</button>` : ''}
         </div>
       </div>
     `;
   }).join('');
+
+  container.querySelectorAll('.rename').forEach(btn => {
+    btn.addEventListener('click', () => showModal('rename-preset', btn.dataset.preset));
+  });
 
   container.querySelectorAll('.delete').forEach(btn => {
     btn.addEventListener('click', () => deletePreset(btn.dataset.preset));
@@ -4835,7 +4856,7 @@ function showZoneDetail(zoneName) {
 
   detail.style.display = 'block';
   title.textContent = zoneName;
-  presetSelect.value = zone.preset || 'Preset 1';
+  presetSelect.value = zone.preset || 'Glo Preset 1';
 
   // Render areas in this zone
   const zoneAreaIds = (zone.areas || []).map(a => typeof a === 'string' ? a : a.id);
@@ -4932,7 +4953,7 @@ async function updateZonePreset(zoneName, preset) {
  * Delete a zone via API
  */
 async function deleteZone(zoneName) {
-  if (!confirm(`Delete zone "${zoneName}"? Areas will be moved to Unassigned.`)) return;
+  if (!confirm(`Delete Glo Zone "${zoneName}"? Areas will be moved to Unassigned.`)) return;
 
   try {
     const response = await fetch(`./api/glozones/${encodeURIComponent(zoneName)}`, {
@@ -4954,7 +4975,7 @@ async function deleteZone(zoneName) {
  * Delete a preset via API
  */
 async function deletePreset(presetName) {
-  if (!confirm(`Delete preset "${presetName}"? Zones using it will switch to "Preset 1".`)) return;
+  if (!confirm(`Delete Glo Preset "${presetName}"? Glo Zones using it will switch to "Glo Preset 1".`)) return;
 
   try {
     const response = await fetch(`./api/circadian-presets/${encodeURIComponent(presetName)}`, {
@@ -4970,7 +4991,7 @@ async function deletePreset(presetName) {
 }
 
 /**
- * Show modal for creating zone or preset
+ * Show modal for creating or renaming zone/preset
  */
 function showModal(mode, target = null) {
   modalMode = mode;
@@ -4985,13 +5006,23 @@ function showModal(mode, target = null) {
   nameInput.value = '';
 
   if (mode === 'create-zone') {
-    title.textContent = 'Create Zone';
+    title.textContent = 'Create Glo Zone';
     presetRow.style.display = 'flex';
     confirmBtn.textContent = 'Create';
   } else if (mode === 'create-preset') {
-    title.textContent = 'Create Preset';
+    title.textContent = 'Create Glo Preset';
     presetRow.style.display = 'none';
     confirmBtn.textContent = 'Create';
+  } else if (mode === 'rename-zone') {
+    title.textContent = 'Rename Glo Zone';
+    nameInput.value = target || '';
+    presetRow.style.display = 'none';
+    confirmBtn.textContent = 'Rename';
+  } else if (mode === 'rename-preset') {
+    title.textContent = 'Rename Glo Preset';
+    nameInput.value = target || '';
+    presetRow.style.display = 'none';
+    confirmBtn.textContent = 'Rename';
   }
 
   overlay.classList.add('visible');
@@ -5033,10 +5064,10 @@ async function handleModalConfirm() {
         selectZone(name);
       } else {
         const data = await response.json();
-        alert(data.error || 'Failed to create zone');
+        alert(data.error || 'Failed to create Glo Zone');
       }
     } catch (err) {
-      console.error('Error creating zone:', err);
+      console.error('Error creating Glo Zone:', err);
     }
   } else if (modalMode === 'create-preset') {
     try {
@@ -5050,10 +5081,54 @@ async function handleModalConfirm() {
         await fetchPresets();
       } else {
         const data = await response.json();
-        alert(data.error || 'Failed to create preset');
+        alert(data.error || 'Failed to create Glo Preset');
       }
     } catch (err) {
-      console.error('Error creating preset:', err);
+      console.error('Error creating Glo Preset:', err);
+    }
+  } else if (modalMode === 'rename-zone') {
+    if (name === modalTarget) {
+      hideModal();
+      return;
+    }
+    try {
+      const response = await fetch(`./api/glozones/${encodeURIComponent(modalTarget)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name })
+      });
+      if (response.ok) {
+        hideModal();
+        await fetchGlozones();
+        selectZone(name);
+      } else {
+        const data = await response.json();
+        alert(data.error || 'Failed to rename Glo Zone');
+      }
+    } catch (err) {
+      console.error('Error renaming Glo Zone:', err);
+    }
+  } else if (modalMode === 'rename-preset') {
+    if (name === modalTarget) {
+      hideModal();
+      return;
+    }
+    try {
+      const response = await fetch(`./api/circadian-presets/${encodeURIComponent(modalTarget)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name })
+      });
+      if (response.ok) {
+        hideModal();
+        await fetchPresets();
+        await fetchGlozones(); // Refresh zones to show updated preset names
+      } else {
+        const data = await response.json();
+        alert(data.error || 'Failed to rename Glo Preset');
+      }
+    } catch (err) {
+      console.error('Error renaming Glo Preset:', err);
     }
   }
 }
@@ -5080,6 +5155,11 @@ function setupGlozoneUI() {
   // Add buttons
   document.getElementById('add-zone-btn')?.addEventListener('click', () => showModal('create-zone'));
   document.getElementById('add-preset-btn')?.addEventListener('click', () => showModal('create-preset'));
+
+  // Zone rename button
+  document.getElementById('zone-rename-btn')?.addEventListener('click', () => {
+    if (selectedZone) showModal('rename-zone', selectedZone);
+  });
 
   // Modal buttons
   document.getElementById('modal-cancel')?.addEventListener('click', hideModal);

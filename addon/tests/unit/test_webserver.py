@@ -164,7 +164,7 @@ class TestLightDesignerServer(AioHTTPTestCase):
         self.assertIn("glozones", saved_config)
 
         # Preset settings are inside the first preset
-        preset = saved_config["circadian_presets"]["Preset 1"]
+        preset = saved_config["circadian_presets"]["Glo Preset 1"]
         self.assertEqual(preset["wake_time"], 7.0)
         self.assertEqual(preset["bed_speed"], 5)
         self.assertEqual(preset["color_mode"], "rgb")

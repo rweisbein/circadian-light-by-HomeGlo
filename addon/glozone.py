@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_ZONE = "Unassigned"
 
 # Default preset name (used for migration and fallback)
-DEFAULT_PRESET = "Preset 1"
+DEFAULT_PRESET = "Glo Preset 1"
 
 # Cached config reference
 _config: Optional[Dict[str, Any]] = None
