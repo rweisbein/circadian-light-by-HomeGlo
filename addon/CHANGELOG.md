@@ -1,5 +1,14 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.51
+**Extend CCT color mapping to include red range**
+
+**Improved:**
+- UI color display now extends down to 500K (pure red)
+- Added 500-1000K pure red range
+- Added 1000-1500K red-to-orange transition
+- Previous minimum was 1500K
+
 ## 6.8.50
 **Fix time callout showing "6:60a" instead of "7:00a"**
 

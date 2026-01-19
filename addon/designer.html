@@ -1803,12 +1803,23 @@ function getSelectedDateISO() {
 
 function cctToRGB(k) {
   // Perceptual color mapping for UI display (not physics-based)
-  // ~1800K = orange peak, ~2400K = yellow peak, 3000K = slight yellow, 4000K = white, 6500K = baby blue
-  k = Math.max(1500, Math.min(10000, k));
+  // 500K = red, ~1800K = orange peak, ~2400K = yellow peak, 3000K = slight yellow, 4000K = white, 6500K = baby blue
+  k = Math.max(500, Math.min(10000, k));
 
   let r, g, b;
 
-  if (k <= 1800) {
+  if (k <= 1000) {
+    // Pure red range: 500K → 1000K
+    r = 255;
+    g = 0;
+    b = 0;
+  } else if (k <= 1500) {
+    // Red to deep orange: 1000K → 1500K
+    const t = (k - 1000) / 500;
+    r = 255;
+    g = 100 * t;            // 0 → 100
+    b = 20 * t;             // 0 → 20
+  } else if (k <= 1800) {
     // Deep orange range: 1500K → 1800K (orange peak)
     const t = (k - 1500) / 300;
     r = 255;
