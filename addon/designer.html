@@ -1803,37 +1803,37 @@ function getSelectedDateISO() {
 
 function cctToRGB(k) {
   // Perceptual color mapping for UI display (not physics-based)
-  // 500K = red, ~1800K = orange peak, ~2400K = yellow peak, 3000K = slight yellow, 4000K = white, 6500K = baby blue
+  // 500K = red, ~1300K = orange peak, ~1900K = yellow peak, 2600K = slight yellow, 4000K = white, 6500K = baby blue
   k = Math.max(500, Math.min(10000, k));
 
   let r, g, b;
 
-  if (k <= 1000) {
-    // Pure red range: 500K → 1000K
+  if (k <= 700) {
+    // Pure red range: 500K → 700K
     r = 255;
     g = 0;
     b = 0;
-  } else if (k <= 1500) {
-    // Red to deep orange: 1000K → 1500K
-    const t = (k - 1000) / 500;
+  } else if (k <= 1000) {
+    // Red to deep orange: 700K → 1000K
+    const t = (k - 700) / 300;
     r = 255;
     g = 100 * t;            // 0 → 100
     b = 20 * t;             // 0 → 20
-  } else if (k <= 1800) {
-    // Deep orange range: 1500K → 1800K (orange peak)
-    const t = (k - 1500) / 300;
+  } else if (k <= 1600) {
+    // Deep orange range: 1000K → 1600K (orange peak)
+    const t = (k - 1000) / 600;
     r = 255;
     g = 100 + 60 * t;       // 100 → 160
     b = 20 + 20 * t;        // 20 → 40
-  } else if (k <= 2400) {
-    // Orange to yellow: 1800K → 2400K (yellow peak)
-    const t = (k - 1800) / 600;
+  } else if (k <= 2200) {
+    // Orange to yellow: 1600K → 2200K (yellow peak)
+    const t = (k - 1600) / 600;
     r = 255;
     g = 160 + 60 * t;       // 160 → 220
     b = 40 + 40 * t;        // 40 → 80
   } else if (k <= 3000) {
-    // Yellow to off-white: 2400K → 3000K
-    const t = (k - 2400) / 600;
+    // Yellow to off-white: 2200K → 3000K
+    const t = (k - 2200) / 800;
     r = 255;
     g = 220 + 25 * t;       // 220 → 245
     b = 80 + 140 * t;       // 80 → 220

@@ -1,5 +1,16 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.52
+**Adjust CCT color mapping - tighter red, more orange**
+
+**Changed:**
+- Tightened pure red range: 500-700K (was 500-1000K)
+- Red to deep orange: 700-1000K (was 1000-1500K)
+- Deep orange range: 1000-1600K (was 1500-1800K)
+- Orange to yellow: 1600-2200K (was 1800-2400K)
+- Yellow to off-white: 2200-3000K (was 2400-3000K)
+- 3000K+ ranges unchanged
+
 ## 6.8.51
 **Extend CCT color mapping to include red range**
 
