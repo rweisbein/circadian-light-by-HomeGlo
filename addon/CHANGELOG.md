@@ -1,5 +1,16 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.53
+**Add GloZone specification document**
+
+**Added:**
+- `docs/GLOZONE_SPEC.md` - Complete specification for GloZone feature
+- Defines Circadian Presets (named configurations)
+- Defines GloZones (area groupings tied to presets)
+- New primitives: GloUp, GloDown, GloReset
+- Updated button mappings for Hue Dimmer Switch
+- Data model, implementation plan, and migration path
+
 ## 6.8.52
 **Adjust CCT color mapping - tighter red, more orange**
 
