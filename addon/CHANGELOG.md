@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.61
+**Terminology: Rename "Glo Preset" to "Glo"**
+
+- "Glo Preset" → "Glo" throughout UI
+- Default preset: "Glo Preset 1" → "Glo 1"
+- Tab label: "Glo Presets" → "Glos"
+- Button: "+ Add Glo Preset" → "+ Add Glo"
+
 ## 6.8.60
 **UI Improvements: Rename Support & Terminology Updates**
 
