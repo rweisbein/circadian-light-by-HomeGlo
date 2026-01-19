@@ -343,6 +343,7 @@ class LightDesignerServer:
         self.live_design_area: str = None  # Currently active Live Design area
         self.live_design_color_lights: list = []  # Color-capable lights in area
         self.live_design_ct_lights: list = []  # CT-only lights in area
+        self.live_design_saved_states: dict = {}  # Saved light states to restore when ending
         
     def setup_routes(self):
         """Set up web routes."""
@@ -1010,6 +1011,131 @@ class LightDesignerServer:
             logger.warning(f"[WS Event] Error firing {event_type}: {e}")
             return False
 
+    async def _fetch_light_states(self, ws_url: str, token: str, entity_ids: list) -> dict:
+        """Fetch current states of lights for later restoration.
+
+        Args:
+            ws_url: WebSocket URL
+            token: Home Assistant auth token
+            entity_ids: List of light entity IDs
+
+        Returns:
+            Dict mapping entity_id to state dict with brightness, color_temp, etc.
+        """
+        if not entity_ids:
+            return {}
+
+        saved_states = {}
+        try:
+            async with websockets.connect(ws_url) as ws:
+                # Auth
+                msg = json.loads(await ws.recv())
+                if msg.get('type') != 'auth_required':
+                    return {}
+                await ws.send(json.dumps({'type': 'auth', 'access_token': token}))
+                msg = json.loads(await ws.recv())
+                if msg.get('type') != 'auth_ok':
+                    return {}
+
+                # Get states
+                await ws.send(json.dumps({'id': 1, 'type': 'get_states'}))
+                result = json.loads(await ws.recv())
+
+                if result.get('type') == 'result' and result.get('success'):
+                    states = result.get('result', [])
+                    for state_obj in states:
+                        entity_id = state_obj.get('entity_id')
+                        if entity_id in entity_ids:
+                            attrs = state_obj.get('attributes', {})
+                            saved_states[entity_id] = {
+                                'state': state_obj.get('state'),
+                                'brightness': attrs.get('brightness'),
+                                'color_temp_kelvin': attrs.get('color_temp_kelvin'),
+                                'color_temp': attrs.get('color_temp'),  # Mireds
+                                'xy_color': attrs.get('xy_color'),
+                                'rgb_color': attrs.get('rgb_color'),
+                                'color_mode': attrs.get('color_mode'),
+                            }
+
+                logger.info(f"[Live Design] Saved states for {len(saved_states)} lights")
+                return saved_states
+
+        except Exception as e:
+            logger.error(f"[Live Design] Error fetching light states: {e}")
+            return {}
+
+    async def _restore_light_states(self, ws_url: str, token: str, saved_states: dict) -> bool:
+        """Restore previously saved light states.
+
+        Args:
+            ws_url: WebSocket URL
+            token: Home Assistant auth token
+            saved_states: Dict from _fetch_light_states
+
+        Returns:
+            True if restoration succeeded
+        """
+        if not saved_states:
+            return True
+
+        try:
+            async with websockets.connect(ws_url) as ws:
+                # Auth
+                msg = json.loads(await ws.recv())
+                if msg.get('type') != 'auth_required':
+                    return False
+                await ws.send(json.dumps({'type': 'auth', 'access_token': token}))
+                msg = json.loads(await ws.recv())
+                if msg.get('type') != 'auth_ok':
+                    return False
+
+                msg_id = 1
+                for entity_id, state_data in saved_states.items():
+                    if state_data.get('state') == 'off':
+                        # Light was off - turn it off
+                        msg_id += 1
+                        await ws.send(json.dumps({
+                            'id': msg_id,
+                            'type': 'call_service',
+                            'domain': 'light',
+                            'service': 'turn_off',
+                            'service_data': {'entity_id': entity_id}
+                        }))
+                    else:
+                        # Light was on - restore its settings
+                        service_data = {'entity_id': entity_id}
+
+                        brightness = state_data.get('brightness')
+                        if brightness is not None:
+                            service_data['brightness'] = brightness
+
+                        # Restore color based on what mode it was in
+                        color_mode = state_data.get('color_mode')
+                        if color_mode == 'xy' and state_data.get('xy_color'):
+                            service_data['xy_color'] = state_data['xy_color']
+                        elif color_mode == 'color_temp' and state_data.get('color_temp_kelvin'):
+                            service_data['color_temp_kelvin'] = state_data['color_temp_kelvin']
+                        elif state_data.get('color_temp_kelvin'):
+                            service_data['color_temp_kelvin'] = state_data['color_temp_kelvin']
+
+                        msg_id += 1
+                        await ws.send(json.dumps({
+                            'id': msg_id,
+                            'type': 'call_service',
+                            'domain': 'light',
+                            'service': 'turn_on',
+                            'service_data': service_data
+                        }))
+
+                # Wait briefly for commands to be processed
+                await asyncio.sleep(0.5)
+                logger.info(f"[Live Design] Restored {len(saved_states)} light states")
+                return True
+
+        except Exception as e:
+            logger.error(f"[Live Design] Error restoring light states: {e}")
+            return False
+
     async def _fetch_areas_via_websocket(self, ws_url: str, token: str) -> list:
         """Fetch areas that have lights from Home Assistant via WebSocket API.
 
@@ -1292,7 +1418,8 @@ class LightDesignerServer:
 
         Used by Live Design to pause automatic updates while designing.
         When circadian mode is disabled (enabled=False), Live Design becomes active
-        and we fetch light capabilities for that area.
+        and we fetch light capabilities for that area, save current light states,
+        and notify main.py to skip this area in periodic updates.
         """
         try:
             data = await request.json()
@@ -1307,27 +1434,53 @@ class LightDesignerServer:
 
             state.set_enabled(area_id, enabled)
 
+            rest_url, ws_url, token = self._get_ha_api_config()
+
             if not enabled:
                 # Live Design is starting - fetch light capabilities for this area
-                rest_url, ws_url, token = self._get_ha_api_config()
                 if ws_url and token:
                     color_lights, ct_lights = await self._fetch_area_light_capabilities(ws_url, token, area_id)
                     self.live_design_area = area_id
                     self.live_design_color_lights = color_lights
                     self.live_design_ct_lights = ct_lights
-                    logger.info(f"[Live Design] Started for area {area_id}: {len(color_lights)} color, {len(ct_lights)} CT-only")
+
+                    # Save current light states for restoration later
+                    all_lights = color_lights + ct_lights
+                    self.live_design_saved_states = await self._fetch_light_states(ws_url, token, all_lights)
+                    logger.info(f"[Live Design] Started for area {area_id}: {len(color_lights)} color, {len(ct_lights)} CT-only, saved {len(self.live_design_saved_states)} states")
+
+                    # Notify main.py to skip this area in periodic updates
+                    await self._fire_event_via_websocket(
+                        ws_url, token, 'circadian_light_live_design',
+                        {'area_id': area_id, 'active': True}
+                    )
                 else:
                     logger.warning("[Live Design] Cannot fetch capabilities - no HA API config")
                     self.live_design_area = area_id
                     self.live_design_color_lights = []
                     self.live_design_ct_lights = []
+                    self.live_design_saved_states = {}
             else:
-                # Live Design is ending - clear cache
+                # Live Design is ending - restore saved states and clear cache
                 if self.live_design_area == area_id:
                     logger.info(f"[Live Design] Ended for area {area_id}")
+
+                    # Restore saved light states
+                    if self.live_design_saved_states and ws_url and token:
+                        await self._restore_light_states(ws_url, token, self.live_design_saved_states)
+                        logger.info(f"[Live Design] Restored {len(self.live_design_saved_states)} light states")
+
+                    # Notify main.py that Live Design ended
+                    if ws_url and token:
+                        await self._fire_event_via_websocket(
+                            ws_url, token, 'circadian_light_live_design',
+                            {'area_id': area_id, 'active': False}
+                        )
+
                     self.live_design_area = None
                     self.live_design_color_lights = []
                     self.live_design_ct_lights = []
+                    self.live_design_saved_states = {}
 
             logger.info(f"[Live Design] Circadian mode {'enabled' if enabled else 'disabled'} for area {area_id}")
 

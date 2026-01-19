@@ -1,5 +1,22 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.43
+**Enhanced Live Design experience**
+
+**Changed:**
+- **Auto-enable on area selection**: Selecting an area from dropdown immediately starts Live Design
+- **Pause button replaces Enable/Disable**: Subtler UX - button only appears when an area is selected
+- **Pause/Resume toggle**: Clicking Pause restores lights to prior state; Resume continues designing
+
+**Added:**
+- **Suppress periodic updates**: Area being designed is excluded from 30-second update cycle
+- **State restoration**: Lights return to their prior settings when Live Design ends (via Pause or area deselect)
+
+**Technical:**
+- webserver.py saves light states when Live Design starts, restores on end
+- webserver.py fires `circadian_light_live_design` event to signal main.py
+- main.py tracks `live_design_area` and skips it in `periodic_light_updater`
+
 ## 6.8.42
 **Fix - Designer Save button now immediately refreshes lights (v2)**
 

@@ -80,6 +80,9 @@ class HomeAssistantWebSocketClient:
         self.light_color_modes: Dict[str, Set[str]] = {}  # entity_id -> set of supported color modes
         self.area_lights: Dict[str, List[str]] = {}  # area_id -> list of light entity_ids
 
+        # Live Design tracking - skip this area in periodic updates
+        self.live_design_area: str = None
+
         # Initialize state module (loads from circadian_state.json)
         state.init()
 
@@ -1161,8 +1164,17 @@ class HomeAssistantWebSocketClient:
                     logger.debug("No areas enabled for Circadian Light update")
                     continue
 
+                # Skip area being designed in Live Design mode
+                if self.live_design_area and self.live_design_area in circadian_areas:
+                    circadian_areas = [a for a in circadian_areas if a != self.live_design_area]
+                    logger.debug(f"Skipping Live Design area: {self.live_design_area}")
+
                 trigger_source = "refresh signal" if triggered_by_event else "periodic (30s)"
-                logger.info(f"Running light update ({trigger_source}) for {len(circadian_areas)} Circadian areas")
+                if circadian_areas:
+                    logger.info(f"Running light update ({trigger_source}) for {len(circadian_areas)} Circadian areas")
+                else:
+                    logger.debug(f"No areas to update ({trigger_source}) - all skipped or disabled")
+                    continue
 
                 # Update lights in all enabled areas
                 for area_id in circadian_areas:
@@ -1418,6 +1430,18 @@ class HomeAssistantWebSocketClient:
                     self.refresh_event.set()
                 else:
                     logger.warning("refresh_event not yet initialized, skipping signal")
+
+            # Handle circadian_light_live_design event (fired by webserver when Live Design starts/stops)
+            elif event_type == "circadian_light_live_design":
+                area_id = event_data.get('area_id')
+                active = event_data.get('active', False)
+                if active:
+                    self.live_design_area = area_id
+                    logger.info(f"Live Design started for area: {area_id} - skipping periodic updates")
+                else:
+                    if self.live_design_area == area_id:
+                        self.live_design_area = None
+                        logger.info(f"Live Design ended for area: {area_id} - resuming periodic updates")
 
             # Handle device registry updates (when devices are added/removed/modified)
             elif event_type == "device_registry_updated":

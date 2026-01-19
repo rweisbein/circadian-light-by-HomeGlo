@@ -1041,7 +1041,7 @@ input[type=range]::-moz-range-thumb {
       <select id="live-area-select">
         <option value="">Select Area</option>
       </select>
-      <button class="btn" id="live-design-toggle">Enable</button>
+      <button class="btn" id="live-design-toggle" style="display: none;">Pause</button>
       <span class="live-design-status" id="live-design-status"></span>
     </div>
   </div>
@@ -4087,6 +4087,8 @@ async function setCircadianMode(areaId, enabled) {
 
 /**
  * Set up Live Design event listeners.
+ * - Selecting an area auto-enables Live Design
+ * - Pause button pauses/resumes (restoring lights on pause)
  */
 function setupLiveDesign() {
   const toggleBtn = document.getElementById('live-design-toggle');
@@ -4095,47 +4097,30 @@ function setupLiveDesign() {
 
   if (toggleBtn) {
     toggleBtn.addEventListener('click', async () => {
-      // Require an area to be selected before enabling
-      if (!liveDesignEnabled && !liveDesignAreaId) {
-        if (statusEl) {
-          statusEl.textContent = 'Select an area first';
-          statusEl.classList.remove('active');
-        }
-        return;
-      }
+      if (!liveDesignAreaId) return;
 
       liveDesignEnabled = !liveDesignEnabled;
-      toggleBtn.textContent = liveDesignEnabled ? 'Disable' : 'Enable';
-      toggleBtn.classList.toggle('active', liveDesignEnabled);
+      toggleBtn.textContent = liveDesignEnabled ? 'Pause' : 'Resume';
 
       // Disable/enable Circadian mode for the area
       if (liveDesignEnabled) {
         // Disable Circadian so periodic updates don't override Live Design
         await setCircadianMode(liveDesignAreaId, false);
-      } else {
-        // Re-enable Circadian when done with Live Design
-        await setCircadianMode(liveDesignAreaId, true);
-      }
-
-      if (statusEl) {
-        if (liveDesignEnabled) {
-          statusEl.textContent = 'Circadian paused - designing';
+        if (statusEl) {
+          statusEl.textContent = 'Live';
           statusEl.classList.add('active');
-        } else {
-          statusEl.textContent = 'Circadian resumed';
-          statusEl.classList.remove('active');
-          // Clear status after a moment
-          setTimeout(() => {
-            if (!liveDesignEnabled && statusEl) {
-              statusEl.textContent = '';
-            }
-          }, 2000);
         }
-      }
-
-      // If just enabled and cursor is already set, apply immediately
-      if (liveDesignEnabled && cursorHour !== null) {
-        applyLiveLight();
+        // Apply current cursor position
+        if (cursorHour !== null) {
+          applyLiveLight();
+        }
+      } else {
+        // Re-enable Circadian when pausing (this restores lights via backend)
+        await setCircadianMode(liveDesignAreaId, true);
+        if (statusEl) {
+          statusEl.textContent = 'Paused';
+          statusEl.classList.remove('active');
+        }
       }
     });
   }
@@ -4143,26 +4128,34 @@ function setupLiveDesign() {
   if (areaSelect) {
     areaSelect.addEventListener('change', async (e) => {
       const oldAreaId = liveDesignAreaId;
-      liveDesignAreaId = e.target.value || null;
+      const newAreaId = e.target.value || null;
 
-      // If Live Design is active and area changed, swap Circadian mode
-      if (liveDesignEnabled) {
-        if (oldAreaId) {
-          // Re-enable Circadian for the old area
-          await setCircadianMode(oldAreaId, true);
-        }
-        if (liveDesignAreaId) {
-          // Disable Circadian for the new area
-          await setCircadianMode(liveDesignAreaId, false);
-        }
+      // If we had an active Live Design, end it for the old area
+      if (liveDesignEnabled && oldAreaId) {
+        await setCircadianMode(oldAreaId, true);
       }
 
-      // Reset status when area changes
-      if (statusEl) {
-        if (liveDesignAreaId && liveDesignEnabled) {
-          statusEl.textContent = 'Circadian paused - designing';
+      liveDesignAreaId = newAreaId;
+
+      if (newAreaId) {
+        // Auto-enable Live Design when area is selected
+        liveDesignEnabled = true;
+        toggleBtn.style.display = '';
+        toggleBtn.textContent = 'Pause';
+        await setCircadianMode(newAreaId, false);
+        if (statusEl) {
+          statusEl.textContent = 'Live';
           statusEl.classList.add('active');
-        } else {
+        }
+        // Apply current cursor position if set
+        if (cursorHour !== null) {
+          applyLiveLight();
+        }
+      } else {
+        // No area selected - hide button and reset state
+        liveDesignEnabled = false;
+        toggleBtn.style.display = 'none';
+        if (statusEl) {
           statusEl.textContent = '';
           statusEl.classList.remove('active');
         }
