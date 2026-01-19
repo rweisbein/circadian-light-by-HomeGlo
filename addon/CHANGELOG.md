@@ -1,5 +1,17 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.64
+**Glo Designer: Full Curve Visualization**
+
+- Added full curve visualization and settings from original designer to Glo Designer page
+- Glo dropdown at top to switch between Glos (or create new)
+- Rename and Delete buttons for Glo management
+- "Used by" display shows which zones use the selected Glo
+- URL-based Glo selection: `/glo/MyGlo` opens that Glo directly
+- Save button saves to selected Glo (not global config)
+- All original curve controls: Ascend/Descend timing, brightness, color temperature
+- Plotly chart with interactive cursor and step controls
+
 ## 6.8.63
 **Multi-Page Web UI Restructure**
 
