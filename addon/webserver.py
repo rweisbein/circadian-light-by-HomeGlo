@@ -436,19 +436,18 @@ class LightDesignerServer:
             # Save to file
             await self.save_config_to_file(config)
 
-            # Trigger refresh of enabled areas via circadian.refresh service
-            # This goes through main.py using the same path as the 30s refresh
-            # Must use WebSocket since circadian.refresh is not a registered HA service
+            # Trigger refresh of enabled areas by firing an event
+            # main.py listens for this event and signals the periodic updater
             refreshed = False
             _, ws_url, token = self._get_ha_api_config()
             if ws_url and token:
-                refreshed = await self._call_service_via_websocket(
-                    ws_url, token, 'circadian', 'refresh'
+                refreshed = await self._fire_event_via_websocket(
+                    ws_url, token, 'circadian_light_refresh', {}
                 )
                 if refreshed:
-                    logger.info("Triggered circadian.refresh after config save")
+                    logger.info("Fired circadian_light_refresh event after config save")
                 else:
-                    logger.warning("Failed to trigger circadian.refresh")
+                    logger.warning("Failed to fire circadian_light_refresh event")
 
             return web.json_response({"status": "success", "config": config, "refreshed": refreshed})
         except Exception as e:
@@ -951,6 +950,64 @@ class LightDesignerServer:
 
         except Exception as e:
             logger.warning(f"[WS Service] Error calling {domain}.{service}: {e}")
+            return False
+
+    async def _fire_event_via_websocket(self, ws_url: str, token: str, event_type: str, event_data: dict = None) -> bool:
+        """Fire a Home Assistant event via WebSocket API.
+
+        Args:
+            ws_url: WebSocket URL (e.g., ws://supervisor/core/api/websocket)
+            token: Home Assistant auth token
+            event_type: Event type to fire (e.g., 'circadian_light_refresh')
+            event_data: Optional event data dict
+
+        Returns:
+            True if event was fired, False otherwise
+        """
+        try:
+            async with websockets.connect(ws_url) as ws:
+                # Wait for auth_required message
+                msg = json.loads(await ws.recv())
+                if msg.get('type') != 'auth_required':
+                    logger.error(f"[WS Event] Unexpected message: {msg}")
+                    return False
+
+                # Send auth
+                await ws.send(json.dumps({
+                    'type': 'auth',
+                    'access_token': token
+                }))
+
+                # Wait for auth response
+                msg = json.loads(await ws.recv())
+                if msg.get('type') != 'auth_ok':
+                    logger.error(f"[WS Event] Auth failed: {msg}")
+                    return False
+
+                # Fire the event
+                fire_msg = {
+                    'id': 1,
+                    'type': 'fire_event',
+                    'event_type': event_type,
+                }
+                if event_data:
+                    fire_msg['event_data'] = event_data
+
+                await ws.send(json.dumps(fire_msg))
+
+                # Wait for result (with timeout)
+                try:
+                    result = await asyncio.wait_for(ws.recv(), timeout=5.0)
+                    result_msg = json.loads(result)
+                    logger.info(f"[WS Event] {event_type} fire result: {result_msg.get('type')}")
+                    return result_msg.get('type') == 'result' and result_msg.get('success', False)
+                except asyncio.TimeoutError:
+                    # Event was sent, assume it worked
+                    logger.info(f"[WS Event] {event_type} event sent (no response)")
+                    return True
+
+        except Exception as e:
+            logger.warning(f"[WS Event] Error firing {event_type}: {e}")
             return False
 
     async def _fetch_areas_via_websocket(self, ws_url: str, token: str) -> list:

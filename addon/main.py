@@ -1411,6 +1411,13 @@ class HomeAssistantWebSocketClient:
                     else:
                         logger.warning(f"[{domain}] refresh_event not yet initialized, skipping signal")
 
+            # Handle circadian_light_refresh event (fired by webserver after config save)
+            elif event_type == "circadian_light_refresh":
+                logger.info("circadian_light_refresh event received - signaling periodic updater")
+                if self.refresh_event is not None:
+                    self.refresh_event.set()
+                else:
+                    logger.warning("refresh_event not yet initialized, skipping signal")
 
             # Handle device registry updates (when devices are added/removed/modified)
             elif event_type == "device_registry_updated":

@@ -1,13 +1,23 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
-## 6.8.41
-**Fix - Designer Save button now immediately refreshes lights**
+## 6.8.42
+**Fix - Designer Save button now immediately refreshes lights (v2)**
 
 **Fixed:**
-- Added missing `circadian.refresh` service to the custom integration
-- Save button in designer now triggers immediate light update (was waiting for 30s loop)
+- Save button now fires a `circadian_light_refresh` event directly via WebSocket
+- No longer depends on integration having the `refresh` service registered
+- Works immediately without needing to update the integration or rebuild Docker image
 
-**Note:** Requires custom integration update to v3.4.0
+**Technical:**
+- webserver.py fires event via `fire_event` WebSocket API
+- main.py listens for `circadian_light_refresh` event and signals refresh
+
+## 6.8.41
+**Add circadian.refresh service to integration**
+
+**Added:**
+- Added `circadian.refresh` service to the custom integration
+- Synced bundled integration to v3.4.0
 
 ## 6.8.40
 **Fix - Manually enabled automations stay enabled after addon restart**
