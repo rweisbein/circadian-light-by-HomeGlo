@@ -2115,8 +2115,13 @@ function adjustCCTForSolarRules(cctArray, hoursArray, sunrise, sunset) {
 
 function formatHour(h) {
   const h24 = ((h % 24) + 24) % 24;
-  const hr = Math.floor(h24);
-  const min = Math.round((h24 - hr) * 60);
+  let hr = Math.floor(h24);
+  let min = Math.round((h24 - hr) * 60);
+  // Handle rounding to 60 minutes
+  if (min === 60) {
+    min = 0;
+    hr = (hr + 1) % 24;
+  }
   const suffix = hr < 12 ? 'a' : 'p';
   const hr12 = hr === 0 ? 12 : (hr > 12 ? hr - 12 : hr);
   return min === 0 ? `${hr12}:00${suffix}` : `${hr12}:${min.toString().padStart(2, '0')}${suffix}`;
@@ -3109,8 +3114,13 @@ function updateCursorButtons(point) {
   // Helper to format hour as H:MMa/p
   const formatTime = (hour) => {
     const h = ((hour % 24) + 24) % 24;
-    const hours24 = Math.floor(h);
-    const mins = Math.round((h - hours24) * 60);
+    let hours24 = Math.floor(h);
+    let mins = Math.round((h - hours24) * 60);
+    // Handle rounding to 60 minutes
+    if (mins === 60) {
+      mins = 0;
+      hours24 = (hours24 + 1) % 24;
+    }
     const isPM = hours24 >= 12;
     let hours12 = hours24 % 12;
     if (hours12 === 0) hours12 = 12;

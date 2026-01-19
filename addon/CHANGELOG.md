@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.50
+**Fix time callout showing "6:60a" instead of "7:00a"**
+
+**Fixed:**
+- Graph time callout now correctly displays times on the hour (e.g., "7:00a" not "6:60a")
+- Fixed floating-point precision issue where `Math.round()` could produce 60 minutes
+- Both `formatHour()` and `formatTime()` functions now handle the edge case
+
 ## 6.8.49
 **Reduce Live Design transition time to 2 seconds**
 
