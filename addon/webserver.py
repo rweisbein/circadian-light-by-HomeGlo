@@ -17,6 +17,8 @@ from astral import LocationInfo
 from astral.sun import sun
 
 import state
+import glozone
+import glozone_state
 from brain import (
     CircadianLight,
     Config,
@@ -424,18 +426,55 @@ class LightDesignerServer:
             return web.json_response({"error": str(e)}, status=500)
     
     async def save_config(self, request: Request) -> Response:
-        """Save curve configuration."""
+        """Save curve configuration.
+
+        Handles both legacy flat config and new GloZone format.
+        - Flat preset settings are merged into the active preset
+        - circadian_presets and glozones are merged at their level
+        - Global settings are merged at top level
+        """
         try:
             data = await request.json()
 
-            # Load existing config
-            config = await self.load_config()
+            # Load existing raw config (GloZone format)
+            config = await self.load_raw_config()
 
-            # Update with new curve parameters
-            config.update(data)
+            # Separate incoming data into categories
+            incoming_presets = data.pop("circadian_presets", None)
+            incoming_glozones = data.pop("glozones", None)
 
-            # Save to file
+            # Handle incoming preset and glozone structures
+            if incoming_presets:
+                config["circadian_presets"].update(incoming_presets)
+
+            if incoming_glozones:
+                config["glozones"].update(incoming_glozones)
+
+            # Remaining data could be flat preset settings or global settings
+            preset_updates = {}
+            global_updates = {}
+
+            for key, value in data.items():
+                if key in self.PRESET_SETTINGS:
+                    preset_updates[key] = value
+                elif key in self.GLOBAL_SETTINGS:
+                    global_updates[key] = value
+                # Ignore unknown keys
+
+            # Apply preset updates to the first preset (active preset)
+            if preset_updates and config.get("circadian_presets"):
+                first_preset_name = list(config["circadian_presets"].keys())[0]
+                config["circadian_presets"][first_preset_name].update(preset_updates)
+                logger.debug(f"Updated preset '{first_preset_name}' with: {list(preset_updates.keys())}")
+
+            # Apply global updates to top level
+            config.update(global_updates)
+
+            # Save the raw config (GloZone format)
             await self.save_config_to_file(config)
+
+            # Update glozone module with new config
+            glozone.set_config(config)
 
             # Trigger refresh of enabled areas by firing an event
             # main.py listens for this event and signals the periodic updater
@@ -450,7 +489,9 @@ class LightDesignerServer:
                 else:
                     logger.warning("Failed to fire circadian_light_refresh event")
 
-            return web.json_response({"status": "success", "config": config, "refreshed": refreshed})
+            # Return effective config for backward compatibility
+            effective_config = self._get_effective_config(config)
+            return web.json_response({"status": "success", "config": effective_config, "refreshed": refreshed})
         except Exception as e:
             logger.error(f"Error saving config: {e}")
             return web.json_response({"error": str(e)}, status=500)
@@ -664,11 +705,120 @@ class LightDesignerServer:
             logger.error(f"Error generating curve data: {e}")
             return web.json_response({"error": str(e)}, status=500)
 
+    # Settings that are per-preset (not global)
+    PRESET_SETTINGS = {
+        "color_mode", "min_color_temp", "max_color_temp",
+        "min_brightness", "max_brightness",
+        "ascend_start", "descend_start", "wake_time", "bed_time",
+        "wake_speed", "bed_speed",
+        "warm_night_enabled", "warm_night_mode", "warm_night_target",
+        "warm_night_sunset_start", "warm_night_sunrise_end", "warm_night_fade",
+        "cool_day_enabled", "cool_day_mode", "cool_day_target",
+        "cool_day_sunrise_start", "cool_day_sunset_end", "cool_day_fade",
+        "activity_preset", "max_dim_steps",
+    }
+
+    # Settings that are global (not per-preset)
+    GLOBAL_SETTINGS = {
+        "latitude", "longitude", "timezone", "use_ha_location", "month",
+    }
+
+    def _migrate_to_glozone_format(self, config: dict) -> dict:
+        """Migrate old flat config to new GloZone format.
+
+        Old format: flat dict with all settings
+        New format: {
+            circadian_presets: {"Preset 1": {...preset settings...}},
+            glozones: {"Unassigned": {preset: "Preset 1", areas: []}},
+            ...global settings...
+        }
+
+        Args:
+            config: The loaded config dict
+
+        Returns:
+            Migrated config dict
+        """
+        # Check if already migrated
+        if "circadian_presets" in config and "glozones" in config:
+            logger.debug("Config already in GloZone format")
+            return config
+
+        logger.info("Migrating config to GloZone format...")
+
+        # Extract preset settings from flat config
+        preset_config = {}
+        for key in self.PRESET_SETTINGS:
+            if key in config:
+                preset_config[key] = config[key]
+
+        # Extract global settings
+        global_config = {}
+        for key in self.GLOBAL_SETTINGS:
+            if key in config:
+                global_config[key] = config[key]
+
+        # Build new config structure
+        new_config = {
+            "circadian_presets": {
+                glozone.DEFAULT_PRESET: preset_config
+            },
+            "glozones": {
+                glozone.DEFAULT_ZONE: {
+                    "preset": glozone.DEFAULT_PRESET,
+                    "areas": []
+                }
+            },
+        }
+
+        # Add global settings
+        new_config.update(global_config)
+
+        logger.info(f"Migration complete: created preset '{glozone.DEFAULT_PRESET}' "
+                    f"and zone '{glozone.DEFAULT_ZONE}'")
+
+        return new_config
+
+    def _get_effective_config(self, config: dict) -> dict:
+        """Get effective config by merging preset settings with global settings.
+
+        For backward compatibility with code that expects flat config,
+        this merges the first preset's settings into the top level.
+
+        Args:
+            config: The GloZone-format config
+
+        Returns:
+            Flat config dict with all settings merged
+        """
+        result = {}
+
+        # Start with global settings
+        for key in self.GLOBAL_SETTINGS:
+            if key in config:
+                result[key] = config[key]
+
+        # Get the first preset's settings (or default preset)
+        presets = config.get("circadian_presets", {})
+        if presets:
+            # Use first preset for backward compatibility
+            first_preset_name = list(presets.keys())[0]
+            first_preset = presets[first_preset_name]
+            result.update(first_preset)
+
+        # Keep the new structure available
+        result["circadian_presets"] = config.get("circadian_presets", {})
+        result["glozones"] = config.get("glozones", {})
+
+        return result
+
     async def load_config(self) -> dict:
         """Load configuration, merging HA options with designer overrides.
 
         Order of precedence (later wins):
           defaults -> options.json -> designer_config.json
+
+        Automatically migrates old flat config to new GloZone format.
         """
         # Defaults using new ascend/descend model
         config: dict = {
@@ -745,8 +895,80 @@ class LightDesignerServer:
         except Exception as e:
             logger.warning(f"Error loading {self.designer_file}: {e}")
 
-        return config
-    
+        # Migrate to GloZone format if needed
+        config = self._migrate_to_glozone_format(config)
+
+        # Update glozone module with current config
+        glozone.set_config(config)
+
+        # Return effective config (flat format for backward compatibility)
+        return self._get_effective_config(config)
+
+    async def load_raw_config(self) -> dict:
+        """Load raw configuration without flattening.
+
+        Returns the GloZone-format config with circadian_presets and glozones.
+        Used internally for save operations.
+        """
+        # Start with defaults
+        config: dict = {
+            "color_mode": "kelvin",
+            "min_color_temp": 500,
+            "max_color_temp": 6500,
+            "min_brightness": 1,
+            "max_brightness": 100,
+            "ascend_start": 3.0,
+            "descend_start": 12.0,
+            "wake_time": 6.0,
+            "bed_time": 22.0,
+            "wake_speed": 8,
+            "bed_speed": 6,
+            "warm_night_enabled": False,
+            "warm_night_mode": "all",
+            "warm_night_target": 2700,
+            "warm_night_sunset_start": -60,
+            "warm_night_sunrise_end": 60,
+            "warm_night_fade": 60,
+            "cool_day_enabled": False,
+            "cool_day_mode": "all",
+            "cool_day_target": 6500,
+            "cool_day_sunrise_start": 0,
+            "cool_day_sunset_end": 0,
+            "cool_day_fade": 60,
+            "activity_preset": "adult",
+            "latitude": 35.0,
+            "longitude": -78.6,
+            "timezone": "US/Eastern",
+            "use_ha_location": True,
+            "max_dim_steps": DEFAULT_MAX_DIM_STEPS,
+            "month": 6,
+        }
+
+        # Merge options.json
+        try:
+            if os.path.exists(self.options_file):
+                async with aiofiles.open(self.options_file, 'r') as f:
+                    content = await f.read()
+                    opts = json.loads(content)
+                    if isinstance(opts, dict):
+                        config.update(opts)
+        except Exception as e:
+            logger.warning(f"Error loading {self.options_file}: {e}")
+
+        # Merge designer_config.json
+        try:
+            if os.path.exists(self.designer_file):
+                async with aiofiles.open(self.designer_file, 'r') as f:
+                    content = await f.read()
+                    overrides = json.loads(content)
+                    if isinstance(overrides, dict):
+                        config.update(overrides)
+        except Exception as e:
+            logger.warning(f"Error loading {self.designer_file}: {e}")
+
+        # Migrate to GloZone format if needed
+        return self._migrate_to_glozone_format(config)
+
     async def save_config_to_file(self, config: dict):
         """Save designer configuration to persistent file distinct from options.json."""
         try:

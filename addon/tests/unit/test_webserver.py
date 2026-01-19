@@ -159,10 +159,15 @@ class TestLightDesignerServer(AioHTTPTestCase):
         with open(self.designer_file, 'r') as f:
             saved_config = json.load(f)
 
-        # Should include new values plus defaults
-        self.assertEqual(saved_config["wake_time"], 7.0)
-        self.assertEqual(saved_config["bed_speed"], 5)
-        self.assertEqual(saved_config["color_mode"], "rgb")
+        # Config is now saved in GloZone format with presets
+        self.assertIn("circadian_presets", saved_config)
+        self.assertIn("glozones", saved_config)
+
+        # Preset settings are inside the first preset
+        preset = saved_config["circadian_presets"]["Preset 1"]
+        self.assertEqual(preset["wake_time"], 7.0)
+        self.assertEqual(preset["bed_speed"], 5)
+        self.assertEqual(preset["color_mode"], "rgb")
 
     @unittest_run_loop
     async def test_save_config_with_ingress_path(self):

@@ -259,3 +259,73 @@ def get_all_areas() -> Dict[str, Dict[str, Any]]:
         Dict mapping area_id to state dict
     """
     return {area_id: get_area(area_id) for area_id in _state}
+
+
+def get_runtime_state(area_id: str) -> Dict[str, Any]:
+    """Get just the runtime state (midpoints, frozen_at) for an area.
+
+    This excludes 'enabled' which is not part of zone sync.
+
+    Args:
+        area_id: The area ID
+
+    Returns:
+        Dict with brightness_mid, color_mid, frozen_at
+    """
+    area = get_area(area_id)
+    return {
+        "brightness_mid": area.get("brightness_mid"),
+        "color_mid": area.get("color_mid"),
+        "frozen_at": area.get("frozen_at"),
+    }
+
+
+def set_runtime_state(area_id: str, runtime_state: Dict[str, Any]) -> None:
+    """Set the runtime state (midpoints, frozen_at) for an area.
+
+    This does NOT change 'enabled' status.
+
+    Args:
+        area_id: The area ID
+        runtime_state: Dict with brightness_mid, color_mid, frozen_at
+    """
+    updates = {}
+    for key in ["brightness_mid", "color_mid", "frozen_at"]:
+        if key in runtime_state:
+            updates[key] = runtime_state[key]
+
+    if updates:
+        update_area(area_id, updates)
+        logger.debug(f"Set runtime state for area {area_id}: {updates}")
+
+
+def copy_state_from_zone(area_id: str, zone_state: Dict[str, Any]) -> None:
+    """Copy zone runtime state to an area.
+
+    Used by GloDown and circadian_toggle (on enable).
+    Does NOT change 'enabled' status.
+
+    Args:
+        area_id: The area ID
+        zone_state: Zone's runtime state (brightness_mid, color_mid, frozen_at)
+    """
+    set_runtime_state(area_id, zone_state)
+    logger.info(f"Copied zone state to area {area_id}")
+
+
+def reset_area_to_defaults(area_id: str) -> None:
+    """Reset an area's runtime state to defaults (None for midpoints and frozen_at).
+
+    Preserves 'enabled' status. Used when resetting to preset defaults.
+
+    Args:
+        area_id: The area ID
+    """
+    if area_id not in _state:
+        return
+
+    enabled = _state[area_id].get("enabled", False)
+    _state[area_id] = _get_default_area_state()
+    _state[area_id]["enabled"] = enabled
+    _save()
+    logger.info(f"Reset area {area_id} runtime state to defaults (preserving enabled={enabled})")

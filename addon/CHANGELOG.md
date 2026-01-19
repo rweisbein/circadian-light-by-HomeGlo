@@ -1,5 +1,25 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.54
+**GloZone Phase 1: Data Model & Storage**
+
+**Added:**
+- `glozone_state.py` - In-memory runtime state for GloZones (brightness_mid, color_mid, frozen_at)
+- `glozone.py` - Zone configuration management (zone lookup, preset lookup, area membership)
+- Zone-aware helpers in `state.py` (get_runtime_state, set_runtime_state, copy_state_from_zone)
+
+**Changed:**
+- Config now stored in GloZone format with `circadian_presets` and `glozones` sections
+- Automatic migration from flat config to new format on first load
+- Existing settings become "Preset 1", all areas go to "Unassigned" zone
+- `load_config()` returns effective flat config for backward compatibility
+- `save_config()` properly handles both flat and structured saves
+
+**Technical:**
+- PRESET_SETTINGS and GLOBAL_SETTINGS define which settings go where
+- Sync tolerance of 0.1 hours (6 minutes) for state comparison
+- Tests updated to verify new config structure
+
 ## 6.8.53
 **Add GloZone specification document**
 
