@@ -1,5 +1,14 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.47
+**Refactor button previews to use shared functions**
+
+**Refactored:**
+- Created `getBrightnessPreview()` and `getColorPreview()` functions
+- Button display values now come from the same logic as click handlers
+- Eliminates code duplication and ensures previews always match actual behavior
+- Cleaner code with fewer inline calculations
+
 ## 6.8.46
 **Fix color button previews with solar rules + Live Design fade transition**
 

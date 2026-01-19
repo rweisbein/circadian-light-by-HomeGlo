@@ -1685,6 +1685,77 @@ function getStepPreview(cursorPoint) {
   return { upBri, upCCT, downBri, downCCT };
 }
 
+/**
+ * Preview brightness button results (matches stepCursor logic for brightness-only).
+ * @returns {Object} { up: { value, atExtreme }, down: { value, atExtreme } }
+ */
+function getBrightnessPreview() {
+  const currentBri = getBrightnessAtCursor();
+  if (currentBri === null) {
+    return {
+      up: { value: 100, atExtreme: true },
+      down: { value: 10, atExtreme: true }
+    };
+  }
+
+  const bMin = config.min_brightness;
+  const bMax = config.max_brightness;
+  const steps = config.brightness_increments ?? config.max_dim_steps ?? 10;
+  const briStep = (bMax - bMin) / steps;
+
+  const atMaxBri = currentBri >= bMax - 0.5;
+  const atMinBri = currentBri <= bMin + 0.5;
+
+  const upValue = atMaxBri ? currentBri : Math.min(bMax, currentBri + briStep);
+  const downValue = atMinBri ? currentBri : Math.max(bMin, currentBri - briStep);
+
+  return {
+    up: { value: upValue, atExtreme: atMaxBri },
+    down: { value: downValue, atExtreme: atMinBri }
+  };
+}
+
+/**
+ * Preview color button results (matches stepCursor logic for color-only).
+ * Applies solar rules to get the actual displayed result.
+ * @returns {Object} { up: { value, atExtreme }, down: { value, atExtreme } }
+ */
+function getColorPreview() {
+  const displayedCCT = getDisplayedCCTAtCursor();
+  if (displayedCCT === null || cursorHour === null) {
+    return {
+      up: { value: 6500, atExtreme: true },
+      down: { value: 2700, atExtreme: true }
+    };
+  }
+
+  const cMin = config.min_color_temp;
+  const cMax = config.max_color_temp;
+  const steps = config.color_increments ?? config.max_dim_steps ?? 10;
+  const cctStep = (cMax - cMin) / steps;
+
+  // Check config bounds (same as stepCursor)
+  const atConfigMax = displayedCCT >= cMax - 10;
+  const atConfigMin = displayedCCT <= cMin + 10;
+
+  // Calculate raw targets (same as stepCursor)
+  const rawUpTarget = Math.min(cMax, displayedCCT + cctStep);
+  const rawDownTarget = Math.max(cMin, displayedCCT - cctStep);
+
+  // Apply solar rules to get what will actually be displayed
+  const upDisplayed = applySolarRuleAtHour(rawUpTarget, cursorHour);
+  const downDisplayed = applySolarRuleAtHour(rawDownTarget, cursorHour);
+
+  // At extreme if at config bounds OR if solar rules capped the result
+  const upAtExtreme = atConfigMax || Math.abs(upDisplayed - displayedCCT) < 10;
+  const downAtExtreme = atConfigMin || Math.abs(downDisplayed - displayedCCT) < 10;
+
+  return {
+    up: { value: upDisplayed, atExtreme: upAtExtreme },
+    down: { value: downDisplayed, atExtreme: downAtExtreme }
+  };
+}
+
 function dayOfYear(dateStr) {
   const d = new Date(dateStr + 'T12:00:00');
   const s = new Date(d.getFullYear(), 0, 0);
@@ -2880,34 +2951,16 @@ function updateCursorButtons(point) {
     colorMidInfo.textContent = fmtTime(currentColorMid);
   }
 
-  // Calculate step increments (based on config range, with separate increments)
-  const briSteps = config.brightness_increments ?? config.max_dim_steps ?? 10;
-  const colorSteps = config.color_increments ?? config.max_dim_steps ?? 10;
-
+  // Config bounds (for step button extreme checks)
   const configMinPct = config.min_brightness;
   const configMaxPct = config.max_brightness;
-  const rangePct = Math.max(0, configMaxPct - configMinPct);
-  const deltaPct = briSteps > 0 ? rangePct / briSteps : 0;
-
-  const configMinCCT = Math.min(config.min_color_temp, config.max_color_temp);
-  const configMaxCCT = Math.max(config.min_color_temp, config.max_color_temp);
-  const rangeCCT = Math.max(0, configMaxCCT - configMinCCT);
-  const deltaCCT = colorSteps > 0 ? rangeCCT / colorSteps : 0;
 
   const currentPct = point.y;
   const currentCCT = point.cct;
 
-  // Calculate NEXT values (what the button will produce)
-  // Clamp to config bounds (no more pushing beyond)
-  const nextBriUp = Math.min(configMaxPct, currentPct + deltaPct);
-  const nextBriDown = Math.max(configMinPct, currentPct - deltaPct);
-
-  // Color buttons clamp to config bounds
-  const nextColorUp = Math.min(configMaxCCT, currentCCT + deltaCCT);
-  const nextColorDown = Math.max(configMinCCT, currentCCT - deltaCCT);
-
-  // Step buttons follow the curve - calculate what stepping would produce
-  // This simulates the stepCursor logic: find virtual time, get base CCT, apply solar rules
+  // Get preview values from shared functions (same logic as click handlers)
+  const briPreview = getBrightnessPreview();
+  const colorPreview = getColorPreview();
   const stepPreview = getStepPreview(point);
 
   // Helper to style a button
@@ -2938,19 +2991,15 @@ function updateCursorButtons(point) {
     }
   };
 
-  // Style brightness buttons with NEXT brightness values
-  styleBtn(brightUp, nextBriUp, null, 'brightness');
-  styleBtn(brightDown, nextBriDown, null, 'brightness');
-
-  // Style color buttons with NEXT color values
-  styleBtn(colorUp, null, nextColorUp, 'color');
-  styleBtn(colorDown, null, nextColorDown, 'color');
-
-  // Style step buttons with calculated step preview values (follows curve with solar rules)
+  // Style buttons with preview values
+  styleBtn(brightUp, briPreview.up.value, null, 'brightness');
+  styleBtn(brightDown, briPreview.down.value, null, 'brightness');
+  styleBtn(colorUp, null, colorPreview.up.value, 'color');
+  styleBtn(colorDown, null, colorPreview.down.value, 'color');
   styleBtn(stepUp, stepPreview.upBri, stepPreview.upCCT, 'combo');
   styleBtn(stepDown, stepPreview.downBri, stepPreview.downCCT, 'combo');
 
-  // Update callouts with next values
+  // Update callouts with preview values
   const briUpCallout = document.getElementById('bright-up-callout');
   const briDownCallout = document.getElementById('bright-down-callout');
   const colorUpCallout = document.getElementById('color-up-callout');
@@ -2960,47 +3009,37 @@ function updateCursorButtons(point) {
   const stepDownBriCallout = document.getElementById('step-down-bri-callout');
   const stepDownCctCallout = document.getElementById('step-down-cct-callout');
 
-  // For color extremes, check the DISPLAYED CCT
-  const displayedCCT = currentCCT;  // point.cct is already the displayed CCT
+  // For display
+  const displayedCCT = currentCCT;
 
-  // Check for "at extreme" states for brightness (config bounds only)
-  const briAtMax = currentPct >= configMaxPct - 0.5;
-  const briAtMin = currentPct <= configMinPct + 0.5;
+  // Use preview extreme states
+  const briAtMax = briPreview.up.atExtreme;
+  const briAtMin = briPreview.down.atExtreme;
+  const cctAtMax = colorPreview.up.atExtreme;
+  const cctAtMin = colorPreview.down.atExtreme;
 
-  // Step buttons: brightness-primary, at extreme based on brightness only
+  // Step buttons: at extreme based on brightness only
   const stepUpAtExtreme = currentPct >= configMaxPct - 0.5;
   const stepDownAtExtreme = currentPct <= configMinPct + 0.5;
 
-  // Update callouts - show "max"/"min" with current value when at extreme, otherwise show delta
-  const clickBri = getBrightnessAtCursor() ?? currentPct;
-  const clickCct = getDisplayedCCTAtCursor() ?? displayedCCT;
-  const actualBriUp = Math.min(configMaxPct, clickBri + deltaPct);
-  const actualBriDown = Math.max(configMinPct, clickBri - deltaPct);
-  // Apply solar rules (warm night ceiling, cool day floor) to color previews
-  const rawColorUp = Math.min(configMaxCCT, clickCct + deltaCCT);
-  const rawColorDown = Math.max(configMinCCT, clickCct - deltaCCT);
-  const actualColorUp = cursorHour !== null ? applySolarRuleAtHour(rawColorUp, cursorHour) : rawColorUp;
-  const actualColorDown = cursorHour !== null ? applySolarRuleAtHour(rawColorDown, cursorHour) : rawColorDown;
-
-  // Check for color "at extreme" - either at config bounds OR solar rules capped the value
-  const cctAtMax = displayedCCT >= configMaxCCT - 10 || Math.abs(actualColorUp - displayedCCT) < 10;
-  const cctAtMin = displayedCCT <= configMinCCT + 10 || Math.abs(actualColorDown - displayedCCT) < 10;
-
+  // Brightness callouts
   if (briUpCallout) {
-    const briUpDelta = Math.round(actualBriUp - currentPct);
-    briUpCallout.textContent = briAtMax ? 'at max' : (briUpDelta === 0 ? '-' : `+${briUpDelta}%`);
+    const delta = Math.round(briPreview.up.value - currentPct);
+    briUpCallout.textContent = briAtMax ? 'at max' : (delta === 0 ? '-' : `+${delta}%`);
   }
   if (briDownCallout) {
-    const briDownDelta = Math.round(currentPct - actualBriDown);
-    briDownCallout.textContent = briAtMin ? 'at min' : (briDownDelta === 0 ? '-' : `-${briDownDelta}%`);
+    const delta = Math.round(currentPct - briPreview.down.value);
+    briDownCallout.textContent = briAtMin ? 'at min' : (delta === 0 ? '-' : `-${delta}%`);
   }
+
+  // Color callouts
   if (colorUpCallout) {
-    const colorUpDelta = Math.round(actualColorUp - displayedCCT);
-    colorUpCallout.textContent = cctAtMax ? 'at max' : (colorUpDelta === 0 ? '-' : `+${colorUpDelta}K`);
+    const delta = Math.round(colorPreview.up.value - displayedCCT);
+    colorUpCallout.textContent = cctAtMax ? 'at max' : (delta === 0 ? '-' : `+${delta}K`);
   }
   if (colorDownCallout) {
-    const colorDownDelta = Math.round(displayedCCT - actualColorDown);
-    colorDownCallout.textContent = cctAtMin ? 'at min' : (colorDownDelta === 0 ? '-' : `-${colorDownDelta}K`);
+    const delta = Math.round(displayedCCT - colorPreview.down.value);
+    colorDownCallout.textContent = cctAtMin ? 'at min' : (delta === 0 ? '-' : `-${delta}K`);
   }
   // Step buttons use stepPreview (which uses step_increments)
   // Helper to format delta with proper sign
@@ -3041,16 +3080,16 @@ function updateCursorButtons(point) {
   // Update button titles with target values (or "at maximum/minimum" when at extreme)
   if (brightUp) brightUp.title = briAtMax
     ? `at maximum ${Math.round(currentPct)}%`
-    : `Brighten to ${Math.round(actualBriUp)}%`;
+    : `Brighten to ${Math.round(briPreview.up.value)}%`;
   if (brightDown) brightDown.title = briAtMin
     ? `at minimum ${Math.round(currentPct)}%`
-    : `Dim to ${Math.round(actualBriDown)}%`;
+    : `Dim to ${Math.round(briPreview.down.value)}%`;
   if (colorUp) colorUp.title = cctAtMax
     ? `at maximum ${Math.round(displayedCCT)}K`
-    : `Cooler to ${Math.round(actualColorUp)}K`;
+    : `Cooler to ${Math.round(colorPreview.up.value)}K`;
   if (colorDown) colorDown.title = cctAtMin
     ? `at minimum ${Math.round(displayedCCT)}K`
-    : `Warmer to ${Math.round(actualColorDown)}K`;
+    : `Warmer to ${Math.round(colorPreview.down.value)}K`;
   if (stepUp) stepUp.title = stepUpAtExtreme
     ? `at max: ${Math.round(currentPct)}% @ ${Math.round(displayedCCT)}K`
     : `Step Up to ${Math.round(stepPreview.upBri)}% at ${Math.round(stepPreview.upCCT)}K`;
