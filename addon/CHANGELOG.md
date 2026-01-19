@@ -1,5 +1,14 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.41
+**Fix - Designer Save button now immediately refreshes lights**
+
+**Fixed:**
+- Added missing `circadian.refresh` service to the custom integration
+- Save button in designer now triggers immediate light update (was waiting for 30s loop)
+
+**Note:** Requires custom integration update to v3.4.0
+
 ## 6.8.40
 **Fix - Manually enabled automations stay enabled after addon restart**
 

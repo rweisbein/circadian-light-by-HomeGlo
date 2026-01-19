@@ -243,3 +243,8 @@ broadcast:
       example: living_room
       selector:
         area:
+
+refresh:
+  name: Refresh
+  description: Immediately update all enabled areas with current circadian values
+  icon: mdi:refresh

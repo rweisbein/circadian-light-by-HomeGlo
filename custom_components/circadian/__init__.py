@@ -26,6 +26,7 @@ from .const import (
     SERVICE_FREEZE_TOGGLE,
     SERVICE_SET,
     SERVICE_BROADCAST,
+    SERVICE_REFRESH,
     ATTR_AREA_ID,
     ATTR_PRESET,
     ATTR_FROZEN_AT,
@@ -146,6 +147,9 @@ async def _register_services(hass: HomeAssistant) -> None:
         area_id = call.data.get(ATTR_AREA_ID)
         _LOGGER.info("[%s] broadcast called: area_id=%s", DOMAIN, area_id)
 
+    async def handle_refresh(call: ServiceCall) -> None:
+        _LOGGER.info("[%s] refresh called - signaling addon to update all enabled areas", DOMAIN)
+
     # Schema for services - area_id can be a string or list of strings
     area_schema = vol.Schema({
         vol.Required(ATTR_AREA_ID): vol.Any(cv.string, [cv.string]),
@@ -184,6 +188,10 @@ async def _register_services(hass: HomeAssistant) -> None:
     hass.services.async_register(DOMAIN, SERVICE_SET, handle_set, schema=set_schema)
     _LOGGER.debug("[%s] Registered service: %s.%s", DOMAIN, DOMAIN, SERVICE_SET)
 
+    # Register refresh service (no parameters needed)
+    hass.services.async_register(DOMAIN, SERVICE_REFRESH, handle_refresh)
+    _LOGGER.debug("[%s] Registered service: %s.%s", DOMAIN, DOMAIN, SERVICE_REFRESH)
+
     _LOGGER.info("[%s] Services registered successfully", DOMAIN)
 
 
@@ -205,7 +213,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             SERVICE_COLOR_UP, SERVICE_COLOR_DOWN,
             SERVICE_RESET,
             SERVICE_CIRCADIAN_ON, SERVICE_CIRCADIAN_OFF, SERVICE_CIRCADIAN_TOGGLE,
-            SERVICE_FREEZE_TOGGLE, SERVICE_SET, SERVICE_BROADCAST,
+            SERVICE_FREEZE_TOGGLE, SERVICE_SET, SERVICE_BROADCAST, SERVICE_REFRESH,
         ]
         for service_name in services:
             hass.services.async_remove(DOMAIN, service_name)
