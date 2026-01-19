@@ -188,14 +188,14 @@ class TestLightDesignerServer(AioHTTPTestCase):
         self.assertIn("error", data)
 
     @unittest_run_loop
-    async def test_serve_designer_page(self):
-        """Test serving the designer HTML page."""
-        # Mock the designer.html file
+    async def test_serve_home_page(self):
+        """Test serving the home HTML page."""
+        # Mock the home.html file
         mock_html = """<!DOCTYPE html>
 <html>
-<head><title>Light Designer</title></head>
+<head><title>Circadian Light - Home</title></head>
 <body>
-<div id="app">Light Designer</div>
+<nav class="nav"><span class="nav-brand">Circadian Light</span></nav>
 </body>
 </html>"""
 
@@ -214,18 +214,18 @@ class TestLightDesignerServer(AioHTTPTestCase):
             content = await resp.text()
 
             # Should contain the HTML
-            self.assertIn("Light Designer", content)
+            self.assertIn("Circadian Light", content)
             # Should contain injected config script
-            self.assertIn("window.savedConfig", content)
+            self.assertIn("window.circadianData", content)
             self.assertIn("color_mode", content)
 
             # Check cache headers
             self.assertEqual(resp.headers.get("Cache-Control"), "no-cache, no-store, must-revalidate")
 
     @unittest_run_loop
-    async def test_serve_designer_with_path(self):
-        """Test serving designer page with path."""
-        mock_html = "<html><body>Test</body></html>"
+    async def test_serve_home_with_ingress_path(self):
+        """Test serving home page with ingress path prefix."""
+        mock_html = "<html><body>Circadian Light</body></html>"
 
         # Create async mock for aiofiles
         class AsyncMockFile:
@@ -237,10 +237,11 @@ class TestLightDesignerServer(AioHTTPTestCase):
                 return mock_html
 
         with patch("aiofiles.open", return_value=AsyncMockFile()):
-            resp = await self.client.request("GET", "/some/path")
+            resp = await self.client.request("GET", "/some/ingress/path/")
             self.assertEqual(resp.status, 200)
             content = await resp.text()
-            self.assertIn("Test", content)
+            self.assertIn("Circadian Light", content)
+            self.assertIn("window.circadianData", content)
 
     def test_init_development_mode(self):
         """Test initialization in development mode."""
@@ -316,9 +317,11 @@ class TestLightDesignerServerIntegration:
         assert "/api/config" in route_paths
         assert "/health" in route_paths
 
-        # Catch-all routes
+        # Page routes (multi-page structure)
         assert "/" in route_paths
-        assert "/{path}" in route_paths or "/{path:.*}" in route_paths
+        assert "/{path}/" in route_paths or "/{path:.*}/" in route_paths  # Home with ingress
+        assert "/glo" in route_paths  # Glo Designer
+        assert "/settings" in route_paths  # Settings
 
     def test_server_start_integration(self):
         """Test server start method (without actually starting)."""

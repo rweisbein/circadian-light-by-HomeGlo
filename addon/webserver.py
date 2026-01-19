@@ -26,6 +26,7 @@ from brain import (
     DEFAULT_MAX_DIM_STEPS,
     calculate_dimming_step,
     get_circadian_lighting,
+    get_current_hour,
     ACTIVITY_PRESETS,
     apply_activity_preset,
     get_preset_names,
@@ -374,6 +375,8 @@ class LightDesignerServer:
 
         # Live Design API routes
         self.app.router.add_get('/api/areas', self.get_areas)
+        self.app.router.add_route('GET', '/{path:.*}/api/area-status', self.get_area_status)
+        self.app.router.add_get('/api/area-status', self.get_area_status)
         self.app.router.add_post('/api/apply-light', self.apply_light)
         self.app.router.add_post('/api/circadian-mode', self.set_circadian_mode)
 
@@ -409,34 +412,91 @@ class LightDesignerServer:
         self.app.router.add_post('/api/glozone/glo-down', self.handle_glo_down)
         self.app.router.add_post('/api/glozone/glo-reset', self.handle_glo_reset)
 
-        # Handle root and any other paths (catch-all must be last)
-        self.app.router.add_get('/', self.serve_designer)
-        self.app.router.add_get('/{path:.*}', self.serve_designer)
-        
-    async def serve_designer(self, request: Request) -> Response:
-        """Serve the Light Designer HTML page."""
+        # Page routes - specific pages first, then catch-all
+        # With ingress path prefix
+        self.app.router.add_route('GET', '/{path:.*}/glo/{glo_name}', self.serve_glo_designer)
+        self.app.router.add_route('GET', '/{path:.*}/glo', self.serve_glo_designer)
+        self.app.router.add_route('GET', '/{path:.*}/settings', self.serve_settings)
+        self.app.router.add_route('GET', '/{path:.*}/', self.serve_home)
+        # Without ingress path prefix
+        self.app.router.add_get('/glo/{glo_name}', self.serve_glo_designer)
+        self.app.router.add_get('/glo', self.serve_glo_designer)
+        self.app.router.add_get('/settings', self.serve_settings)
+        self.app.router.add_get('/', self.serve_home)
+        # Legacy designer.html route (redirect to home)
+        self.app.router.add_get('/designer', self.serve_home)
+
+    async def serve_page(self, page_name: str, extra_data: dict = None) -> Response:
+        """Generic page serving function."""
         try:
-            # Read the current configuration (merged options + designer overrides)
             config = await self.load_config()
-            
-            # Read the designer HTML template
+
+            html_path = Path(__file__).parent / f"{page_name}.html"
+            if not html_path.exists():
+                logger.error(f"Page not found: {page_name}.html")
+                return web.Response(text=f"Page not found: {page_name}", status=404)
+
+            async with aiofiles.open(html_path, 'r') as f:
+                html_content = await f.read()
+
+            # Build injected data
+            inject_data = {"config": config}
+            if extra_data:
+                inject_data.update(extra_data)
+
+            config_script = f"""
+            <script>
+            window.circadianData = {json.dumps(inject_data)};
+            </script>
+            """
+
+            html_content = html_content.replace('</body>', f'{config_script}</body>')
+
+            return web.Response(
+                text=html_content,
+                content_type='text/html',
+                headers={
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0'
+                }
+            )
+        except Exception as e:
+            logger.error(f"Error serving {page_name} page: {e}")
+            return web.Response(text=f"Error: {str(e)}", status=500)
+
+    async def serve_home(self, request: Request) -> Response:
+        """Serve the Home page."""
+        return await self.serve_page("home")
+
+    async def serve_glo_designer(self, request: Request) -> Response:
+        """Serve the Glo Designer page."""
+        glo_name = request.match_info.get("glo_name")
+        return await self.serve_page("glo-designer", {"selectedGlo": glo_name})
+
+    async def serve_settings(self, request: Request) -> Response:
+        """Serve the Settings page."""
+        return await self.serve_page("settings")
+
+    async def serve_designer(self, request: Request) -> Response:
+        """Legacy: Serve the old designer page (kept for backwards compatibility)."""
+        try:
+            config = await self.load_config()
+
             html_path = Path(__file__).parent / "designer.html"
             async with aiofiles.open(html_path, 'r') as f:
                 html_content = await f.read()
-            
-            # Inject current configuration into the HTML
+
             config_script = f"""
             <script>
-            // Load saved configuration
             window.savedConfig = {json.dumps(config)};
             </script>
             """
-            
-            # Insert the config script before the closing body tag
+
             html_content = html_content.replace('</body>', f'{config_script}</body>')
-            
+
             return web.Response(
-                text=html_content, 
+                text=html_content,
                 content_type='text/html',
                 headers={
                     'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -1581,6 +1641,74 @@ class LightDesignerServer:
                 {'error': str(e)},
                 status=500
             )
+
+    async def get_area_status(self, request: Request) -> Response:
+        """Get status for all areas using Circadian Light state (no HA polling).
+
+        Uses in-memory state from state.py and glozone_state.py, and calculates
+        brightness from the circadian curve. This matches what lights are set to
+        after each 30-second update cycle.
+
+        Returns a dict mapping area_id to status:
+        {
+            "area_id": {
+                "enabled": true/false (Circadian Light active for area),
+                "brightness": 0-100 (calculated from circadian curve),
+                "frozen": true/false (whether zone is frozen),
+                "zone_name": "Zone Name" or null
+            }
+        }
+        """
+        try:
+            # Load config to get glozone mappings and presets
+            config = await self.load_config()
+            glozones = config.get('glozones', {})
+            presets = config.get('circadian_presets', {})
+
+            # Get current hour for calculations
+            current_hour = get_current_hour()
+
+            # Build response for each area in zones
+            area_status = {}
+            for zone_name, zone_data in glozones.items():
+                if zone_name == 'Unassigned':
+                    continue
+
+                preset_name = zone_data.get('preset', 'Glo 1')
+                preset_settings = presets.get(preset_name, {})
+                zone_state = glozone_state.get_zone_state(zone_name)
+                is_frozen = zone_state.get('frozen_at') is not None
+
+                # Use frozen hour or current hour
+                calc_hour = zone_state.get('frozen_at') if is_frozen else current_hour
+
+                # Calculate brightness from circadian curve
+                brightness = 50  # Default
+                try:
+                    lighting = get_circadian_lighting(
+                        current_time=calc_hour,
+                        **preset_settings
+                    )
+                    brightness = lighting.get('brightness', 50)
+                except Exception as e:
+                    logger.warning(f"Error calculating brightness for zone {zone_name}: {e}")
+
+                # Add status for each area in this zone
+                for area_id in zone_data.get('areas', []):
+                    area_state_data = state.get_area(area_id)
+                    area_status[area_id] = {
+                        'enabled': area_state_data.get('enabled', False),
+                        'brightness': brightness,
+                        'frozen': is_frozen,
+                        'zone_name': zone_name
+                    }
+
+            logger.debug(f"[Area Status] Returning status for {len(area_status)} areas")
+            return web.json_response(area_status)
+
+        except Exception as e:
+            logger.error(f"[Area Status] Error: {e}", exc_info=True)
+            return web.json_response({'error': str(e)}, status=500)
 
     async def apply_light(self, request: Request) -> Response:
         """Apply brightness and color temperature to lights in an area.

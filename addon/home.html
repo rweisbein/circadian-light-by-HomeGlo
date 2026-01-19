@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Circadian Light - Home</title>
+  <style>
+    :root {
+      --bg: #1a1a2e;
+      --panel: #16213e;
+      --card: #1f2940;
+      --accent: #6366f1;
+      --accent-hover: #818cf8;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --muted2: #64748b;
+      --line: #334155;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* Navigation */
+    .nav {
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      height: 56px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .nav-brand {
+      font-weight: 600;
+      font-size: 1.1rem;
+      color: var(--text);
+      margin-right: 32px;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 8px;
+    }
+
+    .nav-link {
+      padding: 8px 16px;
+      color: var(--muted);
+      text-decoration: none;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+
+    .nav-link:hover {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .nav-link.active {
+      color: var(--accent);
+      background: rgba(99, 102, 241, 0.1);
+    }
+
+    /* Main Content */
+    .main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .page-header {
+      margin-bottom: 24px;
+    }
+
+    .page-title {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .page-subtitle {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    /* Zone Cards */
+    .zones-container {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .zone-card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .zone-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel);
+    }
+
+    .zone-name {
+      font-weight: 600;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .zone-name-edit {
+      background: transparent;
+      border: none;
+      color: var(--text);
+      font-weight: 600;
+      font-size: 1rem;
+      padding: 4px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .zone-name-edit:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .zone-name-edit:focus {
+      outline: 2px solid var(--accent);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .zone-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .glo-select {
+      padding: 6px 12px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+
+    .glo-select:focus {
+      outline: 2px solid var(--accent);
+    }
+
+    .glo-link {
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 0.85rem;
+      padding: 6px 10px;
+      border-radius: 6px;
+      transition: all 0.2s;
+    }
+
+    .glo-link:hover {
+      background: rgba(99, 102, 241, 0.1);
+    }
+
+    .zone-delete {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 6px;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+
+    .zone-delete:hover {
+      color: var(--danger);
+      background: rgba(239, 68, 68, 0.1);
+    }
+
+    /* Area Chips */
+    .zone-areas {
+      padding: 16px 20px;
+      min-height: 80px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-content: flex-start;
+    }
+
+    .zone-areas.drag-over {
+      background: rgba(99, 102, 241, 0.05);
+      outline: 2px dashed var(--accent);
+      outline-offset: -8px;
+    }
+
+    .zone-areas-empty {
+      color: var(--muted2);
+      font-size: 0.85rem;
+      font-style: italic;
+      padding: 8px;
+    }
+
+    .area-chip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      font-size: 0.85rem;
+      cursor: grab;
+      transition: all 0.2s;
+    }
+
+    .area-chip:active {
+      cursor: grabbing;
+    }
+
+    .area-chip.dragging {
+      opacity: 0.5;
+    }
+
+    .area-chip:hover {
+      border-color: var(--accent);
+    }
+
+    .area-name {
+      font-weight: 500;
+    }
+
+    .area-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .status-dot.on {
+      background: var(--success);
+      box-shadow: 0 0 6px var(--success);
+    }
+
+    .status-dot.off {
+      background: var(--muted2);
+    }
+
+    .area-brightness {
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    .area-frozen {
+      color: var(--warning);
+      font-size: 0.85rem;
+    }
+
+    /* Unassigned Areas */
+    .unassigned-section {
+      margin-top: 24px;
+    }
+
+    .unassigned-header {
+      font-size: 0.9rem;
+      color: var(--muted);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .unassigned-areas {
+      background: var(--card);
+      border: 1px dashed var(--line);
+      border-radius: 12px;
+      padding: 16px 20px;
+      min-height: 60px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .unassigned-areas.drag-over {
+      background: rgba(99, 102, 241, 0.05);
+      border-color: var(--accent);
+    }
+
+    /* Add Zone Button */
+    .add-zone-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 16px;
+      background: transparent;
+      border: 2px dashed var(--line);
+      border-radius: 12px;
+      color: var(--muted);
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      width: 100%;
+    }
+
+    .add-zone-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(99, 102, 241, 0.05);
+    }
+
+    /* Loading State */
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 48px;
+      color: var(--muted);
+    }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.2s;
+    }
+
+    .modal-overlay.visible {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 24px;
+      min-width: 320px;
+      max-width: 90%;
+    }
+
+    .modal h3 {
+      margin-bottom: 16px;
+      font-size: 1.1rem;
+    }
+
+    .modal-input {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 0.9rem;
+      margin-bottom: 16px;
+    }
+
+    .modal-input:focus {
+      outline: 2px solid var(--accent);
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-cancel {
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--muted);
+    }
+
+    .btn-cancel:hover {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text);
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      border: none;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-hover);
+    }
+  </style>
+</head>
+<body>
+  <!-- Navigation -->
+  <nav class="nav">
+    <span class="nav-brand">Circadian Light</span>
+    <div class="nav-links">
+      <a href="./" class="nav-link active">Home</a>
+      <a href="./glo" class="nav-link">Glo Designer</a>
+      <a href="./settings" class="nav-link">Settings</a>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="main">
+    <div class="page-header">
+      <h1 class="page-title">Home</h1>
+      <p class="page-subtitle">Manage your Glo Zones and areas</p>
+    </div>
+
+    <div class="zones-container" id="zones-container">
+      <div class="loading">Loading zones...</div>
+    </div>
+
+    <button class="add-zone-btn" id="add-zone-btn">
+      <span>+</span> Add Glo Zone
+    </button>
+
+    <div class="unassigned-section">
+      <div class="unassigned-header">
+        <span>Unassigned Areas</span>
+      </div>
+      <div class="unassigned-areas" id="unassigned-areas">
+        <!-- Unassigned area chips go here -->
+      </div>
+    </div>
+  </main>
+
+  <!-- Modal for creating zones/glos -->
+  <div class="modal-overlay" id="modal-overlay">
+    <div class="modal">
+      <h3 id="modal-title">Create Glo Zone</h3>
+      <input type="text" class="modal-input" id="modal-input" placeholder="Enter name">
+      <div class="modal-actions">
+        <button class="btn btn-cancel" id="modal-cancel">Cancel</button>
+        <button class="btn btn-primary" id="modal-confirm">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Data from server
+    const circadianData = window.circadianData || { config: {} };
+    const config = circadianData.config;
+
+    // State
+    let zones = {};
+    let presets = {};
+    let allAreas = [];
+    let areaStates = {};
+    let draggedArea = null;
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      loadData();
+      setupEventListeners();
+    });
+
+    async function loadData() {
+      try {
+        // Load zones, presets, and areas in parallel
+        const [zonesRes, presetsRes, areasRes] = await Promise.all([
+          fetch('./api/glozones'),
+          fetch('./api/circadian-presets'),
+          fetch('./api/areas')
+        ]);
+
+        if (zonesRes.ok) {
+          const data = await zonesRes.json();
+          zones = data.zones || {};
+        }
+
+        if (presetsRes.ok) {
+          const data = await presetsRes.json();
+          presets = data.presets || {};
+        }
+
+        if (areasRes.ok) {
+          allAreas = await areasRes.json();
+        }
+
+        // Load area states (brightness, on/off, frozen)
+        await loadAreaStates();
+
+        renderZones();
+      } catch (err) {
+        console.error('Error loading data:', err);
+        document.getElementById('zones-container').innerHTML =
+          '<div class="loading">Error loading data</div>';
+      }
+    }
+
+    async function loadAreaStates() {
+      try {
+        const response = await fetch('./api/area-status');
+        if (response.ok) {
+          const data = await response.json();
+          // Convert API format to our format
+          areaStates = {};
+          for (const [areaId, status] of Object.entries(data)) {
+            areaStates[areaId] = {
+              enabled: status.enabled,
+              brightness: status.brightness,
+              frozen: status.frozen
+            };
+          }
+        }
+      } catch (err) {
+        console.error('Error loading area states:', err);
+        // Fall back to empty states
+        areaStates = {};
+      }
+    }
+
+    function renderZones() {
+      const container = document.getElementById('zones-container');
+      const unassignedContainer = document.getElementById('unassigned-areas');
+
+      // Get all assigned area IDs
+      const assignedAreaIds = new Set();
+      Object.values(zones).forEach(zone => {
+        (zone.areas || []).forEach(a => {
+          assignedAreaIds.add(typeof a === 'string' ? a : a.id);
+        });
+      });
+
+      // Filter out Unassigned zone for main display
+      const displayZones = Object.entries(zones).filter(([name]) => name !== 'Unassigned');
+
+      if (displayZones.length === 0) {
+        container.innerHTML = '<div class="loading">No zones created yet. Add a Glo Zone to get started.</div>';
+      } else {
+        container.innerHTML = displayZones.map(([zoneName, zone]) => renderZoneCard(zoneName, zone)).join('');
+        setupZoneEventListeners();
+      }
+
+      // Render unassigned areas
+      const unassignedAreas = allAreas.filter(a => !assignedAreaIds.has(a.area_id));
+      if (unassignedAreas.length === 0) {
+        unassignedContainer.innerHTML = '<span class="zone-areas-empty">All areas are assigned to zones</span>';
+      } else {
+        unassignedContainer.innerHTML = unassignedAreas.map(area => renderAreaChip(area, null)).join('');
+      }
+
+      setupDragAndDrop();
+    }
+
+    function renderZoneCard(zoneName, zone) {
+      const areas = zone.areas || [];
+      const presetOptions = Object.keys(presets).map(p =>
+        `<option value="${p}" ${zone.preset === p ? 'selected' : ''}>${p}</option>`
+      ).join('');
+
+      const areaChips = areas.length === 0
+        ? '<span class="zone-areas-empty">Drag areas here</span>'
+        : areas.map(a => {
+            const areaId = typeof a === 'string' ? a : a.id;
+            const areaInfo = allAreas.find(x => x.area_id === areaId);
+            return renderAreaChip(areaInfo || { area_id: areaId, name: areaId }, zoneName);
+          }).join('');
+
+      return `
+        <div class="zone-card" data-zone="${zoneName}">
+          <div class="zone-header">
+            <div class="zone-name">
+              <input type="text" class="zone-name-edit" value="${zoneName}" data-zone="${zoneName}" data-original="${zoneName}">
+            </div>
+            <div class="zone-controls">
+              <select class="glo-select" data-zone="${zoneName}">
+                ${presetOptions}
+                <option value="__new__">+ New Glo...</option>
+              </select>
+              <a href="./glo/${encodeURIComponent(zone.preset || 'Glo 1')}" class="glo-link">Edit Glo</a>
+              <button class="zone-delete" data-zone="${zoneName}" title="Delete zone">&times;</button>
+            </div>
+          </div>
+          <div class="zone-areas" data-zone="${zoneName}">
+            ${areaChips}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderAreaChip(area, zoneName) {
+      const areaId = area.area_id;
+      const areaName = area.name || areaId;
+      const areaState = areaStates[areaId] || { enabled: false, brightness: 0, frozen: false };
+
+      return `
+        <div class="area-chip" draggable="true" data-area="${areaId}" data-zone="${zoneName || ''}">
+          <span class="area-name">${areaName}</span>
+          <div class="area-status">
+            <span class="status-dot ${areaState.enabled ? 'on' : 'off'}"></span>
+            ${areaState.enabled ? `<span class="area-brightness">${areaState.brightness}%</span>` : ''}
+            ${areaState.frozen ? '<span class="area-frozen" title="Frozen">&#128274;</span>' : ''}
+          </div>
+        </div>
+      `;
+    }
+
+    function setupEventListeners() {
+      // Add zone button
+      document.getElementById('add-zone-btn').addEventListener('click', () => {
+        showModal('zone');
+      });
+
+      // Modal buttons
+      document.getElementById('modal-cancel').addEventListener('click', hideModal);
+      document.getElementById('modal-confirm').addEventListener('click', handleModalConfirm);
+      document.getElementById('modal-overlay').addEventListener('click', (e) => {
+        if (e.target.classList.contains('modal-overlay')) hideModal();
+      });
+
+      // Enter key in modal
+      document.getElementById('modal-input').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') handleModalConfirm();
+      });
+    }
+
+    function setupZoneEventListeners() {
+      // Zone name editing
+      document.querySelectorAll('.zone-name-edit').forEach(input => {
+        input.addEventListener('blur', handleZoneRename);
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.target.blur();
+          } else if (e.key === 'Escape') {
+            e.target.value = e.target.dataset.original;
+            e.target.blur();
+          }
+        });
+      });
+
+      // Glo select change
+      document.querySelectorAll('.glo-select').forEach(select => {
+        select.addEventListener('change', handleGloChange);
+      });
+
+      // Zone delete
+      document.querySelectorAll('.zone-delete').forEach(btn => {
+        btn.addEventListener('click', handleZoneDelete);
+      });
+    }
+
+    function setupDragAndDrop() {
+      // Draggable chips
+      document.querySelectorAll('.area-chip').forEach(chip => {
+        chip.addEventListener('dragstart', handleDragStart);
+        chip.addEventListener('dragend', handleDragEnd);
+      });
+
+      // Drop zones
+      document.querySelectorAll('.zone-areas, .unassigned-areas').forEach(zone => {
+        zone.addEventListener('dragover', handleDragOver);
+        zone.addEventListener('dragleave', handleDragLeave);
+        zone.addEventListener('drop', handleDrop);
+      });
+    }
+
+    function handleDragStart(e) {
+      draggedArea = {
+        areaId: e.target.dataset.area,
+        sourceZone: e.target.dataset.zone || null
+      };
+      e.target.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    }
+
+    function handleDragEnd(e) {
+      e.target.classList.remove('dragging');
+      draggedArea = null;
+    }
+
+    function handleDragOver(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      e.currentTarget.classList.add('drag-over');
+    }
+
+    function handleDragLeave(e) {
+      if (!e.currentTarget.contains(e.relatedTarget)) {
+        e.currentTarget.classList.remove('drag-over');
+      }
+    }
+
+    async function handleDrop(e) {
+      e.preventDefault();
+      e.currentTarget.classList.remove('drag-over');
+
+      if (!draggedArea) return;
+
+      const targetZone = e.currentTarget.dataset.zone || null;
+      const { areaId, sourceZone } = draggedArea;
+
+      if (sourceZone === targetZone) return;
+
+      try {
+        if (targetZone) {
+          // Add to zone
+          await fetch(`./api/glozones/${encodeURIComponent(targetZone)}/areas`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              area_id: areaId,
+              area_name: allAreas.find(a => a.area_id === areaId)?.name || areaId
+            })
+          });
+        } else if (sourceZone) {
+          // Remove from zone (move to unassigned)
+          await fetch(`./api/glozones/${encodeURIComponent(sourceZone)}/areas/${encodeURIComponent(areaId)}`, {
+            method: 'DELETE'
+          });
+        }
+
+        await loadData();
+      } catch (err) {
+        console.error('Error moving area:', err);
+      }
+    }
+
+    async function handleZoneRename(e) {
+      const newName = e.target.value.trim();
+      const oldName = e.target.dataset.original;
+
+      if (!newName || newName === oldName) {
+        e.target.value = oldName;
+        return;
+      }
+
+      try {
+        const response = await fetch(`./api/glozones/${encodeURIComponent(oldName)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: newName })
+        });
+
+        if (response.ok) {
+          e.target.dataset.original = newName;
+          await loadData();
+        } else {
+          e.target.value = oldName;
+          const data = await response.json();
+          alert(data.error || 'Failed to rename zone');
+        }
+      } catch (err) {
+        console.error('Error renaming zone:', err);
+        e.target.value = oldName;
+      }
+    }
+
+    async function handleGloChange(e) {
+      const zoneName = e.target.dataset.zone;
+      const newGlo = e.target.value;
+
+      if (newGlo === '__new__') {
+        showModal('glo', zoneName);
+        e.target.value = zones[zoneName]?.preset || 'Glo 1';
+        return;
+      }
+
+      try {
+        await fetch(`./api/glozones/${encodeURIComponent(zoneName)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ preset: newGlo })
+        });
+        await loadData();
+      } catch (err) {
+        console.error('Error changing glo:', err);
+      }
+    }
+
+    async function handleZoneDelete(e) {
+      const zoneName = e.target.dataset.zone;
+      if (!confirm(`Delete zone "${zoneName}"? Areas will become unassigned.`)) return;
+
+      try {
+        await fetch(`./api/glozones/${encodeURIComponent(zoneName)}`, {
+          method: 'DELETE'
+        });
+        await loadData();
+      } catch (err) {
+        console.error('Error deleting zone:', err);
+      }
+    }
+
+    // Modal handling
+    let modalMode = null;
+    let modalContext = null;
+
+    function showModal(mode, context = null) {
+      modalMode = mode;
+      modalContext = context;
+
+      const overlay = document.getElementById('modal-overlay');
+      const title = document.getElementById('modal-title');
+      const input = document.getElementById('modal-input');
+
+      if (mode === 'zone') {
+        title.textContent = 'Create Glo Zone';
+        input.placeholder = 'Zone name';
+      } else if (mode === 'glo') {
+        title.textContent = 'Create New Glo';
+        input.placeholder = 'Glo name';
+      }
+
+      input.value = '';
+      overlay.classList.add('visible');
+      input.focus();
+    }
+
+    function hideModal() {
+      document.getElementById('modal-overlay').classList.remove('visible');
+      modalMode = null;
+      modalContext = null;
+    }
+
+    async function handleModalConfirm() {
+      const name = document.getElementById('modal-input').value.trim();
+      if (!name) {
+        alert('Please enter a name');
+        return;
+      }
+
+      try {
+        if (modalMode === 'zone') {
+          const response = await fetch('./api/glozones', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, preset: 'Glo 1' })
+          });
+          if (!response.ok) {
+            const data = await response.json();
+            alert(data.error || 'Failed to create zone');
+            return;
+          }
+        } else if (modalMode === 'glo') {
+          const response = await fetch('./api/circadian-presets', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, settings: {} })
+          });
+          if (!response.ok) {
+            const data = await response.json();
+            alert(data.error || 'Failed to create glo');
+            return;
+          }
+          // If created from zone dropdown, assign it
+          if (modalContext) {
+            await fetch(`./api/glozones/${encodeURIComponent(modalContext)}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ preset: name })
+            });
+          }
+        }
+
+        hideModal();
+        await loadData();
+      } catch (err) {
+        console.error('Error creating:', err);
+      }
+    }
+
+    // Auto-refresh area states periodically
+    setInterval(async () => {
+      await loadAreaStates();
+      renderZones();
+    }, 30000);
+  </script>
+</body>
+</html>

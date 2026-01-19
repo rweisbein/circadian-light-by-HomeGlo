@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Circadian Light - Settings</title>
+  <style>
+    :root {
+      --bg: #1a1a2e;
+      --panel: #16213e;
+      --card: #1f2940;
+      --accent: #6366f1;
+      --accent-hover: #818cf8;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --muted2: #64748b;
+      --line: #334155;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* Navigation */
+    .nav {
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      height: 56px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .nav-brand {
+      font-weight: 600;
+      font-size: 1.1rem;
+      color: var(--text);
+      margin-right: 32px;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 8px;
+    }
+
+    .nav-link {
+      padding: 8px 16px;
+      color: var(--muted);
+      text-decoration: none;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+
+    .nav-link:hover {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .nav-link.active {
+      color: var(--accent);
+      background: rgba(99, 102, 241, 0.1);
+    }
+
+    /* Main Content */
+    .main {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .page-header {
+      margin-bottom: 24px;
+    }
+
+    .page-title {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .page-subtitle {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    /* Settings Sections */
+    .settings-section {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+
+    .section-header {
+      background: var(--panel);
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--line);
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .section-content {
+      padding: 20px;
+    }
+
+    .section-description {
+      color: var(--muted);
+      font-size: 0.85rem;
+      margin-bottom: 16px;
+    }
+
+    /* Form Controls */
+    .form-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .form-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .form-label {
+      min-width: 140px;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    .form-control {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .form-input {
+      padding: 10px 12px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 0.9rem;
+      width: 200px;
+    }
+
+    .form-input:focus {
+      outline: 2px solid var(--accent);
+    }
+
+    .form-select {
+      padding: 10px 12px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 0.9rem;
+      min-width: 200px;
+    }
+
+    .form-select:focus {
+      outline: 2px solid var(--accent);
+    }
+
+    .form-hint {
+      font-size: 0.8rem;
+      color: var(--muted2);
+      margin-left: 12px;
+    }
+
+    /* Buttons */
+    .btn {
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-hover);
+    }
+
+    .btn-secondary {
+      background: var(--card);
+      border: 1px solid var(--line);
+      color: var(--text);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .button-row {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    /* Save Status */
+    .save-status {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      padding: 12px 20px;
+      background: var(--success);
+      color: white;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.3s;
+    }
+
+    .save-status.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Info Box */
+    .info-box {
+      background: rgba(99, 102, 241, 0.1);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 0.85rem;
+      color: var(--text);
+      margin-bottom: 16px;
+    }
+
+    .info-box strong {
+      color: var(--accent);
+    }
+  </style>
+</head>
+<body>
+  <!-- Navigation -->
+  <nav class="nav">
+    <span class="nav-brand">Circadian Light</span>
+    <div class="nav-links">
+      <a href="./" class="nav-link">Home</a>
+      <a href="./glo" class="nav-link">Glo Designer</a>
+      <a href="./settings" class="nav-link active">Settings</a>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="main">
+    <div class="page-header">
+      <h1 class="page-title">Settings</h1>
+      <p class="page-subtitle">Configure global settings for Circadian Light</p>
+    </div>
+
+    <!-- Location Settings -->
+    <div class="settings-section">
+      <div class="section-header">Location</div>
+      <div class="section-content">
+        <p class="section-description">
+          Your location is used to calculate sunrise and sunset times for accurate circadian lighting.
+        </p>
+        <div class="form-row">
+          <span class="form-label">Latitude</span>
+          <div class="form-control">
+            <input type="number" class="form-input" id="latitude" step="0.0001" placeholder="40.7128">
+            <span class="form-hint">e.g., 40.7128 for New York</span>
+          </div>
+        </div>
+        <div class="form-row">
+          <span class="form-label">Longitude</span>
+          <div class="form-control">
+            <input type="number" class="form-input" id="longitude" step="0.0001" placeholder="-74.0060">
+            <span class="form-hint">e.g., -74.0060 for New York</span>
+          </div>
+        </div>
+        <div class="info-box">
+          <strong>Tip:</strong> You can find your coordinates by searching your address on Google Maps and copying the numbers from the URL.
+        </div>
+      </div>
+    </div>
+
+    <!-- Timezone Settings -->
+    <div class="settings-section">
+      <div class="section-header">Timezone</div>
+      <div class="section-content">
+        <div class="form-row">
+          <span class="form-label">Timezone</span>
+          <div class="form-control">
+            <select class="form-select" id="timezone">
+              <option value="US/Eastern">US/Eastern</option>
+              <option value="US/Central">US/Central</option>
+              <option value="US/Mountain">US/Mountain</option>
+              <option value="US/Pacific">US/Pacific</option>
+              <option value="US/Alaska">US/Alaska</option>
+              <option value="US/Hawaii">US/Hawaii</option>
+              <option value="Europe/London">Europe/London</option>
+              <option value="Europe/Paris">Europe/Paris</option>
+              <option value="Europe/Berlin">Europe/Berlin</option>
+              <option value="Asia/Tokyo">Asia/Tokyo</option>
+              <option value="Asia/Shanghai">Asia/Shanghai</option>
+              <option value="Australia/Sydney">Australia/Sydney</option>
+              <option value="UTC">UTC</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Advanced Settings -->
+    <div class="settings-section">
+      <div class="section-header">Advanced</div>
+      <div class="section-content">
+        <div class="form-row">
+          <span class="form-label">Transition Time</span>
+          <div class="form-control">
+            <input type="number" class="form-input" id="transition-time" min="0" max="10" step="0.5" value="1">
+            <span class="form-hint">seconds (0 = instant)</span>
+          </div>
+        </div>
+        <div class="form-row">
+          <span class="form-label">Update Interval</span>
+          <div class="form-control">
+            <input type="number" class="form-input" id="update-interval" min="1" max="60" value="5">
+            <span class="form-hint">minutes between updates</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Save Button -->
+    <div class="button-row">
+      <button class="btn btn-primary" id="save-btn">Save Settings</button>
+    </div>
+  </main>
+
+  <!-- Save Status Toast -->
+  <div class="save-status" id="save-status">Settings saved!</div>
+
+  <script>
+    // Data from server
+    const circadianData = window.circadianData || { config: {} };
+    const config = circadianData.config;
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      loadSettings();
+      setupEventListeners();
+    });
+
+    function loadSettings() {
+      document.getElementById('latitude').value = config.latitude || '';
+      document.getElementById('longitude').value = config.longitude || '';
+      document.getElementById('timezone').value = config.timezone || 'US/Eastern';
+      document.getElementById('transition-time').value = config.transition_time || 1;
+      document.getElementById('update-interval').value = config.update_interval || 5;
+    }
+
+    function setupEventListeners() {
+      document.getElementById('save-btn').addEventListener('click', handleSave);
+    }
+
+    async function handleSave() {
+      const settings = {
+        latitude: parseFloat(document.getElementById('latitude').value) || null,
+        longitude: parseFloat(document.getElementById('longitude').value) || null,
+        timezone: document.getElementById('timezone').value,
+        transition_time: parseFloat(document.getElementById('transition-time').value) || 1,
+        update_interval: parseInt(document.getElementById('update-interval').value) || 5
+      };
+
+      try {
+        const response = await fetch('./api/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(settings)
+        });
+
+        if (response.ok) {
+          showSaveStatus();
+        } else {
+          const data = await response.json();
+          alert(data.error || 'Failed to save settings');
+        }
+      } catch (err) {
+        console.error('Error saving settings:', err);
+        alert('Error saving settings');
+      }
+    }
+
+    function showSaveStatus() {
+      const el = document.getElementById('save-status');
+      el.classList.add('visible');
+      setTimeout(() => el.classList.remove('visible'), 2000);
+    }
+  </script>
+</body>
+</html>

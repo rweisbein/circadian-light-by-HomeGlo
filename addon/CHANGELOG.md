@@ -1,5 +1,27 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.63
+**Multi-Page Web UI Restructure**
+
+Restructured the add-on into a clean multi-page web application:
+
+**New Pages:**
+- **Home** (`/`): Zone management with drag & drop, live area status indicators
+- **Glo Designer** (`/glo`): Edit Glo settings (times, brightness, colors) with Glo dropdown
+- **Settings** (`/settings`): Location, timezone, and global settings
+
+**Features:**
+- Shared navigation bar across all pages
+- Live status per area: enabled indicator, brightness %, frozen lock icon
+- Area status uses Circadian Light state (no HA polling overhead)
+- Brightness calculated from circadian curve in real-time
+- Auto-refresh every 30 seconds
+
+**Technical:**
+- New `/api/area-status` endpoint using state modules instead of polling HA
+- Updated webserver routes for multi-page structure
+- Updated tests for new page structure
+
 ## 6.8.62
 **Improved Area Management with Drag & Drop**
 

@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Circadian Light - Glo Designer</title>
+  <style>
+    :root {
+      --bg: #1a1a2e;
+      --panel: #16213e;
+      --card: #1f2940;
+      --accent: #6366f1;
+      --accent-hover: #818cf8;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --muted2: #64748b;
+      --line: #334155;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* Navigation */
+    .nav {
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      height: 56px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .nav-brand {
+      font-weight: 600;
+      font-size: 1.1rem;
+      color: var(--text);
+      margin-right: 32px;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 8px;
+    }
+
+    .nav-link {
+      padding: 8px 16px;
+      color: var(--muted);
+      text-decoration: none;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+
+    .nav-link:hover {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .nav-link.active {
+      color: var(--accent);
+      background: rgba(99, 102, 241, 0.1);
+    }
+
+    /* Main Content */
+    .main {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    /* Glo Selector Header */
+    .glo-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .glo-selector {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .glo-selector label {
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    .glo-select {
+      padding: 10px 16px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      min-width: 200px;
+    }
+
+    .glo-select:focus {
+      outline: 2px solid var(--accent);
+    }
+
+    .glo-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+    }
+
+    .btn-secondary {
+      background: var(--card);
+      border: 1px solid var(--line);
+      color: var(--text);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .btn-danger {
+      background: transparent;
+      border: 1px solid var(--danger);
+      color: var(--danger);
+    }
+
+    .btn-danger:hover {
+      background: rgba(239, 68, 68, 0.1);
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-hover);
+    }
+
+    /* Used By Info */
+    .used-by {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-top: 8px;
+    }
+
+    /* Settings Sections */
+    .settings-section {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+
+    .section-header {
+      background: var(--panel);
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--line);
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .section-content {
+      padding: 20px;
+    }
+
+    /* Form Controls */
+    .form-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .form-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .form-label {
+      min-width: 140px;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    .form-control {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .form-input {
+      padding: 8px 12px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 0.9rem;
+      width: 100px;
+    }
+
+    .form-input:focus {
+      outline: 2px solid var(--accent);
+    }
+
+    .form-select {
+      padding: 8px 12px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 0.9rem;
+      min-width: 150px;
+    }
+
+    .slider-container {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .slider {
+      flex: 1;
+      -webkit-appearance: none;
+      height: 6px;
+      background: var(--line);
+      border-radius: 3px;
+      outline: none;
+    }
+
+    .slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      background: var(--accent);
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    .slider-value {
+      min-width: 50px;
+      text-align: right;
+      font-size: 0.9rem;
+      color: var(--text);
+    }
+
+    /* Curve Preview */
+    .curve-preview {
+      background: var(--panel);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+
+    .curve-canvas {
+      width: 100%;
+      height: 200px;
+      background: var(--bg);
+      border-radius: 6px;
+    }
+
+    /* Color Swatches */
+    .color-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .color-swatch {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      border: 2px solid var(--line);
+      cursor: pointer;
+    }
+
+    .color-swatch:hover {
+      border-color: var(--accent);
+    }
+
+    /* Save Status */
+    .save-status {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      padding: 12px 20px;
+      background: var(--success);
+      color: white;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.3s;
+    }
+
+    .save-status.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.2s;
+    }
+
+    .modal-overlay.visible {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 24px;
+      min-width: 320px;
+    }
+
+    .modal h3 {
+      margin-bottom: 16px;
+    }
+
+    .modal-input {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 0.9rem;
+      margin-bottom: 16px;
+    }
+
+    .modal-input:focus {
+      outline: 2px solid var(--accent);
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .btn-cancel {
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--muted);
+    }
+
+    .btn-cancel:hover {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text);
+    }
+  </style>
+</head>
+<body>
+  <!-- Navigation -->
+  <nav class="nav">
+    <span class="nav-brand">Circadian Light</span>
+    <div class="nav-links">
+      <a href="./" class="nav-link">Home</a>
+      <a href="./glo" class="nav-link active">Glo Designer</a>
+      <a href="./settings" class="nav-link">Settings</a>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="main">
+    <!-- Glo Selector Header -->
+    <div class="glo-header">
+      <div>
+        <div class="glo-selector">
+          <label>Editing:</label>
+          <select class="glo-select" id="glo-select">
+            <!-- Options populated by JS -->
+          </select>
+        </div>
+        <div class="used-by" id="used-by">Used by: Loading...</div>
+      </div>
+      <div class="glo-actions">
+        <button class="btn btn-secondary" id="rename-glo-btn">Rename</button>
+        <button class="btn btn-danger" id="delete-glo-btn">Delete</button>
+      </div>
+    </div>
+
+    <!-- Time Settings -->
+    <div class="settings-section">
+      <div class="section-header">Time Settings</div>
+      <div class="section-content">
+        <div class="form-row">
+          <span class="form-label">Wake Time</span>
+          <div class="form-control">
+            <div class="slider-container">
+              <input type="range" class="slider" id="wake-time" min="4" max="12" step="0.25" value="7">
+              <span class="slider-value" id="wake-time-value">7:00 AM</span>
+            </div>
+          </div>
+        </div>
+        <div class="form-row">
+          <span class="form-label">Bed Time</span>
+          <div class="form-control">
+            <div class="slider-container">
+              <input type="range" class="slider" id="bed-time" min="18" max="26" step="0.25" value="22">
+              <span class="slider-value" id="bed-time-value">10:00 PM</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Brightness Settings -->
+    <div class="settings-section">
+      <div class="section-header">Brightness</div>
+      <div class="section-content">
+        <div class="form-row">
+          <span class="form-label">Day Brightness</span>
+          <div class="form-control">
+            <div class="slider-container">
+              <input type="range" class="slider" id="day-brightness" min="50" max="100" value="100">
+              <span class="slider-value" id="day-brightness-value">100%</span>
+            </div>
+          </div>
+        </div>
+        <div class="form-row">
+          <span class="form-label">Night Brightness</span>
+          <div class="form-control">
+            <div class="slider-container">
+              <input type="range" class="slider" id="night-brightness" min="1" max="50" value="10">
+              <span class="slider-value" id="night-brightness-value">10%</span>
+            </div>
+          </div>
+        </div>
+        <div class="form-row">
+          <span class="form-label">Wake Speed</span>
+          <div class="form-control">
+            <div class="slider-container">
+              <input type="range" class="slider" id="wake-speed" min="1" max="10" value="5">
+              <span class="slider-value" id="wake-speed-value">5</span>
+            </div>
+          </div>
+        </div>
+        <div class="form-row">
+          <span class="form-label">Bed Speed</span>
+          <div class="form-control">
+            <div class="slider-container">
+              <input type="range" class="slider" id="bed-speed" min="1" max="10" value="5">
+              <span class="slider-value" id="bed-speed-value">5</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Color Settings -->
+    <div class="settings-section">
+      <div class="section-header">Color Temperature</div>
+      <div class="section-content">
+        <div class="form-row">
+          <span class="form-label">Color Mode</span>
+          <div class="form-control">
+            <select class="form-select" id="color-mode">
+              <option value="cct">Color Temperature (CCT)</option>
+              <option value="rgb">RGB Color</option>
+              <option value="xy">XY Color</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <span class="form-label">Day Color (K)</span>
+          <div class="form-control">
+            <div class="slider-container">
+              <input type="range" class="slider" id="day-color" min="4000" max="6500" value="5500">
+              <span class="slider-value" id="day-color-value">5500K</span>
+            </div>
+          </div>
+        </div>
+        <div class="form-row">
+          <span class="form-label">Night Color (K)</span>
+          <div class="form-control">
+            <div class="slider-container">
+              <input type="range" class="slider" id="night-color" min="1800" max="3500" value="2700">
+              <span class="slider-value" id="night-color-value">2700K</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Save Button -->
+    <button class="btn btn-primary" id="save-btn" style="width: 100%; padding: 14px;">Save Changes</button>
+  </main>
+
+  <!-- Save Status Toast -->
+  <div class="save-status" id="save-status">Changes saved!</div>
+
+  <!-- Rename Modal -->
+  <div class="modal-overlay" id="modal-overlay">
+    <div class="modal">
+      <h3 id="modal-title">Rename Glo</h3>
+      <input type="text" class="modal-input" id="modal-input" placeholder="Enter new name">
+      <div class="modal-actions">
+        <button class="btn btn-cancel" id="modal-cancel">Cancel</button>
+        <button class="btn btn-primary" id="modal-confirm">Rename</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Data from server
+    const circadianData = window.circadianData || { config: {}, selectedGlo: null };
+    const rawConfig = circadianData.config;
+
+    // State
+    let presets = {};
+    let zones = {};
+    let currentGlo = circadianData.selectedGlo || 'Glo 1';
+    let currentSettings = {};
+    let hasChanges = false;
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      loadData();
+      setupEventListeners();
+    });
+
+    async function loadData() {
+      try {
+        const [presetsRes, zonesRes] = await Promise.all([
+          fetch('./api/circadian-presets'),
+          fetch('./api/glozones')
+        ]);
+
+        if (presetsRes.ok) {
+          const data = await presetsRes.json();
+          presets = data.presets || {};
+        }
+
+        if (zonesRes.ok) {
+          const data = await zonesRes.json();
+          zones = data.zones || {};
+        }
+
+        populateGloSelect();
+        loadGloSettings(currentGlo);
+      } catch (err) {
+        console.error('Error loading data:', err);
+      }
+    }
+
+    function populateGloSelect() {
+      const select = document.getElementById('glo-select');
+      const presetNames = Object.keys(presets);
+
+      select.innerHTML = presetNames.map(name =>
+        `<option value="${name}" ${name === currentGlo ? 'selected' : ''}>${name}</option>`
+      ).join('');
+
+      // Add "Create new" option
+      select.innerHTML += '<option value="__new__">+ Create New Glo...</option>';
+    }
+
+    function loadGloSettings(gloName) {
+      currentGlo = gloName;
+      currentSettings = presets[gloName] || {};
+
+      // Update "Used by" info
+      const usedByZones = Object.entries(zones)
+        .filter(([_, z]) => z.preset === gloName)
+        .map(([name]) => name);
+      document.getElementById('used-by').textContent =
+        usedByZones.length > 0 ? `Used by: ${usedByZones.join(', ')}` : 'Not used by any zone';
+
+      // Populate form fields
+      setSlider('wake-time', currentSettings.wake_time || 7, formatTime);
+      setSlider('bed-time', currentSettings.bed_time || 22, formatTime);
+      setSlider('day-brightness', currentSettings.day_brightness || 100, v => `${v}%`);
+      setSlider('night-brightness', currentSettings.night_brightness || 10, v => `${v}%`);
+      setSlider('wake-speed', currentSettings.wake_speed || 5, v => v);
+      setSlider('bed-speed', currentSettings.bed_speed || 5, v => v);
+      setSlider('day-color', currentSettings.day_kelvin || 5500, v => `${v}K`);
+      setSlider('night-color', currentSettings.night_kelvin || 2700, v => `${v}K`);
+
+      document.getElementById('color-mode').value = currentSettings.color_mode || 'cct';
+
+      hasChanges = false;
+    }
+
+    function setSlider(id, value, formatter) {
+      const slider = document.getElementById(id);
+      const valueEl = document.getElementById(`${id}-value`);
+      slider.value = value;
+      valueEl.textContent = formatter(value);
+    }
+
+    function formatTime(hours) {
+      const h = Math.floor(hours) % 24;
+      const m = Math.round((hours % 1) * 60);
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      const h12 = h % 12 || 12;
+      return `${h12}:${m.toString().padStart(2, '0')} ${ampm}`;
+    }
+
+    function setupEventListeners() {
+      // Glo select
+      document.getElementById('glo-select').addEventListener('change', async (e) => {
+        if (e.target.value === '__new__') {
+          showModal('create');
+          e.target.value = currentGlo;
+          return;
+        }
+        if (hasChanges && !confirm('You have unsaved changes. Discard them?')) {
+          e.target.value = currentGlo;
+          return;
+        }
+        loadGloSettings(e.target.value);
+      });
+
+      // Rename button
+      document.getElementById('rename-glo-btn').addEventListener('click', () => {
+        showModal('rename');
+      });
+
+      // Delete button
+      document.getElementById('delete-glo-btn').addEventListener('click', handleDelete);
+
+      // Save button
+      document.getElementById('save-btn').addEventListener('click', handleSave);
+
+      // Slider changes
+      document.querySelectorAll('.slider').forEach(slider => {
+        slider.addEventListener('input', (e) => {
+          hasChanges = true;
+          const id = e.target.id;
+          const value = parseFloat(e.target.value);
+          const valueEl = document.getElementById(`${id}-value`);
+
+          if (id === 'wake-time' || id === 'bed-time') {
+            valueEl.textContent = formatTime(value);
+          } else if (id.includes('brightness')) {
+            valueEl.textContent = `${value}%`;
+          } else if (id.includes('color')) {
+            valueEl.textContent = `${value}K`;
+          } else {
+            valueEl.textContent = value;
+          }
+        });
+      });
+
+      // Color mode change
+      document.getElementById('color-mode').addEventListener('change', () => {
+        hasChanges = true;
+      });
+
+      // Modal buttons
+      document.getElementById('modal-cancel').addEventListener('click', hideModal);
+      document.getElementById('modal-confirm').addEventListener('click', handleModalConfirm);
+      document.getElementById('modal-overlay').addEventListener('click', (e) => {
+        if (e.target.classList.contains('modal-overlay')) hideModal();
+      });
+      document.getElementById('modal-input').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') handleModalConfirm();
+      });
+    }
+
+    async function handleSave() {
+      const settings = {
+        wake_time: parseFloat(document.getElementById('wake-time').value),
+        bed_time: parseFloat(document.getElementById('bed-time').value),
+        day_brightness: parseInt(document.getElementById('day-brightness').value),
+        night_brightness: parseInt(document.getElementById('night-brightness').value),
+        wake_speed: parseInt(document.getElementById('wake-speed').value),
+        bed_speed: parseInt(document.getElementById('bed-speed').value),
+        day_kelvin: parseInt(document.getElementById('day-color').value),
+        night_kelvin: parseInt(document.getElementById('night-color').value),
+        color_mode: document.getElementById('color-mode').value
+      };
+
+      try {
+        const response = await fetch(`./api/circadian-presets/${encodeURIComponent(currentGlo)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(settings)
+        });
+
+        if (response.ok) {
+          hasChanges = false;
+          presets[currentGlo] = { ...presets[currentGlo], ...settings };
+          showSaveStatus();
+        } else {
+          const data = await response.json();
+          alert(data.error || 'Failed to save');
+        }
+      } catch (err) {
+        console.error('Error saving:', err);
+        alert('Error saving changes');
+      }
+    }
+
+    async function handleDelete() {
+      if (currentGlo === 'Glo 1') {
+        alert('Cannot delete the default Glo');
+        return;
+      }
+
+      const usedBy = Object.entries(zones)
+        .filter(([_, z]) => z.preset === currentGlo)
+        .map(([name]) => name);
+
+      const msg = usedBy.length > 0
+        ? `Delete "${currentGlo}"? It's used by: ${usedBy.join(', ')}. They will switch to "Glo 1".`
+        : `Delete "${currentGlo}"?`;
+
+      if (!confirm(msg)) return;
+
+      try {
+        const response = await fetch(`./api/circadian-presets/${encodeURIComponent(currentGlo)}`, {
+          method: 'DELETE'
+        });
+
+        if (response.ok) {
+          await loadData();
+          currentGlo = 'Glo 1';
+          loadGloSettings(currentGlo);
+        } else {
+          const data = await response.json();
+          alert(data.error || 'Failed to delete');
+        }
+      } catch (err) {
+        console.error('Error deleting:', err);
+      }
+    }
+
+    function showSaveStatus() {
+      const el = document.getElementById('save-status');
+      el.classList.add('visible');
+      setTimeout(() => el.classList.remove('visible'), 2000);
+    }
+
+    // Modal handling
+    let modalMode = null;
+
+    function showModal(mode) {
+      modalMode = mode;
+      const overlay = document.getElementById('modal-overlay');
+      const title = document.getElementById('modal-title');
+      const input = document.getElementById('modal-input');
+      const confirm = document.getElementById('modal-confirm');
+
+      if (mode === 'rename') {
+        title.textContent = 'Rename Glo';
+        input.value = currentGlo;
+        confirm.textContent = 'Rename';
+      } else if (mode === 'create') {
+        title.textContent = 'Create New Glo';
+        input.value = '';
+        input.placeholder = 'Enter Glo name';
+        confirm.textContent = 'Create';
+      }
+
+      overlay.classList.add('visible');
+      input.focus();
+      input.select();
+    }
+
+    function hideModal() {
+      document.getElementById('modal-overlay').classList.remove('visible');
+      modalMode = null;
+    }
+
+    async function handleModalConfirm() {
+      const name = document.getElementById('modal-input').value.trim();
+      if (!name) {
+        alert('Please enter a name');
+        return;
+      }
+
+      try {
+        if (modalMode === 'rename') {
+          if (name === currentGlo) {
+            hideModal();
+            return;
+          }
+          const response = await fetch(`./api/circadian-presets/${encodeURIComponent(currentGlo)}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name })
+          });
+          if (response.ok) {
+            currentGlo = name;
+            await loadData();
+            hideModal();
+          } else {
+            const data = await response.json();
+            alert(data.error || 'Failed to rename');
+          }
+        } else if (modalMode === 'create') {
+          const response = await fetch('./api/circadian-presets', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, settings: {} })
+          });
+          if (response.ok) {
+            currentGlo = name;
+            await loadData();
+            loadGloSettings(name);
+            hideModal();
+          } else {
+            const data = await response.json();
+            alert(data.error || 'Failed to create');
+          }
+        }
+      } catch (err) {
+        console.error('Error:', err);
+      }
+    }
+
+    // Warn before leaving with unsaved changes
+    window.addEventListener('beforeunload', (e) => {
+      if (hasChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    });
+  </script>
+</body>
+</html>
