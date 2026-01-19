@@ -1,5 +1,14 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.65
+**Settings: Use Home Assistant Location Toggle**
+
+- Added "Use Home Assistant location" checkbox to Settings page
+- When enabled (default), uses HA's configured location for sunrise/sunset calculations
+- When disabled, allows manual entry of latitude/longitude
+- Lat/lon inputs are disabled and dimmed when using HA location
+- Tip box hidden when using HA location (not needed)
+
 ## 6.8.64
 **Glo Designer: Full Curve Visualization**
 
