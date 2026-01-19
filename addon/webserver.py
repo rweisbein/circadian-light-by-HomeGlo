@@ -760,8 +760,8 @@ class LightDesignerServer:
 
         Old format: flat dict with all settings
         New format: {
-            circadian_presets: {"Glo Preset 1": {...preset settings...}},
-            glozones: {"Unassigned": {preset: "Glo Preset 1", areas: []}},
+            circadian_presets: {"Glo 1": {...preset settings...}},
+            glozones: {"Unassigned": {preset: "Glo 1", areas: []}},
             ...global settings...
         }
 
@@ -1858,19 +1858,19 @@ class LightDesignerServer:
             config = await self.load_raw_config()
 
             if name not in config.get("circadian_presets", {}):
-                return web.json_response({"error": f"Glo Preset '{name}' not found"}, status=404)
+                return web.json_response({"error": f"Glo '{name}' not found"}, status=404)
 
             # Handle rename if "name" field is provided
             new_name = data.pop("name", None)
             if new_name and new_name != name:
                 if name == glozone.DEFAULT_PRESET:
                     return web.json_response(
-                        {"error": f"Cannot rename default Glo Preset '{name}'"},
+                        {"error": f"Cannot rename default Glo '{name}'"},
                         status=400
                     )
                 if new_name in config.get("circadian_presets", {}):
                     return web.json_response(
-                        {"error": f"Glo Preset '{new_name}' already exists"},
+                        {"error": f"Glo '{new_name}' already exists"},
                         status=400
                     )
                 # Rename the preset
@@ -2033,7 +2033,7 @@ class LightDesignerServer:
                 preset = data["preset"]
                 if preset not in config.get("circadian_presets", {}):
                     return web.json_response(
-                        {"error": f"Glo Preset '{preset}' not found"},
+                        {"error": f"Glo '{preset}' not found"},
                         status=400
                     )
                 config["glozones"][name]["preset"] = preset
