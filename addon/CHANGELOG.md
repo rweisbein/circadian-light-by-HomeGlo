@@ -1,5 +1,17 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.46
+**Fix color button previews with solar rules + Live Design fade transition**
+
+**Fixed:**
+- Color up/down button tooltips and callouts now respect Warm Night ceiling and Cool Day floor
+- Previously showed "+350K to 3050K" when warm night capped it at 2700K
+- Now correctly shows "at max" when solar rules prevent further color change
+
+**Improved:**
+- Live Design restore now fades lights over 1 second instead of instant snap
+- Smoother transition when ending Live Design or switching areas
+
 ## 6.8.45
 **Fix - Warm night/Cool day toggles no longer reset midpoints**
 

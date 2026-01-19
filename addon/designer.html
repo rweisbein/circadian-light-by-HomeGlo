@@ -2963,11 +2963,9 @@ function updateCursorButtons(point) {
   // For color extremes, check the DISPLAYED CCT
   const displayedCCT = currentCCT;  // point.cct is already the displayed CCT
 
-  // Check for "at extreme" states (using config bounds only)
+  // Check for "at extreme" states for brightness (config bounds only)
   const briAtMax = currentPct >= configMaxPct - 0.5;
   const briAtMin = currentPct <= configMinPct + 0.5;
-  const cctAtMax = displayedCCT >= configMaxCCT - 10;
-  const cctAtMin = displayedCCT <= configMinCCT + 10;
 
   // Step buttons: brightness-primary, at extreme based on brightness only
   const stepUpAtExtreme = currentPct >= configMaxPct - 0.5;
@@ -2978,8 +2976,15 @@ function updateCursorButtons(point) {
   const clickCct = getDisplayedCCTAtCursor() ?? displayedCCT;
   const actualBriUp = Math.min(configMaxPct, clickBri + deltaPct);
   const actualBriDown = Math.max(configMinPct, clickBri - deltaPct);
-  const actualColorUp = Math.min(configMaxCCT, clickCct + deltaCCT);
-  const actualColorDown = Math.max(configMinCCT, clickCct - deltaCCT);
+  // Apply solar rules (warm night ceiling, cool day floor) to color previews
+  const rawColorUp = Math.min(configMaxCCT, clickCct + deltaCCT);
+  const rawColorDown = Math.max(configMinCCT, clickCct - deltaCCT);
+  const actualColorUp = cursorHour !== null ? applySolarRuleAtHour(rawColorUp, cursorHour) : rawColorUp;
+  const actualColorDown = cursorHour !== null ? applySolarRuleAtHour(rawColorDown, cursorHour) : rawColorDown;
+
+  // Check for color "at extreme" - either at config bounds OR solar rules capped the value
+  const cctAtMax = displayedCCT >= configMaxCCT - 10 || Math.abs(actualColorUp - displayedCCT) < 10;
+  const cctAtMin = displayedCCT <= configMinCCT + 10 || Math.abs(actualColorDown - displayedCCT) < 10;
 
   if (briUpCallout) {
     const briUpDelta = Math.round(actualBriUp - currentPct);

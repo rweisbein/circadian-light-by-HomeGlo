@@ -1092,18 +1092,18 @@ class LightDesignerServer:
                 msg_id = 1
                 for entity_id, state_data in saved_states.items():
                     if state_data.get('state') == 'off':
-                        # Light was off - turn it off
+                        # Light was off - turn it off with transition
                         msg_id += 1
                         await ws.send(json.dumps({
                             'id': msg_id,
                             'type': 'call_service',
                             'domain': 'light',
                             'service': 'turn_off',
-                            'service_data': {'entity_id': entity_id}
+                            'service_data': {'entity_id': entity_id, 'transition': 1}
                         }))
                     else:
-                        # Light was on - restore its settings
-                        service_data = {'entity_id': entity_id}
+                        # Light was on - restore its settings with 1-second transition
+                        service_data = {'entity_id': entity_id, 'transition': 1}
 
                         brightness = state_data.get('brightness')
                         if brightness is not None:
