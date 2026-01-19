@@ -1064,13 +1064,58 @@ class LightDesignerServer:
             logger.error(f"[Live Design] Error fetching light states: {e}")
             return {}
 
-    async def _restore_light_states(self, ws_url: str, token: str, saved_states: dict) -> bool:
+    async def _turn_off_lights(self, ws_url: str, token: str, entity_ids: list, transition: float = 3) -> bool:
+        """Turn off lights with a transition.
+
+        Args:
+            ws_url: WebSocket URL
+            token: Home Assistant auth token
+            entity_ids: List of light entity IDs
+            transition: Transition time in seconds
+
+        Returns:
+            True if successful
+        """
+        if not entity_ids:
+            return True
+
+        try:
+            async with websockets.connect(ws_url) as ws:
+                # Auth
+                msg = json.loads(await ws.recv())
+                if msg.get('type') != 'auth_required':
+                    return False
+                await ws.send(json.dumps({'type': 'auth', 'access_token': token}))
+                msg = json.loads(await ws.recv())
+                if msg.get('type') != 'auth_ok':
+                    return False
+
+                # Turn off all lights with transition
+                await ws.send(json.dumps({
+                    'id': 1,
+                    'type': 'call_service',
+                    'domain': 'light',
+                    'service': 'turn_off',
+                    'service_data': {'entity_id': entity_ids, 'transition': transition}
+                }))
+
+                # Wait for transition to complete
+                await asyncio.sleep(transition + 0.5)
+                logger.info(f"[Live Design] Turned off {len(entity_ids)} lights with {transition}s transition")
+                return True
+
+        except Exception as e:
+            logger.error(f"[Live Design] Error turning off lights: {e}")
+            return False
+
+    async def _restore_light_states(self, ws_url: str, token: str, saved_states: dict, transition: float = 3) -> bool:
         """Restore previously saved light states.
 
         Args:
             ws_url: WebSocket URL
             token: Home Assistant auth token
             saved_states: Dict from _fetch_light_states
+            transition: Transition time in seconds
 
         Returns:
             True if restoration succeeded
@@ -1099,11 +1144,11 @@ class LightDesignerServer:
                             'type': 'call_service',
                             'domain': 'light',
                             'service': 'turn_off',
-                            'service_data': {'entity_id': entity_id, 'transition': 1}
+                            'service_data': {'entity_id': entity_id, 'transition': transition}
                         }))
                     else:
-                        # Light was on - restore its settings with 1-second transition
-                        service_data = {'entity_id': entity_id, 'transition': 1}
+                        # Light was on - restore its settings
+                        service_data = {'entity_id': entity_id, 'transition': transition}
 
                         brightness = state_data.get('brightness')
                         if brightness is not None:
@@ -1127,9 +1172,9 @@ class LightDesignerServer:
                             'service_data': service_data
                         }))
 
-                # Wait briefly for commands to be processed
-                await asyncio.sleep(0.5)
-                logger.info(f"[Live Design] Restored {len(saved_states)} light states")
+                # Wait for transition to complete
+                await asyncio.sleep(transition + 0.5)
+                logger.info(f"[Live Design] Restored {len(saved_states)} light states with {transition}s transition")
                 return True
 
         except Exception as e:
@@ -1304,6 +1349,7 @@ class LightDesignerServer:
             area_id = data.get('area_id')
             brightness = data.get('brightness')
             color_temp = data.get('color_temp')
+            transition = data.get('transition', 0.3)  # Default 0.3s for smooth updates
 
             if not area_id:
                 return web.json_response(
@@ -1326,7 +1372,7 @@ class LightDesignerServer:
                     if self.live_design_color_lights:
                         color_data = {
                             'entity_id': self.live_design_color_lights,
-                            'transition': 0.3,
+                            'transition': transition,
                         }
                         if brightness is not None:
                             color_data['brightness_pct'] = int(brightness)
@@ -1344,7 +1390,7 @@ class LightDesignerServer:
                     if self.live_design_ct_lights:
                         ct_data = {
                             'entity_id': self.live_design_ct_lights,
-                            'transition': 0.3,
+                            'transition': transition,
                         }
                         if brightness is not None:
                             ct_data['brightness_pct'] = int(brightness)
@@ -1374,7 +1420,7 @@ class LightDesignerServer:
                 # Fallback: no cached capabilities, use area-based with XY
                 service_data = {
                     'area_id': area_id,
-                    'transition': 0.3,
+                    'transition': transition,
                 }
 
                 if brightness is not None:
@@ -1449,6 +1495,9 @@ class LightDesignerServer:
                     self.live_design_saved_states = await self._fetch_light_states(ws_url, token, all_lights)
                     logger.info(f"[Live Design] Started for area {area_id}: {len(color_lights)} color, {len(ct_lights)} CT-only, saved {len(self.live_design_saved_states)} states")
 
+                    # Visual feedback: fade to off over 3 seconds
+                    await self._turn_off_lights(ws_url, token, all_lights, transition=3)
+
                     # Notify main.py to skip this area in periodic updates
                     await self._fire_event_via_websocket(
                         ws_url, token, 'circadian_light_live_design',
@@ -1465,9 +1514,15 @@ class LightDesignerServer:
                 if self.live_design_area == area_id:
                     logger.info(f"[Live Design] Ended for area {area_id}")
 
-                    # Restore saved light states
+                    all_lights = self.live_design_color_lights + self.live_design_ct_lights
+
+                    # Visual feedback: fade to off over 3 seconds, then restore with 3s transition
+                    if all_lights and ws_url and token:
+                        await self._turn_off_lights(ws_url, token, all_lights, transition=3)
+
+                    # Restore saved light states with 3s transition
                     if self.live_design_saved_states and ws_url and token:
-                        await self._restore_light_states(ws_url, token, self.live_design_saved_states)
+                        await self._restore_light_states(ws_url, token, self.live_design_saved_states, transition=3)
                         logger.info(f"[Live Design] Restored {len(self.live_design_saved_states)} light states")
 
                     # Notify main.py that Live Design ended

@@ -1301,6 +1301,7 @@ let lastCursorPhase = null;  // Track phase for reset on transition
 // Live Design state
 let liveDesignEnabled = false;
 let liveDesignAreaId = null;
+let liveDesignFirstApply = false;  // Use longer transition on first apply after entering
 
 // ============================================================
 // Solar Calculation Helpers
@@ -4097,10 +4098,18 @@ async function applyLiveLight() {
 
   const statusEl = document.getElementById('live-design-status');
 
+  // Use 3-second transition on first apply after entering, then default 0.3s
+  const transition = liveDesignFirstApply ? 3 : 0.3;
+  if (liveDesignFirstApply) {
+    liveDesignFirstApply = false;
+    console.log('[Live Design] First apply - using 3s transition');
+  }
+
   console.log('[Live Design] Sending to API:', {
     area_id: liveDesignAreaId,
     brightness: Math.round(values.brightness),
-    color_temp: Math.round(values.colorTemp)
+    color_temp: Math.round(values.colorTemp),
+    transition
   });
 
   try {
@@ -4110,7 +4119,8 @@ async function applyLiveLight() {
       body: JSON.stringify({
         area_id: liveDesignAreaId,
         brightness: Math.round(values.brightness),
-        color_temp: Math.round(values.colorTemp)
+        color_temp: Math.round(values.colorTemp),
+        transition
       })
     });
 
@@ -4180,15 +4190,30 @@ function setupLiveDesign() {
         // Disable Circadian so periodic updates don't override Live Design
         await setCircadianMode(liveDesignAreaId, false);
         if (statusEl) {
-          statusEl.textContent = 'Live';
+          statusEl.textContent = 'Entering...';
           statusEl.classList.add('active');
         }
-        // Apply current cursor position
+        // Apply current cursor position with 3s transition
+        liveDesignFirstApply = true;
         if (cursorHour !== null) {
           applyLiveLight();
         }
+        // Update status after transition
+        setTimeout(() => {
+          if (liveDesignEnabled && statusEl) {
+            const values = getCursorLightValues();
+            if (values) {
+              statusEl.textContent = `${Math.round(values.brightness)}% / ${Math.round(values.colorTemp)}K`;
+            } else {
+              statusEl.textContent = 'Live';
+            }
+          }
+        }, 3500);
       } else {
         // Re-enable Circadian when pausing (this restores lights via backend)
+        if (statusEl) {
+          statusEl.textContent = 'Exiting...';
+        }
         await setCircadianMode(liveDesignAreaId, true);
         if (statusEl) {
           statusEl.textContent = 'Paused';
@@ -4205,6 +4230,9 @@ function setupLiveDesign() {
 
       // If we had an active Live Design, end it for the old area
       if (liveDesignEnabled && oldAreaId) {
+        if (statusEl) {
+          statusEl.textContent = 'Exiting...';
+        }
         await setCircadianMode(oldAreaId, true);
       }
 
@@ -4215,15 +4243,27 @@ function setupLiveDesign() {
         liveDesignEnabled = true;
         toggleBtn.style.display = '';
         toggleBtn.textContent = 'Pause';
-        await setCircadianMode(newAreaId, false);
         if (statusEl) {
-          statusEl.textContent = 'Live';
+          statusEl.textContent = 'Entering...';
           statusEl.classList.add('active');
         }
-        // Apply current cursor position if set
+        await setCircadianMode(newAreaId, false);
+        // Apply current cursor position if set with 3s transition
+        liveDesignFirstApply = true;
         if (cursorHour !== null) {
           applyLiveLight();
         }
+        // Update status after transition
+        setTimeout(() => {
+          if (liveDesignEnabled && statusEl) {
+            const values = getCursorLightValues();
+            if (values) {
+              statusEl.textContent = `${Math.round(values.brightness)}% / ${Math.round(values.colorTemp)}K`;
+            } else {
+              statusEl.textContent = 'Live';
+            }
+          }
+        }, 3500);
       } else {
         // No area selected - hide button and reset state
         liveDesignEnabled = false;
