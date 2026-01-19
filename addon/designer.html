@@ -3561,7 +3561,15 @@ function setupEventListeners() {
 
   ['warm-night-enabled', 'cool-day-enabled', 'warm-night-mode', 'cool-day-mode'].forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.addEventListener('change', () => { syncConfigFromUI(); syncColorRuleRows(); renderChart(); });
+    if (el) el.addEventListener('change', () => {
+      // Update only the specific solar rule config without resetting runtime state
+      config.warm_night_enabled = document.getElementById('warm-night-enabled').checked;
+      config.warm_night_mode = document.getElementById('warm-night-mode').value;
+      config.cool_day_enabled = document.getElementById('cool-day-enabled').checked;
+      config.cool_day_mode = document.getElementById('cool-day-mode').value;
+      syncColorRuleRows();
+      renderChart();
+    });
   });
 
   // Color chip buttons - toggle popups

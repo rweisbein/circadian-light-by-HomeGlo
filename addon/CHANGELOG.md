@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.45
+**Fix - Warm night/Cool day toggles no longer reset midpoints**
+
+**Fixed:**
+- Toggling Warm night or Cool day checkboxes no longer resets brightness/color midpoints
+- Previously, these controls called `syncConfigFromUI()` which reset stepped position
+- Now they update only the relevant config values without affecting runtime state
+
 ## 6.8.44
 **Improved UI color temperature display**
 
