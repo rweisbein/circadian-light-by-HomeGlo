@@ -1,5 +1,17 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.44
+**Improved UI color temperature display**
+
+**Changed:**
+- Adjusted CCT-to-color mapping for more intuitive visual representation
+- 4000K now displays as white (was yellowish)
+- 6500K now displays as baby blue (was near-white)
+- Warmer temperatures (2000-3000K) show deeper orange/amber tones
+
+This is purely cosmetic - affects graph colors, sliders, buttons, and callouts.
+Light control values remain unchanged.
+
 ## 6.8.43
 **Enhanced Live Design experience**
 
