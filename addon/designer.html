@@ -1113,6 +1113,26 @@ input[type=range]::-moz-range-thumb {
 .area-chip.unassigned:hover {
   border-color: var(--accent);
 }
+/* Drag and Drop */
+.area-chip[draggable="true"] {
+  cursor: grab;
+}
+.area-chip[draggable="true"]:active {
+  cursor: grabbing;
+}
+.area-chip.dragging {
+  opacity: 0.5;
+}
+.area-chips.drag-over {
+  background: rgba(var(--accent-rgb, 99, 102, 241), 0.1);
+  border-radius: 8px;
+  outline: 2px dashed var(--accent);
+  outline-offset: 2px;
+}
+.drop-zone {
+  min-height: 40px;
+  transition: all 0.2s;
+}
 
 /* Empty State */
 .glozone-empty {
@@ -4837,6 +4857,73 @@ function selectZone(zoneName) {
 }
 
 /**
+ * Setup drag and drop for area management
+ */
+function setupDragAndDrop(container, zoneName, dropType) {
+  // Drag start
+  container.addEventListener('dragstart', (e) => {
+    const chip = e.target.closest('.area-chip');
+    if (chip) {
+      chip.classList.add('dragging');
+      e.dataTransfer.setData('text/plain', JSON.stringify({
+        areaId: chip.dataset.area,
+        sourceZone: chip.dataset.zone || null
+      }));
+      e.dataTransfer.effectAllowed = 'move';
+    }
+  });
+
+  // Drag end
+  container.addEventListener('dragend', (e) => {
+    const chip = e.target.closest('.area-chip');
+    if (chip) {
+      chip.classList.remove('dragging');
+    }
+  });
+
+  // Drag over (allow drop)
+  container.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    container.classList.add('drag-over');
+  });
+
+  // Drag leave
+  container.addEventListener('dragleave', (e) => {
+    if (!container.contains(e.relatedTarget)) {
+      container.classList.remove('drag-over');
+    }
+  });
+
+  // Drop
+  container.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    container.classList.remove('drag-over');
+
+    try {
+      const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+      const { areaId, sourceZone } = data;
+
+      if (dropType === 'zone') {
+        // Dropping into the zone's area list - add to zone
+        if (sourceZone !== zoneName) {
+          console.log('[GloZone] Drag: Adding area', areaId, 'to zone', zoneName);
+          await addAreaToZone(zoneName, areaId);
+        }
+      } else if (dropType === 'available') {
+        // Dropping into available areas - remove from zone
+        if (sourceZone === zoneName) {
+          console.log('[GloZone] Drag: Removing area', areaId, 'from zone', zoneName);
+          await removeAreaFromZone(zoneName, areaId);
+        }
+      }
+    } catch (err) {
+      console.error('[GloZone] Drop error:', err);
+    }
+  });
+}
+
+/**
  * Show zone detail panel
  */
 function showZoneDetail(zoneName) {
@@ -4858,37 +4945,48 @@ function showZoneDetail(zoneName) {
   title.textContent = zoneName;
   presetSelect.value = zone.preset || 'Glo 1';
 
-  // Render areas in this zone
+  // Render areas in this zone (draggable)
   const zoneAreaIds = (zone.areas || []).map(a => typeof a === 'string' ? a : a.id);
   zoneAreas.innerHTML = zoneAreaIds.length === 0
-    ? '<span class="glozone-item-meta">No areas assigned</span>'
+    ? '<span class="glozone-item-meta">No areas assigned - drag areas here</span>'
     : zoneAreaIds.map(areaId => {
         const areaInfo = (zone.areas || []).find(a => (typeof a === 'string' ? a : a.id) === areaId);
         const areaName = typeof areaInfo === 'object' ? areaInfo.name : areaId;
-        return `<span class="area-chip">${areaName}<span class="remove" data-area="${areaId}">&times;</span></span>`;
+        return `<span class="area-chip" draggable="true" data-area="${areaId}" data-zone="${zoneName}">${areaName}<span class="remove" data-area="${areaId}">&times;</span></span>`;
       }).join('');
+  zoneAreas.classList.add('drop-zone');
 
-  // Render available areas (not in this zone)
-  const assignedAreaIds = new Set();
-  Object.values(glozonesData).forEach(z => {
-    (z.areas || []).forEach(a => assignedAreaIds.add(typeof a === 'string' ? a : a.id));
-  });
-
-  const unassignedAreas = allAreas.filter(a => !assignedAreaIds.has(a.area_id) || !zoneAreaIds.includes(a.area_id));
+  // Render available areas (draggable, not in this zone)
   const availableForZone = allAreas.filter(a => !zoneAreaIds.includes(a.area_id));
 
   availableAreas.innerHTML = availableForZone.length === 0
-    ? '<span class="glozone-item-meta">All areas assigned</span>'
-    : availableForZone.map(area => `<span class="area-chip unassigned" data-area="${area.area_id}">${area.name || area.area_id}</span>`).join('');
+    ? '<span class="glozone-item-meta">All areas assigned to this zone</span>'
+    : availableForZone.map(area => `<span class="area-chip unassigned" draggable="true" data-area="${area.area_id}">${area.name || area.area_id}</span>`).join('');
+  availableAreas.classList.add('drop-zone');
 
-  // Event listeners for area chips
-  zoneAreas.querySelectorAll('.remove').forEach(btn => {
-    btn.addEventListener('click', () => removeAreaFromZone(zoneName, btn.dataset.area));
-  });
+  // Event delegation for remove buttons (using event delegation for reliability)
+  zoneAreas.onclick = (e) => {
+    const removeBtn = e.target.closest('.remove');
+    if (removeBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const areaId = removeBtn.dataset.area;
+      console.log('[GloZone] Remove button clicked for area:', areaId);
+      removeAreaFromZone(zoneName, areaId);
+    }
+  };
 
-  availableAreas.querySelectorAll('.area-chip.unassigned').forEach(chip => {
-    chip.addEventListener('click', () => addAreaToZone(zoneName, chip.dataset.area));
-  });
+  // Click to add available areas
+  availableAreas.onclick = (e) => {
+    const chip = e.target.closest('.area-chip.unassigned');
+    if (chip) {
+      addAreaToZone(zoneName, chip.dataset.area);
+    }
+  };
+
+  // Drag and drop handlers for zone areas
+  setupDragAndDrop(zoneAreas, zoneName, 'zone');
+  setupDragAndDrop(availableAreas, zoneName, 'available');
 
   // Preset change listener
   presetSelect.onchange = () => updateZonePreset(zoneName, presetSelect.value);
@@ -4918,13 +5016,19 @@ async function addAreaToZone(zoneName, areaId) {
  * Remove area from zone via API
  */
 async function removeAreaFromZone(zoneName, areaId) {
+  console.log('[GloZone] Removing area:', areaId, 'from zone:', zoneName);
   try {
     const response = await fetch(`./api/glozones/${encodeURIComponent(zoneName)}/areas/${encodeURIComponent(areaId)}`, {
       method: 'DELETE'
     });
     if (response.ok) {
+      console.log('[GloZone] Area removed successfully');
       await fetchGlozones();
       showZoneDetail(zoneName);
+    } else {
+      const data = await response.json();
+      console.error('[GloZone] Failed to remove area:', data.error);
+      alert(data.error || 'Failed to remove area from zone');
     }
   } catch (err) {
     console.error('Error removing area from zone:', err);

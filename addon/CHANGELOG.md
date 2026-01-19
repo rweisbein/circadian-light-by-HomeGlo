@@ -1,5 +1,14 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.62
+**Improved Area Management with Drag & Drop**
+
+- Fixed X button to remove areas from Glo Zones (using event delegation)
+- Added drag and drop support for area management
+- Drag areas between "Areas in this Glo Zone" and "Available areas"
+- Visual feedback during drag operations (dashed outline on drop zones)
+- Better console logging for debugging area operations
+
 ## 6.8.61
 **Terminology: Rename "Glo Preset" to "Glo"**
 
