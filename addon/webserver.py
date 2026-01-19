@@ -1064,7 +1064,7 @@ class LightDesignerServer:
             logger.error(f"[Live Design] Error fetching light states: {e}")
             return {}
 
-    async def _turn_off_lights(self, ws_url: str, token: str, entity_ids: list, transition: float = 3) -> bool:
+    async def _turn_off_lights(self, ws_url: str, token: str, entity_ids: list, transition: float = 2) -> bool:
         """Turn off lights with a transition.
 
         Args:
@@ -1108,7 +1108,7 @@ class LightDesignerServer:
             logger.error(f"[Live Design] Error turning off lights: {e}")
             return False
 
-    async def _restore_light_states(self, ws_url: str, token: str, saved_states: dict, transition: float = 3) -> bool:
+    async def _restore_light_states(self, ws_url: str, token: str, saved_states: dict, transition: float = 2) -> bool:
         """Restore previously saved light states.
 
         Args:
@@ -1495,8 +1495,8 @@ class LightDesignerServer:
                     self.live_design_saved_states = await self._fetch_light_states(ws_url, token, all_lights)
                     logger.info(f"[Live Design] Started for area {area_id}: {len(color_lights)} color, {len(ct_lights)} CT-only, saved {len(self.live_design_saved_states)} states")
 
-                    # Visual feedback: fade to off over 3 seconds
-                    await self._turn_off_lights(ws_url, token, all_lights, transition=3)
+                    # Visual feedback: fade to off over 2 seconds
+                    await self._turn_off_lights(ws_url, token, all_lights, transition=2)
 
                     # Notify main.py to skip this area in periodic updates
                     await self._fire_event_via_websocket(
@@ -1516,13 +1516,13 @@ class LightDesignerServer:
 
                     all_lights = self.live_design_color_lights + self.live_design_ct_lights
 
-                    # Visual feedback: fade to off over 3 seconds, then restore with 3s transition
+                    # Visual feedback: fade to off over 2 seconds, then restore with 2s transition
                     if all_lights and ws_url and token:
-                        await self._turn_off_lights(ws_url, token, all_lights, transition=3)
+                        await self._turn_off_lights(ws_url, token, all_lights, transition=2)
 
-                    # Restore saved light states with 3s transition
+                    # Restore saved light states with 2s transition
                     if self.live_design_saved_states and ws_url and token:
-                        await self._restore_light_states(ws_url, token, self.live_design_saved_states, transition=3)
+                        await self._restore_light_states(ws_url, token, self.live_design_saved_states, transition=2)
                         logger.info(f"[Live Design] Restored {len(self.live_design_saved_states)} light states")
 
                     # Notify main.py that Live Design ended

@@ -4098,11 +4098,11 @@ async function applyLiveLight() {
 
   const statusEl = document.getElementById('live-design-status');
 
-  // Use 3-second transition on first apply after entering, then default 0.3s
-  const transition = liveDesignFirstApply ? 3 : 0.3;
+  // Use 2-second transition on first apply after entering, then default 0.3s
+  const transition = liveDesignFirstApply ? 2 : 0.3;
   if (liveDesignFirstApply) {
     liveDesignFirstApply = false;
-    console.log('[Live Design] First apply - using 3s transition');
+    console.log('[Live Design] First apply - using 2s transition');
   }
 
   console.log('[Live Design] Sending to API:', {
@@ -4208,7 +4208,7 @@ function setupLiveDesign() {
               statusEl.textContent = 'Live';
             }
           }
-        }, 3500);
+        }, 2500);
       } else {
         // Re-enable Circadian when pausing (this restores lights via backend)
         if (statusEl) {
@@ -4263,7 +4263,7 @@ function setupLiveDesign() {
               statusEl.textContent = 'Live';
             }
           }
-        }, 3500);
+        }, 2500);
       } else {
         // No area selected - hide button and reset state
         liveDesignEnabled = false;

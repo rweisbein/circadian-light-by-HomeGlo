@@ -1,18 +1,24 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.49
+**Reduce Live Design transition time to 2 seconds**
+
+**Changed:**
+- Live Design enter/exit transitions reduced from 3 seconds to 2 seconds
+
 ## 6.8.48
 **Live Design visual feedback transitions**
 
 **Added:**
-- **Entering Live Design**: Lights fade to off over 3 seconds, then fade to Live Design values over 3 seconds
-- **Exiting Live Design**: Lights fade to off over 3 seconds, then fade to saved state over 3 seconds
+- **Entering Live Design**: Lights fade to off, then fade to Live Design values
+- **Exiting Live Design**: Lights fade to off, then fade to saved state
 - Status shows "Entering..." and "Exiting..." during transitions
 - `apply_light` endpoint now accepts `transition` parameter
 
 **Technical:**
 - Added `_turn_off_lights()` helper for fade-to-off transitions
-- `_restore_light_states()` now accepts transition parameter (default 3s)
-- Frontend tracks `liveDesignFirstApply` flag for initial 3s transition
+- `_restore_light_states()` now accepts transition parameter
+- Frontend tracks `liveDesignFirstApply` flag for initial transition
 
 ## 6.8.47
 **Refactor button previews to use shared functions**
