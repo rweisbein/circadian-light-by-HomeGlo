@@ -377,6 +377,38 @@ class LightDesignerServer:
         self.app.router.add_post('/api/apply-light', self.apply_light)
         self.app.router.add_post('/api/circadian-mode', self.set_circadian_mode)
 
+        # GloZone API routes - Circadian Presets CRUD
+        self.app.router.add_route('GET', '/{path:.*}/api/circadian-presets', self.get_circadian_presets)
+        self.app.router.add_route('POST', '/{path:.*}/api/circadian-presets', self.create_circadian_preset)
+        self.app.router.add_route('PUT', '/{path:.*}/api/circadian-presets/{name}', self.update_circadian_preset)
+        self.app.router.add_route('DELETE', '/{path:.*}/api/circadian-presets/{name}', self.delete_circadian_preset)
+        self.app.router.add_get('/api/circadian-presets', self.get_circadian_presets)
+        self.app.router.add_post('/api/circadian-presets', self.create_circadian_preset)
+        self.app.router.add_put('/api/circadian-presets/{name}', self.update_circadian_preset)
+        self.app.router.add_delete('/api/circadian-presets/{name}', self.delete_circadian_preset)
+
+        # GloZone API routes - Zones CRUD
+        self.app.router.add_route('GET', '/{path:.*}/api/glozones', self.get_glozones)
+        self.app.router.add_route('POST', '/{path:.*}/api/glozones', self.create_glozone)
+        self.app.router.add_route('PUT', '/{path:.*}/api/glozones/{name}', self.update_glozone)
+        self.app.router.add_route('DELETE', '/{path:.*}/api/glozones/{name}', self.delete_glozone)
+        self.app.router.add_route('POST', '/{path:.*}/api/glozones/{name}/areas', self.add_area_to_zone)
+        self.app.router.add_route('DELETE', '/{path:.*}/api/glozones/{name}/areas/{area_id}', self.remove_area_from_zone)
+        self.app.router.add_get('/api/glozones', self.get_glozones)
+        self.app.router.add_post('/api/glozones', self.create_glozone)
+        self.app.router.add_put('/api/glozones/{name}', self.update_glozone)
+        self.app.router.add_delete('/api/glozones/{name}', self.delete_glozone)
+        self.app.router.add_post('/api/glozones/{name}/areas', self.add_area_to_zone)
+        self.app.router.add_delete('/api/glozones/{name}/areas/{area_id}', self.remove_area_from_zone)
+
+        # GloZone API routes - Actions
+        self.app.router.add_route('POST', '/{path:.*}/api/glozone/glo-up', self.handle_glo_up)
+        self.app.router.add_route('POST', '/{path:.*}/api/glozone/glo-down', self.handle_glo_down)
+        self.app.router.add_route('POST', '/{path:.*}/api/glozone/glo-reset', self.handle_glo_reset)
+        self.app.router.add_post('/api/glozone/glo-up', self.handle_glo_up)
+        self.app.router.add_post('/api/glozone/glo-down', self.handle_glo_down)
+        self.app.router.add_post('/api/glozone/glo-reset', self.handle_glo_reset)
+
         # Handle root and any other paths (catch-all must be last)
         self.app.router.add_get('/', self.serve_designer)
         self.app.router.add_get('/{path:.*}', self.serve_designer)
@@ -1773,6 +1805,441 @@ class LightDesignerServer:
                 {'error': str(e)},
                 status=500
             )
+
+    # -------------------------------------------------------------------------
+    # GloZone API - Circadian Presets CRUD
+    # -------------------------------------------------------------------------
+
+    async def get_circadian_presets(self, request: Request) -> Response:
+        """Get all circadian presets."""
+        try:
+            config = await self.load_raw_config()
+            presets = config.get("circadian_presets", {})
+            return web.json_response({"presets": presets})
+        except Exception as e:
+            logger.error(f"Error getting circadian presets: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def create_circadian_preset(self, request: Request) -> Response:
+        """Create a new circadian preset."""
+        try:
+            data = await request.json()
+            name = data.get("name")
+            settings = data.get("settings", {})
+
+            if not name:
+                return web.json_response({"error": "name is required"}, status=400)
+
+            config = await self.load_raw_config()
+
+            if name in config.get("circadian_presets", {}):
+                return web.json_response({"error": f"Preset '{name}' already exists"}, status=409)
+
+            # Create the preset with provided settings (or empty)
+            config.setdefault("circadian_presets", {})[name] = settings
+
+            await self.save_config_to_file(config)
+            glozone.set_config(config)
+
+            logger.info(f"Created circadian preset: {name}")
+            return web.json_response({"status": "created", "name": name})
+        except json.JSONDecodeError:
+            return web.json_response({"error": "Invalid JSON"}, status=400)
+        except Exception as e:
+            logger.error(f"Error creating preset: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def update_circadian_preset(self, request: Request) -> Response:
+        """Update a circadian preset."""
+        try:
+            name = request.match_info.get("name")
+            data = await request.json()
+
+            config = await self.load_raw_config()
+
+            if name not in config.get("circadian_presets", {}):
+                return web.json_response({"error": f"Preset '{name}' not found"}, status=404)
+
+            # Update the preset settings
+            config["circadian_presets"][name].update(data)
+
+            await self.save_config_to_file(config)
+            glozone.set_config(config)
+
+            logger.info(f"Updated circadian preset: {name}")
+            return web.json_response({"status": "updated", "name": name})
+        except json.JSONDecodeError:
+            return web.json_response({"error": "Invalid JSON"}, status=400)
+        except Exception as e:
+            logger.error(f"Error updating preset: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def delete_circadian_preset(self, request: Request) -> Response:
+        """Delete a circadian preset."""
+        try:
+            name = request.match_info.get("name")
+
+            if name == glozone.DEFAULT_PRESET:
+                return web.json_response(
+                    {"error": f"Cannot delete default preset '{name}'"},
+                    status=400
+                )
+
+            config = await self.load_raw_config()
+
+            if name not in config.get("circadian_presets", {}):
+                return web.json_response({"error": f"Preset '{name}' not found"}, status=404)
+
+            # Check if any zones use this preset
+            zones_using = [
+                zn for zn, zc in config.get("glozones", {}).items()
+                if zc.get("preset") == name
+            ]
+            if zones_using:
+                # Switch those zones to default preset
+                for zone_name in zones_using:
+                    config["glozones"][zone_name]["preset"] = glozone.DEFAULT_PRESET
+                logger.info(f"Switched {len(zones_using)} zones to default preset")
+
+            del config["circadian_presets"][name]
+
+            await self.save_config_to_file(config)
+            glozone.set_config(config)
+
+            logger.info(f"Deleted circadian preset: {name}")
+            return web.json_response({"status": "deleted", "name": name})
+        except Exception as e:
+            logger.error(f"Error deleting preset: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    # -------------------------------------------------------------------------
+    # GloZone API - Zones CRUD
+    # -------------------------------------------------------------------------
+
+    async def get_glozones(self, request: Request) -> Response:
+        """Get all GloZones with their areas and runtime state."""
+        try:
+            config = await self.load_raw_config()
+            zones = config.get("glozones", {})
+
+            # Enrich with runtime state
+            result = {}
+            for zone_name, zone_config in zones.items():
+                runtime = glozone_state.get_zone_state(zone_name)
+                result[zone_name] = {
+                    "preset": zone_config.get("preset"),
+                    "areas": zone_config.get("areas", []),
+                    "runtime": runtime,
+                }
+
+            return web.json_response({"zones": result})
+        except Exception as e:
+            logger.error(f"Error getting glozones: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def create_glozone(self, request: Request) -> Response:
+        """Create a new GloZone."""
+        try:
+            data = await request.json()
+            name = data.get("name")
+            preset = data.get("preset", glozone.DEFAULT_PRESET)
+
+            if not name:
+                return web.json_response({"error": "name is required"}, status=400)
+
+            config = await self.load_raw_config()
+
+            if name in config.get("glozones", {}):
+                return web.json_response({"error": f"Zone '{name}' already exists"}, status=409)
+
+            # Validate preset exists
+            if preset not in config.get("circadian_presets", {}):
+                return web.json_response(
+                    {"error": f"Preset '{preset}' not found"},
+                    status=400
+                )
+
+            # Create the zone
+            config.setdefault("glozones", {})[name] = {
+                "preset": preset,
+                "areas": []
+            }
+
+            await self.save_config_to_file(config)
+            glozone.set_config(config)
+
+            logger.info(f"Created GloZone: {name} with preset {preset}")
+            return web.json_response({"status": "created", "name": name})
+        except json.JSONDecodeError:
+            return web.json_response({"error": "Invalid JSON"}, status=400)
+        except Exception as e:
+            logger.error(f"Error creating zone: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def update_glozone(self, request: Request) -> Response:
+        """Update a GloZone (preset or areas)."""
+        try:
+            name = request.match_info.get("name")
+            data = await request.json()
+
+            config = await self.load_raw_config()
+
+            if name not in config.get("glozones", {}):
+                return web.json_response({"error": f"Zone '{name}' not found"}, status=404)
+
+            # Update preset if provided
+            if "preset" in data:
+                preset = data["preset"]
+                if preset not in config.get("circadian_presets", {}):
+                    return web.json_response(
+                        {"error": f"Preset '{preset}' not found"},
+                        status=400
+                    )
+                config["glozones"][name]["preset"] = preset
+
+            # Update areas if provided (replaces entire list)
+            if "areas" in data:
+                config["glozones"][name]["areas"] = data["areas"]
+
+            await self.save_config_to_file(config)
+            glozone.set_config(config)
+
+            logger.info(f"Updated GloZone: {name}")
+            return web.json_response({"status": "updated", "name": name})
+        except json.JSONDecodeError:
+            return web.json_response({"error": "Invalid JSON"}, status=400)
+        except Exception as e:
+            logger.error(f"Error updating zone: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def delete_glozone(self, request: Request) -> Response:
+        """Delete a GloZone (moves areas to Unassigned)."""
+        try:
+            name = request.match_info.get("name")
+
+            if name == glozone.DEFAULT_ZONE:
+                return web.json_response(
+                    {"error": f"Cannot delete default zone '{name}'"},
+                    status=400
+                )
+
+            config = await self.load_raw_config()
+
+            if name not in config.get("glozones", {}):
+                return web.json_response({"error": f"Zone '{name}' not found"}, status=404)
+
+            # Move areas to Unassigned zone
+            areas = config["glozones"][name].get("areas", [])
+            if areas:
+                config.setdefault("glozones", {}).setdefault(glozone.DEFAULT_ZONE, {
+                    "preset": glozone.DEFAULT_PRESET,
+                    "areas": []
+                })
+                config["glozones"][glozone.DEFAULT_ZONE]["areas"].extend(areas)
+                logger.info(f"Moved {len(areas)} areas to {glozone.DEFAULT_ZONE}")
+
+            del config["glozones"][name]
+
+            # Reset zone runtime state
+            glozone_state.reset_zone_state(name)
+
+            await self.save_config_to_file(config)
+            glozone.set_config(config)
+
+            logger.info(f"Deleted GloZone: {name}")
+            return web.json_response({"status": "deleted", "name": name})
+        except Exception as e:
+            logger.error(f"Error deleting zone: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def add_area_to_zone(self, request: Request) -> Response:
+        """Add an area to a GloZone (removes from any other zone first)."""
+        try:
+            zone_name = request.match_info.get("name")
+            data = await request.json()
+            area_id = data.get("area_id")
+            area_name = data.get("area_name", area_id)  # Optional friendly name
+
+            if not area_id:
+                return web.json_response({"error": "area_id is required"}, status=400)
+
+            config = await self.load_raw_config()
+
+            if zone_name not in config.get("glozones", {}):
+                return web.json_response({"error": f"Zone '{zone_name}' not found"}, status=404)
+
+            # Remove area from any existing zone
+            for zn, zc in config.get("glozones", {}).items():
+                zc["areas"] = [
+                    a for a in zc.get("areas", [])
+                    if (isinstance(a, dict) and a.get("id") != area_id) or
+                       (isinstance(a, str) and a != area_id)
+                ]
+
+            # Add to target zone
+            config["glozones"][zone_name]["areas"].append({
+                "id": area_id,
+                "name": area_name
+            })
+
+            await self.save_config_to_file(config)
+            glozone.set_config(config)
+
+            logger.info(f"Added area {area_id} to zone {zone_name}")
+            return web.json_response({"status": "added", "area_id": area_id, "zone": zone_name})
+        except json.JSONDecodeError:
+            return web.json_response({"error": "Invalid JSON"}, status=400)
+        except Exception as e:
+            logger.error(f"Error adding area to zone: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def remove_area_from_zone(self, request: Request) -> Response:
+        """Remove an area from a GloZone (moves to Unassigned)."""
+        try:
+            zone_name = request.match_info.get("name")
+            area_id = request.match_info.get("area_id")
+
+            config = await self.load_raw_config()
+
+            if zone_name not in config.get("glozones", {}):
+                return web.json_response({"error": f"Zone '{zone_name}' not found"}, status=404)
+
+            # Find and remove the area
+            areas = config["glozones"][zone_name].get("areas", [])
+            area_entry = None
+            new_areas = []
+            for a in areas:
+                if (isinstance(a, dict) and a.get("id") == area_id) or (isinstance(a, str) and a == area_id):
+                    area_entry = a
+                else:
+                    new_areas.append(a)
+
+            if area_entry is None:
+                return web.json_response(
+                    {"error": f"Area '{area_id}' not found in zone '{zone_name}'"},
+                    status=404
+                )
+
+            config["glozones"][zone_name]["areas"] = new_areas
+
+            # Add to Unassigned zone
+            config.setdefault("glozones", {}).setdefault(glozone.DEFAULT_ZONE, {
+                "preset": glozone.DEFAULT_PRESET,
+                "areas": []
+            })
+            config["glozones"][glozone.DEFAULT_ZONE]["areas"].append(area_entry)
+
+            await self.save_config_to_file(config)
+            glozone.set_config(config)
+
+            logger.info(f"Removed area {area_id} from zone {zone_name}, moved to {glozone.DEFAULT_ZONE}")
+            return web.json_response({"status": "removed", "area_id": area_id})
+        except Exception as e:
+            logger.error(f"Error removing area from zone: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    # -------------------------------------------------------------------------
+    # GloZone API - Actions (glo_up, glo_down, glo_reset)
+    # -------------------------------------------------------------------------
+
+    async def handle_glo_up(self, request: Request) -> Response:
+        """Handle glo_up action - push area state to zone, propagate to all areas.
+
+        This fires an event that main.py listens for to execute the primitive.
+        """
+        try:
+            data = await request.json()
+            area_id = data.get("area_id")
+
+            if not area_id:
+                return web.json_response({"error": "area_id is required"}, status=400)
+
+            # Fire event for main.py to handle
+            _, ws_url, token = self._get_ha_api_config()
+            if ws_url and token:
+                success = await self._fire_event_via_websocket(
+                    ws_url, token, 'circadian_light_service_event',
+                    {'service': 'glo_up', 'area_id': area_id}
+                )
+                if success:
+                    logger.info(f"Fired glo_up event for area {area_id}")
+                    return web.json_response({"status": "ok", "action": "glo_up", "area_id": area_id})
+                else:
+                    return web.json_response({"error": "Failed to fire event"}, status=500)
+            else:
+                return web.json_response({"error": "HA API not configured"}, status=503)
+
+        except json.JSONDecodeError:
+            return web.json_response({"error": "Invalid JSON"}, status=400)
+        except Exception as e:
+            logger.error(f"Error handling glo_up: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def handle_glo_down(self, request: Request) -> Response:
+        """Handle glo_down action - pull zone state to area.
+
+        This fires an event that main.py listens for to execute the primitive.
+        """
+        try:
+            data = await request.json()
+            area_id = data.get("area_id")
+
+            if not area_id:
+                return web.json_response({"error": "area_id is required"}, status=400)
+
+            # Fire event for main.py to handle
+            _, ws_url, token = self._get_ha_api_config()
+            if ws_url and token:
+                success = await self._fire_event_via_websocket(
+                    ws_url, token, 'circadian_light_service_event',
+                    {'service': 'glo_down', 'area_id': area_id}
+                )
+                if success:
+                    logger.info(f"Fired glo_down event for area {area_id}")
+                    return web.json_response({"status": "ok", "action": "glo_down", "area_id": area_id})
+                else:
+                    return web.json_response({"error": "Failed to fire event"}, status=500)
+            else:
+                return web.json_response({"error": "HA API not configured"}, status=503)
+
+        except json.JSONDecodeError:
+            return web.json_response({"error": "Invalid JSON"}, status=400)
+        except Exception as e:
+            logger.error(f"Error handling glo_down: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def handle_glo_reset(self, request: Request) -> Response:
+        """Handle glo_reset action - reset zone and all member areas.
+
+        This fires an event that main.py listens for to execute the primitive.
+        """
+        try:
+            data = await request.json()
+            area_id = data.get("area_id")
+
+            if not area_id:
+                return web.json_response({"error": "area_id is required"}, status=400)
+
+            # Fire event for main.py to handle
+            _, ws_url, token = self._get_ha_api_config()
+            if ws_url and token:
+                success = await self._fire_event_via_websocket(
+                    ws_url, token, 'circadian_light_service_event',
+                    {'service': 'glo_reset', 'area_id': area_id}
+                )
+                if success:
+                    logger.info(f"Fired glo_reset event for area {area_id}")
+                    return web.json_response({"status": "ok", "action": "glo_reset", "area_id": area_id})
+                else:
+                    return web.json_response({"error": "Failed to fire event"}, status=500)
+            else:
+                return web.json_response({"error": "HA API not configured"}, status=503)
+
+        except json.JSONDecodeError:
+            return web.json_response({"error": "Invalid JSON"}, status=400)
+        except Exception as e:
+            logger.error(f"Error handling glo_reset: {e}")
+            return web.json_response({"error": str(e)}, status=500)
 
     async def start(self):
         """Start the web server."""

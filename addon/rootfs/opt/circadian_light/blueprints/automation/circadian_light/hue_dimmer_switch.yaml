@@ -226,10 +226,10 @@ variables:
 
 # -- Actions -------------------------------------------------------------------
 # Button mapping:
-#   on-off: 1x toggle, 2x broadcast, 3x-5x reserved, hold RESERVED
+#   on-off: 1x toggle, 2x glo_up, 3x glo_reset, 4x-5x reserved, hold RESERVED
 #   up:     1x bright_up, 2x color_up, 3x britelite, 4x-5x reserved, hold step_up
 #   down:   1x bright_down, 2x color_down, 3x nitelite, 4x-5x reserved, hold step_down
-#   hue:    1x reserved, 2x reset, 3x freeze_toggle, 4x wake/bed, 5x reserved, hold RESERVED
+#   hue:    1x glo_down, 2x wake/bed, 3x freeze_toggle, 4x-5x reserved, hold RESERVED
 action:
   # Only proceed if the event came from one of our configured devices
   - condition: template
@@ -256,18 +256,26 @@ action:
             data:
               area_id: "{{ area_targets }}"
 
-      # Power 2x -> broadcast (copy settings to all areas)
+      # Power 2x -> glo_up (push area state to zone, propagate to all areas)
       - conditions:
           - condition: trigger
             id: zha_on_double
         sequence:
-          - service: circadian.broadcast
+          - service: circadian.glo_up
             data:
               area_id: "{{ first_area }}"
 
-      # Power 3x -> reserved
+      # Power 3x -> glo_reset (reset zone and all member areas)
+      - conditions:
+          - condition: trigger
+            id: zha_on_triple
+        sequence:
+          - service: circadian.glo_reset
+            data:
+              area_id: "{{ first_area }}"
+
       # Power 4x -> reserved
-      # Power 5x -> reserve for Emergency toggle
+      # Power 5x -> reserved
       # Power hold -> RESERVED for magic button
 
       # ========================================================================
@@ -416,19 +424,32 @@ action:
 
       # ========================================================================
       # HUE BUTTON (off)
-      # 1x: reserved (scope), 2x: reset, 3x: freeze_toggle, 4x: wake/bed, 5x: reserved, hold: RESERVED
+      # 1x: glo_down, 2x: wake/bed, 3x: freeze_toggle, 4x-5x: reserved, hold: RESERVED
       # ========================================================================
 
-      # Hue 1x -> reserved for scope
+      # Hue 1x -> glo_down (pull zone state to this area)
+      - conditions:
+          - condition: or
+            conditions:
+              - condition: trigger
+                id: zha_off
+              - condition: trigger
+                id: hue_off
+        sequence:
+          - service: circadian.glo_down
+            data:
+              area_id: "{{ first_area }}"
 
-      # Hue 2x -> reset
+      # Hue 2x -> wake/bed preset
       - conditions:
           - condition: trigger
             id: zha_off_double
         sequence:
-          - service: circadian.reset
+          - service: circadian.set
             data:
               area_id: "{{ area_targets }}"
+              preset: wake
+              enable: true
 
       # Hue 3x -> freeze_toggle
       - conditions:
@@ -439,16 +460,6 @@ action:
             data:
               area_id: "{{ area_targets }}"
 
-      # Hue 4x -> wake/bed preset (set midpoint = now)
-      - conditions:
-          - condition: trigger
-            id: zha_off_quadruple
-        sequence:
-          - service: circadian.set
-            data:
-              area_id: "{{ area_targets }}"
-              preset: wake
-              enable: true
-
-      # Hue 5x -> reserve for Emergency reset
+      # Hue 4x -> reserved
+      # Hue 5x -> reserved
       # Hue hold -> RESERVED for magic button

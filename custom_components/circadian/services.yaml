@@ -248,3 +248,42 @@ refresh:
   name: Refresh
   description: Immediately update all enabled areas with current circadian values
   icon: mdi:refresh
+
+glo_up:
+  name: GloUp
+  description: Push area's state to its zone and propagate to all areas in the zone
+  icon: mdi:arrow-up-bold-circle
+  fields:
+    area_id:
+      name: Area
+      description: The area to push state from (zone is derived from this area)
+      required: true
+      example: living_room
+      selector:
+        area:
+
+glo_down:
+  name: GloDown
+  description: Pull zone's state to this area (sync area to match its zone)
+  icon: mdi:arrow-down-bold-circle
+  fields:
+    area_id:
+      name: Area
+      description: The area to sync to its zone's state
+      required: true
+      example: living_room
+      selector:
+        area:
+
+glo_reset:
+  name: GloReset
+  description: Reset zone and all member areas to preset defaults
+  icon: mdi:restore-alert
+  fields:
+    area_id:
+      name: Area
+      description: Any area in the zone to reset (zone is derived from this area)
+      required: true
+      example: living_room
+      selector:
+        area:

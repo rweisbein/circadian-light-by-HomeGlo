@@ -8,6 +8,8 @@ import os
 import time
 from typing import Any, Dict, List, Optional
 
+import glozone
+import glozone_state
 import state
 from brain import (
     CircadianLight,
@@ -44,11 +46,25 @@ class CircadianLightPrimitives:
         self.client = websocket_client
         self._config_loader = config_loader
 
-    def _get_config(self) -> Config:
-        """Load the global config from config files."""
+    def _get_config(self, area_id: Optional[str] = None) -> Config:
+        """Load config, optionally zone-aware for a specific area.
+
+        Args:
+            area_id: Optional area ID. If provided, returns zone-specific config
+                     (preset settings merged with global settings).
+        """
         config_dict = {}
 
-        # Try config loader first
+        # If area_id provided, use zone-aware config
+        if area_id:
+            try:
+                config_dict = glozone.get_effective_config_for_area(area_id)
+                if config_dict:
+                    return Config.from_dict(config_dict)
+            except Exception as e:
+                logger.warning(f"Zone-aware config failed for {area_id}: {e}")
+
+        # Try config loader
         if self._config_loader:
             try:
                 config_dict = self._config_loader() or {}
@@ -103,7 +119,7 @@ class CircadianLightPrimitives:
         if area_state.enabled:
             logger.info(f"[{source}] Step up for area {area_id}")
 
-            config = self._get_config()
+            config = self._get_config(area_id)
             # Use frozen hour if frozen, otherwise current time
             hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
 
@@ -151,7 +167,7 @@ class CircadianLightPrimitives:
         if area_state.enabled:
             logger.info(f"[{source}] Step down for area {area_id}")
 
-            config = self._get_config()
+            config = self._get_config(area_id)
             # Use frozen hour if frozen, otherwise current time
             hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
 
@@ -200,7 +216,7 @@ class CircadianLightPrimitives:
         if area_state.enabled:
             logger.info(f"[{source}] Bright up for area {area_id}")
 
-            config = self._get_config()
+            config = self._get_config(area_id)
             # Use frozen hour if frozen, otherwise current time
             hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
 
@@ -244,7 +260,7 @@ class CircadianLightPrimitives:
         if area_state.enabled:
             logger.info(f"[{source}] Bright down for area {area_id}")
 
-            config = self._get_config()
+            config = self._get_config(area_id)
             # Use frozen hour if frozen, otherwise current time
             hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
 
@@ -292,7 +308,7 @@ class CircadianLightPrimitives:
         if area_state.enabled:
             logger.info(f"[{source}] Color up for area {area_id}")
 
-            config = self._get_config()
+            config = self._get_config(area_id)
             # Use frozen hour if frozen, otherwise current time
             hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
 
@@ -334,7 +350,7 @@ class CircadianLightPrimitives:
         if area_state.enabled:
             logger.info(f"[{source}] Color down for area {area_id}")
 
-            config = self._get_config()
+            config = self._get_config(area_id)
             # Use frozen hour if frozen, otherwise current time
             hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
 
@@ -371,6 +387,9 @@ class CircadianLightPrimitives:
     async def circadian_on(self, area_id: str, source: str = "service_call"):
         """Enable Circadian Light mode and turn on lights.
 
+        Copies zone state to area on enable, so the area inherits the zone's
+        current brightness/color settings.
+
         Args:
             area_id: The area ID to control
             source: Source of the action
@@ -386,8 +405,18 @@ class CircadianLightPrimitives:
         # Enable in state
         state.set_enabled(area_id, True)
 
+        # Copy zone state to area on enable
+        zone_name = glozone.get_zone_for_area(area_id)
+        zone_state = glozone_state.get_zone_state(zone_name)
+        state.update_area(area_id, {
+            "brightness_mid": zone_state.get("brightness_mid"),
+            "color_mid": zone_state.get("color_mid"),
+            "frozen_at": zone_state.get("frozen_at"),
+        })
+        logger.debug(f"Copied zone '{zone_name}' state to area {area_id}: {zone_state}")
+
         # Calculate and apply lighting (use frozen_at if set, otherwise current time)
-        config = self._get_config()
+        config = self._get_config(area_id)
         area_state = self._get_area_state(area_id)
         hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
 
@@ -433,6 +462,9 @@ class CircadianLightPrimitives:
         If ANY lights are on in ANY area: turn all off, disable Circadian
         If ALL lights are off: turn all on with Circadian values, enable
 
+        On enable, copies zone state to each area so they inherit their zone's
+        current brightness/color settings.
+
         Args:
             area_ids: List of area IDs
             source: Source of the action
@@ -457,10 +489,21 @@ class CircadianLightPrimitives:
 
         else:
             # Turn on all areas with Circadian values
-            config = self._get_config()
-
             for area_id in area_ids:
                 state.set_enabled(area_id, True)
+
+                # Copy zone state to area on enable
+                zone_name = glozone.get_zone_for_area(area_id)
+                zone_state = glozone_state.get_zone_state(zone_name)
+                state.update_area(area_id, {
+                    "brightness_mid": zone_state.get("brightness_mid"),
+                    "color_mid": zone_state.get("color_mid"),
+                    "frozen_at": zone_state.get("frozen_at"),
+                })
+                logger.debug(f"Copied zone '{zone_name}' state to area {area_id}")
+
+                # Get zone-aware config and calculate lighting
+                config = self._get_config(area_id)
                 area_state = self._get_area_state(area_id)
                 # Use frozen_at if set, otherwise current time
                 hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
@@ -497,7 +540,7 @@ class CircadianLightPrimitives:
             copy_from: Optional area_id to copy settings from
             enable: If True, also enable the area (default False = don't change enabled status)
         """
-        config = self._get_config()
+        config = self._get_config(area_id)
         current_hour = get_current_hour()
 
         # Enable the area first if requested
@@ -628,7 +671,7 @@ class CircadianLightPrimitives:
         if frozen_at is None:
             return
 
-        config = self._get_config()
+        config = self._get_config(area_id)
         area_state = self._get_area_state(area_id)
         current_hour = get_current_hour()
 
@@ -681,7 +724,7 @@ class CircadianLightPrimitives:
         import asyncio
 
         is_frozen = state.is_frozen(area_id)
-        config = self._get_config()
+        config = self._get_config(area_id)
 
         if not state.is_enabled(area_id):
             logger.info(f"[{source}] Area {area_id} not enabled, skipping freeze_toggle")
@@ -733,8 +776,6 @@ class CircadianLightPrimitives:
         if not area_ids:
             return
 
-        config = self._get_config()
-
         # Filter to enabled areas only
         enabled_areas = [a for a in area_ids if state.is_enabled(a)]
         if not enabled_areas:
@@ -763,6 +804,7 @@ class CircadianLightPrimitives:
             # Rise ALL areas to unfrozen values over 1s
             hour = get_current_hour()
             for area_id in enabled_areas:
+                config = self._get_config(area_id)
                 area_state = self._get_area_state(area_id)
                 result = CircadianLight.calculate_lighting(hour, config, area_state)
                 await self._apply_lighting(area_id, result.brightness, result.color_temp, transition=1.0)
@@ -777,6 +819,7 @@ class CircadianLightPrimitives:
 
             # Flash ALL areas up to frozen values instantly
             for area_id in enabled_areas:
+                config = self._get_config(area_id)
                 area_state = self._get_area_state(area_id)
                 result = CircadianLight.calculate_lighting(frozen_at, config, area_state)
                 await self._apply_lighting(area_id, result.brightness, result.color_temp, transition=0)
@@ -804,7 +847,7 @@ class CircadianLightPrimitives:
 
         # Apply current time values only if enabled
         if state.is_enabled(area_id):
-            config = self._get_config()
+            config = self._get_config(area_id)
             area_state = self._get_area_state(area_id)
             hour = get_current_hour()
 
@@ -817,6 +860,146 @@ class CircadianLightPrimitives:
             )
         else:
             logger.info(f"Reset complete for area {area_id} (not enabled, no lighting change)")
+
+    # -------------------------------------------------------------------------
+    # GloZone Primitives - Zone-based state synchronization
+    # -------------------------------------------------------------------------
+
+    async def glo_up(self, area_id: str, source: str = "service_call"):
+        """Push area's runtime state to its zone, then propagate to all areas in zone.
+
+        GloUp syncs the entire zone to match this area's state. Use when you want
+        all areas in a zone to match the current area's brightness/color settings.
+
+        Args:
+            area_id: The area ID to push from
+            source: Source of the action
+        """
+        logger.info(f"[{source}] GloUp for area {area_id}")
+
+        # Get the zone this area belongs to
+        zone_name = glozone.get_zone_for_area(area_id)
+        logger.info(f"Area {area_id} is in zone '{zone_name}'")
+
+        # Get the area's current runtime state
+        area_state_dict = state.get_area(area_id)
+        runtime_state = {
+            "brightness_mid": area_state_dict.get("brightness_mid"),
+            "color_mid": area_state_dict.get("color_mid"),
+            "frozen_at": area_state_dict.get("frozen_at"),
+        }
+
+        # Push to zone state
+        glozone_state.set_zone_state(zone_name, runtime_state)
+        logger.info(f"Pushed state to zone '{zone_name}': {runtime_state}")
+
+        # Get all areas in the zone
+        zone_areas = glozone.get_areas_in_zone(zone_name)
+        logger.info(f"Zone '{zone_name}' has {len(zone_areas)} area(s): {zone_areas}")
+
+        # Propagate to all other areas in the zone
+        for target_area_id in zone_areas:
+            if target_area_id == area_id:
+                continue  # Skip the source area
+
+            # Copy state to target area
+            state.update_area(target_area_id, runtime_state)
+            logger.debug(f"Copied state to area {target_area_id}")
+
+            # Apply lighting if the target area is enabled
+            if state.is_enabled(target_area_id):
+                config = self._get_config(target_area_id)
+                target_state = self._get_area_state(target_area_id)
+                hour = target_state.frozen_at if target_state.frozen_at is not None else get_current_hour()
+
+                result = CircadianLight.calculate_lighting(hour, config, target_state)
+                await self._apply_lighting(target_area_id, result.brightness, result.color_temp)
+                logger.debug(f"Applied lighting to {target_area_id}: {result.brightness}%, {result.color_temp}K")
+
+        logger.info(f"GloUp complete: synced {len(zone_areas)} area(s) in zone '{zone_name}'")
+
+    async def glo_down(self, area_id: str, source: str = "service_call"):
+        """Pull zone's runtime state to this area.
+
+        GloDown syncs this area to match its zone's state. Use when you want
+        a single area to rejoin the zone's current settings.
+
+        Args:
+            area_id: The area ID to sync to zone state
+            source: Source of the action
+        """
+        logger.info(f"[{source}] GloDown for area {area_id}")
+
+        # Get the zone this area belongs to
+        zone_name = glozone.get_zone_for_area(area_id)
+        logger.info(f"Area {area_id} is in zone '{zone_name}'")
+
+        # Get zone's runtime state
+        zone_state = glozone_state.get_zone_state(zone_name)
+        logger.info(f"Zone '{zone_name}' state: {zone_state}")
+
+        # Copy zone state to area
+        state.update_area(area_id, {
+            "brightness_mid": zone_state.get("brightness_mid"),
+            "color_mid": zone_state.get("color_mid"),
+            "frozen_at": zone_state.get("frozen_at"),
+        })
+        logger.info(f"Copied zone state to area {area_id}")
+
+        # Apply lighting if area is enabled
+        if state.is_enabled(area_id):
+            config = self._get_config(area_id)
+            area_state = self._get_area_state(area_id)
+            hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
+
+            result = CircadianLight.calculate_lighting(hour, config, area_state)
+            await self._apply_lighting(area_id, result.brightness, result.color_temp)
+            logger.info(f"Applied lighting to {area_id}: {result.brightness}%, {result.color_temp}K")
+        else:
+            logger.info(f"GloDown complete for {area_id} (not enabled, no lighting change)")
+
+    async def glo_reset(self, area_id: str, source: str = "service_call"):
+        """Reset zone runtime state to defaults, reset all member areas.
+
+        GloReset clears the zone's state (brightness_mid, color_mid, frozen_at
+        all become None), and resets all member areas. All areas return to
+        following the preset's default circadian curve.
+
+        Args:
+            area_id: Any area ID in the zone to reset
+            source: Source of the action
+        """
+        logger.info(f"[{source}] GloReset for area {area_id}")
+
+        # Get the zone this area belongs to
+        zone_name = glozone.get_zone_for_area(area_id)
+        logger.info(f"Area {area_id} is in zone '{zone_name}'")
+
+        # Reset zone state to defaults (None)
+        glozone_state.reset_zone_state(zone_name)
+        logger.info(f"Reset zone '{zone_name}' runtime state to defaults")
+
+        # Get all areas in the zone
+        zone_areas = glozone.get_areas_in_zone(zone_name)
+        logger.info(f"Zone '{zone_name}' has {len(zone_areas)} area(s): {zone_areas}")
+
+        # Reset all areas in the zone
+        current_hour = get_current_hour()
+        for target_area_id in zone_areas:
+            # Reset area state (clears midpoints/bounds/frozen_at, preserves enabled)
+            state.reset_area(target_area_id)
+            logger.debug(f"Reset area {target_area_id}")
+
+            # Apply lighting if area is enabled
+            if state.is_enabled(target_area_id):
+                config = self._get_config(target_area_id)
+                area_state = self._get_area_state(target_area_id)
+
+                result = CircadianLight.calculate_lighting(current_hour, config, area_state)
+                await self._apply_lighting(target_area_id, result.brightness, result.color_temp)
+                logger.debug(f"Applied lighting to {target_area_id}: {result.brightness}%, {result.color_temp}K")
+
+        logger.info(f"GloReset complete: reset {len(zone_areas)} area(s) in zone '{zone_name}'")
 
     # -------------------------------------------------------------------------
     # Helper methods
@@ -1027,7 +1210,7 @@ class CircadianLightPrimitives:
             logger.info(f"No lights on in area {area_id}")
             return
 
-        config = self._get_config()
+        config = self._get_config(area_id)
         steps = config.max_dim_steps or DEFAULT_MAX_DIM_STEPS
         step_pct = int(100 / steps)
 

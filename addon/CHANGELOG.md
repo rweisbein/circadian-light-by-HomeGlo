@@ -1,5 +1,111 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.59
+**GloZone Phase 6: Designer UI**
+
+Added Zones & Presets management UI to Light Designer:
+
+**New UI Section:**
+- Tabbed interface with Zones and Presets tabs
+- Zone list showing name, preset, and area count
+- Zone detail panel with preset selection dropdown
+- Area assignment via clickable chips
+- Modal dialogs for creating zones and presets
+
+**Zone Management:**
+- View all zones with their assigned preset and area count
+- Click a zone to see full details
+- Change zone preset from dropdown
+- Add areas by clicking available area chips
+- Remove areas by clicking X on assigned area chips
+- Delete zones with confirmation
+
+**Preset Management:**
+- View all circadian presets
+- Create new presets
+- Delete presets (zones using them move to default)
+
+**API Integration:**
+- Fetches zones, presets, and areas from REST API
+- Real-time updates on create/update/delete operations
+- Console logging for debugging
+
+## 6.8.58
+**GloZone Phase 5: Blueprint Updates**
+
+Updated Hue Dimmer Switch blueprint with GloZone button mappings:
+
+**New Button Mapping:**
+```
+ON/OFF: 1x=toggle, 2x=glo_up, 3x=glo_reset, hold=RESERVED
+UP:     1x=bright_up, 2x=color_up, 3x=britelite, hold=step_up
+DOWN:   1x=bright_down, 2x=color_down, 3x=nitelite, hold=step_down
+HUE:    1x=glo_down, 2x=wake/bed, 3x=freeze_toggle, hold=RESERVED
+```
+
+**Changes from Previous:**
+- ON/OFF 2x: `broadcast` → `glo_up` (push area state to zone)
+- ON/OFF 3x: reserved → `glo_reset` (reset zone + all areas)
+- HUE 1x: reserved → `glo_down` (pull zone state to area)
+- HUE 2x: `reset` → `wake/bed` preset
+- HUE 4x: `wake/bed` → reserved (moved to 2x)
+
+**Usage:**
+- Press ON/OFF 2x to sync all areas in your zone to current area's state
+- Press ON/OFF 3x to reset entire zone to preset defaults
+- Press HUE 1x to sync this area back to zone's state
+
+## 6.8.57
+**GloZone Phase 4: API & Services**
+
+**Webserver API Endpoints:**
+- `GET /api/circadian-presets` - List all circadian presets
+- `POST /api/circadian-presets` - Create a new preset
+- `PUT /api/circadian-presets/{name}` - Update a preset
+- `DELETE /api/circadian-presets/{name}` - Delete a preset (moves zones to default)
+
+- `GET /api/glozones` - List all zones with areas and runtime state
+- `POST /api/glozones` - Create a new zone
+- `PUT /api/glozones/{name}` - Update a zone (preset, areas)
+- `DELETE /api/glozones/{name}` - Delete a zone (moves areas to Unassigned)
+- `POST /api/glozones/{name}/areas` - Add an area to a zone
+- `DELETE /api/glozones/{name}/areas/{area_id}` - Remove an area from a zone
+
+- `POST /api/glozone/glo-up` - Execute glo_up primitive
+- `POST /api/glozone/glo-down` - Execute glo_down primitive
+- `POST /api/glozone/glo-reset` - Execute glo_reset primitive
+
+**Custom Integration Services:**
+- `circadian.glo_up` - Push area state to zone, propagate to all areas
+- `circadian.glo_down` - Pull zone state to area
+- `circadian.glo_reset` - Reset zone and all member areas
+
+**Technical:**
+- All API endpoints support ingress prefixes
+- Webserver fires `circadian_light_service_event` for GloZone actions
+- main.py handles both HA service calls and webserver events
+- Services defined in services.yaml with proper selectors
+
+## 6.8.56
+**GloZone Phase 3: Primitives - Zone Sync Actions**
+
+**Added:**
+- `glo_up(area_id)` - Push area's runtime state to its zone, propagate to all areas in zone
+- `glo_down(area_id)` - Pull zone's runtime state to this area (rejoin zone settings)
+- `glo_reset(area_id)` - Reset zone runtime state and all member areas to preset defaults
+
+**Changed:**
+- `circadian_on()` now copies zone state to area on enable (inherits zone's current settings)
+- `circadian_toggle_multiple()` now copies zone state when turning areas on
+- `_get_config()` is now zone-aware - takes optional `area_id` to return zone-specific config
+- All primitives (step_up/down, bright_up/down, color_up/down, set, freeze_toggle, reset) now use zone-aware config
+
+**Technical:**
+- Added `import glozone` and `import glozone_state` to primitives.py
+- Runtime state (brightness_mid, color_mid, frozen_at) syncs between zones and areas
+- When an area joins Circadian mode, it inherits the current zone state
+- GloZone primitives enable multi-room synchronization via switch buttons
+
 ## 6.8.55
 **GloZone Phase 2: Core Logic - Zone-Aware Config**
 

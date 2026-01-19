@@ -889,6 +889,277 @@ input[type=range]::-moz-range-thumb {
   .cursor-controls { flex-wrap: wrap; gap: 24px; }
   .solar-rule { grid-template-columns: 1fr; }
 }
+
+/* GloZone Management Styles */
+.glozone-section {
+  margin-bottom: 16px;
+}
+.glozone-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.glozone-header h2 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--muted);
+}
+.glozone-tabs {
+  display: flex;
+  gap: 8px;
+}
+.glozone-tab {
+  padding: 6px 14px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.glozone-tab:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+.glozone-tab.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.glozone-content {
+  display: none;
+}
+.glozone-content.active {
+  display: block;
+}
+
+/* Zone/Preset Lists */
+.glozone-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.glozone-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  transition: border-color 0.15s;
+}
+.glozone-item:hover {
+  border-color: var(--accent);
+}
+.glozone-item.selected {
+  border-color: var(--accent);
+  background: rgba(30, 144, 255, 0.1);
+}
+.glozone-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.glozone-item-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+.glozone-item-meta {
+  font-size: 0.75rem;
+  color: var(--muted2);
+}
+.glozone-item-actions {
+  display: flex;
+  gap: 6px;
+}
+.glozone-item-actions button {
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.glozone-item-actions button:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+.glozone-item-actions button.delete:hover {
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+/* Add New Button */
+.glozone-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  width: 100%;
+  margin-top: 8px;
+}
+.glozone-add:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Zone Detail Panel */
+.glozone-detail {
+  margin-top: 12px;
+  padding: 14px;
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.glozone-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.glozone-detail-title {
+  font-weight: 600;
+  font-size: 1rem;
+}
+.glozone-detail-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.glozone-detail-row label {
+  font-size: 0.85rem;
+  color: var(--muted);
+  min-width: 80px;
+}
+.glozone-detail-row select,
+.glozone-detail-row input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+/* Area Assignment */
+.area-assignment {
+  margin-top: 12px;
+}
+.area-assignment-header {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+.area-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.area-chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: rgba(30, 144, 255, 0.15);
+  border: 1px solid rgba(30, 144, 255, 0.3);
+  border-radius: 12px;
+  font-size: 0.8rem;
+  color: var(--text);
+}
+.area-chip .remove {
+  cursor: pointer;
+  opacity: 0.6;
+  font-size: 0.9rem;
+}
+.area-chip .remove:hover {
+  opacity: 1;
+  color: #ef4444;
+}
+.area-chip.unassigned {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--line);
+  cursor: pointer;
+}
+.area-chip.unassigned:hover {
+  border-color: var(--accent);
+}
+
+/* Empty State */
+.glozone-empty {
+  text-align: center;
+  padding: 20px;
+  color: var(--muted2);
+  font-size: 0.9rem;
+}
+
+/* Modal Styles */
+.glozone-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s, visibility 0.2s;
+}
+.glozone-modal-overlay.visible {
+  opacity: 1;
+  visibility: visible;
+}
+.glozone-modal {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 20px;
+  min-width: 320px;
+  max-width: 90vw;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+.glozone-modal h3 {
+  margin: 0 0 16px;
+  font-size: 1.1rem;
+}
+.glozone-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+.glozone-modal-actions button {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.glozone-modal-actions .btn-cancel {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+.glozone-modal-actions .btn-confirm {
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  color: #fff;
+}
 </style>
 </head>
 <body>
@@ -900,6 +1171,79 @@ input[type=range]::-moz-range-thumb {
     </div>
   </div>
   <div id="save-status"></div>
+
+  <!-- GloZone Management -->
+  <div class="section-block glozone-section">
+    <div class="glozone-header">
+      <h2>Zones &amp; Presets</h2>
+      <div class="glozone-tabs">
+        <button class="glozone-tab active" data-tab="zones">Zones</button>
+        <button class="glozone-tab" data-tab="presets">Presets</button>
+      </div>
+    </div>
+
+    <!-- Zones Tab -->
+    <div class="glozone-content active" id="zones-content">
+      <div class="glozone-list" id="zones-list">
+        <!-- Zone items will be populated by JavaScript -->
+      </div>
+      <button class="glozone-add" id="add-zone-btn">+ Add Zone</button>
+
+      <!-- Zone Detail Panel (shown when a zone is selected) -->
+      <div class="glozone-detail" id="zone-detail" style="display: none;">
+        <div class="glozone-detail-header">
+          <span class="glozone-detail-title" id="zone-detail-title">Zone Name</span>
+        </div>
+        <div class="glozone-detail-row">
+          <label>Preset</label>
+          <select id="zone-preset-select">
+            <!-- Presets populated by JavaScript -->
+          </select>
+        </div>
+        <div class="area-assignment">
+          <div class="area-assignment-header">Areas in this zone:</div>
+          <div class="area-chips" id="zone-areas">
+            <!-- Area chips populated by JavaScript -->
+          </div>
+        </div>
+        <div class="area-assignment" style="margin-top: 8px;">
+          <div class="area-assignment-header">Available areas:</div>
+          <div class="area-chips" id="available-areas">
+            <!-- Available area chips populated by JavaScript -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Presets Tab -->
+    <div class="glozone-content" id="presets-content">
+      <div class="glozone-list" id="presets-list">
+        <!-- Preset items will be populated by JavaScript -->
+      </div>
+      <button class="glozone-add" id="add-preset-btn">+ Add Preset</button>
+    </div>
+  </div>
+
+  <!-- Modal for Creating/Editing Zones and Presets -->
+  <div class="glozone-modal-overlay" id="glozone-modal">
+    <div class="glozone-modal">
+      <h3 id="modal-title">Create Zone</h3>
+      <div class="glozone-detail-row">
+        <label>Name</label>
+        <input type="text" id="modal-name-input" placeholder="Enter name">
+      </div>
+      <div class="glozone-detail-row" id="modal-preset-row" style="display: none;">
+        <label>Preset</label>
+        <select id="modal-preset-select">
+          <!-- Presets populated by JavaScript -->
+        </select>
+      </div>
+      <div class="glozone-modal-actions">
+        <button class="btn-cancel" id="modal-cancel">Cancel</button>
+        <button class="btn-confirm" id="modal-confirm">Create</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Activity Preset -->
   <div class="activity-select">
@@ -4304,6 +4648,455 @@ function setupLiveDesign() {
 // ============================================================
 // Initialize
 // ============================================================
+// GloZone Management
+// ============================================================
+
+let glozonesData = {};
+let presetsData = {};
+let selectedZone = null;
+let allAreas = [];
+let modalMode = null; // 'create-zone', 'create-preset', 'edit-zone', 'edit-preset'
+let modalTarget = null;
+
+/**
+ * Fetch GloZones from API
+ */
+async function fetchGlozones() {
+  try {
+    const response = await fetch('./api/glozones');
+    if (response.ok) {
+      const data = await response.json();
+      glozonesData = data.zones || {};
+      renderZonesList();
+    }
+  } catch (err) {
+    console.error('Error fetching glozones:', err);
+  }
+}
+
+/**
+ * Fetch Circadian Presets from API
+ */
+async function fetchPresets() {
+  try {
+    const response = await fetch('./api/circadian-presets');
+    if (response.ok) {
+      const data = await response.json();
+      presetsData = data.presets || {};
+      renderPresetsList();
+      populatePresetSelects();
+    }
+  } catch (err) {
+    console.error('Error fetching presets:', err);
+  }
+}
+
+/**
+ * Fetch all areas from API
+ */
+async function fetchAllAreas() {
+  try {
+    const response = await fetch('./api/areas');
+    if (response.ok) {
+      allAreas = await response.json();
+      console.log('[GloZone] Loaded', allAreas.length, 'areas');
+    }
+  } catch (err) {
+    console.error('Error fetching areas:', err);
+  }
+}
+
+/**
+ * Render zones list
+ */
+function renderZonesList() {
+  const container = document.getElementById('zones-list');
+  if (!container) return;
+
+  const zoneNames = Object.keys(glozonesData);
+  if (zoneNames.length === 0) {
+    container.innerHTML = '<div class="glozone-empty">No zones configured. Add a zone to get started.</div>';
+    return;
+  }
+
+  container.innerHTML = zoneNames.map(zoneName => {
+    const zone = glozonesData[zoneName];
+    const areaCount = (zone.areas || []).length;
+    const isDefault = zoneName === 'Unassigned';
+    return `
+      <div class="glozone-item ${selectedZone === zoneName ? 'selected' : ''}" data-zone="${zoneName}">
+        <div class="glozone-item-info">
+          <span class="glozone-item-name">${zoneName}</span>
+          <span class="glozone-item-meta">${zone.preset || 'Preset 1'} &bull; ${areaCount} area${areaCount !== 1 ? 's' : ''}</span>
+        </div>
+        <div class="glozone-item-actions">
+          <button class="edit" data-zone="${zoneName}">Edit</button>
+          ${!isDefault ? `<button class="delete" data-zone="${zoneName}">Delete</button>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // Event listeners for zone items
+  container.querySelectorAll('.glozone-item').forEach(item => {
+    item.addEventListener('click', (e) => {
+      if (e.target.tagName === 'BUTTON') return;
+      selectZone(item.dataset.zone);
+    });
+  });
+
+  container.querySelectorAll('.edit').forEach(btn => {
+    btn.addEventListener('click', () => selectZone(btn.dataset.zone));
+  });
+
+  container.querySelectorAll('.delete').forEach(btn => {
+    btn.addEventListener('click', () => deleteZone(btn.dataset.zone));
+  });
+}
+
+/**
+ * Render presets list
+ */
+function renderPresetsList() {
+  const container = document.getElementById('presets-list');
+  if (!container) return;
+
+  const presetNames = Object.keys(presetsData);
+  if (presetNames.length === 0) {
+    container.innerHTML = '<div class="glozone-empty">No presets configured.</div>';
+    return;
+  }
+
+  container.innerHTML = presetNames.map(presetName => {
+    const isDefault = presetName === 'Preset 1';
+    // Count zones using this preset
+    const zonesUsing = Object.entries(glozonesData).filter(([_, z]) => z.preset === presetName).length;
+    return `
+      <div class="glozone-item" data-preset="${presetName}">
+        <div class="glozone-item-info">
+          <span class="glozone-item-name">${presetName}</span>
+          <span class="glozone-item-meta">Used by ${zonesUsing} zone${zonesUsing !== 1 ? 's' : ''}</span>
+        </div>
+        <div class="glozone-item-actions">
+          ${!isDefault ? `<button class="delete" data-preset="${presetName}">Delete</button>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  container.querySelectorAll('.delete').forEach(btn => {
+    btn.addEventListener('click', () => deletePreset(btn.dataset.preset));
+  });
+}
+
+/**
+ * Populate preset select dropdowns
+ */
+function populatePresetSelects() {
+  const selects = [
+    document.getElementById('zone-preset-select'),
+    document.getElementById('modal-preset-select')
+  ];
+
+  const presetNames = Object.keys(presetsData);
+  const options = presetNames.map(name => `<option value="${name}">${name}</option>`).join('');
+
+  selects.forEach(select => {
+    if (select) select.innerHTML = options;
+  });
+}
+
+/**
+ * Select a zone and show details
+ */
+function selectZone(zoneName) {
+  selectedZone = zoneName;
+  renderZonesList();
+  showZoneDetail(zoneName);
+}
+
+/**
+ * Show zone detail panel
+ */
+function showZoneDetail(zoneName) {
+  const detail = document.getElementById('zone-detail');
+  const title = document.getElementById('zone-detail-title');
+  const presetSelect = document.getElementById('zone-preset-select');
+  const zoneAreas = document.getElementById('zone-areas');
+  const availableAreas = document.getElementById('available-areas');
+
+  if (!detail || !zoneName) {
+    if (detail) detail.style.display = 'none';
+    return;
+  }
+
+  const zone = glozonesData[zoneName];
+  if (!zone) return;
+
+  detail.style.display = 'block';
+  title.textContent = zoneName;
+  presetSelect.value = zone.preset || 'Preset 1';
+
+  // Render areas in this zone
+  const zoneAreaIds = (zone.areas || []).map(a => typeof a === 'string' ? a : a.id);
+  zoneAreas.innerHTML = zoneAreaIds.length === 0
+    ? '<span class="glozone-item-meta">No areas assigned</span>'
+    : zoneAreaIds.map(areaId => {
+        const areaInfo = (zone.areas || []).find(a => (typeof a === 'string' ? a : a.id) === areaId);
+        const areaName = typeof areaInfo === 'object' ? areaInfo.name : areaId;
+        return `<span class="area-chip">${areaName}<span class="remove" data-area="${areaId}">&times;</span></span>`;
+      }).join('');
+
+  // Render available areas (not in this zone)
+  const assignedAreaIds = new Set();
+  Object.values(glozonesData).forEach(z => {
+    (z.areas || []).forEach(a => assignedAreaIds.add(typeof a === 'string' ? a : a.id));
+  });
+
+  const unassignedAreas = allAreas.filter(a => !assignedAreaIds.has(a.area_id) || !zoneAreaIds.includes(a.area_id));
+  const availableForZone = allAreas.filter(a => !zoneAreaIds.includes(a.area_id));
+
+  availableAreas.innerHTML = availableForZone.length === 0
+    ? '<span class="glozone-item-meta">All areas assigned</span>'
+    : availableForZone.map(area => `<span class="area-chip unassigned" data-area="${area.area_id}">${area.name || area.area_id}</span>`).join('');
+
+  // Event listeners for area chips
+  zoneAreas.querySelectorAll('.remove').forEach(btn => {
+    btn.addEventListener('click', () => removeAreaFromZone(zoneName, btn.dataset.area));
+  });
+
+  availableAreas.querySelectorAll('.area-chip.unassigned').forEach(chip => {
+    chip.addEventListener('click', () => addAreaToZone(zoneName, chip.dataset.area));
+  });
+
+  // Preset change listener
+  presetSelect.onchange = () => updateZonePreset(zoneName, presetSelect.value);
+}
+
+/**
+ * Add area to zone via API
+ */
+async function addAreaToZone(zoneName, areaId) {
+  const area = allAreas.find(a => a.area_id === areaId);
+  try {
+    const response = await fetch(`./api/glozones/${encodeURIComponent(zoneName)}/areas`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ area_id: areaId, area_name: area?.name || areaId })
+    });
+    if (response.ok) {
+      await fetchGlozones();
+      showZoneDetail(zoneName);
+    }
+  } catch (err) {
+    console.error('Error adding area to zone:', err);
+  }
+}
+
+/**
+ * Remove area from zone via API
+ */
+async function removeAreaFromZone(zoneName, areaId) {
+  try {
+    const response = await fetch(`./api/glozones/${encodeURIComponent(zoneName)}/areas/${encodeURIComponent(areaId)}`, {
+      method: 'DELETE'
+    });
+    if (response.ok) {
+      await fetchGlozones();
+      showZoneDetail(zoneName);
+    }
+  } catch (err) {
+    console.error('Error removing area from zone:', err);
+  }
+}
+
+/**
+ * Update zone preset via API
+ */
+async function updateZonePreset(zoneName, preset) {
+  try {
+    const response = await fetch(`./api/glozones/${encodeURIComponent(zoneName)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ preset })
+    });
+    if (response.ok) {
+      await fetchGlozones();
+    }
+  } catch (err) {
+    console.error('Error updating zone preset:', err);
+  }
+}
+
+/**
+ * Delete a zone via API
+ */
+async function deleteZone(zoneName) {
+  if (!confirm(`Delete zone "${zoneName}"? Areas will be moved to Unassigned.`)) return;
+
+  try {
+    const response = await fetch(`./api/glozones/${encodeURIComponent(zoneName)}`, {
+      method: 'DELETE'
+    });
+    if (response.ok) {
+      if (selectedZone === zoneName) {
+        selectedZone = null;
+        document.getElementById('zone-detail').style.display = 'none';
+      }
+      await fetchGlozones();
+    }
+  } catch (err) {
+    console.error('Error deleting zone:', err);
+  }
+}
+
+/**
+ * Delete a preset via API
+ */
+async function deletePreset(presetName) {
+  if (!confirm(`Delete preset "${presetName}"? Zones using it will switch to "Preset 1".`)) return;
+
+  try {
+    const response = await fetch(`./api/circadian-presets/${encodeURIComponent(presetName)}`, {
+      method: 'DELETE'
+    });
+    if (response.ok) {
+      await fetchPresets();
+      await fetchGlozones();
+    }
+  } catch (err) {
+    console.error('Error deleting preset:', err);
+  }
+}
+
+/**
+ * Show modal for creating zone or preset
+ */
+function showModal(mode, target = null) {
+  modalMode = mode;
+  modalTarget = target;
+
+  const overlay = document.getElementById('glozone-modal');
+  const title = document.getElementById('modal-title');
+  const nameInput = document.getElementById('modal-name-input');
+  const presetRow = document.getElementById('modal-preset-row');
+  const confirmBtn = document.getElementById('modal-confirm');
+
+  nameInput.value = '';
+
+  if (mode === 'create-zone') {
+    title.textContent = 'Create Zone';
+    presetRow.style.display = 'flex';
+    confirmBtn.textContent = 'Create';
+  } else if (mode === 'create-preset') {
+    title.textContent = 'Create Preset';
+    presetRow.style.display = 'none';
+    confirmBtn.textContent = 'Create';
+  }
+
+  overlay.classList.add('visible');
+  nameInput.focus();
+}
+
+/**
+ * Hide modal
+ */
+function hideModal() {
+  document.getElementById('glozone-modal').classList.remove('visible');
+  modalMode = null;
+  modalTarget = null;
+}
+
+/**
+ * Handle modal confirm
+ */
+async function handleModalConfirm() {
+  const nameInput = document.getElementById('modal-name-input');
+  const presetSelect = document.getElementById('modal-preset-select');
+  const name = nameInput.value.trim();
+
+  if (!name) {
+    alert('Please enter a name');
+    return;
+  }
+
+  if (modalMode === 'create-zone') {
+    try {
+      const response = await fetch('./api/glozones', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, preset: presetSelect.value })
+      });
+      if (response.ok) {
+        hideModal();
+        await fetchGlozones();
+        selectZone(name);
+      } else {
+        const data = await response.json();
+        alert(data.error || 'Failed to create zone');
+      }
+    } catch (err) {
+      console.error('Error creating zone:', err);
+    }
+  } else if (modalMode === 'create-preset') {
+    try {
+      const response = await fetch('./api/circadian-presets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, settings: {} })
+      });
+      if (response.ok) {
+        hideModal();
+        await fetchPresets();
+      } else {
+        const data = await response.json();
+        alert(data.error || 'Failed to create preset');
+      }
+    } catch (err) {
+      console.error('Error creating preset:', err);
+    }
+  }
+}
+
+/**
+ * Setup GloZone UI event listeners
+ */
+function setupGlozoneUI() {
+  // Tab switching
+  document.querySelectorAll('.glozone-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.glozone-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.glozone-content').forEach(c => c.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById(`${tab.dataset.tab}-content`).classList.add('active');
+
+      // Hide zone detail when switching tabs
+      if (tab.dataset.tab === 'presets') {
+        document.getElementById('zone-detail').style.display = 'none';
+      }
+    });
+  });
+
+  // Add buttons
+  document.getElementById('add-zone-btn')?.addEventListener('click', () => showModal('create-zone'));
+  document.getElementById('add-preset-btn')?.addEventListener('click', () => showModal('create-preset'));
+
+  // Modal buttons
+  document.getElementById('modal-cancel')?.addEventListener('click', hideModal);
+  document.getElementById('modal-confirm')?.addEventListener('click', handleModalConfirm);
+
+  // Close modal on overlay click
+  document.getElementById('glozone-modal')?.addEventListener('click', (e) => {
+    if (e.target.classList.contains('glozone-modal-overlay')) hideModal();
+  });
+
+  // Load data
+  fetchAllAreas();
+  fetchPresets();
+  fetchGlozones();
+}
+
+// ============================================================
 
 document.addEventListener('DOMContentLoaded', () => {
   const slider = document.getElementById('chart-date-slider');
@@ -4318,6 +5111,7 @@ document.addEventListener('DOMContentLoaded', () => {
   resetRuntimeState();
   setupEventListeners();
   setupLiveDesign();
+  setupGlozoneUI();
   syncUIFromConfig();
 
   // Set cursor to current time on page load

@@ -1408,6 +1408,33 @@ class HomeAssistantWebSocketClient:
                     else:
                         logger.warning(f"[{domain}] refresh_event not yet initialized, skipping signal")
 
+                elif service == "glo_up":
+                    areas = get_areas()
+                    if areas:
+                        for area in areas:
+                            logger.info(f"[{domain}] glo_up for area: {area}")
+                            await self.primitives.glo_up(area, "service_call")
+                    else:
+                        logger.warning("glo_up called without area_id")
+
+                elif service == "glo_down":
+                    areas = get_areas()
+                    if areas:
+                        for area in areas:
+                            logger.info(f"[{domain}] glo_down for area: {area}")
+                            await self.primitives.glo_down(area, "service_call")
+                    else:
+                        logger.warning("glo_down called without area_id")
+
+                elif service == "glo_reset":
+                    areas = get_areas()
+                    if areas:
+                        for area in areas:
+                            logger.info(f"[{domain}] glo_reset for area: {area}")
+                            await self.primitives.glo_reset(area, "service_call")
+                    else:
+                        logger.warning("glo_reset called without area_id")
+
             # Handle circadian_light_refresh event (fired by webserver after config save)
             elif event_type == "circadian_light_refresh":
                 logger.info("circadian_light_refresh event received - signaling periodic updater")
@@ -1427,6 +1454,23 @@ class HomeAssistantWebSocketClient:
                     if self.live_design_area == area_id:
                         self.live_design_area = None
                         logger.info(f"Live Design ended for area: {area_id} - resuming periodic updates")
+
+            # Handle circadian_light_service_event (fired by webserver for GloZone actions)
+            elif event_type == "circadian_light_service_event":
+                service = event_data.get('service')
+                area_id = event_data.get('area_id')
+
+                if service == "glo_up" and area_id:
+                    logger.info(f"[webserver] glo_up for area: {area_id}")
+                    await self.primitives.glo_up(area_id, "webserver")
+                elif service == "glo_down" and area_id:
+                    logger.info(f"[webserver] glo_down for area: {area_id}")
+                    await self.primitives.glo_down(area_id, "webserver")
+                elif service == "glo_reset" and area_id:
+                    logger.info(f"[webserver] glo_reset for area: {area_id}")
+                    await self.primitives.glo_reset(area_id, "webserver")
+                else:
+                    logger.warning(f"Unknown circadian_light_service_event: service={service}, area_id={area_id}")
 
             # Handle device registry updates (when devices are added/removed/modified)
             elif event_type == "device_registry_updated":

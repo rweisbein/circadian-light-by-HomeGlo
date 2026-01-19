@@ -19,6 +19,11 @@ SERVICE_SET: Final = "set"
 SERVICE_BROADCAST: Final = "broadcast"
 SERVICE_REFRESH: Final = "refresh"
 
+# GloZone services
+SERVICE_GLO_UP: Final = "glo_up"
+SERVICE_GLO_DOWN: Final = "glo_down"
+SERVICE_GLO_RESET: Final = "glo_reset"
+
 # Service attributes
 ATTR_AREA_ID: Final = "area_id"
 ATTR_PRESET: Final = "preset"
