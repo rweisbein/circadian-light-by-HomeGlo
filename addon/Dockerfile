@@ -20,6 +20,9 @@ COPY *.py *.html requirements.txt ./
 RUN pip3 install --no-cache-dir websockets==12.0 python-dateutil==2.8.2 astral==3.2 PyYAML==6.0.1
 
 # Copy custom_components for integration management
+# Cache bust: version changes force rebuild of this layer
+ARG ADDON_VERSION=unknown
+RUN echo "Building addon version: ${ADDON_VERSION}"
 COPY custom_components /opt/circadian_light/custom_components
 
 # Copy root filesystem (includes blueprints)

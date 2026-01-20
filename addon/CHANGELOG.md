@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.79
+**Fix: Force Docker cache bust for integration updates**
+
+- Added ADDON_VERSION build arg to force rebuild of custom_components layer
+- This ensures integration updates (like glo_up service) are properly deployed
+- Includes debug logging from 6.8.78
+
 ## 6.8.78
 **Debug: Integration deployment diagnostics**
 
