@@ -226,10 +226,10 @@ variables:
 
 # -- Actions -------------------------------------------------------------------
 # Button mapping:
-#   on-off: 1x toggle, 2x glo_up, 3x glo_reset, 4x-5x reserved, hold RESERVED
-#   up:     1x bright_up, 2x color_up, 3x britelite, 4x-5x reserved, hold step_up
-#   down:   1x bright_down, 2x color_down, 3x nitelite, 4x-5x reserved, hold step_down
-#   hue:    1x glo_down, 2x wake/bed, 3x freeze_toggle, 4x-5x reserved, hold RESERVED
+#   on-off: 1x toggle, 2x glo_up, 3x glo_reset, 4x reserved, 5x [emergency toggle], hold RESERVED
+#   up:     1x step_up, 2x color_up, 3x britelite, 4x-5x reserved, hold bright_up
+#   down:   1x step_down, 2x color_down, 3x nitelite, 4x-5x reserved, hold bright_down
+#   hue:    1x [cycle scope], 2x glo_down, 3x wake/bed, 4x freeze_toggle, 5x [sleep], hold RESERVED
 action:
   # Only proceed if the event came from one of our configured devices
   - condition: template
@@ -280,10 +280,10 @@ action:
 
       # ========================================================================
       # UP (BRIGHTER) BUTTON
-      # 1x: bright_up, 2x: color_up, 3x: britelite, 4x-5x: reserved, hold: step_up
+      # 1x: step_up, 2x: color_up, 3x: britelite, 4x-5x: reserved, hold: bright_up
       # ========================================================================
 
-      # Up 1x -> bright_up if lights on, else on + nitelite
+      # Up 1x -> step_up
       - conditions:
           - condition: or
             conditions:
@@ -292,31 +292,9 @@ action:
               - condition: trigger
                 id: hue_up
         sequence:
-          - choose:
-              # If any light is on in target areas -> bright_up
-              - conditions:
-                  - condition: template
-                    value_template: >
-                      {% set ns = namespace(any_on=false) %}
-                      {% for area in area_targets %}
-                        {% for state in states.light | selectattr('entity_id', 'search', 'light.') | list %}
-                          {% if area_id(state.entity_id) == area and state.state == 'on' %}
-                            {% set ns.any_on = true %}
-                          {% endif %}
-                        {% endfor %}
-                      {% endfor %}
-                      {{ ns.any_on }}
-                sequence:
-                  - service: circadian.bright_up
-                    data:
-                      area_id: "{{ area_targets }}"
-            # Else (lights off) -> enable + nitelite
-            default:
-              - service: circadian.set
-                data:
-                  area_id: "{{ area_targets }}"
-                  preset: nitelite
-                  enable: true
+          - service: circadian.step_up
+            data:
+              area_id: "{{ area_targets }}"
 
       # Up 2x -> color_up
       - conditions:
@@ -341,21 +319,21 @@ action:
       # Up 4x -> reserved
       # Up 5x -> reserved
 
-      # Up hold -> step_up
+      # Up hold -> bright_up
       - conditions:
           - condition: trigger
             id: zha_up_hold
         sequence:
-          - service: circadian.step_up
+          - service: circadian.bright_up
             data:
               area_id: "{{ area_targets }}"
 
       # ========================================================================
       # DOWN (DIMMER) BUTTON
-      # 1x: bright_down, 2x: color_down, 3x: nitelite, 4x-5x: reserved, hold: step_down
+      # 1x: step_down, 2x: color_down, 3x: nitelite, 4x-5x: reserved, hold: bright_down
       # ========================================================================
 
-      # Down 1x -> bright_down if lights on, else on + nitelite
+      # Down 1x -> step_down
       - conditions:
           - condition: or
             conditions:
@@ -364,31 +342,9 @@ action:
               - condition: trigger
                 id: hue_down
         sequence:
-          - choose:
-              # If any light is on in target areas -> bright_down
-              - conditions:
-                  - condition: template
-                    value_template: >
-                      {% set ns = namespace(any_on=false) %}
-                      {% for area in area_targets %}
-                        {% for state in states.light | selectattr('entity_id', 'search', 'light.') | list %}
-                          {% if area_id(state.entity_id) == area and state.state == 'on' %}
-                            {% set ns.any_on = true %}
-                          {% endif %}
-                        {% endfor %}
-                      {% endfor %}
-                      {{ ns.any_on }}
-                sequence:
-                  - service: circadian.bright_down
-                    data:
-                      area_id: "{{ area_targets }}"
-            # Else (lights off) -> enable + nitelite
-            default:
-              - service: circadian.set
-                data:
-                  area_id: "{{ area_targets }}"
-                  preset: nitelite
-                  enable: true
+          - service: circadian.step_down
+            data:
+              area_id: "{{ area_targets }}"
 
       # Down 2x -> color_down
       - conditions:
@@ -413,37 +369,46 @@ action:
       # Down 4x -> reserved
       # Down 5x -> reserved
 
-      # Down hold -> step_down
+      # Down hold -> bright_down
       - conditions:
           - condition: trigger
             id: zha_down_hold
         sequence:
-          - service: circadian.step_down
+          - service: circadian.bright_down
             data:
               area_id: "{{ area_targets }}"
 
       # ========================================================================
       # HUE BUTTON (off)
-      # 1x: glo_down, 2x: wake/bed, 3x: freeze_toggle, 4x-5x: reserved, hold: RESERVED
+      # 1x: [cycle scope], 2x: glo_down, 3x: wake/bed, 4x: freeze_toggle, 5x: [sleep], hold: RESERVED
       # ========================================================================
 
-      # Hue 1x -> glo_down (pull zone state to this area)
+      # Hue 1x -> [coming soon: cycle Scope]
+      # - conditions:
+      #     - condition: or
+      #       conditions:
+      #         - condition: trigger
+      #           id: zha_off
+      #         - condition: trigger
+      #           id: hue_off
+      #   sequence:
+      #     - service: circadian.cycle_scope
+      #       data:
+      #         area_id: "{{ area_targets }}"
+
+      # Hue 2x -> glo_down (pull zone state to this area)
       - conditions:
-          - condition: or
-            conditions:
-              - condition: trigger
-                id: zha_off
-              - condition: trigger
-                id: hue_off
+          - condition: trigger
+            id: zha_off_double
         sequence:
           - service: circadian.glo_down
             data:
               area_id: "{{ first_area }}"
 
-      # Hue 2x -> wake/bed preset
+      # Hue 3x -> wake/bed preset
       - conditions:
           - condition: trigger
-            id: zha_off_double
+            id: zha_off_triple
         sequence:
           - service: circadian.set
             data:
@@ -451,15 +416,14 @@ action:
               preset: wake
               enable: true
 
-      # Hue 3x -> freeze_toggle
+      # Hue 4x -> freeze_toggle
       - conditions:
           - condition: trigger
-            id: zha_off_triple
+            id: zha_off_quadruple
         sequence:
           - service: circadian.freeze_toggle
             data:
               area_id: "{{ area_targets }}"
 
-      # Hue 4x -> reserved
-      # Hue 5x -> reserved
+      # Hue 5x -> [coming soon: Sleep]
       # Hue hold -> RESERVED for magic button

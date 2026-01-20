@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.81
+**Update: Hue Dimmer Switch blueprint button remapping**
+
+- **on-off**: 1x toggle, 2x glo_up, 3x glo_reset, 5x [emergency toggle], hold RESERVED
+- **up**: 1x step_up, 2x color_up, 3x britelite, hold bright_up
+- **down**: 1x step_down, 2x color_down, 3x nitelite, hold bright_down
+- **hue**: 1x [cycle scope], 2x glo_down, 3x wake/bed, 4x freeze_toggle, 5x [sleep], hold RESERVED
+
 ## 6.8.80
 **Fix: Download integration if bundled version is outdated**
 
