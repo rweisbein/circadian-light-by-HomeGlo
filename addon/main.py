@@ -394,9 +394,9 @@ class HomeAssistantWebSocketClient:
                 await self._execute_switch_action(device_ieee, action)
 
         else:
-            # Other events (press, double_press, etc.)
-            # Skip _press events if we're waiting for release
-            if "_press" in button_event and not "_double" in button_event and not "_triple" in button_event:
+            # Other events (press, double_press, triple_press, quadruple_press, etc.)
+            # Skip single _press events if we're waiting for release
+            if "_press" in button_event and not any(x in button_event for x in ["_double", "_triple", "_quadruple", "_quintuple"]):
                 # Single press - we'll handle on release to avoid double-firing
                 pass
             else:
