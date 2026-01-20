@@ -619,51 +619,70 @@ class HomeAssistantWebSocketClient:
         await self._show_scope_feedback(new_areas, new_scope + 1)  # 1-indexed
 
     async def _show_scope_feedback(self, areas: List[str], scope_number: int) -> None:
-        """Show visual feedback for scope change (pulse count).
+        """Show visual feedback for scope change (color flash).
 
         Args:
-            areas: Areas to pulse
-            scope_number: Which scope (1, 2, or 3) - determines pulse count
+            areas: Areas to flash
+            scope_number: Which scope (1, 2, or 3) - determines color
         """
         if not areas:
             return
 
-        # Get current brightness of lights in these areas
-        # For simplicity, we'll do adaptive pulse based on a representative light
-        current_brightness = 50  # Default assumption
+        # Scope colors: Green (1), Cyan (2), Blue (3)
+        scope_colors = {
+            1: [50, 255, 50],    # Green
+            2: [50, 255, 255],   # Cyan
+            3: [50, 100, 255],   # Blue
+        }
+        flash_color = scope_colors.get(scope_number, [50, 255, 50])
 
+        # Store current state (on/off and color) for each area
+        original_states = {}
         for area in areas:
-            # Try to get a light's current state
             light_entity = self._get_fallback_group_entity(area)
             if light_entity and light_entity in self.cached_states:
                 state = self.cached_states[light_entity]
-                if state.get("state") == "on":
-                    attrs = state.get("attributes", {})
-                    current_brightness = attrs.get("brightness", 128) / 2.55  # Convert to %
-                    break
+                was_on = state.get("state") == "on"
+                attrs = state.get("attributes", {}) if was_on else {}
+                original_states[area] = {
+                    "was_on": was_on,
+                    "color_temp": attrs.get("color_temp"),
+                    "rgb_color": attrs.get("rgb_color"),
+                    "xy_color": attrs.get("xy_color"),
+                    "brightness": attrs.get("brightness", 128),
+                }
+            else:
+                original_states[area] = {"was_on": False}
 
-        # Calculate pulse delta
-        if current_brightness > 35:
-            pulse_delta = -20  # Dip down
-        else:
-            pulse_delta = 25  # Bump up
+        # Determine flash brightness for lights that were off (based on sun position)
+        sun_is_up = False
+        if "sun.sun" in self.cached_states:
+            sun_state = self.cached_states["sun.sun"]
+            sun_is_up = sun_state.get("state") == "above_horizon"
+        off_flash_brightness = int(0.20 * 255) if sun_is_up else int(0.01 * 255)
 
-        pulse_brightness = max(1, min(100, current_brightness + pulse_delta))
+        # Flash the scope color
+        for area in areas:
+            orig = original_states.get(area, {})
+            if orig.get("was_on"):
+                await self._set_area_color_quick(area, rgb_color=flash_color)
+            else:
+                await self._set_area_color_quick(area, rgb_color=flash_color, brightness=off_flash_brightness)
 
-        # Perform pulses
-        for pulse in range(scope_number):
-            # Pulse to delta
-            for area in areas:
-                await self._set_area_brightness_quick(area, int(pulse_brightness * 2.55))
+        await asyncio.sleep(0.3)
 
-            await asyncio.sleep(0.2)  # 200ms pulse
-
-            # Restore
-            for area in areas:
-                await self._set_area_brightness_quick(area, int(current_brightness * 2.55))
-
-            if pulse < scope_number - 1:
-                await asyncio.sleep(0.15)  # 150ms gap between pulses
+        # Restore original states
+        for area, orig in original_states.items():
+            if not orig.get("was_on"):
+                await self.call_service("light", "turn_off", {}, target={"area_id": area})
+            elif orig.get("color_temp"):
+                await self._set_area_color_quick(area, color_temp=orig["color_temp"], brightness=orig.get("brightness"))
+            elif orig.get("rgb_color"):
+                await self._set_area_color_quick(area, rgb_color=orig["rgb_color"], brightness=orig.get("brightness"))
+            elif orig.get("xy_color"):
+                await self._set_area_color_quick(area, xy_color=orig["xy_color"], brightness=orig.get("brightness"))
+            else:
+                await self._set_area_brightness_quick(area, orig.get("brightness", 128))
 
     async def _show_scope_error_feedback(self, switch_id: str) -> None:
         """Show error feedback when can't cycle scope (flash red).
@@ -694,9 +713,20 @@ class HomeAssistantWebSocketClient:
                 # No cached state - assume off
                 original_states[area] = {"was_on": False}
 
-        # Flash red (turn on with red color)
+        # Determine flash brightness for lights that were off (based on sun position)
+        sun_is_up = False
+        if "sun.sun" in self.cached_states:
+            sun_state = self.cached_states["sun.sun"]
+            sun_is_up = sun_state.get("state") == "above_horizon"
+        off_flash_brightness = int(0.20 * 255) if sun_is_up else int(0.01 * 255)  # 20% or 1%
+
+        # Flash red (keep brightness if on, use sun-based brightness if off)
         for area in areas:
-            await self._set_area_color_quick(area, rgb_color=[255, 50, 50], brightness=100)
+            orig = original_states.get(area, {})
+            if orig.get("was_on"):
+                await self._set_area_color_quick(area, rgb_color=[255, 50, 50])
+            else:
+                await self._set_area_color_quick(area, rgb_color=[255, 50, 50], brightness=off_flash_brightness)
 
         await asyncio.sleep(0.3)
 
