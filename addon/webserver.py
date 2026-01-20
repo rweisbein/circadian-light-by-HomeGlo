@@ -527,19 +527,24 @@ class LightDesignerServer:
         """
         try:
             data = await request.json()
+            logger.info(f"[SaveConfig] Incoming data keys: {list(data.keys())}")
+            logger.info(f"[SaveConfig] Incoming glozones: {data.get('glozones', 'NOT PRESENT')}")
 
             # Load existing raw config (GloZone format)
             config = await self.load_raw_config()
+            logger.info(f"[SaveConfig] Loaded raw config glozones: {list(config.get('glozones', {}).keys())}")
 
             # Separate incoming data into categories
             incoming_presets = data.pop("circadian_presets", None)
             incoming_glozones = data.pop("glozones", None)
+            logger.info(f"[SaveConfig] After pop - incoming_glozones: {incoming_glozones}")
 
             # Handle incoming preset and glozone structures
             if incoming_presets:
                 config["circadian_presets"].update(incoming_presets)
 
             if incoming_glozones:
+                logger.info(f"[SaveConfig] Updating glozones with: {list(incoming_glozones.keys())}")
                 config["glozones"].update(incoming_glozones)
 
             # Remaining data could be flat preset settings or global settings
@@ -561,6 +566,12 @@ class LightDesignerServer:
 
             # Apply global updates to top level
             config.update(global_updates)
+
+            # Log what we're about to save
+            logger.info(f"[SaveConfig] Final glozones to save: {list(config.get('glozones', {}).keys())}")
+            for zn, zc in config.get('glozones', {}).items():
+                areas = zc.get('areas', [])
+                logger.info(f"[SaveConfig]   Zone '{zn}': {len(areas)} areas, preset={zc.get('preset')}")
 
             # Save the raw config (GloZone format)
             await self.save_config_to_file(config)
