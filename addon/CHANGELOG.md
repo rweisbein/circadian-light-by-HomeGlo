@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.80
+**Fix: Download integration if bundled version is outdated**
+
+- Added minimum version check for bundled integration (3.5.0)
+- If bundled version is older, automatically downloads from GitHub instead
+- This works around Docker caching issues that prevent integration updates
+
 ## 6.8.79
 **Fix: Force Docker cache bust for integration updates**
 

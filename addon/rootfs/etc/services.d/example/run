@@ -214,11 +214,26 @@ manage_circadian_integration() {
     bashio::log.info "[Integration Debug] CIRCADIAN_SOURCE=${CIRCADIAN_SOURCE}"
     bashio::log.info "[Integration Debug] Source exists: $([ -d "${CIRCADIAN_SOURCE}" ] && echo 'yes' || echo 'no')"
 
+    # Minimum required integration version - if bundled is older, download instead
+    MIN_INTEGRATION_VERSION="3.5.0"
+
+    # Check bundled version
+    bundled_version=""
+    if [ -d "${CIRCADIAN_SOURCE}" ] && [ -f "${CIRCADIAN_SOURCE}/manifest.json" ]; then
+        bundled_version=$(read_manifest_version "${CIRCADIAN_SOURCE}/manifest.json" || echo "")
+    fi
+    bashio::log.info "[Integration Debug] bundled_version=${bundled_version}, MIN_INTEGRATION_VERSION=${MIN_INTEGRATION_VERSION}"
+
+    # Determine source: use bundled only if it meets minimum version
     if [ -n "${download_url}" ]; then
         expected_source="${download_url}"
-    elif [ -d "${CIRCADIAN_SOURCE}" ]; then
+    elif [ -d "${CIRCADIAN_SOURCE}" ] && [ "${bundled_version}" = "${MIN_INTEGRATION_VERSION}" ]; then
         expected_source="bundled"
     else
+        # Bundled is missing or outdated - download from GitHub
+        if [ -d "${CIRCADIAN_SOURCE}" ] && [ -n "${bundled_version}" ]; then
+            bashio::log.warning "Bundled integration is v${bundled_version}, need v${MIN_INTEGRATION_VERSION}. Downloading from GitHub..."
+        fi
         expected_source="$(build_default_download_url)"
     fi
     bashio::log.info "[Integration Debug] expected_source=${expected_source}"
@@ -246,25 +261,37 @@ manage_circadian_integration() {
     fi
     bashio::log.info "[Integration Debug] dest_manifest_version=${dest_manifest_version}"
 
-    integration_versions_match="false"
-    if [ -z "${expected_integration_version}" ]; then
-        if [ -n "${dest_manifest_version}" ] && [ "${current_integration_version}" = "${dest_manifest_version}" ]; then
-            integration_versions_match="true"
-        elif [ -z "${dest_manifest_version}" ] && [ -z "${current_integration_version}" ]; then
-            integration_versions_match="true"
-        fi
-    else
-        if [ "${current_integration_version}" = "${expected_integration_version}" ] && \
-           [ "${dest_manifest_version}" = "${expected_integration_version}" ]; then
-            integration_versions_match="true"
-        fi
+    # ALWAYS update if bundled version differs from destination
+    # This ensures new integration features are deployed even if Docker caches
+    if [ "${expected_source}" = "bundled" ] && \
+       [ -n "${expected_integration_version}" ] && \
+       [ "${dest_manifest_version}" = "${expected_integration_version}" ]; then
+        bashio::log.info "Circadian Light integration already up to date (version: ${expected_integration_version})."
+        return
     fi
 
-    if bashio::fs.directory_exists "${CIRCADIAN_DEST}" && \
-        [ "${current_source}" = "${expected_source}" ] && \
-        [ "${integration_versions_match}" = "true" ]; then
-        bashio::log.info "Circadian Light integration already up to date (source: ${expected_source})."
-        return
+    # For non-bundled sources, use the original logic
+    if [ "${expected_source}" != "bundled" ]; then
+        integration_versions_match="false"
+        if [ -z "${expected_integration_version}" ]; then
+            if [ -n "${dest_manifest_version}" ] && [ "${current_integration_version}" = "${dest_manifest_version}" ]; then
+                integration_versions_match="true"
+            elif [ -z "${dest_manifest_version}" ] && [ -z "${current_integration_version}" ]; then
+                integration_versions_match="true"
+            fi
+        else
+            if [ "${current_integration_version}" = "${expected_integration_version}" ] && \
+               [ "${dest_manifest_version}" = "${expected_integration_version}" ]; then
+                integration_versions_match="true"
+            fi
+        fi
+
+        if bashio::fs.directory_exists "${CIRCADIAN_DEST}" && \
+            [ "${current_source}" = "${expected_source}" ] && \
+            [ "${integration_versions_match}" = "true" ]; then
+            bashio::log.info "Circadian Light integration already up to date (source: ${expected_source})."
+            return
+        fi
     fi
 
     if bashio::fs.directory_exists "${CIRCADIAN_DEST}"; then
