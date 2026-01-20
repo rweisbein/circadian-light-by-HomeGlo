@@ -308,13 +308,45 @@ def _save_pending() -> None:
 # Switch Management
 # =============================================================================
 
+def _reload_switches() -> None:
+    """Reload configured switches from disk (for cross-process sync)."""
+    global _switches
+
+    if not _config_file_path or not os.path.exists(_config_file_path):
+        return
+
+    try:
+        with open(_config_file_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        new_switches = {}
+        for switch_data in data.get("switches", []):
+            switch = SwitchConfig.from_dict(switch_data)
+            new_switches[switch.id] = switch
+            # Preserve runtime state for existing switches
+            if switch.id not in _runtime_state:
+                _runtime_state[switch.id] = SwitchRuntimeState()
+
+        _switches = new_switches
+    except Exception as e:
+        logger.warning(f"Failed to reload switches: {e}")
+
+
 def get_switch(switch_id: str) -> Optional[SwitchConfig]:
-    """Get a switch by ID."""
+    """Get a switch by ID.
+
+    Reloads from disk to pick up changes from other processes.
+    """
+    _reload_switches()
     return _switches.get(switch_id)
 
 
 def get_all_switches() -> Dict[str, SwitchConfig]:
-    """Get all configured switches."""
+    """Get all configured switches.
+
+    Reloads from disk to pick up changes from other processes.
+    """
+    _reload_switches()
     return _switches.copy()
 
 
