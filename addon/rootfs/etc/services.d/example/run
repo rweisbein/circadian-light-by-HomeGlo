@@ -211,6 +211,9 @@ manage_circadian_integration() {
         download_url=""
     fi
 
+    bashio::log.info "[Integration Debug] CIRCADIAN_SOURCE=${CIRCADIAN_SOURCE}"
+    bashio::log.info "[Integration Debug] Source exists: $([ -d "${CIRCADIAN_SOURCE}" ] && echo 'yes' || echo 'no')"
+
     if [ -n "${download_url}" ]; then
         expected_source="${download_url}"
     elif [ -d "${CIRCADIAN_SOURCE}" ]; then
@@ -218,6 +221,7 @@ manage_circadian_integration() {
     else
         expected_source="$(build_default_download_url)"
     fi
+    bashio::log.info "[Integration Debug] expected_source=${expected_source}"
 
     if [ -f "${CIRCADIAN_MARKER}" ]; then
         current_source=$(sed -n 's/^source=//p' "${CIRCADIAN_MARKER}")
@@ -228,16 +232,19 @@ manage_circadian_integration() {
         current_version=""
         current_integration_version=""
     fi
+    bashio::log.info "[Integration Debug] current_source=${current_source}, current_integration_version=${current_integration_version}"
 
     expected_integration_version=""
     if [ "${expected_source}" = "bundled" ] && [ -f "${CIRCADIAN_SOURCE}/manifest.json" ]; then
         expected_integration_version=$(read_manifest_version "${CIRCADIAN_SOURCE}/manifest.json" || echo "")
     fi
+    bashio::log.info "[Integration Debug] expected_integration_version=${expected_integration_version}"
 
     dest_manifest_version=""
     if [ -f "${CIRCADIAN_DEST}/manifest.json" ]; then
         dest_manifest_version=$(read_manifest_version "${CIRCADIAN_DEST}/manifest.json" || echo "")
     fi
+    bashio::log.info "[Integration Debug] dest_manifest_version=${dest_manifest_version}"
 
     integration_versions_match="false"
     if [ -z "${expected_integration_version}" ]; then

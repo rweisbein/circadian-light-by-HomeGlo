@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.78
+**Debug: Integration deployment diagnostics**
+
+- Added debug logging to run script for integration deployment troubleshooting
+- Logs show: bundled source path, whether source exists, expected vs current versions
+- This will help diagnose why `glo_up` service isn't being deployed
+
 ## 6.8.74
 **Fix: Area status uses per-area state**
 
