@@ -355,6 +355,9 @@ class LightDesignerServer:
         self.live_design_ct_lights: list = []  # CT-only lights in area
         self.live_design_saved_states: dict = {}  # Saved light states to restore when ending
 
+        # Initialize switches module (loads from switches_config.json and switches_pending.json)
+        switches.init()
+
     def _migrate_data_location_sync(self):
         """Migrate config files from /data to /config/circadian-light if they exist."""
         old_data_dir = "/data"
