@@ -331,11 +331,12 @@ class HomeAssistantWebSocketClient:
         device_id = event_data.get("device_id")
         command = event_data.get("command")
         args = event_data.get("args", {})
+        cluster_id = event_data.get("cluster_id")
 
         if not device_ieee or not command:
             return
 
-        logger.debug(f"ZHA event: device={device_ieee}, command={command}, args={args}")
+        logger.debug(f"ZHA event: device={device_ieee}, command={command}, args={args}, cluster={cluster_id}")
 
         # Check if this switch is configured
         switch_config = switches.get_switch(device_ieee)
@@ -343,6 +344,12 @@ class HomeAssistantWebSocketClient:
         if not switch_config:
             # Unconfigured switch - add to pending list
             await self._handle_unconfigured_switch(device_ieee, event_data)
+            return
+
+        # Hue dimmers send duplicate events: cluster 6 (basic) AND cluster 64512 (detailed)
+        # We only want to handle the detailed cluster 64512 events to avoid double-firing
+        if switch_config.type == "hue_dimmer" and cluster_id == 6:
+            logger.debug(f"Ignoring cluster 6 event for Hue dimmer (will use cluster 64512)")
             return
 
         # Map the ZHA command to our button event format
