@@ -311,19 +311,30 @@ class CircadianLight:
 
     @staticmethod
     def lift_midpoint_to_phase(midpoint: float, phase_start: float, phase_end: float) -> float:
-        """Lift a midpoint into the correct 48-hour phase window.
+        """Lift a midpoint into the correct 48-hour phase window and clamp to boundaries.
+
+        This prevents wrap-around issues when the midpoint is near or past a phase boundary.
+        For example, if stepping down near descend_start causes the midpoint to go past
+        the phase end, we clamp it to the phase end rather than wrapping around by -24
+        which would produce invalid negative values.
 
         Args:
             midpoint: The midpoint hour (0-24)
             phase_start: Start of phase in 48h space
             phase_end: End of phase in 48h space
+
+        Returns:
+            Midpoint clamped to [phase_start + margin, phase_end - margin]
         """
         mid = midpoint
-        while mid < phase_start:
+        # Lift into roughly valid range first (within 12 hours of boundaries)
+        while mid < phase_start - 12:
             mid += 24
-        while mid > phase_end:
+        while mid > phase_end + 12:
             mid -= 24
-        return mid
+        # Clamp to phase boundaries (with small margin for numerical stability)
+        margin = 0.01
+        return max(phase_start + margin, min(phase_end - margin, mid))
 
     @staticmethod
     def calculate_brightness_at_hour(

@@ -2586,20 +2586,24 @@ function calculateBrightnessAtHour(hour) {
   const h48 = hour < tAscend ? hour + 24 : hour;
   const inAscend = h48 >= tAscend && h48 < tDescend;
 
-  // Lift midpoint to 48h space
+  // Lift midpoint to 48h space and clamp to phase boundaries
+  // This prevents wrap-around issues when midpoint is near/past phase boundary
   let mid48;
   if (inAscend) {
     mid48 = wakeMid;
-    let safety = 0;
-    while (mid48 < tAscend && safety++ < 10) mid48 += 24;
-    safety = 0;
-    while (mid48 > tDescend && safety++ < 10) mid48 -= 24;
+    // Lift into valid range first
+    while (mid48 < tAscend - 12) mid48 += 24;
+    while (mid48 > tDescend + 12) mid48 -= 24;
+    // Clamp to phase boundaries (with small margin for numerical stability)
+    mid48 = Math.max(tAscend + 0.01, Math.min(tDescend - 0.01, mid48));
   } else {
     mid48 = bedMid;
-    let safety = 0;
-    while (mid48 < tDescend && safety++ < 10) mid48 += 24;
-    safety = 0;
-    while (mid48 > tDescend + 24 && safety++ < 10) mid48 -= 24;
+    const phaseEnd = tDescend + 24;
+    // Lift into valid range first
+    while (mid48 < tDescend - 12) mid48 += 24;
+    while (mid48 > phaseEnd + 12) mid48 -= 24;
+    // Clamp to phase boundaries (with small margin for numerical stability)
+    mid48 = Math.max(tDescend + 0.01, Math.min(phaseEnd - 0.01, mid48));
   }
 
   // Calculate brightness from logistic curve
@@ -2646,20 +2650,24 @@ function calculateColorAtHour(hour, applySolar = true) {
   const h48 = hour < tAscend ? hour + 24 : hour;
   const inAscend = h48 >= tAscend && h48 < tDescend;
 
-  // Lift midpoint to 48h space
+  // Lift midpoint to 48h space and clamp to phase boundaries
+  // This prevents wrap-around issues when midpoint is near/past phase boundary
   let mid48;
   if (inAscend) {
     mid48 = colorWakeMid;
-    let safety = 0;
-    while (mid48 < tAscend && safety++ < 10) mid48 += 24;
-    safety = 0;
-    while (mid48 > tDescend && safety++ < 10) mid48 -= 24;
+    // Lift into valid range first
+    while (mid48 < tAscend - 12) mid48 += 24;
+    while (mid48 > tDescend + 12) mid48 -= 24;
+    // Clamp to phase boundaries (with small margin for numerical stability)
+    mid48 = Math.max(tAscend + 0.01, Math.min(tDescend - 0.01, mid48));
   } else {
     mid48 = colorBedMid;
-    let safety = 0;
-    while (mid48 < tDescend && safety++ < 10) mid48 += 24;
-    safety = 0;
-    while (mid48 > tDescend + 24 && safety++ < 10) mid48 -= 24;
+    const phaseEnd = tDescend + 24;
+    // Lift into valid range first
+    while (mid48 < tDescend - 12) mid48 += 24;
+    while (mid48 > phaseEnd + 12) mid48 -= 24;
+    // Clamp to phase boundaries (with small margin for numerical stability)
+    mid48 = Math.max(tDescend + 0.01, Math.min(phaseEnd - 0.01, mid48));
   }
 
   // Calculate normalized color value (0-1)
