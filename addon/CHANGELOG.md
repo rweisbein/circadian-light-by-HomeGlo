@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.92
+**Fix: Auto-migrate unassigned areas to default zone**
+
+- On page load, all Home Assistant areas not in any zone are automatically added to the default zone
+- This is a one-time migration that runs when viewing the Glo Zones page
+- Eliminates the "Unassigned Areas" section for existing installations
+
 ## 6.8.91
 **Fix: Glo Zones page now properly uses default zone flag**
 

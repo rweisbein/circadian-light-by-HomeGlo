@@ -2112,6 +2112,10 @@ class LightDesignerServer:
             config = await self.load_raw_config()
             zones = config.get("glozones", {})
 
+            # Auto-migrate: add unassigned HA areas to default zone
+            await self._migrate_unassigned_areas_to_default(config)
+            zones = config.get("glozones", {})
+
             # Enrich with runtime state
             result = {}
             for zone_name, zone_config in zones.items():
@@ -2127,6 +2131,55 @@ class LightDesignerServer:
         except Exception as e:
             logger.error(f"Error getting glozones: {e}")
             return web.json_response({"error": str(e)}, status=500)
+
+    async def _migrate_unassigned_areas_to_default(self, config: dict) -> None:
+        """Add any HA areas not in any zone to the default zone."""
+        try:
+            # Get HA connection info
+            rest_url, ws_url, token = self._get_ha_api_config()
+            if not token or not ws_url:
+                return
+
+            # Fetch all areas from HA
+            ha_areas = await self._fetch_areas_via_websocket(ws_url, token)
+            if not ha_areas:
+                return
+
+            # Get all area IDs currently in zones
+            zones = config.get("glozones", {})
+            assigned_area_ids = set()
+            for zone_config in zones.values():
+                for area in zone_config.get("areas", []):
+                    area_id = area.get("id") if isinstance(area, dict) else area
+                    assigned_area_ids.add(area_id)
+
+            # Find the default zone
+            default_zone_name = next(
+                (name for name, zc in zones.items() if zc.get("is_default")),
+                next(iter(zones.keys()), None)
+            )
+            if not default_zone_name:
+                return
+
+            # Add unassigned areas to default zone
+            unassigned = [a for a in ha_areas if a.get("area_id") not in assigned_area_ids]
+            if not unassigned:
+                return
+
+            logger.info(f"Migrating {len(unassigned)} unassigned areas to default zone '{default_zone_name}'")
+            for area in unassigned:
+                zones[default_zone_name].setdefault("areas", []).append({
+                    "id": area["area_id"],
+                    "name": area.get("name", area["area_id"])
+                })
+
+            # Save the updated config
+            await self.save_config_to_file(config)
+            glozone.set_config(config)
+            logger.info(f"Migrated {len(unassigned)} areas to '{default_zone_name}'")
+
+        except Exception as e:
+            logger.warning(f"Could not migrate unassigned areas: {e}")
 
     async def create_glozone(self, request: Request) -> Response:
         """Create a new GloZone."""
