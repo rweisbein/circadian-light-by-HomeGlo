@@ -346,10 +346,13 @@ class HomeAssistantWebSocketClient:
             await self._handle_unconfigured_switch(device_ieee, event_data)
             return
 
-        # Hue dimmers send duplicate events: cluster 6 (basic) AND cluster 64512 (detailed)
-        # We only want to handle the detailed cluster 64512 events to avoid double-firing
-        if switch_config.type == "hue_dimmer" and cluster_id == 6:
-            logger.debug(f"Ignoring cluster 6 event for Hue dimmer (will use cluster 64512)")
+        # Hue dimmers send duplicate events on multiple clusters:
+        # - Cluster 6 (On/Off) for ON/OFF buttons
+        # - Cluster 8 (Level Control) for UP/DOWN buttons
+        # - Cluster 64512 (Hue proprietary) for ALL buttons with detailed info
+        # We only want to handle cluster 64512 to avoid double-firing
+        if switch_config.type == "hue_dimmer" and cluster_id in (6, 8):
+            logger.debug(f"Ignoring cluster {cluster_id} event for Hue dimmer (will use cluster 64512)")
             return
 
         # Map the ZHA command to our button event format
