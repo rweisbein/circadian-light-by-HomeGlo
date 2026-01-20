@@ -423,7 +423,7 @@ class LightDesignerServer:
         self.app.router.add_get('/glo', self.serve_glo_designer)
         self.app.router.add_get('/settings', self.serve_settings)
         self.app.router.add_get('/', self.serve_home)
-        # Legacy designer.html route (redirect to home)
+        # Legacy /designer route redirects to home
         self.app.router.add_get('/designer', self.serve_home)
 
     async def serve_page(self, page_name: str, extra_data: dict = None) -> Response:
@@ -478,36 +478,6 @@ class LightDesignerServer:
         """Serve the Settings page."""
         return await self.serve_page("settings")
 
-    async def serve_designer(self, request: Request) -> Response:
-        """Legacy: Serve the old designer page (kept for backwards compatibility)."""
-        try:
-            config = await self.load_config()
-
-            html_path = Path(__file__).parent / "designer.html"
-            async with aiofiles.open(html_path, 'r') as f:
-                html_content = await f.read()
-
-            config_script = f"""
-            <script>
-            window.savedConfig = {json.dumps(config)};
-            </script>
-            """
-
-            html_content = html_content.replace('</body>', f'{config_script}</body>')
-
-            return web.Response(
-                text=html_content,
-                content_type='text/html',
-                headers={
-                    'Cache-Control': 'no-cache, no-store, must-revalidate',
-                    'Pragma': 'no-cache',
-                    'Expires': '0'
-                }
-            )
-        except Exception as e:
-            logger.error(f"Error serving designer page: {e}")
-            return web.Response(text=f"Error: {str(e)}", status=500)
-    
     async def get_config(self, request: Request) -> Response:
         """Get current curve configuration."""
         try:

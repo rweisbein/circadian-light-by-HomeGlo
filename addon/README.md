@@ -154,10 +154,12 @@ View real-time activity:
 ├── main.py              # WebSocket client and event handler
 ├── brain.py             # Circadian lighting calculations
 ├── light_controller.py  # Multi-protocol light control
-├── switch.py           # Switch command processing
-├── webserver.py        # Light Designer server
-├── designer.html       # Light Designer interface
-└── config.yaml         # Add-on metadata
+├── switch.py            # Switch command processing
+├── webserver.py         # Web server for UI pages
+├── home.html            # Glo Zones management page
+├── glo-designer.html    # Glo preset editor page
+├── settings.html        # Settings page
+└── config.yaml          # Add-on metadata
 ```
 
 ## Support
