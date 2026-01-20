@@ -305,12 +305,8 @@ manage_circadian_integration() {
         bashio::log.info "Installing Circadian Light custom integration..."
     fi
 
-    if [ -n "${download_url}" ]; then
-        if ! download_integration_source "${CIRCADIAN_DEST}" "${download_url}"; then
-            bashio::log.error "Unable to deploy Circadian Light integration from ${download_url}."
-            return
-        fi
-    elif [ -d "${CIRCADIAN_SOURCE}" ]; then
+    # Use expected_source to determine deployment method
+    if [ "${expected_source}" = "bundled" ]; then
         bashio::log.info "Copying Circadian Light integration bundled with the add-on..."
         if ! copy_bundled_integration "${CIRCADIAN_DEST}"; then
             bashio::log.error "Bundled Circadian Light integration missing; attempting download instead."
@@ -320,9 +316,9 @@ manage_circadian_integration() {
             fi
         fi
     else
-        bashio::log.info "Downloading Circadian Light integration from main branch..."
-        if ! download_integration_source "${CIRCADIAN_DEST}" ""; then
-            bashio::log.error "Unable to deploy Circadian Light integration."
+        bashio::log.info "Downloading Circadian Light integration from ${expected_source}..."
+        if ! download_integration_source "${CIRCADIAN_DEST}" "${expected_source}"; then
+            bashio::log.error "Unable to deploy Circadian Light integration from ${expected_source}."
             return
         fi
     fi
