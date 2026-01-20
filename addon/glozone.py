@@ -392,6 +392,27 @@ def load_config_from_files(data_dir: Optional[str] = None) -> Dict[str, Any]:
                     part = json.load(f)
                     if isinstance(part, dict):
                         config.update(part)
+            except json.JSONDecodeError as e:
+                # Try to repair corrupted JSON (e.g., "Extra data" from duplicate writes)
+                if "Extra data" in str(e):
+                    logger.warning(f"JSON error in {path}: {e}, attempting repair...")
+                    try:
+                        with open(path, 'r') as f:
+                            content = f.read()
+                        decoder = json.JSONDecoder()
+                        repaired_data, end_idx = decoder.raw_decode(content)
+                        if isinstance(repaired_data, dict):
+                            # Backup and repair
+                            with open(path + ".corrupted", 'w') as f:
+                                f.write(content)
+                            with open(path, 'w') as f:
+                                json.dump(repaired_data, f, indent=2)
+                            config.update(repaired_data)
+                            logger.info(f"Repaired {path}")
+                    except Exception as repair_err:
+                        logger.error(f"Failed to repair {path}: {repair_err}")
+                else:
+                    logger.debug(f"Could not load config from {path}: {e}")
             except Exception as e:
                 logger.debug(f"Could not load config from {path}: {e}")
 

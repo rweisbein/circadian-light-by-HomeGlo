@@ -1066,11 +1066,64 @@ class LightDesignerServer:
                     overrides = json.loads(content)
                     if isinstance(overrides, dict):
                         config.update(overrides)
+        except json.JSONDecodeError as e:
+            # Try to repair corrupted JSON (e.g., "Extra data" from duplicate writes)
+            logger.warning(f"JSON error in {self.designer_file}: {e}")
+            if "Extra data" in str(e) and os.path.exists(self.designer_file):
+                logger.info("Attempting to repair corrupted designer_config.json...")
+                try:
+                    repaired = await self._repair_json_file(self.designer_file)
+                    if repaired and isinstance(repaired, dict):
+                        config.update(repaired)
+                        logger.info("Successfully repaired and loaded designer_config.json")
+                except Exception as repair_err:
+                    logger.error(f"Failed to repair {self.designer_file}: {repair_err}")
         except Exception as e:
             logger.warning(f"Error loading {self.designer_file}: {e}")
 
         # Migrate to GloZone format if needed
         return self._migrate_to_glozone_format(config)
+
+    async def _repair_json_file(self, filepath: str) -> Optional[dict]:
+        """Attempt to repair a corrupted JSON file with duplicate content.
+
+        When a JSON file has "Extra data" error, it usually means the file
+        was written multiple times without truncating. This extracts the
+        first valid JSON object and rewrites the file.
+
+        Args:
+            filepath: Path to the corrupted JSON file
+
+        Returns:
+            The repaired dict, or None if repair failed
+        """
+        try:
+            async with aiofiles.open(filepath, 'r') as f:
+                content = await f.read()
+
+            # Use JSONDecoder to extract just the first valid JSON object
+            decoder = json.JSONDecoder()
+            repaired_data, end_idx = decoder.raw_decode(content)
+
+            if isinstance(repaired_data, dict):
+                # Backup the corrupted file
+                backup_path = filepath + ".corrupted"
+                async with aiofiles.open(backup_path, 'w') as f:
+                    await f.write(content)
+                logger.info(f"Backed up corrupted file to {backup_path}")
+
+                # Write the repaired JSON
+                async with aiofiles.open(filepath, 'w') as f:
+                    await f.write(json.dumps(repaired_data, indent=2))
+                logger.info(f"Repaired {filepath} (extracted {end_idx} of {len(content)} chars)")
+
+                return repaired_data
+            else:
+                logger.warning(f"Repaired JSON is not a dict: {type(repaired_data)}")
+                return None
+        except Exception as e:
+            logger.error(f"Failed to repair JSON file {filepath}: {e}")
+            return None
 
     async def save_config_to_file(self, config: dict):
         """Save designer configuration to persistent file distinct from options.json."""

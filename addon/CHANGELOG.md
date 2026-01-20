@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.87
+**Fix: Auto-repair corrupted designer_config.json**
+
+- Detects "Extra data" JSON errors from duplicate/corrupted writes
+- Automatically extracts the first valid JSON object and repairs the file
+- Backs up corrupted file as designer_config.json.corrupted
+- This fixes the bug where GloZones would disappear after editing
+
 ## 6.8.85
 **Fix: GloZone changes now take effect immediately**
 
