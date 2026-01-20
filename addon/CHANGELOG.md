@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.69
+**Debug Logging for Area Status**
+
+- Added detailed logging to `/api/area-status` endpoint to diagnose grey status circles
+- Logs glozone names and areas, area ID extraction, and state lookups
+- Added frontend console logging for API response and area ID matching
+- This will help identify any ID mismatch between glozones and HA areas
+
 ## 6.8.68
 **Behavior Fixes**
 

@@ -567,6 +567,7 @@
         const response = await fetch('./api/area-status');
         if (response.ok) {
           const data = await response.json();
+          console.log('[Home] area-status API response:', data);
           // Convert API format to our format
           areaStates = {};
           for (const [areaId, status] of Object.entries(data)) {
@@ -576,6 +577,9 @@
               frozen: status.frozen
             };
           }
+          console.log('[Home] areaStates after processing:', areaStates);
+        } else {
+          console.error('[Home] area-status API error:', response.status, response.statusText);
         }
       } catch (err) {
         console.error('Error loading area states:', err);
@@ -663,6 +667,7 @@
       const areaId = area.area_id;
       const areaName = area.name || areaId;
       const areaState = areaStates[areaId] || { enabled: false, brightness: 0, frozen: false };
+      console.log(`[Home] renderAreaChip: areaId=${areaId}, found in areaStates=${!!areaStates[areaId]}, state=`, areaState);
 
       return `
         <div class="area-chip" draggable="true" data-area="${areaId}" data-zone="${zoneName || ''}">

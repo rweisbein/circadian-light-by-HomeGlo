@@ -1665,6 +1665,10 @@ class LightDesignerServer:
             glozones = config.get('glozones', {})
             presets = config.get('circadian_presets', {})
 
+            logger.info(f"[Area Status] glozones: {list(glozones.keys())}")
+            for zn, zd in glozones.items():
+                logger.info(f"[Area Status] Zone '{zn}' has areas: {zd.get('areas', [])}")
+
             # Get current hour for calculations
             current_hour = get_current_hour()
 
@@ -1694,7 +1698,9 @@ class LightDesignerServer:
                 for area in zone_data.get('areas', []):
                     # Areas can be stored as {id, name} or just string
                     area_id = area.get('id') if isinstance(area, dict) else area
+                    logger.info(f"[Area Status] Processing area: raw={area}, extracted_id={area_id}")
                     area_state_data = state.get_area(area_id)
+                    logger.info(f"[Area Status] Area {area_id} state: {area_state_data}")
                     area_status[area_id] = {
                         'enabled': area_state_data.get('enabled', False),
                         'brightness': brightness,
@@ -1702,7 +1708,7 @@ class LightDesignerServer:
                         'zone_name': zone_name if zone_name != 'Unassigned' else None
                     }
 
-            logger.debug(f"[Area Status] Returning status for {len(area_status)} areas")
+            logger.info(f"[Area Status] Final response keys: {list(area_status.keys())}")
             return web.json_response(area_status)
 
         except Exception as e:
