@@ -603,8 +603,9 @@ class HomeAssistantWebSocketClient:
                 )
 
         elif action == "toggle_wake_bed":
-            # TODO: Define wake/bed mode behavior
-            logger.info(f"toggle_wake_bed action on areas: {areas} (not yet implemented)")
+            # Set midpoint to current time (~50% values), stays unfrozen
+            for area in areas:
+                await self.primitives.set(area, "switch", preset="wake")
 
         else:
             logger.warning(f"Unknown action: {action}")
