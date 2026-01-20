@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.94
+**Fix: Prevent config data loss from failed loads**
+
+- Track whether designer_config.json was loaded successfully
+- Refuse to save if config load failed (prevents overwriting good data with incomplete data)
+- This fixes the bug where zones could be lost if config file was temporarily unreadable
+
 ## 6.8.93
 **Fix: Make area migration safe (one-time only)**
 

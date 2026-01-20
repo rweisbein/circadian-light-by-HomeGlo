@@ -1030,6 +1030,7 @@ class LightDesignerServer:
             logger.warning(f"Error loading {self.options_file}: {e}")
 
         # Merge designer_config.json
+        designer_loaded = False
         try:
             if os.path.exists(self.designer_file):
                 async with aiofiles.open(self.designer_file, 'r') as f:
@@ -1037,6 +1038,10 @@ class LightDesignerServer:
                     overrides = json.loads(content)
                     if isinstance(overrides, dict):
                         config.update(overrides)
+                        designer_loaded = True
+            else:
+                # File doesn't exist yet - that's OK for fresh installs
+                designer_loaded = True
         except json.JSONDecodeError as e:
             # Try to repair corrupted JSON (e.g., "Extra data" from duplicate writes)
             logger.warning(f"JSON error in {self.designer_file}: {e}")
@@ -1046,11 +1051,19 @@ class LightDesignerServer:
                     repaired = await self._repair_json_file(self.designer_file)
                     if repaired and isinstance(repaired, dict):
                         config.update(repaired)
+                        designer_loaded = True
                         logger.info("Successfully repaired and loaded designer_config.json")
                 except Exception as repair_err:
                     logger.error(f"Failed to repair {self.designer_file}: {repair_err}")
         except Exception as e:
-            logger.warning(f"Error loading {self.designer_file}: {e}")
+            logger.error(f"CRITICAL: Failed to load {self.designer_file}: {e}")
+            # Mark as not loaded to prevent accidental overwrites
+            designer_loaded = False
+
+        # Track load status to prevent saving incomplete data
+        config["_designer_loaded"] = designer_loaded
+        if not designer_loaded:
+            logger.error("Designer config load failed - saves will be blocked to prevent data loss")
 
         # Migrate to GloZone format if needed
         return self._migrate_to_glozone_format(config)
@@ -1097,10 +1110,21 @@ class LightDesignerServer:
             return None
 
     async def save_config_to_file(self, config: dict):
-        """Save designer configuration to persistent file distinct from options.json."""
+        """Save designer configuration to persistent file distinct from options.json.
+
+        Will refuse to save if the config was not successfully loaded, to prevent
+        accidental data loss from overwriting good data with incomplete data.
+        """
+        # Safety check: don't save if we failed to load the config properly
+        if not config.get("_designer_loaded", True):
+            logger.error("REFUSING TO SAVE: config was not loaded successfully - would cause data loss")
+            raise RuntimeError("Cannot save config: original file was not loaded successfully")
+
         try:
+            # Remove internal tracking flag before saving
+            save_config = {k: v for k, v in config.items() if not k.startswith("_")}
             async with aiofiles.open(self.designer_file, 'w') as f:
-                await f.write(json.dumps(config, indent=2))
+                await f.write(json.dumps(save_config, indent=2))
             logger.info(f"Configuration saved to {self.designer_file}")
         except Exception as e:
             logger.error(f"Error saving config to file: {e}")
