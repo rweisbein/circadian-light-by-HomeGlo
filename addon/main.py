@@ -581,15 +581,29 @@ class HomeAssistantWebSocketClient:
                 await self.primitives.glo_reset(areas[0], "switch")
 
         elif action == "set_britelite":
-            # TODO: Implement set_britelite - sets lights to bright white
-            logger.info(f"set_britelite action on areas: {areas} (not yet implemented)")
+            # Bright white: 100% brightness, cool white (6500K)
+            logger.info(f"[switch] set_britelite for areas: {areas}")
+            for area in areas:
+                state.disable(area)  # Disable circadian mode
+                await self.call_service(
+                    "light", "turn_on",
+                    {"brightness": 255, "color_temp_kelvin": 6500, "transition": 0},
+                    target={"area_id": area}
+                )
 
         elif action == "set_nitelite":
-            # TODO: Implement set_nitelite - sets lights to dim warm
-            logger.info(f"set_nitelite action on areas: {areas} (not yet implemented)")
+            # Dim warm: 5% brightness, warm (2200K)
+            logger.info(f"[switch] set_nitelite for areas: {areas}")
+            for area in areas:
+                state.disable(area)  # Disable circadian mode
+                await self.call_service(
+                    "light", "turn_on",
+                    {"brightness": 13, "color_temp_kelvin": 2200, "transition": 0},
+                    target={"area_id": area}
+                )
 
         elif action == "toggle_wake_bed":
-            # TODO: Implement toggle_wake_bed - toggle wake/bed mode
+            # TODO: Define wake/bed mode behavior
             logger.info(f"toggle_wake_bed action on areas: {areas} (not yet implemented)")
 
         else:
@@ -636,15 +650,30 @@ class HomeAssistantWebSocketClient:
         }
         flash_color = scope_colors.get(scope_number, [50, 255, 50])
 
-        # Store on/off state for each area
-        was_on = {}
+        # Pre-calculate restore values for each area BEFORE flashing
+        restore_data = {}
         for area in areas:
             light_entity = self._get_fallback_group_entity(area)
             if light_entity and light_entity in self.cached_states:
-                area_state = self.cached_states[light_entity]
-                was_on[area] = area_state.get("state") == "on"
+                area_state_cache = self.cached_states[light_entity]
+                was_on = area_state_cache.get("state") == "on"
             else:
-                was_on[area] = False
+                was_on = False
+
+            if was_on and state.is_enabled(area):
+                # Pre-calculate circadian values
+                area_state = AreaState.from_dict(state.get_area(area))
+                config_dict = glozone.get_effective_config_for_area(area)
+                config = Config.from_dict(config_dict)
+                hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
+                result = CircadianLight.calculate_lighting(hour, config, area_state)
+                restore_data[area] = {
+                    "was_on": True,
+                    "brightness": int(result.brightness * 2.55),
+                    "xy": result.xy,
+                }
+            else:
+                restore_data[area] = {"was_on": was_on}
 
         # Determine flash brightness for lights that were off (based on sun position)
         sun_is_up = False
@@ -653,22 +682,26 @@ class HomeAssistantWebSocketClient:
             sun_is_up = sun_state.get("state") == "above_horizon"
         off_flash_brightness = int(0.20 * 255) if sun_is_up else int(0.01 * 255)
 
-        # Flash the scope color
+        # Flash the scope color (all areas at once)
         for area in areas:
-            if was_on.get(area):
+            if restore_data[area].get("was_on"):
                 await self._set_area_color_quick(area, rgb_color=flash_color)
             else:
                 await self._set_area_color_quick(area, rgb_color=flash_color, brightness=off_flash_brightness)
 
         await asyncio.sleep(0.3)
 
-        # Restore: turn off if was off, re-apply circadian lighting if was on
-        for area in areas:
-            if not was_on.get(area):
+        # Restore instantly (all areas, no transition)
+        for area, data in restore_data.items():
+            if not data.get("was_on"):
                 await self.call_service("light", "turn_off", {}, target={"area_id": area})
-            else:
-                # Re-apply circadian lighting from state
-                await self.update_lights_in_circadian_mode(area)
+            elif data.get("xy"):
+                # Restore with pre-calculated circadian values, instant
+                await self.call_service(
+                    "light", "turn_on",
+                    {"xy_color": data["xy"], "brightness": data["brightness"], "transition": 0},
+                    target={"area_id": area}
+                )
 
     async def _show_scope_error_feedback(self, switch_id: str) -> None:
         """Show error feedback when can't cycle scope (flash red).
