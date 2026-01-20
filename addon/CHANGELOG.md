@@ -1,12 +1,18 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.72
+**UI Tweaks**
+
+- **Kelvin value displayed**: Area chips now show "85% • 3200K" format
+- **Simplified Glo info**: Zone cards now only show wake (🌅) and bed (🛏️) times
+
 ## 6.8.71
 **UI Improvements: Glo Zones Page Redesign**
 
 - **CCT-colored status dots**: Area chips now show color temperature as dot color (warm orange to cool white)
 - **Renamed navigation**: "Home" → "Glo Zones", "Glo Designer" → "Glo"
 - **Black backgrounds**: Glo Zones and Settings pages now match Glo page styling
-- **GloZone card redesign**: Glo dropdown on its own row with timing info (Ascend, Wake, Descend, Bed times)
+- **GloZone card redesign**: Glo dropdown on its own row with timing info
 - **Removed subtitle** from Glo Zones page header
 - **Removed location settings from Glo page** (now only in Settings - no duplication)
 

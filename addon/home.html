@@ -714,8 +714,6 @@
       // Get glo timing info
       const wakeTime = formatTime(preset.wake_time);
       const bedTime = formatTime(preset.bed_time);
-      const ascendStart = formatTime(preset.ascend_start);
-      const descendStart = formatTime(preset.descend_start);
 
       return `
         <div class="zone-card" data-zone="${zoneName}">
@@ -735,10 +733,8 @@
                 <option value="__new__">+ New Glo...</option>
               </select>
               <div class="zone-glo-info">
-                <span title="Ascend starts">☀ ${ascendStart}</span>
-                <span title="Wake time">⬆ ${wakeTime}</span>
-                <span title="Descend starts">🌙 ${descendStart}</span>
-                <span title="Bed time">⬇ ${bedTime}</span>
+                <span title="Wake time">🌅 ${wakeTime}</span>
+                <span title="Bed time">🛏️ ${bedTime}</span>
               </div>
             </div>
           </div>
@@ -767,7 +763,7 @@
           <span class="area-name">${areaName}</span>
           <div class="area-status">
             <span class="status-dot ${areaState.enabled ? 'on' : ''}" style="${dotStyle}"></span>
-            ${areaState.enabled ? `<span class="area-brightness">${areaState.brightness}%</span>` : ''}
+            ${areaState.enabled ? `<span class="area-brightness">${areaState.brightness}% • ${Math.round(areaState.kelvin)}K</span>` : ''}
             ${areaState.frozen ? '<span class="area-frozen" title="Frozen">&#128274;</span>' : ''}
           </div>
         </div>
