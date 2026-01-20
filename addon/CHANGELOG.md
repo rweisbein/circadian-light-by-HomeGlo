@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.70
+**Fix: Area status now reflects real-time enabled state**
+
+- Fixed area status showing stale data (always `enabled: false`)
+- Root cause: webserver runs as separate process from main.py, each had own in-memory state
+- Fix: API now reloads state from disk before returning, ensuring it sees main.py's updates
+
 ## 6.8.69
 **Debug Logging for Area Status**
 

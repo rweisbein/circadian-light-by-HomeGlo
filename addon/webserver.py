@@ -1669,6 +1669,9 @@ class LightDesignerServer:
             for zn, zd in glozones.items():
                 logger.info(f"[Area Status] Zone '{zn}' has areas: {zd.get('areas', [])}")
 
+            # Reload state from disk (main.py runs in separate process and writes state there)
+            state.init()
+
             # Get current hour for calculations
             current_hour = get_current_hour()
 
