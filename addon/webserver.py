@@ -2133,8 +2133,15 @@ class LightDesignerServer:
             return web.json_response({"error": str(e)}, status=500)
 
     async def _migrate_unassigned_areas_to_default(self, config: dict) -> None:
-        """Add any HA areas not in any zone to the default zone."""
+        """One-time migration: add any HA areas not in any zone to the default zone.
+
+        This only runs once per installation, tracked by 'areas_migrated_v1' flag.
+        """
         try:
+            # Check if migration already ran (one-time only)
+            if config.get("areas_migrated_v1"):
+                return
+
             # Get HA connection info
             rest_url, ws_url, token = self._get_ha_api_config()
             if not token or not ws_url:
@@ -2150,6 +2157,12 @@ class LightDesignerServer:
                 config["glozones"] = {}
             zones = config["glozones"]
 
+            # Safety check: if no zones exist but we expected some, don't proceed
+            # This prevents wiping out zones if load_raw_config failed to read them
+            if not zones:
+                logger.warning("No zones found - skipping migration to avoid data loss")
+                return
+
             # Get all area IDs currently in zones
             assigned_area_ids = set()
             for zone_config in zones.values():
@@ -2157,41 +2170,33 @@ class LightDesignerServer:
                     area_id = area.get("id") if isinstance(area, dict) else area
                     assigned_area_ids.add(area_id)
 
-            # Find the default zone, or create one if none exists
+            # Find the default zone
             default_zone_name = next(
                 (name for name, zc in zones.items() if zc.get("is_default")),
                 next(iter(zones.keys()), None)
             )
             if not default_zone_name:
-                # No zones exist - create the initial "Home" zone
-                default_zone_name = glozone.INITIAL_ZONE_NAME
-                zones[default_zone_name] = {
-                    "preset": glozone.DEFAULT_PRESET,
-                    "areas": [],
-                    "is_default": True
-                }
-                logger.info(f"Created initial default zone '{default_zone_name}'")
+                logger.warning("No default zone found - skipping migration")
+                return
 
             # Add unassigned areas to default zone
             unassigned = [a for a in ha_areas if a.get("area_id") not in assigned_area_ids]
-            if not unassigned:
-                # Still save if we created a new zone
-                if len(zones) == 1 and not zones[default_zone_name].get("areas"):
-                    await self.save_config_to_file(config)
-                    glozone.set_config(config)
-                return
 
-            logger.info(f"Migrating {len(unassigned)} unassigned areas to default zone '{default_zone_name}'")
-            for area in unassigned:
-                zones[default_zone_name].setdefault("areas", []).append({
-                    "id": area["area_id"],
-                    "name": area.get("name", area["area_id"])
-                })
+            if unassigned:
+                logger.info(f"Migrating {len(unassigned)} unassigned areas to default zone '{default_zone_name}'")
+                for area in unassigned:
+                    zones[default_zone_name].setdefault("areas", []).append({
+                        "id": area["area_id"],
+                        "name": area.get("name", area["area_id"])
+                    })
+
+            # Mark migration as complete (even if no areas to migrate)
+            config["areas_migrated_v1"] = True
 
             # Save the updated config
             await self.save_config_to_file(config)
             glozone.set_config(config)
-            logger.info(f"Migrated {len(unassigned)} areas to '{default_zone_name}'")
+            logger.info(f"Area migration complete - migrated {len(unassigned)} areas")
 
         except Exception as e:
             logger.warning(f"Could not migrate unassigned areas: {e}")

@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.93
+**Fix: Make area migration safe (one-time only)**
+
+- Area migration now only runs once, tracked by `areas_migrated_v1` flag
+- Added safety checks to prevent accidental data loss if config load fails
+- Migration skipped if no zones exist (prevents overwriting valid config)
+
 ## 6.8.92
 **Fix: Auto-migrate unassigned areas to default zone**
 
