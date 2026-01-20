@@ -61,6 +61,20 @@ def get_config() -> Optional[Dict[str, Any]]:
     return _config
 
 
+def reload() -> None:
+    """Reload config from disk.
+
+    This should be called when we need fresh glozone data, since the webserver
+    may have updated the config file in a separate process.
+    """
+    global _config
+    try:
+        _config = load_config_from_files()
+        logger.debug("GloZone config reloaded from disk")
+    except Exception as e:
+        logger.warning(f"Failed to reload glozone config from disk: {e}")
+
+
 def get_glozones() -> Dict[str, Dict[str, Any]]:
     """Get all GloZone definitions from config.
 

@@ -856,6 +856,9 @@ class CircadianLightPrimitives:
         """
         logger.info(f"[{source}] GloUp for area {area_id}")
 
+        # Reload glozone config from disk (webserver may have updated it)
+        glozone.reload()
+
         # Get the zone this area belongs to
         zone_name = glozone.get_zone_for_area(area_id)
         logger.info(f"Area {area_id} is in zone '{zone_name}'")
@@ -909,6 +912,9 @@ class CircadianLightPrimitives:
         """
         logger.info(f"[{source}] GloDown for area {area_id}")
 
+        # Reload glozone config from disk (webserver may have updated it)
+        glozone.reload()
+
         # Get the zone this area belongs to
         zone_name = glozone.get_zone_for_area(area_id)
         logger.info(f"Area {area_id} is in zone '{zone_name}'")
@@ -949,6 +955,9 @@ class CircadianLightPrimitives:
             source: Source of the action
         """
         logger.info(f"[{source}] GloReset for area {area_id}")
+
+        # Reload glozone config from disk (webserver may have updated it)
+        glozone.reload()
 
         # Get the zone this area belongs to
         zone_name = glozone.get_zone_for_area(area_id)

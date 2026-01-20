@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.85
+**Fix: GloZone changes now take effect immediately**
+
+- Added glozone.reload() to refresh config from disk before glo_up/glo_down/glo_reset
+- The webserver and main.py run as separate processes with separate memory
+- Now glozone operations reload fresh data from disk, so UI changes are seen immediately
+
 ## 6.8.81
 **Update: Hue Dimmer Switch blueprint button remapping**
 
