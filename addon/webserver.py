@@ -1084,7 +1084,7 @@ class LightDesignerServer:
         # Migrate to GloZone format if needed
         return self._migrate_to_glozone_format(config)
 
-    async def _repair_json_file(self, filepath: str) -> Optional[dict]:
+    async def _repair_json_file(self, filepath: str):
         """Attempt to repair a corrupted JSON file with duplicate content.
 
         When a JSON file has "Extra data" error, it usually means the file
