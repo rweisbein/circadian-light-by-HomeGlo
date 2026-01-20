@@ -279,35 +279,17 @@ manage_circadian_integration() {
     fi
     bashio::log.info "[Integration Debug] dest_manifest_version=${dest_manifest_version}"
 
-    # ALWAYS update if bundled version differs from destination
-    # This ensures new integration features are deployed even if Docker caches
-    if [ "${expected_source}" = "bundled" ] && \
-       [ -n "${expected_integration_version}" ] && \
-       [ "${dest_manifest_version}" = "${expected_integration_version}" ]; then
-        bashio::log.info "Circadian Light integration already up to date (version: ${expected_integration_version})."
-        return
-    fi
-
-    # For non-bundled sources, use the original logic
-    if [ "${expected_source}" != "bundled" ]; then
-        integration_versions_match="false"
-        if [ -z "${expected_integration_version}" ]; then
-            if [ -n "${dest_manifest_version}" ] && [ "${current_integration_version}" = "${dest_manifest_version}" ]; then
-                integration_versions_match="true"
-            elif [ -z "${dest_manifest_version}" ] && [ -z "${current_integration_version}" ]; then
-                integration_versions_match="true"
-            fi
-        else
-            if [ "${current_integration_version}" = "${expected_integration_version}" ] && \
-               [ "${dest_manifest_version}" = "${expected_integration_version}" ]; then
-                integration_versions_match="true"
-            fi
-        fi
-
-        if bashio::fs.directory_exists "${CIRCADIAN_DEST}" && \
-            [ "${current_source}" = "${expected_source}" ] && \
-            [ "${integration_versions_match}" = "true" ]; then
-            bashio::log.info "Circadian Light integration already up to date (source: ${expected_source})."
+    # FORCE UPDATE if destination version is below minimum required
+    # This ensures critical updates (like glo_up service) are always deployed
+    if [ -n "${dest_manifest_version}" ] && [ "${dest_manifest_version}" != "${MIN_INTEGRATION_VERSION}" ]; then
+        bashio::log.warning "Destination version ${dest_manifest_version} differs from required ${MIN_INTEGRATION_VERSION}. Forcing update..."
+    elif [ "${dest_manifest_version}" = "${MIN_INTEGRATION_VERSION}" ]; then
+        # Already at required version - check if sources match before skipping
+        if [ "${expected_source}" = "bundled" ] && [ -n "${expected_integration_version}" ]; then
+            bashio::log.info "Circadian Light integration already up to date (version: ${expected_integration_version})."
+            return
+        elif [ "${expected_source}" != "bundled" ] && [ "${current_source}" = "${expected_source}" ]; then
+            bashio::log.info "Circadian Light integration already up to date (version: ${dest_manifest_version})."
             return
         fi
     fi
