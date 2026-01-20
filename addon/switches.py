@@ -368,8 +368,31 @@ def add_pending_switch(switch_id: str, info: Dict[str, Any]) -> None:
 
 
 def get_pending_switches() -> Dict[str, Dict[str, Any]]:
-    """Get all pending/unconfigured switches."""
+    """Get all pending/unconfigured switches.
+
+    Reloads from disk to pick up changes from other processes.
+    """
+    _reload_pending()
     return _pending_switches.copy()
+
+
+def _reload_pending() -> None:
+    """Reload pending switches from disk (for cross-process sync)."""
+    global _pending_switches
+
+    if not _pending_file_path or not os.path.exists(_pending_file_path):
+        return
+
+    try:
+        with open(_pending_file_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        _pending_switches = data.get("pending", {})
+        # Remove any that have since been configured
+        for switch_id in list(_pending_switches.keys()):
+            if switch_id in _switches:
+                del _pending_switches[switch_id]
+    except Exception as e:
+        logger.warning(f"Failed to reload pending switches: {e}")
 
 
 def clear_pending_switch(switch_id: str) -> None:
