@@ -402,6 +402,11 @@ class CircadianLightPrimitives:
             logger.info(f"Circadian Light already enabled for area {area_id}")
             return
 
+        # Ensure area is in a zone (add to default zone if not)
+        if not glozone.is_area_in_any_zone(area_id):
+            glozone.add_area_to_default_zone(area_id)
+            logger.info(f"Added area {area_id} to default zone")
+
         # Enable in state (preserves existing brightness_mid, color_mid, frozen_at)
         state.set_enabled(area_id, True)
 
@@ -479,6 +484,11 @@ class CircadianLightPrimitives:
         else:
             # Turn on all areas with Circadian values
             for area_id in area_ids:
+                # Ensure area is in a zone (add to default zone if not)
+                if not glozone.is_area_in_any_zone(area_id):
+                    glozone.add_area_to_default_zone(area_id)
+                    logger.info(f"Added area {area_id} to default zone")
+
                 state.set_enabled(area_id, True)
 
                 # Get zone-aware config and calculate lighting (preserves area state)

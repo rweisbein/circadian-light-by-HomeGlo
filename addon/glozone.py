@@ -17,8 +17,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
-# Default zone name for unassigned areas
-DEFAULT_ZONE = "Unassigned"
+# Initial zone name (used for migration)
+INITIAL_ZONE_NAME = "Home"
 
 # Default preset name (used for migration and fallback)
 DEFAULT_PRESET = "Glo 1"
@@ -79,11 +79,11 @@ def get_glozones() -> Dict[str, Dict[str, Any]]:
     """Get all GloZone definitions from config.
 
     Returns:
-        Dict of zone_name -> zone config (preset, areas)
+        Dict of zone_name -> zone config (preset, areas, is_default)
     """
     if not _config:
-        return {DEFAULT_ZONE: {"preset": DEFAULT_PRESET, "areas": []}}
-    return _config.get("glozones", {DEFAULT_ZONE: {"preset": DEFAULT_PRESET, "areas": []}})
+        return {INITIAL_ZONE_NAME: {"preset": DEFAULT_PRESET, "areas": [], "is_default": True}}
+    return _config.get("glozones", {INITIAL_ZONE_NAME: {"preset": DEFAULT_PRESET, "areas": [], "is_default": True}})
 
 
 def get_presets() -> Dict[str, Dict[str, Any]]:
@@ -97,6 +97,168 @@ def get_presets() -> Dict[str, Dict[str, Any]]:
     return _config.get("circadian_presets", {})
 
 
+def get_default_zone() -> str:
+    """Get the name of the default zone.
+
+    The default zone is where new areas are automatically added.
+    Exactly one zone should have is_default=True.
+
+    Returns:
+        Name of the default zone
+    """
+    glozones = get_glozones()
+
+    # Find zone with is_default=True
+    for zone_name, zone_config in glozones.items():
+        if zone_config.get("is_default", False):
+            return zone_name
+
+    # Fallback: if no zone has is_default, use first zone
+    if glozones:
+        first_zone = next(iter(glozones.keys()))
+        logger.warning(f"No default zone set, using first zone: {first_zone}")
+        return first_zone
+
+    # Should never happen - there should always be at least one zone
+    logger.error("No zones found!")
+    return INITIAL_ZONE_NAME
+
+
+def set_default_zone(zone_name: str, save: bool = True) -> bool:
+    """Set which zone is the default.
+
+    Args:
+        zone_name: The zone to make default
+        save: Whether to save config to disk after change
+
+    Returns:
+        True if successful, False if zone doesn't exist
+    """
+    if not _config or "glozones" not in _config:
+        logger.error("Config not loaded")
+        return False
+
+    glozones = _config["glozones"]
+    if zone_name not in glozones:
+        logger.error(f"Zone '{zone_name}' does not exist")
+        return False
+
+    # Clear is_default from all zones, set on target
+    for zn, zone_config in glozones.items():
+        zone_config["is_default"] = (zn == zone_name)
+
+    logger.info(f"Set default zone to '{zone_name}'")
+
+    if save:
+        save_config()
+
+    return True
+
+
+def add_area_to_zone(area_id: str, zone_name: str, area_name: Optional[str] = None) -> bool:
+    """Add an area to a zone.
+
+    If the area is already in another zone, it will be moved.
+
+    Args:
+        area_id: The area ID to add
+        zone_name: The zone to add it to
+        area_name: Optional area name for display
+
+    Returns:
+        True if successful
+    """
+    if not _config or "glozones" not in _config:
+        logger.error("Config not loaded")
+        return False
+
+    glozones = _config["glozones"]
+    if zone_name not in glozones:
+        logger.error(f"Zone '{zone_name}' does not exist")
+        return False
+
+    # Remove from any existing zone first
+    for zn, zone_config in glozones.items():
+        areas = zone_config.get("areas", [])
+        zone_config["areas"] = [
+            a for a in areas
+            if not (
+                (isinstance(a, dict) and a.get("id") == area_id) or
+                (isinstance(a, str) and a == area_id)
+            )
+        ]
+
+    # Add to target zone
+    area_entry = {"id": area_id, "name": area_name} if area_name else area_id
+    glozones[zone_name].setdefault("areas", []).append(area_entry)
+
+    logger.info(f"Added area '{area_id}' to zone '{zone_name}'")
+    return True
+
+
+def add_area_to_default_zone(area_id: str, area_name: Optional[str] = None) -> bool:
+    """Add an area to the default zone.
+
+    Args:
+        area_id: The area ID to add
+        area_name: Optional area name for display
+
+    Returns:
+        True if successful
+    """
+    default_zone = get_default_zone()
+    result = add_area_to_zone(area_id, default_zone, area_name)
+    if result:
+        save_config()
+    return result
+
+
+def save_config() -> bool:
+    """Save the current config to disk.
+
+    Returns:
+        True if successful
+    """
+    if not _config:
+        logger.error("No config to save")
+        return False
+
+    data_dir = _get_data_directory()
+    designer_path = os.path.join(data_dir, "designer_config.json")
+
+    try:
+        with open(designer_path, 'w') as f:
+            json.dump(_config, f, indent=2)
+        logger.debug(f"Saved config to {designer_path}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to save config: {e}")
+        return False
+
+
+def is_area_in_any_zone(area_id: str) -> bool:
+    """Check if an area is explicitly in any zone.
+
+    Args:
+        area_id: The area ID to check
+
+    Returns:
+        True if area is in a zone
+    """
+    glozones = get_glozones()
+
+    for zone_config in glozones.values():
+        areas = zone_config.get("areas", [])
+        for area in areas:
+            if isinstance(area, dict):
+                if area.get("id") == area_id:
+                    return True
+            elif area == area_id:
+                return True
+
+    return False
+
+
 def get_zone_for_area(area_id: str) -> str:
     """Get the zone name for an area.
 
@@ -104,7 +266,7 @@ def get_zone_for_area(area_id: str) -> str:
         area_id: The area ID to look up
 
     Returns:
-        Zone name, or DEFAULT_ZONE if area is not assigned
+        Zone name, or the default zone if area is not explicitly assigned
     """
     glozones = get_glozones()
 
@@ -118,7 +280,8 @@ def get_zone_for_area(area_id: str) -> str:
             elif area == area_id:
                 return zone_name
 
-    return DEFAULT_ZONE
+    # Area not found in any zone - return the default zone
+    return get_default_zone()
 
 
 def get_areas_in_zone(zone_name: str) -> List[str]:
@@ -207,7 +370,7 @@ def get_all_zone_names() -> List[str]:
 
 
 def ensure_default_zone_exists() -> None:
-    """Ensure the default zone exists in config.
+    """Ensure at least one zone exists and exactly one is marked as default.
 
     Should be called after config migration/load.
     """
@@ -217,12 +380,26 @@ def ensure_default_zone_exists() -> None:
     if "glozones" not in _config:
         _config["glozones"] = {}
 
-    if DEFAULT_ZONE not in _config["glozones"]:
-        _config["glozones"][DEFAULT_ZONE] = {
+    glozones = _config["glozones"]
+
+    # If no zones exist, create the initial zone
+    if not glozones:
+        glozones[INITIAL_ZONE_NAME] = {
             "preset": DEFAULT_PRESET,
-            "areas": []
+            "areas": [],
+            "is_default": True
         }
-        logger.info(f"Created default zone '{DEFAULT_ZONE}'")
+        logger.info(f"Created initial zone '{INITIAL_ZONE_NAME}'")
+        return
+
+    # Check if any zone has is_default=True
+    has_default = any(zc.get("is_default", False) for zc in glozones.values())
+
+    if not has_default:
+        # No default set - make the first zone the default
+        first_zone = next(iter(glozones.keys()))
+        glozones[first_zone]["is_default"] = True
+        logger.info(f"Set '{first_zone}' as default zone (no default was set)")
 
 
 def is_config_migrated() -> bool:
@@ -316,9 +493,10 @@ def _migrate_config(config: Dict[str, Any]) -> Dict[str, Any]:
             DEFAULT_PRESET: preset_config
         },
         "glozones": {
-            DEFAULT_ZONE: {
+            INITIAL_ZONE_NAME: {
                 "preset": DEFAULT_PRESET,
-                "areas": []
+                "areas": [],
+                "is_default": True
             }
         },
     }
@@ -327,7 +505,7 @@ def _migrate_config(config: Dict[str, Any]) -> Dict[str, Any]:
     new_config.update(global_config)
 
     logger.info(f"Migration complete: created preset '{DEFAULT_PRESET}' "
-                f"and zone '{DEFAULT_ZONE}'")
+                f"and zone '{INITIAL_ZONE_NAME}' (default)")
 
     return new_config
 

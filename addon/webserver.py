@@ -867,9 +867,10 @@ class LightDesignerServer:
                 glozone.DEFAULT_PRESET: preset_config
             },
             "glozones": {
-                glozone.DEFAULT_ZONE: {
+                glozone.INITIAL_ZONE_NAME: {
                     "preset": glozone.DEFAULT_PRESET,
-                    "areas": []
+                    "areas": [],
+                    "is_default": True
                 }
             },
         }
@@ -878,7 +879,7 @@ class LightDesignerServer:
         new_config.update(global_config)
 
         logger.info(f"Migration complete: created preset '{glozone.DEFAULT_PRESET}' "
-                    f"and zone '{glozone.DEFAULT_ZONE}'")
+                    f"and zone '{glozone.INITIAL_ZONE_NAME}' (default)")
 
         return new_config
 
@@ -2149,6 +2150,7 @@ class LightDesignerServer:
                     "preset": zone_config.get("preset"),
                     "areas": zone_config.get("areas", []),
                     "runtime": runtime,
+                    "is_default": zone_config.get("is_default", False),
                 }
 
             return web.json_response({"zones": result})
@@ -2196,7 +2198,7 @@ class LightDesignerServer:
             return web.json_response({"error": str(e)}, status=500)
 
     async def update_glozone(self, request: Request) -> Response:
-        """Update a GloZone (preset, areas, or rename)."""
+        """Update a GloZone (preset, areas, rename, or set as default)."""
         try:
             name = request.match_info.get("name")
             data = await request.json()
@@ -2209,17 +2211,12 @@ class LightDesignerServer:
             # Handle rename if "name" field is provided
             new_name = data.pop("name", None)
             if new_name and new_name != name:
-                if name == glozone.DEFAULT_ZONE:
-                    return web.json_response(
-                        {"error": f"Cannot rename default Glo Zone '{name}'"},
-                        status=400
-                    )
                 if new_name in config.get("glozones", {}):
                     return web.json_response(
                         {"error": f"Glo Zone '{new_name}' already exists"},
                         status=400
                     )
-                # Rename the zone
+                # Rename the zone (preserve is_default status)
                 config["glozones"][new_name] = config["glozones"].pop(name)
                 logger.info(f"Renamed GloZone: {name} -> {new_name}")
                 name = new_name
@@ -2238,6 +2235,13 @@ class LightDesignerServer:
             if "areas" in data:
                 config["glozones"][name]["areas"] = data["areas"]
 
+            # Handle is_default - setting this zone as the default
+            if data.get("is_default"):
+                # Clear is_default from all zones, set on this one
+                for zn, zc in config["glozones"].items():
+                    zc["is_default"] = (zn == name)
+                logger.info(f"Set '{name}' as default zone")
+
             await self.save_config_to_file(config)
             glozone.set_config(config)
 
@@ -2250,30 +2254,43 @@ class LightDesignerServer:
             return web.json_response({"error": str(e)}, status=500)
 
     async def delete_glozone(self, request: Request) -> Response:
-        """Delete a GloZone (moves areas to Unassigned)."""
+        """Delete a GloZone (moves areas to default zone)."""
         try:
             name = request.match_info.get("name")
 
-            if name == glozone.DEFAULT_ZONE:
+            config = await self.load_raw_config()
+            zones = config.get("glozones", {})
+
+            if name not in zones:
+                return web.json_response({"error": f"Zone '{name}' not found"}, status=404)
+
+            # Cannot delete the last zone
+            if len(zones) <= 1:
                 return web.json_response(
-                    {"error": f"Cannot delete default zone '{name}'"},
+                    {"error": "Cannot delete the last zone"},
                     status=400
                 )
 
-            config = await self.load_raw_config()
+            # If deleting the default zone, make another zone the default first
+            is_default = zones[name].get("is_default", False)
+            if is_default:
+                # Find another zone to make default
+                other_zone = next((zn for zn in zones.keys() if zn != name), None)
+                if other_zone:
+                    zones[other_zone]["is_default"] = True
+                    logger.info(f"Transferred default status to '{other_zone}'")
 
-            if name not in config.get("glozones", {}):
-                return web.json_response({"error": f"Zone '{name}' not found"}, status=404)
+            # Find the new default zone to move areas to
+            default_zone = next(
+                (zn for zn, zc in zones.items() if zc.get("is_default") and zn != name),
+                next((zn for zn in zones.keys() if zn != name), None)
+            )
 
-            # Move areas to Unassigned zone
-            areas = config["glozones"][name].get("areas", [])
-            if areas:
-                config.setdefault("glozones", {}).setdefault(glozone.DEFAULT_ZONE, {
-                    "preset": glozone.DEFAULT_PRESET,
-                    "areas": []
-                })
-                config["glozones"][glozone.DEFAULT_ZONE]["areas"].extend(areas)
-                logger.info(f"Moved {len(areas)} areas to {glozone.DEFAULT_ZONE}")
+            # Move areas to default zone
+            areas = zones[name].get("areas", [])
+            if areas and default_zone:
+                zones[default_zone].setdefault("areas", []).extend(areas)
+                logger.info(f"Moved {len(areas)} areas to '{default_zone}'")
 
             del config["glozones"][name]
 
@@ -2331,18 +2348,32 @@ class LightDesignerServer:
             return web.json_response({"error": str(e)}, status=500)
 
     async def remove_area_from_zone(self, request: Request) -> Response:
-        """Remove an area from a GloZone (moves to Unassigned)."""
+        """Remove an area from a GloZone (moves to default zone)."""
         try:
             zone_name = request.match_info.get("name")
             area_id = request.match_info.get("area_id")
 
             config = await self.load_raw_config()
+            zones = config.get("glozones", {})
 
-            if zone_name not in config.get("glozones", {}):
+            if zone_name not in zones:
                 return web.json_response({"error": f"Zone '{zone_name}' not found"}, status=404)
 
+            # Find the default zone
+            default_zone = next(
+                (zn for zn, zc in zones.items() if zc.get("is_default")),
+                next(iter(zones.keys()), None)
+            )
+
+            # Can't remove from default zone (areas must always be in a zone)
+            if zone_name == default_zone:
+                return web.json_response(
+                    {"error": "Cannot remove area from default zone. Move it to another zone instead."},
+                    status=400
+                )
+
             # Find and remove the area
-            areas = config["glozones"][zone_name].get("areas", [])
+            areas = zones[zone_name].get("areas", [])
             area_entry = None
             new_areas = []
             for a in areas:
@@ -2359,17 +2390,14 @@ class LightDesignerServer:
 
             config["glozones"][zone_name]["areas"] = new_areas
 
-            # Add to Unassigned zone
-            config.setdefault("glozones", {}).setdefault(glozone.DEFAULT_ZONE, {
-                "preset": glozone.DEFAULT_PRESET,
-                "areas": []
-            })
-            config["glozones"][glozone.DEFAULT_ZONE]["areas"].append(area_entry)
+            # Add to default zone
+            if default_zone:
+                zones[default_zone].setdefault("areas", []).append(area_entry)
 
             await self.save_config_to_file(config)
             glozone.set_config(config)
 
-            logger.info(f"Removed area {area_id} from zone {zone_name}, moved to {glozone.DEFAULT_ZONE}")
+            logger.info(f"Removed area {area_id} from zone {zone_name}, moved to {default_zone}")
             return web.json_response({"status": "removed", "area_id": area_id})
         except Exception as e:
             logger.error(f"Error removing area from zone: {e}")

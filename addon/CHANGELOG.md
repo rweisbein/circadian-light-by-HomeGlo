@@ -1,5 +1,16 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.90
+**Feature: Default zone replaces "Unassigned" concept**
+
+- Every area is now always in exactly one zone - no more "Unassigned" areas
+- One zone is marked as the default (`is_default: true`) where new areas are automatically added
+- User can change which zone is the default via the API (`PUT /api/glozones/{name}` with `is_default: true`)
+- New areas discovered when Circadian is enabled are automatically added to the default zone
+- Cannot delete the last zone; deleting default zone transfers default status to another zone
+- Initial zone is named "Home" instead of "Unassigned"
+- glo_up/glo_down/glo_reset now work correctly because all areas are explicitly in zones
+
 ## 6.8.87
 **Fix: Auto-repair corrupted designer_config.json**
 
