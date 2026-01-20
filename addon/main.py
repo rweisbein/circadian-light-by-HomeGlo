@@ -684,34 +684,45 @@ class HomeAssistantWebSocketClient:
         if not areas:
             return
 
-        # Store current color
-        original_colors = {}
+        # Store current state (on/off and color)
+        original_states = {}
         for area in areas:
             light_entity = self._get_fallback_group_entity(area)
             if light_entity and light_entity in self.cached_states:
                 state = self.cached_states[light_entity]
-                if state.get("state") == "on":
-                    attrs = state.get("attributes", {})
-                    original_colors[area] = {
-                        "color_temp": attrs.get("color_temp"),
-                        "rgb_color": attrs.get("rgb_color"),
-                        "xy_color": attrs.get("xy_color"),
-                    }
+                was_on = state.get("state") == "on"
+                attrs = state.get("attributes", {}) if was_on else {}
+                original_states[area] = {
+                    "was_on": was_on,
+                    "color_temp": attrs.get("color_temp"),
+                    "rgb_color": attrs.get("rgb_color"),
+                    "xy_color": attrs.get("xy_color"),
+                    "brightness": attrs.get("brightness", 128),
+                }
+            else:
+                # No cached state - assume off
+                original_states[area] = {"was_on": False}
 
-        # Flash red
+        # Flash red (turn on with red color)
         for area in areas:
-            await self._set_area_color_quick(area, rgb_color=[255, 50, 50])
+            await self._set_area_color_quick(area, rgb_color=[255, 50, 50], brightness=100)
 
         await asyncio.sleep(0.3)
 
-        # Restore original colors
-        for area, colors in original_colors.items():
-            if colors.get("color_temp"):
-                await self._set_area_color_quick(area, color_temp=colors["color_temp"])
-            elif colors.get("rgb_color"):
-                await self._set_area_color_quick(area, rgb_color=colors["rgb_color"])
-            elif colors.get("xy_color"):
-                await self._set_area_color_quick(area, xy_color=colors["xy_color"])
+        # Restore original states
+        for area, orig in original_states.items():
+            if not orig.get("was_on"):
+                # Was off - turn it back off
+                await self.call_service("light", "turn_off", {}, target={"area_id": area})
+            elif orig.get("color_temp"):
+                await self._set_area_color_quick(area, color_temp=orig["color_temp"], brightness=orig.get("brightness"))
+            elif orig.get("rgb_color"):
+                await self._set_area_color_quick(area, rgb_color=orig["rgb_color"], brightness=orig.get("brightness"))
+            elif orig.get("xy_color"):
+                await self._set_area_color_quick(area, xy_color=orig["xy_color"], brightness=orig.get("brightness"))
+            else:
+                # Was on but no color info - just restore brightness
+                await self._set_area_brightness_quick(area, orig.get("brightness", 128))
 
     async def _set_area_brightness_quick(self, area: str, brightness: int) -> None:
         """Quickly set brightness for an area (no transition)."""
@@ -728,6 +739,7 @@ class HomeAssistantWebSocketClient:
         rgb_color: List[int] = None,
         color_temp: int = None,
         xy_color: List[float] = None,
+        brightness: int = None,
     ) -> None:
         """Quickly set color for an area (no transition)."""
         service_data = {"transition": 0}
@@ -737,6 +749,8 @@ class HomeAssistantWebSocketClient:
             service_data["color_temp"] = color_temp
         elif xy_color:
             service_data["xy_color"] = xy_color
+        if brightness is not None:
+            service_data["brightness"] = brightness
 
         await self.call_service(
             "light",
