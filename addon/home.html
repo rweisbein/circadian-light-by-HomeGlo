@@ -588,12 +588,14 @@
       const container = document.getElementById('zones-container');
       const unassignedContainer = document.getElementById('unassigned-areas');
 
-      // Get all assigned area IDs
+      // Get all assigned area IDs (excluding "Unassigned" zone - those ARE unassigned)
       const assignedAreaIds = new Set();
-      Object.values(zones).forEach(zone => {
-        (zone.areas || []).forEach(a => {
-          assignedAreaIds.add(typeof a === 'string' ? a : a.id);
-        });
+      Object.entries(zones).forEach(([zoneName, zone]) => {
+        if (zoneName !== 'Unassigned') {
+          (zone.areas || []).forEach(a => {
+            assignedAreaIds.add(typeof a === 'string' ? a : a.id);
+          });
+        }
       });
 
       // Filter out Unassigned zone for main display
