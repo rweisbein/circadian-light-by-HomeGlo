@@ -598,18 +598,26 @@ def load_config_from_files(data_dir: Optional[str] = None) -> Dict[str, Any]:
     needs_migration = "circadian_presets" not in config or "glozones" not in config
     config = _migrate_config(config)
 
-    # Save migrated config to disk so we don't re-migrate every load
-    if needs_migration:
+    # Cache the config first so ensure_default_zone_exists can use it
+    _config = config
+
+    # Ensure at least one zone has is_default=True (handles existing configs)
+    had_default = any(
+        zc.get("is_default", False)
+        for zc in config.get("glozones", {}).values()
+    )
+    ensure_default_zone_exists()
+    needs_save = needs_migration or not had_default
+
+    # Save config to disk if changes were made
+    if needs_save:
         designer_path = os.path.join(data_dir, "designer_config.json")
         try:
             with open(designer_path, 'w') as f:
                 json.dump(config, f, indent=2)
-            logger.info(f"Saved migrated config to {designer_path}")
+            logger.info(f"Saved config to {designer_path}")
         except Exception as e:
-            logger.warning(f"Failed to save migrated config: {e}")
-
-    # Cache the config
-    _config = config
+            logger.warning(f"Failed to save config: {e}")
 
     return config
 

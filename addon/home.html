@@ -224,6 +224,26 @@
       background: rgba(239, 68, 68, 0.1);
     }
 
+    .zone-set-default {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 6px;
+      border-radius: 4px;
+      transition: all 0.2s;
+      font-size: 1rem;
+    }
+
+    .zone-set-default:hover {
+      color: var(--warning);
+      background: rgba(245, 158, 11, 0.1);
+    }
+
+    .default-badge {
+      font-size: 0.9rem;
+    }
+
     /* Area Chips */
     .zone-areas {
       padding: 16px 20px;
@@ -661,19 +681,18 @@
     function renderZones() {
       const container = document.getElementById('zones-container');
       const unassignedContainer = document.getElementById('unassigned-areas');
+      const unassignedSection = document.querySelector('.unassigned-section');
 
-      // Get all assigned area IDs (excluding "Unassigned" zone - those ARE unassigned)
+      // Get all assigned area IDs from ALL zones
       const assignedAreaIds = new Set();
       Object.entries(zones).forEach(([zoneName, zone]) => {
-        if (zoneName !== 'Unassigned') {
-          (zone.areas || []).forEach(a => {
-            assignedAreaIds.add(typeof a === 'string' ? a : a.id);
-          });
-        }
+        (zone.areas || []).forEach(a => {
+          assignedAreaIds.add(typeof a === 'string' ? a : a.id);
+        });
       });
 
-      // Filter out Unassigned zone for main display
-      const displayZones = Object.entries(zones).filter(([name]) => name !== 'Unassigned');
+      // Display all zones
+      const displayZones = Object.entries(zones);
 
       if (displayZones.length === 0) {
         container.innerHTML = '<div class="loading">No zones created yet. Add a Glo Zone to get started.</div>';
@@ -682,12 +701,14 @@
         setupZoneEventListeners();
       }
 
-      // Render unassigned areas
+      // Render areas not yet in any zone (will be auto-added to default when Circadian is enabled)
       const unassignedAreas = allAreas.filter(a => !assignedAreaIds.has(a.area_id));
 
       if (unassignedAreas.length === 0) {
-        unassignedContainer.innerHTML = '<span class="zone-areas-empty">All areas are assigned to zones</span>';
+        // Hide the section entirely when all areas are assigned
+        if (unassignedSection) unassignedSection.style.display = 'none';
       } else {
+        if (unassignedSection) unassignedSection.style.display = 'block';
         unassignedContainer.innerHTML = unassignedAreas.map(area => renderAreaChip(area, null)).join('');
       }
 
@@ -698,6 +719,8 @@
       const areas = zone.areas || [];
       const presetName = zone.preset || 'Glo 1';
       const preset = presetsData[presetName] || {};
+      const isDefault = zone.is_default === true;
+      const isLastZone = Object.keys(zones).length === 1;
 
       const presetOptions = presets.map(p =>
         `<option value="${p}" ${presetName === p ? 'selected' : ''}>${p}</option>`
@@ -721,9 +744,11 @@
             <div class="zone-header-top">
               <div class="zone-name">
                 <input type="text" class="zone-name-edit" value="${zoneName}" data-zone="${zoneName}" data-original="${zoneName}">
+                ${isDefault ? '<span class="default-badge" title="Default zone - new areas are added here">⭐</span>' : ''}
               </div>
               <div class="zone-controls">
-                <button class="zone-delete" data-zone="${zoneName}" title="Delete zone">&times;</button>
+                ${!isDefault && !isLastZone ? `<button class="zone-set-default" data-zone="${zoneName}" title="Set as default zone">☆</button>` : ''}
+                ${!isLastZone ? `<button class="zone-delete" data-zone="${zoneName}" title="Delete zone">&times;</button>` : ''}
               </div>
             </div>
             <div class="zone-glo-row">
@@ -811,6 +836,11 @@
       // Zone delete
       document.querySelectorAll('.zone-delete').forEach(btn => {
         btn.addEventListener('click', handleZoneDelete);
+      });
+
+      // Set as default
+      document.querySelectorAll('.zone-set-default').forEach(btn => {
+        btn.addEventListener('click', handleSetDefault);
       });
     }
 
@@ -944,7 +974,7 @@
 
     async function handleZoneDelete(e) {
       const zoneName = e.target.dataset.zone;
-      if (!confirm(`Delete zone "${zoneName}"? Areas will become unassigned.`)) return;
+      if (!confirm(`Delete zone "${zoneName}"? Areas will be moved to the default zone.`)) return;
 
       try {
         await fetch(`./api/glozones/${encodeURIComponent(zoneName)}`, {
@@ -953,6 +983,20 @@
         await loadData();
       } catch (err) {
         console.error('Error deleting zone:', err);
+      }
+    }
+
+    async function handleSetDefault(e) {
+      const zoneName = e.target.dataset.zone;
+      try {
+        await fetch(`./api/glozones/${encodeURIComponent(zoneName)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ is_default: true })
+        });
+        await loadData();
+      } catch (err) {
+        console.error('Error setting default zone:', err);
       }
     }
 

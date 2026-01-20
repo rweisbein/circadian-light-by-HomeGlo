@@ -1,5 +1,14 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.91
+**Fix: Glo Zones page now properly uses default zone flag**
+
+- Fixed `home.html` to use `is_default` flag instead of hardcoded "Unassigned" zone name
+- "Unassigned Areas" section now hidden when all areas are assigned to zones
+- Default zone shown with ⭐ indicator; non-default zones show ☆ to set as default
+- Delete button hidden for last remaining zone (must always have at least one)
+- Existing configs get `is_default: true` added to first zone on load
+
 ## 6.8.90
 **Feature: Default zone replaces "Unassigned" concept**
 

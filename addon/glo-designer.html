@@ -4716,16 +4716,17 @@ function renderZonesList() {
   container.innerHTML = zoneNames.map(zoneName => {
     const zone = glozonesData[zoneName];
     const areaCount = (zone.areas || []).length;
-    const isDefault = zoneName === 'Unassigned';
+    const isDefault = zone.is_default === true;
+    const isLastZone = zoneNames.length === 1;
     return `
       <div class="glozone-item ${selectedZone === zoneName ? 'selected' : ''}" data-zone="${zoneName}">
         <div class="glozone-item-info">
-          <span class="glozone-item-name">${zoneName}</span>
+          <span class="glozone-item-name">${zoneName}${isDefault ? ' ⭐' : ''}</span>
           <span class="glozone-item-meta">${zone.preset || 'Glo 1'} &bull; ${areaCount} area${areaCount !== 1 ? 's' : ''}</span>
         </div>
         <div class="glozone-item-actions">
           <button class="edit" data-zone="${zoneName}">Edit</button>
-          ${!isDefault ? `<button class="delete" data-zone="${zoneName}">Delete</button>` : ''}
+          ${!isLastZone ? `<button class="delete" data-zone="${zoneName}">Delete</button>` : ''}
         </div>
       </div>
     `;
@@ -4890,6 +4891,7 @@ function showZoneDetail(zoneName) {
   const presetSelect = document.getElementById('zone-preset-select');
   const zoneAreas = document.getElementById('zone-areas');
   const availableAreas = document.getElementById('available-areas');
+  const setDefaultBtn = document.getElementById('zone-set-default-btn');
 
   if (!detail || !zoneName) {
     if (detail) detail.style.display = 'none';
@@ -4900,8 +4902,14 @@ function showZoneDetail(zoneName) {
   if (!zone) return;
 
   detail.style.display = 'block';
-  title.textContent = zoneName;
+  title.textContent = zoneName + (zone.is_default ? ' ⭐' : '');
   presetSelect.value = zone.preset || 'Glo 1';
+
+  // Show/hide "Set as Default" button
+  if (setDefaultBtn) {
+    setDefaultBtn.style.display = zone.is_default ? 'none' : 'block';
+    setDefaultBtn.onclick = () => setZoneAsDefault(zoneName);
+  }
 
   // Render areas in this zone (draggable)
   const zoneAreaIds = (zone.areas || []).map(a => typeof a === 'string' ? a : a.id);
@@ -5015,7 +5023,7 @@ async function updateZonePreset(zoneName, preset) {
  * Delete a zone via API
  */
 async function deleteZone(zoneName) {
-  if (!confirm(`Delete Glo Zone "${zoneName}"? Areas will be moved to Unassigned.`)) return;
+  if (!confirm(`Delete Glo Zone "${zoneName}"? Areas will be moved to the default zone.`)) return;
 
   try {
     const response = await fetch(`./api/glozones/${encodeURIComponent(zoneName)}`, {
@@ -5030,6 +5038,28 @@ async function deleteZone(zoneName) {
     }
   } catch (err) {
     console.error('Error deleting zone:', err);
+  }
+}
+
+/**
+ * Set a zone as the default zone via API
+ */
+async function setZoneAsDefault(zoneName) {
+  try {
+    const response = await fetch(`./api/glozones/${encodeURIComponent(zoneName)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_default: true })
+    });
+    if (response.ok) {
+      await fetchGlozones();
+      // Re-select the zone to update the detail view
+      if (selectedZone === zoneName) {
+        showZoneDetail(zoneName);
+      }
+    }
+  } catch (err) {
+    console.error('Error setting default zone:', err);
   }
 }
 
