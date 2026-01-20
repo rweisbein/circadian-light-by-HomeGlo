@@ -43,8 +43,13 @@ def _get_default_area_state() -> Dict[str, Any]:
 
 def _get_data_directory() -> str:
     """Get the appropriate data directory based on environment."""
-    if os.path.exists("/data"):
-        # Running in Home Assistant
+    # Prefer /config/circadian-light (visible in HA config folder, included in backups)
+    if os.path.exists("/config"):
+        data_dir = "/config/circadian-light"
+        os.makedirs(data_dir, exist_ok=True)
+        return data_dir
+    elif os.path.exists("/data"):
+        # Fallback to /data
         return "/data"
     else:
         # Running in development - use local .data directory

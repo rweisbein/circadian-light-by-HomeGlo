@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.95
+**Fix: Store config in visible /config folder**
+
+- Config files now stored in `/config/circadian-light/` instead of hidden `/data/`
+- This folder is visible in HA config folder and included in HA backups
+- Automatically migrates existing config from `/data/` if present
+- You can now see and backup `designer_config.json` directly
+
 ## 6.8.94
 **Fix: Prevent config data loss from failed loads**
 

@@ -326,14 +326,20 @@ class LightDesignerServer:
         self.setup_routes()
 
         # Detect environment and set appropriate paths
-        # In Home Assistant, /data directory exists. In dev, use local directory
-        if os.path.exists("/data"):
-            # Running in Home Assistant
+        # Prefer /config/circadian-light (visible in HA config folder, included in backups)
+        # Fall back to /data for backward compatibility, then local .data for dev
+        if os.path.exists("/config"):
+            # Running in Home Assistant - use config folder (visible and backed up)
+            self.data_dir = "/config/circadian-light"
+            os.makedirs(self.data_dir, exist_ok=True)
+            # Migrate from old /data location if needed
+            self._migrate_data_location_sync()
+        elif os.path.exists("/data"):
+            # Fallback to /data if /config not available
             self.data_dir = "/data"
         else:
             # Running in development - use local .data directory
             self.data_dir = os.path.join(os.path.dirname(__file__), ".data")
-            # Create directory if it doesn't exist
             os.makedirs(self.data_dir, exist_ok=True)
             logger.info(f"Development mode: using {self.data_dir} for configuration storage")
 
@@ -347,7 +353,27 @@ class LightDesignerServer:
         self.live_design_color_lights: list = []  # Color-capable lights in area
         self.live_design_ct_lights: list = []  # CT-only lights in area
         self.live_design_saved_states: dict = {}  # Saved light states to restore when ending
-        
+
+    def _migrate_data_location_sync(self):
+        """Migrate config files from /data to /config/circadian-light if they exist."""
+        old_data_dir = "/data"
+        if not os.path.exists(old_data_dir):
+            return
+
+        files_to_migrate = ["designer_config.json", "options.json"]
+        for filename in files_to_migrate:
+            old_path = os.path.join(old_data_dir, filename)
+            new_path = os.path.join(self.data_dir, filename)
+
+            # Only migrate if old file exists and new file doesn't
+            if os.path.exists(old_path) and not os.path.exists(new_path):
+                try:
+                    import shutil
+                    shutil.copy2(old_path, new_path)
+                    logger.info(f"Migrated {filename} from {old_data_dir} to {self.data_dir}")
+                except Exception as e:
+                    logger.warning(f"Failed to migrate {filename}: {e}")
+
     def setup_routes(self):
         """Set up web routes."""
         # API routes - must handle all ingress prefixes

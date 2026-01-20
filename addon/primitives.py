@@ -24,7 +24,12 @@ logger = logging.getLogger(__name__)
 
 def _get_data_directory() -> str:
     """Get the appropriate data directory based on environment."""
-    if os.path.exists("/data"):
+    # Prefer /config/circadian-light (visible in HA config folder, included in backups)
+    if os.path.exists("/config"):
+        data_dir = "/config/circadian-light"
+        os.makedirs(data_dir, exist_ok=True)
+        return data_dir
+    elif os.path.exists("/data"):
         return "/data"
     else:
         data_dir = os.path.join(os.path.dirname(__file__), ".data")
