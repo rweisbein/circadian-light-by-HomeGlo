@@ -89,7 +89,7 @@ PY
 }
 
 download_integration_source() {
-    local target_path download_url tmp_dir archive_path source_path repo_root blueprint_base
+    local target_path download_url tmp_dir archive_path source_path repo_root blueprint_base downloaded_version
 
     target_path="$1"
     download_url="$2"
@@ -103,11 +103,14 @@ download_integration_source() {
 
     bashio::log.info "Downloading Circadian Light integration from ${download_url}..."
 
-    if ! curl -sSL -o "${archive_path}" "${download_url}"; then
+    # Add cache-busting and no-cache headers
+    if ! curl -sSL -H "Cache-Control: no-cache" -H "Pragma: no-cache" -o "${archive_path}" "${download_url}?t=$(date +%s)"; then
         bashio::log.error "Failed to download Circadian Light integration archive."
         rm -rf "${tmp_dir}"
         return 1
     fi
+
+    bashio::log.info "[Download Debug] Archive size: $(wc -c < "${archive_path}") bytes"
 
     if ! tar -xzf "${archive_path}" -C "${tmp_dir}"; then
         bashio::log.error "Failed to extract Circadian Light integration archive."
@@ -123,8 +126,16 @@ download_integration_source() {
         return 1
     fi
 
+    # Log the version we downloaded
+    downloaded_version=""
+    if [ -f "${source_path}/manifest.json" ]; then
+        downloaded_version=$(read_manifest_version "${source_path}/manifest.json" || echo "unknown")
+    fi
+    bashio::log.info "[Download Debug] Downloaded integration version: ${downloaded_version}"
+
     repo_root="$(dirname "$(dirname "${source_path}")")"
 
+    bashio::log.info "[Download Debug] Removing existing ${target_path}..."
     if [ -e "${target_path}" ]; then
         rm -rf "${target_path}"
     fi
@@ -136,6 +147,13 @@ download_integration_source() {
         rm -rf "${tmp_dir}"
         return 1
     fi
+
+    # Verify what was deployed
+    local deployed_version=""
+    if [ -f "${target_path}/manifest.json" ]; then
+        deployed_version=$(read_manifest_version "${target_path}/manifest.json" || echo "unknown")
+    fi
+    bashio::log.info "[Download Debug] Deployed integration version: ${deployed_version}"
 
     blueprint_base="${repo_root}/blueprints"
     if [ -d "${blueprint_base}" ]; then
