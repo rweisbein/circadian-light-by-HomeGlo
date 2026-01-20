@@ -347,11 +347,12 @@ class HomeAssistantWebSocketClient:
             return
 
         # Hue dimmers send duplicate events on multiple clusters:
+        # - Cluster 5 (Scenes) for OFF button
         # - Cluster 6 (On/Off) for ON/OFF buttons
         # - Cluster 8 (Level Control) for UP/DOWN buttons
         # - Cluster 64512 (Hue proprietary) for ALL buttons with detailed info
         # We only want to handle cluster 64512 to avoid double-firing
-        if switch_config.type == "hue_dimmer" and cluster_id in (6, 8):
+        if switch_config.type == "hue_dimmer" and cluster_id in (5, 6, 8):
             logger.debug(f"Ignoring cluster {cluster_id} event for Hue dimmer (will use cluster 64512)")
             return
 
@@ -606,17 +607,16 @@ class HomeAssistantWebSocketClient:
 
         # Count valid scopes
         valid_scopes = [i for i, s in enumerate(switch_config.scopes) if s.areas]
+
         if len(valid_scopes) <= 1:
-            # Only one scope - show error feedback
-            await self._show_scope_error_feedback(switch_id)
-            return
-
-        # Cycle to next scope
-        new_scope = switches.cycle_scope(switch_id)
-        new_areas = switch_config.get_areas_for_scope(new_scope)
-
-        # Show visual feedback (pulse count = scope number)
-        await self._show_scope_feedback(new_areas, new_scope + 1)  # 1-indexed
+            # Only one scope - just show scope 1 feedback (not an error)
+            areas = switch_config.get_areas_for_scope(0)
+            await self._show_scope_feedback(areas, 1)
+        else:
+            # Multiple scopes - cycle to next and show feedback
+            new_scope = switches.cycle_scope(switch_id)
+            new_areas = switch_config.get_areas_for_scope(new_scope)
+            await self._show_scope_feedback(new_areas, new_scope + 1)  # 1-indexed
 
     async def _show_scope_feedback(self, areas: List[str], scope_number: int) -> None:
         """Show visual feedback for scope change (color flash).
@@ -636,23 +636,15 @@ class HomeAssistantWebSocketClient:
         }
         flash_color = scope_colors.get(scope_number, [50, 255, 50])
 
-        # Store current state (on/off and color) for each area
-        original_states = {}
+        # Store on/off state for each area
+        was_on = {}
         for area in areas:
             light_entity = self._get_fallback_group_entity(area)
             if light_entity and light_entity in self.cached_states:
-                state = self.cached_states[light_entity]
-                was_on = state.get("state") == "on"
-                attrs = state.get("attributes", {}) if was_on else {}
-                original_states[area] = {
-                    "was_on": was_on,
-                    "color_temp": attrs.get("color_temp"),
-                    "rgb_color": attrs.get("rgb_color"),
-                    "xy_color": attrs.get("xy_color"),
-                    "brightness": attrs.get("brightness", 128),
-                }
+                area_state = self.cached_states[light_entity]
+                was_on[area] = area_state.get("state") == "on"
             else:
-                original_states[area] = {"was_on": False}
+                was_on[area] = False
 
         # Determine flash brightness for lights that were off (based on sun position)
         sun_is_up = False
@@ -663,26 +655,20 @@ class HomeAssistantWebSocketClient:
 
         # Flash the scope color
         for area in areas:
-            orig = original_states.get(area, {})
-            if orig.get("was_on"):
+            if was_on.get(area):
                 await self._set_area_color_quick(area, rgb_color=flash_color)
             else:
                 await self._set_area_color_quick(area, rgb_color=flash_color, brightness=off_flash_brightness)
 
         await asyncio.sleep(0.3)
 
-        # Restore original states
-        for area, orig in original_states.items():
-            if not orig.get("was_on"):
+        # Restore: turn off if was off, re-apply circadian lighting if was on
+        for area in areas:
+            if not was_on.get(area):
                 await self.call_service("light", "turn_off", {}, target={"area_id": area})
-            elif orig.get("color_temp"):
-                await self._set_area_color_quick(area, color_temp=orig["color_temp"], brightness=orig.get("brightness"))
-            elif orig.get("rgb_color"):
-                await self._set_area_color_quick(area, rgb_color=orig["rgb_color"], brightness=orig.get("brightness"))
-            elif orig.get("xy_color"):
-                await self._set_area_color_quick(area, xy_color=orig["xy_color"], brightness=orig.get("brightness"))
             else:
-                await self._set_area_brightness_quick(area, orig.get("brightness", 128))
+                # Re-apply circadian lighting from state
+                await self.update_lights_in_circadian_mode(area)
 
     async def _show_scope_error_feedback(self, switch_id: str) -> None:
         """Show error feedback when can't cycle scope (flash red).
