@@ -416,8 +416,19 @@ def load_config_from_files(data_dir: Optional[str] = None) -> Dict[str, Any]:
             except Exception as e:
                 logger.debug(f"Could not load config from {path}: {e}")
 
-    # Migrate to GloZone format
+    # Migrate to GloZone format if needed
+    needs_migration = "circadian_presets" not in config or "glozones" not in config
     config = _migrate_config(config)
+
+    # Save migrated config to disk so we don't re-migrate every load
+    if needs_migration:
+        designer_path = os.path.join(data_dir, "designer_config.json")
+        try:
+            with open(designer_path, 'w') as f:
+                json.dump(config, f, indent=2)
+            logger.info(f"Saved migrated config to {designer_path}")
+        except Exception as e:
+            logger.warning(f"Failed to save migrated config: {e}")
 
     # Cache the config
     _config = config
