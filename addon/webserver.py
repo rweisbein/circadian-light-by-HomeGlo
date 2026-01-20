@@ -2145,25 +2145,40 @@ class LightDesignerServer:
             if not ha_areas:
                 return
 
+            # Ensure glozones dict exists
+            if "glozones" not in config:
+                config["glozones"] = {}
+            zones = config["glozones"]
+
             # Get all area IDs currently in zones
-            zones = config.get("glozones", {})
             assigned_area_ids = set()
             for zone_config in zones.values():
                 for area in zone_config.get("areas", []):
                     area_id = area.get("id") if isinstance(area, dict) else area
                     assigned_area_ids.add(area_id)
 
-            # Find the default zone
+            # Find the default zone, or create one if none exists
             default_zone_name = next(
                 (name for name, zc in zones.items() if zc.get("is_default")),
                 next(iter(zones.keys()), None)
             )
             if not default_zone_name:
-                return
+                # No zones exist - create the initial "Home" zone
+                default_zone_name = glozone.INITIAL_ZONE_NAME
+                zones[default_zone_name] = {
+                    "preset": glozone.DEFAULT_PRESET,
+                    "areas": [],
+                    "is_default": True
+                }
+                logger.info(f"Created initial default zone '{default_zone_name}'")
 
             # Add unassigned areas to default zone
             unassigned = [a for a in ha_areas if a.get("area_id") not in assigned_area_ids]
             if not unassigned:
+                # Still save if we created a new zone
+                if len(zones) == 1 and not zones[default_zone_name].get("areas"):
+                    await self.save_config_to_file(config)
+                    glozone.set_config(config)
                 return
 
             logger.info(f"Migrating {len(unassigned)} unassigned areas to default zone '{default_zone_name}'")
