@@ -387,8 +387,8 @@ class CircadianLightPrimitives:
     async def circadian_on(self, area_id: str, source: str = "service_call"):
         """Enable Circadian Light mode and turn on lights.
 
-        Copies zone state to area on enable, so the area inherits the zone's
-        current brightness/color settings.
+        Preserves area's existing state (brightness_mid, color_mid, frozen_at).
+        Use reset or GloDown to reset state.
 
         Args:
             area_id: The area ID to control
@@ -402,20 +402,10 @@ class CircadianLightPrimitives:
             logger.info(f"Circadian Light already enabled for area {area_id}")
             return
 
-        # Enable in state
+        # Enable in state (preserves existing brightness_mid, color_mid, frozen_at)
         state.set_enabled(area_id, True)
 
-        # Copy zone state to area on enable
-        zone_name = glozone.get_zone_for_area(area_id)
-        zone_state = glozone_state.get_zone_state(zone_name)
-        state.update_area(area_id, {
-            "brightness_mid": zone_state.get("brightness_mid"),
-            "color_mid": zone_state.get("color_mid"),
-            "frozen_at": zone_state.get("frozen_at"),
-        })
-        logger.debug(f"Copied zone '{zone_name}' state to area {area_id}: {zone_state}")
-
-        # Calculate and apply lighting (use frozen_at if set, otherwise current time)
+        # Calculate and apply lighting (use area's frozen_at if set, otherwise current time)
         config = self._get_config(area_id)
         area_state = self._get_area_state(area_id)
         hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
@@ -462,8 +452,7 @@ class CircadianLightPrimitives:
         If ANY lights are on in ANY area: turn all off, disable Circadian
         If ALL lights are off: turn all on with Circadian values, enable
 
-        On enable, copies zone state to each area so they inherit their zone's
-        current brightness/color settings.
+        Preserves each area's existing state. Use reset or GloDown to reset state.
 
         Args:
             area_ids: List of area IDs
@@ -492,20 +481,10 @@ class CircadianLightPrimitives:
             for area_id in area_ids:
                 state.set_enabled(area_id, True)
 
-                # Copy zone state to area on enable
-                zone_name = glozone.get_zone_for_area(area_id)
-                zone_state = glozone_state.get_zone_state(zone_name)
-                state.update_area(area_id, {
-                    "brightness_mid": zone_state.get("brightness_mid"),
-                    "color_mid": zone_state.get("color_mid"),
-                    "frozen_at": zone_state.get("frozen_at"),
-                })
-                logger.debug(f"Copied zone '{zone_name}' state to area {area_id}")
-
-                # Get zone-aware config and calculate lighting
+                # Get zone-aware config and calculate lighting (preserves area state)
                 config = self._get_config(area_id)
                 area_state = self._get_area_state(area_id)
-                # Use frozen_at if set, otherwise current time
+                # Use area's frozen_at if set, otherwise current time
                 hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
 
                 result = CircadianLight.calculate_lighting(hour, config, area_state)

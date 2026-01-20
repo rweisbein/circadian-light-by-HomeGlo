@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.68
+**Behavior Fixes**
+
+- **Removed state reset from circadian_on and circadian_toggle**: These no longer copy zone state to area on enable. Area state is preserved. Use reset or GloDown to reset state.
+- **Fixed area status for Unassigned areas**: Areas in "Unassigned" zone now show status (enabled, brightness) in Home page instead of grey circles.
+- **Fixed area ID extraction**: Area status API now correctly handles areas stored as `{id, name}` objects.
+
 ## 6.8.65
 **Settings: Use Home Assistant Location Toggle**
 

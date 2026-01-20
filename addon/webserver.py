@@ -1668,19 +1668,16 @@ class LightDesignerServer:
             # Get current hour for calculations
             current_hour = get_current_hour()
 
-            # Build response for each area in zones
+            # Build response for each area in zones (including Unassigned)
             area_status = {}
             for zone_name, zone_data in glozones.items():
-                if zone_name == 'Unassigned':
-                    continue
-
                 preset_name = zone_data.get('preset', 'Glo 1')
                 preset_settings = presets.get(preset_name, {})
-                zone_state = glozone_state.get_zone_state(zone_name)
-                is_frozen = zone_state.get('frozen_at') is not None
+                zone_state_data = glozone_state.get_zone_state(zone_name)
+                is_frozen = zone_state_data.get('frozen_at') is not None
 
                 # Use frozen hour or current hour
-                calc_hour = zone_state.get('frozen_at') if is_frozen else current_hour
+                calc_hour = zone_state_data.get('frozen_at') if is_frozen else current_hour
 
                 # Calculate brightness from circadian curve
                 brightness = 50  # Default
@@ -1694,13 +1691,15 @@ class LightDesignerServer:
                     logger.warning(f"Error calculating brightness for zone {zone_name}: {e}")
 
                 # Add status for each area in this zone
-                for area_id in zone_data.get('areas', []):
+                for area in zone_data.get('areas', []):
+                    # Areas can be stored as {id, name} or just string
+                    area_id = area.get('id') if isinstance(area, dict) else area
                     area_state_data = state.get_area(area_id)
                     area_status[area_id] = {
                         'enabled': area_state_data.get('enabled', False),
                         'brightness': brightness,
                         'frozen': is_frozen,
-                        'zone_name': zone_name
+                        'zone_name': zone_name if zone_name != 'Unassigned' else None
                     }
 
             logger.debug(f"[Area Status] Returning status for {len(area_status)} areas")
