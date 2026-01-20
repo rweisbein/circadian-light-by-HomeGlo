@@ -17,6 +17,7 @@ from astral import LocationInfo
 from astral.sun import sun
 
 import state
+import switches
 import glozone
 import glozone_state
 from brain import (
@@ -438,8 +439,25 @@ class LightDesignerServer:
         self.app.router.add_post('/api/glozone/glo-down', self.handle_glo_down)
         self.app.router.add_post('/api/glozone/glo-reset', self.handle_glo_reset)
 
+        # Switches API routes
+        self.app.router.add_route('GET', '/{path:.*}/api/switches', self.get_switches)
+        self.app.router.add_route('POST', '/{path:.*}/api/switches', self.create_switch)
+        self.app.router.add_route('PUT', '/{path:.*}/api/switches/{switch_id}', self.update_switch)
+        self.app.router.add_route('DELETE', '/{path:.*}/api/switches/{switch_id}', self.delete_switch)
+        self.app.router.add_route('GET', '/{path:.*}/api/switches/pending', self.get_pending_switches)
+        self.app.router.add_route('DELETE', '/{path:.*}/api/switches/pending/{switch_id}', self.dismiss_pending_switch)
+        self.app.router.add_route('GET', '/{path:.*}/api/switch-types', self.get_switch_types)
+        self.app.router.add_get('/api/switches', self.get_switches)
+        self.app.router.add_post('/api/switches', self.create_switch)
+        self.app.router.add_put('/api/switches/{switch_id}', self.update_switch)
+        self.app.router.add_delete('/api/switches/{switch_id}', self.delete_switch)
+        self.app.router.add_get('/api/switches/pending', self.get_pending_switches)
+        self.app.router.add_delete('/api/switches/pending/{switch_id}', self.dismiss_pending_switch)
+        self.app.router.add_get('/api/switch-types', self.get_switch_types)
+
         # Page routes - specific pages first, then catch-all
         # With ingress path prefix
+        self.app.router.add_route('GET', '/{path:.*}/switches', self.serve_switches)
         self.app.router.add_route('GET', '/{path:.*}/glo/{glo_name}', self.serve_glo_designer)
         self.app.router.add_route('GET', '/{path:.*}/glo', self.serve_glo_designer)
         self.app.router.add_route('GET', '/{path:.*}/settings', self.serve_settings)
@@ -2597,6 +2615,196 @@ class LightDesignerServer:
             return web.json_response({"error": "Invalid JSON"}, status=400)
         except Exception as e:
             logger.error(f"Error handling glo_reset: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    # -------------------------------------------------------------------------
+    # Switch Management API endpoints
+    # -------------------------------------------------------------------------
+
+    async def serve_switches(self, request: Request) -> Response:
+        """Serve the Switches configuration page."""
+        return await self.serve_page("switches")
+
+    async def get_switches(self, request: Request) -> Response:
+        """Get all configured switches."""
+        try:
+            switches_data = switches.get_switches_summary()
+            return web.json_response({"switches": switches_data})
+        except Exception as e:
+            logger.error(f"Error getting switches: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def create_switch(self, request: Request) -> Response:
+        """Create a new switch configuration."""
+        try:
+            data = await request.json()
+
+            switch_id = data.get("id")
+            if not switch_id:
+                return web.json_response({"error": "Switch ID is required"}, status=400)
+
+            name = data.get("name", f"Switch ({switch_id[-8:]})")
+            switch_type = data.get("type", "hue_dimmer")
+
+            # Validate switch type
+            if switch_type not in switches.SWITCH_TYPES:
+                return web.json_response(
+                    {"error": f"Invalid switch type: {switch_type}"},
+                    status=400
+                )
+
+            # Build scopes from data
+            scopes_data = data.get("scopes", [])
+            scopes = []
+            for scope_data in scopes_data:
+                areas = scope_data.get("areas", [])
+                scopes.append(switches.SwitchScope(areas=areas))
+
+            # Ensure at least one scope
+            if not scopes:
+                scopes = [switches.SwitchScope(areas=[])]
+
+            # Create switch config
+            switch_config = switches.SwitchConfig(
+                id=switch_id,
+                name=name,
+                type=switch_type,
+                scopes=scopes,
+                button_overrides=data.get("button_overrides", {}),
+            )
+
+            switches.add_switch(switch_config)
+
+            return web.json_response({
+                "status": "ok",
+                "switch": switch_config.to_dict()
+            })
+
+        except json.JSONDecodeError:
+            return web.json_response({"error": "Invalid JSON"}, status=400)
+        except Exception as e:
+            logger.error(f"Error creating switch: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def update_switch(self, request: Request) -> Response:
+        """Update an existing switch configuration."""
+        try:
+            switch_id = request.match_info.get("switch_id")
+            if not switch_id:
+                return web.json_response({"error": "Switch ID is required"}, status=400)
+
+            existing = switches.get_switch(switch_id)
+            if not existing:
+                return web.json_response({"error": "Switch not found"}, status=404)
+
+            data = await request.json()
+
+            # Update fields if provided
+            name = data.get("name", existing.name)
+            switch_type = data.get("type", existing.type)
+
+            # Validate switch type
+            if switch_type not in switches.SWITCH_TYPES:
+                return web.json_response(
+                    {"error": f"Invalid switch type: {switch_type}"},
+                    status=400
+                )
+
+            # Update scopes if provided
+            if "scopes" in data:
+                scopes = []
+                for scope_data in data["scopes"]:
+                    areas = scope_data.get("areas", [])
+                    scopes.append(switches.SwitchScope(areas=areas))
+            else:
+                scopes = existing.scopes
+
+            # Ensure at least one scope
+            if not scopes:
+                scopes = [switches.SwitchScope(areas=[])]
+
+            # Update button overrides if provided
+            button_overrides = data.get("button_overrides", existing.button_overrides)
+
+            # Create updated config
+            switch_config = switches.SwitchConfig(
+                id=switch_id,
+                name=name,
+                type=switch_type,
+                scopes=scopes,
+                button_overrides=button_overrides,
+            )
+
+            switches.add_switch(switch_config)
+
+            return web.json_response({
+                "status": "ok",
+                "switch": switch_config.to_dict()
+            })
+
+        except json.JSONDecodeError:
+            return web.json_response({"error": "Invalid JSON"}, status=400)
+        except Exception as e:
+            logger.error(f"Error updating switch: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def delete_switch(self, request: Request) -> Response:
+        """Delete a switch configuration."""
+        try:
+            switch_id = request.match_info.get("switch_id")
+            if not switch_id:
+                return web.json_response({"error": "Switch ID is required"}, status=400)
+
+            if switches.remove_switch(switch_id):
+                return web.json_response({"status": "ok", "deleted": switch_id})
+            else:
+                return web.json_response({"error": "Switch not found"}, status=404)
+
+        except Exception as e:
+            logger.error(f"Error deleting switch: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def get_pending_switches(self, request: Request) -> Response:
+        """Get all pending/detected but unconfigured switches."""
+        try:
+            pending = switches.get_pending_switches_summary()
+            return web.json_response({"pending": pending})
+        except Exception as e:
+            logger.error(f"Error getting pending switches: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def dismiss_pending_switch(self, request: Request) -> Response:
+        """Dismiss a pending switch (remove from pending list)."""
+        try:
+            switch_id = request.match_info.get("switch_id")
+            if not switch_id:
+                return web.json_response({"error": "Switch ID is required"}, status=400)
+
+            switches.clear_pending_switch(switch_id)
+            return web.json_response({"status": "ok", "dismissed": switch_id})
+
+        except Exception as e:
+            logger.error(f"Error dismissing pending switch: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def get_switch_types(self, request: Request) -> Response:
+        """Get all available switch type definitions."""
+        try:
+            types = switches.get_all_switch_types()
+            # Format for API response
+            result = {}
+            for type_id, type_info in types.items():
+                result[type_id] = {
+                    "name": type_info.get("name"),
+                    "manufacturer": type_info.get("manufacturer"),
+                    "models": type_info.get("models", []),
+                    "buttons": type_info.get("buttons", []),
+                    "action_types": type_info.get("action_types", []),
+                    "default_mapping": type_info.get("default_mapping", {}),
+                }
+            return web.json_response({"types": result})
+        except Exception as e:
+            logger.error(f"Error getting switch types: {e}")
             return web.json_response({"error": str(e)}, status=500)
 
     async def start(self):

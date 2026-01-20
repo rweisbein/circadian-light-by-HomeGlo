@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Circadian Light - Switches</title>
+  <style>
+    :root {
+      --bg: #000;
+      --panel: #111;
+      --card: #1a1a1a;
+      --accent: #6366f1;
+      --accent-hover: #818cf8;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --muted2: #64748b;
+      --line: #334155;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* Navigation */
+    .nav {
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      height: 56px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .nav-brand {
+      font-weight: 600;
+      font-size: 1.1rem;
+      color: var(--text);
+      margin-right: 32px;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 8px;
+    }
+
+    .nav-link {
+      padding: 8px 16px;
+      color: var(--muted);
+      text-decoration: none;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+
+    .nav-link:hover {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .nav-link.active {
+      color: var(--accent);
+      background: rgba(99, 102, 241, 0.1);
+    }
+
+    /* Main Content */
+    .main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .page-header {
+      margin-bottom: 24px;
+    }
+
+    .page-title {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .page-subtitle {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    /* Section Headers */
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+
+    /* Switch Cards */
+    .switches-container {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+
+    .switch-card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .switch-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel);
+    }
+
+    .switch-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .switch-name {
+      font-weight: 600;
+      font-size: 1rem;
+    }
+
+    .switch-type {
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    .switch-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .switch-scope-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: rgba(99, 102, 241, 0.1);
+      border: 1px solid rgba(99, 102, 241, 0.2);
+      border-radius: 6px;
+      color: var(--accent);
+      font-size: 0.85rem;
+    }
+
+    .switch-edit {
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      cursor: pointer;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      transition: all 0.2s;
+    }
+
+    .switch-edit:hover {
+      color: var(--text);
+      border-color: var(--accent);
+    }
+
+    .switch-delete {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 6px;
+      border-radius: 4px;
+      transition: all 0.2s;
+      font-size: 1.2rem;
+    }
+
+    .switch-delete:hover {
+      color: var(--danger);
+      background: rgba(239, 68, 68, 0.1);
+    }
+
+    /* Switch Scopes */
+    .switch-scopes {
+      padding: 16px 20px;
+    }
+
+    .scope-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 12px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      margin-bottom: 8px;
+    }
+
+    .scope-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .scope-item.active {
+      border-color: var(--accent);
+      background: rgba(99, 102, 241, 0.05);
+    }
+
+    .scope-number {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      font-size: 0.85rem;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .scope-item.active .scope-number {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+    }
+
+    .scope-areas {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      flex: 1;
+    }
+
+    .scope-area-chip {
+      padding: 4px 10px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      font-size: 0.8rem;
+    }
+
+    .scope-empty {
+      color: var(--muted2);
+      font-style: italic;
+      font-size: 0.85rem;
+    }
+
+    /* Pending Switches */
+    .pending-section {
+      margin-top: 32px;
+    }
+
+    .pending-card {
+      background: var(--card);
+      border: 1px solid var(--warning);
+      border-radius: 12px;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .pending-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .pending-name {
+      font-weight: 500;
+    }
+
+    .pending-details {
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    .pending-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    /* Empty States */
+    .empty-state {
+      text-align: center;
+      padding: 48px 24px;
+      color: var(--muted);
+    }
+
+    .empty-state-title {
+      font-size: 1.1rem;
+      margin-bottom: 8px;
+      color: var(--text);
+    }
+
+    .empty-state-text {
+      font-size: 0.9rem;
+      max-width: 400px;
+      margin: 0 auto;
+    }
+
+    /* Loading State */
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 48px;
+      color: var(--muted);
+    }
+
+    /* Buttons */
+    .btn {
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      border: none;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-hover);
+    }
+
+    .btn-cancel {
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--muted);
+    }
+
+    .btn-cancel:hover {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text);
+    }
+
+    .btn-danger {
+      background: transparent;
+      border: 1px solid var(--danger);
+      color: var(--danger);
+    }
+
+    .btn-danger:hover {
+      background: rgba(239, 68, 68, 0.1);
+    }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.2s;
+    }
+
+    .modal-overlay.visible {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 24px;
+      min-width: 400px;
+      max-width: 90%;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .modal h3 {
+      margin-bottom: 20px;
+      font-size: 1.1rem;
+    }
+
+    .modal-section {
+      margin-bottom: 20px;
+    }
+
+    .modal-label {
+      display: block;
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    .modal-input {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 0.9rem;
+    }
+
+    .modal-input:focus {
+      outline: 2px solid var(--accent);
+    }
+
+    .modal-select {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+
+    .modal-select:focus {
+      outline: 2px solid var(--accent);
+    }
+
+    /* Scope Editor */
+    .scope-editor {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      margin-bottom: 12px;
+    }
+
+    .scope-editor-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .scope-editor-title {
+      font-weight: 500;
+      font-size: 0.9rem;
+    }
+
+    .scope-editor-remove {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 1.1rem;
+      padding: 4px;
+    }
+
+    .scope-editor-remove:hover {
+      color: var(--danger);
+    }
+
+    .scope-editor-body {
+      padding: 12px;
+    }
+
+    .area-selector {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .area-checkbox {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .area-checkbox:hover {
+      border-color: var(--accent);
+    }
+
+    .area-checkbox.selected {
+      background: rgba(99, 102, 241, 0.1);
+      border-color: var(--accent);
+    }
+
+    .area-checkbox input {
+      display: none;
+    }
+
+    .area-checkbox-label {
+      font-size: 0.85rem;
+    }
+
+    .add-scope-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 12px;
+      background: transparent;
+      border: 2px dashed var(--line);
+      border-radius: 8px;
+      color: var(--muted);
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      width: 100%;
+    }
+
+    .add-scope-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 24px;
+    }
+
+    /* Info text */
+    .info-text {
+      color: var(--muted);
+      font-size: 0.85rem;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Navigation -->
+  <nav class="nav">
+    <span class="nav-brand">Circadian Light</span>
+    <div class="nav-links">
+      <a href="./" class="nav-link">Glo Zones</a>
+      <a href="./glo" class="nav-link">Glo</a>
+      <a href="./switches" class="nav-link active">Switches</a>
+      <a href="./settings" class="nav-link">Settings</a>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="main">
+    <div class="page-header">
+      <h1 class="page-title">Switches</h1>
+      <p class="page-subtitle">Configure your switches and their scopes</p>
+    </div>
+
+    <!-- Pending Switches (detected but not configured) -->
+    <div class="pending-section" id="pending-section" style="display: none;">
+      <div class="section-header">
+        <h2 class="section-title">New Switches Detected</h2>
+      </div>
+      <div id="pending-container"></div>
+    </div>
+
+    <!-- Configured Switches -->
+    <div class="section-header">
+      <h2 class="section-title">Configured Switches</h2>
+    </div>
+    <div class="switches-container" id="switches-container">
+      <div class="loading">Loading switches...</div>
+    </div>
+  </main>
+
+  <!-- Edit Switch Modal -->
+  <div class="modal-overlay" id="modal-overlay">
+    <div class="modal">
+      <h3 id="modal-title">Configure Switch</h3>
+
+      <div class="modal-section">
+        <label class="modal-label">Switch Name</label>
+        <input type="text" class="modal-input" id="switch-name" placeholder="e.g., Bedroom Dimmer">
+      </div>
+
+      <div class="modal-section">
+        <label class="modal-label">Switch Type</label>
+        <select class="modal-select" id="switch-type">
+          <!-- Populated by JS -->
+        </select>
+      </div>
+
+      <div class="modal-section">
+        <label class="modal-label">Scopes</label>
+        <p class="info-text">Each scope is a set of areas the switch will control. Cycle through scopes with the bottom button (short press).</p>
+        <div id="scopes-editor" style="margin-top: 12px;">
+          <!-- Scope editors populated by JS -->
+        </div>
+        <button class="add-scope-btn" id="add-scope-btn">
+          <span>+</span> Add Scope
+        </button>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn btn-cancel" id="modal-cancel">Cancel</button>
+        <button class="btn btn-primary" id="modal-save">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Data from server
+    const circadianData = window.circadianData || { config: {} };
+
+    // State
+    let switches = [];
+    let pendingSwitches = [];
+    let switchTypes = {};
+    let allAreas = [];
+    let editingSwitchId = null;
+    let editingScopes = [];
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      loadData();
+      setupEventListeners();
+    });
+
+    async function loadData() {
+      try {
+        // Load switches, pending, types, and areas in parallel
+        const [switchesRes, pendingRes, typesRes, areasRes] = await Promise.all([
+          fetch('./api/switches'),
+          fetch('./api/switches/pending'),
+          fetch('./api/switch-types'),
+          fetch('./api/areas')
+        ]);
+
+        if (switchesRes.ok) {
+          const data = await switchesRes.json();
+          switches = data.switches || [];
+        }
+
+        if (pendingRes.ok) {
+          const data = await pendingRes.json();
+          pendingSwitches = data.pending || [];
+        }
+
+        if (typesRes.ok) {
+          const data = await typesRes.json();
+          switchTypes = data.types || {};
+        }
+
+        if (areasRes.ok) {
+          allAreas = await areasRes.json();
+        }
+
+        render();
+      } catch (err) {
+        console.error('Error loading data:', err);
+        document.getElementById('switches-container').innerHTML =
+          '<div class="loading">Error loading data</div>';
+      }
+    }
+
+    function render() {
+      renderSwitches();
+      renderPendingSwitches();
+      populateTypeSelect();
+    }
+
+    function renderSwitches() {
+      const container = document.getElementById('switches-container');
+
+      if (switches.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-title">No switches configured</div>
+            <div class="empty-state-text">
+              Press a button on a switch to detect it, then configure it here.
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = switches.map(sw => renderSwitchCard(sw)).join('');
+    }
+
+    function renderSwitchCard(sw) {
+      const validScopes = sw.scopes.filter(s => s.areas && s.areas.length > 0);
+      const currentScope = sw.current_scope || 1;
+
+      const scopesHtml = sw.scopes.map((scope, idx) => {
+        const isActive = (idx + 1) === currentScope;
+        const areasHtml = scope.areas && scope.areas.length > 0
+          ? scope.areas.map(a => `<span class="scope-area-chip">${getAreaName(a)}</span>`).join('')
+          : '<span class="scope-empty">No areas assigned</span>';
+
+        return `
+          <div class="scope-item ${isActive ? 'active' : ''}">
+            <span class="scope-number">${idx + 1}</span>
+            <div class="scope-areas">${areasHtml}</div>
+          </div>
+        `;
+      }).join('');
+
+      return `
+        <div class="switch-card" data-switch-id="${sw.id}">
+          <div class="switch-header">
+            <div class="switch-info">
+              <span class="switch-name">${sw.name}</span>
+              <span class="switch-type">${sw.type_name || sw.type}</span>
+            </div>
+            <div class="switch-controls">
+              <span class="switch-scope-badge">
+                Scope ${currentScope} of ${validScopes.length || sw.scopes.length}
+              </span>
+              <button class="switch-edit" onclick="editSwitch('${sw.id}')">Edit</button>
+              <button class="switch-delete" onclick="deleteSwitch('${sw.id}')">&times;</button>
+            </div>
+          </div>
+          <div class="switch-scopes">
+            ${scopesHtml || '<span class="scope-empty">No scopes configured</span>'}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderPendingSwitches() {
+      const section = document.getElementById('pending-section');
+      const container = document.getElementById('pending-container');
+
+      if (pendingSwitches.length === 0) {
+        section.style.display = 'none';
+        return;
+      }
+
+      section.style.display = 'block';
+      container.innerHTML = pendingSwitches.map(sw => `
+        <div class="pending-card">
+          <div class="pending-info">
+            <span class="pending-name">${sw.name}</span>
+            <span class="pending-details">
+              ${sw.manufacturer || 'Unknown'} ${sw.model || ''}
+              ${sw.detected_type ? `- Detected as ${switchTypes[sw.detected_type]?.name || sw.detected_type}` : ''}
+            </span>
+          </div>
+          <div class="pending-actions">
+            <button class="btn btn-primary" onclick="configureSwitch('${sw.id}', '${sw.name}', '${sw.detected_type || 'hue_dimmer'}')">
+              Configure
+            </button>
+            <button class="btn btn-cancel" onclick="dismissPending('${sw.id}')">
+              Dismiss
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function populateTypeSelect() {
+      const select = document.getElementById('switch-type');
+      select.innerHTML = Object.entries(switchTypes).map(([id, type]) =>
+        `<option value="${id}">${type.name}</option>`
+      ).join('');
+    }
+
+    function getAreaName(areaId) {
+      const area = allAreas.find(a => a.area_id === areaId);
+      return area ? area.name : areaId;
+    }
+
+    function setupEventListeners() {
+      document.getElementById('modal-cancel').addEventListener('click', hideModal);
+      document.getElementById('modal-save').addEventListener('click', saveSwitch);
+      document.getElementById('modal-overlay').addEventListener('click', (e) => {
+        if (e.target.classList.contains('modal-overlay')) hideModal();
+      });
+      document.getElementById('add-scope-btn').addEventListener('click', addScope);
+    }
+
+    // Modal functions
+    function showModal() {
+      document.getElementById('modal-overlay').classList.add('visible');
+    }
+
+    function hideModal() {
+      document.getElementById('modal-overlay').classList.remove('visible');
+      editingSwitchId = null;
+      editingScopes = [];
+    }
+
+    function configureSwitch(id, name, type) {
+      editingSwitchId = id;
+      editingScopes = [{ areas: [] }];
+
+      document.getElementById('modal-title').textContent = 'Configure New Switch';
+      document.getElementById('switch-name').value = name;
+      document.getElementById('switch-type').value = type;
+
+      renderScopesEditor();
+      showModal();
+    }
+
+    function editSwitch(id) {
+      const sw = switches.find(s => s.id === id);
+      if (!sw) return;
+
+      editingSwitchId = id;
+      editingScopes = sw.scopes.map(s => ({ areas: [...s.areas] }));
+      if (editingScopes.length === 0) {
+        editingScopes = [{ areas: [] }];
+      }
+
+      document.getElementById('modal-title').textContent = 'Edit Switch';
+      document.getElementById('switch-name').value = sw.name;
+      document.getElementById('switch-type').value = sw.type;
+
+      renderScopesEditor();
+      showModal();
+    }
+
+    function renderScopesEditor() {
+      const container = document.getElementById('scopes-editor');
+      container.innerHTML = editingScopes.map((scope, idx) => `
+        <div class="scope-editor" data-scope-idx="${idx}">
+          <div class="scope-editor-header">
+            <span class="scope-editor-title">Scope ${idx + 1}</span>
+            ${editingScopes.length > 1 ? `<button class="scope-editor-remove" onclick="removeScope(${idx})">&times;</button>` : ''}
+          </div>
+          <div class="scope-editor-body">
+            <div class="area-selector">
+              ${allAreas.map(area => `
+                <label class="area-checkbox ${scope.areas.includes(area.area_id) ? 'selected' : ''}">
+                  <input type="checkbox"
+                         ${scope.areas.includes(area.area_id) ? 'checked' : ''}
+                         onchange="toggleArea(${idx}, '${area.area_id}')">
+                  <span class="area-checkbox-label">${area.name}</span>
+                </label>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function addScope() {
+      if (editingScopes.length >= 3) {
+        alert('Maximum 3 scopes allowed');
+        return;
+      }
+      editingScopes.push({ areas: [] });
+      renderScopesEditor();
+    }
+
+    function removeScope(idx) {
+      if (editingScopes.length <= 1) return;
+      editingScopes.splice(idx, 1);
+      renderScopesEditor();
+    }
+
+    function toggleArea(scopeIdx, areaId) {
+      const scope = editingScopes[scopeIdx];
+      const idx = scope.areas.indexOf(areaId);
+      if (idx >= 0) {
+        scope.areas.splice(idx, 1);
+      } else {
+        scope.areas.push(areaId);
+      }
+      renderScopesEditor();
+    }
+
+    async function saveSwitch() {
+      const name = document.getElementById('switch-name').value.trim();
+      const type = document.getElementById('switch-type').value;
+
+      if (!name) {
+        alert('Please enter a switch name');
+        return;
+      }
+
+      const payload = {
+        id: editingSwitchId,
+        name: name,
+        type: type,
+        scopes: editingScopes
+      };
+
+      try {
+        const isNew = !switches.find(s => s.id === editingSwitchId);
+        const response = await fetch(
+          isNew ? './api/switches' : `./api/switches/${encodeURIComponent(editingSwitchId)}`,
+          {
+            method: isNew ? 'POST' : 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          }
+        );
+
+        if (!response.ok) {
+          const data = await response.json();
+          alert(data.error || 'Failed to save switch');
+          return;
+        }
+
+        hideModal();
+        await loadData();
+      } catch (err) {
+        console.error('Error saving switch:', err);
+        alert('Error saving switch');
+      }
+    }
+
+    async function deleteSwitch(id) {
+      const sw = switches.find(s => s.id === id);
+      if (!confirm(`Delete switch "${sw?.name || id}"?`)) return;
+
+      try {
+        await fetch(`./api/switches/${encodeURIComponent(id)}`, {
+          method: 'DELETE'
+        });
+        await loadData();
+      } catch (err) {
+        console.error('Error deleting switch:', err);
+      }
+    }
+
+    async function dismissPending(id) {
+      try {
+        await fetch(`./api/switches/pending/${encodeURIComponent(id)}`, {
+          method: 'DELETE'
+        });
+        await loadData();
+      } catch (err) {
+        console.error('Error dismissing pending switch:', err);
+      }
+    }
+
+    // Auto-refresh periodically
+    setInterval(loadData, 30000);
+  </script>
+</body>
+</html>

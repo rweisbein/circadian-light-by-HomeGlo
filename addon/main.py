@@ -15,6 +15,7 @@ from websockets.client import WebSocketClientProtocol
 from ha_blueprint_manager import BlueprintAutomationManager
 
 import state
+import switches
 import glozone
 from primitives import CircadianLightPrimitives
 from brain import (
@@ -76,6 +77,7 @@ class HomeAssistantWebSocketClient:
         self.cached_states = {}  # Cache of entity states
         self.last_states_update = None  # Timestamp of last states update
         self.area_parity_cache = {}  # Cache of area ZHA parity status
+        self.device_registry: Dict[str, Dict[str, Any]] = {}  # device_id -> device info
 
         # Light capability cache for color mode detection
         self.light_color_modes: Dict[str, Set[str]] = {}  # entity_id -> set of supported color modes
@@ -86,6 +88,12 @@ class HomeAssistantWebSocketClient:
 
         # Initialize state module (loads from circadian_state.json)
         state.init()
+
+        # Initialize switches module (loads from switches_config.json)
+        switches.init()
+
+        # Hold repeat task for ramping
+        self._hold_repeat_task: Optional[asyncio.Task] = None
 
         manage_blueprints_env = os.getenv("MANAGE_CIRCADIAN_BLUEPRINTS", "true").lower()
         self.manage_blueprints = manage_blueprints_env not in ("false", "0", "no")
@@ -314,6 +322,436 @@ class HomeAssistantWebSocketClient:
             if entity:
                 return entity
         return None
+
+    # =========================================================================
+    # ZHA Switch Event Handling
+    # =========================================================================
+
+    async def _handle_zha_event(self, event_data: Dict[str, Any]) -> None:
+        """Handle a ZHA event (switch button press).
+
+        Args:
+            event_data: Event data from zha_event
+        """
+        device_ieee = event_data.get("device_ieee")
+        device_id = event_data.get("device_id")
+        command = event_data.get("command")
+        args = event_data.get("args", {})
+
+        if not device_ieee or not command:
+            return
+
+        logger.debug(f"ZHA event: device={device_ieee}, command={command}, args={args}")
+
+        # Check if this switch is configured
+        switch_config = switches.get_switch(device_ieee)
+
+        if not switch_config:
+            # Unconfigured switch - add to pending list
+            await self._handle_unconfigured_switch(device_ieee, event_data)
+            return
+
+        # Map the ZHA command to our button event format
+        button_event = self._map_zha_command_to_button_event(command, args, switch_config.type)
+
+        if not button_event:
+            logger.debug(f"Unmapped ZHA command: {command}")
+            return
+
+        # Get the action for this button event
+        action = switch_config.get_button_action(button_event)
+
+        if action is None:
+            logger.debug(f"No action mapped for {button_event}")
+            return
+
+        logger.info(f"Switch {switch_config.name}: {button_event} -> {action}")
+
+        # Handle hold start/stop
+        if "_hold" in button_event:
+            # Hold started
+            if switches.should_repeat_on_hold(device_ieee, button_event):
+                switches.start_hold(device_ieee, action)
+                await self._start_hold_repeat(device_ieee, action)
+            else:
+                # Single action on hold (non-repeating)
+                await self._execute_switch_action(device_ieee, action)
+
+        elif "_long_release" in button_event or "_release" in button_event:
+            # Check if this is ending a hold
+            if switches.is_holding(device_ieee):
+                await self._stop_hold_repeat(device_ieee)
+                # Execute the release action if any
+                if action:
+                    await self._execute_switch_action(device_ieee, action)
+            elif "_short_release" in button_event:
+                # Normal short press release - execute the action
+                await self._execute_switch_action(device_ieee, action)
+
+        else:
+            # Other events (press, double_press, etc.)
+            # Skip _press events if we're waiting for release
+            if "_press" in button_event and not "_double" in button_event and not "_triple" in button_event:
+                # Single press - we'll handle on release to avoid double-firing
+                pass
+            else:
+                await self._execute_switch_action(device_ieee, action)
+
+    async def _handle_unconfigured_switch(self, device_ieee: str, event_data: Dict[str, Any]) -> None:
+        """Handle an event from an unconfigured switch.
+
+        Adds the switch to the pending list for configuration.
+        """
+        # Try to get device info from cached states or device registry
+        device_name = f"Unknown Switch ({device_ieee[-8:]})"
+        manufacturer = None
+        model = None
+
+        # Look up device info
+        device_id = event_data.get("device_id")
+        if device_id and device_id in self.device_registry:
+            device_info = self.device_registry[device_id]
+            device_name = device_info.get("name_by_user") or device_info.get("name") or device_name
+            manufacturer = device_info.get("manufacturer")
+            model = device_info.get("model")
+
+        # Detect switch type
+        detected_type = switches.detect_switch_type(manufacturer, model)
+
+        switches.add_pending_switch(device_ieee, {
+            "name": device_name,
+            "type": detected_type,
+            "manufacturer": manufacturer,
+            "model": model,
+        })
+
+    def _map_zha_command_to_button_event(
+        self,
+        command: str,
+        args: Dict[str, Any],
+        switch_type: str
+    ) -> Optional[str]:
+        """Map a ZHA command to our button event format.
+
+        ZHA sends commands like:
+        - on, off, on_short_release, off_long_release
+        - up_short_release, up_hold, up_long_release
+        - step_with_on_off, move_with_on_off (older style)
+
+        We normalize these to: {button}_{action_type}
+        """
+        command_lower = command.lower()
+
+        # Already in our format
+        if "_" in command_lower and any(
+            action in command_lower
+            for action in ["press", "release", "hold", "double", "triple", "quadruple", "quintuple"]
+        ):
+            return command_lower
+
+        # Handle old-style ZHA commands
+        if command_lower == "on":
+            return "on_short_release"
+        elif command_lower == "off" or command_lower == "off_with_effect":
+            return "off_short_release"
+        elif command_lower == "step_with_on_off" or command_lower == "step":
+            # Determine direction from args
+            step_mode = args.get("step_mode", 0)
+            if step_mode == 0:  # Up
+                return "up_short_release"
+            else:  # Down
+                return "down_short_release"
+        elif command_lower == "move_with_on_off" or command_lower == "move":
+            # This is a hold/move command
+            move_mode = args.get("move_mode", 0)
+            if move_mode == 0:  # Up
+                return "up_hold"
+            else:  # Down
+                return "down_hold"
+        elif command_lower == "stop" or command_lower == "stop_with_on_off":
+            # Stop command indicates release after hold
+            # We need to determine which button based on current hold state
+            # For now, return a generic release - the hold state tracker will handle it
+            return "up_long_release"  # TODO: track which button was held
+
+        return command_lower
+
+    async def _execute_switch_action(self, switch_id: str, action: str) -> None:
+        """Execute a switch action.
+
+        Args:
+            switch_id: The switch IEEE address
+            action: The action to execute
+        """
+        # Record activity for scope timeout
+        switches.record_activity(switch_id)
+
+        # Get areas for current scope
+        areas = switches.get_current_areas(switch_id)
+        if not areas:
+            logger.warning(f"No areas configured for switch {switch_id}")
+            return
+
+        logger.info(f"Executing {action} on areas: {areas}")
+
+        # Execute the action
+        if action == "cycle_scope":
+            await self._execute_cycle_scope(switch_id)
+
+        elif action == "circadian_on":
+            for area in areas:
+                await self.primitives.circadian_on(area, "switch")
+
+        elif action == "circadian_off":
+            for area in areas:
+                await self.primitives.circadian_off(area, "switch")
+
+        elif action == "toggle":
+            await self.primitives.circadian_toggle_multiple(areas, "switch")
+
+        elif action == "step_up":
+            for area in areas:
+                await self.primitives.step_up(area, "switch")
+
+        elif action == "step_down":
+            for area in areas:
+                await self.primitives.step_down(area, "switch")
+
+        elif action == "bright_up":
+            for area in areas:
+                await self.primitives.bright_up(area, "switch")
+
+        elif action == "bright_down":
+            for area in areas:
+                await self.primitives.bright_down(area, "switch")
+
+        elif action == "color_up":
+            for area in areas:
+                await self.primitives.color_up(area, "switch")
+
+        elif action == "color_down":
+            for area in areas:
+                await self.primitives.color_down(area, "switch")
+
+        elif action == "reset":
+            for area in areas:
+                await self.primitives.reset(area, "switch")
+
+        elif action == "freeze_toggle":
+            for area in areas:
+                await self.primitives.freeze_toggle(area, "switch")
+
+        elif action == "glo_up":
+            # Glo actions work on zones, get zone for first area
+            zone_id = glozone.get_zone_for_area(areas[0]) if areas else None
+            if zone_id:
+                await self.primitives.glo_up(zone_id, "switch")
+            else:
+                logger.warning(f"No zone found for area {areas[0]}")
+
+        elif action == "glo_down":
+            zone_id = glozone.get_zone_for_area(areas[0]) if areas else None
+            if zone_id:
+                await self.primitives.glo_down(zone_id, "switch")
+            else:
+                logger.warning(f"No zone found for area {areas[0]}")
+
+        elif action == "glo_reset":
+            zone_id = glozone.get_zone_for_area(areas[0]) if areas else None
+            if zone_id:
+                await self.primitives.glo_reset(zone_id, "switch")
+            else:
+                logger.warning(f"No zone found for area {areas[0]}")
+
+        else:
+            logger.warning(f"Unknown action: {action}")
+
+    async def _execute_cycle_scope(self, switch_id: str) -> None:
+        """Cycle to the next scope and provide visual feedback.
+
+        Args:
+            switch_id: The switch IEEE address
+        """
+        switch_config = switches.get_switch(switch_id)
+        if not switch_config:
+            return
+
+        # Count valid scopes
+        valid_scopes = [i for i, s in enumerate(switch_config.scopes) if s.areas]
+        if len(valid_scopes) <= 1:
+            # Only one scope - show error feedback
+            await self._show_scope_error_feedback(switch_id)
+            return
+
+        # Cycle to next scope
+        new_scope = switches.cycle_scope(switch_id)
+        new_areas = switch_config.get_areas_for_scope(new_scope)
+
+        # Show visual feedback (pulse count = scope number)
+        await self._show_scope_feedback(new_areas, new_scope + 1)  # 1-indexed
+
+    async def _show_scope_feedback(self, areas: List[str], scope_number: int) -> None:
+        """Show visual feedback for scope change (pulse count).
+
+        Args:
+            areas: Areas to pulse
+            scope_number: Which scope (1, 2, or 3) - determines pulse count
+        """
+        if not areas:
+            return
+
+        # Get current brightness of lights in these areas
+        # For simplicity, we'll do adaptive pulse based on a representative light
+        current_brightness = 50  # Default assumption
+
+        for area in areas:
+            # Try to get a light's current state
+            light_entity = self._get_fallback_group_entity(area)
+            if light_entity and light_entity in self.cached_states:
+                state = self.cached_states[light_entity]
+                if state.get("state") == "on":
+                    attrs = state.get("attributes", {})
+                    current_brightness = attrs.get("brightness", 128) / 2.55  # Convert to %
+                    break
+
+        # Calculate pulse delta
+        if current_brightness > 35:
+            pulse_delta = -20  # Dip down
+        else:
+            pulse_delta = 25  # Bump up
+
+        pulse_brightness = max(1, min(100, current_brightness + pulse_delta))
+
+        # Perform pulses
+        for pulse in range(scope_number):
+            # Pulse to delta
+            for area in areas:
+                await self._set_area_brightness_quick(area, int(pulse_brightness * 2.55))
+
+            await asyncio.sleep(0.2)  # 200ms pulse
+
+            # Restore
+            for area in areas:
+                await self._set_area_brightness_quick(area, int(current_brightness * 2.55))
+
+            if pulse < scope_number - 1:
+                await asyncio.sleep(0.15)  # 150ms gap between pulses
+
+    async def _show_scope_error_feedback(self, switch_id: str) -> None:
+        """Show error feedback when can't cycle scope (flash red).
+
+        Args:
+            switch_id: The switch IEEE address
+        """
+        areas = switches.get_current_areas(switch_id)
+        if not areas:
+            return
+
+        # Store current color
+        original_colors = {}
+        for area in areas:
+            light_entity = self._get_fallback_group_entity(area)
+            if light_entity and light_entity in self.cached_states:
+                state = self.cached_states[light_entity]
+                if state.get("state") == "on":
+                    attrs = state.get("attributes", {})
+                    original_colors[area] = {
+                        "color_temp": attrs.get("color_temp"),
+                        "rgb_color": attrs.get("rgb_color"),
+                        "xy_color": attrs.get("xy_color"),
+                    }
+
+        # Flash red
+        for area in areas:
+            await self._set_area_color_quick(area, rgb_color=[255, 50, 50])
+
+        await asyncio.sleep(0.3)
+
+        # Restore original colors
+        for area, colors in original_colors.items():
+            if colors.get("color_temp"):
+                await self._set_area_color_quick(area, color_temp=colors["color_temp"])
+            elif colors.get("rgb_color"):
+                await self._set_area_color_quick(area, rgb_color=colors["rgb_color"])
+            elif colors.get("xy_color"):
+                await self._set_area_color_quick(area, xy_color=colors["xy_color"])
+
+    async def _set_area_brightness_quick(self, area: str, brightness: int) -> None:
+        """Quickly set brightness for an area (no transition)."""
+        await self.call_service(
+            "light",
+            "turn_on",
+            {"brightness": brightness, "transition": 0},
+            target={"area_id": area}
+        )
+
+    async def _set_area_color_quick(
+        self,
+        area: str,
+        rgb_color: List[int] = None,
+        color_temp: int = None,
+        xy_color: List[float] = None,
+    ) -> None:
+        """Quickly set color for an area (no transition)."""
+        service_data = {"transition": 0}
+        if rgb_color:
+            service_data["rgb_color"] = rgb_color
+        elif color_temp:
+            service_data["color_temp"] = color_temp
+        elif xy_color:
+            service_data["xy_color"] = xy_color
+
+        await self.call_service(
+            "light",
+            "turn_on",
+            service_data,
+            target={"area_id": area}
+        )
+
+    async def _start_hold_repeat(self, switch_id: str, action: str) -> None:
+        """Start repeating an action while button is held.
+
+        Args:
+            switch_id: The switch IEEE address
+            action: The action to repeat
+        """
+        # Cancel any existing repeat task
+        await self._stop_hold_repeat(switch_id)
+
+        # Get repeat interval
+        interval_ms = switches.get_repeat_interval(switch_id)
+
+        async def repeat_loop():
+            try:
+                # Execute immediately first
+                await self._execute_switch_action(switch_id, action)
+
+                # Then repeat at interval
+                while switches.is_holding(switch_id):
+                    await asyncio.sleep(interval_ms / 1000.0)
+                    if switches.is_holding(switch_id):
+                        await self._execute_switch_action(switch_id, action)
+            except asyncio.CancelledError:
+                pass
+
+        self._hold_repeat_task = asyncio.create_task(repeat_loop())
+
+    async def _stop_hold_repeat(self, switch_id: str) -> None:
+        """Stop the hold repeat task.
+
+        Args:
+            switch_id: The switch IEEE address
+        """
+        switches.stop_hold(switch_id)
+
+        if self._hold_repeat_task and not self._hold_repeat_task.done():
+            self._hold_repeat_task.cancel()
+            try:
+                await self._hold_repeat_task
+            except asyncio.CancelledError:
+                pass
+        self._hold_repeat_task = None
+
     async def authenticate(self) -> bool:
         """Authenticate with Home Assistant."""
         try:
@@ -603,14 +1041,18 @@ class HomeAssistantWebSocketClient:
         device_result = await self.send_message_wait_response({"type": "config/device_registry/list"})
         devices = device_result if isinstance(device_result, list) else []
 
-        # Build device_id -> area_id mapping
+        # Store device registry for switch detection and build device_id -> area_id mapping
+        self.device_registry.clear()
         device_area_map: Dict[str, str] = {}
         for device in devices:
             if isinstance(device, dict):
                 device_id = device.get("id")
                 area_id = device.get("area_id")
-                if device_id and area_id:
-                    device_area_map[device_id] = area_id
+                if device_id:
+                    # Store full device info for switch detection
+                    self.device_registry[device_id] = device
+                    if area_id:
+                        device_area_map[device_id] = area_id
 
         # Clear existing caches
         self.light_color_modes.clear()
@@ -1147,6 +1589,11 @@ class HomeAssistantWebSocketClient:
                 # Check if we should reset state at phase changes
                 last_phase_check = await self.reset_state_at_phase_change(last_phase_check)
 
+                # Check for switch scope timeouts (auto-reset to scope 1 after inactivity)
+                reset_switches = switches.check_scope_timeouts()
+                if reset_switches:
+                    logger.debug(f"Reset {len(reset_switches)} switch(es) to scope 1 due to inactivity")
+
                 # Get all enabled, unfrozen areas from state module
                 circadian_areas = state.get_unfrozen_enabled_areas()
 
@@ -1537,7 +1984,11 @@ class HomeAssistantWebSocketClient:
                 #    logger.info(f"State changed: {entity_id} -> {new_state.get('state')}")
                 #else:
                 #    logger.info(f"State changed: {entity_id} -> {new_state}")
-                
+
+            # Handle ZHA events (switch button presses)
+            elif event_type == "zha_event":
+                await self._handle_zha_event(event_data)
+
         elif msg_type == "result":
             success = message.get("success", False)
             msg_id = message.get("id")
