@@ -353,8 +353,14 @@ def is_configured(switch_id: str) -> bool:
 # =============================================================================
 
 def add_pending_switch(switch_id: str, info: Dict[str, Any]) -> None:
-    """Add a detected but unconfigured switch to pending list."""
-    if switch_id not in _switches and switch_id not in _pending_switches:
+    """Add a detected but unconfigured switch to pending list.
+
+    If switch already exists in pending, updates last_seen timestamp.
+    """
+    if switch_id in _switches:
+        return  # Already configured, ignore
+
+    if switch_id not in _pending_switches:
         _pending_switches[switch_id] = {
             "id": switch_id,
             "name": info.get("name", f"Unknown ({switch_id[-8:]})"),
@@ -362,9 +368,14 @@ def add_pending_switch(switch_id: str, info: Dict[str, Any]) -> None:
             "manufacturer": info.get("manufacturer"),
             "model": info.get("model"),
             "detected_at": time.time(),
+            "last_seen": time.time(),
         }
         _save_pending()
         logger.info(f"New switch detected: {_pending_switches[switch_id]['name']} ({switch_id})")
+    else:
+        # Update last_seen timestamp for existing pending switch
+        _pending_switches[switch_id]["last_seen"] = time.time()
+        _save_pending()
 
 
 def get_pending_switches() -> Dict[str, Dict[str, Any]]:

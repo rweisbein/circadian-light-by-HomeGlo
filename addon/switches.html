@@ -282,6 +282,29 @@
       align-items: center;
       justify-content: space-between;
       margin-bottom: 12px;
+      transition: all 0.3s;
+    }
+
+    .pending-card.just-pressed {
+      border-color: var(--success);
+      background: rgba(34, 197, 94, 0.1);
+      box-shadow: 0 0 12px rgba(34, 197, 94, 0.3);
+    }
+
+    .just-pressed-badge {
+      background: var(--success);
+      color: white;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-left: 8px;
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
     }
 
     .pending-info {
@@ -758,26 +781,36 @@
         return;
       }
 
+      const now = Date.now() / 1000;  // Current time in seconds
+
       section.style.display = 'block';
-      container.innerHTML = pendingSwitches.map(sw => `
-        <div class="pending-card">
-          <div class="pending-info">
-            <span class="pending-name">${sw.name}</span>
-            <span class="pending-details">
-              ${sw.manufacturer || 'Unknown'} ${sw.model || ''}
-              ${sw.detected_type ? `- Detected as ${switchTypes[sw.detected_type]?.name || sw.detected_type}` : ''}
-            </span>
+      container.innerHTML = pendingSwitches.map(sw => {
+        const lastSeen = sw.last_seen || 0;
+        const justPressed = (now - lastSeen) < 5;  // Pressed within last 5 seconds
+
+        return `
+          <div class="pending-card ${justPressed ? 'just-pressed' : ''}">
+            <div class="pending-info">
+              <span class="pending-name">
+                ${sw.name}
+                ${justPressed ? '<span class="just-pressed-badge">Just pressed!</span>' : ''}
+              </span>
+              <span class="pending-details">
+                ${sw.manufacturer || 'Unknown'} ${sw.model || ''}
+                ${sw.detected_type ? `- Detected as ${switchTypes[sw.detected_type]?.name || sw.detected_type}` : ''}
+              </span>
+            </div>
+            <div class="pending-actions">
+              <button class="btn btn-primary" onclick="configureSwitch('${sw.id}', '${sw.name}', '${sw.detected_type || 'hue_dimmer'}')">
+                Configure
+              </button>
+              <button class="btn btn-cancel" onclick="dismissPending('${sw.id}')">
+                Dismiss
+              </button>
+            </div>
           </div>
-          <div class="pending-actions">
-            <button class="btn btn-primary" onclick="configureSwitch('${sw.id}', '${sw.name}', '${sw.detected_type || 'hue_dimmer'}')">
-              Configure
-            </button>
-            <button class="btn btn-cancel" onclick="dismissPending('${sw.id}')">
-              Dismiss
-            </button>
-          </div>
-        </div>
-      `).join('');
+        `;
+      }).join('');
     }
 
     function populateTypeSelect() {
@@ -958,8 +991,8 @@
       }
     }
 
-    // Auto-refresh periodically
-    setInterval(loadData, 30000);
+    // Auto-refresh every 2 seconds to catch switch presses quickly
+    setInterval(loadData, 2000);
   </script>
 </body>
 </html>
