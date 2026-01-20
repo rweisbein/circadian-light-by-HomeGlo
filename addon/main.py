@@ -402,6 +402,8 @@ class HomeAssistantWebSocketClient:
 
         Adds the switch to the pending list for configuration.
         """
+        logger.info(f"Unconfigured switch detected: {device_ieee}")
+
         # Try to get device info from cached states or device registry
         device_name = f"Unknown Switch ({device_ieee[-8:]})"
         manufacturer = None
@@ -1987,6 +1989,7 @@ class HomeAssistantWebSocketClient:
 
             # Handle ZHA events (switch button presses)
             elif event_type == "zha_event":
+                logger.info(f"ZHA event received: {event_data}")
                 await self._handle_zha_event(event_data)
 
         elif msg_type == "result":
