@@ -1295,15 +1295,15 @@ input[type=range]::-moz-range-thumb {
 <nav class="nav">
   <span class="nav-brand">Circadian Light</span>
   <div class="nav-links">
-    <a href="./" class="nav-link">Home</a>
-    <a href="./glo" class="nav-link active">Glo Designer</a>
+    <a href="./" class="nav-link">Glo Zones</a>
+    <a href="./glo" class="nav-link active">Glo</a>
     <a href="./settings" class="nav-link">Settings</a>
   </div>
 </nav>
 
 <div class="container">
   <div class="header">
-    <h1>Glo Designer</h1>
+    <h1>Glo</h1>
     <div class="header-actions">
       <button id="save-config" class="btn btn-primary">Save Glo</button>
     </div>
@@ -1599,31 +1599,6 @@ input[type=range]::-moz-range-thumb {
               <input type="range" id="cool-day-fade" min="0" max="180" step="5" value="60">
               <span class="offset-text" id="cool-day-fade-text">60 min</span>
             </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Collapsible Location Section -->
-    <div class="collapsible-section" id="location-section">
-      <div class="collapsible-header" id="location-header">
-        <span class="collapsible-arrow">▶</span>
-        <span>Location</span>
-        <span id="location-summary" style="margin-left: auto; opacity: 0.7;"></span>
-      </div>
-      <div class="collapsible-content">
-        <div class="location-toggle">
-          <input type="checkbox" id="use-ha-location" checked>
-          <label for="use-ha-location">Use Home Assistant location</label>
-        </div>
-        <div class="location-grid">
-          <div class="location-field">
-            <label>Latitude</label>
-            <input type="number" id="location-lat" step="0.0001" value="35.0">
-          </div>
-          <div class="location-field">
-            <label>Longitude</label>
-            <input type="number" id="location-lon" step="0.0001" value="-78.6">
           </div>
         </div>
       </div>
@@ -3777,7 +3752,6 @@ function syncUIFromConfig() {
   updateColorGradients();
   updateOffsetDisplays();
   syncColorRuleRows();
-  syncLocationUI();
   constrainWakeBedSliders();
 }
 
@@ -3820,37 +3794,6 @@ function syncColorRuleRows() {
       el.disabled = !coolEnabled;
     });
   }
-}
-
-// Sync location UI elements
-function syncLocationUI() {
-  const useHA = document.getElementById('use-ha-location');
-  const latInput = document.getElementById('location-lat');
-  const lonInput = document.getElementById('location-lon');
-
-  if (useHA) useHA.checked = config.use_ha_location;
-  if (latInput) {
-    latInput.value = config.latitude;
-    latInput.disabled = config.use_ha_location;
-  }
-  if (lonInput) {
-    lonInput.value = config.longitude;
-    lonInput.disabled = config.use_ha_location;
-  }
-
-  updateLocationSummary();
-}
-
-// Update location summary in collapsed header
-function updateLocationSummary() {
-  const summary = document.getElementById('location-summary');
-  if (!summary) return;
-
-  const lat = config.latitude.toFixed(2);
-  const lon = config.longitude.toFixed(2);
-  const latDir = config.latitude >= 0 ? 'N' : 'S';
-  const lonDir = config.longitude >= 0 ? 'E' : 'W';
-  summary.textContent = `${Math.abs(lat)}°${latDir}, ${Math.abs(lon)}°${lonDir}`;
 }
 
 // Update wake/bed slider min/max constraints only (no value clamping)
@@ -4171,33 +4114,6 @@ function setupEventListeners() {
 
   ['color-min', 'color-max', 'brightness-min', 'brightness-max'].forEach(id => {
     document.getElementById(id)?.addEventListener('input', updateDualFills);
-  });
-
-  // Location section toggle
-  document.getElementById('location-header')?.addEventListener('click', () => {
-    const section = document.getElementById('location-section');
-    if (section) section.classList.toggle('is-open');
-  });
-
-  // Use HA location toggle
-  document.getElementById('use-ha-location')?.addEventListener('change', (e) => {
-    config.use_ha_location = e.target.checked;
-    const latInput = document.getElementById('location-lat');
-    const lonInput = document.getElementById('location-lon');
-    if (latInput) latInput.disabled = config.use_ha_location;
-    if (lonInput) lonInput.disabled = config.use_ha_location;
-  });
-
-  // Lat/long inputs
-  document.getElementById('location-lat')?.addEventListener('change', (e) => {
-    config.latitude = parseFloat(e.target.value) || 0;
-    updateLocationSummary();
-    renderChart();
-  });
-  document.getElementById('location-lon')?.addEventListener('change', (e) => {
-    config.longitude = parseFloat(e.target.value) || 0;
-    updateLocationSummary();
-    renderChart();
   });
 
   document.getElementById('save-config')?.addEventListener('click', saveConfig);

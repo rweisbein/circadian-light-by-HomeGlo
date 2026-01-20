@@ -1665,10 +1665,6 @@ class LightDesignerServer:
             glozones = config.get('glozones', {})
             presets = config.get('circadian_presets', {})
 
-            logger.info(f"[Area Status] glozones: {list(glozones.keys())}")
-            for zn, zd in glozones.items():
-                logger.info(f"[Area Status] Zone '{zn}' has areas: {zd.get('areas', [])}")
-
             # Reload state from disk (main.py runs in separate process and writes state there)
             state.init()
 
@@ -1686,14 +1682,16 @@ class LightDesignerServer:
                 # Use frozen hour or current hour
                 calc_hour = zone_state_data.get('frozen_at') if is_frozen else current_hour
 
-                # Calculate brightness from circadian curve
+                # Calculate brightness and color temp from circadian curve
                 brightness = 50  # Default
+                kelvin = 4000  # Default
                 try:
                     lighting = get_circadian_lighting(
                         current_time=calc_hour,
                         **preset_settings
                     )
                     brightness = lighting.get('brightness', 50)
+                    kelvin = lighting.get('kelvin', 4000)
                 except Exception as e:
                     logger.warning(f"Error calculating brightness for zone {zone_name}: {e}")
 
@@ -1701,17 +1699,15 @@ class LightDesignerServer:
                 for area in zone_data.get('areas', []):
                     # Areas can be stored as {id, name} or just string
                     area_id = area.get('id') if isinstance(area, dict) else area
-                    logger.info(f"[Area Status] Processing area: raw={area}, extracted_id={area_id}")
                     area_state_data = state.get_area(area_id)
-                    logger.info(f"[Area Status] Area {area_id} state: {area_state_data}")
                     area_status[area_id] = {
                         'enabled': area_state_data.get('enabled', False),
                         'brightness': brightness,
+                        'kelvin': kelvin,
                         'frozen': is_frozen,
                         'zone_name': zone_name if zone_name != 'Unassigned' else None
                     }
 
-            logger.info(f"[Area Status] Final response keys: {list(area_status.keys())}")
             return web.json_response(area_status)
 
         except Exception as e:

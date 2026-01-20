@@ -1,5 +1,15 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.71
+**UI Improvements: Glo Zones Page Redesign**
+
+- **CCT-colored status dots**: Area chips now show color temperature as dot color (warm orange to cool white)
+- **Renamed navigation**: "Home" → "Glo Zones", "Glo Designer" → "Glo"
+- **Black backgrounds**: Glo Zones and Settings pages now match Glo page styling
+- **GloZone card redesign**: Glo dropdown on its own row with timing info (Ascend, Wake, Descend, Bed times)
+- **Removed subtitle** from Glo Zones page header
+- **Removed location settings from Glo page** (now only in Settings - no duplication)
+
 ## 6.8.70
 **Fix: Area status now reflects real-time enabled state**
 

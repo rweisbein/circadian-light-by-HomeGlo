@@ -6,9 +6,9 @@
   <title>Circadian Light - Home</title>
   <style>
     :root {
-      --bg: #1a1a2e;
-      --panel: #16213e;
-      --card: #1f2940;
+      --bg: #000;
+      --panel: #111;
+      --card: #1a1a1a;
       --accent: #6366f1;
       --accent-hover: #818cf8;
       --text: #e2e8f0;
@@ -115,11 +115,37 @@
 
     .zone-header {
       display: flex;
-      align-items: center;
-      justify-content: space-between;
+      flex-direction: column;
+      gap: 12px;
       padding: 16px 20px;
       border-bottom: 1px solid var(--line);
       background: var(--panel);
+    }
+
+    .zone-header-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .zone-glo-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 0.85rem;
+    }
+
+    .zone-glo-info {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      color: var(--muted);
+    }
+
+    .zone-glo-info span {
+      display: flex;
+      align-items: center;
+      gap: 4px;
     }
 
     .zone-name {
@@ -153,7 +179,7 @@
     .zone-controls {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 8px;
     }
 
     .glo-select {
@@ -259,18 +285,14 @@
     }
 
     .status-dot {
-      width: 8px;
-      height: 8px;
+      width: 10px;
+      height: 10px;
       border-radius: 50%;
+      background: var(--muted2);
     }
 
     .status-dot.on {
-      background: var(--success);
-      box-shadow: 0 0 6px var(--success);
-    }
-
-    .status-dot.off {
-      background: var(--muted2);
+      box-shadow: 0 0 8px currentColor;
     }
 
     .area-brightness {
@@ -437,8 +459,8 @@
   <nav class="nav">
     <span class="nav-brand">Circadian Light</span>
     <div class="nav-links">
-      <a href="./" class="nav-link active">Home</a>
-      <a href="./glo" class="nav-link">Glo Designer</a>
+      <a href="./" class="nav-link active">Glo Zones</a>
+      <a href="./glo" class="nav-link">Glo</a>
       <a href="./settings" class="nav-link">Settings</a>
     </div>
   </nav>
@@ -446,8 +468,7 @@
   <!-- Main Content -->
   <main class="main">
     <div class="page-header">
-      <h1 class="page-title">Home</h1>
-      <p class="page-subtitle">Manage your Glo Zones and areas</p>
+      <h1 class="page-title">Glo Zones</h1>
     </div>
 
     <div class="zones-container" id="zones-container">
@@ -488,9 +509,61 @@
     // State
     let zones = {};
     let presets = {};
+    let presetsData = {};  // Full preset data for displaying glo info
     let allAreas = [];
     let areaStates = {};
     let draggedArea = null;
+
+    /**
+     * Convert color temperature (Kelvin) to RGB.
+     * Algorithm based on Tanner Helland's work.
+     */
+    function kelvinToRgb(kelvin) {
+      const temp = kelvin / 100;
+      let r, g, b;
+
+      // Red
+      if (temp <= 66) {
+        r = 255;
+      } else {
+        r = temp - 60;
+        r = 329.698727446 * Math.pow(r, -0.1332047592);
+        r = Math.max(0, Math.min(255, r));
+      }
+
+      // Green
+      if (temp <= 66) {
+        g = temp;
+        g = 99.4708025861 * Math.log(g) - 161.1195681661;
+        g = Math.max(0, Math.min(255, g));
+      } else {
+        g = temp - 60;
+        g = 288.1221695283 * Math.pow(g, -0.0755148492);
+        g = Math.max(0, Math.min(255, g));
+      }
+
+      // Blue
+      if (temp >= 66) {
+        b = 255;
+      } else if (temp <= 19) {
+        b = 0;
+      } else {
+        b = temp - 10;
+        b = 138.5177312231 * Math.log(b) - 305.0447927307;
+        b = Math.max(0, Math.min(255, b));
+      }
+
+      return { r: Math.round(r), g: Math.round(g), b: Math.round(b) };
+    }
+
+    function formatTime(hour) {
+      if (hour === undefined || hour === null) return '--:--';
+      const h = Math.floor(hour);
+      const m = Math.round((hour - h) * 60);
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      const h12 = h % 12 || 12;
+      return `${h12}:${m.toString().padStart(2, '0')} ${ampm}`;
+    }
 
     // Initialize
     document.addEventListener('DOMContentLoaded', () => {
@@ -517,8 +590,9 @@
 
         if (presetsRes.ok) {
           const data = await presetsRes.json();
-          presets = data.presets || {};
-          console.log('[Home] Loaded presets:', Object.keys(presets));
+          presetsData = data.presets || {};
+          presets = Object.keys(presetsData);
+          console.log('[Home] Loaded presets:', presets);
         }
 
         if (areasRes.ok) {
@@ -567,23 +641,19 @@
         const response = await fetch('./api/area-status');
         if (response.ok) {
           const data = await response.json();
-          console.log('[Home] area-status API response:', data);
           // Convert API format to our format
           areaStates = {};
           for (const [areaId, status] of Object.entries(data)) {
             areaStates[areaId] = {
               enabled: status.enabled,
               brightness: status.brightness,
+              kelvin: status.kelvin || 4000,
               frozen: status.frozen
             };
           }
-          console.log('[Home] areaStates after processing:', areaStates);
-        } else {
-          console.error('[Home] area-status API error:', response.status, response.statusText);
         }
       } catch (err) {
         console.error('Error loading area states:', err);
-        // Fall back to empty states
         areaStates = {};
       }
     }
@@ -614,7 +684,6 @@
 
       // Render unassigned areas
       const unassignedAreas = allAreas.filter(a => !assignedAreaIds.has(a.area_id));
-      console.log(`[Home] allAreas: ${allAreas.length}, assignedAreaIds:`, [...assignedAreaIds], `unassigned: ${unassignedAreas.length}`);
 
       if (unassignedAreas.length === 0) {
         unassignedContainer.innerHTML = '<span class="zone-areas-empty">All areas are assigned to zones</span>';
@@ -627,10 +696,11 @@
 
     function renderZoneCard(zoneName, zone) {
       const areas = zone.areas || [];
-      console.log(`[Home] Zone "${zoneName}" has ${areas.length} areas:`, areas);
+      const presetName = zone.preset || 'Glo 1';
+      const preset = presetsData[presetName] || {};
 
-      const presetOptions = Object.keys(presets).map(p =>
-        `<option value="${p}" ${zone.preset === p ? 'selected' : ''}>${p}</option>`
+      const presetOptions = presets.map(p =>
+        `<option value="${p}" ${presetName === p ? 'selected' : ''}>${p}</option>`
       ).join('');
 
       const areaChips = areas.length === 0
@@ -641,19 +711,35 @@
             return renderAreaChip(areaInfo || { area_id: areaId, name: areaId }, zoneName);
           }).join('');
 
+      // Get glo timing info
+      const wakeTime = formatTime(preset.wake_time);
+      const bedTime = formatTime(preset.bed_time);
+      const ascendStart = formatTime(preset.ascend_start);
+      const descendStart = formatTime(preset.descend_start);
+
       return `
         <div class="zone-card" data-zone="${zoneName}">
           <div class="zone-header">
-            <div class="zone-name">
-              <input type="text" class="zone-name-edit" value="${zoneName}" data-zone="${zoneName}" data-original="${zoneName}">
+            <div class="zone-header-top">
+              <div class="zone-name">
+                <input type="text" class="zone-name-edit" value="${zoneName}" data-zone="${zoneName}" data-original="${zoneName}">
+              </div>
+              <div class="zone-controls">
+                <a href="./glo/${encodeURIComponent(presetName)}" class="glo-link">Edit</a>
+                <button class="zone-delete" data-zone="${zoneName}" title="Delete zone">&times;</button>
+              </div>
             </div>
-            <div class="zone-controls">
+            <div class="zone-glo-row">
               <select class="glo-select" data-zone="${zoneName}">
                 ${presetOptions}
                 <option value="__new__">+ New Glo...</option>
               </select>
-              <a href="./glo/${encodeURIComponent(zone.preset || 'Glo 1')}" class="glo-link">Edit Glo</a>
-              <button class="zone-delete" data-zone="${zoneName}" title="Delete zone">&times;</button>
+              <div class="zone-glo-info">
+                <span title="Ascend starts">☀ ${ascendStart}</span>
+                <span title="Wake time">⬆ ${wakeTime}</span>
+                <span title="Descend starts">🌙 ${descendStart}</span>
+                <span title="Bed time">⬇ ${bedTime}</span>
+              </div>
             </div>
           </div>
           <div class="zone-areas" data-zone="${zoneName}">
@@ -666,14 +752,21 @@
     function renderAreaChip(area, zoneName) {
       const areaId = area.area_id;
       const areaName = area.name || areaId;
-      const areaState = areaStates[areaId] || { enabled: false, brightness: 0, frozen: false };
-      console.log(`[Home] renderAreaChip: areaId=${areaId}, found in areaStates=${!!areaStates[areaId]}, state=`, areaState);
+      const areaState = areaStates[areaId] || { enabled: false, brightness: 0, kelvin: 4000, frozen: false };
+
+      // Get CCT color for enabled areas
+      let dotStyle = '';
+      if (areaState.enabled) {
+        const rgb = kelvinToRgb(areaState.kelvin);
+        const color = `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`;
+        dotStyle = `background: ${color}; color: ${color};`;
+      }
 
       return `
         <div class="area-chip" draggable="true" data-area="${areaId}" data-zone="${zoneName || ''}">
           <span class="area-name">${areaName}</span>
           <div class="area-status">
-            <span class="status-dot ${areaState.enabled ? 'on' : 'off'}"></span>
+            <span class="status-dot ${areaState.enabled ? 'on' : ''}" style="${dotStyle}"></span>
             ${areaState.enabled ? `<span class="area-brightness">${areaState.brightness}%</span>` : ''}
             ${areaState.frozen ? '<span class="area-frozen" title="Frozen">&#128274;</span>' : ''}
           </div>
