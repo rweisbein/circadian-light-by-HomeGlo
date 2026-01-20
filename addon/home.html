@@ -510,15 +510,24 @@
         if (zonesRes.ok) {
           const data = await zonesRes.json();
           zones = data.zones || {};
+          console.log('[Home] Loaded zones:', zones);
+        } else {
+          console.warn('[Home] Failed to load zones:', zonesRes.status);
         }
 
         if (presetsRes.ok) {
           const data = await presetsRes.json();
           presets = data.presets || {};
+          console.log('[Home] Loaded presets:', Object.keys(presets));
         }
 
         if (areasRes.ok) {
           allAreas = await areasRes.json();
+          console.log('[Home] Loaded areas from HA:', allAreas.length);
+        } else {
+          // In dev mode without HA, extract areas from zone config
+          console.warn('[Home] HA areas API unavailable, extracting from zones');
+          allAreas = extractAreasFromZones(zones);
         }
 
         // Load area states (brightness, on/off, frozen)
@@ -530,6 +539,27 @@
         document.getElementById('zones-container').innerHTML =
           '<div class="loading">Error loading data</div>';
       }
+    }
+
+    // Extract area info from zone config when HA API is unavailable
+    function extractAreasFromZones(zones) {
+      const areas = [];
+      const seen = new Set();
+
+      for (const zone of Object.values(zones)) {
+        for (const area of (zone.areas || [])) {
+          const areaId = typeof area === 'string' ? area : area.id;
+          const areaName = typeof area === 'string' ? area : (area.name || area.id);
+
+          if (areaId && !seen.has(areaId)) {
+            seen.add(areaId);
+            areas.push({ area_id: areaId, name: areaName });
+          }
+        }
+      }
+
+      console.log('[Home] Extracted areas from zones:', areas);
+      return areas;
     }
 
     async function loadAreaStates() {
