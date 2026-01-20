@@ -1,5 +1,28 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.6
+**Feature: Switch Management (beta)**
+
+- New Switches page for configuring switches directly in the addon
+- Switches can have up to 3 scopes (sets of areas to control)
+- Cycle through scopes with DOWN button short-press (visual pulse feedback)
+- Auto-detects unconfigured switches when buttons are pressed
+- "Just pressed!" indicator helps identify which switch you're configuring
+- ZHA event handling built into addon (can replace blueprint automations)
+- Set `manage_blueprints: false` in addon config to disable auto-created automations
+
+**Button mapping (Hue Dimmer):**
+- ON: circadian_on / long=reset / double=glo_reset
+- UP: step_up / hold=bright_up / double=glo_up
+- DOWN: cycle_scope / hold=bright_down / double=glo_down
+- OFF: circadian_off / long=freeze_toggle
+
+## 6.8.96
+**Fix: Step down near phase boundaries**
+
+- Fixed bug where stepping down near phase boundaries caused values to jump back
+- Midpoints now clamped to phase boundaries instead of wrapping
+
 ## 6.8.95
 **Fix: Store config in visible /config folder**
 

@@ -338,7 +338,10 @@ def get_switch(switch_id: str) -> Optional[SwitchConfig]:
     Reloads from disk to pick up changes from other processes.
     """
     _reload_switches()
-    return _switches.get(switch_id)
+    result = _switches.get(switch_id)
+    if result is None and _switches:
+        logger.info(f"Switch {switch_id} not found. Configured switches: {list(_switches.keys())}")
+    return result
 
 
 def get_all_switches() -> Dict[str, SwitchConfig]:
