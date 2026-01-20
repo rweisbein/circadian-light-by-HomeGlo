@@ -1686,12 +1686,14 @@ class LightDesignerServer:
                 brightness = 50  # Default
                 kelvin = 4000  # Default
                 try:
+                    logger.info(f"[Area Status] Zone '{zone_name}' using preset '{preset_name}', min_ct={preset_settings.get('min_color_temp')}, max_ct={preset_settings.get('max_color_temp')}")
                     lighting = get_circadian_lighting(
                         current_time=calc_hour,
                         **preset_settings
                     )
                     brightness = lighting.get('brightness', 50)
                     kelvin = lighting.get('kelvin', 4000)
+                    logger.info(f"[Area Status] Zone '{zone_name}' calculated: brightness={brightness}, kelvin={kelvin}")
                 except Exception as e:
                     logger.warning(f"Error calculating brightness for zone {zone_name}: {e}")
 
