@@ -723,7 +723,6 @@
                 <input type="text" class="zone-name-edit" value="${zoneName}" data-zone="${zoneName}" data-original="${zoneName}">
               </div>
               <div class="zone-controls">
-                <a href="./glo/${encodeURIComponent(presetName)}" class="glo-link">Edit</a>
                 <button class="zone-delete" data-zone="${zoneName}" title="Delete zone">&times;</button>
               </div>
             </div>
@@ -732,6 +731,7 @@
                 ${presetOptions}
                 <option value="__new__">+ New Glo...</option>
               </select>
+              <a href="./glo/${encodeURIComponent(presetName)}" class="glo-link">Edit</a>
               <div class="zone-glo-info">
                 <span title="Wake time">🌅 ${wakeTime}</span>
                 <span title="Bed time">🛏️ ${bedTime}</span>
