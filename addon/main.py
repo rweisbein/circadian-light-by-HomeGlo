@@ -567,26 +567,17 @@ class HomeAssistantWebSocketClient:
                 await self.primitives.freeze_toggle(area, "switch")
 
         elif action == "glo_up":
-            # Glo actions work on zones, get zone for first area
-            zone_id = glozone.get_zone_for_area(areas[0]) if areas else None
-            if zone_id:
-                await self.primitives.glo_up(zone_id, "switch")
-            else:
-                logger.warning(f"No zone found for area {areas[0]}")
+            # Glo primitives take area_id and look up zone internally
+            if areas:
+                await self.primitives.glo_up(areas[0], "switch")
 
         elif action == "glo_down":
-            zone_id = glozone.get_zone_for_area(areas[0]) if areas else None
-            if zone_id:
-                await self.primitives.glo_down(zone_id, "switch")
-            else:
-                logger.warning(f"No zone found for area {areas[0]}")
+            if areas:
+                await self.primitives.glo_down(areas[0], "switch")
 
         elif action == "glo_reset":
-            zone_id = glozone.get_zone_for_area(areas[0]) if areas else None
-            if zone_id:
-                await self.primitives.glo_reset(zone_id, "switch")
-            else:
-                logger.warning(f"No zone found for area {areas[0]}")
+            if areas:
+                await self.primitives.glo_reset(areas[0], "switch")
 
         elif action == "set_britelite":
             # TODO: Implement set_britelite - sets lights to bright white
