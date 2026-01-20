@@ -1,0 +1,140 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up Circadian Light Services",
+        "description": "This integration provides services to control Circadian Light. Make sure the Circadian Light addon is installed and running before proceeding.",
+        "data": {}
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to addon",
+      "unknown": "Unexpected error"
+    },
+    "abort": {
+      "already_configured": "Integration is already configured"
+    }
+  },
+  "services": {
+    "step_up": {
+      "name": "Step Up",
+      "description": "Increase brightness and shift color along the circadian curve",
+      "fields": {
+        "area_id": {
+          "name": "Area",
+          "description": "The area(s) to control"
+        }
+      }
+    },
+    "step_down": {
+      "name": "Step Down",
+      "description": "Decrease brightness and shift color along the circadian curve",
+      "fields": {
+        "area_id": {
+          "name": "Area",
+          "description": "The area(s) to control"
+        }
+      }
+    },
+    "bright_up": {
+      "name": "Bright Up",
+      "description": "Increase brightness only (color unchanged)",
+      "fields": {
+        "area_id": {
+          "name": "Area",
+          "description": "The area(s) to brighten"
+        }
+      }
+    },
+    "bright_down": {
+      "name": "Bright Down",
+      "description": "Decrease brightness only (color unchanged)",
+      "fields": {
+        "area_id": {
+          "name": "Area",
+          "description": "The area(s) to dim"
+        }
+      }
+    },
+    "color_up": {
+      "name": "Color Up",
+      "description": "Shift color along the curve (brightness unchanged)",
+      "fields": {
+        "area_id": {
+          "name": "Area",
+          "description": "The area(s) to adjust color"
+        }
+      }
+    },
+    "color_down": {
+      "name": "Color Down",
+      "description": "Shift color along the curve (brightness unchanged)",
+      "fields": {
+        "area_id": {
+          "name": "Area",
+          "description": "The area(s) to adjust color"
+        }
+      }
+    },
+    "reset": {
+      "name": "Reset",
+      "description": "Reset area to current time values and enable Circadian Light",
+      "fields": {
+        "area_id": {
+          "name": "Area",
+          "description": "The area(s) to reset"
+        }
+      }
+    },
+    "circadian_on": {
+      "name": "Circadian On",
+      "description": "Turn on lights and enable Circadian Light mode for an area",
+      "fields": {
+        "area_id": {
+          "name": "Area",
+          "description": "The area(s) to enable Circadian Light for"
+        }
+      }
+    },
+    "circadian_off": {
+      "name": "Circadian Off",
+      "description": "Disable Circadian Light mode for an area (lights remain unchanged)",
+      "fields": {
+        "area_id": {
+          "name": "Area",
+          "description": "The area(s) to disable Circadian Light for"
+        }
+      }
+    },
+    "circadian_toggle": {
+      "name": "Circadian Toggle",
+      "description": "Smart toggle - turns on with Circadian Light if off, turns off if on",
+      "fields": {
+        "area_id": {
+          "name": "Area",
+          "description": "The area(s) to toggle"
+        }
+      }
+    },
+    "freeze": {
+      "name": "Freeze",
+      "description": "Pause automatic updates for an area",
+      "fields": {
+        "area_id": {
+          "name": "Area",
+          "description": "The area(s) to freeze"
+        }
+      }
+    },
+    "unfreeze": {
+      "name": "Unfreeze",
+      "description": "Resume automatic updates for an area",
+      "fields": {
+        "area_id": {
+          "name": "Area",
+          "description": "The area(s) to unfreeze"
+        }
+      }
+    }
+  }
+}

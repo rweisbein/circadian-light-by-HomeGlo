@@ -19,5 +19,8 @@ COPY *.py *.html requirements.txt ./
 # Install only the packages not available from Alpine repos
 RUN pip3 install --no-cache-dir websockets==12.0 python-dateutil==2.8.2 astral==3.2 PyYAML==6.0.1
 
-# Copy root filesystem
+# Copy custom_components for integration management
+COPY custom_components /opt/circadian_light/custom_components
+
+# Copy root filesystem (includes blueprints)
 COPY rootfs /

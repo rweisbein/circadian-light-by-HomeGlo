@@ -1,0 +1,11 @@
+{
+  "domain": "circadian",
+  "name": "Circadian Light by HomeGlo",
+  "codeowners": ["@rweisbein"],
+  "config_flow": true,
+  "dependencies": ["light"],
+  "documentation": "https://github.com/rweisbein/circadian-light-by-HomeGlo",
+  "issue_tracker": "https://github.com/rweisbein/circadian-light-by-HomeGlo/issues",
+  "requirements": [],
+  "version": "3.5.0"
+}
