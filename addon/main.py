@@ -12,8 +12,6 @@ from typing import Dict, Any, List, Optional, Sequence, Set, Tuple, Union
 import websockets
 from websockets.client import WebSocketClientProtocol
 
-from ha_blueprint_manager import BlueprintAutomationManager
-
 import state
 import switches
 import glozone
@@ -94,10 +92,6 @@ class HomeAssistantWebSocketClient:
 
         # Hold repeat task for ramping
         self._hold_repeat_task: Optional[asyncio.Task] = None
-
-        manage_blueprints_env = os.getenv("MANAGE_CIRCADIAN_BLUEPRINTS", "true").lower()
-        self.manage_blueprints = manage_blueprints_env not in ("false", "0", "no")
-        self.blueprint_manager = BlueprintAutomationManager(self, enabled=self.manage_blueprints)
 
         # Brightness curve configuration (populated from supervisor/designer config)
         self.max_dim_steps = DEFAULT_MAX_DIM_STEPS
@@ -2218,13 +2212,6 @@ class HomeAssistantWebSocketClient:
                 # Sync ZHA groups with all areas (includes parity cache refresh)
                 await self.sync_zha_groups()
 
-                # Ensure managed blueprint automations are in place before event processing
-                if self.manage_blueprints:
-                    await self.blueprint_manager.reconcile_now("startup")
-                else:
-                    await self.blueprint_manager.remove_blueprint_files("startup-disabled")
-                    await self.blueprint_manager.purge_managed_automations("startup-disabled")
-
                 # Subscribe to all events
                 await self.subscribe_events()
                 
@@ -2255,7 +2242,6 @@ class HomeAssistantWebSocketClient:
                     await self.periodic_update_task
                 except asyncio.CancelledError:
                     pass
-            await self.blueprint_manager.shutdown()
             self.websocket = None
             
     async def run(self):

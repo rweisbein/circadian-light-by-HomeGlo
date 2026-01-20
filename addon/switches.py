@@ -62,28 +62,40 @@ SWITCH_TYPES: Dict[str, Dict[str, Any]] = {
         "manufacturer": "Philips",
         "models": ["RWL020", "RWL021", "RWL022"],
         "buttons": ["on", "up", "down", "off"],
-        "action_types": ["press", "hold", "short_release", "long_release", "double_press"],
+        "action_types": ["press", "hold", "short_release", "long_release", "double_press", "triple_press", "quadruple_press", "quintuple_press"],
         "default_mapping": {
-            # On button
-            "on_short_release": "circadian_on",
-            "on_hold": None,
-            "on_long_release": "reset",
-            "on_double_press": "glo_reset",
+            # On button (top)
+            "on_short_release": "circadian_toggle",     # 1x
+            "on_double_press": "glo_up",                # 2x
+            "on_triple_press": "glo_reset",             # 3x
+            "on_quadruple_press": None,                 # 4x - not used
+            "on_quintuple_press": None,                 # 5x - coming soon: emergency toggle
+            "on_hold": None,                            # long - RESERVED for magic button
+            "on_long_release": None,
             # Up button
-            "up_short_release": "step_up",
-            "up_hold": "bright_up",        # Repeats while held
-            "up_long_release": None,       # Stop repeat
-            "up_double_press": "glo_up",
+            "up_short_release": "step_up",              # 1x
+            "up_double_press": "color_up",              # 2x
+            "up_triple_press": "set_britelite",         # 3x
+            "up_quadruple_press": None,                 # 4x - not used
+            "up_quintuple_press": None,                 # 5x - not used
+            "up_hold": "bright_up",                     # long - repeats while held
+            "up_long_release": None,
             # Down button
-            "down_short_release": "cycle_scope",
-            "down_hold": "bright_down",    # Repeats while held
-            "down_long_release": None,     # Stop repeat
-            "down_double_press": "glo_down",
-            # Off button
-            "off_short_release": "circadian_off",
-            "off_hold": None,
-            "off_long_release": "freeze_toggle",
-            "off_double_press": None,
+            "down_short_release": "step_down",          # 1x
+            "down_double_press": "color_down",          # 2x
+            "down_triple_press": "set_nitelite",        # 3x
+            "down_quadruple_press": None,               # 4x - not used
+            "down_quintuple_press": None,               # 5x - not used
+            "down_hold": "bright_down",                 # long - repeats while held
+            "down_long_release": None,
+            # Off button (bottom - "hue" button)
+            "off_short_release": "cycle_scope",         # 1x
+            "off_double_press": "glo_down",             # 2x
+            "off_triple_press": "toggle_wake_bed",      # 3x
+            "off_quadruple_press": "freeze_toggle",     # 4x
+            "off_quintuple_press": None,                # 5x - coming soon: Sleep
+            "off_hold": None,                           # long - RESERVED for magic button
+            "off_long_release": None,
         },
         # Which actions should repeat while held
         "repeat_on_hold": ["up_hold", "down_hold"],

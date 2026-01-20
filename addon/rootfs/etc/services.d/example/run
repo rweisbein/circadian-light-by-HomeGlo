@@ -12,8 +12,6 @@ CIRCADIAN_DEST_BASE="/config/custom_components"
 CIRCADIAN_DEST=""
 CIRCADIAN_MARKER=""
 CIRCADIAN_REPOSITORY_INFO="/opt/circadian_light/repository.yaml"
-CIRCADIAN_BLUEPRINT_SOURCE_BASE="${CIRCADIAN_BLUEPRINT_SOURCE_BASE:-/opt/circadian_light/blueprints}"
-export CIRCADIAN_BLUEPRINT_SOURCE_BASE
 
 normalize_bool() {
     local raw="$1"
@@ -38,9 +36,6 @@ normalize_bool() {
 
 MANAGE_CIRCADIAN_INTEGRATION="$(normalize_bool "$(bashio::config 'manage_integration')")"
 export MANAGE_CIRCADIAN_INTEGRATION
-
-MANAGE_CIRCADIAN_BLUEPRINTS="$(normalize_bool "$(bashio::config 'manage_blueprints')")"
-export MANAGE_CIRCADIAN_BLUEPRINTS
 
 build_default_download_url() {
     local repo_url repo branch
@@ -89,7 +84,7 @@ PY
 }
 
 download_integration_source() {
-    local target_path download_url tmp_dir archive_path source_path repo_root blueprint_base downloaded_version
+    local target_path download_url tmp_dir archive_path source_path downloaded_version
 
     target_path="$1"
     download_url="$2"
@@ -133,8 +128,6 @@ download_integration_source() {
     fi
     bashio::log.info "[Download Debug] Downloaded integration version: ${downloaded_version}"
 
-    repo_root="$(dirname "$(dirname "${source_path}")")"
-
     bashio::log.info "[Download Debug] Removing existing ${target_path}..."
     if [ -e "${target_path}" ]; then
         rm -rf "${target_path}"
@@ -154,19 +147,6 @@ download_integration_source() {
         deployed_version=$(read_manifest_version "${target_path}/manifest.json" || echo "unknown")
     fi
     bashio::log.info "[Download Debug] Deployed integration version: ${deployed_version}"
-
-    blueprint_base="${repo_root}/blueprints"
-    if [ -d "${blueprint_base}" ]; then
-        mkdir -p "$(dirname "${CIRCADIAN_BLUEPRINT_SOURCE_BASE}")"
-        if rm -rf "${CIRCADIAN_BLUEPRINT_SOURCE_BASE}" && \
-           cp -a "${blueprint_base}" "${CIRCADIAN_BLUEPRINT_SOURCE_BASE}"; then
-            bashio::log.info "Staged blueprints from downloaded archive to ${CIRCADIAN_BLUEPRINT_SOURCE_BASE}"
-        else
-            bashio::log.warning "Failed to stage blueprints from downloaded archive."
-        fi
-    else
-        bashio::log.debug "No blueprints directory found in downloaded archive."
-    fi
 
     rm -rf "${tmp_dir}"
     return 0

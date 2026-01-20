@@ -1,21 +1,29 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.7
+**Remove Blueprint Management, Update Button Mapping**
+
+- Removed automatic blueprint/automation management - switches now handled directly by addon
+- Removed `manage_blueprints` config option
+- Updated Hue Dimmer button mapping to final layout
+
+**Button mapping (Hue Dimmer):**
+| Button | 1x | 2x | 3x | 4x | Long |
+|--------|----|----|----|----|------|
+| ON | circadian_toggle | glo_up | glo_reset | - | reserved |
+| UP | step_up | color_up | set_britelite | - | bright_up |
+| DOWN | step_down | color_down | set_nitelite | - | bright_down |
+| OFF | cycle_scope | glo_down | toggle_wake_bed | freeze_toggle | reserved |
+
 ## 6.9.6
 **Feature: Switch Management (beta)**
 
 - New Switches page for configuring switches directly in the addon
 - Switches can have up to 3 scopes (sets of areas to control)
-- Cycle through scopes with DOWN button short-press (visual pulse feedback)
+- Cycle through scopes with OFF button short-press (visual pulse feedback)
 - Auto-detects unconfigured switches when buttons are pressed
 - "Just pressed!" indicator helps identify which switch you're configuring
-- ZHA event handling built into addon (can replace blueprint automations)
-- Set `manage_blueprints: false` in addon config to disable auto-created automations
-
-**Button mapping (Hue Dimmer):**
-- ON: circadian_on / long=reset / double=glo_reset
-- UP: step_up / hold=bright_up / double=glo_up
-- DOWN: cycle_scope / hold=bright_down / double=glo_down
-- OFF: circadian_off / long=freeze_toggle
+- ZHA event handling built into addon
 
 ## 6.8.96
 **Fix: Step down near phase boundaries**
