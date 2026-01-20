@@ -1674,39 +1674,37 @@ class LightDesignerServer:
             # Build response for each area in zones (including Unassigned)
             area_status = {}
             for zone_name, zone_data in glozones.items():
-                preset_name = zone_data.get('preset', 'Glo 1')
-                preset_settings = presets.get(preset_name, {})
-                zone_state_data = glozone_state.get_zone_state(zone_name)
-                is_frozen = zone_state_data.get('frozen_at') is not None
-
-                # Use frozen hour or current hour
-                calc_hour = zone_state_data.get('frozen_at') if is_frozen else current_hour
-
-                # Calculate brightness and color temp from circadian curve
-                brightness = 50  # Default
-                kelvin = 4000  # Default
-                try:
-                    logger.info(f"[Area Status] Zone '{zone_name}' using preset '{preset_name}', min_ct={preset_settings.get('min_color_temp')}, max_ct={preset_settings.get('max_color_temp')}")
-                    lighting = get_circadian_lighting(
-                        current_time=calc_hour,
-                        **preset_settings
-                    )
-                    brightness = lighting.get('brightness', 50)
-                    kelvin = lighting.get('kelvin', 4000)
-                    logger.info(f"[Area Status] Zone '{zone_name}' calculated: brightness={brightness}, kelvin={kelvin}")
-                except Exception as e:
-                    logger.warning(f"Error calculating brightness for zone {zone_name}: {e}")
-
                 # Add status for each area in this zone
                 for area in zone_data.get('areas', []):
                     # Areas can be stored as {id, name} or just string
                     area_id = area.get('id') if isinstance(area, dict) else area
-                    area_state_data = state.get_area(area_id)
+
+                    # Get area's state (includes brightness_mid, color_mid, frozen_at)
+                    area_state_dict = state.get_area(area_id)
+                    area_state = AreaState.from_dict(area_state_dict)
+
+                    # Get effective config for this area (zone's preset merged with global config)
+                    config_dict = glozone.get_effective_config_for_area(area_id)
+                    area_config = Config.from_dict(config_dict)
+
+                    # Use area's frozen_at if set, otherwise current time
+                    calc_hour = area_state.frozen_at if area_state.frozen_at is not None else current_hour
+
+                    # Calculate using area's actual state (which has brightness_mid, color_mid)
+                    brightness = 50
+                    kelvin = 4000
+                    try:
+                        result = CircadianLight.calculate_lighting(calc_hour, area_config, area_state)
+                        brightness = result.brightness
+                        kelvin = result.color_temp
+                    except Exception as e:
+                        logger.warning(f"Error calculating lighting for area {area_id}: {e}")
+
                     area_status[area_id] = {
-                        'enabled': area_state_data.get('enabled', False),
+                        'enabled': area_state.enabled,
                         'brightness': brightness,
                         'kelvin': kelvin,
-                        'frozen': is_frozen,
+                        'frozen': area_state.frozen_at is not None,
                         'zone_name': zone_name if zone_name != 'Unassigned' else None
                     }
 

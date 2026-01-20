@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.8.74
+**Fix: Area status uses per-area state**
+
+- Area status API now uses each area's actual state (brightness_mid, color_mid, frozen_at)
+- Previously was using zone-level values, now correctly shows per-area brightness and kelvin
+- Uses same calculation path as main.py (CircadianLight.calculate_lighting with AreaState)
+
 ## 6.8.72
 **UI Tweaks**
 
