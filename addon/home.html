@@ -608,6 +608,8 @@
 
       // Render unassigned areas
       const unassignedAreas = allAreas.filter(a => !assignedAreaIds.has(a.area_id));
+      console.log(`[Home] allAreas: ${allAreas.length}, assignedAreaIds:`, [...assignedAreaIds], `unassigned: ${unassignedAreas.length}`);
+
       if (unassignedAreas.length === 0) {
         unassignedContainer.innerHTML = '<span class="zone-areas-empty">All areas are assigned to zones</span>';
       } else {
@@ -619,6 +621,8 @@
 
     function renderZoneCard(zoneName, zone) {
       const areas = zone.areas || [];
+      console.log(`[Home] Zone "${zoneName}" has ${areas.length} areas:`, areas);
+
       const presetOptions = Object.keys(presets).map(p =>
         `<option value="${p}" ${zone.preset === p ? 'selected' : ''}>${p}</option>`
       ).join('');
