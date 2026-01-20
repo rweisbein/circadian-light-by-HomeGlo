@@ -424,7 +424,7 @@ class HomeAssistantWebSocketClient:
     def _map_zha_command_to_button_event(
         self,
         command: str,
-        args: Dict[str, Any],
+        args: Union[Dict[str, Any], List[Any]],
         switch_type: str
     ) -> Optional[str]:
         """Map a ZHA command to our button event format.
@@ -435,6 +435,10 @@ class HomeAssistantWebSocketClient:
         - step_with_on_off, move_with_on_off (older style)
 
         We normalize these to: {button}_{action_type}
+
+        Note: ZHA args can be either a dict or a list depending on the command.
+        For step commands: args is list [step_mode, step_size, transition_time]
+        For move commands: args is list [move_mode, rate]
         """
         command_lower = command.lower()
 
@@ -452,14 +456,26 @@ class HomeAssistantWebSocketClient:
             return "off_short_release"
         elif command_lower == "step_with_on_off" or command_lower == "step":
             # Determine direction from args
-            step_mode = args.get("step_mode", 0)
+            # Args can be list [step_mode, step_size, transition_time] or dict
+            if isinstance(args, list) and len(args) > 0:
+                step_mode = args[0]
+            elif isinstance(args, dict):
+                step_mode = args.get("step_mode", 0)
+            else:
+                step_mode = 0
             if step_mode == 0:  # Up
                 return "up_short_release"
             else:  # Down
                 return "down_short_release"
         elif command_lower == "move_with_on_off" or command_lower == "move":
             # This is a hold/move command
-            move_mode = args.get("move_mode", 0)
+            # Args can be list [move_mode, rate] or dict
+            if isinstance(args, list) and len(args) > 0:
+                move_mode = args[0]
+            elif isinstance(args, dict):
+                move_mode = args.get("move_mode", 0)
+            else:
+                move_mode = 0
             if move_mode == 0:  # Up
                 return "up_hold"
             else:  # Down
@@ -503,6 +519,9 @@ class HomeAssistantWebSocketClient:
                 await self.primitives.circadian_off(area, "switch")
 
         elif action == "toggle":
+            await self.primitives.circadian_toggle_multiple(areas, "switch")
+
+        elif action == "circadian_toggle":
             await self.primitives.circadian_toggle_multiple(areas, "switch")
 
         elif action == "step_up":
@@ -558,6 +577,18 @@ class HomeAssistantWebSocketClient:
                 await self.primitives.glo_reset(zone_id, "switch")
             else:
                 logger.warning(f"No zone found for area {areas[0]}")
+
+        elif action == "set_britelite":
+            # TODO: Implement set_britelite - sets lights to bright white
+            logger.info(f"set_britelite action on areas: {areas} (not yet implemented)")
+
+        elif action == "set_nitelite":
+            # TODO: Implement set_nitelite - sets lights to dim warm
+            logger.info(f"set_nitelite action on areas: {areas} (not yet implemented)")
+
+        elif action == "toggle_wake_bed":
+            # TODO: Implement toggle_wake_bed - toggle wake/bed mode
+            logger.info(f"toggle_wake_bed action on areas: {areas} (not yet implemented)")
 
         else:
             logger.warning(f"Unknown action: {action}")
