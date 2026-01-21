@@ -359,12 +359,13 @@ class HomeAssistantWebSocketClient:
         # Map the ZHA command to our button event format
         button_event = self._map_zha_command_to_button_event(command, args, switch_config.type)
 
+        # Record last action for UI display (even if unmapped, show raw command)
+        display_event = button_event if button_event else f"{command}"
+        switches.set_last_action(device_ieee, display_event)
+
         if not button_event:
             logger.debug(f"Unmapped ZHA command: {command}")
             return
-
-        # Record last action for UI display
-        switches.set_last_action(device_ieee, button_event)
 
         # Get the action for this button event
         action = switch_config.get_button_action(button_event)
@@ -409,8 +410,31 @@ class HomeAssistantWebSocketClient:
         """Handle an event from an unconfigured switch.
 
         Just logs the event - controls are now fetched directly from HA.
+        Also records the last action for UI display.
         """
-        logger.debug(f"Event from unconfigured switch: {device_ieee}")
+        command = event_data.get("command", "unknown")
+        args = event_data.get("args", {})
+
+        # Try to create a readable button event
+        # Format raw command and args for display
+        if isinstance(args, dict) and args:
+            # e.g., "button_1_short_release" from press_type
+            press_type = args.get("press_type", "")
+            button = args.get("button", "")
+            if press_type:
+                button_event = press_type
+            elif button:
+                button_event = f"button_{button}_{command}"
+            else:
+                button_event = command
+        elif isinstance(args, list) and args:
+            button_event = f"{command}({', '.join(str(a) for a in args)})"
+        else:
+            button_event = command
+
+        # Record for UI display
+        switches.set_last_action(device_ieee, button_event)
+        logger.debug(f"Event from unconfigured switch: {device_ieee} - {button_event}")
 
     def _map_zha_command_to_button_event(
         self,

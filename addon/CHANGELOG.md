@@ -1,5 +1,25 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.27
+**Home page fixes: Zone state, sync borders, last action**
+
+- Zone state visualization now shows **per-zone** calculated values
+  - Previously showed first enabled area's values, which was incorrect
+  - New `/api/zone-states` endpoint returns calculated circadian values per zone
+  - Accounts for zone's Glo preset AND runtime state (GloUp/GloDown adjustments)
+  - Two zones sharing the same Glo will show different values if adjusted independently
+- Area sync borders:
+  - Orange border for in-sync areas
+  - Blue (Dawn Blue) border for out-of-sync areas
+  - Removed lightning bolt icon - borders are cleaner visual indicator
+- Zone card styling:
+  - Added orange border around Glo zone cards
+  - Fixed dropdown cutoff (overflow: visible)
+- Controls "Last action":
+  - Now tracks button presses even for unconfigured switches
+  - Also records action when command mapping fails (shows raw command)
+  - Previously only worked for configured switches with mapped commands
+
 ## 6.9.26
 **UI Refinements: In-sync, Controls, Glo dropdown**
 

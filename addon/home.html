@@ -107,9 +107,9 @@
 
     .zone-card {
       background: var(--card);
-      border: 1px solid var(--line);
+      border: 2px solid var(--accent);
       border-radius: 12px;
-      overflow: hidden;
+      overflow: visible;
     }
 
     .zone-name-edit {
@@ -604,20 +604,17 @@
       color: var(--muted);
     }
 
-    /* Area out-of-sync indicator */
+    /* Area sync indicator - orange for in-sync, blue for out-of-sync */
     .area-chip {
       position: relative;
     }
 
-    .area-chip.out-of-sync {
-      border-color: rgba(245, 158, 11, 0.4);
+    .area-chip.in-sync {
+      border-color: var(--accent);
     }
 
-    .out-of-sync-icon {
-      font-size: 0.7rem;
-      color: var(--warning);
-      margin-left: 4px;
-      opacity: 0.8;
+    .area-chip.out-of-sync {
+      border-color: #2e6cba;
     }
 
     .glo-display {
@@ -835,6 +832,7 @@
     let presetsData = {};  // Full preset data for displaying glo info
     let allAreas = [];
     let areaStates = {};
+    let zoneStates = {};  // Calculated circadian values for each zone (includes GloUp/GloDown offsets)
     let draggedArea = null;
 
     /**
@@ -890,22 +888,20 @@
 
     /**
      * Get the current state for a zone (brightness/kelvin).
-     * Uses the first enabled area's state, or returns a default.
+     * Uses the calculated zone values from the API, which accounts for:
+     * - The zone's Glo preset configuration
+     * - Any GloUp/GloDown adjustments (runtime state)
      */
     function getZoneCurrentState(zoneName, zone) {
-      const areas = zone.areas || [];
-      // Find first enabled area to get current zone state
-      for (const a of areas) {
-        const areaId = typeof a === 'string' ? a : a.id;
-        const state = areaStates[areaId];
-        if (state && state.enabled) {
-          return {
-            brightness: state.brightness,
-            kelvin: state.kelvin
-          };
-        }
+      // Use calculated zone state from API (includes runtime adjustments)
+      const zoneState = zoneStates[zoneName];
+      if (zoneState) {
+        return {
+          brightness: zoneState.brightness,
+          kelvin: zoneState.kelvin
+        };
       }
-      // No enabled areas - return default
+      // Fallback if zone state not loaded yet
       return { brightness: 100, kelvin: 4000 };
     }
 
@@ -987,8 +983,8 @@
           allAreas = extractAreasFromZones(zones);
         }
 
-        // Load area states (brightness, on/off, frozen)
-        await loadAreaStates();
+        // Load area states (brightness, on/off, frozen) and Glo states in parallel
+        await Promise.all([loadAreaStates(), loadZoneStates()]);
 
         renderZones();
       } catch (err) {
@@ -1038,6 +1034,20 @@
       } catch (err) {
         console.error('Error loading area states:', err);
         areaStates = {};
+      }
+    }
+
+    async function loadZoneStates() {
+      try {
+        const response = await fetch('./api/zone-states');
+        if (response.ok) {
+          const data = await response.json();
+          zoneStates = data.zone_states || {};
+          console.log('[Home] Loaded zone states:', zoneStates);
+        }
+      } catch (err) {
+        console.error('Error loading zone states:', err);
+        zoneStates = {};
       }
     }
 
@@ -1154,8 +1164,12 @@
       const areaName = area.name || areaId;
       const areaState = areaStates[areaId] || { enabled: false, brightness: 0, kelvin: 4000, frozen: false };
 
-      // Check if area is aligned with zone state (only matters for enabled areas in a zone)
-      const isOutOfSync = zoneState && areaState.enabled && !isAreaAligned(areaState, zoneState);
+      // Determine sync status (only when in a zone with a zoneState)
+      let syncClass = '';
+      if (zoneState) {
+        const isAligned = isAreaAligned(areaState, zoneState);
+        syncClass = isAligned ? 'in-sync' : 'out-of-sync';
+      }
 
       // Get CCT color for enabled areas
       let dotStyle = '';
@@ -1166,13 +1180,12 @@
       }
 
       return `
-        <div class="area-chip ${isOutOfSync ? 'out-of-sync' : ''}" draggable="true" data-area="${areaId}" data-zone="${zoneName || ''}">
+        <div class="area-chip ${syncClass}" draggable="true" data-area="${areaId}" data-zone="${zoneName || ''}">
           <span class="area-name">${areaName}</span>
           <div class="area-status">
             <span class="status-dot ${areaState.enabled ? 'on' : ''}" style="${dotStyle}"></span>
             ${areaState.enabled ? `<span class="area-brightness">${areaState.brightness}% • ${Math.round(areaState.kelvin)}K</span>` : ''}
             ${areaState.frozen ? '<span class="area-frozen" title="Frozen">&#128274;</span>' : ''}
-            ${isOutOfSync ? '<span class="out-of-sync-icon" title="Out of sync with zone">⚡</span>' : ''}
           </div>
         </div>
       `;
@@ -1602,9 +1615,9 @@
       }
     }
 
-    // Auto-refresh area states periodically
+    // Auto-refresh area states and Glo states periodically
     setInterval(async () => {
-      await loadAreaStates();
+      await Promise.all([loadAreaStates(), loadZoneStates()]);
       renderZones();
     }, 30000);
   </script>

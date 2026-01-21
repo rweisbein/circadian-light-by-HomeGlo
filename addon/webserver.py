@@ -387,6 +387,7 @@ class LightDesignerServer:
         self.app.router.add_route('GET', '/{path:.*}/api/steps', self.get_step_sequences)
         self.app.router.add_route('GET', '/{path:.*}/api/curve', self.get_curve_data)
         self.app.router.add_route('GET', '/{path:.*}/api/time', self.get_time)
+        self.app.router.add_route('GET', '/{path:.*}/api/zone-states', self.get_zone_states)
         self.app.router.add_route('GET', '/{path:.*}/api/presets', self.get_presets)
         self.app.router.add_route('GET', '/{path:.*}/api/sun_times', self.get_sun_times)
         self.app.router.add_route('GET', '/{path:.*}/health', self.health_check)
@@ -400,6 +401,7 @@ class LightDesignerServer:
         self.app.router.add_get('/api/steps', self.get_step_sequences)
         self.app.router.add_get('/api/curve', self.get_curve_data)
         self.app.router.add_get('/api/time', self.get_time)
+        self.app.router.add_get('/api/zone-states', self.get_zone_states)
         self.app.router.add_get('/api/presets', self.get_presets)
         self.app.router.add_get('/api/sun_times', self.get_sun_times)
         self.app.router.add_get('/health', self.health_check)
@@ -731,6 +733,86 @@ class LightDesignerServer:
                 {"error": f"Failed to get time info: {e}"},
                 status=500
             )
+
+    async def get_zone_states(self, request: Request) -> Response:
+        """Get current circadian values for each Glo Zone.
+
+        Returns brightness and kelvin for each zone, accounting for:
+        - The zone's Glo preset configuration
+        - The zone's runtime state (brightness_mid, color_mid, frozen_at from GloUp/GloDown)
+
+        This is per-zone, not per-preset, because two zones can share the same
+        Glo but have different runtime states.
+        """
+        try:
+            from zoneinfo import ZoneInfo
+            from brain import CircadianLight, Config, AreaState
+
+            # Get location from environment
+            latitude = float(os.getenv("HASS_LATITUDE", "35.0"))
+            longitude = float(os.getenv("HASS_LONGITUDE", "-78.6"))
+            timezone = os.getenv("HASS_TIME_ZONE", "US/Eastern")
+
+            try:
+                tzinfo = ZoneInfo(timezone)
+            except:
+                tzinfo = None
+
+            now = datetime.now(tzinfo)
+            hour = now.hour + now.minute / 60 + now.second / 3600
+
+            # Load config to get zones and presets
+            config = await self.load_raw_config()
+            zones = config.get("glozones", {})
+            presets = config.get("circadian_presets", {})
+
+            zone_states = {}
+            for zone_name, zone_config in zones.items():
+                # Get the preset (Glo) for this zone
+                preset_name = zone_config.get("preset", "Glo 1")
+                preset_config = presets.get(preset_name, {})
+
+                # Get zone runtime state (from GloUp/GloDown adjustments)
+                runtime_state = glozone_state.get_zone_state(zone_name)
+
+                # Build Config from preset
+                brain_config = Config(
+                    min_color_temp=preset_config.get('min_color_temp', 2000),
+                    max_color_temp=preset_config.get('max_color_temp', 6500),
+                    min_brightness=preset_config.get('min_brightness', 1),
+                    max_brightness=preset_config.get('max_brightness', 100),
+                    wake_time=preset_config.get('wake_time', 7.0),
+                    bed_time=preset_config.get('bed_time', 22.0),
+                    ascend_slope=preset_config.get('ascend_slope', 1.0),
+                    descend_slope=preset_config.get('descend_slope', 1.0),
+                    latitude=latitude,
+                    longitude=longitude,
+                    timezone=timezone,
+                )
+
+                # Build AreaState from zone runtime state
+                area_state = AreaState(
+                    enabled=True,
+                    brightness_mid=runtime_state.get('brightness_mid'),
+                    color_mid=runtime_state.get('color_mid'),
+                    frozen_at=runtime_state.get('frozen_at'),
+                )
+
+                # Calculate lighting values
+                result = CircadianLight.calculate_lighting(hour, brain_config, area_state)
+
+                zone_states[zone_name] = {
+                    "brightness": result.brightness,
+                    "kelvin": result.color_temp,
+                    "preset": preset_name,
+                    "runtime_state": runtime_state,
+                }
+
+            return web.json_response({"zone_states": zone_states})
+
+        except Exception as e:
+            logger.error(f"Error getting zone states: {e}", exc_info=True)
+            return web.json_response({"error": str(e)}, status=500)
 
     def apply_query_overrides(self, config: dict, query) -> dict:
         """Apply UI query parameters to a config dict for live previews."""
