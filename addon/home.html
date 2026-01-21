@@ -245,17 +245,6 @@
       z-index: 1;
     }
 
-    .status-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--muted2);
-    }
-
-    .status-dot.on {
-      box-shadow: 0 0 6px currentColor;
-    }
-
     .area-brightness {
       font-size: 0.65rem;
       color: rgba(255, 255, 255, 0.7);
@@ -633,13 +622,20 @@
       color: rgba(255, 255, 255, 0.85);
     }
 
-    /* Area sync indicator - subtle blue for in-sync, subtle orange for out-of-sync */
+    .glo-state-frozen {
+      color: var(--warning);
+      font-size: 0.9rem;
+    }
+
+    /* Area sync indicator - subtle blue for in-sync, orange with dark outline for out-of-sync */
     .area-chip.in-sync {
       border-color: rgba(46, 108, 186, 0.5);
     }
 
     .area-chip.out-of-sync {
-      border-color: rgba(254, 172, 96, 0.5);
+      /* Double border effect: dark inner, orange outer for consistent appearance */
+      border-color: rgba(254, 172, 96, 0.8);
+      box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.4);
     }
 
     .glo-display {
@@ -917,15 +913,18 @@
       // Use calculated zone state from API (includes runtime adjustments)
       const zoneState = zoneStates[zoneName];
       if (zoneState) {
+        // Check if frozen (runtime_state has frozen_at set)
+        const frozen = zoneState.runtime_state?.frozen_at != null;
         return {
           brightness: zoneState.brightness,
-          kelvin: zoneState.kelvin
+          kelvin: zoneState.kelvin,
+          frozen: frozen
         };
       }
       // Debug: log when zone not found
       console.warn(`[Home] Zone '${zoneName}' not found in zoneStates. Available:`, Object.keys(zoneStates));
       // Fallback if zone state not loaded yet
-      return { brightness: 100, kelvin: 4000 };
+      return { brightness: 100, kelvin: 4000, frozen: false };
     }
 
     /**
@@ -939,11 +938,13 @@
       // Brightness as decimal for gradient fill
       const brightnessFill = zoneState.brightness / 100;
       const style = `--glo-cct-bg: ${bgColor}; --glo-brightness-fill: ${brightnessFill};`;
+      const frozenIcon = zoneState.frozen ? '<span class="glo-state-frozen" title="Frozen">&#128274;</span>' : '';
       return `
         <div class="glo-state-vis" style="${style}">
           <div class="glo-state-values">
             <span class="glo-state-brightness">${zoneState.brightness}%</span>
             <span class="glo-state-temp">${Math.round(zoneState.kelvin)}K</span>
+            ${frozenIcon}
           </div>
         </div>
       `;
@@ -1219,7 +1220,6 @@
 
       // Build chip styles - CCT background and brightness fill for enabled areas
       let chipStyle = '';
-      let dotStyle = '';
       if (areaState.enabled) {
         const rgb = kelvinToRgb(areaState.kelvin);
         // Dimmed CCT color for background (30% opacity)
@@ -1227,16 +1227,12 @@
         // Brightness as decimal for gradient fill
         const brightnessFill = areaState.brightness / 100;
         chipStyle = `--area-cct-bg: ${bgColor}; --area-brightness-fill: ${brightnessFill};`;
-        // Dot still uses solid color
-        const dotColor = `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`;
-        dotStyle = `background: ${dotColor}; color: ${dotColor};`;
       }
 
       return `
         <div class="area-chip ${syncClass}" draggable="true" data-area="${areaId}" data-zone="${zoneName || ''}" style="${chipStyle}">
           <span class="area-name">${areaName}</span>
           <div class="area-status">
-            <span class="status-dot ${areaState.enabled ? 'on' : ''}" style="${dotStyle}"></span>
             ${areaState.enabled ? `<span class="area-brightness">${areaState.brightness}% ${Math.round(areaState.kelvin)}K</span>` : ''}
             ${areaState.frozen ? '<span class="area-frozen" title="Frozen">&#128274;</span>' : ''}
           </div>

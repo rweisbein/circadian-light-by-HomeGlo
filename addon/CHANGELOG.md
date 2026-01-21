@@ -1,5 +1,15 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.41
+**UI polish: remove dot, add lock, fix border, sortable last action**
+
+- Removed colored dot from area cards (redundant with CCT background)
+- Added lock icon to zone state card when zone is frozen
+- Fixed orange out-of-sync border appearing different on warm/cool cards
+  (added dark inner shadow for consistent contrast)
+- Controls: Last action now shows date/time and is sortable
+  (format: "1/21 4:32p Button 1x")
+
 ## 6.9.40
 **Dim/bright buttons on off lights -> nitelite**
 

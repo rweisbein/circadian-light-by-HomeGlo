@@ -546,10 +546,12 @@ def get_hold_action(switch_id: str) -> Optional[str]:
 
 
 def set_last_action(switch_id: str, action: str) -> None:
-    """Record the last button action for a switch.
+    """Record the last button action for a switch with timestamp.
 
     Persists to file for cross-process sharing with webserver.
     """
+    from datetime import datetime
+
     # Update in-memory state
     state = _runtime_state.get(switch_id)
     if state:
@@ -558,21 +560,33 @@ def set_last_action(switch_id: str, action: str) -> None:
         state = SwitchRuntimeState(last_action=action)
         _runtime_state[switch_id] = state
 
-    # Persist to file for webserver to read
+    # Persist to file for webserver to read (with timestamp)
     all_actions = _load_last_actions()
-    all_actions[switch_id] = action
+    all_actions[switch_id] = {
+        "action": action,
+        "timestamp": datetime.now().isoformat()
+    }
     _save_last_actions(all_actions)
     logger.debug(f"[LastAction] SET '{switch_id}': {action}")
 
 
-def get_last_action(switch_id: str) -> Optional[str]:
-    """Get the last button action for a switch.
+def get_last_action(switch_id: str) -> Optional[dict]:
+    """Get the last button action for a switch with timestamp.
 
     Reads from file to get cross-process state.
+
+    Returns:
+        dict with 'action' and 'timestamp' keys, or None if not found.
+        For backwards compatibility, handles old format (plain string).
     """
     # Read from file (cross-process)
     all_actions = _load_last_actions()
     result = all_actions.get(switch_id)
+
+    # Handle backwards compatibility (old format was just a string)
+    if isinstance(result, str):
+        result = {"action": result, "timestamp": None}
+
     logger.debug(f"[LastAction] GET '{switch_id}': {result}")
     return result
 
