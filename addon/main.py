@@ -133,7 +133,23 @@ class HomeAssistantWebSocketClient:
         current_id = self.message_id
         self.message_id += 1
         return current_id
-    
+
+    def _get_turn_on_transition(self) -> float:
+        """Get the turn-on transition time in seconds.
+
+        Reads from global config, defaults to 0.3 seconds (3 tenths).
+        The setting is stored as tenths of seconds in config.
+
+        Returns:
+            Transition time in seconds
+        """
+        try:
+            raw_config = glozone.load_config_from_files()
+            tenths = raw_config.get("turn_on_transition", 3)
+            return tenths / 10.0  # Convert tenths to seconds
+        except Exception:
+            return 0.3  # Default 0.3 seconds
+
     def _normalize_area_key(self, value: Optional[str]) -> Optional[str]:
         """Normalize area identifiers to a lowercase underscore-delimited key."""
         if not value or not isinstance(value, str):
@@ -587,23 +603,35 @@ class HomeAssistantWebSocketClient:
 
         elif action == "set_britelite":
             # Bright white: 100% brightness, cool white (6500K = 154 mireds)
+            # Also sets frozen_at to descend_start so GloUp can propagate this state
             logger.info(f"[switch] set_britelite for areas: {areas}")
+            transition = self._get_turn_on_transition()
             for area in areas:
                 state.set_enabled(area, False)  # Disable circadian mode
+                # Set frozen_at to descend_start (max values hour) for GloUp propagation
+                config = glozone.get_effective_config_for_area(area)
+                frozen_hour = config.get("descend_start", 12.0)  # Default noon
+                state.set_frozen_at(area, frozen_hour)
                 await self.call_service(
                     "light", "turn_on",
-                    {"brightness": 255, "color_temp": 154, "transition": 0},
+                    {"brightness": 255, "color_temp": 154, "transition": transition},
                     target={"area_id": area}
                 )
 
         elif action == "set_nitelite":
             # Dim warm: 5% brightness, warm (2200K = 455 mireds)
+            # Also sets frozen_at to ascend_start so GloUp can propagate this state
             logger.info(f"[switch] set_nitelite for areas: {areas}")
+            transition = self._get_turn_on_transition()
             for area in areas:
                 state.set_enabled(area, False)  # Disable circadian mode
+                # Set frozen_at to ascend_start (min values hour) for GloUp propagation
+                config = glozone.get_effective_config_for_area(area)
+                frozen_hour = config.get("ascend_start", 0.0)  # Default midnight
+                state.set_frozen_at(area, frozen_hour)
                 await self.call_service(
                     "light", "turn_on",
-                    {"brightness": 13, "color_temp": 455, "transition": 0},
+                    {"brightness": 13, "color_temp": 455, "transition": transition},
                     target={"area_id": area}
                 )
 

@@ -96,6 +96,22 @@ class CircadianLightPrimitives:
 
         return Config.from_dict(config_dict)
 
+    def _get_turn_on_transition(self) -> float:
+        """Get the turn-on transition time in seconds.
+
+        Reads from global config, defaults to 0.3 seconds (3 tenths).
+        The setting is stored as tenths of seconds in config.
+
+        Returns:
+            Transition time in seconds
+        """
+        try:
+            raw_config = glozone.load_config_from_files()
+            tenths = raw_config.get("turn_on_transition", 3)
+            return tenths / 10.0  # Convert tenths to seconds
+        except Exception:
+            return 0.3  # Default 0.3 seconds
+
     def _get_area_state(self, area_id: str) -> AreaState:
         """Get area state from state module."""
         state_dict = state.get_area(area_id)
@@ -421,7 +437,8 @@ class CircadianLightPrimitives:
         hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
 
         result = CircadianLight.calculate_lighting(hour, config, area_state)
-        await self._apply_lighting(area_id, result.brightness, result.color_temp)
+        transition = self._get_turn_on_transition()
+        await self._apply_lighting(area_id, result.brightness, result.color_temp, transition=transition)
 
         logger.info(
             f"Circadian Light enabled for area {area_id}: "
@@ -488,6 +505,7 @@ class CircadianLightPrimitives:
 
         else:
             # Turn on all areas with Circadian values
+            transition = self._get_turn_on_transition()
             for area_id in area_ids:
                 # Ensure area is in a zone (add to default zone if not)
                 if not glozone.is_area_in_any_zone(area_id):
@@ -503,7 +521,7 @@ class CircadianLightPrimitives:
                 hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
 
                 result = CircadianLight.calculate_lighting(hour, config, area_state)
-                await self._apply_lighting(area_id, result.brightness, result.color_temp)
+                await self._apply_lighting(area_id, result.brightness, result.color_temp, transition=transition)
 
             logger.info(f"Turned on {len(area_ids)} area(s) with Circadian Light")
 

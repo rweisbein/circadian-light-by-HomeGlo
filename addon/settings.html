@@ -298,20 +298,82 @@
       <h1 class="page-title">Settings</h1>
     </div>
 
+    <!-- Transitions Section -->
+    <div class="settings-section">
+      <div class="section-header">Transitions</div>
+      <div class="section-content">
+        <div class="form-row">
+          <label class="form-label">Turn on lights</label>
+          <div class="form-control">
+            <input type="number" class="form-input" id="turn-on-transition" min="0" max="100" step="1" value="3" style="width: 80px;">
+            <span class="form-hint">tenths of a second (3 = 0.3s)</span>
+          </div>
+        </div>
+        <p class="section-description" style="margin-top: 12px;">
+          Applies to: Circadian On, Circadian Toggle (on), Britelite, Nitelite, and other turn-on operations.
+        </p>
+      </div>
+    </div>
+
     <div class="settings-section">
       <div class="section-content">
         <p class="section-description">
-          All settings are configured per-Glo on the <a href="./glo" style="color: var(--accent);">Glo design</a> page.
+          Per-Glo lighting settings are on the <a href="./glo" style="color: var(--accent);">Glo design</a> page.
         </p>
         <p class="section-description">
           Location settings are on the <a href="./" style="color: var(--accent);">Home</a> page.
         </p>
       </div>
     </div>
+
+    <div class="save-status" id="save-status">Settings saved</div>
   </main>
 
   <script>
-    // Reserved for future settings
+    // Load and save settings
+    async function loadSettings() {
+      try {
+        const response = await fetch('./api/config');
+        if (response.ok) {
+          const config = await response.json();
+          document.getElementById('turn-on-transition').value = config.turn_on_transition ?? 3;
+        }
+      } catch (err) {
+        console.error('Error loading settings:', err);
+      }
+    }
+
+    async function saveSettings() {
+      const settings = {
+        turn_on_transition: parseInt(document.getElementById('turn-on-transition').value) || 3
+      };
+
+      try {
+        const response = await fetch('./api/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(settings)
+        });
+
+        if (response.ok) {
+          showSaveStatus();
+        }
+      } catch (err) {
+        console.error('Error saving settings:', err);
+      }
+    }
+
+    function showSaveStatus() {
+      const status = document.getElementById('save-status');
+      status.classList.add('visible');
+      setTimeout(() => status.classList.remove('visible'), 2000);
+    }
+
+    // Auto-save on change
+    document.getElementById('turn-on-transition').addEventListener('change', saveSettings);
+
+    // Load on page load
+    document.addEventListener('DOMContentLoaded', loadSettings);
   </script>
 </body>
 </html>

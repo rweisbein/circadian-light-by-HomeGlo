@@ -1,5 +1,16 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.37
+**Configurable turn-on transition + GloUp propagation fix**
+
+- Added Settings page "Transitions" section with configurable "Turn on lights" duration
+  - Measured in tenths of a second (default: 3 = 0.3 seconds)
+  - Applies to: Circadian On, Circadian Toggle, Britelite, Nitelite
+- Fixed GloUp after Britelite/Nitelite:
+  - Britelite/Nitelite now set frozen_at so GloUp can propagate the state to other areas
+  - Britelite sets frozen_at to descend_start (max brightness hour)
+  - Nitelite sets frozen_at to ascend_start (min brightness hour)
+
 ## 6.9.35
 **Fix: Cross-process state sharing for zone state and last action**
 

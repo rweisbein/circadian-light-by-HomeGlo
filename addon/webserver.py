@@ -923,6 +923,7 @@ class LightDesignerServer:
     # Settings that are global (not per-preset)
     GLOBAL_SETTINGS = {
         "latitude", "longitude", "timezone", "use_ha_location", "month",
+        "turn_on_transition",  # Transition time in tenths of seconds for turn-on operations
     }
 
     def _migrate_to_glozone_format(self, config: dict) -> dict:
