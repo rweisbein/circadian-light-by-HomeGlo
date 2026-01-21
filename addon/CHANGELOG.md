@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.28
+**UI refinements: Border placement, debug logging**
+
+- Moved orange "in-sync" border from zone card to the state visualization pill
+- Made all sync borders thinner (1px) for more subtle appearance
+- Added debug logging to zone-states API to investigate calculation issues
+- Fixed Config creation to use from_dict() method with proper defaults
+
 ## 6.9.27
 **Home page fixes: Zone state, sync borders, last action**
 

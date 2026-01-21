@@ -107,7 +107,7 @@
 
     .zone-card {
       background: var(--card);
-      border: 2px solid var(--accent);
+      border: 1px solid var(--line);
       border-radius: 12px;
       overflow: visible;
     }
@@ -576,6 +576,7 @@
       gap: 8px;
       padding: 4px 12px;
       background: var(--bg);
+      border: 1px solid var(--accent);
       border-radius: 20px;
       font-size: 0.8rem;
     }
@@ -901,6 +902,8 @@
           kelvin: zoneState.kelvin
         };
       }
+      // Debug: log when zone not found
+      console.warn(`[Home] Zone '${zoneName}' not found in zoneStates. Available:`, Object.keys(zoneStates));
       // Fallback if zone state not loaded yet
       return { brightness: 100, kelvin: 4000 };
     }
@@ -1044,6 +1047,11 @@
           const data = await response.json();
           zoneStates = data.zone_states || {};
           console.log('[Home] Loaded zone states:', zoneStates);
+          console.log('[Home] Zone names in response:', Object.keys(zoneStates));
+        } else {
+          const errorText = await response.text();
+          console.error('[Home] Zone states API error:', response.status, errorText);
+          zoneStates = {};
         }
       } catch (err) {
         console.error('Error loading zone states:', err);

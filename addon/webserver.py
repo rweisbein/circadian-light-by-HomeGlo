@@ -766,6 +766,9 @@ class LightDesignerServer:
             zones = config.get("glozones", {})
             presets = config.get("circadian_presets", {})
 
+            logger.info(f"[ZoneStates] Found {len(zones)} zones: {list(zones.keys())}")
+            logger.info(f"[ZoneStates] Found {len(presets)} presets: {list(presets.keys())}")
+
             zone_states = {}
             for zone_name, zone_config in zones.items():
                 # Get the preset (Glo) for this zone
@@ -775,20 +778,8 @@ class LightDesignerServer:
                 # Get zone runtime state (from GloUp/GloDown adjustments)
                 runtime_state = glozone_state.get_zone_state(zone_name)
 
-                # Build Config from preset
-                brain_config = Config(
-                    min_color_temp=preset_config.get('min_color_temp', 2000),
-                    max_color_temp=preset_config.get('max_color_temp', 6500),
-                    min_brightness=preset_config.get('min_brightness', 1),
-                    max_brightness=preset_config.get('max_brightness', 100),
-                    wake_time=preset_config.get('wake_time', 7.0),
-                    bed_time=preset_config.get('bed_time', 22.0),
-                    ascend_slope=preset_config.get('ascend_slope', 1.0),
-                    descend_slope=preset_config.get('descend_slope', 1.0),
-                    latitude=latitude,
-                    longitude=longitude,
-                    timezone=timezone,
-                )
+                # Build Config from preset using from_dict (handles all fields with defaults)
+                brain_config = Config.from_dict(preset_config)
 
                 # Build AreaState from zone runtime state
                 area_state = AreaState(
@@ -807,7 +798,9 @@ class LightDesignerServer:
                     "preset": preset_name,
                     "runtime_state": runtime_state,
                 }
+                logger.info(f"[ZoneStates] Zone '{zone_name}': {result.brightness}% {result.color_temp}K (preset: {preset_name})")
 
+            logger.info(f"[ZoneStates] Returning {len(zone_states)} zone states")
             return web.json_response({"zone_states": zone_states})
 
         except Exception as e:
