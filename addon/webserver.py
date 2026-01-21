@@ -662,14 +662,35 @@ class LightDesignerServer:
             # Calculate sun times using brain.py function
             sun_times = calculate_sun_times(lat, lon, date_str)
 
+            # Helper to convert ISO string to hour
+            def iso_to_hour(iso_str, default):
+                if not iso_str:
+                    return default
+                try:
+                    dt = datetime.fromisoformat(iso_str)
+                    return dt.hour + dt.minute / 60.0 + dt.second / 3600.0
+                except:
+                    return default
+
+            sunrise_hour = iso_to_hour(sun_times.get("sunrise"), 6.0)
+            sunset_hour = iso_to_hour(sun_times.get("sunset"), 18.0)
+            noon_hour = iso_to_hour(sun_times.get("noon"), 12.0)
+            midnight_hour = (noon_hour + 12.0) % 24.0
+
             return web.json_response({
                 "date": date_str,
                 "latitude": lat,
                 "longitude": lon,
+                # ISO strings for display
                 "sunrise": sun_times.get("sunrise"),
                 "sunset": sun_times.get("sunset"),
-                "solar_noon": sun_times.get("solar_noon"),
-                "solar_midnight": sun_times.get("solar_midnight"),
+                "solar_noon": sun_times.get("noon"),
+                "solar_midnight": None,
+                # Hour values for calculations
+                "sunrise_hour": sunrise_hour,
+                "sunset_hour": sunset_hour,
+                "noon_hour": noon_hour,
+                "midnight_hour": midnight_hour,
             })
         except Exception as e:
             logger.error(f"Error getting sun times: {e}")

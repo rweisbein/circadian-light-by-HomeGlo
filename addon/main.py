@@ -21,8 +21,10 @@ from brain import (
     Config,
     AreaState,
     ColorMode,
+    SunTimes,
     get_current_hour,
     get_circadian_lighting,
+    calculate_sun_times,
     DEFAULT_MAX_DIM_STEPS,
     DEFAULT_MIN_BRIGHTNESS,
     DEFAULT_MAX_BRIGHTNESS,
@@ -622,16 +624,19 @@ class HomeAssistantWebSocketClient:
 
         elif action == "glo_up":
             # Glo primitives take area_id and look up zone internally
-            if areas:
-                await self.primitives.glo_up(areas[0], "switch")
+            # Process all areas (they may be in different zones)
+            for area in areas:
+                await self.primitives.glo_up(area, "switch")
 
         elif action == "glo_down":
-            if areas:
-                await self.primitives.glo_down(areas[0], "switch")
+            # Process all areas (they may be in different zones)
+            for area in areas:
+                await self.primitives.glo_down(area, "switch")
 
         elif action == "glo_reset":
-            if areas:
-                await self.primitives.glo_reset(areas[0], "switch")
+            # Process all areas (they may be in different zones)
+            for area in areas:
+                await self.primitives.glo_reset(area, "switch")
 
         elif action == "set_britelite":
             # Freeze at descend_start (max brightness/coolest color on curve)
@@ -1579,6 +1584,47 @@ class HomeAssistantWebSocketClient:
 
         return lighting_values
     
+    def _get_sun_times(self) -> SunTimes:
+        """Get current sun times from configured location.
+
+        Returns:
+            SunTimes object with sunrise, sunset, solar_noon, solar_mid (as hours 0-24)
+        """
+        try:
+            from datetime import datetime
+            from zoneinfo import ZoneInfo
+
+            if self.latitude and self.longitude:
+                date_str = datetime.now().strftime('%Y-%m-%d')
+                sun_dict = calculate_sun_times(self.latitude, self.longitude, date_str)
+
+                # Convert ISO strings to hours
+                def iso_to_hour(iso_str, default):
+                    if not iso_str:
+                        return default
+                    try:
+                        dt = datetime.fromisoformat(iso_str)
+                        return dt.hour + dt.minute / 60.0 + dt.second / 3600.0
+                    except:
+                        return default
+
+                sunrise = iso_to_hour(sun_dict.get("sunrise"), 6.0)
+                sunset = iso_to_hour(sun_dict.get("sunset"), 18.0)
+                solar_noon = iso_to_hour(sun_dict.get("noon"), 12.0)
+                solar_mid = (solar_noon + 12.0) % 24.0  # Opposite of noon
+
+                return SunTimes(
+                    sunrise=sunrise,
+                    sunset=sunset,
+                    solar_noon=solar_noon,
+                    solar_mid=solar_mid,
+                )
+        except Exception as e:
+            logger.debug(f"Error calculating sun times: {e}")
+
+        # Return defaults if calculation fails
+        return SunTimes()
+
     async def update_lights_in_circadian_mode(self, area_id: str):
         """Update lights in an area with circadian lighting if Circadian Light is enabled.
 
@@ -1611,8 +1657,11 @@ class HomeAssistantWebSocketClient:
             else:
                 hour = get_current_hour()
 
+            # Get actual sun times for solar rules
+            sun_times = self._get_sun_times()
+
             # Calculate lighting using area state (respects stepped values)
-            result = CircadianLight.calculate_lighting(hour, config, area_state)
+            result = CircadianLight.calculate_lighting(hour, config, area_state, sun_times=sun_times)
 
             # Build values dict for turn_on_lights_circadian
             lighting_values = {

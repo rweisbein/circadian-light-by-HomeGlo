@@ -568,7 +568,8 @@ class CircadianLight:
     def calculate_lighting(
         hour: float,
         config: Config,
-        state: AreaState
+        state: AreaState,
+        sun_times: Optional[SunTimes] = None
     ) -> LightingResult:
         """Calculate full lighting values at a specific hour.
 
@@ -576,6 +577,7 @@ class CircadianLight:
             hour: Hour (0-24)
             config: Global configuration
             state: Area runtime state
+            sun_times: Sun position times for solar rules (if None, uses defaults)
 
         Returns:
             LightingResult with brightness, color_temp, rgb, xy, phase
@@ -583,7 +585,7 @@ class CircadianLight:
         in_ascend, _, _, _, _ = CircadianLight.get_phase_info(hour, config)
 
         brightness = CircadianLight.calculate_brightness_at_hour(hour, config, state)
-        color_temp = CircadianLight.calculate_color_at_hour(hour, config, state)
+        color_temp = CircadianLight.calculate_color_at_hour(hour, config, state, sun_times=sun_times)
         rgb = CircadianLight.color_temperature_to_rgb(color_temp)
         xy = CircadianLight.color_temperature_to_xy(color_temp)
 

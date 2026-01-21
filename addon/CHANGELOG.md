@@ -1,5 +1,14 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.42
+**Fix GloDown for multiple areas + solar rules use actual sun times**
+
+- Fixed GloDown/GloUp/GloReset to process ALL areas when switch controls multiple areas
+  (was only processing the first area)
+- Solar rules (warm at night, cool day) now use actual sunrise/sunset times from
+  configured location instead of defaults (6am/6pm)
+- API endpoint /api/sun_times now returns both ISO strings and hour values
+
 ## 6.9.41
 **UI polish: remove dot, add lock, fix border, sortable last action**
 
