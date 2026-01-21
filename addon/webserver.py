@@ -1113,7 +1113,17 @@ class LightDesignerServer:
             logger.error("Designer config load failed - saves will be blocked to prevent data loss")
 
         # Migrate to GloZone format if needed
-        return self._migrate_to_glozone_format(config)
+        config = self._migrate_to_glozone_format(config)
+
+        # Clean up: remove preset settings from top level (they should only exist in presets)
+        # This fixes the duplicate values issue where stale top-level values could override preset values
+        if "circadian_presets" in config:
+            for key in list(config.keys()):
+                if key in self.PRESET_SETTINGS:
+                    del config[key]
+                    logger.debug(f"Removed duplicate top-level key '{key}' (exists in preset)")
+
+        return config
 
     async def _repair_json_file(self, filepath: str):
         """Attempt to repair a corrupted JSON file with duplicate content.

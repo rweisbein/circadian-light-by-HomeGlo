@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.19
+**Fix: Step down color, settings persistence, switch actions**
+
+- Fixed step_down color regression: color now stays at warm_night ceiling (e.g., 2700K) until natural curve drops below it
+- Fixed settings persistence: removed duplicate preset values from top level that could override saved settings
+- Fixed triple-press britelite/nitelite: now uses correct color_temp format (mireds)
+- Fixed scope cycling restore: lights that were on but had no xy data now restore properly
+
 ## 6.9.7
 **Remove Blueprint Management, Update Button Mapping**
 

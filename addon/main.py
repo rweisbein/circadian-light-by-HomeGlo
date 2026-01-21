@@ -581,24 +581,24 @@ class HomeAssistantWebSocketClient:
                 await self.primitives.glo_reset(areas[0], "switch")
 
         elif action == "set_britelite":
-            # Bright white: 100% brightness, cool white (6500K)
+            # Bright white: 100% brightness, cool white (6500K = 154 mireds)
             logger.info(f"[switch] set_britelite for areas: {areas}")
             for area in areas:
                 state.disable(area)  # Disable circadian mode
                 await self.call_service(
                     "light", "turn_on",
-                    {"brightness": 255, "color_temp_kelvin": 6500, "transition": 0},
+                    {"brightness": 255, "color_temp": 154, "transition": 0},
                     target={"area_id": area}
                 )
 
         elif action == "set_nitelite":
-            # Dim warm: 5% brightness, warm (2200K)
+            # Dim warm: 5% brightness, warm (2200K = 455 mireds)
             logger.info(f"[switch] set_nitelite for areas: {areas}")
             for area in areas:
                 state.disable(area)  # Disable circadian mode
                 await self.call_service(
                     "light", "turn_on",
-                    {"brightness": 13, "color_temp_kelvin": 2200, "transition": 0},
+                    {"brightness": 13, "color_temp": 455, "transition": 0},
                     target={"area_id": area}
                 )
 
@@ -703,6 +703,9 @@ class HomeAssistantWebSocketClient:
                     {"xy_color": data["xy"], "brightness": data["brightness"], "transition": 0},
                     target={"area_id": area}
                 )
+            else:
+                # Was on but no circadian data - just turn back on (keeps previous settings)
+                await self.call_service("light", "turn_on", {"transition": 0}, target={"area_id": area})
 
     async def _show_scope_error_feedback(self, switch_id: str) -> None:
         """Show error feedback when can't cycle scope (flash red).

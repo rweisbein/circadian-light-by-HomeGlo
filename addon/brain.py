@@ -636,6 +636,10 @@ class CircadianLight:
 
         # Current values
         current_bri = CircadianLight.calculate_brightness_at_hour(hour, config, state)
+        # Get the NATURAL curve color (without solar rules) for stepping
+        # Solar rules will be applied at render time
+        natural_cct = CircadianLight.calculate_color_at_hour(hour, config, state, apply_solar_rules=False)
+        # Also get the rendered color for limit checking
         current_cct = CircadianLight.calculate_color_at_hour(hour, config, state, apply_solar_rules=True)
 
         # Safe margin to avoid asymptote issues in midpoint calculation
@@ -650,24 +654,28 @@ class CircadianLight:
             return None  # At config bound, can't go further
 
         # Calculate target brightness and color (both step proportionally)
+        # IMPORTANT: Step the NATURAL curve color (pre-solar-rules), not the rendered color
+        # This ensures stepping respects the solar rule ceilings/floors
         target_bri = current_bri + sign * bri_step
-        target_cct = current_cct + sign * cct_step
+        target_natural_cct = natural_cct + sign * cct_step
 
         # Clamp to safe bounds
         target_bri = max(b_min + safe_margin_bri, min(b_max - safe_margin_bri, target_bri))
-        target_cct = max(c_min + safe_margin_cct, min(c_max - safe_margin_cct, target_cct))
+        target_natural_cct = max(c_min + safe_margin_cct, min(c_max - safe_margin_cct, target_natural_cct))
 
-        # Apply solar rules to target color (warm_night ceiling, cool_day floor)
-        target_cct = CircadianLight._apply_solar_rules(target_cct, hour, config, state)
+        # Apply solar rules to get the RENDERED color (for light output)
+        # The midpoint will be calculated from target_natural_cct so the curve position is correct
+        target_cct = CircadianLight._apply_solar_rules(target_natural_cct, hour, config, state)
 
-        # Clamp color to config bounds again after solar rules
+        # Clamp color to config bounds after solar rules
         target_cct = max(c_min, min(c_max, target_cct))
 
         # Calculate new midpoints that produce these target values at current time
+        # Use target_natural_cct for color midpoint (curve position), not target_cct (rendered)
         b_min_norm = b_min / 100.0
         b_max_norm = b_max / 100.0
         target_bri_norm = max(b_min_norm + 0.001, min(b_max_norm - 0.001, target_bri / 100.0))
-        target_cct_norm = max(0.001, min(0.999, (target_cct - c_min) / (c_max - c_min)))
+        target_cct_norm = max(0.001, min(0.999, (target_natural_cct - c_min) / (c_max - c_min)))
 
         calc_time = h48
         if not in_ascend and h48 < t_descend:
