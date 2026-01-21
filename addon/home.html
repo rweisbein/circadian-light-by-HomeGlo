@@ -74,7 +74,6 @@
 
     .nav-link.active {
       color: var(--accent);
-      background: rgba(99, 102, 241, 0.1);
     }
 
     /* Main Content */
@@ -375,6 +374,29 @@
       background: var(--accent-hover);
     }
 
+    /* Sun Display */
+    .sun-display {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      padding: 12px 0 20px;
+      font-size: 1.1rem;
+    }
+
+    .sun-rise {
+      color: var(--accent);
+    }
+
+    .sun-divider {
+      color: var(--muted2);
+      letter-spacing: 2px;
+    }
+
+    .sun-set {
+      color: #8b7ec8;
+    }
+
     /* Location Section */
     .location-section {
       background: var(--card);
@@ -599,7 +621,7 @@
     <span class="nav-brand">Circadian Light</span>
     <div class="nav-links">
       <a href="./" class="nav-link active">Home</a>
-      <a href="./glo" class="nav-link">Glo</a>
+      <a href="./glo" class="nav-link">Glo design</a>
       <a href="./switches" class="nav-link">Switches</a>
       <a href="./settings" class="nav-link">Settings</a>
     </div>
@@ -607,11 +629,17 @@
 
   <!-- Main Content -->
   <main class="main">
+    <!-- Sun Times Display -->
+    <div class="sun-display" id="sun-display">
+      <span class="sun-rise">☀️ <span id="sunrise-time">--:--</span></span>
+      <span class="sun-divider">―――</span>
+      <span class="sun-set"><span id="sunset-time">--:--</span> 🌙</span>
+    </div>
+
     <!-- Location Section -->
     <div class="location-section" id="location-section">
       <div class="location-header">
         <span class="location-title">Location</span>
-        <span class="sun-times" id="sun-times"></span>
       </div>
       <div class="location-row">
         <label class="checkbox-label">
@@ -915,7 +943,6 @@
             </div>
             <div class="zone-header-right">
               <div class="glo-display" data-zone="${zoneName}">
-                <span class="glo-label">Glo</span>
                 <a href="./glo/${encodeURIComponent(presetName)}" class="glo-name-link" data-zone="${zoneName}">${presetName}</a>
                 <span class="glo-change" data-zone="${zoneName}">change</span>
                 <select class="glo-select" data-zone="${zoneName}" style="display: none;">
@@ -924,8 +951,8 @@
                 </select>
               </div>
               <div class="zone-glo-info">
-                <span title="Wake time">↗ ${wakeTime}</span>
-                <span title="Bed time">↘ ${bedTime}</span>
+                <span title="Wake time">wake ${wakeTime}</span>
+                <span title="Bed time">bed ${bedTime}</span>
               </div>
               <div class="zone-controls">
                 ${isDefault
@@ -985,11 +1012,9 @@
         const response = await fetch('./api/sun-times');
         if (response.ok) {
           const data = await response.json();
-          const sunTimesEl = document.getElementById('sun-times');
           if (data.sunrise && data.sunset) {
-            const sunrise = formatTime(data.sunrise);
-            const sunset = formatTime(data.sunset);
-            sunTimesEl.textContent = `☀ ${sunrise} → ${sunset}`;
+            document.getElementById('sunrise-time').textContent = formatTime(data.sunrise);
+            document.getElementById('sunset-time').textContent = formatTime(data.sunset);
           }
         }
       } catch (err) {

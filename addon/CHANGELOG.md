@@ -1,5 +1,16 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.21
+**UI Updates: Navigation, switches table**
+
+- Renamed nav "Glo" to "Glo design" across all pages
+- Removed blue background from active nav links (golden hour text only)
+- Changed default Glo Zone name to "Main" instead of "Home"
+- Simplified Switches page: replaced cards with sortable table
+  - Columns: Name (clickable), Area, Scopes, Type
+  - Click any column header to sort ascending/descending
+- Zone card: changed wake/bed arrows to "wake"/"bed" text labels
+
 ## 6.9.20
 **UI Refresh: Home page, settings persistence, golden hour accent**
 

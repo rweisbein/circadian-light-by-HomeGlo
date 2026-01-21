@@ -18,7 +18,7 @@ from typing import Any, Dict, List, Optional, Tuple
 logger = logging.getLogger(__name__)
 
 # Initial zone name (used for migration)
-INITIAL_ZONE_NAME = "Home"
+INITIAL_ZONE_NAME = "Main"
 
 # Default preset name (used for migration and fallback)
 DEFAULT_PRESET = "Glo 1"
