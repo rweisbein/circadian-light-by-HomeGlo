@@ -2827,8 +2827,7 @@ class LightDesignerServer:
                     status = "unsupported"
 
                 last_action = switches.get_last_action(ieee)
-                if last_action:
-                    logger.debug(f"[Controls] IEEE {ieee} last_action: {last_action}")
+                logger.info(f"[Controls] Looking up last_action for IEEE '{ieee}': {last_action}")
 
                 controls.append({
                     "id": ieee,

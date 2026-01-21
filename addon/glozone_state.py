@@ -53,6 +53,9 @@ def get_zone_state(zone_name: str) -> Dict[str, Any]:
     """
     if zone_name not in _zone_state:
         _zone_state[zone_name] = _get_default_zone_state()
+        logger.info(f"[ZoneState] GET '{zone_name}': created default (module id: {id(_zone_state)})")
+    else:
+        logger.info(f"[ZoneState] GET '{zone_name}': {_zone_state[zone_name]} (module id: {id(_zone_state)})")
     return _zone_state[zone_name].copy()
 
 
@@ -70,7 +73,7 @@ def set_zone_state(zone_name: str, updates: Dict[str, Any]) -> None:
         if key in updates:
             _zone_state[zone_name][key] = updates[key]
 
-    logger.debug(f"Zone '{zone_name}' state updated: {_zone_state[zone_name]}")
+    logger.info(f"[ZoneState] SET '{zone_name}': {_zone_state[zone_name]} (module id: {id(_zone_state)})")
 
 
 def reset_zone_state(zone_name: str) -> None:

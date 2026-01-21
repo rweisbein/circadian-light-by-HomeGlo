@@ -195,12 +195,26 @@
       align-items: center;
       gap: 8px;
       padding: 8px 12px;
-      background: var(--panel);
+      background: var(--area-cct-bg, var(--panel));
       border: 1px solid var(--line);
       border-radius: 8px;
       font-size: 0.85rem;
       cursor: grab;
       transition: all 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Brightness gradient overlay - fills from left based on brightness */
+    .area-chip::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, rgba(255,255,255,0.08), rgba(255,255,255,0.25));
+      transform-origin: left;
+      transform: scaleX(var(--area-brightness-fill, 0));
+      pointer-events: none;
+      border-radius: 7px;
     }
 
     .area-chip:active {
@@ -217,30 +231,34 @@
 
     .area-name {
       font-weight: 500;
+      position: relative;
+      z-index: 1;
     }
 
     .area-status {
       display: flex;
       align-items: center;
-      gap: 6px;
-      font-size: 0.8rem;
-      color: var(--muted);
+      gap: 4px;
+      font-size: 0.7rem;
+      color: rgba(255, 255, 255, 0.85);
+      position: relative;
+      z-index: 1;
     }
 
     .status-dot {
-      width: 10px;
-      height: 10px;
+      width: 8px;
+      height: 8px;
       border-radius: 50%;
       background: var(--muted2);
     }
 
     .status-dot.on {
-      box-shadow: 0 0 8px currentColor;
+      box-shadow: 0 0 6px currentColor;
     }
 
     .area-brightness {
-      font-size: 0.75rem;
-      color: var(--muted);
+      font-size: 0.65rem;
+      color: rgba(255, 255, 255, 0.7);
     }
 
     .area-frozen {
@@ -606,17 +624,13 @@
       color: var(--muted);
     }
 
-    /* Area sync indicator - blue for in-sync, orange for out-of-sync */
-    .area-chip {
-      position: relative;
-    }
-
+    /* Area sync indicator - subtle blue for in-sync, subtle orange for out-of-sync */
     .area-chip.in-sync {
-      border-color: #2e6cba;
+      border-color: rgba(46, 108, 186, 0.5);
     }
 
     .area-chip.out-of-sync {
-      border-color: var(--accent);
+      border-color: rgba(254, 172, 96, 0.5);
     }
 
     .glo-display {
@@ -1190,20 +1204,27 @@
         syncClass = isAligned ? 'in-sync' : 'out-of-sync';
       }
 
-      // Get CCT color for enabled areas
+      // Build chip styles - CCT background and brightness fill for enabled areas
+      let chipStyle = '';
       let dotStyle = '';
       if (areaState.enabled) {
         const rgb = kelvinToRgb(areaState.kelvin);
-        const color = `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`;
-        dotStyle = `background: ${color}; color: ${color};`;
+        // Dimmed CCT color for background (30% opacity)
+        const bgColor = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.25)`;
+        // Brightness as decimal for gradient fill
+        const brightnessFill = areaState.brightness / 100;
+        chipStyle = `--area-cct-bg: ${bgColor}; --area-brightness-fill: ${brightnessFill};`;
+        // Dot still uses solid color
+        const dotColor = `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`;
+        dotStyle = `background: ${dotColor}; color: ${dotColor};`;
       }
 
       return `
-        <div class="area-chip ${syncClass}" draggable="true" data-area="${areaId}" data-zone="${zoneName || ''}">
+        <div class="area-chip ${syncClass}" draggable="true" data-area="${areaId}" data-zone="${zoneName || ''}" style="${chipStyle}">
           <span class="area-name">${areaName}</span>
           <div class="area-status">
             <span class="status-dot ${areaState.enabled ? 'on' : ''}" style="${dotStyle}"></span>
-            ${areaState.enabled ? `<span class="area-brightness">${areaState.brightness}% • ${Math.round(areaState.kelvin)}K</span>` : ''}
+            ${areaState.enabled ? `<span class="area-brightness">${areaState.brightness}% ${Math.round(areaState.kelvin)}K</span>` : ''}
             ${areaState.frozen ? '<span class="area-frozen" title="Frozen">&#128274;</span>' : ''}
           </div>
         </div>

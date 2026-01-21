@@ -1,5 +1,22 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.33
+**Debug logging for zone state and last action**
+
+- Added module ID tracking to zone state SET/GET operations to debug state not persisting
+- Added logging when looking up last_action for Controls (shows IEEE being searched)
+- Added logging when last_action not found (shows stored keys to identify format mismatch)
+
+## 6.9.32
+**Area card redesign with CCT visualization**
+
+- Area chips now display their color temperature visually:
+  - Background shaded to match the CCT color (warm amber to cool white)
+  - Left-to-right brightness gradient shows brightness percentage (like Glo designer buttons)
+  - Smaller, more compact brightness/kelvin numbers
+- Sync indicator borders made more subtle (50% opacity)
+- Overall cleaner look that matches Glo designer aesthetic
+
 ## 6.9.30
 **Debug logging for last_action and zone state issues**
 

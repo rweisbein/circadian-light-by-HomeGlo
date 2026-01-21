@@ -511,6 +511,11 @@ def set_last_action(switch_id: str, action: str) -> None:
 def get_last_action(switch_id: str) -> Optional[str]:
     """Get the last button action for a switch."""
     state = _runtime_state.get(switch_id)
+    if not state:
+        # Log available keys to help debug IEEE format mismatch
+        stored_keys = list(_runtime_state.keys())
+        if stored_keys:
+            logger.debug(f"[LastAction] No state for '{switch_id}', stored keys: {stored_keys}")
     return state.last_action if state else None
 
 
