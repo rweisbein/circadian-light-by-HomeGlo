@@ -1,5 +1,17 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.35
+**Fix: Cross-process state sharing for zone state and last action**
+
+Root cause: main.py and webserver.py run as separate Python processes, so in-memory
+state wasn't shared between them. Fixed by persisting state to JSON files:
+- `glozone_runtime_state.json` - Zone runtime state (brightness_mid, color_mid, frozen_at)
+- `switch_last_actions.json` - Last button action per switch
+
+This fixes:
+- Zone state visualization not updating after GloUp
+- Last action always showing blank in Controls
+
 ## 6.9.33
 **Debug logging for zone state and last action**
 

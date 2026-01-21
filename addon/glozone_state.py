@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """GloZone runtime state management.
 
-This module manages in-memory runtime state for GloZones. Unlike area state,
-GloZone runtime state is NOT persisted to disk - it resets on addon restart
-and is reset twice daily at ascend/descend start times.
+This module manages runtime state for GloZones, persisted to a JSON file
+so it can be shared between the main process and webserver process.
 
 Runtime state includes:
 - brightness_mid: Hour (0-24) or None (use preset default)
@@ -11,16 +10,56 @@ Runtime state includes:
 - frozen_at: Hour (0-24) or None (not frozen)
 """
 
+import json
 import logging
+import os
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-# In-memory state dict: zone_name -> runtime state
-_zone_state: Dict[str, Dict[str, Any]] = {}
-
 # Sync tolerance for comparing state values (0.1 = 6 minutes)
 SYNC_TOLERANCE = 0.1
+
+# State file path - shared between main.py and webserver.py processes
+_STATE_FILE: Optional[Path] = None
+
+
+def _get_state_file() -> Path:
+    """Get the path to the state file."""
+    global _STATE_FILE
+    if _STATE_FILE is None:
+        # Check for HA config directory first, then fallback
+        if os.path.isdir("/config/circadian-light"):
+            _STATE_FILE = Path("/config/circadian-light/glozone_runtime_state.json")
+        elif os.path.isdir("/data"):
+            _STATE_FILE = Path("/data/glozone_runtime_state.json")
+        else:
+            _STATE_FILE = Path("/app/.data/glozone_runtime_state.json")
+        _STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    return _STATE_FILE
+
+
+def _load_all_state() -> Dict[str, Dict[str, Any]]:
+    """Load all zone state from file."""
+    state_file = _get_state_file()
+    if state_file.exists():
+        try:
+            with open(state_file, "r") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError) as e:
+            logger.warning(f"Failed to load zone state file: {e}")
+    return {}
+
+
+def _save_all_state(state: Dict[str, Dict[str, Any]]) -> None:
+    """Save all zone state to file."""
+    state_file = _get_state_file()
+    try:
+        with open(state_file, "w") as f:
+            json.dump(state, f, indent=2)
+    except IOError as e:
+        logger.error(f"Failed to save zone state file: {e}")
 
 
 def _get_default_zone_state() -> Dict[str, Any]:
@@ -37,9 +76,10 @@ def init() -> None:
 
     Clears any existing state. Called on addon startup.
     """
-    global _zone_state
-    _zone_state = {}
-    logger.info("GloZone runtime state initialized (empty)")
+    state_file = _get_state_file()
+    if state_file.exists():
+        state_file.unlink()
+    logger.info(f"GloZone runtime state initialized (file: {state_file})")
 
 
 def get_zone_state(zone_name: str) -> Dict[str, Any]:
@@ -51,12 +91,14 @@ def get_zone_state(zone_name: str) -> Dict[str, Any]:
     Returns:
         Dict with brightness_mid, color_mid, frozen_at (creates default if not exists)
     """
-    if zone_name not in _zone_state:
-        _zone_state[zone_name] = _get_default_zone_state()
-        logger.info(f"[ZoneState] GET '{zone_name}': created default (module id: {id(_zone_state)})")
+    all_state = _load_all_state()
+    if zone_name not in all_state:
+        result = _get_default_zone_state()
+        logger.debug(f"[ZoneState] GET '{zone_name}': default (not in file)")
     else:
-        logger.info(f"[ZoneState] GET '{zone_name}': {_zone_state[zone_name]} (module id: {id(_zone_state)})")
-    return _zone_state[zone_name].copy()
+        result = all_state[zone_name]
+        logger.debug(f"[ZoneState] GET '{zone_name}': {result}")
+    return result
 
 
 def set_zone_state(zone_name: str, updates: Dict[str, Any]) -> None:
@@ -66,14 +108,17 @@ def set_zone_state(zone_name: str, updates: Dict[str, Any]) -> None:
         zone_name: Name of the GloZone
         updates: Dict with keys to update (brightness_mid, color_mid, frozen_at)
     """
-    if zone_name not in _zone_state:
-        _zone_state[zone_name] = _get_default_zone_state()
+    all_state = _load_all_state()
+
+    if zone_name not in all_state:
+        all_state[zone_name] = _get_default_zone_state()
 
     for key in ["brightness_mid", "color_mid", "frozen_at"]:
         if key in updates:
-            _zone_state[zone_name][key] = updates[key]
+            all_state[zone_name][key] = updates[key]
 
-    logger.info(f"[ZoneState] SET '{zone_name}': {_zone_state[zone_name]} (module id: {id(_zone_state)})")
+    _save_all_state(all_state)
+    logger.info(f"[ZoneState] SET '{zone_name}': {all_state[zone_name]}")
 
 
 def reset_zone_state(zone_name: str) -> None:
@@ -82,7 +127,9 @@ def reset_zone_state(zone_name: str) -> None:
     Args:
         zone_name: Name of the GloZone
     """
-    _zone_state[zone_name] = _get_default_zone_state()
+    all_state = _load_all_state()
+    all_state[zone_name] = _get_default_zone_state()
+    _save_all_state(all_state)
     logger.info(f"Zone '{zone_name}' runtime state reset to defaults")
 
 
@@ -91,14 +138,16 @@ def reset_all_zones() -> None:
 
     Called at ascend/descend start times. Preserves frozen zones.
     """
-    for zone_name in list(_zone_state.keys()):
-        if _zone_state[zone_name].get("frozen_at") is None:
-            _zone_state[zone_name] = _get_default_zone_state()
+    all_state = _load_all_state()
+    for zone_name in list(all_state.keys()):
+        if all_state[zone_name].get("frozen_at") is None:
+            all_state[zone_name] = _get_default_zone_state()
             logger.debug(f"Zone '{zone_name}' reset (not frozen)")
         else:
             logger.debug(f"Zone '{zone_name}' preserved (frozen)")
 
-    logger.info(f"Reset {len(_zone_state)} zone(s) (frozen zones preserved)")
+    _save_all_state(all_state)
+    logger.info(f"Reset {len(all_state)} zone(s) (frozen zones preserved)")
 
 
 def reset_all_zones_forced() -> None:
@@ -106,10 +155,12 @@ def reset_all_zones_forced() -> None:
 
     Used for GloReset primitive.
     """
-    for zone_name in list(_zone_state.keys()):
-        _zone_state[zone_name] = _get_default_zone_state()
+    all_state = _load_all_state()
+    for zone_name in list(all_state.keys()):
+        all_state[zone_name] = _get_default_zone_state()
 
-    logger.info(f"Force reset {len(_zone_state)} zone(s) (including frozen)")
+    _save_all_state(all_state)
+    logger.info(f"Force reset {len(all_state)} zone(s) (including frozen)")
 
 
 def is_zone_frozen(zone_name: str) -> bool:
@@ -131,7 +182,8 @@ def get_all_zone_names() -> List[str]:
     Returns:
         List of zone names
     """
-    return list(_zone_state.keys())
+    all_state = _load_all_state()
+    return list(all_state.keys())
 
 
 def values_match(a: Optional[float], b: Optional[float]) -> bool:

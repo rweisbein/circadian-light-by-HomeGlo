@@ -7,6 +7,7 @@ This module manages:
 - Runtime state (current scope, last activity, pending detection)
 
 Switch config is persisted to JSON. Runtime state is in-memory only.
+Last action is persisted to a separate file for cross-process sharing.
 """
 
 import json
@@ -14,9 +15,52 @@ import logging
 import os
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
+
+# =============================================================================
+# Last Action File Persistence (shared between main.py and webserver.py)
+# =============================================================================
+
+_LAST_ACTION_FILE: Optional[Path] = None
+
+
+def _get_last_action_file() -> Path:
+    """Get the path to the last action file."""
+    global _LAST_ACTION_FILE
+    if _LAST_ACTION_FILE is None:
+        if os.path.isdir("/config/circadian-light"):
+            _LAST_ACTION_FILE = Path("/config/circadian-light/switch_last_actions.json")
+        elif os.path.isdir("/data"):
+            _LAST_ACTION_FILE = Path("/data/switch_last_actions.json")
+        else:
+            _LAST_ACTION_FILE = Path("/app/.data/switch_last_actions.json")
+        _LAST_ACTION_FILE.parent.mkdir(parents=True, exist_ok=True)
+    return _LAST_ACTION_FILE
+
+
+def _load_last_actions() -> Dict[str, str]:
+    """Load all last actions from file."""
+    action_file = _get_last_action_file()
+    if action_file.exists():
+        try:
+            with open(action_file, "r") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError) as e:
+            logger.warning(f"Failed to load last actions file: {e}")
+    return {}
+
+
+def _save_last_actions(actions: Dict[str, str]) -> None:
+    """Save all last actions to file."""
+    action_file = _get_last_action_file()
+    try:
+        with open(action_file, "w") as f:
+            json.dump(actions, f, indent=2)
+    except IOError as e:
+        logger.error(f"Failed to save last actions file: {e}")
 
 # =============================================================================
 # Switch Type Definitions (hardcoded)
@@ -499,22 +543,34 @@ def get_hold_action(switch_id: str) -> Optional[str]:
 
 
 def set_last_action(switch_id: str, action: str) -> None:
-    """Record the last button action for a switch."""
+    """Record the last button action for a switch.
+
+    Persists to file for cross-process sharing with webserver.
+    """
+    # Update in-memory state
     state = _runtime_state.get(switch_id)
     if state:
         state.last_action = action
     else:
         state = SwitchRuntimeState(last_action=action)
         _runtime_state[switch_id] = state
-    logger.info(f"[LastAction] SET '{switch_id}': {action} (module id: {id(_runtime_state)})")
+
+    # Persist to file for webserver to read
+    all_actions = _load_last_actions()
+    all_actions[switch_id] = action
+    _save_last_actions(all_actions)
+    logger.debug(f"[LastAction] SET '{switch_id}': {action}")
 
 
 def get_last_action(switch_id: str) -> Optional[str]:
-    """Get the last button action for a switch."""
-    state = _runtime_state.get(switch_id)
-    result = state.last_action if state else None
-    stored_keys = list(_runtime_state.keys())
-    logger.info(f"[LastAction] GET '{switch_id}': {result} (stored keys: {stored_keys}, module id: {id(_runtime_state)})")
+    """Get the last button action for a switch.
+
+    Reads from file to get cross-process state.
+    """
+    # Read from file (cross-process)
+    all_actions = _load_last_actions()
+    result = all_actions.get(switch_id)
+    logger.debug(f"[LastAction] GET '{switch_id}': {result}")
     return result
 
 
