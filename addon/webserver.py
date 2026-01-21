@@ -781,6 +781,7 @@ class LightDesignerServer:
 
                 # Build Config from preset using from_dict (handles all fields with defaults)
                 brain_config = Config.from_dict(preset_config)
+                logger.info(f"[ZoneStates] Zone '{zone_name}' config: wake_time={brain_config.wake_time}, bed_time={brain_config.bed_time}, min_bri={brain_config.min_brightness}, max_bri={brain_config.max_brightness}")
 
                 # Build AreaState from zone runtime state
                 area_state = AreaState(
@@ -2894,6 +2895,7 @@ class LightDesignerServer:
                                         ieee = identifier[1]
                                         break
                             if ieee:
+                                logger.debug(f"[Controls] HA device {device.get('name')}: ieee={ieee}")
                                 devices[device_id] = {
                                     'device_id': device_id,
                                     'ieee': ieee,
