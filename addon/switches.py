@@ -654,4 +654,5 @@ def get_switches_summary() -> List[Dict[str, Any]]:
 
 def get_pending_switches_summary() -> List[Dict[str, Any]]:
     """Get a summary of pending switches for the UI."""
+    _reload_pending()  # Reload from disk for cross-process sync
     return list(_pending_switches.values())
