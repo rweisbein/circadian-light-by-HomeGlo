@@ -209,12 +209,8 @@ _switches: Dict[str, SwitchConfig] = {}
 # Runtime state per switch (not persisted)
 _runtime_state: Dict[str, SwitchRuntimeState] = {}
 
-# Pending/detected switches not yet configured
-_pending_switches: Dict[str, Dict[str, Any]] = {}
-
-# Path to config files
+# Path to config file
 _config_file_path: Optional[str] = None
-_pending_file_path: Optional[str] = None
 
 # Scope auto-reset timeout (seconds)
 SCOPE_RESET_TIMEOUT = 45.0
@@ -240,7 +236,7 @@ def _get_data_directory() -> str:
 
 def init(config_file: Optional[str] = None) -> None:
     """Initialize the switches module and load config from disk."""
-    global _config_file_path, _pending_file_path, _switches, _runtime_state, _pending_switches
+    global _config_file_path, _switches, _runtime_state
 
     data_dir = _get_data_directory()
 
@@ -249,11 +245,8 @@ def init(config_file: Optional[str] = None) -> None:
     else:
         _config_file_path = os.path.join(data_dir, "switches_config.json")
 
-    _pending_file_path = os.path.join(data_dir, "switches_pending.json")
-
     _switches = {}
     _runtime_state = {}
-    _pending_switches = {}
 
     # Load configured switches
     if os.path.exists(_config_file_path):
@@ -272,20 +265,6 @@ def init(config_file: Optional[str] = None) -> None:
     else:
         logger.info(f"No switches config found at {_config_file_path}, starting fresh")
 
-    # Load pending switches
-    if os.path.exists(_pending_file_path):
-        try:
-            with open(_pending_file_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            _pending_switches = data.get("pending", {})
-            # Remove any that have since been configured
-            for switch_id in list(_pending_switches.keys()):
-                if switch_id in _switches:
-                    del _pending_switches[switch_id]
-            logger.info(f"Loaded {len(_pending_switches)} pending switch(es) from {_pending_file_path}")
-        except Exception as e:
-            logger.warning(f"Failed to load pending switches from {_pending_file_path}: {e}")
-
 
 def _save() -> None:
     """Save current switch config to disk."""
@@ -302,23 +281,6 @@ def _save() -> None:
         logger.debug(f"Saved switches config to {_config_file_path}")
     except Exception as e:
         logger.error(f"Failed to save switches config to {_config_file_path}: {e}")
-
-
-def _save_pending() -> None:
-    """Save pending switches to disk."""
-    if not _pending_file_path:
-        logger.error("Switches module not initialized, cannot save pending")
-        return
-
-    try:
-        data = {
-            "pending": _pending_switches
-        }
-        with open(_pending_file_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2)
-        logger.debug(f"Saved pending switches to {_pending_file_path}")
-    except Exception as e:
-        logger.error(f"Failed to save pending switches to {_pending_file_path}: {e}")
 
 
 # =============================================================================
@@ -375,12 +337,7 @@ def add_switch(switch: SwitchConfig) -> None:
     _switches[switch.id] = switch
     if switch.id not in _runtime_state:
         _runtime_state[switch.id] = SwitchRuntimeState()
-    # Remove from pending if it was there
-    was_pending = switch.id in _pending_switches
-    _pending_switches.pop(switch.id, None)
     _save()
-    if was_pending:
-        _save_pending()
     logger.info(f"Added/updated switch: {switch.name} ({switch.id})")
 
 
@@ -401,70 +358,8 @@ def is_configured(switch_id: str) -> bool:
 
 
 # =============================================================================
-# Pending Switch Detection
+# Switch Type Detection
 # =============================================================================
-
-def add_pending_switch(switch_id: str, info: Dict[str, Any]) -> None:
-    """Add a detected but unconfigured switch to pending list.
-
-    If switch already exists in pending, updates last_seen timestamp.
-    """
-    if switch_id in _switches:
-        return  # Already configured, ignore
-
-    if switch_id not in _pending_switches:
-        _pending_switches[switch_id] = {
-            "id": switch_id,
-            "name": info.get("name", f"Unknown ({switch_id[-8:]})"),
-            "detected_type": info.get("type"),
-            "manufacturer": info.get("manufacturer"),
-            "model": info.get("model"),
-            "device_id": info.get("device_id"),
-            "detected_at": time.time(),
-            "last_seen": time.time(),
-        }
-        _save_pending()
-        logger.info(f"New switch detected: {_pending_switches[switch_id]['name']} ({switch_id})")
-    else:
-        # Update last_seen timestamp for existing pending switch
-        _pending_switches[switch_id]["last_seen"] = time.time()
-        _save_pending()
-
-
-def get_pending_switches() -> Dict[str, Dict[str, Any]]:
-    """Get all pending/unconfigured switches.
-
-    Reloads from disk to pick up changes from other processes.
-    """
-    _reload_pending()
-    return _pending_switches.copy()
-
-
-def _reload_pending() -> None:
-    """Reload pending switches from disk (for cross-process sync)."""
-    global _pending_switches
-
-    if not _pending_file_path or not os.path.exists(_pending_file_path):
-        return
-
-    try:
-        with open(_pending_file_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        _pending_switches = data.get("pending", {})
-        # Remove any that have since been configured
-        for switch_id in list(_pending_switches.keys()):
-            if switch_id in _switches:
-                del _pending_switches[switch_id]
-    except Exception as e:
-        logger.warning(f"Failed to reload pending switches: {e}")
-
-
-def clear_pending_switch(switch_id: str) -> None:
-    """Remove a switch from the pending list."""
-    if switch_id in _pending_switches:
-        _pending_switches.pop(switch_id, None)
-        _save_pending()
-
 
 def detect_switch_type(manufacturer: Optional[str], model: Optional[str]) -> Optional[str]:
     """Attempt to detect switch type from manufacturer/model info."""
@@ -657,9 +552,3 @@ def get_switches_summary() -> List[Dict[str, Any]]:
             "device_id": switch.device_id,
         })
     return result
-
-
-def get_pending_switches_summary() -> List[Dict[str, Any]]:
-    """Get a summary of pending switches for the UI."""
-    _reload_pending()  # Reload from disk for cross-process sync
-    return list(_pending_switches.values())

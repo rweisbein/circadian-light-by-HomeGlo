@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Circadian Light - Switches</title>
+  <title>Circadian Light - Controls</title>
   <style>
     :root {
       --bg: #000;
@@ -273,6 +273,16 @@
       color: var(--text);
     }
 
+    .btn-secondary {
+      background: var(--card);
+      border: 1px solid var(--line);
+      color: var(--text);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
     .btn-danger {
       background: transparent;
       border: 1px solid var(--danger);
@@ -281,6 +291,42 @@
 
     .btn-danger:hover {
       background: rgba(239, 68, 68, 0.1);
+    }
+
+    /* Status badges */
+    .status-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+
+    .status-active {
+      background: rgba(34, 197, 94, 0.15);
+      color: var(--success);
+    }
+
+    .status-not-configured {
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--warning);
+    }
+
+    .status-unsupported {
+      background: rgba(148, 163, 184, 0.15);
+      color: var(--muted);
+    }
+
+    .request-support-link {
+      color: var(--muted);
+      font-size: 0.8rem;
+      text-decoration: none;
+      margin-left: 8px;
+    }
+
+    .request-support-link:hover {
+      color: var(--accent);
+      text-decoration: underline;
     }
 
     /* Modal */
@@ -435,23 +481,20 @@
     }
 
     .add-scope-btn {
-      display: flex;
+      display: inline-flex;
       align-items: center;
-      justify-content: center;
       gap: 6px;
-      padding: 12px;
+      padding: 8px 0;
       background: transparent;
-      border: 2px dashed var(--line);
-      border-radius: 8px;
+      border: none;
       color: var(--muted);
       font-size: 0.85rem;
       cursor: pointer;
       transition: all 0.2s;
-      width: 100%;
+      margin-top: 8px;
     }
 
     .add-scope-btn:hover {
-      border-color: var(--accent);
       color: var(--accent);
     }
 
@@ -476,7 +519,7 @@
     <div class="nav-links">
       <a href="./" class="nav-link">Home</a>
       <a href="./glo" class="nav-link">Glo design</a>
-      <a href="./switches" class="nav-link active">Switches</a>
+      <a href="./switches" class="nav-link active">Controls</a>
       <a href="./settings" class="nav-link">Settings</a>
     </div>
   </nav>
@@ -484,50 +527,46 @@
   <!-- Main Content -->
   <main class="main">
     <div class="page-header">
-      <h1 class="page-title">Switches</h1>
+      <div style="display: flex; align-items: center; justify-content: space-between;">
+        <h1 class="page-title">Controls</h1>
+        <button class="btn btn-secondary" id="update-btn">Update</button>
+      </div>
     </div>
 
-    <!-- Pending Switches -->
-    <div class="pending-section" id="pending-section" style="display: none;">
-      <div id="pending-container"></div>
-    </div>
-
-    <!-- Switches Table -->
-    <div id="switches-container">
-      <div class="loading">Loading switches...</div>
+    <!-- Controls Table -->
+    <div id="controls-container">
+      <div class="loading">Loading controls...</div>
     </div>
   </main>
 
-  <!-- Edit Switch Modal -->
+  <!-- Edit Control Modal -->
   <div class="modal-overlay" id="modal-overlay">
     <div class="modal">
-      <h3 id="modal-title">Configure Switch</h3>
+      <h3 id="modal-title">Configure Control</h3>
 
       <div class="modal-section">
-        <label class="modal-label">Switch Name</label>
-        <input type="text" class="modal-input" id="switch-name" placeholder="e.g., Bedroom Dimmer">
+        <label class="modal-label">Name</label>
+        <input type="text" class="modal-input" id="control-name" placeholder="e.g., Bedroom Dimmer">
       </div>
 
       <div class="modal-section">
-        <label class="modal-label">Switch Type</label>
-        <select class="modal-select" id="switch-type">
+        <label class="modal-label">Type</label>
+        <select class="modal-select" id="control-type">
           <!-- Populated by JS -->
         </select>
       </div>
 
       <div class="modal-section">
         <label class="modal-label">Scopes</label>
-        <p class="info-text">Each scope is a set of areas the switch will control. Cycle through scopes with the bottom button (short press).</p>
+        <p class="info-text">Each scope is a set of areas the control will manage. Cycle through scopes with the bottom button.</p>
         <div id="scopes-editor" style="margin-top: 12px;">
           <!-- Scope editors populated by JS -->
         </div>
-        <button class="add-scope-btn" id="add-scope-btn">
-          <span>+</span> Add Scope
-        </button>
+        <button class="add-scope-btn" id="add-scope-btn">+ Add Scope</button>
       </div>
 
       <div class="modal-actions">
-        <button class="btn btn-danger" id="modal-delete" style="display: none; margin-right: auto;">Delete</button>
+        <button class="btn btn-danger" id="modal-remove-config" style="display: none; margin-right: auto;">Remove configuration</button>
         <button class="btn btn-cancel" id="modal-cancel">Cancel</button>
         <button class="btn btn-primary" id="modal-save">Save</button>
       </div>
@@ -535,18 +574,14 @@
   </div>
 
   <script>
-    // Data from server
-    const circadianData = window.circadianData || { config: {} };
-
     // State
-    let switches = [];
-    let pendingSwitches = [];
-    let switchTypes = {};
+    let controls = [];
     let allAreas = [];
-    let editingSwitchId = null;
+    let editingControlId = null;
     let editingDeviceId = null;
     let editingScopes = [];
-    let sortColumn = 'name';
+    let editingControl = null;
+    let sortColumn = 'status';
     let sortAsc = true;
 
     // Initialize
@@ -556,64 +591,49 @@
     });
 
     async function loadData() {
+      const container = document.getElementById('controls-container');
+      container.innerHTML = '<div class="loading">Loading controls...</div>';
+
       try {
-        const [switchesRes, pendingRes, typesRes, areasRes] = await Promise.all([
-          fetch('./api/switches'),
-          fetch('./api/switches/pending'),
-          fetch('./api/switch-types'),
+        const [controlsRes, areasRes] = await Promise.all([
+          fetch('./api/controls'),
           fetch('./api/areas')
         ]);
 
-        if (switchesRes.ok) {
-          const data = await switchesRes.json();
-          switches = data.switches || [];
-        }
-
-        if (pendingRes.ok) {
-          const data = await pendingRes.json();
-          pendingSwitches = data.pending || [];
-        }
-
-        if (typesRes.ok) {
-          const data = await typesRes.json();
-          switchTypes = data.types || {};
+        if (controlsRes.ok) {
+          const data = await controlsRes.json();
+          controls = data.controls || [];
         }
 
         if (areasRes.ok) {
           allAreas = await areasRes.json();
         }
 
-        render();
+        renderControls();
       } catch (err) {
         console.error('Error loading data:', err);
-        document.getElementById('switches-container').innerHTML =
-          '<div class="loading">Error loading data</div>';
+        container.innerHTML = '<div class="loading">Error loading data</div>';
       }
     }
 
-    function render() {
-      renderSwitches();
-      renderPendingSwitches();
-      populateTypeSelect();
-    }
+    function renderControls() {
+      const container = document.getElementById('controls-container');
 
-    function renderSwitches() {
-      const container = document.getElementById('switches-container');
-
-      if (switches.length === 0) {
+      if (controls.length === 0) {
         container.innerHTML = `
           <div class="empty-state">
-            <div class="empty-state-title">No switches configured</div>
+            <div class="empty-state-title">No controls found</div>
             <div class="empty-state-text">
-              Press a button on a switch to detect it, then configure it here.
+              Click Update to scan Home Assistant for remotes, motion sensors, and other controls.
             </div>
           </div>
         `;
         return;
       }
 
-      // Sort switches
-      const sorted = [...switches].sort((a, b) => {
+      // Sort controls
+      const statusOrder = { 'active': 0, 'not_configured': 1, 'unsupported': 2 };
+      const sorted = [...controls].sort((a, b) => {
         let valA, valB;
         switch (sortColumn) {
           case 'name':
@@ -624,13 +644,13 @@
             valA = (a.area_name || '').toLowerCase();
             valB = (b.area_name || '').toLowerCase();
             break;
-          case 'scopes':
-            valA = a.scopes.filter(s => s.areas?.length > 0).length;
-            valB = b.scopes.filter(s => s.areas?.length > 0).length;
+          case 'status':
+            valA = statusOrder[a.status] ?? 99;
+            valB = statusOrder[b.status] ?? 99;
             break;
           case 'type':
-            valA = (switchTypes[a.type]?.name || a.type).toLowerCase();
-            valB = (switchTypes[b.type]?.name || b.type).toLowerCase();
+            valA = (a.type_name || a.manufacturer || '').toLowerCase();
+            valB = (b.type_name || b.manufacturer || '').toLowerCase();
             break;
           default:
             return 0;
@@ -653,20 +673,23 @@
             <tr>
               <th class="${thClass('name')}" onclick="sortBy('name')">Name ${arrow('name')}</th>
               <th class="${thClass('area')}" onclick="sortBy('area')">Area ${arrow('area')}</th>
-              <th class="${thClass('scopes')}" onclick="sortBy('scopes')">Scopes ${arrow('scopes')}</th>
+              <th class="${thClass('status')}" onclick="sortBy('status')">Status ${arrow('status')}</th>
               <th class="${thClass('type')}" onclick="sortBy('type')">Type ${arrow('type')}</th>
             </tr>
           </thead>
           <tbody>
-            ${sorted.map(sw => {
-              const scopeCount = sw.scopes.filter(s => s.areas?.length > 0).length;
-              const typeName = switchTypes[sw.type]?.name || sw.type;
-              const areaName = sw.area_name || '—';
+            ${sorted.map(ctrl => {
+              const areaName = ctrl.area_name || '—';
+              const typeName = ctrl.type_name || `${ctrl.manufacturer || 'Unknown'} ${ctrl.model || ''}`.trim();
+              const statusBadge = getStatusBadge(ctrl);
+              const nameCell = ctrl.supported
+                ? `<a class="switch-name-link" onclick="editControl('${ctrl.id}')">${ctrl.name}</a>`
+                : `<span>${ctrl.name}</span>`;
               return `
                 <tr>
-                  <td><a class="switch-name-link" onclick="editSwitch('${sw.id}')">${sw.name}</a></td>
+                  <td>${nameCell}</td>
                   <td>${areaName}</td>
-                  <td>${scopeCount}</td>
+                  <td>${statusBadge}</td>
                   <td>${typeName}</td>
                 </tr>
               `;
@@ -676,6 +699,17 @@
       `;
     }
 
+    function getStatusBadge(ctrl) {
+      if (ctrl.status === 'active') {
+        return '<span class="status-badge status-active">Active</span>';
+      } else if (ctrl.status === 'not_configured') {
+        return '<span class="status-badge status-not-configured">Not configured</span>';
+      } else {
+        const mailto = `mailto:ron@home-glo.com?subject=Device Support Request&body=Manufacturer: ${encodeURIComponent(ctrl.manufacturer || 'Unknown')}%0AModel: ${encodeURIComponent(ctrl.model || 'Unknown')}%0ADevice: ${encodeURIComponent(ctrl.name || '')}`;
+        return `<span class="status-badge status-unsupported">Unsupported</span><a href="${mailto}" class="request-support-link">Request support</a>`;
+      }
+    }
+
     function sortBy(column) {
       if (sortColumn === column) {
         sortAsc = !sortAsc;
@@ -683,55 +717,7 @@
         sortColumn = column;
         sortAsc = true;
       }
-      renderSwitches();
-    }
-
-    function renderPendingSwitches() {
-      const section = document.getElementById('pending-section');
-      const container = document.getElementById('pending-container');
-
-      if (pendingSwitches.length === 0) {
-        section.style.display = 'none';
-        return;
-      }
-
-      const now = Date.now() / 1000;
-
-      section.style.display = 'block';
-      container.innerHTML = pendingSwitches.map(sw => {
-        const lastSeen = sw.last_seen || 0;
-        const justPressed = (now - lastSeen) < 5;
-
-        return `
-          <div class="pending-card ${justPressed ? 'just-pressed' : ''}">
-            <div class="pending-info">
-              <span class="pending-name">
-                ${sw.name}
-                ${justPressed ? '<span class="just-pressed-badge">Just pressed!</span>' : ''}
-              </span>
-              <span class="pending-details">
-                ${sw.manufacturer || 'Unknown'} ${sw.model || ''}
-                ${sw.detected_type ? `· ${switchTypes[sw.detected_type]?.name || sw.detected_type}` : ''}
-              </span>
-            </div>
-            <div class="pending-actions">
-              <button class="btn btn-primary" onclick="configureSwitch('${sw.id}', '${sw.name}', '${sw.detected_type || 'hue_dimmer'}', '${sw.device_id || ''}')">
-                Configure
-              </button>
-              <button class="btn btn-cancel" onclick="dismissPending('${sw.id}')">
-                Dismiss
-              </button>
-            </div>
-          </div>
-        `;
-      }).join('');
-    }
-
-    function populateTypeSelect() {
-      const select = document.getElementById('switch-type');
-      select.innerHTML = Object.entries(switchTypes).map(([id, type]) =>
-        `<option value="${id}">${type.name}</option>`
-      ).join('');
+      renderControls();
     }
 
     function getAreaName(areaId) {
@@ -740,9 +726,10 @@
     }
 
     function setupEventListeners() {
+      document.getElementById('update-btn').addEventListener('click', loadData);
       document.getElementById('modal-cancel').addEventListener('click', hideModal);
-      document.getElementById('modal-save').addEventListener('click', saveSwitch);
-      document.getElementById('modal-delete').addEventListener('click', handleDeleteFromModal);
+      document.getElementById('modal-save').addEventListener('click', saveControl);
+      document.getElementById('modal-remove-config').addEventListener('click', removeConfig);
       document.getElementById('modal-overlay').addEventListener('click', (e) => {
         if (e.target.classList.contains('modal-overlay')) hideModal();
       });
@@ -756,40 +743,33 @@
 
     function hideModal() {
       document.getElementById('modal-overlay').classList.remove('visible');
-      editingSwitchId = null;
+      editingControlId = null;
       editingDeviceId = null;
+      editingControl = null;
       editingScopes = [];
     }
 
-    function configureSwitch(id, name, type, deviceId) {
-      editingSwitchId = id;
-      editingDeviceId = deviceId || null;
-      editingScopes = [{ areas: [] }];
+    function editControl(id) {
+      const ctrl = controls.find(c => c.id === id);
+      if (!ctrl || !ctrl.supported) return;
 
-      document.getElementById('modal-title').textContent = 'Configure New Switch';
-      document.getElementById('switch-name').value = name;
-      document.getElementById('switch-type').value = type;
-      document.getElementById('modal-delete').style.display = 'none';
+      editingControlId = id;
+      editingDeviceId = ctrl.device_id || null;
+      editingControl = ctrl;
+      editingScopes = ctrl.scopes && ctrl.scopes.length > 0
+        ? ctrl.scopes.map(s => ({ areas: [...(s.areas || [])] }))
+        : [{ areas: [] }];
 
-      renderScopesEditor();
-      showModal();
-    }
+      const isConfigured = ctrl.status === 'active';
+      document.getElementById('modal-title').textContent = isConfigured ? 'Edit Control' : 'Configure Control';
+      document.getElementById('control-name').value = ctrl.name;
+      document.getElementById('control-type').value = ctrl.type || '';
+      document.getElementById('modal-remove-config').style.display = isConfigured ? 'block' : 'none';
 
-    function editSwitch(id) {
-      const sw = switches.find(s => s.id === id);
-      if (!sw) return;
-
-      editingSwitchId = id;
-      editingDeviceId = sw.device_id || null;
-      editingScopes = sw.scopes.map(s => ({ areas: [...s.areas] }));
-      if (editingScopes.length === 0) {
-        editingScopes = [{ areas: [] }];
-      }
-
-      document.getElementById('modal-title').textContent = 'Edit Switch';
-      document.getElementById('switch-name').value = sw.name;
-      document.getElementById('switch-type').value = sw.type;
-      document.getElementById('modal-delete').style.display = 'block';
+      // Populate type select with the control's type
+      const typeSelect = document.getElementById('control-type');
+      typeSelect.innerHTML = `<option value="${ctrl.type}">${ctrl.type_name || ctrl.type}</option>`;
+      typeSelect.disabled = true; // Type is determined by device, not editable
 
       renderScopesEditor();
       showModal();
@@ -845,76 +825,63 @@
       renderScopesEditor();
     }
 
-    async function saveSwitch() {
-      const name = document.getElementById('switch-name').value.trim();
-      const type = document.getElementById('switch-type').value;
+    async function saveControl() {
+      const name = document.getElementById('control-name').value.trim();
 
       if (!name) {
-        alert('Please enter a switch name');
+        alert('Please enter a name');
         return;
       }
 
       const payload = {
-        id: editingSwitchId,
         name: name,
-        type: type,
+        type: editingControl?.type,
         scopes: editingScopes,
         device_id: editingDeviceId
       };
 
       try {
-        const isNew = !switches.find(s => s.id === editingSwitchId);
-        const response = await fetch(
-          isNew ? './api/switches' : `./api/switches/${encodeURIComponent(editingSwitchId)}`,
-          {
-            method: isNew ? 'POST' : 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          }
-        );
+        const response = await fetch(`./api/controls/${encodeURIComponent(editingControlId)}/configure`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
 
         if (!response.ok) {
           const data = await response.json();
-          alert(data.error || 'Failed to save switch');
+          alert(data.error || 'Failed to save control');
           return;
         }
 
         hideModal();
         await loadData();
       } catch (err) {
-        console.error('Error saving switch:', err);
-        alert('Error saving switch');
+        console.error('Error saving control:', err);
+        alert('Error saving control');
       }
     }
 
-    async function handleDeleteFromModal() {
-      const sw = switches.find(s => s.id === editingSwitchId);
-      if (!confirm(`Delete switch "${sw?.name || editingSwitchId}"?`)) return;
+    async function removeConfig() {
+      if (!confirm(`Remove configuration from "${editingControl?.name || editingControlId}"? The control will remain in the list as "Not configured".`)) return;
 
       try {
-        await fetch(`./api/switches/${encodeURIComponent(editingSwitchId)}`, {
+        const response = await fetch(`./api/controls/${encodeURIComponent(editingControlId)}/configure`, {
           method: 'DELETE'
         });
+
+        if (!response.ok) {
+          const data = await response.json();
+          alert(data.error || 'Failed to remove configuration');
+          return;
+        }
+
         hideModal();
         await loadData();
       } catch (err) {
-        console.error('Error deleting switch:', err);
+        console.error('Error removing config:', err);
+        alert('Error removing configuration');
       }
     }
-
-    async function dismissPending(id) {
-      try {
-        await fetch(`./api/switches/pending/${encodeURIComponent(id)}`, {
-          method: 'DELETE'
-        });
-        await loadData();
-      } catch (err) {
-        console.error('Error dismissing pending switch:', err);
-      }
-    }
-
-    // Auto-refresh every 2 seconds to catch switch presses quickly
-    setInterval(loadData, 2000);
   </script>
 </body>
 </html>

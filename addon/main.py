@@ -405,33 +405,9 @@ class HomeAssistantWebSocketClient:
     async def _handle_unconfigured_switch(self, device_ieee: str, event_data: Dict[str, Any]) -> None:
         """Handle an event from an unconfigured switch.
 
-        Adds the switch to the pending list for configuration.
+        Just logs the event - controls are now fetched directly from HA.
         """
-        logger.info(f"Unconfigured switch detected: {device_ieee}")
-
-        # Try to get device info from cached states or device registry
-        device_name = f"Unknown Switch ({device_ieee[-8:]})"
-        manufacturer = None
-        model = None
-
-        # Look up device info
-        device_id = event_data.get("device_id")
-        if device_id and device_id in self.device_registry:
-            device_info = self.device_registry[device_id]
-            device_name = device_info.get("name_by_user") or device_info.get("name") or device_name
-            manufacturer = device_info.get("manufacturer")
-            model = device_info.get("model")
-
-        # Detect switch type
-        detected_type = switches.detect_switch_type(manufacturer, model)
-
-        switches.add_pending_switch(device_ieee, {
-            "name": device_name,
-            "type": detected_type,
-            "manufacturer": manufacturer,
-            "model": model,
-            "device_id": device_id,
-        })
+        logger.debug(f"Event from unconfigured switch: {device_ieee}")
 
     def _map_zha_command_to_button_event(
         self,

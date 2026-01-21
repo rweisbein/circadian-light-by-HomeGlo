@@ -6,6 +6,7 @@ import json
 import logging
 import math
 import os
+from typing import Any, Dict, List, Optional
 from aiohttp import web, ClientSession
 from aiohttp.web import Request, Response
 import websockets
@@ -355,7 +356,7 @@ class LightDesignerServer:
         self.live_design_ct_lights: list = []  # CT-only lights in area
         self.live_design_saved_states: dict = {}  # Saved light states to restore when ending
 
-        # Initialize switches module (loads from switches_config.json and switches_pending.json)
+        # Initialize switches module (loads from switches_config.json)
         switches.init()
 
     def _migrate_data_location_sync(self):
@@ -442,20 +443,24 @@ class LightDesignerServer:
         self.app.router.add_post('/api/glozone/glo-down', self.handle_glo_down)
         self.app.router.add_post('/api/glozone/glo-reset', self.handle_glo_reset)
 
-        # Switches API routes
+        # Controls API routes (new unified endpoint)
+        self.app.router.add_route('GET', '/{path:.*}/api/controls', self.get_controls)
+        self.app.router.add_route('POST', '/{path:.*}/api/controls/{control_id}/configure', self.configure_control)
+        self.app.router.add_route('DELETE', '/{path:.*}/api/controls/{control_id}/configure', self.remove_control_config)
+        self.app.router.add_get('/api/controls', self.get_controls)
+        self.app.router.add_post('/api/controls/{control_id}/configure', self.configure_control)
+        self.app.router.add_delete('/api/controls/{control_id}/configure', self.remove_control_config)
+
+        # Legacy switches API routes (keeping for backwards compat)
         self.app.router.add_route('GET', '/{path:.*}/api/switches', self.get_switches)
         self.app.router.add_route('POST', '/{path:.*}/api/switches', self.create_switch)
         self.app.router.add_route('PUT', '/{path:.*}/api/switches/{switch_id}', self.update_switch)
         self.app.router.add_route('DELETE', '/{path:.*}/api/switches/{switch_id}', self.delete_switch)
-        self.app.router.add_route('GET', '/{path:.*}/api/switches/pending', self.get_pending_switches)
-        self.app.router.add_route('DELETE', '/{path:.*}/api/switches/pending/{switch_id}', self.dismiss_pending_switch)
         self.app.router.add_route('GET', '/{path:.*}/api/switch-types', self.get_switch_types)
         self.app.router.add_get('/api/switches', self.get_switches)
         self.app.router.add_post('/api/switches', self.create_switch)
         self.app.router.add_put('/api/switches/{switch_id}', self.update_switch)
         self.app.router.add_delete('/api/switches/{switch_id}', self.delete_switch)
-        self.app.router.add_get('/api/switches/pending', self.get_pending_switches)
-        self.app.router.add_delete('/api/switches/pending/{switch_id}', self.dismiss_pending_switch)
         self.app.router.add_get('/api/switch-types', self.get_switch_types)
 
         # Page routes - specific pages first, then catch-all
@@ -2716,6 +2721,246 @@ class LightDesignerServer:
             logger.warning(f"Error fetching device areas: {e}")
             return {}
 
+    async def get_controls(self, request: Request) -> Response:
+        """Get all controls from HA, merged with our configuration.
+
+        Fetches devices from HA, filters to potential controls (remotes, motion sensors, etc.),
+        and merges with our config to determine status (active, not_configured, unsupported).
+        """
+        try:
+            # Fetch controls from HA
+            ha_controls = await self._fetch_ha_controls()
+
+            # Get our configured switches
+            configured = {sw["id"]: sw for sw in switches.get_switches_summary()}
+
+            # Merge and determine status
+            controls = []
+            for ctrl in ha_controls:
+                ieee = ctrl.get("ieee")
+                config = configured.get(ieee, {})
+
+                # Determine status
+                if ctrl.get("supported"):
+                    if config and config.get("scopes") and any(s.get("areas") for s in config.get("scopes", [])):
+                        status = "active"
+                    else:
+                        status = "not_configured"
+                else:
+                    status = "unsupported"
+
+                controls.append({
+                    "id": ieee,
+                    "device_id": ctrl.get("device_id"),
+                    "name": ctrl.get("name"),
+                    "manufacturer": ctrl.get("manufacturer"),
+                    "model": ctrl.get("model"),
+                    "area_name": ctrl.get("area_name"),
+                    "type": ctrl.get("type"),
+                    "type_name": ctrl.get("type_name"),
+                    "supported": ctrl.get("supported"),
+                    "status": status,
+                    "scopes": config.get("scopes", []),
+                })
+
+            return web.json_response({"controls": controls})
+        except Exception as e:
+            logger.error(f"Error getting controls: {e}", exc_info=True)
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def _fetch_ha_controls(self) -> List[Dict[str, Any]]:
+        """Fetch potential control devices from HA.
+
+        Identifies controls by entity types:
+        - binary_sensor.*_motion, *_occupancy, *_contact → sensors
+        - Devices with only battery sensor and no lights → likely remotes
+        """
+        rest_url, ws_url, token = self._get_ha_api_config()
+        if not token or not ws_url:
+            return []
+
+        try:
+            async with websockets.connect(ws_url) as ws:
+                # Auth
+                msg = json.loads(await ws.recv())
+                if msg.get('type') != 'auth_required':
+                    return []
+                await ws.send(json.dumps({'type': 'auth', 'access_token': token}))
+                msg = json.loads(await ws.recv())
+                if msg.get('type') != 'auth_ok':
+                    return []
+
+                # Get area registry
+                await ws.send(json.dumps({'id': 1, 'type': 'config/area_registry/list'}))
+                area_msg = json.loads(await ws.recv())
+                area_names = {}
+                if area_msg.get('success') and area_msg.get('result'):
+                    area_names = {a['area_id']: a['name'] for a in area_msg['result']}
+
+                # Get device registry
+                await ws.send(json.dumps({'id': 2, 'type': 'config/device_registry/list'}))
+                device_msg = json.loads(await ws.recv())
+                devices = {}
+                if device_msg.get('success') and device_msg.get('result'):
+                    for device in device_msg['result']:
+                        device_id = device.get('id')
+                        if device_id:
+                            # Extract IEEE from identifiers if it's a ZHA device
+                            ieee = None
+                            for identifier in device.get('identifiers', []):
+                                if isinstance(identifier, list) and len(identifier) >= 2:
+                                    if identifier[0] == 'zha':
+                                        ieee = identifier[1]
+                                        break
+                            if ieee:
+                                devices[device_id] = {
+                                    'device_id': device_id,
+                                    'ieee': ieee,
+                                    'name': device.get('name_by_user') or device.get('name'),
+                                    'manufacturer': device.get('manufacturer'),
+                                    'model': device.get('model'),
+                                    'area_id': device.get('area_id'),
+                                    'area_name': area_names.get(device.get('area_id')),
+                                }
+
+                # Get entity registry to identify control types
+                await ws.send(json.dumps({'id': 3, 'type': 'config/entity_registry/list'}))
+                entity_msg = json.loads(await ws.recv())
+
+                # Track entity types per device
+                device_entities: Dict[str, Dict[str, bool]] = {}
+                if entity_msg.get('success') and entity_msg.get('result'):
+                    for entity in entity_msg['result']:
+                        device_id = entity.get('device_id')
+                        if not device_id or device_id not in devices:
+                            continue
+
+                        entity_id = entity.get('entity_id', '')
+                        if device_id not in device_entities:
+                            device_entities[device_id] = {
+                                'has_light': False,
+                                'has_motion': False,
+                                'has_occupancy': False,
+                                'has_contact': False,
+                                'has_button': False,
+                                'has_battery': False,
+                            }
+
+                        if entity_id.startswith('light.'):
+                            device_entities[device_id]['has_light'] = True
+                        elif entity_id.startswith('button.'):
+                            device_entities[device_id]['has_button'] = True
+                        elif entity_id.startswith('binary_sensor.'):
+                            if '_motion' in entity_id:
+                                device_entities[device_id]['has_motion'] = True
+                            elif '_occupancy' in entity_id:
+                                device_entities[device_id]['has_occupancy'] = True
+                            elif '_contact' in entity_id or '_opening' in entity_id:
+                                device_entities[device_id]['has_contact'] = True
+                        elif entity_id.startswith('sensor.') and '_battery' in entity_id:
+                            device_entities[device_id]['has_battery'] = True
+
+                # Filter to potential controls
+                controls = []
+                for device_id, device in devices.items():
+                    entities = device_entities.get(device_id, {})
+
+                    # Skip if it's primarily a light
+                    if entities.get('has_light') and not any([
+                        entities.get('has_motion'),
+                        entities.get('has_occupancy'),
+                        entities.get('has_contact'),
+                        entities.get('has_button'),
+                    ]):
+                        continue
+
+                    # Include if it has control-like entities
+                    is_control = any([
+                        entities.get('has_motion'),
+                        entities.get('has_occupancy'),
+                        entities.get('has_contact'),
+                        entities.get('has_button'),
+                        # Remote: has battery but no lights
+                        (entities.get('has_battery') and not entities.get('has_light')),
+                    ])
+
+                    if not is_control:
+                        continue
+
+                    # Check if it's a known/supported type
+                    detected_type = switches.detect_switch_type(
+                        device.get('manufacturer'),
+                        device.get('model')
+                    )
+
+                    type_info = switches.SWITCH_TYPES.get(detected_type, {}) if detected_type else {}
+
+                    controls.append({
+                        **device,
+                        'type': detected_type,
+                        'type_name': type_info.get('name') if detected_type else None,
+                        'supported': detected_type is not None,
+                    })
+
+                return controls
+        except Exception as e:
+            logger.error(f"Error fetching HA controls: {e}", exc_info=True)
+            return []
+
+    async def configure_control(self, request: Request) -> Response:
+        """Configure a control (add/update scopes)."""
+        try:
+            control_id = request.match_info.get("control_id")
+            if not control_id:
+                return web.json_response({"error": "Control ID is required"}, status=400)
+
+            data = await request.json()
+
+            name = data.get("name", f"Control ({control_id[-8:]})")
+            control_type = data.get("type", "hue_dimmer")
+            device_id = data.get("device_id")
+
+            # Build scopes
+            scopes_data = data.get("scopes", [])
+            scopes = []
+            for scope_data in scopes_data:
+                areas = scope_data.get("areas", [])
+                scopes.append(switches.SwitchScope(areas=areas))
+
+            if not scopes:
+                scopes = [switches.SwitchScope(areas=[])]
+
+            # Create/update switch config
+            switch_config = switches.SwitchConfig(
+                id=control_id,
+                name=name,
+                type=control_type,
+                scopes=scopes,
+                device_id=device_id,
+            )
+
+            switches.add_switch(switch_config)
+
+            return web.json_response({"status": "ok"})
+        except Exception as e:
+            logger.error(f"Error configuring control: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def remove_control_config(self, request: Request) -> Response:
+        """Remove configuration from a control (keeps it in list as 'not_configured')."""
+        try:
+            control_id = request.match_info.get("control_id")
+            if not control_id:
+                return web.json_response({"error": "Control ID is required"}, status=400)
+
+            # Delete from our config
+            switches.delete_switch(control_id)
+
+            return web.json_response({"status": "ok"})
+        except Exception as e:
+            logger.error(f"Error removing control config: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
     async def create_switch(self, request: Request) -> Response:
         """Create a new switch configuration."""
         try:
@@ -2849,29 +3094,6 @@ class LightDesignerServer:
 
         except Exception as e:
             logger.error(f"Error deleting switch: {e}")
-            return web.json_response({"error": str(e)}, status=500)
-
-    async def get_pending_switches(self, request: Request) -> Response:
-        """Get all pending/detected but unconfigured switches."""
-        try:
-            pending = switches.get_pending_switches_summary()
-            return web.json_response({"pending": pending})
-        except Exception as e:
-            logger.error(f"Error getting pending switches: {e}")
-            return web.json_response({"error": str(e)}, status=500)
-
-    async def dismiss_pending_switch(self, request: Request) -> Response:
-        """Dismiss a pending switch (remove from pending list)."""
-        try:
-            switch_id = request.match_info.get("switch_id")
-            if not switch_id:
-                return web.json_response({"error": "Switch ID is required"}, status=400)
-
-            switches.clear_pending_switch(switch_id)
-            return web.json_response({"status": "ok", "dismissed": switch_id})
-
-        except Exception as e:
-            logger.error(f"Error dismissing pending switch: {e}")
             return web.json_response({"error": str(e)}, status=500)
 
     async def get_switch_types(self, request: Request) -> Response:

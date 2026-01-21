@@ -1,5 +1,18 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.24
+**Feature: Controls page refactor**
+
+- Renamed "Switches" to "Controls" throughout UI
+- Controls are now fetched directly from Home Assistant device registry
+  - Identifies remotes, motion sensors, occupancy sensors, contact sensors
+  - No longer requires button press to detect new devices
+- Added Status column: Active, Not configured, Unsupported
+- Unsupported devices show "Request support" email link
+- "Update" button refreshes control list from HA
+- "Delete" renamed to "Remove configuration" (controls stay in list)
+- Removed pending_switches system entirely
+
 ## 6.9.23
 **Feature: Switch area lookup**
 
