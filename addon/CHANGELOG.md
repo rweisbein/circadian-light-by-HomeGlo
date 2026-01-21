@@ -1,5 +1,22 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.26
+**UI Refinements: In-sync, Controls, Glo dropdown**
+
+- Home page area chips:
+  - In-sync threshold: 2% brightness, 100K color temp
+  - Off areas now count as "in sync" (not fighting the zone)
+  - Out-of-sync areas show ⚡ icon instead of green border
+- Glo zone headers:
+  - Simplified: click Glo name for dropdown with presets + edit link
+  - Removed redundant "change" link
+- Controls page:
+  - "Active" status now shows white ✓ instead of green badge
+  - Added "Last action" column (e.g., "Bottom 4x")
+- Settings page:
+  - Removed non-functional Timing settings (weren't being saved/used)
+  - Page now directs to Glo design and Home for actual settings
+
 ## 6.9.25
 **UI Enhancements: Home page visualization**
 

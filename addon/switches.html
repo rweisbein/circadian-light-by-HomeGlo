@@ -295,7 +295,9 @@
 
     /* Status badges */
     .status-badge {
-      display: inline-block;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
       padding: 2px 8px;
       border-radius: 4px;
       font-size: 0.75rem;
@@ -303,8 +305,12 @@
     }
 
     .status-active {
-      background: rgba(34, 197, 94, 0.15);
-      color: var(--success);
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text);
+    }
+
+    .status-check {
+      font-size: 0.85rem;
     }
 
     .status-not-configured {
@@ -315,6 +321,18 @@
     .status-unsupported {
       background: rgba(148, 163, 184, 0.15);
       color: var(--muted);
+    }
+
+    /* Last action column */
+    .last-action {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .last-action-time {
+      font-size: 0.7rem;
+      color: var(--muted2);
+      margin-left: 4px;
     }
 
     .request-support-link {
@@ -674,6 +692,7 @@
               <th class="${thClass('name')}" onclick="sortBy('name')">Name ${arrow('name')}</th>
               <th class="${thClass('area')}" onclick="sortBy('area')">Area ${arrow('area')}</th>
               <th class="${thClass('status')}" onclick="sortBy('status')">Status ${arrow('status')}</th>
+              <th>Last action</th>
               <th class="${thClass('type')}" onclick="sortBy('type')">Type ${arrow('type')}</th>
             </tr>
           </thead>
@@ -682,6 +701,7 @@
               const areaName = ctrl.area_name || '—';
               const typeName = ctrl.type_name || `${ctrl.manufacturer || 'Unknown'} ${ctrl.model || ''}`.trim();
               const statusBadge = getStatusBadge(ctrl);
+              const lastAction = formatLastAction(ctrl);
               const nameCell = ctrl.supported
                 ? `<a class="switch-name-link" onclick="editControl('${ctrl.id}')">${ctrl.name}</a>`
                 : `<span>${ctrl.name}</span>`;
@@ -690,6 +710,7 @@
                   <td>${nameCell}</td>
                   <td>${areaName}</td>
                   <td>${statusBadge}</td>
+                  <td>${lastAction}</td>
                   <td>${typeName}</td>
                 </tr>
               `;
@@ -701,13 +722,25 @@
 
     function getStatusBadge(ctrl) {
       if (ctrl.status === 'active') {
-        return '<span class="status-badge status-active">Active</span>';
+        return '<span class="status-badge status-active"><span class="status-check">✓</span> Active</span>';
       } else if (ctrl.status === 'not_configured') {
         return '<span class="status-badge status-not-configured">Not configured</span>';
       } else {
         const mailto = `mailto:ron@home-glo.com?subject=Device Support Request&body=Manufacturer: ${encodeURIComponent(ctrl.manufacturer || 'Unknown')}%0AModel: ${encodeURIComponent(ctrl.model || 'Unknown')}%0ADevice: ${encodeURIComponent(ctrl.name || '')}`;
         return `<span class="status-badge status-unsupported">Unsupported</span><a href="${mailto}" class="request-support-link">Request support</a>`;
       }
+    }
+
+    function formatLastAction(ctrl) {
+      if (!ctrl.last_action) return '—';
+      const action = ctrl.last_action;
+      // Format button name (e.g., "bottom_quadruple_press" -> "Bottom 4x")
+      const parts = action.split('_');
+      const button = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
+      const pressType = parts.find(p => ['short', 'long', 'double', 'triple', 'quadruple', 'quintuple'].includes(p));
+      const pressMap = { short: '1x', long: 'hold', double: '2x', triple: '3x', quadruple: '4x', quintuple: '5x' };
+      const press = pressMap[pressType] || '';
+      return `<span class="last-action">${button} ${press}</span>`;
     }
 
     function sortBy(column) {

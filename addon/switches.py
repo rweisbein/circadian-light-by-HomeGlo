@@ -197,6 +197,7 @@ class SwitchRuntimeState:
     last_activity: float = 0.0
     hold_active: bool = False
     hold_action: Optional[str] = None
+    last_action: Optional[str] = None  # Last button event (e.g., "on_short_release")
 
 
 # =============================================================================
@@ -495,6 +496,22 @@ def get_hold_action(switch_id: str) -> Optional[str]:
     """Get the current hold action for a switch."""
     state = _runtime_state.get(switch_id)
     return state.hold_action if state else None
+
+
+def set_last_action(switch_id: str, action: str) -> None:
+    """Record the last button action for a switch."""
+    state = _runtime_state.get(switch_id)
+    if state:
+        state.last_action = action
+    else:
+        state = SwitchRuntimeState(last_action=action)
+        _runtime_state[switch_id] = state
+
+
+def get_last_action(switch_id: str) -> Optional[str]:
+    """Get the last button action for a switch."""
+    state = _runtime_state.get(switch_id)
+    return state.last_action if state else None
 
 
 # =============================================================================

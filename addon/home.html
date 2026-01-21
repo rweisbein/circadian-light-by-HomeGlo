@@ -604,59 +604,92 @@
       color: var(--muted);
     }
 
-    /* Area alignment indicator */
-    .area-chip.aligned {
-      border-color: rgba(34, 197, 94, 0.3);
-      background: linear-gradient(135deg, var(--panel) 0%, rgba(34, 197, 94, 0.05) 100%);
-    }
-
-    .area-chip.aligned::before {
-      content: '';
-      position: absolute;
-      left: 0;
-      top: 0;
-      bottom: 0;
-      width: 3px;
-      background: var(--success);
-      border-radius: 8px 0 0 8px;
-      opacity: 0.6;
-    }
-
+    /* Area out-of-sync indicator */
     .area-chip {
       position: relative;
+    }
+
+    .area-chip.out-of-sync {
+      border-color: rgba(245, 158, 11, 0.4);
+    }
+
+    .out-of-sync-icon {
+      font-size: 0.7rem;
+      color: var(--warning);
+      margin-left: 4px;
+      opacity: 0.8;
     }
 
     .glo-display {
       display: flex;
       align-items: center;
       gap: 8px;
+      position: relative;
     }
 
-    .glo-label {
-      font-size: 0.85rem;
-      color: var(--muted2);
-    }
-
-    .glo-name-link {
+    .glo-name-btn {
+      background: transparent;
+      border: 1px solid var(--line);
+      border-radius: 6px;
       color: var(--accent);
-      text-decoration: none;
       font-size: 0.85rem;
       font-weight: 500;
-    }
-
-    .glo-name-link:hover {
-      text-decoration: underline;
-    }
-
-    .glo-change {
-      color: var(--muted2);
-      font-size: 0.8rem;
+      padding: 6px 12px;
       cursor: pointer;
-      text-decoration: none;
+      transition: all 0.2s;
     }
 
-    .glo-change:hover {
+    .glo-name-btn:hover {
+      border-color: var(--accent);
+      background: rgba(254, 172, 96, 0.05);
+    }
+
+    .glo-dropdown {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      margin-top: 4px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      min-width: 160px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      z-index: 50;
+      display: none;
+    }
+
+    .glo-dropdown.visible {
+      display: block;
+    }
+
+    .glo-dropdown-item {
+      padding: 10px 14px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      color: var(--text);
+      border-bottom: 1px solid var(--line);
+      transition: background 0.15s;
+    }
+
+    .glo-dropdown-item:last-child {
+      border-bottom: none;
+    }
+
+    .glo-dropdown-item:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .glo-dropdown-item.selected {
+      color: var(--accent);
+    }
+
+    .glo-dropdown-item.edit-link {
       color: var(--muted);
+      font-size: 0.8rem;
+    }
+
+    .glo-dropdown-item.edit-link:hover {
+      color: var(--accent);
     }
 
     .default-star {
@@ -895,14 +928,15 @@
 
     /**
      * Check if an area's state is aligned with the zone's target state.
-     * Aligned means brightness and kelvin are within tolerance.
+     * Aligned means: off, or brightness and kelvin are within tolerance.
      */
     function isAreaAligned(areaState, zoneState) {
-      if (!areaState.enabled) return false;
-      // Allow 5% brightness tolerance and 100K color temp tolerance
+      // Off areas are considered aligned (not fighting the zone)
+      if (!areaState.enabled) return true;
+      // Allow 2% brightness tolerance and 100K color temp tolerance
       const brightDiff = Math.abs(areaState.brightness - zoneState.brightness);
       const kelvinDiff = Math.abs(areaState.kelvin - zoneState.kelvin);
-      return brightDiff <= 5 && kelvinDiff <= 100;
+      return brightDiff <= 2 && kelvinDiff <= 100;
     }
 
     // Location config
@@ -1073,6 +1107,13 @@
       // Build state visualization
       const stateVis = renderGloStateVis(zoneState);
 
+      // Build dropdown items
+      const dropdownItems = presets.map(p =>
+        `<div class="glo-dropdown-item ${p === presetName ? 'selected' : ''}" data-zone="${zoneName}" data-preset="${p}">${p}</div>`
+      ).join('') +
+        `<div class="glo-dropdown-item" data-zone="${zoneName}" data-preset="__new__">+ New Glo...</div>` +
+        `<a href="./glo/${encodeURIComponent(presetName)}" class="glo-dropdown-item edit-link">Edit ${presetName} →</a>`;
+
       return `
         <div class="zone-card" data-zone="${zoneName}">
           <div class="zone-header">
@@ -1084,12 +1125,10 @@
             </div>
             <div class="zone-header-right">
               <div class="glo-display" data-zone="${zoneName}">
-                <a href="./glo/${encodeURIComponent(presetName)}" class="glo-name-link" data-zone="${zoneName}">${presetName}</a>
-                <span class="glo-change" data-zone="${zoneName}">change</span>
-                <select class="glo-select" data-zone="${zoneName}" style="display: none;">
-                  ${presetOptions}
-                  <option value="__new__">+ New Glo...</option>
-                </select>
+                <button class="glo-name-btn" data-zone="${zoneName}">${presetName}</button>
+                <div class="glo-dropdown" data-zone="${zoneName}">
+                  ${dropdownItems}
+                </div>
               </div>
               <div class="zone-glo-info">
                 <span title="Wake time">wake ${wakeTime}</span>
@@ -1115,8 +1154,8 @@
       const areaName = area.name || areaId;
       const areaState = areaStates[areaId] || { enabled: false, brightness: 0, kelvin: 4000, frozen: false };
 
-      // Check if area is aligned with zone state
-      const isAligned = zoneState && areaState.enabled && isAreaAligned(areaState, zoneState);
+      // Check if area is aligned with zone state (only matters for enabled areas in a zone)
+      const isOutOfSync = zoneState && areaState.enabled && !isAreaAligned(areaState, zoneState);
 
       // Get CCT color for enabled areas
       let dotStyle = '';
@@ -1127,12 +1166,13 @@
       }
 
       return `
-        <div class="area-chip ${isAligned ? 'aligned' : ''}" draggable="true" data-area="${areaId}" data-zone="${zoneName || ''}">
+        <div class="area-chip ${isOutOfSync ? 'out-of-sync' : ''}" draggable="true" data-area="${areaId}" data-zone="${zoneName || ''}">
           <span class="area-name">${areaName}</span>
           <div class="area-status">
             <span class="status-dot ${areaState.enabled ? 'on' : ''}" style="${dotStyle}"></span>
             ${areaState.enabled ? `<span class="area-brightness">${areaState.brightness}% • ${Math.round(areaState.kelvin)}K</span>` : ''}
             ${areaState.frozen ? '<span class="area-frozen" title="Frozen">&#128274;</span>' : ''}
+            ${isOutOfSync ? '<span class="out-of-sync-icon" title="Out of sync with zone">⚡</span>' : ''}
           </div>
         </div>
       `;
@@ -1281,37 +1321,45 @@
         });
       });
 
-      // Glo "change" link - shows dropdown
-      document.querySelectorAll('.glo-change').forEach(link => {
-        link.addEventListener('click', (e) => {
-          const zoneName = e.target.dataset.zone;
+      // Glo dropdown button - toggles dropdown
+      document.querySelectorAll('.glo-name-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
           const display = e.target.closest('.glo-display');
-          const nameLink = display.querySelector('.glo-name-link');
-          const select = display.querySelector('.glo-select');
-
-          nameLink.style.display = 'none';
-          e.target.style.display = 'none';
-          select.style.display = 'inline-block';
-          select.focus();
+          const dropdown = display.querySelector('.glo-dropdown');
+          // Close other dropdowns
+          document.querySelectorAll('.glo-dropdown.visible').forEach(d => {
+            if (d !== dropdown) d.classList.remove('visible');
+          });
+          dropdown.classList.toggle('visible');
         });
       });
 
-      // Glo select change
-      document.querySelectorAll('.glo-select').forEach(select => {
-        select.addEventListener('change', handleGloChange);
-        // Hide dropdown when clicking away
-        select.addEventListener('blur', (e) => {
-          setTimeout(() => {
-            const display = e.target.closest('.glo-display');
-            if (display) {
-              const nameLink = display.querySelector('.glo-name-link');
-              const changeLink = display.querySelector('.glo-change');
-              nameLink.style.display = 'inline';
-              changeLink.style.display = 'inline';
-              e.target.style.display = 'none';
-            }
-          }, 150);
+      // Glo dropdown item selection
+      document.querySelectorAll('.glo-dropdown-item[data-preset]').forEach(item => {
+        item.addEventListener('click', (e) => {
+          const zoneName = e.target.dataset.zone;
+          const preset = e.target.dataset.preset;
+          const dropdown = e.target.closest('.glo-dropdown');
+          dropdown.classList.remove('visible');
+
+          if (preset === '__new__') {
+            // Create new Glo (show modal or navigate)
+            handleCreateNewGlo(zoneName);
+          } else {
+            // Update zone preset
+            handleGloSelect(zoneName, preset);
+          }
         });
+      });
+
+      // Close dropdown when clicking outside
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('.glo-display')) {
+          document.querySelectorAll('.glo-dropdown.visible').forEach(d => {
+            d.classList.remove('visible');
+          });
+        }
       });
 
       // Zone delete
@@ -1431,16 +1479,7 @@
       }
     }
 
-    async function handleGloChange(e) {
-      const zoneName = e.target.dataset.zone;
-      const newGlo = e.target.value;
-
-      if (newGlo === '__new__') {
-        showModal('glo', zoneName);
-        e.target.value = zones[zoneName]?.preset || 'Glo 1';
-        return;
-      }
-
+    async function handleGloSelect(zoneName, newGlo) {
       try {
         await fetch(`./api/glozones/${encodeURIComponent(zoneName)}`, {
           method: 'PUT',
@@ -1451,6 +1490,10 @@
       } catch (err) {
         console.error('Error changing glo:', err);
       }
+    }
+
+    function handleCreateNewGlo(zoneName) {
+      showModal('glo', zoneName);
     }
 
     async function handleZoneDelete(e) {

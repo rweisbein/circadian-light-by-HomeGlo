@@ -298,87 +298,20 @@
       <h1 class="page-title">Settings</h1>
     </div>
 
-    <!-- Timing Settings -->
     <div class="settings-section">
-      <div class="section-header">Timing</div>
       <div class="section-content">
-        <div class="form-row">
-          <span class="form-label">Transition Time</span>
-          <div class="form-control">
-            <input type="number" class="form-input" id="transition-time" min="0" max="10" step="0.5" value="1">
-            <span class="form-hint">seconds (0 = instant)</span>
-          </div>
-        </div>
-        <div class="form-row">
-          <span class="form-label">Update Interval</span>
-          <div class="form-control">
-            <input type="number" class="form-input" id="update-interval" min="1" max="60" value="5">
-            <span class="form-hint">minutes between updates</span>
-          </div>
-        </div>
+        <p class="section-description">
+          All settings are configured per-Glo on the <a href="./glo" style="color: var(--accent);">Glo design</a> page.
+        </p>
+        <p class="section-description">
+          Location settings are on the <a href="./" style="color: var(--accent);">Home</a> page.
+        </p>
       </div>
-    </div>
-
-    <!-- Save Button -->
-    <div class="button-row">
-      <button class="btn btn-primary" id="save-btn">Save Settings</button>
     </div>
   </main>
 
-  <!-- Save Status Toast -->
-  <div class="save-status" id="save-status">Settings saved!</div>
-
   <script>
-    // Data from server
-    const circadianData = window.circadianData || { config: {} };
-    const config = circadianData.config;
-
-    // Initialize
-    document.addEventListener('DOMContentLoaded', () => {
-      loadSettings();
-      setupEventListeners();
-    });
-
-    function loadSettings() {
-      // Timing settings
-      document.getElementById('transition-time').value = config.transition_time || 1;
-      document.getElementById('update-interval').value = config.update_interval || 5;
-    }
-
-    function setupEventListeners() {
-      document.getElementById('save-btn').addEventListener('click', handleSave);
-    }
-
-    async function handleSave() {
-      const settings = {
-        transition_time: parseFloat(document.getElementById('transition-time').value) || 1,
-        update_interval: parseInt(document.getElementById('update-interval').value) || 5
-      };
-
-      try {
-        const response = await fetch('./api/config', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(settings)
-        });
-
-        if (response.ok) {
-          showSaveStatus();
-        } else {
-          const data = await response.json();
-          alert(data.error || 'Failed to save settings');
-        }
-      } catch (err) {
-        console.error('Error saving settings:', err);
-        alert('Error saving settings');
-      }
-    }
-
-    function showSaveStatus() {
-      const el = document.getElementById('save-status');
-      el.classList.add('visible');
-      setTimeout(() => el.classList.remove('visible'), 2000);
-    }
+    // Reserved for future settings
   </script>
 </body>
 </html>

@@ -2761,6 +2761,7 @@ class LightDesignerServer:
                     "supported": ctrl.get("supported"),
                     "status": status,
                     "scopes": config.get("scopes", []),
+                    "last_action": switches.get_last_action(ieee),
                 })
 
             return web.json_response({"controls": controls})

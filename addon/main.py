@@ -363,6 +363,9 @@ class HomeAssistantWebSocketClient:
             logger.debug(f"Unmapped ZHA command: {command}")
             return
 
+        # Record last action for UI display
+        switches.set_last_action(device_ieee, button_event)
+
         # Get the action for this button event
         action = switch_config.get_button_action(button_event)
 
