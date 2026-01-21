@@ -1,5 +1,16 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.29
+**UI refinements: Color consistency, dropdown improvements**
+
+- Swapped sync indicator colors: blue for in-sync, orange for out-of-sync
+- State visualization pill now has blue border (matching in-sync)
+- Neutralized sun display colors (sunrise, sunset, timeline now use muted gray)
+- Dropdown improvements:
+  - "Edit [Glo name]" moved to top of list
+  - Same font styling as other items (no underline)
+- Wake/bed times now show defaults (7am/10pm) when not set in preset
+
 ## 6.9.28
 **UI refinements: Border placement, debug logging**
 

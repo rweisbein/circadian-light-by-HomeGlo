@@ -385,14 +385,14 @@
     }
 
     .sun-rise {
-      color: var(--accent);
+      color: var(--muted);
     }
 
     .sun-timeline {
       position: relative;
       width: 120px;
       height: 6px;
-      background: linear-gradient(90deg, var(--accent), var(--muted2), #2e6cba);
+      background: var(--line);
       border-radius: 3px;
     }
 
@@ -409,7 +409,7 @@
     }
 
     .sun-set {
-      color: #2e6cba;
+      color: var(--muted);
     }
 
     /* Location Section */
@@ -576,7 +576,7 @@
       gap: 8px;
       padding: 4px 12px;
       background: var(--bg);
-      border: 1px solid var(--accent);
+      border: 1px solid #2e6cba;
       border-radius: 20px;
       font-size: 0.8rem;
     }
@@ -605,17 +605,17 @@
       color: var(--muted);
     }
 
-    /* Area sync indicator - orange for in-sync, blue for out-of-sync */
+    /* Area sync indicator - blue for in-sync, orange for out-of-sync */
     .area-chip {
       position: relative;
     }
 
     .area-chip.in-sync {
-      border-color: var(--accent);
+      border-color: #2e6cba;
     }
 
     .area-chip.out-of-sync {
-      border-color: #2e6cba;
+      border-color: var(--accent);
     }
 
     .glo-display {
@@ -681,13 +681,9 @@
       color: var(--accent);
     }
 
-    .glo-dropdown-item.edit-link {
-      color: var(--muted);
-      font-size: 0.8rem;
-    }
-
-    .glo-dropdown-item.edit-link:hover {
-      color: var(--accent);
+    a.glo-dropdown-item {
+      text-decoration: none;
+      color: var(--text);
     }
 
     .default-star {
@@ -970,6 +966,12 @@
           presetsData = data.presets || {};
           presets = Object.keys(presetsData);
           console.log('[Home] Loaded presets:', presets);
+          // Debug: log full preset data
+          for (const [name, preset] of Object.entries(presetsData)) {
+            console.log(`[Home] Preset '${name}': wake=${preset.wake_time}, bed=${preset.bed_time}`);
+          }
+        } else {
+          console.error('[Home] Failed to load presets:', presetsRes.status);
         }
 
         if (configRes.ok) {
@@ -1103,6 +1105,13 @@
       const isDefault = zone.is_default === true;
       const isLastZone = Object.keys(zones).length === 1;
 
+      // Debug: log preset lookup
+      console.log(`[Home] Zone '${zoneName}' uses preset '${presetName}'`);
+      if (!preset.wake_time) {
+        console.warn(`[Home] Preset '${presetName}' missing wake_time. Available presets:`, Object.keys(presetsData));
+        console.warn(`[Home] Preset data for '${presetName}':`, JSON.stringify(preset));
+      }
+
       // Get current zone state (first enabled area's state, or calculated from preset)
       const zoneState = getZoneCurrentState(zoneName, zone);
 
@@ -1118,19 +1127,20 @@
             return renderAreaChip(areaInfo || { area_id: areaId, name: areaId }, zoneName, zoneState);
           }).join('');
 
-      // Get glo timing info
-      const wakeTime = formatTime(preset.wake_time);
-      const bedTime = formatTime(preset.bed_time);
+      // Get glo timing info (use defaults if not set: wake 7am, bed 10pm)
+      const wakeTime = formatTime(preset.wake_time ?? 7);
+      const bedTime = formatTime(preset.bed_time ?? 22);
 
       // Build state visualization
       const stateVis = renderGloStateVis(zoneState);
 
-      // Build dropdown items
-      const dropdownItems = presets.map(p =>
-        `<div class="glo-dropdown-item ${p === presetName ? 'selected' : ''}" data-zone="${zoneName}" data-preset="${p}">${p}</div>`
-      ).join('') +
-        `<div class="glo-dropdown-item" data-zone="${zoneName}" data-preset="__new__">+ New Glo...</div>` +
-        `<a href="./glo/${encodeURIComponent(presetName)}" class="glo-dropdown-item edit-link">Edit ${presetName} →</a>`;
+      // Build dropdown items - Edit at top, then presets, then New
+      const dropdownItems =
+        `<a href="./glo/${encodeURIComponent(presetName)}" class="glo-dropdown-item">Edit ${presetName}</a>` +
+        presets.map(p =>
+          `<div class="glo-dropdown-item ${p === presetName ? 'selected' : ''}" data-zone="${zoneName}" data-preset="${p}">${p}</div>`
+        ).join('') +
+        `<div class="glo-dropdown-item" data-zone="${zoneName}" data-preset="__new__">+ New Glo...</div>`;
 
       return `
         <div class="zone-card" data-zone="${zoneName}">
