@@ -589,7 +589,7 @@ class HomeAssistantWebSocketClient:
             # Bright white: 100% brightness, cool white (6500K = 154 mireds)
             logger.info(f"[switch] set_britelite for areas: {areas}")
             for area in areas:
-                state.disable(area)  # Disable circadian mode
+                state.set_enabled(area, False)  # Disable circadian mode
                 await self.call_service(
                     "light", "turn_on",
                     {"brightness": 255, "color_temp": 154, "transition": 0},
@@ -600,7 +600,7 @@ class HomeAssistantWebSocketClient:
             # Dim warm: 5% brightness, warm (2200K = 455 mireds)
             logger.info(f"[switch] set_nitelite for areas: {areas}")
             for area in areas:
-                state.disable(area)  # Disable circadian mode
+                state.set_enabled(area, False)  # Disable circadian mode
                 await self.call_service(
                     "light", "turn_on",
                     {"brightness": 13, "color_temp": 455, "transition": 0},
