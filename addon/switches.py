@@ -83,6 +83,9 @@ AVAILABLE_ACTIONS = [
     "glo_down",          # Glo Down for zone
     "glo_reset",         # Glo Reset for zone
     "cycle_scope",       # Cycle through scopes
+    "set_britelite",     # 100% brightness, cool white (6500K)
+    "set_nitelite",      # 5% brightness, warm (2200K)
+    "toggle_wake_bed",   # Set midpoint to current time
     None,                # Unmapped / do nothing
 ]
 
