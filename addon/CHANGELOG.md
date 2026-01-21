@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.23
+**Feature: Switch area lookup**
+
+- Added device_id to switch config for area tracking
+- Area column now looks up device's current area from HA dynamically
+- If user moves switch to different area in HA, it reflects on next page load
+- Area shows "—" for switches without device_id (older configs)
+
 ## 6.9.22
 **Fixes: Sun times, switches table**
 

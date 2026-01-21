@@ -2657,13 +2657,64 @@ class LightDesignerServer:
         return await self.serve_page("switches")
 
     async def get_switches(self, request: Request) -> Response:
-        """Get all configured switches."""
+        """Get all configured switches with area names looked up from HA."""
         try:
             switches_data = switches.get_switches_summary()
+
+            # Try to enrich with area names from HA device registry
+            try:
+                device_area_map = await self._fetch_device_areas()
+                for sw in switches_data:
+                    device_id = sw.get("device_id")
+                    if device_id and device_id in device_area_map:
+                        sw["area_name"] = device_area_map[device_id]
+            except Exception as e:
+                logger.warning(f"Could not fetch device areas: {e}")
+
             return web.json_response({"switches": switches_data})
         except Exception as e:
             logger.error(f"Error getting switches: {e}")
             return web.json_response({"error": str(e)}, status=500)
+
+    async def _fetch_device_areas(self) -> Dict[str, str]:
+        """Fetch device_id -> area_name mapping from HA."""
+        rest_url, ws_url, token = self._get_ha_api_config()
+        if not token or not ws_url:
+            return {}
+
+        try:
+            async with websockets.connect(ws_url) as ws:
+                # Auth
+                msg = json.loads(await ws.recv())
+                if msg.get('type') != 'auth_required':
+                    return {}
+                await ws.send(json.dumps({'type': 'auth', 'access_token': token}))
+                msg = json.loads(await ws.recv())
+                if msg.get('type') != 'auth_ok':
+                    return {}
+
+                # Get area registry
+                await ws.send(json.dumps({'id': 1, 'type': 'config/area_registry/list'}))
+                area_msg = json.loads(await ws.recv())
+                area_names = {}
+                if area_msg.get('success') and area_msg.get('result'):
+                    area_names = {a['area_id']: a['name'] for a in area_msg['result']}
+
+                # Get device registry
+                await ws.send(json.dumps({'id': 2, 'type': 'config/device_registry/list'}))
+                device_msg = json.loads(await ws.recv())
+                device_areas = {}
+                if device_msg.get('success') and device_msg.get('result'):
+                    for device in device_msg['result']:
+                        device_id = device.get('id')
+                        area_id = device.get('area_id')
+                        if device_id and area_id and area_id in area_names:
+                            device_areas[device_id] = area_names[area_id]
+
+                return device_areas
+        except Exception as e:
+            logger.warning(f"Error fetching device areas: {e}")
+            return {}
 
     async def create_switch(self, request: Request) -> Response:
         """Create a new switch configuration."""
@@ -2702,6 +2753,7 @@ class LightDesignerServer:
                 type=switch_type,
                 scopes=scopes,
                 button_overrides=data.get("button_overrides", {}),
+                device_id=data.get("device_id"),
             )
 
             switches.add_switch(switch_config)
@@ -2757,6 +2809,9 @@ class LightDesignerServer:
             # Update button overrides if provided
             button_overrides = data.get("button_overrides", existing.button_overrides)
 
+            # Preserve device_id (or update if provided)
+            device_id = data.get("device_id", existing.device_id)
+
             # Create updated config
             switch_config = switches.SwitchConfig(
                 id=switch_id,
@@ -2764,6 +2819,7 @@ class LightDesignerServer:
                 type=switch_type,
                 scopes=scopes,
                 button_overrides=button_overrides,
+                device_id=device_id,
             )
 
             switches.add_switch(switch_config)

@@ -430,6 +430,7 @@ class HomeAssistantWebSocketClient:
             "type": detected_type,
             "manufacturer": manufacturer,
             "model": model,
+            "device_id": device_id,
         })
 
     def _map_zha_command_to_button_event(

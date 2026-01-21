@@ -144,6 +144,7 @@ class SwitchConfig:
     type: str                                  # Switch type key (e.g., "hue_dimmer")
     scopes: List[SwitchScope] = field(default_factory=list)
     button_overrides: Dict[str, Optional[str]] = field(default_factory=dict)
+    device_id: Optional[str] = None            # HA device_id for area lookup
 
     def get_button_action(self, button_event: str) -> Optional[str]:
         """Get the action for a button event, with override support."""
@@ -164,13 +165,16 @@ class SwitchConfig:
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
-        return {
+        result = {
             "id": self.id,
             "name": self.name,
             "type": self.type,
             "scopes": [{"areas": s.areas} for s in self.scopes],
             "button_overrides": self.button_overrides,
         }
+        if self.device_id:
+            result["device_id"] = self.device_id
+        return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "SwitchConfig":
@@ -182,6 +186,7 @@ class SwitchConfig:
             type=data.get("type", "hue_dimmer"),
             scopes=scopes,
             button_overrides=data.get("button_overrides", {}),
+            device_id=data.get("device_id"),
         )
 
 
@@ -414,6 +419,7 @@ def add_pending_switch(switch_id: str, info: Dict[str, Any]) -> None:
             "detected_type": info.get("type"),
             "manufacturer": info.get("manufacturer"),
             "model": info.get("model"),
+            "device_id": info.get("device_id"),
             "detected_at": time.time(),
             "last_seen": time.time(),
         }
@@ -648,6 +654,7 @@ def get_switches_summary() -> List[Dict[str, Any]]:
             "current_scope": state.current_scope + 1,  # 1-indexed for display
             "total_scopes": valid_scopes,
             "scopes": [{"areas": s.areas} for s in switch.scopes],
+            "device_id": switch.device_id,
         })
     return result
 

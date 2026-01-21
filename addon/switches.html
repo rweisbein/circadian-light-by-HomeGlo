@@ -544,6 +544,7 @@
     let switchTypes = {};
     let allAreas = [];
     let editingSwitchId = null;
+    let editingDeviceId = null;
     let editingScopes = [];
     let sortColumn = 'name';
     let sortAsc = true;
@@ -619,6 +620,10 @@
             valA = a.name.toLowerCase();
             valB = b.name.toLowerCase();
             break;
+          case 'area':
+            valA = (a.area_name || '').toLowerCase();
+            valB = (b.area_name || '').toLowerCase();
+            break;
           case 'scopes':
             valA = a.scopes.filter(s => s.areas?.length > 0).length;
             valB = b.scopes.filter(s => s.areas?.length > 0).length;
@@ -647,6 +652,7 @@
           <thead>
             <tr>
               <th class="${thClass('name')}" onclick="sortBy('name')">Name ${arrow('name')}</th>
+              <th class="${thClass('area')}" onclick="sortBy('area')">Area ${arrow('area')}</th>
               <th class="${thClass('scopes')}" onclick="sortBy('scopes')">Scopes ${arrow('scopes')}</th>
               <th class="${thClass('type')}" onclick="sortBy('type')">Type ${arrow('type')}</th>
             </tr>
@@ -655,9 +661,11 @@
             ${sorted.map(sw => {
               const scopeCount = sw.scopes.filter(s => s.areas?.length > 0).length;
               const typeName = switchTypes[sw.type]?.name || sw.type;
+              const areaName = sw.area_name || '—';
               return `
                 <tr>
                   <td><a class="switch-name-link" onclick="editSwitch('${sw.id}')">${sw.name}</a></td>
+                  <td>${areaName}</td>
                   <td>${scopeCount}</td>
                   <td>${typeName}</td>
                 </tr>
@@ -707,7 +715,7 @@
               </span>
             </div>
             <div class="pending-actions">
-              <button class="btn btn-primary" onclick="configureSwitch('${sw.id}', '${sw.name}', '${sw.detected_type || 'hue_dimmer'}')">
+              <button class="btn btn-primary" onclick="configureSwitch('${sw.id}', '${sw.name}', '${sw.detected_type || 'hue_dimmer'}', '${sw.device_id || ''}')">
                 Configure
               </button>
               <button class="btn btn-cancel" onclick="dismissPending('${sw.id}')">
@@ -749,11 +757,13 @@
     function hideModal() {
       document.getElementById('modal-overlay').classList.remove('visible');
       editingSwitchId = null;
+      editingDeviceId = null;
       editingScopes = [];
     }
 
-    function configureSwitch(id, name, type) {
+    function configureSwitch(id, name, type, deviceId) {
       editingSwitchId = id;
+      editingDeviceId = deviceId || null;
       editingScopes = [{ areas: [] }];
 
       document.getElementById('modal-title').textContent = 'Configure New Switch';
@@ -770,6 +780,7 @@
       if (!sw) return;
 
       editingSwitchId = id;
+      editingDeviceId = sw.device_id || null;
       editingScopes = sw.scopes.map(s => ({ areas: [...s.areas] }));
       if (editingScopes.length === 0) {
         editingScopes = [{ areas: [] }];
@@ -847,7 +858,8 @@
         id: editingSwitchId,
         name: name,
         type: type,
-        scopes: editingScopes
+        scopes: editingScopes,
+        device_id: editingDeviceId
       };
 
       try {
