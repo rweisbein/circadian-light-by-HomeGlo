@@ -217,22 +217,6 @@
       text-decoration: underline;
     }
 
-    .switch-delete {
-      background: transparent;
-      border: none;
-      color: var(--muted2);
-      cursor: pointer;
-      padding: 4px 8px;
-      border-radius: 4px;
-      font-size: 1rem;
-      transition: all 0.2s;
-    }
-
-    .switch-delete:hover {
-      color: var(--danger);
-      background: rgba(239, 68, 68, 0.1);
-    }
-
     /* Empty State */
     .empty-state {
       text-align: center;
@@ -287,6 +271,16 @@
     .btn-cancel:hover {
       background: rgba(255, 255, 255, 0.05);
       color: var(--text);
+    }
+
+    .btn-danger {
+      background: transparent;
+      border: 1px solid var(--danger);
+      color: var(--danger);
+    }
+
+    .btn-danger:hover {
+      background: rgba(239, 68, 68, 0.1);
     }
 
     /* Modal */
@@ -533,6 +527,7 @@
       </div>
 
       <div class="modal-actions">
+        <button class="btn btn-danger" id="modal-delete" style="display: none; margin-right: auto;">Delete</button>
         <button class="btn btn-cancel" id="modal-cancel">Cancel</button>
         <button class="btn btn-primary" id="modal-save">Save</button>
       </div>
@@ -624,10 +619,6 @@
             valA = a.name.toLowerCase();
             valB = b.name.toLowerCase();
             break;
-          case 'area':
-            valA = getSwitchArea(a).toLowerCase();
-            valB = getSwitchArea(b).toLowerCase();
-            break;
           case 'scopes':
             valA = a.scopes.filter(s => s.areas?.length > 0).length;
             valB = b.scopes.filter(s => s.areas?.length > 0).length;
@@ -656,35 +647,25 @@
           <thead>
             <tr>
               <th class="${thClass('name')}" onclick="sortBy('name')">Name ${arrow('name')}</th>
-              <th class="${thClass('area')}" onclick="sortBy('area')">Area ${arrow('area')}</th>
               <th class="${thClass('scopes')}" onclick="sortBy('scopes')">Scopes ${arrow('scopes')}</th>
               <th class="${thClass('type')}" onclick="sortBy('type')">Type ${arrow('type')}</th>
-              <th style="width: 40px;"></th>
             </tr>
           </thead>
           <tbody>
             ${sorted.map(sw => {
               const scopeCount = sw.scopes.filter(s => s.areas?.length > 0).length;
               const typeName = switchTypes[sw.type]?.name || sw.type;
-              const area = getSwitchArea(sw);
               return `
                 <tr>
                   <td><a class="switch-name-link" onclick="editSwitch('${sw.id}')">${sw.name}</a></td>
-                  <td>${area}</td>
                   <td>${scopeCount}</td>
                   <td>${typeName}</td>
-                  <td><button class="switch-delete" onclick="deleteSwitch('${sw.id}')" title="Delete">&times;</button></td>
                 </tr>
               `;
             }).join('')}
           </tbody>
         </table>
       `;
-    }
-
-    function getSwitchArea(sw) {
-      // Get the area the switch itself is in (from device registry)
-      return sw.area_name || sw.area || '—';
     }
 
     function sortBy(column) {
@@ -753,6 +734,7 @@
     function setupEventListeners() {
       document.getElementById('modal-cancel').addEventListener('click', hideModal);
       document.getElementById('modal-save').addEventListener('click', saveSwitch);
+      document.getElementById('modal-delete').addEventListener('click', handleDeleteFromModal);
       document.getElementById('modal-overlay').addEventListener('click', (e) => {
         if (e.target.classList.contains('modal-overlay')) hideModal();
       });
@@ -777,6 +759,7 @@
       document.getElementById('modal-title').textContent = 'Configure New Switch';
       document.getElementById('switch-name').value = name;
       document.getElementById('switch-type').value = type;
+      document.getElementById('modal-delete').style.display = 'none';
 
       renderScopesEditor();
       showModal();
@@ -795,6 +778,7 @@
       document.getElementById('modal-title').textContent = 'Edit Switch';
       document.getElementById('switch-name').value = sw.name;
       document.getElementById('switch-type').value = sw.type;
+      document.getElementById('modal-delete').style.display = 'block';
 
       renderScopesEditor();
       showModal();
@@ -891,14 +875,15 @@
       }
     }
 
-    async function deleteSwitch(id) {
-      const sw = switches.find(s => s.id === id);
-      if (!confirm(`Delete switch "${sw?.name || id}"?`)) return;
+    async function handleDeleteFromModal() {
+      const sw = switches.find(s => s.id === editingSwitchId);
+      if (!confirm(`Delete switch "${sw?.name || editingSwitchId}"?`)) return;
 
       try {
-        await fetch(`./api/switches/${encodeURIComponent(id)}`, {
+        await fetch(`./api/switches/${encodeURIComponent(editingSwitchId)}`, {
           method: 'DELETE'
         });
+        hideModal();
         await loadData();
       } catch (err) {
         console.error('Error deleting switch:', err);

@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.22
+**Fixes: Sun times, switches table**
+
+- Fixed sunrise/sunset display on Home page (was showing --:--)
+- Simplified switches table: removed Area column, moved Delete to edit modal
+- Sun divider now shows gradient line between sunrise and sunset
+
 ## 6.9.21
 **UI Updates: Navigation, switches table**
 

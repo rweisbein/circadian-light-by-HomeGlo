@@ -389,8 +389,9 @@
     }
 
     .sun-divider {
-      color: var(--muted2);
-      letter-spacing: 2px;
+      width: 40px;
+      height: 1px;
+      background: linear-gradient(90deg, var(--accent), var(--muted2), #8b7ec8);
     }
 
     .sun-set {
@@ -632,7 +633,7 @@
     <!-- Sun Times Display -->
     <div class="sun-display" id="sun-display">
       <span class="sun-rise">☀️ <span id="sunrise-time">--:--</span></span>
-      <span class="sun-divider">―――</span>
+      <span class="sun-divider"></span>
       <span class="sun-set"><span id="sunset-time">--:--</span> 🌙</span>
     </div>
 
@@ -1009,17 +1010,27 @@
 
     async function fetchSunTimes() {
       try {
-        const response = await fetch('./api/sun-times');
+        const response = await fetch('./api/sun_times');
         if (response.ok) {
           const data = await response.json();
           if (data.sunrise && data.sunset) {
-            document.getElementById('sunrise-time').textContent = formatTime(data.sunrise);
-            document.getElementById('sunset-time').textContent = formatTime(data.sunset);
+            document.getElementById('sunrise-time').textContent = formatISOTime(data.sunrise);
+            document.getElementById('sunset-time').textContent = formatISOTime(data.sunset);
           }
         }
       } catch (err) {
         console.error('Error fetching sun times:', err);
       }
+    }
+
+    function formatISOTime(isoString) {
+      if (!isoString) return '--:--';
+      const date = new Date(isoString);
+      const h = date.getHours();
+      const m = date.getMinutes();
+      const ampm = h >= 12 ? 'p' : 'a';
+      const h12 = h % 12 || 12;
+      return `${h12}:${m.toString().padStart(2, '0')}${ampm}`;
     }
 
     function updateLocationInputsState(useHA) {
