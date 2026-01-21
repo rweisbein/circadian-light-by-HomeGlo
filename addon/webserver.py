@@ -777,6 +777,7 @@ class LightDesignerServer:
 
                 # Get zone runtime state (from GloUp/GloDown adjustments)
                 runtime_state = glozone_state.get_zone_state(zone_name)
+                logger.info(f"[ZoneStates] Zone '{zone_name}' runtime_state: {runtime_state}")
 
                 # Build Config from preset using from_dict (handles all fields with defaults)
                 brain_config = Config.from_dict(preset_config)
@@ -2824,6 +2825,10 @@ class LightDesignerServer:
                 else:
                     status = "unsupported"
 
+                last_action = switches.get_last_action(ieee)
+                if last_action:
+                    logger.debug(f"[Controls] IEEE {ieee} last_action: {last_action}")
+
                 controls.append({
                     "id": ieee,
                     "device_id": ctrl.get("device_id"),
@@ -2836,7 +2841,7 @@ class LightDesignerServer:
                     "supported": ctrl.get("supported"),
                     "status": status,
                     "scopes": config.get("scopes", []),
-                    "last_action": switches.get_last_action(ieee),
+                    "last_action": last_action,
                 })
 
             return web.json_response({"controls": controls})

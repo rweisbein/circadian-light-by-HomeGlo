@@ -362,6 +362,7 @@ class HomeAssistantWebSocketClient:
         # Record last action for UI display (even if unmapped, show raw command)
         display_event = button_event if button_event else f"{command}"
         switches.set_last_action(device_ieee, display_event)
+        logger.info(f"[LastAction] Set for {device_ieee}: {display_event}")
 
         if not button_event:
             logger.debug(f"Unmapped ZHA command: {command}")

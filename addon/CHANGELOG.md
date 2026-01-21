@@ -1,5 +1,15 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.30
+**Debug logging for last_action and zone state issues**
+
+- Fixed blue border clipping at top corners of zone card header
+- Added debug logging:
+  - `[LastAction] Set for {ieee}: {event}` - when button event is recorded
+  - `[Controls] IEEE {ieee} last_action: {action}` - when API returns last_action
+  - `[ZoneStates] Zone '{name}' runtime_state: {...}` - zone runtime state used in calculation
+- Check add-on logs after pressing buttons to verify events are being recorded
+
 ## 6.9.29
 **UI refinements: Color consistency, dropdown improvements**
 
