@@ -634,7 +634,9 @@ class CircadianLightPrimitives:
                 logger.info(f"[{source}] Preset apply: area_state.frozen_at={area_state.frozen_at}, using hour={hour}")
                 result = CircadianLight.calculate_lighting(hour, config, area_state)
                 logger.info(f"[{source}] Preset calculated: brightness={result.brightness}%, color_temp={result.color_temp}K at hour={hour}")
-                await self._apply_lighting(area_id, result.brightness, result.color_temp)
+                # Use turn_on_transition for presets (they're typically turn-on actions)
+                transition = self._get_turn_on_transition()
+                await self._apply_lighting(area_id, result.brightness, result.color_temp, transition=transition)
 
     async def broadcast(self, source_area_id: str, source: str = "service_call"):
         """Copy settings from source area to all other areas.

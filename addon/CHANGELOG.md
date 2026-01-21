@@ -1,5 +1,18 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.38
+**Fix Britelite/Nitelite + Zone header card style update**
+
+- Fixed Britelite/Nitelite to keep circadian mode enabled:
+  - Previously disabled circadian mode, breaking step_up/down and 30-second refresh
+  - Now uses primitives.set() which properly freezes at curve endpoints
+  - Nitelite freezes at ascend_start (warmest/dimmest from your curve)
+  - Britelite freezes at descend_start (coolest/brightest from your curve)
+- Zone header state card now matches area chip style:
+  - Removed redundant colored circle
+  - Uses CCT background fill like area chips
+  - Slightly larger font for visual hierarchy
+
 ## 6.9.37
 **Configurable turn-on transition + GloUp propagation fix**
 

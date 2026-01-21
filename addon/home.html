@@ -592,36 +592,45 @@
     .glo-state-vis {
       display: flex;
       align-items: center;
-      gap: 8px;
-      padding: 4px 12px;
-      background: var(--bg);
-      border: 1px solid #2e6cba;
-      border-radius: 20px;
-      font-size: 0.8rem;
+      gap: 10px;
+      padding: 10px 16px;
+      background: var(--glo-cct-bg, var(--panel));
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      font-size: 0.95rem;
+      position: relative;
+      overflow: hidden;
     }
 
-    .glo-state-swatch {
-      width: 18px;
-      height: 18px;
-      border-radius: 50%;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      box-shadow: 0 0 6px currentColor;
+    /* Brightness gradient overlay - matches area chip style */
+    .glo-state-vis::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, rgba(255,255,255,0.08), rgba(255,255,255,0.25));
+      transform-origin: left;
+      transform: scaleX(var(--glo-brightness-fill, 0));
+      pointer-events: none;
+      border-radius: 9px;
     }
 
     .glo-state-values {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
       color: var(--muted);
+      position: relative;
+      z-index: 1;
     }
 
     .glo-state-brightness {
-      font-weight: 500;
+      font-weight: 600;
+      font-size: 1rem;
       color: var(--text);
     }
 
     .glo-state-temp {
-      color: var(--muted);
+      color: rgba(255, 255, 255, 0.85);
     }
 
     /* Area sync indicator - subtle blue for in-sync, subtle orange for out-of-sync */
@@ -920,14 +929,18 @@
     }
 
     /**
-     * Render the Glo state visualization pill.
+     * Render the Glo state visualization card.
+     * Matches area chip style but larger for hierarchy.
      */
     function renderGloStateVis(zoneState) {
       const rgb = kelvinToRgb(zoneState.kelvin);
-      const color = `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`;
+      // CCT background color (30% opacity, same as area chips)
+      const bgColor = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.25)`;
+      // Brightness as decimal for gradient fill
+      const brightnessFill = zoneState.brightness / 100;
+      const style = `--glo-cct-bg: ${bgColor}; --glo-brightness-fill: ${brightnessFill};`;
       return `
-        <div class="glo-state-vis">
-          <div class="glo-state-swatch" style="background: ${color}; color: ${color};"></div>
+        <div class="glo-state-vis" style="${style}">
           <div class="glo-state-values">
             <span class="glo-state-brightness">${zoneState.brightness}%</span>
             <span class="glo-state-temp">${Math.round(zoneState.kelvin)}K</span>
