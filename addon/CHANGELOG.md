@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.40
+**Dim/bright buttons on off lights -> nitelite**
+
+- When step_up, step_down, bright_up, or bright_down is pressed while lights are off
+  and not enabled in circadian mode, automatically sets nitelite instead
+- Provides a gentle way to turn on lights at night without blinding brightness
+
 ## 6.9.39
 **Fix zone state visualization using frozen_at**
 
