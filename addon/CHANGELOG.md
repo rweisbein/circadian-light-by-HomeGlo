@@ -1,5 +1,20 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.25
+**UI Enhancements: Home page visualization**
+
+- Updated accent colors: Dawn Blue (#2e6cba) replaces purple/indigo accents
+- Sun timeline improvements:
+  - Wider bar (6px) with sunrise-to-sunset gradient
+  - Position dot shows current time in the day (faded when outside daylight hours)
+- Glo Zone headers now show current state in center:
+  - Color swatch with current temperature
+  - Brightness % and Kelvin values
+- Area alignment indicator:
+  - Subtle green left border on areas matching zone's current state
+  - Shows at a glance which areas are "in sync" with Circadian Light
+- Fixed: "Remove configuration" now works (was calling wrong function)
+
 ## 6.9.24
 **Feature: Controls page refactor**
 

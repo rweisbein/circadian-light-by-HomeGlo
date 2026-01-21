@@ -2954,7 +2954,7 @@ class LightDesignerServer:
                 return web.json_response({"error": "Control ID is required"}, status=400)
 
             # Delete from our config
-            switches.delete_switch(control_id)
+            switches.remove_switch(control_id)
 
             return web.json_response({"status": "ok"})
         except Exception as e:

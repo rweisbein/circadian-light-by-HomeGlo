@@ -178,7 +178,7 @@
     }
 
     .zone-areas.drag-over {
-      background: rgba(99, 102, 241, 0.05);
+      background: rgba(46, 108, 186, 0.08);
       outline: 2px dashed var(--accent);
       outline-offset: -8px;
     }
@@ -274,7 +274,7 @@
     }
 
     .unassigned-areas.drag-over {
-      background: rgba(99, 102, 241, 0.05);
+      background: rgba(46, 108, 186, 0.08);
       border-color: var(--accent);
     }
 
@@ -388,14 +388,28 @@
       color: var(--accent);
     }
 
-    .sun-divider {
-      width: 40px;
-      height: 1px;
-      background: linear-gradient(90deg, var(--accent), var(--muted2), #8b7ec8);
+    .sun-timeline {
+      position: relative;
+      width: 120px;
+      height: 6px;
+      background: linear-gradient(90deg, var(--accent), var(--muted2), #2e6cba);
+      border-radius: 3px;
+    }
+
+    .sun-position {
+      position: absolute;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 12px;
+      height: 12px;
+      background: var(--text);
+      border: 2px solid var(--bg);
+      border-radius: 50%;
+      box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
     }
 
     .sun-set {
-      color: #8b7ec8;
+      color: #2e6cba;
     }
 
     /* Location Section */
@@ -547,6 +561,71 @@
       gap: 4px;
     }
 
+    /* Glo State Visualization - center of header */
+    .zone-header-center {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+      justify-content: center;
+    }
+
+    .glo-state-vis {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 12px;
+      background: var(--bg);
+      border-radius: 20px;
+      font-size: 0.8rem;
+    }
+
+    .glo-state-swatch {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 0 6px currentColor;
+    }
+
+    .glo-state-values {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+    }
+
+    .glo-state-brightness {
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .glo-state-temp {
+      color: var(--muted);
+    }
+
+    /* Area alignment indicator */
+    .area-chip.aligned {
+      border-color: rgba(34, 197, 94, 0.3);
+      background: linear-gradient(135deg, var(--panel) 0%, rgba(34, 197, 94, 0.05) 100%);
+    }
+
+    .area-chip.aligned::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background: var(--success);
+      border-radius: 8px 0 0 8px;
+      opacity: 0.6;
+    }
+
+    .area-chip {
+      position: relative;
+    }
+
     .glo-display {
       display: flex;
       align-items: center;
@@ -633,7 +712,9 @@
     <!-- Sun Times Display -->
     <div class="sun-display" id="sun-display">
       <span class="sun-rise">☀️ <span id="sunrise-time">--:--</span></span>
-      <span class="sun-divider"></span>
+      <div class="sun-timeline" id="sun-timeline">
+        <div class="sun-position" id="sun-position" style="left: 50%;"></div>
+      </div>
       <span class="sun-set"><span id="sunset-time">--:--</span> 🌙</span>
     </div>
 
@@ -772,6 +853,56 @@
       const ampm = h >= 12 ? 'PM' : 'AM';
       const h12 = h % 12 || 12;
       return `${h12}:${m.toString().padStart(2, '0')} ${ampm}`;
+    }
+
+    /**
+     * Get the current state for a zone (brightness/kelvin).
+     * Uses the first enabled area's state, or returns a default.
+     */
+    function getZoneCurrentState(zoneName, zone) {
+      const areas = zone.areas || [];
+      // Find first enabled area to get current zone state
+      for (const a of areas) {
+        const areaId = typeof a === 'string' ? a : a.id;
+        const state = areaStates[areaId];
+        if (state && state.enabled) {
+          return {
+            brightness: state.brightness,
+            kelvin: state.kelvin
+          };
+        }
+      }
+      // No enabled areas - return default
+      return { brightness: 100, kelvin: 4000 };
+    }
+
+    /**
+     * Render the Glo state visualization pill.
+     */
+    function renderGloStateVis(zoneState) {
+      const rgb = kelvinToRgb(zoneState.kelvin);
+      const color = `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`;
+      return `
+        <div class="glo-state-vis">
+          <div class="glo-state-swatch" style="background: ${color}; color: ${color};"></div>
+          <div class="glo-state-values">
+            <span class="glo-state-brightness">${zoneState.brightness}%</span>
+            <span class="glo-state-temp">${Math.round(zoneState.kelvin)}K</span>
+          </div>
+        </div>
+      `;
+    }
+
+    /**
+     * Check if an area's state is aligned with the zone's target state.
+     * Aligned means brightness and kelvin are within tolerance.
+     */
+    function isAreaAligned(areaState, zoneState) {
+      if (!areaState.enabled) return false;
+      // Allow 5% brightness tolerance and 100K color temp tolerance
+      const brightDiff = Math.abs(areaState.brightness - zoneState.brightness);
+      const kelvinDiff = Math.abs(areaState.kelvin - zoneState.kelvin);
+      return brightDiff <= 5 && kelvinDiff <= 100;
     }
 
     // Location config
@@ -920,6 +1051,9 @@
       const isDefault = zone.is_default === true;
       const isLastZone = Object.keys(zones).length === 1;
 
+      // Get current zone state (first enabled area's state, or calculated from preset)
+      const zoneState = getZoneCurrentState(zoneName, zone);
+
       const presetOptions = presets.map(p =>
         `<option value="${p}" ${presetName === p ? 'selected' : ''}>${p}</option>`
       ).join('');
@@ -929,18 +1063,24 @@
         : areas.map(a => {
             const areaId = typeof a === 'string' ? a : a.id;
             const areaInfo = allAreas.find(x => x.area_id === areaId);
-            return renderAreaChip(areaInfo || { area_id: areaId, name: areaId }, zoneName);
+            return renderAreaChip(areaInfo || { area_id: areaId, name: areaId }, zoneName, zoneState);
           }).join('');
 
       // Get glo timing info
       const wakeTime = formatTime(preset.wake_time);
       const bedTime = formatTime(preset.bed_time);
 
+      // Build state visualization
+      const stateVis = renderGloStateVis(zoneState);
+
       return `
         <div class="zone-card" data-zone="${zoneName}">
           <div class="zone-header">
             <div class="zone-header-left">
               <input type="text" class="zone-name-edit" value="${zoneName}" data-zone="${zoneName}" data-original="${zoneName}">
+            </div>
+            <div class="zone-header-center">
+              ${stateVis}
             </div>
             <div class="zone-header-right">
               <div class="glo-display" data-zone="${zoneName}">
@@ -970,10 +1110,13 @@
       `;
     }
 
-    function renderAreaChip(area, zoneName) {
+    function renderAreaChip(area, zoneName, zoneState = null) {
       const areaId = area.area_id;
       const areaName = area.name || areaId;
       const areaState = areaStates[areaId] || { enabled: false, brightness: 0, kelvin: 4000, frozen: false };
+
+      // Check if area is aligned with zone state
+      const isAligned = zoneState && areaState.enabled && isAreaAligned(areaState, zoneState);
 
       // Get CCT color for enabled areas
       let dotStyle = '';
@@ -984,7 +1127,7 @@
       }
 
       return `
-        <div class="area-chip" draggable="true" data-area="${areaId}" data-zone="${zoneName || ''}">
+        <div class="area-chip ${isAligned ? 'aligned' : ''}" draggable="true" data-area="${areaId}" data-zone="${zoneName || ''}">
           <span class="area-name">${areaName}</span>
           <div class="area-status">
             <span class="status-dot ${areaState.enabled ? 'on' : ''}" style="${dotStyle}"></span>
@@ -1016,10 +1159,32 @@
           if (data.sunrise && data.sunset) {
             document.getElementById('sunrise-time').textContent = formatISOTime(data.sunrise);
             document.getElementById('sunset-time').textContent = formatISOTime(data.sunset);
+            updateSunPosition(data.sunrise, data.sunset);
           }
         }
       } catch (err) {
         console.error('Error fetching sun times:', err);
+      }
+    }
+
+    function updateSunPosition(sunriseISO, sunsetISO) {
+      const sunrise = new Date(sunriseISO);
+      const sunset = new Date(sunsetISO);
+      const now = new Date();
+
+      // Calculate position as percentage (0% = sunrise, 100% = sunset)
+      const dayLength = sunset - sunrise;
+      const elapsed = now - sunrise;
+      let percent = (elapsed / dayLength) * 100;
+
+      // Clamp to 0-100 range
+      percent = Math.max(0, Math.min(100, percent));
+
+      const positionEl = document.getElementById('sun-position');
+      if (positionEl) {
+        positionEl.style.left = `${percent}%`;
+        // Hide if before sunrise or after sunset
+        positionEl.style.opacity = (now < sunrise || now > sunset) ? '0.3' : '1';
       }
     }
 
