@@ -9,8 +9,8 @@
       --bg: #000;
       --panel: #111;
       --card: #1a1a1a;
-      --accent: #6366f1;
-      --accent-hover: #818cf8;
+      --accent: #feac60;
+      --accent-hover: #ffc078;
       --text: #e2e8f0;
       --muted: #94a3b8;
       --muted2: #64748b;
@@ -113,49 +113,6 @@
       overflow: hidden;
     }
 
-    .zone-header {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      padding: 16px 20px;
-      border-bottom: 1px solid var(--line);
-      background: var(--panel);
-    }
-
-    .zone-header-top {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .zone-glo-row {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      font-size: 0.85rem;
-    }
-
-    .zone-glo-info {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      color: var(--muted);
-    }
-
-    .zone-glo-info span {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-
-    .zone-name {
-      font-weight: 600;
-      font-size: 1rem;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
     .zone-name-edit {
       background: transparent;
       border: none;
@@ -196,19 +153,6 @@
       outline: 2px solid var(--accent);
     }
 
-    .glo-link {
-      color: var(--accent);
-      text-decoration: none;
-      font-size: 0.85rem;
-      padding: 6px 10px;
-      border-radius: 6px;
-      transition: all 0.2s;
-    }
-
-    .glo-link:hover {
-      background: rgba(99, 102, 241, 0.1);
-    }
-
     .zone-delete {
       background: transparent;
       border: none;
@@ -222,26 +166,6 @@
     .zone-delete:hover {
       color: var(--danger);
       background: rgba(239, 68, 68, 0.1);
-    }
-
-    .zone-set-default {
-      background: transparent;
-      border: none;
-      color: var(--muted);
-      cursor: pointer;
-      padding: 6px;
-      border-radius: 4px;
-      transition: all 0.2s;
-      font-size: 1rem;
-    }
-
-    .zone-set-default:hover {
-      color: var(--warning);
-      background: rgba(245, 158, 11, 0.1);
-    }
-
-    .default-badge {
-      font-size: 0.9rem;
     }
 
     /* Area Chips */
@@ -355,28 +279,6 @@
       border-color: var(--accent);
     }
 
-    /* Add Zone Button */
-    .add-zone-btn {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      padding: 16px;
-      background: transparent;
-      border: 2px dashed var(--line);
-      border-radius: 12px;
-      color: var(--muted);
-      font-size: 0.9rem;
-      cursor: pointer;
-      transition: all 0.2s;
-      width: 100%;
-    }
-
-    .add-zone-btn:hover {
-      border-color: var(--accent);
-      color: var(--accent);
-      background: rgba(99, 102, 241, 0.05);
-    }
 
     /* Loading State */
     .loading {
@@ -472,6 +374,223 @@
     .btn-primary:hover {
       background: var(--accent-hover);
     }
+
+    /* Location Section */
+    .location-section {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 24px;
+    }
+
+    .location-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .location-title {
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .sun-times {
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .location-row {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .checkbox-label input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .location-fields {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .location-fields.disabled {
+      opacity: 0.4;
+    }
+
+    .location-field {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .field-label {
+      font-size: 0.8rem;
+      color: var(--muted2);
+    }
+
+    .location-input {
+      width: 80px;
+      padding: 6px 8px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      color: var(--text);
+      font-size: 0.85rem;
+    }
+
+    .location-input:focus {
+      outline: 2px solid var(--accent);
+    }
+
+    .location-input:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .location-select {
+      padding: 6px 8px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      color: var(--text);
+      font-size: 0.85rem;
+      min-width: 100px;
+    }
+
+    .location-select:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    /* Section Title */
+    .section-title {
+      font-size: 0.9rem;
+      color: var(--muted);
+      margin-bottom: 12px;
+      font-weight: 500;
+    }
+
+    /* Updated Zone Header - horizontal layout */
+    .zone-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel);
+      gap: 16px;
+    }
+
+    .zone-header-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .zone-header-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .zone-glo-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .zone-glo-info span {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .glo-display {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .glo-label {
+      font-size: 0.85rem;
+      color: var(--muted2);
+    }
+
+    .glo-name-link {
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+
+    .glo-name-link:hover {
+      text-decoration: underline;
+    }
+
+    .glo-change {
+      color: var(--muted2);
+      font-size: 0.8rem;
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    .glo-change:hover {
+      color: var(--muted);
+    }
+
+    .default-star {
+      color: var(--warning);
+      font-size: 0.9rem;
+      cursor: help;
+    }
+
+    .default-star-empty {
+      color: var(--muted2);
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+
+    .default-star-empty:hover {
+      color: var(--warning);
+    }
+
+    /* Add Zone Button - subtle */
+    .add-zone-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 0;
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-top: 8px;
+    }
+
+    .add-zone-btn:hover {
+      color: var(--accent);
+    }
   </style>
 </head>
 <body>
@@ -479,7 +598,7 @@
   <nav class="nav">
     <span class="nav-brand">Circadian Light</span>
     <div class="nav-links">
-      <a href="./" class="nav-link active">Glo Zones</a>
+      <a href="./" class="nav-link active">Home</a>
       <a href="./glo" class="nav-link">Glo</a>
       <a href="./switches" class="nav-link">Switches</a>
       <a href="./settings" class="nav-link">Settings</a>
@@ -488,9 +607,49 @@
 
   <!-- Main Content -->
   <main class="main">
-    <div class="page-header">
-      <h1 class="page-title">Glo Zones</h1>
+    <!-- Location Section -->
+    <div class="location-section" id="location-section">
+      <div class="location-header">
+        <span class="location-title">Location</span>
+        <span class="sun-times" id="sun-times"></span>
+      </div>
+      <div class="location-row">
+        <label class="checkbox-label">
+          <input type="checkbox" id="use-ha-location" checked>
+          <span>Use Home Assistant location</span>
+        </label>
+        <div class="location-fields" id="location-fields">
+          <div class="location-field">
+            <span class="field-label">Lat</span>
+            <input type="number" class="location-input" id="latitude" step="0.0001" placeholder="40.71" disabled>
+          </div>
+          <div class="location-field">
+            <span class="field-label">Long</span>
+            <input type="number" class="location-input" id="longitude" step="0.0001" placeholder="-74.00" disabled>
+          </div>
+          <div class="location-field">
+            <span class="field-label">TZ</span>
+            <select class="location-select" id="timezone" disabled>
+              <option value="US/Eastern">US/Eastern</option>
+              <option value="US/Central">US/Central</option>
+              <option value="US/Mountain">US/Mountain</option>
+              <option value="US/Pacific">US/Pacific</option>
+              <option value="US/Alaska">US/Alaska</option>
+              <option value="US/Hawaii">US/Hawaii</option>
+              <option value="Europe/London">Europe/London</option>
+              <option value="Europe/Paris">Europe/Paris</option>
+              <option value="Europe/Berlin">Europe/Berlin</option>
+              <option value="Asia/Tokyo">Asia/Tokyo</option>
+              <option value="Asia/Shanghai">Asia/Shanghai</option>
+              <option value="Australia/Sydney">Australia/Sydney</option>
+              <option value="UTC">UTC</option>
+            </select>
+          </div>
+        </div>
+      </div>
     </div>
+
+    <div class="section-title">Glo Zones</div>
 
     <div class="zones-container" id="zones-container">
       <div class="loading">Loading zones...</div>
@@ -586,6 +745,9 @@
       return `${h12}:${m.toString().padStart(2, '0')} ${ampm}`;
     }
 
+    // Location config
+    let locationConfig = {};
+
     // Initialize
     document.addEventListener('DOMContentLoaded', () => {
       loadData();
@@ -594,11 +756,12 @@
 
     async function loadData() {
       try {
-        // Load zones, presets, and areas in parallel
-        const [zonesRes, presetsRes, areasRes] = await Promise.all([
+        // Load zones, presets, areas, and config in parallel
+        const [zonesRes, presetsRes, areasRes, configRes] = await Promise.all([
           fetch('./api/glozones'),
           fetch('./api/circadian-presets'),
-          fetch('./api/areas')
+          fetch('./api/areas'),
+          fetch('./api/config')
         ]);
 
         if (zonesRes.ok) {
@@ -614,6 +777,11 @@
           presetsData = data.presets || {};
           presets = Object.keys(presetsData);
           console.log('[Home] Loaded presets:', presets);
+        }
+
+        if (configRes.ok) {
+          locationConfig = await configRes.json();
+          updateLocationSection(locationConfig);
         }
 
         if (areasRes.ok) {
@@ -742,25 +910,28 @@
       return `
         <div class="zone-card" data-zone="${zoneName}">
           <div class="zone-header">
-            <div class="zone-header-top">
-              <div class="zone-name">
-                <input type="text" class="zone-name-edit" value="${zoneName}" data-zone="${zoneName}" data-original="${zoneName}">
-                ${isDefault ? '<span class="default-badge" title="Default zone - new areas are added here">⭐</span>' : ''}
+            <div class="zone-header-left">
+              <input type="text" class="zone-name-edit" value="${zoneName}" data-zone="${zoneName}" data-original="${zoneName}">
+            </div>
+            <div class="zone-header-right">
+              <div class="glo-display" data-zone="${zoneName}">
+                <span class="glo-label">Glo</span>
+                <a href="./glo/${encodeURIComponent(presetName)}" class="glo-name-link" data-zone="${zoneName}">${presetName}</a>
+                <span class="glo-change" data-zone="${zoneName}">change</span>
+                <select class="glo-select" data-zone="${zoneName}" style="display: none;">
+                  ${presetOptions}
+                  <option value="__new__">+ New Glo...</option>
+                </select>
+              </div>
+              <div class="zone-glo-info">
+                <span title="Wake time">↗ ${wakeTime}</span>
+                <span title="Bed time">↘ ${bedTime}</span>
               </div>
               <div class="zone-controls">
-                ${!isDefault && !isLastZone ? `<button class="zone-set-default" data-zone="${zoneName}" title="Set as default zone">☆</button>` : ''}
+                ${isDefault
+                  ? '<span class="default-star" title="Default zone - areas added to Home will go here">★</span>'
+                  : (!isLastZone ? `<span class="default-star-empty" data-zone="${zoneName}" title="Set as default zone">☆</span>` : '')}
                 ${!isLastZone ? `<button class="zone-delete" data-zone="${zoneName}" title="Delete zone">&times;</button>` : ''}
-              </div>
-            </div>
-            <div class="zone-glo-row">
-              <select class="glo-select" data-zone="${zoneName}">
-                ${presetOptions}
-                <option value="__new__">+ New Glo...</option>
-              </select>
-              <a href="./glo/${encodeURIComponent(presetName)}" class="glo-link">Edit</a>
-              <div class="zone-glo-info">
-                <span title="Wake time">🌅 ${wakeTime}</span>
-                <span title="Bed time">🛏️ ${bedTime}</span>
               </div>
             </div>
           </div>
@@ -796,6 +967,74 @@
       `;
     }
 
+    // Location section functions
+    function updateLocationSection(cfg) {
+      const useHA = cfg.use_ha_location !== false;
+      document.getElementById('use-ha-location').checked = useHA;
+      document.getElementById('latitude').value = cfg.latitude || '';
+      document.getElementById('longitude').value = cfg.longitude || '';
+      document.getElementById('timezone').value = cfg.timezone || 'US/Eastern';
+      updateLocationInputsState(useHA);
+
+      // Fetch and display sunrise/sunset times
+      fetchSunTimes();
+    }
+
+    async function fetchSunTimes() {
+      try {
+        const response = await fetch('./api/sun-times');
+        if (response.ok) {
+          const data = await response.json();
+          const sunTimesEl = document.getElementById('sun-times');
+          if (data.sunrise && data.sunset) {
+            const sunrise = formatTime(data.sunrise);
+            const sunset = formatTime(data.sunset);
+            sunTimesEl.textContent = `☀ ${sunrise} → ${sunset}`;
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching sun times:', err);
+      }
+    }
+
+    function updateLocationInputsState(useHA) {
+      const fields = document.getElementById('location-fields');
+      const inputs = fields.querySelectorAll('input, select');
+      inputs.forEach(input => input.disabled = useHA);
+      if (useHA) {
+        fields.classList.add('disabled');
+      } else {
+        fields.classList.remove('disabled');
+      }
+    }
+
+    async function saveLocationSettings() {
+      const settings = {
+        use_ha_location: document.getElementById('use-ha-location').checked,
+        latitude: parseFloat(document.getElementById('latitude').value) || null,
+        longitude: parseFloat(document.getElementById('longitude').value) || null,
+        timezone: document.getElementById('timezone').value
+      };
+
+      try {
+        const response = await fetch('./api/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(settings)
+        });
+        if (response.ok) {
+          // Reload to get updated sun times
+          const configRes = await fetch('./api/config');
+          if (configRes.ok) {
+            locationConfig = await configRes.json();
+            updateLocationSection(locationConfig);
+          }
+        }
+      } catch (err) {
+        console.error('Error saving location:', err);
+      }
+    }
+
     function setupEventListeners() {
       // Add zone button
       document.getElementById('add-zone-btn').addEventListener('click', () => {
@@ -813,6 +1052,18 @@
       document.getElementById('modal-input').addEventListener('keydown', (e) => {
         if (e.key === 'Enter') handleModalConfirm();
       });
+
+      // Location settings
+      document.getElementById('use-ha-location').addEventListener('change', (e) => {
+        updateLocationInputsState(e.target.checked);
+        saveLocationSettings();
+      });
+
+      // Auto-save location fields on change
+      ['latitude', 'longitude', 'timezone'].forEach(id => {
+        const el = document.getElementById(id);
+        el.addEventListener('change', saveLocationSettings);
+      });
     }
 
     function setupZoneEventListeners() {
@@ -829,9 +1080,37 @@
         });
       });
 
+      // Glo "change" link - shows dropdown
+      document.querySelectorAll('.glo-change').forEach(link => {
+        link.addEventListener('click', (e) => {
+          const zoneName = e.target.dataset.zone;
+          const display = e.target.closest('.glo-display');
+          const nameLink = display.querySelector('.glo-name-link');
+          const select = display.querySelector('.glo-select');
+
+          nameLink.style.display = 'none';
+          e.target.style.display = 'none';
+          select.style.display = 'inline-block';
+          select.focus();
+        });
+      });
+
       // Glo select change
       document.querySelectorAll('.glo-select').forEach(select => {
         select.addEventListener('change', handleGloChange);
+        // Hide dropdown when clicking away
+        select.addEventListener('blur', (e) => {
+          setTimeout(() => {
+            const display = e.target.closest('.glo-display');
+            if (display) {
+              const nameLink = display.querySelector('.glo-name-link');
+              const changeLink = display.querySelector('.glo-change');
+              nameLink.style.display = 'inline';
+              changeLink.style.display = 'inline';
+              e.target.style.display = 'none';
+            }
+          }, 150);
+        });
       });
 
       // Zone delete
@@ -839,9 +1118,9 @@
         btn.addEventListener('click', handleZoneDelete);
       });
 
-      // Set as default
-      document.querySelectorAll('.zone-set-default').forEach(btn => {
-        btn.addEventListener('click', handleSetDefault);
+      // Set as default (star click)
+      document.querySelectorAll('.default-star-empty').forEach(star => {
+        star.addEventListener('click', handleSetDefault);
       });
     }
 

@@ -1019,6 +1019,17 @@ class LightDesignerServer:
         # Migrate to GloZone format if needed
         config = self._migrate_to_glozone_format(config)
 
+        # Ensure top-level preset settings are merged INTO the preset
+        # This handles cases where config was partially migrated
+        if "circadian_presets" in config and config["circadian_presets"]:
+            first_preset_name = list(config["circadian_presets"].keys())[0]
+            first_preset = config["circadian_presets"][first_preset_name]
+            for key in list(config.keys()):
+                if key in self.PRESET_SETTINGS:
+                    if key not in first_preset:
+                        first_preset[key] = config[key]
+                    del config[key]
+
         # Update glozone module with current config
         glozone.set_config(config)
 
@@ -1115,13 +1126,20 @@ class LightDesignerServer:
         # Migrate to GloZone format if needed
         config = self._migrate_to_glozone_format(config)
 
-        # Clean up: remove preset settings from top level (they should only exist in presets)
-        # This fixes the duplicate values issue where stale top-level values could override preset values
-        if "circadian_presets" in config:
+        # Ensure top-level preset settings are merged INTO the preset before removing them
+        # This handles cases where config was partially migrated (has circadian_presets structure
+        # but settings are still at top level)
+        if "circadian_presets" in config and config["circadian_presets"]:
+            first_preset_name = list(config["circadian_presets"].keys())[0]
+            first_preset = config["circadian_presets"][first_preset_name]
+
+            # Copy any top-level preset settings into the preset (if not already there)
             for key in list(config.keys()):
                 if key in self.PRESET_SETTINGS:
+                    if key not in first_preset:
+                        first_preset[key] = config[key]
+                        logger.debug(f"Migrated top-level key '{key}' into preset '{first_preset_name}'")
                     del config[key]
-                    logger.debug(f"Removed duplicate top-level key '{key}' (exists in preset)")
 
         return config
 

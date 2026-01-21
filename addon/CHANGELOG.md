@@ -1,5 +1,18 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.20
+**UI Refresh: Home page, settings persistence, golden hour accent**
+
+- Renamed "Glo Zones" to "Home" in navigation
+- Moved Location settings to Home page with sunrise/sunset times display
+- Streamlined zone card layout: Glo info now on same row as zone name
+- Glo preset is now a clickable link with "change" toggle for dropdown
+- Wake/bed icons changed to cleaner arrows (↗/↘)
+- Simplified "Add Glo Zone" button styling
+- Settings page: removed Location (moved to Home), renamed "Advanced" to "Timing"
+- Fixed settings persistence: wake_time, bed_time, color/brightness ranges, warm_night now save correctly
+- Changed accent color to Golden Hour (#feac60)
+
 ## 6.9.19
 **Fix: Step down color, settings persistence, switch actions**
 

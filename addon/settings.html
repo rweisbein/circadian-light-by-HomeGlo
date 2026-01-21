@@ -9,8 +9,8 @@
       --bg: #000;
       --panel: #111;
       --card: #1a1a1a;
-      --accent: #6366f1;
-      --accent-hover: #818cf8;
+      --accent: #feac60;
+      --accent-hover: #ffc078;
       --text: #e2e8f0;
       --muted: #94a3b8;
       --muted2: #64748b;
@@ -285,7 +285,7 @@
   <nav class="nav">
     <span class="nav-brand">Circadian Light</span>
     <div class="nav-links">
-      <a href="./" class="nav-link">Glo Zones</a>
+      <a href="./" class="nav-link">Home</a>
       <a href="./glo" class="nav-link">Glo</a>
       <a href="./switches" class="nav-link">Switches</a>
       <a href="./settings" class="nav-link active">Settings</a>
@@ -296,76 +296,11 @@
   <main class="main">
     <div class="page-header">
       <h1 class="page-title">Settings</h1>
-      <p class="page-subtitle">Configure global settings for Circadian Light</p>
     </div>
 
-    <!-- Location Settings -->
+    <!-- Timing Settings -->
     <div class="settings-section">
-      <div class="section-header">Location</div>
-      <div class="section-content">
-        <p class="section-description">
-          Your location is used to calculate sunrise and sunset times for accurate circadian lighting.
-        </p>
-        <div class="form-row">
-          <span class="form-label">Source</span>
-          <div class="form-control">
-            <label class="checkbox-label">
-              <input type="checkbox" id="use-ha-location" checked>
-              <span>Use Home Assistant location</span>
-            </label>
-            <span class="form-hint">When enabled, uses your HA configured location</span>
-          </div>
-        </div>
-        <div class="form-row" id="lat-row">
-          <span class="form-label">Latitude</span>
-          <div class="form-control">
-            <input type="number" class="form-input" id="latitude" step="0.0001" placeholder="40.7128" disabled>
-            <span class="form-hint">e.g., 40.7128 for New York</span>
-          </div>
-        </div>
-        <div class="form-row" id="lon-row">
-          <span class="form-label">Longitude</span>
-          <div class="form-control">
-            <input type="number" class="form-input" id="longitude" step="0.0001" placeholder="-74.0060" disabled>
-            <span class="form-hint">e.g., -74.0060 for New York</span>
-          </div>
-        </div>
-        <div class="info-box" id="location-tip">
-          <strong>Tip:</strong> You can find your coordinates by searching your address on Google Maps and copying the numbers from the URL.
-        </div>
-      </div>
-    </div>
-
-    <!-- Timezone Settings -->
-    <div class="settings-section">
-      <div class="section-header">Timezone</div>
-      <div class="section-content">
-        <div class="form-row">
-          <span class="form-label">Timezone</span>
-          <div class="form-control">
-            <select class="form-select" id="timezone">
-              <option value="US/Eastern">US/Eastern</option>
-              <option value="US/Central">US/Central</option>
-              <option value="US/Mountain">US/Mountain</option>
-              <option value="US/Pacific">US/Pacific</option>
-              <option value="US/Alaska">US/Alaska</option>
-              <option value="US/Hawaii">US/Hawaii</option>
-              <option value="Europe/London">Europe/London</option>
-              <option value="Europe/Paris">Europe/Paris</option>
-              <option value="Europe/Berlin">Europe/Berlin</option>
-              <option value="Asia/Tokyo">Asia/Tokyo</option>
-              <option value="Asia/Shanghai">Asia/Shanghai</option>
-              <option value="Australia/Sydney">Australia/Sydney</option>
-              <option value="UTC">UTC</option>
-            </select>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Advanced Settings -->
-    <div class="settings-section">
-      <div class="section-header">Advanced</div>
+      <div class="section-header">Timing</div>
       <div class="section-content">
         <div class="form-row">
           <span class="form-label">Transition Time</span>
@@ -405,57 +340,17 @@
     });
 
     function loadSettings() {
-      // Location settings
-      const useHA = config.use_ha_location !== false; // Default to true
-      document.getElementById('use-ha-location').checked = useHA;
-      document.getElementById('latitude').value = config.latitude || '';
-      document.getElementById('longitude').value = config.longitude || '';
-      updateLocationInputs(useHA);
-
-      // Other settings
-      document.getElementById('timezone').value = config.timezone || 'US/Eastern';
+      // Timing settings
       document.getElementById('transition-time').value = config.transition_time || 1;
       document.getElementById('update-interval').value = config.update_interval || 5;
     }
 
-    function updateLocationInputs(useHA) {
-      const latInput = document.getElementById('latitude');
-      const lonInput = document.getElementById('longitude');
-      const latRow = document.getElementById('lat-row');
-      const lonRow = document.getElementById('lon-row');
-      const tip = document.getElementById('location-tip');
-
-      latInput.disabled = useHA;
-      lonInput.disabled = useHA;
-
-      if (useHA) {
-        latRow.classList.add('disabled');
-        lonRow.classList.add('disabled');
-        tip.style.display = 'none';
-      } else {
-        latRow.classList.remove('disabled');
-        lonRow.classList.remove('disabled');
-        tip.style.display = 'block';
-      }
-    }
-
     function setupEventListeners() {
       document.getElementById('save-btn').addEventListener('click', handleSave);
-
-      // Use HA location toggle
-      document.getElementById('use-ha-location').addEventListener('change', (e) => {
-        updateLocationInputs(e.target.checked);
-      });
     }
 
     async function handleSave() {
-      const useHA = document.getElementById('use-ha-location').checked;
-
       const settings = {
-        use_ha_location: useHA,
-        latitude: parseFloat(document.getElementById('latitude').value) || null,
-        longitude: parseFloat(document.getElementById('longitude').value) || null,
-        timezone: document.getElementById('timezone').value,
         transition_time: parseFloat(document.getElementById('transition-time').value) || 1,
         update_interval: parseInt(document.getElementById('update-interval').value) || 5
       };
