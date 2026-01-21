@@ -1,5 +1,11 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.39
+**Fix zone state visualization using frozen_at**
+
+- Zone state card now correctly uses frozen_at hour when calculating displayed values
+- Previously always used current time, showing wrong values for frozen zones
+
 ## 6.9.38
 **Fix Britelite/Nitelite + Zone header card style update**
 

@@ -791,8 +791,9 @@ class LightDesignerServer:
                     frozen_at=runtime_state.get('frozen_at'),
                 )
 
-                # Calculate lighting values
-                result = CircadianLight.calculate_lighting(hour, brain_config, area_state)
+                # Calculate lighting values - use frozen_at if set, otherwise current time
+                calc_hour = area_state.frozen_at if area_state.frozen_at is not None else hour
+                result = CircadianLight.calculate_lighting(calc_hour, brain_config, area_state)
 
                 zone_states[zone_name] = {
                     "brightness": result.brightness,
@@ -800,7 +801,7 @@ class LightDesignerServer:
                     "preset": preset_name,
                     "runtime_state": runtime_state,
                 }
-                logger.info(f"[ZoneStates] Zone '{zone_name}': {result.brightness}% {result.color_temp}K (preset: {preset_name})")
+                logger.info(f"[ZoneStates] Zone '{zone_name}': {result.brightness}% {result.color_temp}K at hour {calc_hour:.2f} (preset: {preset_name})")
 
             logger.info(f"[ZoneStates] Returning {len(zone_states)} zone states")
             return web.json_response({"zone_states": zone_states})
