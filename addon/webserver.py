@@ -2260,6 +2260,12 @@ class LightDesignerServer:
             await self.save_config_to_file(config)
             glozone.set_config(config)
 
+            # Fire refresh event to notify main.py to reload config
+            _, ws_url, token = self._get_ha_api_config()
+            if ws_url and token:
+                await self._fire_event_via_websocket(ws_url, token, 'circadian_light_refresh', {})
+                logger.info("Fired circadian_light_refresh event after preset update")
+
             logger.info(f"Updated circadian preset: {name}")
             return web.json_response({"status": "updated", "name": name})
         except json.JSONDecodeError:

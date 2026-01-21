@@ -5441,8 +5441,8 @@ async function saveGloSettings() {
     descend_start: config.descend_start,
     min_brightness: config.min_brightness,
     max_brightness: config.max_brightness,
-    day_kelvin: config.day_kelvin,
-    night_kelvin: config.night_kelvin,
+    min_color_temp: config.min_color_temp,
+    max_color_temp: config.max_color_temp,
     color_mode: config.color_mode
   };
 
@@ -5450,7 +5450,7 @@ async function saveGloSettings() {
     const response = await fetch(`./api/circadian-presets/${encodeURIComponent(selectedGloName)}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ settings: gloSettings })
+      body: JSON.stringify(gloSettings)
     });
 
     if (response.ok) {

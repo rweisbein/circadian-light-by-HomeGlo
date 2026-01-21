@@ -2078,7 +2078,9 @@ class HomeAssistantWebSocketClient:
 
             # Handle circadian_light_refresh event (fired by webserver after config save)
             elif event_type == "circadian_light_refresh":
-                logger.info("circadian_light_refresh event received - signaling periodic updater")
+                logger.info("circadian_light_refresh event received - reloading config and signaling periodic updater")
+                # Reload config from disk since webserver may have updated it
+                glozone.reload()
                 if self.refresh_event is not None:
                     self.refresh_event.set()
                 else:

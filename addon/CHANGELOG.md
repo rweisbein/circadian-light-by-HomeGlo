@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.43
+**Fix Glo designer saves not applying**
+
+- Fixed designer save not including min/max color temp (was using nonexistent day_kelvin/night_kelvin fields)
+- Fixed preset update API call wrapping settings incorrectly
+- Added glozone.reload() when main.py receives circadian_light_refresh event (cross-process config sync)
+- Preset updates now fire circadian_light_refresh event to notify main.py to reload config
+
 ## 6.9.42
 **Fix GloDown for multiple areas + solar rules use actual sun times**
 
