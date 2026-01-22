@@ -1,5 +1,11 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.47
+**Fix brown color on home page area tiles**
+
+- Replaced physics-based kelvinToRgb with perceptual color mapping (matches designer)
+- Warm colors now display as warm orange/yellow instead of muddy brown on dark backgrounds
+
 ## 6.9.46
 **Fix sun times using UTC instead of local time**
 

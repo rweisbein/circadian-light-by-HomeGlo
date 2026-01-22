@@ -854,44 +854,47 @@
 
     /**
      * Convert color temperature (Kelvin) to RGB.
-     * Algorithm based on Tanner Helland's work.
+     * Perceptual color mapping for UI display (matches designer).
+     * 500K = red, ~1300K = orange, ~1900K = yellow, 2600K = warm white, 4000K = white, 6500K = cool blue
      */
     function kelvinToRgb(kelvin) {
-      const temp = kelvin / 100;
+      let k = Math.max(500, Math.min(10000, kelvin));
       let r, g, b;
 
-      // Red
-      if (temp <= 66) {
-        r = 255;
+      if (k <= 700) {
+        // Pure red range: 500K → 700K
+        r = 255; g = 0; b = 0;
+      } else if (k <= 1000) {
+        // Red to deep orange: 700K → 1000K
+        const t = (k - 700) / 300;
+        r = 255; g = 100 * t; b = 20 * t;
+      } else if (k <= 1600) {
+        // Deep orange range: 1000K → 1600K
+        const t = (k - 1000) / 600;
+        r = 255; g = 100 + 60 * t; b = 20 + 20 * t;
+      } else if (k <= 2200) {
+        // Orange to yellow: 1600K → 2200K
+        const t = (k - 1600) / 600;
+        r = 255; g = 160 + 60 * t; b = 40 + 40 * t;
+      } else if (k <= 3000) {
+        // Yellow to off-white: 2200K → 3000K
+        const t = (k - 2200) / 800;
+        r = 255; g = 220 + 25 * t; b = 80 + 140 * t;
+      } else if (k <= 4000) {
+        // Off-white to white: 3000K → 4000K
+        const t = (k - 3000) / 1000;
+        r = 255; g = 245 + 10 * t; b = 220 + 35 * t;
       } else {
-        r = temp - 60;
-        r = 329.698727446 * Math.pow(r, -0.1332047592);
-        r = Math.max(0, Math.min(255, r));
+        // Cool range: 4000K → 6500K+ (light blue)
+        const t = Math.min(1, (k - 4000) / 2500);
+        r = 255 - 70 * t; g = 255 - 25 * t; b = 255;
       }
 
-      // Green
-      if (temp <= 66) {
-        g = temp;
-        g = 99.4708025861 * Math.log(g) - 161.1195681661;
-        g = Math.max(0, Math.min(255, g));
-      } else {
-        g = temp - 60;
-        g = 288.1221695283 * Math.pow(g, -0.0755148492);
-        g = Math.max(0, Math.min(255, g));
-      }
-
-      // Blue
-      if (temp >= 66) {
-        b = 255;
-      } else if (temp <= 19) {
-        b = 0;
-      } else {
-        b = temp - 10;
-        b = 138.5177312231 * Math.log(b) - 305.0447927307;
-        b = Math.max(0, Math.min(255, b));
-      }
-
-      return { r: Math.round(r), g: Math.round(g), b: Math.round(b) };
+      return {
+        r: Math.max(0, Math.min(255, Math.round(r))),
+        g: Math.max(0, Math.min(255, Math.round(g))),
+        b: Math.max(0, Math.min(255, Math.round(b)))
+      };
     }
 
     function formatTime(hour) {
