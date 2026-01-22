@@ -498,18 +498,21 @@ class LightDesignerServer:
             if shared_js_path.exists():
                 async with aiofiles.open(shared_js_path, 'r') as f:
                     shared_js_content = await f.read()
-                # Replace external script reference with inline script (handle whitespace)
-                import re
+                # Replace external script reference with inline script (simple string replace)
+                inline_script = f'<script>\n{shared_js_content}\n</script>'
                 original_len = len(html_content)
-                html_content = re.sub(
-                    r'<script\s+src=["\']\.?/?shared\.js["\']\s*></script>',
-                    f'<script>\n{shared_js_content}\n</script>',
-                    html_content
-                )
-                if len(html_content) != original_len:
-                    logger.info(f"[serve_page] Inlined shared.js ({len(shared_js_content)} chars) into {page_name}.html")
+                # Try multiple possible formats
+                for pattern in ['<script src="./shared.js"></script>',
+                               '<script src="shared.js"></script>',
+                               "<script src='./shared.js'></script>",
+                               "<script src='shared.js'></script>"]:
+                    if pattern in html_content:
+                        html_content = html_content.replace(pattern, inline_script)
+                        logger.info(f"[serve_page] Inlined shared.js ({len(shared_js_content)} chars) into {page_name}.html")
+                        break
                 else:
-                    logger.warning(f"[serve_page] shared.js exists but regex didn't match in {page_name}.html")
+                    if len(html_content) == original_len:
+                        logger.warning(f"[serve_page] shared.js exists but no script tag found in {page_name}.html")
 
             # Build injected data
             inject_data = {"config": config}

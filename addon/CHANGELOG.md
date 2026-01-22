@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.53
+**Fix shared.js inlining with simple string replacement**
+
+- Changed from regex to explicit string pattern matching
+- Tries multiple quote/path formats for script tag
+- More robust detection of script references
+
 ## 6.9.52
 **Fix shared.js server-side inlining**
 
