@@ -204,6 +204,7 @@
       gap: 8px;
       padding: 8px 12px;
       background: var(--area-cct-bg, var(--panel));
+      color: var(--area-text, var(--text));
       border: 1px solid var(--line);
       border-radius: 8px;
       font-size: 0.85rem;
@@ -250,14 +251,15 @@
       align-items: center;
       gap: 4px;
       font-size: 0.7rem;
-      color: rgba(255, 255, 255, 0.85);
+      color: inherit;
+      opacity: 0.85;
       position: relative;
       z-index: 1;
     }
 
     .area-brightness {
       font-size: 0.65rem;
-      color: rgba(255, 255, 255, 0.7);
+      opacity: 0.8;
     }
 
     .area-frozen {
@@ -585,6 +587,7 @@
       gap: 10px;
       padding: 10px 16px;
       background: var(--glo-cct-bg, var(--panel));
+      color: var(--glo-text, var(--text));
       border: 1px solid var(--line);
       border-radius: 10px;
       font-size: 0.95rem;
@@ -618,11 +621,12 @@
     .glo-state-brightness {
       font-weight: 600;
       font-size: 1rem;
-      color: var(--text);
+      color: inherit;
     }
 
     .glo-state-temp {
-      color: rgba(255, 255, 255, 0.85);
+      color: inherit;
+      opacity: 0.85;
     }
 
     .glo-state-frozen {
@@ -636,7 +640,8 @@
       display: inline-block;
       width: 5px;
       height: 5px;
-      background: var(--muted2);
+      background: currentColor;
+      opacity: 0.5;
       border-radius: 50%;
       margin-right: 6px;
       vertical-align: middle;
@@ -901,10 +906,11 @@
     function renderGloStateVis(zoneState) {
       // CCT background color tinted by brightness (matches glo-designer buttons)
       const bgColor = tintColorByBrightness(cctToRGB(zoneState.kelvin), zoneState.brightness);
+      const textColor = readableTextColor(bgColor);
       // Brightness as decimal for gradient fill
       const brightnessFill = zoneState.brightness / 100;
       const fillOpacity = brightnessFill > 0 ? 0.55 : 0;
-      const style = `--glo-cct-bg: ${bgColor}; --glo-brightness-fill: ${brightnessFill}; --glo-fill-opacity: ${fillOpacity};`;
+      const style = `--glo-cct-bg: ${bgColor}; --glo-text: ${textColor}; --glo-brightness-fill: ${brightnessFill}; --glo-fill-opacity: ${fillOpacity};`;
       const frozenIcon = zoneState.frozen ? '<span class="glo-state-frozen" title="Frozen">&#128274;</span>' : '';
       return `
         <div class="glo-state-vis" style="${style}">
@@ -1191,10 +1197,11 @@
       if (areaState.enabled) {
         // CCT color tinted by brightness
         const bgColor = tintColorByBrightness(cctToRGB(areaState.kelvin), areaState.brightness);
+        const textColor = readableTextColor(bgColor);
         // Brightness as decimal for gradient fill
         const brightnessFill = areaState.brightness / 100;
         const fillOpacity = brightnessFill > 0 ? 0.55 : 0;
-        chipStyle = `--area-cct-bg: ${bgColor}; --area-brightness-fill: ${brightnessFill}; --area-fill-opacity: ${fillOpacity};`;
+        chipStyle = `--area-cct-bg: ${bgColor}; --area-text: ${textColor}; --area-brightness-fill: ${brightnessFill}; --area-fill-opacity: ${fillOpacity};`;
       }
 
       return `
