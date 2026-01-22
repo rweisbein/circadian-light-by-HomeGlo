@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.44
+**Debug warm_night calculation + zone-states solar rules**
+
+- Added INFO logging to warm_night calculation to debug fade weight issue
+- Fixed zone-states API to include sun_times for solar rules (was missing, causing
+  mismatch between displayed values and actual light values)
+
 ## 6.9.43
 **Fix Glo designer saves not applying**
 

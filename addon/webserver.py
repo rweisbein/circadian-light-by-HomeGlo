@@ -761,13 +761,14 @@ class LightDesignerServer:
         Returns brightness and kelvin for each zone, accounting for:
         - The zone's Glo preset configuration
         - The zone's runtime state (brightness_mid, color_mid, frozen_at from GloUp/GloDown)
+        - Solar rules (warm_night, cool_day) based on actual sun times
 
         This is per-zone, not per-preset, because two zones can share the same
         Glo but have different runtime states.
         """
         try:
             from zoneinfo import ZoneInfo
-            from brain import CircadianLight, Config, AreaState
+            from brain import CircadianLight, Config, AreaState, SunTimes, calculate_sun_times
 
             # Get location from environment
             latitude = float(os.getenv("HASS_LATITUDE", "35.0"))
@@ -781,6 +782,30 @@ class LightDesignerServer:
 
             now = datetime.now(tzinfo)
             hour = now.hour + now.minute / 60 + now.second / 3600
+
+            # Calculate sun times for solar rules
+            sun_times = SunTimes()  # defaults
+            try:
+                date_str = now.strftime('%Y-%m-%d')
+                sun_dict = calculate_sun_times(latitude, longitude, date_str)
+
+                def iso_to_hour(iso_str, default):
+                    if not iso_str:
+                        return default
+                    try:
+                        dt = datetime.fromisoformat(iso_str)
+                        return dt.hour + dt.minute / 60.0 + dt.second / 3600.0
+                    except:
+                        return default
+
+                sun_times = SunTimes(
+                    sunrise=iso_to_hour(sun_dict.get("sunrise"), 6.0),
+                    sunset=iso_to_hour(sun_dict.get("sunset"), 18.0),
+                    solar_noon=iso_to_hour(sun_dict.get("noon"), 12.0),
+                    solar_mid=(iso_to_hour(sun_dict.get("noon"), 12.0) + 12.0) % 24.0,
+                )
+            except Exception as e:
+                logger.debug(f"[ZoneStates] Error calculating sun times: {e}")
 
             # Load config to get zones and presets
             config = await self.load_raw_config()
@@ -814,7 +839,7 @@ class LightDesignerServer:
 
                 # Calculate lighting values - use frozen_at if set, otherwise current time
                 calc_hour = area_state.frozen_at if area_state.frozen_at is not None else hour
-                result = CircadianLight.calculate_lighting(calc_hour, brain_config, area_state)
+                result = CircadianLight.calculate_lighting(calc_hour, brain_config, area_state, sun_times=sun_times)
 
                 zone_states[zone_name] = {
                     "brightness": result.brightness,
