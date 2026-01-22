@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.52
+**Fix shared.js server-side inlining**
+
+- Restored external script reference in home.html (was manually inlined)
+- Both home.html and glo-designer.html now use `<script src="./shared.js"></script>`
+- Server-side regex replacement inlines shared.js at serve time
+- Single source of truth: modify shared.js to change color mapping
+
 ## 6.9.50
 **Inline shared.js to avoid ingress routing issues**
 
