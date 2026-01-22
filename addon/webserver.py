@@ -482,6 +482,7 @@ class LightDesignerServer:
 
     async def serve_page(self, page_name: str, extra_data: dict = None) -> Response:
         """Generic page serving function."""
+        logger.info(f"[serve_page] Serving {page_name}.html")
         try:
             config = await self.load_config()
 
@@ -542,6 +543,7 @@ class LightDesignerServer:
 
     async def serve_home(self, request: Request) -> Response:
         """Serve the Home page."""
+        logger.info(f"[serve_home] Called for path: {request.path}")
         return await self.serve_page("home")
 
     async def serve_glo_designer(self, request: Request) -> Response:
