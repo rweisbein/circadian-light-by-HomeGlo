@@ -465,9 +465,10 @@ class LightDesignerServer:
         self.app.router.add_delete('/api/switches/{switch_id}', self.delete_switch)
         self.app.router.add_get('/api/switch-types', self.get_switch_types)
 
-        # Static JS files
-        self.app.router.add_route('GET', '/{path:.*}/shared.js', self.serve_shared_js)
+        # Static JS files - multiple patterns to handle ingress paths
         self.app.router.add_get('/shared.js', self.serve_shared_js)
+        self.app.router.add_route('GET', '//shared.js', self.serve_shared_js)
+        self.app.router.add_route('GET', '/{path:.*}/shared.js', self.serve_shared_js)
 
         # Page routes - specific pages first, then catch-all
         # With ingress path prefix

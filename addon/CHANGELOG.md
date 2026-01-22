@@ -1,5 +1,11 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.49
+**Fix shared.js 404 on ingress paths**
+
+- Added route pattern for `//shared.js` (ingress prefix case)
+- Static JS files now served correctly from all page contexts
+
 ## 6.9.48
 **Consolidate color functions into shared.js**
 
