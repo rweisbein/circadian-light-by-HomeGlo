@@ -3338,7 +3338,10 @@ async def main():
         level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
-    
+
+    print("[WEBSERVER] Starting webserver v6.9.55 - this confirms new code is running", flush=True)
+    logger.info("[WEBSERVER] Starting webserver v6.9.55 - logger test")
+
     port = int(os.getenv("INGRESS_PORT", "8099"))
     server = LightDesignerServer(port)
     await server.start()
