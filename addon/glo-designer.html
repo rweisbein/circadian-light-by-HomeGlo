@@ -3495,16 +3495,6 @@ function updateCursorButtons(point) {
   }
 }
 
-// Tint color by brightness (dim for low brightness)
-function tintColorByBrightness(rgbStr, brightness) {
-  const match = rgbStr.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
-  if (!match) return rgbStr;
-  const fraction = Math.max(0, Math.min(1, brightness / 100));
-  const dimFactor = 0.25 + 0.75 * fraction;
-  const [r, g, b] = [match[1], match[2], match[3]].map(v => Math.round(Number(v) * dimFactor));
-  return `rgb(${r},${g},${b})`;
-}
-
 // ============================================================
 // UI Updates
 // ============================================================

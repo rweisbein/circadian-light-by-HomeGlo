@@ -218,11 +218,13 @@
       content: '';
       position: absolute;
       inset: 0;
-      background: linear-gradient(90deg, rgba(255,255,255,0.08), rgba(255,255,255,0.25));
+      background: linear-gradient(90deg, rgba(255,255,255,0.05), rgba(255,255,255,0.95));
+      opacity: var(--area-fill-opacity, 0);
       transform-origin: left;
       transform: scaleX(var(--area-brightness-fill, 0));
       pointer-events: none;
       border-radius: 7px;
+      transition: transform 0.2s ease, opacity 0.2s ease;
     }
 
     .area-chip:active {
@@ -595,11 +597,13 @@
       content: '';
       position: absolute;
       inset: 0;
-      background: linear-gradient(90deg, rgba(255,255,255,0.08), rgba(255,255,255,0.25));
+      background: linear-gradient(90deg, rgba(255,255,255,0.05), rgba(255,255,255,0.95));
+      opacity: var(--glo-fill-opacity, 0);
       transform-origin: left;
       transform: scaleX(var(--glo-brightness-fill, 0));
       pointer-events: none;
       border-radius: 9px;
+      transition: transform 0.2s ease, opacity 0.2s ease;
     }
 
     .glo-state-values {
@@ -895,11 +899,12 @@
      * Matches area chip style but larger for hierarchy.
      */
     function renderGloStateVis(zoneState) {
-      // CCT background color (25% opacity, same as area chips)
-      const bgColor = colorWithAlpha(cctToRGB(zoneState.kelvin), 0.25);
+      // CCT background color tinted by brightness (matches glo-designer buttons)
+      const bgColor = tintColorByBrightness(cctToRGB(zoneState.kelvin), zoneState.brightness);
       // Brightness as decimal for gradient fill
       const brightnessFill = zoneState.brightness / 100;
-      const style = `--glo-cct-bg: ${bgColor}; --glo-brightness-fill: ${brightnessFill};`;
+      const fillOpacity = brightnessFill > 0 ? 0.55 : 0;
+      const style = `--glo-cct-bg: ${bgColor}; --glo-brightness-fill: ${brightnessFill}; --glo-fill-opacity: ${fillOpacity};`;
       const frozenIcon = zoneState.frozen ? '<span class="glo-state-frozen" title="Frozen">&#128274;</span>' : '';
       return `
         <div class="glo-state-vis" style="${style}">
@@ -1181,14 +1186,15 @@
         syncClass = isAligned ? 'in-sync' : 'out-of-sync';
       }
 
-      // Build chip styles - CCT background and brightness fill for enabled areas
+      // Build chip styles - CCT background tinted by brightness (matches glo-designer buttons)
       let chipStyle = '';
       if (areaState.enabled) {
-        // Dimmed CCT color for background (25% opacity)
-        const bgColor = colorWithAlpha(cctToRGB(areaState.kelvin), 0.25);
+        // CCT color tinted by brightness
+        const bgColor = tintColorByBrightness(cctToRGB(areaState.kelvin), areaState.brightness);
         // Brightness as decimal for gradient fill
         const brightnessFill = areaState.brightness / 100;
-        chipStyle = `--area-cct-bg: ${bgColor}; --area-brightness-fill: ${brightnessFill};`;
+        const fillOpacity = brightnessFill > 0 ? 0.55 : 0;
+        chipStyle = `--area-cct-bg: ${bgColor}; --area-brightness-fill: ${brightnessFill}; --area-fill-opacity: ${fillOpacity};`;
       }
 
       return `

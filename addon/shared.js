@@ -65,6 +65,23 @@ function colorWithAlpha(rgb, alpha) {
 }
 
 /**
+ * Tint/dim a color based on brightness level.
+ * At 0% brightness, color is dimmed to 25% intensity.
+ * At 100% brightness, color is full intensity.
+ * @param {string} rgbStr - RGB string like "rgb(255,230,200)"
+ * @param {number} brightness - Brightness percentage 0-100
+ * @returns {string} Tinted RGB string
+ */
+function tintColorByBrightness(rgbStr, brightness) {
+  const match = rgbStr.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+  if (!match) return rgbStr;
+  const fraction = Math.max(0, Math.min(1, brightness / 100));
+  const dimFactor = 0.25 + 0.75 * fraction;
+  const [r, g, b] = [match[1], match[2], match[3]].map(v => Math.round(Number(v) * dimFactor));
+  return `rgb(${r},${g},${b})`;
+}
+
+/**
  * Get readable text color (black or white) for a background color.
  * @param {string} bgColor - Background color as rgb/rgba or hex
  * @returns {string} "#000" or "#fff"
