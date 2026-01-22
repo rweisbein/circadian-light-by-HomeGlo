@@ -613,7 +613,7 @@
       display: flex;
       align-items: center;
       gap: 10px;
-      color: var(--muted);
+      color: inherit;
       position: relative;
       z-index: 1;
     }
@@ -1208,7 +1208,7 @@
         <div class="area-chip ${syncClass}" draggable="true" data-area="${areaId}" data-zone="${zoneName || ''}" style="${chipStyle}">
           <span class="area-name">${areaName}</span>
           <div class="area-status">
-            ${areaState.enabled ? `<span class="area-brightness">${areaState.brightness}% ${Math.round(areaState.kelvin)}K</span>` : ''}
+            ${areaState.enabled ? `<span class="area-brightness">${areaState.brightness}% • ${Math.round(areaState.kelvin)}K</span>` : ''}
             ${areaState.frozen ? '<span class="area-frozen" title="Frozen">&#128274;</span>' : ''}
           </div>
         </div>
