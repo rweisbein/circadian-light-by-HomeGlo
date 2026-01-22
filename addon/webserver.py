@@ -465,11 +465,6 @@ class LightDesignerServer:
         self.app.router.add_delete('/api/switches/{switch_id}', self.delete_switch)
         self.app.router.add_get('/api/switch-types', self.get_switch_types)
 
-        # Static JS files - multiple patterns to handle ingress paths
-        self.app.router.add_get('/shared.js', self.serve_shared_js)
-        self.app.router.add_route('GET', '//shared.js', self.serve_shared_js)
-        self.app.router.add_route('GET', '/{path:.*}/shared.js', self.serve_shared_js)
-
         # Page routes - specific pages first, then catch-all
         # With ingress path prefix
         self.app.router.add_route('GET', '/{path:.*}/switches', self.serve_switches)
@@ -498,6 +493,17 @@ class LightDesignerServer:
             async with aiofiles.open(html_path, 'r') as f:
                 html_content = await f.read()
 
+            # Inline shared.js content (avoids routing issues with ingress paths)
+            shared_js_path = Path(__file__).parent / "shared.js"
+            if shared_js_path.exists():
+                async with aiofiles.open(shared_js_path, 'r') as f:
+                    shared_js_content = await f.read()
+                # Replace external script reference with inline script
+                html_content = html_content.replace(
+                    '<script src="./shared.js"></script>',
+                    f'<script>\n{shared_js_content}\n</script>'
+                )
+
             # Build injected data
             inject_data = {"config": config}
             if extra_data:
@@ -522,23 +528,6 @@ class LightDesignerServer:
             )
         except Exception as e:
             logger.error(f"Error serving {page_name} page: {e}")
-            return web.Response(text=f"Error: {str(e)}", status=500)
-
-    async def serve_shared_js(self, request: Request) -> Response:
-        """Serve the shared.js utility file."""
-        try:
-            js_path = Path(__file__).parent / "shared.js"
-            if not js_path.exists():
-                return web.Response(text="Not found", status=404)
-            async with aiofiles.open(js_path, 'r') as f:
-                content = await f.read()
-            return web.Response(
-                text=content,
-                content_type='application/javascript',
-                headers={'Cache-Control': 'public, max-age=3600'}
-            )
-        except Exception as e:
-            logger.error(f"Error serving shared.js: {e}")
             return web.Response(text=f"Error: {str(e)}", status=500)
 
     async def serve_home(self, request: Request) -> Response:

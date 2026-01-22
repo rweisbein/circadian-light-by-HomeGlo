@@ -1,5 +1,11 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.50
+**Inline shared.js to avoid ingress routing issues**
+
+- shared.js content is now inlined during page serving
+- Avoids complex routing patterns for ingress proxy paths
+
 ## 6.9.49
 **Fix shared.js 404 on ingress paths**
 
