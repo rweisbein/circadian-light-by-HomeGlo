@@ -498,10 +498,12 @@ class LightDesignerServer:
             if shared_js_path.exists():
                 async with aiofiles.open(shared_js_path, 'r') as f:
                     shared_js_content = await f.read()
-                # Replace external script reference with inline script
-                html_content = html_content.replace(
-                    '<script src="./shared.js"></script>',
-                    f'<script>\n{shared_js_content}\n</script>'
+                # Replace external script reference with inline script (handle whitespace)
+                import re
+                html_content = re.sub(
+                    r'<script\s+src=["\']\.?/?shared\.js["\']\s*></script>',
+                    f'<script>\n{shared_js_content}\n</script>',
+                    html_content
                 )
 
             # Build injected data
