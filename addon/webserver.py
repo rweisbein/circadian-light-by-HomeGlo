@@ -482,7 +482,6 @@ class LightDesignerServer:
 
     async def serve_page(self, page_name: str, extra_data: dict = None) -> Response:
         """Generic page serving function."""
-        logger.info(f"[serve_page] Serving {page_name}.html")
         try:
             config = await self.load_config()
 
@@ -509,11 +508,7 @@ class LightDesignerServer:
                                "<script src='shared.js'></script>"]:
                     if pattern in html_content:
                         html_content = html_content.replace(pattern, inline_script)
-                        logger.info(f"[serve_page] Inlined shared.js ({len(shared_js_content)} chars) into {page_name}.html")
                         break
-                else:
-                    if len(html_content) == original_len:
-                        logger.warning(f"[serve_page] shared.js exists but no script tag found in {page_name}.html")
 
             # Build injected data
             inject_data = {"config": config}
@@ -543,7 +538,6 @@ class LightDesignerServer:
 
     async def serve_home(self, request: Request) -> Response:
         """Serve the Home page."""
-        logger.info(f"[serve_home] Called for path: {request.path}")
         return await self.serve_page("home")
 
     async def serve_glo_designer(self, request: Request) -> Response:
@@ -3338,9 +3332,6 @@ async def main():
         level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
-
-    print("[WEBSERVER] Starting webserver v6.9.55 - this confirms new code is running", flush=True)
-    logger.info("[WEBSERVER] Starting webserver v6.9.55 - logger test")
 
     port = int(os.getenv("INGRESS_PORT", "8099"))
     server = LightDesignerServer(port)

@@ -138,11 +138,15 @@ class CircadianLightPrimitives:
         area_state = self._get_area_state(area_id)
 
         if area_state.enabled:
+            # Auto-unfreeze if frozen (re-anchors midpoints for smooth transition)
+            if area_state.frozen_at is not None:
+                self._unfreeze_internal(area_id, source)
+                area_state = self._get_area_state(area_id)  # Refresh after unfreeze
+
             logger.info(f"[{source}] Step up for area {area_id}")
 
             config = self._get_config(area_id)
-            # Use frozen hour if frozen, otherwise current time
-            hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
+            hour = get_current_hour()
 
             result = CircadianLight.calculate_step(
                 hour=hour,
@@ -186,11 +190,15 @@ class CircadianLightPrimitives:
         area_state = self._get_area_state(area_id)
 
         if area_state.enabled:
+            # Auto-unfreeze if frozen (re-anchors midpoints for smooth transition)
+            if area_state.frozen_at is not None:
+                self._unfreeze_internal(area_id, source)
+                area_state = self._get_area_state(area_id)  # Refresh after unfreeze
+
             logger.info(f"[{source}] Step down for area {area_id}")
 
             config = self._get_config(area_id)
-            # Use frozen hour if frozen, otherwise current time
-            hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
+            hour = get_current_hour()
 
             result = CircadianLight.calculate_step(
                 hour=hour,
@@ -235,11 +243,15 @@ class CircadianLightPrimitives:
         area_state = self._get_area_state(area_id)
 
         if area_state.enabled:
+            # Auto-unfreeze if frozen (re-anchors midpoints for smooth transition)
+            if area_state.frozen_at is not None:
+                self._unfreeze_internal(area_id, source)
+                area_state = self._get_area_state(area_id)  # Refresh after unfreeze
+
             logger.info(f"[{source}] Bright up for area {area_id}")
 
             config = self._get_config(area_id)
-            # Use frozen hour if frozen, otherwise current time
-            hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
+            hour = get_current_hour()
 
             result = CircadianLight.calculate_bright_step(
                 hour=hour,
@@ -279,11 +291,15 @@ class CircadianLightPrimitives:
         area_state = self._get_area_state(area_id)
 
         if area_state.enabled:
+            # Auto-unfreeze if frozen (re-anchors midpoints for smooth transition)
+            if area_state.frozen_at is not None:
+                self._unfreeze_internal(area_id, source)
+                area_state = self._get_area_state(area_id)  # Refresh after unfreeze
+
             logger.info(f"[{source}] Bright down for area {area_id}")
 
             config = self._get_config(area_id)
-            # Use frozen hour if frozen, otherwise current time
-            hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
+            hour = get_current_hour()
 
             result = CircadianLight.calculate_bright_step(
                 hour=hour,
@@ -327,11 +343,15 @@ class CircadianLightPrimitives:
         area_state = self._get_area_state(area_id)
 
         if area_state.enabled:
+            # Auto-unfreeze if frozen (re-anchors midpoints for smooth transition)
+            if area_state.frozen_at is not None:
+                self._unfreeze_internal(area_id, source)
+                area_state = self._get_area_state(area_id)  # Refresh after unfreeze
+
             logger.info(f"[{source}] Color up for area {area_id}")
 
             config = self._get_config(area_id)
-            # Use frozen hour if frozen, otherwise current time
-            hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
+            hour = get_current_hour()
 
             result = CircadianLight.calculate_color_step(
                 hour=hour,
@@ -369,11 +389,15 @@ class CircadianLightPrimitives:
         area_state = self._get_area_state(area_id)
 
         if area_state.enabled:
+            # Auto-unfreeze if frozen (re-anchors midpoints for smooth transition)
+            if area_state.frozen_at is not None:
+                self._unfreeze_internal(area_id, source)
+                area_state = self._get_area_state(area_id)  # Refresh after unfreeze
+
             logger.info(f"[{source}] Color down for area {area_id}")
 
             config = self._get_config(area_id)
-            # Use frozen hour if frozen, otherwise current time
-            hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
+            hour = get_current_hour()
 
             result = CircadianLight.calculate_color_step(
                 hour=hour,
@@ -613,13 +637,23 @@ class CircadianLightPrimitives:
 
             elif preset == "nitelite":
                 # Freeze at ascend_start (minimum values)
+                # Reset midpoints to ensure true minimum brightness/color
                 frozen_hour = config.ascend_start
+                state.update_area(area_id, {
+                    "brightness_mid": None,
+                    "color_mid": None,
+                })
                 state.set_frozen_at(area_id, frozen_hour)
-                logger.info(f"[{source}] Set {area_id} to nitelite preset (frozen_at={frozen_hour}, ascend_start={config.ascend_start}, descend_start={config.descend_start})")
+                logger.info(f"[{source}] Set {area_id} to nitelite preset (frozen_at={frozen_hour})")
 
             elif preset == "britelite":
                 # Freeze at descend_start (maximum values)
+                # Reset midpoints to ensure true maximum brightness/color
                 frozen_hour = config.descend_start
+                state.update_area(area_id, {
+                    "brightness_mid": None,
+                    "color_mid": None,
+                })
                 state.set_frozen_at(area_id, frozen_hour)
                 logger.info(f"[{source}] Set {area_id} to britelite preset (frozen_at={frozen_hour})")
 

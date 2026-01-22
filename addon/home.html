@@ -98,18 +98,26 @@
       font-size: 0.9rem;
     }
 
-    /* Zone Cards */
-    .zones-container {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    .zone-card {
+    /* Zones Section */
+    .zones-section {
       background: var(--card);
       border: 1px solid var(--line);
       border-radius: 12px;
       overflow: visible;
+    }
+
+    .zones-container {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .zone-card {
+      background: transparent;
+      overflow: visible;
+    }
+
+    .zone-card:not(:last-child) {
+      border-bottom: 1px solid var(--line);
     }
 
     .zone-name-edit {
@@ -425,19 +433,6 @@
       border: 1px solid var(--line);
       border-radius: 12px;
       padding: 16px 20px;
-      margin-bottom: 24px;
-    }
-
-    .location-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 12px;
-    }
-
-    .location-title {
-      font-weight: 600;
-      font-size: 0.95rem;
     }
 
     .sun-times {
@@ -536,11 +531,15 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 14px 20px;
-      border-bottom: 1px solid var(--line);
-      background: var(--panel);
-      border-radius: 11px 11px 0 0;
+      padding: 14px 20px 10px 20px;
       gap: 16px;
+    }
+
+    /* Subtle divider between header and areas */
+    .zone-divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--line), transparent);
+      margin: 0 20px;
     }
 
     .zone-header-left {
@@ -627,15 +626,16 @@
       font-size: 0.9rem;
     }
 
-    /* Area sync indicator - subtle blue for in-sync, orange with dark outline for out-of-sync */
-    .area-chip.in-sync {
-      border-color: rgba(46, 108, 186, 0.5);
-    }
-
-    .area-chip.out-of-sync {
-      /* Double border effect: dark inner, orange outer for consistent appearance */
-      border-color: rgba(254, 172, 96, 0.8);
-      box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.4);
+    /* Area sync indicator - small muted dot for out-of-sync areas */
+    .area-chip.out-of-sync .area-name::before {
+      content: '';
+      display: inline-block;
+      width: 5px;
+      height: 5px;
+      background: var(--muted2);
+      border-radius: 50%;
+      margin-right: 6px;
+      vertical-align: middle;
     }
 
     .glo-display {
@@ -703,7 +703,11 @@
 
     a.glo-dropdown-item {
       text-decoration: none;
-      color: var(--text);
+      color: var(--muted);
+      font-size: 0.8rem;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 4px;
+      padding-bottom: 10px;
     }
 
     .default-star {
@@ -766,10 +770,8 @@
     </div>
 
     <!-- Location Section -->
+    <div class="section-title">Location</div>
     <div class="location-section" id="location-section">
-      <div class="location-header">
-        <span class="location-title">Location</span>
-      </div>
       <div class="location-row">
         <label class="checkbox-label">
           <input type="checkbox" id="use-ha-location" checked>
@@ -806,10 +808,12 @@
       </div>
     </div>
 
-    <div class="section-title">Glo Zones</div>
+    <div class="section-title" style="margin-top: 24px;">Glo Zones</div>
 
-    <div class="zones-container" id="zones-container">
-      <div class="loading">Loading zones...</div>
+    <div class="zones-section">
+      <div class="zones-container" id="zones-container">
+        <div class="loading">Loading zones...</div>
+      </div>
     </div>
 
     <button class="add-zone-btn" id="add-zone-btn">
@@ -1157,6 +1161,7 @@
               </div>
             </div>
           </div>
+          <div class="zone-divider"></div>
           <div class="zone-areas" data-zone="${zoneName}">
             ${areaChips}
           </div>

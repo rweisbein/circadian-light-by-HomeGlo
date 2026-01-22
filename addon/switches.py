@@ -136,10 +136,10 @@ SWITCH_TYPES: Dict[str, Dict[str, Any]] = {
             "down_hold": "bright_down",                 # long - repeats while held
             "down_long_release": None,
             # Off button (bottom - "hue" button)
-            "off_short_release": "cycle_scope",         # 1x
-            "off_double_press": "glo_down",             # 2x
-            "off_triple_press": "toggle_wake_bed",      # 3x
-            "off_quadruple_press": "freeze_toggle",     # 4x
+            "off_short_release": "cycle_scope",         # 1x - change controlled area
+            "off_double_press": "glo_down",             # 2x - ZoneDown
+            "off_triple_press": "freeze_toggle",        # 3x - Freeze
+            "off_quadruple_press": None,                # 4x - not used
             "off_quintuple_press": None,                # 5x - coming soon: Sleep
             "off_hold": None,                           # long - RESERVED for magic button
             "off_long_release": None,
