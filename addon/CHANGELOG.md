@@ -1,11 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
-## 6.9.44
-**Debug warm_night calculation + zone-states solar rules**
+## 6.9.45
+**Fix solar rules in all display endpoints**
 
-- Added INFO logging to warm_night calculation to debug fade weight issue
-- Fixed zone-states API to include sun_times for solar rules (was missing, causing
-  mismatch between displayed values and actual light values)
+- Fixed area-status API to include sun_times for solar rules
+- Fixed zone-states API to include sun_times for solar rules
+- Both endpoints were missing sun_times, causing home page to show wrong values
+- Added INFO logging to warm_night calculation to debug main.py issue
 
 ## 6.9.43
 **Fix Glo designer saves not applying**

@@ -1924,6 +1924,8 @@ class LightDesignerServer:
         }
         """
         try:
+            from brain import SunTimes, calculate_sun_times
+
             # Load config to get glozone mappings and presets
             config = await self.load_config()
             glozones = config.get('glozones', {})
@@ -1934,6 +1936,39 @@ class LightDesignerServer:
 
             # Get current hour for calculations
             current_hour = get_current_hour()
+
+            # Calculate sun times for solar rules
+            latitude = float(os.getenv("HASS_LATITUDE", "35.0"))
+            longitude = float(os.getenv("HASS_LONGITUDE", "-78.6"))
+            sun_times = SunTimes()  # defaults
+            try:
+                from zoneinfo import ZoneInfo
+                timezone = os.getenv("HASS_TIME_ZONE", "US/Eastern")
+                try:
+                    tzinfo = ZoneInfo(timezone)
+                except:
+                    tzinfo = None
+                now = datetime.now(tzinfo)
+                date_str = now.strftime('%Y-%m-%d')
+                sun_dict = calculate_sun_times(latitude, longitude, date_str)
+
+                def iso_to_hour(iso_str, default):
+                    if not iso_str:
+                        return default
+                    try:
+                        dt = datetime.fromisoformat(iso_str)
+                        return dt.hour + dt.minute / 60.0 + dt.second / 3600.0
+                    except:
+                        return default
+
+                sun_times = SunTimes(
+                    sunrise=iso_to_hour(sun_dict.get("sunrise"), 6.0),
+                    sunset=iso_to_hour(sun_dict.get("sunset"), 18.0),
+                    solar_noon=iso_to_hour(sun_dict.get("noon"), 12.0),
+                    solar_mid=(iso_to_hour(sun_dict.get("noon"), 12.0) + 12.0) % 24.0,
+                )
+            except Exception as e:
+                logger.debug(f"[AreaStatus] Error calculating sun times: {e}")
 
             # Build response for each area in zones (including Unassigned)
             area_status = {}
@@ -1958,7 +1993,7 @@ class LightDesignerServer:
                     brightness = 50
                     kelvin = 4000
                     try:
-                        result = CircadianLight.calculate_lighting(calc_hour, area_config, area_state)
+                        result = CircadianLight.calculate_lighting(calc_hour, area_config, area_state, sun_times=sun_times)
                         brightness = result.brightness
                         kelvin = result.color_temp
                     except Exception as e:
