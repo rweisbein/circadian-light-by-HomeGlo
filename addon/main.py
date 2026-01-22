@@ -1598,12 +1598,23 @@ class HomeAssistantWebSocketClient:
                 date_str = datetime.now().strftime('%Y-%m-%d')
                 sun_dict = calculate_sun_times(self.latitude, self.longitude, date_str)
 
-                # Convert ISO strings to hours
+                # Get local timezone for conversion
+                local_tz = None
+                if self.timezone:
+                    try:
+                        local_tz = ZoneInfo(self.timezone)
+                    except:
+                        pass
+
+                # Convert ISO strings to local hours
                 def iso_to_hour(iso_str, default):
                     if not iso_str:
                         return default
                     try:
                         dt = datetime.fromisoformat(iso_str)
+                        # Convert to local timezone if available
+                        if local_tz and dt.tzinfo:
+                            dt = dt.astimezone(local_tz)
                         return dt.hour + dt.minute / 60.0 + dt.second / 3600.0
                     except:
                         return default

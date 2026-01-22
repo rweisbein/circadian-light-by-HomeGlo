@@ -794,6 +794,9 @@ class LightDesignerServer:
                         return default
                     try:
                         dt = datetime.fromisoformat(iso_str)
+                        # Convert to local timezone if available
+                        if tzinfo and dt.tzinfo:
+                            dt = dt.astimezone(tzinfo)
                         return dt.hour + dt.minute / 60.0 + dt.second / 3600.0
                     except:
                         return default
@@ -1957,6 +1960,9 @@ class LightDesignerServer:
                         return default
                     try:
                         dt = datetime.fromisoformat(iso_str)
+                        # Convert to local timezone if available
+                        if tzinfo and dt.tzinfo:
+                            dt = dt.astimezone(tzinfo)
                         return dt.hour + dt.minute / 60.0 + dt.second / 3600.0
                     except:
                         return default

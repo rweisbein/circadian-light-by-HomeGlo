@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.46
+**Fix sun times using UTC instead of local time**
+
+- Fixed sun times calculation to convert from UTC to local timezone
+- astral library returns UTC times, but we were extracting hours without conversion
+- This caused warm_night to think sunrise was 12:39pm instead of 7:08am (5 hour offset)
+- Fixed in main.py, zone-states API, and area-status API
+
 ## 6.9.45
 **Fix solar rules in all display endpoints**
 
