@@ -1606,6 +1606,7 @@ input[type=range]::-moz-range-thumb {
   </div>
 </div>
 
+<script src="./shared.js"></script>
 <script>
 // ============================================================
 // Circadian Light Designer - Ascend/Descend Model
@@ -2195,101 +2196,8 @@ function getSelectedDateISO() {
 }
 
 // ============================================================
-// Color Helpers
+// Color Helpers - loaded from shared.js
 // ============================================================
-
-function cctToRGB(k) {
-  // Perceptual color mapping for UI display (not physics-based)
-  // 500K = red, ~1300K = orange peak, ~1900K = yellow peak, 2600K = slight yellow, 4000K = white, 6500K = baby blue
-  k = Math.max(500, Math.min(10000, k));
-
-  let r, g, b;
-
-  if (k <= 700) {
-    // Pure red range: 500K → 700K
-    r = 255;
-    g = 0;
-    b = 0;
-  } else if (k <= 1000) {
-    // Red to deep orange: 700K → 1000K
-    const t = (k - 700) / 300;
-    r = 255;
-    g = 100 * t;            // 0 → 100
-    b = 20 * t;             // 0 → 20
-  } else if (k <= 1600) {
-    // Deep orange range: 1000K → 1600K (orange peak)
-    const t = (k - 1000) / 600;
-    r = 255;
-    g = 100 + 60 * t;       // 100 → 160
-    b = 20 + 20 * t;        // 20 → 40
-  } else if (k <= 2200) {
-    // Orange to yellow: 1600K → 2200K (yellow peak)
-    const t = (k - 1600) / 600;
-    r = 255;
-    g = 160 + 60 * t;       // 160 → 220
-    b = 40 + 40 * t;        // 40 → 80
-  } else if (k <= 3000) {
-    // Yellow to off-white: 2200K → 3000K
-    const t = (k - 2200) / 800;
-    r = 255;
-    g = 220 + 25 * t;       // 220 → 245
-    b = 80 + 140 * t;       // 80 → 220
-  } else if (k <= 4000) {
-    // Off-white to white: 3000K → 4000K
-    const t = (k - 3000) / 1000;
-    r = 255;
-    g = 245 + 10 * t;       // 245 → 255
-    b = 220 + 35 * t;       // 220 → 255
-  } else {
-    // Cool range: 4000K (white) → 6500K+ (baby blue)
-    const t = Math.min(1, (k - 4000) / 2500);
-    r = 255 - 70 * t;       // 255 → 185
-    g = 255 - 25 * t;       // 255 → 230
-    b = 255;
-  }
-
-  r = Math.max(0, Math.min(255, r));
-  g = Math.max(0, Math.min(255, g));
-  b = Math.max(0, Math.min(255, b));
-  return `rgb(${r | 0},${g | 0},${b | 0})`;
-}
-
-function colorWithAlpha(rgb, alpha) {
-  const match = rgb.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
-  if (match) {
-    return `rgba(${match[1]},${match[2]},${match[3]},${alpha})`;
-  }
-  return rgb;
-}
-
-function readableTextColor(bgColor) {
-  let r, g, b;
-
-  // Try rgb/rgba format
-  const rgbMatch = bgColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-  if (rgbMatch) {
-    r = parseInt(rgbMatch[1]);
-    g = parseInt(rgbMatch[2]);
-    b = parseInt(rgbMatch[3]);
-  } else {
-    // Try hex format (#rgb or #rrggbb)
-    const hexMatch = bgColor.match(/^#([0-9a-f]{3,6})$/i);
-    if (hexMatch) {
-      let hex = hexMatch[1];
-      if (hex.length === 3) {
-        hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
-      }
-      r = parseInt(hex.substr(0, 2), 16);
-      g = parseInt(hex.substr(2, 2), 16);
-      b = parseInt(hex.substr(4, 2), 16);
-    } else {
-      return '#fff';  // fallback
-    }
-  }
-
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminance > 0.5 ? '#000' : '#fff';
-}
 
 // Generate color gradient for slider tracks
 function updateColorGradients() {

@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.48
+**Consolidate color functions into shared.js**
+
+- Created shared.js with cctToRGB, colorWithAlpha, readableTextColor functions
+- Both home.html and glo-designer.html now use the same color mapping
+- Single source of truth for color temperature display
+
 ## 6.9.47
 **Fix brown color on home page area tiles**
 
