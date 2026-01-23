@@ -488,12 +488,27 @@
       <div class="modal-section">
         <div class="form-row">
           <label class="form-label">
-            Motion timer
-            <span class="info-icon">i<span class="info-tooltip">When motion is detected in this area, lights will stay on for this duration after motion stops. Set to 0 to disable motion-based lighting.</span></span>
+            Motion function
+            <span class="info-icon">i<span class="info-tooltip">What happens when motion is detected in this area.<br><br><b>Disabled:</b> Motion sensors ignored<br><b>Boost:</b> Temporarily boost brightness, return when timer expires<br><b>On/Off:</b> Turn on with circadian, turn off after timer<br><b>On only:</b> Turn on with circadian, never auto-off</span></span>
           </label>
           <div class="form-control">
-            <input type="number" class="modal-input" id="motion-timer" min="0" max="3600" step="1" value="0" style="width: 80px;">
-            <span class="form-hint">seconds (0 = disabled)</span>
+            <select class="modal-input" id="motion-function" style="width: 140px;">
+              <option value="disabled">Disabled</option>
+              <option value="boost">Boost</option>
+              <option value="on_off">On/Off</option>
+              <option value="on_only">On only</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row" id="motion-duration-row">
+          <label class="form-label">
+            Motion duration
+            <span class="info-icon">i<span class="info-tooltip">How long lights stay on (or boosted) after motion stops. Only used for Boost and On/Off modes.</span></span>
+          </label>
+          <div class="form-control">
+            <input type="number" class="modal-input" id="motion-duration" min="1" max="3600" step="1" value="60" style="width: 80px;">
+            <span class="form-hint">seconds</span>
           </div>
         </div>
       </div>
@@ -509,6 +524,7 @@
     // State
     let areas = [];
     let areaStatus = {};
+    let areaSettings = {};  // area_id -> {motion_function, motion_duration}
     let sortColumn = 'name';
     let sortAsc = true;
     let zoneFilter = 'all';
@@ -562,9 +578,10 @@
       container.innerHTML = '<div class="loading">Loading areas...</div>';
 
       try {
-        const [areasRes, statusRes] = await Promise.all([
+        const [areasRes, statusRes, configRes] = await Promise.all([
           fetch('./api/areas'),
-          fetch('./api/area-status')
+          fetch('./api/area-status'),
+          fetch('./api/config')
         ]);
 
         if (areasRes.ok) {
@@ -573,6 +590,11 @@
 
         if (statusRes.ok) {
           areaStatus = await statusRes.json();
+        }
+
+        if (configRes.ok) {
+          const config = await configRes.json();
+          areaSettings = config.area_settings || {};
         }
 
         renderAreas();
@@ -722,7 +744,7 @@
                 </div>
               </th>
               <th class="${thClass('brightness')}" onclick="sortBy('brightness')">Lighting ${arrow('brightness')}</th>
-              <th>Motion Timer</th>
+              <th>Motion</th>
             </tr>
           </thead>
           <tbody>
@@ -730,15 +752,14 @@
               const zoneName = area.zone_name || '<span style="color: var(--muted2)">—</span>';
               const statusBadge = getStatusBadge(area);
               const lightingInfo = getLightingInfo(area);
-              // Motion timer not yet implemented - show dash for now
-              const motionTimer = '<span style="color: var(--muted2)">—</span>';
+              const motionInfo = getMotionInfo(area.area_id);
               return `
                 <tr>
                   <td><a class="area-name-link" onclick="editArea('${area.area_id}')">${area.name}</a></td>
                   <td>${zoneName}</td>
                   <td>${statusBadge}</td>
                   <td>${lightingInfo}</td>
-                  <td>${motionTimer}</td>
+                  <td>${motionInfo}</td>
                 </tr>
               `;
             }).join('')}
@@ -771,6 +792,28 @@
       `;
     }
 
+    function getMotionInfo(areaId) {
+      const settings = areaSettings[areaId];
+      if (!settings || settings.motion_function === 'disabled') {
+        return '<span style="color: var(--muted2)">—</span>';
+      }
+
+      const funcLabels = {
+        'boost': 'Boost',
+        'on_off': 'On/Off',
+        'on_only': 'On only'
+      };
+
+      const funcLabel = funcLabels[settings.motion_function] || settings.motion_function;
+
+      // Show duration for boost and on_off
+      if (settings.motion_function === 'boost' || settings.motion_function === 'on_off') {
+        return `<span style="color: var(--text)">${funcLabel}</span> <span style="color: var(--muted)">${settings.motion_duration}s</span>`;
+      }
+
+      return `<span style="color: var(--text)">${funcLabel}</span>`;
+    }
+
     function sortBy(column) {
       if (sortColumn === column) {
         sortAsc = !sortAsc;
@@ -790,6 +833,9 @@
         if (e.target.classList.contains('modal-overlay')) hideModal();
       });
 
+      // Motion function change - show/hide duration row
+      document.getElementById('motion-function').addEventListener('change', updateDurationVisibility);
+
       // Use event delegation for dynamically created filter dropdowns
       document.getElementById('areas-container').addEventListener('change', (e) => {
         if (e.target.id === 'zone-filter') {
@@ -804,6 +850,19 @@
       });
     }
 
+    function updateDurationVisibility() {
+      const func = document.getElementById('motion-function').value;
+      const durationRow = document.getElementById('motion-duration-row');
+      // Duration only used for boost and on_off
+      if (func === 'boost' || func === 'on_off') {
+        durationRow.style.opacity = '1';
+        durationRow.style.pointerEvents = 'auto';
+      } else {
+        durationRow.style.opacity = '0.4';
+        durationRow.style.pointerEvents = 'none';
+      }
+    }
+
     // Modal functions
     function showModal() {
       document.getElementById('modal-overlay').classList.add('visible');
@@ -814,28 +873,61 @@
       editingAreaId = null;
     }
 
-    function editArea(areaId) {
+    async function editArea(areaId) {
       const area = areas.find(a => a.area_id === areaId);
       if (!area) return;
 
       editingAreaId = areaId;
       document.getElementById('modal-title').textContent = `Settings: ${area.name}`;
 
-      // TODO: Load actual motion timer value from config when implemented
-      document.getElementById('motion-timer').value = 0;
+      // Load area settings from API
+      try {
+        const res = await fetch(`./api/area-settings/${encodeURIComponent(areaId)}`);
+        if (res.ok) {
+          const settings = await res.json();
+          document.getElementById('motion-function').value = settings.motion_function || 'disabled';
+          document.getElementById('motion-duration').value = settings.motion_duration || 60;
+        } else {
+          // Defaults
+          document.getElementById('motion-function').value = 'disabled';
+          document.getElementById('motion-duration').value = 60;
+        }
+      } catch (err) {
+        console.error('Error loading area settings:', err);
+        document.getElementById('motion-function').value = 'disabled';
+        document.getElementById('motion-duration').value = 60;
+      }
 
+      updateDurationVisibility();
       showModal();
     }
 
     async function saveAreaSettings() {
-      const motionTimer = parseInt(document.getElementById('motion-timer').value) || 0;
+      const motionFunction = document.getElementById('motion-function').value;
+      const motionDuration = parseInt(document.getElementById('motion-duration').value) || 60;
 
-      // TODO: Save area settings to config when implemented
-      console.log('Saving area settings:', { area_id: editingAreaId, motion_timer: motionTimer });
+      try {
+        const res = await fetch(`./api/area-settings/${encodeURIComponent(editingAreaId)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            motion_function: motionFunction,
+            motion_duration: motionDuration
+          })
+        });
 
-      hideModal();
-      // Reload data after save (when implemented)
-      // await loadData();
+        if (!res.ok) {
+          const data = await res.json();
+          alert(data.error || 'Failed to save settings');
+          return;
+        }
+
+        hideModal();
+        await loadData();
+      } catch (err) {
+        console.error('Error saving area settings:', err);
+        alert('Error saving settings');
+      }
     }
   </script>
 </body>

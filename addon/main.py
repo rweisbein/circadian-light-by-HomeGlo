@@ -83,6 +83,9 @@ class HomeAssistantWebSocketClient:
         self.light_color_modes: Dict[str, Set[str]] = {}  # entity_id -> set of supported color modes
         self.area_lights: Dict[str, List[str]] = {}  # area_id -> list of light entity_ids
 
+        # Motion sensor cache for event handling
+        self.motion_sensor_areas: Dict[str, str] = {}  # entity_id -> area_id
+
         # Live Design tracking - skip this area in periodic updates
         self.live_design_area: str = None
 
@@ -362,6 +365,83 @@ class HomeAssistantWebSocketClient:
             if entity:
                 return entity
         return None
+
+    # =========================================================================
+    # Motion Sensor Event Handling
+    # =========================================================================
+
+    async def _handle_motion_event(self, entity_id: str, new_state: str, old_state: str) -> None:
+        """Handle a motion sensor state change.
+
+        Args:
+            entity_id: The motion sensor entity_id
+            new_state: New state ("on" = motion detected, "off" = motion cleared)
+            old_state: Previous state
+        """
+        # Get area for this motion sensor
+        area_id = self.motion_sensor_areas.get(entity_id)
+        if not area_id:
+            logger.debug(f"[Motion] No area mapped for sensor {entity_id}")
+            return
+
+        # Load area settings
+        try:
+            raw_config = glozone.load_config_from_files()
+            area_settings = raw_config.get("area_settings", {}).get(area_id, {})
+            motion_function = area_settings.get("motion_function", "disabled")
+            motion_duration = area_settings.get("motion_duration", 60)
+        except Exception as e:
+            logger.warning(f"[Motion] Error loading area settings for {area_id}: {e}")
+            return
+
+        if motion_function == "disabled":
+            logger.debug(f"[Motion] Motion disabled for area {area_id}")
+            return
+
+        logger.info(f"[Motion] {entity_id} -> {new_state} (area={area_id}, function={motion_function}, duration={motion_duration})")
+
+        if new_state == "on":
+            # Motion detected - trigger based on function
+            if motion_function == "boost":
+                await self.primitives.bright_boost(area_id, motion_duration, source="motion_sensor")
+            elif motion_function == "on_off":
+                await self.primitives.circadian_on(area_id, source="motion_sensor")
+            elif motion_function == "on_only":
+                await self.primitives.circadian_on(area_id, source="motion_sensor")
+
+        elif new_state == "off" and motion_function == "on_off":
+            # Motion cleared - for on_off mode, we need to start a timer
+            # The boost mode handles its own timer via boost_expires_at
+            # For on_off, we'll schedule a delayed turn-off
+            # Note: This is simplified - a more robust implementation would
+            # track the timer and cancel it if motion is detected again
+            asyncio.create_task(self._delayed_motion_off(area_id, motion_duration))
+
+    async def _delayed_motion_off(self, area_id: str, delay_seconds: int) -> None:
+        """Turn off lights after motion delay (for on_off mode).
+
+        Args:
+            area_id: The area to turn off
+            delay_seconds: Seconds to wait before turning off
+        """
+        try:
+            await asyncio.sleep(delay_seconds)
+
+            # Check if motion has been re-detected (area might have new boost or still be active)
+            # For simplicity, we just check if the area is still enabled
+            # A more robust implementation would track a cancellation token
+            if state.is_enabled(area_id):
+                logger.info(f"[Motion] Turning off {area_id} after {delay_seconds}s motion timeout")
+                transition = self.primitives._get_turn_off_transition()
+                target_type, target_value = await self.determine_light_target(area_id)
+                await self.call_service(
+                    "light", "turn_off", {"transition": transition}, {target_type: target_value}
+                )
+                state.set_enabled(area_id, False)
+        except asyncio.CancelledError:
+            logger.debug(f"[Motion] Delayed off cancelled for {area_id}")
+        except Exception as e:
+            logger.error(f"[Motion] Error in delayed off for {area_id}: {e}")
 
     # =========================================================================
     # ZHA Switch Event Handling
@@ -1535,6 +1615,34 @@ class HomeAssistantWebSocketClient:
         ct_only = len(self.light_color_modes) - color_capable
         logger.info(f"  Color-capable lights: {color_capable}, CT-only lights: {ct_only}")
 
+        # Build motion sensor -> area mapping
+        self.motion_sensor_areas.clear()
+        for entity in entities:
+            if not isinstance(entity, dict):
+                continue
+
+            entity_id = entity.get("entity_id", "")
+            # Check for motion/occupancy binary sensors
+            if not entity_id.startswith("binary_sensor."):
+                continue
+            if "_motion" not in entity_id and "_occupancy" not in entity_id:
+                continue
+
+            # Get area - either direct or via device
+            area_id = entity.get("area_id")
+            if not area_id:
+                device_id = entity.get("device_id")
+                if device_id:
+                    area_id = device_area_map.get(device_id)
+
+            if area_id:
+                self.motion_sensor_areas[entity_id] = area_id
+
+        if self.motion_sensor_areas:
+            logger.info(f"✓ Motion sensor cache built: {len(self.motion_sensor_areas)} sensors")
+            for entity_id, area_id in self.motion_sensor_areas.items():
+                logger.debug(f"  {entity_id} -> {area_id}")
+
     def get_lights_by_color_capability(self, area_id: str) -> Tuple[List[str], List[str]]:
         """Get lights in an area split by color capability.
 
@@ -1963,9 +2071,19 @@ class HomeAssistantWebSocketClient:
             # Calculate lighting using area state (respects stepped values)
             result = CircadianLight.calculate_lighting(hour, config, area_state, sun_times=sun_times)
 
+            # Check if area is boosted - if so, apply boost to brightness
+            brightness = result.brightness
+            boost_note = ""
+            if state.is_boosted(area_id):
+                # Get boost brightness setting and apply
+                raw_config = glozone.load_config_from_files()
+                boost_amount = raw_config.get("boost_brightness_default", 50)
+                brightness = min(100, result.brightness + boost_amount)
+                boost_note = f" (boosted +{boost_amount}%)"
+
             # Build values dict for turn_on_lights_circadian
             lighting_values = {
-                'brightness': result.brightness,
+                'brightness': brightness,
                 'kelvin': result.color_temp,
                 'rgb': result.rgb,
                 'xy': result.xy,
@@ -1973,7 +2091,7 @@ class HomeAssistantWebSocketClient:
 
             # Log the calculation
             frozen_note = f" (frozen at {hour:.1f}h)" if area_state.frozen_at is not None else ""
-            logger.info(f"Periodic update for area {area_id}{frozen_note}: {result.color_temp}K, {result.brightness}%")
+            logger.info(f"Periodic update for area {area_id}{frozen_note}{boost_note}: {result.color_temp}K, {brightness}%")
 
             # Use the centralized light control function
             await self.turn_on_lights_circadian(area_id, lighting_values, transition=0.5)
@@ -2082,6 +2200,9 @@ class HomeAssistantWebSocketClient:
                 reset_switches = switches.check_scope_timeouts()
                 if reset_switches:
                     logger.debug(f"Reset {len(reset_switches)} switch(es) to scope 1 due to inactivity")
+
+                # Check for expired boosts and handle them
+                await self.primitives.check_expired_boosts()
 
                 # Get all enabled, unfrozen areas from state module
                 circadian_areas = state.get_unfrozen_enabled_areas()
@@ -2469,12 +2590,13 @@ class HomeAssistantWebSocketClient:
                 if entity_id == "sun.sun" and isinstance(new_state, dict):
                     self.sun_data = new_state.get("attributes", {})
                     logger.info(f"Updated sun data: elevation={self.sun_data.get('elevation')}")
-                
-                
-                #if isinstance(new_state, dict):
-                #    logger.info(f"State changed: {entity_id} -> {new_state.get('state')}")
-                #else:
-                #    logger.info(f"State changed: {entity_id} -> {new_state}")
+
+                # Handle motion sensor state changes
+                if entity_id and entity_id in self.motion_sensor_areas:
+                    new_state_val = new_state.get("state") if isinstance(new_state, dict) else None
+                    old_state_val = old_state.get("state") if isinstance(old_state, dict) else None
+                    if new_state_val and new_state_val != old_state_val:
+                        await self._handle_motion_event(entity_id, new_state_val, old_state_val)
 
             # Handle ZHA events (switch button presses)
             elif event_type == "zha_event":

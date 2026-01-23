@@ -332,6 +332,23 @@
       </div>
     </div>
 
+    <!-- Defaults Section -->
+    <div class="settings-section">
+      <div class="section-header">Defaults</div>
+      <div class="section-content">
+        <div class="form-row">
+          <label class="form-label">
+            Boost brightness
+            <span class="info-icon">i<span class="info-tooltip">When motion sensors or contact sensors trigger a brightness boost, this is how much brighter the lights will be compared to the current circadian setting. Added to the circadian brightness percentage (capped at 100%).</span></span>
+          </label>
+          <div class="form-control">
+            <input type="number" class="form-input" id="boost-brightness-default" min="0" max="100" step="5" value="50" style="width: 80px;">
+            <span class="form-hint">percentage points</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="save-status" id="save-status">Settings saved</div>
   </main>
 
@@ -346,6 +363,7 @@
           document.getElementById('turn-off-transition').value = config.turn_off_transition ?? 3;
           document.getElementById('multi-click-enabled').checked = config.multi_click_enabled ?? true;
           document.getElementById('multi-click-speed').value = config.multi_click_speed ?? 2;
+          document.getElementById('boost-brightness-default').value = config.boost_brightness_default ?? 50;
           updateMultiClickState();
         }
       } catch (err) {
@@ -358,7 +376,8 @@
         turn_on_transition: parseInt(document.getElementById('turn-on-transition').value) || 3,
         turn_off_transition: parseInt(document.getElementById('turn-off-transition').value) || 3,
         multi_click_enabled: document.getElementById('multi-click-enabled').checked,
-        multi_click_speed: parseInt(document.getElementById('multi-click-speed').value) || 2
+        multi_click_speed: parseInt(document.getElementById('multi-click-speed').value) || 2,
+        boost_brightness_default: parseInt(document.getElementById('boost-brightness-default').value) || 50
       };
 
       try {
@@ -404,6 +423,7 @@
       saveSettings();
     });
     document.getElementById('multi-click-speed').addEventListener('blur', saveSettings);
+    document.getElementById('boost-brightness-default').addEventListener('blur', saveSettings);
 
     // Load on page load
     document.addEventListener('DOMContentLoaded', loadSettings);

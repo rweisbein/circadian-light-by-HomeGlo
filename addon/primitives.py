@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import time
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 import glozone
@@ -128,6 +129,20 @@ class CircadianLightPrimitives:
             return tenths / 10.0  # Convert tenths to seconds
         except Exception:
             return 0.3  # Default 0.3 seconds
+
+    def _get_boost_brightness_default(self) -> int:
+        """Get the default boost brightness in percentage points.
+
+        Reads from global config, defaults to 50.
+
+        Returns:
+            Boost brightness in percentage points (0-100)
+        """
+        try:
+            raw_config = glozone.load_config_from_files()
+            return raw_config.get("boost_brightness_default", 50)
+        except Exception:
+            return 50  # Default 50 percentage points
 
     def _get_area_state(self, area_id: str) -> AreaState:
         """Get area state from state module."""
@@ -491,11 +506,18 @@ class CircadianLightPrimitives:
     async def circadian_off(self, area_id: str, source: str = "service_call"):
         """Disable Circadian Light mode (lights unchanged).
 
+        Also cancels any active boost for the area.
+
         Args:
             area_id: The area ID to control
             source: Source of the action
         """
         logger.info(f"[{source}] Disabling Circadian Light for area {area_id}")
+
+        # Clear boost state if boosted
+        if state.is_boosted(area_id):
+            state.clear_boost(area_id)
+            logger.info(f"Cleared boost for area {area_id}")
 
         if not state.is_enabled(area_id):
             logger.info(f"Circadian Light already disabled for area {area_id}")
@@ -552,6 +574,11 @@ class CircadianLightPrimitives:
                 except Exception as e:
                     logger.warning(f"Could not calculate CT for area {area_id}: {e}")
 
+                # Clear boost state if boosted
+                if state.is_boosted(area_id):
+                    state.clear_boost(area_id)
+                    logger.info(f"Cleared boost for area {area_id}")
+
                 state.set_enabled(area_id, False)
                 target_type, target_value = await self.client.determine_light_target(area_id)
                 await self.client.call_service(
@@ -583,6 +610,124 @@ class CircadianLightPrimitives:
                 await self._apply_lighting_turn_on(area_id, result.brightness, result.color_temp, transition=transition)
 
             logger.info(f"Turned on {len(area_ids)} area(s) with Circadian Light")
+
+    # -------------------------------------------------------------------------
+    # Bright Boost - Temporary brightness increase
+    # -------------------------------------------------------------------------
+
+    async def bright_boost(self, area_id: str, duration_seconds: int, source: str = "motion_sensor"):
+        """Temporarily boost brightness for an area.
+
+        Adds boost_brightness_default percentage points to current circadian brightness.
+        After duration expires, returns to previous state:
+        - If lights were off when boost started: turn off
+        - If lights were on: return to circadian brightness
+
+        Base circadian settings (brightness_mid, color_mid, frozen_at) can still change
+        during boost via GloUp/GloReset. When boost ends, uses current settings.
+
+        Args:
+            area_id: The area ID to boost
+            duration_seconds: How long the boost lasts
+            source: Source of the action (e.g., "motion_sensor", "contact_sensor")
+        """
+        logger.info(f"[{source}] bright_boost for area {area_id}, duration={duration_seconds}s")
+
+        # Check if already boosted - if so, just extend the timer
+        if state.is_boosted(area_id):
+            expires_at = (datetime.now() + timedelta(seconds=duration_seconds)).isoformat()
+            state.update_area(area_id, {"boost_expires_at": expires_at})
+            logger.info(f"[{source}] Extended boost for area {area_id} to {expires_at}")
+            return
+
+        # Determine if lights are currently on or off
+        was_on = await self.client.any_lights_on_in_area([area_id])
+
+        # Calculate circadian values
+        config = self._get_config(area_id)
+        area_state = self._get_area_state(area_id)
+        hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
+        sun_times = self.client._get_sun_times() if hasattr(self.client, '_get_sun_times') else None
+
+        result = CircadianLight.calculate_lighting(hour, config, area_state, sun_times=sun_times)
+
+        # Calculate boosted brightness
+        boost_amount = self._get_boost_brightness_default()
+        boosted_brightness = min(100, result.brightness + boost_amount)
+
+        # Set boost state
+        expires_at = (datetime.now() + timedelta(seconds=duration_seconds)).isoformat()
+        state.set_boost(area_id, started_from_off=not was_on, expires_at=expires_at)
+
+        # Enable Circadian Light if not already enabled
+        if not state.is_enabled(area_id):
+            # Ensure area is in a zone
+            if not glozone.is_area_in_any_zone(area_id):
+                glozone.add_area_to_default_zone(area_id)
+            state.set_enabled(area_id, True)
+
+        # Apply boosted brightness with circadian color temp
+        transition = self._get_turn_on_transition()
+        if was_on:
+            # Lights already on - just adjust brightness
+            await self._apply_lighting(area_id, boosted_brightness, result.color_temp, transition=transition)
+        else:
+            # Lights were off - use two-phase turn-on
+            await self._apply_lighting_turn_on(area_id, boosted_brightness, result.color_temp, transition=transition)
+
+        logger.info(
+            f"[{source}] Boosted area {area_id}: {result.brightness}% + {boost_amount}% = {boosted_brightness}%, "
+            f"{result.color_temp}K, expires={expires_at}"
+        )
+
+    async def end_boost(self, area_id: str, source: str = "timer"):
+        """End boost for an area and return to previous state.
+
+        Called when boost timer expires or boost is explicitly cancelled.
+
+        Args:
+            area_id: The area ID
+            source: Source of the action
+        """
+        boost_state = state.get_boost_state(area_id)
+
+        if not boost_state["is_boosted"]:
+            logger.debug(f"[{source}] Area {area_id} not boosted, nothing to end")
+            return
+
+        started_from_off = boost_state["boost_started_from_off"]
+
+        # Clear boost state
+        state.clear_boost(area_id)
+
+        if started_from_off:
+            # Lights were off when boost started - turn off and disable Circadian
+            transition = self._get_turn_off_transition()
+            await self._turn_off_area(area_id, transition=transition)
+            state.set_enabled(area_id, False)
+            logger.info(f"[{source}] Boost ended for area {area_id}, turned off (started from off)")
+        else:
+            # Lights were on - return to current circadian settings
+            config = self._get_config(area_id)
+            area_state = self._get_area_state(area_id)
+            hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
+            sun_times = self.client._get_sun_times() if hasattr(self.client, '_get_sun_times') else None
+
+            result = CircadianLight.calculate_lighting(hour, config, area_state, sun_times=sun_times)
+            await self._apply_lighting(area_id, result.brightness, result.color_temp)
+            logger.info(
+                f"[{source}] Boost ended for area {area_id}, returned to circadian: "
+                f"{result.brightness}%, {result.color_temp}K"
+            )
+
+    async def check_expired_boosts(self):
+        """Check for and handle any expired boosts.
+
+        Called periodically (e.g., from the 30-second update loop).
+        """
+        expired = state.get_expired_boosts()
+        for area_id in expired:
+            await self.end_boost(area_id, source="timer_expired")
 
     # -------------------------------------------------------------------------
     # Set - Configure area state (presets, frozen_at, copy_from)
@@ -1010,11 +1155,18 @@ class CircadianLightPrimitives:
         GloDown syncs this area to match its zone's state. Use when you want
         a single area to rejoin the zone's current settings.
 
+        Also cancels any active boost for the area.
+
         Args:
             area_id: The area ID to sync to zone state
             source: Source of the action
         """
         logger.info(f"[{source}] GloDown for area {area_id}")
+
+        # Clear boost state if boosted (GloDown overrides boost)
+        if state.is_boosted(area_id):
+            state.clear_boost(area_id)
+            logger.info(f"Cleared boost for area {area_id} (GloDown)")
 
         # Reload glozone config from disk (webserver may have updated it)
         glozone.reload()

@@ -410,6 +410,10 @@ class LightDesignerServer:
         self.app.router.add_get('/api/areas', self.get_areas)
         self.app.router.add_route('GET', '/{path:.*}/api/area-status', self.get_area_status)
         self.app.router.add_get('/api/area-status', self.get_area_status)
+        self.app.router.add_route('GET', '/{path:.*}/api/area-settings/{area_id}', self.get_area_settings)
+        self.app.router.add_route('POST', '/{path:.*}/api/area-settings/{area_id}', self.save_area_settings)
+        self.app.router.add_get('/api/area-settings/{area_id}', self.get_area_settings)
+        self.app.router.add_post('/api/area-settings/{area_id}', self.save_area_settings)
         self.app.router.add_post('/api/apply-light', self.apply_light)
         self.app.router.add_post('/api/circadian-mode', self.set_circadian_mode)
 
@@ -1000,7 +1004,10 @@ class LightDesignerServer:
         "turn_off_transition",  # Transition time in tenths of seconds for turn-off operations
         "multi_click_enabled",  # Enable multi-click detection for Hue Hub switches
         "multi_click_speed",  # Multi-click window in tenths of seconds
+        "boost_brightness_default",  # Default boost brightness in percentage points
         "controls_ui",  # Controls page UI preferences (sort, filter)
+        "areas_ui",  # Areas page UI preferences (sort, filter)
+        "area_settings",  # Per-area settings (motion_function, motion_duration)
     }
 
     def _migrate_to_glozone_format(self, config: dict) -> dict:
@@ -2044,6 +2051,77 @@ class LightDesignerServer:
 
         except Exception as e:
             logger.error(f"[Area Status] Error: {e}", exc_info=True)
+            return web.json_response({'error': str(e)}, status=500)
+
+    async def get_area_settings(self, request: Request) -> Response:
+        """Get settings for a specific area.
+
+        Returns motion_function, motion_duration for the area.
+        """
+        area_id = request.match_info.get('area_id')
+        if not area_id:
+            return web.json_response({'error': 'area_id required'}, status=400)
+
+        try:
+            config = await self.load_config()
+            area_settings = config.get('area_settings', {})
+            settings = area_settings.get(area_id, {
+                'motion_function': 'disabled',
+                'motion_duration': 60
+            })
+            return web.json_response(settings)
+
+        except Exception as e:
+            logger.error(f"[Area Settings] Error getting settings for {area_id}: {e}")
+            return web.json_response({'error': str(e)}, status=500)
+
+    async def save_area_settings(self, request: Request) -> Response:
+        """Save settings for a specific area.
+
+        Expects JSON body with motion_function and/or motion_duration.
+        """
+        area_id = request.match_info.get('area_id')
+        if not area_id:
+            return web.json_response({'error': 'area_id required'}, status=400)
+
+        try:
+            data = await request.json()
+
+            # Validate motion_function if provided
+            valid_functions = ['disabled', 'boost', 'on_off', 'on_only']
+            if 'motion_function' in data and data['motion_function'] not in valid_functions:
+                return web.json_response({
+                    'error': f"Invalid motion_function. Must be one of: {valid_functions}"
+                }, status=400)
+
+            # Load current config
+            config = await self.load_config()
+
+            # Initialize area_settings if not present
+            if 'area_settings' not in config:
+                config['area_settings'] = {}
+
+            # Initialize this area's settings if not present
+            if area_id not in config['area_settings']:
+                config['area_settings'][area_id] = {
+                    'motion_function': 'disabled',
+                    'motion_duration': 60
+                }
+
+            # Update with provided values
+            if 'motion_function' in data:
+                config['area_settings'][area_id]['motion_function'] = data['motion_function']
+            if 'motion_duration' in data:
+                config['area_settings'][area_id]['motion_duration'] = int(data['motion_duration'])
+
+            # Save config
+            await self.save_config_to_file(config)
+
+            logger.info(f"[Area Settings] Saved settings for {area_id}: {config['area_settings'][area_id]}")
+            return web.json_response({'success': True, 'settings': config['area_settings'][area_id]})
+
+        except Exception as e:
+            logger.error(f"[Area Settings] Error saving settings for {area_id}: {e}")
             return web.json_response({'error': str(e)}, status=500)
 
     async def apply_light(self, request: Request) -> Response:

@@ -40,6 +40,9 @@ def _get_default_area_state() -> Dict[str, Any]:
         "color_mid": None,
         # Last color temp when lights were turned off (for smart 2-step turn-on)
         "last_off_ct": None,
+        # Boost state
+        "boost_started_from_off": False,  # If true, turn off when boost ends; else restore circadian
+        "boost_expires_at": None,  # ISO timestamp string when boost expires (None = not boosted)
     }
 
 
@@ -349,3 +352,79 @@ def reset_area_to_defaults(area_id: str) -> None:
     _state[area_id]["enabled"] = enabled
     _save()
     logger.info(f"Reset area {area_id} runtime state to defaults (preserving enabled={enabled})")
+
+
+# ============================================================================
+# Boost state management
+# ============================================================================
+
+def set_boost(area_id: str, started_from_off: bool, expires_at: str) -> None:
+    """Set boost state for an area.
+
+    Args:
+        area_id: The area ID
+        started_from_off: Whether lights were off when boost started
+        expires_at: ISO timestamp string when boost expires
+    """
+    update_area(area_id, {
+        "boost_started_from_off": started_from_off,
+        "boost_expires_at": expires_at,
+    })
+    logger.info(f"Boost activated for area {area_id} (started_from_off={started_from_off}, expires={expires_at})")
+
+
+def clear_boost(area_id: str) -> None:
+    """Clear boost state for an area.
+
+    Args:
+        area_id: The area ID
+    """
+    update_area(area_id, {
+        "boost_started_from_off": False,
+        "boost_expires_at": None,
+    })
+    logger.info(f"Boost cleared for area {area_id}")
+
+
+def is_boosted(area_id: str) -> bool:
+    """Check if an area is currently boosted."""
+    return get_area(area_id).get("boost_expires_at") is not None
+
+
+def get_boost_state(area_id: str) -> Dict[str, Any]:
+    """Get boost state for an area.
+
+    Returns:
+        Dict with is_boosted, boost_started_from_off, boost_expires_at
+    """
+    area = get_area(area_id)
+    expires_at = area.get("boost_expires_at")
+    return {
+        "is_boosted": expires_at is not None,
+        "boost_started_from_off": area.get("boost_started_from_off", False),
+        "boost_expires_at": expires_at,
+    }
+
+
+def get_boosted_areas() -> List[str]:
+    """Get list of all areas with active boost."""
+    return [area_id for area_id, s in _state.items() if s.get("boost_expires_at") is not None]
+
+
+def get_expired_boosts() -> List[str]:
+    """Get list of areas with expired boosts (boost_expires_at in the past).
+
+    Returns:
+        List of area_ids with expired boosts
+    """
+    from datetime import datetime
+
+    now = datetime.now().isoformat()
+    expired = []
+
+    for area_id, s in _state.items():
+        expires_at = s.get("boost_expires_at")
+        if expires_at and expires_at <= now:
+            expired.append(area_id)
+
+    return expired
