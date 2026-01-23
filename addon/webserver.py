@@ -3035,18 +3035,18 @@ class LightDesignerServer:
                                     elif identifier[0] == 'hue':
                                         unique_id = identifier[1]  # Hue device ID
                                         integration = 'hue'
-                                        # Log all device fields for Hue devices to find model number
-                                        logger.info(f"[Controls] Hue device fields: {device}")
                                         break
                             if unique_id:
                                 logger.debug(f"[Controls] HA device {device.get('name')}: id={unique_id} ({integration})")
+                                # Use model_id if available (more specific), otherwise model
+                                model = device.get('model_id') or device.get('model')
                                 devices[device_id] = {
                                     'device_id': device_id,
                                     'ieee': unique_id,  # Keep 'ieee' key for compatibility
                                     'integration': integration,
                                     'name': device.get('name_by_user') or device.get('name'),
                                     'manufacturer': device.get('manufacturer'),
-                                    'model': device.get('model'),
+                                    'model': model,
                                     'area_id': device.get('area_id'),
                                     'area_name': area_names.get(device.get('area_id')),
                                 }

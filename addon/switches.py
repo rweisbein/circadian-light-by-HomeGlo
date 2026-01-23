@@ -153,7 +153,7 @@ SWITCH_TYPES: Dict[str, Dict[str, Any]] = {
     "hue_4button_v2": {
         "name": "Hue 4-button v2",
         "manufacturers": ["Philips", "Signify", "Signify Netherlands B.V."],
-        "models": ["RWL022", "Hue dimmer switch"],
+        "models": ["RWL022"],
         "buttons": ["on", "up", "down", "off"],
         "action_types": ["press", "hold", "short_release", "long_release", "double_press", "triple_press", "quadruple_press", "quintuple_press"],
         "default_mapping": _HUE_4BUTTON_MAPPING,
