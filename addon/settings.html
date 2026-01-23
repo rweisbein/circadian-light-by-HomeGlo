@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Circadian Light - Settings</title>
+  <title>Circadian Light - Advanced</title>
   <style>
     :root {
       --bg: #000;
@@ -100,7 +100,6 @@
       border: 1px solid var(--line);
       border-radius: 12px;
       margin-bottom: 20px;
-      overflow: hidden;
     }
 
     .section-header {
@@ -276,14 +275,14 @@
       <a href="./" class="nav-link">Home</a>
       <a href="./glo" class="nav-link">Glo design</a>
       <a href="./switches" class="nav-link">Controls</a>
-      <a href="./settings" class="nav-link active">Settings</a>
+      <a href="./settings" class="nav-link active">Advanced</a>
     </div>
   </nav>
 
   <!-- Main Content -->
   <main class="main">
     <div class="page-header">
-      <h1 class="page-title">Settings</h1>
+      <h1 class="page-title">Advanced</h1>
     </div>
 
     <!-- Timing Section -->
@@ -300,22 +299,20 @@
             <span class="form-hint">tenths of a second</span>
           </div>
         </div>
-      </div>
-    </div>
 
-    <!-- Multi-click Section -->
-    <div class="settings-section">
-      <div class="section-header">
-        <div class="section-header-left">
-          <span>Multi-click</span>
-          <span class="info-icon">i<span class="info-tooltip">For switches controlled by a hub that doesn't support double-clicks, triple-clicks, etc. (e.g. the Philips Hue Hub), enabling turns on Circadian Light detection of multi-clicks. Single-click actions will be delayed by the multi-click speed while waiting for additional clicks.</span></span>
+        <div class="form-row" style="margin-top: 20px;">
+          <label class="form-label">
+            Multi-click
+            <span class="info-icon">i<span class="info-tooltip">For switches controlled by a hub that doesn't support double-clicks, triple-clicks, etc. (e.g. the Philips Hue Hub), enabling turns on Circadian Light detection of multi-clicks. Single-click actions will be delayed by the multi-click speed while waiting for additional clicks.</span></span>
+          </label>
+          <div class="form-control">
+            <label class="checkbox-label">
+              <input type="checkbox" id="multi-click-enabled">
+            </label>
+          </div>
         </div>
-        <label class="checkbox-label">
-          <input type="checkbox" id="multi-click-enabled">
-        </label>
-      </div>
-      <div class="section-content" id="multi-click-content">
-        <div class="form-row">
+
+        <div class="form-row" id="multi-click-speed-row">
           <label class="form-label">Multi-click speed</label>
           <div class="form-control">
             <input type="number" class="form-input" id="multi-click-speed" min="2" max="10" step="1" value="2" style="width: 80px;">
@@ -369,12 +366,12 @@
 
     function updateMultiClickState() {
       const enabled = document.getElementById('multi-click-enabled').checked;
-      const content = document.getElementById('multi-click-content');
+      const speedRow = document.getElementById('multi-click-speed-row');
 
       if (enabled) {
-        content.classList.remove('disabled');
+        speedRow.classList.remove('disabled');
       } else {
-        content.classList.add('disabled');
+        speedRow.classList.add('disabled');
       }
     }
 
