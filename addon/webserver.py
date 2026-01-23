@@ -3132,6 +3132,8 @@ class LightDesignerServer:
                             device.get('manufacturer'),
                             device.get('model')
                         )
+                        if not detected_type:
+                            logger.info(f"[Controls] Unrecognized switch: manufacturer='{device.get('manufacturer')}' model='{device.get('model')}' name='{device.get('name')}'")
 
                     type_info = switches.SWITCH_TYPES.get(detected_type, {}) if detected_type else {}
 
