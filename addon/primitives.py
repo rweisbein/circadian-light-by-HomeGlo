@@ -521,8 +521,17 @@ class CircadianLightPrimitives:
         any_on = await self.client.any_lights_on_in_area(area_ids)
 
         if any_on:
-            # Turn off all areas
+            # Turn off all areas - store CT first for smart 2-step on next turn-on
+            sun_times = self.client._get_sun_times() if hasattr(self.client, '_get_sun_times') else None
             for area_id in area_ids:
+                # Calculate current CT before turning off
+                try:
+                    result = calculate_lighting(area_id, sun_times=sun_times)
+                    state.set_last_off_ct(area_id, result.color_temp)
+                    logger.debug(f"Stored last_off_ct={result.color_temp} for area {area_id}")
+                except Exception as e:
+                    logger.warning(f"Could not calculate CT for area {area_id}: {e}")
+
                 state.set_enabled(area_id, False)
                 target_type, target_value = await self.client.determine_light_target(area_id)
                 await self.client.call_service(
@@ -1172,12 +1181,16 @@ class CircadianLightPrimitives:
         color_temp: int,
         transition: float = 0.4,
     ):
-        """Turn on lights with two-phase approach to avoid color jump.
+        """Turn on lights, using two-phase approach only if needed to avoid color jump.
 
         When lights are off, they briefly show their previous color before
-        transitioning. This method avoids that by:
+        transitioning. If the new color is significantly different (>= 500K),
+        we use a two-phase approach:
         1. Phase 1: Turn on at 1% brightness with target color (instant)
         2. Phase 2: Transition to target brightness
+
+        If the color is similar to what it was when turned off, we skip the
+        two-phase and just turn on directly.
 
         Args:
             area_id: The area ID
@@ -1185,14 +1198,28 @@ class CircadianLightPrimitives:
             color_temp: Color temperature in Kelvin
             transition: Transition time for phase 2 (brightness ramp)
         """
-        # Phase 1: Set color at minimal brightness (nearly invisible)
-        await self._apply_lighting(area_id, 1, color_temp, include_color=True, transition=0)
+        # Check if 2-step is needed based on CT difference
+        last_ct = state.get_last_off_ct(area_id)
+        ct_threshold = 500  # Kelvin difference threshold for 2-step
 
-        # Small delay to ensure phase 1 completes
-        await asyncio.sleep(0.05)
+        needs_two_step = True
+        if last_ct is not None:
+            ct_diff = abs(color_temp - last_ct)
+            needs_two_step = ct_diff >= ct_threshold
+            logger.debug(f"Turn-on CT check: last={last_ct}K, new={color_temp}K, diff={ct_diff}K, 2-step={needs_two_step}")
 
-        # Phase 2: Transition to target brightness
-        await self._apply_lighting(area_id, brightness, color_temp, include_color=True, transition=transition)
+        if needs_two_step:
+            # Phase 1: Set color at minimal brightness (nearly invisible)
+            await self._apply_lighting(area_id, 1, color_temp, include_color=True, transition=0)
+
+            # Small delay to ensure phase 1 completes
+            await asyncio.sleep(0.05)
+
+            # Phase 2: Transition to target brightness
+            await self._apply_lighting(area_id, brightness, color_temp, include_color=True, transition=transition)
+        else:
+            # CT is similar - just turn on directly
+            await self._apply_lighting(area_id, brightness, color_temp, include_color=True, transition=transition)
 
     async def _apply_color_only(
         self, area_id: str, color_temp: int, transition: float = 0.4

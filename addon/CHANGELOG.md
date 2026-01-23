@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.73
+**Smart 2-step turn-on**
+
+- Store color temperature when lights turn off (last_off_ct)
+- Only use 2-step turn-on if CT difference >= 500K from last off
+- Avoids unnecessary 2-step when CT is similar (faster turn-on)
+- Still prevents color arc when CT is significantly different
+
 ## 6.9.72
 **Inline filters in table headers**
 

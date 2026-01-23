@@ -38,6 +38,8 @@ def _get_default_area_state() -> Dict[str, Any]:
         # Midpoints (None = use config wake_time/bed_time based on phase)
         "brightness_mid": None,
         "color_mid": None,
+        # Last color temp when lights were turned off (for smart 2-step turn-on)
+        "last_off_ct": None,
     }
 
 
@@ -183,6 +185,19 @@ def is_enabled(area_id: str) -> bool:
 def is_frozen(area_id: str) -> bool:
     """Check if an area is frozen."""
     return get_area(area_id).get("frozen_at") is not None
+
+
+def set_last_off_ct(area_id: str, color_temp: int) -> None:
+    """Store the color temperature when lights were turned off.
+
+    Used to determine if 2-step turn-on is needed (to avoid color arc).
+    """
+    update_area(area_id, {"last_off_ct": color_temp})
+
+
+def get_last_off_ct(area_id: str) -> Optional[int]:
+    """Get the color temperature from when lights were last turned off."""
+    return get_area(area_id).get("last_off_ct")
 
 
 def get_enabled_areas() -> List[str]:
