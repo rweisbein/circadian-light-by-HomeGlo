@@ -102,49 +102,61 @@ BUTTON_ACTION_TYPES = [
 ]
 
 # Switch type definitions
+# Shared button mapping for Hue 4-button dimmers (v1 and v2 use same layout)
+_HUE_4BUTTON_MAPPING = {
+    # On button (top)
+    "on_short_release": "circadian_toggle",     # 1x - on/off
+    "on_double_press": "glo_up",                # 2x - send to zone
+    "on_triple_press": "freeze_toggle",         # 3x - freeze
+    "on_quadruple_press": None,                 # 4x - not used
+    "on_quintuple_press": None,                 # 5x - coming soon: emergency toggle
+    "on_hold": None,                            # long - RESERVED for magic button
+    "on_long_release": None,
+    # Up button
+    "up_short_release": "step_up",              # 1x
+    "up_double_press": "color_up",              # 2x
+    "up_triple_press": "set_britelite",         # 3x
+    "up_quadruple_press": None,                 # 4x - not used
+    "up_quintuple_press": None,                 # 5x - not used
+    "up_hold": "bright_up",                     # long - repeats while held
+    "up_long_release": None,
+    # Down button
+    "down_short_release": "step_down",          # 1x
+    "down_double_press": "color_down",          # 2x
+    "down_triple_press": "set_nitelite",        # 3x
+    "down_quadruple_press": None,               # 4x - not used
+    "down_quintuple_press": None,               # 5x - not used
+    "down_hold": "bright_down",                 # long - repeats while held
+    "down_long_release": None,
+    # Off button (bottom - "hue" button)
+    "off_short_release": "cycle_scope",         # 1x - change controlled areas
+    "off_double_press": "glo_down",             # 2x - reset area (pull zone state)
+    "off_triple_press": "glo_reset",            # 3x - reset zone
+    "off_quadruple_press": None,                # 4x - not used
+    "off_quintuple_press": None,                # 5x - coming soon: Sleep
+    "off_hold": None,                           # long - RESERVED for magic button
+    "off_long_release": None,
+}
+
 # Each type defines available buttons and default action mappings
 SWITCH_TYPES: Dict[str, Dict[str, Any]] = {
-    "hue_dimmer": {
-        "name": "Philips Hue Dimmer",
+    "hue_4button_v1": {
+        "name": "Hue 4-button v1",
         "manufacturers": ["Philips", "Signify"],
-        "models": ["RWL020", "RWL021", "RWL022", "Hue dimmer switch"],
+        "models": ["RWL020"],
         "buttons": ["on", "up", "down", "off"],
         "action_types": ["press", "hold", "short_release", "long_release", "double_press", "triple_press", "quadruple_press", "quintuple_press"],
-        "default_mapping": {
-            # On button (top)
-            "on_short_release": "circadian_toggle",     # 1x - on/off
-            "on_double_press": "glo_up",                # 2x - send to zone
-            "on_triple_press": "freeze_toggle",         # 3x - freeze
-            "on_quadruple_press": None,                 # 4x - not used
-            "on_quintuple_press": None,                 # 5x - coming soon: emergency toggle
-            "on_hold": None,                            # long - RESERVED for magic button
-            "on_long_release": None,
-            # Up button
-            "up_short_release": "step_up",              # 1x
-            "up_double_press": "color_up",              # 2x
-            "up_triple_press": "set_britelite",         # 3x
-            "up_quadruple_press": None,                 # 4x - not used
-            "up_quintuple_press": None,                 # 5x - not used
-            "up_hold": "bright_up",                     # long - repeats while held
-            "up_long_release": None,
-            # Down button
-            "down_short_release": "step_down",          # 1x
-            "down_double_press": "color_down",          # 2x
-            "down_triple_press": "set_nitelite",        # 3x
-            "down_quadruple_press": None,               # 4x - not used
-            "down_quintuple_press": None,               # 5x - not used
-            "down_hold": "bright_down",                 # long - repeats while held
-            "down_long_release": None,
-            # Off button (bottom - "hue" button)
-            "off_short_release": "cycle_scope",         # 1x - change controlled areas
-            "off_double_press": "glo_down",             # 2x - reset area (pull zone state)
-            "off_triple_press": "glo_reset",            # 3x - reset zone
-            "off_quadruple_press": None,                # 4x - not used
-            "off_quintuple_press": None,                # 5x - coming soon: Sleep
-            "off_hold": None,                           # long - RESERVED for magic button
-            "off_long_release": None,
-        },
-        # Which actions should repeat while held
+        "default_mapping": _HUE_4BUTTON_MAPPING,
+        "repeat_on_hold": ["up_hold", "down_hold"],
+        "repeat_interval_ms": 300,
+    },
+    "hue_4button_v2": {
+        "name": "Hue 4-button v2",
+        "manufacturers": ["Philips", "Signify"],
+        "models": ["RWL022"],
+        "buttons": ["on", "up", "down", "off"],
+        "action_types": ["press", "hold", "short_release", "long_release", "double_press", "triple_press", "quadruple_press", "quintuple_press"],
+        "default_mapping": _HUE_4BUTTON_MAPPING,
         "repeat_on_hold": ["up_hold", "down_hold"],
         "repeat_interval_ms": 300,
     },
@@ -188,7 +200,7 @@ class SwitchConfig:
     """Configuration for a single switch."""
     id: str                                    # IEEE address or unique identifier
     name: str                                  # User-friendly name
-    type: str                                  # Switch type key (e.g., "hue_dimmer")
+    type: str                                  # Switch type key (e.g., "hue_4button_v2")
     scopes: List[SwitchScope] = field(default_factory=list)
     button_overrides: Dict[str, Optional[str]] = field(default_factory=dict)
     device_id: Optional[str] = None            # HA device_id for area lookup
@@ -230,7 +242,7 @@ class SwitchConfig:
         return cls(
             id=data.get("id", ""),
             name=data.get("name", ""),
-            type=data.get("type", "hue_dimmer"),
+            type=data.get("type", "hue_4button_v2"),
             scopes=scopes,
             button_overrides=data.get("button_overrides", {}),
             device_id=data.get("device_id"),

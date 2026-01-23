@@ -2972,6 +2972,7 @@ class LightDesignerServer:
                     "model": ctrl.get("model"),
                     "area_name": ctrl.get("area_name"),
                     "category": ctrl.get("category"),
+                    "integration": ctrl.get("integration"),
                     "type": ctrl.get("type"),
                     "type_name": ctrl.get("type_name"),
                     "supported": ctrl.get("supported"),
@@ -3157,7 +3158,7 @@ class LightDesignerServer:
             data = await request.json()
 
             name = data.get("name", f"Control ({control_id[-8:]})")
-            control_type = data.get("type", "hue_dimmer")
+            control_type = data.get("type", "hue_4button_v2")
             device_id = data.get("device_id")
 
             # Build scopes
@@ -3211,7 +3212,7 @@ class LightDesignerServer:
                 return web.json_response({"error": "Switch ID is required"}, status=400)
 
             name = data.get("name", f"Switch ({switch_id[-8:]})")
-            switch_type = data.get("type", "hue_dimmer")
+            switch_type = data.get("type", "hue_4button_v2")
 
             # Validate switch type
             if switch_type not in switches.SWITCH_TYPES:

@@ -593,6 +593,13 @@
       <h3 id="modal-title">Configure Control</h3>
 
       <div class="modal-section">
+        <label class="modal-label">Device Info</label>
+        <div id="device-info" style="font-size: 0.9rem; color: var(--muted); line-height: 1.6;">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <div class="modal-section">
         <label class="modal-label">Type</label>
         <select class="modal-select" id="control-type">
           <!-- Populated by JS -->
@@ -756,6 +763,10 @@
             valA = (a.type_name || a.manufacturer || '').toLowerCase();
             valB = (b.type_name || b.manufacturer || '').toLowerCase();
             break;
+          case 'controller':
+            valA = (a.integration || '').toLowerCase();
+            valB = (b.integration || '').toLowerCase();
+            break;
           case 'lastAction':
             // Sort by timestamp (ISO format sorts alphabetically correctly)
             valA = (a.last_action?.timestamp || '');
@@ -811,6 +822,7 @@
                 </div>
               </th>
               <th class="${thClass('lastAction')}" onclick="sortBy('lastAction')">Last action ${arrow('lastAction')}</th>
+              <th class="${thClass('controller')}" onclick="sortBy('controller')">Controller ${arrow('controller')}</th>
               <th class="${thClass('type')}" onclick="sortBy('type')">Type ${arrow('type')}</th>
             </tr>
           </thead>
@@ -818,6 +830,7 @@
             ${sorted.map(ctrl => {
               const categoryLabel = formatCategory(ctrl.category);
               const areaName = ctrl.area_name || '—';
+              const controllerLabel = formatController(ctrl.integration);
               const typeName = ctrl.type_name || `${ctrl.manufacturer || 'Unknown'} ${ctrl.model || ''}`.trim();
               const statusBadge = getStatusBadge(ctrl);
               const lastAction = formatLastAction(ctrl);
@@ -831,6 +844,7 @@
                   <td>${areaName}</td>
                   <td>${statusBadge}</td>
                   <td>${lastAction}</td>
+                  <td>${controllerLabel}</td>
                   <td>${typeName}</td>
                 </tr>
               `;
@@ -859,6 +873,16 @@
         'unknown': 'Unknown'
       };
       return labels[category] || category || '—';
+    }
+
+    function formatController(integration) {
+      const labels = {
+        'zha': 'ZHA',
+        'hue': 'Hue Hub',
+        'zwave_js': 'Z-Wave',
+        'matter': 'Matter'
+      };
+      return labels[integration] || integration || '—';
     }
 
     function formatLastAction(ctrl) {
@@ -975,6 +999,16 @@
       document.getElementById('modal-title').textContent = `${titlePrefix}: ${ctrl.name}`;
       document.getElementById('control-type').value = ctrl.type || '';
       document.getElementById('modal-remove-config').style.display = isConfigured ? 'block' : 'none';
+
+      // Populate device info section
+      const manufacturer = ctrl.manufacturer || 'Unknown';
+      const model = ctrl.model || 'Unknown';
+      const controller = formatController(ctrl.integration);
+      document.getElementById('device-info').innerHTML = `
+        <div><strong>Manufacturer:</strong> ${manufacturer}</div>
+        <div><strong>Model:</strong> ${model}</div>
+        <div><strong>Controller:</strong> ${controller}</div>
+      `;
 
       // Populate type select with the control's type
       const typeSelect = document.getElementById('control-type');
