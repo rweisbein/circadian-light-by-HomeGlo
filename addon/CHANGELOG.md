@@ -1,5 +1,18 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.70
+**Reorganize Hue dimmer button mappings**
+
+- on-off 3x: Changed from glo_reset to freeze_toggle
+- hue 3x: Changed from wake/bed to glo_reset (reset zone)
+- Updated blueprint to match new mappings
+
+New layout:
+- on-off: 1x toggle, 2x send to zone, 3x freeze
+- up: 1x step_up, 2x color_up, 3x britelite, hold bright_up
+- down: 1x step_down, 2x color_down, 3x nitelite, hold bright_down
+- hue: 1x cycle scope, 2x glo_down (reset area), 3x glo_reset (reset zone)
+
 ## 6.9.69
 **Use HA device names for controls (read-only)**
 

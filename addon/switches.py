@@ -112,9 +112,9 @@ SWITCH_TYPES: Dict[str, Dict[str, Any]] = {
         "action_types": ["press", "hold", "short_release", "long_release", "double_press", "triple_press", "quadruple_press", "quintuple_press"],
         "default_mapping": {
             # On button (top)
-            "on_short_release": "circadian_toggle",     # 1x
-            "on_double_press": "glo_up",                # 2x
-            "on_triple_press": "glo_reset",             # 3x
+            "on_short_release": "circadian_toggle",     # 1x - on/off
+            "on_double_press": "glo_up",                # 2x - send to zone
+            "on_triple_press": "freeze_toggle",         # 3x - freeze
             "on_quadruple_press": None,                 # 4x - not used
             "on_quintuple_press": None,                 # 5x - coming soon: emergency toggle
             "on_hold": None,                            # long - RESERVED for magic button
@@ -136,9 +136,9 @@ SWITCH_TYPES: Dict[str, Dict[str, Any]] = {
             "down_hold": "bright_down",                 # long - repeats while held
             "down_long_release": None,
             # Off button (bottom - "hue" button)
-            "off_short_release": "cycle_scope",         # 1x - change controlled area
-            "off_double_press": "glo_down",             # 2x - ZoneDown
-            "off_triple_press": "freeze_toggle",        # 3x - Freeze
+            "off_short_release": "cycle_scope",         # 1x - change controlled areas
+            "off_double_press": "glo_down",             # 2x - reset area (pull zone state)
+            "off_triple_press": "glo_reset",            # 3x - reset zone
             "off_quadruple_press": None,                # 4x - not used
             "off_quintuple_press": None,                # 5x - coming soon: Sleep
             "off_hold": None,                           # long - RESERVED for magic button
