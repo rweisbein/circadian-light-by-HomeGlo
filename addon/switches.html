@@ -640,6 +640,7 @@
 
     // Initialize
     document.addEventListener('DOMContentLoaded', async () => {
+      console.log('[Controls] DOMContentLoaded - initializing');
       await loadPreferences();
       loadData();
       setupEventListeners();
@@ -683,6 +684,7 @@
     }
 
     async function loadData() {
+      console.log('[Controls] loadData called');
       const container = document.getElementById('controls-container');
       container.innerHTML = '<div class="loading">Loading controls...</div>';
 
@@ -692,9 +694,12 @@
           fetch('./api/areas')
         ]);
 
+        console.log('[Controls] API responses received:', controlsRes.status, areasRes.status);
+
         if (controlsRes.ok) {
           const data = await controlsRes.json();
           controls = data.controls || [];
+          console.log('[Controls] Loaded controls:', controls.length);
         }
 
         if (areasRes.ok) {
@@ -703,12 +708,13 @@
 
         renderControls();
       } catch (err) {
-        console.error('Error loading data:', err);
+        console.error('[Controls] Error loading data:', err);
         container.innerHTML = '<div class="loading">Error loading data</div>';
       }
     }
 
     function renderControls() {
+      console.log('[Controls] renderControls called, controls.length:', controls.length);
       const container = document.getElementById('controls-container');
 
       // Build filter options from data
