@@ -95,6 +95,10 @@ class HomeAssistantWebSocketClient:
         # Hold repeat task for ramping
         self._hold_repeat_task: Optional[asyncio.Task] = None
 
+        # Multi-click detection state for Hue Hub switches
+        # Key: (switch_id, button) -> {"count": int, "timer": Optional[asyncio.Task]}
+        self._multi_click_state: Dict[tuple, Dict[str, Any]] = {}
+
         # Brightness curve configuration (populated from supervisor/designer config)
         self.max_dim_steps = DEFAULT_MAX_DIM_STEPS
         self.min_brightness = DEFAULT_MIN_BRIGHTNESS
@@ -151,6 +155,30 @@ class HomeAssistantWebSocketClient:
             return tenths / 10.0  # Convert tenths to seconds
         except Exception:
             return 0.3  # Default 0.3 seconds
+
+    def _is_multi_click_enabled(self) -> bool:
+        """Check if multi-click detection is enabled for Hue Hub switches."""
+        try:
+            raw_config = glozone.load_config_from_files()
+            return raw_config.get("multi_click_enabled", False)
+        except Exception:
+            return False
+
+    def _get_multi_click_speed(self) -> float:
+        """Get the multi-click detection window in seconds.
+
+        The setting is stored as tenths of seconds in config.
+        Default is 0.4 seconds (4 tenths).
+
+        Returns:
+            Multi-click window in seconds
+        """
+        try:
+            raw_config = glozone.load_config_from_files()
+            tenths = raw_config.get("multi_click_speed", 4)
+            return tenths / 10.0  # Convert tenths to seconds
+        except Exception:
+            return 0.4  # Default 0.4 seconds
 
     def _normalize_area_key(self, value: Optional[str]) -> Optional[str]:
         """Normalize area identifiers to a lowercase underscore-delimited key."""
@@ -528,15 +556,53 @@ class HomeAssistantWebSocketClient:
                 # Single action on hold (non-repeating)
                 await self._execute_switch_action(switch_config.id, action)
 
-        elif "_long_release" in button_event or "_release" in button_event:
-            # Check if this is ending a hold
+        elif "_long_release" in button_event:
+            # Long release - ending a hold
+            if switches.is_holding(switch_config.id):
+                await self._stop_hold_repeat(switch_config.id)
+            # Execute the release action if any
+            if action:
+                await self._execute_switch_action(switch_config.id, action)
+
+        elif "_short_release" in button_event or "_release" in button_event:
+            # Short release - check if ending a hold or a normal click
             if switches.is_holding(switch_config.id):
                 await self._stop_hold_repeat(switch_config.id)
                 # Execute the release action if any
                 if action:
                     await self._execute_switch_action(switch_config.id, action)
+            elif self._is_multi_click_enabled():
+                # Multi-click detection enabled - track clicks and wait
+                button_map = {1: "on", 2: "up", 3: "down", 4: "off"}
+                button = button_map.get(subtype)
+                if button:
+                    state_key = (switch_config.id, button)
+
+                    # Cancel existing timer if any
+                    existing_state = self._multi_click_state.get(state_key)
+                    if existing_state and existing_state.get("timer"):
+                        existing_state["timer"].cancel()
+
+                    # Get or create state
+                    if state_key in self._multi_click_state:
+                        self._multi_click_state[state_key]["count"] += 1
+                    else:
+                        self._multi_click_state[state_key] = {"count": 1, "timer": None}
+
+                    click_count = self._multi_click_state[state_key]["count"]
+                    logger.debug(f"[MultiClick] {switch_config.name} {button}: click {click_count}")
+
+                    # Start new timer
+                    delay = self._get_multi_click_speed()
+                    timer = asyncio.create_task(
+                        self._multi_click_timer_task(switch_config.id, switch_config, button, subtype, delay)
+                    )
+                    self._multi_click_state[state_key]["timer"] = timer
+                else:
+                    # Unknown button, execute immediately
+                    await self._execute_switch_action(switch_config.id, action)
             else:
-                # Normal short press
+                # Multi-click disabled - execute immediately
                 await self._execute_switch_action(switch_config.id, action)
 
         else:
@@ -587,6 +653,96 @@ class HomeAssistantWebSocketClient:
             return None
 
         return f"{button}_{action_type}"
+
+    def _get_button_event_for_click_count(self, button: str, click_count: int) -> str:
+        """Map a click count to the appropriate button event.
+
+        Args:
+            button: Button name (on, up, down, off)
+            click_count: Number of clicks (1, 2, 3, 4, 5)
+
+        Returns:
+            Button event string (e.g., "on_short_release", "on_double_press")
+        """
+        click_map = {
+            1: "short_release",
+            2: "double_press",
+            3: "triple_press",
+            4: "quadruple_press",
+            5: "quintuple_press",
+        }
+        action_type = click_map.get(click_count, "short_release")
+        return f"{button}_{action_type}"
+
+    async def _handle_multi_click_timer(
+        self, switch_id: str, switch_config: Any, button: str, subtype: int
+    ) -> None:
+        """Handle the multi-click timer expiration.
+
+        Called when the multi-click window expires. Determines the final
+        click count and executes the appropriate action.
+
+        Args:
+            switch_id: Switch identifier
+            switch_config: Switch configuration object
+            button: Button name (on, up, down, off)
+            subtype: Button number (for display)
+        """
+        state_key = (switch_id, button)
+        state = self._multi_click_state.get(state_key)
+
+        if not state:
+            return
+
+        click_count = state.get("count", 1)
+
+        # Clean up state
+        del self._multi_click_state[state_key]
+
+        # Map click count to button event
+        button_event = self._get_button_event_for_click_count(button, click_count)
+
+        # Update last action for UI display
+        switches.set_last_action(switch_id, button_event)
+        logger.info(f"[MultiClick] {click_count}x click detected: {button_event}")
+
+        # Get the action for this button event
+        action = switch_config.get_button_action(button_event)
+
+        if action is None:
+            # Fall back to single click if multi-click action not mapped
+            if click_count > 1:
+                fallback_event = f"{button}_short_release"
+                action = switch_config.get_button_action(fallback_event)
+                if action:
+                    logger.debug(f"No action for {button_event}, falling back to {fallback_event}")
+                    button_event = fallback_event
+
+        if action is None:
+            logger.debug(f"No action mapped for {button_event}")
+            return
+
+        logger.info(f"Switch {switch_config.name}: {button_event} -> {action}")
+        await self._execute_switch_action(switch_id, action)
+
+    async def _multi_click_timer_task(
+        self, switch_id: str, switch_config: Any, button: str, subtype: int, delay: float
+    ) -> None:
+        """Timer task that waits for multi-click window then processes clicks.
+
+        Args:
+            switch_id: Switch identifier
+            switch_config: Switch configuration object
+            button: Button name (on, up, down, off)
+            subtype: Button number (for display)
+            delay: Time to wait in seconds
+        """
+        try:
+            await asyncio.sleep(delay)
+            await self._handle_multi_click_timer(switch_id, switch_config, button, subtype)
+        except asyncio.CancelledError:
+            # Timer was cancelled (another click came in)
+            pass
 
     def _map_zha_command_to_button_event(
         self,

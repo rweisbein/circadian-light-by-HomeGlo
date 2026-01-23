@@ -298,19 +298,40 @@
       <h1 class="page-title">Settings</h1>
     </div>
 
-    <!-- Transitions Section -->
+    <!-- Timing Section -->
     <div class="settings-section">
-      <div class="section-header">Transitions</div>
+      <div class="section-header">Timing</div>
       <div class="section-content">
         <div class="form-row">
-          <label class="form-label">Turn on lights</label>
+          <label class="form-label">Turn on lights transition</label>
           <div class="form-control">
             <input type="number" class="form-input" id="turn-on-transition" min="0" max="100" step="1" value="3" style="width: 80px;">
             <span class="form-hint">tenths of a second (3 = 0.3s)</span>
           </div>
         </div>
-        <p class="section-description" style="margin-top: 12px;">
+        <p class="section-description" style="margin-top: 12px; margin-bottom: 20px;">
           Applies to: Circadian On, Circadian Toggle (on), Britelite, Nitelite, and other turn-on operations.
+        </p>
+
+        <div class="form-row">
+          <label class="form-label">Multi-click detection</label>
+          <div class="form-control">
+            <label class="checkbox-label">
+              <input type="checkbox" id="multi-click-enabled">
+              Enable when not supported natively
+            </label>
+          </div>
+        </div>
+        <div class="form-row" id="multi-click-speed-row">
+          <label class="form-label">Multi-click speed</label>
+          <div class="form-control">
+            <input type="number" class="form-input" id="multi-click-speed" min="2" max="10" step="1" value="4" style="width: 80px;">
+            <span class="form-hint">tenths of a second (4 = 0.4s window)</span>
+          </div>
+        </div>
+        <p class="section-description" style="margin-top: 12px;">
+          Enables double-click, triple-click detection for Hue Hub switches (ZHA switches support this natively).
+          Single-clicks will be delayed by the multi-click speed while waiting for additional clicks.
         </p>
       </div>
     </div>
@@ -337,6 +358,9 @@
         if (response.ok) {
           const config = await response.json();
           document.getElementById('turn-on-transition').value = config.turn_on_transition ?? 3;
+          document.getElementById('multi-click-enabled').checked = config.multi_click_enabled ?? false;
+          document.getElementById('multi-click-speed').value = config.multi_click_speed ?? 4;
+          updateMultiClickState();
         }
       } catch (err) {
         console.error('Error loading settings:', err);
@@ -345,7 +369,9 @@
 
     async function saveSettings() {
       const settings = {
-        turn_on_transition: parseInt(document.getElementById('turn-on-transition').value) || 3
+        turn_on_transition: parseInt(document.getElementById('turn-on-transition').value) || 3,
+        multi_click_enabled: document.getElementById('multi-click-enabled').checked,
+        multi_click_speed: parseInt(document.getElementById('multi-click-speed').value) || 4
       };
 
       try {
@@ -363,6 +389,20 @@
       }
     }
 
+    function updateMultiClickState() {
+      const enabled = document.getElementById('multi-click-enabled').checked;
+      const speedRow = document.getElementById('multi-click-speed-row');
+      const speedInput = document.getElementById('multi-click-speed');
+
+      if (enabled) {
+        speedRow.classList.remove('disabled');
+        speedInput.disabled = false;
+      } else {
+        speedRow.classList.add('disabled');
+        speedInput.disabled = true;
+      }
+    }
+
     function showSaveStatus() {
       const status = document.getElementById('save-status');
       status.classList.add('visible');
@@ -371,6 +411,11 @@
 
     // Auto-save on change
     document.getElementById('turn-on-transition').addEventListener('change', saveSettings);
+    document.getElementById('multi-click-enabled').addEventListener('change', () => {
+      updateMultiClickState();
+      saveSettings();
+    });
+    document.getElementById('multi-click-speed').addEventListener('change', saveSettings);
 
     // Load on page load
     document.addEventListener('DOMContentLoaded', loadSettings);

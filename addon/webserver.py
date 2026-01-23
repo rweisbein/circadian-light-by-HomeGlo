@@ -991,6 +991,8 @@ class LightDesignerServer:
     GLOBAL_SETTINGS = {
         "latitude", "longitude", "timezone", "use_ha_location", "month",
         "turn_on_transition",  # Transition time in tenths of seconds for turn-on operations
+        "multi_click_enabled",  # Enable multi-click detection for Hue Hub switches
+        "multi_click_speed",  # Multi-click window in tenths of seconds
         "controls_ui",  # Controls page UI preferences (sort, filter)
     }
 
