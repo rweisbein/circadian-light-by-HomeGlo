@@ -160,25 +160,25 @@ class HomeAssistantWebSocketClient:
         """Check if multi-click detection is enabled for Hue Hub switches."""
         try:
             raw_config = glozone.load_config_from_files()
-            return raw_config.get("multi_click_enabled", False)
+            return raw_config.get("multi_click_enabled", True)
         except Exception:
-            return False
+            return True
 
     def _get_multi_click_speed(self) -> float:
         """Get the multi-click detection window in seconds.
 
         The setting is stored as tenths of seconds in config.
-        Default is 0.4 seconds (4 tenths).
+        Default is 0.2 seconds (2 tenths).
 
         Returns:
             Multi-click window in seconds
         """
         try:
             raw_config = glozone.load_config_from_files()
-            tenths = raw_config.get("multi_click_speed", 4)
+            tenths = raw_config.get("multi_click_speed", 2)
             return tenths / 10.0  # Convert tenths to seconds
         except Exception:
-            return 0.4  # Default 0.4 seconds
+            return 0.2  # Default 0.2 seconds
 
     def _normalize_area_key(self, value: Optional[str]) -> Optional[str]:
         """Normalize area identifiers to a lowercase underscore-delimited key."""
