@@ -300,6 +300,17 @@
           </div>
         </div>
 
+        <div class="form-row">
+          <label class="form-label">
+            Turn off lights speed
+            <span class="info-icon">i<span class="info-tooltip">When Circadian Light turns off lights, they'll smoothly turn off over this amount of time.</span></span>
+          </label>
+          <div class="form-control">
+            <input type="number" class="form-input" id="turn-off-transition" min="0" max="100" step="1" value="3" style="width: 80px;">
+            <span class="form-hint">tenths of a second</span>
+          </div>
+        </div>
+
         <div class="form-row" style="margin-top: 20px;">
           <label class="form-label">
             Multi-click
@@ -333,6 +344,7 @@
         if (response.ok) {
           const config = await response.json();
           document.getElementById('turn-on-transition').value = config.turn_on_transition ?? 3;
+          document.getElementById('turn-off-transition').value = config.turn_off_transition ?? 3;
           document.getElementById('multi-click-enabled').checked = config.multi_click_enabled ?? true;
           document.getElementById('multi-click-speed').value = config.multi_click_speed ?? 2;
           updateMultiClickState();
@@ -345,6 +357,7 @@
     async function saveSettings() {
       const settings = {
         turn_on_transition: parseInt(document.getElementById('turn-on-transition').value) || 3,
+        turn_off_transition: parseInt(document.getElementById('turn-off-transition').value) || 3,
         multi_click_enabled: document.getElementById('multi-click-enabled').checked,
         multi_click_speed: parseInt(document.getElementById('multi-click-speed').value) || 2
       };
@@ -383,6 +396,7 @@
 
     // Auto-save on blur for number inputs (avoids decrement bug on focus)
     document.getElementById('turn-on-transition').addEventListener('blur', saveSettings);
+    document.getElementById('turn-off-transition').addEventListener('blur', saveSettings);
     document.getElementById('multi-click-enabled').addEventListener('change', () => {
       updateMultiClickState();
       saveSettings();

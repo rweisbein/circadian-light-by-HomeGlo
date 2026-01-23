@@ -113,6 +113,22 @@ class CircadianLightPrimitives:
         except Exception:
             return 0.3  # Default 0.3 seconds
 
+    def _get_turn_off_transition(self) -> float:
+        """Get the turn-off transition time in seconds.
+
+        Reads from global config, defaults to 0.3 seconds (3 tenths).
+        The setting is stored as tenths of seconds in config.
+
+        Returns:
+            Transition time in seconds
+        """
+        try:
+            raw_config = glozone.load_config_from_files()
+            tenths = raw_config.get("turn_off_transition", 3)
+            return tenths / 10.0  # Convert tenths to seconds
+        except Exception:
+            return 0.3  # Default 0.3 seconds
+
     def _get_area_state(self, area_id: str) -> AreaState:
         """Get area state from state module."""
         state_dict = state.get_area(area_id)
@@ -522,6 +538,7 @@ class CircadianLightPrimitives:
 
         if any_on:
             # Turn off all areas - store CT first for smart 2-step on next turn-on
+            transition = self._get_turn_off_transition()
             sun_times = self.client._get_sun_times() if hasattr(self.client, '_get_sun_times') else None
             for area_id in area_ids:
                 # Calculate current CT before turning off
@@ -538,7 +555,7 @@ class CircadianLightPrimitives:
                 state.set_enabled(area_id, False)
                 target_type, target_value = await self.client.determine_light_target(area_id)
                 await self.client.call_service(
-                    "light", "turn_off", {"transition": 0.5}, {target_type: target_value}
+                    "light", "turn_off", {"transition": transition}, {target_type: target_value}
                 )
             logger.info(f"Turned off {len(area_ids)} area(s)")
 
