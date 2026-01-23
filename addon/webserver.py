@@ -3017,18 +3017,25 @@ class LightDesignerServer:
                     for device in device_msg['result']:
                         device_id = device.get('id')
                         if device_id:
-                            # Extract IEEE from identifiers if it's a ZHA device
-                            ieee = None
+                            # Extract unique ID from identifiers (ZHA or Hue)
+                            unique_id = None
+                            integration = None
                             for identifier in device.get('identifiers', []):
                                 if isinstance(identifier, list) and len(identifier) >= 2:
                                     if identifier[0] == 'zha':
-                                        ieee = identifier[1]
+                                        unique_id = identifier[1]  # IEEE address
+                                        integration = 'zha'
                                         break
-                            if ieee:
-                                logger.debug(f"[Controls] HA device {device.get('name')}: ieee={ieee}")
+                                    elif identifier[0] == 'hue':
+                                        unique_id = identifier[1]  # Hue device ID
+                                        integration = 'hue'
+                                        break
+                            if unique_id:
+                                logger.debug(f"[Controls] HA device {device.get('name')}: id={unique_id} ({integration})")
                                 devices[device_id] = {
                                     'device_id': device_id,
-                                    'ieee': ieee,
+                                    'ieee': unique_id,  # Keep 'ieee' key for compatibility
+                                    'integration': integration,
                                     'name': device.get('name_by_user') or device.get('name'),
                                     'manufacturer': device.get('manufacturer'),
                                     'model': device.get('model'),
