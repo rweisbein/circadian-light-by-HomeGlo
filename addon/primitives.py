@@ -17,7 +17,6 @@ from brain import (
     AreaState,
     SunTimes,
     get_current_hour,
-    calculate_lighting,
     DEFAULT_MAX_DIM_STEPS,
 )
 
@@ -527,7 +526,10 @@ class CircadianLightPrimitives:
             for area_id in area_ids:
                 # Calculate current CT before turning off
                 try:
-                    result = calculate_lighting(area_id, sun_times=sun_times)
+                    config = self._get_config(area_id)
+                    area_state = self._get_area_state(area_id)
+                    hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
+                    result = CircadianLight.calculate_lighting(hour, config, area_state, sun_times=sun_times)
                     state.set_last_off_ct(area_id, result.color_temp)
                     logger.debug(f"Stored last_off_ct={result.color_temp} for area {area_id}")
                 except Exception as e:
