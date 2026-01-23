@@ -17,6 +17,7 @@ from brain import (
     AreaState,
     SunTimes,
     get_current_hour,
+    calculate_lighting,
     DEFAULT_MAX_DIM_STEPS,
 )
 
