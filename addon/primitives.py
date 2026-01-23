@@ -1185,8 +1185,8 @@ class CircadianLightPrimitives:
             color_temp: Color temperature in Kelvin
             transition: Transition time for phase 2 (brightness ramp)
         """
-        # Phase 1: Set color at minimal brightness (nearly invisible)
-        await self._apply_lighting(area_id, 1, color_temp, include_color=True, transition=0)
+        # Phase 1: Set color at zero brightness (invisible)
+        await self._apply_lighting(area_id, 0, color_temp, include_color=True, transition=0)
 
         # Small delay to ensure phase 1 completes
         await asyncio.sleep(0.05)
