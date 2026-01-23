@@ -723,12 +723,14 @@
       const statuses = [...new Set(controls.map(c => c.status).filter(Boolean))];
 
       // Apply all filters
+      console.log('[Controls] Filters:', { categoryFilter, areaFilter, statusFilter });
       const filtered = controls.filter(c => {
         if (categoryFilter !== 'all' && c.category !== categoryFilter) return false;
         if (areaFilter !== 'all' && c.area_name !== areaFilter) return false;
         if (statusFilter !== 'all' && c.status !== statusFilter) return false;
         return true;
       });
+      console.log('[Controls] After filtering:', filtered.length);
 
       // Sort controls
       const statusOrder = { 'active': 0, 'not_configured': 1, 'unsupported': 2 };
@@ -790,6 +792,8 @@
       const statusLabels = { 'active': 'Active', 'not_configured': 'Not configured', 'unsupported': 'Unsupported' };
       const statusOptions = `<option value="all">All</option>` +
         statuses.map(s => `<option value="${s}" ${statusFilter === s ? 'selected' : ''}>${statusLabels[s] || s}</option>`).join('');
+
+      console.log('[Controls] sorted.length:', sorted.length, 'categories:', categories, 'statuses:', statuses);
 
       container.innerHTML = `
         <table class="switches-table">
