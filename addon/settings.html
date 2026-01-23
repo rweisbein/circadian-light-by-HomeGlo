@@ -106,6 +106,7 @@
       background: var(--panel);
       padding: 16px 20px;
       border-bottom: 1px solid var(--line);
+      border-radius: 12px 12px 0 0;
       font-weight: 600;
       font-size: 0.95rem;
       display: flex;
@@ -320,14 +321,11 @@
             <label class="checkbox-label">
               <input type="checkbox" id="multi-click-enabled">
             </label>
-          </div>
-        </div>
-
-        <div class="form-row" id="multi-click-speed-row">
-          <label class="form-label">Multi-click speed</label>
-          <div class="form-control">
-            <input type="number" class="form-input" id="multi-click-speed" min="2" max="10" step="1" value="2" style="width: 80px;">
-            <span class="form-hint">tenths of a second</span>
+            <span id="multi-click-speed-group" style="display: flex; align-items: center; gap: 8px; margin-left: 12px;">
+              <span class="form-hint" style="margin-left: 0;">Speed</span>
+              <input type="number" class="form-input" id="multi-click-speed" min="2" max="10" step="1" value="2" style="width: 60px;">
+              <span class="form-hint">tenths</span>
+            </span>
           </div>
         </div>
       </div>
@@ -379,12 +377,15 @@
 
     function updateMultiClickState() {
       const enabled = document.getElementById('multi-click-enabled').checked;
-      const speedRow = document.getElementById('multi-click-speed-row');
+      const speedGroup = document.getElementById('multi-click-speed-group');
+      const speedInput = document.getElementById('multi-click-speed');
 
       if (enabled) {
-        speedRow.classList.remove('disabled');
+        speedGroup.style.opacity = '1';
+        speedInput.disabled = false;
       } else {
-        speedRow.classList.add('disabled');
+        speedGroup.style.opacity = '0.4';
+        speedInput.disabled = true;
       }
     }
 
