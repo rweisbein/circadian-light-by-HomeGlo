@@ -106,8 +106,8 @@ BUTTON_ACTION_TYPES = [
 SWITCH_TYPES: Dict[str, Dict[str, Any]] = {
     "hue_dimmer": {
         "name": "Philips Hue Dimmer",
-        "manufacturer": "Philips",
-        "models": ["RWL020", "RWL021", "RWL022"],
+        "manufacturers": ["Philips", "Signify"],
+        "models": ["RWL020", "RWL021", "RWL022", "Hue dimmer switch"],
         "buttons": ["on", "up", "down", "off"],
         "action_types": ["press", "hold", "short_release", "long_release", "double_press", "triple_press", "quadruple_press", "quintuple_press"],
         "default_mapping": {
@@ -418,9 +418,17 @@ def detect_switch_type(manufacturer: Optional[str], model: Optional[str]) -> Opt
     model_upper = (model or "").upper()
 
     for type_id, type_info in SWITCH_TYPES.items():
-        # Check manufacturer
-        if type_info.get("manufacturer", "").lower() in manufacturer_lower:
-            return type_id
+        # Check manufacturers (support both single string and list)
+        manufacturers = type_info.get("manufacturers", [])
+        if isinstance(manufacturers, str):
+            manufacturers = [manufacturers]
+        if not manufacturers and type_info.get("manufacturer"):
+            manufacturers = [type_info["manufacturer"]]
+
+        for mfr in manufacturers:
+            if mfr.lower() in manufacturer_lower:
+                return type_id
+
         # Check model
         for known_model in type_info.get("models", []):
             if known_model.upper() in model_upper:
