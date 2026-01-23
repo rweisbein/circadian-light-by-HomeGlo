@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Circadian Light - Areas</title>
+  <style>
+    :root {
+      --bg: #000;
+      --panel: #111;
+      --card: #1a1a1a;
+      --accent: #feac60;
+      --accent-hover: #ffc078;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --muted2: #64748b;
+      --line: #334155;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* Navigation */
+    .nav {
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      height: 56px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .nav-brand {
+      font-weight: 600;
+      font-size: 1.1rem;
+      color: var(--text);
+      margin-right: 32px;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 8px;
+    }
+
+    .nav-link {
+      padding: 8px 16px;
+      color: var(--muted);
+      text-decoration: none;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+
+    .nav-link:hover {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .nav-link.active {
+      color: var(--accent);
+    }
+
+    /* Main Content */
+    .main {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .page-header {
+      margin-bottom: 24px;
+    }
+
+    .page-title {
+      font-size: 1.5rem;
+      font-weight: 600;
+    }
+
+    /* Areas Table */
+    .areas-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .areas-table th {
+      text-align: left;
+      padding: 12px 16px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      font-weight: 600;
+      font-size: 0.85rem;
+      color: var(--muted);
+      cursor: pointer;
+      user-select: none;
+      transition: color 0.2s;
+    }
+
+    .areas-table th:hover {
+      color: var(--text);
+    }
+
+    .areas-table th.sorted {
+      color: var(--accent);
+    }
+
+    .areas-table th .sort-arrow {
+      margin-left: 6px;
+      opacity: 0.5;
+    }
+
+    .areas-table th.sorted .sort-arrow {
+      opacity: 1;
+    }
+
+    .areas-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--line);
+      font-size: 0.9rem;
+    }
+
+    .areas-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .areas-table tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .area-name-link {
+      color: var(--accent);
+      text-decoration: none;
+      cursor: pointer;
+      font-weight: 500;
+    }
+
+    .area-name-link:hover {
+      text-decoration: underline;
+    }
+
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 48px 24px;
+      color: var(--muted);
+    }
+
+    .empty-state-title {
+      font-size: 1.1rem;
+      margin-bottom: 8px;
+      color: var(--text);
+    }
+
+    .empty-state-text {
+      font-size: 0.9rem;
+    }
+
+    /* Loading State */
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 48px;
+      color: var(--muted);
+    }
+
+    /* Status badges */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+
+    .status-on {
+      background: rgba(34, 197, 94, 0.15);
+      color: var(--success);
+    }
+
+    .status-off {
+      background: rgba(148, 163, 184, 0.15);
+      color: var(--muted);
+    }
+
+    .status-frozen {
+      background: rgba(99, 179, 237, 0.15);
+      color: #63b3ed;
+    }
+
+    /* Header with filter */
+    .th-with-filter {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .th-title-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .header-filter {
+      padding: 4px 8px;
+      border-radius: 4px;
+      border: 1px solid var(--line);
+      background: var(--card);
+      color: var(--text);
+      font-size: 0.75rem;
+      font-weight: normal;
+      cursor: pointer;
+      width: 100%;
+    }
+
+    .header-filter:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    /* Brightness/Color display */
+    .lighting-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+    }
+
+    .brightness-value {
+      color: var(--text);
+    }
+
+    .kelvin-value {
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+
+    .color-swatch {
+      width: 16px;
+      height: 16px;
+      border-radius: 3px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    /* Buttons */
+    .btn {
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-secondary {
+      background: var(--card);
+      border: 1px solid var(--line);
+      color: var(--text);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.2s;
+    }
+
+    .modal-overlay.visible {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 24px;
+      min-width: 400px;
+      max-width: 90%;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .modal h3 {
+      margin-bottom: 20px;
+      font-size: 1.1rem;
+    }
+
+    .modal-section {
+      margin-bottom: 20px;
+    }
+
+    .modal-label {
+      display: block;
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    .modal-input {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 0.9rem;
+    }
+
+    .modal-input:focus {
+      outline: 2px solid var(--accent);
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 24px;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      border: none;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-hover);
+    }
+
+    .btn-cancel {
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--muted);
+    }
+
+    .btn-cancel:hover {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text);
+    }
+
+    /* Info Icon */
+    .info-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,0.3);
+      font-size: 10px;
+      font-style: italic;
+      color: rgba(255,255,255,0.5);
+      cursor: help;
+      transition: all 0.15s ease;
+      flex-shrink: 0;
+    }
+
+    .info-icon:hover {
+      color: rgba(255,255,255,0.8);
+      border-color: rgba(255,255,255,0.5);
+    }
+
+    .info-tooltip {
+      display: none;
+      position: absolute;
+      top: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      width: 280px;
+      font-size: 0.8rem;
+      font-style: normal;
+      color: var(--muted);
+      line-height: 1.5;
+      z-index: 100;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+
+    .info-icon:hover .info-tooltip {
+      display: block;
+    }
+
+    .form-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .form-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .form-label {
+      min-width: 140px;
+      font-size: 0.9rem;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .form-control {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .form-hint {
+      font-size: 0.8rem;
+      color: var(--muted2);
+      margin-left: 12px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Navigation -->
+  <nav class="nav">
+    <span class="nav-brand">Circadian Light</span>
+    <div class="nav-links">
+      <a href="./" class="nav-link">Home</a>
+      <a href="./glo" class="nav-link">Glo design</a>
+      <a href="./areas" class="nav-link active">Areas</a>
+      <a href="./switches" class="nav-link">Controls</a>
+      <a href="./settings" class="nav-link">Advanced</a>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="main">
+    <div class="page-header">
+      <div style="display: flex; align-items: center; justify-content: space-between;">
+        <h1 class="page-title">Areas</h1>
+        <button class="btn btn-secondary" id="refresh-btn">Refresh</button>
+      </div>
+    </div>
+
+    <!-- Areas Table -->
+    <div id="areas-container">
+      <div class="loading">Loading areas...</div>
+    </div>
+  </main>
+
+  <!-- Area Settings Modal -->
+  <div class="modal-overlay" id="modal-overlay">
+    <div class="modal">
+      <h3 id="modal-title">Area Settings</h3>
+
+      <div class="modal-section">
+        <div class="form-row">
+          <label class="form-label">
+            Motion timer
+            <span class="info-icon">i<span class="info-tooltip">When motion is detected in this area, lights will stay on for this duration after motion stops. Set to 0 to disable motion-based lighting.</span></span>
+          </label>
+          <div class="form-control">
+            <input type="number" class="modal-input" id="motion-timer" min="0" max="3600" step="1" value="0" style="width: 80px;">
+            <span class="form-hint">seconds (0 = disabled)</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn btn-cancel" id="modal-cancel">Cancel</button>
+        <button class="btn btn-primary" id="modal-save">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // State
+    let areas = [];
+    let areaStatus = {};
+    let sortColumn = 'name';
+    let sortAsc = true;
+    let zoneFilter = 'all';
+    let statusFilter = 'all';
+    let editingAreaId = null;
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', async () => {
+      await loadPreferences();
+      loadData();
+      setupEventListeners();
+    });
+
+    async function loadPreferences() {
+      try {
+        const res = await fetch('./api/config');
+        if (res.ok) {
+          const config = await res.json();
+          const prefs = config.areas_ui || {};
+          sortColumn = prefs.sort_column || 'name';
+          sortAsc = prefs.sort_asc !== false;
+          zoneFilter = prefs.zone_filter || 'all';
+          statusFilter = prefs.status_filter || 'all';
+        }
+      } catch (err) {
+        console.error('Error loading preferences:', err);
+      }
+    }
+
+    async function savePreferences() {
+      try {
+        await fetch('./api/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            areas_ui: {
+              sort_column: sortColumn,
+              sort_asc: sortAsc,
+              zone_filter: zoneFilter,
+              status_filter: statusFilter
+            }
+          })
+        });
+      } catch (err) {
+        console.error('Error saving preferences:', err);
+      }
+    }
+
+    async function loadData() {
+      const container = document.getElementById('areas-container');
+      container.innerHTML = '<div class="loading">Loading areas...</div>';
+
+      try {
+        const [areasRes, statusRes] = await Promise.all([
+          fetch('./api/areas'),
+          fetch('./api/area-status')
+        ]);
+
+        if (areasRes.ok) {
+          areas = await areasRes.json();
+        }
+
+        if (statusRes.ok) {
+          areaStatus = await statusRes.json();
+        }
+
+        renderAreas();
+      } catch (err) {
+        console.error('Error loading data:', err);
+        container.innerHTML = '<div class="loading">Error loading data</div>';
+      }
+    }
+
+    function kelvinToRgb(kelvin) {
+      // Approximate Kelvin to RGB conversion
+      const temp = kelvin / 100;
+      let r, g, b;
+
+      if (temp <= 66) {
+        r = 255;
+        g = Math.min(255, Math.max(0, 99.4708025861 * Math.log(temp) - 161.1195681661));
+      } else {
+        r = Math.min(255, Math.max(0, 329.698727446 * Math.pow(temp - 60, -0.1332047592)));
+        g = Math.min(255, Math.max(0, 288.1221695283 * Math.pow(temp - 60, -0.0755148492)));
+      }
+
+      if (temp >= 66) {
+        b = 255;
+      } else if (temp <= 19) {
+        b = 0;
+      } else {
+        b = Math.min(255, Math.max(0, 138.5177312231 * Math.log(temp - 10) - 305.0447927307));
+      }
+
+      return `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`;
+    }
+
+    function renderAreas() {
+      const container = document.getElementById('areas-container');
+
+      // Merge area data with status
+      const mergedAreas = areas.map(area => {
+        const status = areaStatus[area.area_id] || {};
+        return {
+          ...area,
+          enabled: status.enabled || false,
+          brightness: status.brightness || 0,
+          kelvin: status.kelvin || 4000,
+          frozen: status.frozen || false,
+          zone_name: status.zone_name || null
+        };
+      });
+
+      // Build filter options from data
+      const zones = [...new Set(mergedAreas.map(a => a.zone_name).filter(Boolean))].sort();
+
+      // Apply all filters
+      const filtered = mergedAreas.filter(a => {
+        if (zoneFilter !== 'all') {
+          if (zoneFilter === 'unassigned') {
+            if (a.zone_name) return false;
+          } else if (a.zone_name !== zoneFilter) {
+            return false;
+          }
+        }
+        if (statusFilter !== 'all') {
+          if (statusFilter === 'on' && !a.enabled) return false;
+          if (statusFilter === 'off' && a.enabled) return false;
+          if (statusFilter === 'frozen' && !a.frozen) return false;
+        }
+        return true;
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-title">No areas found</div>
+            <div class="empty-state-text">
+              ${areas.length > 0
+                ? 'No areas match the current filters. Try selecting "All".'
+                : 'No areas found in Home Assistant.'}
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      // Sort areas
+      const sorted = [...filtered].sort((a, b) => {
+        let valA, valB;
+        switch (sortColumn) {
+          case 'name':
+            valA = a.name.toLowerCase();
+            valB = b.name.toLowerCase();
+            break;
+          case 'zone':
+            valA = (a.zone_name || 'zzz').toLowerCase();
+            valB = (b.zone_name || 'zzz').toLowerCase();
+            break;
+          case 'status':
+            // Sort: on > frozen > off
+            valA = a.enabled ? (a.frozen ? 1 : 0) : 2;
+            valB = b.enabled ? (b.frozen ? 1 : 0) : 2;
+            break;
+          case 'brightness':
+            valA = a.enabled ? a.brightness : -1;
+            valB = b.enabled ? b.brightness : -1;
+            break;
+          default:
+            return 0;
+        }
+        if (valA < valB) return sortAsc ? -1 : 1;
+        if (valA > valB) return sortAsc ? 1 : -1;
+        return 0;
+      });
+
+      const arrow = (col) => {
+        if (sortColumn !== col) return '<span class="sort-arrow"></span>';
+        return sortAsc ? '<span class="sort-arrow">↑</span>' : '<span class="sort-arrow">↓</span>';
+      };
+
+      const thClass = (col) => sortColumn === col ? 'sorted' : '';
+
+      // Build filter select HTML
+      const zoneOptions = `<option value="all">All</option>` +
+        zones.map(z => `<option value="${z}" ${zoneFilter === z ? 'selected' : ''}>${z}</option>`).join('') +
+        `<option value="unassigned" ${zoneFilter === 'unassigned' ? 'selected' : ''}>Unassigned</option>`;
+
+      const statusOptions = `
+        <option value="all" ${statusFilter === 'all' ? 'selected' : ''}>All</option>
+        <option value="on" ${statusFilter === 'on' ? 'selected' : ''}>On</option>
+        <option value="off" ${statusFilter === 'off' ? 'selected' : ''}>Off</option>
+        <option value="frozen" ${statusFilter === 'frozen' ? 'selected' : ''}>Frozen</option>
+      `;
+
+      container.innerHTML = `
+        <table class="areas-table">
+          <thead>
+            <tr>
+              <th class="${thClass('name')}" onclick="sortBy('name')">Name ${arrow('name')}</th>
+              <th class="${thClass('zone')}">
+                <div class="th-with-filter">
+                  <div class="th-title-row" onclick="sortBy('zone')">Glo Zone ${arrow('zone')}</div>
+                  <select class="header-filter" id="zone-filter" onclick="event.stopPropagation()">${zoneOptions}</select>
+                </div>
+              </th>
+              <th class="${thClass('status')}">
+                <div class="th-with-filter">
+                  <div class="th-title-row" onclick="sortBy('status')">Status ${arrow('status')}</div>
+                  <select class="header-filter" id="status-filter" onclick="event.stopPropagation()">${statusOptions}</select>
+                </div>
+              </th>
+              <th class="${thClass('brightness')}" onclick="sortBy('brightness')">Lighting ${arrow('brightness')}</th>
+              <th>Motion Timer</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${sorted.map(area => {
+              const zoneName = area.zone_name || '<span style="color: var(--muted2)">—</span>';
+              const statusBadge = getStatusBadge(area);
+              const lightingInfo = getLightingInfo(area);
+              // Motion timer not yet implemented - show dash for now
+              const motionTimer = '<span style="color: var(--muted2)">—</span>';
+              return `
+                <tr>
+                  <td><a class="area-name-link" onclick="editArea('${area.area_id}')">${area.name}</a></td>
+                  <td>${zoneName}</td>
+                  <td>${statusBadge}</td>
+                  <td>${lightingInfo}</td>
+                  <td>${motionTimer}</td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    function getStatusBadge(area) {
+      if (!area.enabled) {
+        return '<span class="status-badge status-off">Off</span>';
+      }
+      if (area.frozen) {
+        return '<span class="status-badge status-frozen">Frozen</span>';
+      }
+      return '<span class="status-badge status-on">On</span>';
+    }
+
+    function getLightingInfo(area) {
+      if (!area.enabled) {
+        return '<span style="color: var(--muted2)">—</span>';
+      }
+      const colorRgb = kelvinToRgb(area.kelvin);
+      return `
+        <div class="lighting-info">
+          <span class="color-swatch" style="background: ${colorRgb}"></span>
+          <span class="brightness-value">${Math.round(area.brightness)}%</span>
+          <span class="kelvin-value">${Math.round(area.kelvin)}K</span>
+        </div>
+      `;
+    }
+
+    function sortBy(column) {
+      if (sortColumn === column) {
+        sortAsc = !sortAsc;
+      } else {
+        sortColumn = column;
+        sortAsc = true;
+      }
+      savePreferences();
+      renderAreas();
+    }
+
+    function setupEventListeners() {
+      document.getElementById('refresh-btn').addEventListener('click', loadData);
+      document.getElementById('modal-cancel').addEventListener('click', hideModal);
+      document.getElementById('modal-save').addEventListener('click', saveAreaSettings);
+      document.getElementById('modal-overlay').addEventListener('click', (e) => {
+        if (e.target.classList.contains('modal-overlay')) hideModal();
+      });
+
+      // Use event delegation for dynamically created filter dropdowns
+      document.getElementById('areas-container').addEventListener('change', (e) => {
+        if (e.target.id === 'zone-filter') {
+          zoneFilter = e.target.value;
+          savePreferences();
+          renderAreas();
+        } else if (e.target.id === 'status-filter') {
+          statusFilter = e.target.value;
+          savePreferences();
+          renderAreas();
+        }
+      });
+    }
+
+    // Modal functions
+    function showModal() {
+      document.getElementById('modal-overlay').classList.add('visible');
+    }
+
+    function hideModal() {
+      document.getElementById('modal-overlay').classList.remove('visible');
+      editingAreaId = null;
+    }
+
+    function editArea(areaId) {
+      const area = areas.find(a => a.area_id === areaId);
+      if (!area) return;
+
+      editingAreaId = areaId;
+      document.getElementById('modal-title').textContent = `Settings: ${area.name}`;
+
+      // TODO: Load actual motion timer value from config when implemented
+      document.getElementById('motion-timer').value = 0;
+
+      showModal();
+    }
+
+    async function saveAreaSettings() {
+      const motionTimer = parseInt(document.getElementById('motion-timer').value) || 0;
+
+      // TODO: Save area settings to config when implemented
+      console.log('Saving area settings:', { area_id: editingAreaId, motion_timer: motionTimer });
+
+      hideModal();
+      // Reload data after save (when implemented)
+      // await loadData();
+    }
+  </script>
+</body>
+</html>
