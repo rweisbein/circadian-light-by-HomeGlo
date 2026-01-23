@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.72
+**Inline filters in table headers**
+
+- Moved filters into table header row (below Category, Area, Status column titles)
+- Filter dropdowns dynamically populated from data
+- All three filters persist to settings
+- Removed separate filter row above table
+
 ## 6.9.71
 **Controls page improvements**
 

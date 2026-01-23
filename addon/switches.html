@@ -347,30 +347,32 @@
       text-decoration: underline;
     }
 
-    /* Filter controls */
-    .filter-row {
+    /* Header with filter */
+    .th-with-filter {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .th-title-row {
       display: flex;
       align-items: center;
-      gap: 12px;
-      margin-bottom: 16px;
+      gap: 4px;
     }
 
-    .filter-label {
-      font-size: 0.85rem;
-      color: var(--muted);
-    }
-
-    .filter-select {
-      padding: 6px 12px;
-      border-radius: 6px;
+    .header-filter {
+      padding: 4px 8px;
+      border-radius: 4px;
       border: 1px solid var(--line);
       background: var(--card);
       color: var(--text);
-      font-size: 0.85rem;
+      font-size: 0.75rem;
+      font-weight: normal;
       cursor: pointer;
+      width: 100%;
     }
 
-    .filter-select:focus {
+    .header-filter:focus {
       outline: none;
       border-color: var(--accent);
     }
@@ -579,17 +581,6 @@
       </div>
     </div>
 
-    <!-- Filter Row -->
-    <div class="filter-row">
-      <span class="filter-label">Status:</span>
-      <select class="filter-select" id="status-filter">
-        <option value="all">All</option>
-        <option value="active">Active</option>
-        <option value="not_configured">Not configured</option>
-        <option value="unsupported">Unsupported</option>
-      </select>
-    </div>
-
     <!-- Controls Table -->
     <div id="controls-container">
       <div class="loading">Loading controls...</div>
@@ -635,7 +626,9 @@
     let editingControl = null;
     let sortColumn = 'status';
     let sortAsc = true;
-    let statusFilter = 'all';  // 'all', 'active', 'not_configured', 'unsupported'
+    let categoryFilter = 'all';
+    let areaFilter = 'all';
+    let statusFilter = 'all';
 
     // Initialize
     document.addEventListener('DOMContentLoaded', async () => {
@@ -652,8 +645,9 @@
           const prefs = config.controls_ui || {};
           sortColumn = prefs.sort_column || 'status';
           sortAsc = prefs.sort_asc !== false;
+          categoryFilter = prefs.category_filter || 'all';
+          areaFilter = prefs.area_filter || 'all';
           statusFilter = prefs.status_filter || 'all';
-          document.getElementById('status-filter').value = statusFilter;
         }
       } catch (err) {
         console.error('Error loading preferences:', err);
@@ -669,6 +663,8 @@
             controls_ui: {
               sort_column: sortColumn,
               sort_asc: sortAsc,
+              category_filter: categoryFilter,
+              area_filter: areaFilter,
               status_filter: statusFilter
             }
           })
@@ -707,10 +703,18 @@
     function renderControls() {
       const container = document.getElementById('controls-container');
 
-      // Filter controls based on statusFilter
-      const filtered = statusFilter === 'all'
-        ? controls
-        : controls.filter(c => c.status === statusFilter);
+      // Build filter options from data
+      const categories = [...new Set(controls.map(c => c.category).filter(Boolean))].sort();
+      const areas = [...new Set(controls.map(c => c.area_name).filter(Boolean))].sort();
+      const statuses = [...new Set(controls.map(c => c.status).filter(Boolean))];
+
+      // Apply all filters
+      const filtered = controls.filter(c => {
+        if (categoryFilter !== 'all' && c.category !== categoryFilter) return false;
+        if (areaFilter !== 'all' && c.area_name !== areaFilter) return false;
+        if (statusFilter !== 'all' && c.status !== statusFilter) return false;
+        return true;
+      });
 
       if (filtered.length === 0) {
         container.innerHTML = `
@@ -718,7 +722,7 @@
             <div class="empty-state-title">No controls found</div>
             <div class="empty-state-text">
               ${controls.length > 0
-                ? `No controls match the "${statusFilter}" filter. Try selecting "All".`
+                ? 'No controls match the current filters. Try selecting "All".'
                 : 'Click Update to scan Home Assistant for remotes, motion sensors, and other controls.'}
             </div>
           </div>
@@ -772,14 +776,40 @@
 
       const thClass = (col) => sortColumn === col ? 'sorted' : '';
 
+      // Build filter select HTML
+      const categoryOptions = `<option value="all">All</option>` +
+        categories.map(c => `<option value="${c}" ${categoryFilter === c ? 'selected' : ''}>${formatCategory(c)}</option>`).join('');
+
+      const areaOptions = `<option value="all">All</option>` +
+        areas.map(a => `<option value="${a}" ${areaFilter === a ? 'selected' : ''}>${a}</option>`).join('');
+
+      const statusLabels = { 'active': 'Active', 'not_configured': 'Not configured', 'unsupported': 'Unsupported' };
+      const statusOptions = `<option value="all">All</option>` +
+        statuses.map(s => `<option value="${s}" ${statusFilter === s ? 'selected' : ''}>${statusLabels[s] || s}</option>`).join('');
+
       container.innerHTML = `
         <table class="switches-table">
           <thead>
             <tr>
               <th class="${thClass('name')}" onclick="sortBy('name')">Name ${arrow('name')}</th>
-              <th class="${thClass('category')}" onclick="sortBy('category')">Category ${arrow('category')}</th>
-              <th class="${thClass('area')}" onclick="sortBy('area')">Area ${arrow('area')}</th>
-              <th class="${thClass('status')}" onclick="sortBy('status')">Status ${arrow('status')}</th>
+              <th class="${thClass('category')}">
+                <div class="th-with-filter">
+                  <div class="th-title-row" onclick="sortBy('category')">Category ${arrow('category')}</div>
+                  <select class="header-filter" id="category-filter" onclick="event.stopPropagation()">${categoryOptions}</select>
+                </div>
+              </th>
+              <th class="${thClass('area')}">
+                <div class="th-with-filter">
+                  <div class="th-title-row" onclick="sortBy('area')">Area ${arrow('area')}</div>
+                  <select class="header-filter" id="area-filter" onclick="event.stopPropagation()">${areaOptions}</select>
+                </div>
+              </th>
+              <th class="${thClass('status')}">
+                <div class="th-with-filter">
+                  <div class="th-title-row" onclick="sortBy('status')">Status ${arrow('status')}</div>
+                  <select class="header-filter" id="status-filter" onclick="event.stopPropagation()">${statusOptions}</select>
+                </div>
+              </th>
               <th class="${thClass('lastAction')}" onclick="sortBy('lastAction')">Last action ${arrow('lastAction')}</th>
               <th class="${thClass('type')}" onclick="sortBy('type')">Type ${arrow('type')}</th>
             </tr>
@@ -897,10 +927,22 @@
         if (e.target.classList.contains('modal-overlay')) hideModal();
       });
       document.getElementById('add-scope-btn').addEventListener('click', addScope);
-      document.getElementById('status-filter').addEventListener('change', (e) => {
-        statusFilter = e.target.value;
-        savePreferences();
-        renderControls();
+
+      // Use event delegation for dynamically created filter dropdowns
+      document.getElementById('controls-container').addEventListener('change', (e) => {
+        if (e.target.id === 'category-filter') {
+          categoryFilter = e.target.value;
+          savePreferences();
+          renderControls();
+        } else if (e.target.id === 'area-filter') {
+          areaFilter = e.target.value;
+          savePreferences();
+          renderControls();
+        } else if (e.target.id === 'status-filter') {
+          statusFilter = e.target.value;
+          savePreferences();
+          renderControls();
+        }
       });
     }
 
