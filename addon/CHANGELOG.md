@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.69
+**Use HA device names for controls (read-only)**
+
+- Removed editable name field from Configure Control modal
+- Control names now come from Home Assistant device registry
+- Modal title shows device name (e.g., "Configure: Kitchen Dimmer")
+
 ## 6.9.68
 **Support Hue hub devices (hue_event handling)**
 

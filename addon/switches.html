@@ -595,11 +595,6 @@
       <h3 id="modal-title">Configure Control</h3>
 
       <div class="modal-section">
-        <label class="modal-label">Name</label>
-        <input type="text" class="modal-input" id="control-name" placeholder="e.g., Bedroom Dimmer">
-      </div>
-
-      <div class="modal-section">
         <label class="modal-label">Type</label>
         <select class="modal-select" id="control-type">
           <!-- Populated by JS -->
@@ -909,8 +904,8 @@
         : [{ areas: [] }];
 
       const isConfigured = ctrl.status === 'active';
-      document.getElementById('modal-title').textContent = isConfigured ? 'Edit Control' : 'Configure Control';
-      document.getElementById('control-name').value = ctrl.name;
+      const titlePrefix = isConfigured ? 'Edit' : 'Configure';
+      document.getElementById('modal-title').textContent = `${titlePrefix}: ${ctrl.name}`;
       document.getElementById('control-type').value = ctrl.type || '';
       document.getElementById('modal-remove-config').style.display = isConfigured ? 'block' : 'none';
 
@@ -974,15 +969,8 @@
     }
 
     async function saveControl() {
-      const name = document.getElementById('control-name').value.trim();
-
-      if (!name) {
-        alert('Please enter a name');
-        return;
-      }
-
       const payload = {
-        name: name,
+        name: editingControl?.name,  // Use HA device name (read-only)
         type: editingControl?.type,
         scopes: editingScopes,
         device_id: editingDeviceId
