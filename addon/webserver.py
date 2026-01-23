@@ -3204,6 +3204,13 @@ class LightDesignerServer:
                     if not is_control:
                         continue
 
+                    # Filter out Hue "Room" virtual devices (not physical controls)
+                    # Hue creates these to represent rooms but they're not actual hardware
+                    model = device.get('model', '')
+                    if model and model.lower() == 'room':
+                        logger.debug(f"[Controls] Skipping Hue Room device: {device.get('name')}")
+                        continue
+
                     # Determine category based on entity types
                     if entities.get('has_motion') or entities.get('has_occupancy'):
                         category = 'motion_sensor'
@@ -3226,12 +3233,20 @@ class LightDesignerServer:
 
                     type_info = switches.SWITCH_TYPES.get(detected_type, {}) if detected_type else {}
 
+                    # Determine if supported:
+                    # - Switches: need a recognized type
+                    # - Motion/contact sensors: always supported (configured via area settings)
+                    is_supported = (
+                        category in ('motion_sensor', 'contact_sensor') or
+                        detected_type is not None
+                    )
+
                     controls.append({
                         **device,
                         'category': category,
                         'type': detected_type,
                         'type_name': type_info.get('name') if detected_type else None,
-                        'supported': detected_type is not None,
+                        'supported': is_supported,
                     })
 
                 return controls
