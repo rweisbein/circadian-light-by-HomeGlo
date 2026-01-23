@@ -455,6 +455,139 @@ class HomeAssistantWebSocketClient:
         switches.set_last_action(device_ieee, button_event)
         logger.debug(f"Event from unconfigured switch: {device_ieee} - {button_event}")
 
+    # =========================================================================
+    # Hue Event Handling (for Hue hub devices)
+    # =========================================================================
+
+    async def _handle_hue_event(self, event_data: Dict[str, Any]) -> None:
+        """Handle a Hue event (button press from Hue hub devices).
+
+        Hue events have a different format than ZHA:
+        - device_id: HA device ID (not IEEE address)
+        - type: Event type (initial_press, short_release, long_release, repeat)
+        - subtype: Button number (1=ON, 2=UP, 3=DOWN, 4=OFF for Hue dimmer)
+
+        Args:
+            event_data: Event data from hue_event
+        """
+        device_id = event_data.get("device_id")
+        event_type = event_data.get("type")  # e.g., "short_release", "initial_press"
+        subtype = event_data.get("subtype")  # Button number
+
+        if not device_id or not event_type or subtype is None:
+            return
+
+        logger.debug(f"Hue event: device={device_id}, type={event_type}, subtype={subtype}")
+
+        # Look up switch by device_id
+        switch_config = switches.get_switch_by_device_id(device_id)
+
+        if not switch_config:
+            # Unconfigured switch - log and record last action
+            button_event = f"button_{subtype}_{event_type}"
+            switches.set_last_action(device_id, button_event)
+            logger.debug(f"Event from unconfigured Hue switch: {device_id} - {button_event}")
+            return
+
+        # Map Hue event to our button event format
+        button_event = self._map_hue_event_to_button_event(event_type, subtype)
+
+        # Record last action for UI display
+        display_event = button_event if button_event else f"button_{subtype}_{event_type}"
+        switches.set_last_action(switch_config.id, display_event)
+        logger.info(f"[LastAction] Set for {switch_config.id}: {display_event}")
+
+        if not button_event:
+            logger.debug(f"Unmapped Hue event: type={event_type}, subtype={subtype}")
+            return
+
+        # Get the action for this button event
+        action = switch_config.get_button_action(button_event)
+
+        if action is None:
+            logger.debug(f"No action mapped for {button_event}")
+            return
+
+        logger.info(f"Switch {switch_config.name}: {button_event} -> {action}")
+
+        # Handle hold start/stop
+        if "_hold" in button_event or event_type == "initial_press":
+            # For initial_press, we treat it as hold start if there's a hold action
+            if event_type == "initial_press":
+                # Check if there's a hold action for this button
+                hold_event = self._map_hue_event_to_button_event("repeat", subtype)
+                if hold_event and switch_config.get_button_action(hold_event):
+                    # There's a hold action - don't execute on initial press, wait for release or repeat
+                    return
+
+            # Hold started
+            if switches.should_repeat_on_hold(switch_config.id, button_event):
+                switches.start_hold(switch_config.id, action)
+                await self._start_hold_repeat(switch_config.id, action)
+            else:
+                # Single action on hold (non-repeating)
+                await self._execute_switch_action(switch_config.id, action)
+
+        elif "_long_release" in button_event or "_release" in button_event:
+            # Check if this is ending a hold
+            if switches.is_holding(switch_config.id):
+                await self._stop_hold_repeat(switch_config.id)
+                # Execute the release action if any
+                if action:
+                    await self._execute_switch_action(switch_config.id, action)
+            else:
+                # Normal short press
+                await self._execute_switch_action(switch_config.id, action)
+
+        else:
+            # Other events
+            await self._execute_switch_action(switch_config.id, action)
+
+    def _map_hue_event_to_button_event(
+        self, event_type: str, subtype: int
+    ) -> Optional[str]:
+        """Map a Hue event to our button event format.
+
+        Hue dimmer button subtypes:
+        - 1: ON button
+        - 2: UP button (brightness up)
+        - 3: DOWN button (brightness down)
+        - 4: OFF button (Hue button)
+
+        Hue event types:
+        - initial_press: Button first pressed
+        - short_release: Quick release (short press)
+        - long_release: Release after hold
+        - repeat: Button held (fires repeatedly)
+
+        Returns button event in format: {button}_{action_type}
+        """
+        # Map subtype to button name
+        button_map = {
+            1: "on",
+            2: "up",
+            3: "down",
+            4: "off",
+        }
+
+        button = button_map.get(subtype)
+        if not button:
+            return None
+
+        # Map event type to action type
+        type_map = {
+            "initial_press": "press",
+            "short_release": "short_release",
+            "long_release": "long_release",
+            "repeat": "hold",
+        }
+
+        action_type = type_map.get(event_type)
+        if not action_type:
+            return None
+
+        return f"{button}_{action_type}"
+
     def _map_zha_command_to_button_event(
         self,
         command: str,
@@ -2191,6 +2324,11 @@ class HomeAssistantWebSocketClient:
             elif event_type == "zha_event":
                 logger.info(f"ZHA event received: {event_data}")
                 await self._handle_zha_event(event_data)
+
+            # Handle Hue events (switch button presses from Hue hub)
+            elif event_type == "hue_event":
+                logger.info(f"Hue event received: {event_data}")
+                await self._handle_hue_event(event_data)
 
         elif msg_type == "result":
             success = message.get("success", False)

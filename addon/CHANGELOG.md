@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.68
+**Support Hue hub devices (hue_event handling)**
+
+- Added hue_event handling for switches connected via Hue hub (not ZHA)
+- Hue dimmers via Hue hub now work the same as ZHA-connected dimmers
+- Added get_switch_by_device_id lookup for Hue hub device matching
+- Fixed last_action display for unconfigured Hue hub devices
+
 ## 6.9.53
 **Fix shared.js inlining with simple string replacement**
 

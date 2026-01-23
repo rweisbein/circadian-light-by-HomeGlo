@@ -371,6 +371,19 @@ def get_switch(switch_id: str) -> Optional[SwitchConfig]:
     return result
 
 
+def get_switch_by_device_id(device_id: str) -> Optional[SwitchConfig]:
+    """Get a switch by its Home Assistant device_id.
+
+    This is used for Hue hub devices which use device_id instead of IEEE address.
+    Reloads from disk to pick up changes from other processes.
+    """
+    _reload_switches()
+    for switch in _switches.values():
+        if switch.device_id == device_id:
+            return switch
+    return None
+
+
 def get_all_switches() -> Dict[str, SwitchConfig]:
     """Get all configured switches.
 

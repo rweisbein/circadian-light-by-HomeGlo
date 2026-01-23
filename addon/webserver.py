@@ -2957,8 +2957,12 @@ class LightDesignerServer:
                 else:
                     status = "unsupported"
 
+                # Try looking up last_action by ieee first, then by device_id
+                # (Hue hub devices use device_id for events, not ieee)
                 last_action = switches.get_last_action(ieee)
-                logger.info(f"[Controls] Looking up last_action for IEEE '{ieee}': {last_action}")
+                if not last_action and ctrl.get("device_id"):
+                    last_action = switches.get_last_action(ctrl.get("device_id"))
+                logger.info(f"[Controls] Looking up last_action for '{ieee}': {last_action}")
 
                 controls.append({
                     "id": ieee,
