@@ -351,24 +351,28 @@
     .filter-row {
       display: flex;
       align-items: center;
-      gap: 16px;
+      gap: 12px;
       margin-bottom: 16px;
     }
 
-    .filter-checkbox {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      cursor: pointer;
+    .filter-label {
       font-size: 0.85rem;
       color: var(--muted);
     }
 
-    .filter-checkbox input[type="checkbox"] {
-      width: 16px;
-      height: 16px;
-      accent-color: var(--accent);
+    .filter-select {
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--line);
+      background: var(--card);
+      color: var(--text);
+      font-size: 0.85rem;
       cursor: pointer;
+    }
+
+    .filter-select:focus {
+      outline: none;
+      border-color: var(--accent);
     }
 
     /* Modal */
@@ -577,10 +581,13 @@
 
     <!-- Filter Row -->
     <div class="filter-row">
-      <label class="filter-checkbox">
-        <input type="checkbox" id="show-unsupported">
-        <span>Show unsupported</span>
-      </label>
+      <span class="filter-label">Status:</span>
+      <select class="filter-select" id="status-filter">
+        <option value="all">All</option>
+        <option value="active">Active</option>
+        <option value="not_configured">Not configured</option>
+        <option value="unsupported">Unsupported</option>
+      </select>
     </div>
 
     <!-- Controls Table -->
@@ -628,7 +635,7 @@
     let editingControl = null;
     let sortColumn = 'status';
     let sortAsc = true;
-    let showUnsupported = false;
+    let statusFilter = 'all';  // 'all', 'active', 'not_configured', 'unsupported'
 
     // Initialize
     document.addEventListener('DOMContentLoaded', async () => {
@@ -645,8 +652,8 @@
           const prefs = config.controls_ui || {};
           sortColumn = prefs.sort_column || 'status';
           sortAsc = prefs.sort_asc !== false;
-          showUnsupported = prefs.show_unsupported === true;
-          document.getElementById('show-unsupported').checked = showUnsupported;
+          statusFilter = prefs.status_filter || 'all';
+          document.getElementById('status-filter').value = statusFilter;
         }
       } catch (err) {
         console.error('Error loading preferences:', err);
@@ -662,7 +669,7 @@
             controls_ui: {
               sort_column: sortColumn,
               sort_asc: sortAsc,
-              show_unsupported: showUnsupported
+              status_filter: statusFilter
             }
           })
         });
@@ -700,18 +707,18 @@
     function renderControls() {
       const container = document.getElementById('controls-container');
 
-      // Filter controls based on showUnsupported
-      const filtered = showUnsupported
+      // Filter controls based on statusFilter
+      const filtered = statusFilter === 'all'
         ? controls
-        : controls.filter(c => c.status !== 'unsupported');
+        : controls.filter(c => c.status === statusFilter);
 
       if (filtered.length === 0) {
         container.innerHTML = `
           <div class="empty-state">
             <div class="empty-state-title">No controls found</div>
             <div class="empty-state-text">
-              ${controls.length > 0 && !showUnsupported
-                ? 'All controls are unsupported. Check "Show unsupported" to see them.'
+              ${controls.length > 0
+                ? `No controls match the "${statusFilter}" filter. Try selecting "All".`
                 : 'Click Update to scan Home Assistant for remotes, motion sensors, and other controls.'}
             </div>
           </div>
@@ -721,12 +728,17 @@
 
       // Sort controls
       const statusOrder = { 'active': 0, 'not_configured': 1, 'unsupported': 2 };
+      const categoryOrder = { 'switch': 0, 'motion_sensor': 1, 'contact_sensor': 2, 'unknown': 3 };
       const sorted = [...filtered].sort((a, b) => {
         let valA, valB;
         switch (sortColumn) {
           case 'name':
             valA = a.name.toLowerCase();
             valB = b.name.toLowerCase();
+            break;
+          case 'category':
+            valA = categoryOrder[a.category] ?? 99;
+            valB = categoryOrder[b.category] ?? 99;
             break;
           case 'area':
             valA = (a.area_name || '').toLowerCase();
@@ -765,6 +777,7 @@
           <thead>
             <tr>
               <th class="${thClass('name')}" onclick="sortBy('name')">Name ${arrow('name')}</th>
+              <th class="${thClass('category')}" onclick="sortBy('category')">Category ${arrow('category')}</th>
               <th class="${thClass('area')}" onclick="sortBy('area')">Area ${arrow('area')}</th>
               <th class="${thClass('status')}" onclick="sortBy('status')">Status ${arrow('status')}</th>
               <th class="${thClass('lastAction')}" onclick="sortBy('lastAction')">Last action ${arrow('lastAction')}</th>
@@ -773,6 +786,7 @@
           </thead>
           <tbody>
             ${sorted.map(ctrl => {
+              const categoryLabel = formatCategory(ctrl.category);
               const areaName = ctrl.area_name || '—';
               const typeName = ctrl.type_name || `${ctrl.manufacturer || 'Unknown'} ${ctrl.model || ''}`.trim();
               const statusBadge = getStatusBadge(ctrl);
@@ -783,6 +797,7 @@
               return `
                 <tr>
                   <td>${nameCell}</td>
+                  <td>${categoryLabel}</td>
                   <td>${areaName}</td>
                   <td>${statusBadge}</td>
                   <td>${lastAction}</td>
@@ -804,6 +819,16 @@
         const mailto = `mailto:ron@home-glo.com?subject=Device Support Request&body=Manufacturer: ${encodeURIComponent(ctrl.manufacturer || 'Unknown')}%0AModel: ${encodeURIComponent(ctrl.model || 'Unknown')}%0ADevice: ${encodeURIComponent(ctrl.name || '')}`;
         return `<span class="status-badge status-unsupported">Unsupported</span><a href="${mailto}" class="request-support-link">Request support</a>`;
       }
+    }
+
+    function formatCategory(category) {
+      const labels = {
+        'switch': 'Switch',
+        'motion_sensor': 'Motion',
+        'contact_sensor': 'Contact',
+        'unknown': 'Unknown'
+      };
+      return labels[category] || category || '—';
     }
 
     function formatLastAction(ctrl) {
@@ -872,8 +897,8 @@
         if (e.target.classList.contains('modal-overlay')) hideModal();
       });
       document.getElementById('add-scope-btn').addEventListener('click', addScope);
-      document.getElementById('show-unsupported').addEventListener('change', (e) => {
-        showUnsupported = e.target.checked;
+      document.getElementById('status-filter').addEventListener('change', (e) => {
+        statusFilter = e.target.value;
         savePreferences();
         renderControls();
       });

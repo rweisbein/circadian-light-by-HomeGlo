@@ -1,5 +1,14 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.71
+**Controls page improvements**
+
+- Added status filter dropdown (All, Active, Not configured, Unsupported) replacing checkbox
+- Added device category detection (Switch, Motion, Contact, Unknown)
+- Added Category column to controls table with sorting
+- Fixed type detection bug - now requires both manufacturer AND model match
+  - Motion sensors no longer incorrectly show as "Philips Hue Dimmer"
+
 ## 6.9.70
 **Reorganize Hue dimmer button mappings**
 

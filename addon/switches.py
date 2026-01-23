@@ -423,12 +423,16 @@ def is_configured(switch_id: str) -> bool:
 # =============================================================================
 
 def detect_switch_type(manufacturer: Optional[str], model: Optional[str]) -> Optional[str]:
-    """Attempt to detect switch type from manufacturer/model info."""
-    if not manufacturer and not model:
+    """Attempt to detect switch type from manufacturer/model info.
+
+    Requires BOTH manufacturer AND model to match to avoid false positives
+    (e.g., a Philips motion sensor matching as a Philips dimmer).
+    """
+    if not manufacturer or not model:
         return None
 
     manufacturer_lower = (manufacturer or "").lower()
-    model_upper = (model or "").upper()
+    model_lower = (model or "").lower()
 
     for type_id, type_info in SWITCH_TYPES.items():
         # Check manufacturers (support both single string and list)
@@ -438,13 +442,14 @@ def detect_switch_type(manufacturer: Optional[str], model: Optional[str]) -> Opt
         if not manufacturers and type_info.get("manufacturer"):
             manufacturers = [type_info["manufacturer"]]
 
-        for mfr in manufacturers:
-            if mfr.lower() in manufacturer_lower:
-                return type_id
+        # Check if manufacturer matches
+        manufacturer_match = any(mfr.lower() in manufacturer_lower for mfr in manufacturers)
+        if not manufacturer_match:
+            continue
 
-        # Check model
+        # Check if model matches (require both manufacturer AND model)
         for known_model in type_info.get("models", []):
-            if known_model.upper() in model_upper:
+            if known_model.lower() in model_lower:
                 return type_id
 
     return None

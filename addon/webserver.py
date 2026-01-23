@@ -2971,6 +2971,7 @@ class LightDesignerServer:
                     "manufacturer": ctrl.get("manufacturer"),
                     "model": ctrl.get("model"),
                     "area_name": ctrl.get("area_name"),
+                    "category": ctrl.get("category"),
                     "type": ctrl.get("type"),
                     "type_name": ctrl.get("type_name"),
                     "supported": ctrl.get("supported"),
@@ -3113,16 +3114,29 @@ class LightDesignerServer:
                     if not is_control:
                         continue
 
-                    # Check if it's a known/supported type
-                    detected_type = switches.detect_switch_type(
-                        device.get('manufacturer'),
-                        device.get('model')
-                    )
+                    # Determine category based on entity types
+                    if entities.get('has_motion') or entities.get('has_occupancy'):
+                        category = 'motion_sensor'
+                    elif entities.get('has_contact'):
+                        category = 'contact_sensor'
+                    elif entities.get('has_button') or (entities.get('has_battery') and not entities.get('has_light')):
+                        category = 'switch'
+                    else:
+                        category = 'unknown'
+
+                    # Check if it's a known/supported type (only for switches for now)
+                    detected_type = None
+                    if category == 'switch':
+                        detected_type = switches.detect_switch_type(
+                            device.get('manufacturer'),
+                            device.get('model')
+                        )
 
                     type_info = switches.SWITCH_TYPES.get(detected_type, {}) if detected_type else {}
 
                     controls.append({
                         **device,
+                        'category': category,
                         'type': detected_type,
                         'type_name': type_info.get('name') if detected_type else None,
                         'supported': detected_type is not None,
