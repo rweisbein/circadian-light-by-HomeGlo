@@ -724,20 +724,6 @@
         return true;
       });
 
-      if (filtered.length === 0) {
-        container.innerHTML = `
-          <div class="empty-state">
-            <div class="empty-state-title">No controls found</div>
-            <div class="empty-state-text">
-              ${controls.length > 0
-                ? 'No controls match the current filters. Try selecting "All".'
-                : 'Click Update to scan Home Assistant for remotes, motion sensors, and other controls.'}
-            </div>
-          </div>
-        `;
-        return;
-      }
-
       // Sort controls
       const statusOrder = { 'active': 0, 'not_configured': 1, 'unsupported': 2 };
       const categoryOrder = { 'switch': 0, 'motion_sensor': 1, 'contact_sensor': 2, 'unknown': 3 };
@@ -828,7 +814,15 @@
             </tr>
           </thead>
           <tbody>
-            ${sorted.map(ctrl => {
+            ${sorted.length === 0 ? `
+              <tr>
+                <td colspan="7" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                  ${controls.length > 0
+                    ? 'No controls match the current filters.'
+                    : 'No controls found. Click Update to scan Home Assistant.'}
+                </td>
+              </tr>
+            ` : sorted.map(ctrl => {
               const categoryLabel = formatCategory(ctrl.category);
               const areaName = ctrl.area_name || '—';
               const controllerLabel = formatController(ctrl.integration);
