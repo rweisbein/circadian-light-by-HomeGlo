@@ -15,6 +15,7 @@ from brain import (
     CircadianLight,
     Config,
     AreaState,
+    SunTimes,
     get_current_hour,
     DEFAULT_MAX_DIM_STEPS,
 )
@@ -459,10 +460,12 @@ class CircadianLightPrimitives:
         config = self._get_config(area_id)
         area_state = self._get_area_state(area_id)
         hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
+        sun_times = self.client._get_sun_times() if hasattr(self.client, '_get_sun_times') else None
 
-        result = CircadianLight.calculate_lighting(hour, config, area_state)
+        result = CircadianLight.calculate_lighting(hour, config, area_state, sun_times=sun_times)
         transition = self._get_turn_on_transition()
-        await self._apply_lighting(area_id, result.brightness, result.color_temp, transition=transition)
+        # Use two-phase turn-on to avoid color jump from previous light state
+        await self._apply_lighting_turn_on(area_id, result.brightness, result.color_temp, transition=transition)
 
         logger.info(
             f"Circadian Light enabled for area {area_id}: "
@@ -530,6 +533,8 @@ class CircadianLightPrimitives:
         else:
             # Turn on all areas with Circadian values
             transition = self._get_turn_on_transition()
+            # Get sun times for solar rules (same as periodic update)
+            sun_times = self.client._get_sun_times() if hasattr(self.client, '_get_sun_times') else None
             for area_id in area_ids:
                 # Ensure area is in a zone (add to default zone if not)
                 if not glozone.is_area_in_any_zone(area_id):
@@ -544,8 +549,9 @@ class CircadianLightPrimitives:
                 # Use area's frozen_at if set, otherwise current time
                 hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
 
-                result = CircadianLight.calculate_lighting(hour, config, area_state)
-                await self._apply_lighting(area_id, result.brightness, result.color_temp, transition=transition)
+                result = CircadianLight.calculate_lighting(hour, config, area_state, sun_times=sun_times)
+                # Use two-phase turn-on to avoid color jump from previous light state
+                await self._apply_lighting_turn_on(area_id, result.brightness, result.color_temp, transition=transition)
 
             logger.info(f"Turned on {len(area_ids)} area(s) with Circadian Light")
 
@@ -1158,6 +1164,35 @@ class CircadianLightPrimitives:
         # Run all tasks concurrently
         if tasks:
             await asyncio.gather(*tasks)
+
+    async def _apply_lighting_turn_on(
+        self,
+        area_id: str,
+        brightness: int,
+        color_temp: int,
+        transition: float = 0.4,
+    ):
+        """Turn on lights with two-phase approach to avoid color jump.
+
+        When lights are off, they briefly show their previous color before
+        transitioning. This method avoids that by:
+        1. Phase 1: Turn on at 1% brightness with target color (instant)
+        2. Phase 2: Transition to target brightness
+
+        Args:
+            area_id: The area ID
+            brightness: Target brightness percentage (0-100)
+            color_temp: Color temperature in Kelvin
+            transition: Transition time for phase 2 (brightness ramp)
+        """
+        # Phase 1: Set color at minimal brightness (nearly invisible)
+        await self._apply_lighting(area_id, 1, color_temp, include_color=True, transition=0)
+
+        # Small delay to ensure phase 1 completes
+        await asyncio.sleep(0.05)
+
+        # Phase 2: Transition to target brightness
+        await self._apply_lighting(area_id, brightness, color_temp, include_color=True, transition=transition)
 
     async def _apply_color_only(
         self, area_id: str, color_temp: int, transition: float = 0.4

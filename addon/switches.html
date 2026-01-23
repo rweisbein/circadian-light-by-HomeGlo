@@ -347,6 +347,30 @@
       text-decoration: underline;
     }
 
+    /* Filter controls */
+    .filter-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .filter-checkbox {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .filter-checkbox input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
     /* Modal */
     .modal-overlay {
       position: fixed;
@@ -551,6 +575,14 @@
       </div>
     </div>
 
+    <!-- Filter Row -->
+    <div class="filter-row">
+      <label class="filter-checkbox">
+        <input type="checkbox" id="show-unsupported">
+        <span>Show unsupported</span>
+      </label>
+    </div>
+
     <!-- Controls Table -->
     <div id="controls-container">
       <div class="loading">Loading controls...</div>
@@ -601,12 +633,48 @@
     let editingControl = null;
     let sortColumn = 'status';
     let sortAsc = true;
+    let showUnsupported = false;
 
     // Initialize
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
+      await loadPreferences();
       loadData();
       setupEventListeners();
     });
+
+    async function loadPreferences() {
+      try {
+        const res = await fetch('./api/config');
+        if (res.ok) {
+          const config = await res.json();
+          const prefs = config.controls_ui || {};
+          sortColumn = prefs.sort_column || 'status';
+          sortAsc = prefs.sort_asc !== false;
+          showUnsupported = prefs.show_unsupported === true;
+          document.getElementById('show-unsupported').checked = showUnsupported;
+        }
+      } catch (err) {
+        console.error('Error loading preferences:', err);
+      }
+    }
+
+    async function savePreferences() {
+      try {
+        await fetch('./api/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            controls_ui: {
+              sort_column: sortColumn,
+              sort_asc: sortAsc,
+              show_unsupported: showUnsupported
+            }
+          })
+        });
+      } catch (err) {
+        console.error('Error saving preferences:', err);
+      }
+    }
 
     async function loadData() {
       const container = document.getElementById('controls-container');
@@ -637,12 +705,19 @@
     function renderControls() {
       const container = document.getElementById('controls-container');
 
-      if (controls.length === 0) {
+      // Filter controls based on showUnsupported
+      const filtered = showUnsupported
+        ? controls
+        : controls.filter(c => c.status !== 'unsupported');
+
+      if (filtered.length === 0) {
         container.innerHTML = `
           <div class="empty-state">
             <div class="empty-state-title">No controls found</div>
             <div class="empty-state-text">
-              Click Update to scan Home Assistant for remotes, motion sensors, and other controls.
+              ${controls.length > 0 && !showUnsupported
+                ? 'All controls are unsupported. Check "Show unsupported" to see them.'
+                : 'Click Update to scan Home Assistant for remotes, motion sensors, and other controls.'}
             </div>
           </div>
         `;
@@ -651,7 +726,7 @@
 
       // Sort controls
       const statusOrder = { 'active': 0, 'not_configured': 1, 'unsupported': 2 };
-      const sorted = [...controls].sort((a, b) => {
+      const sorted = [...filtered].sort((a, b) => {
         let valA, valB;
         switch (sortColumn) {
           case 'name':
@@ -784,6 +859,7 @@
         sortColumn = column;
         sortAsc = true;
       }
+      savePreferences();
       renderControls();
     }
 
@@ -801,6 +877,11 @@
         if (e.target.classList.contains('modal-overlay')) hideModal();
       });
       document.getElementById('add-scope-btn').addEventListener('click', addScope);
+      document.getElementById('show-unsupported').addEventListener('change', (e) => {
+        showUnsupported = e.target.checked;
+        savePreferences();
+        renderControls();
+      });
     }
 
     // Modal functions

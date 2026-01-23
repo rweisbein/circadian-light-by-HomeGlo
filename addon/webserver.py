@@ -991,6 +991,7 @@ class LightDesignerServer:
     GLOBAL_SETTINGS = {
         "latitude", "longitude", "timezone", "use_ha_location", "month",
         "turn_on_transition",  # Transition time in tenths of seconds for turn-on operations
+        "controls_ui",  # Controls page UI preferences (sort, filter)
     }
 
     def _migrate_to_glozone_format(self, config: dict) -> dict:
@@ -2658,6 +2659,15 @@ class LightDesignerServer:
             if zone_name not in config.get("glozones", {}):
                 return web.json_response({"error": f"Zone '{zone_name}' not found"}, status=404)
 
+            # Find current zone for this area (if any)
+            current_zone = None
+            for zn, zc in config.get("glozones", {}).items():
+                for a in zc.get("areas", []):
+                    aid = a.get("id") if isinstance(a, dict) else a
+                    if aid == area_id:
+                        current_zone = zn
+                        break
+
             # Remove area from any existing zone
             for zn, zc in config.get("glozones", {}).items():
                 zc["areas"] = [
@@ -2674,6 +2684,15 @@ class LightDesignerServer:
 
             await self.save_config_to_file(config)
             glozone.set_config(config)
+
+            # Reset area state if moving to a different zone (new Glo config)
+            if current_zone and current_zone != zone_name:
+                state.update_area(area_id, {
+                    "frozen_at": None,
+                    "brightness_mid": None,
+                    "color_mid": None,
+                })
+                logger.info(f"Reset state for area {area_id} (moved from {current_zone} to {zone_name})")
 
             logger.info(f"Added area {area_id} to zone {zone_name}")
             return web.json_response({"status": "added", "area_id": area_id, "zone": zone_name})
@@ -3043,7 +3062,9 @@ class LightDesignerServer:
                         if entity_id.startswith('light.'):
                             device_entities[device_id]['has_light'] = True
                         elif entity_id.startswith('button.'):
-                            device_entities[device_id]['has_button'] = True
+                            # Ignore identify buttons (most lights have these)
+                            if '_identify' not in entity_id and not entity_id.endswith('_identify'):
+                                device_entities[device_id]['has_button'] = True
                         elif entity_id.startswith('binary_sensor.'):
                             if '_motion' in entity_id:
                                 device_entities[device_id]['has_motion'] = True
