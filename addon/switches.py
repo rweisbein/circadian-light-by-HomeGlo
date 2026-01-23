@@ -239,10 +239,16 @@ class SwitchConfig:
     def from_dict(cls, data: Dict[str, Any]) -> "SwitchConfig":
         """Create from dictionary."""
         scopes = [SwitchScope(areas=s.get("areas", [])) for s in data.get("scopes", [])]
+        # Migrate old type names to new names
+        switch_type = data.get("type", "hue_4button_v2")
+        type_migrations = {
+            "hue_dimmer": "hue_4button_v2",  # Old name -> default to v2
+        }
+        switch_type = type_migrations.get(switch_type, switch_type)
         return cls(
             id=data.get("id", ""),
             name=data.get("name", ""),
-            type=data.get("type", "hue_4button_v2"),
+            type=switch_type,
             scopes=scopes,
             button_overrides=data.get("button_overrides", {}),
             device_id=data.get("device_id"),
