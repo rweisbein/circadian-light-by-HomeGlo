@@ -3188,8 +3188,10 @@ class LightDesignerServer:
                         elif entity_id.startswith('binary_sensor.'):
                             if '_motion' in entity_id:
                                 device_entities[device_id]['has_motion'] = True
+                                logger.info(f"[Controls] Found motion entity: {entity_id} for device {device_id}")
                             elif '_occupancy' in entity_id:
                                 device_entities[device_id]['has_occupancy'] = True
+                                logger.info(f"[Controls] Found occupancy entity: {entity_id} for device {device_id}")
                             elif '_contact' in entity_id or '_opening' in entity_id:
                                 device_entities[device_id]['has_contact'] = True
                         elif entity_id.startswith('sensor.') and '_battery' in entity_id:
@@ -3232,6 +3234,7 @@ class LightDesignerServer:
                     # Determine category based on entity types
                     if entities.get('has_motion') or entities.get('has_occupancy'):
                         category = 'motion_sensor'
+                        logger.info(f"[Controls] Identified motion sensor: {device.get('name')} (device_id={device_id})")
                     elif entities.get('has_contact'):
                         category = 'contact_sensor'
                     elif entities.get('has_button') or (entities.get('has_battery') and not entities.get('has_light')):
