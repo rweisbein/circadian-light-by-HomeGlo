@@ -506,7 +506,7 @@ class CircadianLightPrimitives:
     async def circadian_off(self, area_id: str, source: str = "service_call"):
         """Disable Circadian Light mode (lights unchanged).
 
-        Also cancels any active boost for the area.
+        Also cancels any active boost and motion timer for the area.
 
         Args:
             area_id: The area ID to control
@@ -518,6 +518,10 @@ class CircadianLightPrimitives:
         if state.is_boosted(area_id):
             state.clear_boost(area_id)
             logger.info(f"Cleared boost for area {area_id}")
+
+        # Clear motion on_off timer if active
+        if state.has_motion_timer(area_id):
+            state.clear_motion_expires(area_id)
 
         if not state.is_enabled(area_id):
             logger.info(f"Circadian Light already disabled for area {area_id}")
@@ -578,6 +582,10 @@ class CircadianLightPrimitives:
                 if state.is_boosted(area_id):
                     state.clear_boost(area_id)
                     logger.info(f"Cleared boost for area {area_id}")
+
+                # Clear motion on_off timer if active
+                if state.has_motion_timer(area_id):
+                    state.clear_motion_expires(area_id)
 
                 state.set_enabled(area_id, False)
                 target_type, target_value = await self.client.determine_light_target(area_id)
@@ -728,6 +736,95 @@ class CircadianLightPrimitives:
         expired = state.get_expired_boosts()
         for area_id in expired:
             await self.end_boost(area_id, source="timer_expired")
+
+    # -------------------------------------------------------------------------
+    # Motion Sensor Actions
+    # -------------------------------------------------------------------------
+
+    async def motion_on_only(self, area_id: str, source: str = "motion_sensor"):
+        """Turn on lights if off, do nothing if already on.
+
+        on_only: Lights turn on with motion, stay on until manually turned off.
+
+        Args:
+            area_id: The area ID to control
+            source: Source of the action
+        """
+        # Check if area is already enabled
+        if state.is_enabled(area_id):
+            logger.debug(f"[{source}] motion_on_only: area {area_id} already enabled, skipping")
+            return
+
+        logger.info(f"[{source}] motion_on_only: turning on area {area_id}")
+
+        # Enable and turn on with circadian values
+        await self.circadian_on(area_id, source=source)
+
+    async def motion_on_off(self, area_id: str, duration_seconds: int, source: str = "motion_sensor"):
+        """Turn on lights with timer, auto-off when timer expires.
+
+        on_off behavior:
+        - If room is off: turn on, start timer
+        - If room is on FROM on_off motion: extend timer
+        - If room is on from other source: do nothing
+
+        Args:
+            area_id: The area ID to control
+            duration_seconds: How long before auto-off (when motion stops)
+            source: Source of the action
+        """
+        expires_at = (datetime.now() + timedelta(seconds=duration_seconds)).isoformat()
+
+        # Check if area has an active motion timer (was turned on by on_off motion)
+        if state.has_motion_timer(area_id):
+            # Extend the timer
+            state.extend_motion_expires(area_id, expires_at)
+            logger.debug(f"[{source}] motion_on_off: extended timer for area {area_id} to {expires_at}")
+            return
+
+        # Check if area is already enabled (but not from on_off motion)
+        if state.is_enabled(area_id):
+            logger.debug(f"[{source}] motion_on_off: area {area_id} already on (not from motion), skipping")
+            return
+
+        logger.info(f"[{source}] motion_on_off: turning on area {area_id}, timer={duration_seconds}s")
+
+        # Set motion timer
+        state.set_motion_expires(area_id, expires_at)
+
+        # Enable and turn on with circadian values
+        await self.circadian_on(area_id, source=source)
+
+    async def end_motion_on_off(self, area_id: str, source: str = "timer"):
+        """End motion on_off timer and turn off lights.
+
+        Called when motion on_off timer expires.
+
+        Args:
+            area_id: The area ID
+            source: Source of the action
+        """
+        if not state.has_motion_timer(area_id):
+            logger.debug(f"[{source}] Area {area_id} has no motion timer, nothing to end")
+            return
+
+        # Clear motion timer
+        state.clear_motion_expires(area_id)
+
+        # Turn off and disable Circadian
+        transition = self._get_turn_off_transition()
+        await self._turn_off_area(area_id, transition=transition)
+        state.set_enabled(area_id, False)
+        logger.info(f"[{source}] Motion on_off timer expired for area {area_id}, turned off")
+
+    async def check_expired_motion(self):
+        """Check for and handle any expired motion on_off timers.
+
+        Called periodically (e.g., from the 30-second update loop).
+        """
+        expired = state.get_expired_motion()
+        for area_id in expired:
+            await self.end_motion_on_off(area_id, source="timer_expired")
 
     # -------------------------------------------------------------------------
     # Set - Configure area state (presets, frozen_at, copy_from)

@@ -3026,47 +3026,65 @@ class LightDesignerServer:
             # Fetch controls from HA
             ha_controls = await self._fetch_ha_controls()
 
-            # Get our configured switches
-            configured = {sw["id"]: sw for sw in switches.get_switches_summary()}
+            # Get our configured switches and motion sensors
+            configured_switches = {sw["id"]: sw for sw in switches.get_switches_summary()}
+            configured_motion = switches.get_all_motion_sensors()
 
             # Merge and determine status
             controls = []
             for ctrl in ha_controls:
                 ieee = ctrl.get("ieee")
-                config = configured.get(ieee, {})
+                device_id = ctrl.get("device_id")
+                category = ctrl.get("category")
+
+                # Get config based on category
+                if category == "motion_sensor":
+                    # Look up by device_id for motion sensors
+                    motion_config = switches.get_motion_sensor_by_device_id(device_id) if device_id else None
+                    config = motion_config.to_dict() if motion_config else {}
+                    config_areas = config.get("areas", [])
+                    is_configured = bool(config_areas)
+                else:
+                    # Look up by ieee for switches
+                    config = configured_switches.get(ieee, {})
+                    is_configured = config and config.get("scopes") and any(s.get("areas") for s in config.get("scopes", []))
 
                 # Determine status
                 if ctrl.get("supported"):
-                    if config and config.get("scopes") and any(s.get("areas") for s in config.get("scopes", [])):
-                        status = "active"
-                    else:
-                        status = "not_configured"
+                    status = "active" if is_configured else "not_configured"
                 else:
                     status = "unsupported"
 
                 # Try looking up last_action by ieee first, then by device_id
                 # (Hue hub devices use device_id for events, not ieee)
                 last_action = switches.get_last_action(ieee)
-                if not last_action and ctrl.get("device_id"):
-                    last_action = switches.get_last_action(ctrl.get("device_id"))
+                if not last_action and device_id:
+                    last_action = switches.get_last_action(device_id)
                 logger.info(f"[Controls] Looking up last_action for '{ieee}': {last_action}")
 
-                controls.append({
+                # Build response - include appropriate config based on category
+                control_data = {
                     "id": ieee,
-                    "device_id": ctrl.get("device_id"),
+                    "device_id": device_id,
                     "name": ctrl.get("name"),
                     "manufacturer": ctrl.get("manufacturer"),
                     "model": ctrl.get("model"),
                     "area_name": ctrl.get("area_name"),
-                    "category": ctrl.get("category"),
+                    "category": category,
                     "integration": ctrl.get("integration"),
                     "type": ctrl.get("type"),
                     "type_name": ctrl.get("type_name"),
                     "supported": ctrl.get("supported"),
                     "status": status,
-                    "scopes": config.get("scopes", []),
                     "last_action": last_action,
-                })
+                }
+
+                if category == "motion_sensor":
+                    control_data["areas"] = config.get("areas", [])
+                else:
+                    control_data["scopes"] = config.get("scopes", [])
+
+                controls.append(control_data)
 
             return web.json_response({"controls": controls})
         except Exception as e:
@@ -3266,38 +3284,60 @@ class LightDesignerServer:
             return []
 
     async def configure_control(self, request: Request) -> Response:
-        """Configure a control (add/update scopes)."""
+        """Configure a control (add/update scopes for switches, areas for motion sensors)."""
         try:
             control_id = request.match_info.get("control_id")
             if not control_id:
                 return web.json_response({"error": "Control ID is required"}, status=400)
 
             data = await request.json()
-
+            category = data.get("category", "switch")
             name = data.get("name", f"Control ({control_id[-8:]})")
-            control_type = data.get("type", "hue_4button_v2")
             device_id = data.get("device_id")
 
-            # Build scopes
-            scopes_data = data.get("scopes", [])
-            scopes = []
-            for scope_data in scopes_data:
-                areas = scope_data.get("areas", [])
-                scopes.append(switches.SwitchScope(areas=areas))
+            if category == "motion_sensor":
+                # Handle motion sensor configuration
+                areas_data = data.get("areas", [])
+                areas = []
+                for area_data in areas_data:
+                    areas.append(switches.MotionAreaConfig(
+                        area_id=area_data.get("area_id", ""),
+                        function=area_data.get("function", "on_off"),
+                        duration=area_data.get("duration", 60),
+                    ))
 
-            if not scopes:
-                scopes = [switches.SwitchScope(areas=[])]
+                motion_config = switches.MotionSensorConfig(
+                    id=control_id,
+                    name=name,
+                    areas=areas,
+                    device_id=device_id,
+                )
 
-            # Create/update switch config
-            switch_config = switches.SwitchConfig(
-                id=control_id,
-                name=name,
-                type=control_type,
-                scopes=scopes,
-                device_id=device_id,
-            )
+                switches.add_motion_sensor(motion_config)
+            else:
+                # Handle switch configuration
+                control_type = data.get("type", "hue_4button_v2")
 
-            switches.add_switch(switch_config)
+                # Build scopes
+                scopes_data = data.get("scopes", [])
+                scopes = []
+                for scope_data in scopes_data:
+                    scope_areas = scope_data.get("areas", [])
+                    scopes.append(switches.SwitchScope(areas=scope_areas))
+
+                if not scopes:
+                    scopes = [switches.SwitchScope(areas=[])]
+
+                # Create/update switch config
+                switch_config = switches.SwitchConfig(
+                    id=control_id,
+                    name=name,
+                    type=control_type,
+                    scopes=scopes,
+                    device_id=device_id,
+                )
+
+                switches.add_switch(switch_config)
 
             return web.json_response({"status": "ok"})
         except Exception as e:
@@ -3311,8 +3351,10 @@ class LightDesignerServer:
             if not control_id:
                 return web.json_response({"error": "Control ID is required"}, status=400)
 
-            # Delete from our config
-            switches.remove_switch(control_id)
+            # Try to delete from both switch and motion sensor configs
+            removed = switches.remove_switch(control_id)
+            if not removed:
+                switches.remove_motion_sensor(control_id)
 
             return web.json_response({"status": "ok"})
         except Exception as e:

@@ -1,5 +1,15 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.97
+**Motion sensor configuration in Controls page**
+
+- Added per-area motion sensor configuration in Controls modal
+- Each motion sensor can control multiple areas with different settings
+- Per-area options: function (on_only, on_off, boost, disabled) and duration
+- Removed motion settings from Areas page (now per-sensor, not per-area)
+- Added motion_expires_at state tracking for on_off timer mode
+- Implemented on_only and on_off motion handlers in primitives
+
 ## 6.9.73
 **Smart 2-step turn-on**
 

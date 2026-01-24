@@ -84,7 +84,8 @@ class HomeAssistantWebSocketClient:
         self.area_lights: Dict[str, List[str]] = {}  # area_id -> list of light entity_ids
 
         # Motion sensor cache for event handling
-        self.motion_sensor_areas: Dict[str, str] = {}  # entity_id -> area_id
+        # Maps entity_id -> sensor_id (the unique ID used in motion sensor config)
+        self.motion_sensor_ids: Dict[str, str] = {}
 
         # Live Design tracking - skip this area in periodic updates
         self.live_design_area: str = None
@@ -378,70 +379,48 @@ class HomeAssistantWebSocketClient:
             new_state: New state ("on" = motion detected, "off" = motion cleared)
             old_state: Previous state
         """
-        # Get area for this motion sensor
-        area_id = self.motion_sensor_areas.get(entity_id)
-        if not area_id:
-            logger.debug(f"[Motion] No area mapped for sensor {entity_id}")
+        # Get device ID for this entity
+        device_id = self.motion_sensor_ids.get(entity_id)
+        if not device_id:
+            logger.debug(f"[Motion] No device ID mapped for entity {entity_id}")
             return
 
-        # Load area settings
-        try:
-            raw_config = glozone.load_config_from_files()
-            area_settings = raw_config.get("area_settings", {}).get(area_id, {})
-            motion_function = area_settings.get("motion_function", "disabled")
-            motion_duration = area_settings.get("motion_duration", 60)
-        except Exception as e:
-            logger.warning(f"[Motion] Error loading area settings for {area_id}: {e}")
+        # Get motion sensor config by device_id
+        sensor_config = switches.get_motion_sensor_by_device_id(device_id)
+        if not sensor_config:
+            logger.debug(f"[Motion] No config found for sensor {sensor_id}")
             return
 
-        if motion_function == "disabled":
-            logger.debug(f"[Motion] Motion disabled for area {area_id}")
+        if not sensor_config.areas:
+            logger.debug(f"[Motion] Sensor {sensor_id} has no areas configured")
             return
 
-        logger.info(f"[Motion] {entity_id} -> {new_state} (area={area_id}, function={motion_function}, duration={motion_duration})")
+        logger.info(f"[Motion] {entity_id} -> {new_state} (sensor={sensor_config.name})")
 
-        if new_state == "on":
-            # Motion detected - trigger based on function
-            if motion_function == "boost":
-                await self.primitives.bright_boost(area_id, motion_duration, source="motion_sensor")
-            elif motion_function == "on_off":
-                await self.primitives.circadian_on(area_id, source="motion_sensor")
-            elif motion_function == "on_only":
-                await self.primitives.circadian_on(area_id, source="motion_sensor")
+        # Process each area configured for this sensor
+        for area_config in sensor_config.areas:
+            area_id = area_config.area_id
+            motion_function = area_config.function
+            duration = area_config.duration
 
-        elif new_state == "off" and motion_function == "on_off":
-            # Motion cleared - for on_off mode, we need to start a timer
-            # The boost mode handles its own timer via boost_expires_at
-            # For on_off, we'll schedule a delayed turn-off
-            # Note: This is simplified - a more robust implementation would
-            # track the timer and cancel it if motion is detected again
-            asyncio.create_task(self._delayed_motion_off(area_id, motion_duration))
+            if motion_function == "disabled":
+                logger.debug(f"[Motion] Function disabled for area {area_id}")
+                continue
 
-    async def _delayed_motion_off(self, area_id: str, delay_seconds: int) -> None:
-        """Turn off lights after motion delay (for on_off mode).
+            logger.debug(f"[Motion] Area {area_id}: function={motion_function}, duration={duration}")
 
-        Args:
-            area_id: The area to turn off
-            delay_seconds: Seconds to wait before turning off
-        """
-        try:
-            await asyncio.sleep(delay_seconds)
+            if new_state == "on":
+                # Motion detected - trigger based on function
+                if motion_function == "boost":
+                    await self.primitives.bright_boost(area_id, duration, source="motion_sensor")
+                elif motion_function == "on_off":
+                    await self.primitives.motion_on_off(area_id, duration, source="motion_sensor")
+                elif motion_function == "on_only":
+                    await self.primitives.motion_on_only(area_id, source="motion_sensor")
 
-            # Check if motion has been re-detected (area might have new boost or still be active)
-            # For simplicity, we just check if the area is still enabled
-            # A more robust implementation would track a cancellation token
-            if state.is_enabled(area_id):
-                logger.info(f"[Motion] Turning off {area_id} after {delay_seconds}s motion timeout")
-                transition = self.primitives._get_turn_off_transition()
-                target_type, target_value = await self.determine_light_target(area_id)
-                await self.call_service(
-                    "light", "turn_off", {"transition": transition}, {target_type: target_value}
-                )
-                state.set_enabled(area_id, False)
-        except asyncio.CancelledError:
-            logger.debug(f"[Motion] Delayed off cancelled for {area_id}")
-        except Exception as e:
-            logger.error(f"[Motion] Error in delayed off for {area_id}: {e}")
+            # Note: For on_off, the timer is managed via motion_expires_at state
+            # When motion clears, we don't need to do anything - the timer continues
+            # If motion is detected again, motion_on_off extends the timer
 
     # =========================================================================
     # ZHA Switch Event Handling
@@ -1615,8 +1594,9 @@ class HomeAssistantWebSocketClient:
         ct_only = len(self.light_color_modes) - color_capable
         logger.info(f"  Color-capable lights: {color_capable}, CT-only lights: {ct_only}")
 
-        # Build motion sensor -> area mapping
-        self.motion_sensor_areas.clear()
+        # Build motion sensor entity_id -> device_id mapping
+        # This lets us look up motion sensor config when events come in
+        self.motion_sensor_ids.clear()
         for entity in entities:
             if not isinstance(entity, dict):
                 continue
@@ -1628,20 +1608,15 @@ class HomeAssistantWebSocketClient:
             if "_motion" not in entity_id and "_occupancy" not in entity_id:
                 continue
 
-            # Get area - either direct or via device
-            area_id = entity.get("area_id")
-            if not area_id:
-                device_id = entity.get("device_id")
-                if device_id:
-                    area_id = device_area_map.get(device_id)
+            # Get device_id for this entity
+            device_id = entity.get("device_id")
+            if device_id:
+                self.motion_sensor_ids[entity_id] = device_id
 
-            if area_id:
-                self.motion_sensor_areas[entity_id] = area_id
-
-        if self.motion_sensor_areas:
-            logger.info(f"✓ Motion sensor cache built: {len(self.motion_sensor_areas)} sensors")
-            for entity_id, area_id in self.motion_sensor_areas.items():
-                logger.debug(f"  {entity_id} -> {area_id}")
+        if self.motion_sensor_ids:
+            logger.info(f"✓ Motion sensor cache built: {len(self.motion_sensor_ids)} sensors")
+            for entity_id, device_id in self.motion_sensor_ids.items():
+                logger.debug(f"  {entity_id} -> device:{device_id}")
 
     def get_lights_by_color_capability(self, area_id: str) -> Tuple[List[str], List[str]]:
         """Get lights in an area split by color capability.
@@ -2201,8 +2176,9 @@ class HomeAssistantWebSocketClient:
                 if reset_switches:
                     logger.debug(f"Reset {len(reset_switches)} switch(es) to scope 1 due to inactivity")
 
-                # Check for expired boosts and handle them
+                # Check for expired boosts and motion timers
                 await self.primitives.check_expired_boosts()
+                await self.primitives.check_expired_motion()
 
                 # Get all enabled, unfrozen areas from state module
                 circadian_areas = state.get_unfrozen_enabled_areas()
@@ -2592,7 +2568,7 @@ class HomeAssistantWebSocketClient:
                     logger.info(f"Updated sun data: elevation={self.sun_data.get('elevation')}")
 
                 # Handle motion sensor state changes
-                if entity_id and entity_id in self.motion_sensor_areas:
+                if entity_id and entity_id in self.motion_sensor_ids:
                     new_state_val = new_state.get("state") if isinstance(new_state, dict) else None
                     old_state_val = old_state.get("state") if isinstance(old_state, dict) else None
                     if new_state_val and new_state_val != old_state_val:

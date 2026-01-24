@@ -309,11 +309,85 @@ class SwitchRuntimeState:
 
 
 # =============================================================================
+# Motion Sensor Data Classes
+# =============================================================================
+
+@dataclass
+class MotionAreaConfig:
+    """Config for one area controlled by a motion sensor."""
+    area_id: str
+    function: str = "on_off"  # on_only, on_off, boost, disabled
+    duration: int = 60  # seconds, only used for on_off
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "area_id": self.area_id,
+            "function": self.function,
+            "duration": self.duration,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "MotionAreaConfig":
+        """Create from dictionary."""
+        return cls(
+            area_id=data.get("area_id", ""),
+            function=data.get("function", "on_off"),
+            duration=data.get("duration", 60),
+        )
+
+
+@dataclass
+class MotionSensorConfig:
+    """Configuration for a motion sensor."""
+    id: str                              # Device ID or unique identifier
+    name: str                            # User-friendly name
+    areas: List[MotionAreaConfig] = field(default_factory=list)
+    device_id: Optional[str] = None      # HA device_id
+
+    def get_area_config(self, area_id: str) -> Optional[MotionAreaConfig]:
+        """Get config for a specific area."""
+        for area in self.areas:
+            if area.area_id == area_id:
+                return area
+        return None
+
+    def get_all_area_ids(self) -> List[str]:
+        """Get list of all area IDs this sensor controls."""
+        return [a.area_id for a in self.areas]
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {
+            "id": self.id,
+            "name": self.name,
+            "areas": [a.to_dict() for a in self.areas],
+        }
+        if self.device_id:
+            result["device_id"] = self.device_id
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "MotionSensorConfig":
+        """Create from dictionary."""
+        areas = [MotionAreaConfig.from_dict(a) for a in data.get("areas", [])]
+        return cls(
+            id=data.get("id", ""),
+            name=data.get("name", ""),
+            areas=areas,
+            device_id=data.get("device_id"),
+        )
+
+
+# =============================================================================
 # Module State
 # =============================================================================
 
 # Configured switches (persisted)
 _switches: Dict[str, SwitchConfig] = {}
+
+# Configured motion sensors (persisted)
+_motion_sensors: Dict[str, MotionSensorConfig] = {}
 
 # Runtime state per switch (not persisted)
 _runtime_state: Dict[str, SwitchRuntimeState] = {}
@@ -345,7 +419,7 @@ def _get_data_directory() -> str:
 
 def init(config_file: Optional[str] = None) -> None:
     """Initialize the switches module and load config from disk."""
-    global _config_file_path, _switches, _runtime_state
+    global _config_file_path, _switches, _motion_sensors, _runtime_state
 
     data_dir = _get_data_directory()
 
@@ -355,9 +429,10 @@ def init(config_file: Optional[str] = None) -> None:
         _config_file_path = os.path.join(data_dir, "switches_config.json")
 
     _switches = {}
+    _motion_sensors = {}
     _runtime_state = {}
 
-    # Load configured switches
+    # Load configured switches and motion sensors
     if os.path.exists(_config_file_path):
         try:
             with open(_config_file_path, "r", encoding="utf-8") as f:
@@ -368,7 +443,11 @@ def init(config_file: Optional[str] = None) -> None:
                 _switches[switch.id] = switch
                 _runtime_state[switch.id] = SwitchRuntimeState()
 
-            logger.info(f"Loaded {len(_switches)} switch(es) from {_config_file_path}")
+            for motion_data in data.get("motion_sensors", []):
+                motion = MotionSensorConfig.from_dict(motion_data)
+                _motion_sensors[motion.id] = motion
+
+            logger.info(f"Loaded {len(_switches)} switch(es), {len(_motion_sensors)} motion sensor(s) from {_config_file_path}")
         except Exception as e:
             logger.warning(f"Failed to load switches config from {_config_file_path}: {e}")
     else:
@@ -376,14 +455,15 @@ def init(config_file: Optional[str] = None) -> None:
 
 
 def _save() -> None:
-    """Save current switch config to disk."""
+    """Save current switch and motion sensor config to disk."""
     if not _config_file_path:
         logger.error("Switches module not initialized, cannot save")
         return
 
     try:
         data = {
-            "switches": [s.to_dict() for s in _switches.values()]
+            "switches": [s.to_dict() for s in _switches.values()],
+            "motion_sensors": [m.to_dict() for m in _motion_sensors.values()],
         }
         with open(_config_file_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
@@ -477,6 +557,61 @@ def remove_switch(switch_id: str) -> bool:
 def is_configured(switch_id: str) -> bool:
     """Check if a switch is configured."""
     return switch_id in _switches
+
+
+# =============================================================================
+# Motion Sensor Management
+# =============================================================================
+
+def add_motion_sensor(config: MotionSensorConfig) -> None:
+    """Add or update a motion sensor configuration."""
+    _motion_sensors[config.id] = config
+    _save()
+    logger.info(f"Added/updated motion sensor: {config.id} ({config.name})")
+
+
+def remove_motion_sensor(sensor_id: str) -> bool:
+    """Remove a motion sensor configuration."""
+    if sensor_id in _motion_sensors:
+        del _motion_sensors[sensor_id]
+        _save()
+        logger.info(f"Removed motion sensor: {sensor_id}")
+        return True
+    return False
+
+
+def get_motion_sensor(sensor_id: str) -> Optional[MotionSensorConfig]:
+    """Get a motion sensor configuration by ID."""
+    return _motion_sensors.get(sensor_id)
+
+
+def get_motion_sensor_by_device_id(device_id: str) -> Optional[MotionSensorConfig]:
+    """Get a motion sensor configuration by HA device_id."""
+    for sensor in _motion_sensors.values():
+        if sensor.device_id == device_id:
+            return sensor
+    return None
+
+
+def is_motion_sensor_configured(sensor_id: str) -> bool:
+    """Check if a motion sensor is configured."""
+    return sensor_id in _motion_sensors
+
+
+def get_all_motion_sensors() -> Dict[str, MotionSensorConfig]:
+    """Get all configured motion sensors."""
+    return _motion_sensors.copy()
+
+
+def get_motion_sensors_for_area(area_id: str) -> List[MotionSensorConfig]:
+    """Get all motion sensors that control a specific area."""
+    result = []
+    for sensor in _motion_sensors.values():
+        for area in sensor.areas:
+            if area.area_id == area_id:
+                result.append(sensor)
+                break
+    return result
 
 
 # =============================================================================

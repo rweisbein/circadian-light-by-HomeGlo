@@ -43,6 +43,8 @@ def _get_default_area_state() -> Dict[str, Any]:
         # Boost state
         "boost_started_from_off": False,  # If true, turn off when boost ends; else restore circadian
         "boost_expires_at": None,  # ISO timestamp string when boost expires (None = not boosted)
+        # Motion on_off state (on_only has no timer, so doesn't need state)
+        "motion_expires_at": None,  # ISO timestamp when on_off motion timer expires (None = not from motion)
     }
 
 
@@ -424,6 +426,67 @@ def get_expired_boosts() -> List[str]:
 
     for area_id, s in _state.items():
         expires_at = s.get("boost_expires_at")
+        if expires_at and expires_at <= now:
+            expired.append(area_id)
+
+    return expired
+
+
+# ============================================================================
+# Motion on_off state management
+# ============================================================================
+
+def set_motion_expires(area_id: str, expires_at: str) -> None:
+    """Set motion on_off timer for an area.
+
+    Args:
+        area_id: The area ID
+        expires_at: ISO timestamp string when motion timer expires
+    """
+    update_area(area_id, {"motion_expires_at": expires_at})
+    logger.info(f"Motion on_off timer set for area {area_id} (expires={expires_at})")
+
+
+def clear_motion_expires(area_id: str) -> None:
+    """Clear motion on_off timer for an area.
+
+    Args:
+        area_id: The area ID
+    """
+    if get_area(area_id).get("motion_expires_at") is not None:
+        update_area(area_id, {"motion_expires_at": None})
+        logger.info(f"Motion on_off timer cleared for area {area_id}")
+
+
+def extend_motion_expires(area_id: str, expires_at: str) -> None:
+    """Extend motion on_off timer for an area.
+
+    Args:
+        area_id: The area ID
+        expires_at: New ISO timestamp string when motion timer expires
+    """
+    update_area(area_id, {"motion_expires_at": expires_at})
+    logger.debug(f"Motion on_off timer extended for area {area_id} (expires={expires_at})")
+
+
+def has_motion_timer(area_id: str) -> bool:
+    """Check if an area has an active motion on_off timer."""
+    return get_area(area_id).get("motion_expires_at") is not None
+
+
+def get_expired_motion() -> List[str]:
+    """Get list of areas with expired motion on_off timers.
+
+    Returns:
+        List of area_ids with expired motion timers
+    """
+    from datetime import datetime
+
+    now = datetime.now().isoformat()
+    expired = []
+
+    for area_id, s in _state.items():
+        expires_at = s.get("motion_expires_at")
         if expires_at and expires_at <= now:
             expired.append(area_id)
 

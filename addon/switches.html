@@ -607,13 +607,22 @@
         </select>
       </div>
 
-      <div class="modal-section">
+      <div class="modal-section" id="switch-config-section">
         <label class="modal-label">Scopes</label>
         <p class="info-text">Each scope is a set of areas the control will manage. Cycle through scopes with the bottom button.</p>
         <div id="scopes-editor" style="margin-top: 12px;">
           <!-- Scope editors populated by JS -->
         </div>
         <button class="add-scope-btn" id="add-scope-btn">+ Add Scope</button>
+      </div>
+
+      <div class="modal-section" id="motion-config-section" style="display: none;">
+        <label class="modal-label">Areas</label>
+        <p class="info-text">Configure which areas this motion sensor controls and how each area responds.</p>
+        <div id="motion-areas-editor" style="margin-top: 12px;">
+          <!-- Motion area editors populated by JS -->
+        </div>
+        <button class="add-scope-btn" id="add-motion-area-btn">+ Add Area</button>
       </div>
 
       <div class="modal-actions">
@@ -631,6 +640,7 @@
     let editingControlId = null;
     let editingDeviceId = null;
     let editingScopes = [];
+    let editingMotionAreas = [];  // For motion sensors: [{area_id, function, duration}, ...]
     let editingControl = null;
     let sortColumn = 'status';
     let sortAsc = true;
@@ -963,6 +973,7 @@
         if (e.target.classList.contains('modal-overlay')) hideModal();
       });
       document.getElementById('add-scope-btn').addEventListener('click', addScope);
+      document.getElementById('add-motion-area-btn').addEventListener('click', addMotionArea);
 
       // Use event delegation for dynamically created filter dropdowns
       document.getElementById('controls-container').addEventListener('change', (e) => {
@@ -993,6 +1004,7 @@
       editingDeviceId = null;
       editingControl = null;
       editingScopes = [];
+      editingMotionAreas = [];
     }
 
     function editControl(id) {
@@ -1002,14 +1014,26 @@
       editingControlId = id;
       editingDeviceId = ctrl.device_id || null;
       editingControl = ctrl;
-      editingScopes = ctrl.scopes && ctrl.scopes.length > 0
-        ? ctrl.scopes.map(s => ({ areas: [...(s.areas || [])] }))
-        : [{ areas: [] }];
 
+      const isMotionSensor = ctrl.category === 'motion_sensor';
       const isConfigured = ctrl.status === 'active';
       const titlePrefix = isConfigured ? 'Edit' : 'Configure';
+
+      if (isMotionSensor) {
+        // Load motion sensor areas
+        editingMotionAreas = ctrl.areas && ctrl.areas.length > 0
+          ? ctrl.areas.map(a => ({ ...a }))
+          : [];
+        editingScopes = [];
+      } else {
+        // Load switch scopes
+        editingScopes = ctrl.scopes && ctrl.scopes.length > 0
+          ? ctrl.scopes.map(s => ({ areas: [...(s.areas || [])] }))
+          : [{ areas: [] }];
+        editingMotionAreas = [];
+      }
+
       document.getElementById('modal-title').textContent = `${titlePrefix}: ${ctrl.name}`;
-      document.getElementById('control-type').value = ctrl.type || '';
       document.getElementById('modal-remove-config').style.display = isConfigured ? 'block' : 'none';
 
       // Populate device info section
@@ -1022,12 +1046,29 @@
         <div><strong>Controller:</strong> ${controller}</div>
       `;
 
-      // Populate type select with the control's type
-      const typeSelect = document.getElementById('control-type');
-      typeSelect.innerHTML = `<option value="${ctrl.type}">${ctrl.type_name || ctrl.type}</option>`;
-      typeSelect.disabled = true; // Type is determined by device, not editable
+      // Show/hide appropriate sections based on control type
+      const typeSectionEl = document.querySelector('.modal-section:has(#control-type)');
+      const switchSection = document.getElementById('switch-config-section');
+      const motionSection = document.getElementById('motion-config-section');
 
-      renderScopesEditor();
+      if (isMotionSensor) {
+        if (typeSectionEl) typeSectionEl.style.display = 'none';
+        switchSection.style.display = 'none';
+        motionSection.style.display = 'block';
+        renderMotionAreasEditor();
+      } else {
+        if (typeSectionEl) typeSectionEl.style.display = 'block';
+        switchSection.style.display = 'block';
+        motionSection.style.display = 'none';
+
+        // Populate type select with the control's type
+        const typeSelect = document.getElementById('control-type');
+        typeSelect.innerHTML = `<option value="${ctrl.type}">${ctrl.type_name || ctrl.type}</option>`;
+        typeSelect.disabled = true; // Type is determined by device, not editable
+
+        renderScopesEditor();
+      }
+
       showModal();
     }
 
@@ -1081,13 +1122,114 @@
       renderScopesEditor();
     }
 
+    // Motion sensor area editor functions
+    function renderMotionAreasEditor() {
+      const container = document.getElementById('motion-areas-editor');
+
+      if (editingMotionAreas.length === 0) {
+        container.innerHTML = '<p class="info-text">No areas configured. Click "+ Add Area" to add one.</p>';
+        return;
+      }
+
+      container.innerHTML = editingMotionAreas.map((areaConfig, idx) => {
+        const areaName = getAreaName(areaConfig.area_id);
+        const functionLabels = {
+          'on_only': 'On only (manual off)',
+          'on_off': 'On/Off (auto off)',
+          'boost': 'Boost',
+          'disabled': 'Disabled'
+        };
+
+        return `
+          <div class="scope-editor" data-motion-idx="${idx}">
+            <div class="scope-editor-header">
+              <span class="scope-editor-title">${areaName}</span>
+              <button class="scope-editor-remove" onclick="removeMotionArea(${idx})">&times;</button>
+            </div>
+            <div class="scope-editor-body">
+              <div style="display: flex; flex-direction: column; gap: 12px;">
+                <div>
+                  <label class="modal-label" style="margin-bottom: 4px;">Area</label>
+                  <select class="modal-select" onchange="updateMotionArea(${idx}, 'area_id', this.value)">
+                    ${allAreas.map(area => `
+                      <option value="${area.area_id}" ${areaConfig.area_id === area.area_id ? 'selected' : ''}>${area.name}</option>
+                    `).join('')}
+                  </select>
+                </div>
+                <div>
+                  <label class="modal-label" style="margin-bottom: 4px;">Function</label>
+                  <select class="modal-select" onchange="updateMotionArea(${idx}, 'function', this.value)">
+                    ${Object.entries(functionLabels).map(([value, label]) => `
+                      <option value="${value}" ${areaConfig.function === value ? 'selected' : ''}>${label}</option>
+                    `).join('')}
+                  </select>
+                </div>
+                <div style="${areaConfig.function === 'on_off' || areaConfig.function === 'boost' ? '' : 'display: none;'}">
+                  <label class="modal-label" style="margin-bottom: 4px;">Duration (seconds)</label>
+                  <input type="number" class="modal-input" value="${areaConfig.duration || 60}" min="10" max="3600"
+                    onchange="updateMotionArea(${idx}, 'duration', parseInt(this.value))">
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function addMotionArea() {
+      // Default to first area that isn't already configured, or first area overall
+      const configuredAreaIds = editingMotionAreas.map(a => a.area_id);
+      const availableArea = allAreas.find(a => !configuredAreaIds.includes(a.area_id)) || allAreas[0];
+
+      if (!availableArea) {
+        alert('No areas available to add');
+        return;
+      }
+
+      editingMotionAreas.push({
+        area_id: availableArea.area_id,
+        function: 'on_off',
+        duration: 60
+      });
+      renderMotionAreasEditor();
+    }
+
+    function removeMotionArea(idx) {
+      editingMotionAreas.splice(idx, 1);
+      renderMotionAreasEditor();
+    }
+
+    function updateMotionArea(idx, field, value) {
+      editingMotionAreas[idx][field] = value;
+      // Re-render to show/hide duration field based on function selection
+      renderMotionAreasEditor();
+    }
+
     async function saveControl() {
-      const payload = {
-        name: editingControl?.name,  // Use HA device name (read-only)
-        type: editingControl?.type,
-        scopes: editingScopes,
-        device_id: editingDeviceId
-      };
+      const isMotionSensor = editingControl?.category === 'motion_sensor';
+
+      let payload;
+      if (isMotionSensor) {
+        // Validate motion sensor config
+        if (editingMotionAreas.length === 0) {
+          alert('Please add at least one area');
+          return;
+        }
+        payload = {
+          name: editingControl?.name,
+          category: 'motion_sensor',
+          areas: editingMotionAreas,
+          device_id: editingDeviceId
+        };
+      } else {
+        // Switch config
+        payload = {
+          name: editingControl?.name,
+          type: editingControl?.type,
+          scopes: editingScopes,
+          device_id: editingDeviceId
+        };
+      }
 
       try {
         const response = await fetch(`./api/controls/${encodeURIComponent(editingControlId)}/configure`, {
