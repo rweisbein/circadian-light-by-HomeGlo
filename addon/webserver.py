@@ -3281,6 +3281,7 @@ class LightDesignerServer:
                         'supported': is_supported,
                     })
 
+                logger.info(f"[Controls] Returning {len(controls)} controls: {[(c.get('name'), c.get('category')) for c in controls]}")
                 return controls
         except Exception as e:
             logger.error(f"Error fetching HA controls: {e}", exc_info=True)
