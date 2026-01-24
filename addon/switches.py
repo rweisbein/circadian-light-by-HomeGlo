@@ -186,29 +186,33 @@ SWITCH_TYPES: Dict[str, Dict[str, Any]] = {
 
 
 # =============================================================================
-# Motion Sensor Names (for display purposes)
+# Sensor Names (for display purposes)
 # =============================================================================
 
 # Maps (manufacturer_lower, model) to friendly display name
 # Model matching is exact (case-insensitive), manufacturer is partial match
-MOTION_SENSOR_NAMES: Dict[str, Dict[str, str]] = {
-    # Philips Hue motion sensors
+# Covers both motion sensors and contact sensors
+SENSOR_NAMES: Dict[str, Dict[str, str]] = {
+    # Philips Hue sensors
     "signify": {
-        "SML001": "Hue Indoor",
-        "SML002": "Hue Outdoor",
-        "SML003": "Hue Indoor (new)",
-        "SML004": "Hue Outdoor (new)",
+        # Motion sensors
+        "SML001": "Hue Indoor Motion",
+        "SML002": "Hue Outdoor Motion",
+        "SML003": "Hue Indoor Motion (new)",
+        "SML004": "Hue Outdoor Motion (new)",
+        # Contact sensors
+        "SOC001": "Hue Secure Contact",
     },
     "philips": {
-        "SML001": "Hue Indoor",
-        "SML002": "Hue Outdoor",
+        "SML001": "Hue Indoor Motion",
+        "SML002": "Hue Outdoor Motion",
     },
     # Add more manufacturers as needed
 }
 
 
-def get_motion_sensor_name(manufacturer: Optional[str], model: Optional[str]) -> Optional[str]:
-    """Get friendly display name for a motion sensor.
+def get_sensor_name(manufacturer: Optional[str], model: Optional[str]) -> Optional[str]:
+    """Get friendly display name for a sensor (motion or contact).
 
     Returns None if no matching name found (caller should fall back to model).
     """
@@ -218,7 +222,7 @@ def get_motion_sensor_name(manufacturer: Optional[str], model: Optional[str]) ->
     manufacturer_lower = manufacturer.lower()
 
     # Check each known manufacturer (partial match)
-    for mfr_key, models in MOTION_SENSOR_NAMES.items():
+    for mfr_key, models in SENSOR_NAMES.items():
         if mfr_key in manufacturer_lower:
             # Case-insensitive model lookup
             for model_key, name in models.items():
@@ -226,6 +230,12 @@ def get_motion_sensor_name(manufacturer: Optional[str], model: Optional[str]) ->
                     return name
 
     return None
+
+
+# Backwards compatibility alias
+def get_motion_sensor_name(manufacturer: Optional[str], model: Optional[str]) -> Optional[str]:
+    """Deprecated: Use get_sensor_name instead."""
+    return get_sensor_name(manufacturer, model)
 
 
 # =============================================================================

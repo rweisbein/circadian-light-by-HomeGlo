@@ -3052,6 +3052,12 @@ class LightDesignerServer:
                     config = motion_config.to_dict() if motion_config else {}
                     config_areas = config.get("areas", [])
                     is_configured = bool(config_areas)
+                elif category == "contact_sensor":
+                    # Look up by device_id for contact sensors
+                    contact_config = switches.get_contact_sensor_by_device_id(device_id) if device_id else None
+                    config = contact_config.to_dict() if contact_config else {}
+                    config_areas = config.get("areas", [])
+                    is_configured = bool(config_areas)
                 else:
                     # Look up by ieee for switches
                     config = configured_switches.get(ieee, {})
@@ -3087,7 +3093,7 @@ class LightDesignerServer:
                     "last_action": last_action,
                 }
 
-                if category == "motion_sensor":
+                if category in ("motion_sensor", "contact_sensor"):
                     control_data["areas"] = config.get("areas", [])
                 else:
                     control_data["scopes"] = config.get("scopes", [])
@@ -3265,8 +3271,8 @@ class LightDesignerServer:
                     # Get display name based on category
                     if detected_type:
                         type_name = type_info.get('name')
-                    elif category == 'motion_sensor':
-                        type_name = switches.get_motion_sensor_name(
+                    elif category in ('motion_sensor', 'contact_sensor'):
+                        type_name = switches.get_sensor_name(
                             device.get('manufacturer'),
                             device.get('model')
                         )
@@ -3327,6 +3333,26 @@ class LightDesignerServer:
                 )
 
                 switches.add_motion_sensor(motion_config)
+            elif category == "contact_sensor":
+                # Handle contact sensor configuration
+                areas_data = data.get("areas", [])
+                areas = []
+                for area_data in areas_data:
+                    areas.append(switches.ContactAreaConfig(
+                        area_id=area_data.get("area_id", ""),
+                        function=area_data.get("function", "on_off"),
+                        duration=area_data.get("duration", 60),
+                        boost_brightness=area_data.get("boost_brightness", 50),
+                    ))
+
+                contact_config = switches.ContactSensorConfig(
+                    id=control_id,
+                    name=name,
+                    areas=areas,
+                    device_id=device_id,
+                )
+
+                switches.add_contact_sensor(contact_config)
             else:
                 # Handle switch configuration
                 control_type = data.get("type", "hue_4button_v2")
@@ -3367,7 +3393,9 @@ class LightDesignerServer:
             # Try to delete from both switch and motion sensor configs
             removed = switches.remove_switch(control_id)
             if not removed:
-                switches.remove_motion_sensor(control_id)
+                removed = switches.remove_motion_sensor(control_id)
+            if not removed:
+                switches.remove_contact_sensor(control_id)
 
             return web.json_response({"status": "ok"})
         except Exception as e:

@@ -1043,12 +1043,12 @@
       editingDeviceId = ctrl.device_id || null;
       editingControl = ctrl;
 
-      const isMotionSensor = ctrl.category === 'motion_sensor';
+      const isSensorType = ctrl.category === 'motion_sensor' || ctrl.category === 'contact_sensor';
       const isConfigured = ctrl.status === 'active';
       const titlePrefix = isConfigured ? 'Edit' : 'Configure';
 
-      if (isMotionSensor) {
-        // Load motion sensor areas
+      if (isSensorType) {
+        // Load motion/contact sensor areas
         editingMotionAreas = ctrl.areas && ctrl.areas.length > 0
           ? ctrl.areas.map(a => ({ ...a }))
           : [];
@@ -1079,7 +1079,7 @@
       const switchSection = document.getElementById('switch-config-section');
       const motionSection = document.getElementById('motion-config-section');
 
-      if (isMotionSensor) {
+      if (isSensorType) {
         if (typeSectionEl) typeSectionEl.style.display = 'none';
         switchSection.style.display = 'none';
         motionSection.style.display = 'block';
@@ -1229,11 +1229,11 @@
     }
 
     async function saveControl() {
-      const isMotionSensor = editingControl?.category === 'motion_sensor';
+      const isSensorType = editingControl?.category === 'motion_sensor' || editingControl?.category === 'contact_sensor';
 
       let payload;
-      if (isMotionSensor) {
-        // Validate motion sensor config
+      if (isSensorType) {
+        // Validate motion/contact sensor config
         if (editingMotionAreas.length === 0) {
           alert('Please add at least one area');
           return;
@@ -1246,7 +1246,7 @@
         }
         payload = {
           name: editingControl?.name,
-          category: 'motion_sensor',
+          category: editingControl?.category,  // preserve original category (motion_sensor or contact_sensor)
           areas: editingMotionAreas,
           device_id: editingDeviceId
         };

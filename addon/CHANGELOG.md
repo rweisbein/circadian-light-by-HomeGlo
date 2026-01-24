@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.114
+**Contact sensor configuration support**
+
+- Fixed: Contact sensors now show correct config UI (was showing switch config)
+- Added "Hue Secure Contact" (SOC001) to sensor names dictionary
+- Contact sensors can now be configured with area, function, duration, boost_brightness
+- Renamed MOTION_SENSOR_NAMES to SENSOR_NAMES (covers both motion and contact sensors)
+
 ## 6.9.113
 **Fix bounce effect to be boost-aware**
 
