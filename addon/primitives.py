@@ -196,20 +196,10 @@ class CircadianLightPrimitives:
             # Update state
             self._update_area_state(area_id, result.state_updates)
 
-            # Apply to lights (add boost if boosted)
-            brightness = result.brightness
-            boost_note = ""
-            if state.is_boosted(area_id):
-                boost_state = state.get_boost_state(area_id)
-                boost_amount = boost_state.get("boost_brightness") or 0
-                brightness = min(100, result.brightness + boost_amount)
-                boost_note = f" (boosted +{boost_amount}%)"
+            # Apply to lights (boost-aware)
+            await self._apply_circadian_lighting(area_id, result.brightness, result.color_temp)
 
-            await self._apply_lighting(area_id, brightness, result.color_temp)
-
-            logger.info(
-                f"Step up applied: {result.brightness}%{boost_note} -> {brightness}%, {result.color_temp}K"
-            )
+            logger.info(f"Step up applied: {result.brightness}%, {result.color_temp}K")
 
         else:
             # Not in Circadian mode - standard brightness increase
@@ -256,20 +246,10 @@ class CircadianLightPrimitives:
             # Update state
             self._update_area_state(area_id, result.state_updates)
 
-            # Apply to lights (add boost if boosted)
-            brightness = result.brightness
-            boost_note = ""
-            if state.is_boosted(area_id):
-                boost_state = state.get_boost_state(area_id)
-                boost_amount = boost_state.get("boost_brightness") or 0
-                brightness = min(100, result.brightness + boost_amount)
-                boost_note = f" (boosted +{boost_amount}%)"
+            # Apply to lights (boost-aware)
+            await self._apply_circadian_lighting(area_id, result.brightness, result.color_temp)
 
-            await self._apply_lighting(area_id, brightness, result.color_temp)
-
-            logger.info(
-                f"Step down applied: {result.brightness}%{boost_note} -> {brightness}%, {result.color_temp}K"
-            )
+            logger.info(f"Step down applied: {result.brightness}%, {result.color_temp}K")
 
         else:
             # Not in Circadian mode - standard brightness decrease
@@ -317,20 +297,12 @@ class CircadianLightPrimitives:
             # Update state
             self._update_area_state(area_id, result.state_updates)
 
-            # Apply to lights (brightness only, add boost if boosted)
-            brightness = result.brightness
-            boost_note = ""
-            if state.is_boosted(area_id):
-                boost_state = state.get_boost_state(area_id)
-                boost_amount = boost_state.get("boost_brightness") or 0
-                brightness = min(100, result.brightness + boost_amount)
-                boost_note = f" (boosted +{boost_amount}%)"
-
-            await self._apply_lighting(
-                area_id, brightness, result.color_temp, include_color=False
+            # Apply to lights (brightness only, boost-aware)
+            await self._apply_circadian_lighting(
+                area_id, result.brightness, result.color_temp, include_color=False
             )
 
-            logger.info(f"Bright up applied: {result.brightness}%{boost_note} -> {brightness}%")
+            logger.info(f"Bright up applied: {result.brightness}%")
 
         else:
             await self._standard_brightness_step(area_id, direction=1, source=source)
@@ -373,20 +345,12 @@ class CircadianLightPrimitives:
             # Update state
             self._update_area_state(area_id, result.state_updates)
 
-            # Apply to lights (brightness only, add boost if boosted)
-            brightness = result.brightness
-            boost_note = ""
-            if state.is_boosted(area_id):
-                boost_state = state.get_boost_state(area_id)
-                boost_amount = boost_state.get("boost_brightness") or 0
-                brightness = min(100, result.brightness + boost_amount)
-                boost_note = f" (boosted +{boost_amount}%)"
-
-            await self._apply_lighting(
-                area_id, brightness, result.color_temp, include_color=False
+            # Apply to lights (brightness only, boost-aware)
+            await self._apply_circadian_lighting(
+                area_id, result.brightness, result.color_temp, include_color=False
             )
 
-            logger.info(f"Bright down applied: {result.brightness}%{boost_note} -> {brightness}%")
+            logger.info(f"Bright down applied: {result.brightness}%")
 
         else:
             await self._standard_brightness_step(area_id, direction=-1, source=source)
@@ -960,12 +924,12 @@ class CircadianLightPrimitives:
                 })
                 logger.info(f"[{source}] Copied settings from {copy_from} to {area_id}")
 
-                # Apply if enabled
+                # Apply if enabled (boost-aware)
                 if state.is_enabled(area_id):
                     area_state = self._get_area_state(area_id)
                     hour = area_state.frozen_at if area_state.frozen_at is not None else current_hour
                     result = CircadianLight.calculate_lighting(hour, config, area_state)
-                    await self._apply_lighting(area_id, result.brightness, result.color_temp)
+                    await self._apply_circadian_lighting(area_id, result.brightness, result.color_temp)
                 return
             else:
                 logger.warning(f"[{source}] copy_from area {copy_from} not found")
@@ -975,11 +939,11 @@ class CircadianLightPrimitives:
             state.set_frozen_at(area_id, float(frozen_at))
             logger.info(f"[{source}] Set {area_id} frozen_at={frozen_at:.2f}")
 
-            # Apply if enabled
+            # Apply if enabled (boost-aware)
             if state.is_enabled(area_id):
                 area_state = self._get_area_state(area_id)
                 result = CircadianLight.calculate_lighting(frozen_at, config, area_state)
-                await self._apply_lighting(area_id, result.brightness, result.color_temp)
+                await self._apply_circadian_lighting(area_id, result.brightness, result.color_temp)
             return
 
         # Priority 3: preset
@@ -1032,9 +996,9 @@ class CircadianLightPrimitives:
                 logger.info(f"[{source}] Preset apply: area_state.frozen_at={area_state.frozen_at}, using hour={hour}")
                 result = CircadianLight.calculate_lighting(hour, config, area_state)
                 logger.info(f"[{source}] Preset calculated: brightness={result.brightness}%, color_temp={result.color_temp}K at hour={hour}")
-                # Use turn_on_transition for presets (they're typically turn-on actions)
+                # Use turn_on_transition for presets (they're typically turn-on actions), boost-aware
                 transition = self._get_turn_on_transition()
-                await self._apply_lighting(area_id, result.brightness, result.color_temp, transition=transition)
+                await self._apply_circadian_lighting(area_id, result.brightness, result.color_temp, transition=transition)
 
     async def broadcast(self, source_area_id: str, source: str = "service_call"):
         """Copy settings from source area to all other areas.
@@ -1154,11 +1118,11 @@ class CircadianLightPrimitives:
             # Was frozen → unfreeze (re-anchor midpoints)
             self._unfreeze_internal(area_id, source)
 
-            # Rise to unfrozen values over 1s
+            # Rise to unfrozen values over 1s (boost-aware)
             area_state = self._get_area_state(area_id)
             hour = get_current_hour()
             result = CircadianLight.calculate_lighting(hour, config, area_state)
-            await self._apply_lighting(area_id, result.brightness, result.color_temp, transition=1.0)
+            await self._apply_circadian_lighting(area_id, result.brightness, result.color_temp, transition=1.0)
 
             logger.info(f"[{source}] Freeze toggle: {area_id} unfrozen")
 
@@ -1167,10 +1131,10 @@ class CircadianLightPrimitives:
             frozen_at = get_current_hour()
             state.set_frozen_at(area_id, frozen_at)
 
-            # Flash up to frozen values instantly
+            # Flash up to frozen values instantly (boost-aware)
             area_state = self._get_area_state(area_id)
             result = CircadianLight.calculate_lighting(frozen_at, config, area_state)
-            await self._apply_lighting(area_id, result.brightness, result.color_temp, transition=0)
+            await self._apply_circadian_lighting(area_id, result.brightness, result.color_temp, transition=0)
 
             logger.info(f"[{source}] Freeze toggle: {area_id} frozen at hour {frozen_at:.2f}")
 
@@ -1213,13 +1177,13 @@ class CircadianLightPrimitives:
             for area_id in enabled_areas:
                 self._unfreeze_internal(area_id, source)
 
-            # Rise ALL areas to unfrozen values over 1s
+            # Rise ALL areas to unfrozen values over 1s (boost-aware)
             hour = get_current_hour()
             for area_id in enabled_areas:
                 config = self._get_config(area_id)
                 area_state = self._get_area_state(area_id)
                 result = CircadianLight.calculate_lighting(hour, config, area_state)
-                await self._apply_lighting(area_id, result.brightness, result.color_temp, transition=1.0)
+                await self._apply_circadian_lighting(area_id, result.brightness, result.color_temp, transition=1.0)
 
             logger.info(f"[{source}] Freeze toggle: {len(enabled_areas)} area(s) unfrozen")
 
@@ -1229,12 +1193,12 @@ class CircadianLightPrimitives:
             for area_id in enabled_areas:
                 state.set_frozen_at(area_id, frozen_at)
 
-            # Flash ALL areas up to frozen values instantly
+            # Flash ALL areas up to frozen values instantly (boost-aware)
             for area_id in enabled_areas:
                 config = self._get_config(area_id)
                 area_state = self._get_area_state(area_id)
                 result = CircadianLight.calculate_lighting(frozen_at, config, area_state)
-                await self._apply_lighting(area_id, result.brightness, result.color_temp, transition=0)
+                await self._apply_circadian_lighting(area_id, result.brightness, result.color_temp, transition=0)
 
             logger.info(f"[{source}] Freeze toggle: {len(enabled_areas)} area(s) frozen at hour {frozen_at:.2f}")
 
@@ -1264,7 +1228,7 @@ class CircadianLightPrimitives:
             hour = get_current_hour()
 
             result = CircadianLight.calculate_lighting(hour, config, area_state)
-            await self._apply_lighting(area_id, result.brightness, result.color_temp)
+            await self._apply_circadian_lighting(area_id, result.brightness, result.color_temp)
 
             logger.info(
                 f"Reset complete for area {area_id}: "
@@ -1517,6 +1481,40 @@ class CircadianLightPrimitives:
         # Run all tasks concurrently
         if tasks:
             await asyncio.gather(*tasks)
+
+    async def _apply_circadian_lighting(
+        self,
+        area_id: str,
+        brightness: int,
+        color_temp: int,
+        include_color: bool = True,
+        transition: float = 0.4,
+    ):
+        """Apply circadian lighting with boost awareness.
+
+        This is a wrapper around _apply_lighting that automatically adds boost
+        brightness if the area is boosted. Use this for circadian lighting updates
+        where boost should be applied (step_up/down, freeze, etc.).
+
+        Use _apply_lighting directly when you've already calculated the final
+        brightness (e.g., motion sensor boost functions).
+
+        Args:
+            area_id: The area ID
+            brightness: Base circadian brightness percentage (0-100)
+            color_temp: Color temperature in Kelvin
+            include_color: Whether to include color in the command
+            transition: Transition time in seconds
+        """
+        # Apply boost if area is boosted
+        final_brightness = brightness
+        if state.is_boosted(area_id):
+            boost_state = state.get_boost_state(area_id)
+            boost_amount = boost_state.get("boost_brightness") or 0
+            final_brightness = min(100, brightness + boost_amount)
+            logger.debug(f"Boost applied: {brightness}% + {boost_amount}% = {final_brightness}%")
+
+        await self._apply_lighting(area_id, final_brightness, color_temp, include_color, transition)
 
     async def _apply_lighting_turn_on(
         self,

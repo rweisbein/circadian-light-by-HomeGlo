@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.112
+**Centralized boost-aware lighting with _apply_circadian_lighting**
+
+- Refactored: Created `_apply_circadian_lighting` wrapper that handles boost in one place
+- All circadian lighting updates now use this wrapper: step_up/down, bright_up/down, freeze, reset, set_area
+- `_apply_lighting` remains for exact values (motion sensor boost, visual effects, turn-on)
+- Cleaner architecture: boost logic in one place instead of scattered across functions
+
 ## 6.9.111
 **Step up/down now respects boost layer**
 
