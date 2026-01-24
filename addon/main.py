@@ -84,8 +84,12 @@ class HomeAssistantWebSocketClient:
         self.area_lights: Dict[str, List[str]] = {}  # area_id -> list of light entity_ids
 
         # Motion sensor cache for event handling
-        # Maps entity_id -> sensor_id (the unique ID used in motion sensor config)
+        # Maps entity_id -> device_id (used to look up motion sensor config)
         self.motion_sensor_ids: Dict[str, str] = {}
+
+        # Contact sensor cache for event handling
+        # Maps entity_id -> device_id (used to look up contact sensor config)
+        self.contact_sensor_ids: Dict[str, str] = {}
 
         # Live Design tracking - skip this area in periodic updates
         self.live_design_area: str = None
@@ -418,7 +422,8 @@ class HomeAssistantWebSocketClient:
             if new_state == "on":
                 # Motion detected - trigger based on function
                 if motion_function == "boost":
-                    await self.primitives.bright_boost(area_id, duration, source="motion_sensor")
+                    boost_amount = area_config.boost_brightness
+                    await self.primitives.bright_boost(area_id, duration, boost_amount, source="motion_sensor")
                 elif motion_function == "on_off":
                     await self.primitives.motion_on_off(area_id, duration, source="motion_sensor")
                 elif motion_function == "on_only":
@@ -427,6 +432,72 @@ class HomeAssistantWebSocketClient:
             # Note: For on_off, the timer is managed via motion_expires_at state
             # When motion clears, we don't need to do anything - the timer continues
             # If motion is detected again, motion_on_off extends the timer
+
+    async def _handle_contact_event(self, entity_id: str, new_state: str, old_state: str) -> None:
+        """Handle a contact sensor state change (door/window open/close).
+
+        Contact sensors differ from motion sensors:
+        - Open ("on") = turn on (like motion detected)
+        - Close ("off") = for on_off/boost, trigger circadian_off; for on_only, ignore
+
+        Args:
+            entity_id: The contact sensor entity_id
+            new_state: New state ("on" = open, "off" = closed)
+            old_state: Previous state
+        """
+        # Get device ID for this entity
+        device_id = self.contact_sensor_ids.get(entity_id)
+        if not device_id:
+            logger.debug(f"[Contact] No device ID mapped for entity {entity_id}")
+            return
+
+        # Record last action for UI display
+        if new_state == "on":
+            switches.set_last_action(device_id, "contact_opened")
+        else:
+            switches.set_last_action(device_id, "contact_closed")
+
+        # Get contact sensor config by device_id
+        sensor_config = switches.get_contact_sensor_by_device_id(device_id)
+        if not sensor_config:
+            logger.debug(f"[Contact] No config found for device {device_id}")
+            return
+
+        if not sensor_config.areas:
+            logger.debug(f"[Contact] Sensor {sensor_config.name} has no areas configured")
+            return
+
+        logger.info(f"[Contact] {entity_id} -> {new_state} (sensor={sensor_config.name})")
+
+        # Process each area configured for this sensor
+        for area_config in sensor_config.areas:
+            area_id = area_config.area_id
+            contact_function = area_config.function
+            duration = area_config.duration
+
+            if contact_function == "disabled":
+                logger.debug(f"[Contact] Function disabled for area {area_id}")
+                continue
+
+            logger.debug(f"[Contact] Area {area_id}: function={contact_function}, duration={duration}")
+
+            if new_state == "on":
+                # Contact opened - trigger based on function (same as motion detected)
+                if contact_function == "boost":
+                    boost_amount = area_config.boost_brightness
+                    await self.primitives.bright_boost(area_id, duration, boost_amount, source="contact_sensor")
+                elif contact_function == "on_off":
+                    await self.primitives.motion_on_off(area_id, duration, source="contact_sensor")
+                elif contact_function == "on_only":
+                    await self.primitives.motion_on_only(area_id, source="contact_sensor")
+
+            else:
+                # Contact closed - different from motion (close triggers off for on_off/boost)
+                if contact_function in ("on_off", "boost"):
+                    # Primary action: turn off immediately (timer is just a fallback)
+                    await self.primitives.circadian_off(area_id, source="contact_sensor")
+                    logger.info(f"[Contact] Closed: turned off area {area_id}")
+                # on_only: ignore close event (lights stay on until manually turned off)
 
     # =========================================================================
     # ZHA Switch Event Handling
@@ -1624,6 +1695,31 @@ class HomeAssistantWebSocketClient:
             for entity_id, device_id in self.motion_sensor_ids.items():
                 logger.debug(f"  {entity_id} -> device:{device_id}")
 
+        # Build contact sensor entity_id -> device_id mapping
+        # This lets us look up contact sensor config when events come in
+        self.contact_sensor_ids.clear()
+        for entity in entities:
+            if not isinstance(entity, dict):
+                continue
+
+            entity_id = entity.get("entity_id", "")
+            # Check for contact/door/window binary sensors
+            if not entity_id.startswith("binary_sensor."):
+                continue
+            # Look for opening, door, window, contact in entity_id
+            if not any(x in entity_id for x in ["_opening", "_door", "_window", "_contact"]):
+                continue
+
+            # Get device_id for this entity
+            device_id = entity.get("device_id")
+            if device_id:
+                self.contact_sensor_ids[entity_id] = device_id
+
+        if self.contact_sensor_ids:
+            logger.info(f"✓ Contact sensor cache built: {len(self.contact_sensor_ids)} sensors")
+            for entity_id, device_id in self.contact_sensor_ids.items():
+                logger.debug(f"  {entity_id} -> device:{device_id}")
+
     def get_lights_by_color_capability(self, area_id: str) -> Tuple[List[str], List[str]]:
         """Get lights in an area split by color capability.
 
@@ -2587,6 +2683,13 @@ class HomeAssistantWebSocketClient:
                     old_state_val = old_state.get("state") if isinstance(old_state, dict) else None
                     if new_state_val and new_state_val != old_state_val:
                         await self._handle_motion_event(entity_id, new_state_val, old_state_val)
+
+                # Handle contact sensor state changes
+                if entity_id and entity_id in self.contact_sensor_ids:
+                    new_state_val = new_state.get("state") if isinstance(new_state, dict) else None
+                    old_state_val = old_state.get("state") if isinstance(old_state, dict) else None
+                    if new_state_val and new_state_val != old_state_val:
+                        await self._handle_contact_event(entity_id, new_state_val, old_state_val)
 
             # Handle ZHA events (switch button presses)
             elif event_type == "zha_event":

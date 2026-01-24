@@ -42,7 +42,8 @@ def _get_default_area_state() -> Dict[str, Any]:
         "last_off_ct": None,
         # Boost state
         "boost_started_from_off": False,  # If true, turn off when boost ends; else restore circadian
-        "boost_expires_at": None,  # ISO timestamp string when boost expires (None = not boosted)
+        "boost_expires_at": None,  # ISO timestamp string when boost expires (None = not boosted, 0 = forever)
+        "boost_brightness": None,  # Current boost brightness percentage (None = not boosted)
         # Motion on_off state (on_only has no timer, so doesn't need state)
         "motion_expires_at": None,  # ISO timestamp when on_off motion timer expires (None = not from motion)
     }
@@ -360,19 +361,21 @@ def reset_area_to_defaults(area_id: str) -> None:
 # Boost state management
 # ============================================================================
 
-def set_boost(area_id: str, started_from_off: bool, expires_at: str) -> None:
+def set_boost(area_id: str, started_from_off: bool, expires_at: str, brightness: int) -> None:
     """Set boost state for an area.
 
     Args:
         area_id: The area ID
         started_from_off: Whether lights were off when boost started
-        expires_at: ISO timestamp string when boost expires
+        expires_at: ISO timestamp string when boost expires (None for forever)
+        brightness: Boost brightness percentage
     """
     update_area(area_id, {
         "boost_started_from_off": started_from_off,
         "boost_expires_at": expires_at,
+        "boost_brightness": brightness,
     })
-    logger.info(f"Boost activated for area {area_id} (started_from_off={started_from_off}, expires={expires_at})")
+    logger.info(f"Boost activated for area {area_id} (started_from_off={started_from_off}, brightness={brightness}%, expires={expires_at})")
 
 
 def clear_boost(area_id: str) -> None:
@@ -384,28 +387,62 @@ def clear_boost(area_id: str) -> None:
     update_area(area_id, {
         "boost_started_from_off": False,
         "boost_expires_at": None,
+        "boost_brightness": None,
     })
     logger.info(f"Boost cleared for area {area_id}")
 
 
 def is_boosted(area_id: str) -> bool:
-    """Check if an area is currently boosted."""
-    return get_area(area_id).get("boost_expires_at") is not None
+    """Check if an area is currently boosted.
+
+    Returns True if boost_expires_at is set (either a timestamp or "forever").
+    """
+    expires_at = get_area(area_id).get("boost_expires_at")
+    return expires_at is not None
+
+
+def is_boost_forever(area_id: str) -> bool:
+    """Check if an area has a forever (non-timed) boost."""
+    return get_area(area_id).get("boost_expires_at") == "forever"
 
 
 def get_boost_state(area_id: str) -> Dict[str, Any]:
     """Get boost state for an area.
 
     Returns:
-        Dict with is_boosted, boost_started_from_off, boost_expires_at
+        Dict with is_boosted, is_forever, boost_started_from_off, boost_expires_at, boost_brightness
     """
     area = get_area(area_id)
     expires_at = area.get("boost_expires_at")
     return {
         "is_boosted": expires_at is not None,
+        "is_forever": expires_at == "forever",
         "boost_started_from_off": area.get("boost_started_from_off", False),
         "boost_expires_at": expires_at,
+        "boost_brightness": area.get("boost_brightness"),
     }
+
+
+def update_boost_brightness(area_id: str, brightness: int) -> None:
+    """Update just the boost brightness for an area (for MAX logic).
+
+    Args:
+        area_id: The area ID
+        brightness: New boost brightness percentage
+    """
+    update_area(area_id, {"boost_brightness": brightness})
+    logger.info(f"Boost brightness updated to {brightness}% for area {area_id}")
+
+
+def update_boost_expires(area_id: str, expires_at: str) -> None:
+    """Update just the boost expiry for an area (for MAX timer logic).
+
+    Args:
+        area_id: The area ID
+        expires_at: New expiry timestamp (or "forever")
+    """
+    update_area(area_id, {"boost_expires_at": expires_at})
+    logger.info(f"Boost expiry updated to {expires_at} for area {area_id}")
 
 
 def get_boosted_areas() -> List[str]:
@@ -415,6 +452,8 @@ def get_boosted_areas() -> List[str]:
 
 def get_expired_boosts() -> List[str]:
     """Get list of areas with expired boosts (boost_expires_at in the past).
+
+    Skips "forever" boosts which never expire.
 
     Returns:
         List of area_ids with expired boosts
@@ -426,7 +465,10 @@ def get_expired_boosts() -> List[str]:
 
     for area_id, s in _state.items():
         expires_at = s.get("boost_expires_at")
-        if expires_at and expires_at <= now:
+        # Skip if not boosted or if forever boost
+        if not expires_at or expires_at == "forever":
+            continue
+        if expires_at <= now:
             expired.append(area_id)
 
     return expired
@@ -472,6 +514,15 @@ def extend_motion_expires(area_id: str, expires_at: str) -> None:
 def has_motion_timer(area_id: str) -> bool:
     """Check if an area has an active motion on_off timer."""
     return get_area(area_id).get("motion_expires_at") is not None
+
+
+def get_motion_expires(area_id: str) -> Optional[str]:
+    """Get the motion on_off timer expiry timestamp for an area.
+
+    Returns:
+        ISO timestamp string when motion timer expires, or None if not set
+    """
+    return get_area(area_id).get("motion_expires_at")
 
 
 def get_expired_motion() -> List[str]:

@@ -317,7 +317,8 @@ class MotionAreaConfig:
     """Config for one area controlled by a motion sensor."""
     area_id: str
     function: str = "on_off"  # on_only, on_off, boost, disabled
-    duration: int = 60  # seconds, only used for on_off
+    duration: int = 60  # seconds, used for on_off and boost (0 = forever)
+    boost_brightness: int = 50  # percentage points to add for boost function
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
@@ -325,6 +326,7 @@ class MotionAreaConfig:
             "area_id": self.area_id,
             "function": self.function,
             "duration": self.duration,
+            "boost_brightness": self.boost_brightness,
         }
 
     @classmethod
@@ -334,6 +336,7 @@ class MotionAreaConfig:
             area_id=data.get("area_id", ""),
             function=data.get("function", "on_off"),
             duration=data.get("duration", 60),
+            boost_brightness=data.get("boost_brightness", 50),
         )
 
 
@@ -380,6 +383,85 @@ class MotionSensorConfig:
 
 
 # =============================================================================
+# Contact Sensor Data Classes
+# =============================================================================
+
+@dataclass
+class ContactAreaConfig:
+    """Config for one area controlled by a contact sensor (e.g., door/window sensor).
+
+    Contact sensors differ from motion sensors:
+    - For on_off/boost: door CLOSE triggers circadian_off (primary), timer is fallback
+    - For on_only: door CLOSE is ignored (same as motion)
+    """
+    area_id: str
+    function: str = "on_off"  # on_only, on_off, boost, disabled
+    duration: int = 60  # seconds, used for on_off and boost (0 = forever)
+    boost_brightness: int = 50  # percentage points to add for boost function
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "area_id": self.area_id,
+            "function": self.function,
+            "duration": self.duration,
+            "boost_brightness": self.boost_brightness,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "ContactAreaConfig":
+        """Create from dictionary."""
+        return cls(
+            area_id=data.get("area_id", ""),
+            function=data.get("function", "on_off"),
+            duration=data.get("duration", 60),
+            boost_brightness=data.get("boost_brightness", 50),
+        )
+
+
+@dataclass
+class ContactSensorConfig:
+    """Configuration for a contact sensor (door/window sensor)."""
+    id: str                              # Device ID or unique identifier
+    name: str                            # User-friendly name
+    areas: List[ContactAreaConfig] = field(default_factory=list)
+    device_id: Optional[str] = None      # HA device_id
+
+    def get_area_config(self, area_id: str) -> Optional[ContactAreaConfig]:
+        """Get config for a specific area."""
+        for area in self.areas:
+            if area.area_id == area_id:
+                return area
+        return None
+
+    def get_all_area_ids(self) -> List[str]:
+        """Get list of all area IDs this sensor controls."""
+        return [a.area_id for a in self.areas]
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {
+            "id": self.id,
+            "name": self.name,
+            "areas": [a.to_dict() for a in self.areas],
+        }
+        if self.device_id:
+            result["device_id"] = self.device_id
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "ContactSensorConfig":
+        """Create from dictionary."""
+        areas = [ContactAreaConfig.from_dict(a) for a in data.get("areas", [])]
+        return cls(
+            id=data.get("id", ""),
+            name=data.get("name", ""),
+            areas=areas,
+            device_id=data.get("device_id"),
+        )
+
+
+# =============================================================================
 # Module State
 # =============================================================================
 
@@ -388,6 +470,9 @@ _switches: Dict[str, SwitchConfig] = {}
 
 # Configured motion sensors (persisted)
 _motion_sensors: Dict[str, MotionSensorConfig] = {}
+
+# Configured contact sensors (persisted)
+_contact_sensors: Dict[str, ContactSensorConfig] = {}
 
 # Runtime state per switch (not persisted)
 _runtime_state: Dict[str, SwitchRuntimeState] = {}
@@ -419,7 +504,7 @@ def _get_data_directory() -> str:
 
 def init(config_file: Optional[str] = None) -> None:
     """Initialize the switches module and load config from disk."""
-    global _config_file_path, _switches, _motion_sensors, _runtime_state
+    global _config_file_path, _switches, _motion_sensors, _contact_sensors, _runtime_state
 
     data_dir = _get_data_directory()
 
@@ -430,6 +515,7 @@ def init(config_file: Optional[str] = None) -> None:
 
     _switches = {}
     _motion_sensors = {}
+    _contact_sensors = {}
     _runtime_state = {}
 
     # Load configured switches and motion sensors
@@ -447,7 +533,11 @@ def init(config_file: Optional[str] = None) -> None:
                 motion = MotionSensorConfig.from_dict(motion_data)
                 _motion_sensors[motion.id] = motion
 
-            logger.info(f"Loaded {len(_switches)} switch(es), {len(_motion_sensors)} motion sensor(s) from {_config_file_path}")
+            for contact_data in data.get("contact_sensors", []):
+                contact = ContactSensorConfig.from_dict(contact_data)
+                _contact_sensors[contact.id] = contact
+
+            logger.info(f"Loaded {len(_switches)} switch(es), {len(_motion_sensors)} motion sensor(s), {len(_contact_sensors)} contact sensor(s) from {_config_file_path}")
         except Exception as e:
             logger.warning(f"Failed to load switches config from {_config_file_path}: {e}")
     else:
@@ -455,7 +545,7 @@ def init(config_file: Optional[str] = None) -> None:
 
 
 def _save() -> None:
-    """Save current switch and motion sensor config to disk."""
+    """Save current switch, motion sensor, and contact sensor config to disk."""
     if not _config_file_path:
         logger.error("Switches module not initialized, cannot save")
         return
@@ -464,6 +554,7 @@ def _save() -> None:
         data = {
             "switches": [s.to_dict() for s in _switches.values()],
             "motion_sensors": [m.to_dict() for m in _motion_sensors.values()],
+            "contact_sensors": [c.to_dict() for c in _contact_sensors.values()],
         }
         with open(_config_file_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
@@ -607,6 +698,61 @@ def get_motion_sensors_for_area(area_id: str) -> List[MotionSensorConfig]:
     """Get all motion sensors that control a specific area."""
     result = []
     for sensor in _motion_sensors.values():
+        for area in sensor.areas:
+            if area.area_id == area_id:
+                result.append(sensor)
+                break
+    return result
+
+
+# =============================================================================
+# Contact Sensor Management
+# =============================================================================
+
+def add_contact_sensor(config: ContactSensorConfig) -> None:
+    """Add or update a contact sensor configuration."""
+    _contact_sensors[config.id] = config
+    _save()
+    logger.info(f"Added/updated contact sensor: {config.id} ({config.name})")
+
+
+def remove_contact_sensor(sensor_id: str) -> bool:
+    """Remove a contact sensor configuration."""
+    if sensor_id in _contact_sensors:
+        del _contact_sensors[sensor_id]
+        _save()
+        logger.info(f"Removed contact sensor: {sensor_id}")
+        return True
+    return False
+
+
+def get_contact_sensor(sensor_id: str) -> Optional[ContactSensorConfig]:
+    """Get a contact sensor configuration by ID."""
+    return _contact_sensors.get(sensor_id)
+
+
+def get_contact_sensor_by_device_id(device_id: str) -> Optional[ContactSensorConfig]:
+    """Get a contact sensor configuration by HA device_id."""
+    for sensor in _contact_sensors.values():
+        if sensor.device_id == device_id:
+            return sensor
+    return None
+
+
+def is_contact_sensor_configured(sensor_id: str) -> bool:
+    """Check if a contact sensor is configured."""
+    return sensor_id in _contact_sensors
+
+
+def get_all_contact_sensors() -> Dict[str, ContactSensorConfig]:
+    """Get all configured contact sensors."""
+    return _contact_sensors.copy()
+
+
+def get_contact_sensors_for_area(area_id: str) -> List[ContactSensorConfig]:
+    """Get all contact sensors that control a specific area."""
+    result = []
+    for sensor in _contact_sensors.values():
         for area in sensor.areas:
             if area.area_id == area_id:
                 result.append(sensor)

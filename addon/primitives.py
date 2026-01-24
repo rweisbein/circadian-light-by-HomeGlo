@@ -142,20 +142,6 @@ class CircadianLightPrimitives:
             "light", "turn_off", {"transition": transition}, {target_type: target_value}
         )
 
-    def _get_boost_brightness_default(self) -> int:
-        """Get the default boost brightness in percentage points.
-
-        Reads from global config, defaults to 50.
-
-        Returns:
-            Boost brightness in percentage points (0-100)
-        """
-        try:
-            raw_config = glozone.load_config_from_files()
-            return raw_config.get("boost_brightness_default", 50)
-        except Exception:
-            return 50  # Default 50 percentage points
-
     def _get_area_state(self, area_id: str) -> AreaState:
         """Get area state from state module."""
         state_dict = state.get_area(area_id)
@@ -635,32 +621,70 @@ class CircadianLightPrimitives:
     # Bright Boost - Temporary brightness increase
     # -------------------------------------------------------------------------
 
-    async def bright_boost(self, area_id: str, duration_seconds: int, source: str = "motion_sensor"):
+    async def bright_boost(
+        self,
+        area_id: str,
+        duration_seconds: int,
+        boost_amount: int,
+        source: str = "motion_sensor"
+    ):
         """Temporarily boost brightness for an area.
 
-        Adds boost_brightness_default percentage points to current circadian brightness.
+        Adds boost_amount percentage points to current circadian brightness.
         After duration expires, returns to previous state:
         - If lights were off when boost started: turn off
         - If lights were on: return to circadian brightness
 
-        Base circadian settings (brightness_mid, color_mid, frozen_at) can still change
-        during boost via GloUp/GloReset. When boost ends, uses current settings.
+        MAX logic when already boosted:
+        - boost % = MAX(current %, new %)
+        - If current timer is forever: stays forever
+        - If current timer is timed: timer = MAX(remaining, new duration)
 
         Args:
             area_id: The area ID to boost
-            duration_seconds: How long the boost lasts
+            duration_seconds: How long the boost lasts (0 = forever)
+            boost_amount: Brightness percentage points to add (0-100)
             source: Source of the action (e.g., "motion_sensor", "contact_sensor")
         """
-        logger.info(f"[{source}] bright_boost for area {area_id}, duration={duration_seconds}s")
+        is_forever = duration_seconds == 0
+        logger.info(f"[{source}] bright_boost for area {area_id}, duration={'forever' if is_forever else f'{duration_seconds}s'}, boost={boost_amount}%")
 
-        # Check if already boosted - if so, just extend the timer
+        # Check if already boosted - apply MAX logic
         if state.is_boosted(area_id):
-            expires_at = (datetime.now() + timedelta(seconds=duration_seconds)).isoformat()
-            state.update_area(area_id, {"boost_expires_at": expires_at})
-            logger.info(f"[{source}] Extended boost for area {area_id} to {expires_at}")
+            boost_state = state.get_boost_state(area_id)
+            current_brightness = boost_state.get("boost_brightness") or 0
+            current_is_forever = boost_state.get("is_forever", False)
+            current_expires = boost_state.get("boost_expires_at")
+
+            # MAX logic for brightness - always use higher
+            new_brightness = max(current_brightness, boost_amount)
+            if new_brightness > current_brightness:
+                state.update_boost_brightness(area_id, new_brightness)
+                # Re-apply lighting with new boost level
+                await self._apply_current_boost(area_id, new_brightness)
+                logger.info(f"[{source}] Increased boost brightness to {new_brightness}% for area {area_id}")
+
+            # MAX logic for timer
+            if current_is_forever:
+                # Forever boost stays forever, can't be shortened
+                logger.debug(f"[{source}] Area {area_id} has forever boost, timer unchanged")
+            elif is_forever:
+                # New boost is forever, upgrade to forever
+                state.update_boost_expires(area_id, "forever")
+                logger.info(f"[{source}] Upgraded boost to forever for area {area_id}")
+            else:
+                # Both are timed - use MAX
+                now = datetime.now()
+                current_remaining = (datetime.fromisoformat(current_expires) - now).total_seconds()
+                if duration_seconds > current_remaining:
+                    new_expires = (now + timedelta(seconds=duration_seconds)).isoformat()
+                    state.update_boost_expires(area_id, new_expires)
+                    logger.info(f"[{source}] Extended boost timer to {new_expires} for area {area_id}")
+                else:
+                    logger.debug(f"[{source}] Keeping existing timer ({current_remaining:.0f}s remaining > {duration_seconds}s new)")
             return
 
-        # Determine if lights are currently on or off
+        # Not currently boosted - start new boost
         was_on = await self.client.any_lights_on_in_area([area_id])
 
         # Calculate circadian values
@@ -672,12 +696,11 @@ class CircadianLightPrimitives:
         result = CircadianLight.calculate_lighting(hour, config, area_state, sun_times=sun_times)
 
         # Calculate boosted brightness
-        boost_amount = self._get_boost_brightness_default()
         boosted_brightness = min(100, result.brightness + boost_amount)
 
         # Set boost state
-        expires_at = (datetime.now() + timedelta(seconds=duration_seconds)).isoformat()
-        state.set_boost(area_id, started_from_off=not was_on, expires_at=expires_at)
+        expires_at = "forever" if is_forever else (datetime.now() + timedelta(seconds=duration_seconds)).isoformat()
+        state.set_boost(area_id, started_from_off=not was_on, expires_at=expires_at, brightness=boost_amount)
 
         # Enable Circadian Light if not already enabled
         if not state.is_enabled(area_id):
@@ -699,6 +722,19 @@ class CircadianLightPrimitives:
             f"[{source}] Boosted area {area_id}: {result.brightness}% + {boost_amount}% = {boosted_brightness}%, "
             f"{result.color_temp}K, expires={expires_at}"
         )
+
+    async def _apply_current_boost(self, area_id: str, boost_amount: int):
+        """Re-apply lighting with current boost level (for when boost % increases)."""
+        config = self._get_config(area_id)
+        area_state = self._get_area_state(area_id)
+        hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
+        sun_times = self.client._get_sun_times() if hasattr(self.client, '_get_sun_times') else None
+
+        result = CircadianLight.calculate_lighting(hour, config, area_state, sun_times=sun_times)
+        boosted_brightness = min(100, result.brightness + boost_amount)
+
+        transition = self._get_turn_on_transition()
+        await self._apply_lighting(area_id, boosted_brightness, result.color_temp, transition=transition)
 
     async def end_boost(self, area_id: str, source: str = "timer"):
         """End boost for an area and return to previous state.
@@ -777,7 +813,7 @@ class CircadianLightPrimitives:
 
         on_off behavior:
         - If room is off: turn on, start timer
-        - If room is on FROM on_off motion: extend timer
+        - If room is on FROM on_off motion: use MAX(remaining, new duration) for timer
         - If room is on from other source: do nothing
 
         Args:
@@ -785,13 +821,19 @@ class CircadianLightPrimitives:
             duration_seconds: How long before auto-off (when motion stops)
             source: Source of the action
         """
-        expires_at = (datetime.now() + timedelta(seconds=duration_seconds)).isoformat()
-
         # Check if area has an active motion timer (was turned on by on_off motion)
         if state.has_motion_timer(area_id):
-            # Extend the timer
-            state.extend_motion_expires(area_id, expires_at)
-            logger.debug(f"[{source}] motion_on_off: extended timer for area {area_id} to {expires_at}")
+            # MAX logic for timer - only extend if new duration > remaining
+            current_expires = state.get_motion_expires(area_id)
+            now = datetime.now()
+            current_remaining = (datetime.fromisoformat(current_expires) - now).total_seconds()
+
+            if duration_seconds > current_remaining:
+                new_expires = (now + timedelta(seconds=duration_seconds)).isoformat()
+                state.extend_motion_expires(area_id, new_expires)
+                logger.debug(f"[{source}] motion_on_off: extended timer for area {area_id} to {new_expires}")
+            else:
+                logger.debug(f"[{source}] motion_on_off: keeping existing timer ({current_remaining:.0f}s remaining > {duration_seconds}s new)")
             return
 
         # Check if area is already enabled (but not from on_off motion)

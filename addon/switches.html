@@ -956,6 +956,16 @@
         return `<span class="last-action" data-sort="${sortVal}">${timeStr ? timeStr + ' ' : ''}Cleared</span>`;
       }
 
+      // Handle contact sensor actions
+      if (action === 'contact_opened') {
+        const sortVal = timestamp || '';
+        return `<span class="last-action" data-sort="${sortVal}">${timeStr ? timeStr + ' ' : ''}Opened</span>`;
+      }
+      if (action === 'contact_closed') {
+        const sortVal = timestamp || '';
+        return `<span class="last-action" data-sort="${sortVal}">${timeStr ? timeStr + ' ' : ''}Closed</span>`;
+      }
+
       // Format button name (e.g., "bottom_quadruple_press" -> "Bottom 4x")
       const parts = action.split('_');
       const button = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
@@ -1161,6 +1171,8 @@
       container.innerHTML = editingMotionAreas.map((areaConfig, idx) => {
         const durationMinutes = (areaConfig.duration || 60) / 60;
         const showDuration = areaConfig.function === 'on_off' || areaConfig.function === 'boost';
+        const showBoostBrightness = areaConfig.function === 'boost';
+        const boostBrightness = areaConfig.boost_brightness || 50;
 
         return `
           <div class="scope-editor" data-motion-idx="${idx}">
@@ -1173,7 +1185,7 @@
               <button class="scope-editor-remove" onclick="removeMotionArea(${idx})">&times;</button>
             </div>
             <div class="scope-editor-body">
-              <div style="display: flex; align-items: center; gap: 12px;">
+              <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
                 <select class="modal-select" style="width: auto;" onchange="updateMotionArea(${idx}, 'function', this.value)">
                   ${Object.entries(functionLabels).map(([value, label]) => `
                     <option value="${value}" ${areaConfig.function === value ? 'selected' : ''}>${label}</option>
@@ -1183,6 +1195,12 @@
                   <input type="number" class="modal-input" style="width: 70px;" value="${durationMinutes}" min="0.5" max="60" step="0.5"
                     onchange="updateMotionArea(${idx}, 'duration', Math.round(parseFloat(this.value) * 60))">
                   <span style="color: var(--muted); font-size: 0.85rem;">min</span>
+                </div>
+                <div style="display: ${showBoostBrightness ? 'flex' : 'none'}; align-items: center; gap: 6px;">
+                  <span style="color: var(--muted); font-size: 0.85rem;">+</span>
+                  <input type="number" class="modal-input" style="width: 60px;" value="${boostBrightness}" min="5" max="100" step="5"
+                    onchange="updateMotionArea(${idx}, 'boost_brightness', parseInt(this.value))">
+                  <span style="color: var(--muted); font-size: 0.85rem;">%</span>
                 </div>
               </div>
             </div>
@@ -1204,7 +1222,8 @@
       editingMotionAreas.push({
         area_id: availableArea.area_id,
         function: 'on_off',
-        duration: 60
+        duration: 60,
+        boost_brightness: 50
       });
       renderMotionAreasEditor();
     }

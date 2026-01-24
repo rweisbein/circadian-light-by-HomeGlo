@@ -1,5 +1,23 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.105
+**Per-sensor boost brightness and contact sensor support**
+
+- **Per-sensor boost brightness**: Boost brightness is now configured per motion/contact sensor per area, not globally
+  - Each area config now has its own boost_brightness field (default 50%)
+  - Removed global boost_brightness_default from Advanced settings
+  - UI updated to show +X% field when boost function is selected
+- **MAX logic for overlapping sensors**: When multiple sensors trigger the same area:
+  - Boost %: Uses MAX(current %, new %) - higher boost wins
+  - Timer: Uses MAX(remaining time, new duration) - longer timer wins
+  - Forever boosts (from switches) stay forever even if motion sensors trigger later
+- **Contact sensor support**: Door/window sensors can now trigger lights
+  - Same config structure as motion sensors (function, duration, boost_brightness)
+  - Open = turn on (like motion detected)
+  - Close = immediate off for on_off/boost (unlike motion which uses timer)
+  - on_only ignores close events (stays on until manual off)
+  - Last action shows "Opened" / "Closed" in Controls page
+
 ## 6.9.104
 **Configurable circadian refresh interval**
 
