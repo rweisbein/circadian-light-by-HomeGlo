@@ -844,6 +844,7 @@ class CircadianLightPrimitives:
         logger.info(f"[{source}] motion_on_off: turning on area {area_id}, timer={duration_seconds}s")
 
         # Set motion timer
+        expires_at = (datetime.now() + timedelta(seconds=duration_seconds)).isoformat()
         state.set_motion_expires(area_id, expires_at)
 
         # Enable and turn on with circadian values

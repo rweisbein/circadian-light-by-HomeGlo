@@ -1,5 +1,10 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.106
+**Fix motion on_off not turning on lights**
+
+- Fix missing expires_at variable when starting new motion timer
+
 ## 6.9.105
 **Per-sensor boost brightness and contact sensor support**
 
