@@ -618,8 +618,7 @@
 
       <div class="modal-section" id="motion-config-section" style="display: none;">
         <label class="modal-label">Areas</label>
-        <p class="info-text">Configure which areas this motion sensor controls and how each area responds.</p>
-        <div id="motion-areas-editor" style="margin-top: 12px;">
+        <div id="motion-areas-editor" style="margin-top: 8px;">
           <!-- Motion area editors populated by JS -->
         </div>
         <button class="add-scope-btn" id="add-motion-area-btn">+ Add Area</button>
@@ -1138,47 +1137,42 @@
       const container = document.getElementById('motion-areas-editor');
 
       if (editingMotionAreas.length === 0) {
-        container.innerHTML = '<p class="info-text">No areas configured. Click "+ Add Area" to add one.</p>';
+        container.innerHTML = '';
         return;
       }
 
+      const functionLabels = {
+        'on_only': 'On only',
+        'on_off': 'On/Off',
+        'boost': 'Boost',
+        'disabled': 'Disabled'
+      };
+
       container.innerHTML = editingMotionAreas.map((areaConfig, idx) => {
-        const areaName = getAreaName(areaConfig.area_id);
-        const functionLabels = {
-          'on_only': 'On only (manual off)',
-          'on_off': 'On/Off (auto off)',
-          'boost': 'Boost',
-          'disabled': 'Disabled'
-        };
+        const durationMinutes = (areaConfig.duration || 60) / 60;
+        const showDuration = areaConfig.function === 'on_off' || areaConfig.function === 'boost';
 
         return `
           <div class="scope-editor" data-motion-idx="${idx}">
             <div class="scope-editor-header">
-              <span class="scope-editor-title">${areaName}</span>
+              <select class="modal-select" style="flex: 1; background: transparent; border: none; color: var(--text); font-weight: 500;" onchange="updateMotionArea(${idx}, 'area_id', this.value)">
+                ${allAreas.map(area => `
+                  <option value="${area.area_id}" ${areaConfig.area_id === area.area_id ? 'selected' : ''}>${area.name}</option>
+                `).join('')}
+              </select>
               <button class="scope-editor-remove" onclick="removeMotionArea(${idx})">&times;</button>
             </div>
             <div class="scope-editor-body">
-              <div style="display: flex; flex-direction: column; gap: 12px;">
-                <div>
-                  <label class="modal-label" style="margin-bottom: 4px;">Area</label>
-                  <select class="modal-select" onchange="updateMotionArea(${idx}, 'area_id', this.value)">
-                    ${allAreas.map(area => `
-                      <option value="${area.area_id}" ${areaConfig.area_id === area.area_id ? 'selected' : ''}>${area.name}</option>
-                    `).join('')}
-                  </select>
-                </div>
-                <div>
-                  <label class="modal-label" style="margin-bottom: 4px;">Function</label>
-                  <select class="modal-select" onchange="updateMotionArea(${idx}, 'function', this.value)">
-                    ${Object.entries(functionLabels).map(([value, label]) => `
-                      <option value="${value}" ${areaConfig.function === value ? 'selected' : ''}>${label}</option>
-                    `).join('')}
-                  </select>
-                </div>
-                <div style="${areaConfig.function === 'on_off' || areaConfig.function === 'boost' ? '' : 'display: none;'}">
-                  <label class="modal-label" style="margin-bottom: 4px;">Duration (seconds)</label>
-                  <input type="number" class="modal-input" value="${areaConfig.duration || 60}" min="10" max="3600"
-                    onchange="updateMotionArea(${idx}, 'duration', parseInt(this.value))">
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <select class="modal-select" style="width: auto;" onchange="updateMotionArea(${idx}, 'function', this.value)">
+                  ${Object.entries(functionLabels).map(([value, label]) => `
+                    <option value="${value}" ${areaConfig.function === value ? 'selected' : ''}>${label}</option>
+                  `).join('')}
+                </select>
+                <div style="display: ${showDuration ? 'flex' : 'none'}; align-items: center; gap: 6px;">
+                  <input type="number" class="modal-input" style="width: 70px;" value="${durationMinutes}" min="0.5" max="60" step="0.5"
+                    onchange="updateMotionArea(${idx}, 'duration', Math.round(parseFloat(this.value) * 60))">
+                  <span style="color: var(--muted); font-size: 0.85rem;">min</span>
                 </div>
               </div>
             </div>

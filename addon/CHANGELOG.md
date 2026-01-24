@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.101
+**Improved motion sensor configuration UI**
+
+- Moved area selector to header (removed redundant area dropdown)
+- Changed duration to minutes with decimal support (0.5 - 60 min)
+- Cleaner inline layout for function and duration
+- Removed unnecessary info text
+
 ## 6.9.100
 **Fix filter state persistence bug**
 
