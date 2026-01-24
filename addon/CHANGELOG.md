@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.104
+**Configurable circadian refresh interval**
+
+- Add "Circadian refresh" setting in Advanced page (5-120 seconds, default 30)
+- Controls how often lights are updated and timers are checked
+- Lower values give more precise motion/boost timer cutoffs
+
 ## 6.9.103
 **Fix missing _turn_off_area method**
 

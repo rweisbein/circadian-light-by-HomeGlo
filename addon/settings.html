@@ -329,6 +329,17 @@
             </span>
           </div>
         </div>
+
+        <div class="form-row" style="margin-top: 20px;">
+          <label class="form-label">
+            Circadian refresh
+            <span class="info-icon">i<span class="info-tooltip">How often Circadian Light updates the lights to match the current sun position. Also controls how quickly motion and boost timers are checked for expiration. Lower values give more precise timer cutoffs but increase Home Assistant API calls.</span></span>
+          </label>
+          <div class="form-control">
+            <input type="number" class="form-input" id="circadian-refresh" min="5" max="120" step="5" value="30" style="width: 80px;">
+            <span class="form-hint">seconds (5-120)</span>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -364,6 +375,7 @@
           document.getElementById('multi-click-enabled').checked = config.multi_click_enabled ?? true;
           document.getElementById('multi-click-speed').value = config.multi_click_speed ?? 2;
           document.getElementById('boost-brightness-default').value = config.boost_brightness_default ?? 50;
+          document.getElementById('circadian-refresh').value = config.circadian_refresh ?? 30;
           updateMultiClickState();
         }
       } catch (err) {
@@ -377,7 +389,8 @@
         turn_off_transition: parseInt(document.getElementById('turn-off-transition').value) || 3,
         multi_click_enabled: document.getElementById('multi-click-enabled').checked,
         multi_click_speed: parseInt(document.getElementById('multi-click-speed').value) || 2,
-        boost_brightness_default: parseInt(document.getElementById('boost-brightness-default').value) || 50
+        boost_brightness_default: parseInt(document.getElementById('boost-brightness-default').value) || 50,
+        circadian_refresh: parseInt(document.getElementById('circadian-refresh').value) || 30
       };
 
       try {
@@ -424,6 +437,7 @@
     });
     document.getElementById('multi-click-speed').addEventListener('blur', saveSettings);
     document.getElementById('boost-brightness-default').addEventListener('blur', saveSettings);
+    document.getElementById('circadian-refresh').addEventListener('blur', saveSettings);
 
     // Load on page load
     document.addEventListener('DOMContentLoaded', loadSettings);

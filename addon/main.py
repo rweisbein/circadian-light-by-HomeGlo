@@ -2155,7 +2155,7 @@ class HomeAssistantWebSocketClient:
     async def periodic_light_updater(self):
         """Periodically update lights in areas that have Circadian Light enabled.
 
-        Runs every 30 seconds, or immediately when refresh_event is signaled.
+        Runs at configurable interval (default 30 seconds), or immediately when refresh_event is signaled.
         """
         # Create the Event lazily in the running event loop to avoid "different loop" errors
         if self.refresh_event is None:
@@ -2165,14 +2165,22 @@ class HomeAssistantWebSocketClient:
 
         while True:
             try:
-                # Wait for 30 seconds OR until refresh_event is signaled
+                # Get refresh interval from config (default 30 seconds, min 5, max 120)
+                try:
+                    raw_config = glozone.load_config_from_files()
+                    refresh_interval = raw_config.get("circadian_refresh", 30)
+                    refresh_interval = max(5, min(120, refresh_interval))
+                except Exception:
+                    refresh_interval = 30
+
+                # Wait for configured interval OR until refresh_event is signaled
                 triggered_by_event = False
                 try:
-                    await asyncio.wait_for(self.refresh_event.wait(), timeout=30)
+                    await asyncio.wait_for(self.refresh_event.wait(), timeout=refresh_interval)
                     self.refresh_event.clear()
                     triggered_by_event = True
                 except asyncio.TimeoutError:
-                    pass  # Normal 30s tick
+                    pass  # Normal periodic tick
 
                 # Check if we should reset state at phase changes
                 last_phase_check = await self.reset_state_at_phase_change(last_phase_check)
@@ -2198,7 +2206,7 @@ class HomeAssistantWebSocketClient:
                     circadian_areas = [a for a in circadian_areas if a != self.live_design_area]
                     logger.debug(f"Skipping Live Design area: {self.live_design_area}")
 
-                trigger_source = "refresh signal" if triggered_by_event else "periodic (30s)"
+                trigger_source = "refresh signal" if triggered_by_event else f"periodic ({refresh_interval}s)"
                 if circadian_areas:
                     logger.info(f"Running light update ({trigger_source}) for {len(circadian_areas)} Circadian areas")
                 else:
@@ -2821,7 +2829,7 @@ class HomeAssistantWebSocketClient:
                 
                 # Start periodic light updater
                 self.periodic_update_task = asyncio.create_task(self.periodic_light_updater())
-                logger.info("Started periodic light updater (runs every 60 seconds)")
+                logger.info("Started periodic light updater")
                 
                 # Listen for messages
                 logger.info("Listening for events...")
