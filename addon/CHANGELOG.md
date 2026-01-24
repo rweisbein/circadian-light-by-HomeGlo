@@ -1,5 +1,10 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.98
+**Debug logging for motion sensor detection**
+
+- Added logging to help diagnose motion sensor detection issues
+
 ## 6.9.97
 **Motion sensor configuration in Controls page**
 
