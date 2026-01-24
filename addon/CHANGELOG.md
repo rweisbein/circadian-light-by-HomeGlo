@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.102
+**Motion sensor last action tracking**
+
+- Track last motion detected/cleared in Controls page
+- Fix undefined sensor_id variable bug in motion handler
+- Format motion events as "Motion" / "Cleared" in last action column
+
 ## 6.9.101
 **Improved motion sensor configuration UI**
 

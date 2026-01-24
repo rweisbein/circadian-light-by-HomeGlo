@@ -385,14 +385,20 @@ class HomeAssistantWebSocketClient:
             logger.debug(f"[Motion] No device ID mapped for entity {entity_id}")
             return
 
+        # Record last action for UI display (motion detected or cleared)
+        if new_state == "on":
+            switches.set_last_action(device_id, "motion_detected")
+        else:
+            switches.set_last_action(device_id, "motion_cleared")
+
         # Get motion sensor config by device_id
         sensor_config = switches.get_motion_sensor_by_device_id(device_id)
         if not sensor_config:
-            logger.debug(f"[Motion] No config found for sensor {sensor_id}")
+            logger.debug(f"[Motion] No config found for device {device_id}")
             return
 
         if not sensor_config.areas:
-            logger.debug(f"[Motion] Sensor {sensor_id} has no areas configured")
+            logger.debug(f"[Motion] Sensor {sensor_config.name} has no areas configured")
             return
 
         logger.info(f"[Motion] {entity_id} -> {new_state} (sensor={sensor_config.name})")

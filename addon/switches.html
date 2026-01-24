@@ -932,13 +932,6 @@
 
       if (!action) return '—';
 
-      // Format button name (e.g., "bottom_quadruple_press" -> "Bottom 4x")
-      const parts = action.split('_');
-      const button = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
-      const pressType = parts.find(p => ['short', 'long', 'double', 'triple', 'quadruple', 'quintuple'].includes(p));
-      const pressMap = { short: '1x', long: 'hold', double: '2x', triple: '3x', quadruple: '4x', quintuple: '5x' };
-      const press = pressMap[pressType] || '';
-
       // Format timestamp for display (and sorting - ISO format sorts correctly)
       let timeStr = '';
       if (timestamp) {
@@ -952,6 +945,23 @@
         hours = hours % 12 || 12;
         timeStr = `${month}/${day} ${hours}:${mins}${ampm}`;
       }
+
+      // Handle motion sensor actions
+      if (action === 'motion_detected') {
+        const sortVal = timestamp || '';
+        return `<span class="last-action" data-sort="${sortVal}">${timeStr ? timeStr + ' ' : ''}Motion</span>`;
+      }
+      if (action === 'motion_cleared') {
+        const sortVal = timestamp || '';
+        return `<span class="last-action" data-sort="${sortVal}">${timeStr ? timeStr + ' ' : ''}Cleared</span>`;
+      }
+
+      // Format button name (e.g., "bottom_quadruple_press" -> "Bottom 4x")
+      const parts = action.split('_');
+      const button = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
+      const pressType = parts.find(p => ['short', 'long', 'double', 'triple', 'quadruple', 'quintuple'].includes(p));
+      const pressMap = { short: '1x', long: 'hold', double: '2x', triple: '3x', quadruple: '4x', quintuple: '5x' };
+      const press = pressMap[pressType] || '';
 
       // data-sort attribute for sorting by timestamp
       const sortVal = timestamp || '';
