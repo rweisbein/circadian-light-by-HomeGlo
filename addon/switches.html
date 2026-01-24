@@ -594,13 +594,12 @@
       <h3 id="modal-title">Configure Control</h3>
 
       <div class="modal-section">
-        <label class="modal-label">Device Info</label>
         <div id="device-info" style="font-size: 0.9rem; color: var(--muted); line-height: 1.6;">
-          <!-- Populated by JS -->
+          <!-- Populated by JS: Category, Type, Location -->
         </div>
       </div>
 
-      <div class="modal-section">
+      <div class="modal-section" id="type-section" style="display: none;">
         <label class="modal-label">Type</label>
         <select class="modal-select" id="control-type">
           <!-- Populated by JS -->
@@ -617,8 +616,7 @@
       </div>
 
       <div class="modal-section" id="motion-config-section" style="display: none;">
-        <label class="modal-label">Areas</label>
-        <div id="motion-areas-editor" style="margin-top: 8px;">
+        <div id="motion-areas-editor">
           <!-- Motion area editors populated by JS -->
         </div>
         <button class="add-scope-btn" id="add-motion-area-btn">+ Add Area</button>
@@ -829,7 +827,7 @@
               </th>
               <th class="${thClass('area')}">
                 <div class="th-with-filter">
-                  <div class="th-title-row" onclick="sortBy('area')">Area ${arrow('area')}</div>
+                  <div class="th-title-row" onclick="sortBy('area')">Location ${arrow('area')}</div>
                   <select class="header-filter" id="area-filter" onclick="event.stopPropagation()">${areaOptions}</select>
                 </div>
               </th>
@@ -1066,18 +1064,18 @@
       document.getElementById('modal-title').textContent = `${titlePrefix}: ${ctrl.name}`;
       document.getElementById('modal-remove-config').style.display = isConfigured ? 'block' : 'none';
 
-      // Populate device info section
-      const manufacturer = ctrl.manufacturer || 'Unknown';
-      const model = ctrl.model || 'Unknown';
-      const controller = formatController(ctrl.integration);
+      // Populate device info section with Category, Type, Location
+      const categoryLabel = formatCategory(ctrl.category);
+      const typeName = ctrl.type_name || ctrl.type || 'Unknown';
+      const locationName = ctrl.area_name || 'Unassigned';
       document.getElementById('device-info').innerHTML = `
-        <div><strong>Manufacturer:</strong> ${manufacturer}</div>
-        <div><strong>Model:</strong> ${model}</div>
-        <div><strong>Controller:</strong> ${controller}</div>
+        <div><strong>Category:</strong> ${categoryLabel}</div>
+        <div><strong>Type:</strong> ${typeName}</div>
+        <div><strong>Location:</strong> ${locationName}</div>
       `;
 
       // Show/hide appropriate sections based on control type
-      const typeSectionEl = document.querySelector('.modal-section:has(#control-type)');
+      const typeSectionEl = document.getElementById('type-section');
       const switchSection = document.getElementById('switch-config-section');
       const motionSection = document.getElementById('motion-config-section');
 
@@ -1087,14 +1085,10 @@
         motionSection.style.display = 'block';
         renderMotionAreasEditor();
       } else {
-        if (typeSectionEl) typeSectionEl.style.display = 'block';
+        // Type is now shown in device-info, hide the type section
+        if (typeSectionEl) typeSectionEl.style.display = 'none';
         switchSection.style.display = 'block';
         motionSection.style.display = 'none';
-
-        // Populate type select with the control's type
-        const typeSelect = document.getElementById('control-type');
-        typeSelect.innerHTML = `<option value="${ctrl.type}">${ctrl.type_name || ctrl.type}</option>`;
-        typeSelect.disabled = true; // Type is determined by device, not editable
 
         renderScopesEditor();
       }
@@ -1170,20 +1164,23 @@
 
       container.innerHTML = editingMotionAreas.map((areaConfig, idx) => {
         const durationMinutes = (areaConfig.duration || 60) / 60;
-        const showDuration = areaConfig.function === 'on_off' || areaConfig.function === 'boost';
-        const showBoostBrightness = areaConfig.function === 'boost';
+        const hasAreaSelected = areaConfig.area_id && areaConfig.area_id !== '';
+        const showDuration = hasAreaSelected && (areaConfig.function === 'on_off' || areaConfig.function === 'boost');
+        const showBoostBrightness = hasAreaSelected && areaConfig.function === 'boost';
         const boostBrightness = areaConfig.boost_brightness || 50;
 
         return `
           <div class="scope-editor" data-motion-idx="${idx}">
             <div class="scope-editor-header">
               <select class="modal-select" style="flex: 1; background: transparent; border: none; color: var(--text); font-weight: 500;" onchange="updateMotionArea(${idx}, 'area_id', this.value)">
+                <option value="" ${!hasAreaSelected ? 'selected' : ''}>[Select an area]</option>
                 ${allAreas.map(area => `
                   <option value="${area.area_id}" ${areaConfig.area_id === area.area_id ? 'selected' : ''}>${area.name}</option>
                 `).join('')}
               </select>
               <button class="scope-editor-remove" onclick="removeMotionArea(${idx})">&times;</button>
             </div>
+            ${hasAreaSelected ? `
             <div class="scope-editor-body">
               <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
                 <select class="modal-select" style="width: auto;" onchange="updateMotionArea(${idx}, 'function', this.value)">
@@ -1204,23 +1201,15 @@
                 </div>
               </div>
             </div>
+            ` : ''}
           </div>
         `;
       }).join('');
     }
 
     function addMotionArea() {
-      // Default to first area that isn't already configured, or first area overall
-      const configuredAreaIds = editingMotionAreas.map(a => a.area_id);
-      const availableArea = allAreas.find(a => !configuredAreaIds.includes(a.area_id)) || allAreas[0];
-
-      if (!availableArea) {
-        alert('No areas available to add');
-        return;
-      }
-
       editingMotionAreas.push({
-        area_id: availableArea.area_id,
+        area_id: '',  // Start with placeholder, user must select
         function: 'on_off',
         duration: 60,
         boost_brightness: 50
@@ -1247,6 +1236,12 @@
         // Validate motion sensor config
         if (editingMotionAreas.length === 0) {
           alert('Please add at least one area');
+          return;
+        }
+        // Check for unselected areas
+        const unselectedAreas = editingMotionAreas.filter(a => !a.area_id || a.area_id === '');
+        if (unselectedAreas.length > 0) {
+          alert('Please select an area for each entry, or remove unused entries');
           return;
         }
         payload = {

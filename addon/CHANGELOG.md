@@ -1,5 +1,17 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.108
+**Controls UI improvements and ZHA motion sensor support**
+
+- **Controls table**: Renamed "Area" column to "Location" for clarity
+- **Configure modal**:
+  - Removed "Device Info" label, now shows Category, Type, Location
+  - Removed "Areas" label from motion sensor config
+  - Area selector now starts with "[Select an area]" placeholder
+  - Function/duration/boost fields hidden until area selected
+- **ZHA motion sensors**: Now handles motion sensors that fire ZHA events directly (not just state_changed)
+- **Hue switch mapping**: Swapped on 2x/3x (2x=Freeze, 3x=Send to zone)
+
 ## 6.9.107
 **Home page area pills show boosted brightness**
 

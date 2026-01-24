@@ -433,6 +433,68 @@ class HomeAssistantWebSocketClient:
             # When motion clears, we don't need to do anything - the timer continues
             # If motion is detected again, motion_on_off extends the timer
 
+    async def _handle_zha_motion_event(self, sensor_config, command: str, args, device_id: str) -> None:
+        """Handle a ZHA motion sensor event.
+
+        Some ZHA motion sensors fire ZHA events instead of state_changed events.
+        Common commands:
+        - on_with_timed_off: Motion detected (args[1] is duration in tenths of seconds)
+        - attribute_updated with on_off=1: Motion detected
+        - attribute_updated with on_off=0: Motion cleared
+
+        Args:
+            sensor_config: The MotionSensorConfig for this sensor
+            command: The ZHA command name
+            args: Command arguments
+            device_id: The HA device_id
+        """
+        # Determine if this is motion detected or cleared
+        is_motion_detected = False
+
+        if command == "on_with_timed_off":
+            is_motion_detected = True
+        elif command == "attribute_updated":
+            # Check if this is on_off attribute changing
+            if isinstance(args, dict):
+                attr_name = args.get("attribute_name")
+                attr_value = args.get("attribute_value") or args.get("value")
+                if attr_name == "on_off":
+                    is_motion_detected = (attr_value == 1 or attr_value == True)
+
+        if not is_motion_detected:
+            # Motion cleared - for motion sensors we just let the timer handle it
+            logger.debug(f"[ZHA Motion] {sensor_config.name}: motion cleared (command={command})")
+            switches.set_last_action(device_id, "motion_cleared")
+            return
+
+        # Motion detected
+        logger.info(f"[ZHA Motion] {sensor_config.name}: motion detected (command={command})")
+        switches.set_last_action(device_id, "motion_detected")
+
+        if not sensor_config.areas:
+            logger.debug(f"[ZHA Motion] Sensor {sensor_config.name} has no areas configured")
+            return
+
+        # Process each area configured for this sensor
+        for area_config in sensor_config.areas:
+            area_id = area_config.area_id
+            motion_function = area_config.function
+            duration = area_config.duration
+
+            if motion_function == "disabled":
+                logger.debug(f"[ZHA Motion] Function disabled for area {area_id}")
+                continue
+
+            logger.debug(f"[ZHA Motion] Area {area_id}: function={motion_function}, duration={duration}")
+
+            if motion_function == "boost":
+                boost_amount = area_config.boost_brightness
+                await self.primitives.bright_boost(area_id, duration, boost_amount, source="motion_sensor")
+            elif motion_function == "on_off":
+                await self.primitives.motion_on_off(area_id, duration, source="motion_sensor")
+            elif motion_function == "on_only":
+                await self.primitives.motion_on_only(area_id, source="motion_sensor")
+
     async def _handle_contact_event(self, entity_id: str, new_state: str, old_state: str) -> None:
         """Handle a contact sensor state change (door/window open/close).
 
@@ -519,6 +581,13 @@ class HomeAssistantWebSocketClient:
             return
 
         logger.debug(f"ZHA event: device={device_ieee}, command={command}, args={args}, cluster={cluster_id}")
+
+        # Check if this is a ZHA motion sensor (they fire ZHA events, not state_changed)
+        if device_id:
+            motion_config = switches.get_motion_sensor_by_device_id(device_id)
+            if motion_config:
+                await self._handle_zha_motion_event(motion_config, command, args, device_id)
+                return
 
         # Check if this switch is configured
         switch_config = switches.get_switch(device_ieee)

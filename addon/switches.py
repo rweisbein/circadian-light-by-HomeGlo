@@ -106,8 +106,8 @@ BUTTON_ACTION_TYPES = [
 _HUE_4BUTTON_MAPPING = {
     # On button (top)
     "on_short_release": "circadian_toggle",     # 1x - on/off
-    "on_double_press": "glo_up",                # 2x - send to zone
-    "on_triple_press": "freeze_toggle",         # 3x - freeze
+    "on_double_press": "freeze_toggle",         # 2x - freeze
+    "on_triple_press": "glo_up",                # 3x - send to zone
     "on_quadruple_press": None,                 # 4x - not used
     "on_quintuple_press": None,                 # 5x - coming soon: emergency toggle
     "on_hold": None,                            # long - RESERVED for magic button
