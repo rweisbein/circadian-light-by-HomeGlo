@@ -130,6 +130,18 @@ class CircadianLightPrimitives:
         except Exception:
             return 0.3  # Default 0.3 seconds
 
+    async def _turn_off_area(self, area_id: str, transition: float = 0.3) -> None:
+        """Turn off all lights in an area.
+
+        Args:
+            area_id: The area ID to turn off
+            transition: Transition time in seconds
+        """
+        target_type, target_value = await self.client.determine_light_target(area_id)
+        await self.client.call_service(
+            "light", "turn_off", {"transition": transition}, {target_type: target_value}
+        )
+
     def _get_boost_brightness_default(self) -> int:
         """Get the default boost brightness in percentage points.
 

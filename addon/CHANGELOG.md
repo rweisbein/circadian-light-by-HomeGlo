@@ -1,5 +1,11 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.103
+**Fix missing _turn_off_area method**
+
+- Add _turn_off_area helper method to primitives
+- Fixes motion on_off timer not turning off lights when expired
+
 ## 6.9.102
 **Motion sensor last action tracking**
 
