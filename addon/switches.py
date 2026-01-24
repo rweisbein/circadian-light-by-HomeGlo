@@ -186,6 +186,49 @@ SWITCH_TYPES: Dict[str, Dict[str, Any]] = {
 
 
 # =============================================================================
+# Motion Sensor Names (for display purposes)
+# =============================================================================
+
+# Maps (manufacturer_lower, model) to friendly display name
+# Model matching is exact (case-insensitive), manufacturer is partial match
+MOTION_SENSOR_NAMES: Dict[str, Dict[str, str]] = {
+    # Philips Hue motion sensors
+    "signify": {
+        "SML001": "Hue Indoor",
+        "SML002": "Hue Outdoor",
+        "SML003": "Hue Indoor (new)",
+        "SML004": "Hue Outdoor (new)",
+    },
+    "philips": {
+        "SML001": "Hue Indoor",
+        "SML002": "Hue Outdoor",
+    },
+    # Add more manufacturers as needed
+}
+
+
+def get_motion_sensor_name(manufacturer: Optional[str], model: Optional[str]) -> Optional[str]:
+    """Get friendly display name for a motion sensor.
+
+    Returns None if no matching name found (caller should fall back to model).
+    """
+    if not manufacturer or not model:
+        return None
+
+    manufacturer_lower = manufacturer.lower()
+
+    # Check each known manufacturer (partial match)
+    for mfr_key, models in MOTION_SENSOR_NAMES.items():
+        if mfr_key in manufacturer_lower:
+            # Case-insensitive model lookup
+            for model_key, name in models.items():
+                if model.upper() == model_key.upper():
+                    return name
+
+    return None
+
+
+# =============================================================================
 # Data Classes
 # =============================================================================
 

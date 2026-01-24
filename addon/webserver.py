@@ -3233,6 +3233,17 @@ class LightDesignerServer:
 
                     type_info = switches.SWITCH_TYPES.get(detected_type, {}) if detected_type else {}
 
+                    # Get display name based on category
+                    if detected_type:
+                        type_name = type_info.get('name')
+                    elif category == 'motion_sensor':
+                        type_name = switches.get_motion_sensor_name(
+                            device.get('manufacturer'),
+                            device.get('model')
+                        )
+                    else:
+                        type_name = None
+
                     # Determine if supported:
                     # - Switches: need a recognized type
                     # - Motion/contact sensors: always supported (configured via area settings)
@@ -3245,7 +3256,7 @@ class LightDesignerServer:
                         **device,
                         'category': category,
                         'type': detected_type,
-                        'type_name': type_info.get('name') if detected_type else None,
+                        'type_name': type_name,
                         'supported': is_supported,
                     })
 

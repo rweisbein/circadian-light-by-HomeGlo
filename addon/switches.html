@@ -640,7 +640,6 @@
 
     // Initialize
     document.addEventListener('DOMContentLoaded', async () => {
-      console.log('[Controls] DOMContentLoaded - initializing');
       await loadPreferences();
       loadData();
       setupEventListeners();
@@ -684,7 +683,6 @@
     }
 
     async function loadData() {
-      console.log('[Controls] loadData called');
       const container = document.getElementById('controls-container');
       container.innerHTML = '<div class="loading">Loading controls...</div>';
 
@@ -694,12 +692,9 @@
           fetch('./api/areas')
         ]);
 
-        console.log('[Controls] API responses received:', controlsRes.status, areasRes.status);
-
         if (controlsRes.ok) {
           const data = await controlsRes.json();
           controls = data.controls || [];
-          console.log('[Controls] Loaded controls:', controls.length);
         }
 
         if (areasRes.ok) {
@@ -708,13 +703,12 @@
 
         renderControls();
       } catch (err) {
-        console.error('[Controls] Error loading data:', err);
+        console.error('Error loading controls:', err);
         container.innerHTML = '<div class="loading">Error loading data</div>';
       }
     }
 
     function renderControls() {
-      console.log('[Controls] renderControls called, controls.length:', controls.length);
       const container = document.getElementById('controls-container');
 
       // Build filter options from data
@@ -724,27 +718,22 @@
 
       // Validate saved filters - reset to 'all' if saved value doesn't exist in current data
       if (categoryFilter !== 'all' && !categories.includes(categoryFilter)) {
-        console.log('[Controls] Resetting invalid categoryFilter:', categoryFilter);
         categoryFilter = 'all';
       }
       if (areaFilter !== 'all' && !areas.includes(areaFilter)) {
-        console.log('[Controls] Resetting invalid areaFilter:', areaFilter);
         areaFilter = 'all';
       }
       if (statusFilter !== 'all' && !statuses.includes(statusFilter)) {
-        console.log('[Controls] Resetting invalid statusFilter:', statusFilter);
         statusFilter = 'all';
       }
 
       // Apply all filters
-      console.log('[Controls] Filters:', { categoryFilter, areaFilter, statusFilter });
       const filtered = controls.filter(c => {
         if (categoryFilter !== 'all' && c.category !== categoryFilter) return false;
         if (areaFilter !== 'all' && c.area_name !== areaFilter) return false;
         if (statusFilter !== 'all' && c.status !== statusFilter) return false;
         return true;
       });
-      console.log('[Controls] After filtering:', filtered.length);
 
       // Sort controls
       const statusOrder = { 'active': 0, 'not_configured': 1, 'unsupported': 2 };
@@ -807,8 +796,6 @@
       const statusOptions = `<option value="all">All</option>` +
         statuses.map(s => `<option value="${s}" ${statusFilter === s ? 'selected' : ''}>${statusLabels[s] || s}</option>`).join('');
 
-      console.log('[Controls] sorted.length:', sorted.length, 'categories:', categories, 'statuses:', statuses);
-
       container.innerHTML = `
         <table class="switches-table">
           <thead>
@@ -850,7 +837,13 @@
               const categoryLabel = formatCategory(ctrl.category);
               const areaName = ctrl.area_name || '—';
               const controllerLabel = formatController(ctrl.integration);
-              const typeName = ctrl.type_name || `${ctrl.manufacturer || 'Unknown'} ${ctrl.model || ''}`.trim();
+              // For motion/contact sensors, just show model if no friendly name
+              // For switches, show manufacturer + model as fallback
+              const typeName = ctrl.type_name || (
+                ctrl.category === 'switch'
+                  ? `${ctrl.manufacturer || 'Unknown'} ${ctrl.model || ''}`.trim()
+                  : ctrl.model || '—'
+              );
               const statusBadge = getStatusBadge(ctrl);
               const lastAction = formatLastAction(ctrl);
               const nameCell = ctrl.supported
