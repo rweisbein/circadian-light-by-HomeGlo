@@ -422,11 +422,20 @@
       const validStatusValues = ['all', 'on', 'off', 'frozen'];
 
       // Validate saved filters - reset to 'all' if saved value doesn't exist in current data
+      let filtersReset = false;
       if (zoneFilter !== 'all' && zoneFilter !== 'unassigned' && !zones.includes(zoneFilter)) {
+        console.log(`[Filters] Resetting invalid zoneFilter '${zoneFilter}' to 'all'`);
         zoneFilter = 'all';
+        filtersReset = true;
       }
       if (!validStatusValues.includes(statusFilter)) {
+        console.log(`[Filters] Resetting invalid statusFilter '${statusFilter}' to 'all'`);
         statusFilter = 'all';
+        filtersReset = true;
+      }
+      // Save corrected filters so they don't reload with invalid values
+      if (filtersReset) {
+        savePreferences();
       }
 
       // Apply all filters

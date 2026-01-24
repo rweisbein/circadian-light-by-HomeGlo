@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.100
+**Fix filter state persistence bug**
+
+- Save corrected filter preferences when invalid values are reset to 'all'
+- Prevents stale filter values from persisting across page loads
+- Added console logging for filter resets to help debug
+- Applied fix to both Controls and Areas pages
+
 ## 6.9.98
 **Debug logging for motion sensor detection**
 

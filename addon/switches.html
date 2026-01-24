@@ -727,14 +727,25 @@
       const statuses = [...new Set(controls.map(c => c.status).filter(Boolean))];
 
       // Validate saved filters - reset to 'all' if saved value doesn't exist in current data
+      let filtersReset = false;
       if (categoryFilter !== 'all' && !categories.includes(categoryFilter)) {
+        console.log(`[Filters] Resetting invalid categoryFilter '${categoryFilter}' to 'all'`);
         categoryFilter = 'all';
+        filtersReset = true;
       }
       if (areaFilter !== 'all' && !areas.includes(areaFilter)) {
+        console.log(`[Filters] Resetting invalid areaFilter '${areaFilter}' to 'all'`);
         areaFilter = 'all';
+        filtersReset = true;
       }
       if (statusFilter !== 'all' && !statuses.includes(statusFilter)) {
+        console.log(`[Filters] Resetting invalid statusFilter '${statusFilter}' to 'all'`);
         statusFilter = 'all';
+        filtersReset = true;
+      }
+      // Save corrected filters so they don't reload with invalid values
+      if (filtersReset) {
+        savePreferences();
       }
 
       // Apply all filters
