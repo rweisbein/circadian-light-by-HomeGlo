@@ -1,5 +1,11 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.110
+**Fix motion sensor config not saving boost_brightness**
+
+- Fixed: boost_brightness was not being saved when configuring motion sensors
+- You may need to re-save your motion sensor configurations for boost_brightness and duration to take effect
+
 ## 6.9.109
 **Boost as modifier layer - centralized lighting updates**
 

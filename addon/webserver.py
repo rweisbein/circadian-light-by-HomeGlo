@@ -3316,6 +3316,7 @@ class LightDesignerServer:
                         area_id=area_data.get("area_id", ""),
                         function=area_data.get("function", "on_off"),
                         duration=area_data.get("duration", 60),
+                        boost_brightness=area_data.get("boost_brightness", 50),
                     ))
 
                 motion_config = switches.MotionSensorConfig(
