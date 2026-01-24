@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.113
+**Fix bounce effect to be boost-aware**
+
+- Fixed: Bounce effect at step limits now uses effective (boosted) brightness
+- Previously: Boosted at 52%, bounce would flash 2% → 0% → 2% (using circadian base)
+- Now: Boosted at 52%, bounce correctly flashes 52% → 26% → 52%
+
 ## 6.9.112
 **Centralized boost-aware lighting with _apply_circadian_lighting**
 

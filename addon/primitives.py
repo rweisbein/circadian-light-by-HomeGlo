@@ -1635,22 +1635,32 @@ class CircadianLightPrimitives:
 
         Always 0.3s down, 0.3s up.
 
+        Note: This function is boost-aware. If the area is boosted, the bounce
+        uses the effective (boosted) brightness, not just the circadian base.
+
         Args:
             area_id: The area ID
-            current_brightness: Current brightness percentage
+            current_brightness: Current circadian base brightness percentage
             current_color: Current color temperature in Kelvin
         """
         import asyncio
 
+        # Add boost if area is boosted
+        effective_brightness = current_brightness
+        if state.is_boosted(area_id):
+            boost_state = state.get_boost_state(area_id)
+            boost_amount = boost_state.get("boost_brightness") or 0
+            effective_brightness = min(100, current_brightness + boost_amount)
+
         # Depth scales from 50% (at 100 brightness) to 100% (at 0 brightness)
-        depth_ratio = 0.5 + (100 - current_brightness) / 200
-        dim_brightness = max(0, int(current_brightness * (1 - depth_ratio)))
+        depth_ratio = 0.5 + (100 - effective_brightness) / 200
+        dim_brightness = max(0, int(effective_brightness * (1 - depth_ratio)))
 
         await self._apply_lighting(area_id, dim_brightness, current_color, include_color=False, transition=0.3)
         await asyncio.sleep(0.35)
-        await self._apply_lighting(area_id, current_brightness, current_color, transition=0.3)
+        await self._apply_lighting(area_id, effective_brightness, current_color, transition=0.3)
 
-        logger.info(f"Bounce effect for area {area_id}: {current_brightness}% -> {dim_brightness}% -> {current_brightness}%")
+        logger.info(f"Bounce effect for area {area_id}: {effective_brightness}% -> {dim_brightness}% -> {effective_brightness}%")
 
     async def _standard_brightness_step(
         self, area_id: str, direction: int, source: str
