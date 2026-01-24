@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.111
+**Step up/down now respects boost layer**
+
+- Fixed: step_up, step_down, bright_up, bright_down now add boost brightness when area is boosted
+- Previously these would flash to circadian-only brightness, then jump back on next periodic update
+- Now stepping while boosted maintains the boost layer on top of the new circadian base
+
 ## 6.9.110
 **Fix motion sensor config not saving boost_brightness**
 

@@ -196,11 +196,19 @@ class CircadianLightPrimitives:
             # Update state
             self._update_area_state(area_id, result.state_updates)
 
-            # Apply to lights
-            await self._apply_lighting(area_id, result.brightness, result.color_temp)
+            # Apply to lights (add boost if boosted)
+            brightness = result.brightness
+            boost_note = ""
+            if state.is_boosted(area_id):
+                boost_state = state.get_boost_state(area_id)
+                boost_amount = boost_state.get("boost_brightness") or 0
+                brightness = min(100, result.brightness + boost_amount)
+                boost_note = f" (boosted +{boost_amount}%)"
+
+            await self._apply_lighting(area_id, brightness, result.color_temp)
 
             logger.info(
-                f"Step up applied: {result.brightness}%, {result.color_temp}K"
+                f"Step up applied: {result.brightness}%{boost_note} -> {brightness}%, {result.color_temp}K"
             )
 
         else:
@@ -248,11 +256,19 @@ class CircadianLightPrimitives:
             # Update state
             self._update_area_state(area_id, result.state_updates)
 
-            # Apply to lights
-            await self._apply_lighting(area_id, result.brightness, result.color_temp)
+            # Apply to lights (add boost if boosted)
+            brightness = result.brightness
+            boost_note = ""
+            if state.is_boosted(area_id):
+                boost_state = state.get_boost_state(area_id)
+                boost_amount = boost_state.get("boost_brightness") or 0
+                brightness = min(100, result.brightness + boost_amount)
+                boost_note = f" (boosted +{boost_amount}%)"
+
+            await self._apply_lighting(area_id, brightness, result.color_temp)
 
             logger.info(
-                f"Step down applied: {result.brightness}%, {result.color_temp}K"
+                f"Step down applied: {result.brightness}%{boost_note} -> {brightness}%, {result.color_temp}K"
             )
 
         else:
@@ -301,12 +317,20 @@ class CircadianLightPrimitives:
             # Update state
             self._update_area_state(area_id, result.state_updates)
 
-            # Apply to lights (brightness only)
+            # Apply to lights (brightness only, add boost if boosted)
+            brightness = result.brightness
+            boost_note = ""
+            if state.is_boosted(area_id):
+                boost_state = state.get_boost_state(area_id)
+                boost_amount = boost_state.get("boost_brightness") or 0
+                brightness = min(100, result.brightness + boost_amount)
+                boost_note = f" (boosted +{boost_amount}%)"
+
             await self._apply_lighting(
-                area_id, result.brightness, result.color_temp, include_color=False
+                area_id, brightness, result.color_temp, include_color=False
             )
 
-            logger.info(f"Bright up applied: {result.brightness}%")
+            logger.info(f"Bright up applied: {result.brightness}%{boost_note} -> {brightness}%")
 
         else:
             await self._standard_brightness_step(area_id, direction=1, source=source)
@@ -349,12 +373,20 @@ class CircadianLightPrimitives:
             # Update state
             self._update_area_state(area_id, result.state_updates)
 
-            # Apply to lights (brightness only)
+            # Apply to lights (brightness only, add boost if boosted)
+            brightness = result.brightness
+            boost_note = ""
+            if state.is_boosted(area_id):
+                boost_state = state.get_boost_state(area_id)
+                boost_amount = boost_state.get("boost_brightness") or 0
+                brightness = min(100, result.brightness + boost_amount)
+                boost_note = f" (boosted +{boost_amount}%)"
+
             await self._apply_lighting(
-                area_id, result.brightness, result.color_temp, include_color=False
+                area_id, brightness, result.color_temp, include_color=False
             )
 
-            logger.info(f"Bright down applied: {result.brightness}%")
+            logger.info(f"Bright down applied: {result.brightness}%{boost_note} -> {brightness}%")
 
         else:
             await self._standard_brightness_step(area_id, direction=-1, source=source)
