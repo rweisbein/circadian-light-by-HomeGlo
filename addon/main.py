@@ -2221,9 +2221,9 @@ class HomeAssistantWebSocketClient:
             brightness = result.brightness
             boost_note = ""
             if state.is_boosted(area_id):
-                # Get boost brightness setting and apply
-                raw_config = glozone.load_config_from_files()
-                boost_amount = raw_config.get("boost_brightness_default", 50)
+                # Get boost brightness from area's boost state (set per-sensor)
+                boost_state = state.get_boost_state(area_id)
+                boost_amount = boost_state.get('boost_brightness') or 0
                 brightness = min(100, result.brightness + boost_amount)
                 boost_note = f" (boosted +{boost_amount}%)"
 

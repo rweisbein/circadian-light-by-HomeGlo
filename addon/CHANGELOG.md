@@ -1,5 +1,15 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.109
+**Boost as modifier layer - centralized lighting updates**
+
+- **Boost is now a modifier layer**: Boost brightness is added ON TOP of circadian base, not replacing it
+- **Centralized lighting updates**: glo_up, glo_down, glo_reset now use `update_lights_in_circadian_mode`
+  - All paths (periodic updates, designer save, glo actions) use the same boost-aware code
+  - Boosted areas retain their boost when zone sync (glo_up) changes circadian base
+- **glo_reset preserves boost**: Resets stepped state (brightness_mid, color_mid) and unfreezes, but boost layer persists
+- **Removed boost_brightness_default from global settings**: Boost is per-sensor only now
+
 ## 6.9.108
 **Controls UI improvements and ZHA motion sensor support**
 

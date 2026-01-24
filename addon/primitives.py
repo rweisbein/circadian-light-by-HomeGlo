@@ -1290,14 +1290,10 @@ class CircadianLightPrimitives:
             logger.debug(f"Copied state to area {target_area_id}")
 
             # Apply lighting if the target area is enabled
+            # Use centralized update function which handles boost, frozen state, etc.
             if state.is_enabled(target_area_id):
-                config = self._get_config(target_area_id)
-                target_state = self._get_area_state(target_area_id)
-                hour = target_state.frozen_at if target_state.frozen_at is not None else get_current_hour()
-
-                result = CircadianLight.calculate_lighting(hour, config, target_state)
-                await self._apply_lighting(target_area_id, result.brightness, result.color_temp)
-                logger.debug(f"Applied lighting to {target_area_id}: {result.brightness}%, {result.color_temp}K")
+                await self.client.update_lights_in_circadian_mode(target_area_id)
+                logger.debug(f"Triggered lighting update for {target_area_id}")
 
         logger.info(f"GloUp complete: synced {len(zone_areas)} area(s) in zone '{zone_name}'")
 
@@ -1340,14 +1336,10 @@ class CircadianLightPrimitives:
         logger.info(f"Copied zone state to area {area_id}")
 
         # Apply lighting if area is enabled
+        # Use centralized update function for consistency
         if state.is_enabled(area_id):
-            config = self._get_config(area_id)
-            area_state = self._get_area_state(area_id)
-            hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
-
-            result = CircadianLight.calculate_lighting(hour, config, area_state)
-            await self._apply_lighting(area_id, result.brightness, result.color_temp)
-            logger.info(f"Applied lighting to {area_id}: {result.brightness}%, {result.color_temp}K")
+            await self.client.update_lights_in_circadian_mode(area_id)
+            logger.info(f"GloDown complete for {area_id}")
         else:
             logger.info(f"GloDown complete for {area_id} (not enabled, no lighting change)")
 
@@ -1380,20 +1372,16 @@ class CircadianLightPrimitives:
         logger.info(f"Zone '{zone_name}' has {len(zone_areas)} area(s): {zone_areas}")
 
         # Reset all areas in the zone
-        current_hour = get_current_hour()
         for target_area_id in zone_areas:
             # Reset area state (clears midpoints/bounds/frozen_at, preserves enabled)
             state.reset_area(target_area_id)
             logger.debug(f"Reset area {target_area_id}")
 
             # Apply lighting if area is enabled
+            # Use centralized update function for consistency
             if state.is_enabled(target_area_id):
-                config = self._get_config(target_area_id)
-                area_state = self._get_area_state(target_area_id)
-
-                result = CircadianLight.calculate_lighting(current_hour, config, area_state)
-                await self._apply_lighting(target_area_id, result.brightness, result.color_temp)
-                logger.debug(f"Applied lighting to {target_area_id}: {result.brightness}%, {result.color_temp}K")
+                await self.client.update_lights_in_circadian_mode(target_area_id)
+                logger.debug(f"Triggered lighting update for {target_area_id}")
 
         logger.info(f"GloReset complete: reset {len(zone_areas)} area(s) in zone '{zone_name}'")
 

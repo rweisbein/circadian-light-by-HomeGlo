@@ -1004,7 +1004,7 @@ class LightDesignerServer:
         "turn_off_transition",  # Transition time in tenths of seconds for turn-off operations
         "multi_click_enabled",  # Enable multi-click detection for Hue Hub switches
         "multi_click_speed",  # Multi-click window in tenths of seconds
-        "boost_brightness_default",  # Default boost brightness in percentage points
+        "circadian_refresh",  # How often to refresh circadian lighting (seconds)
         "controls_ui",  # Controls page UI preferences (sort, filter)
         "areas_ui",  # Areas page UI preferences (sort, filter)
         "area_settings",  # Per-area settings (motion_function, motion_duration)
