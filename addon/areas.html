@@ -646,6 +646,15 @@
 
       // Build filter options from data
       const zones = [...new Set(mergedAreas.map(a => a.zone_name).filter(Boolean))].sort();
+      const validStatusValues = ['all', 'on', 'off', 'frozen'];
+
+      // Validate saved filters - reset to 'all' if saved value doesn't exist in current data
+      if (zoneFilter !== 'all' && zoneFilter !== 'unassigned' && !zones.includes(zoneFilter)) {
+        zoneFilter = 'all';
+      }
+      if (!validStatusValues.includes(statusFilter)) {
+        statusFilter = 'all';
+      }
 
       // Apply all filters
       const filtered = mergedAreas.filter(a => {
@@ -663,20 +672,6 @@
         }
         return true;
       });
-
-      if (filtered.length === 0) {
-        container.innerHTML = `
-          <div class="empty-state">
-            <div class="empty-state-title">No areas found</div>
-            <div class="empty-state-text">
-              ${areas.length > 0
-                ? 'No areas match the current filters. Try selecting "All".'
-                : 'No areas found in Home Assistant.'}
-            </div>
-          </div>
-        `;
-        return;
-      }
 
       // Sort areas
       const sorted = [...filtered].sort((a, b) => {
@@ -748,7 +743,15 @@
             </tr>
           </thead>
           <tbody>
-            ${sorted.map(area => {
+            ${sorted.length === 0 ? `
+              <tr>
+                <td colspan="5" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                  ${mergedAreas.length > 0
+                    ? 'No areas match the current filters.'
+                    : 'No areas found in Home Assistant.'}
+                </td>
+              </tr>
+            ` : sorted.map(area => {
               const zoneName = area.zone_name || '<span style="color: var(--muted2)">—</span>';
               const statusBadge = getStatusBadge(area);
               const lightingInfo = getLightingInfo(area);
