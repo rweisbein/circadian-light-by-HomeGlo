@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.107
+**Home page area pills show boosted brightness**
+
+- Area status API now adds boost brightness to circadian brightness when boosted
+- Area pills reflect actual light brightness including boost amount
+- Added `boosted` flag to area status response
+
 ## 6.9.106
 **Fix motion on_off not turning on lights**
 

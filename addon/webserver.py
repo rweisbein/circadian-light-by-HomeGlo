@@ -2039,11 +2039,19 @@ class LightDesignerServer:
                     except Exception as e:
                         logger.warning(f"Error calculating lighting for area {area_id}: {e}")
 
+                    # Check if area is boosted and add boost brightness
+                    is_boosted = state.is_boosted(area_id)
+                    if is_boosted:
+                        boost_state = state.get_boost_state(area_id)
+                        boost_amount = boost_state.get('boost_brightness') or 0
+                        brightness = min(100, brightness + boost_amount)
+
                     area_status[area_id] = {
                         'enabled': area_state.enabled,
                         'brightness': brightness,
                         'kelvin': kelvin,
                         'frozen': area_state.frozen_at is not None,
+                        'boosted': is_boosted,
                         'zone_name': zone_name if zone_name != 'Unassigned' else None
                     }
 
