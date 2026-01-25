@@ -194,6 +194,7 @@ class CircadianLightPrimitives:
                 return
 
             # Update state
+            logger.info(f"Step up state_updates: {result.state_updates}")
             self._update_area_state(area_id, result.state_updates)
 
             # Apply to lights (boost-aware)

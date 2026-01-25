@@ -2219,7 +2219,10 @@ class HomeAssistantWebSocketClient:
                 return
 
             # Get area state (includes stepped midpoints, pushed bounds, and frozen_at)
-            area_state = AreaState.from_dict(state.get_area(area_id))
+            area_state_dict = state.get_area(area_id)
+            area_state = AreaState.from_dict(area_state_dict)
+            if area_state.brightness_mid is not None or area_state.color_mid is not None:
+                logger.info(f"[Periodic] Area {area_id} has stepped state: brightness_mid={area_state.brightness_mid}, color_mid={area_state.color_mid}")
 
             # Get zone-aware config for this area
             config_dict = glozone.get_effective_config_for_area(area_id)

@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.122
+**Debug logging for step_up brightness_mid issue**
+
+- Added logging to show state_updates from step_up (brightness_mid, color_mid)
+- Added logging in periodic update to show when stepped state is used
+- Investigating why periodic update overwrites stepped brightness
+
 ## 6.9.121
 **Move Clear filters link to header**
 
