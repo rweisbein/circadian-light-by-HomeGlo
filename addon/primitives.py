@@ -183,12 +183,14 @@ class CircadianLightPrimitives:
 
         config = self._get_config(area_id)
         hour = get_current_hour()
+        sun_times = self.client._get_sun_times() if hasattr(self.client, '_get_sun_times') else None
 
         result = CircadianLight.calculate_step(
             hour=hour,
             direction="up",
             config=config,
             state=area_state,
+            sun_times=sun_times,
         )
 
         if result is None:
@@ -196,7 +198,7 @@ class CircadianLightPrimitives:
             # Bounce effect at limit (only if is_on)
             if area_state.is_on:
                 current_bri = CircadianLight.calculate_brightness_at_hour(hour, config, area_state)
-                current_cct = CircadianLight.calculate_color_at_hour(hour, config, area_state, apply_solar_rules=True)
+                current_cct = CircadianLight.calculate_color_at_hour(hour, config, area_state, apply_solar_rules=True, sun_times=sun_times)
                 await self._bounce_at_limit(area_id, current_bri, current_cct)
             return
 
@@ -239,12 +241,14 @@ class CircadianLightPrimitives:
 
         config = self._get_config(area_id)
         hour = get_current_hour()
+        sun_times = self.client._get_sun_times() if hasattr(self.client, '_get_sun_times') else None
 
         result = CircadianLight.calculate_step(
             hour=hour,
             direction="down",
             config=config,
             state=area_state,
+            sun_times=sun_times,
         )
 
         if result is None:
@@ -252,7 +256,7 @@ class CircadianLightPrimitives:
             # Bounce effect at limit (only if is_on)
             if area_state.is_on:
                 current_bri = CircadianLight.calculate_brightness_at_hour(hour, config, area_state)
-                current_cct = CircadianLight.calculate_color_at_hour(hour, config, area_state, apply_solar_rules=True)
+                current_cct = CircadianLight.calculate_color_at_hour(hour, config, area_state, apply_solar_rules=True, sun_times=sun_times)
                 await self._bounce_at_limit(area_id, current_bri, current_cct)
             return
 
@@ -295,19 +299,21 @@ class CircadianLightPrimitives:
 
         config = self._get_config(area_id)
         hour = get_current_hour()
+        sun_times = self.client._get_sun_times() if hasattr(self.client, '_get_sun_times') else None
 
         result = CircadianLight.calculate_bright_step(
             hour=hour,
             direction="up",
             config=config,
             state=area_state,
+            sun_times=sun_times,
         )
 
         if result is None:
             logger.info(f"Bright up at limit for area {area_id}")
             if area_state.is_on:
                 current_bri = CircadianLight.calculate_brightness_at_hour(hour, config, area_state)
-                current_cct = CircadianLight.calculate_color_at_hour(hour, config, area_state, apply_solar_rules=True)
+                current_cct = CircadianLight.calculate_color_at_hour(hour, config, area_state, apply_solar_rules=True, sun_times=sun_times)
                 await self._bounce_at_limit(area_id, current_bri, current_cct)
             return
 
@@ -348,19 +354,21 @@ class CircadianLightPrimitives:
 
         config = self._get_config(area_id)
         hour = get_current_hour()
+        sun_times = self.client._get_sun_times() if hasattr(self.client, '_get_sun_times') else None
 
         result = CircadianLight.calculate_bright_step(
             hour=hour,
             direction="down",
             config=config,
             state=area_state,
+            sun_times=sun_times,
         )
 
         if result is None:
             logger.info(f"Bright down at limit for area {area_id}")
             if area_state.is_on:
                 current_bri = CircadianLight.calculate_brightness_at_hour(hour, config, area_state)
-                current_cct = CircadianLight.calculate_color_at_hour(hour, config, area_state, apply_solar_rules=True)
+                current_cct = CircadianLight.calculate_color_at_hour(hour, config, area_state, apply_solar_rules=True, sun_times=sun_times)
                 await self._bounce_at_limit(area_id, current_bri, current_cct)
             return
 
@@ -405,19 +413,21 @@ class CircadianLightPrimitives:
 
         config = self._get_config(area_id)
         hour = get_current_hour()
+        sun_times = self.client._get_sun_times() if hasattr(self.client, '_get_sun_times') else None
 
         result = CircadianLight.calculate_color_step(
             hour=hour,
             direction="up",
             config=config,
             state=area_state,
+            sun_times=sun_times,
         )
 
         if result is None:
             logger.info(f"Color up at limit for area {area_id}")
             if area_state.is_on:
                 current_bri = CircadianLight.calculate_brightness_at_hour(hour, config, area_state)
-                current_cct = CircadianLight.calculate_color_at_hour(hour, config, area_state, apply_solar_rules=True)
+                current_cct = CircadianLight.calculate_color_at_hour(hour, config, area_state, apply_solar_rules=True, sun_times=sun_times)
                 await self._bounce_at_limit(area_id, current_bri, current_cct)
             return
 
@@ -456,19 +466,21 @@ class CircadianLightPrimitives:
 
         config = self._get_config(area_id)
         hour = get_current_hour()
+        sun_times = self.client._get_sun_times() if hasattr(self.client, '_get_sun_times') else None
 
         result = CircadianLight.calculate_color_step(
             hour=hour,
             direction="down",
             config=config,
             state=area_state,
+            sun_times=sun_times,
         )
 
         if result is None:
             logger.info(f"Color down at limit for area {area_id}")
             if area_state.is_on:
                 current_bri = CircadianLight.calculate_brightness_at_hour(hour, config, area_state)
-                current_cct = CircadianLight.calculate_color_at_hour(hour, config, area_state, apply_solar_rules=True)
+                current_cct = CircadianLight.calculate_color_at_hour(hour, config, area_state, apply_solar_rules=True, sun_times=sun_times)
                 await self._bounce_at_limit(area_id, current_bri, current_cct)
             return
 

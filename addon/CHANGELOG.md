@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.130
+**Fix warm_night filter not applied on step/button actions**
+
+- Fixed: Step up/down, bright up/down, color up/down now use actual sun times for solar rules
+- Previously, button actions used default sun times (sunrise=6am, sunset=6pm) instead of actual HA sun position
+- This caused colors to be cooler immediately after button press, then warm up at the 30-second refresh
+- Now button actions match the periodic refresh behavior
+
 ## 6.9.129
 **Update Hue 4-button switch mapping**
 

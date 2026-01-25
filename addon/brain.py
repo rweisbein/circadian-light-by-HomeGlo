@@ -615,6 +615,7 @@ class CircadianLight:
         direction: str,  # "up" or "down"
         config: Config,
         state: AreaState,
+        sun_times: Optional[SunTimes] = None,
     ) -> Optional[StepResult]:
         """Calculate step up/down using brightness-primary algorithm.
 
@@ -626,6 +627,7 @@ class CircadianLight:
             direction: "up" (brighter/cooler) or "down" (dimmer/warmer)
             config: Global configuration
             state: Area runtime state
+            sun_times: Sun position times for solar rules (if None, uses defaults)
 
         Returns:
             StepResult with new values and state updates, or None if at limit
@@ -649,8 +651,8 @@ class CircadianLight:
         # Get the NATURAL curve color (without solar rules) for stepping
         # Solar rules will be applied at render time
         natural_cct = CircadianLight.calculate_color_at_hour(hour, config, state, apply_solar_rules=False)
-        # Also get the rendered color for limit checking
-        current_cct = CircadianLight.calculate_color_at_hour(hour, config, state, apply_solar_rules=True)
+        # Also get the rendered color for limit checking (with actual sun times)
+        current_cct = CircadianLight.calculate_color_at_hour(hour, config, state, apply_solar_rules=True, sun_times=sun_times)
 
         # Safe margin to avoid asymptote issues in midpoint calculation
         safe_margin_bri = max(1.0, (b_max - b_min) * 0.01)
@@ -675,7 +677,7 @@ class CircadianLight:
 
         # Apply solar rules to get the RENDERED color (for light output)
         # The midpoint will be calculated from target_natural_cct so the curve position is correct
-        target_cct = CircadianLight._apply_solar_rules(target_natural_cct, hour, config, state)
+        target_cct = CircadianLight._apply_solar_rules(target_natural_cct, hour, config, state, sun_times)
 
         # Clamp color to config bounds after solar rules
         target_cct = max(c_min, min(c_max, target_cct))
@@ -720,6 +722,7 @@ class CircadianLight:
         direction: str,  # "up" or "down"
         config: Config,
         state: AreaState,
+        sun_times: Optional[SunTimes] = None,
     ) -> Optional[StepResult]:
         """Calculate brightness-only step.
 
@@ -731,6 +734,7 @@ class CircadianLight:
             direction: "up" or "down"
             config: Global configuration
             state: Area runtime state
+            sun_times: Sun position times for solar rules (if None, uses defaults)
 
         Returns:
             StepResult with new values and state updates, or None if at limit
@@ -761,8 +765,8 @@ class CircadianLight:
         # Clamp to safe bounds
         target_bri = max(b_min + safe_margin, min(b_max - safe_margin, target_bri))
 
-        # Color stays unchanged - recalculate at current hour
-        color_temp = CircadianLight.calculate_color_at_hour(hour, config, state)
+        # Color stays unchanged - recalculate at current hour (with solar rules)
+        color_temp = CircadianLight.calculate_color_at_hour(hour, config, state, apply_solar_rules=True, sun_times=sun_times)
         rgb = CircadianLight.color_temperature_to_rgb(color_temp)
         xy = CircadianLight.color_temperature_to_xy(color_temp)
 
@@ -794,6 +798,7 @@ class CircadianLight:
         direction: str,  # "up" or "down"
         config: Config,
         state: AreaState,
+        sun_times: Optional[SunTimes] = None,
     ) -> Optional[StepResult]:
         """Calculate color-only step.
 
@@ -805,6 +810,7 @@ class CircadianLight:
             direction: "up" (cooler) or "down" (warmer)
             config: Global configuration
             state: Area runtime state
+            sun_times: Sun position times for solar rules (if None, uses defaults)
 
         Returns:
             StepResult with new values and state updates, or None if at limit
@@ -818,7 +824,7 @@ class CircadianLight:
         c_max = config.max_color_temp
         cct_step = (c_max - c_min) / steps
 
-        current_cct = CircadianLight.calculate_color_at_hour(hour, config, state, apply_solar_rules=True)
+        current_cct = CircadianLight.calculate_color_at_hour(hour, config, state, apply_solar_rules=True, sun_times=sun_times)
 
         # Safe margin to avoid asymptote issues in midpoint calculation
         safe_margin = max(10, (c_max - c_min) * 0.01)
