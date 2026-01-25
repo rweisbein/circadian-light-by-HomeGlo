@@ -1068,10 +1068,9 @@ class HomeAssistantWebSocketClient:
             await self.primitives.lights_toggle_multiple(areas, "switch")
 
         elif action == "step_up":
-            # If lights are off or not in circadian mode, set nitelite instead
+            # If lights are off, set nitelite instead of stepping
             any_on = await self.any_lights_on_in_area(areas)
-            any_circadian = any(state.is_circadian(area) for area in areas)
-            if not any_on and not any_circadian:
+            if not any_on:
                 logger.info(f"[switch] step_up with lights off -> nitelite for areas: {areas}")
                 for area in areas:
                     await self.primitives.set(area, "switch", preset="nitelite", enable=True)
@@ -1080,10 +1079,9 @@ class HomeAssistantWebSocketClient:
                     await self.primitives.step_up(area, "switch")
 
         elif action == "step_down":
-            # If lights are off or not in circadian mode, set nitelite instead
+            # If lights are off, set nitelite instead of stepping
             any_on = await self.any_lights_on_in_area(areas)
-            any_circadian = any(state.is_circadian(area) for area in areas)
-            if not any_on and not any_circadian:
+            if not any_on:
                 logger.info(f"[switch] step_down with lights off -> nitelite for areas: {areas}")
                 for area in areas:
                     await self.primitives.set(area, "switch", preset="nitelite", enable=True)
@@ -1092,10 +1090,9 @@ class HomeAssistantWebSocketClient:
                     await self.primitives.step_down(area, "switch")
 
         elif action == "bright_up":
-            # If lights are off or not in circadian mode, set nitelite instead
+            # If lights are off, set nitelite instead of brightening
             any_on = await self.any_lights_on_in_area(areas)
-            any_circadian = any(state.is_circadian(area) for area in areas)
-            if not any_on and not any_circadian:
+            if not any_on:
                 logger.info(f"[switch] bright_up with lights off -> nitelite for areas: {areas}")
                 for area in areas:
                     await self.primitives.set(area, "switch", preset="nitelite", enable=True)
@@ -1104,10 +1101,9 @@ class HomeAssistantWebSocketClient:
                     await self.primitives.bright_up(area, "switch")
 
         elif action == "bright_down":
-            # If lights are off or not in circadian mode, set nitelite instead
+            # If lights are off, set nitelite instead of dimming
             any_on = await self.any_lights_on_in_area(areas)
-            any_circadian = any(state.is_circadian(area) for area in areas)
-            if not any_on and not any_circadian:
+            if not any_on:
                 logger.info(f"[switch] bright_down with lights off -> nitelite for areas: {areas}")
                 for area in areas:
                     await self.primitives.set(area, "switch", preset="nitelite", enable=True)

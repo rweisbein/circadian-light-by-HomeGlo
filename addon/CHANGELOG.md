@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.125
+**Fix nitelite trigger when lights are off**
+
+- Fixed: Pressing step/bright buttons when lights are off now correctly invokes nitelite
+- Previously, if area was in circadian mode with `is_on=False`, button presses would not turn on lights
+- Simplified condition: nitelite triggers whenever lights are physically off
+
 ## 6.9.124
 **New state model: is_circadian + is_on**
 
