@@ -614,7 +614,10 @@
     <div class="page-header">
       <div style="display: flex; align-items: center; justify-content: space-between;">
         <h1 class="page-title">Controls</h1>
-        <button class="btn btn-secondary" id="update-btn">Update</button>
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <a href="#" class="clear-filters-link" id="clear-filters-link" style="display: none;" onclick="clearFilters(); return false;">Clear filters</a>
+          <button class="btn btn-secondary" id="update-btn">Update</button>
+        </div>
       </div>
     </div>
 
@@ -858,15 +861,11 @@
       const statusOptions = `<option value="all">All</option>` +
         statuses.map(s => `<option value="${s}" ${statusFilter === s ? 'selected' : ''}>${statusLabels[s] || s}</option>`).join('');
 
-      // Check if any filters are active
+      // Check if any filters are active and show/hide clear filters link
       const hasActiveFilters = categoryFilter !== 'all' || areaFilter !== 'all' || statusFilter !== 'all';
+      document.getElementById('clear-filters-link').style.display = hasActiveFilters ? 'inline' : 'none';
 
       container.innerHTML = `
-        ${hasActiveFilters ? `
-          <div style="margin-bottom: 12px; text-align: right;">
-            <a href="#" class="clear-filters-link" onclick="clearFilters(); return false;">Clear filters</a>
-          </div>
-        ` : ''}
         <table class="switches-table">
           <thead>
             <tr>

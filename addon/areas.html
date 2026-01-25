@@ -301,7 +301,10 @@
     <div class="page-header">
       <div style="display: flex; align-items: center; justify-content: space-between;">
         <h1 class="page-title">Areas</h1>
-        <button class="btn btn-secondary" id="refresh-btn">Refresh</button>
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <a href="#" class="clear-filters-link" id="clear-filters-link" style="display: none;" onclick="clearFilters(); return false;">Clear filters</a>
+          <button class="btn btn-secondary" id="refresh-btn">Refresh</button>
+        </div>
       </div>
     </div>
 
@@ -514,15 +517,11 @@
         <option value="frozen" ${statusFilter === 'frozen' ? 'selected' : ''}>Frozen</option>
       `;
 
-      // Check if any filters are active
+      // Check if any filters are active and show/hide clear filters link
       const hasActiveFilters = zoneFilter !== 'all' || statusFilter !== 'all';
+      document.getElementById('clear-filters-link').style.display = hasActiveFilters ? 'inline' : 'none';
 
       container.innerHTML = `
-        ${hasActiveFilters ? `
-          <div style="margin-bottom: 12px; text-align: right;">
-            <a href="#" class="clear-filters-link" onclick="clearFilters(); return false;">Clear filters</a>
-          </div>
-        ` : ''}
         <table class="areas-table">
           <thead>
             <tr>

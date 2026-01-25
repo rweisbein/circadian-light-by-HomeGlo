@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.121
+**Move Clear filters link to header**
+
+- Moved "Clear filters" link to header next to Update/Refresh button
+- No longer pushes table down when filters are active
+- Updated on both Controls and Areas pages
+
 ## 6.9.120
 **Inactive toggle directly on Controls page**
 
