@@ -574,6 +574,26 @@
       color: var(--accent);
       text-decoration: underline;
     }
+
+    .inactive-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin-left: 8px;
+      cursor: pointer;
+    }
+
+    .inactive-toggle input {
+      width: 14px;
+      height: 14px;
+      accent-color: var(--muted);
+      cursor: pointer;
+    }
+
+    .inactive-toggle-label {
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
   </style>
 </head>
 <body>
@@ -899,12 +919,21 @@
               const nameCell = ctrl.supported
                 ? `<a class="switch-name-link" onclick="editControl('${ctrl.id}')">${ctrl.name}</a>`
                 : `<span>${ctrl.name}</span>`;
+              // Show inactive toggle for configured sensors
+              const isSensor = ctrl.category === 'motion_sensor' || ctrl.category === 'contact_sensor';
+              const isConfigured = ctrl.status === 'active' || ctrl.status === 'inactive';
+              const inactiveToggle = (isSensor && isConfigured)
+                ? `<label class="inactive-toggle" title="${ctrl.inactive ? 'Click to activate' : 'Click to deactivate'}">
+                     <input type="checkbox" ${ctrl.inactive ? 'checked' : ''} onchange="toggleInactive('${ctrl.id}', '${ctrl.category}', this.checked)">
+                     <span class="inactive-toggle-label">${ctrl.inactive ? 'Paused' : ''}</span>
+                   </label>`
+                : '';
               return `
                 <tr>
                   <td>${nameCell}</td>
                   <td>${categoryLabel}</td>
                   <td>${areaName}</td>
-                  <td>${statusBadge}</td>
+                  <td>${statusBadge} ${inactiveToggle}</td>
                   <td>${lastAction}</td>
                   <td>${controllerLabel}</td>
                   <td>${typeName}</td>
@@ -1027,6 +1056,40 @@
       statusFilter = 'all';
       savePreferences();
       renderControls();
+    }
+
+    async function toggleInactive(controlId, category, inactive) {
+      // Find the control to get its current config
+      const ctrl = controls.find(c => c.id === controlId);
+      if (!ctrl) return;
+
+      try {
+        const payload = {
+          name: ctrl.name,
+          category: category,
+          areas: ctrl.areas || [],
+          device_id: ctrl.device_id,
+          inactive: inactive
+        };
+
+        const response = await fetch(`./api/controls/${encodeURIComponent(controlId)}/configure`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+          const data = await response.json();
+          alert(data.error || 'Failed to update');
+          return;
+        }
+
+        // Reload to reflect changes
+        await loadData();
+      } catch (err) {
+        console.error('Error toggling inactive:', err);
+        alert('Error updating sensor');
+      }
     }
 
     function getAreaName(areaId) {

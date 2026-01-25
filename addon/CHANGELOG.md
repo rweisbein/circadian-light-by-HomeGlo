@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.120
+**Inactive toggle directly on Controls page**
+
+- Added: Checkbox in Status column to toggle sensor inactive state without opening edit modal
+- Shows "Paused" label when sensor is inactive
+- Click to quickly pause/resume a sensor
+- Still available in edit modal as well
+
 ## 6.9.119
 **Fix motion/contact sensor config not syncing between processes**
 
