@@ -237,11 +237,10 @@ set:
       example: living_room
       selector:
         area:
-    enable:
-      name: Enable
-      description: Also enable the area (default false)
+    is_on:
+      name: Turn On/Off
+      description: "Control whether to take control: omit to just configure settings, true to configure and turn on, false to configure and turn off"
       required: false
-      default: false
       selector:
         boolean:
 

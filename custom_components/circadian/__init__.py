@@ -36,7 +36,7 @@ from .const import (
     ATTR_PRESET,
     ATTR_FROZEN_AT,
     ATTR_COPY_FROM,
-    ATTR_ENABLE,
+    ATTR_IS_ON,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -152,9 +152,9 @@ async def _register_services(hass: HomeAssistant) -> None:
         preset = call.data.get(ATTR_PRESET)
         frozen_at = call.data.get(ATTR_FROZEN_AT)
         copy_from = call.data.get(ATTR_COPY_FROM)
-        enable = call.data.get(ATTR_ENABLE, False)
-        _LOGGER.info("[%s] set called: area_id=%s, preset=%s, frozen_at=%s, copy_from=%s, enable=%s",
-                     DOMAIN, area_id, preset, frozen_at, copy_from, enable)
+        is_on = call.data.get(ATTR_IS_ON)
+        _LOGGER.info("[%s] set called: area_id=%s, preset=%s, frozen_at=%s, copy_from=%s, is_on=%s",
+                     DOMAIN, area_id, preset, frozen_at, copy_from, is_on)
 
     async def handle_broadcast(call: ServiceCall) -> None:
         area_id = call.data.get(ATTR_AREA_ID)
@@ -186,7 +186,7 @@ async def _register_services(hass: HomeAssistant) -> None:
         vol.Optional(ATTR_PRESET): vol.In(["nitelite", "britelite", "wake", "bed"]),
         vol.Optional(ATTR_FROZEN_AT): vol.Coerce(float),
         vol.Optional(ATTR_COPY_FROM): cv.string,
-        vol.Optional(ATTR_ENABLE, default=False): cv.boolean,
+        vol.Optional(ATTR_IS_ON): cv.boolean,
     })
 
     # Register services with area_schema

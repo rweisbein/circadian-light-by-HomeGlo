@@ -1016,7 +1016,7 @@ class CircadianLightPrimitives:
     async def set(
         self, area_id: str, source: str = "service_call",
         preset: str = None, frozen_at: float = None, copy_from: str = None,
-        enable: bool = False
+        is_on: bool = None
     ):
         """Configure area state with presets, frozen_at, or copy settings.
 
@@ -1034,15 +1034,19 @@ class CircadianLightPrimitives:
             preset: Optional preset name (wake, bed, nitelite, britelite)
             frozen_at: Optional specific hour (0-24) to freeze at
             copy_from: Optional area_id to copy settings from
-            enable: If True, also enable the area (default False = don't change enabled status)
+            is_on: Controls whether to take control:
+                - None (default): just configure settings, don't change control state
+                - True: configure + take control + turn on
+                - False: configure + take control + turn off
         """
         config = self._get_config(area_id)
         current_hour = get_current_hour()
 
-        # Enable circadian control and turn on if requested
-        if enable:
-            state.enable_circadian_and_set_on(area_id, True)
-            logger.info(f"[{source}] Enabled circadian and turned on area {area_id}")
+        # Take control if is_on is explicitly set (not None)
+        take_control = is_on is not None
+        if take_control:
+            state.enable_circadian_and_set_on(area_id, is_on)
+            logger.info(f"[{source}] Taking control of area {area_id} with is_on={is_on}")
 
         # Priority 1: copy_from another area
         if copy_from:
@@ -1056,12 +1060,15 @@ class CircadianLightPrimitives:
                 })
                 logger.info(f"[{source}] Copied settings from {copy_from} to {area_id}")
 
-                # Apply if circadian and is_on (boost-aware)
+                # Apply lighting or turn off based on state
                 if state.is_circadian(area_id) and state.get_is_on(area_id):
                     area_state = self._get_area_state(area_id)
                     hour = area_state.frozen_at if area_state.frozen_at is not None else current_hour
                     result = CircadianLight.calculate_lighting(hour, config, area_state)
                     await self._apply_circadian_lighting(area_id, result.brightness, result.color_temp)
+                elif take_control and is_on == False:
+                    transition = self._get_turn_off_transition()
+                    await self._turn_off_area(area_id, transition=transition)
                 return
             else:
                 logger.warning(f"[{source}] copy_from area {copy_from} not found")
@@ -1071,11 +1078,14 @@ class CircadianLightPrimitives:
             state.set_frozen_at(area_id, float(frozen_at))
             logger.info(f"[{source}] Set {area_id} frozen_at={frozen_at:.2f}")
 
-            # Apply if circadian and is_on (boost-aware)
+            # Apply lighting or turn off based on state
             if state.is_circadian(area_id) and state.get_is_on(area_id):
                 area_state = self._get_area_state(area_id)
                 result = CircadianLight.calculate_lighting(frozen_at, config, area_state)
                 await self._apply_circadian_lighting(area_id, result.brightness, result.color_temp)
+            elif take_control and is_on == False:
+                transition = self._get_turn_off_transition()
+                await self._turn_off_area(area_id, transition=transition)
             return
 
         # Priority 3: preset
@@ -1121,7 +1131,7 @@ class CircadianLightPrimitives:
                 logger.warning(f"[{source}] Unknown preset: {preset}")
                 return
 
-            # Apply if circadian and is_on
+            # Apply lighting or turn off based on state
             if state.is_circadian(area_id) and state.get_is_on(area_id):
                 area_state = self._get_area_state(area_id)
                 hour = area_state.frozen_at if area_state.frozen_at is not None else current_hour
@@ -1131,6 +1141,9 @@ class CircadianLightPrimitives:
                 # Use turn_on_transition for presets (they're typically turn-on actions), boost-aware
                 transition = self._get_turn_on_transition()
                 await self._apply_circadian_lighting(area_id, result.brightness, result.color_temp, transition=transition)
+            elif take_control and is_on == False:
+                transition = self._get_turn_off_transition()
+                await self._turn_off_area(area_id, transition=transition)
 
     # -------------------------------------------------------------------------
     # Freeze Toggle (kept for manual toggling)

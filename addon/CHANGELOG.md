@@ -1,5 +1,15 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.128
+**Rename `enable` parameter to `is_on` in set primitive**
+
+- Renamed: `set` primitive parameter `enable` → `is_on` with new semantics:
+  - `is_on=None` (default): Just configure settings, don't take control
+  - `is_on=True`: Configure + take control + turn on
+  - `is_on=False`: Configure + take control + turn off
+- Use case: Stage settings without affecting control (e.g., glo_up propagation to off areas)
+- Settings configured with `is_on=None` will apply when area turns on later
+
 ## 6.9.127
 **Add circadian_on primitive, preserve settings across enable/disable**
 

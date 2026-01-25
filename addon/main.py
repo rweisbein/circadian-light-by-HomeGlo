@@ -1077,7 +1077,7 @@ class HomeAssistantWebSocketClient:
             else:
                 logger.info(f"[switch] step_up -> nitelite for areas: {areas} (on={any_on}, circadian={any_circadian})")
                 for area in areas:
-                    await self.primitives.set(area, "switch", preset="nitelite", enable=True)
+                    await self.primitives.set(area, "switch", preset="nitelite", is_on=True)
 
         elif action == "step_down":
             # Step down only if lights are on AND in circadian mode, else nitelite
@@ -1089,7 +1089,7 @@ class HomeAssistantWebSocketClient:
             else:
                 logger.info(f"[switch] step_down -> nitelite for areas: {areas} (on={any_on}, circadian={any_circadian})")
                 for area in areas:
-                    await self.primitives.set(area, "switch", preset="nitelite", enable=True)
+                    await self.primitives.set(area, "switch", preset="nitelite", is_on=True)
 
         elif action == "bright_up":
             # Bright up only if lights are on AND in circadian mode, else nitelite
@@ -1101,7 +1101,7 @@ class HomeAssistantWebSocketClient:
             else:
                 logger.info(f"[switch] bright_up -> nitelite for areas: {areas} (on={any_on}, circadian={any_circadian})")
                 for area in areas:
-                    await self.primitives.set(area, "switch", preset="nitelite", enable=True)
+                    await self.primitives.set(area, "switch", preset="nitelite", is_on=True)
 
         elif action == "bright_down":
             # Bright down only if lights are on AND in circadian mode, else nitelite
@@ -1113,7 +1113,7 @@ class HomeAssistantWebSocketClient:
             else:
                 logger.info(f"[switch] bright_down -> nitelite for areas: {areas} (on={any_on}, circadian={any_circadian})")
                 for area in areas:
-                    await self.primitives.set(area, "switch", preset="nitelite", enable=True)
+                    await self.primitives.set(area, "switch", preset="nitelite", is_on=True)
 
         elif action == "color_up":
             for area in areas:
@@ -1152,14 +1152,14 @@ class HomeAssistantWebSocketClient:
             # Uses primitives.set() which keeps circadian enabled and calculates from curve
             logger.info(f"[switch] set_britelite for areas: {areas}")
             for area in areas:
-                await self.primitives.set(area, "switch", preset="britelite", enable=True)
+                await self.primitives.set(area, "switch", preset="britelite", is_on=True)
 
         elif action == "set_nitelite":
             # Freeze at ascend_start (min brightness/warmest color on curve)
             # Uses primitives.set() which keeps circadian enabled and calculates from curve
             logger.info(f"[switch] set_nitelite for areas: {areas}")
             for area in areas:
-                await self.primitives.set(area, "switch", preset="nitelite", enable=True)
+                await self.primitives.set(area, "switch", preset="nitelite", is_on=True)
 
         elif action == "toggle_wake_bed":
             # Set midpoint to current time (~50% values), stays unfrozen
@@ -2636,11 +2636,11 @@ class HomeAssistantWebSocketClient:
                     preset = service_data.get("preset")  # wake, bed, nitelite, britelite
                     frozen_at = service_data.get("frozen_at")  # Optional specific hour (0-24)
                     copy_from = service_data.get("copy_from")  # Optional area_id to copy from
-                    enable = service_data.get("enable", False)  # Optional: also enable the area
+                    is_on = service_data.get("is_on")  # Optional: None=just configure, True=configure+turn on, False=configure+turn off
                     if areas:
                         for area in areas:
-                            logger.info(f"[{domain}] set for area: {area} (preset={preset}, frozen_at={frozen_at}, copy_from={copy_from}, enable={enable})")
-                            await self.primitives.set(area, "service_call", preset=preset, frozen_at=frozen_at, copy_from=copy_from, enable=enable)
+                            logger.info(f"[{domain}] set for area: {area} (preset={preset}, frozen_at={frozen_at}, copy_from={copy_from}, is_on={is_on})")
+                            await self.primitives.set(area, "service_call", preset=preset, frozen_at=frozen_at, copy_from=copy_from, is_on=is_on)
                     else:
                         logger.warning("set called without area_id")
 
