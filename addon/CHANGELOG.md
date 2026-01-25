@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.133
+**Fix Docker cache preventing integration updates**
+
+- Fixed: build.yaml had stale ADDON_VERSION causing Docker layer caching issues
+- Moved integration COPY to end of Dockerfile to ensure cache invalidation
+- Added build-time verification of bundled integration version
+- Now addon updates will properly deploy new integration files
+
 ## 6.9.132
 **Sync bundled integration with main integration**
 
