@@ -146,10 +146,6 @@ async def _register_services(hass: HomeAssistant) -> None:
         _LOGGER.info("[%s] set called: area_id=%s, preset=%s, frozen_at=%s, copy_from=%s, enable=%s",
                      DOMAIN, area_id, preset, frozen_at, copy_from, enable)
 
-    async def handle_broadcast(call: ServiceCall) -> None:
-        area_id = call.data.get(ATTR_AREA_ID)
-        _LOGGER.info("[%s] broadcast called: area_id=%s", DOMAIN, area_id)
-
     async def handle_refresh(call: ServiceCall) -> None:
         _LOGGER.info("[%s] refresh called - signaling addon to update all enabled areas", DOMAIN)
 
@@ -192,7 +188,6 @@ async def _register_services(hass: HomeAssistant) -> None:
         (SERVICE_CIRCADIAN_OFF, handle_circadian_off),
         (SERVICE_CIRCADIAN_TOGGLE, handle_circadian_toggle),
         (SERVICE_FREEZE_TOGGLE, handle_freeze_toggle),
-        (SERVICE_BROADCAST, handle_broadcast),
         (SERVICE_GLO_UP, handle_glo_up),
         (SERVICE_GLO_DOWN, handle_glo_down),
         (SERVICE_GLO_RESET, handle_glo_reset),

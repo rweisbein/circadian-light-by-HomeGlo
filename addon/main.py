@@ -2630,16 +2630,6 @@ class HomeAssistantWebSocketClient:
                     else:
                         logger.warning("reset called without area_id")
 
-                elif service == "broadcast":
-                    areas = get_areas()
-                    if areas:
-                        # Use first area as source
-                        source_area = areas[0]
-                        logger.info(f"[{domain}] broadcast from source area: {source_area}")
-                        await self.primitives.broadcast(source_area, "service_call")
-                    else:
-                        logger.warning("broadcast called without area_id")
-
                 elif service == "refresh":
                     # Signal the periodic updater to run immediately
                     # This uses the exact same code path as the 30s refresh

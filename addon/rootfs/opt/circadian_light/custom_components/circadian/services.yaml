@@ -231,19 +231,6 @@ freeze_toggle:
         area:
           multiple: true
 
-broadcast:
-  name: Broadcast
-  description: Copy settings from source area to all other areas
-  icon: mdi:broadcast
-  fields:
-    area_id:
-      name: Source Area
-      description: The area to copy settings FROM
-      required: true
-      example: living_room
-      selector:
-        area:
-
 refresh:
   name: Refresh
   description: Immediately update all enabled areas with current circadian values

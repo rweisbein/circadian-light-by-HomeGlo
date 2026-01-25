@@ -1,5 +1,11 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.123
+**Remove deprecated broadcast primitive**
+
+- Removed `broadcast` service/primitive (superseded by `glo_up`)
+- broadcast copied to all areas globally; glo_up is zone-aware
+
 ## 6.9.122
 **Debug logging for step_up brightness_mid issue**
 

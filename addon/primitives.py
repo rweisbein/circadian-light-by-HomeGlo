@@ -1020,33 +1020,6 @@ class CircadianLightPrimitives:
                 transition = self._get_turn_on_transition()
                 await self._apply_circadian_lighting(area_id, result.brightness, result.color_temp, transition=transition)
 
-    async def broadcast(self, source_area_id: str, source: str = "service_call"):
-        """Copy settings from source area to all other areas.
-
-        Copies frozen_at, midpoints, bounds, and solar_rule_color_limit
-        from the source area to every other known area.
-
-        Args:
-            source_area_id: The area to copy settings FROM
-            source: Source of the action
-        """
-        all_areas = state.get_all_areas()
-
-        if source_area_id not in all_areas:
-            logger.warning(f"[{source}] broadcast: source area {source_area_id} not found")
-            return
-
-        target_areas = [a for a in all_areas.keys() if a != source_area_id]
-
-        if not target_areas:
-            logger.info(f"[{source}] broadcast: no other areas to copy to")
-            return
-
-        logger.info(f"[{source}] Broadcasting settings from {source_area_id} to {len(target_areas)} area(s)")
-
-        for target_area in target_areas:
-            await self.set(target_area, source, copy_from=source_area_id)
-
     # -------------------------------------------------------------------------
     # Freeze Toggle (kept for manual toggling)
     # -------------------------------------------------------------------------
