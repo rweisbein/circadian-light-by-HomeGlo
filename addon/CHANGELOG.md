@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.132
+**Sync bundled integration with main integration**
+
+- Fixed: addon/custom_components was outdated copy missing recent changes
+- Synced: SERVICE_LIGHTS_ON/OFF/TOGGLE, SERVICE_CIRCADIAN_ON, SERVICE_BROADCAST
+- Synced: ATTR_IS_ON (renamed from ATTR_ENABLE)
+- Now both custom_components/ and addon/custom_components/ match at v3.8.0
+
 ## 6.9.131
 **Fix integration deployment always using bundled version**
 
