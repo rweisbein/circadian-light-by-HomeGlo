@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.117
+**Fix contact sensor close event actually turns off lights**
+
+- Fixed: Closing door with boost function now calls `end_boost` (turns off if started from off)
+- Fixed: Closing door with on_off function now calls `contact_off` (turns off and disables)
+- Added `contact_off` primitive for contact sensor close events
+- Previously `circadian_off` only disabled circadian mode without turning off lights
+
 ## 6.9.116
 **More contact sensor debug logging**
 

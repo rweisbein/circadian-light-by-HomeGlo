@@ -557,10 +557,13 @@ class HomeAssistantWebSocketClient:
 
             else:
                 # Contact closed - different from motion (close triggers off for on_off/boost)
-                if contact_function in ("on_off", "boost"):
-                    # Primary action: turn off immediately (timer is just a fallback)
-                    await self.primitives.circadian_off(area_id, source="contact_sensor")
-                    logger.info(f"[Contact] Closed: turned off area {area_id}")
+                if contact_function == "boost":
+                    # End boost - turns off if started from off, else returns to circadian
+                    await self.primitives.end_boost(area_id, source="contact_sensor")
+                    logger.info(f"[Contact] Closed: ended boost for area {area_id}")
+                elif contact_function == "on_off":
+                    # Turn off lights and disable circadian
+                    await self.primitives.contact_off(area_id, source="contact_sensor")
                 # on_only: ignore close event (lights stay on until manually turned off)
 
     # =========================================================================

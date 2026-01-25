@@ -877,6 +877,25 @@ class CircadianLightPrimitives:
         for area_id in expired:
             await self.end_motion_on_off(area_id, source="timer_expired")
 
+    async def contact_off(self, area_id: str, source: str = "contact_sensor"):
+        """Turn off lights and disable Circadian for contact sensor close event.
+
+        Used when a contact sensor closes (door/window) with on_off function.
+        Clears any motion timer, turns off lights, and disables Circadian.
+
+        Args:
+            area_id: The area ID
+            source: Source of the action
+        """
+        # Clear any motion timer
+        state.clear_motion_expires(area_id)
+
+        # Turn off and disable Circadian
+        transition = self._get_turn_off_transition()
+        await self._turn_off_area(area_id, transition=transition)
+        state.set_enabled(area_id, False)
+        logger.info(f"[{source}] Contact closed: turned off area {area_id}")
+
     # -------------------------------------------------------------------------
     # Set - Configure area state (presets, frozen_at, copy_from)
     # -------------------------------------------------------------------------
