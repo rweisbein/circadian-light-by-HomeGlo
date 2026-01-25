@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.126
+**Step/bright buttons require circadian mode**
+
+- Changed: Step/bright buttons now only step when lights are ON **and** in circadian mode
+- If lights are off OR not in circadian mode, button invokes nitelite (enters circadian)
+- Nitelite is now the consistent entry point to circadian mode from any state
+
 ## 6.9.125
 **Fix nitelite trigger when lights are off**
 

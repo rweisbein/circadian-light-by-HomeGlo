@@ -1068,48 +1068,52 @@ class HomeAssistantWebSocketClient:
             await self.primitives.lights_toggle_multiple(areas, "switch")
 
         elif action == "step_up":
-            # If lights are off, set nitelite instead of stepping
+            # Step up only if lights are on AND in circadian mode, else nitelite
             any_on = await self.any_lights_on_in_area(areas)
-            if not any_on:
-                logger.info(f"[switch] step_up with lights off -> nitelite for areas: {areas}")
-                for area in areas:
-                    await self.primitives.set(area, "switch", preset="nitelite", enable=True)
-            else:
+            any_circadian = any(state.is_circadian(area) for area in areas)
+            if any_on and any_circadian:
                 for area in areas:
                     await self.primitives.step_up(area, "switch")
+            else:
+                logger.info(f"[switch] step_up -> nitelite for areas: {areas} (on={any_on}, circadian={any_circadian})")
+                for area in areas:
+                    await self.primitives.set(area, "switch", preset="nitelite", enable=True)
 
         elif action == "step_down":
-            # If lights are off, set nitelite instead of stepping
+            # Step down only if lights are on AND in circadian mode, else nitelite
             any_on = await self.any_lights_on_in_area(areas)
-            if not any_on:
-                logger.info(f"[switch] step_down with lights off -> nitelite for areas: {areas}")
-                for area in areas:
-                    await self.primitives.set(area, "switch", preset="nitelite", enable=True)
-            else:
+            any_circadian = any(state.is_circadian(area) for area in areas)
+            if any_on and any_circadian:
                 for area in areas:
                     await self.primitives.step_down(area, "switch")
+            else:
+                logger.info(f"[switch] step_down -> nitelite for areas: {areas} (on={any_on}, circadian={any_circadian})")
+                for area in areas:
+                    await self.primitives.set(area, "switch", preset="nitelite", enable=True)
 
         elif action == "bright_up":
-            # If lights are off, set nitelite instead of brightening
+            # Bright up only if lights are on AND in circadian mode, else nitelite
             any_on = await self.any_lights_on_in_area(areas)
-            if not any_on:
-                logger.info(f"[switch] bright_up with lights off -> nitelite for areas: {areas}")
-                for area in areas:
-                    await self.primitives.set(area, "switch", preset="nitelite", enable=True)
-            else:
+            any_circadian = any(state.is_circadian(area) for area in areas)
+            if any_on and any_circadian:
                 for area in areas:
                     await self.primitives.bright_up(area, "switch")
-
-        elif action == "bright_down":
-            # If lights are off, set nitelite instead of dimming
-            any_on = await self.any_lights_on_in_area(areas)
-            if not any_on:
-                logger.info(f"[switch] bright_down with lights off -> nitelite for areas: {areas}")
+            else:
+                logger.info(f"[switch] bright_up -> nitelite for areas: {areas} (on={any_on}, circadian={any_circadian})")
                 for area in areas:
                     await self.primitives.set(area, "switch", preset="nitelite", enable=True)
-            else:
+
+        elif action == "bright_down":
+            # Bright down only if lights are on AND in circadian mode, else nitelite
+            any_on = await self.any_lights_on_in_area(areas)
+            any_circadian = any(state.is_circadian(area) for area in areas)
+            if any_on and any_circadian:
                 for area in areas:
                     await self.primitives.bright_down(area, "switch")
+            else:
+                logger.info(f"[switch] bright_down -> nitelite for areas: {areas} (on={any_on}, circadian={any_circadian})")
+                for area in areas:
+                    await self.primitives.set(area, "switch", preset="nitelite", enable=True)
 
         elif action == "color_up":
             for area in areas:
