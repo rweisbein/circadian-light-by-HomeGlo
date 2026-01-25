@@ -168,7 +168,8 @@ class AreaState:
     Only one phase (Ascend/Descend) is active at a time, so we only need
     one midpoint per axis rather than separate wake/bed values.
     """
-    enabled: bool = False              # Whether circadian lighting is active
+    is_circadian: bool = False         # Whether Circadian Light controls this area
+    is_on: bool = False                # Target light power state
     frozen_at: Optional[float] = None  # Hour (0-24) to freeze at, None = unfrozen
 
     # Midpoints (None = use config wake_time/bed_time based on phase)
@@ -184,7 +185,8 @@ class AreaState:
     def from_dict(cls, d: Dict[str, Any]) -> "AreaState":
         """Create AreaState from a dictionary."""
         return cls(
-            enabled=d.get("enabled", False),
+            is_circadian=d.get("is_circadian", False),
+            is_on=d.get("is_on", False),
             frozen_at=d.get("frozen_at"),
             brightness_mid=d.get("brightness_mid"),
             color_mid=d.get("color_mid"),
@@ -193,7 +195,8 @@ class AreaState:
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for storage."""
         return {
-            "enabled": self.enabled,
+            "is_circadian": self.is_circadian,
+            "is_on": self.is_on,
             "frozen_at": self.frozen_at,
             "brightness_mid": self.brightness_mid,
             "color_mid": self.color_mid,

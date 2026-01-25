@@ -1,5 +1,18 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.124
+**New state model: is_circadian + is_on**
+
+- Replaced single `enabled` boolean with two-state model:
+  - `is_circadian`: Whether Circadian Light controls this area
+  - `is_on`: Target light power state (only meaningful when is_circadian=true)
+- Renamed primitives: `circadian_on` → `lights_on`, `circadian_toggle` → `lights_toggle`
+- Added `lights_off` primitive to enforce off state
+- **Power failure fix**: Areas with `is_on=false` now have lights turned OFF on periodic update
+- Reset-on-enable: When taking control of an area, all runtime state resets (midpoints, boost, motion)
+- Updated API responses to include both `is_circadian` and `is_on`
+- Integration updated to v3.6.0 with new service names
+
 ## 6.9.123
 **Remove deprecated broadcast primitive**
 

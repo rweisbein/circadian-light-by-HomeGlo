@@ -49,7 +49,8 @@ class TestDataclasses:
         """Test AreaState has correct defaults."""
         state = AreaState()
 
-        assert state.enabled is False
+        assert state.is_circadian is False
+        assert state.is_on is False
         assert state.frozen_at is None
         assert state.is_frozen is False
         assert state.brightness_mid is None
@@ -58,7 +59,8 @@ class TestDataclasses:
     def test_area_state_to_dict(self):
         """Test AreaState serialization."""
         state = AreaState(
-            enabled=True,
+            is_circadian=True,
+            is_on=True,
             frozen_at=14.5,
             brightness_mid=10.5,
             color_mid=11.2,
@@ -66,7 +68,8 @@ class TestDataclasses:
 
         d = state.to_dict()
 
-        assert d["enabled"] is True
+        assert d["is_circadian"] is True
+        assert d["is_on"] is True
         assert d["frozen_at"] == 14.5
         assert d["brightness_mid"] == 10.5
         assert d["color_mid"] == 11.2
@@ -74,7 +77,8 @@ class TestDataclasses:
     def test_area_state_from_dict(self):
         """Test AreaState deserialization."""
         d = {
-            "enabled": True,
+            "is_circadian": True,
+            "is_on": True,
             "frozen_at": 20.0,
             "brightness_mid": 8.0,
             "color_mid": 9.0,
@@ -82,7 +86,8 @@ class TestDataclasses:
 
         state = AreaState.from_dict(d)
 
-        assert state.enabled is True
+        assert state.is_circadian is True
+        assert state.is_on is True
         assert state.frozen_at == 20.0
         assert state.is_frozen is True
         assert state.brightness_mid == 8.0
@@ -91,7 +96,8 @@ class TestDataclasses:
     def test_area_state_roundtrip(self):
         """Test AreaState serialization roundtrip."""
         original = AreaState(
-            enabled=True,
+            is_circadian=True,
+            is_on=True,
             frozen_at=14.5,
             brightness_mid=10.5,
             color_mid=11.2,
@@ -99,7 +105,8 @@ class TestDataclasses:
 
         restored = AreaState.from_dict(original.to_dict())
 
-        assert restored.enabled == original.enabled
+        assert restored.is_circadian == original.is_circadian
+        assert restored.is_on == original.is_on
         assert restored.frozen_at == original.frozen_at
         assert restored.brightness_mid == original.brightness_mid
         assert restored.color_mid == original.color_mid

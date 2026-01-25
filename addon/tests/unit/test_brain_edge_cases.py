@@ -178,11 +178,12 @@ class TestStateConsistency:
 
     def test_state_from_dict_with_missing_keys(self):
         """Test AreaState.from_dict handles missing keys."""
-        d = {"enabled": True}  # Minimal dict
+        d = {"is_circadian": True}  # Minimal dict
 
         state = AreaState.from_dict(d)
 
-        assert state.enabled is True
+        assert state.is_circadian is True
+        assert state.is_on is False  # Default
         assert state.frozen_at is None  # Default
         assert state.is_frozen is False  # Default
         assert state.brightness_mid is None  # Default

@@ -20,9 +20,10 @@ from .const import (
     SERVICE_COLOR_UP,
     SERVICE_COLOR_DOWN,
     SERVICE_RESET,
-    SERVICE_CIRCADIAN_ON,
+    SERVICE_LIGHTS_ON,
+    SERVICE_LIGHTS_OFF,
+    SERVICE_LIGHTS_TOGGLE,
     SERVICE_CIRCADIAN_OFF,
-    SERVICE_CIRCADIAN_TOGGLE,
     SERVICE_FREEZE_TOGGLE,
     SERVICE_SET,
     SERVICE_BROADCAST,
@@ -121,17 +122,21 @@ async def _register_services(hass: HomeAssistant) -> None:
         area_id = call.data.get(ATTR_AREA_ID)
         _LOGGER.info("[%s] reset called: area_id=%s", DOMAIN, area_id)
 
-    async def handle_circadian_on(call: ServiceCall) -> None:
+    async def handle_lights_on(call: ServiceCall) -> None:
         area_id = call.data.get(ATTR_AREA_ID)
-        _LOGGER.info("[%s] circadian_on called: area_id=%s", DOMAIN, area_id)
+        _LOGGER.info("[%s] lights_on called: area_id=%s", DOMAIN, area_id)
+
+    async def handle_lights_off(call: ServiceCall) -> None:
+        area_id = call.data.get(ATTR_AREA_ID)
+        _LOGGER.info("[%s] lights_off called: area_id=%s", DOMAIN, area_id)
+
+    async def handle_lights_toggle(call: ServiceCall) -> None:
+        area_id = call.data.get(ATTR_AREA_ID)
+        _LOGGER.info("[%s] lights_toggle called: area_id=%s", DOMAIN, area_id)
 
     async def handle_circadian_off(call: ServiceCall) -> None:
         area_id = call.data.get(ATTR_AREA_ID)
         _LOGGER.info("[%s] circadian_off called: area_id=%s", DOMAIN, area_id)
-
-    async def handle_circadian_toggle(call: ServiceCall) -> None:
-        area_id = call.data.get(ATTR_AREA_ID)
-        _LOGGER.info("[%s] circadian_toggle called: area_id=%s", DOMAIN, area_id)
 
     async def handle_freeze_toggle(call: ServiceCall) -> None:
         area_id = call.data.get(ATTR_AREA_ID)
@@ -188,9 +193,10 @@ async def _register_services(hass: HomeAssistant) -> None:
         (SERVICE_COLOR_UP, handle_color_up),
         (SERVICE_COLOR_DOWN, handle_color_down),
         (SERVICE_RESET, handle_reset),
-        (SERVICE_CIRCADIAN_ON, handle_circadian_on),
+        (SERVICE_LIGHTS_ON, handle_lights_on),
+        (SERVICE_LIGHTS_OFF, handle_lights_off),
+        (SERVICE_LIGHTS_TOGGLE, handle_lights_toggle),
         (SERVICE_CIRCADIAN_OFF, handle_circadian_off),
-        (SERVICE_CIRCADIAN_TOGGLE, handle_circadian_toggle),
         (SERVICE_FREEZE_TOGGLE, handle_freeze_toggle),
         (SERVICE_BROADCAST, handle_broadcast),
         (SERVICE_GLO_UP, handle_glo_up),
@@ -230,7 +236,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             SERVICE_BRIGHT_UP, SERVICE_BRIGHT_DOWN,
             SERVICE_COLOR_UP, SERVICE_COLOR_DOWN,
             SERVICE_RESET,
-            SERVICE_CIRCADIAN_ON, SERVICE_CIRCADIAN_OFF, SERVICE_CIRCADIAN_TOGGLE,
+            SERVICE_LIGHTS_ON, SERVICE_LIGHTS_OFF, SERVICE_LIGHTS_TOGGLE, SERVICE_CIRCADIAN_OFF,
             SERVICE_FREEZE_TOGGLE, SERVICE_SET, SERVICE_BROADCAST, SERVICE_REFRESH,
             SERVICE_GLO_UP, SERVICE_GLO_DOWN, SERVICE_GLO_RESET,
         ]

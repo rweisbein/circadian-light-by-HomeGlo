@@ -1953,7 +1953,8 @@ class LightDesignerServer:
         Returns a dict mapping area_id to status:
         {
             "area_id": {
-                "enabled": true/false (Circadian Light active for area),
+                "is_circadian": true/false (Circadian Light controls this area),
+                "is_on": true/false (target light power state),
                 "brightness": 0-100 (calculated from circadian curve),
                 "frozen": true/false (whether zone is frozen),
                 "zone_name": "Zone Name" or null
@@ -2047,7 +2048,8 @@ class LightDesignerServer:
                         brightness = min(100, brightness + boost_amount)
 
                     area_status[area_id] = {
-                        'enabled': area_state.enabled,
+                        'is_circadian': area_state.is_circadian,
+                        'is_on': area_state.is_on,
                         'brightness': brightness,
                         'kelvin': kelvin,
                         'frozen': area_state.frozen_at is not None,
@@ -2267,14 +2269,15 @@ class LightDesignerServer:
         """Enable or disable Circadian mode for an area.
 
         Used by Live Design to pause automatic updates while designing.
-        When circadian mode is disabled (enabled=False), Live Design becomes active
+        When circadian mode is disabled (is_circadian=False), Live Design becomes active
         and we fetch light capabilities for that area, save current light states,
         and notify main.py to skip this area in periodic updates.
         """
         try:
             data = await request.json()
             area_id = data.get('area_id')
-            enabled = data.get('enabled', True)
+            # Support both 'is_circadian' (new) and 'enabled' (legacy) field names
+            is_circadian = data.get('is_circadian', data.get('enabled', True))
 
             if not area_id:
                 return web.json_response(
@@ -2282,11 +2285,11 @@ class LightDesignerServer:
                     status=400
                 )
 
-            state.set_enabled(area_id, enabled)
+            state.set_is_circadian(area_id, is_circadian)
 
             rest_url, ws_url, token = self._get_ha_api_config()
 
-            if not enabled:
+            if not is_circadian:
                 # Live Design is starting - fetch light capabilities for this area
                 if ws_url and token:
                     color_lights, ct_lights = await self._fetch_area_light_capabilities(ws_url, token, area_id)
@@ -2341,9 +2344,9 @@ class LightDesignerServer:
                     self.live_design_ct_lights = []
                     self.live_design_saved_states = {}
 
-            logger.info(f"[Live Design] Circadian mode {'enabled' if enabled else 'disabled'} for area {area_id}")
+            logger.info(f"[Live Design] Circadian mode {'enabled' if is_circadian else 'disabled'} for area {area_id}")
 
-            return web.json_response({'status': 'ok', 'enabled': enabled})
+            return web.json_response({'status': 'ok', 'is_circadian': is_circadian})
         except json.JSONDecodeError:
             return web.json_response(
                 {'error': 'Invalid JSON'},

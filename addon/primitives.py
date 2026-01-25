@@ -161,50 +161,55 @@ class CircadianLightPrimitives:
         Uses brightness-primary algorithm: brightness determines the step,
         color follows the diverged curve.
 
+        Only works when is_circadian=True. Updates midpoints always, but only
+        applies to lights if is_on=True.
+
         Args:
             area_id: The area ID to control
             source: Source of the action
         """
         area_state = self._get_area_state(area_id)
 
-        if area_state.enabled:
-            # Auto-unfreeze if frozen (re-anchors midpoints for smooth transition)
-            if area_state.frozen_at is not None:
-                self._unfreeze_internal(area_id, source)
-                area_state = self._get_area_state(area_id)  # Refresh after unfreeze
+        if not area_state.is_circadian:
+            logger.debug(f"[{source}] step_up ignored for area {area_id} (not in circadian mode)")
+            return
 
-            logger.info(f"[{source}] Step up for area {area_id}")
+        # Auto-unfreeze if frozen (re-anchors midpoints for smooth transition)
+        if area_state.frozen_at is not None:
+            self._unfreeze_internal(area_id, source)
+            area_state = self._get_area_state(area_id)  # Refresh after unfreeze
 
-            config = self._get_config(area_id)
-            hour = get_current_hour()
+        logger.info(f"[{source}] Step up for area {area_id}")
 
-            result = CircadianLight.calculate_step(
-                hour=hour,
-                direction="up",
-                config=config,
-                state=area_state,
-            )
+        config = self._get_config(area_id)
+        hour = get_current_hour()
 
-            if result is None:
-                logger.info(f"Step up at limit for area {area_id}")
-                # Bounce effect at limit
+        result = CircadianLight.calculate_step(
+            hour=hour,
+            direction="up",
+            config=config,
+            state=area_state,
+        )
+
+        if result is None:
+            logger.info(f"Step up at limit for area {area_id}")
+            # Bounce effect at limit (only if is_on)
+            if area_state.is_on:
                 current_bri = CircadianLight.calculate_brightness_at_hour(hour, config, area_state)
                 current_cct = CircadianLight.calculate_color_at_hour(hour, config, area_state, apply_solar_rules=True)
                 await self._bounce_at_limit(area_id, current_bri, current_cct)
-                return
+            return
 
-            # Update state
-            logger.info(f"Step up state_updates: {result.state_updates}")
-            self._update_area_state(area_id, result.state_updates)
+        # Update state (always, even if is_on=False)
+        logger.info(f"Step up state_updates: {result.state_updates}")
+        self._update_area_state(area_id, result.state_updates)
 
-            # Apply to lights (boost-aware)
+        # Apply to lights only if is_on=True
+        if area_state.is_on:
             await self._apply_circadian_lighting(area_id, result.brightness, result.color_temp)
-
             logger.info(f"Step up applied: {result.brightness}%, {result.color_temp}K")
-
         else:
-            # Not in Circadian mode - standard brightness increase
-            await self._standard_brightness_step(area_id, direction=1, source=source)
+            logger.info(f"Step up state updated (lights off): {result.brightness}%, {result.color_temp}K")
 
     async def step_down(self, area_id: str, source: str = "service_call"):
         """Step down along the circadian curve (dimmer and warmer).
@@ -212,49 +217,54 @@ class CircadianLightPrimitives:
         Uses brightness-primary algorithm: brightness determines the step,
         color follows the diverged curve.
 
+        Only works when is_circadian=True. Updates midpoints always, but only
+        applies to lights if is_on=True.
+
         Args:
             area_id: The area ID to control
             source: Source of the action
         """
         area_state = self._get_area_state(area_id)
 
-        if area_state.enabled:
-            # Auto-unfreeze if frozen (re-anchors midpoints for smooth transition)
-            if area_state.frozen_at is not None:
-                self._unfreeze_internal(area_id, source)
-                area_state = self._get_area_state(area_id)  # Refresh after unfreeze
+        if not area_state.is_circadian:
+            logger.debug(f"[{source}] step_down ignored for area {area_id} (not in circadian mode)")
+            return
 
-            logger.info(f"[{source}] Step down for area {area_id}")
+        # Auto-unfreeze if frozen (re-anchors midpoints for smooth transition)
+        if area_state.frozen_at is not None:
+            self._unfreeze_internal(area_id, source)
+            area_state = self._get_area_state(area_id)  # Refresh after unfreeze
 
-            config = self._get_config(area_id)
-            hour = get_current_hour()
+        logger.info(f"[{source}] Step down for area {area_id}")
 
-            result = CircadianLight.calculate_step(
-                hour=hour,
-                direction="down",
-                config=config,
-                state=area_state,
-            )
+        config = self._get_config(area_id)
+        hour = get_current_hour()
 
-            if result is None:
-                logger.info(f"Step down at limit for area {area_id}")
-                # Bounce effect at limit
+        result = CircadianLight.calculate_step(
+            hour=hour,
+            direction="down",
+            config=config,
+            state=area_state,
+        )
+
+        if result is None:
+            logger.info(f"Step down at limit for area {area_id}")
+            # Bounce effect at limit (only if is_on)
+            if area_state.is_on:
                 current_bri = CircadianLight.calculate_brightness_at_hour(hour, config, area_state)
                 current_cct = CircadianLight.calculate_color_at_hour(hour, config, area_state, apply_solar_rules=True)
                 await self._bounce_at_limit(area_id, current_bri, current_cct)
-                return
+            return
 
-            # Update state
-            self._update_area_state(area_id, result.state_updates)
+        # Update state (always, even if is_on=False)
+        self._update_area_state(area_id, result.state_updates)
 
-            # Apply to lights (boost-aware)
+        # Apply to lights only if is_on=True
+        if area_state.is_on:
             await self._apply_circadian_lighting(area_id, result.brightness, result.color_temp)
-
             logger.info(f"Step down applied: {result.brightness}%, {result.color_temp}K")
-
         else:
-            # Not in Circadian mode - standard brightness decrease
-            await self._standard_brightness_step(area_id, direction=-1, source=source)
+            logger.info(f"Step down state updated (lights off): {result.brightness}%, {result.color_temp}K")
 
     # -------------------------------------------------------------------------
     # Bright Up / Bright Down (brightness only)
@@ -263,98 +273,108 @@ class CircadianLightPrimitives:
     async def bright_up(self, area_id: str, source: str = "service_call"):
         """Increase brightness only, color unchanged.
 
+        Only works when is_circadian=True. Updates midpoints always, but only
+        applies to lights if is_on=True.
+
         Args:
             area_id: The area ID to control
             source: Source of the action
         """
         area_state = self._get_area_state(area_id)
 
-        if area_state.enabled:
-            # Auto-unfreeze if frozen (re-anchors midpoints for smooth transition)
-            if area_state.frozen_at is not None:
-                self._unfreeze_internal(area_id, source)
-                area_state = self._get_area_state(area_id)  # Refresh after unfreeze
+        if not area_state.is_circadian:
+            logger.debug(f"[{source}] bright_up ignored for area {area_id} (not in circadian mode)")
+            return
 
-            logger.info(f"[{source}] Bright up for area {area_id}")
+        # Auto-unfreeze if frozen (re-anchors midpoints for smooth transition)
+        if area_state.frozen_at is not None:
+            self._unfreeze_internal(area_id, source)
+            area_state = self._get_area_state(area_id)  # Refresh after unfreeze
 
-            config = self._get_config(area_id)
-            hour = get_current_hour()
+        logger.info(f"[{source}] Bright up for area {area_id}")
 
-            result = CircadianLight.calculate_bright_step(
-                hour=hour,
-                direction="up",
-                config=config,
-                state=area_state,
-            )
+        config = self._get_config(area_id)
+        hour = get_current_hour()
 
-            if result is None:
-                logger.info(f"Bright up at limit for area {area_id}")
-                # Bounce effect at limit
+        result = CircadianLight.calculate_bright_step(
+            hour=hour,
+            direction="up",
+            config=config,
+            state=area_state,
+        )
+
+        if result is None:
+            logger.info(f"Bright up at limit for area {area_id}")
+            if area_state.is_on:
                 current_bri = CircadianLight.calculate_brightness_at_hour(hour, config, area_state)
                 current_cct = CircadianLight.calculate_color_at_hour(hour, config, area_state, apply_solar_rules=True)
                 await self._bounce_at_limit(area_id, current_bri, current_cct)
-                return
+            return
 
-            # Update state
-            self._update_area_state(area_id, result.state_updates)
+        # Update state (always, even if is_on=False)
+        self._update_area_state(area_id, result.state_updates)
 
-            # Apply to lights (brightness only, boost-aware)
+        # Apply to lights only if is_on=True
+        if area_state.is_on:
             await self._apply_circadian_lighting(
                 area_id, result.brightness, result.color_temp, include_color=False
             )
-
             logger.info(f"Bright up applied: {result.brightness}%")
-
         else:
-            await self._standard_brightness_step(area_id, direction=1, source=source)
+            logger.info(f"Bright up state updated (lights off): {result.brightness}%")
 
     async def bright_down(self, area_id: str, source: str = "service_call"):
         """Decrease brightness only, color unchanged.
 
+        Only works when is_circadian=True. Updates midpoints always, but only
+        applies to lights if is_on=True.
+
         Args:
             area_id: The area ID to control
             source: Source of the action
         """
         area_state = self._get_area_state(area_id)
 
-        if area_state.enabled:
-            # Auto-unfreeze if frozen (re-anchors midpoints for smooth transition)
-            if area_state.frozen_at is not None:
-                self._unfreeze_internal(area_id, source)
-                area_state = self._get_area_state(area_id)  # Refresh after unfreeze
+        if not area_state.is_circadian:
+            logger.debug(f"[{source}] bright_down ignored for area {area_id} (not in circadian mode)")
+            return
 
-            logger.info(f"[{source}] Bright down for area {area_id}")
+        # Auto-unfreeze if frozen (re-anchors midpoints for smooth transition)
+        if area_state.frozen_at is not None:
+            self._unfreeze_internal(area_id, source)
+            area_state = self._get_area_state(area_id)  # Refresh after unfreeze
 
-            config = self._get_config(area_id)
-            hour = get_current_hour()
+        logger.info(f"[{source}] Bright down for area {area_id}")
 
-            result = CircadianLight.calculate_bright_step(
-                hour=hour,
-                direction="down",
-                config=config,
-                state=area_state,
-            )
+        config = self._get_config(area_id)
+        hour = get_current_hour()
 
-            if result is None:
-                logger.info(f"Bright down at limit for area {area_id}")
-                # Bounce effect at limit
+        result = CircadianLight.calculate_bright_step(
+            hour=hour,
+            direction="down",
+            config=config,
+            state=area_state,
+        )
+
+        if result is None:
+            logger.info(f"Bright down at limit for area {area_id}")
+            if area_state.is_on:
                 current_bri = CircadianLight.calculate_brightness_at_hour(hour, config, area_state)
                 current_cct = CircadianLight.calculate_color_at_hour(hour, config, area_state, apply_solar_rules=True)
                 await self._bounce_at_limit(area_id, current_bri, current_cct)
-                return
+            return
 
-            # Update state
-            self._update_area_state(area_id, result.state_updates)
+        # Update state (always, even if is_on=False)
+        self._update_area_state(area_id, result.state_updates)
 
-            # Apply to lights (brightness only, boost-aware)
+        # Apply to lights only if is_on=True
+        if area_state.is_on:
             await self._apply_circadian_lighting(
                 area_id, result.brightness, result.color_temp, include_color=False
             )
-
             logger.info(f"Bright down applied: {result.brightness}%")
-
         else:
-            await self._standard_brightness_step(area_id, direction=-1, source=source)
+            logger.info(f"Bright down state updated (lights off): {result.brightness}%")
 
     # -------------------------------------------------------------------------
     # Color Up / Color Down (color only)
@@ -363,126 +383,130 @@ class CircadianLightPrimitives:
     async def color_up(self, area_id: str, source: str = "service_call"):
         """Increase color temperature (cooler), brightness unchanged.
 
+        Only works when is_circadian=True. Updates midpoints always, but only
+        applies to lights if is_on=True.
+
         Args:
             area_id: The area ID to control
             source: Source of the action
         """
         area_state = self._get_area_state(area_id)
 
-        if area_state.enabled:
-            # Auto-unfreeze if frozen (re-anchors midpoints for smooth transition)
-            if area_state.frozen_at is not None:
-                self._unfreeze_internal(area_id, source)
-                area_state = self._get_area_state(area_id)  # Refresh after unfreeze
+        if not area_state.is_circadian:
+            logger.debug(f"[{source}] color_up ignored for area {area_id} (not in circadian mode)")
+            return
 
-            logger.info(f"[{source}] Color up for area {area_id}")
+        # Auto-unfreeze if frozen (re-anchors midpoints for smooth transition)
+        if area_state.frozen_at is not None:
+            self._unfreeze_internal(area_id, source)
+            area_state = self._get_area_state(area_id)  # Refresh after unfreeze
 
-            config = self._get_config(area_id)
-            hour = get_current_hour()
+        logger.info(f"[{source}] Color up for area {area_id}")
 
-            result = CircadianLight.calculate_color_step(
-                hour=hour,
-                direction="up",
-                config=config,
-                state=area_state,
-            )
+        config = self._get_config(area_id)
+        hour = get_current_hour()
 
-            if result is None:
-                logger.info(f"Color up at limit for area {area_id}")
-                # Bounce effect at limit
+        result = CircadianLight.calculate_color_step(
+            hour=hour,
+            direction="up",
+            config=config,
+            state=area_state,
+        )
+
+        if result is None:
+            logger.info(f"Color up at limit for area {area_id}")
+            if area_state.is_on:
                 current_bri = CircadianLight.calculate_brightness_at_hour(hour, config, area_state)
                 current_cct = CircadianLight.calculate_color_at_hour(hour, config, area_state, apply_solar_rules=True)
                 await self._bounce_at_limit(area_id, current_bri, current_cct)
-                return
+            return
 
-            # Update state
-            self._update_area_state(area_id, result.state_updates)
+        # Update state (always, even if is_on=False)
+        self._update_area_state(area_id, result.state_updates)
 
-            # Apply to lights (color only)
+        # Apply to lights only if is_on=True
+        if area_state.is_on:
             await self._apply_color_only(area_id, result.color_temp)
-
             logger.info(f"Color up applied: {result.color_temp}K")
-
         else:
-            logger.info(f"[{source}] Area {area_id} not in Circadian mode, color_up ignored")
+            logger.info(f"Color up state updated (lights off): {result.color_temp}K")
 
     async def color_down(self, area_id: str, source: str = "service_call"):
         """Decrease color temperature (warmer), brightness unchanged.
 
+        Only works when is_circadian=True. Updates midpoints always, but only
+        applies to lights if is_on=True.
+
         Args:
             area_id: The area ID to control
             source: Source of the action
         """
         area_state = self._get_area_state(area_id)
 
-        if area_state.enabled:
-            # Auto-unfreeze if frozen (re-anchors midpoints for smooth transition)
-            if area_state.frozen_at is not None:
-                self._unfreeze_internal(area_id, source)
-                area_state = self._get_area_state(area_id)  # Refresh after unfreeze
+        if not area_state.is_circadian:
+            logger.debug(f"[{source}] color_down ignored for area {area_id} (not in circadian mode)")
+            return
 
-            logger.info(f"[{source}] Color down for area {area_id}")
+        # Auto-unfreeze if frozen (re-anchors midpoints for smooth transition)
+        if area_state.frozen_at is not None:
+            self._unfreeze_internal(area_id, source)
+            area_state = self._get_area_state(area_id)  # Refresh after unfreeze
 
-            config = self._get_config(area_id)
-            hour = get_current_hour()
+        logger.info(f"[{source}] Color down for area {area_id}")
 
-            result = CircadianLight.calculate_color_step(
-                hour=hour,
-                direction="down",
-                config=config,
-                state=area_state,
-            )
+        config = self._get_config(area_id)
+        hour = get_current_hour()
 
-            if result is None:
-                logger.info(f"Color down at limit for area {area_id}")
-                # Bounce effect at limit
+        result = CircadianLight.calculate_color_step(
+            hour=hour,
+            direction="down",
+            config=config,
+            state=area_state,
+        )
+
+        if result is None:
+            logger.info(f"Color down at limit for area {area_id}")
+            if area_state.is_on:
                 current_bri = CircadianLight.calculate_brightness_at_hour(hour, config, area_state)
                 current_cct = CircadianLight.calculate_color_at_hour(hour, config, area_state, apply_solar_rules=True)
                 await self._bounce_at_limit(area_id, current_bri, current_cct)
-                return
+            return
 
-            # Update state
-            self._update_area_state(area_id, result.state_updates)
+        # Update state (always, even if is_on=False)
+        self._update_area_state(area_id, result.state_updates)
 
-            # Apply to lights (color only)
+        # Apply to lights only if is_on=True
+        if area_state.is_on:
             await self._apply_color_only(area_id, result.color_temp)
-
             logger.info(f"Color down applied: {result.color_temp}K")
-
         else:
-            logger.info(f"[{source}] Area {area_id} not in Circadian mode, color_down ignored")
+            logger.info(f"Color down state updated (lights off): {result.color_temp}K")
 
     # -------------------------------------------------------------------------
-    # Circadian On / Off / Toggle
+    # Lights On / Off / Toggle - Control light state under Circadian management
     # -------------------------------------------------------------------------
 
-    async def circadian_on(self, area_id: str, source: str = "service_call"):
-        """Enable Circadian Light mode and turn on lights.
+    async def lights_on(self, area_id: str, source: str = "service_call"):
+        """Turn on lights with Circadian values and enable Circadian control.
 
-        Preserves area's existing state (brightness_mid, color_mid, frozen_at).
-        Use reset or GloDown to reset state.
+        If is_circadian was False, resets all runtime state (midpoints, frozen_at, etc.)
+        before enabling. Sets is_on=True and applies circadian lighting.
 
         Args:
             area_id: The area ID to control
             source: Source of the action
         """
-        logger.info(f"[{source}] Enabling Circadian Light for area {area_id}")
-
-        was_enabled = state.is_enabled(area_id)
-
-        if was_enabled:
-            logger.info(f"Circadian Light already enabled for area {area_id}")
-            return
+        logger.info(f"[{source}] lights_on for area {area_id}")
 
         # Ensure area is in a zone (add to default zone if not)
         if not glozone.is_area_in_any_zone(area_id):
             glozone.add_area_to_default_zone(area_id)
             logger.info(f"Added area {area_id} to default zone")
 
-        # Enable in state (preserves existing brightness_mid, color_mid, frozen_at)
-        state.set_enabled(area_id, True)
+        # Enable circadian control and set is_on=True (resets state if was not circadian)
+        was_circadian = state.enable_circadian_and_set_on(area_id, True)
 
-        # Calculate and apply lighting (use area's frozen_at if set, otherwise current time)
+        # Calculate and apply lighting
         config = self._get_config(area_id)
         area_state = self._get_area_state(area_id)
         hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
@@ -494,20 +518,21 @@ class CircadianLightPrimitives:
         await self._apply_lighting_turn_on(area_id, result.brightness, result.color_temp, transition=transition)
 
         logger.info(
-            f"Circadian Light enabled for area {area_id}: "
-            f"{result.brightness}%, {result.color_temp}K (hour={hour:.2f})"
+            f"lights_on for area {area_id}: {result.brightness}%, {result.color_temp}K "
+            f"(hour={hour:.2f}, was_circadian={was_circadian})"
         )
 
-    async def circadian_off(self, area_id: str, source: str = "service_call"):
-        """Disable Circadian Light mode (lights unchanged).
+    async def lights_off(self, area_id: str, source: str = "service_call"):
+        """Turn off lights and set is_on=False (Circadian enforces off state).
 
-        Also cancels any active boost and motion timer for the area.
+        If is_circadian was False, resets all runtime state before enabling.
+        Sets is_on=False and turns off lights. Clears any active boost or motion timer.
 
         Args:
             area_id: The area ID to control
             source: Source of the action
         """
-        logger.info(f"[{source}] Disabling Circadian Light for area {area_id}")
+        logger.info(f"[{source}] lights_off for area {area_id}")
 
         # Clear boost state if boosted
         if state.is_boosted(area_id):
@@ -518,32 +543,78 @@ class CircadianLightPrimitives:
         if state.has_motion_timer(area_id):
             state.clear_motion_expires(area_id)
 
-        if not state.is_enabled(area_id):
-            logger.info(f"Circadian Light already disabled for area {area_id}")
-            return
+        # Store CT before turning off for smart 2-step on next turn-on
+        try:
+            config = self._get_config(area_id)
+            area_state = self._get_area_state(area_id)
+            hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
+            sun_times = self.client._get_sun_times() if hasattr(self.client, '_get_sun_times') else None
+            result = CircadianLight.calculate_lighting(hour, config, area_state, sun_times=sun_times)
+            state.set_last_off_ct(area_id, result.color_temp)
+        except Exception as e:
+            logger.warning(f"Could not calculate CT for area {area_id}: {e}")
 
-        state.set_enabled(area_id, False)
-        logger.info(f"Circadian Light disabled for area {area_id}, lights unchanged")
+        # Enable circadian control and set is_on=False (resets state if was not circadian)
+        was_circadian = state.enable_circadian_and_set_on(area_id, False)
 
-    async def circadian_toggle(self, area_id: str, source: str = "service_call"):
-        """Toggle Circadian Light based on light state.
+        # Turn off lights
+        transition = self._get_turn_off_transition()
+        target_type, target_value = await self.client.determine_light_target(area_id)
+        await self.client.call_service(
+            "light", "turn_off", {"transition": transition}, {target_type: target_value}
+        )
 
-        If lights on: turn off and disable Circadian
-        If lights off: turn on with Circadian values and enable
+        logger.info(f"lights_off for area {area_id} (was_circadian={was_circadian})")
+
+    async def circadian_off(self, area_id: str, source: str = "service_call"):
+        """Release Circadian control for an area (lights unchanged).
+
+        Sets is_circadian=False. Also cancels any active boost and motion timer.
+        The is_on state becomes stale but is ignored when is_circadian=False.
 
         Args:
             area_id: The area ID to control
             source: Source of the action
         """
-        await self.circadian_toggle_multiple([area_id], source)
+        logger.info(f"[{source}] circadian_off for area {area_id}")
 
-    async def circadian_toggle_multiple(self, area_ids: list, source: str = "service_call"):
-        """Toggle Circadian Light for multiple areas.
+        # Clear boost state if boosted
+        if state.is_boosted(area_id):
+            state.clear_boost(area_id)
+            logger.info(f"Cleared boost for area {area_id}")
 
-        If ANY lights are on in ANY area: turn all off, disable Circadian
-        If ALL lights are off: turn all on with Circadian values, enable
+        # Clear motion on_off timer if active
+        if state.has_motion_timer(area_id):
+            state.clear_motion_expires(area_id)
 
-        Preserves each area's existing state. Use reset or GloDown to reset state.
+        if not state.is_circadian(area_id):
+            logger.info(f"Circadian Light already disabled for area {area_id}")
+            return
+
+        state.set_is_circadian(area_id, False)
+        logger.info(f"Circadian Light disabled for area {area_id}, lights unchanged")
+
+    async def lights_toggle(self, area_id: str, source: str = "service_call"):
+        """Toggle lights under Circadian control.
+
+        Uses collective logic via lights_toggle_multiple.
+        If lights on: turn off (is_on=False)
+        If lights off: turn on with Circadian values (is_on=True)
+
+        Args:
+            area_id: The area ID to control
+            source: Source of the action
+        """
+        await self.lights_toggle_multiple([area_id], source)
+
+    async def lights_toggle_multiple(self, area_ids: list, source: str = "service_call"):
+        """Toggle lights for multiple areas with collective logic.
+
+        If ANY lights are on in ANY area: turn all off, set is_on=False
+        If ALL lights are off: turn all on with Circadian values, set is_on=True
+
+        If is_circadian was False for any area, it gets reset (midpoints cleared)
+        before being enabled.
 
         Args:
             area_ids: List of area IDs
@@ -552,7 +623,7 @@ class CircadianLightPrimitives:
         if isinstance(area_ids, str):
             area_ids = [area_ids]
 
-        logger.info(f"[{source}] Toggle for areas: {area_ids}")
+        logger.info(f"[{source}] lights_toggle_multiple for areas: {area_ids}")
 
         # Check if any lights are on
         any_on = await self.client.any_lights_on_in_area(area_ids)
@@ -582,12 +653,13 @@ class CircadianLightPrimitives:
                 if state.has_motion_timer(area_id):
                     state.clear_motion_expires(area_id)
 
-                state.set_enabled(area_id, False)
+                # Enable circadian and set is_on=False
+                state.enable_circadian_and_set_on(area_id, False)
                 target_type, target_value = await self.client.determine_light_target(area_id)
                 await self.client.call_service(
                     "light", "turn_off", {"transition": transition}, {target_type: target_value}
                 )
-            logger.info(f"Turned off {len(area_ids)} area(s)")
+            logger.info(f"lights_toggle_multiple: turned off {len(area_ids)} area(s)")
 
         else:
             # Turn on all areas with Circadian values
@@ -600,9 +672,10 @@ class CircadianLightPrimitives:
                     glozone.add_area_to_default_zone(area_id)
                     logger.info(f"Added area {area_id} to default zone")
 
-                state.set_enabled(area_id, True)
+                # Enable circadian and set is_on=True (resets state if was not circadian)
+                state.enable_circadian_and_set_on(area_id, True)
 
-                # Get zone-aware config and calculate lighting (preserves area state)
+                # Get zone-aware config and calculate lighting
                 config = self._get_config(area_id)
                 area_state = self._get_area_state(area_id)
                 # Use area's frozen_at if set, otherwise current time
@@ -612,7 +685,7 @@ class CircadianLightPrimitives:
                 # Use two-phase turn-on to avoid color jump from previous light state
                 await self._apply_lighting_turn_on(area_id, result.brightness, result.color_temp, transition=transition)
 
-            logger.info(f"Turned on {len(area_ids)} area(s) with Circadian Light")
+            logger.info(f"lights_toggle_multiple: turned on {len(area_ids)} area(s)")
 
     # -------------------------------------------------------------------------
     # Bright Boost - Temporary brightness increase
@@ -699,12 +772,10 @@ class CircadianLightPrimitives:
         expires_at = "forever" if is_forever else (datetime.now() + timedelta(seconds=duration_seconds)).isoformat()
         state.set_boost(area_id, started_from_off=not was_on, expires_at=expires_at, brightness=boost_amount)
 
-        # Enable Circadian Light if not already enabled
-        if not state.is_enabled(area_id):
-            # Ensure area is in a zone
-            if not glozone.is_area_in_any_zone(area_id):
-                glozone.add_area_to_default_zone(area_id)
-            state.set_enabled(area_id, True)
+        # Enable Circadian Light and set is_on=True
+        if not glozone.is_area_in_any_zone(area_id):
+            glozone.add_area_to_default_zone(area_id)
+        state.enable_circadian_and_set_on(area_id, True)
 
         # Apply boosted brightness with circadian color temp
         transition = self._get_turn_on_transition()
@@ -754,13 +825,13 @@ class CircadianLightPrimitives:
         state.clear_boost(area_id)
 
         if started_from_off:
-            # Lights were off when boost started - turn off and disable Circadian
+            # Lights were off when boost started - turn off and set is_on=False
             transition = self._get_turn_off_transition()
             await self._turn_off_area(area_id, transition=transition)
-            state.set_enabled(area_id, False)
+            state.set_is_on(area_id, False)
             logger.info(f"[{source}] Boost ended for area {area_id}, turned off (started from off)")
         else:
-            # Lights were on - return to current circadian settings
+            # Lights were on - return to current circadian settings (is_on stays True)
             config = self._get_config(area_id)
             area_state = self._get_area_state(area_id)
             hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
@@ -795,15 +866,15 @@ class CircadianLightPrimitives:
             area_id: The area ID to control
             source: Source of the action
         """
-        # Check if area is already enabled
-        if state.is_enabled(area_id):
-            logger.debug(f"[{source}] motion_on_only: area {area_id} already enabled, skipping")
+        # Check if area is already on under circadian control
+        if state.is_circadian(area_id) and state.get_is_on(area_id):
+            logger.debug(f"[{source}] motion_on_only: area {area_id} already on, skipping")
             return
 
         logger.info(f"[{source}] motion_on_only: turning on area {area_id}")
 
-        # Enable and turn on with circadian values
-        await self.circadian_on(area_id, source=source)
+        # Turn on with circadian values (enables circadian control if needed)
+        await self.lights_on(area_id, source=source)
 
     async def motion_on_off(self, area_id: str, duration_seconds: int, source: str = "motion_sensor"):
         """Turn on lights with timer, auto-off when timer expires.
@@ -833,8 +904,8 @@ class CircadianLightPrimitives:
                 logger.debug(f"[{source}] motion_on_off: keeping existing timer ({current_remaining:.0f}s remaining > {duration_seconds}s new)")
             return
 
-        # Check if area is already enabled (but not from on_off motion)
-        if state.is_enabled(area_id):
+        # Check if area is already on under circadian control (but not from on_off motion)
+        if state.is_circadian(area_id) and state.get_is_on(area_id):
             logger.debug(f"[{source}] motion_on_off: area {area_id} already on (not from motion), skipping")
             return
 
@@ -844,8 +915,8 @@ class CircadianLightPrimitives:
         expires_at = (datetime.now() + timedelta(seconds=duration_seconds)).isoformat()
         state.set_motion_expires(area_id, expires_at)
 
-        # Enable and turn on with circadian values
-        await self.circadian_on(area_id, source=source)
+        # Turn on with circadian values (enables circadian control if needed)
+        await self.lights_on(area_id, source=source)
 
     async def end_motion_on_off(self, area_id: str, source: str = "timer"):
         """End motion on_off timer and turn off lights.
@@ -863,10 +934,10 @@ class CircadianLightPrimitives:
         # Clear motion timer
         state.clear_motion_expires(area_id)
 
-        # Turn off and disable Circadian
+        # Turn off (set is_on=False, Circadian enforces off state)
         transition = self._get_turn_off_transition()
         await self._turn_off_area(area_id, transition=transition)
-        state.set_enabled(area_id, False)
+        state.set_is_on(area_id, False)
         logger.info(f"[{source}] Motion on_off timer expired for area {area_id}, turned off")
 
     async def check_expired_motion(self):
@@ -891,10 +962,10 @@ class CircadianLightPrimitives:
         # Clear any motion timer
         state.clear_motion_expires(area_id)
 
-        # Turn off and disable Circadian
+        # Turn off (set is_on=False, Circadian enforces off state)
         transition = self._get_turn_off_transition()
         await self._turn_off_area(area_id, transition=transition)
-        state.set_enabled(area_id, False)
+        state.set_is_on(area_id, False)
         logger.info(f"[{source}] Contact closed: turned off area {area_id}")
 
     # -------------------------------------------------------------------------
@@ -927,10 +998,10 @@ class CircadianLightPrimitives:
         config = self._get_config(area_id)
         current_hour = get_current_hour()
 
-        # Enable the area first if requested
+        # Enable circadian control and turn on if requested
         if enable:
-            state.set_enabled(area_id, True)
-            logger.info(f"[{source}] Enabled area {area_id}")
+            state.enable_circadian_and_set_on(area_id, True)
+            logger.info(f"[{source}] Enabled circadian and turned on area {area_id}")
 
         # Priority 1: copy_from another area
         if copy_from:
@@ -944,8 +1015,8 @@ class CircadianLightPrimitives:
                 })
                 logger.info(f"[{source}] Copied settings from {copy_from} to {area_id}")
 
-                # Apply if enabled (boost-aware)
-                if state.is_enabled(area_id):
+                # Apply if circadian and is_on (boost-aware)
+                if state.is_circadian(area_id) and state.get_is_on(area_id):
                     area_state = self._get_area_state(area_id)
                     hour = area_state.frozen_at if area_state.frozen_at is not None else current_hour
                     result = CircadianLight.calculate_lighting(hour, config, area_state)
@@ -959,8 +1030,8 @@ class CircadianLightPrimitives:
             state.set_frozen_at(area_id, float(frozen_at))
             logger.info(f"[{source}] Set {area_id} frozen_at={frozen_at:.2f}")
 
-            # Apply if enabled (boost-aware)
-            if state.is_enabled(area_id):
+            # Apply if circadian and is_on (boost-aware)
+            if state.is_circadian(area_id) and state.get_is_on(area_id):
                 area_state = self._get_area_state(area_id)
                 result = CircadianLight.calculate_lighting(frozen_at, config, area_state)
                 await self._apply_circadian_lighting(area_id, result.brightness, result.color_temp)
@@ -1009,8 +1080,8 @@ class CircadianLightPrimitives:
                 logger.warning(f"[{source}] Unknown preset: {preset}")
                 return
 
-            # Apply if enabled
-            if state.is_enabled(area_id):
+            # Apply if circadian and is_on
+            if state.is_circadian(area_id) and state.get_is_on(area_id):
                 area_state = self._get_area_state(area_id)
                 hour = area_state.frozen_at if area_state.frozen_at is not None else current_hour
                 logger.info(f"[{source}] Preset apply: area_state.frozen_at={area_state.frozen_at}, using hour={hour}")
@@ -1095,8 +1166,8 @@ class CircadianLightPrimitives:
         is_frozen = state.is_frozen(area_id)
         config = self._get_config(area_id)
 
-        if not state.is_enabled(area_id):
-            logger.info(f"[{source}] Area {area_id} not enabled, skipping freeze_toggle")
+        if not state.is_circadian(area_id):
+            logger.info(f"[{source}] Area {area_id} not in circadian mode, skipping freeze_toggle")
             return
 
         # Both directions dim over 0.3s
@@ -1145,14 +1216,14 @@ class CircadianLightPrimitives:
         if not area_ids:
             return
 
-        # Filter to enabled areas only
-        enabled_areas = [a for a in area_ids if state.is_enabled(a)]
-        if not enabled_areas:
-            logger.info(f"[{source}] No enabled areas for freeze_toggle_multiple")
+        # Filter to areas under circadian control
+        circadian_areas = [a for a in area_ids if state.is_circadian(a)]
+        if not circadian_areas:
+            logger.info(f"[{source}] No circadian areas for freeze_toggle_multiple")
             return
 
         # Check freeze state of first area (all should be same, but use first as reference)
-        is_frozen = state.is_frozen(enabled_areas[0])
+        is_frozen = state.is_frozen(circadian_areas[0])
 
         # Both directions dim over 0.3s
         # Freeze: flash on instantly (0s)
@@ -1160,40 +1231,40 @@ class CircadianLightPrimitives:
         dim_duration = 0.3
 
         # Dim ALL areas to 0%
-        for area_id in enabled_areas:
+        for area_id in circadian_areas:
             await self._apply_lighting(area_id, 0, 2700, include_color=False, transition=dim_duration)
 
         await asyncio.sleep(dim_duration + 0.1)  # Wait for transition to complete
 
         if is_frozen:
             # Was frozen → unfreeze all
-            for area_id in enabled_areas:
+            for area_id in circadian_areas:
                 self._unfreeze_internal(area_id, source)
 
             # Rise ALL areas to unfrozen values over 1s (boost-aware)
             hour = get_current_hour()
-            for area_id in enabled_areas:
+            for area_id in circadian_areas:
                 config = self._get_config(area_id)
                 area_state = self._get_area_state(area_id)
                 result = CircadianLight.calculate_lighting(hour, config, area_state)
                 await self._apply_circadian_lighting(area_id, result.brightness, result.color_temp, transition=1.0)
 
-            logger.info(f"[{source}] Freeze toggle: {len(enabled_areas)} area(s) unfrozen")
+            logger.info(f"[{source}] Freeze toggle: {len(circadian_areas)} area(s) unfrozen")
 
         else:
             # Was unfrozen → freeze all at current time
             frozen_at = get_current_hour()
-            for area_id in enabled_areas:
+            for area_id in circadian_areas:
                 state.set_frozen_at(area_id, frozen_at)
 
             # Flash ALL areas up to frozen values instantly (boost-aware)
-            for area_id in enabled_areas:
+            for area_id in circadian_areas:
                 config = self._get_config(area_id)
                 area_state = self._get_area_state(area_id)
                 result = CircadianLight.calculate_lighting(frozen_at, config, area_state)
                 await self._apply_circadian_lighting(area_id, result.brightness, result.color_temp, transition=0)
 
-            logger.info(f"[{source}] Freeze toggle: {len(enabled_areas)} area(s) frozen at hour {frozen_at:.2f}")
+            logger.info(f"[{source}] Freeze toggle: {len(circadian_areas)} area(s) frozen at hour {frozen_at:.2f}")
 
     # -------------------------------------------------------------------------
     # Reset
@@ -1214,8 +1285,8 @@ class CircadianLightPrimitives:
         # Reset state (clears midpoints/bounds/frozen_at, preserves only enabled)
         state.reset_area(area_id)
 
-        # Apply current time values only if enabled
-        if state.is_enabled(area_id):
+        # Apply current time values only if circadian and is_on
+        if state.is_circadian(area_id) and state.get_is_on(area_id):
             config = self._get_config(area_id)
             area_state = self._get_area_state(area_id)
             hour = get_current_hour()
@@ -1228,7 +1299,7 @@ class CircadianLightPrimitives:
                 f"{result.brightness}%, {result.color_temp}K"
             )
         else:
-            logger.info(f"Reset complete for area {area_id} (not enabled, no lighting change)")
+            logger.info(f"Reset complete for area {area_id} (not circadian or lights off, no lighting change)")
 
     # -------------------------------------------------------------------------
     # GloZone Primitives - Zone-based state synchronization
@@ -1278,9 +1349,9 @@ class CircadianLightPrimitives:
             state.update_area(target_area_id, runtime_state)
             logger.debug(f"Copied state to area {target_area_id}")
 
-            # Apply lighting if the target area is enabled
+            # Apply lighting if the target area is circadian and is_on
             # Use centralized update function which handles boost, frozen state, etc.
-            if state.is_enabled(target_area_id):
+            if state.is_circadian(target_area_id) and state.get_is_on(target_area_id):
                 await self.client.update_lights_in_circadian_mode(target_area_id)
                 logger.debug(f"Triggered lighting update for {target_area_id}")
 
@@ -1324,13 +1395,13 @@ class CircadianLightPrimitives:
         })
         logger.info(f"Copied zone state to area {area_id}")
 
-        # Apply lighting if area is enabled
+        # Apply lighting if area is circadian and is_on
         # Use centralized update function for consistency
-        if state.is_enabled(area_id):
+        if state.is_circadian(area_id) and state.get_is_on(area_id):
             await self.client.update_lights_in_circadian_mode(area_id)
             logger.info(f"GloDown complete for {area_id}")
         else:
-            logger.info(f"GloDown complete for {area_id} (not enabled, no lighting change)")
+            logger.info(f"GloDown complete for {area_id} (not circadian or lights off, no lighting change)")
 
     async def glo_reset(self, area_id: str, source: str = "service_call"):
         """Reset zone runtime state to defaults, reset all member areas.
@@ -1366,9 +1437,9 @@ class CircadianLightPrimitives:
             state.reset_area(target_area_id)
             logger.debug(f"Reset area {target_area_id}")
 
-            # Apply lighting if area is enabled
+            # Apply lighting if area is circadian and is_on
             # Use centralized update function for consistency
-            if state.is_enabled(target_area_id):
+            if state.is_circadian(target_area_id) and state.get_is_on(target_area_id):
                 await self.client.update_lights_in_circadian_mode(target_area_id)
                 logger.debug(f"Triggered lighting update for {target_area_id}")
 

@@ -96,14 +96,42 @@ reset:
         area:
           multiple: true
 
-circadian_on:
-  name: Circadian On
-  description: Turn on lights and enable Circadian Light mode for an area
+lights_on:
+  name: Lights On
+  description: Turn on lights with circadian values and take control of the area
   icon: mdi:lightbulb-on
   fields:
     area_id:
       name: Area
-      description: The area(s) to enable Circadian Light for
+      description: The area(s) to turn on
+      required: true
+      example: ["living_room", "kitchen"]
+      selector:
+        area:
+          multiple: true
+
+lights_off:
+  name: Lights Off
+  description: Turn off lights and enforce off state (Circadian will keep them off)
+  icon: mdi:lightbulb-off-outline
+  fields:
+    area_id:
+      name: Area
+      description: The area(s) to turn off
+      required: true
+      example: ["living_room", "kitchen"]
+      selector:
+        area:
+          multiple: true
+
+lights_toggle:
+  name: Lights Toggle
+  description: Smart toggle - turns on with circadian if off, turns off if on
+  icon: mdi:lightbulb-auto
+  fields:
+    area_id:
+      name: Area
+      description: The area(s) to toggle
       required: true
       example: ["living_room", "kitchen"]
       selector:
@@ -112,26 +140,12 @@ circadian_on:
 
 circadian_off:
   name: Circadian Off
-  description: Disable Circadian Light mode for an area (lights remain unchanged)
-  icon: mdi:lightbulb-off
+  description: Release Circadian Light control of an area (lights remain unchanged)
+  icon: mdi:lightbulb-auto-outline
   fields:
     area_id:
       name: Area
-      description: The area(s) to disable Circadian Light for
-      required: true
-      example: ["living_room", "kitchen"]
-      selector:
-        area:
-          multiple: true
-
-circadian_toggle:
-  name: Circadian Toggle
-  description: Smart toggle - turns on with Circadian Light if off, turns off if on
-  icon: mdi:lightbulb-auto
-  fields:
-    area_id:
-      name: Area
-      description: The area(s) to toggle
+      description: The area(s) to release from Circadian control
       required: true
       example: ["living_room", "kitchen"]
       selector:

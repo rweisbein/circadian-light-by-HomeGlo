@@ -1058,23 +1058,20 @@ class HomeAssistantWebSocketClient:
 
         elif action == "circadian_on":
             for area in areas:
-                await self.primitives.circadian_on(area, "switch")
+                await self.primitives.lights_on(area, "switch")
 
         elif action == "circadian_off":
             for area in areas:
                 await self.primitives.circadian_off(area, "switch")
 
-        elif action == "toggle":
-            await self.primitives.circadian_toggle_multiple(areas, "switch")
-
-        elif action == "circadian_toggle":
-            await self.primitives.circadian_toggle_multiple(areas, "switch")
+        elif action in ("toggle", "circadian_toggle"):
+            await self.primitives.lights_toggle_multiple(areas, "switch")
 
         elif action == "step_up":
-            # If lights are off or not enabled, set nitelite instead
+            # If lights are off or not in circadian mode, set nitelite instead
             any_on = await self.any_lights_on_in_area(areas)
-            any_enabled = any(state.is_enabled(area) for area in areas)
-            if not any_on and not any_enabled:
+            any_circadian = any(state.is_circadian(area) for area in areas)
+            if not any_on and not any_circadian:
                 logger.info(f"[switch] step_up with lights off -> nitelite for areas: {areas}")
                 for area in areas:
                     await self.primitives.set(area, "switch", preset="nitelite", enable=True)
@@ -1083,10 +1080,10 @@ class HomeAssistantWebSocketClient:
                     await self.primitives.step_up(area, "switch")
 
         elif action == "step_down":
-            # If lights are off or not enabled, set nitelite instead
+            # If lights are off or not in circadian mode, set nitelite instead
             any_on = await self.any_lights_on_in_area(areas)
-            any_enabled = any(state.is_enabled(area) for area in areas)
-            if not any_on and not any_enabled:
+            any_circadian = any(state.is_circadian(area) for area in areas)
+            if not any_on and not any_circadian:
                 logger.info(f"[switch] step_down with lights off -> nitelite for areas: {areas}")
                 for area in areas:
                     await self.primitives.set(area, "switch", preset="nitelite", enable=True)
@@ -1095,10 +1092,10 @@ class HomeAssistantWebSocketClient:
                     await self.primitives.step_down(area, "switch")
 
         elif action == "bright_up":
-            # If lights are off or not enabled, set nitelite instead
+            # If lights are off or not in circadian mode, set nitelite instead
             any_on = await self.any_lights_on_in_area(areas)
-            any_enabled = any(state.is_enabled(area) for area in areas)
-            if not any_on and not any_enabled:
+            any_circadian = any(state.is_circadian(area) for area in areas)
+            if not any_on and not any_circadian:
                 logger.info(f"[switch] bright_up with lights off -> nitelite for areas: {areas}")
                 for area in areas:
                     await self.primitives.set(area, "switch", preset="nitelite", enable=True)
@@ -1107,10 +1104,10 @@ class HomeAssistantWebSocketClient:
                     await self.primitives.bright_up(area, "switch")
 
         elif action == "bright_down":
-            # If lights are off or not enabled, set nitelite instead
+            # If lights are off or not in circadian mode, set nitelite instead
             any_on = await self.any_lights_on_in_area(areas)
-            any_enabled = any(state.is_enabled(area) for area in areas)
-            if not any_on and not any_enabled:
+            any_circadian = any(state.is_circadian(area) for area in areas)
+            if not any_on and not any_circadian:
                 logger.info(f"[switch] bright_down with lights off -> nitelite for areas: {areas}")
                 for area in areas:
                     await self.primitives.set(area, "switch", preset="nitelite", enable=True)
@@ -1223,7 +1220,7 @@ class HomeAssistantWebSocketClient:
             else:
                 was_on = False
 
-            if was_on and state.is_enabled(area):
+            if was_on and state.is_circadian(area):
                 # Pre-calculate circadian values
                 area_state = AreaState.from_dict(state.get_area(area))
                 config_dict = glozone.get_effective_config_for_area(area)
@@ -1995,13 +1992,16 @@ class HomeAssistantWebSocketClient:
     def enable_circadian_mode(self, area_id: str):
         """Enable Circadian Light mode for an area.
 
+        Note: This is a low-level helper. Prefer using primitives.lights_on/off/toggle
+        which handle the full state model (is_circadian + is_on).
+
         Args:
             area_id: The area ID to enable Circadian Light for
         """
-        was_enabled = state.is_enabled(area_id)
-        state.set_enabled(area_id, True)
+        was_circadian = state.is_circadian(area_id)
+        state.set_is_circadian(area_id, True)
 
-        if not was_enabled:
+        if not was_circadian:
             logger.info(f"Circadian Light enabled for area {area_id}")
         else:
             logger.debug(f"Circadian Light already enabled for area {area_id}")
@@ -2009,16 +2009,19 @@ class HomeAssistantWebSocketClient:
     async def disable_circadian_mode(self, area_id: str):
         """Disable Circadian Light mode for an area.
 
+        Note: This is a low-level helper. Prefer using primitives.circadian_off
+        which handles state transitions properly.
+
         Args:
             area_id: The area ID to disable Circadian Light for
         """
-        was_enabled = state.is_enabled(area_id)
+        was_circadian = state.is_circadian(area_id)
 
-        if not was_enabled:
+        if not was_circadian:
             logger.info(f"Circadian Light already disabled for area {area_id}")
             return
 
-        state.set_enabled(area_id, False)
+        state.set_is_circadian(area_id, False)
         logger.info(f"Circadian Light disabled for area {area_id}")
     
     def get_brightness_step_pct(self) -> float:
@@ -2213,14 +2216,24 @@ class HomeAssistantWebSocketClient:
             area_id: The area ID to update
         """
         try:
-            # Only update if area is enabled
-            if not state.is_enabled(area_id):
+            # Only update if area is under circadian control
+            if not state.is_circadian(area_id):
                 logger.debug(f"Area {area_id} not in Circadian mode, skipping update")
                 return
 
             # Get area state (includes stepped midpoints, pushed bounds, and frozen_at)
             area_state_dict = state.get_area(area_id)
             area_state = AreaState.from_dict(area_state_dict)
+
+            # Check target power state - enforce is_on
+            if not state.get_is_on(area_id):
+                # Enforce off state for areas with is_on=false
+                logger.debug(f"Area {area_id} is_on=false, enforcing off state")
+                target_type, target_value = await self.determine_light_target(area_id)
+                await self.call_service(
+                    "light", "turn_off", {"transition": 0.5}, {target_type: target_value}
+                )
+                return
             if area_state.brightness_mid is not None or area_state.color_mid is not None:
                 logger.info(f"[Periodic] Area {area_id} has stepped state: brightness_mid={area_state.brightness_mid}, color_mid={area_state.color_mid}")
 
@@ -2335,8 +2348,8 @@ class HomeAssistantWebSocketClient:
             # Reset all area runtime state (preserves frozen areas)
             state.reset_all_areas()
 
-            # Update all enabled areas with new values
-            for area_id in state.get_unfrozen_enabled_areas():
+            # Update all circadian areas with new values
+            for area_id in state.get_circadian_areas_for_update():
                 await self.update_lights_in_circadian_mode(area_id)
 
         return now
@@ -2383,8 +2396,8 @@ class HomeAssistantWebSocketClient:
                 await self.primitives.check_expired_boosts()
                 await self.primitives.check_expired_motion()
 
-                # Get all enabled, unfrozen areas from state module
-                circadian_areas = state.get_unfrozen_enabled_areas()
+                # Get all circadian, unfrozen areas from state module
+                circadian_areas = state.get_circadian_areas_for_update()
 
                 if not circadian_areas:
                     logger.debug("No areas enabled for Circadian Light update")
@@ -2574,14 +2587,23 @@ class HomeAssistantWebSocketClient:
                     else:
                         logger.warning("color_down called without area_id")
 
-                elif service in ("circadian_on", "on"):
+                elif service in ("lights_on", "circadian_on", "on"):
                     areas = get_areas()
                     if areas:
                         for area in areas:
-                            logger.info(f"[{domain}] circadian_on for area: {area}")
-                            await self.primitives.circadian_on(area, "service_call")
+                            logger.info(f"[{domain}] lights_on for area: {area}")
+                            await self.primitives.lights_on(area, "service_call")
                     else:
-                        logger.warning("circadian_on called without area_id")
+                        logger.warning("lights_on called without area_id")
+
+                elif service in ("lights_off",):
+                    areas = get_areas()
+                    if areas:
+                        for area in areas:
+                            logger.info(f"[{domain}] lights_off for area: {area}")
+                            await self.primitives.lights_off(area, "service_call")
+                    else:
+                        logger.warning("lights_off called without area_id")
 
                 elif service in ("circadian_off", "off"):
                     areas = get_areas()
@@ -2592,13 +2614,13 @@ class HomeAssistantWebSocketClient:
                     else:
                         logger.warning("circadian_off called without area_id")
 
-                elif service in ("circadian_toggle", "toggle"):
+                elif service in ("lights_toggle", "circadian_toggle", "toggle"):
                     areas = get_areas()
                     if areas:
-                        logger.info(f"[{domain}] circadian_toggle for areas: {areas}")
-                        await self.primitives.circadian_toggle_multiple(areas, "service_call")
+                        logger.info(f"[{domain}] lights_toggle for areas: {areas}")
+                        await self.primitives.lights_toggle_multiple(areas, "service_call")
                     else:
-                        logger.warning("circadian_toggle called without area_id")
+                        logger.warning("lights_toggle called without area_id")
 
                 elif service == "set":
                     areas = get_areas()
