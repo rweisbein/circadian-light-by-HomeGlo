@@ -670,6 +670,27 @@ def is_configured(switch_id: str) -> bool:
 # Motion Sensor Management
 # =============================================================================
 
+def _reload_motion_sensors() -> None:
+    """Reload configured motion sensors from disk (for cross-process sync)."""
+    global _motion_sensors
+
+    if not _config_file_path or not os.path.exists(_config_file_path):
+        return
+
+    try:
+        with open(_config_file_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        new_sensors = {}
+        for sensor_data in data.get("motion_sensors", []):
+            sensor = MotionSensorConfig.from_dict(sensor_data)
+            new_sensors[sensor.id] = sensor
+
+        _motion_sensors = new_sensors
+    except Exception as e:
+        logger.warning(f"Failed to reload motion sensors: {e}")
+
+
 def add_motion_sensor(config: MotionSensorConfig) -> None:
     """Add or update a motion sensor configuration."""
     _motion_sensors[config.id] = config
@@ -688,12 +709,20 @@ def remove_motion_sensor(sensor_id: str) -> bool:
 
 
 def get_motion_sensor(sensor_id: str) -> Optional[MotionSensorConfig]:
-    """Get a motion sensor configuration by ID."""
+    """Get a motion sensor configuration by ID.
+
+    Reloads from disk to pick up changes from other processes.
+    """
+    _reload_motion_sensors()
     return _motion_sensors.get(sensor_id)
 
 
 def get_motion_sensor_by_device_id(device_id: str) -> Optional[MotionSensorConfig]:
-    """Get a motion sensor configuration by HA device_id."""
+    """Get a motion sensor configuration by HA device_id.
+
+    Reloads from disk to pick up changes from other processes.
+    """
+    _reload_motion_sensors()
     for sensor in _motion_sensors.values():
         if sensor.device_id == device_id:
             return sensor
@@ -725,6 +754,27 @@ def get_motion_sensors_for_area(area_id: str) -> List[MotionSensorConfig]:
 # Contact Sensor Management
 # =============================================================================
 
+def _reload_contact_sensors() -> None:
+    """Reload configured contact sensors from disk (for cross-process sync)."""
+    global _contact_sensors
+
+    if not _config_file_path or not os.path.exists(_config_file_path):
+        return
+
+    try:
+        with open(_config_file_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        new_sensors = {}
+        for sensor_data in data.get("contact_sensors", []):
+            sensor = ContactSensorConfig.from_dict(sensor_data)
+            new_sensors[sensor.id] = sensor
+
+        _contact_sensors = new_sensors
+    except Exception as e:
+        logger.warning(f"Failed to reload contact sensors: {e}")
+
+
 def add_contact_sensor(config: ContactSensorConfig) -> None:
     """Add or update a contact sensor configuration."""
     _contact_sensors[config.id] = config
@@ -743,12 +793,20 @@ def remove_contact_sensor(sensor_id: str) -> bool:
 
 
 def get_contact_sensor(sensor_id: str) -> Optional[ContactSensorConfig]:
-    """Get a contact sensor configuration by ID."""
+    """Get a contact sensor configuration by ID.
+
+    Reloads from disk to pick up changes from other processes.
+    """
+    _reload_contact_sensors()
     return _contact_sensors.get(sensor_id)
 
 
 def get_contact_sensor_by_device_id(device_id: str) -> Optional[ContactSensorConfig]:
-    """Get a contact sensor configuration by HA device_id."""
+    """Get a contact sensor configuration by HA device_id.
+
+    Reloads from disk to pick up changes from other processes.
+    """
+    _reload_contact_sensors()
     for sensor in _contact_sensors.values():
         if sensor.device_id == device_id:
             return sensor

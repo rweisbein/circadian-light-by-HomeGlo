@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.119
+**Fix motion/contact sensor config not syncing between processes**
+
+- Fixed: Sensor config changes now sync between webserver and main process
+- Previously: Saving sensor config in UI wouldn't take effect until add-on restart
+- Added `_reload_motion_sensors()` and `_reload_contact_sensors()` for cross-process sync
+- Same pattern as existing `_reload_switches()` for switch configs
+
 ## 6.9.118
 **Controls page UI improvements + sensor inactive feature**
 
