@@ -2614,6 +2614,15 @@ class HomeAssistantWebSocketClient:
                     else:
                         logger.warning("circadian_off called without area_id")
 
+                elif service == "circadian_on":
+                    areas = get_areas()
+                    if areas:
+                        for area in areas:
+                            logger.info(f"[{domain}] circadian_on for area: {area}")
+                            await self.primitives.circadian_on(area, "service_call")
+                    else:
+                        logger.warning("circadian_on called without area_id")
+
                 elif service in ("lights_toggle", "circadian_toggle", "toggle"):
                     areas = get_areas()
                     if areas:

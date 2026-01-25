@@ -1,5 +1,16 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.127
+**Add circadian_on primitive, preserve settings across enable/disable**
+
+- Added: `circadian_on` primitive to resume Circadian control with preserved settings
+- Changed: Settings (midpoints, frozen_at, is_on) now persist across `circadian_off` → `circadian_on` cycles
+- Removed: Reset-on-enable logic - settings no longer reset when taking control
+- Use case: External processes can temporarily take over lights and return control cleanly
+- `circadian_on`: Resume control, respects preserved `is_on` (lights may be on or off)
+- `lights_on/off/toggle`: Take control with explicit `is_on` setting
+- Integration updated to v3.7.0 with new `circadian_on` service
+
 ## 6.9.126
 **Step/bright buttons require circadian mode**
 

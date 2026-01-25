@@ -594,6 +594,47 @@ class CircadianLightPrimitives:
         state.set_is_circadian(area_id, False)
         logger.info(f"Circadian Light disabled for area {area_id}, lights unchanged")
 
+    async def circadian_on(self, area_id: str, source: str = "service_call"):
+        """Resume Circadian control for an area with preserved settings.
+
+        Sets is_circadian=True, preserving all settings (midpoints, frozen_at, is_on).
+        Applies lighting based on preserved is_on state:
+        - If is_on=True: Apply circadian lighting
+        - If is_on=False: Turn off lights
+
+        Use this to return control to Circadian after circadian_off.
+        Use lights_on/off/toggle instead if you want to explicitly set is_on.
+
+        Args:
+            area_id: The area ID to control
+            source: Source of the action
+        """
+        logger.info(f"[{source}] circadian_on for area {area_id}")
+
+        if state.is_circadian(area_id):
+            logger.info(f"Circadian Light already enabled for area {area_id}")
+            # Still apply lighting in case state changed
+        else:
+            state.set_is_circadian(area_id, True)
+            logger.info(f"Circadian Light resumed for area {area_id}")
+
+        # Apply lighting based on preserved is_on state
+        is_on = state.get_is_on(area_id)
+        if is_on:
+            # Apply circadian lighting with preserved settings
+            config = self._get_config(area_id)
+            area_state = self._get_area_state(area_id)
+            hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
+            result = CircadianLight.calculate_lighting(hour, config, area_state)
+            transition = self._get_turn_on_transition()
+            await self._apply_lighting_turn_on(area_id, result.brightness, result.color_temp, transition)
+            logger.info(f"circadian_on applied: {result.brightness}%, {result.color_temp}K (is_on=True)")
+        else:
+            # Enforce off state
+            transition = self._get_turn_off_transition()
+            await self._turn_off_area(area_id, transition=transition)
+            logger.info(f"circadian_on enforced off state (is_on=False)")
+
     async def lights_toggle(self, area_id: str, source: str = "service_call"):
         """Toggle lights under Circadian control.
 

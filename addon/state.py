@@ -147,37 +147,28 @@ def update_area(area_id: str, updates: Dict[str, Any]) -> None:
     logger.debug(f"Updated state for area {area_id}: {updates}")
 
 
-def set_is_circadian(area_id: str, is_circadian: bool) -> None:
+def set_is_circadian(area_id: str, is_circadian_val: bool) -> None:
     """Set whether Circadian Light controls an area.
 
-    When is_circadian flips from False to True, resets all runtime state:
-    - is_on -> False
-    - brightness_mid -> None (use phase default)
-    - color_mid -> None (use phase default)
-    - frozen_at -> None
-    - boost_* -> cleared
-    - motion_expires_at -> None
+    This preserves all settings (midpoints, frozen_at, is_on, etc.).
+    Settings persist across circadian_off → circadian_on cycles.
 
     Args:
         area_id: The area ID
-        is_circadian: Whether Circadian Light should control this area
+        is_circadian_val: Whether Circadian Light should control this area
     """
-    was_circadian = get_area(area_id).get("is_circadian", False)
+    was_circadian = is_circadian(area_id)
 
-    if is_circadian and not was_circadian:
-        # Flipping from False to True - reset all runtime state
-        if area_id not in _state:
-            _state[area_id] = _get_default_area_state()
-        else:
-            # Reset to defaults but set is_circadian to True
-            _state[area_id] = _get_default_area_state()
-        _state[area_id]["is_circadian"] = True
-        _save()
-        logger.info(f"Circadian Light enabled for area {area_id} (state reset)")
-    else:
-        update_area(area_id, {"is_circadian": is_circadian})
-        if not is_circadian:
-            logger.info(f"Circadian Light disabled for area {area_id}")
+    # Ensure area exists in state
+    if area_id not in _state:
+        _state[area_id] = _get_default_area_state()
+
+    update_area(area_id, {"is_circadian": is_circadian_val})
+
+    if is_circadian_val and not was_circadian:
+        logger.info(f"Circadian Light enabled for area {area_id}")
+    elif not is_circadian_val and was_circadian:
+        logger.info(f"Circadian Light disabled for area {area_id}")
 
 
 def set_frozen_at(area_id: str, frozen_at: Optional[float]) -> None:
@@ -231,22 +222,21 @@ def enable_circadian_and_set_on(area_id: str, is_on: bool) -> bool:
     """Enable Circadian control for an area and set is_on state.
 
     This is the main entry point for lights_on, lights_off, lights_toggle.
-    If is_circadian was False, it triggers a full state reset before setting is_on.
+    Preserves all settings (midpoints, frozen_at, etc.) - no reset.
 
     Args:
         area_id: The area ID
         is_on: Target light power state
 
     Returns:
-        True if is_circadian was already True (no reset occurred), False if reset occurred
+        True if is_circadian was already True, False if it was False
     """
     was_circadian = is_circadian(area_id)
 
-    if not was_circadian:
-        # This will reset all state and set is_circadian=True
-        set_is_circadian(area_id, True)
+    # Enable circadian control (preserves settings)
+    set_is_circadian(area_id, True)
 
-    # Now set is_on to the desired value
+    # Set is_on to the desired value
     set_is_on(area_id, is_on)
 
     return was_circadian

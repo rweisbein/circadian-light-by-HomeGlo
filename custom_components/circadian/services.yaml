@@ -138,6 +138,20 @@ lights_toggle:
         area:
           multiple: true
 
+circadian_on:
+  name: Circadian On
+  description: Resume Circadian Light control with preserved settings (respects is_on state)
+  icon: mdi:lightbulb-auto
+  fields:
+    area_id:
+      name: Area
+      description: The area(s) to return to Circadian control
+      required: true
+      example: ["living_room", "kitchen"]
+      selector:
+        area:
+          multiple: true
+
 circadian_off:
   name: Circadian Off
   description: Release Circadian Light control of an area (lights remain unchanged)

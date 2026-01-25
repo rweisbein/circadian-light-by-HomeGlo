@@ -116,6 +116,16 @@
         }
       }
     },
+    "circadian_on": {
+      "name": "Circadian On",
+      "description": "Resume Circadian Light control with preserved settings (respects is_on state)",
+      "fields": {
+        "area_id": {
+          "name": "Area",
+          "description": "The area(s) to return to Circadian control"
+        }
+      }
+    },
     "circadian_off": {
       "name": "Circadian Off",
       "description": "Release Circadian Light control of an area (lights remain unchanged)",
