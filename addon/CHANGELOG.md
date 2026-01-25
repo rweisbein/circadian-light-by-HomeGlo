@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.116
+**More contact sensor debug logging**
+
+- Added info-level logging when contact event is received (shows entity_id, state, device_id)
+- Changed early-exit logs from debug to info level (no config, no areas)
+- Now shows clear message when sensor needs to be configured in Controls page
+
 ## 6.9.115
 **Debug logging for contact sensor issues**
 

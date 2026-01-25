@@ -510,8 +510,10 @@ class HomeAssistantWebSocketClient:
         # Get device ID for this entity
         device_id = self.contact_sensor_ids.get(entity_id)
         if not device_id:
-            logger.debug(f"[Contact] No device ID mapped for entity {entity_id}")
+            logger.info(f"[Contact] No device ID mapped for entity {entity_id}")
             return
+
+        logger.info(f"[Contact] Event: {entity_id} -> {new_state} (device: {device_id})")
 
         # Record last action for UI display
         if new_state == "on":
@@ -522,11 +524,11 @@ class HomeAssistantWebSocketClient:
         # Get contact sensor config by device_id
         sensor_config = switches.get_contact_sensor_by_device_id(device_id)
         if not sensor_config:
-            logger.debug(f"[Contact] No config found for device {device_id}")
+            logger.info(f"[Contact] No config found for device {device_id} - configure in Controls page")
             return
 
         if not sensor_config.areas:
-            logger.debug(f"[Contact] Sensor {sensor_config.name} has no areas configured")
+            logger.info(f"[Contact] Sensor {sensor_config.name} has no areas configured")
             return
 
         logger.info(f"[Contact] {entity_id} -> {new_state} (sensor={sensor_config.name})")
