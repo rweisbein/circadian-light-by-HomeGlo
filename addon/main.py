@@ -1783,11 +1783,14 @@ class HomeAssistantWebSocketClient:
             device_id = entity.get("device_id")
             if device_id:
                 self.contact_sensor_ids[entity_id] = device_id
+                logger.info(f"  Contact sensor cached: {entity_id} -> device:{device_id}")
+            else:
+                logger.warning(f"  Contact sensor skipped (no device_id): {entity_id}")
 
         if self.contact_sensor_ids:
             logger.info(f"✓ Contact sensor cache built: {len(self.contact_sensor_ids)} sensors")
-            for entity_id, device_id in self.contact_sensor_ids.items():
-                logger.debug(f"  {entity_id} -> device:{device_id}")
+        else:
+            logger.warning("⚠ No contact sensors found in entity registry")
 
     def get_lights_by_color_capability(self, area_id: str) -> Tuple[List[str], List[str]]:
         """Get lights in an area split by color capability.
@@ -2759,6 +2762,12 @@ class HomeAssistantWebSocketClient:
                     old_state_val = old_state.get("state") if isinstance(old_state, dict) else None
                     if new_state_val and new_state_val != old_state_val:
                         await self._handle_contact_event(entity_id, new_state_val, old_state_val)
+                # Debug: Log contact-looking sensors that aren't cached
+                elif entity_id and entity_id.startswith("binary_sensor.") and any(x in entity_id for x in ["_opening", "_door", "_window", "_contact"]):
+                    new_state_val = new_state.get("state") if isinstance(new_state, dict) else None
+                    old_state_val = old_state.get("state") if isinstance(old_state, dict) else None
+                    if new_state_val and new_state_val != old_state_val:
+                        logger.warning(f"[Contact] State changed for uncached sensor: {entity_id} ({old_state_val} -> {new_state_val})")
 
             # Handle ZHA events (switch button presses)
             elif event_type == "zha_event":

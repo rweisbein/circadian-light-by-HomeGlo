@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.115
+**Debug logging for contact sensor issues**
+
+- Added info-level logging for each contact sensor cached (shows entity_id and device_id)
+- Added warning when contact sensor is skipped due to missing device_id (likely Hue sensors)
+- Added warning when state_changed event arrives for uncached contact-looking sensor
+- This will help diagnose why some contact sensors aren't triggering
+
 ## 6.9.114
 **Contact sensor configuration support**
 
