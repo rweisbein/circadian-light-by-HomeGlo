@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.131
+**Fix integration deployment always using bundled version**
+
+- Fixed: Integration manager now always prefers bundled integration over download
+- Previously, broken version comparison logic caused bundled v3.8.0 to be skipped
+- The script compared bundled version with a hardcoded "3.5.0" using equality
+- Now properly compares destination version with bundled version for updates
+
 ## 6.9.130
 **Fix warm_night filter not applied on step/button actions**
 
