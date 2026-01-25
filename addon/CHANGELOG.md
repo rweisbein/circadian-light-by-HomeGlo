@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.129
+**Update Hue 4-button switch mapping**
+
+- On button: 2x=GloUp, 3x=GloReset (moved from Hue button)
+- Hue button: 2x=Freeze, 3x=GloDown (swapped with On button)
+- Rationale: Zone controls on main button, area controls on Hue button
+
 ## 6.9.128
 **Rename `enable` parameter to `is_on` in set primitive**
 

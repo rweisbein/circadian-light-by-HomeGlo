@@ -106,14 +106,14 @@ BUTTON_ACTION_TYPES = [
 _HUE_4BUTTON_MAPPING = {
     # On button (top)
     "on_short_release": "circadian_toggle",     # 1x - on/off
-    "on_double_press": "freeze_toggle",         # 2x - freeze
-    "on_triple_press": "glo_up",                # 3x - send to zone
+    "on_double_press": "glo_up",                # 2x - push to zone
+    "on_triple_press": "glo_reset",             # 3x - reset zone
     "on_quadruple_press": None,                 # 4x - not used
     "on_quintuple_press": None,                 # 5x - coming soon: emergency toggle
     "on_hold": None,                            # long - RESERVED for magic button
     "on_long_release": None,
     # Up button
-    "up_short_release": "step_up",              # 1x
+    "up_short_release": "step_up",              # 1x (NiteLite if off)
     "up_double_press": "color_up",              # 2x
     "up_triple_press": "set_britelite",         # 3x
     "up_quadruple_press": None,                 # 4x - not used
@@ -121,17 +121,17 @@ _HUE_4BUTTON_MAPPING = {
     "up_hold": "bright_up",                     # long - repeats while held
     "up_long_release": None,
     # Down button
-    "down_short_release": "step_down",          # 1x
+    "down_short_release": "step_down",          # 1x (NiteLite if off)
     "down_double_press": "color_down",          # 2x
     "down_triple_press": "set_nitelite",        # 3x
     "down_quadruple_press": None,               # 4x - not used
     "down_quintuple_press": None,               # 5x - not used
     "down_hold": "bright_down",                 # long - repeats while held
     "down_long_release": None,
-    # Off button (bottom - "hue" button)
+    # Hue button (bottom)
     "off_short_release": "cycle_scope",         # 1x - change controlled areas
-    "off_double_press": "glo_down",             # 2x - reset area (pull zone state)
-    "off_triple_press": "glo_reset",            # 3x - reset zone
+    "off_double_press": "freeze_toggle",        # 2x - freeze
+    "off_triple_press": "glo_down",             # 3x - pull zone state
     "off_quadruple_press": None,                # 4x - not used
     "off_quintuple_press": None,                # 5x - coming soon: Sleep
     "off_hold": None,                           # long - RESERVED for magic button
