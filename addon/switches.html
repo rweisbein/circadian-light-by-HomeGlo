@@ -318,6 +318,11 @@
       color: var(--warning);
     }
 
+    .status-inactive {
+      background: rgba(148, 163, 184, 0.15);
+      color: var(--muted);
+    }
+
     .status-unsupported {
       background: rgba(148, 163, 184, 0.15);
       color: var(--muted);
@@ -558,6 +563,17 @@
       font-size: 0.85rem;
       margin-top: 8px;
     }
+
+    .clear-filters-link {
+      color: var(--muted);
+      font-size: 0.85rem;
+      text-decoration: none;
+    }
+
+    .clear-filters-link:hover {
+      color: var(--accent);
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
@@ -620,6 +636,13 @@
           <!-- Motion area editors populated by JS -->
         </div>
         <button class="add-scope-btn" id="add-motion-area-btn">+ Add Area</button>
+        <div id="inactive-checkbox-section" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line);">
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="sensor-inactive-checkbox" style="width: 16px; height: 16px; accent-color: var(--accent);">
+            <span style="font-size: 0.9rem;">Inactive</span>
+            <span style="font-size: 0.8rem; color: var(--muted); margin-left: 4px;">(sensor won't trigger actions)</span>
+          </label>
+        </div>
       </div>
 
       <div class="modal-actions">
@@ -639,6 +662,7 @@
     let editingScopes = [];
     let editingMotionAreas = [];  // For motion sensors: [{area_id, function, duration}, ...]
     let editingControl = null;
+    let editingInactive = false;  // For sensors: whether sensor is inactive
     let sortColumn = 'status';
     let sortAsc = true;
     let categoryFilter = 'all';
@@ -754,7 +778,7 @@
       });
 
       // Sort controls
-      const statusOrder = { 'active': 0, 'not_configured': 1, 'unsupported': 2 };
+      const statusOrder = { 'active': 0, 'inactive': 1, 'not_configured': 2, 'unsupported': 3 };
       const categoryOrder = { 'switch': 0, 'motion_sensor': 1, 'contact_sensor': 2, 'unknown': 3 };
       const sorted = [...filtered].sort((a, b) => {
         let valA, valB;
@@ -810,11 +834,19 @@
       const areaOptions = `<option value="all">All</option>` +
         areas.map(a => `<option value="${a}" ${areaFilter === a ? 'selected' : ''}>${a}</option>`).join('');
 
-      const statusLabels = { 'active': 'Active', 'not_configured': 'Not configured', 'unsupported': 'Unsupported' };
+      const statusLabels = { 'active': 'Configured', 'inactive': 'Inactive', 'not_configured': 'Not configured', 'unsupported': 'Unsupported' };
       const statusOptions = `<option value="all">All</option>` +
         statuses.map(s => `<option value="${s}" ${statusFilter === s ? 'selected' : ''}>${statusLabels[s] || s}</option>`).join('');
 
+      // Check if any filters are active
+      const hasActiveFilters = categoryFilter !== 'all' || areaFilter !== 'all' || statusFilter !== 'all';
+
       container.innerHTML = `
+        ${hasActiveFilters ? `
+          <div style="margin-bottom: 12px; text-align: right;">
+            <a href="#" class="clear-filters-link" onclick="clearFilters(); return false;">Clear filters</a>
+          </div>
+        ` : ''}
         <table class="switches-table">
           <thead>
             <tr>
@@ -886,7 +918,9 @@
 
     function getStatusBadge(ctrl) {
       if (ctrl.status === 'active') {
-        return '<span class="status-badge status-active"><span class="status-check">✓</span> Active</span>';
+        return '<span class="status-badge status-active"><span class="status-check">✓</span> Configured</span>';
+      } else if (ctrl.status === 'inactive') {
+        return '<span class="status-badge status-inactive">Inactive</span>';
       } else if (ctrl.status === 'not_configured') {
         return '<span class="status-badge status-not-configured">Not configured</span>';
       } else {
@@ -987,6 +1021,14 @@
       renderControls();
     }
 
+    function clearFilters() {
+      categoryFilter = 'all';
+      areaFilter = 'all';
+      statusFilter = 'all';
+      savePreferences();
+      renderControls();
+    }
+
     function getAreaName(areaId) {
       const area = allAreas.find(a => a.area_id === areaId);
       return area ? area.name : areaId;
@@ -1033,6 +1075,7 @@
       editingControl = null;
       editingScopes = [];
       editingMotionAreas = [];
+      editingInactive = false;
     }
 
     function editControl(id) {
@@ -1053,6 +1096,7 @@
           ? ctrl.areas.map(a => ({ ...a }))
           : [];
         editingScopes = [];
+        editingInactive = ctrl.inactive || false;
       } else {
         // Load switch scopes
         editingScopes = ctrl.scopes && ctrl.scopes.length > 0
@@ -1084,6 +1128,8 @@
         switchSection.style.display = 'none';
         motionSection.style.display = 'block';
         renderMotionAreasEditor();
+        // Set inactive checkbox
+        document.getElementById('sensor-inactive-checkbox').checked = editingInactive;
       } else {
         // Type is now shown in device-info, hide the type section
         if (typeSectionEl) typeSectionEl.style.display = 'none';
@@ -1244,11 +1290,14 @@
           alert('Please select an area for each entry, or remove unused entries');
           return;
         }
+        // Get inactive status from checkbox
+        const inactive = document.getElementById('sensor-inactive-checkbox').checked;
         payload = {
           name: editingControl?.name,
           category: editingControl?.category,  // preserve original category (motion_sensor or contact_sensor)
           areas: editingMotionAreas,
-          device_id: editingDeviceId
+          device_id: editingDeviceId,
+          inactive: inactive
         };
       } else {
         // Switch config

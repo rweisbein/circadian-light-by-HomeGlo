@@ -3064,8 +3064,14 @@ class LightDesignerServer:
                     is_configured = config and config.get("scopes") and any(s.get("areas") for s in config.get("scopes", []))
 
                 # Determine status
+                is_inactive = config.get("inactive", False)
                 if ctrl.get("supported"):
-                    status = "active" if is_configured else "not_configured"
+                    if is_configured and is_inactive:
+                        status = "inactive"
+                    elif is_configured:
+                        status = "active"
+                    else:
+                        status = "not_configured"
                 else:
                     status = "unsupported"
 
@@ -3095,6 +3101,7 @@ class LightDesignerServer:
 
                 if category in ("motion_sensor", "contact_sensor"):
                     control_data["areas"] = config.get("areas", [])
+                    control_data["inactive"] = config.get("inactive", False)
                 else:
                     control_data["scopes"] = config.get("scopes", [])
 
@@ -3330,6 +3337,7 @@ class LightDesignerServer:
                     name=name,
                     areas=areas,
                     device_id=device_id,
+                    inactive=data.get("inactive", False),
                 )
 
                 switches.add_motion_sensor(motion_config)
@@ -3350,6 +3358,7 @@ class LightDesignerServer:
                     name=name,
                     areas=areas,
                     device_id=device_id,
+                    inactive=data.get("inactive", False),
                 )
 
                 switches.add_contact_sensor(contact_config)

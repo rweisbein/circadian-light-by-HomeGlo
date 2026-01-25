@@ -1,5 +1,14 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.118
+**Controls page UI improvements + sensor inactive feature**
+
+- Changed: Status "Active" renamed to "Configured" for clarity
+- Added: "Inactive" checkbox per sensor - inactive sensors won't trigger actions but stay configured
+- Added: "Clear filters" link appears above table when filters are active (Controls & Areas pages)
+- Added: Inactive status is filterable and sortable in Controls page
+- Backend: Sensors with inactive=true are skipped during event processing
+
 ## 6.9.117
 **Fix contact sensor close event actually turns off lights**
 

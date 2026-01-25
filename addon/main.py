@@ -401,6 +401,10 @@ class HomeAssistantWebSocketClient:
             logger.debug(f"[Motion] No config found for device {device_id}")
             return
 
+        if sensor_config.inactive:
+            logger.debug(f"[Motion] Sensor {sensor_config.name} is inactive, ignoring event")
+            return
+
         if not sensor_config.areas:
             logger.debug(f"[Motion] Sensor {sensor_config.name} has no areas configured")
             return
@@ -448,6 +452,11 @@ class HomeAssistantWebSocketClient:
             args: Command arguments
             device_id: The HA device_id
         """
+        # Check if sensor is inactive
+        if sensor_config.inactive:
+            logger.debug(f"[ZHA Motion] Sensor {sensor_config.name} is inactive, ignoring event")
+            return
+
         # Determine if this is motion detected or cleared
         is_motion_detected = False
 
@@ -525,6 +534,10 @@ class HomeAssistantWebSocketClient:
         sensor_config = switches.get_contact_sensor_by_device_id(device_id)
         if not sensor_config:
             logger.info(f"[Contact] No config found for device {device_id} - configure in Controls page")
+            return
+
+        if sensor_config.inactive:
+            logger.info(f"[Contact] Sensor {sensor_config.name} is inactive, ignoring event")
             return
 
         if not sensor_config.areas:

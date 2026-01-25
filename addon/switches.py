@@ -357,6 +357,7 @@ class MotionSensorConfig:
     name: str                            # User-friendly name
     areas: List[MotionAreaConfig] = field(default_factory=list)
     device_id: Optional[str] = None      # HA device_id
+    inactive: bool = False               # If True, sensor won't trigger actions
 
     def get_area_config(self, area_id: str) -> Optional[MotionAreaConfig]:
         """Get config for a specific area."""
@@ -375,6 +376,7 @@ class MotionSensorConfig:
             "id": self.id,
             "name": self.name,
             "areas": [a.to_dict() for a in self.areas],
+            "inactive": self.inactive,
         }
         if self.device_id:
             result["device_id"] = self.device_id
@@ -389,6 +391,7 @@ class MotionSensorConfig:
             name=data.get("name", ""),
             areas=areas,
             device_id=data.get("device_id"),
+            inactive=data.get("inactive", False),
         )
 
 
@@ -436,6 +439,7 @@ class ContactSensorConfig:
     name: str                            # User-friendly name
     areas: List[ContactAreaConfig] = field(default_factory=list)
     device_id: Optional[str] = None      # HA device_id
+    inactive: bool = False               # If True, sensor won't trigger actions
 
     def get_area_config(self, area_id: str) -> Optional[ContactAreaConfig]:
         """Get config for a specific area."""
@@ -454,6 +458,7 @@ class ContactSensorConfig:
             "id": self.id,
             "name": self.name,
             "areas": [a.to_dict() for a in self.areas],
+            "inactive": self.inactive,
         }
         if self.device_id:
             result["device_id"] = self.device_id
@@ -468,6 +473,7 @@ class ContactSensorConfig:
             name=data.get("name", ""),
             areas=areas,
             device_id=data.get("device_id"),
+            inactive=data.get("inactive", False),
         )
 
 
