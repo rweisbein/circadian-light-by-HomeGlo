@@ -749,7 +749,8 @@ class CircadianLightPrimitives:
         area_id: str,
         duration_seconds: int,
         boost_amount: int,
-        source: str = "motion_sensor"
+        source: str = "motion_sensor",
+        lights_were_off: bool = None
     ):
         """Temporarily boost brightness for an area.
 
@@ -768,6 +769,9 @@ class CircadianLightPrimitives:
             duration_seconds: How long the boost lasts (0 = forever)
             boost_amount: Brightness percentage points to add (0-100)
             source: Source of the action (e.g., "motion_sensor", "contact_sensor")
+            lights_were_off: If provided, use this instead of checking current light state.
+                This is useful when boost is called after motion_on_off, which already
+                turned the lights on - we need to know the state BEFORE motion_on_off ran.
         """
         is_forever = duration_seconds == 0
         logger.info(f"[{source}] bright_boost for area {area_id}, duration={'forever' if is_forever else f'{duration_seconds}s'}, boost={boost_amount}%")
@@ -808,7 +812,11 @@ class CircadianLightPrimitives:
             return
 
         # Not currently boosted - start new boost
-        was_on = await self.client.any_lights_on_in_area([area_id])
+        # Use provided lights_were_off if available (e.g., when called after motion_on_off)
+        if lights_were_off is not None:
+            was_on = not lights_were_off
+        else:
+            was_on = await self.client.any_lights_on_in_area([area_id])
 
         # Calculate circadian values
         config = self._get_config(area_id)

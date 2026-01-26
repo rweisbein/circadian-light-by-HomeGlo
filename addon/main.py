@@ -424,6 +424,9 @@ class HomeAssistantWebSocketClient:
             logger.debug(f"[Motion] Area {area_id}: mode={mode}, boost={area_config.boost_enabled}, duration={duration}")
 
             if new_state == "on":
+                # Check light state BEFORE motion_on_off (needed for boost coordination)
+                lights_were_off = not await self.any_lights_on_in_area([area_id])
+
                 # Motion detected - handle mode (power behavior)
                 if mode == "on_off":
                     await self.primitives.motion_on_off(area_id, duration, source="motion_sensor")
@@ -431,9 +434,10 @@ class HomeAssistantWebSocketClient:
                     await self.primitives.motion_on_only(area_id, source="motion_sensor")
 
                 # Handle boost (brightness behavior) - independent of mode
+                # Pass lights_were_off so boost knows the state BEFORE motion_on_off ran
                 if area_config.boost_enabled:
                     boost_amount = area_config.boost_brightness
-                    await self.primitives.bright_boost(area_id, duration, boost_amount, source="motion_sensor")
+                    await self.primitives.bright_boost(area_id, duration, boost_amount, source="motion_sensor", lights_were_off=lights_were_off)
 
             # Note: For on_off, the timer is managed via motion_expires_at state
             # When motion clears, we don't need to do anything - the timer continues
@@ -498,6 +502,9 @@ class HomeAssistantWebSocketClient:
 
             logger.debug(f"[ZHA Motion] Area {area_id}: mode={mode}, boost={area_config.boost_enabled}, duration={duration}")
 
+            # Check light state BEFORE motion_on_off (needed for boost coordination)
+            lights_were_off = not await self.any_lights_on_in_area([area_id])
+
             # Handle mode (power behavior)
             if mode == "on_off":
                 await self.primitives.motion_on_off(area_id, duration, source="motion_sensor")
@@ -505,9 +512,10 @@ class HomeAssistantWebSocketClient:
                 await self.primitives.motion_on_only(area_id, source="motion_sensor")
 
             # Handle boost (brightness behavior) - independent of mode
+            # Pass lights_were_off so boost knows the state BEFORE motion_on_off ran
             if area_config.boost_enabled:
                 boost_amount = area_config.boost_brightness
-                await self.primitives.bright_boost(area_id, duration, boost_amount, source="motion_sensor")
+                await self.primitives.bright_boost(area_id, duration, boost_amount, source="motion_sensor", lights_were_off=lights_were_off)
 
     async def _handle_contact_event(self, entity_id: str, new_state: str, old_state: str) -> None:
         """Handle a contact sensor state change (door/window open/close).
@@ -564,6 +572,9 @@ class HomeAssistantWebSocketClient:
             logger.debug(f"[Contact] Area {area_id}: mode={mode}, boost={area_config.boost_enabled}, duration={duration}")
 
             if new_state == "on":
+                # Check light state BEFORE motion_on_off (needed for boost coordination)
+                lights_were_off = not await self.any_lights_on_in_area([area_id])
+
                 # Contact opened - handle mode (power behavior)
                 if mode == "on_off":
                     await self.primitives.motion_on_off(area_id, duration, source="contact_sensor")
@@ -571,9 +582,10 @@ class HomeAssistantWebSocketClient:
                     await self.primitives.motion_on_only(area_id, source="contact_sensor")
 
                 # Handle boost (brightness behavior) - independent of mode
+                # Pass lights_were_off so boost knows the state BEFORE motion_on_off ran
                 if area_config.boost_enabled:
                     boost_amount = area_config.boost_brightness
-                    await self.primitives.bright_boost(area_id, duration, boost_amount, source="contact_sensor")
+                    await self.primitives.bright_boost(area_id, duration, boost_amount, source="contact_sensor", lights_were_off=lights_were_off)
 
             else:
                 # Contact closed - handle close behaviors

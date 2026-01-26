@@ -1,5 +1,15 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.139
+**Fix on_off + boost race condition**
+
+- Fixed: When motion sensor has both on_off mode and boost enabled, boost now correctly
+  tracks whether lights were off before motion detection
+- Previously, `motion_on_off` turned lights on first, then `bright_boost` checked state
+  and incorrectly saw lights as already on
+- Now the light state is captured before motion_on_off runs and passed to bright_boost
+- This ensures boost correctly turns lights off when timer expires if they started off
+
 ## 6.9.133
 **Fix Docker cache preventing integration updates**
 
