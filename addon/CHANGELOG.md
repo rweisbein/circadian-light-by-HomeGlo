@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.145
+**Fix boost two-phase race condition with HA state**
+
+- Fixed: Boost still flashed because HA state hadn't updated after lights_on
+- The `any_lights_on_in_area` check returned `off` due to race condition
+- Now: if `lights_were_off` is provided, we KNOW lights_on just ran, so lights are on
+- Don't query HA state when we already know the answer
+
 ## 6.9.144
 **Fix light flash when boost runs after lights_on**
 

@@ -817,12 +817,13 @@ class CircadianLightPrimitives:
         # - Otherwise check current state
         if lights_were_off is not None:
             started_from_off = lights_were_off
+            # If lights_were_off is provided, we're being called right after lights_on.
+            # Lights are NOW on (either lights_on just turned them on, or they were already on).
+            # Don't trust HA state (race condition) - we know lights are on.
+            lights_currently_on = True
         else:
             started_from_off = not await self.client.any_lights_on_in_area([area_id])
-
-        # For two-phase turn-on decision, always check CURRENT light state
-        # (lights_on may have already turned them on)
-        lights_currently_on = await self.client.any_lights_on_in_area([area_id])
+            lights_currently_on = not started_from_off
 
         # Calculate circadian values
         config = self._get_config(area_id)
