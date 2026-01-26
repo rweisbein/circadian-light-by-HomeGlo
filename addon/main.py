@@ -82,6 +82,7 @@ class HomeAssistantWebSocketClient:
         # Light capability cache for color mode detection
         self.light_color_modes: Dict[str, Set[str]] = {}  # entity_id -> set of supported color modes
         self.area_lights: Dict[str, List[str]] = {}  # area_id -> list of light entity_ids
+        self.hue_lights: Set[str] = set()  # entity_ids of Hue-connected lights (skip 2-step for these)
 
         # Motion sensor cache for event handling
         # Maps entity_id -> device_id (used to look up motion sensor config)
@@ -370,6 +371,27 @@ class HomeAssistantWebSocketClient:
             if entity:
                 return entity
         return None
+
+    def is_all_hue_area(self, area_id: str) -> bool:
+        """Check if ALL lights in an area are Hue-connected.
+
+        Hue hub handles color transitions internally, so areas with ONLY Hue lights
+        don't need the 2-step turn-on workaround that ZHA lights require.
+
+        If an area has mixed lights (Hue + ZHA), we still do 2-step for all
+        since the ZHA lights need it (Hue lights won't be harmed by it).
+
+        Args:
+            area_id: The area ID to check
+
+        Returns:
+            True if ALL lights in the area are Hue-connected, False if any are non-Hue
+        """
+        lights = self.area_lights.get(area_id, [])
+        if not lights:
+            return False
+        # All lights must be Hue-connected
+        return all(light in self.hue_lights for light in lights)
 
     # =========================================================================
     # Motion Sensor Event Handling
@@ -1796,7 +1818,19 @@ class HomeAssistantWebSocketClient:
         # Clear existing caches
         self.light_color_modes.clear()
         self.area_lights.clear()
+        self.hue_lights.clear()
         hue_groups_skipped = 0
+
+        # Build device_id -> is_hue mapping from device identifiers
+        hue_device_ids: Set[str] = set()
+        for device in devices:
+            if isinstance(device, dict):
+                device_id = device.get("id")
+                identifiers = device.get("identifiers", [])
+                for identifier in identifiers:
+                    if isinstance(identifier, list) and len(identifier) >= 2 and identifier[0] == "hue":
+                        hue_device_ids.add(device_id)
+                        break
 
         # Process light entities
         for entity in entities:
@@ -1808,11 +1842,10 @@ class HomeAssistantWebSocketClient:
                 continue
 
             # Get area - either direct or via device
+            device_id = entity.get("device_id")
             area_id = entity.get("area_id")
-            if not area_id:
-                device_id = entity.get("device_id")
-                if device_id:
-                    area_id = device_area_map.get(device_id)
+            if not area_id and device_id:
+                area_id = device_area_map.get(device_id)
 
             # Skip entities with no area
             if not area_id:
@@ -1825,6 +1858,10 @@ class HomeAssistantWebSocketClient:
                 hue_groups_skipped += 1
                 logger.debug(f"Skipping Hue group entity: {entity_id}")
                 continue
+
+            # Track Hue-connected lights (skip 2-step for these)
+            if device_id and device_id in hue_device_ids:
+                self.hue_lights.add(entity_id)
 
             # Add to area_lights mapping
             if area_id not in self.area_lights:
@@ -1856,7 +1893,8 @@ class HomeAssistantWebSocketClient:
                 brightness_count += 1
             else:
                 onoff_count += 1
-        logger.info(f"  Color: {color_count}, CT: {ct_count}, Brightness-only: {brightness_count}, On/off-only: {onoff_count}, Hue groups skipped: {hue_groups_skipped}")
+        logger.info(f"  Color: {color_count}, CT: {ct_count}, Brightness-only: {brightness_count}, On/off-only: {onoff_count}")
+        logger.info(f"  Hue-connected: {len(self.hue_lights)}, Hue groups skipped: {hue_groups_skipped}")
 
         # Build motion sensor entity_id -> device_id mapping
         # This lets us look up motion sensor config when events come in

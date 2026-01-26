@@ -1876,12 +1876,21 @@ class CircadianLightPrimitives:
         If the color is similar to what it was when turned off, we skip the
         two-phase and just turn on directly.
 
+        Hue hub-connected lights skip 2-step entirely - the Hue hub handles
+        color transitions internally.
+
         Args:
             area_id: The area ID
             brightness: Target brightness percentage (0-100)
             color_temp: Color temperature in Kelvin
             transition: Transition time for phase 2 (brightness ramp)
         """
+        # Hue hub handles color transitions internally - skip 2-step for all-Hue areas
+        if self.client.is_all_hue_area(area_id):
+            logger.debug(f"Turn-on for all-Hue area {area_id} - skipping 2-step (Hue hub handles transitions)")
+            await self._apply_lighting(area_id, brightness, color_temp, include_color=True, transition=transition)
+            return
+
         # Check if 2-step is needed based on CT difference
         last_ct = state.get_last_off_ct(area_id)
         ct_threshold = 500  # Kelvin difference threshold for 2-step

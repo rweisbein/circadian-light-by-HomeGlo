@@ -1,5 +1,14 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.166
+**Skip 2-step turn-on for all-Hue areas**
+
+- Added tracking of Hue-connected lights in capability cache
+- Skip 2-step turn-on for areas where ALL lights are Hue-connected
+- Hue hub handles color transitions internally, no workaround needed
+- Mixed areas (Hue + ZHA) still use 2-step to support ZHA lights
+- Logs now show Hue-connected light count at startup
+
 ## 6.9.165
 **Consolidate light control and add 4-bucket capability split**
 
