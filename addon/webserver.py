@@ -864,7 +864,8 @@ class LightDesignerServer:
 
                 # Build AreaState from zone runtime state
                 area_state = AreaState(
-                    enabled=True,
+                    is_circadian=True,
+                    is_on=True,
                     brightness_mid=runtime_state.get('brightness_mid'),
                     color_mid=runtime_state.get('color_mid'),
                     frozen_at=runtime_state.get('frozen_at'),
