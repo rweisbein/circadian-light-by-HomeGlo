@@ -445,6 +445,16 @@
       outline: 2px solid var(--accent);
     }
 
+    /* Hide number input spinners to prevent accidental value changes on click */
+    .modal-input[type="number"]::-webkit-inner-spin-button,
+    .modal-input[type="number"]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    .modal-input[type="number"] {
+      -moz-appearance: textfield;
+    }
+
     .modal-select {
       width: 100%;
       padding: 10px 12px;
