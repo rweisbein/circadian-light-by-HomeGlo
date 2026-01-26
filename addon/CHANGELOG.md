@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.144
+**Fix light flash when boost runs after lights_on**
+
+- Fixed: Lights would flash (15% → 1% → 55%) when contact/motion sensor triggered boost
+- The issue: boost used `lights_were_off` for two-phase turn-on decision, but lights_on already ran
+- Now boost checks ACTUAL current light state for two-phase decision
+- `lights_were_off` still used for `started_from_off` (correct behavior for boost end)
+
 ## 6.9.143
 **Fix motion/contact sensor save using old 'function' parameter**
 

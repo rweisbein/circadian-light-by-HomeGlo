@@ -812,11 +812,17 @@ class CircadianLightPrimitives:
             return
 
         # Not currently boosted - start new boost
-        # Use provided lights_were_off if available (e.g., when called after motion_on_off)
+        # Determine started_from_off for boost end behavior:
+        # - Use provided lights_were_off if available (state BEFORE motion_on_off ran)
+        # - Otherwise check current state
         if lights_were_off is not None:
-            was_on = not lights_were_off
+            started_from_off = lights_were_off
         else:
-            was_on = await self.client.any_lights_on_in_area([area_id])
+            started_from_off = not await self.client.any_lights_on_in_area([area_id])
+
+        # For two-phase turn-on decision, always check CURRENT light state
+        # (lights_on may have already turned them on)
+        lights_currently_on = await self.client.any_lights_on_in_area([area_id])
 
         # Calculate circadian values
         config = self._get_config(area_id)
@@ -831,7 +837,7 @@ class CircadianLightPrimitives:
 
         # Set boost state
         expires_at = "forever" if is_forever else (datetime.now() + timedelta(seconds=duration_seconds)).isoformat()
-        state.set_boost(area_id, started_from_off=not was_on, expires_at=expires_at, brightness=boost_amount)
+        state.set_boost(area_id, started_from_off=started_from_off, expires_at=expires_at, brightness=boost_amount)
 
         # Enable Circadian Light and set is_on=True
         if not glozone.is_area_in_any_zone(area_id):
@@ -840,7 +846,7 @@ class CircadianLightPrimitives:
 
         # Apply boosted brightness with circadian color temp
         transition = self._get_turn_on_transition()
-        if was_on:
+        if lights_currently_on:
             # Lights already on - just adjust brightness
             await self._apply_lighting(area_id, boosted_brightness, result.color_temp, transition=transition)
         else:
