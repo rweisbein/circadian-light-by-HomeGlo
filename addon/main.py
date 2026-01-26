@@ -428,7 +428,8 @@ class HomeAssistantWebSocketClient:
                 await self.primitives.cancel_motion_warning(area_id, source="motion_sensor")
 
                 # Check light state BEFORE motion_on_off (needed for boost coordination)
-                lights_were_off = not await self.any_lights_on_in_area([area_id])
+                # Use our own state tracking - no need to query HA
+                lights_were_off = not (state.is_circadian(area_id) and state.get_is_on(area_id))
 
                 # Motion detected - handle mode (power behavior)
                 if mode == "on_off":
@@ -509,7 +510,8 @@ class HomeAssistantWebSocketClient:
             await self.primitives.cancel_motion_warning(area_id, source="motion_sensor")
 
             # Check light state BEFORE motion_on_off (needed for boost coordination)
-            lights_were_off = not await self.any_lights_on_in_area([area_id])
+            # Use our own state tracking - no need to query HA
+            lights_were_off = not (state.is_circadian(area_id) and state.get_is_on(area_id))
 
             # Handle mode (power behavior)
             if mode == "on_off":
@@ -582,7 +584,8 @@ class HomeAssistantWebSocketClient:
                 await self.primitives.cancel_motion_warning(area_id, source="contact_sensor")
 
                 # Check light state BEFORE motion_on_off (needed for boost coordination)
-                lights_were_off = not await self.any_lights_on_in_area([area_id])
+                # Use our own state tracking - no need to query HA
+                lights_were_off = not (state.is_circadian(area_id) and state.get_is_on(area_id))
 
                 # Contact opened - handle mode (power behavior)
                 if mode == "on_off":

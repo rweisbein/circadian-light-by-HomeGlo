@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.146
+**Use own state tracking instead of querying HA for light status**
+
+- Removed all `any_lights_on_in_area()` calls in motion/contact handlers
+- Now use `state.is_circadian()` and `state.get_is_on()` for light state
+- Eliminates race conditions - we track state ourselves, no need to query HA
+- Consistent approach: if we're managing the lights, we know their state
+
 ## 6.9.145
 **Fix boost two-phase race condition with HA state**
 

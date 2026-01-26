@@ -814,16 +814,18 @@ class CircadianLightPrimitives:
         # Not currently boosted - start new boost
         # Determine started_from_off for boost end behavior:
         # - Use provided lights_were_off if available (state BEFORE motion_on_off ran)
-        # - Otherwise check current state
+        # - Otherwise use our own state tracking (is_circadian + is_on)
         if lights_were_off is not None:
             started_from_off = lights_were_off
             # If lights_were_off is provided, we're being called right after lights_on.
             # Lights are NOW on (either lights_on just turned them on, or they were already on).
-            # Don't trust HA state (race condition) - we know lights are on.
             lights_currently_on = True
         else:
-            started_from_off = not await self.client.any_lights_on_in_area([area_id])
-            lights_currently_on = not started_from_off
+            # Use our own state tracking - no need to query HA
+            # If area is under circadian control and is_on=True, lights are on
+            is_on = state.is_circadian(area_id) and state.get_is_on(area_id)
+            started_from_off = not is_on
+            lights_currently_on = is_on
 
         # Calculate circadian values
         config = self._get_config(area_id)
