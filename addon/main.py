@@ -414,24 +414,26 @@ class HomeAssistantWebSocketClient:
         # Process each area configured for this sensor
         for area_config in sensor_config.areas:
             area_id = area_config.area_id
-            motion_function = area_config.function
+            mode = area_config.mode
             duration = area_config.duration
 
-            if motion_function == "disabled":
-                logger.debug(f"[Motion] Function disabled for area {area_id}")
+            if mode == "disabled":
+                logger.debug(f"[Motion] Mode disabled for area {area_id}")
                 continue
 
-            logger.debug(f"[Motion] Area {area_id}: function={motion_function}, duration={duration}")
+            logger.debug(f"[Motion] Area {area_id}: mode={mode}, boost={area_config.boost_enabled}, duration={duration}")
 
             if new_state == "on":
-                # Motion detected - trigger based on function
-                if motion_function == "boost":
+                # Motion detected - handle mode (power behavior)
+                if mode == "on_off":
+                    await self.primitives.motion_on_off(area_id, duration, source="motion_sensor")
+                elif mode == "on_only":
+                    await self.primitives.motion_on_only(area_id, source="motion_sensor")
+
+                # Handle boost (brightness behavior) - independent of mode
+                if area_config.boost_enabled:
                     boost_amount = area_config.boost_brightness
                     await self.primitives.bright_boost(area_id, duration, boost_amount, source="motion_sensor")
-                elif motion_function == "on_off":
-                    await self.primitives.motion_on_off(area_id, duration, source="motion_sensor")
-                elif motion_function == "on_only":
-                    await self.primitives.motion_on_only(area_id, source="motion_sensor")
 
             # Note: For on_off, the timer is managed via motion_expires_at state
             # When motion clears, we don't need to do anything - the timer continues
@@ -487,22 +489,25 @@ class HomeAssistantWebSocketClient:
         # Process each area configured for this sensor
         for area_config in sensor_config.areas:
             area_id = area_config.area_id
-            motion_function = area_config.function
+            mode = area_config.mode
             duration = area_config.duration
 
-            if motion_function == "disabled":
-                logger.debug(f"[ZHA Motion] Function disabled for area {area_id}")
+            if mode == "disabled":
+                logger.debug(f"[ZHA Motion] Mode disabled for area {area_id}")
                 continue
 
-            logger.debug(f"[ZHA Motion] Area {area_id}: function={motion_function}, duration={duration}")
+            logger.debug(f"[ZHA Motion] Area {area_id}: mode={mode}, boost={area_config.boost_enabled}, duration={duration}")
 
-            if motion_function == "boost":
+            # Handle mode (power behavior)
+            if mode == "on_off":
+                await self.primitives.motion_on_off(area_id, duration, source="motion_sensor")
+            elif mode == "on_only":
+                await self.primitives.motion_on_only(area_id, source="motion_sensor")
+
+            # Handle boost (brightness behavior) - independent of mode
+            if area_config.boost_enabled:
                 boost_amount = area_config.boost_brightness
                 await self.primitives.bright_boost(area_id, duration, boost_amount, source="motion_sensor")
-            elif motion_function == "on_off":
-                await self.primitives.motion_on_off(area_id, duration, source="motion_sensor")
-            elif motion_function == "on_only":
-                await self.primitives.motion_on_only(area_id, source="motion_sensor")
 
     async def _handle_contact_event(self, entity_id: str, new_state: str, old_state: str) -> None:
         """Handle a contact sensor state change (door/window open/close).
@@ -549,32 +554,36 @@ class HomeAssistantWebSocketClient:
         # Process each area configured for this sensor
         for area_config in sensor_config.areas:
             area_id = area_config.area_id
-            contact_function = area_config.function
+            mode = area_config.mode
             duration = area_config.duration
 
-            if contact_function == "disabled":
-                logger.debug(f"[Contact] Function disabled for area {area_id}")
+            if mode == "disabled":
+                logger.debug(f"[Contact] Mode disabled for area {area_id}")
                 continue
 
-            logger.debug(f"[Contact] Area {area_id}: function={contact_function}, duration={duration}")
+            logger.debug(f"[Contact] Area {area_id}: mode={mode}, boost={area_config.boost_enabled}, duration={duration}")
 
             if new_state == "on":
-                # Contact opened - trigger based on function (same as motion detected)
-                if contact_function == "boost":
-                    boost_amount = area_config.boost_brightness
-                    await self.primitives.bright_boost(area_id, duration, boost_amount, source="contact_sensor")
-                elif contact_function == "on_off":
+                # Contact opened - handle mode (power behavior)
+                if mode == "on_off":
                     await self.primitives.motion_on_off(area_id, duration, source="contact_sensor")
-                elif contact_function == "on_only":
+                elif mode == "on_only":
                     await self.primitives.motion_on_only(area_id, source="contact_sensor")
 
+                # Handle boost (brightness behavior) - independent of mode
+                if area_config.boost_enabled:
+                    boost_amount = area_config.boost_brightness
+                    await self.primitives.bright_boost(area_id, duration, boost_amount, source="contact_sensor")
+
             else:
-                # Contact closed - different from motion (close triggers off for on_off/boost)
-                if contact_function == "boost":
-                    # End boost - turns off if started from off, else returns to circadian
+                # Contact closed - handle close behaviors
+                # End boost first (if enabled)
+                if area_config.boost_enabled:
                     await self.primitives.end_boost(area_id, source="contact_sensor")
                     logger.info(f"[Contact] Closed: ended boost for area {area_id}")
-                elif contact_function == "on_off":
+
+                # Then handle mode-based off behavior
+                if mode == "on_off":
                     # Turn off lights and disable circadian
                     await self.primitives.contact_off(area_id, source="contact_sensor")
                 # on_only: ignore close event (lights stay on until manually turned off)

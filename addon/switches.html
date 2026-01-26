@@ -683,7 +683,7 @@
     let editingControlId = null;
     let editingDeviceId = null;
     let editingScopes = [];
-    let editingMotionAreas = [];  // For motion sensors: [{area_id, function, duration}, ...]
+    let editingMotionAreas = [];  // For motion/contact sensors: [{area_id, mode, duration, boost_enabled, boost_brightness}, ...]
     let editingControl = null;
     let editingInactive = false;  // For sensors: whether sensor is inactive
     let sortColumn = 'status';
@@ -1263,18 +1263,19 @@
         return;
       }
 
-      const functionLabels = {
+      const modeLabels = {
         'on_only': 'On only',
         'on_off': 'On/Off',
-        'boost': 'Boost',
         'disabled': 'Disabled'
       };
 
       container.innerHTML = editingMotionAreas.map((areaConfig, idx) => {
         const durationMinutes = (areaConfig.duration || 60) / 60;
         const hasAreaSelected = areaConfig.area_id && areaConfig.area_id !== '';
-        const showDuration = hasAreaSelected && (areaConfig.function === 'on_off' || areaConfig.function === 'boost');
-        const showBoostBrightness = hasAreaSelected && areaConfig.function === 'boost';
+        // Migration: convert old 'function' to new 'mode' + 'boost_enabled'
+        const mode = areaConfig.mode || (areaConfig.function === 'boost' ? 'on_off' : areaConfig.function) || 'on_off';
+        const boostEnabled = areaConfig.boost_enabled !== undefined ? areaConfig.boost_enabled : (areaConfig.function === 'boost');
+        const showDuration = hasAreaSelected && mode === 'on_off';
         const boostBrightness = areaConfig.boost_brightness || 50;
 
         return `
@@ -1291,9 +1292,9 @@
             ${hasAreaSelected ? `
             <div class="scope-editor-body">
               <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-                <select class="modal-select" style="width: auto;" onchange="updateMotionArea(${idx}, 'function', this.value)">
-                  ${Object.entries(functionLabels).map(([value, label]) => `
-                    <option value="${value}" ${areaConfig.function === value ? 'selected' : ''}>${label}</option>
+                <select class="modal-select" style="width: auto;" onchange="updateMotionArea(${idx}, 'mode', this.value)">
+                  ${Object.entries(modeLabels).map(([value, label]) => `
+                    <option value="${value}" ${mode === value ? 'selected' : ''}>${label}</option>
                   `).join('')}
                 </select>
                 <div style="display: ${showDuration ? 'flex' : 'none'}; align-items: center; gap: 6px;">
@@ -1301,7 +1302,12 @@
                     onchange="updateMotionArea(${idx}, 'duration', Math.round(parseFloat(this.value) * 60))">
                   <span style="color: var(--muted); font-size: 0.85rem;">min</span>
                 </div>
-                <div style="display: ${showBoostBrightness ? 'flex' : 'none'}; align-items: center; gap: 6px;">
+                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                  <input type="checkbox" ${boostEnabled ? 'checked' : ''}
+                    onchange="updateMotionArea(${idx}, 'boost_enabled', this.checked)">
+                  <span style="font-size: 0.85rem;">Boost</span>
+                </label>
+                <div style="display: ${boostEnabled ? 'flex' : 'none'}; align-items: center; gap: 6px;">
                   <span style="color: var(--muted); font-size: 0.85rem;">+</span>
                   <input type="number" class="modal-input" style="width: 60px;" value="${boostBrightness}" min="5" max="100" step="5"
                     onchange="updateMotionArea(${idx}, 'boost_brightness', parseInt(this.value))">
@@ -1318,8 +1324,9 @@
     function addMotionArea() {
       editingMotionAreas.push({
         area_id: '',  // Start with placeholder, user must select
-        function: 'on_off',
+        mode: 'on_off',
         duration: 60,
+        boost_enabled: false,
         boost_brightness: 50
       });
       renderMotionAreasEditor();

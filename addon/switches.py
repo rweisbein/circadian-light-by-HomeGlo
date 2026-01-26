@@ -324,28 +324,64 @@ class SwitchRuntimeState:
 
 @dataclass
 class MotionAreaConfig:
-    """Config for one area controlled by a motion sensor."""
+    """Config for one area controlled by a motion sensor.
+
+    Mode controls power behavior:
+    - on_only: Turn on lights, never auto-off
+    - on_off: Turn on lights, auto-off after duration
+    - disabled: Sensor ignored for this area
+
+    Boost is independent - can be combined with any mode:
+    - boost_enabled: Whether to temporarily increase brightness
+    - boost_brightness: Percentage points to add
+    """
     area_id: str
-    function: str = "on_off"  # on_only, on_off, boost, disabled
-    duration: int = 60  # seconds, used for on_off and boost (0 = forever)
-    boost_brightness: int = 50  # percentage points to add for boost function
+    mode: str = "on_off"  # on_only, on_off, disabled
+    duration: int = 60  # seconds for on_off auto-off timer
+    boost_enabled: bool = False  # whether to boost brightness
+    boost_brightness: int = 50  # percentage points to add when boosting
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return {
             "area_id": self.area_id,
-            "function": self.function,
+            "mode": self.mode,
             "duration": self.duration,
+            "boost_enabled": self.boost_enabled,
             "boost_brightness": self.boost_brightness,
         }
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "MotionAreaConfig":
-        """Create from dictionary."""
+        """Create from dictionary, with migration from old 'function' format."""
+        # Migration: old format had 'function' with 'boost' as a separate option
+        if "function" in data and "mode" not in data:
+            old_function = data.get("function", "on_off")
+            if old_function == "boost":
+                # boost was its own mode - convert to on_off + boost_enabled
+                return cls(
+                    area_id=data.get("area_id", ""),
+                    mode="on_off",
+                    duration=data.get("duration", 60),
+                    boost_enabled=True,
+                    boost_brightness=data.get("boost_brightness", 50),
+                )
+            else:
+                # on_only, on_off, disabled - just rename function to mode
+                return cls(
+                    area_id=data.get("area_id", ""),
+                    mode=old_function,
+                    duration=data.get("duration", 60),
+                    boost_enabled=False,
+                    boost_brightness=data.get("boost_brightness", 50),
+                )
+
+        # New format
         return cls(
             area_id=data.get("area_id", ""),
-            function=data.get("function", "on_off"),
+            mode=data.get("mode", "on_off"),
             duration=data.get("duration", 60),
+            boost_enabled=data.get("boost_enabled", False),
             boost_brightness=data.get("boost_brightness", 50),
         )
 
@@ -403,31 +439,62 @@ class MotionSensorConfig:
 class ContactAreaConfig:
     """Config for one area controlled by a contact sensor (e.g., door/window sensor).
 
-    Contact sensors differ from motion sensors:
-    - For on_off/boost: door CLOSE triggers circadian_off (primary), timer is fallback
-    - For on_only: door CLOSE is ignored (same as motion)
+    Mode controls power behavior:
+    - on_only: Turn on lights on open, ignore close
+    - on_off: Turn on on open, turn off on close (or after duration)
+    - disabled: Sensor ignored for this area
+
+    Boost is independent - can be combined with any mode:
+    - boost_enabled: Whether to temporarily increase brightness
+    - boost_brightness: Percentage points to add
     """
     area_id: str
-    function: str = "on_off"  # on_only, on_off, boost, disabled
-    duration: int = 60  # seconds, used for on_off and boost (0 = forever)
-    boost_brightness: int = 50  # percentage points to add for boost function
+    mode: str = "on_off"  # on_only, on_off, disabled
+    duration: int = 60  # seconds, fallback timer for on_off (0 = forever, rely on close)
+    boost_enabled: bool = False  # whether to boost brightness
+    boost_brightness: int = 50  # percentage points to add when boosting
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return {
             "area_id": self.area_id,
-            "function": self.function,
+            "mode": self.mode,
             "duration": self.duration,
+            "boost_enabled": self.boost_enabled,
             "boost_brightness": self.boost_brightness,
         }
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "ContactAreaConfig":
-        """Create from dictionary."""
+        """Create from dictionary, with migration from old 'function' format."""
+        # Migration: old format had 'function' with 'boost' as a separate option
+        if "function" in data and "mode" not in data:
+            old_function = data.get("function", "on_off")
+            if old_function == "boost":
+                # boost was its own mode - convert to on_off + boost_enabled
+                return cls(
+                    area_id=data.get("area_id", ""),
+                    mode="on_off",
+                    duration=data.get("duration", 60),
+                    boost_enabled=True,
+                    boost_brightness=data.get("boost_brightness", 50),
+                )
+            else:
+                # on_only, on_off, disabled - just rename function to mode
+                return cls(
+                    area_id=data.get("area_id", ""),
+                    mode=old_function,
+                    duration=data.get("duration", 60),
+                    boost_enabled=False,
+                    boost_brightness=data.get("boost_brightness", 50),
+                )
+
+        # New format
         return cls(
             area_id=data.get("area_id", ""),
-            function=data.get("function", "on_off"),
+            mode=data.get("mode", "on_off"),
             duration=data.get("duration", 60),
+            boost_enabled=data.get("boost_enabled", False),
             boost_brightness=data.get("boost_brightness", 50),
         )
 
