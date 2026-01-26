@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.149
+**Store last_off_ct in all turn-off paths for smart two-step**
+
+- Fixed: Two-step turn-on happened even when CT was the same (should be skipped)
+- Added `set_last_off_ct` to `end_boost`, `contact_off`, and `end_motion_on_off`
+- Now when door closes and reopens quickly, two-step is skipped (CT unchanged)
+
 ## 6.9.148
 **Combined turn-on with boost to eliminate intermediate flash**
 

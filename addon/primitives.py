@@ -939,6 +939,17 @@ class CircadianLightPrimitives:
 
         if started_from_off:
             # Lights were off when boost started - turn off and set is_on=False
+            # Store CT first for smart 2-step on next turn-on
+            try:
+                config = self._get_config(area_id)
+                area_state = self._get_area_state(area_id)
+                hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
+                sun_times = self.client._get_sun_times() if hasattr(self.client, '_get_sun_times') else None
+                result = CircadianLight.calculate_lighting(hour, config, area_state, sun_times=sun_times)
+                state.set_last_off_ct(area_id, result.color_temp)
+            except Exception as e:
+                logger.warning(f"Could not store CT for area {area_id}: {e}")
+
             transition = self._get_turn_off_transition()
             await self._turn_off_area(area_id, transition=transition)
             state.set_is_on(area_id, False)
@@ -1099,6 +1110,17 @@ class CircadianLightPrimitives:
         # Clear motion timer
         state.clear_motion_expires(area_id)
 
+        # Store CT before turning off for smart 2-step on next turn-on
+        try:
+            config = self._get_config(area_id)
+            area_state = self._get_area_state(area_id)
+            hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
+            sun_times = self.client._get_sun_times() if hasattr(self.client, '_get_sun_times') else None
+            result = CircadianLight.calculate_lighting(hour, config, area_state, sun_times=sun_times)
+            state.set_last_off_ct(area_id, result.color_temp)
+        except Exception as e:
+            logger.warning(f"Could not store CT for area {area_id}: {e}")
+
         # Turn off (set is_on=False, Circadian enforces off state)
         transition = self._get_turn_off_transition()
         await self._turn_off_area(area_id, transition=transition)
@@ -1238,6 +1260,17 @@ class CircadianLightPrimitives:
         """
         # Clear any motion timer
         state.clear_motion_expires(area_id)
+
+        # Store CT before turning off for smart 2-step on next turn-on
+        try:
+            config = self._get_config(area_id)
+            area_state = self._get_area_state(area_id)
+            hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
+            sun_times = self.client._get_sun_times() if hasattr(self.client, '_get_sun_times') else None
+            result = CircadianLight.calculate_lighting(hour, config, area_state, sun_times=sun_times)
+            state.set_last_off_ct(area_id, result.color_temp)
+        except Exception as e:
+            logger.warning(f"Could not store CT for area {area_id}: {e}")
 
         # Turn off (set is_on=False, Circadian enforces off state)
         transition = self._get_turn_off_transition()
