@@ -1750,6 +1750,7 @@ class HomeAssistantWebSocketClient:
         # Clear existing caches
         self.light_color_modes.clear()
         self.area_lights.clear()
+        hue_groups_skipped = 0
 
         # Process light entities
         for entity in entities:
@@ -1771,14 +1772,20 @@ class HomeAssistantWebSocketClient:
             if not area_id:
                 continue
 
+            # Skip Hue room/zone groups - they duplicate control of individual lights
+            state = self.cached_states.get(entity_id, {})
+            attributes = state.get("attributes", {})
+            if attributes.get("is_hue_group"):
+                hue_groups_skipped += 1
+                logger.debug(f"Skipping Hue group entity: {entity_id}")
+                continue
+
             # Add to area_lights mapping
             if area_id not in self.area_lights:
                 self.area_lights[area_id] = []
             self.area_lights[area_id].append(entity_id)
 
-            # Get color modes from cached state
-            state = self.cached_states.get(entity_id, {})
-            attributes = state.get("attributes", {})
+            # Get color modes from cached state (reuse attributes from above)
             supported_modes = attributes.get("supported_color_modes", [])
 
             if supported_modes:
@@ -1792,7 +1799,7 @@ class HomeAssistantWebSocketClient:
         # Log summary of color capabilities
         color_capable = sum(1 for modes in self.light_color_modes.values() if "xy" in modes or "rgb" in modes or "hs" in modes)
         ct_only = len(self.light_color_modes) - color_capable
-        logger.info(f"  Color-capable lights: {color_capable}, CT-only lights: {ct_only}")
+        logger.info(f"  Color-capable: {color_capable}, CT-only: {ct_only}, Hue groups skipped: {hue_groups_skipped}")
 
         # Build motion sensor entity_id -> device_id mapping
         # This lets us look up motion sensor config when events come in
