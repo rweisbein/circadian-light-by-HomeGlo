@@ -1,5 +1,14 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.148
+**Combined turn-on with boost to eliminate intermediate flash**
+
+- Fixed: Lights flashed 1% → 11% → 51% when motion/contact triggered with boost
+- Now goes directly from 1% → final boosted brightness (e.g., 51%)
+- Added `boost_brightness` and `boost_duration` params to `lights_on`, `motion_on_off`, `motion_on_only`
+- Motion/contact handlers pass boost through instead of calling separately
+- `bright_boost` still works standalone for button presses or service calls
+
 ## 6.9.147
 **Skip two-step turn-on when lights are already on**
 

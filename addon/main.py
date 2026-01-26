@@ -427,21 +427,22 @@ class HomeAssistantWebSocketClient:
                 # Cancel any active warning first (restores brightness)
                 await self.primitives.cancel_motion_warning(area_id, source="motion_sensor")
 
-                # Check light state BEFORE motion_on_off (needed for boost coordination)
-                # Use our own state tracking - no need to query HA
-                lights_were_off = not (state.is_circadian(area_id) and state.get_is_on(area_id))
+                # Get boost params if enabled (passed to motion_on_off for combined turn-on)
+                boost_brightness = area_config.boost_brightness if area_config.boost_enabled else None
+                boost_duration = duration if area_config.boost_enabled else None
 
                 # Motion detected - handle mode (power behavior)
+                # Boost is passed through to avoid intermediate brightness flash
                 if mode == "on_off":
-                    await self.primitives.motion_on_off(area_id, duration, source="motion_sensor")
+                    await self.primitives.motion_on_off(
+                        area_id, duration, source="motion_sensor",
+                        boost_brightness=boost_brightness, boost_duration=boost_duration
+                    )
                 elif mode == "on_only":
-                    await self.primitives.motion_on_only(area_id, source="motion_sensor")
-
-                # Handle boost (brightness behavior) - independent of mode
-                # Pass lights_were_off so boost knows the state BEFORE motion_on_off ran
-                if area_config.boost_enabled:
-                    boost_amount = area_config.boost_brightness
-                    await self.primitives.bright_boost(area_id, duration, boost_amount, source="motion_sensor", lights_were_off=lights_were_off)
+                    await self.primitives.motion_on_only(
+                        area_id, source="motion_sensor",
+                        boost_brightness=boost_brightness, boost_duration=boost_duration
+                    )
 
             # Note: For on_off, the timer is managed via motion_expires_at state
             # When motion clears, we don't need to do anything - the timer continues
@@ -509,21 +510,22 @@ class HomeAssistantWebSocketClient:
             # Cancel any active warning first (restores brightness)
             await self.primitives.cancel_motion_warning(area_id, source="motion_sensor")
 
-            # Check light state BEFORE motion_on_off (needed for boost coordination)
-            # Use our own state tracking - no need to query HA
-            lights_were_off = not (state.is_circadian(area_id) and state.get_is_on(area_id))
+            # Get boost params if enabled (passed to motion_on_off for combined turn-on)
+            boost_brightness = area_config.boost_brightness if area_config.boost_enabled else None
+            boost_duration = duration if area_config.boost_enabled else None
 
             # Handle mode (power behavior)
+            # Boost is passed through to avoid intermediate brightness flash
             if mode == "on_off":
-                await self.primitives.motion_on_off(area_id, duration, source="motion_sensor")
+                await self.primitives.motion_on_off(
+                    area_id, duration, source="motion_sensor",
+                    boost_brightness=boost_brightness, boost_duration=boost_duration
+                )
             elif mode == "on_only":
-                await self.primitives.motion_on_only(area_id, source="motion_sensor")
-
-            # Handle boost (brightness behavior) - independent of mode
-            # Pass lights_were_off so boost knows the state BEFORE motion_on_off ran
-            if area_config.boost_enabled:
-                boost_amount = area_config.boost_brightness
-                await self.primitives.bright_boost(area_id, duration, boost_amount, source="motion_sensor", lights_were_off=lights_were_off)
+                await self.primitives.motion_on_only(
+                    area_id, source="motion_sensor",
+                    boost_brightness=boost_brightness, boost_duration=boost_duration
+                )
 
     async def _handle_contact_event(self, entity_id: str, new_state: str, old_state: str) -> None:
         """Handle a contact sensor state change (door/window open/close).
@@ -583,21 +585,22 @@ class HomeAssistantWebSocketClient:
                 # Cancel any active warning first (restores brightness)
                 await self.primitives.cancel_motion_warning(area_id, source="contact_sensor")
 
-                # Check light state BEFORE motion_on_off (needed for boost coordination)
-                # Use our own state tracking - no need to query HA
-                lights_were_off = not (state.is_circadian(area_id) and state.get_is_on(area_id))
+                # Get boost params if enabled (passed to motion_on_off for combined turn-on)
+                boost_brightness = area_config.boost_brightness if area_config.boost_enabled else None
+                boost_duration = duration if area_config.boost_enabled else None
 
                 # Contact opened - handle mode (power behavior)
+                # Boost is passed through to avoid intermediate brightness flash
                 if mode == "on_off":
-                    await self.primitives.motion_on_off(area_id, duration, source="contact_sensor")
+                    await self.primitives.motion_on_off(
+                        area_id, duration, source="contact_sensor",
+                        boost_brightness=boost_brightness, boost_duration=boost_duration
+                    )
                 elif mode == "on_only":
-                    await self.primitives.motion_on_only(area_id, source="contact_sensor")
-
-                # Handle boost (brightness behavior) - independent of mode
-                # Pass lights_were_off so boost knows the state BEFORE motion_on_off ran
-                if area_config.boost_enabled:
-                    boost_amount = area_config.boost_brightness
-                    await self.primitives.bright_boost(area_id, duration, boost_amount, source="contact_sensor", lights_were_off=lights_were_off)
+                    await self.primitives.motion_on_only(
+                        area_id, source="contact_sensor",
+                        boost_brightness=boost_brightness, boost_duration=boost_duration
+                    )
 
             else:
                 # Contact closed - handle close behaviors

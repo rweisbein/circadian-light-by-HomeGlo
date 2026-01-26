@@ -498,17 +498,34 @@ class CircadianLightPrimitives:
     # Lights On / Off / Toggle - Control light state under Circadian management
     # -------------------------------------------------------------------------
 
-    async def lights_on(self, area_id: str, source: str = "service_call"):
+    async def lights_on(
+        self,
+        area_id: str,
+        source: str = "service_call",
+        boost_brightness: int = None,
+        boost_duration: int = None,
+    ):
         """Turn on lights with Circadian values and enable Circadian control.
 
         If is_circadian was False, resets all runtime state (midpoints, frozen_at, etc.)
         before enabling. Sets is_on=True and applies circadian lighting.
 
+        Optionally applies boost in the same operation to avoid intermediate brightness
+        steps (e.g., going directly to 51% instead of 11% then 51%).
+
         Args:
             area_id: The area ID to control
             source: Source of the action
+            boost_brightness: Optional boost percentage to add (0-100). If provided,
+                boost_duration must also be provided.
+            boost_duration: Optional boost duration in seconds (0 = forever). Required
+                if boost_brightness is provided.
         """
-        logger.info(f"[{source}] lights_on for area {area_id}")
+        has_boost = boost_brightness is not None and boost_duration is not None
+        if has_boost:
+            logger.info(f"[{source}] lights_on for area {area_id} with boost={boost_brightness}%, duration={'forever' if boost_duration == 0 else f'{boost_duration}s'}")
+        else:
+            logger.info(f"[{source}] lights_on for area {area_id}")
 
         # Ensure area is in a zone (add to default zone if not)
         if not glozone.is_area_in_any_zone(area_id):
@@ -530,17 +547,35 @@ class CircadianLightPrimitives:
         result = CircadianLight.calculate_lighting(hour, config, area_state, sun_times=sun_times)
         transition = self._get_turn_on_transition()
 
+        # Calculate final brightness (with boost if provided)
+        if has_boost:
+            final_brightness = min(100, result.brightness + boost_brightness)
+        else:
+            final_brightness = result.brightness
+
         if lights_were_on:
             # Lights already on - just adjust, no two-step needed
-            await self._apply_lighting(area_id, result.brightness, result.color_temp, include_color=True, transition=transition)
+            await self._apply_lighting(area_id, final_brightness, result.color_temp, include_color=True, transition=transition)
         else:
             # Lights were off - use two-phase turn-on to avoid color jump
-            await self._apply_lighting_turn_on(area_id, result.brightness, result.color_temp, transition=transition)
+            await self._apply_lighting_turn_on(area_id, final_brightness, result.color_temp, transition=transition)
 
-        logger.info(
-            f"lights_on for area {area_id}: {result.brightness}%, {result.color_temp}K "
-            f"(hour={hour:.2f}, was_circadian={was_circadian}, lights_were_on={lights_were_on})"
-        )
+        # Set boost state if boost was provided
+        if has_boost:
+            is_forever = boost_duration == 0
+            expires_at = "forever" if is_forever else (datetime.now() + timedelta(seconds=boost_duration)).isoformat()
+            # started_from_off is True since we just turned lights on (not already on case is handled by bright_boost directly)
+            started_from_off = not lights_were_on
+            state.set_boost(area_id, started_from_off=started_from_off, expires_at=expires_at, brightness=boost_brightness)
+            logger.info(
+                f"lights_on for area {area_id}: {result.brightness}% + {boost_brightness}% = {final_brightness}%, "
+                f"{result.color_temp}K (hour={hour:.2f}, boost expires={expires_at})"
+            )
+        else:
+            logger.info(
+                f"lights_on for area {area_id}: {final_brightness}%, {result.color_temp}K "
+                f"(hour={hour:.2f}, was_circadian={was_circadian}, lights_were_on={lights_were_on})"
+            )
 
     async def lights_off(self, area_id: str, source: str = "service_call"):
         """Turn off lights and set is_on=False (Circadian enforces off state).
@@ -935,26 +970,50 @@ class CircadianLightPrimitives:
     # Motion Sensor Actions
     # -------------------------------------------------------------------------
 
-    async def motion_on_only(self, area_id: str, source: str = "motion_sensor"):
+    async def motion_on_only(
+        self,
+        area_id: str,
+        source: str = "motion_sensor",
+        boost_brightness: int = None,
+        boost_duration: int = None,
+    ):
         """Turn on lights if off, do nothing if already on.
 
         on_only: Lights turn on with motion, stay on until manually turned off.
 
+        Optionally applies boost in the same operation to avoid intermediate brightness
+        steps when turning on.
+
         Args:
             area_id: The area ID to control
             source: Source of the action
+            boost_brightness: Optional boost percentage to add (0-100)
+            boost_duration: Optional boost duration in seconds (0 = forever)
         """
+        has_boost = boost_brightness is not None and boost_duration is not None
+
         # Check if area is already on under circadian control
         if state.is_circadian(area_id) and state.get_is_on(area_id):
             logger.debug(f"[{source}] motion_on_only: area {area_id} already on, skipping")
+            # If boost requested, apply it (lights already on, so no flash issue)
+            if has_boost:
+                await self.bright_boost(area_id, boost_duration, boost_brightness, source=source)
             return
 
         logger.info(f"[{source}] motion_on_only: turning on area {area_id}")
 
         # Turn on with circadian values (enables circadian control if needed)
-        await self.lights_on(area_id, source=source)
+        # Pass boost params so we go directly to final brightness (no intermediate step)
+        await self.lights_on(area_id, source=source, boost_brightness=boost_brightness, boost_duration=boost_duration)
 
-    async def motion_on_off(self, area_id: str, duration_seconds: int, source: str = "motion_sensor"):
+    async def motion_on_off(
+        self,
+        area_id: str,
+        duration_seconds: int,
+        source: str = "motion_sensor",
+        boost_brightness: int = None,
+        boost_duration: int = None,
+    ):
         """Turn on lights with timer, auto-off when timer expires.
 
         on_off behavior:
@@ -963,12 +1022,18 @@ class CircadianLightPrimitives:
         - If room is on from other source: do nothing
         - duration_seconds=0 means "forever" (never auto-off, like on_only but with timer state)
 
+        Optionally applies boost in the same operation to avoid intermediate brightness
+        steps when turning on (e.g., going directly to 51% instead of 11% then 51%).
+
         Args:
             area_id: The area ID to control
             duration_seconds: How long before auto-off (0 = forever/never)
             source: Source of the action
+            boost_brightness: Optional boost percentage to add (0-100)
+            boost_duration: Optional boost duration in seconds (0 = forever)
         """
         is_forever = duration_seconds == 0
+        has_boost = boost_brightness is not None and boost_duration is not None
 
         # Check if area has an active motion timer (was turned on by on_off motion)
         if state.has_motion_timer(area_id):
@@ -994,11 +1059,18 @@ class CircadianLightPrimitives:
                     logger.debug(f"[{source}] motion_on_off: extended timer for area {area_id} to {new_expires}")
                 else:
                     logger.debug(f"[{source}] motion_on_off: keeping existing timer ({current_remaining:.0f}s remaining > {duration_seconds}s new)")
+
+            # If boost requested, apply/extend it (lights already on, so no flash issue)
+            if has_boost:
+                await self.bright_boost(area_id, boost_duration, boost_brightness, source=source)
             return
 
         # Check if area is already on under circadian control (but not from on_off motion)
         if state.is_circadian(area_id) and state.get_is_on(area_id):
             logger.debug(f"[{source}] motion_on_off: area {area_id} already on (not from motion), skipping")
+            # If boost requested, apply it (lights already on, so no flash issue)
+            if has_boost:
+                await self.bright_boost(area_id, boost_duration, boost_brightness, source=source)
             return
 
         logger.info(f"[{source}] motion_on_off: turning on area {area_id}, timer={'forever' if is_forever else f'{duration_seconds}s'}")
@@ -1008,7 +1080,8 @@ class CircadianLightPrimitives:
         state.set_motion_expires(area_id, expires_at)
 
         # Turn on with circadian values (enables circadian control if needed)
-        await self.lights_on(area_id, source=source)
+        # Pass boost params so we go directly to final brightness (no intermediate step)
+        await self.lights_on(area_id, source=source, boost_brightness=boost_brightness, boost_duration=boost_duration)
 
     async def end_motion_on_off(self, area_id: str, source: str = "timer"):
         """End motion on_off timer and turn off lights.
