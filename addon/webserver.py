@@ -841,19 +841,16 @@ class LightDesignerServer:
             except Exception as e:
                 logger.debug(f"[ZoneStates] Error calculating sun times: {e}")
 
-            # Load config to get zones and presets
-            config = await self.load_raw_config()
-            zones = config.get("glozones", {})
-            presets = config.get("circadian_presets", {})
+            # Get zones and presets from glozone module (consistent with area-status)
+            zones = glozone.get_glozones()
 
             logger.info(f"[ZoneStates] Found {len(zones)} zones: {list(zones.keys())}")
-            logger.info(f"[ZoneStates] Found {len(presets)} presets: {list(presets.keys())}")
 
             zone_states = {}
             for zone_name, zone_config in zones.items():
-                # Get the preset (Glo) for this zone
+                # Get the preset (Glo) for this zone using glozone module
                 preset_name = zone_config.get("preset", "Glo 1")
-                preset_config = presets.get(preset_name, {})
+                preset_config = glozone.get_preset_config(preset_name)
 
                 # Get zone runtime state (from GloUp/GloDown adjustments)
                 runtime_state = glozone_state.get_zone_state(zone_name)
@@ -861,7 +858,7 @@ class LightDesignerServer:
 
                 # Build Config from preset using from_dict (handles all fields with defaults)
                 brain_config = Config.from_dict(preset_config)
-                logger.info(f"[ZoneStates] Zone '{zone_name}' config: wake_time={brain_config.wake_time}, bed_time={brain_config.bed_time}, min_bri={brain_config.min_brightness}, max_bri={brain_config.max_brightness}")
+                logger.info(f"[ZoneStates] Zone '{zone_name}' config: wake={brain_config.wake_time}, bed={brain_config.bed_time}, warm_night={brain_config.warm_night_enabled}")
 
                 # Build AreaState from zone runtime state
                 area_state = AreaState(

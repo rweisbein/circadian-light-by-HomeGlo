@@ -2719,18 +2719,59 @@ class HomeAssistantWebSocketClient:
                         self.live_design_area = None
                         logger.info(f"Live Design ended for area: {area_id} - resuming periodic updates")
 
-            # Handle circadian_light_service_event (fired by webserver for GloZone actions)
+            # Handle circadian_light_service_event (fired by webserver for area actions)
             elif event_type == "circadian_light_service_event":
                 service = event_data.get('service')
                 area_id = event_data.get('area_id')
 
-                if service == "glo_up" and area_id:
+                if not area_id:
+                    logger.warning(f"circadian_light_service_event missing area_id: service={service}")
+                elif service == "lights_on":
+                    logger.info(f"[webserver] lights_on for area: {area_id}")
+                    await self.primitives.lights_on(area_id, "webserver")
+                elif service == "lights_off":
+                    logger.info(f"[webserver] lights_off for area: {area_id}")
+                    await self.primitives.lights_off(area_id, "webserver")
+                elif service == "lights_toggle":
+                    logger.info(f"[webserver] lights_toggle for area: {area_id}")
+                    await self.primitives.lights_toggle(area_id, "webserver")
+                elif service == "circadian_on":
+                    logger.info(f"[webserver] circadian_on for area: {area_id}")
+                    await self.primitives.circadian_on(area_id, "webserver")
+                elif service == "circadian_off":
+                    logger.info(f"[webserver] circadian_off for area: {area_id}")
+                    await self.primitives.circadian_off(area_id, "webserver")
+                elif service == "step_up":
+                    logger.info(f"[webserver] step_up for area: {area_id}")
+                    await self.primitives.step_up(area_id, "webserver")
+                elif service == "step_down":
+                    logger.info(f"[webserver] step_down for area: {area_id}")
+                    await self.primitives.step_down(area_id, "webserver")
+                elif service == "bright_up":
+                    logger.info(f"[webserver] bright_up for area: {area_id}")
+                    await self.primitives.bright_up(area_id, "webserver")
+                elif service == "bright_down":
+                    logger.info(f"[webserver] bright_down for area: {area_id}")
+                    await self.primitives.bright_down(area_id, "webserver")
+                elif service == "color_up":
+                    logger.info(f"[webserver] color_up for area: {area_id}")
+                    await self.primitives.color_up(area_id, "webserver")
+                elif service == "color_down":
+                    logger.info(f"[webserver] color_down for area: {area_id}")
+                    await self.primitives.color_down(area_id, "webserver")
+                elif service == "freeze_toggle":
+                    logger.info(f"[webserver] freeze_toggle for area: {area_id}")
+                    await self.primitives.freeze_toggle(area_id, "webserver")
+                elif service == "reset":
+                    logger.info(f"[webserver] reset for area: {area_id}")
+                    await self.primitives.reset(area_id, "webserver")
+                elif service == "glo_up":
                     logger.info(f"[webserver] glo_up for area: {area_id}")
                     await self.primitives.glo_up(area_id, "webserver")
-                elif service == "glo_down" and area_id:
+                elif service == "glo_down":
                     logger.info(f"[webserver] glo_down for area: {area_id}")
                     await self.primitives.glo_down(area_id, "webserver")
-                elif service == "glo_reset" and area_id:
+                elif service == "glo_reset":
                     logger.info(f"[webserver] glo_reset for area: {area_id}")
                     await self.primitives.glo_reset(area_id, "webserver")
                 else:
