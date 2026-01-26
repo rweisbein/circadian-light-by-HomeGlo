@@ -897,9 +897,9 @@ class LightDesignerServer:
             'wake_time', 'bed_time',
             'latitude', 'longitude',
             'warm_night_target', 'warm_night_fade',
-            'warm_night_sunset_start', 'warm_night_sunrise_end',
+            'warm_night_start', 'warm_night_end',
             'cool_day_target', 'cool_day_fade',
-            'cool_day_sunrise_start', 'cool_day_sunset_end',
+            'cool_day_start', 'cool_day_end',
         ]
 
         # Integer parameters
@@ -992,9 +992,9 @@ class LightDesignerServer:
         "ascend_start", "descend_start", "wake_time", "bed_time",
         "wake_speed", "bed_speed",
         "warm_night_enabled", "warm_night_mode", "warm_night_target",
-        "warm_night_sunset_start", "warm_night_sunrise_end", "warm_night_fade",
+        "warm_night_start", "warm_night_end", "warm_night_fade",
         "cool_day_enabled", "cool_day_mode", "cool_day_target",
-        "cool_day_sunrise_start", "cool_day_sunset_end", "cool_day_fade",
+        "cool_day_start", "cool_day_end", "cool_day_fade",
         "activity_preset", "max_dim_steps",
     }
 
@@ -1134,16 +1134,16 @@ class LightDesignerServer:
             "warm_night_enabled": False,
             "warm_night_mode": "all",  # "all", "sunrise", "sunset"
             "warm_night_target": 2700,
-            "warm_night_sunset_start": -60,  # minutes before sunset
-            "warm_night_sunrise_end": 60,    # minutes after sunrise
-            "warm_night_fade": 60,           # fade duration in minutes
+            "warm_night_start": -60,  # minutes offset from sunset (negative = before)
+            "warm_night_end": 60,     # minutes offset from sunrise (positive = after)
+            "warm_night_fade": 60,    # fade duration in minutes
 
             # Cool during day rule
             "cool_day_enabled": False,
             "cool_day_mode": "all",
             "cool_day_target": 6500,
-            "cool_day_sunrise_start": 0,
-            "cool_day_sunset_end": 0,
+            "cool_day_start": 0,
+            "cool_day_end": 0,
             "cool_day_fade": 60,
 
             # Activity preset
@@ -1226,14 +1226,14 @@ class LightDesignerServer:
             "warm_night_enabled": False,
             "warm_night_mode": "all",
             "warm_night_target": 2700,
-            "warm_night_sunset_start": -60,
-            "warm_night_sunrise_end": 60,
+            "warm_night_start": -60,
+            "warm_night_end": 60,
             "warm_night_fade": 60,
             "cool_day_enabled": False,
             "cool_day_mode": "all",
             "cool_day_target": 6500,
-            "cool_day_sunrise_start": 0,
-            "cool_day_sunset_end": 0,
+            "cool_day_start": 0,
+            "cool_day_end": 0,
             "cool_day_fade": 60,
             "activity_preset": "adult",
             "latitude": 35.0,

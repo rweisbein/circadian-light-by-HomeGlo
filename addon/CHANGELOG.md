@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.151
+**Fix warm_night/cool_day key name mismatch**
+
+- Fixed: warm_night and cool_day settings weren't being saved properly
+- glo-designer and brain.py use `warm_night_start`, `warm_night_end`
+- webserver.py and glozone.py were using different key names
+- Unified all files to use consistent key names matching brain.py
+
 ## 6.9.150
 **Increase two-step delay from 50ms to 150ms**
 
