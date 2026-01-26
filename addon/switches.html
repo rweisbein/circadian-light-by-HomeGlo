@@ -751,9 +751,11 @@
       container.innerHTML = '<div class="loading">Loading controls...</div>';
 
       try {
+        // Add cache-busting timestamp to ensure fresh data from HA
+        const cacheBust = `?_t=${Date.now()}`;
         const [controlsRes, areasRes] = await Promise.all([
-          fetch('./api/controls'),
-          fetch('./api/areas')
+          fetch(`./api/controls${cacheBust}`),
+          fetch(`./api/areas${cacheBust}`)
         ]);
 
         if (controlsRes.ok) {
