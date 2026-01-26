@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.152
+**Add debug logging to zone-states endpoint**
+
+- Added detailed logging to trace zone state calculation
+- Logs preset config, runtime state, area_state, and sun_times
+- Helps debug why zone card shows different values than areas
+
 ## 6.9.151
 **Fix warm_night/cool_day key name mismatch**
 

@@ -851,6 +851,8 @@ class LightDesignerServer:
                 # Get the preset (Glo) for this zone using glozone module
                 preset_name = zone_config.get("preset", "Glo 1")
                 preset_config = glozone.get_preset_config(preset_name)
+                logger.info(f"[ZoneStates] Zone '{zone_name}' preset_config keys: {list(preset_config.keys())}")
+                logger.info(f"[ZoneStates] Zone '{zone_name}' preset min/max bri: {preset_config.get('min_brightness')}/{preset_config.get('max_brightness')}")
 
                 # Get zone runtime state (from GloUp/GloDown adjustments)
                 runtime_state = glozone_state.get_zone_state(zone_name)
@@ -858,7 +860,7 @@ class LightDesignerServer:
 
                 # Build Config from preset using from_dict (handles all fields with defaults)
                 brain_config = Config.from_dict(preset_config)
-                logger.info(f"[ZoneStates] Zone '{zone_name}' config: wake={brain_config.wake_time}, bed={brain_config.bed_time}, warm_night={brain_config.warm_night_enabled}")
+                logger.info(f"[ZoneStates] Zone '{zone_name}' brain_config: wake={brain_config.wake_time}, bed={brain_config.bed_time}, min_bri={brain_config.min_brightness}, max_bri={brain_config.max_brightness}, warm_night={brain_config.warm_night_enabled}")
 
                 # Build AreaState from zone runtime state
                 area_state = AreaState(
@@ -867,6 +869,7 @@ class LightDesignerServer:
                     color_mid=runtime_state.get('color_mid'),
                     frozen_at=runtime_state.get('frozen_at'),
                 )
+                logger.info(f"[ZoneStates] Zone '{zone_name}' area_state: brightness_mid={area_state.brightness_mid}, color_mid={area_state.color_mid}, frozen_at={area_state.frozen_at}")
 
                 # Calculate lighting values - use frozen_at if set, otherwise current time
                 calc_hour = area_state.frozen_at if area_state.frozen_at is not None else hour
@@ -878,7 +881,7 @@ class LightDesignerServer:
                     "preset": preset_name,
                     "runtime_state": runtime_state,
                 }
-                logger.info(f"[ZoneStates] Zone '{zone_name}': {result.brightness}% {result.color_temp}K at hour {calc_hour:.2f} (preset: {preset_name})")
+                logger.info(f"[ZoneStates] Zone '{zone_name}': {result.brightness}% {result.color_temp}K at hour {calc_hour:.2f} (preset: {preset_name}, sun_times: sunrise={sun_times.sunrise:.2f}, sunset={sun_times.sunset:.2f})")
 
             logger.info(f"[ZoneStates] Returning {len(zone_states)} zone states")
             return web.json_response({"zone_states": zone_states})
