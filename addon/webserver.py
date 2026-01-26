@@ -3388,12 +3388,8 @@ class LightDesignerServer:
                 areas_data = data.get("areas", [])
                 areas = []
                 for area_data in areas_data:
-                    areas.append(switches.MotionAreaConfig(
-                        area_id=area_data.get("area_id", ""),
-                        function=area_data.get("function", "on_off"),
-                        duration=area_data.get("duration", 60),
-                        boost_brightness=area_data.get("boost_brightness", 50),
-                    ))
+                    # Use from_dict for migration support (function -> mode)
+                    areas.append(switches.MotionAreaConfig.from_dict(area_data))
 
                 motion_config = switches.MotionSensorConfig(
                     id=control_id,
@@ -3409,12 +3405,8 @@ class LightDesignerServer:
                 areas_data = data.get("areas", [])
                 areas = []
                 for area_data in areas_data:
-                    areas.append(switches.ContactAreaConfig(
-                        area_id=area_data.get("area_id", ""),
-                        function=area_data.get("function", "on_off"),
-                        duration=area_data.get("duration", 60),
-                        boost_brightness=area_data.get("boost_brightness", 50),
-                    ))
+                    # Use from_dict for migration support (function -> mode)
+                    areas.append(switches.ContactAreaConfig.from_dict(area_data))
 
                 contact_config = switches.ContactSensorConfig(
                     id=control_id,

@@ -1,5 +1,11 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.143
+**Fix motion/contact sensor save using old 'function' parameter**
+
+- Fixed: Saving motion/contact sensor config failed with "unexpected keyword argument 'function'"
+- Webserver now uses from_dict() for proper migration from function→mode
+
 ## 6.9.142
 **Support duration=0 (forever) for motion on_off timers**
 
