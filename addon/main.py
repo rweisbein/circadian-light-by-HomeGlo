@@ -1599,31 +1599,52 @@ class HomeAssistantWebSocketClient:
     async def turn_on_lights_circadian(
         self,
         area_id: str,
-        circadian_values: Dict[str, Any],
+        circadian_values: Dict[str, Any] = None,
         transition: float = 0.5,
         *,
         include_color: bool = True,
+        brightness: int = None,
+        color_temp: int = None,
+        xy: tuple = None,
     ) -> None:
-        """Turn on lights with circadian values using the light controller.
+        """Turn on lights with circadian values - the single source of truth for light control.
+
+        This is the canonical function for turning on lights. All paths (primitives,
+        periodic updater, etc.) should call this function to ensure consistent behavior.
 
         Splits lights by color capability:
         - Color-capable lights (xy/rgb/hs): Use xy_color for full color range
         - CT-only lights: Use color_temp_kelvin (clamped to 2000K minimum)
 
+        Can be called two ways:
+        1. With circadian_values dict: turn_on_lights_circadian(area_id, {"brightness": 50, "kelvin": 3000, "xy": (0.4, 0.4)})
+        2. With keyword args: turn_on_lights_circadian(area_id, brightness=50, color_temp=3000)
+
         Args:
             area_id: The area ID to control lights in
-            circadian_values: Circadian lighting values from get_circadian_lighting
+            circadian_values: Dict with brightness, kelvin, xy keys (optional if using kwargs)
             transition: Transition time in seconds (default 0.5)
             include_color: Whether to include color data when turning on lights
+            brightness: Brightness percentage 0-100 (alternative to dict)
+            color_temp: Color temperature in Kelvin (alternative to dict)
+            xy: Pre-computed CIE xy coordinates (optional, computed from color_temp if not provided)
         """
-        brightness = circadian_values.get('brightness')
-        kelvin = circadian_values.get('kelvin')
-        xy = circadian_values.get('xy')
+        # Support both dict and kwargs calling conventions
+        if circadian_values:
+            brightness = circadian_values.get('brightness') if brightness is None else brightness
+            kelvin = circadian_values.get('kelvin')
+            xy = circadian_values.get('xy') if xy is None else xy
+        else:
+            kelvin = color_temp
 
-        color_lights, ct_lights = self.get_lights_by_color_capability(area_id)
+        # Compute xy from kelvin if not provided (for color-capable lights)
+        if xy is None and kelvin is not None and include_color:
+            xy = CircadianLight.color_temperature_to_xy(kelvin)
+
+        color_lights, ct_lights, brightness_lights, onoff_lights = self.get_lights_by_capability(area_id)
 
         # If no lights found in cache, fall back to area-based control
-        if not color_lights and not ct_lights:
+        if not color_lights and not ct_lights and not brightness_lights and not onoff_lights:
             target_type, target_value = await self.determine_light_target(area_id)
             service_data = {"transition": transition}
             if brightness is not None:
@@ -1664,6 +1685,31 @@ class HomeAssistantWebSocketClient:
             tasks.append(
                 asyncio.create_task(
                     self.call_service("light", "turn_on", ct_data, {"entity_id": ct_lights})
+                )
+            )
+
+        # Brightness-only lights: only set brightness, no color
+        if brightness_lights:
+            bri_data = {"transition": transition}
+            if brightness is not None:
+                bri_data["brightness_pct"] = brightness
+
+            logger.info(f"Circadian update (brightness-only): {len(brightness_lights)} lights, brightness={brightness}%")
+            tasks.append(
+                asyncio.create_task(
+                    self.call_service("light", "turn_on", bri_data, {"entity_id": brightness_lights})
+                )
+            )
+
+        # On/off-only lights: just turn on, no brightness or color
+        if onoff_lights:
+            # Only include transition, no brightness or color data
+            onoff_data = {"transition": transition}
+
+            logger.info(f"Circadian update (on/off-only): {len(onoff_lights)} lights")
+            tasks.append(
+                asyncio.create_task(
+                    self.call_service("light", "turn_on", onoff_data, {"entity_id": onoff_lights})
                 )
             )
 
@@ -1796,10 +1842,21 @@ class HomeAssistantWebSocketClient:
 
         logger.info(f"✓ Light capability cache built: {len(self.light_color_modes)} lights across {len(self.area_lights)} areas")
 
-        # Log summary of color capabilities
-        color_capable = sum(1 for modes in self.light_color_modes.values() if "xy" in modes or "rgb" in modes or "hs" in modes)
-        ct_only = len(self.light_color_modes) - color_capable
-        logger.info(f"  Color-capable: {color_capable}, CT-only: {ct_only}, Hue groups skipped: {hue_groups_skipped}")
+        # Log summary of light capabilities (4 types)
+        color_count = 0
+        ct_count = 0
+        brightness_count = 0
+        onoff_count = 0
+        for modes in self.light_color_modes.values():
+            if "xy" in modes or "rgb" in modes or "hs" in modes:
+                color_count += 1
+            elif "color_temp" in modes:
+                ct_count += 1
+            elif "brightness" in modes:
+                brightness_count += 1
+            else:
+                onoff_count += 1
+        logger.info(f"  Color: {color_count}, CT: {ct_count}, Brightness-only: {brightness_count}, On/off-only: {onoff_count}, Hue groups skipped: {hue_groups_skipped}")
 
         # Build motion sensor entity_id -> device_id mapping
         # This lets us look up motion sensor config when events come in
@@ -1854,7 +1911,9 @@ class HomeAssistantWebSocketClient:
             logger.warning("⚠ No contact sensors found in entity registry")
 
     def get_lights_by_color_capability(self, area_id: str) -> Tuple[List[str], List[str]]:
-        """Get lights in an area split by color capability.
+        """Get lights in an area split by color capability (legacy 2-bucket version).
+
+        DEPRECATED: Use get_lights_by_capability() for the full 4-bucket split.
 
         Args:
             area_id: The area ID
@@ -1862,23 +1921,48 @@ class HomeAssistantWebSocketClient:
         Returns:
             Tuple of (color_capable_lights, ct_only_lights)
             - color_capable_lights: lights that support xy, rgb, or hs color modes
-            - ct_only_lights: lights that only support color_temp mode
+            - ct_only_lights: lights that only support color_temp mode (includes brightness/onoff for compatibility)
+        """
+        color_lights, ct_lights, brightness_lights, onoff_lights = self.get_lights_by_capability(area_id)
+        # For backward compatibility, lump brightness and onoff into ct_only
+        ct_only = ct_lights + brightness_lights + onoff_lights
+        return color_lights, ct_only
+
+    def get_lights_by_capability(self, area_id: str) -> Tuple[List[str], List[str], List[str], List[str]]:
+        """Get lights in an area split by capability level.
+
+        Args:
+            area_id: The area ID
+
+        Returns:
+            Tuple of (color_lights, ct_lights, brightness_lights, onoff_lights)
+            - color_lights: support xy, rgb, or hs color modes (full color control)
+            - ct_lights: support color_temp mode only (color temperature control)
+            - brightness_lights: support brightness mode only (dimming, no color)
+            - onoff_lights: support onoff mode only (no dimming, no color)
         """
         lights = self.area_lights.get(area_id, [])
 
-        color_capable = []
-        ct_only = []
+        color_lights = []
+        ct_lights = []
+        brightness_lights = []
+        onoff_lights = []
 
         for entity_id in lights:
             modes = self.light_color_modes.get(entity_id, {"color_temp"})
 
-            # Check if light supports any color mode (xy, rgb, hs)
+            # Check capabilities in order of most to least capable
             if "xy" in modes or "rgb" in modes or "hs" in modes:
-                color_capable.append(entity_id)
+                color_lights.append(entity_id)
+            elif "color_temp" in modes:
+                ct_lights.append(entity_id)
+            elif "brightness" in modes:
+                brightness_lights.append(entity_id)
             else:
-                ct_only.append(entity_id)
+                # onoff or unknown - treat as on/off only
+                onoff_lights.append(entity_id)
 
-        return color_capable, ct_only
+        return color_lights, ct_lights, brightness_lights, onoff_lights
 
 
     async def get_config(self) -> bool:

@@ -1,5 +1,15 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.165
+**Consolidate light control and add 4-bucket capability split**
+
+- Consolidated all light turn-on paths to single `turn_on_lights_circadian()` function
+- Primitives now delegate to main.py instead of duplicating logic
+- Added 4-bucket light capability split: color, CT, brightness-only, on/off-only
+- Brightness-only lights now receive only brightness (no color_temp)
+- On/off-only lights now receive just turn_on (no brightness or color)
+- Foundation for future filter feature and ZHA group optimization
+
 ## 6.9.152
 **Add debug logging to zone-states endpoint**
 

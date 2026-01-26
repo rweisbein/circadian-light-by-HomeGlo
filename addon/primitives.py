@@ -1805,9 +1805,9 @@ class CircadianLightPrimitives:
     ):
         """Apply lighting values to an area.
 
-        Splits lights by color capability:
-        - Color-capable lights (xy/rgb/hs): Use xy_color for full color range including warm orange/red
-        - CT-only lights: Use color_temp_kelvin (clamped to 2000K minimum)
+        Delegates to client.turn_on_lights_circadian() which is the single source
+        of truth for light control. This ensures consistent behavior across all
+        code paths (primitives, periodic updater, etc.).
 
         Args:
             area_id: The area ID
@@ -1816,81 +1816,13 @@ class CircadianLightPrimitives:
             include_color: Whether to include color in the command
             transition: Transition time in seconds
         """
-        color_lights, ct_lights = self.client.get_lights_by_color_capability(area_id)
-
-        # If no lights found in cache, fall back to area-based control
-        if not color_lights and not ct_lights:
-            target_type, target_value = await self.client.determine_light_target(area_id)
-            service_data = {
-                "brightness_pct": brightness,
-                "transition": transition,
-            }
-            if include_color:
-                service_data["color_temp_kelvin"] = max(2000, color_temp)
-
-            logger.info(f"_apply_lighting (fallback): {target_type}={target_value}, service_data={service_data}")
-            await self.client.call_service("light", "turn_on", service_data, {target_type: target_value})
-            return
-
-        tasks: List[asyncio.Task] = []
-
-        # Color-capable lights: use xy_color for full color range
-        if color_lights and include_color:
-            xy = CircadianLight.color_temperature_to_xy(color_temp)
-            color_data = {
-                "brightness_pct": brightness,
-                "xy_color": list(xy),
-                "transition": transition,
-            }
-            logger.info(f"_apply_lighting (color): entity_id={color_lights}, xy={xy}, brightness={brightness}%")
-            tasks.append(
-                asyncio.create_task(
-                    self.client.call_service("light", "turn_on", color_data, {"entity_id": color_lights})
-                )
-            )
-        elif color_lights:
-            # Brightness only for color lights
-            bri_data = {
-                "brightness_pct": brightness,
-                "transition": transition,
-            }
-            logger.info(f"_apply_lighting (color, bri only): entity_id={color_lights}, brightness={brightness}%")
-            tasks.append(
-                asyncio.create_task(
-                    self.client.call_service("light", "turn_on", bri_data, {"entity_id": color_lights})
-                )
-            )
-
-        # CT-only lights: use color_temp_kelvin (clamped to 2000K min)
-        if ct_lights and include_color:
-            clamped_temp = max(2000, color_temp)
-            ct_data = {
-                "brightness_pct": brightness,
-                "color_temp_kelvin": clamped_temp,
-                "transition": transition,
-            }
-            logger.info(f"_apply_lighting (CT): entity_id={ct_lights}, color_temp_kelvin={clamped_temp}, brightness={brightness}%")
-            tasks.append(
-                asyncio.create_task(
-                    self.client.call_service("light", "turn_on", ct_data, {"entity_id": ct_lights})
-                )
-            )
-        elif ct_lights:
-            # Brightness only for CT lights
-            bri_data = {
-                "brightness_pct": brightness,
-                "transition": transition,
-            }
-            logger.info(f"_apply_lighting (CT, bri only): entity_id={ct_lights}, brightness={brightness}%")
-            tasks.append(
-                asyncio.create_task(
-                    self.client.call_service("light", "turn_on", bri_data, {"entity_id": ct_lights})
-                )
-            )
-
-        # Run all tasks concurrently
-        if tasks:
-            await asyncio.gather(*tasks)
+        await self.client.turn_on_lights_circadian(
+            area_id,
+            brightness=brightness,
+            color_temp=color_temp,
+            transition=transition,
+            include_color=include_color,
+        )
 
     async def _apply_circadian_lighting(
         self,
@@ -1978,63 +1910,23 @@ class CircadianLightPrimitives:
     async def _apply_color_only(
         self, area_id: str, color_temp: int, transition: float = 0.4
     ):
-        """Apply color temperature only to an area.
+        """Apply color temperature only to an area (brightness unchanged).
 
-        Splits lights by color capability:
-        - Color-capable lights: Use xy_color for full color range
-        - CT-only lights: Use color_temp_kelvin (clamped to 2000K minimum)
+        Delegates to client.turn_on_lights_circadian() with brightness=None,
+        which sets color without changing brightness.
 
         Args:
             area_id: The area ID
             color_temp: Color temperature in Kelvin
             transition: Transition time in seconds
         """
-        color_lights, ct_lights = self.client.get_lights_by_color_capability(area_id)
-
-        # If no lights found in cache, fall back to area-based control
-        if not color_lights and not ct_lights:
-            target_type, target_value = await self.client.determine_light_target(area_id)
-            service_data = {
-                "color_temp_kelvin": max(2000, color_temp),
-                "transition": transition,
-            }
-            logger.info(f"_apply_color_only (fallback): {target_type}={target_value}, service_data={service_data}")
-            await self.client.call_service("light", "turn_on", service_data, {target_type: target_value})
-            return
-
-        tasks: List[asyncio.Task] = []
-
-        # Color-capable lights: use xy_color for full color range
-        if color_lights:
-            xy = CircadianLight.color_temperature_to_xy(color_temp)
-            color_data = {
-                "xy_color": list(xy),
-                "transition": transition,
-            }
-            logger.info(f"_apply_color_only (color): entity_id={color_lights}, xy={xy}")
-            tasks.append(
-                asyncio.create_task(
-                    self.client.call_service("light", "turn_on", color_data, {"entity_id": color_lights})
-                )
-            )
-
-        # CT-only lights: use color_temp_kelvin (clamped to 2000K min)
-        if ct_lights:
-            clamped_temp = max(2000, color_temp)
-            ct_data = {
-                "color_temp_kelvin": clamped_temp,
-                "transition": transition,
-            }
-            logger.info(f"_apply_color_only (CT): entity_id={ct_lights}, color_temp_kelvin={clamped_temp}")
-            tasks.append(
-                asyncio.create_task(
-                    self.client.call_service("light", "turn_on", ct_data, {"entity_id": ct_lights})
-                )
-            )
-
-        # Run all tasks concurrently
-        if tasks:
-            await asyncio.gather(*tasks)
+        await self.client.turn_on_lights_circadian(
+            area_id,
+            brightness=None,  # Don't change brightness
+            color_temp=color_temp,
+            transition=transition,
+            include_color=True,
+        )
 
     async def _bounce_at_limit(self, area_id: str, current_brightness: int, current_color: int):
         """Visual bounce effect when hitting a bound limit.
