@@ -1011,6 +1011,8 @@ class LightDesignerServer:
         "multi_click_enabled",  # Enable multi-click detection for Hue Hub switches
         "multi_click_speed",  # Multi-click window in tenths of seconds
         "circadian_refresh",  # How often to refresh circadian lighting (seconds)
+        "motion_warning_time",  # Seconds before motion timer expires to trigger warning dim
+        "motion_warning_blink_threshold",  # Brightness % below which warning blinks instead of dims
         "controls_ui",  # Controls page UI preferences (sort, filter)
         "areas_ui",  # Areas page UI preferences (sort, filter)
         "area_settings",  # Per-area settings (motion_function, motion_duration)
