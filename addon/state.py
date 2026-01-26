@@ -596,7 +596,7 @@ def get_expired_motion() -> List[str]:
     """Get list of areas with expired motion on_off timers.
 
     Returns:
-        List of area_ids with expired motion timers
+        List of area_ids with expired motion timers (excludes "forever" timers)
     """
     from datetime import datetime
 
@@ -605,7 +605,10 @@ def get_expired_motion() -> List[str]:
 
     for area_id, s in _state.items():
         expires_at = s.get("motion_expires_at")
-        if expires_at and expires_at <= now:
+        # Skip if no timer, or if timer is "forever" (never expires)
+        if not expires_at or expires_at == "forever":
+            continue
+        if expires_at <= now:
             expired.append(area_id)
 
     return expired
@@ -666,7 +669,7 @@ def get_areas_needing_warning(warning_seconds: int) -> List[str]:
         warning_seconds: How many seconds before expiry to trigger warning
 
     Returns:
-        List of area_ids that need warnings triggered
+        List of area_ids that need warnings triggered (excludes "forever" timers)
     """
     from datetime import datetime, timedelta
 
@@ -681,8 +684,8 @@ def get_areas_needing_warning(warning_seconds: int) -> List[str]:
         expires_at = s.get("motion_expires_at")
         warning_at = s.get("motion_warning_at")
 
-        # Skip if no motion timer, already warned, or already expired
-        if not expires_at or warning_at is not None:
+        # Skip if no motion timer, "forever" timer, or already warned
+        if not expires_at or expires_at == "forever" or warning_at is not None:
             continue
 
         try:

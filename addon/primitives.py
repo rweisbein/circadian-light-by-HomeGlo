@@ -944,25 +944,39 @@ class CircadianLightPrimitives:
         - If room is off: turn on, start timer
         - If room is on FROM on_off motion: use MAX(remaining, new duration) for timer
         - If room is on from other source: do nothing
+        - duration_seconds=0 means "forever" (never auto-off, like on_only but with timer state)
 
         Args:
             area_id: The area ID to control
-            duration_seconds: How long before auto-off (when motion stops)
+            duration_seconds: How long before auto-off (0 = forever/never)
             source: Source of the action
         """
+        is_forever = duration_seconds == 0
+
         # Check if area has an active motion timer (was turned on by on_off motion)
         if state.has_motion_timer(area_id):
-            # MAX logic for timer - only extend if new duration > remaining
             current_expires = state.get_motion_expires(area_id)
-            now = datetime.now()
-            current_remaining = (datetime.fromisoformat(current_expires) - now).total_seconds()
+            current_is_forever = current_expires == "forever"
 
-            if duration_seconds > current_remaining:
-                new_expires = (now + timedelta(seconds=duration_seconds)).isoformat()
-                state.extend_motion_expires(area_id, new_expires)
-                logger.debug(f"[{source}] motion_on_off: extended timer for area {area_id} to {new_expires}")
+            # MAX logic for timer
+            if current_is_forever:
+                # Forever timer stays forever, can't be shortened
+                logger.debug(f"[{source}] motion_on_off: area {area_id} has forever timer, unchanged")
+            elif is_forever:
+                # New timer is forever, upgrade to forever
+                state.extend_motion_expires(area_id, "forever")
+                logger.info(f"[{source}] motion_on_off: upgraded timer to forever for area {area_id}")
             else:
-                logger.debug(f"[{source}] motion_on_off: keeping existing timer ({current_remaining:.0f}s remaining > {duration_seconds}s new)")
+                # Both are timed - use MAX(remaining, new duration)
+                now = datetime.now()
+                current_remaining = (datetime.fromisoformat(current_expires) - now).total_seconds()
+
+                if duration_seconds > current_remaining:
+                    new_expires = (now + timedelta(seconds=duration_seconds)).isoformat()
+                    state.extend_motion_expires(area_id, new_expires)
+                    logger.debug(f"[{source}] motion_on_off: extended timer for area {area_id} to {new_expires}")
+                else:
+                    logger.debug(f"[{source}] motion_on_off: keeping existing timer ({current_remaining:.0f}s remaining > {duration_seconds}s new)")
             return
 
         # Check if area is already on under circadian control (but not from on_off motion)
@@ -970,10 +984,10 @@ class CircadianLightPrimitives:
             logger.debug(f"[{source}] motion_on_off: area {area_id} already on (not from motion), skipping")
             return
 
-        logger.info(f"[{source}] motion_on_off: turning on area {area_id}, timer={duration_seconds}s")
+        logger.info(f"[{source}] motion_on_off: turning on area {area_id}, timer={'forever' if is_forever else f'{duration_seconds}s'}")
 
         # Set motion timer
-        expires_at = (datetime.now() + timedelta(seconds=duration_seconds)).isoformat()
+        expires_at = "forever" if is_forever else (datetime.now() + timedelta(seconds=duration_seconds)).isoformat()
         state.set_motion_expires(area_id, expires_at)
 
         # Turn on with circadian values (enables circadian control if needed)

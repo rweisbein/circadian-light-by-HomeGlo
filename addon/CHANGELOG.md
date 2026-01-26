@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.142
+**Support duration=0 (forever) for motion on_off timers**
+
+- Motion on_off now supports duration=0 to mean "never timeout" (like boost)
+- Useful for: door sensor turns on lights, stay on indefinitely but boost expires
+- MAX logic updated: forever + timed = forever, forever + forever = forever
+- Warning and expiry checks skip "forever" timers
+
 ## 6.9.141
 **Implement motion warning before auto-off**
 
