@@ -2280,6 +2280,12 @@ class HomeAssistantWebSocketClient:
                     "light", "turn_off", {"transition": 0.5}, {target_type: target_value}
                 )
                 return
+
+            # Skip areas in motion warning state (don't override the warning dim)
+            if state.is_motion_warned(area_id):
+                logger.debug(f"[Periodic] Area {area_id} in motion warning state, skipping update")
+                return
+
             if area_state.brightness_mid is not None or area_state.color_mid is not None:
                 logger.info(f"[Periodic] Area {area_id} has stepped state: brightness_mid={area_state.brightness_mid}, color_mid={area_state.color_mid}")
 
