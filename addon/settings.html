@@ -343,6 +343,34 @@
       </div>
     </div>
 
+    <!-- Visual Feedback Section -->
+    <div class="settings-section">
+      <div class="section-header">Visual Feedback</div>
+      <div class="section-content">
+        <div class="form-row">
+          <label class="form-label">
+            Motion warning time
+            <span class="info-icon">i<span class="info-tooltip">How long before the motion timer expires to trigger a warning dim. Set to 0 to disable motion warnings. The warning dims lights to alert you before they turn off.</span></span>
+          </label>
+          <div class="form-control">
+            <input type="number" class="form-input" id="motion-warning-time" min="0" max="120" step="5" value="0" style="width: 80px;">
+            <span class="form-hint">seconds before off (0 = disabled)</span>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">
+            Warning blink threshold
+            <span class="info-icon">i<span class="info-tooltip">At low brightness levels, a simple dim may not be noticeable. Below this threshold, the warning will briefly blink off (0% for 300ms) before dimming to ensure you notice. Formula: above threshold dims to 50% of current; below threshold blinks then dims to 3%.</span></span>
+          </label>
+          <div class="form-control">
+            <input type="number" class="form-input" id="motion-warning-blink-threshold" min="5" max="50" step="1" value="15" style="width: 80px;">
+            <span class="form-hint">% brightness</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="save-status" id="save-status">Settings saved</div>
   </main>
 
@@ -358,6 +386,8 @@
           document.getElementById('multi-click-enabled').checked = config.multi_click_enabled ?? true;
           document.getElementById('multi-click-speed').value = config.multi_click_speed ?? 2;
           document.getElementById('circadian-refresh').value = config.circadian_refresh ?? 30;
+          document.getElementById('motion-warning-time').value = config.motion_warning_time ?? 0;
+          document.getElementById('motion-warning-blink-threshold').value = config.motion_warning_blink_threshold ?? 15;
           updateMultiClickState();
         }
       } catch (err) {
@@ -371,7 +401,9 @@
         turn_off_transition: parseInt(document.getElementById('turn-off-transition').value) || 3,
         multi_click_enabled: document.getElementById('multi-click-enabled').checked,
         multi_click_speed: parseInt(document.getElementById('multi-click-speed').value) || 2,
-        circadian_refresh: parseInt(document.getElementById('circadian-refresh').value) || 30
+        circadian_refresh: parseInt(document.getElementById('circadian-refresh').value) || 30,
+        motion_warning_time: parseInt(document.getElementById('motion-warning-time').value) || 0,
+        motion_warning_blink_threshold: parseInt(document.getElementById('motion-warning-blink-threshold').value) || 15
       };
 
       try {
@@ -418,6 +450,8 @@
     });
     document.getElementById('multi-click-speed').addEventListener('blur', saveSettings);
     document.getElementById('circadian-refresh').addEventListener('blur', saveSettings);
+    document.getElementById('motion-warning-time').addEventListener('blur', saveSettings);
+    document.getElementById('motion-warning-blink-threshold').addEventListener('blur', saveSettings);
 
     // Load on page load
     document.addEventListener('DOMContentLoaded', loadSettings);

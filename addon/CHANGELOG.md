@@ -1,5 +1,14 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.140
+**Fix nav links on Glo page + add Visual Feedback settings**
+
+- Fixed: Navigation links now work correctly when editing a specific Glo (/glo/SomeName)
+- Previously, clicking "Advanced" from /glo/MyGlo would stay on Glo page (resolved as /glo/settings)
+- Added: Visual Feedback section in Advanced settings page
+- New setting: Motion warning time (seconds before auto-off to trigger warning dim)
+- New setting: Warning blink threshold (below this brightness %, use blink instead of dim)
+
 ## 6.9.139
 **Fix on_off + boost race condition**
 

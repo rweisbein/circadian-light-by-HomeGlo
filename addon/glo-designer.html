@@ -5431,6 +5431,20 @@ function setupGloButtons() {
 // ============================================================
 
 document.addEventListener('DOMContentLoaded', () => {
+  // Fix nav links when on /glo/SomeName URL
+  // Relative links like ./settings resolve incorrectly from /glo/SomeName
+  const path = window.location.pathname;
+  const gloNameMatch = path.match(/\/glo\/[^/]+\/?$/);
+  if (gloNameMatch) {
+    // We're on /glo/SomeName - fix nav links to go up one level
+    document.querySelectorAll('.nav-link').forEach(link => {
+      const href = link.getAttribute('href');
+      if (href && href.startsWith('./')) {
+        link.setAttribute('href', '../' + href.slice(2)); // ./foo -> ../foo
+      }
+    });
+  }
+
   const slider = document.getElementById('chart-date-slider');
   if (slider) {
     const now = new Date();
