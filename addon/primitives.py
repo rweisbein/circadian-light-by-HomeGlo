@@ -1941,8 +1941,9 @@ class CircadianLightPrimitives:
             # Phase 1: Set color at minimal brightness (nearly invisible)
             await self._apply_lighting(area_id, 1, color_temp, include_color=True, transition=0)
 
-            # Small delay to ensure phase 1 completes
-            await asyncio.sleep(0.05)
+            # Delay to ensure phase 1 completes before phase 2
+            # 50ms was too short - some ZigBee lights drop the second command
+            await asyncio.sleep(0.15)
 
             # Phase 2: Transition to target brightness
             await self._apply_lighting(area_id, brightness, color_temp, include_color=True, transition=transition)

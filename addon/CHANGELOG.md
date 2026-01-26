@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.150
+**Increase two-step delay from 50ms to 150ms**
+
+- Fixed: Phase 2 brightness command sometimes dropped with 50ms delay
+- ZigBee lights may need more time between rapid commands
+- Increased delay between phase 1 (1% color set) and phase 2 (target brightness)
+
 ## 6.9.149
 **Store last_off_ct in all turn-off paths for smart two-step**
 
