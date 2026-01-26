@@ -698,155 +698,172 @@ class ZigBeeController(LightController):
             
             # Track which groups should exist
             expected_group_names = set()
-            
+
+            # Get light color modes from the main client for capability detection
+            light_color_modes = getattr(self.ws_client, 'light_color_modes', {})
+
             # Process each area
             for area_id, area_info in areas.items():
                 # Skip areas without switches (if areas_with_switches is provided)
                 if areas_with_switches is not None and area_id not in areas_with_switches:
                     logger.debug(f"Area '{area_info['name']}' has no switches, skipping group creation")
                     continue
-                
+
                 area_name = area_info['name']
                 zha_lights = area_info.get('zha_lights', [])
                 non_zha_lights = area_info.get('non_zha_lights', [])
-                
+
                 if not zha_lights:
                     logger.debug(f"Area '{area_name}' has no ZHA lights, skipping group creation")
                     continue
-                
+
                 # Skip areas that don't have ZHA parity (have non-ZHA lights)
                 if non_zha_lights:
                     logger.info(f"Area '{area_name}' has {len(non_zha_lights)} non-ZHA lights, skipping ZHA group creation (will use area-based control)")
                     continue
-                
-                # Group name format: "Circadian_<area_name>"
-                group_name = f"Circadian_{area_name.replace(' ', '_')}"
-                expected_group_names.add(group_name)
-                
-                # Prepare members list
-                members = []
-                logger.debug(f"Area '{area_name}' has {len(zha_lights)} ZHA lights to add")
+
+                # Split ZHA lights by color capability
+                color_members = []
+                ct_members = []
+                area_name_normalized = area_name.replace(' ', '_')
+
+                logger.debug(f"Area '{area_name}' has {len(zha_lights)} ZHA lights - splitting by capability")
                 for light in zha_lights:
                     ieee = light.get('ieee')
                     endpoint_id = light.get('endpoint_id', 11)
-                    logger.debug(f"  - Light {light.get('entity_id')}: IEEE={ieee}, endpoint={endpoint_id}")
-                    
-                    if ieee:
-                        # Don't require the device to be in device_by_ieee - just use the IEEE we found
-                        # Ensure IEEE is lowercase for ZHA compatibility
-                        members.append({
-                            'ieee': ieee.lower(),
-                            'endpoint_id': endpoint_id
-                        })
-                        logger.debug(f"    Added to members list with IEEE={ieee.lower()}")
+                    entity_id = light.get('entity_id')
+
+                    if not ieee:
+                        logger.warning(f"    No IEEE address for light {entity_id}")
+                        continue
+
+                    member_entry = {
+                        'ieee': ieee.lower(),
+                        'endpoint_id': endpoint_id
+                    }
+
+                    # Determine capability from light_color_modes cache
+                    modes = light_color_modes.get(entity_id, {"color_temp"})
+
+                    if "xy" in modes or "rgb" in modes or "hs" in modes:
+                        color_members.append(member_entry)
+                        logger.debug(f"  - Color light {entity_id}: IEEE={ieee}, endpoint={endpoint_id}")
+                    elif "color_temp" in modes:
+                        # Only CT-capable lights go to CT group
+                        ct_members.append(member_entry)
+                        logger.debug(f"  - CT light {entity_id}: IEEE={ieee}, endpoint={endpoint_id}")
                     else:
-                        logger.warning(f"    No IEEE address for light {light.get('entity_id')}")
-                
-                if not members:
-                    logger.warning(f"No valid ZHA devices found for area '{area_name}' - {len(zha_lights)} lights had no IEEE")
+                        # brightness-only and on/off lights are NOT added to groups
+                        # They're controlled individually to avoid sending unsupported commands
+                        logger.debug(f"  - Non-color light {entity_id} (brightness/onoff only): skipping group")
+
+                # Create capability-specific groups
+                capability_groups = []
+                if color_members:
+                    capability_groups.append((f"Circadian_{area_name_normalized}_color", color_members, "color"))
+                if ct_members:
+                    capability_groups.append((f"Circadian_{area_name_normalized}_ct", ct_members, "ct"))
+
+                if not capability_groups:
+                    logger.warning(f"No valid ZHA devices found for area '{area_name}' after capability split")
                     continue
-                
-                logger.info(f"Prepared {len(members)} members for group '{group_name}'")
-                
-                # Check if group exists
-                existing_group = existing_groups_by_name.get(group_name)
-                
-                if existing_group:
-                    # Group exists - check if membership needs updating
-                    existing_members = existing_group.get('members', [])
-                    
-                    # Handle empty groups or groups with None members
-                    if not existing_members or (len(existing_members) == 1 and existing_members[0] is None):
-                        # Group is empty, just add all members
-                        logger.info(f"Group '{group_name}' is empty, adding all {len(members)} members")
-                        await self.manage_group(GroupCommand(
-                            name=group_name,
-                            group_id=existing_group['group_id'],
-                            members=members,
-                            operation='add_members'
-                        ))
-                    else:
-                        # Compare existing and new members (ensure lowercase comparison)
-                        # Handle nested structure where IEEE is in device.ieee
-                        existing_member_set = set()
-                        for m in existing_members:
-                            if m:
-                                # Check if IEEE is directly on member or nested in device
-                                ieee = m.get('ieee') or (m.get('device', {}).get('ieee') if m.get('device') else None)
-                                endpoint_id = m.get('endpoint_id')
-                                if ieee and endpoint_id is not None:
-                                    existing_member_set.add((ieee.lower(), endpoint_id))
-                        
-                        new_member_set = {(m['ieee'].lower(), m['endpoint_id']) for m in members}
-                        
-                        if existing_member_set != new_member_set:
-                            logger.info(f"Updating members for group '{group_name}'")
-                            logger.info(f"  Existing members: {existing_member_set}")
-                            logger.info(f"  New members: {new_member_set}")
-                            
-                            # Remove members that shouldn't be in the group
-                            to_remove = [{'ieee': ieee, 'endpoint_id': ep} 
-                                       for ieee, ep in existing_member_set - new_member_set]
-                            if to_remove:
-                                logger.info(f"Removing {len(to_remove)} members from group {group_name}")
-                                for member in to_remove:
-                                    logger.info(f"  Remove: IEEE={member['ieee']}, endpoint={member['endpoint_id']}")
-                                result = await self.manage_group(GroupCommand(
-                                    name=group_name,
-                                    group_id=existing_group['group_id'],
-                                    members=to_remove,
-                                    operation='remove_members'
-                                ))
-                                if not result:
-                                    logger.error(f"Failed to remove members from group {group_name}")
-                            
-                            # Add new members
-                            to_add = [{'ieee': ieee, 'endpoint_id': ep} 
-                                    for ieee, ep in new_member_set - existing_member_set]
-                            if to_add:
-                                logger.info(f"Adding {len(to_add)} members to group {group_name}")
-                                for member in to_add:
-                                    logger.info(f"  Add: IEEE={member['ieee']}, endpoint={member['endpoint_id']}")
-                                result = await self.manage_group(GroupCommand(
-                                    name=group_name,
-                                    group_id=existing_group['group_id'],
-                                    members=to_add,
-                                    operation='add_members'
-                                ))
-                                if not result:
-                                    logger.error(f"Failed to add members to group {group_name}")
+
+                for group_name, members, cap_type in capability_groups:
+                    expected_group_names.add(group_name)
+                    logger.info(f"Prepared {len(members)} {cap_type} members for group '{group_name}'")
+
+                    # Check if group exists
+                    existing_group = existing_groups_by_name.get(group_name)
+
+                    if existing_group:
+                        # Group exists - check if membership needs updating
+                        existing_members = existing_group.get('members', [])
+
+                        # Handle empty groups or groups with None members
+                        if not existing_members or (len(existing_members) == 1 and existing_members[0] is None):
+                            # Group is empty, just add all members
+                            logger.info(f"Group '{group_name}' is empty, adding all {len(members)} members")
+                            await self.manage_group(GroupCommand(
+                                name=group_name,
+                                group_id=existing_group['group_id'],
+                                members=members,
+                                operation='add_members'
+                            ))
                         else:
-                            logger.debug(f"Group '{group_name}' already has correct members")
-                    
-                    # Store mapping
-                    self.area_to_group_id[area_name] = existing_group['group_id']
-                    
-                    # Move existing group entity to Circadian area if needed
-                    if circadian_area_id:
-                        await self.move_group_entity_to_circadian_area(group_name, circadian_area_id)
-                else:
-                    # Create new group with random 16-bit group ID
-                    # Generate random 16-bit integer (0-65535)
-                    random_group_id = random.randint(1, 65535)
-                    logger.info(f"Creating new ZHA group '{group_name}' for area '{area_name}' with ID {random_group_id}")
-                    success = await self.create_group(GroupCommand(
-                        name=group_name,
-                        group_id=random_group_id,
-                        members=members
-                    ))
-                    
-                    if success:
-                        # Get the newly created group to store its ID
-                        updated_groups = await self.list_zha_groups()
-                        for g in updated_groups:
-                            if g.get('name') == group_name:
-                                self.area_to_group_id[area_name] = g['group_id']
-                                
-                                # Find the entity_id for this group and move it to Circadian area
-                                if circadian_area_id:
-                                    await self.move_group_entity_to_circadian_area(group_name, circadian_area_id)
-                                
-                                break
+                            # Compare existing and new members (ensure lowercase comparison)
+                            # Handle nested structure where IEEE is in device.ieee
+                            existing_member_set = set()
+                            for m in existing_members:
+                                if m:
+                                    # Check if IEEE is directly on member or nested in device
+                                    ieee = m.get('ieee') or (m.get('device', {}).get('ieee') if m.get('device') else None)
+                                    endpoint_id = m.get('endpoint_id')
+                                    if ieee and endpoint_id is not None:
+                                        existing_member_set.add((ieee.lower(), endpoint_id))
+
+                            new_member_set = {(m['ieee'].lower(), m['endpoint_id']) for m in members}
+
+                            if existing_member_set != new_member_set:
+                                logger.info(f"Updating members for group '{group_name}'")
+                                logger.info(f"  Existing members: {existing_member_set}")
+                                logger.info(f"  New members: {new_member_set}")
+
+                                # Remove members that shouldn't be in the group
+                                to_remove = [{'ieee': ieee, 'endpoint_id': ep}
+                                           for ieee, ep in existing_member_set - new_member_set]
+                                if to_remove:
+                                    logger.info(f"Removing {len(to_remove)} members from group {group_name}")
+                                    for member in to_remove:
+                                        logger.info(f"  Remove: IEEE={member['ieee']}, endpoint={member['endpoint_id']}")
+                                    result = await self.manage_group(GroupCommand(
+                                        name=group_name,
+                                        group_id=existing_group['group_id'],
+                                        members=to_remove,
+                                        operation='remove_members'
+                                    ))
+                                    if not result:
+                                        logger.error(f"Failed to remove members from group {group_name}")
+
+                                # Add new members
+                                to_add = [{'ieee': ieee, 'endpoint_id': ep}
+                                        for ieee, ep in new_member_set - existing_member_set]
+                                if to_add:
+                                    logger.info(f"Adding {len(to_add)} members to group {group_name}")
+                                    for member in to_add:
+                                        logger.info(f"  Add: IEEE={member['ieee']}, endpoint={member['endpoint_id']}")
+                                    result = await self.manage_group(GroupCommand(
+                                        name=group_name,
+                                        group_id=existing_group['group_id'],
+                                        members=to_add,
+                                        operation='add_members'
+                                    ))
+                                    if not result:
+                                        logger.error(f"Failed to add members to group {group_name}")
+                            else:
+                                logger.debug(f"Group '{group_name}' already has correct members")
+
+                        # Move existing group entity to Circadian area if needed
+                        if circadian_area_id:
+                            await self.move_group_entity_to_circadian_area(group_name, circadian_area_id)
+                    else:
+                        # Create new group with random 16-bit group ID
+                        random_group_id = random.randint(1, 65535)
+                        logger.info(f"Creating new ZHA group '{group_name}' for area '{area_name}' with ID {random_group_id}")
+                        success = await self.create_group(GroupCommand(
+                            name=group_name,
+                            group_id=random_group_id,
+                            members=members
+                        ))
+
+                        if success:
+                            # Get the newly created group to store its ID
+                            updated_groups = await self.list_zha_groups()
+                            for g in updated_groups:
+                                if g.get('name') == group_name:
+                                    # Find the entity_id for this group and move it to Circadian area
+                                    if circadian_area_id:
+                                        await self.move_group_entity_to_circadian_area(group_name, circadian_area_id)
+                                    break
             
             # Delete groups for areas that no longer exist (only our Circadian_ groups)
             for group_name, group in existing_groups_by_name.items():

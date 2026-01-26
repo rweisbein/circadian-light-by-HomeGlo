@@ -335,13 +335,26 @@ class HomeAssistantWebSocketClient:
             area_name = area_name.replace("light.", "")
 
         if area_name:
+            # Detect capability suffix for capability-based groups
+            # New format: Circadian_<area>_color or Circadian_<area>_ct
+            # Old format: Circadian_<area> (maps to zha_group for backwards compat)
+            group_type = "zha_group"  # Default for old format
+            area_name_lower = area_name.lower()
+
+            if area_name_lower.endswith("_color"):
+                group_type = "zha_group_color"
+                area_name = area_name[:-6]  # Remove _color suffix
+            elif area_name_lower.endswith("_ct"):
+                group_type = "zha_group_ct"
+                area_name = area_name[:-3]  # Remove _ct suffix
+
             self._register_area_group_entity(
                 entity_id,
                 area_name=area_name,
                 area_id=None,
-                group_type="zha_group",
+                group_type=group_type,
             )
-            logger.debug(f"Registered Circadian ZHA group '{entity_id}' for area '{area_name}'")
+            logger.debug(f"Registered Circadian ZHA group '{entity_id}' ({group_type}) for area '{area_name}'")
 
     # Backwards compatibility for tests and legacy callers
     def _update_zha_group_mapping(self, entity_id: str, friendly_name: str) -> None:
@@ -1680,6 +1693,12 @@ class HomeAssistantWebSocketClient:
 
         tasks: List[asyncio.Task] = []
 
+        # Look up ZHA capability groups for this area
+        normalized_key = self._normalize_area_key(area_id)
+        group_candidates = self.area_group_map.get(normalized_key, {}) if normalized_key else {}
+        zha_color_group = group_candidates.get("zha_group_color")
+        zha_ct_group = group_candidates.get("zha_group_ct")
+
         # Color-capable lights: use xy_color for full color range
         if color_lights:
             color_data = {"transition": transition}
@@ -1688,12 +1707,21 @@ class HomeAssistantWebSocketClient:
             if include_color and xy is not None:
                 color_data["xy_color"] = list(xy)
 
-            logger.info(f"Circadian update (color): {len(color_lights)} lights, xy={xy}, brightness={brightness}%")
-            tasks.append(
-                asyncio.create_task(
-                    self.call_service("light", "turn_on", color_data, {"entity_id": color_lights})
+            # Use ZHA group if available (efficient hardware-level control)
+            if zha_color_group:
+                logger.info(f"Circadian update (color via ZHA group): {zha_color_group}, xy={xy}, brightness={brightness}%")
+                tasks.append(
+                    asyncio.create_task(
+                        self.call_service("light", "turn_on", color_data, {"entity_id": zha_color_group})
+                    )
                 )
-            )
+            else:
+                logger.info(f"Circadian update (color): {len(color_lights)} lights, xy={xy}, brightness={brightness}%")
+                tasks.append(
+                    asyncio.create_task(
+                        self.call_service("light", "turn_on", color_data, {"entity_id": color_lights})
+                    )
+                )
 
         # CT-only lights: use color_temp_kelvin (clamped to 2000K min)
         if ct_lights:
@@ -1703,12 +1731,21 @@ class HomeAssistantWebSocketClient:
             if include_color and kelvin is not None:
                 ct_data["color_temp_kelvin"] = max(2000, kelvin)
 
-            logger.info(f"Circadian update (CT): {len(ct_lights)} lights, kelvin={kelvin}, brightness={brightness}%")
-            tasks.append(
-                asyncio.create_task(
-                    self.call_service("light", "turn_on", ct_data, {"entity_id": ct_lights})
+            # Use ZHA group if available (efficient hardware-level control)
+            if zha_ct_group:
+                logger.info(f"Circadian update (CT via ZHA group): {zha_ct_group}, kelvin={kelvin}, brightness={brightness}%")
+                tasks.append(
+                    asyncio.create_task(
+                        self.call_service("light", "turn_on", ct_data, {"entity_id": zha_ct_group})
+                    )
                 )
-            )
+            else:
+                logger.info(f"Circadian update (CT): {len(ct_lights)} lights, kelvin={kelvin}, brightness={brightness}%")
+                tasks.append(
+                    asyncio.create_task(
+                        self.call_service("light", "turn_on", ct_data, {"entity_id": ct_lights})
+                    )
+                )
 
         # Brightness-only lights: only set brightness, no color
         if brightness_lights:

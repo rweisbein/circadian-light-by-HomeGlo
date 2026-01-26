@@ -1,5 +1,16 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.167
+**ZHA groups split by color capability**
+
+- ZHA groups now split by capability: `Circadian_<area>_color` and `Circadian_<area>_ct`
+- Color-capable lights (xy/rgb/hs) get their own group for efficient hardware control
+- CT-only lights get a separate group
+- Brightness-only and on/off-only lights are NOT added to groups (controlled individually)
+- `turn_on_lights_circadian` now uses capability-specific ZHA groups when available
+- Old-style single groups (`Circadian_<area>`) are automatically cleaned up on sync
+- Group detection updated to recognize `_color` and `_ct` suffixes
+
 ## 6.9.166
 **Skip 2-step turn-on for all-Hue areas**
 
