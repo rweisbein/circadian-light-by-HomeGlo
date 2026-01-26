@@ -1,5 +1,14 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.141
+**Implement motion warning before auto-off**
+
+- New: Motion warning dims lights before auto-off timer expires
+- Configurable warning time (seconds before off) in Advanced > Visual Feedback
+- Configurable blink threshold: above threshold dims to 50%, below threshold blinks off then dims to 3%
+- Warning cancelled and brightness restored when motion is re-detected
+- State tracking for warning (motion_warning_at, motion_pre_warning_brightness)
+
 ## 6.9.140
 **Fix nav links on Glo page + add Visual Feedback settings**
 

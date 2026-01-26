@@ -47,6 +47,9 @@ def _get_default_area_state() -> Dict[str, Any]:
         "boost_brightness": None,  # Current boost brightness percentage (None = not boosted)
         # Motion on_off state (on_only has no timer, so doesn't need state)
         "motion_expires_at": None,  # ISO timestamp when on_off motion timer expires (None = not from motion)
+        # Motion warning state
+        "motion_warning_at": None,  # ISO timestamp when warning was triggered (None = not warned)
+        "motion_pre_warning_brightness": None,  # Brightness % before warning (to restore if motion detected)
     }
 
 
@@ -606,3 +609,88 @@ def get_expired_motion() -> List[str]:
             expired.append(area_id)
 
     return expired
+
+
+# -----------------------------------------------------------------------------
+# Motion Warning State
+# -----------------------------------------------------------------------------
+
+def set_motion_warning(area_id: str, pre_warning_brightness: int) -> None:
+    """Set motion warning state for an area.
+
+    Args:
+        area_id: The area ID
+        pre_warning_brightness: The brightness % before warning (to restore later)
+    """
+    from datetime import datetime
+
+    update_area(area_id, {
+        "motion_warning_at": datetime.now().isoformat(),
+        "motion_pre_warning_brightness": pre_warning_brightness
+    })
+
+
+def clear_motion_warning(area_id: str) -> None:
+    """Clear motion warning state for an area."""
+    area = get_area(area_id)
+    if area.get("motion_warning_at") is not None:
+        update_area(area_id, {
+            "motion_warning_at": None,
+            "motion_pre_warning_brightness": None
+        })
+
+
+def is_motion_warned(area_id: str) -> bool:
+    """Check if area is in motion warning state."""
+    return get_area(area_id).get("motion_warning_at") is not None
+
+
+def get_motion_warning_state(area_id: str) -> dict:
+    """Get motion warning state for an area.
+
+    Returns:
+        Dict with 'is_warned', 'warning_at', 'pre_warning_brightness'
+    """
+    area = get_area(area_id)
+    return {
+        "is_warned": area.get("motion_warning_at") is not None,
+        "warning_at": area.get("motion_warning_at"),
+        "pre_warning_brightness": area.get("motion_pre_warning_brightness")
+    }
+
+
+def get_areas_needing_warning(warning_seconds: int) -> List[str]:
+    """Get areas that have motion timers approaching expiry and haven't been warned.
+
+    Args:
+        warning_seconds: How many seconds before expiry to trigger warning
+
+    Returns:
+        List of area_ids that need warnings triggered
+    """
+    from datetime import datetime, timedelta
+
+    if warning_seconds <= 0:
+        return []
+
+    now = datetime.now()
+    warning_threshold = now + timedelta(seconds=warning_seconds)
+    needs_warning = []
+
+    for area_id, s in _state.items():
+        expires_at = s.get("motion_expires_at")
+        warning_at = s.get("motion_warning_at")
+
+        # Skip if no motion timer, already warned, or already expired
+        if not expires_at or warning_at is not None:
+            continue
+
+        try:
+            expiry_time = datetime.fromisoformat(expires_at)
+            # If expiry is within warning window and not yet expired
+            if now < expiry_time <= warning_threshold:
+                needs_warning.append(area_id)
+        except (ValueError, TypeError):
+            continue
+
+    return needs_warning

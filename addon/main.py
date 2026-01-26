@@ -424,6 +424,9 @@ class HomeAssistantWebSocketClient:
             logger.debug(f"[Motion] Area {area_id}: mode={mode}, boost={area_config.boost_enabled}, duration={duration}")
 
             if new_state == "on":
+                # Cancel any active warning first (restores brightness)
+                await self.primitives.cancel_motion_warning(area_id, source="motion_sensor")
+
                 # Check light state BEFORE motion_on_off (needed for boost coordination)
                 lights_were_off = not await self.any_lights_on_in_area([area_id])
 
@@ -502,6 +505,9 @@ class HomeAssistantWebSocketClient:
 
             logger.debug(f"[ZHA Motion] Area {area_id}: mode={mode}, boost={area_config.boost_enabled}, duration={duration}")
 
+            # Cancel any active warning first (restores brightness)
+            await self.primitives.cancel_motion_warning(area_id, source="motion_sensor")
+
             # Check light state BEFORE motion_on_off (needed for boost coordination)
             lights_were_off = not await self.any_lights_on_in_area([area_id])
 
@@ -572,6 +578,9 @@ class HomeAssistantWebSocketClient:
             logger.debug(f"[Contact] Area {area_id}: mode={mode}, boost={area_config.boost_enabled}, duration={duration}")
 
             if new_state == "on":
+                # Cancel any active warning first (restores brightness)
+                await self.primitives.cancel_motion_warning(area_id, source="contact_sensor")
+
                 # Check light state BEFORE motion_on_off (needed for boost coordination)
                 lights_were_off = not await self.any_lights_on_in_area([area_id])
 
@@ -589,6 +598,9 @@ class HomeAssistantWebSocketClient:
 
             else:
                 # Contact closed - handle close behaviors
+                # Clear any warning state first
+                state.clear_motion_warning(area_id)
+
                 # End boost first (if enabled)
                 if area_config.boost_enabled:
                     await self.primitives.end_boost(area_id, source="contact_sensor")
@@ -2412,6 +2424,9 @@ class HomeAssistantWebSocketClient:
                 reset_switches = switches.check_scope_timeouts()
                 if reset_switches:
                     logger.debug(f"Reset {len(reset_switches)} switch(es) to scope 1 due to inactivity")
+
+                # Check for motion warnings (before expiry check)
+                await self.primitives.check_motion_warnings()
 
                 # Check for expired boosts and motion timers
                 await self.primitives.check_expired_boosts()
