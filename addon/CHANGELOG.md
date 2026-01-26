@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.147
+**Skip two-step turn-on when lights are already on**
+
+- Fixed: Lights flashed during contact/motion sensor trigger even when already on
+- The two-step turn-on (1% for color, then target brightness) should only run when lights are OFF
+- Now checks `is_circadian` AND `is_on` before deciding to use two-step
+- If lights were already on, just adjust brightness directly
+
 ## 6.9.146
 **Use own state tracking instead of querying HA for light status**
 

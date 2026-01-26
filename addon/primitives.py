@@ -515,6 +515,9 @@ class CircadianLightPrimitives:
             glozone.add_area_to_default_zone(area_id)
             logger.info(f"Added area {area_id} to default zone")
 
+        # Check if lights were already on BEFORE enabling (for two-step decision)
+        lights_were_on = state.is_circadian(area_id) and state.get_is_on(area_id)
+
         # Enable circadian control and set is_on=True (resets state if was not circadian)
         was_circadian = state.enable_circadian_and_set_on(area_id, True)
 
@@ -526,12 +529,17 @@ class CircadianLightPrimitives:
 
         result = CircadianLight.calculate_lighting(hour, config, area_state, sun_times=sun_times)
         transition = self._get_turn_on_transition()
-        # Use two-phase turn-on to avoid color jump from previous light state
-        await self._apply_lighting_turn_on(area_id, result.brightness, result.color_temp, transition=transition)
+
+        if lights_were_on:
+            # Lights already on - just adjust, no two-step needed
+            await self._apply_lighting(area_id, result.brightness, result.color_temp, include_color=True, transition=transition)
+        else:
+            # Lights were off - use two-phase turn-on to avoid color jump
+            await self._apply_lighting_turn_on(area_id, result.brightness, result.color_temp, transition=transition)
 
         logger.info(
             f"lights_on for area {area_id}: {result.brightness}%, {result.color_temp}K "
-            f"(hour={hour:.2f}, was_circadian={was_circadian})"
+            f"(hour={hour:.2f}, was_circadian={was_circadian}, lights_were_on={lights_were_on})"
         )
 
     async def lights_off(self, area_id: str, source: str = "service_call"):
