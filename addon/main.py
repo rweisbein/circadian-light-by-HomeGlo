@@ -2296,12 +2296,18 @@ class HomeAssistantWebSocketClient:
             # Check if area is boosted - if so, apply boost to brightness
             brightness = result.brightness
             boost_note = ""
-            if state.is_boosted(area_id):
+            is_boosted = state.is_boosted(area_id)
+            if is_boosted:
                 # Get boost brightness from area's boost state (set per-sensor)
                 boost_state = state.get_boost_state(area_id)
                 boost_amount = boost_state.get('boost_brightness') or 0
                 brightness = min(100, result.brightness + boost_amount)
                 boost_note = f" (boosted +{boost_amount}%)"
+                logger.info(f"[Periodic] Area {area_id}: applying boost {boost_amount}% -> {brightness}% (state={boost_state})")
+            else:
+                # Log why boost wasn't applied - check raw state
+                raw_boost = state.get_boost_state(area_id)
+                logger.info(f"[Periodic] Area {area_id}: no boost (is_boosted=False, raw_state={raw_boost})")
 
             # Build values dict for turn_on_lights_circadian
             lighting_values = {
