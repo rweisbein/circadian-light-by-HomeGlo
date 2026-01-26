@@ -778,6 +778,7 @@
       // Build filter options from data
       const categories = [...new Set(controls.map(c => c.category).filter(Boolean))].sort();
       const areas = [...new Set(controls.map(c => c.area_name).filter(Boolean))].sort();
+      const hasUnassigned = controls.some(c => !c.area_name);
       const statuses = [...new Set(controls.map(c => c.status).filter(Boolean))];
 
       // Validate saved filters - reset to 'all' if saved value doesn't exist in current data
@@ -787,7 +788,7 @@
         categoryFilter = 'all';
         filtersReset = true;
       }
-      if (areaFilter !== 'all' && !areas.includes(areaFilter)) {
+      if (areaFilter !== 'all' && areaFilter !== 'unassigned' && !areas.includes(areaFilter)) {
         console.log(`[Filters] Resetting invalid areaFilter '${areaFilter}' to 'all'`);
         areaFilter = 'all';
         filtersReset = true;
@@ -805,7 +806,8 @@
       // Apply all filters
       const filtered = controls.filter(c => {
         if (categoryFilter !== 'all' && c.category !== categoryFilter) return false;
-        if (areaFilter !== 'all' && c.area_name !== areaFilter) return false;
+        if (areaFilter === 'unassigned' && c.area_name) return false;  // Show only unassigned
+        if (areaFilter !== 'all' && areaFilter !== 'unassigned' && c.area_name !== areaFilter) return false;
         if (statusFilter !== 'all' && c.status !== statusFilter) return false;
         return true;
       });
@@ -865,6 +867,7 @@
         categories.map(c => `<option value="${c}" ${categoryFilter === c ? 'selected' : ''}>${formatCategory(c)}</option>`).join('');
 
       const areaOptions = `<option value="all">All</option>` +
+        (hasUnassigned ? `<option value="unassigned" ${areaFilter === 'unassigned' ? 'selected' : ''}>— Unassigned —</option>` : '') +
         areas.map(a => `<option value="${a}" ${areaFilter === a ? 'selected' : ''}>${a}</option>`).join('');
 
       const statusLabels = { 'active': 'Configured', 'inactive': 'Inactive', 'not_configured': 'Not configured', 'unsupported': 'Unsupported' };
