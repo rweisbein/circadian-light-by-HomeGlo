@@ -1007,6 +1007,7 @@ class LightDesignerServer:
         "latitude", "longitude", "timezone", "use_ha_location", "month",
         "turn_on_transition",  # Transition time in tenths of seconds for turn-on operations
         "turn_off_transition",  # Transition time in tenths of seconds for turn-off operations
+        "two_step_delay",  # Delay between two-step phases in tenths of seconds (default 3 = 300ms)
         "multi_click_enabled",  # Enable multi-click detection for Hue Hub switches
         "multi_click_speed",  # Multi-click window in tenths of seconds
         "circadian_refresh",  # How often to refresh circadian lighting (seconds)

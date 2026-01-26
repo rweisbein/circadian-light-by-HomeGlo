@@ -313,6 +313,17 @@
           </div>
         </div>
 
+        <div class="form-row">
+          <label class="form-label">
+            Two-step delay
+            <span class="info-icon">i<span class="info-tooltip">When turning on lights, a two-step process sets color at 1% then transitions to target brightness. This delay between steps prevents some ZigBee lights from dropping the second command. Increase if lights stay dim after turn-on.</span></span>
+          </label>
+          <div class="form-control">
+            <input type="number" class="form-input" id="two-step-delay" min="1" max="20" step="1" value="3" style="width: 80px;">
+            <span class="form-hint">tenths of a second</span>
+          </div>
+        </div>
+
         <div class="form-row" style="margin-top: 20px;">
           <label class="form-label">
             Multi-click
@@ -383,6 +394,7 @@
           const config = await response.json();
           document.getElementById('turn-on-transition').value = config.turn_on_transition ?? 3;
           document.getElementById('turn-off-transition').value = config.turn_off_transition ?? 3;
+          document.getElementById('two-step-delay').value = config.two_step_delay ?? 3;
           document.getElementById('multi-click-enabled').checked = config.multi_click_enabled ?? true;
           document.getElementById('multi-click-speed').value = config.multi_click_speed ?? 2;
           document.getElementById('circadian-refresh').value = config.circadian_refresh ?? 30;
@@ -399,6 +411,7 @@
       const settings = {
         turn_on_transition: parseInt(document.getElementById('turn-on-transition').value) || 3,
         turn_off_transition: parseInt(document.getElementById('turn-off-transition').value) || 3,
+        two_step_delay: parseInt(document.getElementById('two-step-delay').value) || 3,
         multi_click_enabled: document.getElementById('multi-click-enabled').checked,
         multi_click_speed: parseInt(document.getElementById('multi-click-speed').value) || 2,
         circadian_refresh: parseInt(document.getElementById('circadian-refresh').value) || 30,
@@ -444,6 +457,7 @@
     // Auto-save on blur for number inputs (avoids decrement bug on focus)
     document.getElementById('turn-on-transition').addEventListener('blur', saveSettings);
     document.getElementById('turn-off-transition').addEventListener('blur', saveSettings);
+    document.getElementById('two-step-delay').addEventListener('blur', saveSettings);
     document.getElementById('multi-click-enabled').addEventListener('change', () => {
       updateMultiClickState();
       saveSettings();

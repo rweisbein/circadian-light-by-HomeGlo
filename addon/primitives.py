@@ -130,6 +130,26 @@ class CircadianLightPrimitives:
         except Exception:
             return 0.3  # Default 0.3 seconds
 
+    def _get_two_step_delay(self) -> float:
+        """Get the two-step turn-on delay in seconds.
+
+        When turning on lights, a two-step process sets color at 1% brightness
+        then transitions to target brightness. This delay between steps prevents
+        some ZigBee lights from dropping the second command.
+
+        Reads from global config, defaults to 0.3 seconds (3 tenths).
+        The setting is stored as tenths of seconds in config.
+
+        Returns:
+            Delay time in seconds
+        """
+        try:
+            raw_config = glozone.load_config_from_files()
+            tenths = raw_config.get("two_step_delay", 3)
+            return tenths / 10.0  # Convert tenths to seconds
+        except Exception:
+            return 0.3  # Default 0.3 seconds
+
     async def _turn_off_area(self, area_id: str, transition: float = 0.3) -> None:
         """Turn off all lights in an area.
 
@@ -1942,8 +1962,9 @@ class CircadianLightPrimitives:
             await self._apply_lighting(area_id, 1, color_temp, include_color=True, transition=0)
 
             # Delay to ensure phase 1 completes before phase 2
-            # 50ms was too short, 150ms still had issues - some ZigBee lights need more time
-            await asyncio.sleep(0.3)
+            # Configurable via Settings > Two-step delay (some ZigBee lights need more time)
+            delay = self._get_two_step_delay()
+            await asyncio.sleep(delay)
 
             # Phase 2: Transition to target brightness
             await self._apply_lighting(area_id, brightness, color_temp, include_color=True, transition=transition)
