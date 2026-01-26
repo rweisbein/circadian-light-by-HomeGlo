@@ -928,7 +928,7 @@
      */
     function isAreaAligned(areaState, zoneState) {
       // Off areas are considered aligned (not fighting the zone)
-      if (!areaState.enabled) return true;
+      if (!areaState.is_on) return true;
       // Allow 2% brightness tolerance and 100K color temp tolerance
       const brightDiff = Math.abs(areaState.brightness - zoneState.brightness);
       const kelvinDiff = Math.abs(areaState.kelvin - zoneState.kelvin);
@@ -1030,7 +1030,7 @@
           areaStates = {};
           for (const [areaId, status] of Object.entries(data)) {
             areaStates[areaId] = {
-              enabled: status.enabled,
+              is_on: status.is_on,
               brightness: status.brightness,
               kelvin: status.kelvin || 4000,
               frozen: status.frozen
@@ -1182,7 +1182,7 @@
     function renderAreaChip(area, zoneName, zoneState = null) {
       const areaId = area.area_id;
       const areaName = area.name || areaId;
-      const areaState = areaStates[areaId] || { enabled: false, brightness: 0, kelvin: 4000, frozen: false };
+      const areaState = areaStates[areaId] || { is_on: false, brightness: 0, kelvin: 4000, frozen: false };
 
       // Determine sync status (only when in a zone with a zoneState)
       let syncClass = '';
@@ -1193,7 +1193,7 @@
 
       // Build chip styles - CCT background tinted by brightness (matches glo-designer buttons)
       let chipStyle = '';
-      if (areaState.enabled) {
+      if (areaState.is_on) {
         // CCT color tinted by brightness
         const bgColor = tintColorByBrightness(cctToRGB(areaState.kelvin), areaState.brightness);
         const textColor = readableTextColor(bgColor);
@@ -1207,7 +1207,7 @@
         <div class="area-chip ${syncClass}" draggable="true" data-area="${areaId}" data-zone="${zoneName || ''}" style="${chipStyle}">
           <span class="area-name">${areaName}</span>
           <div class="area-status">
-            ${areaState.enabled ? `<span class="area-brightness">${areaState.brightness}% • ${Math.round(areaState.kelvin)}K</span>` : ''}
+            ${areaState.is_on ? `<span class="area-brightness">${areaState.brightness}% • ${Math.round(areaState.kelvin)}K</span>` : ''}
             ${areaState.frozen ? '<span class="area-frozen" title="Frozen">&#128274;</span>' : ''}
           </div>
         </div>

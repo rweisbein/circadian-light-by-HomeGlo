@@ -423,7 +423,7 @@
         const status = areaStatus[area.area_id] || {};
         return {
           ...area,
-          enabled: status.enabled || false,
+          is_on: status.is_on || false,
           brightness: status.brightness || 0,
           kelvin: status.kelvin || 4000,
           frozen: status.frozen || false,
@@ -462,8 +462,8 @@
           }
         }
         if (statusFilter !== 'all') {
-          if (statusFilter === 'on' && !a.enabled) return false;
-          if (statusFilter === 'off' && a.enabled) return false;
+          if (statusFilter === 'on' && !a.is_on) return false;
+          if (statusFilter === 'off' && a.is_on) return false;
           if (statusFilter === 'frozen' && !a.frozen) return false;
         }
         return true;
@@ -483,12 +483,12 @@
             break;
           case 'status':
             // Sort: on > frozen > off
-            valA = a.enabled ? (a.frozen ? 1 : 0) : 2;
-            valB = b.enabled ? (b.frozen ? 1 : 0) : 2;
+            valA = a.is_on ? (a.frozen ? 1 : 0) : 2;
+            valB = b.is_on ? (b.frozen ? 1 : 0) : 2;
             break;
           case 'brightness':
-            valA = a.enabled ? a.brightness : -1;
-            valB = b.enabled ? b.brightness : -1;
+            valA = a.is_on ? a.brightness : -1;
+            valB = b.is_on ? b.brightness : -1;
             break;
           default:
             return 0;
@@ -569,7 +569,7 @@
     }
 
     function getStatusBadge(area) {
-      if (!area.enabled) {
+      if (!area.is_on) {
         return '<span class="status-badge status-off">Off</span>';
       }
       if (area.frozen) {
@@ -579,7 +579,7 @@
     }
 
     function getLightingInfo(area) {
-      if (!area.enabled) {
+      if (!area.is_on) {
         return '<span style="color: var(--muted2)">—</span>';
       }
       const colorRgb = kelvinToRgb(area.kelvin);
