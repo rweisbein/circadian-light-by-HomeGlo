@@ -663,7 +663,9 @@ def get_motion_warning_state(area_id: str) -> dict:
 
 
 def get_areas_needing_warning(warning_seconds: int) -> List[str]:
-    """Get areas that have motion timers approaching expiry and haven't been warned.
+    """Get areas that have timers approaching expiry and haven't been warned.
+
+    Checks both motion timers AND boost timers (when boost will turn off lights).
 
     Args:
         warning_seconds: How many seconds before expiry to trigger warning
@@ -681,19 +683,32 @@ def get_areas_needing_warning(warning_seconds: int) -> List[str]:
     needs_warning = []
 
     for area_id, s in _state.items():
-        expires_at = s.get("motion_expires_at")
         warning_at = s.get("motion_warning_at")
 
-        # Skip if no motion timer, "forever" timer, or already warned
-        if not expires_at or expires_at == "forever" or warning_at is not None:
+        # Skip if already warned
+        if warning_at is not None:
             continue
 
-        try:
-            expiry_time = datetime.fromisoformat(expires_at)
-            # If expiry is within warning window and not yet expired
-            if now < expiry_time <= warning_threshold:
-                needs_warning.append(area_id)
-        except (ValueError, TypeError):
-            continue
+        # Check motion timer
+        motion_expires = s.get("motion_expires_at")
+        if motion_expires and motion_expires != "forever":
+            try:
+                expiry_time = datetime.fromisoformat(motion_expires)
+                if now < expiry_time <= warning_threshold:
+                    needs_warning.append(area_id)
+                    continue  # Already added, skip boost check
+            except (ValueError, TypeError):
+                pass
+
+        # Check boost timer (only if boost will turn off lights when it ends)
+        boost_expires = s.get("boost_expires_at")
+        boost_started_from_off = s.get("boost_started_from_off", False)
+        if boost_expires and boost_expires != "forever" and boost_started_from_off:
+            try:
+                expiry_time = datetime.fromisoformat(boost_expires)
+                if now < expiry_time <= warning_threshold:
+                    needs_warning.append(area_id)
+            except (ValueError, TypeError):
+                pass
 
     return needs_warning

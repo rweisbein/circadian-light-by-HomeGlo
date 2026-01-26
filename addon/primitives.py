@@ -959,6 +959,9 @@ class CircadianLightPrimitives:
 
         if started_from_off:
             # Lights were off when boost started - turn off and set is_on=False
+            # Clear any warning state first
+            state.clear_motion_warning(area_id)
+
             # Store CT first for smart 2-step on next turn-on
             try:
                 config = self._get_config(area_id)
