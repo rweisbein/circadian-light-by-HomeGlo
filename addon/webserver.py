@@ -449,6 +449,10 @@ class LightDesignerServer:
         self.app.router.add_post('/api/glozone/glo-down', self.handle_glo_down)
         self.app.router.add_post('/api/glozone/glo-reset', self.handle_glo_reset)
 
+        # Area action API route
+        self.app.router.add_route('POST', '/{path:.*}/api/area/action', self.handle_area_action)
+        self.app.router.add_post('/api/area/action', self.handle_area_action)
+
         # Controls API routes (new unified endpoint)
         self.app.router.add_route('GET', '/{path:.*}/api/controls', self.get_controls)
         self.app.router.add_route('POST', '/{path:.*}/api/controls/{control_id}/configure', self.configure_control)
@@ -2957,6 +2961,65 @@ class LightDesignerServer:
             return web.json_response({"error": "Invalid JSON"}, status=400)
         except Exception as e:
             logger.error(f"Error handling glo_reset: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    # -------------------------------------------------------------------------
+    # Area Action API endpoint
+    # -------------------------------------------------------------------------
+
+    async def handle_area_action(self, request: Request) -> Response:
+        """Handle area action - execute a primitive for an area.
+
+        Supported actions:
+        - lights_on, lights_off, lights_toggle
+        - circadian_on, circadian_off
+        - step_up, step_down
+        - bright_up, bright_down
+        - color_up, color_down
+        - freeze_toggle, reset
+        - glo_up, glo_down, glo_reset
+        """
+        VALID_ACTIONS = {
+            'lights_on', 'lights_off', 'lights_toggle',
+            'circadian_on', 'circadian_off',
+            'step_up', 'step_down',
+            'bright_up', 'bright_down',
+            'color_up', 'color_down',
+            'freeze_toggle', 'reset',
+            'glo_up', 'glo_down', 'glo_reset'
+        }
+
+        try:
+            data = await request.json()
+            area_id = data.get("area_id")
+            action = data.get("action")
+
+            if not area_id:
+                return web.json_response({"error": "area_id is required"}, status=400)
+            if not action:
+                return web.json_response({"error": "action is required"}, status=400)
+            if action not in VALID_ACTIONS:
+                return web.json_response({"error": f"Invalid action: {action}. Valid actions: {sorted(VALID_ACTIONS)}"}, status=400)
+
+            # Fire event for main.py to handle
+            _, ws_url, token = self._get_ha_api_config()
+            if ws_url and token:
+                success = await self._fire_event_via_websocket(
+                    ws_url, token, 'circadian_light_service_event',
+                    {'service': action, 'area_id': area_id}
+                )
+                if success:
+                    logger.info(f"Fired {action} event for area {area_id}")
+                    return web.json_response({"status": "ok", "action": action, "area_id": area_id})
+                else:
+                    return web.json_response({"error": "Failed to fire event"}, status=500)
+            else:
+                return web.json_response({"error": "HA API not configured"}, status=503)
+
+        except json.JSONDecodeError:
+            return web.json_response({"error": "Invalid JSON"}, status=400)
+        except Exception as e:
+            logger.error(f"Error handling area action: {e}")
             return web.json_response({"error": str(e)}, status=500)
 
     # -------------------------------------------------------------------------

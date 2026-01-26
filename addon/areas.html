@@ -281,6 +281,173 @@
       color: var(--accent);
       text-decoration: underline;
     }
+
+    /* Clickable rows */
+    .areas-table tbody tr {
+      cursor: pointer;
+    }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.2s;
+    }
+
+    .modal-overlay.visible {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 24px;
+      min-width: 400px;
+      max-width: 90%;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    .modal-title {
+      font-size: 1.2rem;
+      font-weight: 600;
+    }
+
+    .modal-close {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      font-size: 1.5rem;
+      cursor: pointer;
+      padding: 4px 8px;
+      line-height: 1;
+    }
+
+    .modal-close:hover {
+      color: var(--text);
+    }
+
+    /* Area state display */
+    .area-state {
+      background: var(--panel);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+
+    .area-state-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .area-state-swatch {
+      width: 48px;
+      height: 48px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .area-state-info {
+      flex: 1;
+    }
+
+    .area-state-status {
+      font-size: 0.9rem;
+      margin-bottom: 4px;
+    }
+
+    .area-state-values {
+      font-size: 1.1rem;
+      font-weight: 500;
+    }
+
+    .area-state-zone {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    /* Action buttons */
+    .action-section {
+      margin-bottom: 16px;
+    }
+
+    .action-section-title {
+      font-size: 0.8rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+
+    .action-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .action-btn {
+      padding: 10px 16px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      color: var(--text);
+    }
+
+    .action-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: var(--accent);
+    }
+
+    .action-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .action-btn.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #000;
+    }
+
+    .action-btn.primary:hover {
+      background: var(--accent-hover);
+    }
+
+    .action-btn.success {
+      background: rgba(34, 197, 94, 0.15);
+      border-color: var(--success);
+      color: var(--success);
+    }
+
+    .action-btn.danger {
+      background: rgba(239, 68, 68, 0.15);
+      border-color: var(--danger);
+      color: var(--danger);
+    }
   </style>
 </head>
 <body>
@@ -314,6 +481,72 @@
     </div>
   </main>
 
+  <!-- Area Modal -->
+  <div class="modal-overlay" id="area-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-area-name">Area Name</h3>
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+      </div>
+
+      <div class="area-state" id="modal-area-state">
+        <div class="area-state-row">
+          <div class="area-state-swatch" id="modal-color-swatch"></div>
+          <div class="area-state-info">
+            <div class="area-state-status" id="modal-status"></div>
+            <div class="area-state-values" id="modal-values"></div>
+            <div class="area-state-zone" id="modal-zone"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="action-section">
+        <div class="action-section-title">Power</div>
+        <div class="action-buttons">
+          <button class="action-btn success" onclick="executeAction('lights_on')">Lights On</button>
+          <button class="action-btn danger" onclick="executeAction('lights_off')">Lights Off</button>
+          <button class="action-btn" onclick="executeAction('lights_toggle')">Toggle</button>
+        </div>
+      </div>
+
+      <div class="action-section">
+        <div class="action-section-title">Circadian Mode</div>
+        <div class="action-buttons">
+          <button class="action-btn success" onclick="executeAction('circadian_on')">Circadian On</button>
+          <button class="action-btn danger" onclick="executeAction('circadian_off')">Circadian Off</button>
+        </div>
+      </div>
+
+      <div class="action-section">
+        <div class="action-section-title">Adjust</div>
+        <div class="action-buttons">
+          <button class="action-btn" onclick="executeAction('step_up')">Step Up</button>
+          <button class="action-btn" onclick="executeAction('step_down')">Step Down</button>
+          <button class="action-btn" onclick="executeAction('bright_up')">Bright +</button>
+          <button class="action-btn" onclick="executeAction('bright_down')">Bright -</button>
+          <button class="action-btn" onclick="executeAction('color_up')">Color +</button>
+          <button class="action-btn" onclick="executeAction('color_down')">Color -</button>
+        </div>
+      </div>
+
+      <div class="action-section">
+        <div class="action-section-title">Zone</div>
+        <div class="action-buttons">
+          <button class="action-btn" onclick="executeAction('glo_up')">Glo Up</button>
+          <button class="action-btn" onclick="executeAction('glo_down')">Glo Down</button>
+          <button class="action-btn" onclick="executeAction('glo_reset')">Glo Reset</button>
+        </div>
+      </div>
+
+      <div class="action-section">
+        <div class="action-section-title">Other</div>
+        <div class="action-buttons">
+          <button class="action-btn" onclick="executeAction('freeze_toggle')">Freeze Toggle</button>
+          <button class="action-btn" onclick="executeAction('reset')">Reset</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <script>
     // State
@@ -323,6 +556,7 @@
     let sortAsc = true;
     let zoneFilter = 'all';
     let statusFilter = 'all';
+    let selectedArea = null;
 
     // Initialize
     document.addEventListener('DOMContentLoaded', async () => {
@@ -555,7 +789,7 @@
               const statusBadge = getStatusBadge(area);
               const lightingInfo = getLightingInfo(area);
               return `
-                <tr>
+                <tr onclick="openAreaModal('${area.area_id}')">
                   <td>${area.name}</td>
                   <td>${zoneName}</td>
                   <td>${statusBadge}</td>
@@ -625,6 +859,119 @@
           renderAreas();
         }
       });
+
+      // Close modal on overlay click
+      document.getElementById('area-modal').addEventListener('click', (e) => {
+        if (e.target.classList.contains('modal-overlay')) {
+          closeModal();
+        }
+      });
+
+      // Close modal on Escape key
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          closeModal();
+        }
+      });
+    }
+
+    // Modal functions
+    function openAreaModal(areaId) {
+      const area = areas.find(a => a.area_id === areaId);
+      const status = areaStatus[areaId] || {};
+
+      if (!area) return;
+
+      selectedArea = {
+        ...area,
+        is_on: status.is_on || false,
+        brightness: status.brightness || 0,
+        kelvin: status.kelvin || 4000,
+        frozen: status.frozen || false,
+        zone_name: status.zone_name || null,
+        is_circadian: status.is_circadian || false
+      };
+
+      // Update modal content
+      document.getElementById('modal-area-name').textContent = area.name;
+
+      // Status text
+      let statusText = '';
+      if (!selectedArea.is_on) {
+        statusText = 'Off';
+      } else if (selectedArea.frozen) {
+        statusText = 'Frozen';
+      } else if (selectedArea.is_circadian) {
+        statusText = 'Circadian';
+      } else {
+        statusText = 'On';
+      }
+      document.getElementById('modal-status').textContent = statusText;
+
+      // Values
+      if (selectedArea.is_on) {
+        document.getElementById('modal-values').textContent = `${Math.round(selectedArea.brightness)}% • ${Math.round(selectedArea.kelvin)}K`;
+      } else {
+        document.getElementById('modal-values').textContent = '—';
+      }
+
+      // Zone
+      if (selectedArea.zone_name) {
+        document.getElementById('modal-zone').textContent = `Zone: ${selectedArea.zone_name}`;
+      } else {
+        document.getElementById('modal-zone').textContent = 'No zone assigned';
+      }
+
+      // Color swatch
+      const swatch = document.getElementById('modal-color-swatch');
+      if (selectedArea.is_on) {
+        swatch.style.background = kelvinToRgb(selectedArea.kelvin);
+        swatch.style.opacity = selectedArea.brightness / 100;
+      } else {
+        swatch.style.background = '#333';
+        swatch.style.opacity = 1;
+      }
+
+      // Show modal
+      document.getElementById('area-modal').classList.add('visible');
+    }
+
+    function closeModal() {
+      document.getElementById('area-modal').classList.remove('visible');
+      selectedArea = null;
+    }
+
+    async function executeAction(action) {
+      if (!selectedArea) return;
+
+      try {
+        const response = await fetch('./api/area/action', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            area_id: selectedArea.area_id,
+            action: action
+          })
+        });
+
+        if (response.ok) {
+          // Refresh data after short delay to allow action to complete
+          setTimeout(async () => {
+            await loadData();
+            // Re-open modal with updated data if still viewing same area
+            if (selectedArea) {
+              openAreaModal(selectedArea.area_id);
+            }
+          }, 500);
+        } else {
+          const error = await response.json();
+          console.error('Action failed:', error);
+          alert(`Action failed: ${error.error || 'Unknown error'}`);
+        }
+      } catch (err) {
+        console.error('Error executing action:', err);
+        alert('Error executing action');
+      }
     }
 
   </script>
