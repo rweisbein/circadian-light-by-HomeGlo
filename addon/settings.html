@@ -170,6 +170,16 @@
       outline: 2px solid var(--accent);
     }
 
+    /* Hide number input spinners to prevent accidental value changes on click */
+    .form-input[type="number"]::-webkit-inner-spin-button,
+    .form-input[type="number"]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    .form-input[type="number"] {
+      -moz-appearance: textfield;
+    }
+
     .form-hint {
       font-size: 0.8rem;
       color: var(--muted2);
