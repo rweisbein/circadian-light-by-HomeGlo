@@ -1,5 +1,14 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.183
+**Fix: Use internal state tracking instead of entity state queries**
+
+- Changed `lights_toggle_multiple` to use Circadian Light's own `state.is_on()` tracking
+- Changed switch actions (step_up, step_down, bright_up, bright_down) to use internal state
+- Previously queried entity state which could be stale (Hue polling delay, unplugged lights)
+- Now consistent: if Circadian Light is managing an area, we use our own tracked state
+- Also reordered `any_lights_on_in_area` to prefer ZHA groups for remaining entity queries
+
 ## 6.9.182
 **Fix: Allow decimal values for two-step delay**
 

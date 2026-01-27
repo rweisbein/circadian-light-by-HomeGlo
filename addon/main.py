@@ -1156,49 +1156,49 @@ class HomeAssistantWebSocketClient:
 
         elif action == "step_up":
             # Step up only if lights are on AND in circadian mode, else nitelite
-            any_on = await self.any_lights_on_in_area(areas)
-            any_circadian = any(state.is_circadian(area) for area in areas)
-            if any_on and any_circadian:
+            # Use internal state tracking - no need to query HA entity state
+            any_on_circadian = any(state.is_circadian(area) and state.get_is_on(area) for area in areas)
+            if any_on_circadian:
                 for area in areas:
                     await self.primitives.step_up(area, "switch")
             else:
-                logger.info(f"[switch] step_up -> nitelite for areas: {areas} (on={any_on}, circadian={any_circadian})")
+                logger.info(f"[switch] step_up -> nitelite for areas: {areas} (not on+circadian)")
                 for area in areas:
                     await self.primitives.set(area, "switch", preset="nitelite", is_on=True)
 
         elif action == "step_down":
             # Step down only if lights are on AND in circadian mode, else nitelite
-            any_on = await self.any_lights_on_in_area(areas)
-            any_circadian = any(state.is_circadian(area) for area in areas)
-            if any_on and any_circadian:
+            # Use internal state tracking - no need to query HA entity state
+            any_on_circadian = any(state.is_circadian(area) and state.get_is_on(area) for area in areas)
+            if any_on_circadian:
                 for area in areas:
                     await self.primitives.step_down(area, "switch")
             else:
-                logger.info(f"[switch] step_down -> nitelite for areas: {areas} (on={any_on}, circadian={any_circadian})")
+                logger.info(f"[switch] step_down -> nitelite for areas: {areas} (not on+circadian)")
                 for area in areas:
                     await self.primitives.set(area, "switch", preset="nitelite", is_on=True)
 
         elif action == "bright_up":
             # Bright up only if lights are on AND in circadian mode, else nitelite
-            any_on = await self.any_lights_on_in_area(areas)
-            any_circadian = any(state.is_circadian(area) for area in areas)
-            if any_on and any_circadian:
+            # Use internal state tracking - no need to query HA entity state
+            any_on_circadian = any(state.is_circadian(area) and state.get_is_on(area) for area in areas)
+            if any_on_circadian:
                 for area in areas:
                     await self.primitives.bright_up(area, "switch")
             else:
-                logger.info(f"[switch] bright_up -> nitelite for areas: {areas} (on={any_on}, circadian={any_circadian})")
+                logger.info(f"[switch] bright_up -> nitelite for areas: {areas} (not on+circadian)")
                 for area in areas:
                     await self.primitives.set(area, "switch", preset="nitelite", is_on=True)
 
         elif action == "bright_down":
             # Bright down only if lights are on AND in circadian mode, else nitelite
-            any_on = await self.any_lights_on_in_area(areas)
-            any_circadian = any(state.is_circadian(area) for area in areas)
-            if any_on and any_circadian:
+            # Use internal state tracking - no need to query HA entity state
+            any_on_circadian = any(state.is_circadian(area) and state.get_is_on(area) for area in areas)
+            if any_on_circadian:
                 for area in areas:
                     await self.primitives.bright_down(area, "switch")
             else:
-                logger.info(f"[switch] bright_down -> nitelite for areas: {areas} (on={any_on}, circadian={any_circadian})")
+                logger.info(f"[switch] bright_down -> nitelite for areas: {areas} (not on+circadian)")
                 for area in areas:
                     await self.primitives.set(area, "switch", preset="nitelite", is_on=True)
 
@@ -2310,12 +2310,13 @@ class HomeAssistantWebSocketClient:
             light_entity_id = None
             if normalized_key and normalized_key in self.area_group_map:
                 candidates = self.area_group_map[normalized_key]
-                # Check all group types: hue_group, zha_group (legacy), or capability-based zha_group_color/ct
+                # Prefer ZHA groups for state checking - they update in real-time vs Hue polling
+                # ZHA group state is more reliable for detecting on/off changes
                 light_entity_id = (
-                    candidates.get("hue_group") or
-                    candidates.get("zha_group") or
                     candidates.get("zha_group_color") or
-                    candidates.get("zha_group_ct")
+                    candidates.get("zha_group_ct") or
+                    candidates.get("zha_group") or
+                    candidates.get("hue_group")
                 )
             if not light_entity_id:
                 light_entity_id = self._get_fallback_group_entity(area_id)

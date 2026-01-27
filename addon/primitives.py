@@ -737,8 +737,10 @@ class CircadianLightPrimitives:
 
         logger.info(f"[{source}] lights_toggle_multiple for areas: {area_ids}")
 
-        # Check if any lights are on
-        any_on = await self.client.any_lights_on_in_area(area_ids)
+        # Check if any lights are on using our own tracked state
+        # This is more reliable than querying entity state which can be stale
+        any_on = any(state.is_circadian(area_id) and state.get_is_on(area_id) for area_id in area_ids)
+        logger.info(f"[{source}] lights_toggle_multiple: any_on={any_on} (from internal state)")
 
         if any_on:
             # Turn off all areas - store CT first for smart 2-step on next turn-on
