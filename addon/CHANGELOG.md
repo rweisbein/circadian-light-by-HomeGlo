@@ -1,5 +1,14 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.191
+**Fix: Restore contact sensor boost turn-off fix lost during v6.9.186-190 commits**
+
+- The v6.9.185 fix to prevent duplicate `turn_off` commands for boost-enabled contact sensors
+  was accidentally reverted in `main.py` during subsequent commits
+- Without this fix, `end_boost` turns off lights with the configured transition, then
+  `contact_off` immediately sends a second `turn_off` that interrupts the transition on
+  ZigBee lights, causing an abrupt snap-off
+
 ## 6.9.190
 **Feature: Configurable freeze & limit warning transitions**
 
