@@ -1011,6 +1011,7 @@ class LightDesignerServer:
         "multi_click_enabled",  # Enable multi-click detection for Hue Hub switches
         "multi_click_speed",  # Multi-click window in tenths of seconds
         "circadian_refresh",  # How often to refresh circadian lighting (seconds)
+        "sync_refresh_multiplier",  # Multiplier for sync refresh interval (default 5x circadian refresh)
         "motion_warning_time",  # Seconds before motion timer expires to trigger warning dim
         "motion_warning_blink_threshold",  # Brightness % below which warning blinks instead of dims
         "freeze_off_rise",  # Transition time in tenths of seconds for unfreeze rise (default 10 = 1.0s)
@@ -1179,6 +1180,7 @@ class LightDesignerServer:
             "multi_click_enabled": True,
             "multi_click_speed": 2,
             "circadian_refresh": 30,  # seconds
+            "sync_refresh_multiplier": 5,  # multiplier of circadian refresh
 
             # Motion warning settings
             "motion_warning_time": 0,  # seconds (0 = disabled)
@@ -1278,6 +1280,7 @@ class LightDesignerServer:
             "multi_click_enabled": True,
             "multi_click_speed": 2,
             "circadian_refresh": 30,  # seconds
+            "sync_refresh_multiplier": 5,  # multiplier of circadian refresh
             # Motion warning settings
             "motion_warning_time": 0,  # seconds (0 = disabled)
             "motion_warning_blink_threshold": 15,  # percent brightness
