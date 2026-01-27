@@ -2023,7 +2023,7 @@ class HomeAssistantWebSocketClient:
                             zha_device_ids.add(device_id)
                             found_zha = True
                 # Debug: log Signify devices that aren't detected as ZHA
-                if "signify" in manufacturer.lower() and not found_zha:
+                if manufacturer and "signify" in manufacturer.lower() and not found_zha:
                     logger.warning(f"Signify device NOT detected as ZHA: {device_name} | identifiers: {identifiers}")
 
         # Process light entities

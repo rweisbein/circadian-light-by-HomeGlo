@@ -1,5 +1,10 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.175
+**Fix: handle None manufacturer in debug logging**
+
+- Fixed crash when device manufacturer field is None
+
 ## 6.9.174
 **Debug: log Signify devices not detected as ZHA**
 
