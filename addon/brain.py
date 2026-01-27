@@ -675,6 +675,10 @@ class CircadianLight:
         target_bri = max(b_min + safe_margin_bri, min(b_max - safe_margin_bri, target_bri))
         target_natural_cct = max(c_min + safe_margin_cct, min(c_max - safe_margin_cct, target_natural_cct))
 
+        # If clamped target is effectively the same as current, treat as at-limit
+        if abs(target_bri - current_bri) < safe_margin_bri:
+            return None
+
         # Apply solar rules to get the RENDERED color (for light output)
         # The midpoint will be calculated from target_natural_cct so the curve position is correct
         target_cct = CircadianLight._apply_solar_rules(target_natural_cct, hour, config, state, sun_times)
@@ -765,6 +769,10 @@ class CircadianLight:
         # Clamp to safe bounds
         target_bri = max(b_min + safe_margin, min(b_max - safe_margin, target_bri))
 
+        # If clamped target is effectively the same as current, treat as at-limit
+        if abs(target_bri - current_bri) < safe_margin:
+            return None
+
         # Color stays unchanged - recalculate at current hour (with solar rules)
         color_temp = CircadianLight.calculate_color_at_hour(hour, config, state, apply_solar_rules=True, sun_times=sun_times)
         rgb = CircadianLight.color_temperature_to_rgb(color_temp)
@@ -840,6 +848,11 @@ class CircadianLight:
 
         # Clamp to safe bounds
         target_cct = max(c_min + safe_margin, min(c_max - safe_margin, target_cct))
+
+        # If clamped target is effectively the same as current, treat as at-limit
+        # (inverse_midpoint drift at asymptotes can leave values just outside safe_margin)
+        if abs(target_cct - current_cct) < safe_margin:
+            return None
 
         # Brightness stays unchanged
         brightness = CircadianLight.calculate_brightness_at_hour(hour, config, state)
