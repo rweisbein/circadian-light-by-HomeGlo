@@ -1189,8 +1189,8 @@ class LightDesignerServer:
             # Visual feedback settings
             "freeze_off_rise": 10,  # tenths of seconds (1.0s)
             "limit_warning_speed": 3,  # tenths of seconds (0.3s)
-            "warning_intensity": 5,  # 1-10
-            "warning_scaling": 5,  # 1-10
+            "warning_intensity": 3,  # 1-10
+            "warning_scaling": 1,  # 1-10
         }
 
         # Merge supervisor-managed options.json (if present)
@@ -1287,8 +1287,8 @@ class LightDesignerServer:
             # Visual feedback settings
             "freeze_off_rise": 10,  # tenths of seconds (1.0s)
             "limit_warning_speed": 3,  # tenths of seconds (0.3s)
-            "warning_intensity": 5,  # 1-10
-            "warning_scaling": 5,  # 1-10
+            "warning_intensity": 3,  # 1-10
+            "warning_scaling": 1,  # 1-10
         }
 
         # Merge options.json

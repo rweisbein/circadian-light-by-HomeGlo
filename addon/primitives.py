@@ -186,31 +186,31 @@ class CircadianLightPrimitives:
         """Get the warning intensity (base depth of dip/flash).
 
         Controls how deep the bounce effect is at the limit.
-        Reads from global config, defaults to 5 (range 1-10).
+        Reads from global config, defaults to 3 (range 1-10).
 
         Returns:
             Warning intensity value (1-10)
         """
         try:
             raw_config = glozone.load_config_from_files()
-            return raw_config.get("warning_intensity", 5)
+            return raw_config.get("warning_intensity", 3)
         except Exception:
-            return 5
+            return 3
 
     def _get_warning_scaling(self) -> int:
         """Get the warning scaling (how much depth increases near the limit).
 
         Higher values make the bounce deeper when further from the opposite limit.
-        Reads from global config, defaults to 5 (range 1-10).
+        Reads from global config, defaults to 1 (range 1-10).
 
         Returns:
             Warning scaling value (1-10)
         """
         try:
             raw_config = glozone.load_config_from_files()
-            return raw_config.get("warning_scaling", 5)
+            return raw_config.get("warning_scaling", 1)
         except Exception:
-            return 5
+            return 1
 
     async def _turn_off_area(self, area_id: str, transition: float = 0.3) -> None:
         """Turn off all lights in an area.

@@ -660,22 +660,14 @@ class HomeAssistantWebSocketClient:
                 state.clear_motion_warning(area_id)
 
                 # End boost first (if enabled)
-                boost_turned_off = False
                 if area_config.boost_enabled:
-                    boost_turned_off = await self.primitives.end_boost(area_id, source="contact_sensor")
-                    logger.info(f"[Contact] Closed: ended boost for area {area_id} (turned_off={boost_turned_off})")
+                    await self.primitives.end_boost(area_id, source="contact_sensor")
+                    logger.info(f"[Contact] Closed: ended boost for area {area_id}")
 
                 # Then handle mode-based off behavior
                 if mode == "on_off":
-                    if boost_turned_off:
-                        # end_boost already turned off lights with transition - just
-                        # clean up motion timer to avoid a duplicate turn_off command
-                        # which can interrupt the transition on some ZigBee lights
-                        state.clear_motion_expires(area_id)
-                        logger.info(f"[contact_sensor] Contact closed: boost already turned off area {area_id}, cleared motion timer")
-                    else:
-                        # Turn off lights and disable circadian
-                        await self.primitives.contact_off(area_id, source="contact_sensor")
+                    # Turn off lights and disable circadian
+                    await self.primitives.contact_off(area_id, source="contact_sensor")
                 # on_only: ignore close event (lights stay on until manually turned off)
 
     # =========================================================================
