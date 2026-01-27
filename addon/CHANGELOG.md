@@ -1,6 +1,6 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
-## 6.9.186
+## 6.9.187
 **Feature: Configurable freeze & limit warning transitions**
 
 - Added 4 new Advanced settings under Visual Feedback:
@@ -15,6 +15,7 @@
 - Fixed missing bounce when stepping at limit while frozen (e.g. nitelite + step down):
   auto-unfreeze's inverse_midpoint drift at asymptotes could mask the limit detection
 - Bounce depth uses configurable intensity/scaling formula instead of hardcoded ratio
+- Fixed sync refresh multiplier setting not persisting across page navigation
 
 ## 6.9.185
 **Fix: Honor turn-off transition for contact sensor boost**
