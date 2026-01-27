@@ -1,5 +1,18 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.186
+**Feature: Configurable freeze & limit warning transitions**
+
+- Added 4 new Advanced settings under Visual Feedback:
+  - **Freeze off rise speed**: Controls how fast lights rise when unfreezing (default 1.0s)
+  - **Limit warning speed**: Controls bounce animation speed at step limits (default 0.3s)
+  - **Warning intensity**: Base depth of the limit dip/flash (1-10, default 5)
+  - **Warning scaling**: How much depth increases near the opposite limit (1-10, default 5)
+- Freeze toggle now uses configured turn-off transition and two-step delay instead of
+  hardcoded 0.3s dim and 0.1s wait
+- Limit bounce is now direction-aware: stepping up dips down, stepping down flashes up
+- Bounce depth uses configurable intensity/scaling formula instead of hardcoded ratio
+
 ## 6.9.185
 **Fix: Honor turn-off transition for contact sensor boost**
 

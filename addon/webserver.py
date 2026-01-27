@@ -1013,6 +1013,10 @@ class LightDesignerServer:
         "circadian_refresh",  # How often to refresh circadian lighting (seconds)
         "motion_warning_time",  # Seconds before motion timer expires to trigger warning dim
         "motion_warning_blink_threshold",  # Brightness % below which warning blinks instead of dims
+        "freeze_off_rise",  # Transition time in tenths of seconds for unfreeze rise (default 10 = 1.0s)
+        "limit_warning_speed",  # Transition time in tenths of seconds for limit bounce animation (default 3 = 0.3s)
+        "warning_intensity",  # Base depth of limit warning dip/flash (1-10, default 5)
+        "warning_scaling",  # How much depth increases near the limit (1-10, default 5)
         "controls_ui",  # Controls page UI preferences (sort, filter)
         "areas_ui",  # Areas page UI preferences (sort, filter)
         "area_settings",  # Per-area settings (motion_function, motion_duration)
@@ -1179,6 +1183,12 @@ class LightDesignerServer:
             # Motion warning settings
             "motion_warning_time": 0,  # seconds (0 = disabled)
             "motion_warning_blink_threshold": 15,  # percent brightness
+
+            # Visual feedback settings
+            "freeze_off_rise": 10,  # tenths of seconds (1.0s)
+            "limit_warning_speed": 3,  # tenths of seconds (0.3s)
+            "warning_intensity": 5,  # 1-10
+            "warning_scaling": 5,  # 1-10
         }
 
         # Merge supervisor-managed options.json (if present)
@@ -1271,6 +1281,11 @@ class LightDesignerServer:
             # Motion warning settings
             "motion_warning_time": 0,  # seconds (0 = disabled)
             "motion_warning_blink_threshold": 15,  # percent brightness
+            # Visual feedback settings
+            "freeze_off_rise": 10,  # tenths of seconds (1.0s)
+            "limit_warning_speed": 3,  # tenths of seconds (0.3s)
+            "warning_intensity": 5,  # 1-10
+            "warning_scaling": 5,  # 1-10
         }
 
         # Merge options.json
