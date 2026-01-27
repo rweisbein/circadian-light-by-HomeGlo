@@ -11,6 +11,9 @@
 - Freeze toggle now uses configured turn-off transition and two-step delay instead of
   hardcoded 0.3s dim and 0.1s wait
 - Limit bounce is now direction-aware: stepping up dips down, stepping down flashes up
+  (previously always dipped down, which was invisible at minimum brightness)
+- Fixed missing bounce when stepping at limit while frozen (e.g. nitelite + step down):
+  auto-unfreeze's inverse_midpoint drift at asymptotes could mask the limit detection
 - Bounce depth uses configurable intensity/scaling formula instead of hardcoded ratio
 
 ## 6.9.185

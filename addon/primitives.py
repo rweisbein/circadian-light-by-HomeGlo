@@ -255,14 +255,30 @@ class CircadianLightPrimitives:
             logger.debug(f"[{source}] step_up ignored for area {area_id} (not in circadian mode)")
             return
 
-        # Auto-unfreeze if frozen (re-anchors midpoints for smooth transition)
+        # If frozen, check if already at limit before unfreezing
+        # (inverse_midpoint drift at asymptotes can mask the limit after unfreeze)
         if area_state.frozen_at is not None:
+            config = self._get_config(area_id)
+            frozen_bri = CircadianLight.calculate_brightness_at_hour(
+                area_state.frozen_at, config, area_state
+            )
+            safe_margin = max(1.0, (config.max_brightness - config.min_brightness) * 0.01)
+            if frozen_bri >= config.max_brightness - safe_margin:
+                logger.info(f"Step up at limit for area {area_id} (frozen at max)")
+                if area_state.is_on:
+                    sun_times = self.client._get_sun_times() if hasattr(self.client, '_get_sun_times') else None
+                    frozen_cct = CircadianLight.calculate_color_at_hour(
+                        area_state.frozen_at, config, area_state, apply_solar_rules=True, sun_times=sun_times
+                    )
+                    await self._bounce_at_limit(area_id, frozen_bri, frozen_cct, direction="up")
+                return
             self._unfreeze_internal(area_id, source)
-            area_state = self._get_area_state(area_id)  # Refresh after unfreeze
+            area_state = self._get_area_state(area_id)
+        else:
+            config = self._get_config(area_id)
 
         logger.info(f"[{source}] Step up for area {area_id}")
 
-        config = self._get_config(area_id)
         hour = get_current_hour()
         sun_times = self.client._get_sun_times() if hasattr(self.client, '_get_sun_times') else None
 
@@ -313,14 +329,30 @@ class CircadianLightPrimitives:
             logger.debug(f"[{source}] step_down ignored for area {area_id} (not in circadian mode)")
             return
 
-        # Auto-unfreeze if frozen (re-anchors midpoints for smooth transition)
+        # If frozen, check if already at limit before unfreezing
+        # (inverse_midpoint drift at asymptotes can mask the limit after unfreeze)
         if area_state.frozen_at is not None:
+            config = self._get_config(area_id)
+            frozen_bri = CircadianLight.calculate_brightness_at_hour(
+                area_state.frozen_at, config, area_state
+            )
+            safe_margin = max(1.0, (config.max_brightness - config.min_brightness) * 0.01)
+            if frozen_bri <= config.min_brightness + safe_margin:
+                logger.info(f"Step down at limit for area {area_id} (frozen at min)")
+                if area_state.is_on:
+                    sun_times = self.client._get_sun_times() if hasattr(self.client, '_get_sun_times') else None
+                    frozen_cct = CircadianLight.calculate_color_at_hour(
+                        area_state.frozen_at, config, area_state, apply_solar_rules=True, sun_times=sun_times
+                    )
+                    await self._bounce_at_limit(area_id, frozen_bri, frozen_cct, direction="down")
+                return
             self._unfreeze_internal(area_id, source)
-            area_state = self._get_area_state(area_id)  # Refresh after unfreeze
+            area_state = self._get_area_state(area_id)
+        else:
+            config = self._get_config(area_id)
 
         logger.info(f"[{source}] Step down for area {area_id}")
 
-        config = self._get_config(area_id)
         hour = get_current_hour()
         sun_times = self.client._get_sun_times() if hasattr(self.client, '_get_sun_times') else None
 
@@ -371,14 +403,29 @@ class CircadianLightPrimitives:
             logger.debug(f"[{source}] bright_up ignored for area {area_id} (not in circadian mode)")
             return
 
-        # Auto-unfreeze if frozen (re-anchors midpoints for smooth transition)
+        # If frozen, check if already at limit before unfreezing
         if area_state.frozen_at is not None:
+            config = self._get_config(area_id)
+            frozen_bri = CircadianLight.calculate_brightness_at_hour(
+                area_state.frozen_at, config, area_state
+            )
+            safe_margin = max(1.0, (config.max_brightness - config.min_brightness) * 0.01)
+            if frozen_bri >= config.max_brightness - safe_margin:
+                logger.info(f"Bright up at limit for area {area_id} (frozen at max)")
+                if area_state.is_on:
+                    sun_times = self.client._get_sun_times() if hasattr(self.client, '_get_sun_times') else None
+                    frozen_cct = CircadianLight.calculate_color_at_hour(
+                        area_state.frozen_at, config, area_state, apply_solar_rules=True, sun_times=sun_times
+                    )
+                    await self._bounce_at_limit(area_id, frozen_bri, frozen_cct, direction="up")
+                return
             self._unfreeze_internal(area_id, source)
-            area_state = self._get_area_state(area_id)  # Refresh after unfreeze
+            area_state = self._get_area_state(area_id)
+        else:
+            config = self._get_config(area_id)
 
         logger.info(f"[{source}] Bright up for area {area_id}")
 
-        config = self._get_config(area_id)
         hour = get_current_hour()
         sun_times = self.client._get_sun_times() if hasattr(self.client, '_get_sun_times') else None
 
@@ -426,14 +473,29 @@ class CircadianLightPrimitives:
             logger.debug(f"[{source}] bright_down ignored for area {area_id} (not in circadian mode)")
             return
 
-        # Auto-unfreeze if frozen (re-anchors midpoints for smooth transition)
+        # If frozen, check if already at limit before unfreezing
         if area_state.frozen_at is not None:
+            config = self._get_config(area_id)
+            frozen_bri = CircadianLight.calculate_brightness_at_hour(
+                area_state.frozen_at, config, area_state
+            )
+            safe_margin = max(1.0, (config.max_brightness - config.min_brightness) * 0.01)
+            if frozen_bri <= config.min_brightness + safe_margin:
+                logger.info(f"Bright down at limit for area {area_id} (frozen at min)")
+                if area_state.is_on:
+                    sun_times = self.client._get_sun_times() if hasattr(self.client, '_get_sun_times') else None
+                    frozen_cct = CircadianLight.calculate_color_at_hour(
+                        area_state.frozen_at, config, area_state, apply_solar_rules=True, sun_times=sun_times
+                    )
+                    await self._bounce_at_limit(area_id, frozen_bri, frozen_cct, direction="down")
+                return
             self._unfreeze_internal(area_id, source)
-            area_state = self._get_area_state(area_id)  # Refresh after unfreeze
+            area_state = self._get_area_state(area_id)
+        else:
+            config = self._get_config(area_id)
 
         logger.info(f"[{source}] Bright down for area {area_id}")
 
-        config = self._get_config(area_id)
         hour = get_current_hour()
         sun_times = self.client._get_sun_times() if hasattr(self.client, '_get_sun_times') else None
 
@@ -485,14 +547,29 @@ class CircadianLightPrimitives:
             logger.debug(f"[{source}] color_up ignored for area {area_id} (not in circadian mode)")
             return
 
-        # Auto-unfreeze if frozen (re-anchors midpoints for smooth transition)
+        # If frozen, check if already at limit before unfreezing
         if area_state.frozen_at is not None:
+            config = self._get_config(area_id)
+            sun_times = self.client._get_sun_times() if hasattr(self.client, '_get_sun_times') else None
+            frozen_cct = CircadianLight.calculate_color_at_hour(
+                area_state.frozen_at, config, area_state, apply_solar_rules=True, sun_times=sun_times
+            )
+            safe_margin = max(10, (config.max_color_temp - config.min_color_temp) * 0.01)
+            if frozen_cct >= config.max_color_temp - safe_margin:
+                logger.info(f"Color up at limit for area {area_id} (frozen at max)")
+                if area_state.is_on:
+                    frozen_bri = CircadianLight.calculate_brightness_at_hour(
+                        area_state.frozen_at, config, area_state
+                    )
+                    await self._bounce_at_limit(area_id, frozen_bri, frozen_cct, direction="up")
+                return
             self._unfreeze_internal(area_id, source)
-            area_state = self._get_area_state(area_id)  # Refresh after unfreeze
+            area_state = self._get_area_state(area_id)
+        else:
+            config = self._get_config(area_id)
 
         logger.info(f"[{source}] Color up for area {area_id}")
 
-        config = self._get_config(area_id)
         hour = get_current_hour()
         sun_times = self.client._get_sun_times() if hasattr(self.client, '_get_sun_times') else None
 
@@ -538,14 +615,29 @@ class CircadianLightPrimitives:
             logger.debug(f"[{source}] color_down ignored for area {area_id} (not in circadian mode)")
             return
 
-        # Auto-unfreeze if frozen (re-anchors midpoints for smooth transition)
+        # If frozen, check if already at limit before unfreezing
         if area_state.frozen_at is not None:
+            config = self._get_config(area_id)
+            sun_times = self.client._get_sun_times() if hasattr(self.client, '_get_sun_times') else None
+            frozen_cct = CircadianLight.calculate_color_at_hour(
+                area_state.frozen_at, config, area_state, apply_solar_rules=True, sun_times=sun_times
+            )
+            safe_margin = max(10, (config.max_color_temp - config.min_color_temp) * 0.01)
+            if frozen_cct <= config.min_color_temp + safe_margin:
+                logger.info(f"Color down at limit for area {area_id} (frozen at min)")
+                if area_state.is_on:
+                    frozen_bri = CircadianLight.calculate_brightness_at_hour(
+                        area_state.frozen_at, config, area_state
+                    )
+                    await self._bounce_at_limit(area_id, frozen_bri, frozen_cct, direction="down")
+                return
             self._unfreeze_internal(area_id, source)
-            area_state = self._get_area_state(area_id)  # Refresh after unfreeze
+            area_state = self._get_area_state(area_id)
+        else:
+            config = self._get_config(area_id)
 
         logger.info(f"[{source}] Color down for area {area_id}")
 
-        config = self._get_config(area_id)
         hour = get_current_hour()
         sun_times = self.client._get_sun_times() if hasattr(self.client, '_get_sun_times') else None
 
