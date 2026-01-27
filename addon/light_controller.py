@@ -710,6 +710,11 @@ class ZigBeeController(LightController):
                     continue
 
                 area_name = area_info['name']
+
+                # Skip the Circadian_Zigbee_Groups area - it's for organizing group entities, not a real room
+                if area_name == 'Circadian_Zigbee_Groups':
+                    continue
+
                 zha_lights = area_info.get('zha_lights', [])
                 non_zha_lights = area_info.get('non_zha_lights', [])
 
@@ -920,9 +925,10 @@ class ZigBeeController(LightController):
                     "members": command.members
                 }
             elif command.operation == "delete":
+                # ZHA API expects group_ids (plural, array) for delete
                 message = {
                     "type": "zha/group/remove",
-                    "group_id": command.group_id
+                    "group_ids": [command.group_id]
                 }
             else:
                 logger.error(f"Unknown group operation: {command.operation}")

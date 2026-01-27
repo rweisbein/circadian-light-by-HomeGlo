@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.168
+**Fix ZHA group deletion and skip Circadian_Zigbee_Groups area**
+
+- Fixed: ZHA group delete API now expects `group_ids` (plural array) instead of `group_id`
+- Fixed: Skip `Circadian_Zigbee_Groups` area during sync (it's for organizing group entities, not a room)
+- Old-format groups will now actually be deleted on restart
+
 ## 6.9.167
 **ZHA groups split by color capability**
 
