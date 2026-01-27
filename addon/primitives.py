@@ -7,7 +7,7 @@ import logging
 import os
 import time
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import glozone
 import glozone_state
@@ -776,6 +776,9 @@ class CircadianLightPrimitives:
             transition = self._get_turn_on_transition()
             # Get sun times for solar rules (same as periodic update)
             sun_times = self.client._get_sun_times() if hasattr(self.client, '_get_sun_times') else None
+
+            # Collect lighting values for all areas first
+            area_lighting: List[Tuple[str, int, int]] = []
             for area_id in area_ids:
                 # Ensure area is in a zone (add to default zone if not)
                 if not glozone.is_area_in_any_zone(area_id):
@@ -792,8 +795,10 @@ class CircadianLightPrimitives:
                 hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
 
                 result = CircadianLight.calculate_lighting(hour, config, area_state, sun_times=sun_times)
-                # Use two-phase turn-on to avoid color jump from previous light state
-                await self._apply_lighting_turn_on(area_id, result.brightness, result.color_temp, transition=transition)
+                area_lighting.append((area_id, result.brightness, result.color_temp))
+
+            # Use batched turn-on for unified 2-step across all areas
+            await self._apply_lighting_turn_on_multiple(area_lighting, transition=transition)
 
             logger.info(f"lights_toggle_multiple: turned on {len(area_ids)} area(s)")
 
@@ -1909,6 +1914,75 @@ class CircadianLightPrimitives:
         else:
             # CT is similar - just turn on directly
             await self._apply_lighting(area_id, brightness, color_temp, include_color=True, transition=transition)
+
+    async def _apply_lighting_turn_on_multiple(
+        self,
+        area_lighting: List[Tuple[str, int, int]],  # List of (area_id, brightness, color_temp)
+        transition: float = 0.4,
+    ):
+        """Turn on multiple areas, batching 2-step phases for unified appearance.
+
+        Instead of doing Phase1-delay-Phase2 for each area sequentially, this batches:
+        1. Phase 1 (1%) for all areas needing 2-step (parallel)
+        2. Single delay
+        3. Phase 2 (target) for all areas needing 2-step (parallel)
+        4. Direct turn-on for areas not needing 2-step (parallel with phase 1)
+
+        Args:
+            area_lighting: List of (area_id, brightness, color_temp) tuples
+            transition: Transition time for phase 2
+        """
+        if not area_lighting:
+            return
+
+        # Categorize areas by whether they need 2-step
+        needs_two_step: List[Tuple[str, int, int]] = []
+        no_two_step: List[Tuple[str, int, int]] = []
+        ct_threshold = 500
+
+        for area_id, brightness, color_temp in area_lighting:
+            # All-Hue areas skip 2-step
+            if self.client.is_all_hue_area(area_id):
+                no_two_step.append((area_id, brightness, color_temp))
+                continue
+
+            # Check CT difference
+            last_ct = state.get_last_off_ct(area_id)
+            if last_ct is not None:
+                ct_diff = abs(color_temp - last_ct)
+                if ct_diff < ct_threshold:
+                    no_two_step.append((area_id, brightness, color_temp))
+                    continue
+
+            needs_two_step.append((area_id, brightness, color_temp))
+
+        # Phase 1: Apply 1% to all 2-step areas + direct turn-on for no-2-step areas (parallel)
+        phase1_tasks = []
+        for area_id, brightness, color_temp in needs_two_step:
+            phase1_tasks.append(
+                self._apply_lighting(area_id, 1, color_temp, include_color=True, transition=0)
+            )
+        for area_id, brightness, color_temp in no_two_step:
+            phase1_tasks.append(
+                self._apply_lighting(area_id, brightness, color_temp, include_color=True, transition=transition)
+            )
+
+        if phase1_tasks:
+            await asyncio.gather(*phase1_tasks)
+
+        # Delay (only if any areas need 2-step)
+        if needs_two_step:
+            delay = self._get_two_step_delay()
+            await asyncio.sleep(delay)
+
+            # Phase 2: Apply target brightness to all 2-step areas (parallel)
+            phase2_tasks = []
+            for area_id, brightness, color_temp in needs_two_step:
+                phase2_tasks.append(
+                    self._apply_lighting(area_id, brightness, color_temp, include_color=True, transition=transition)
+                )
+            if phase2_tasks:
+                await asyncio.gather(*phase2_tasks)
 
     async def _apply_color_only(
         self, area_id: str, color_temp: int, transition: float = 0.4

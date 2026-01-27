@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.178
+**Batch 2-step phases for multi-area toggle**
+
+- Multi-area toggle now batches Phase 1 across all areas, then single delay, then Phase 2
+- Results in unified turn-on appearance when controlling multiple areas
+- Lowered two-step delay minimum to 0 (was 1)
+
 ## 6.9.177
 **Skip Hue room groups in light_controller area discovery**
 
