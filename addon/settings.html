@@ -361,6 +361,17 @@
             <span class="form-hint">seconds (5-120)</span>
           </div>
         </div>
+
+        <div class="form-row">
+          <label class="form-label">
+            Sync refresh
+            <span class="info-icon">i<span class="info-tooltip">How often Circadian Light checks for area membership changes (new areas, moved lights, added lights) and syncs ZHA groups. Expressed as a multiplier of the Circadian refresh interval. For example, 5x with a 30s refresh means sync runs every 150 seconds.</span></span>
+          </label>
+          <div class="form-control">
+            <input type="number" class="form-input" id="sync-refresh-multiplier" min="2" max="20" step="1" value="5" style="width: 80px;">
+            <span class="form-hint" id="sync-refresh-hint">x (every <span id="sync-interval-display">150</span>s)</span>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -408,9 +419,11 @@
           document.getElementById('multi-click-enabled').checked = config.multi_click_enabled ?? true;
           document.getElementById('multi-click-speed').value = config.multi_click_speed ?? 2;
           document.getElementById('circadian-refresh').value = config.circadian_refresh ?? 30;
+          document.getElementById('sync-refresh-multiplier').value = config.sync_refresh_multiplier ?? 5;
           document.getElementById('motion-warning-time').value = config.motion_warning_time ?? 0;
           document.getElementById('motion-warning-blink-threshold').value = config.motion_warning_blink_threshold ?? 15;
           updateMultiClickState();
+          updateSyncIntervalDisplay();
         }
       } catch (err) {
         console.error('Error loading settings:', err);
@@ -425,6 +438,7 @@
         multi_click_enabled: document.getElementById('multi-click-enabled').checked,
         multi_click_speed: parseInt(document.getElementById('multi-click-speed').value) || 2,
         circadian_refresh: parseInt(document.getElementById('circadian-refresh').value) || 30,
+        sync_refresh_multiplier: parseInt(document.getElementById('sync-refresh-multiplier').value) || 5,
         motion_warning_time: parseInt(document.getElementById('motion-warning-time').value) || 0,
         motion_warning_blink_threshold: parseInt(document.getElementById('motion-warning-blink-threshold').value) || 15
       };
@@ -458,6 +472,12 @@
       }
     }
 
+    function updateSyncIntervalDisplay() {
+      const refresh = parseInt(document.getElementById('circadian-refresh').value) || 30;
+      const multiplier = parseInt(document.getElementById('sync-refresh-multiplier').value) || 5;
+      document.getElementById('sync-interval-display').textContent = refresh * multiplier;
+    }
+
     function showSaveStatus() {
       const status = document.getElementById('save-status');
       status.classList.add('visible');
@@ -473,7 +493,14 @@
       saveSettings();
     });
     document.getElementById('multi-click-speed').addEventListener('blur', saveSettings);
-    document.getElementById('circadian-refresh').addEventListener('blur', saveSettings);
+    document.getElementById('circadian-refresh').addEventListener('blur', () => {
+      updateSyncIntervalDisplay();
+      saveSettings();
+    });
+    document.getElementById('sync-refresh-multiplier').addEventListener('blur', () => {
+      updateSyncIntervalDisplay();
+      saveSettings();
+    });
     document.getElementById('motion-warning-time').addEventListener('blur', saveSettings);
     document.getElementById('motion-warning-blink-threshold').addEventListener('blur', saveSettings);
 

@@ -1,5 +1,15 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.184
+**Feature: Automatic ZHA group sync without restart**
+
+- Added slow-cycle sync to periodic updater that detects area membership changes
+  (new areas, moved lights, added lights) and syncs ZHA groups automatically
+- No longer requires addon restart when areas or light assignments change
+- Added "Sync refresh" multiplier setting in Advanced page (default 5x circadian refresh)
+- Fixed scope feedback (`_show_scope_feedback`) to use internal state tracking
+  instead of entity state, preventing lights from turning off when cycling to new areas
+
 ## 6.9.183
 **Fix: Use internal state tracking instead of entity state queries**
 

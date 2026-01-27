@@ -748,6 +748,7 @@
 
     async function loadData() {
       const container = document.getElementById('controls-container');
+      const scrollY = window.scrollY;
       container.innerHTML = '<div class="loading">Loading controls...</div>';
 
       try {
@@ -768,6 +769,7 @@
         }
 
         renderControls();
+        window.scrollTo(0, scrollY);
       } catch (err) {
         console.error('Error loading controls:', err);
         container.innerHTML = '<div class="loading">Error loading data</div>';

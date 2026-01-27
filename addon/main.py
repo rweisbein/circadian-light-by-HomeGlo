@@ -1300,12 +1300,8 @@ class HomeAssistantWebSocketClient:
         # Pre-calculate restore values for each area BEFORE flashing
         restore_data = {}
         for area in areas:
-            light_entity = self._get_fallback_group_entity(area)
-            if light_entity and light_entity in self.cached_states:
-                area_state_cache = self.cached_states[light_entity]
-                was_on = area_state_cache.get("state") == "on"
-            else:
-                was_on = False
+            # Use internal state tracking - more reliable than entity state which can be stale
+            was_on = state.is_circadian(area) and state.get_is_on(area)
 
             if was_on and state.is_circadian(area):
                 # Pre-calculate circadian values
@@ -2746,16 +2742,20 @@ class HomeAssistantWebSocketClient:
             self.refresh_event = asyncio.Event()
 
         last_phase_check = None
+        tick_count = 0
 
         while True:
             try:
-                # Get refresh interval from config (default 30 seconds, min 5, max 120)
+                # Get refresh interval and sync multiplier from config
                 try:
                     raw_config = glozone.load_config_from_files()
                     refresh_interval = raw_config.get("circadian_refresh", 30)
                     refresh_interval = max(5, min(120, refresh_interval))
+                    sync_multiplier = raw_config.get("sync_refresh_multiplier", 5)
+                    sync_multiplier = max(2, min(20, int(sync_multiplier)))
                 except Exception:
                     refresh_interval = 30
+                    sync_multiplier = 5
 
                 # Wait for configured interval OR until refresh_event is signaled
                 triggered_by_event = False
@@ -2765,6 +2765,10 @@ class HomeAssistantWebSocketClient:
                     triggered_by_event = True
                 except asyncio.TimeoutError:
                     pass  # Normal periodic tick
+
+                tick_count += 1
+
+                # === Fast cycle (every tick) ===
 
                 # Check if we should reset state at phase changes
                 last_phase_check = await self.reset_state_at_phase_change(last_phase_check)
@@ -2786,24 +2790,24 @@ class HomeAssistantWebSocketClient:
 
                 if not circadian_areas:
                     logger.debug("No areas enabled for Circadian Light update")
-                    continue
-
-                # Skip area being designed in Live Design mode
-                if self.live_design_area and self.live_design_area in circadian_areas:
-                    circadian_areas = [a for a in circadian_areas if a != self.live_design_area]
-                    logger.debug(f"Skipping Live Design area: {self.live_design_area}")
-
-                trigger_source = "refresh signal" if triggered_by_event else f"periodic ({refresh_interval}s)"
-                if circadian_areas:
-                    logger.info(f"Running light update ({trigger_source}) for {len(circadian_areas)} Circadian areas")
                 else:
-                    logger.debug(f"No areas to update ({trigger_source}) - all skipped or disabled")
-                    continue
+                    # Skip area being designed in Live Design mode
+                    if self.live_design_area and self.live_design_area in circadian_areas:
+                        circadian_areas = [a for a in circadian_areas if a != self.live_design_area]
+                        logger.debug(f"Skipping Live Design area: {self.live_design_area}")
 
-                # Update lights in all enabled areas
-                for area_id in circadian_areas:
-                    logger.debug(f"Updating lights in Circadian area: {area_id}")
-                    await self.update_lights_in_circadian_mode(area_id)
+                    trigger_source = "refresh signal" if triggered_by_event else f"periodic ({refresh_interval}s)"
+                    if circadian_areas:
+                        logger.info(f"Running light update ({trigger_source}) for {len(circadian_areas)} Circadian areas")
+                        for area_id in circadian_areas:
+                            logger.debug(f"Updating lights in Circadian area: {area_id}")
+                            await self.update_lights_in_circadian_mode(area_id)
+                    else:
+                        logger.debug(f"No areas to update ({trigger_source}) - all skipped or disabled")
+
+                # === Slow cycle (every sync_multiplier ticks) ===
+                if tick_count % sync_multiplier == 0:
+                    await self._run_slow_cycle_sync()
 
             except asyncio.CancelledError:
                 logger.info("Periodic light updater cancelled")
@@ -2812,6 +2816,53 @@ class HomeAssistantWebSocketClient:
                 logger.error(f"Error in periodic light updater: {e}")
                 # Continue running even if there's an error
         
+    async def _run_slow_cycle_sync(self):
+        """Run the slow-cycle sync: refresh light caches, ZHA groups, and group entity mappings.
+
+        Called periodically (every sync_multiplier ticks) to detect area membership changes
+        without requiring an addon restart.
+        """
+        try:
+            logger.info("[slow_cycle] Starting area/group sync refresh")
+
+            # 1. Refresh group entity mappings from cached_states
+            #    (picks up any new Circadian_ or Hue group entities from state_changed events)
+            self._refresh_group_entity_mappings()
+
+            # 2. Rebuild light capability cache (area_lights, light_color_modes, zha_lights, hue_lights)
+            await self.build_light_capability_cache()
+
+            # 3. Sync ZHA groups (creates/updates/deletes groups, refreshes parity cache + area_name_to_id)
+            await self.sync_zha_groups(quiet=True)
+
+            # 4. Re-scan group entity mappings again after sync
+            #    (sync may have created new ZHA groups that are now in cached_states)
+            self._refresh_group_entity_mappings()
+
+            logger.info("[slow_cycle] Area/group sync refresh complete")
+        except Exception as e:
+            logger.error(f"[slow_cycle] Error during sync refresh: {e}")
+
+    def _refresh_group_entity_mappings(self):
+        """Re-scan cached_states for grouped light entities and update area_group_map.
+
+        This refreshes area_group_map and area_to_light_entity from the current
+        cached_states, picking up any new or removed Circadian_ ZHA groups and Hue rooms.
+        """
+        self.area_group_map.clear()
+        self.area_to_light_entity.clear()
+        self.group_entity_info.clear()
+
+        for entity_id, entity_state in self.cached_states.items():
+            if not entity_id.startswith("light."):
+                continue
+            attributes = entity_state.get("attributes", {}) if isinstance(entity_state, dict) else {}
+            friendly_name = attributes.get("friendly_name", "")
+            self._update_area_group_mapping(entity_id, friendly_name, attributes)
+
+        grouped_count = len(self.group_entity_info)
+        logger.debug(f"[slow_cycle] Refreshed group entity mappings: {grouped_count} grouped lights")
+
     async def refresh_area_parity_cache(self, areas_data: dict = None):
         """Refresh the cache of area ZHA parity status.
         
@@ -2870,12 +2921,17 @@ class HomeAssistantWebSocketClient:
         except Exception as e:
             logger.error(f"Failed to refresh area parity cache: {e}")
     
-    async def sync_zha_groups(self):
-        """Helper method to sync ZHA groups with all areas."""
+    async def sync_zha_groups(self, quiet: bool = False):
+        """Helper method to sync ZHA groups with all areas.
+
+        Args:
+            quiet: If True, suppress banner logging (used for periodic slow-cycle syncs).
+        """
         try:
-            logger.info("=" * 60)
-            logger.info("Starting ZHA group sync process")
-            logger.info("=" * 60)
+            if not quiet:
+                logger.info("=" * 60)
+                logger.info("Starting ZHA group sync process")
+                logger.info("=" * 60)
 
             zigbee_controller = self.light_controller.controllers.get(Protocol.ZIGBEE)
             if zigbee_controller:
@@ -2899,9 +2955,10 @@ class HomeAssistantWebSocketClient:
             else:
                 logger.warning("ZigBee controller not available for group sync")
 
-            logger.info("=" * 60)
-            logger.info("ZHA group sync process complete")
-            logger.info("=" * 60)
+            if not quiet:
+                logger.info("=" * 60)
+                logger.info("ZHA group sync process complete")
+                logger.info("=" * 60)
         except Exception as e:
             logger.error(f"Failed to sync ZHA groups: {e}")
     
