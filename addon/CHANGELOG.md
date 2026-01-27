@@ -1,5 +1,11 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.177
+**Skip Hue room groups in light_controller area discovery**
+
+- Hue room/zone groups (like `light.sunoffice`) are now skipped in area discovery
+- Prevents duplicate control and incorrect non-ZHA light counts
+
 ## 6.9.176
 **Debug: log entity_ids for mixed areas**
 

@@ -363,6 +363,12 @@ class ZigBeeController(LightController):
                 entity_id = state.get('entity_id', '')
                 if entity_id.startswith('light.'):
                     attributes = state.get('attributes', {})
+
+                    # Skip Hue room/zone groups - they duplicate control of individual lights
+                    if attributes.get('is_hue_group'):
+                        logger.debug(f"Skipping Hue group entity: {entity_id}")
+                        continue
+
                     device_id = entity_to_device.get(entity_id)
 
                     manufacturer_attr = (attributes.get('manufacturer') or '').lower()
