@@ -1167,6 +1167,18 @@ class LightDesignerServer:
 
             # UI preview settings
             "month": 6,
+
+            # Advanced timing settings (tenths of seconds unless noted)
+            "turn_on_transition": 3,
+            "turn_off_transition": 3,
+            "two_step_delay": 3,
+            "multi_click_enabled": True,
+            "multi_click_speed": 2,
+            "circadian_refresh": 30,  # seconds
+
+            # Motion warning settings
+            "motion_warning_time": 0,  # seconds (0 = disabled)
+            "motion_warning_blink_threshold": 15,  # percent brightness
         }
 
         # Merge supervisor-managed options.json (if present)
@@ -1249,6 +1261,16 @@ class LightDesignerServer:
             "use_ha_location": True,
             "max_dim_steps": DEFAULT_MAX_DIM_STEPS,
             "month": 6,
+            # Advanced timing settings (tenths of seconds unless noted)
+            "turn_on_transition": 3,
+            "turn_off_transition": 3,
+            "two_step_delay": 3,
+            "multi_click_enabled": True,
+            "multi_click_speed": 2,
+            "circadian_refresh": 30,  # seconds
+            # Motion warning settings
+            "motion_warning_time": 0,  # seconds (0 = disabled)
+            "motion_warning_blink_threshold": 15,  # percent brightness
         }
 
         # Merge options.json

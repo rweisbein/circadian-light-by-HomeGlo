@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.179
+**Fix: Add server-side defaults for Advanced settings**
+
+- Added proper defaults for timing settings (turn_on/off_transition, two_step_delay, etc.)
+- Added proper defaults for motion warning settings
+- Prevents settings from resetting to JavaScript defaults after addon updates
+- Previously, these settings had no server-side defaults, causing resets if not in config file
+
 ## 6.9.178
 **Batch 2-step phases for multi-area toggle**
 
