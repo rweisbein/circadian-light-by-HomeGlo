@@ -658,25 +658,36 @@ class CircadianLight:
         safe_margin_bri = max(1.0, (b_max - b_min) * 0.01)
         safe_margin_cct = max(10, (c_max - c_min) * 0.01)
 
-        # Check if at config bounds (within safe margin)
-        at_max = direction == "up" and current_bri >= b_max - safe_margin_bri
-        at_min = direction == "down" and current_bri <= b_min + safe_margin_bri
+        # Check if each dimension is at its config bound (within safe margin)
+        bri_at_limit = (direction == "up" and current_bri >= b_max - safe_margin_bri) or \
+                       (direction == "down" and current_bri <= b_min + safe_margin_bri)
+        cct_at_limit = (direction == "up" and natural_cct >= c_max - safe_margin_cct) or \
+                       (direction == "down" and natural_cct <= c_min + safe_margin_cct)
 
-        if at_max or at_min:
-            return None  # At config bound, can't go further
+        if bri_at_limit and cct_at_limit:
+            return None  # Both dimensions at limit, can't go further
 
-        # Calculate target brightness and color (both step proportionally)
+        # Step dimensions independently: skip ones already at limit
         # IMPORTANT: Step the NATURAL curve color (pre-solar-rules), not the rendered color
         # This ensures stepping respects the solar rule ceilings/floors
-        target_bri = current_bri + sign * bri_step
-        target_natural_cct = natural_cct + sign * cct_step
+        if bri_at_limit:
+            target_bri = current_bri
+        else:
+            target_bri = current_bri + sign * bri_step
+
+        if cct_at_limit:
+            target_natural_cct = natural_cct
+        else:
+            target_natural_cct = natural_cct + sign * cct_step
 
         # Clamp to safe bounds
         target_bri = max(b_min + safe_margin_bri, min(b_max - safe_margin_bri, target_bri))
         target_natural_cct = max(c_min + safe_margin_cct, min(c_max - safe_margin_cct, target_natural_cct))
 
-        # If clamped target is effectively the same as current, treat as at-limit
-        if abs(target_bri - current_bri) < safe_margin_bri:
+        # If clamped targets are effectively unchanged for BOTH dimensions, treat as at-limit
+        bri_unchanged = abs(target_bri - current_bri) < safe_margin_bri
+        cct_unchanged = abs(target_natural_cct - natural_cct) < safe_margin_cct
+        if bri_unchanged and cct_unchanged:
             return None
 
         # Apply solar rules to get the RENDERED color (for light output)
@@ -704,10 +715,12 @@ class CircadianLight:
         new_bri_mid = max(0, min(23.99, new_bri_mid % 24))
         new_color_mid = max(0, min(23.99, new_color_mid % 24))
 
-        state_updates: Dict[str, Any] = {
-            "brightness_mid": new_bri_mid,
-            "color_mid": new_color_mid,
-        }
+        # Only update midpoints for dimensions that actually moved
+        state_updates: Dict[str, Any] = {}
+        if not bri_at_limit:
+            state_updates["brightness_mid"] = new_bri_mid
+        if not cct_at_limit:
+            state_updates["color_mid"] = new_color_mid
 
         rgb = CircadianLight.color_temperature_to_rgb(int(target_cct))
         xy = CircadianLight.color_temperature_to_xy(int(target_cct))

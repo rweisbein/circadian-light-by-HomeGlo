@@ -257,13 +257,20 @@ class CircadianLightPrimitives:
 
         # If frozen, check if already at limit before unfreezing
         # (inverse_midpoint drift at asymptotes can mask the limit after unfreeze)
+        # Both brightness AND color must be at limit to bounce
         if area_state.frozen_at is not None:
             config = self._get_config(area_id)
             frozen_bri = CircadianLight.calculate_brightness_at_hour(
                 area_state.frozen_at, config, area_state
             )
-            safe_margin = max(1.0, (config.max_brightness - config.min_brightness) * 0.01)
-            if frozen_bri >= config.max_brightness - safe_margin:
+            frozen_cct_natural = CircadianLight.calculate_color_at_hour(
+                area_state.frozen_at, config, area_state, apply_solar_rules=False
+            )
+            bri_margin = max(1.0, (config.max_brightness - config.min_brightness) * 0.01)
+            cct_margin = max(10, (config.max_color_temp - config.min_color_temp) * 0.01)
+            bri_at_max = frozen_bri >= config.max_brightness - bri_margin
+            cct_at_max = frozen_cct_natural >= config.max_color_temp - cct_margin
+            if bri_at_max and cct_at_max:
                 logger.info(f"Step up at limit for area {area_id} (frozen at max)")
                 if area_state.is_on:
                     sun_times = self.client._get_sun_times() if hasattr(self.client, '_get_sun_times') else None
@@ -272,6 +279,7 @@ class CircadianLightPrimitives:
                     )
                     await self._bounce_at_limit(area_id, frozen_bri, frozen_cct, direction="up")
                 return
+            # At least one dimension has room → unfreeze and let calculate_step handle it
             self._unfreeze_internal(area_id, source)
             area_state = self._get_area_state(area_id)
         else:
@@ -331,13 +339,20 @@ class CircadianLightPrimitives:
 
         # If frozen, check if already at limit before unfreezing
         # (inverse_midpoint drift at asymptotes can mask the limit after unfreeze)
+        # Both brightness AND color must be at limit to bounce
         if area_state.frozen_at is not None:
             config = self._get_config(area_id)
             frozen_bri = CircadianLight.calculate_brightness_at_hour(
                 area_state.frozen_at, config, area_state
             )
-            safe_margin = max(1.0, (config.max_brightness - config.min_brightness) * 0.01)
-            if frozen_bri <= config.min_brightness + safe_margin:
+            frozen_cct_natural = CircadianLight.calculate_color_at_hour(
+                area_state.frozen_at, config, area_state, apply_solar_rules=False
+            )
+            bri_margin = max(1.0, (config.max_brightness - config.min_brightness) * 0.01)
+            cct_margin = max(10, (config.max_color_temp - config.min_color_temp) * 0.01)
+            bri_at_min = frozen_bri <= config.min_brightness + bri_margin
+            cct_at_min = frozen_cct_natural <= config.min_color_temp + cct_margin
+            if bri_at_min and cct_at_min:
                 logger.info(f"Step down at limit for area {area_id} (frozen at min)")
                 if area_state.is_on:
                     sun_times = self.client._get_sun_times() if hasattr(self.client, '_get_sun_times') else None
@@ -346,6 +361,7 @@ class CircadianLightPrimitives:
                     )
                     await self._bounce_at_limit(area_id, frozen_bri, frozen_cct, direction="down")
                 return
+            # At least one dimension has room → unfreeze and let calculate_step handle it
             self._unfreeze_internal(area_id, source)
             area_state = self._get_area_state(area_id)
         else:

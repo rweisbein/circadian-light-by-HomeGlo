@@ -1,5 +1,19 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.192
+**Fix: Step up/down continues when one dimension hits its limit**
+
+- Step up/down now checks both brightness AND color temperature independently
+  before bouncing at limits
+- When brightness is at min but color is still cold, step_down continues warming
+  color instead of bouncing
+- When brightness is at max but color is still warm, step_up continues cooling
+  color instead of bouncing
+- Only bounces when BOTH dimensions are at their respective limits
+- Frozen-at-limit guards in primitives.py updated to match dual-dimension logic
+- Design tool stepCursor replaced virtual-time approach with fixed additive steps
+  matching brain.py, preventing massive CT jumps when brightness is near min
+
 ## 6.9.191
 **Fix: Restore contact sensor boost turn-off fix lost during v6.9.186-190 commits**
 

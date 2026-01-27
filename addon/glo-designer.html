@@ -4087,74 +4087,49 @@ function stepCursor(direction, adjustBrightness, adjustColor) {
     const cMin = config.min_color_temp;
     const cMax = config.max_color_temp;
 
-    // Step size based on config range
+    // Step sizes based on config range
     const briStep = (bMax - bMin) / steps;
+    const cctStep = (cMax - cMin) / steps;
 
     // Current values
     const currentBri = getBrightnessAtCursor();
     const currentCCT = getDisplayedCCTAtCursor();
     if (currentBri === null || currentCCT === null) return;
 
-    // Check if at config bounds
-    const atMax = direction === 'up' && currentBri >= bMax - 0.5;
-    const atMin = direction === 'down' && currentBri <= bMin + 0.5;
+    const briMargin = Math.max(1.0, (bMax - bMin) * 0.01);
+    const cctMargin = Math.max(10, (cMax - cMin) * 0.01);
 
-    if (atMax || atMin) {
-      return; // At config bound, can't go further
-    }
+    // Check limits per dimension
+    const briAtLimit = (direction === 'up' && currentBri >= bMax - briMargin) ||
+                       (direction === 'down' && currentBri <= bMin + briMargin);
+    const cctAtLimit = (direction === 'up' && currentCCT >= cMax - cctMargin) ||
+                       (direction === 'down' && currentCCT <= cMin + cctMargin);
 
-    // Calculate target brightness
-    let targetBri = currentBri + sign * briStep;
+    if (briAtLimit && cctAtLimit) return; // Both at limit
 
-    // Clamp to config bounds
+    // Step each dimension independently, skip ones at limit
+    let targetBri = briAtLimit ? currentBri : currentBri + sign * briStep;
+    let targetCCT = cctAtLimit ? currentCCT : currentCCT + sign * cctStep;
+
+    // Clamp
     targetBri = Math.max(bMin, Math.min(bMax, targetBri));
+    targetCCT = Math.max(cMin, Math.min(cMax, targetCCT));
 
-    // Get current midpoints
-    const briMid = runtimeState.brightness_mid ?? (inAscend ? config.wake_time : config.bed_time);
-    const colorMid = runtimeState.color_mid ?? (inAscend ? config.wake_time : config.bed_time);
-
-    // Lift midpoints into 48h space
-    let briMid48 = briMid;
-    let colorMid48 = colorMid;
-    if (inAscend) {
-      while (briMid48 < tAscend) briMid48 += 24;
-      while (colorMid48 < tAscend) colorMid48 += 24;
-    } else {
-      while (briMid48 < tDescend) briMid48 += 24;
-      while (colorMid48 < tDescend) colorMid48 += 24;
-    }
-
-    // Calculate virtual time T' where brightness = targetBri
+    // Calculate midpoints (only for dimensions that moved)
     const bMinNorm = bMin / 100;
     const bMaxNorm = bMax / 100;
     const targetBriNorm = Math.max(bMinNorm + 0.001, Math.min(bMaxNorm - 0.001, targetBri / 100));
-    const briRatio = (targetBriNorm - bMinNorm) / (bMaxNorm - bMinNorm);
-    const virtualTime = briMid48 + Math.log(briRatio / (1 - briRatio)) / slope;
-
-    // Get color at virtual time from color curve (base curve)
-    let colorNorm;
-    if (inAscend) {
-      colorNorm = logistic(virtualTime, colorMid48, slope, 0, 1);
-    } else {
-      const vtDescend = virtualTime < tDescend ? virtualTime + 24 : virtualTime;
-      colorNorm = logistic(vtDescend, colorMid48, slope, 0, 1);
-    }
-    let targetCCT = cMin + (cMax - cMin) * colorNorm;
-
-    // Clamp color to config bounds
-    targetCCT = Math.max(cMin, Math.min(cMax, targetCCT));
-
-    // Now adjust midpoints so current time gives these target values
-    const targetCCTNorm = (targetCCT - cMin) / (cMax - cMin);
+    const targetCCTNorm = Math.max(0.001, Math.min(0.999, (targetCCT - cMin) / (cMax - cMin)));
 
     let calcTime = h48;
     if (!inAscend && h48 < tDescend) calcTime = h48 + 24;
 
-    const newBriMid = inverseMidpoint(calcTime, targetBriNorm, slope, bMinNorm, bMaxNorm);
-    const newColorMid = inverseMidpoint(calcTime, targetCCTNorm, slope, 0, 1);
-
-    runtimeState.brightness_mid = newBriMid;
-    runtimeState.color_mid = newColorMid;
+    if (!briAtLimit) {
+      runtimeState.brightness_mid = inverseMidpoint(calcTime, targetBriNorm, slope, bMinNorm, bMaxNorm);
+    }
+    if (!cctAtLimit) {
+      runtimeState.color_mid = inverseMidpoint(calcTime, targetCCTNorm, slope, 0, 1);
+    }
 
     renderChart();
     applyCursor();
