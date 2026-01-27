@@ -722,10 +722,9 @@ class ZigBeeController(LightController):
                     logger.debug(f"Area '{area_name}' has no ZHA lights, skipping group creation")
                     continue
 
-                # Skip areas that don't have ZHA parity (have non-ZHA lights)
+                # Log mixed areas but still create groups for ZHA lights
                 if non_zha_lights:
-                    logger.info(f"Area '{area_name}' has {len(non_zha_lights)} non-ZHA lights, skipping ZHA group creation (will use area-based control)")
-                    continue
+                    logger.info(f"Area '{area_name}' has {len(zha_lights)} ZHA + {len(non_zha_lights)} non-ZHA lights (mixed area, creating ZHA groups anyway)")
 
                 # Split ZHA lights by color capability
                 color_members = []

@@ -83,6 +83,7 @@ class HomeAssistantWebSocketClient:
         self.light_color_modes: Dict[str, Set[str]] = {}  # entity_id -> set of supported color modes
         self.area_lights: Dict[str, List[str]] = {}  # area_id -> list of light entity_ids
         self.hue_lights: Set[str] = set()  # entity_ids of Hue-connected lights (skip 2-step for these)
+        self.zha_lights: Set[str] = set()  # entity_ids of ZHA-connected lights (use ZHA groups for these)
 
         # Motion sensor cache for event handling
         # Maps entity_id -> device_id (used to look up motion sensor config)
@@ -1709,12 +1710,23 @@ class HomeAssistantWebSocketClient:
 
             # Use ZHA group if available (efficient hardware-level control)
             if zha_color_group:
-                logger.info(f"Circadian update (color via ZHA group): {zha_color_group}, xy={xy}, brightness={brightness}%")
+                # Split into ZHA (use group) and non-ZHA (call individually)
+                non_zha_color = [l for l in color_lights if l not in self.zha_lights]
+                zha_count = len(color_lights) - len(non_zha_color)
+                logger.info(f"Circadian update (color via ZHA group): {zha_color_group} ({zha_count} lights), xy={xy}, brightness={brightness}%")
                 tasks.append(
                     asyncio.create_task(
                         self.call_service("light", "turn_on", color_data, {"entity_id": zha_color_group})
                     )
                 )
+                # Also call non-ZHA color lights individually
+                if non_zha_color:
+                    logger.info(f"Circadian update (color non-ZHA): {len(non_zha_color)} lights, xy={xy}, brightness={brightness}%")
+                    tasks.append(
+                        asyncio.create_task(
+                            self.call_service("light", "turn_on", color_data, {"entity_id": non_zha_color})
+                        )
+                    )
             else:
                 logger.info(f"Circadian update (color): {len(color_lights)} lights, xy={xy}, brightness={brightness}%")
                 tasks.append(
@@ -1733,12 +1745,23 @@ class HomeAssistantWebSocketClient:
 
             # Use ZHA group if available (efficient hardware-level control)
             if zha_ct_group:
-                logger.info(f"Circadian update (CT via ZHA group): {zha_ct_group}, kelvin={kelvin}, brightness={brightness}%")
+                # Split into ZHA (use group) and non-ZHA (call individually)
+                non_zha_ct = [l for l in ct_lights if l not in self.zha_lights]
+                zha_count = len(ct_lights) - len(non_zha_ct)
+                logger.info(f"Circadian update (CT via ZHA group): {zha_ct_group} ({zha_count} lights), kelvin={kelvin}, brightness={brightness}%")
                 tasks.append(
                     asyncio.create_task(
                         self.call_service("light", "turn_on", ct_data, {"entity_id": zha_ct_group})
                     )
                 )
+                # Also call non-ZHA CT lights individually
+                if non_zha_ct:
+                    logger.info(f"Circadian update (CT non-ZHA): {len(non_zha_ct)} lights, kelvin={kelvin}, brightness={brightness}%")
+                    tasks.append(
+                        asyncio.create_task(
+                            self.call_service("light", "turn_on", ct_data, {"entity_id": non_zha_ct})
+                        )
+                    )
             else:
                 logger.info(f"Circadian update (CT): {len(ct_lights)} lights, kelvin={kelvin}, brightness={brightness}%")
                 tasks.append(
@@ -1856,18 +1879,22 @@ class HomeAssistantWebSocketClient:
         self.light_color_modes.clear()
         self.area_lights.clear()
         self.hue_lights.clear()
+        self.zha_lights.clear()
         hue_groups_skipped = 0
 
-        # Build device_id -> is_hue mapping from device identifiers
+        # Build device_id -> integration mapping from device identifiers
         hue_device_ids: Set[str] = set()
+        zha_device_ids: Set[str] = set()
         for device in devices:
             if isinstance(device, dict):
                 device_id = device.get("id")
                 identifiers = device.get("identifiers", [])
                 for identifier in identifiers:
-                    if isinstance(identifier, list) and len(identifier) >= 2 and identifier[0] == "hue":
-                        hue_device_ids.add(device_id)
-                        break
+                    if isinstance(identifier, list) and len(identifier) >= 2:
+                        if identifier[0] == "hue":
+                            hue_device_ids.add(device_id)
+                        elif identifier[0] == "zha":
+                            zha_device_ids.add(device_id)
 
         # Process light entities
         for entity in entities:
@@ -1900,6 +1927,10 @@ class HomeAssistantWebSocketClient:
             if device_id and device_id in hue_device_ids:
                 self.hue_lights.add(entity_id)
 
+            # Track ZHA-connected lights (can use ZHA groups)
+            if device_id and device_id in zha_device_ids:
+                self.zha_lights.add(entity_id)
+
             # Add to area_lights mapping
             if area_id not in self.area_lights:
                 self.area_lights[area_id] = []
@@ -1931,7 +1962,7 @@ class HomeAssistantWebSocketClient:
             else:
                 onoff_count += 1
         logger.info(f"  Color: {color_count}, CT: {ct_count}, Brightness-only: {brightness_count}, On/off-only: {onoff_count}")
-        logger.info(f"  Hue-connected: {len(self.hue_lights)}, Hue groups skipped: {hue_groups_skipped}")
+        logger.info(f"  ZHA-connected: {len(self.zha_lights)}, Hue-connected: {len(self.hue_lights)}, Hue groups skipped: {hue_groups_skipped}")
 
         # Build motion sensor entity_id -> device_id mapping
         # This lets us look up motion sensor config when events come in

@@ -1,5 +1,14 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.169
+**ZHA groups for mixed areas + ZHA light tracking**
+
+- ZHA groups now created for mixed areas (ZHA + non-ZHA lights)
+- Added `zha_lights` tracking to identify ZHA-connected lights
+- When using ZHA group, non-ZHA lights in same area are called individually
+- Logs now show ZHA-connected light count at startup
+- Mixed areas benefit from efficient ZHA group control for their ZHA lights
+
 ## 6.9.168
 **Fix ZHA group deletion and skip Circadian_Zigbee_Groups area**
 
