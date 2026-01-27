@@ -1810,7 +1810,118 @@ class HomeAssistantWebSocketClient:
         # Run all tasks concurrently
         if tasks:
             await asyncio.gather(*tasks)
-        
+
+    async def turn_off_lights(
+        self,
+        area_id: str,
+        transition: float = 0.3,
+    ) -> None:
+        """Turn off lights using ZHA groups when available.
+
+        This mirrors turn_on_lights_circadian but for turning off. Uses ZHA groups
+        for efficient hardware-level control when available, with fallback to
+        individual light control for non-ZHA lights.
+
+        Args:
+            area_id: The area ID to control lights in
+            transition: Transition time in seconds (default 0.3)
+        """
+        color_lights, ct_lights, brightness_lights, onoff_lights = self.get_lights_by_capability(area_id)
+
+        # If no lights found in cache, fall back to area-based control
+        if not color_lights and not ct_lights and not brightness_lights and not onoff_lights:
+            target_type, target_value = await self.determine_light_target(area_id)
+            service_data = {"transition": transition}
+            logger.info(f"Turn off (fallback): {target_type}={target_value}")
+            await self.call_service("light", "turn_off", service_data, {target_type: target_value})
+            return
+
+        tasks: List[asyncio.Task] = []
+
+        # Look up ZHA capability groups for this area
+        normalized_key = self._normalize_area_key(area_id)
+        group_candidates = self.area_group_map.get(normalized_key, {}) if normalized_key else {}
+        zha_color_group = group_candidates.get("zha_group_color")
+        zha_ct_group = group_candidates.get("zha_group_ct")
+
+        service_data = {"transition": transition}
+
+        # Color-capable lights
+        if color_lights:
+            if zha_color_group:
+                # Split into ZHA (use group) and non-ZHA (call individually)
+                non_zha_color = [l for l in color_lights if l not in self.zha_lights]
+                zha_count = len(color_lights) - len(non_zha_color)
+                logger.info(f"Turn off (color via ZHA group): {zha_color_group} ({zha_count} lights)")
+                tasks.append(
+                    asyncio.create_task(
+                        self.call_service("light", "turn_off", service_data, {"entity_id": zha_color_group})
+                    )
+                )
+                if non_zha_color:
+                    logger.info(f"Turn off (color non-ZHA): {len(non_zha_color)} lights")
+                    tasks.append(
+                        asyncio.create_task(
+                            self.call_service("light", "turn_off", service_data, {"entity_id": non_zha_color})
+                        )
+                    )
+            else:
+                logger.info(f"Turn off (color): {len(color_lights)} lights")
+                tasks.append(
+                    asyncio.create_task(
+                        self.call_service("light", "turn_off", service_data, {"entity_id": color_lights})
+                    )
+                )
+
+        # CT-only lights
+        if ct_lights:
+            if zha_ct_group:
+                # Split into ZHA (use group) and non-ZHA (call individually)
+                non_zha_ct = [l for l in ct_lights if l not in self.zha_lights]
+                zha_count = len(ct_lights) - len(non_zha_ct)
+                logger.info(f"Turn off (CT via ZHA group): {zha_ct_group} ({zha_count} lights)")
+                tasks.append(
+                    asyncio.create_task(
+                        self.call_service("light", "turn_off", service_data, {"entity_id": zha_ct_group})
+                    )
+                )
+                if non_zha_ct:
+                    logger.info(f"Turn off (CT non-ZHA): {len(non_zha_ct)} lights")
+                    tasks.append(
+                        asyncio.create_task(
+                            self.call_service("light", "turn_off", service_data, {"entity_id": non_zha_ct})
+                        )
+                    )
+            else:
+                logger.info(f"Turn off (CT): {len(ct_lights)} lights")
+                tasks.append(
+                    asyncio.create_task(
+                        self.call_service("light", "turn_off", service_data, {"entity_id": ct_lights})
+                    )
+                )
+
+        # Brightness-only lights (no ZHA groups for these)
+        if brightness_lights:
+            logger.info(f"Turn off (brightness-only): {len(brightness_lights)} lights")
+            tasks.append(
+                asyncio.create_task(
+                    self.call_service("light", "turn_off", service_data, {"entity_id": brightness_lights})
+                )
+            )
+
+        # On/off-only lights (no ZHA groups for these)
+        if onoff_lights:
+            logger.info(f"Turn off (on/off-only): {len(onoff_lights)} lights")
+            tasks.append(
+                asyncio.create_task(
+                    self.call_service("light", "turn_off", service_data, {"entity_id": onoff_lights})
+                )
+            )
+
+        # Run all tasks concurrently
+        if tasks:
+            await asyncio.gather(*tasks)
+
     async def get_states(self) -> List[Dict[str, Any]]:
         """Get all entity states.
         
@@ -2475,12 +2586,9 @@ class HomeAssistantWebSocketClient:
 
             # Check target power state - enforce is_on
             if not state.get_is_on(area_id):
-                # Enforce off state for areas with is_on=false
+                # Enforce off state for areas with is_on=false (uses ZHA groups when available)
                 logger.debug(f"Area {area_id} is_on=false, enforcing off state")
-                target_type, target_value = await self.determine_light_target(area_id)
-                await self.call_service(
-                    "light", "turn_off", {"transition": 0.5}, {target_type: target_value}
-                )
+                await self.turn_off_lights(area_id, transition=0.5)
                 return
 
             # Skip areas in motion warning state (don't override the warning dim)

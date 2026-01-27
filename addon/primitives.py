@@ -153,14 +153,13 @@ class CircadianLightPrimitives:
     async def _turn_off_area(self, area_id: str, transition: float = 0.3) -> None:
         """Turn off all lights in an area.
 
+        Uses ZHA groups when available for efficient hardware-level control.
+
         Args:
             area_id: The area ID to turn off
             transition: Transition time in seconds
         """
-        target_type, target_value = await self.client.determine_light_target(area_id)
-        await self.client.call_service(
-            "light", "turn_off", {"transition": transition}, {target_type: target_value}
-        )
+        await self.client.turn_off_lights(area_id, transition=transition)
 
     def _get_area_state(self, area_id: str) -> AreaState:
         """Get area state from state module."""
@@ -632,12 +631,9 @@ class CircadianLightPrimitives:
         # Enable circadian control and set is_on=False (resets state if was not circadian)
         was_circadian = state.enable_circadian_and_set_on(area_id, False)
 
-        # Turn off lights
+        # Turn off lights (uses ZHA groups when available)
         transition = self._get_turn_off_transition()
-        target_type, target_value = await self.client.determine_light_target(area_id)
-        await self.client.call_service(
-            "light", "turn_off", {"transition": transition}, {target_type: target_value}
-        )
+        await self.client.turn_off_lights(area_id, transition=transition)
 
         logger.info(f"lights_off for area {area_id} (was_circadian={was_circadian})")
 
@@ -771,10 +767,8 @@ class CircadianLightPrimitives:
 
                 # Enable circadian and set is_on=False
                 state.enable_circadian_and_set_on(area_id, False)
-                target_type, target_value = await self.client.determine_light_target(area_id)
-                await self.client.call_service(
-                    "light", "turn_off", {"transition": transition}, {target_type: target_value}
-                )
+                # Turn off lights (uses ZHA groups when available)
+                await self.client.turn_off_lights(area_id, transition=transition)
             logger.info(f"lights_toggle_multiple: turned off {len(area_ids)} area(s)")
 
         else:

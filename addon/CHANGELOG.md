@@ -1,5 +1,14 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.173
+**ZHA groups for turn-off operations**
+
+- Added `turn_off_lights()` function that uses ZHA groups when available
+- Turn-off now uses efficient hardware-level ZHA group control (like turn-on)
+- Updated all turn-off paths: lights_off, lights_toggle, and periodic enforcement
+- Non-ZHA lights in mixed areas are turned off individually (same pattern as turn-on)
+- Step/bright/color commands already use ZHA groups via turn_on_lights_circadian
+
 ## 6.9.172
 **Fix: initialize canonical_key before use**
 
