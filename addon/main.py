@@ -3452,7 +3452,24 @@ class HomeAssistantWebSocketClient:
                 self.light_controller.add_controller(Protocol.ZIGBEE)
                 self.light_controller.add_controller(Protocol.HOMEASSISTANT)
                 logger.info("Initialized multi-protocol light controller")
-                    
+
+                # Pre-fetch areas to populate area_name_to_id mapping BEFORE loading states
+                # This ensures group registration can look up area_id from area_name
+                zigbee_controller = self.light_controller.controllers.get(Protocol.ZIGBEE)
+                if zigbee_controller:
+                    try:
+                        areas = await zigbee_controller.get_areas()
+                        self.area_name_to_id.clear()
+                        for area_id, area_info in areas.items():
+                            area_name = area_info.get('name', '')
+                            if area_name:
+                                normalized_name = area_name.lower().replace(' ', '_')
+                                self.area_name_to_id[normalized_name] = area_id
+                                self.area_name_to_id[area_name.lower()] = area_id
+                        logger.info(f"Pre-loaded {len(self.area_name_to_id)} area name mappings")
+                    except Exception as e:
+                        logger.warning(f"Failed to pre-load area mappings: {e}")
+
                 # Get initial states to populate mappings and sun data
                 logger.info("Loading initial entity states...")
                 states = await self.get_states()

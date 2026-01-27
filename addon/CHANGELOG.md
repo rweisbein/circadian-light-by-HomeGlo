@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.181
+**Fix: Pre-load area name mappings before state processing**
+
+- Moved area name-to-id mapping population to run BEFORE initial state loading
+- Previously, ZHA groups were registered using area NAME as key (e.g., "sunoffice")
+  instead of area ID (e.g., "test_1") because the lookup failed
+- This caused toggle to not find groups when switches used area_id
+
 ## 6.9.180
 **Fix: Toggle state detection for capability-based ZHA groups**
 
