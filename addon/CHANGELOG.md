@@ -1,5 +1,11 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.182
+**Fix: Allow decimal values for two-step delay**
+
+- Changed two-step delay input to allow 0.1 increments
+- Changed parseInt to parseFloat so decimal values persist correctly
+
 ## 6.9.181
 **Fix: Pre-load area name mappings before state processing**
 

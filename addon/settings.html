@@ -329,7 +329,7 @@
             <span class="info-icon">i<span class="info-tooltip">When turning on lights, a two-step process sets color at 1% then transitions to target brightness. This delay between steps prevents some ZigBee lights from dropping the second command. Increase if lights stay dim after turn-on.</span></span>
           </label>
           <div class="form-control">
-            <input type="number" class="form-input" id="two-step-delay" min="0" max="20" step="1" value="3" style="width: 80px;">
+            <input type="number" class="form-input" id="two-step-delay" min="0" max="20" step="0.1" value="3" style="width: 80px;">
             <span class="form-hint">tenths of a second</span>
           </div>
         </div>
@@ -421,7 +421,7 @@
       const settings = {
         turn_on_transition: parseInt(document.getElementById('turn-on-transition').value) || 3,
         turn_off_transition: parseInt(document.getElementById('turn-off-transition').value) || 3,
-        two_step_delay: parseInt(document.getElementById('two-step-delay').value) || 3,
+        two_step_delay: parseFloat(document.getElementById('two-step-delay').value) || 3,
         multi_click_enabled: document.getElementById('multi-click-enabled').checked,
         multi_click_speed: parseInt(document.getElementById('multi-click-speed').value) || 2,
         circadian_refresh: parseInt(document.getElementById('circadian-refresh').value) || 30,
