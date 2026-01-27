@@ -1,10 +1,15 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.171
+**Simplify: register ZHA groups under area_id only**
+
+- Simplified group registration to use area_id as the canonical key
+- area_name_to_id mapping translates group names to IDs during registration
+
 ## 6.9.170
 **Fix ZHA group lookup when area was renamed**
 
 - Added `area_name_to_id` mapping to translate area names to area IDs
-- ZHA groups now registered under BOTH area_name and area_id
 - Fixes: switch configured with area_id now finds ZHA group registered by area_name
 - Pre-populates mapping early in sync so groups are properly registered
 

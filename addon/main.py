@@ -231,13 +231,12 @@ class HomeAssistantWebSocketClient:
             "area_name": area_name,
         }
 
-        # Store normalized mapping for selection logic - register under BOTH id and name
-        for key_source in (area_id, area_name):
-            if key_source:
-                canonical_key = self._normalize_area_key(key_source)
-                if canonical_key:
-                    area_entry = self.area_group_map.setdefault(canonical_key, {})
-                    area_entry[group_type] = entity_id
+        # Store normalized mapping for selection logic - area_id is the canonical key
+        if area_id:
+            canonical_key = self._normalize_area_key(area_id)
+            if canonical_key:
+                area_entry = self.area_group_map.setdefault(canonical_key, {})
+                area_entry[group_type] = entity_id
 
         # Build alias variations to continue supporting legacy lookups
         alias_candidates = set()
