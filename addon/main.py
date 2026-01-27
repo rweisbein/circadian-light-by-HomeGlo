@@ -2012,12 +2012,19 @@ class HomeAssistantWebSocketClient:
             if isinstance(device, dict):
                 device_id = device.get("id")
                 identifiers = device.get("identifiers", [])
+                device_name = device.get("name", "")
+                manufacturer = device.get("manufacturer", "")
+                found_zha = False
                 for identifier in identifiers:
                     if isinstance(identifier, list) and len(identifier) >= 2:
                         if identifier[0] == "hue":
                             hue_device_ids.add(device_id)
                         elif identifier[0] == "zha":
                             zha_device_ids.add(device_id)
+                            found_zha = True
+                # Debug: log Signify devices that aren't detected as ZHA
+                if "signify" in manufacturer.lower() and not found_zha:
+                    logger.warning(f"Signify device NOT detected as ZHA: {device_name} | identifiers: {identifiers}")
 
         # Process light entities
         for entity in entities:

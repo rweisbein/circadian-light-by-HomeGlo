@@ -1,5 +1,11 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.174
+**Debug: log Signify devices not detected as ZHA**
+
+- Added warning log for Signify (Hue) devices that aren't recognized as ZHA
+- Helps diagnose why certain ZHA-paired lights aren't included in ZHA groups
+
 ## 6.9.173
 **ZHA groups for turn-off operations**
 
