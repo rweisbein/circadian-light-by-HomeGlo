@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.170
+**Fix ZHA group lookup when area was renamed**
+
+- Added `area_name_to_id` mapping to translate area names to area IDs
+- ZHA groups now registered under BOTH area_name and area_id
+- Fixes: switch configured with area_id now finds ZHA group registered by area_name
+- Pre-populates mapping early in sync so groups are properly registered
+
 ## 6.9.169
 **ZHA groups for mixed areas + ZHA light tracking**
 

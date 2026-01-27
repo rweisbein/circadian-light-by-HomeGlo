@@ -84,6 +84,7 @@ class HomeAssistantWebSocketClient:
         self.area_lights: Dict[str, List[str]] = {}  # area_id -> list of light entity_ids
         self.hue_lights: Set[str] = set()  # entity_ids of Hue-connected lights (skip 2-step for these)
         self.zha_lights: Set[str] = set()  # entity_ids of ZHA-connected lights (use ZHA groups for these)
+        self.area_name_to_id: Dict[str, str] = {}  # area_name -> area_id (for group registration)
 
         # Motion sensor cache for event handling
         # Maps entity_id -> device_id (used to look up motion sensor config)
@@ -212,6 +213,15 @@ class HomeAssistantWebSocketClient:
         if not entity_id or not entity_id.startswith("light."):
             return
 
+        # If we have area_name but no area_id, look it up from our mapping
+        # This ensures groups registered by name also work when looked up by id
+        if area_name and not area_id:
+            normalized_name = area_name.lower().replace(' ', '_')
+            area_id = self.area_name_to_id.get(normalized_name)
+            if not area_id:
+                # Try without underscores
+                area_id = self.area_name_to_id.get(area_name.lower())
+
         # Track metadata about the entity
         display_name = area_name or area_id or entity_id
         self.group_entity_info[entity_id] = {
@@ -221,11 +231,13 @@ class HomeAssistantWebSocketClient:
             "area_name": area_name,
         }
 
-        # Store normalized mapping for selection logic
-        canonical_key = self._normalize_area_key(area_id or area_name)
-        if canonical_key:
-            area_entry = self.area_group_map.setdefault(canonical_key, {})
-            area_entry[group_type] = entity_id
+        # Store normalized mapping for selection logic - register under BOTH id and name
+        for key_source in (area_id, area_name):
+            if key_source:
+                canonical_key = self._normalize_area_key(key_source)
+                if canonical_key:
+                    area_entry = self.area_group_map.setdefault(canonical_key, {})
+                    area_entry[group_type] = entity_id
 
         # Build alias variations to continue supporting legacy lookups
         alias_candidates = set()
@@ -2701,16 +2713,24 @@ class HomeAssistantWebSocketClient:
                 # Get all areas with their light information
                 areas = await zigbee_controller.get_areas()
             
-            # Clear and rebuild the cache
+            # Clear and rebuild the caches
             self.area_parity_cache.clear()
-            
+            self.area_name_to_id.clear()
+
             for area_id, area_info in areas.items():
                 area_name = area_info.get('name', '')
-                
+
+                # Build area_name -> area_id mapping (for group registration lookup)
+                if area_name:
+                    normalized_name = area_name.lower().replace(' ', '_')
+                    self.area_name_to_id[normalized_name] = area_id
+                    # Also store without underscores for flexible matching
+                    self.area_name_to_id[area_name.lower()] = area_id
+
                 # Skip the Circadian_Zigbee_Groups area - it's just for organizing group entities
                 if area_name == 'Circadian_Zigbee_Groups':
                     continue
-                    
+
                 zha_lights = area_info.get('zha_lights', [])
                 non_zha_lights = area_info.get('non_zha_lights', [])
                 
@@ -2737,6 +2757,17 @@ class HomeAssistantWebSocketClient:
 
             zigbee_controller = self.light_controller.controllers.get(Protocol.ZIGBEE)
             if zigbee_controller:
+                # Pre-fetch areas to populate area_name_to_id mapping BEFORE sync
+                # This ensures group registration can look up area_id from area_name
+                areas = await zigbee_controller.get_areas()
+                self.area_name_to_id.clear()
+                for area_id, area_info in areas.items():
+                    area_name = area_info.get('name', '')
+                    if area_name:
+                        normalized_name = area_name.lower().replace(' ', '_')
+                        self.area_name_to_id[normalized_name] = area_id
+                        self.area_name_to_id[area_name.lower()] = area_id
+
                 # Sync ZHA groups with all areas (no longer limited to areas with switches)
                 success, areas = await zigbee_controller.sync_zha_groups_with_areas()
                 if success:
