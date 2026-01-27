@@ -938,7 +938,7 @@ class CircadianLightPrimitives:
         transition = self._get_turn_on_transition()
         await self._apply_lighting(area_id, boosted_brightness, result.color_temp, transition=transition)
 
-    async def end_boost(self, area_id: str, source: str = "timer"):
+    async def end_boost(self, area_id: str, source: str = "timer") -> bool:
         """End boost for an area and return to previous state.
 
         Called when boost timer expires or boost is explicitly cancelled.
@@ -946,12 +946,15 @@ class CircadianLightPrimitives:
         Args:
             area_id: The area ID
             source: Source of the action
+
+        Returns:
+            True if lights were turned off (started_from_off), False otherwise
         """
         boost_state = state.get_boost_state(area_id)
 
         if not boost_state["is_boosted"]:
             logger.debug(f"[{source}] Area {area_id} not boosted, nothing to end")
-            return
+            return False
 
         started_from_off = boost_state["boost_started_from_off"]
 
@@ -978,6 +981,7 @@ class CircadianLightPrimitives:
             await self._turn_off_area(area_id, transition=transition)
             state.set_is_on(area_id, False)
             logger.info(f"[{source}] Boost ended for area {area_id}, turned off (started from off)")
+            return True
         else:
             # Lights were on - return to current circadian settings (is_on stays True)
             config = self._get_config(area_id)
@@ -991,6 +995,7 @@ class CircadianLightPrimitives:
                 f"[{source}] Boost ended for area {area_id}, returned to circadian: "
                 f"{result.brightness}%, {result.color_temp}K"
             )
+            return False
 
     async def check_expired_boosts(self):
         """Check for and handle any expired boosts.

@@ -1,8 +1,11 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
 ## 6.9.185
-**Fix: Honor turn-off transition setting in periodic enforce loop**
+**Fix: Honor turn-off transition for contact sensor boost**
 
+- Fixed abrupt light turn-off when closing a door with boost-enabled contact sensor:
+  `end_boost` already turns off lights with the configured transition, so `contact_off`
+  no longer sends a duplicate turn_off command that could interrupt the transition
 - Periodic updater's off-state enforcement now reads the configured "Turn off lights speed"
   instead of using a hardcoded 0.5s transition
 
