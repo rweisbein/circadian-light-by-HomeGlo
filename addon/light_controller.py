@@ -725,6 +725,9 @@ class ZigBeeController(LightController):
                 # Log mixed areas but still create groups for ZHA lights
                 if non_zha_lights:
                     logger.info(f"Area '{area_name}' has {len(zha_lights)} ZHA + {len(non_zha_lights)} non-ZHA lights (mixed area, creating ZHA groups anyway)")
+                    zha_entity_ids = [l.get('entity_id', 'unknown') for l in zha_lights]
+                    logger.info(f"  ZHA: {zha_entity_ids}")
+                    logger.info(f"  Non-ZHA: {non_zha_lights}")
 
                 # Split ZHA lights by color capability
                 color_members = []

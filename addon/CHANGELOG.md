@@ -1,5 +1,10 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.176
+**Debug: log entity_ids for mixed areas**
+
+- Shows exact entity_ids that are ZHA vs non-ZHA in mixed areas
+
 ## 6.9.175
 **Fix: handle None manufacturer in debug logging**
 
