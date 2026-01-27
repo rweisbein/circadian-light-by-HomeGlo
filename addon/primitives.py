@@ -2178,6 +2178,10 @@ class CircadianLightPrimitives:
 
         Depth is controlled by warning_intensity (base) and warning_scaling
         (how much depth increases based on proximity to the opposite limit).
+        Both values are squared for softer response at low settings.
+
+        When brightness bounce has no room (e.g. color limit hit while brightness
+        is at the opposite extreme), falls back to color temperature bounce.
 
         Note: This function is boost-aware. If the area is boosted, the bounce
         uses the effective (boosted) brightness, not just the circadian base.
@@ -2203,9 +2207,9 @@ class CircadianLightPrimitives:
         max_brightness = config.max_brightness
         bri_range = max_brightness - min_brightness if max_brightness > min_brightness else 1
 
-        # Calculate depth using warning_intensity and warning_scaling
-        base = self._get_warning_intensity() / 10.0
-        scale = self._get_warning_scaling() / 10.0
+        # Calculate depth using warning_intensity and warning_scaling (squared for softer low-end)
+        base = (self._get_warning_intensity() / 10.0) ** 2
+        scale = (self._get_warning_scaling() / 10.0) ** 2
 
         limit_speed = self._get_limit_warning_speed()
         two_step_delay = self._get_two_step_delay()
@@ -2221,11 +2225,35 @@ class CircadianLightPrimitives:
             depth_ratio = min(1.0, base + scale * proximity)
             bounce_target = min(max_brightness, int(effective_brightness + (max_brightness - effective_brightness) * depth_ratio))
 
-        await self._apply_lighting(area_id, bounce_target, current_color, include_color=False, transition=limit_speed)
-        await asyncio.sleep(limit_speed + two_step_delay)
-        await self._apply_lighting(area_id, effective_brightness, current_color, transition=limit_speed)
+        # If brightness bounce has no room (e.g. color limit hit while brightness at opposite extreme),
+        # fall back to color temperature bounce instead
+        if bounce_target == effective_brightness:
+            min_color = config.min_color_temp
+            max_color = config.max_color_temp
+            color_range = max_color - min_color if max_color > min_color else 1
 
-        logger.info(f"Bounce effect for area {area_id}: {effective_brightness}% -> {bounce_target}% -> {effective_brightness}% (direction={direction})")
+            if direction == "up":
+                # At color max → briefly shift warmer (lower Kelvin) then back
+                color_proximity = (current_color - min_color) / color_range
+                color_depth = min(1.0, base + scale * color_proximity)
+                color_target = max(min_color, int(current_color - (current_color - min_color) * color_depth))
+            else:
+                # At color min → briefly shift cooler (higher Kelvin) then back
+                color_proximity = (max_color - current_color) / color_range
+                color_depth = min(1.0, base + scale * color_proximity)
+                color_target = min(max_color, int(current_color + (max_color - current_color) * color_depth))
+
+            await self._apply_lighting(area_id, effective_brightness, color_target, include_color=True, transition=limit_speed)
+            await asyncio.sleep(limit_speed + two_step_delay)
+            await self._apply_lighting(area_id, effective_brightness, current_color, include_color=True, transition=limit_speed)
+
+            logger.info(f"Color bounce for area {area_id}: {current_color}K -> {color_target}K -> {current_color}K (direction={direction})")
+        else:
+            await self._apply_lighting(area_id, bounce_target, current_color, include_color=False, transition=limit_speed)
+            await asyncio.sleep(limit_speed + two_step_delay)
+            await self._apply_lighting(area_id, effective_brightness, current_color, transition=limit_speed)
+
+            logger.info(f"Bounce effect for area {area_id}: {effective_brightness}% -> {bounce_target}% -> {effective_brightness}% (direction={direction})")
 
     async def _standard_brightness_step(
         self, area_id: str, direction: int, source: str

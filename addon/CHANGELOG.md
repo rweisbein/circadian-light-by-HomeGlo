@@ -1,6 +1,6 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
-## 6.9.187
+## 6.9.188
 **Feature: Configurable freeze & limit warning transitions**
 
 - Added 4 new Advanced settings under Visual Feedback:
@@ -14,7 +14,10 @@
   (previously always dipped down, which was invisible at minimum brightness)
 - Fixed missing bounce when stepping at limit while frozen (e.g. nitelite + step down):
   auto-unfreeze's inverse_midpoint drift at asymptotes could mask the limit detection
-- Bounce depth uses configurable intensity/scaling formula instead of hardcoded ratio
+- Bounce depth uses squared intensity/scaling formula for softer low-end response
+  (1/1 now gives a subtle ~2% nudge instead of 20%)
+- Color temperature fallback: when brightness bounce has no room (e.g. hitting color limit
+  while at min/max brightness), bounces color temperature instead
 - Fixed sync refresh multiplier setting not persisting across page navigation
 
 ## 6.9.185
