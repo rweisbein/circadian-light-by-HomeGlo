@@ -2310,7 +2310,13 @@ class HomeAssistantWebSocketClient:
             light_entity_id = None
             if normalized_key and normalized_key in self.area_group_map:
                 candidates = self.area_group_map[normalized_key]
-                light_entity_id = candidates.get("hue_group") or candidates.get("zha_group")
+                # Check all group types: hue_group, zha_group (legacy), or capability-based zha_group_color/ct
+                light_entity_id = (
+                    candidates.get("hue_group") or
+                    candidates.get("zha_group") or
+                    candidates.get("zha_group_color") or
+                    candidates.get("zha_group_ct")
+                )
             if not light_entity_id:
                 light_entity_id = self._get_fallback_group_entity(area_id)
             if light_entity_id:

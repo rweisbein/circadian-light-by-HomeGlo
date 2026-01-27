@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.180
+**Fix: Toggle state detection for capability-based ZHA groups**
+
+- Fixed `any_lights_on_in_area` to check for `zha_group_color` and `zha_group_ct` groups
+- Previously only checked for legacy `zha_group` and `hue_group`, causing toggle to misdetect light state
+- This caused toggle to always try turning off lights even when they were already off
+
 ## 6.9.179
 **Fix: Add server-side defaults for Advanced settings**
 
