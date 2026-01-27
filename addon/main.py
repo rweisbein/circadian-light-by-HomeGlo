@@ -86,6 +86,10 @@ class HomeAssistantWebSocketClient:
         self.zha_lights: Set[str] = set()  # entity_ids of ZHA-connected lights (use ZHA groups for these)
         self.area_name_to_id: Dict[str, str] = {}  # area_name -> area_id (for group registration)
 
+        # Pending response futures for async message routing (used when message loop is running)
+        self._pending_responses: Dict[int, asyncio.Future] = {}
+        self._message_loop_active = False  # Set True once main message loop starts
+
         # Motion sensor cache for event handling
         # Maps entity_id -> device_id (used to look up motion sensor config)
         self.motion_sensor_ids: Dict[str, str] = {}
@@ -3413,6 +3417,11 @@ class HomeAssistantWebSocketClient:
     *,
     full_envelope: bool = False,
 ) -> Optional[Dict[str, Any]]:
+        # When the main message loop is active, delegate to send_and_await
+        # which uses futures resolved by the message loop instead of calling recv() directly
+        if self._message_loop_active:
+            return await self.send_and_await(message)
+
         if not self.websocket:
             logger.error("WebSocket not connected")
             return None
@@ -3492,6 +3501,66 @@ class HomeAssistantWebSocketClient:
                 logger.error(f"Error response to id={msg_id}: {err}")
                 return None
     
+    async def send_and_await(
+        self,
+        message: Dict[str, Any],
+        timeout: float = 10.0,
+    ) -> Optional[Dict[str, Any]]:
+        """Send a WebSocket message and await its response via the main message loop.
+
+        Unlike send_message_wait_response (which calls recv() directly and conflicts
+        with the main message loop), this method registers a Future that the main
+        message loop resolves when the matching response arrives.
+
+        Safe to call while the message loop is running.
+        """
+        if not self.websocket:
+            logger.error("WebSocket not connected")
+            return None
+
+        message["id"] = self._get_next_message_id()
+        msg_id = message["id"]
+
+        loop = asyncio.get_event_loop()
+        future = loop.create_future()
+        self._pending_responses[msg_id] = future
+
+        try:
+            await self.websocket.send(json.dumps(message))
+        except Exception as e:
+            self._pending_responses.pop(msg_id, None)
+            logger.error(f"WebSocket send failed for id={msg_id}: {e}")
+            return None
+
+        try:
+            data = await asyncio.wait_for(future, timeout=timeout)
+        except asyncio.TimeoutError:
+            self._pending_responses.pop(msg_id, None)
+            logger.error(f"Timeout waiting for response to message id={msg_id}")
+            return None
+
+        # Return inner result on success
+        if isinstance(data, dict) and data.get("type") == "result" and data.get("success", False):
+            return data.get("result")
+
+        err = data.get("error") if isinstance(data, dict) else None
+        if err:
+            logger.error(f"Error response to id={msg_id}: {err}")
+        return None
+
+    def _resolve_pending_response(self, message: Dict[str, Any]) -> bool:
+        """Check if an incoming message matches a pending response future.
+
+        Returns True if the message was consumed by a pending future.
+        """
+        msg_id = message.get("id")
+        if msg_id is not None and msg_id in self._pending_responses:
+            future = self._pending_responses.pop(msg_id)
+            if not future.done():
+                future.set_result(message)
+            return True
+        return False
+
     async def listen(self):
         """Main listener loop."""
         try:
@@ -3575,10 +3644,13 @@ class HomeAssistantWebSocketClient:
                 
                 # Listen for messages
                 logger.info("Listening for events...")
+                self._message_loop_active = True
                 async for message in websocket:
                     try:
                         msg = json.loads(message)
-                        await self.handle_message(msg)
+                        # Route responses to pending futures before general handling
+                        if not self._resolve_pending_response(msg):
+                            await self.handle_message(msg)
                     except json.JSONDecodeError:
                         logger.error(f"Failed to decode message: {message}")
                     except Exception as e:
@@ -3596,8 +3668,9 @@ class HomeAssistantWebSocketClient:
                     await self.periodic_update_task
                 except asyncio.CancelledError:
                     pass
+            self._message_loop_active = False
             self.websocket = None
-            
+
     async def run(self):
         """Run the client with automatic reconnection."""
         reconnect_interval = 5
