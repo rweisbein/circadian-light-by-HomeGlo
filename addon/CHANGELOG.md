@@ -1,6 +1,6 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
-## 6.9.188
+## 6.9.189
 **Feature: Configurable freeze & limit warning transitions**
 
 - Added 4 new Advanced settings under Visual Feedback:

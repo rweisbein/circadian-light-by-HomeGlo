@@ -561,7 +561,7 @@ class CircadianLightPrimitives:
                     frozen_bri = CircadianLight.calculate_brightness_at_hour(
                         area_state.frozen_at, config, area_state
                     )
-                    await self._bounce_at_limit(area_id, frozen_bri, frozen_cct, direction="up")
+                    await self._bounce_at_limit(area_id, frozen_bri, frozen_cct, direction="up", bounce_axis="color")
                 return
             self._unfreeze_internal(area_id, source)
             area_state = self._get_area_state(area_id)
@@ -586,7 +586,7 @@ class CircadianLightPrimitives:
             if area_state.is_on:
                 current_bri = CircadianLight.calculate_brightness_at_hour(hour, config, area_state)
                 current_cct = CircadianLight.calculate_color_at_hour(hour, config, area_state, apply_solar_rules=True, sun_times=sun_times)
-                await self._bounce_at_limit(area_id, current_bri, current_cct, direction="up")
+                await self._bounce_at_limit(area_id, current_bri, current_cct, direction="up", bounce_axis="color")
             return
 
         # Update state (always, even if is_on=False)
@@ -629,7 +629,7 @@ class CircadianLightPrimitives:
                     frozen_bri = CircadianLight.calculate_brightness_at_hour(
                         area_state.frozen_at, config, area_state
                     )
-                    await self._bounce_at_limit(area_id, frozen_bri, frozen_cct, direction="down")
+                    await self._bounce_at_limit(area_id, frozen_bri, frozen_cct, direction="down", bounce_axis="color")
                 return
             self._unfreeze_internal(area_id, source)
             area_state = self._get_area_state(area_id)
@@ -654,7 +654,7 @@ class CircadianLightPrimitives:
             if area_state.is_on:
                 current_bri = CircadianLight.calculate_brightness_at_hour(hour, config, area_state)
                 current_cct = CircadianLight.calculate_color_at_hour(hour, config, area_state, apply_solar_rules=True, sun_times=sun_times)
-                await self._bounce_at_limit(area_id, current_bri, current_cct, direction="down")
+                await self._bounce_at_limit(area_id, current_bri, current_cct, direction="down", bounce_axis="color")
             return
 
         # Update state (always, even if is_on=False)
@@ -2170,7 +2170,7 @@ class CircadianLightPrimitives:
             include_color=True,
         )
 
-    async def _bounce_at_limit(self, area_id: str, current_brightness: int, current_color: int, direction: str = "up"):
+    async def _bounce_at_limit(self, area_id: str, current_brightness: int, current_color: int, direction: str = "up", bounce_axis: str = "brightness"):
         """Visual bounce effect when hitting a bound limit.
 
         Direction-aware: stepping up hits upper limit (dip down then recover),
@@ -2180,8 +2180,10 @@ class CircadianLightPrimitives:
         (how much depth increases based on proximity to the opposite limit).
         Both values are squared for softer response at low settings.
 
-        When brightness bounce has no room (e.g. color limit hit while brightness
-        is at the opposite extreme), falls back to color temperature bounce.
+        bounce_axis controls which property is bounced:
+        - "brightness": bounces brightness (for step/bright limits), falls back
+          to color if brightness has no room
+        - "color": always bounces color temperature (for color limits)
 
         Note: This function is boost-aware. If the area is boosted, the bounce
         uses the effective (boosted) brightness, not just the circadian base.
@@ -2191,6 +2193,7 @@ class CircadianLightPrimitives:
             current_brightness: Current circadian base brightness percentage
             current_color: Current color temperature in Kelvin
             direction: "up" (hit upper limit, dip down) or "down" (hit lower limit, flash up)
+            bounce_axis: "brightness" or "color" — which property to bounce
         """
         import asyncio
 
@@ -2214,31 +2217,34 @@ class CircadianLightPrimitives:
         limit_speed = self._get_limit_warning_speed()
         two_step_delay = self._get_two_step_delay()
 
-        if direction == "up":
-            # Hit upper limit (stepping up) → dip down then recover
-            proximity = (effective_brightness - min_brightness) / bri_range
-            depth_ratio = min(1.0, base + scale * proximity)
-            bounce_target = max(min_brightness, int(effective_brightness - (effective_brightness - min_brightness) * depth_ratio))
-        else:
-            # Hit lower limit (stepping down) → flash up then recover
-            proximity = (max_brightness - effective_brightness) / bri_range
-            depth_ratio = min(1.0, base + scale * proximity)
-            bounce_target = min(max_brightness, int(effective_brightness + (max_brightness - effective_brightness) * depth_ratio))
+        min_color = config.min_color_temp
+        max_color = config.max_color_temp
+        color_range = max_color - min_color if max_color > min_color else 1
 
-        # If brightness bounce has no room (e.g. color limit hit while brightness at opposite extreme),
-        # fall back to color temperature bounce instead
-        if bounce_target == effective_brightness:
-            min_color = config.min_color_temp
-            max_color = config.max_color_temp
-            color_range = max_color - min_color if max_color > min_color else 1
+        use_color_bounce = bounce_axis == "color"
 
+        if not use_color_bounce:
+            # Brightness bounce
             if direction == "up":
-                # At color max → briefly shift warmer (lower Kelvin) then back
+                proximity = (effective_brightness - min_brightness) / bri_range
+                depth_ratio = min(1.0, base + scale * proximity)
+                bounce_target = max(min_brightness, int(effective_brightness - (effective_brightness - min_brightness) * depth_ratio))
+            else:
+                proximity = (max_brightness - effective_brightness) / bri_range
+                depth_ratio = min(1.0, base + scale * proximity)
+                bounce_target = min(max_brightness, int(effective_brightness + (max_brightness - effective_brightness) * depth_ratio))
+
+            # Fall back to color bounce if brightness has no room
+            if bounce_target == effective_brightness:
+                use_color_bounce = True
+
+        if use_color_bounce:
+            # Color temperature bounce
+            if direction == "up":
                 color_proximity = (current_color - min_color) / color_range
                 color_depth = min(1.0, base + scale * color_proximity)
                 color_target = max(min_color, int(current_color - (current_color - min_color) * color_depth))
             else:
-                # At color min → briefly shift cooler (higher Kelvin) then back
                 color_proximity = (max_color - current_color) / color_range
                 color_depth = min(1.0, base + scale * color_proximity)
                 color_target = min(max_color, int(current_color + (max_color - current_color) * color_depth))
