@@ -2601,8 +2601,9 @@ class HomeAssistantWebSocketClient:
             # Check target power state - enforce is_on
             if not state.get_is_on(area_id):
                 # Enforce off state for areas with is_on=false (uses ZHA groups when available)
-                logger.debug(f"Area {area_id} is_on=false, enforcing off state")
-                await self.turn_off_lights(area_id, transition=0.5)
+                transition = self.primitives._get_turn_off_transition()
+                logger.debug(f"Area {area_id} is_on=false, enforcing off state (transition={transition}s)")
+                await self.turn_off_lights(area_id, transition=transition)
                 return
 
             # Skip areas in motion warning state (don't override the warning dim)

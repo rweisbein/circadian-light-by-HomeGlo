@@ -1,5 +1,11 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.185
+**Fix: Honor turn-off transition setting in periodic enforce loop**
+
+- Periodic updater's off-state enforcement now reads the configured "Turn off lights speed"
+  instead of using a hardcoded 0.5s transition
+
 ## 6.9.184
 **Feature: Automatic ZHA group sync without restart**
 
