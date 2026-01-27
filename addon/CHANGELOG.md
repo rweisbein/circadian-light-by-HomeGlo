@@ -1,5 +1,10 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.172
+**Fix: initialize canonical_key before use**
+
+- Fixed crash: `local variable 'canonical_key' referenced before assignment`
+
 ## 6.9.171
 **Simplify: register ZHA groups under area_id only**
 

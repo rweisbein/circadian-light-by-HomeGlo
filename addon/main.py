@@ -232,6 +232,7 @@ class HomeAssistantWebSocketClient:
         }
 
         # Store normalized mapping for selection logic - area_id is the canonical key
+        canonical_key = None
         if area_id:
             canonical_key = self._normalize_area_key(area_id)
             if canonical_key:
