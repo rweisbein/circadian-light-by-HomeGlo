@@ -3035,7 +3035,8 @@ class LightDesignerServer:
             'bright_up', 'bright_down',
             'color_up', 'color_down',
             'freeze_toggle', 'reset',
-            'glo_up', 'glo_down', 'glo_reset'
+            'glo_up', 'glo_down', 'glo_reset',
+            'boost'
         }
 
         try:

@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.201
+**Fix: Boost action and UI improvements**
+
+- Fixed boost button - now properly calls bright_boost with boost_default from config
+- Added 'boost' to valid area actions in webserver
+- Lighting info (brightness/CT) now shown even when lights off (calculated from curve)
+- Improved icons: Boost is now double up chevron, Push to zone is double right chevron
+
 ## 6.9.200
 **UI: Areas page button reorganization and boost setting**
 

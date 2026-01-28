@@ -1825,13 +1825,27 @@
     }
 
     function getLightingInfo(area) {
-      if (!area.is_on) {
-        return '<span>—</span>';
+      let brightness, kelvin;
+      if (area.is_on) {
+        brightness = area.brightness;
+        kelvin = area.kelvin;
+      } else {
+        // Calculate circadian values for current time when off
+        if (cachedConfig && cachedSunTimes) {
+          const now = new Date();
+          const currentHour = now.getHours() + now.getMinutes() / 60;
+          const emptyState = { brightness_mid: null, color_mid: null, color_override: null, frozen_at: null };
+          brightness = calcMiniBrightness(currentHour, cachedConfig, emptyState, currentHour) * 100;
+          kelvin = calcMiniColor(currentHour, cachedConfig, emptyState, cachedSunTimes, currentHour);
+        } else {
+          brightness = 50;
+          kelvin = 4000;
+        }
       }
       return `
         <div class="lighting-info">
-          <span class="brightness-value">${Math.round(area.brightness)}%</span>
-          <span class="kelvin-value">${Math.round(area.kelvin)}K</span>
+          <span class="brightness-value">${Math.round(brightness)}%</span>
+          <span class="kelvin-value">${Math.round(kelvin)}K</span>
         </div>
       `;
     }
@@ -1883,11 +1897,10 @@
         <line x1="12" y1="22" x2="15" y2="19"/>
       </svg>`;
 
-      // Rocket/boost icon (arrow pointing up with flames)
-      const boostIconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M12 2L8 10h8L12 2z"/>
-        <path d="M8 10v6l4 6 4-6v-6"/>
-        <path d="M9 16l3-2 3 2"/>
+      // Boost icon (double up chevron)
+      const boostIconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <polyline points="6 15 12 9 18 15"/>
+        <polyline points="6 20 12 14 18 20"/>
       </svg>`;
 
       // Reset icon (circular arrow)
@@ -1896,17 +1909,10 @@
         <path d="M3 3v5h5"/>
       </svg>`;
 
-      // Push to zone icon (broadcast/share arrows)
-      const pushIconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <circle cx="12" cy="12" r="3"/>
-        <path d="M12 2v4"/>
-        <path d="M12 18v4"/>
-        <path d="M4.93 4.93l2.83 2.83"/>
-        <path d="M16.24 16.24l2.83 2.83"/>
-        <path d="M2 12h4"/>
-        <path d="M18 12h4"/>
-        <path d="M4.93 19.07l2.83-2.83"/>
-        <path d="M16.24 7.76l2.83-2.83"/>
+      // Push to zone icon (double arrow right)
+      const pushIconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <polyline points="9 6 15 12 9 18"/>
+        <polyline points="4 6 10 12 4 18"/>
       </svg>`;
 
       const leftControls = `
