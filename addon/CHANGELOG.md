@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.198
+**Fix: Areas row shading and control button styling**
+
+- Fixed row brightness shading to show gradient fill at correct percentage across all cells
+  (uses CSS gradient with percentage-based color stop instead of scaled overlay element)
+- Added dark semi-transparent container around row control buttons (matches modal header style)
+- Orange "active" border now visible against the dark button container
+
 ## 6.9.197
 **UI: Areas page grouped by control zone**
 

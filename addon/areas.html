@@ -668,51 +668,41 @@
     .zone-table tbody tr {
       --row-bg: var(--card);
       --row-text: var(--text);
+      --row-fill: 0;
     }
 
     .zone-table tbody tr td {
-      background: var(--row-bg);
+      background:
+        linear-gradient(90deg,
+          rgba(255,255,255,0.35) 0%,
+          rgba(255,255,255,0.35) calc(var(--row-fill) * 100%),
+          transparent calc(var(--row-fill) * 100%),
+          transparent 100%),
+        var(--row-bg);
       color: var(--row-text);
     }
 
-    /* Fill bar - spans full row via large fixed width, clipped by table */
-    .row-fill-bar {
-      position: absolute;
-      top: 0;
-      left: 0;
-      height: 100%;
-      width: 2000px;  /* Large fixed width */
-      background: linear-gradient(90deg, rgba(255,255,255,0.05), rgba(255,255,255,0.55));
-      opacity: 0.6;
-      pointer-events: none;
-      z-index: 0;
-      transform-origin: left center;
-      /* Will be scaled via inline style */
-    }
-
-    .zone-table tbody tr td:first-child {
-      position: relative;
-    }
-
     .zone-table tbody tr td > span,
-    .zone-table tbody tr td > div:not(.row-fill-bar) {
+    .zone-table tbody tr td > div {
       position: relative;
       z-index: 1;
     }
 
-    /* Row control buttons */
+    /* Row control buttons - dark container like modal header */
     .row-controls {
-      display: flex;
+      display: inline-flex;
       gap: 4px;
-      justify-content: flex-start;
+      background: rgba(0,0,0,0.5);
+      padding: 4px;
+      border-radius: 8px;
     }
 
     .row-btn {
       width: 28px;
       height: 28px;
       border-radius: 4px;
-      border: 1px solid rgba(255,255,255,0.15);
-      background: rgba(30,30,30,0.8);
+      border: 1px solid rgba(255,255,255,0.2);
+      background: rgba(30,30,30,0.9);
       color: var(--muted);
       cursor: pointer;
       display: flex;
@@ -723,7 +713,7 @@
     }
 
     .row-btn:hover {
-      border-color: rgba(255,255,255,0.3);
+      border-color: rgba(255,255,255,0.4);
       background: rgba(50,50,50,0.9);
     }
 
@@ -1791,14 +1781,10 @@
       const style = getRowStyle(area);
       const lightingInfo = getLightingInfo(area);
       const controlButtons = getRowControls(area);
-      const fillScale = style.fill.toFixed(3);
 
       return `
-        <tr style="--row-bg: ${style.bg}; --row-text: ${style.textColor};" onclick="openAreaModal('${area.area_id}')">
-          <td>
-            <div class="row-fill-bar" style="transform: scaleX(${fillScale});"></div>
-            <span>${area.name}</span>
-          </td>
+        <tr style="--row-bg: ${style.bg}; --row-text: ${style.textColor}; --row-fill: ${style.fill.toFixed(3)};" onclick="openAreaModal('${area.area_id}')">
+          <td><span>${area.name}</span></td>
           <td>${controlButtons}</td>
           <td>${lightingInfo}</td>
         </tr>
