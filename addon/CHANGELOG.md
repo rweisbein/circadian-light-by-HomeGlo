@@ -1,5 +1,19 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.203
+**Fix: Boost button now works and boost_default setting persists**
+
+- Added boost_default to GLOBAL_SETTINGS so it saves properly
+- Added blur event listener for boost-default input to trigger save popup
+- Fixed boost action to read boost_default from global config (not area-specific)
+
+## 6.9.202
+**Fix: Freeze toggle no longer turns on lights that are off**
+
+- Fixed freeze_toggle to only update frozen state (without lighting commands) when lights are off
+- Fixed freeze_toggle_multiple to handle mixed on/off areas correctly
+- Lights that are off stay off when freeze is toggled - only the freeze state changes
+
 ## 6.9.201
 **Fix: Boost action and UI improvements**
 

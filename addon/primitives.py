@@ -1679,6 +1679,8 @@ class CircadianLightPrimitives:
         Unfrozen → Frozen: dim at turn-off speed, brighten instantly
         Frozen → Unfrozen: dim at turn-off speed, brighten at freeze-off-rise speed
 
+        If lights are off, just toggle the state without visual effect.
+
         Args:
             area_id: The area ID
             source: Source of the action
@@ -1687,9 +1689,21 @@ class CircadianLightPrimitives:
 
         is_frozen = state.is_frozen(area_id)
         config = self._get_config(area_id)
+        is_on = state.get_is_on(area_id)
 
         if not state.is_circadian(area_id):
             logger.info(f"[{source}] Area {area_id} not in circadian mode, skipping freeze_toggle")
+            return
+
+        # If lights are off, just toggle the state without applying lighting
+        if not is_on:
+            if is_frozen:
+                self._unfreeze_internal(area_id, source)
+                logger.info(f"[{source}] Freeze toggle: {area_id} unfrozen (lights off, state only)")
+            else:
+                frozen_at = get_current_hour()
+                state.set_frozen_at(area_id, frozen_at)
+                logger.info(f"[{source}] Freeze toggle: {area_id} frozen at hour {frozen_at:.2f} (lights off, state only)")
             return
 
         # Both directions dim at turn-off speed
@@ -1730,6 +1744,7 @@ class CircadianLightPrimitives:
         """Toggle freeze state for multiple areas with single visual effect.
 
         All areas dim together, then brighten together (one bounce, not multiple).
+        Areas with lights off just toggle state without visual effect.
 
         Args:
             area_ids: List of area IDs
@@ -1746,8 +1761,28 @@ class CircadianLightPrimitives:
             logger.info(f"[{source}] No circadian areas for freeze_toggle_multiple")
             return
 
+        # Separate areas by whether lights are on
+        areas_on = [a for a in circadian_areas if state.get_is_on(a)]
+        areas_off = [a for a in circadian_areas if not state.get_is_on(a)]
+
         # Check freeze state of first area (all should be same, but use first as reference)
         is_frozen = state.is_frozen(circadian_areas[0])
+
+        # Handle areas with lights off - just toggle state without lighting
+        for area_id in areas_off:
+            if is_frozen:
+                self._unfreeze_internal(area_id, source)
+            else:
+                frozen_at = get_current_hour()
+                state.set_frozen_at(area_id, frozen_at)
+
+        if areas_off:
+            action = "unfrozen" if is_frozen else f"frozen at hour {get_current_hour():.2f}"
+            logger.info(f"[{source}] Freeze toggle: {len(areas_off)} area(s) {action} (lights off, state only)")
+
+        # Handle areas with lights on - do visual effect
+        if not areas_on:
+            return
 
         # Both directions dim at turn-off speed
         # Freeze: flash on instantly (0s)
@@ -1755,42 +1790,42 @@ class CircadianLightPrimitives:
         dim_duration = self._get_turn_off_transition()
         two_step_delay = self._get_two_step_delay()
 
-        # Dim ALL areas to 0%
-        for area_id in circadian_areas:
+        # Dim areas with lights on to 0%
+        for area_id in areas_on:
             await self._apply_lighting(area_id, 0, 2700, include_color=False, transition=dim_duration)
 
         await asyncio.sleep(dim_duration + two_step_delay)  # Wait for transition to complete
 
         if is_frozen:
             # Was frozen → unfreeze all
-            for area_id in circadian_areas:
+            for area_id in areas_on:
                 self._unfreeze_internal(area_id, source)
 
-            # Rise ALL areas to unfrozen values at freeze-off-rise speed (boost-aware)
+            # Rise areas to unfrozen values at freeze-off-rise speed (boost-aware)
             rise_transition = self._get_freeze_off_rise()
             hour = get_current_hour()
-            for area_id in circadian_areas:
+            for area_id in areas_on:
                 config = self._get_config(area_id)
                 area_state = self._get_area_state(area_id)
                 result = CircadianLight.calculate_lighting(hour, config, area_state)
                 await self._apply_circadian_lighting(area_id, result.brightness, result.color_temp, transition=rise_transition)
 
-            logger.info(f"[{source}] Freeze toggle: {len(circadian_areas)} area(s) unfrozen")
+            logger.info(f"[{source}] Freeze toggle: {len(areas_on)} area(s) unfrozen")
 
         else:
             # Was unfrozen → freeze all at current time
             frozen_at = get_current_hour()
-            for area_id in circadian_areas:
+            for area_id in areas_on:
                 state.set_frozen_at(area_id, frozen_at)
 
-            # Flash ALL areas up to frozen values instantly (boost-aware)
-            for area_id in circadian_areas:
+            # Flash areas up to frozen values instantly (boost-aware)
+            for area_id in areas_on:
                 config = self._get_config(area_id)
                 area_state = self._get_area_state(area_id)
                 result = CircadianLight.calculate_lighting(frozen_at, config, area_state)
                 await self._apply_circadian_lighting(area_id, result.brightness, result.color_temp, transition=0)
 
-            logger.info(f"[{source}] Freeze toggle: {len(circadian_areas)} area(s) frozen at hour {frozen_at:.2f}")
+            logger.info(f"[{source}] Freeze toggle: {len(areas_on)} area(s) frozen at hour {frozen_at:.2f}")
 
     # -------------------------------------------------------------------------
     # Reset

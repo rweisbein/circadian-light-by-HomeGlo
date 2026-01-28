@@ -1018,6 +1018,7 @@ class LightDesignerServer:
         "limit_warning_speed",  # Transition time in tenths of seconds for limit bounce animation (default 3 = 0.3s)
         "warning_intensity",  # Base depth of limit warning dip/flash (1-10, default 5)
         "warning_scaling",  # How much depth increases near the limit (1-10, default 5)
+        "boost_default",  # Default boost percentage (10-100, default 30)
         "controls_ui",  # Controls page UI preferences (sort, filter)
         "areas_ui",  # Areas page UI preferences (sort, filter)
         "area_settings",  # Per-area settings (motion_function, motion_duration)
