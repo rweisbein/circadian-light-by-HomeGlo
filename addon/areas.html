@@ -726,6 +726,15 @@
       border-radius: 8px;
     }
 
+    .row-controls-left {
+      display: inline-flex;
+      gap: 4px;
+      background: rgba(0,0,0,0.5);
+      padding: 4px;
+      border-radius: 8px;
+      margin-right: 8px;
+    }
+
     .row-btn {
       width: 28px;
       height: 28px;
@@ -796,6 +805,11 @@
 
     .zone-header.collapsed .zone-chevron {
       transform: rotate(-90deg);
+    }
+
+    .zone-label {
+      font-size: 0.85rem;
+      color: var(--muted);
     }
 
     .zone-name {
@@ -1752,6 +1766,7 @@
           <div class="zone-group">
             <div class="zone-header ${isCollapsed ? 'collapsed' : ''}" data-zone="${zoneName}" onclick="toggleZone('${zoneName}')">
               ${chevronIcon}
+              <span class="zone-label">Control zone:</span>
               <span class="zone-name">${zoneName}</span>
               <span class="zone-count">${areasInZone.length} area${areasInZone.length !== 1 ? 's' : ''}</span>
             </div>
@@ -1787,12 +1802,13 @@
     function renderAreaRow(area) {
       const style = getRowStyle(area);
       const lightingInfo = getLightingInfo(area);
-      const controlButtons = getRowControls(area);
+      const { leftControls, rightControls } = getRowControls(area);
 
       return `
         <div class="area-row" style="--row-bg: ${style.bg}; --row-text: ${style.textColor}; --row-fill: ${style.fill.toFixed(3)};" onclick="openAreaModal('${area.area_id}')">
+          ${leftControls}
           <span class="area-row-name">${area.name}</span>
-          ${controlButtons}
+          ${rightControls}
           <span class="area-row-lighting">${lightingInfo}</span>
         </div>
       `;
@@ -1837,18 +1853,6 @@
       const isOn = area.is_on;
       const isFrozen = area.frozen;
 
-      // Snowflake icon for freeze
-      const iceIconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <line x1="12" y1="2" x2="12" y2="22"/>
-        <line x1="2" y1="12" x2="22" y2="12"/>
-        <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
-        <line x1="19.07" y1="4.93" x2="4.93" y2="19.07"/>
-        <line x1="12" y1="2" x2="9" y2="5"/>
-        <line x1="12" y1="2" x2="15" y2="5"/>
-        <line x1="12" y1="22" x2="9" y2="19"/>
-        <line x1="12" y1="22" x2="15" y2="19"/>
-      </svg>`;
-
       // Sun icon for circadian
       const sunIconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <circle cx="12" cy="12" r="5"/>
@@ -1867,13 +1871,61 @@
         <path d="M18.36 6.64a9 9 0 1 1-12.73 0M12 2v10"/>
       </svg>`;
 
-      return `
-        <div class="row-controls">
+      // Snowflake icon for freeze
+      const iceIconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="12" y1="2" x2="12" y2="22"/>
+        <line x1="2" y1="12" x2="22" y2="12"/>
+        <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+        <line x1="19.07" y1="4.93" x2="4.93" y2="19.07"/>
+        <line x1="12" y1="2" x2="9" y2="5"/>
+        <line x1="12" y1="2" x2="15" y2="5"/>
+        <line x1="12" y1="22" x2="9" y2="19"/>
+        <line x1="12" y1="22" x2="15" y2="19"/>
+      </svg>`;
+
+      // Rocket/boost icon (arrow pointing up with flames)
+      const boostIconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 2L8 10h8L12 2z"/>
+        <path d="M8 10v6l4 6 4-6v-6"/>
+        <path d="M9 16l3-2 3 2"/>
+      </svg>`;
+
+      // Reset icon (circular arrow)
+      const resetIconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+        <path d="M3 3v5h5"/>
+      </svg>`;
+
+      // Push to zone icon (broadcast/share arrows)
+      const pushIconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M12 2v4"/>
+        <path d="M12 18v4"/>
+        <path d="M4.93 4.93l2.83 2.83"/>
+        <path d="M16.24 16.24l2.83 2.83"/>
+        <path d="M2 12h4"/>
+        <path d="M18 12h4"/>
+        <path d="M4.93 19.07l2.83-2.83"/>
+        <path d="M16.24 7.76l2.83-2.83"/>
+      </svg>`;
+
+      const leftControls = `
+        <div class="row-controls-left">
           <button class="row-btn ${isCircadian ? 'active' : ''}" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'circadian_toggle')" title="Circadian">${sunIconSvg}</button>
           <button class="row-btn ${isOn ? 'active' : ''}" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'lights_toggle')" title="Power">${powerIconSvg}</button>
-          <button class="row-btn ${isFrozen ? 'active' : ''}" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'freeze_toggle')" title="Freeze">${iceIconSvg}</button>
         </div>
       `;
+
+      const rightControls = `
+        <div class="row-controls">
+          <button class="row-btn ${isFrozen ? 'active' : ''}" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'freeze_toggle')" title="Freeze">${iceIconSvg}</button>
+          <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'boost')" title="Boost">${boostIconSvg}</button>
+          <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'reset')" title="Reset">${resetIconSvg}</button>
+          <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'glo_up')" title="Push to zone">${pushIconSvg}</button>
+        </div>
+      `;
+
+      return { leftControls, rightControls };
     }
 
     function sortBy(column) {

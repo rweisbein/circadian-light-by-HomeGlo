@@ -1,5 +1,16 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.200
+**UI: Areas page button reorganization and boost setting**
+
+- Zone headers now show "Control zone:" prefix before zone name
+- Split row buttons into two groups:
+  - Left of name: Circadian and Power (state toggles)
+  - Right of name: Freeze, Boost, Reset, Push to zone (actions)
+- New icons: Boost (rocket), Reset (circular arrow), Push to zone (broadcast)
+- Added "Light Properties" section in Advanced settings with:
+  - Boost default: percentage to boost brightness (default 30%)
+
 ## 6.9.199
 **Fix: Areas row shading now identical to modal header**
 

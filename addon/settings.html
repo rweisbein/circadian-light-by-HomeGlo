@@ -447,6 +447,23 @@
       </div>
     </div>
 
+    <!-- Light Properties Section -->
+    <div class="settings-section">
+      <div class="section-header">Light Properties</div>
+      <div class="section-content">
+        <div class="form-row">
+          <label class="form-label">
+            Boost default
+            <span class="info-icon">i<span class="info-tooltip">When using the Boost action, lights will temporarily increase to maximum brightness plus this percentage offset from their current position. The boost will expire and return to normal circadian values.</span></span>
+          </label>
+          <div class="form-control">
+            <input type="number" class="form-input" id="boost-default" min="10" max="100" step="5" value="30" style="width: 80px;">
+            <span class="form-hint">%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="save-status" id="save-status">Settings saved</div>
   </main>
 
@@ -470,6 +487,7 @@
           document.getElementById('limit-warning-speed').value = config.limit_warning_speed ?? 3;
           document.getElementById('warning-intensity').value = config.warning_intensity ?? 5;
           document.getElementById('warning-scaling').value = config.warning_scaling ?? 5;
+          document.getElementById('boost-default').value = config.boost_default ?? 30;
           updateMultiClickState();
           updateSyncIntervalDisplay();
         }
@@ -492,7 +510,8 @@
         freeze_off_rise: parseInt(document.getElementById('freeze-off-rise').value) || 10,
         limit_warning_speed: parseInt(document.getElementById('limit-warning-speed').value) || 3,
         warning_intensity: parseInt(document.getElementById('warning-intensity').value) || 5,
-        warning_scaling: parseInt(document.getElementById('warning-scaling').value) || 5
+        warning_scaling: parseInt(document.getElementById('warning-scaling').value) || 5,
+        boost_default: parseInt(document.getElementById('boost-default').value) || 30
       };
 
       try {
