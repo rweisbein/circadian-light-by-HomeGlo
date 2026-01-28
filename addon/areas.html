@@ -236,20 +236,9 @@
       font-size: 0.85rem;
     }
 
-    .brightness-value {
-      color: var(--text);
-    }
-
+    .brightness-value,
     .kelvin-value {
-      color: var(--muted);
-      font-size: 0.8rem;
-    }
-
-    .color-swatch {
-      width: 16px;
-      height: 16px;
-      border-radius: 3px;
-      border: 1px solid rgba(255, 255, 255, 0.2);
+      /* Inherit color from row */
     }
 
     /* Buttons */
@@ -676,30 +665,37 @@
     }
 
     /* Table row shading (like modal header) */
-    .areas-table tbody tr {
+    .zone-table tbody tr {
       --row-bg: var(--card);
-      --row-fill: 0;
-      position: relative;
+      --row-text: var(--text);
     }
 
-    .areas-table tbody tr td {
-      position: relative;
+    .zone-table tbody tr td {
       background: var(--row-bg);
+      color: var(--row-text);
     }
 
-    .areas-table tbody tr td::before {
-      content: '';
+    /* Fill bar - spans full row via large fixed width, clipped by table */
+    .row-fill-bar {
       position: absolute;
-      inset: 0;
-      background: linear-gradient(90deg, rgba(255,255,255,0.03), rgba(255,255,255,0.5));
-      opacity: 0.5;
-      transform-origin: left center;
-      transform: scaleX(var(--row-fill));
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 2000px;  /* Large fixed width */
+      background: linear-gradient(90deg, rgba(255,255,255,0.05), rgba(255,255,255,0.55));
+      opacity: 0.6;
       pointer-events: none;
       z-index: 0;
+      transform-origin: left center;
+      /* Will be scaled via inline style */
     }
 
-    .areas-table tbody tr td > * {
+    .zone-table tbody tr td:first-child {
+      position: relative;
+    }
+
+    .zone-table tbody tr td > span,
+    .zone-table tbody tr td > div:not(.row-fill-bar) {
       position: relative;
       z-index: 1;
     }
@@ -741,6 +737,91 @@
       width: 14px;
       height: 14px;
     }
+
+    /* Zone group headers */
+    .zone-group {
+      margin-bottom: 16px;
+    }
+
+    .zone-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .zone-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px 8px 0 0;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.15s;
+    }
+
+    .zone-header:hover {
+      background: rgba(255,255,255,0.05);
+    }
+
+    .zone-header.collapsed {
+      border-radius: 8px;
+    }
+
+    .zone-chevron {
+      width: 16px;
+      height: 16px;
+      color: var(--muted);
+      transition: transform 0.2s;
+    }
+
+    .zone-header.collapsed .zone-chevron {
+      transform: rotate(-90deg);
+    }
+
+    .zone-name {
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: var(--text);
+    }
+
+    .zone-count {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-left: auto;
+    }
+
+    .zone-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-top: none;
+      border-radius: 0 0 8px 8px;
+      overflow: hidden;
+    }
+
+    .zone-table.hidden {
+      display: none;
+    }
+
+    .zone-table td {
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--line);
+      font-size: 0.9rem;
+    }
+
+    .zone-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .zone-table tbody tr {
+      cursor: pointer;
+    }
+
+    .zone-table tbody tr:hover td {
+      background: rgba(255,255,255,0.02);
+    }
   </style>
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
   <script src="./shared.js"></script>
@@ -760,17 +841,12 @@
 
   <!-- Main Content -->
   <main class="main">
-    <div class="page-header">
-      <div style="display: flex; align-items: center; justify-content: space-between;">
-        <h1 class="page-title">Areas</h1>
-        <div style="display: flex; align-items: center; gap: 16px;">
-          <a href="#" class="clear-filters-link" id="clear-filters-link" style="display: none;" onclick="clearFilters(); return false;">Clear filters</a>
-          <button class="btn btn-secondary" id="refresh-btn">Refresh</button>
-        </div>
-      </div>
+    <div style="display: flex; align-items: center; justify-content: flex-end; margin-bottom: 16px; gap: 16px;">
+      <a href="#" class="clear-filters-link" id="clear-filters-link" style="display: none;" onclick="clearFilters(); return false;">Clear filters</a>
+      <button class="btn btn-secondary" id="refresh-btn">Refresh</button>
     </div>
 
-    <!-- Areas Table -->
+    <!-- Areas grouped by zone -->
     <div id="areas-container">
       <div class="loading">Loading areas...</div>
     </div>
@@ -876,7 +952,6 @@
     let areaStatus = {};
     let sortColumn = 'name';
     let sortAsc = true;
-    let zoneFilter = 'all';
     let statusFilter = 'all';
     let selectedArea = null;
     let cachedConfig = null;
@@ -1495,7 +1570,6 @@
           const prefs = cachedConfig.areas_ui || {};
           sortColumn = prefs.sort_column || 'name';
           sortAsc = prefs.sort_asc !== false;
-          zoneFilter = prefs.zone_filter || 'all';
           statusFilter = prefs.status_filter || 'all';
 
           // Compute sun times client-side from config lat/lon
@@ -1517,7 +1591,6 @@
             areas_ui: {
               sort_column: sortColumn,
               sort_asc: sortAsc,
-              zone_filter: zoneFilter,
               status_filter: statusFilter
             }
           })
@@ -1552,6 +1625,32 @@
       }
     }
 
+    // Collapsed zone state (persisted in localStorage)
+    function getCollapsedZones() {
+      try {
+        return JSON.parse(localStorage.getItem('areas_collapsed_zones') || '{}');
+      } catch { return {}; }
+    }
+
+    function setZoneCollapsed(zoneName, collapsed) {
+      const state = getCollapsedZones();
+      state[zoneName] = collapsed;
+      localStorage.setItem('areas_collapsed_zones', JSON.stringify(state));
+    }
+
+    function toggleZone(zoneName) {
+      const state = getCollapsedZones();
+      const isCollapsed = !state[zoneName];
+      setZoneCollapsed(zoneName, isCollapsed);
+
+      const header = document.querySelector(`[data-zone="${zoneName}"]`);
+      const table = document.querySelector(`[data-zone-table="${zoneName}"]`);
+      if (header && table) {
+        header.classList.toggle('collapsed', isCollapsed);
+        table.classList.toggle('hidden', isCollapsed);
+      }
+    }
+
     function renderAreas() {
       const container = document.getElementById('areas-container');
 
@@ -1568,36 +1667,15 @@
         };
       });
 
-      // Build filter options from data
-      const zones = [...new Set(mergedAreas.map(a => a.zone_name).filter(Boolean))].sort();
+      // Validate status filter
       const validStatusValues = ['all', 'on', 'off', 'frozen'];
-
-      // Validate saved filters - reset to 'all' if saved value doesn't exist in current data
-      let filtersReset = false;
-      if (zoneFilter !== 'all' && zoneFilter !== 'unassigned' && !zones.includes(zoneFilter)) {
-        console.log(`[Filters] Resetting invalid zoneFilter '${zoneFilter}' to 'all'`);
-        zoneFilter = 'all';
-        filtersReset = true;
-      }
       if (!validStatusValues.includes(statusFilter)) {
-        console.log(`[Filters] Resetting invalid statusFilter '${statusFilter}' to 'all'`);
         statusFilter = 'all';
-        filtersReset = true;
-      }
-      // Save corrected filters so they don't reload with invalid values
-      if (filtersReset) {
         savePreferences();
       }
 
-      // Apply all filters
+      // Apply status filter only (no zone filter anymore)
       const filtered = mergedAreas.filter(a => {
-        if (zoneFilter !== 'all') {
-          if (zoneFilter === 'unassigned') {
-            if (a.zone_name) return false;
-          } else if (a.zone_name !== zoneFilter) {
-            return false;
-          }
-        }
         if (statusFilter !== 'all') {
           if (statusFilter === 'on' && !a.is_on) return false;
           if (statusFilter === 'off' && a.is_on) return false;
@@ -1606,47 +1684,50 @@
         return true;
       });
 
-      // Sort areas
-      const sorted = [...filtered].sort((a, b) => {
+      // Sort areas within each group
+      const sortAreas = (list) => [...list].sort((a, b) => {
         let valA, valB;
         switch (sortColumn) {
           case 'name':
             valA = a.name.toLowerCase();
             valB = b.name.toLowerCase();
             break;
-          case 'zone':
-            valA = (a.zone_name || 'zzz').toLowerCase();
-            valB = (b.zone_name || 'zzz').toLowerCase();
-            break;
-          case 'status':
-            // Sort: on > frozen > off
-            valA = a.is_on ? (a.frozen ? 1 : 0) : 2;
-            valB = b.is_on ? (b.frozen ? 1 : 0) : 2;
-            break;
           case 'brightness':
             valA = a.is_on ? a.brightness : -1;
             valB = b.is_on ? b.brightness : -1;
             break;
           default:
-            return 0;
+            valA = a.name.toLowerCase();
+            valB = b.name.toLowerCase();
         }
         if (valA < valB) return sortAsc ? -1 : 1;
         if (valA > valB) return sortAsc ? 1 : -1;
         return 0;
       });
 
-      const arrow = (col) => {
-        if (sortColumn !== col) return '<span class="sort-arrow"></span>';
-        return sortAsc ? '<span class="sort-arrow">↑</span>' : '<span class="sort-arrow">↓</span>';
-      };
+      // Group by zone
+      const zoneGroups = {};
+      const unassigned = [];
+      for (const area of filtered) {
+        if (area.zone_name) {
+          if (!zoneGroups[area.zone_name]) zoneGroups[area.zone_name] = [];
+          zoneGroups[area.zone_name].push(area);
+        } else {
+          unassigned.push(area);
+        }
+      }
 
-      const thClass = (col) => sortColumn === col ? 'sorted' : '';
+      // Sort zone names, put Unassigned at end
+      const zoneNames = Object.keys(zoneGroups).sort();
 
-      // Build filter select HTML
-      const zoneOptions = `<option value="all">All</option>` +
-        zones.map(z => `<option value="${z}" ${zoneFilter === z ? 'selected' : ''}>${z}</option>`).join('') +
-        `<option value="unassigned" ${zoneFilter === 'unassigned' ? 'selected' : ''}>Unassigned</option>`;
+      // Check if any filters active
+      const hasActiveFilters = statusFilter !== 'all';
+      document.getElementById('clear-filters-link').style.display = hasActiveFilters ? 'inline' : 'none';
 
+      // Collapsed state
+      const collapsedState = getCollapsedZones();
+
+      // Status filter HTML
       const statusOptions = `
         <option value="all" ${statusFilter === 'all' ? 'selected' : ''}>All</option>
         <option value="on" ${statusFilter === 'on' ? 'selected' : ''}>On</option>
@@ -1654,55 +1735,73 @@
         <option value="frozen" ${statusFilter === 'frozen' ? 'selected' : ''}>Frozen</option>
       `;
 
-      // Check if any filters are active and show/hide clear filters link
-      const hasActiveFilters = zoneFilter !== 'all' || statusFilter !== 'all';
-      document.getElementById('clear-filters-link').style.display = hasActiveFilters ? 'inline' : 'none';
+      // Chevron icon
+      const chevronIcon = `<svg class="zone-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>`;
 
-      container.innerHTML = `
-        <table class="areas-table">
-          <thead>
-            <tr>
-              <th class="${thClass('name')}" onclick="sortBy('name')">Name ${arrow('name')}</th>
-              <th class="${thClass('zone')}">
-                <div class="th-with-filter">
-                  <div class="th-title-row" onclick="sortBy('zone')">Control Zone ${arrow('zone')}</div>
-                  <select class="header-filter" id="zone-filter" onclick="event.stopPropagation()">${zoneOptions}</select>
-                </div>
-              </th>
-              <th>
-                <div class="th-with-filter">
-                  <div class="th-title-row">Controls</div>
-                  <select class="header-filter" id="status-filter" onclick="event.stopPropagation()">${statusOptions}</select>
-                </div>
-              </th>
-              <th class="${thClass('brightness')}" onclick="sortBy('brightness')">Lighting ${arrow('brightness')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${sorted.length === 0 ? `
-              <tr>
-                <td colspan="4" style="text-align: center; padding: 40px; color: var(--text-secondary);">
-                  ${mergedAreas.length > 0
-                    ? 'No areas match the current filters.'
-                    : 'No areas found in Home Assistant.'}
-                </td>
-              </tr>
-            ` : sorted.map(area => {
-              const zoneName = area.zone_name || '<span style="color: var(--muted2)">—</span>';
-              const lightingInfo = getLightingInfo(area);
-              const rowStyle = getRowStyle(area);
-              const controlButtons = getRowControls(area);
-              return `
-                <tr style="${rowStyle}" onclick="openAreaModal('${area.area_id}')">
-                  <td><span>${area.name}</span></td>
-                  <td><span>${zoneName}</span></td>
-                  <td>${controlButtons}</td>
-                  <td>${lightingInfo}</td>
-                </tr>
-              `;
-            }).join('')}
-          </tbody>
-        </table>
+      // Build zone groups HTML
+      let html = `
+        <div style="margin-bottom: 16px;">
+          <select class="header-filter" id="status-filter" style="width: auto; padding: 6px 12px;">${statusOptions}</select>
+        </div>
+      `;
+
+      const renderZoneGroup = (zoneName, areasInZone) => {
+        const isCollapsed = collapsedState[zoneName] || false;
+        const sorted = sortAreas(areasInZone);
+
+        return `
+          <div class="zone-group">
+            <div class="zone-header ${isCollapsed ? 'collapsed' : ''}" data-zone="${zoneName}" onclick="toggleZone('${zoneName}')">
+              ${chevronIcon}
+              <span class="zone-name">${zoneName}</span>
+              <span class="zone-count">${areasInZone.length} area${areasInZone.length !== 1 ? 's' : ''}</span>
+            </div>
+            <table class="zone-table ${isCollapsed ? 'hidden' : ''}" data-zone-table="${zoneName}">
+              <tbody>
+                ${sorted.map(area => renderAreaRow(area)).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+      };
+
+      // Render each zone group
+      for (const zoneName of zoneNames) {
+        html += renderZoneGroup(zoneName, zoneGroups[zoneName]);
+      }
+
+      // Render unassigned at the end
+      if (unassigned.length > 0) {
+        html += renderZoneGroup('Unassigned', unassigned);
+      }
+
+      // Handle empty state
+      if (filtered.length === 0) {
+        html = `
+          <div style="text-align: center; padding: 48px; color: var(--muted);">
+            ${mergedAreas.length > 0 ? 'No areas match the current filter.' : 'No areas found in Home Assistant.'}
+          </div>
+        `;
+      }
+
+      container.innerHTML = html;
+    }
+
+    function renderAreaRow(area) {
+      const style = getRowStyle(area);
+      const lightingInfo = getLightingInfo(area);
+      const controlButtons = getRowControls(area);
+      const fillScale = style.fill.toFixed(3);
+
+      return `
+        <tr style="--row-bg: ${style.bg}; --row-text: ${style.textColor};" onclick="openAreaModal('${area.area_id}')">
+          <td>
+            <div class="row-fill-bar" style="transform: scaleX(${fillScale});"></div>
+            <span>${area.name}</span>
+          </td>
+          <td>${controlButtons}</td>
+          <td>${lightingInfo}</td>
+        </tr>
       `;
     }
 
@@ -1718,12 +1817,10 @@
 
     function getLightingInfo(area) {
       if (!area.is_on) {
-        return '<span style="color: var(--muted2)">—</span>';
+        return '<span>—</span>';
       }
-      const colorRgb = cctToRGB(area.kelvin);
       return `
         <div class="lighting-info">
-          <span class="color-swatch" style="background: ${colorRgb}"></span>
           <span class="brightness-value">${Math.round(area.brightness)}%</span>
           <span class="kelvin-value">${Math.round(area.kelvin)}K</span>
         </div>
@@ -1732,12 +1829,13 @@
 
     function getRowStyle(area) {
       if (!area.is_on) {
-        return '--row-bg: var(--card); --row-fill: 0;';
+        return { bg: 'var(--card)', fill: 0, textColor: 'var(--muted)' };
       }
       const cctColor = cctToRGB(area.kelvin);
       const tintedColor = tintColorByBrightness(cctColor, area.brightness);
-      const fill = (area.brightness / 100).toFixed(3);
-      return `--row-bg: ${tintedColor}; --row-fill: ${fill};`;
+      const textColor = readableTextColor(tintedColor);
+      const fill = area.brightness / 100;
+      return { bg: tintedColor, fill, textColor };
     }
 
     function getRowControls(area) {
@@ -1797,7 +1895,6 @@
     }
 
     function clearFilters() {
-      zoneFilter = 'all';
       statusFilter = 'all';
       savePreferences();
       renderAreas();
@@ -1806,13 +1903,9 @@
     function setupEventListeners() {
       document.getElementById('refresh-btn').addEventListener('click', loadData);
 
-      // Use event delegation for dynamically created filter dropdowns
+      // Use event delegation for dynamically created filter dropdown
       document.getElementById('areas-container').addEventListener('change', (e) => {
-        if (e.target.id === 'zone-filter') {
-          zoneFilter = e.target.value;
-          savePreferences();
-          renderAreas();
-        } else if (e.target.id === 'status-filter') {
+        if (e.target.id === 'status-filter') {
           statusFilter = e.target.value;
           savePreferences();
           renderAreas();

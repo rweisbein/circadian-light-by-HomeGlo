@@ -1,5 +1,16 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.197
+**UI: Areas page grouped by control zone**
+
+- Grouped areas by control zone with collapsible sections (state persisted in localStorage)
+- Font color now adapts to row background using readableTextColor (white or black)
+- Removed color swatch from lighting column (redundant with row shading)
+- Removed redundant "Areas" header above table
+- Fixed row shading to show single continuous gradient (was segmented per cell)
+- Removed control zone filter dropdown (replaced by collapsible groups)
+- Simplified table to 3 columns: Name, Controls, Lighting
+
 ## 6.9.196
 **UI: Areas page enhancements**
 
