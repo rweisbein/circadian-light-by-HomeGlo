@@ -1,5 +1,14 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.207
+**Fix: Boost toggle now works reliably**
+
+- Webserver sets boost state directly (no longer relies solely on WebSocket event roundtrip)
+- Boost state change is immediate: UI shows orange border right away
+- Lighting update still fires via event to main.py for actual light control
+- Added boost_on/boost_off events with explicit error logging
+- Even if event delivery fails, boost state is preserved for next periodic update
+
 ## 6.9.206
 **Page reorganization, boost fix, and display stability**
 

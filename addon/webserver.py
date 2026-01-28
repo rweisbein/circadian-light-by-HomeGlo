@@ -3058,6 +3058,28 @@ class LightDesignerServer:
             if action not in VALID_ACTIONS:
                 return web.json_response({"error": f"Invalid action: {action}. Valid actions: {sorted(VALID_ACTIONS)}"}, status=400)
 
+            # For boost, set state directly in webserver process for immediate UI feedback,
+            # then fire event so main.py applies the actual lighting change
+            if action == 'boost':
+                # Reload state from disk (main.py may have updated it)
+                state.init()
+                if state.is_boosted(area_id):
+                    # End boost: clear state, fire event for main.py to restore lighting
+                    state.clear_boost(area_id)
+                    logger.info(f"[boost] Cleared boost state for area {area_id}, firing event for lighting restore")
+                    action = 'boost_off'
+                else:
+                    # Start boost: set state, fire event for main.py to apply lighting
+                    raw_config = glozone.load_config_from_files()
+                    boost_amount = raw_config.get("boost_default", 30)
+                    is_on = state.is_circadian(area_id) and state.get_is_on(area_id)
+                    state.set_boost(area_id, started_from_off=not is_on, expires_at="forever", brightness=boost_amount)
+                    if not glozone.is_area_in_any_zone(area_id):
+                        glozone.add_area_to_default_zone(area_id)
+                    state.enable_circadian_and_set_on(area_id, True)
+                    logger.info(f"[boost] Set boost state for area {area_id} (amount={boost_amount}%), firing event for lighting")
+                    action = 'boost_on'
+
             # Fire event for main.py to handle
             _, ws_url, token = self._get_ha_api_config()
             if ws_url and token:
@@ -3069,6 +3091,10 @@ class LightDesignerServer:
                     logger.info(f"Fired {action} event for area {area_id}")
                     return web.json_response({"status": "ok", "action": action, "area_id": area_id})
                 else:
+                    # Event failed but state was already set for boost - return ok for UI
+                    if action in ('boost_on', 'boost_off'):
+                        logger.warning(f"Event fire failed for {action}, but state was set directly")
+                        return web.json_response({"status": "ok", "action": action, "area_id": area_id})
                     return web.json_response({"error": "Failed to fire event"}, status=500)
             else:
                 return web.json_response({"error": "HA API not configured"}, status=503)

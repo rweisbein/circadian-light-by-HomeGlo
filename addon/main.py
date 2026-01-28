@@ -3249,7 +3249,7 @@ class HomeAssistantWebSocketClient:
                     logger.info(f"[webserver] glo_reset for area: {area_id}")
                     await self.primitives.glo_reset(area_id, "webserver")
                 elif service == "boost":
-                    # Toggle boost: if already boosted, end it; otherwise apply
+                    # Legacy: toggle boost (state now set by webserver)
                     if state.is_boosted(area_id):
                         logger.info(f"[webserver] boost toggle OFF for area: {area_id}")
                         await self.primitives.end_boost(area_id, source="webserver")
@@ -3258,6 +3258,45 @@ class HomeAssistantWebSocketClient:
                         boost_amount = raw_config.get("boost_default", 30)
                         logger.info(f"[webserver] boost toggle ON for area: {area_id}, amount={boost_amount}%")
                         await self.primitives.bright_boost(area_id, duration_seconds=0, boost_amount=boost_amount, source="webserver")
+                elif service == "boost_on":
+                    # Boost state already set by webserver - apply boosted lighting
+                    logger.info(f"[webserver] boost_on for area: {area_id}")
+                    try:
+                        # Reload state from disk (webserver set the boost state)
+                        state.init()
+                        boost_state = state.get_boost_state(area_id)
+                        boost_amount = boost_state.get("boost_brightness") or 30
+                        started_from_off = boost_state.get("boost_started_from_off", False)
+                        config = self.primitives._get_config(area_id)
+                        area_state = self.primitives._get_area_state(area_id)
+                        hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
+                        sun_times = self._get_sun_times() if hasattr(self, '_get_sun_times') else None
+                        result = CircadianLight.calculate_lighting(hour, config, area_state, sun_times=sun_times)
+                        boosted_brightness = min(100, result.brightness + boost_amount)
+                        transition = self.primitives._get_turn_on_transition()
+                        if started_from_off:
+                            await self.primitives._apply_lighting_turn_on(area_id, boosted_brightness, result.color_temp, transition=transition)
+                        else:
+                            await self.primitives._apply_lighting(area_id, boosted_brightness, result.color_temp, transition=transition)
+                        logger.info(f"[webserver] boost_on applied: {area_id} {result.brightness}%+{boost_amount}%={boosted_brightness}%, {result.color_temp}K")
+                    except Exception as e:
+                        logger.error(f"[webserver] boost_on lighting failed for {area_id}: {e}", exc_info=True)
+                elif service == "boost_off":
+                    # Boost state already cleared by webserver - restore circadian lighting
+                    logger.info(f"[webserver] boost_off for area: {area_id}")
+                    try:
+                        # Reload state from disk (webserver cleared the boost state)
+                        state.init()
+                        config = self.primitives._get_config(area_id)
+                        area_state = self.primitives._get_area_state(area_id)
+                        hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
+                        sun_times = self._get_sun_times() if hasattr(self, '_get_sun_times') else None
+                        result = CircadianLight.calculate_lighting(hour, config, area_state, sun_times=sun_times)
+                        transition = self.primitives._get_turn_on_transition()
+                        await self.primitives._apply_lighting(area_id, result.brightness, result.color_temp, transition=transition)
+                        logger.info(f"[webserver] boost_off restored: {area_id} {result.brightness}%, {result.color_temp}K")
+                    except Exception as e:
+                        logger.error(f"[webserver] boost_off restore failed for {area_id}: {e}", exc_info=True)
                 else:
                     logger.warning(f"Unknown circadian_light_service_event: service={service}, area_id={area_id}")
 
