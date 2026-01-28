@@ -377,14 +377,6 @@
       z-index: 1;
     }
 
-    .area-state-swatch {
-      width: 48px;
-      height: 48px;
-      border-radius: 8px;
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      flex-shrink: 0;
-    }
-
     .area-state-info {
       flex: 1;
       min-width: 0;
@@ -403,25 +395,22 @@
       font-weight: 500;
     }
 
-    .area-state-zone {
-      font-size: 0.85rem;
-      color: var(--muted);
-      margin-top: 4px;
-    }
-
     .area-state-controls {
       display: flex;
       gap: 8px;
       flex-shrink: 0;
+      background: rgba(0,0,0,0.5);
+      padding: 6px;
+      border-radius: 10px;
     }
 
     /* Toggle switch styles */
     .toggle-btn {
-      width: 44px;
-      height: 44px;
-      border-radius: 8px;
-      border: 1px solid rgba(255,255,255,0.25);
-      background: rgba(0,0,0,0.4);
+      width: 40px;
+      height: 40px;
+      border-radius: 6px;
+      border: 1px solid rgba(255,255,255,0.2);
+      background: rgba(30,30,30,0.9);
       color: var(--muted);
       cursor: pointer;
       display: flex;
@@ -433,18 +422,18 @@
 
     .toggle-btn:hover {
       border-color: rgba(255,255,255,0.4);
-      background: rgba(255,255,255,0.1);
+      background: rgba(50,50,50,0.9);
     }
 
     .toggle-btn.active {
-      background: rgba(255,255,255,0.15);
+      background: rgba(60,60,60,0.9);
       color: var(--text);
       border-color: var(--accent);
     }
 
     .toggle-btn svg {
-      width: 20px;
-      height: 20px;
+      width: 18px;
+      height: 18px;
     }
 
     /* Lock icon for frozen */
@@ -511,8 +500,15 @@
       color: var(--muted);
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      margin-bottom: 8px;
+      margin-bottom: 4px;
       text-align: center;
+    }
+
+    .glo-zone-name {
+      font-size: 0.9rem;
+      color: var(--text);
+      text-align: center;
+      margin-bottom: 10px;
     }
 
     .glo-buttons {
@@ -723,11 +719,9 @@
 
       <div class="area-state" id="modal-area-state">
         <div class="area-state-row">
-          <div class="area-state-swatch" id="modal-color-swatch"></div>
           <div class="area-state-info">
             <div class="area-state-status" id="modal-status"></div>
             <div class="area-state-values" id="modal-values"></div>
-            <div class="area-state-zone" id="modal-zone"></div>
           </div>
           <div class="area-state-controls">
             <button class="toggle-btn" id="toggle-power" onclick="executeAction('lights_toggle')" title="Power">
@@ -791,11 +785,11 @@
       </div>
 
       <div class="glo-section">
-        <div class="glo-section-title">Glo Zone</div>
+        <div class="glo-section-title">Control Zone</div>
+        <div class="glo-zone-name" id="modal-zone">No zone assigned</div>
         <div class="glo-buttons">
-          <button class="glo-btn" onclick="executeAction('glo_up')">Glo &#9650;</button>
-          <button class="glo-btn" onclick="executeAction('glo_down')">Glo &#9660;</button>
-          <button class="glo-btn" onclick="executeAction('glo_reset')">Glo Reset</button>
+          <button class="glo-btn" onclick="executeAction('glo_up')" title="Push all settings - except power - to all areas in control zone">Push to zone</button>
+          <button class="glo-btn" onclick="executeAction('glo_reset')">Reset control zone</button>
         </div>
       </div>
 
@@ -1762,18 +1756,26 @@
         statusEl.textContent = statusText;
       }
 
-      // Values
+      // Values with dynamic text color based on background
+      const valuesEl = document.getElementById('modal-values');
       if (selectedArea.is_on) {
-        document.getElementById('modal-values').textContent = `${Math.round(selectedArea.brightness)}% • ${Math.round(selectedArea.kelvin)}K`;
+        valuesEl.textContent = `${Math.round(selectedArea.brightness)}% • ${Math.round(selectedArea.kelvin)}K`;
+        const cctColor = cctToRGB(selectedArea.kelvin);
+        const tintedColor = tintColorByBrightness(cctColor, selectedArea.brightness);
+        valuesEl.style.color = readableTextColor(tintedColor);
+        statusEl.style.color = readableTextColor(tintedColor);
       } else {
-        document.getElementById('modal-values').textContent = '—';
+        valuesEl.textContent = '—';
+        valuesEl.style.color = '';
+        statusEl.style.color = '';
       }
 
-      // Zone
+      // Zone (now in Control Zone section)
+      const zoneEl = document.getElementById('modal-zone');
       if (selectedArea.zone_name) {
-        document.getElementById('modal-zone').textContent = `Zone: ${selectedArea.zone_name}`;
+        zoneEl.textContent = selectedArea.zone_name;
       } else {
-        document.getElementById('modal-zone').textContent = 'No zone assigned';
+        zoneEl.textContent = 'No zone assigned';
       }
 
       // State model
@@ -1784,16 +1786,6 @@
         `<span>color_mid: ${fmtVal(status.color_mid)}</span>` +
         `<span>color_override: ${fmtVal(status.color_override)}</span>` +
         `<span>frozen_at: ${fmtVal(status.frozen_at)}</span>`;
-
-      // Color swatch
-      const swatch = document.getElementById('modal-color-swatch');
-      if (selectedArea.is_on) {
-        swatch.style.background = cctToRGB(selectedArea.kelvin);
-        swatch.style.opacity = selectedArea.brightness / 100;
-      } else {
-        swatch.style.background = '#333';
-        swatch.style.opacity = 1;
-      }
 
       // Update toggle button states
       const powerBtn = document.getElementById('toggle-power');
