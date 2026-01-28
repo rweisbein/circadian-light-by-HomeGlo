@@ -436,14 +436,14 @@
       height: 18px;
     }
 
-    /* Lock icon for frozen */
-    .lock-icon {
+    /* Ice/frozen icon */
+    .freeze-icon {
       display: inline-flex;
       color: #63b3ed;
       margin-left: 4px;
     }
 
-    .lock-icon svg {
+    .freeze-icon svg {
       width: 14px;
       height: 14px;
     }
@@ -674,6 +674,73 @@
       height: 280px;
       margin: 8px 0;
     }
+
+    /* Table row shading (like modal header) */
+    .areas-table tbody tr {
+      --row-bg: var(--card);
+      --row-fill: 0;
+      position: relative;
+    }
+
+    .areas-table tbody tr td {
+      position: relative;
+      background: var(--row-bg);
+    }
+
+    .areas-table tbody tr td::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, rgba(255,255,255,0.03), rgba(255,255,255,0.5));
+      opacity: 0.5;
+      transform-origin: left center;
+      transform: scaleX(var(--row-fill));
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .areas-table tbody tr td > * {
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Row control buttons */
+    .row-controls {
+      display: flex;
+      gap: 4px;
+      justify-content: flex-start;
+    }
+
+    .row-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 4px;
+      border: 1px solid rgba(255,255,255,0.15);
+      background: rgba(30,30,30,0.8);
+      color: var(--muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+      padding: 0;
+    }
+
+    .row-btn:hover {
+      border-color: rgba(255,255,255,0.3);
+      background: rgba(50,50,50,0.9);
+    }
+
+    .row-btn.active {
+      background: rgba(60,60,60,0.9);
+      color: var(--text);
+      border-color: var(--accent);
+    }
+
+    .row-btn svg {
+      width: 14px;
+      height: 14px;
+    }
   </style>
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
   <script src="./shared.js"></script>
@@ -744,8 +811,14 @@
             </button>
             <button class="toggle-btn" id="toggle-freeze" onclick="executeAction('freeze_toggle')" title="Freeze">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                <line x1="12" y1="2" x2="12" y2="22"/>
+                <line x1="2" y1="12" x2="22" y2="12"/>
+                <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+                <line x1="19.07" y1="4.93" x2="4.93" y2="19.07"/>
+                <line x1="12" y1="2" x2="9" y2="5"/>
+                <line x1="12" y1="2" x2="15" y2="5"/>
+                <line x1="12" y1="22" x2="9" y2="19"/>
+                <line x1="12" y1="22" x2="15" y2="19"/>
               </svg>
             </button>
           </div>
@@ -1202,14 +1275,14 @@
         });
       }
 
-      // Layer 1: Wake/bed labels (below their vertical lines)
+      // Layer 1: Wake/bed labels (below x-axis labels)
       annotations.push({
-        x: wakeTime, y: -0.08, xref: 'x', yref: 'paper',
+        x: wakeTime, y: -0.14, xref: 'x', yref: 'paper',
         text: 'wake', showarrow: false,
         font: { size: 10, color: '#5cb3ff' }
       });
       annotations.push({
-        x: bedTime, y: -0.08, xref: 'x', yref: 'paper',
+        x: bedTime, y: -0.14, xref: 'x', yref: 'paper',
         text: 'bed', showarrow: false,
         font: { size: 10, color: '#ffe680' }
       });
@@ -1217,14 +1290,14 @@
       // Layer 2: Sunrise/sunset labels (below wake/bed)
       if (Number.isFinite(sunrise)) {
         annotations.push({
-          x: sunrise, y: -0.16, xref: 'x', yref: 'paper',
+          x: sunrise, y: -0.24, xref: 'x', yref: 'paper',
           text: 'sunrise', showarrow: false,
           font: { size: 9, color: 'rgba(215,215,215,0.6)' }
         });
       }
       if (Number.isFinite(sunset)) {
         annotations.push({
-          x: sunset, y: -0.16, xref: 'x', yref: 'paper',
+          x: sunset, y: -0.24, xref: 'x', yref: 'paper',
           text: 'sunset', showarrow: false,
           font: { size: 9, color: 'rgba(215,215,215,0.6)' }
         });
@@ -1253,14 +1326,14 @@
       // Line from x-axis down to above label (stops before text)
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
-        x0: nowHour, x1: nowHour, y0: -0.20, y1: 0,
+        x0: nowHour, x1: nowHour, y0: -0.30, y1: 0,
         line: nowLineStyle, layer: 'above'
       });
 
       // Layer 3 (lowest): "Now" label with time
       const nowTimeStr = formatHourLabel(nowHour);
       annotations.push({
-        x: nowHour, y: -0.26, xref: 'x', yref: 'paper',
+        x: nowHour, y: -0.36, xref: 'x', yref: 'paper',
         text: `now<br>${nowTimeStr}`, showarrow: false,
         font: { size: 10, color: '#fdfdfd' },
         align: 'center'
@@ -1269,7 +1342,7 @@
       const layout = {
         paper_bgcolor: '#0a0a0a',
         plot_bgcolor: '#0a0a0a',
-        margin: { t: 24, r: 12, l: 36, b: 70 },
+        margin: { t: 24, r: 12, l: 36, b: 90 },
         hovermode: 'closest',
         xaxis: {
           range: [0, 24],
@@ -1592,13 +1665,13 @@
               <th class="${thClass('name')}" onclick="sortBy('name')">Name ${arrow('name')}</th>
               <th class="${thClass('zone')}">
                 <div class="th-with-filter">
-                  <div class="th-title-row" onclick="sortBy('zone')">Glo Zone ${arrow('zone')}</div>
+                  <div class="th-title-row" onclick="sortBy('zone')">Control Zone ${arrow('zone')}</div>
                   <select class="header-filter" id="zone-filter" onclick="event.stopPropagation()">${zoneOptions}</select>
                 </div>
               </th>
-              <th class="${thClass('status')}">
+              <th>
                 <div class="th-with-filter">
-                  <div class="th-title-row" onclick="sortBy('status')">Status ${arrow('status')}</div>
+                  <div class="th-title-row">Controls</div>
                   <select class="header-filter" id="status-filter" onclick="event.stopPropagation()">${statusOptions}</select>
                 </div>
               </th>
@@ -1616,13 +1689,14 @@
               </tr>
             ` : sorted.map(area => {
               const zoneName = area.zone_name || '<span style="color: var(--muted2)">—</span>';
-              const statusBadge = getStatusBadge(area);
               const lightingInfo = getLightingInfo(area);
+              const rowStyle = getRowStyle(area);
+              const controlButtons = getRowControls(area);
               return `
-                <tr onclick="openAreaModal('${area.area_id}')">
-                  <td>${area.name}</td>
-                  <td>${zoneName}</td>
-                  <td>${statusBadge}</td>
+                <tr style="${rowStyle}" onclick="openAreaModal('${area.area_id}')">
+                  <td><span>${area.name}</span></td>
+                  <td><span>${zoneName}</span></td>
+                  <td>${controlButtons}</td>
                   <td>${lightingInfo}</td>
                 </tr>
               `;
@@ -1652,6 +1726,61 @@
           <span class="color-swatch" style="background: ${colorRgb}"></span>
           <span class="brightness-value">${Math.round(area.brightness)}%</span>
           <span class="kelvin-value">${Math.round(area.kelvin)}K</span>
+        </div>
+      `;
+    }
+
+    function getRowStyle(area) {
+      if (!area.is_on) {
+        return '--row-bg: var(--card); --row-fill: 0;';
+      }
+      const cctColor = cctToRGB(area.kelvin);
+      const tintedColor = tintColorByBrightness(cctColor, area.brightness);
+      const fill = (area.brightness / 100).toFixed(3);
+      return `--row-bg: ${tintedColor}; --row-fill: ${fill};`;
+    }
+
+    function getRowControls(area) {
+      const status = areaStatus[area.area_id] || {};
+      const isCircadian = status.is_circadian || false;
+      const isOn = area.is_on;
+      const isFrozen = area.frozen;
+
+      // Snowflake icon for freeze
+      const iceIconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="12" y1="2" x2="12" y2="22"/>
+        <line x1="2" y1="12" x2="22" y2="12"/>
+        <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+        <line x1="19.07" y1="4.93" x2="4.93" y2="19.07"/>
+        <line x1="12" y1="2" x2="9" y2="5"/>
+        <line x1="12" y1="2" x2="15" y2="5"/>
+        <line x1="12" y1="22" x2="9" y2="19"/>
+        <line x1="12" y1="22" x2="15" y2="19"/>
+      </svg>`;
+
+      // Sun icon for circadian
+      const sunIconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="5"/>
+        <line x1="12" y1="1" x2="12" y2="3"/>
+        <line x1="12" y1="21" x2="12" y2="23"/>
+        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+        <line x1="1" y1="12" x2="3" y2="12"/>
+        <line x1="21" y1="12" x2="23" y2="12"/>
+        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+      </svg>`;
+
+      // Power icon
+      const powerIconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M18.36 6.64a9 9 0 1 1-12.73 0M12 2v10"/>
+      </svg>`;
+
+      return `
+        <div class="row-controls">
+          <button class="row-btn ${isCircadian ? 'active' : ''}" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'circadian_toggle')" title="Circadian">${sunIconSvg}</button>
+          <button class="row-btn ${isOn ? 'active' : ''}" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'lights_toggle')" title="Power">${powerIconSvg}</button>
+          <button class="row-btn ${isFrozen ? 'active' : ''}" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'freeze_toggle')" title="Freeze">${iceIconSvg}</button>
         </div>
       `;
     }
@@ -1737,10 +1866,11 @@
         stateEl.style.setProperty('--state-fill', '0');
       }
 
-      // Status text with lock icon for frozen
+      // Status text with ice icon for frozen
       const statusEl = document.getElementById('modal-status');
       let statusText = '';
-      const lockIcon = '<span class="lock-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>';
+      // Snowflake/ice crystal icon
+      const iceIcon = '<span class="freeze-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="2" x2="12" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/><line x1="19.07" y1="4.93" x2="4.93" y2="19.07"/><line x1="12" y1="2" x2="9" y2="5"/><line x1="12" y1="2" x2="15" y2="5"/><line x1="12" y1="22" x2="9" y2="19"/><line x1="12" y1="22" x2="15" y2="19"/><line x1="2" y1="12" x2="5" y2="9"/><line x1="2" y1="12" x2="5" y2="15"/><line x1="22" y1="12" x2="19" y2="9"/><line x1="22" y1="12" x2="19" y2="15"/></svg></span>';
 
       if (!selectedArea.is_on) {
         statusText = 'Off';
@@ -1751,24 +1881,37 @@
       }
 
       if (selectedArea.frozen) {
-        statusEl.innerHTML = statusText + lockIcon;
+        statusEl.innerHTML = statusText + iceIcon;
       } else {
         statusEl.textContent = statusText;
       }
 
-      // Values with dynamic text color based on background
+      // Values - always show CT and brightness (calculated from curve when off)
       const valuesEl = document.getElementById('modal-values');
+      let displayBri, displayKelvin;
       if (selectedArea.is_on) {
-        valuesEl.textContent = `${Math.round(selectedArea.brightness)}% • ${Math.round(selectedArea.kelvin)}K`;
-        const cctColor = cctToRGB(selectedArea.kelvin);
-        const tintedColor = tintColorByBrightness(cctColor, selectedArea.brightness);
+        displayBri = selectedArea.brightness;
+        displayKelvin = selectedArea.kelvin;
+        const cctColor = cctToRGB(displayKelvin);
+        const tintedColor = tintColorByBrightness(cctColor, displayBri);
         valuesEl.style.color = readableTextColor(tintedColor);
         statusEl.style.color = readableTextColor(tintedColor);
       } else {
-        valuesEl.textContent = '—';
-        valuesEl.style.color = '';
+        // Calculate what circadian values would be right now
+        if (cachedConfig && cachedSunTimes) {
+          const now = new Date();
+          const currentHour = now.getHours() + now.getMinutes() / 60;
+          const emptyState = { brightness_mid: null, color_mid: null, color_override: null, frozen_at: null };
+          displayBri = calcMiniBrightness(currentHour, cachedConfig, emptyState, currentHour) * 100;
+          displayKelvin = calcMiniColor(currentHour, cachedConfig, emptyState, cachedSunTimes, currentHour);
+        } else {
+          displayBri = 50;
+          displayKelvin = 4000;
+        }
+        valuesEl.style.color = 'var(--muted)';
         statusEl.style.color = '';
       }
+      valuesEl.textContent = `${Math.round(displayBri)}% • ${Math.round(displayKelvin)}K`;
 
       // Zone (now in Control Zone section)
       const zoneEl = document.getElementById('modal-zone');
@@ -1901,6 +2044,49 @@
       } catch (err) {
         console.error('Error executing action:', err);
         alert('Error executing action');
+      }
+    }
+
+    async function rowAction(areaId, action) {
+      // Handle circadian toggle - need to check current state
+      if (action === 'circadian_toggle') {
+        const status = areaStatus[areaId] || {};
+        action = status.is_circadian ? 'circadian_off' : 'circadian_on';
+      }
+
+      try {
+        const response = await fetch('./api/area/action', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            area_id: areaId,
+            action: action
+          })
+        });
+
+        if (response.ok) {
+          // Re-fetch area status and update table
+          setTimeout(async () => {
+            try {
+              const statusRes = await fetch('./api/area-status');
+              if (statusRes.ok) {
+                areaStatus = await statusRes.json();
+              }
+              renderAreas();
+              // Also update modal if it's open for this area
+              if (selectedArea && selectedArea.area_id === areaId) {
+                updateModalContent(areaId);
+              }
+            } catch (err) {
+              console.error('Error refreshing after row action:', err);
+            }
+          }, 500);
+        } else {
+          const error = await response.json();
+          console.error('Row action failed:', error);
+        }
+      } catch (err) {
+        console.error('Error executing row action:', err);
       }
     }
 

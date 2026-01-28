@@ -1,5 +1,17 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.196
+**UI: Areas page enhancements**
+
+- Mini chart label positioning: lowered wake/bed, sunrise/sunset, and "Now" labels
+  to stack clearly below x-axis without overlapping
+- Modal header now shows CT and brightness values even when lights are off (displays
+  calculated circadian curve values; header stays black)
+- Table rows now have color/brightness shading matching modal header visual style
+- Renamed "Glo Zone" column to "Control Zone"
+- Added inline Circadian, Power, and Freeze buttons in each row (replaced Status column)
+- Changed frozen icon from padlock to snowflake/ice crystal throughout UI
+
 ## 6.9.195
 **Fix: Step up/down midpoint wrap-around**
 
