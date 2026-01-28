@@ -346,18 +346,35 @@
       color: var(--text);
     }
 
-    /* Area state display */
+    /* Area state display - with dynamic shading */
     .area-state {
-      background: var(--panel);
+      --state-bg: var(--panel);
+      --state-fill: 0;
+      background: var(--state-bg);
       border-radius: 8px;
       padding: 16px;
-      margin-bottom: 20px;
+      margin-bottom: 12px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .area-state::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, rgba(255,255,255,0.03), rgba(255,255,255,0.5));
+      opacity: 0.6;
+      transform-origin: left center;
+      transform: scaleX(var(--state-fill));
+      pointer-events: none;
     }
 
     .area-state-row {
       display: flex;
       align-items: center;
       gap: 16px;
+      position: relative;
+      z-index: 1;
     }
 
     .area-state-swatch {
@@ -365,15 +382,20 @@
       height: 48px;
       border-radius: 8px;
       border: 1px solid rgba(255, 255, 255, 0.2);
+      flex-shrink: 0;
     }
 
     .area-state-info {
       flex: 1;
+      min-width: 0;
     }
 
     .area-state-status {
       font-size: 0.9rem;
       margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
 
     .area-state-values {
@@ -385,6 +407,56 @@
       font-size: 0.85rem;
       color: var(--muted);
       margin-top: 4px;
+    }
+
+    .area-state-controls {
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    /* Toggle switch styles */
+    .toggle-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.25);
+      background: rgba(0,0,0,0.4);
+      color: var(--muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      font-size: 1.1rem;
+    }
+
+    .toggle-btn:hover {
+      border-color: rgba(255,255,255,0.4);
+      background: rgba(255,255,255,0.1);
+    }
+
+    .toggle-btn.active {
+      background: rgba(255,255,255,0.15);
+      color: var(--text);
+      border-color: var(--accent);
+    }
+
+    .toggle-btn svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    /* Lock icon for frozen */
+    .lock-icon {
+      display: inline-flex;
+      color: #63b3ed;
+      margin-left: 4px;
+    }
+
+    .lock-icon svg {
+      width: 14px;
+      height: 14px;
     }
 
     .area-state-model {
@@ -401,6 +473,68 @@
     .area-state-model span {
       display: inline-block;
       margin-right: 12px;
+    }
+
+    /* Reset button - prominent */
+    .reset-section {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 12px;
+    }
+
+    .reset-btn {
+      padding: 10px 32px;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      color: var(--text);
+      transition: all 0.2s;
+    }
+
+    .reset-btn:hover {
+      background: rgba(255,255,255,0.1);
+      border-color: var(--accent);
+    }
+
+    /* Glo Zone section */
+    .glo-section {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--line);
+    }
+
+    .glo-section-title {
+      font-size: 0.8rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+
+    .glo-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .glo-btn {
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      color: var(--text);
+      transition: all 0.2s;
+    }
+
+    .glo-btn:hover {
+      background: rgba(255,255,255,0.1);
+      border-color: var(--accent);
     }
 
     /* Action buttons */
@@ -541,7 +675,7 @@
     /* Mini chart container */
     #modal-mini-chart {
       width: 100%;
-      height: 300px;
+      height: 280px;
       margin: 8px 0;
     }
   </style>
@@ -595,10 +729,40 @@
             <div class="area-state-values" id="modal-values"></div>
             <div class="area-state-zone" id="modal-zone"></div>
           </div>
+          <div class="area-state-controls">
+            <button class="toggle-btn" id="toggle-power" onclick="executeAction('lights_toggle')" title="Power">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18.36 6.64a9 9 0 1 1-12.73 0M12 2v10"/>
+              </svg>
+            </button>
+            <button class="toggle-btn" id="toggle-circadian" onclick="toggleCircadian()" title="Circadian">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="5"/>
+                <line x1="12" y1="1" x2="12" y2="3"/>
+                <line x1="12" y1="21" x2="12" y2="23"/>
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                <line x1="1" y1="12" x2="3" y2="12"/>
+                <line x1="21" y1="12" x2="23" y2="12"/>
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+              </svg>
+            </button>
+            <button class="toggle-btn" id="toggle-freeze" onclick="executeAction('freeze_toggle')" title="Freeze">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
 
       <div id="modal-mini-chart"></div>
+
+      <div class="reset-section">
+        <button class="reset-btn" onclick="executeAction('reset')">Reset</button>
+      </div>
 
       <div class="adjust-section">
         <div class="adjust-grid">
@@ -626,23 +790,12 @@
         </div>
       </div>
 
-      <div class="action-section">
-        <div class="action-buttons">
-          <button class="action-btn" onclick="executeAction('lights_on')">On</button>
-          <button class="action-btn" onclick="executeAction('lights_off')">Off</button>
-          <button class="action-btn" onclick="executeAction('lights_toggle')">Toggle</button>
-          <button class="action-btn" onclick="executeAction('circadian_on')">Circ On</button>
-          <button class="action-btn" onclick="executeAction('circadian_off')">Circ Off</button>
-        </div>
-      </div>
-
-      <div class="action-section">
-        <div class="action-buttons">
-          <button class="action-btn" onclick="executeAction('glo_up')">Glo &#9650;</button>
-          <button class="action-btn" onclick="executeAction('glo_down')">Glo &#9660;</button>
-          <button class="action-btn" onclick="executeAction('glo_reset')">Glo Reset</button>
-          <button class="action-btn" onclick="executeAction('freeze_toggle')">Freeze</button>
-          <button class="action-btn" onclick="executeAction('reset')">Reset</button>
+      <div class="glo-section">
+        <div class="glo-section-title">Glo Zone</div>
+        <div class="glo-buttons">
+          <button class="glo-btn" onclick="executeAction('glo_up')">Glo &#9650;</button>
+          <button class="glo-btn" onclick="executeAction('glo_down')">Glo &#9660;</button>
+          <button class="glo-btn" onclick="executeAction('glo_reset')">Glo Reset</button>
         </div>
       </div>
 
@@ -1027,57 +1180,57 @@
 
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
-        x0: wakeTime, x1: wakeTime, y0: -0.12, y1: 1,
+        x0: wakeTime, x1: wakeTime, y0: -0.04, y1: 1,
         line: { color: '#5cb3ff', width: 1, dash: 'dot' }
       });
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
-        x0: bedTime, x1: bedTime, y0: -0.12, y1: 1,
+        x0: bedTime, x1: bedTime, y0: -0.04, y1: 1,
         line: { color: 'rgba(255,230,128,0.7)', width: 1, dash: 'dot' }
       });
 
-      // Sunrise/sunset vertical ticks (partial height, from x-axis to ~30% of graph)
+      // Sunrise/sunset vertical ticks (partial height, from below axis to ~30% of graph)
       const sunrise = sunTimes.sunrise;
       const sunset = sunTimes.sunset;
       const sunTickStyle = { color: 'rgba(215,215,215,0.4)', width: 1, dash: 'dot' };
       if (Number.isFinite(sunrise)) {
         shapes.push({
           type: 'line', xref: 'x', yref: 'paper',
-          x0: sunrise, x1: sunrise, y0: -0.18, y1: 0.3,
+          x0: sunrise, x1: sunrise, y0: -0.12, y1: 0.3,
           line: sunTickStyle
         });
       }
       if (Number.isFinite(sunset)) {
         shapes.push({
           type: 'line', xref: 'x', yref: 'paper',
-          x0: sunset, x1: sunset, y0: -0.18, y1: 0.3,
+          x0: sunset, x1: sunset, y0: -0.12, y1: 0.3,
           line: sunTickStyle
         });
       }
 
-      // Layer 1 (below time hashes): Wake/bed labels at y: -0.12
+      // Layer 1: Wake/bed labels (below their vertical lines)
       annotations.push({
-        x: wakeTime, y: -0.12, xref: 'x', yref: 'paper',
+        x: wakeTime, y: -0.08, xref: 'x', yref: 'paper',
         text: 'wake', showarrow: false,
         font: { size: 10, color: '#5cb3ff' }
       });
       annotations.push({
-        x: bedTime, y: -0.12, xref: 'x', yref: 'paper',
+        x: bedTime, y: -0.08, xref: 'x', yref: 'paper',
         text: 'bed', showarrow: false,
         font: { size: 10, color: '#ffe680' }
       });
 
-      // Layer 2 (below wake/bed): Sunrise/sunset labels at y: -0.21
+      // Layer 2: Sunrise/sunset labels (below wake/bed)
       if (Number.isFinite(sunrise)) {
         annotations.push({
-          x: sunrise, y: -0.21, xref: 'x', yref: 'paper',
+          x: sunrise, y: -0.16, xref: 'x', yref: 'paper',
           text: 'sunrise', showarrow: false,
           font: { size: 9, color: 'rgba(215,215,215,0.6)' }
         });
       }
       if (Number.isFinite(sunset)) {
         annotations.push({
-          x: sunset, y: -0.21, xref: 'x', yref: 'paper',
+          x: sunset, y: -0.16, xref: 'x', yref: 'paper',
           text: 'sunset', showarrow: false,
           font: { size: 9, color: 'rgba(215,215,215,0.6)' }
         });
@@ -1103,17 +1256,17 @@
         x0: nowHour, x1: nowHour, y0: upperStart, y1: 110,
         line: nowLineStyle, layer: 'above'
       });
-      // Line from x-axis down to label
+      // Line from x-axis down to above label (stops before text)
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
-        x0: nowHour, x1: nowHour, y0: -0.28, y1: 0,
+        x0: nowHour, x1: nowHour, y0: -0.20, y1: 0,
         line: nowLineStyle, layer: 'above'
       });
 
-      // Layer 3 (lowest): "Now" label with time at y: -0.32
+      // Layer 3 (lowest): "Now" label with time
       const nowTimeStr = formatHourLabel(nowHour);
       annotations.push({
-        x: nowHour, y: -0.34, xref: 'x', yref: 'paper',
+        x: nowHour, y: -0.26, xref: 'x', yref: 'paper',
         text: `now<br>${nowTimeStr}`, showarrow: false,
         font: { size: 10, color: '#fdfdfd' },
         align: 'center'
@@ -1122,7 +1275,7 @@
       const layout = {
         paper_bgcolor: '#0a0a0a',
         plot_bgcolor: '#0a0a0a',
-        margin: { t: 24, r: 12, l: 36, b: 90 },
+        margin: { t: 24, r: 12, l: 36, b: 70 },
         hovermode: 'closest',
         xaxis: {
           range: [0, 24],
@@ -1578,18 +1731,36 @@
       // Update modal content
       document.getElementById('modal-area-name').textContent = area.name;
 
-      // Status text
+      // Header area shading based on CCT and brightness
+      const stateEl = document.getElementById('modal-area-state');
+      if (selectedArea.is_on) {
+        const cctColor = cctToRGB(selectedArea.kelvin);
+        const tintedColor = tintColorByBrightness(cctColor, selectedArea.brightness);
+        stateEl.style.setProperty('--state-bg', tintedColor);
+        stateEl.style.setProperty('--state-fill', (selectedArea.brightness / 100).toFixed(3));
+      } else {
+        stateEl.style.setProperty('--state-bg', 'var(--panel)');
+        stateEl.style.setProperty('--state-fill', '0');
+      }
+
+      // Status text with lock icon for frozen
+      const statusEl = document.getElementById('modal-status');
       let statusText = '';
+      const lockIcon = '<span class="lock-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>';
+
       if (!selectedArea.is_on) {
         statusText = 'Off';
-      } else if (selectedArea.frozen) {
-        statusText = 'Frozen';
       } else if (selectedArea.is_circadian) {
         statusText = 'Circadian';
       } else {
         statusText = 'On';
       }
-      document.getElementById('modal-status').textContent = statusText;
+
+      if (selectedArea.frozen) {
+        statusEl.innerHTML = statusText + lockIcon;
+      } else {
+        statusEl.textContent = statusText;
+      }
 
       // Values
       if (selectedArea.is_on) {
@@ -1622,6 +1793,21 @@
       } else {
         swatch.style.background = '#333';
         swatch.style.opacity = 1;
+      }
+
+      // Update toggle button states
+      const powerBtn = document.getElementById('toggle-power');
+      const circadianBtn = document.getElementById('toggle-circadian');
+      const freezeBtn = document.getElementById('toggle-freeze');
+
+      if (powerBtn) {
+        powerBtn.classList.toggle('active', selectedArea.is_on);
+      }
+      if (circadianBtn) {
+        circadianBtn.classList.toggle('active', selectedArea.is_circadian);
+      }
+      if (freezeBtn) {
+        freezeBtn.classList.toggle('active', selectedArea.frozen);
       }
 
       // Render mini chart (if requested)
@@ -1673,6 +1859,13 @@
     function closeModal() {
       document.getElementById('area-modal').classList.remove('visible');
       selectedArea = null;
+    }
+
+    function toggleCircadian() {
+      if (!selectedArea) return;
+      // Toggle based on current state
+      const action = selectedArea.is_circadian ? 'circadian_off' : 'circadian_on';
+      executeAction(action);
     }
 
     async function executeAction(action) {
