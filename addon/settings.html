@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Circadian Light - Advanced</title>
+  <title>Circadian Light - Settings</title>
   <style>
     :root {
       --bg: #000;
@@ -276,6 +276,76 @@
       opacity: 0.6;
       cursor: not-allowed;
     }
+
+    /* Location */
+    .location-section {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 16px 20px;
+    }
+
+    .location-row {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+
+    .location-fields {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .location-fields.disabled {
+      opacity: 0.4;
+    }
+
+    .location-field {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .field-label {
+      font-size: 0.8rem;
+      color: var(--muted2);
+    }
+
+    .location-input {
+      width: 80px;
+      padding: 6px 8px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      color: var(--text);
+      font-size: 0.85rem;
+    }
+
+    .location-input:focus {
+      outline: 2px solid var(--accent);
+    }
+
+    .location-input:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .location-select {
+      padding: 6px 8px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      color: var(--text);
+      font-size: 0.85rem;
+      min-width: 100px;
+    }
+
+    .location-select:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
   </style>
 </head>
 <body>
@@ -284,17 +354,17 @@
     <span class="nav-brand">Circadian Light</span>
     <div class="nav-links">
       <a href="./" class="nav-link">Home</a>
-      <a href="./glo" class="nav-link">Glo design</a>
-      <a href="./areas" class="nav-link">Areas</a>
+      <a href="./glo" class="nav-link">Rhythms</a>
+      <a href="./zones" class="nav-link">Control zones</a>
       <a href="./switches" class="nav-link">Controls</a>
-      <a href="./settings" class="nav-link active">Advanced</a>
+      <a href="./settings" class="nav-link active">Settings</a>
     </div>
   </nav>
 
   <!-- Main Content -->
   <main class="main">
     <div class="page-header">
-      <h1 class="page-title">Advanced</h1>
+      <h1 class="page-title">Settings</h1>
     </div>
 
     <!-- Timing Section -->
@@ -464,6 +534,49 @@
       </div>
     </div>
 
+    <!-- Location Section -->
+    <div class="settings-section">
+      <div class="section-header">Location</div>
+      <div class="section-content">
+        <div class="location-section" id="location-section">
+          <div class="location-row">
+            <label class="checkbox-label">
+              <input type="checkbox" id="use-ha-location" checked>
+              <span>Use Home Assistant location</span>
+            </label>
+            <div class="location-fields" id="location-fields">
+              <div class="location-field">
+                <span class="field-label">Lat</span>
+                <input type="number" class="location-input" id="latitude" step="0.0001" placeholder="40.71" disabled>
+              </div>
+              <div class="location-field">
+                <span class="field-label">Long</span>
+                <input type="number" class="location-input" id="longitude" step="0.0001" placeholder="-74.00" disabled>
+              </div>
+              <div class="location-field">
+                <span class="field-label">TZ</span>
+                <select class="location-select" id="timezone" disabled>
+                  <option value="US/Eastern">US/Eastern</option>
+                  <option value="US/Central">US/Central</option>
+                  <option value="US/Mountain">US/Mountain</option>
+                  <option value="US/Pacific">US/Pacific</option>
+                  <option value="US/Alaska">US/Alaska</option>
+                  <option value="US/Hawaii">US/Hawaii</option>
+                  <option value="Europe/London">Europe/London</option>
+                  <option value="Europe/Paris">Europe/Paris</option>
+                  <option value="Europe/Berlin">Europe/Berlin</option>
+                  <option value="Asia/Tokyo">Asia/Tokyo</option>
+                  <option value="Asia/Shanghai">Asia/Shanghai</option>
+                  <option value="Australia/Sydney">Australia/Sydney</option>
+                  <option value="UTC">UTC</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="save-status" id="save-status">Settings saved</div>
   </main>
 
@@ -490,6 +603,7 @@
           document.getElementById('boost-default').value = config.boost_default ?? 30;
           updateMultiClickState();
           updateSyncIntervalDisplay();
+          updateLocationSection(config);
         }
       } catch (err) {
         console.error('Error loading settings:', err);
@@ -579,6 +693,58 @@
     document.getElementById('warning-intensity').addEventListener('blur', saveSettings);
     document.getElementById('warning-scaling').addEventListener('blur', saveSettings);
     document.getElementById('boost-default').addEventListener('blur', saveSettings);
+
+    // Location functions
+    function updateLocationSection(config) {
+      const useHA = config.use_ha_location !== false;
+      document.getElementById('use-ha-location').checked = useHA;
+      document.getElementById('latitude').value = config.latitude || '';
+      document.getElementById('longitude').value = config.longitude || '';
+      document.getElementById('timezone').value = config.timezone || 'US/Eastern';
+      updateLocationInputsState(useHA);
+    }
+
+    function updateLocationInputsState(useHA) {
+      const fields = document.getElementById('location-fields');
+      const inputs = fields.querySelectorAll('input, select');
+      inputs.forEach(input => input.disabled = useHA);
+      if (useHA) {
+        fields.classList.add('disabled');
+      } else {
+        fields.classList.remove('disabled');
+      }
+    }
+
+    async function saveLocationSettings() {
+      const settings = {
+        use_ha_location: document.getElementById('use-ha-location').checked,
+        latitude: parseFloat(document.getElementById('latitude').value) || null,
+        longitude: parseFloat(document.getElementById('longitude').value) || null,
+        timezone: document.getElementById('timezone').value
+      };
+
+      try {
+        const response = await fetch('./api/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(settings)
+        });
+        if (response.ok) {
+          showSaveStatus();
+        }
+      } catch (err) {
+        console.error('Error saving location:', err);
+      }
+    }
+
+    document.getElementById('use-ha-location').addEventListener('change', (e) => {
+      updateLocationInputsState(e.target.checked);
+      saveLocationSettings();
+    });
+
+    ['latitude', 'longitude', 'timezone'].forEach(id => {
+      document.getElementById(id).addEventListener('change', saveLocationSettings);
+    });
 
     // Load on page load
     document.addEventListener('DOMContentLoaded', loadSettings);

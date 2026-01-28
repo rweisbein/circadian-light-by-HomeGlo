@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Circadian Light - Home</title>
+  <title>Circadian Light - Control Zones</title>
   <style>
     :root {
       --bg: #000;
@@ -432,23 +432,9 @@
     }
 
     /* Location Section */
-    .location-section {
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      padding: 16px 20px;
-    }
-
     .sun-times {
       font-size: 0.85rem;
       color: var(--muted);
-    }
-
-    .location-row {
-      display: flex;
-      align-items: center;
-      gap: 24px;
-      flex-wrap: wrap;
     }
 
     .checkbox-label {
@@ -465,61 +451,6 @@
       height: 16px;
       accent-color: var(--accent);
       cursor: pointer;
-    }
-
-    .location-fields {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
-
-    .location-fields.disabled {
-      opacity: 0.4;
-    }
-
-    .location-field {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .field-label {
-      font-size: 0.8rem;
-      color: var(--muted2);
-    }
-
-    .location-input {
-      width: 80px;
-      padding: 6px 8px;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 4px;
-      color: var(--text);
-      font-size: 0.85rem;
-    }
-
-    .location-input:focus {
-      outline: 2px solid var(--accent);
-    }
-
-    .location-input:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-
-    .location-select {
-      padding: 6px 8px;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 4px;
-      color: var(--text);
-      font-size: 0.85rem;
-      min-width: 100px;
-    }
-
-    .location-select:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
     }
 
     /* Section Title */
@@ -758,11 +689,11 @@
   <nav class="nav">
     <span class="nav-brand">Circadian Light</span>
     <div class="nav-links">
-      <a href="./" class="nav-link active">Home</a>
-      <a href="./glo" class="nav-link">Glo design</a>
-      <a href="./areas" class="nav-link">Areas</a>
+      <a href="./" class="nav-link">Home</a>
+      <a href="./glo" class="nav-link">Rhythms</a>
+      <a href="./zones" class="nav-link active">Control zones</a>
       <a href="./switches" class="nav-link">Controls</a>
-      <a href="./settings" class="nav-link">Advanced</a>
+      <a href="./settings" class="nav-link">Settings</a>
     </div>
   </nav>
 
@@ -777,46 +708,7 @@
       <span class="sun-set"><span id="sunset-time">--:--</span> 🌙</span>
     </div>
 
-    <!-- Location Section -->
-    <div class="section-title">Location</div>
-    <div class="location-section" id="location-section">
-      <div class="location-row">
-        <label class="checkbox-label">
-          <input type="checkbox" id="use-ha-location" checked>
-          <span>Use Home Assistant location</span>
-        </label>
-        <div class="location-fields" id="location-fields">
-          <div class="location-field">
-            <span class="field-label">Lat</span>
-            <input type="number" class="location-input" id="latitude" step="0.0001" placeholder="40.71" disabled>
-          </div>
-          <div class="location-field">
-            <span class="field-label">Long</span>
-            <input type="number" class="location-input" id="longitude" step="0.0001" placeholder="-74.00" disabled>
-          </div>
-          <div class="location-field">
-            <span class="field-label">TZ</span>
-            <select class="location-select" id="timezone" disabled>
-              <option value="US/Eastern">US/Eastern</option>
-              <option value="US/Central">US/Central</option>
-              <option value="US/Mountain">US/Mountain</option>
-              <option value="US/Pacific">US/Pacific</option>
-              <option value="US/Alaska">US/Alaska</option>
-              <option value="US/Hawaii">US/Hawaii</option>
-              <option value="Europe/London">Europe/London</option>
-              <option value="Europe/Paris">Europe/Paris</option>
-              <option value="Europe/Berlin">Europe/Berlin</option>
-              <option value="Asia/Tokyo">Asia/Tokyo</option>
-              <option value="Asia/Shanghai">Asia/Shanghai</option>
-              <option value="Australia/Sydney">Australia/Sydney</option>
-              <option value="UTC">UTC</option>
-            </select>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="section-title" style="margin-top: 24px;">Glo Zones</div>
+    <div class="section-title">Glo Zones</div>
 
     <div class="zones-section">
       <div class="zones-container" id="zones-container">
@@ -977,7 +869,7 @@
 
         if (configRes.ok) {
           locationConfig = await configRes.json();
-          updateLocationSection(locationConfig);
+          fetchSunTimes();
         }
 
         if (areasRes.ok) {
@@ -1214,19 +1106,6 @@
       `;
     }
 
-    // Location section functions
-    function updateLocationSection(cfg) {
-      const useHA = cfg.use_ha_location !== false;
-      document.getElementById('use-ha-location').checked = useHA;
-      document.getElementById('latitude').value = cfg.latitude || '';
-      document.getElementById('longitude').value = cfg.longitude || '';
-      document.getElementById('timezone').value = cfg.timezone || 'US/Eastern';
-      updateLocationInputsState(useHA);
-
-      // Fetch and display sunrise/sunset times
-      fetchSunTimes();
-    }
-
     async function fetchSunTimes() {
       try {
         const response = await fetch('./api/sun_times');
@@ -1274,44 +1153,6 @@
       return `${h12}:${m.toString().padStart(2, '0')}${ampm}`;
     }
 
-    function updateLocationInputsState(useHA) {
-      const fields = document.getElementById('location-fields');
-      const inputs = fields.querySelectorAll('input, select');
-      inputs.forEach(input => input.disabled = useHA);
-      if (useHA) {
-        fields.classList.add('disabled');
-      } else {
-        fields.classList.remove('disabled');
-      }
-    }
-
-    async function saveLocationSettings() {
-      const settings = {
-        use_ha_location: document.getElementById('use-ha-location').checked,
-        latitude: parseFloat(document.getElementById('latitude').value) || null,
-        longitude: parseFloat(document.getElementById('longitude').value) || null,
-        timezone: document.getElementById('timezone').value
-      };
-
-      try {
-        const response = await fetch('./api/config', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(settings)
-        });
-        if (response.ok) {
-          // Reload to get updated sun times
-          const configRes = await fetch('./api/config');
-          if (configRes.ok) {
-            locationConfig = await configRes.json();
-            updateLocationSection(locationConfig);
-          }
-        }
-      } catch (err) {
-        console.error('Error saving location:', err);
-      }
-    }
-
     function setupEventListeners() {
       // Add zone button
       document.getElementById('add-zone-btn').addEventListener('click', () => {
@@ -1330,17 +1171,6 @@
         if (e.key === 'Enter') handleModalConfirm();
       });
 
-      // Location settings
-      document.getElementById('use-ha-location').addEventListener('change', (e) => {
-        updateLocationInputsState(e.target.checked);
-        saveLocationSettings();
-      });
-
-      // Auto-save location fields on change
-      ['latitude', 'longitude', 'timezone'].forEach(id => {
-        const el = document.getElementById(id);
-        el.addEventListener('change', saveLocationSettings);
-      });
     }
 
     function setupZoneEventListeners() {

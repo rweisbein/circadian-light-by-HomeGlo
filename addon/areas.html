@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Circadian Light - Areas</title>
+  <title>Circadian Light - Home</title>
   <style>
     :root {
       --bg: #000;
@@ -854,11 +854,11 @@
   <nav class="nav">
     <span class="nav-brand">Circadian Light</span>
     <div class="nav-links">
-      <a href="./" class="nav-link">Home</a>
-      <a href="./glo" class="nav-link">Glo design</a>
-      <a href="./areas" class="nav-link active">Areas</a>
+      <a href="./" class="nav-link active">Home</a>
+      <a href="./glo" class="nav-link">Rhythms</a>
+      <a href="./zones" class="nav-link">Control zones</a>
       <a href="./switches" class="nav-link">Controls</a>
-      <a href="./settings" class="nav-link">Advanced</a>
+      <a href="./settings" class="nav-link">Settings</a>
     </div>
   </nav>
 
@@ -1695,6 +1695,7 @@
           brightness: status.brightness || 0,
           kelvin: status.kelvin || 4000,
           frozen: status.frozen || false,
+          boosted: status.boosted || false,
           zone_name: status.zone_name || null
         };
       });
@@ -1844,23 +1845,9 @@
     }
 
     function getLightingInfo(area) {
-      let brightness, kelvin;
-      if (area.is_on) {
-        brightness = area.brightness;
-        kelvin = area.kelvin;
-      } else {
-        // Calculate circadian values for current time when off
-        if (cachedConfig && cachedSunTimes) {
-          const now = new Date();
-          const currentHour = now.getHours() + now.getMinutes() / 60;
-          const emptyState = { brightness_mid: null, color_mid: null, color_override: null, frozen_at: null };
-          brightness = calcMiniBrightness(currentHour, cachedConfig, emptyState, currentHour) * 100;
-          kelvin = calcMiniColor(currentHour, cachedConfig, emptyState, cachedSunTimes, currentHour);
-        } else {
-          brightness = 50;
-          kelvin = 4000;
-        }
-      }
+      // Always use backend-calculated values (accounts for area state modifiers)
+      const brightness = area.brightness || 0;
+      const kelvin = area.kelvin || 4000;
       return `
         <div class="lighting-info">
           <span class="brightness-value">${Math.round(brightness)}%</span>

@@ -476,7 +476,7 @@ class LightDesignerServer:
         # Page routes - specific pages first, then catch-all
         # With ingress path prefix
         self.app.router.add_route('GET', '/{path:.*}/switches', self.serve_switches)
-        self.app.router.add_route('GET', '/{path:.*}/areas', self.serve_areas)
+        self.app.router.add_route('GET', '/{path:.*}/zones', self.serve_zones)
         self.app.router.add_route('GET', '/{path:.*}/glo/{glo_name}', self.serve_glo_designer)
         self.app.router.add_route('GET', '/{path:.*}/glo', self.serve_glo_designer)
         self.app.router.add_route('GET', '/{path:.*}/settings', self.serve_settings)
@@ -484,11 +484,13 @@ class LightDesignerServer:
         # Without ingress path prefix
         self.app.router.add_get('/glo/{glo_name}', self.serve_glo_designer)
         self.app.router.add_get('/glo', self.serve_glo_designer)
-        self.app.router.add_get('/areas', self.serve_areas)
+        self.app.router.add_get('/zones', self.serve_zones)
         self.app.router.add_get('/settings', self.serve_settings)
         self.app.router.add_get('/', self.serve_home)
-        # Legacy /designer route redirects to home
+        # Legacy routes
         self.app.router.add_get('/designer', self.serve_home)
+        self.app.router.add_get('/areas', self.serve_home)
+        self.app.router.add_route('GET', '/{path:.*}/areas', self.serve_home)
 
     async def serve_page(self, page_name: str, extra_data: dict = None) -> Response:
         """Generic page serving function."""
@@ -547,7 +549,11 @@ class LightDesignerServer:
             return web.Response(text=f"Error: {str(e)}", status=500)
 
     async def serve_home(self, request: Request) -> Response:
-        """Serve the Home page."""
+        """Serve the Home page (areas)."""
+        return await self.serve_page("areas")
+
+    async def serve_zones(self, request: Request) -> Response:
+        """Serve the Control Zones page."""
         return await self.serve_page("home")
 
     async def serve_glo_designer(self, request: Request) -> Response:
@@ -560,7 +566,7 @@ class LightDesignerServer:
         return await self.serve_page("settings")
 
     async def serve_areas(self, request: Request) -> Response:
-        """Serve the Areas page."""
+        """Legacy: redirect to home (areas is now the home page)."""
         return await self.serve_page("areas")
 
     async def get_config(self, request: Request) -> Response:

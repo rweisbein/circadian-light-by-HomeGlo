@@ -1,5 +1,15 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.206
+**Page reorganization, boost fix, and display stability**
+
+- Renamed pages: Areas→Home (now default), Home→Control zones, Advanced→Settings, Glo design→Rhythms
+- Areas page is now the landing page at `/`
+- Moved Location settings from Control zones to Settings page
+- Fixed boost button not showing active state (missing `boosted` field in merged area data)
+- Fixed brightness/color values jumping when lights turn off (now always uses backend-calculated values)
+- Legacy `/areas` route redirects to home
+
 ## 6.9.205
 **Boost button is now a toggle with active state indicator**
 
