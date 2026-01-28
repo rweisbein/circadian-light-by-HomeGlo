@@ -1,5 +1,19 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.204
+**UI: Areas page and modal button layout improvements**
+
+- Changed freeze icon from snowflake to lock (both row and modal)
+- Changed boost icon to star
+- Changed glo-up (push to zone) icon to double up arrows
+- Reordered right buttons: Reset, Freeze, Boost, Glo-up
+- Moved brightness/color values to left of control buttons in area rows
+- Added bullet separator between brightness and color values (like modal)
+- Modal now mirrors row layout:
+  - Left: Circadian, Power
+  - Right: Reset, Freeze, Boost, Push to zone
+- Removed separate Reset button section from modal (now in header)
+
 ## 6.9.203
 **Fix: Boost button now works and boost_default setting persists**
 
