@@ -387,6 +387,19 @@
       margin-top: 4px;
     }
 
+    .area-state-model {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 8px;
+      font-family: monospace;
+      line-height: 1.6;
+    }
+
+    .area-state-model span {
+      display: inline-block;
+      margin-right: 12px;
+    }
+
     /* Action buttons */
     .action-section {
       margin-bottom: 16px;
@@ -498,6 +511,7 @@
             <div class="area-state-zone" id="modal-zone"></div>
           </div>
         </div>
+        <div class="area-state-model" id="modal-model"></div>
       </div>
 
       <div class="action-section">
@@ -921,6 +935,15 @@
       } else {
         document.getElementById('modal-zone').textContent = 'No zone assigned';
       }
+
+      // State model
+      const fmtVal = (v) => v === null || v === undefined ? '—' : typeof v === 'number' ? v.toFixed(2) : v;
+      const modelEl = document.getElementById('modal-model');
+      modelEl.innerHTML =
+        `<span>bri_mid: ${fmtVal(status.brightness_mid)}</span>` +
+        `<span>color_mid: ${fmtVal(status.color_mid)}</span>` +
+        `<span>color_override: ${fmtVal(status.color_override)}</span>` +
+        `<span>frozen_at: ${fmtVal(status.frozen_at)}</span>`;
 
       // Color swatch
       const swatch = document.getElementById('modal-color-swatch');

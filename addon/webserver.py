@@ -2102,7 +2102,12 @@ class LightDesignerServer:
                         'kelvin': kelvin,
                         'frozen': area_state.frozen_at is not None,
                         'boosted': is_boosted,
-                        'zone_name': zone_name if zone_name != 'Unassigned' else None
+                        'zone_name': zone_name if zone_name != 'Unassigned' else None,
+                        # Raw state model
+                        'brightness_mid': area_state.brightness_mid,
+                        'color_mid': area_state.color_mid,
+                        'color_override': area_state.color_override,
+                        'frozen_at': area_state.frozen_at,
                     }
 
             return web.json_response(area_status)
