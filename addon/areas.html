@@ -657,6 +657,15 @@
       return { sunrise: sn - dl / 2, sunset: sn + dl / 2, solarNoon: sn, solarMid: (sn + 12) % 24 };
     }
 
+    function liftMidpointToPhase(midpoint, phaseStart, phaseEnd) {
+      const phaseCenter = (phaseStart + phaseEnd) / 2;
+      let mid = midpoint;
+      while (mid < phaseCenter - 12) mid += 24;
+      while (mid > phaseCenter + 12) mid -= 24;
+      const margin = 0.01;
+      return Math.max(phaseStart + margin, Math.min(phaseEnd - margin, mid));
+    }
+
     function applySolarRule(baseCCT, hour, cfg, sunTimes, colorOverride) {
       if (!sunTimes) return baseCCT;
 
@@ -759,19 +768,9 @@
       const h48 = hour < tAscend ? hour + 24 : hour;
       const inAscend = h48 >= tAscend && h48 < tDescend;
 
-      let mid48;
-      if (inAscend) {
-        mid48 = wakeMid;
-        while (mid48 < tAscend - 12) mid48 += 24;
-        while (mid48 > tDescend + 12) mid48 -= 24;
-        mid48 = Math.max(tAscend + 0.01, Math.min(tDescend - 0.01, mid48));
-      } else {
-        mid48 = bedMid;
-        const phaseEnd = tDescend + 24;
-        while (mid48 < tDescend - 12) mid48 += 24;
-        while (mid48 > phaseEnd + 12) mid48 -= 24;
-        mid48 = Math.max(tDescend + 0.01, Math.min(phaseEnd - 0.01, mid48));
-      }
+      const mid48 = inAscend
+        ? liftMidpointToPhase(wakeMid, tAscend, tDescend)
+        : liftMidpointToPhase(bedMid, tDescend, tDescend + 24);
 
       let value;
       if (inAscend) {
@@ -806,19 +805,9 @@
       const h48 = hour < tAscend ? hour + 24 : hour;
       const inAscend = h48 >= tAscend && h48 < tDescend;
 
-      let mid48;
-      if (inAscend) {
-        mid48 = colorWakeMid;
-        while (mid48 < tAscend - 12) mid48 += 24;
-        while (mid48 > tDescend + 12) mid48 -= 24;
-        mid48 = Math.max(tAscend + 0.01, Math.min(tDescend - 0.01, mid48));
-      } else {
-        mid48 = colorBedMid;
-        const phaseEnd = tDescend + 24;
-        while (mid48 < tDescend - 12) mid48 += 24;
-        while (mid48 > phaseEnd + 12) mid48 -= 24;
-        mid48 = Math.max(tDescend + 0.01, Math.min(phaseEnd - 0.01, mid48));
-      }
+      const mid48 = inAscend
+        ? liftMidpointToPhase(colorWakeMid, tAscend, tDescend)
+        : liftMidpointToPhase(colorBedMid, tDescend, tDescend + 24);
 
       let normalized;
       if (inAscend) {
