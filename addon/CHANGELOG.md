@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.199
+**Fix: Areas row shading now identical to modal header**
+
+- Replaced table-based rows with div-based layout to support single ::before overlay
+- Row shading now uses scaleX transform on pseudo-element (identical to modal header)
+- Brightness percentage creates single continuous fill from left edge across entire row
+
 ## 6.9.198
 **Fix: Areas row shading and control button styling**
 

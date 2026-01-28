@@ -664,28 +664,57 @@
       margin: 8px 0;
     }
 
-    /* Table row shading (like modal header) */
-    .zone-table tbody tr {
+    /* Area row - div-based for proper shading like modal header */
+    .area-row {
       --row-bg: var(--card);
       --row-text: var(--text);
       --row-fill: 0;
-    }
-
-    .zone-table tbody tr td {
-      background:
-        linear-gradient(90deg,
-          rgba(255,255,255,0.35) 0%,
-          rgba(255,255,255,0.35) calc(var(--row-fill) * 100%),
-          transparent calc(var(--row-fill) * 100%),
-          transparent 100%),
-        var(--row-bg);
+      display: flex;
+      align-items: center;
+      padding: 10px 16px;
+      gap: 16px;
+      background: var(--row-bg);
       color: var(--row-text);
+      border-bottom: 1px solid var(--line);
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
     }
 
-    .zone-table tbody tr td > span,
-    .zone-table tbody tr td > div {
+    .area-row:last-child {
+      border-bottom: none;
+    }
+
+    .area-row:hover {
+      background: color-mix(in srgb, var(--row-bg), white 3%);
+    }
+
+    /* Fill overlay - identical to modal header ::before */
+    .area-row::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, rgba(255,255,255,0.03), rgba(255,255,255,0.5));
+      opacity: 0.6;
+      transform-origin: left center;
+      transform: scaleX(var(--row-fill));
+      pointer-events: none;
+    }
+
+    .area-row > * {
       position: relative;
       z-index: 1;
+    }
+
+    .area-row-name {
+      flex: 1;
+      min-width: 0;
+      font-size: 0.9rem;
+    }
+
+    .area-row-lighting {
+      font-size: 0.85rem;
+      white-space: nowrap;
     }
 
     /* Row control buttons - dark container like modal header */
@@ -781,9 +810,7 @@
       margin-left: auto;
     }
 
-    .zone-table {
-      width: 100%;
-      border-collapse: collapse;
+    .zone-content {
       background: var(--card);
       border: 1px solid var(--line);
       border-top: none;
@@ -791,26 +818,8 @@
       overflow: hidden;
     }
 
-    .zone-table.hidden {
+    .zone-content.hidden {
       display: none;
-    }
-
-    .zone-table td {
-      padding: 10px 16px;
-      border-bottom: 1px solid var(--line);
-      font-size: 0.9rem;
-    }
-
-    .zone-table tr:last-child td {
-      border-bottom: none;
-    }
-
-    .zone-table tbody tr {
-      cursor: pointer;
-    }
-
-    .zone-table tbody tr:hover td {
-      background: rgba(255,255,255,0.02);
     }
   </style>
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
@@ -1746,11 +1755,9 @@
               <span class="zone-name">${zoneName}</span>
               <span class="zone-count">${areasInZone.length} area${areasInZone.length !== 1 ? 's' : ''}</span>
             </div>
-            <table class="zone-table ${isCollapsed ? 'hidden' : ''}" data-zone-table="${zoneName}">
-              <tbody>
-                ${sorted.map(area => renderAreaRow(area)).join('')}
-              </tbody>
-            </table>
+            <div class="zone-content ${isCollapsed ? 'hidden' : ''}" data-zone-table="${zoneName}">
+              ${sorted.map(area => renderAreaRow(area)).join('')}
+            </div>
           </div>
         `;
       };
@@ -1783,11 +1790,11 @@
       const controlButtons = getRowControls(area);
 
       return `
-        <tr style="--row-bg: ${style.bg}; --row-text: ${style.textColor}; --row-fill: ${style.fill.toFixed(3)};" onclick="openAreaModal('${area.area_id}')">
-          <td><span>${area.name}</span></td>
-          <td>${controlButtons}</td>
-          <td>${lightingInfo}</td>
-        </tr>
+        <div class="area-row" style="--row-bg: ${style.bg}; --row-text: ${style.textColor}; --row-fill: ${style.fill.toFixed(3)};" onclick="openAreaModal('${area.area_id}')">
+          <span class="area-row-name">${area.name}</span>
+          ${controlButtons}
+          <span class="area-row-lighting">${lightingInfo}</span>
+        </div>
       `;
     }
 
