@@ -915,7 +915,7 @@
         }
       });
 
-      // Live position marker
+      // Live position marker (bigger size)
       const markerBri = calcMiniBrightness(currentHour, cfg, state, currentHour) * 100;
       const markerCCT = calcMiniColor(currentHour, cfg, state, sunTimes, currentHour);
       const markerColor = cctToRGB(markerCCT);
@@ -923,7 +923,7 @@
       traces.push({
         x: [currentHour], y: [markerBri],
         mode: 'markers',
-        marker: { size: 14, color: markerColor, line: { width: 2, color: '#fff' } },
+        marker: { size: 18, color: markerColor, line: { width: 2, color: '#fff' } },
         hoverinfo: 'skip', showlegend: false
       });
 
@@ -937,34 +937,61 @@
 
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
-        x0: wakeTime, x1: wakeTime, y0: 0, y1: 1,
-        line: { color: '#5cb3ff', width: 1.5, dash: 'dot' }
+        x0: wakeTime, x1: wakeTime, y0: -0.08, y1: 1,
+        line: { color: '#5cb3ff', width: 1, dash: 'dot' }
       });
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
-        x0: bedTime, x1: bedTime, y0: 0, y1: 1,
-        line: { color: 'rgba(255,230,128,0.7)', width: 1.5, dash: 'dot' }
+        x0: bedTime, x1: bedTime, y0: -0.08, y1: 1,
+        line: { color: 'rgba(255,230,128,0.7)', width: 1, dash: 'dot' }
       });
 
-      // Wake/bed labels at top
+      // Wake/bed labels below x-axis
       annotations.push({
-        x: wakeTime, y: 1.06, xref: 'x', yref: 'paper',
+        x: wakeTime, y: -0.14, xref: 'x', yref: 'paper',
         text: 'wake', showarrow: false,
         font: { size: 10, color: '#5cb3ff' }
       });
       annotations.push({
-        x: bedTime, y: 1.06, xref: 'x', yref: 'paper',
+        x: bedTime, y: -0.14, xref: 'x', yref: 'paper',
         text: 'bed', showarrow: false,
         font: { size: 10, color: '#ffe680' }
       });
 
-      // "Now" cursor vertical line
+      // "Now" cursor vertical line (prominent, with gap around marker)
       const now = new Date();
       const nowHour = now.getHours() + now.getMinutes() / 60;
+      const nowLineStyle = { color: '#fdfdfd', width: 2, dash: 'dot' };
+      const gap = 4;  // Gap around marker in y-units
+      const lowerEnd = Math.max(0, markerBri - gap);
+      const upperStart = Math.min(110, markerBri + gap);
+
+      // Lower segment (0 to just below marker)
+      shapes.push({
+        type: 'line', xref: 'x', yref: 'y',
+        x0: nowHour, x1: nowHour, y0: 0, y1: lowerEnd,
+        line: nowLineStyle, layer: 'above'
+      });
+      // Upper segment (just above marker to top)
+      shapes.push({
+        type: 'line', xref: 'x', yref: 'y',
+        x0: nowHour, x1: nowHour, y0: upperStart, y1: 110,
+        line: nowLineStyle, layer: 'above'
+      });
+      // Line from x-axis down to label
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
-        x0: nowHour, x1: nowHour, y0: 0, y1: 1,
-        line: { color: 'rgba(255,255,255,0.3)', width: 1, dash: 'dash' }
+        x0: nowHour, x1: nowHour, y0: -0.21, y1: 0,
+        line: nowLineStyle, layer: 'above'
+      });
+
+      // "Now" label with time
+      const nowTimeStr = formatHourLabel(nowHour);
+      annotations.push({
+        x: nowHour, y: -0.26, xref: 'x', yref: 'paper',
+        text: `now<br>${nowTimeStr}`, showarrow: false,
+        font: { size: 10, color: '#fdfdfd' },
+        align: 'center'
       });
 
       // Sunrise/sunset as x-axis text labels
@@ -972,14 +999,14 @@
       const sunset = sunTimes.sunset;
       if (Number.isFinite(sunrise)) {
         annotations.push({
-          x: sunrise, y: -0.12, xref: 'x', yref: 'paper',
+          x: sunrise, y: -0.14, xref: 'x', yref: 'paper',
           text: 'sunrise', showarrow: false,
           font: { size: 9, color: 'rgba(215,215,215,0.6)' }
         });
       }
       if (Number.isFinite(sunset)) {
         annotations.push({
-          x: sunset, y: -0.12, xref: 'x', yref: 'paper',
+          x: sunset, y: -0.14, xref: 'x', yref: 'paper',
           text: 'sunset', showarrow: false,
           font: { size: 9, color: 'rgba(215,215,215,0.6)' }
         });
@@ -988,7 +1015,7 @@
       const layout = {
         paper_bgcolor: '#0a0a0a',
         plot_bgcolor: '#0a0a0a',
-        margin: { t: 24, r: 12, l: 36, b: 40 },
+        margin: { t: 24, r: 12, l: 36, b: 75 },
         hovermode: 'closest',
         xaxis: {
           range: [0, 24],
@@ -1324,7 +1351,7 @@
     }
 
     // Modal functions
-    function updateModalContent(areaId) {
+    function updateModalContent(areaId, renderChart = true) {
       const area = areas.find(a => a.area_id === areaId);
       const status = areaStatus[areaId] || {};
 
@@ -1389,33 +1416,46 @@
         swatch.style.opacity = 1;
       }
 
-      // Render mini chart
-      if (cachedConfig) {
-        const areaState = {
-          brightness_mid: status.brightness_mid ?? null,
-          color_mid: status.color_mid ?? null,
-          color_override: status.color_override ?? null,
-          frozen_at: status.frozen_at ?? null
-        };
-
-        // Current hour: use frozen_at if frozen, otherwise current time
-        let currentHour;
-        if (status.frozen && status.frozen_at != null) {
-          currentHour = status.frozen_at;
-        } else {
-          const now = new Date();
-          currentHour = now.getHours() + now.getMinutes() / 60;
-        }
-
-        renderMiniChart(cachedConfig, areaState, cachedSunTimes, currentHour);
+      // Render mini chart (if requested)
+      if (renderChart) {
+        renderMiniChartForArea(areaId);
       }
     }
 
-    function openAreaModal(areaId) {
-      updateModalContent(areaId);
+    function renderMiniChartForArea(areaId) {
+      const status = areaStatus[areaId] || {};
+      if (!cachedConfig) return;
 
-      // Show modal
-      document.getElementById('area-modal').classList.add('visible');
+      const areaState = {
+        brightness_mid: status.brightness_mid ?? null,
+        color_mid: status.color_mid ?? null,
+        color_override: status.color_override ?? null,
+        frozen_at: status.frozen_at ?? null
+      };
+
+      // Current hour: use frozen_at if frozen, otherwise current time
+      let currentHour;
+      if (status.frozen && status.frozen_at != null) {
+        currentHour = status.frozen_at;
+      } else {
+        const now = new Date();
+        currentHour = now.getHours() + now.getMinutes() / 60;
+      }
+
+      renderMiniChart(cachedConfig, areaState, cachedSunTimes, currentHour);
+    }
+
+    function openAreaModal(areaId) {
+      updateModalContent(areaId, false);  // Update content but don't render chart yet
+
+      // Show modal first, then render chart after it's visible
+      const modal = document.getElementById('area-modal');
+      modal.classList.add('visible');
+
+      // Small delay to let modal transition start and element get dimensions
+      requestAnimationFrame(() => {
+        renderMiniChartForArea(areaId);
+      });
     }
 
     function closeModal() {
