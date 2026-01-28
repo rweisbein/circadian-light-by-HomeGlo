@@ -1690,6 +1690,7 @@ let runtimeState = {
   frozen: false,               // Whether to freeze at current position (stop following time)
   brightness_mid: null,        // Current phase's brightness midpoint (falls back to wake_time or bed_time)
   color_mid: null,             // Current phase's color midpoint (falls back to wake_time or bed_time)
+  color_override: null,        // Solar rule target offset (Kelvin) from color stepping
 };
 
 // Cursor state
@@ -1834,7 +1835,11 @@ function applySolarRuleAtHour(baseCCT, hour) {
 
   // Warm night - ceiling
   if (config.warm_night_enabled) {
-    const warmTarget = config.warm_night_target;
+    let warmTarget = config.warm_night_target;
+    // Apply color_override if positive (raises WarmNight ceiling)
+    if (runtimeState.color_override && runtimeState.color_override > 0) {
+      warmTarget += runtimeState.color_override;
+    }
 
     if (cct > warmTarget) {
       const fadeHrs = config.warm_night_fade / 60;
@@ -1863,7 +1868,11 @@ function applySolarRuleAtHour(baseCCT, hour) {
 
   // Cool day - floor
   if (config.cool_day_enabled) {
-    const coolTarget = config.cool_day_target;
+    let coolTarget = config.cool_day_target;
+    // Apply color_override if negative (lowers CoolDay floor)
+    if (runtimeState.color_override && runtimeState.color_override < 0) {
+      coolTarget += runtimeState.color_override;
+    }
 
     if (cct < coolTarget) {
       const fadeHrs = config.cool_day_fade / 60;
@@ -3825,6 +3834,7 @@ function resetRuntimeState() {
   // Reset midpoints to follow config
   runtimeState.brightness_mid = null;
   runtimeState.color_mid = null;
+  runtimeState.color_override = null;
 }
 
 // ============================================================
@@ -4173,40 +4183,52 @@ function stepCursor(direction, adjustBrightness, adjustColor) {
     runtimeState.brightness_mid = newMid;
   }
 
-  // Color only: fixed value increments based on DISPLAYED color
+  // Color only: step NATURAL curve, set color_override when solar rules clamp
   if (adjustColor && !adjustBrightness) {
     // Config bounds (only use these, no runtime overrides)
     const cMin = config.min_color_temp;
     const cMax = config.max_color_temp;
     const cctStep = (cMax - cMin) / steps;
+    const safeMargin = Math.max(10, (cMax - cMin) * 0.01);
 
-    // Get DISPLAYED CCT (after solar rules) - this is what user sees
-    const displayedCCT = getDisplayedCCTAtCursor();
-    if (displayedCCT === null) return;
+    // Get NATURAL CCT (before solar rules) for stepping/midpoint
+    const naturalCCT = getBaseCCTAtCursor();
+    // Get RENDERED CCT (after solar rules) for clamping detection
+    const renderedCCT = getDisplayedCCTAtCursor();
+    if (naturalCCT === null || renderedCCT === null) return;
 
-    // Check if at config bounds (within 10K)
-    const atMax = direction === 'up' && displayedCCT >= cMax - 10;
-    const atMin = direction === 'down' && displayedCCT <= cMin + 10;
+    // Check if NATURAL curve is at config bounds
+    const atMax = direction === 'up' && naturalCCT >= cMax - safeMargin;
+    const atMin = direction === 'down' && naturalCCT <= cMin + safeMargin;
 
-    if (atMax || atMin) {
-      return; // At config bound, can't go further
+    if (atMax || atMin) return;
+
+    // Step the NATURAL curve
+    let targetNaturalCCT = naturalCCT + sign * cctStep;
+    targetNaturalCCT = Math.max(cMin + safeMargin, Math.min(cMax - safeMargin, targetNaturalCCT));
+
+    if (Math.abs(targetNaturalCCT - naturalCCT) < safeMargin) return;
+
+    // Detect solar rule clamping and accumulate color_override
+    const isClamped = Math.abs(renderedCCT - naturalCCT) > 1.0;
+    if (isClamped) {
+      // WarmNight: rendered < natural (ceiling), user stepping up (cooler)
+      if (renderedCCT < naturalCCT && direction === 'up') {
+        runtimeState.color_override = (runtimeState.color_override || 0) + cctStep;
+      }
+      // CoolDay: rendered > natural (floor), user stepping down (warmer)
+      else if (renderedCCT > naturalCCT && direction === 'down') {
+        runtimeState.color_override = (runtimeState.color_override || 0) - cctStep;
+      }
     }
 
-    // Calculate target
-    let targetCCT = displayedCCT + sign * cctStep;
-
-    // Clamp to config bounds
-    targetCCT = Math.max(cMin, Math.min(cMax, targetCCT));
-
-    // Now adjust the color midpoint so base curve = target
-    const targetNorm = (targetCCT - cMin) / (cMax - cMin);
+    // Calculate new midpoint from NATURAL target
+    const targetNorm = Math.max(0.001, Math.min(0.999, (targetNaturalCCT - cMin) / (cMax - cMin)));
 
     let calcTime = h48;
     if (!inAscend && h48 < tDescend) calcTime = h48 + 24;
 
-    const newMid = inverseMidpoint(calcTime, targetNorm, slope, 0, 1);
-
-    runtimeState.color_mid = newMid;
+    runtimeState.color_mid = inverseMidpoint(calcTime, targetNorm, slope, 0, 1);
   }
 
   renderChart();

@@ -1,5 +1,18 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.193
+**Fix: Color step through solar rules via color_override**
+
+- Added `color_override` field to AreaState — a signed Kelvin offset that adjusts
+  solar rule targets per-area when color stepping fights a clamp
+- `calculate_color_step` now steps the natural curve (pre-solar-rules) matching
+  `calculate_step`'s pattern, preventing flash/snap-back on periodic updates
+- Each color_up/down press past a solar rule ceiling/floor accumulates ±cct_step
+  in `color_override`, producing full rendered steps regardless of solar weight
+- Override cleared on area reset, glo reset, and phase switchover (via defaults)
+- Override becomes irrelevant naturally when solar rule fades
+- Design tool updated to mirror backend color_override behavior
+
 ## 6.9.192
 **Fix: Step up/down continues when one dimension hits its limit**
 
