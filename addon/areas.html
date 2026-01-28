@@ -527,47 +527,32 @@
       <div id="modal-mini-chart"></div>
 
       <div class="action-section">
-        <div class="action-section-title">Adjust</div>
-        <div class="action-buttons">
-          <button class="action-btn" onclick="executeAction('step_up')">Step Up</button>
-          <button class="action-btn" onclick="executeAction('step_down')">Step Down</button>
-          <button class="action-btn" onclick="executeAction('bright_up')">Bright +</button>
-          <button class="action-btn" onclick="executeAction('bright_down')">Bright -</button>
-          <button class="action-btn" onclick="executeAction('color_up')">Color +</button>
-          <button class="action-btn" onclick="executeAction('color_down')">Color -</button>
+        <div class="action-buttons" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;">
+          <button class="action-btn" onclick="executeAction('step_up')">Step &#9650;</button>
+          <button class="action-btn" onclick="executeAction('bright_up')">Bri &#9650;</button>
+          <button class="action-btn" onclick="executeAction('color_up')">Clr &#9650;</button>
+          <button class="action-btn" onclick="executeAction('step_down')">Step &#9660;</button>
+          <button class="action-btn" onclick="executeAction('bright_down')">Bri &#9660;</button>
+          <button class="action-btn" onclick="executeAction('color_down')">Clr &#9660;</button>
         </div>
       </div>
 
       <div class="action-section">
-        <div class="action-section-title">Power</div>
         <div class="action-buttons">
-          <button class="action-btn success" onclick="executeAction('lights_on')">Lights On</button>
-          <button class="action-btn danger" onclick="executeAction('lights_off')">Lights Off</button>
+          <button class="action-btn" onclick="executeAction('lights_on')">On</button>
+          <button class="action-btn" onclick="executeAction('lights_off')">Off</button>
           <button class="action-btn" onclick="executeAction('lights_toggle')">Toggle</button>
+          <button class="action-btn" onclick="executeAction('circadian_on')">Circ On</button>
+          <button class="action-btn" onclick="executeAction('circadian_off')">Circ Off</button>
         </div>
       </div>
 
       <div class="action-section">
-        <div class="action-section-title">Circadian Mode</div>
         <div class="action-buttons">
-          <button class="action-btn success" onclick="executeAction('circadian_on')">Circadian On</button>
-          <button class="action-btn danger" onclick="executeAction('circadian_off')">Circadian Off</button>
-        </div>
-      </div>
-
-      <div class="action-section">
-        <div class="action-section-title">Zone</div>
-        <div class="action-buttons">
-          <button class="action-btn" onclick="executeAction('glo_up')">Glo Up</button>
-          <button class="action-btn" onclick="executeAction('glo_down')">Glo Down</button>
+          <button class="action-btn" onclick="executeAction('glo_up')">Glo &#9650;</button>
+          <button class="action-btn" onclick="executeAction('glo_down')">Glo &#9660;</button>
           <button class="action-btn" onclick="executeAction('glo_reset')">Glo Reset</button>
-        </div>
-      </div>
-
-      <div class="action-section">
-        <div class="action-section-title">Other</div>
-        <div class="action-buttons">
-          <button class="action-btn" onclick="executeAction('freeze_toggle')">Freeze Toggle</button>
+          <button class="action-btn" onclick="executeAction('freeze_toggle')">Freeze</button>
           <button class="action-btn" onclick="executeAction('reset')">Reset</button>
         </div>
       </div>
@@ -586,7 +571,7 @@
     let statusFilter = 'all';
     let selectedArea = null;
     let cachedConfig = null;
-    let cachedSunTimes = null;
+    let cachedSunTimes = null; // { sunrise, sunset, solarNoon, solarMid } in local hours
 
     // ============================================================
     // Mini Circadian Graph — Calculation Functions
@@ -644,14 +629,42 @@
       return { inWindow: true, weight };
     }
 
+    function rad(d) { return d * Math.PI / 180; }
+
+    /**
+     * Client-side sun time calculation (matches glo-designer.html).
+     * Returns { sunrise, sunset, solarNoon, solarMid } as local hour values.
+     */
+    function getSunTimes(lat, lon) {
+      const date = new Date();
+      const n = Math.floor((date - new Date(date.getFullYear(), 0, 0)) / 86400000);
+      const J = n + ((lon < 0 ? 360 + lon : lon) / 360);
+      const M = (357.5291 + 0.9856 * J) % 360;
+      const C = 1.9148 * Math.sin(rad(M)) + 0.02 * Math.sin(rad(2 * M)) + 0.0003 * Math.sin(rad(3 * M));
+      const L = (M + 102.9372 + C + 180) % 360;
+      const D = Math.asin(Math.sin(rad(L)) * Math.sin(rad(23.44)));
+      const cosH0 = (Math.cos(rad(90.833)) - Math.sin(rad(lat)) * Math.sin(D)) / (Math.cos(rad(lat)) * Math.cos(D));
+
+      if (cosH0 < -1 || cosH0 > 1) {
+        const sn = 12 - date.getTimezoneOffset() / 60 - (lon / 15);
+        return { sunrise: sn - 6, sunset: sn + 6, solarNoon: sn, solarMid: (sn + 12) % 24 };
+      }
+
+      const H0 = Math.acos(cosH0);
+      const dl = (2 * H0 * 180 / Math.PI) / 15;
+      const tz = -date.getTimezoneOffset() / 60;
+      const sn = 12 + tz - (lon / 15);
+      return { sunrise: sn - dl / 2, sunset: sn + dl / 2, solarNoon: sn, solarMid: (sn + 12) % 24 };
+    }
+
     function applySolarRule(baseCCT, hour, cfg, sunTimes, colorOverride) {
       if (!sunTimes) return baseCCT;
 
       let cct = baseCCT;
-      const sunrise = sunTimes.sunrise_hour;
-      const sunset = sunTimes.sunset_hour;
-      const solarNoon = sunTimes.noon_hour;
-      const solarMid = sunTimes.midnight_hour;
+      const sunrise = sunTimes.sunrise;
+      const sunset = sunTimes.sunset;
+      const solarNoon = sunTimes.solarNoon;
+      const solarMid = sunTimes.solarMid;
 
       // Warm night — ceiling
       if (cfg.warm_night_enabled) {
@@ -929,36 +942,45 @@
       const shapes = [];
       const annotations = [];
 
-      // Wake/bed vertical dashed lines
+      // Wake/bed vertical dashed lines (glo-designer colors)
       const wakeTime = wrap24(cfg.wake_time);
       const bedTime = wrap24(cfg.bed_time);
 
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
         x0: wakeTime, x1: wakeTime, y0: 0, y1: 1,
-        line: { color: 'rgba(34,197,94,0.5)', width: 1.5, dash: 'dash' }
+        line: { color: '#5cb3ff', width: 1.5, dash: 'dot' }
       });
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
         x0: bedTime, x1: bedTime, y0: 0, y1: 1,
-        line: { color: 'rgba(239,68,68,0.5)', width: 1.5, dash: 'dash' }
+        line: { color: 'rgba(255,230,128,0.7)', width: 1.5, dash: 'dot' }
       });
 
       // Wake/bed labels at top
       annotations.push({
         x: wakeTime, y: 1.06, xref: 'x', yref: 'paper',
         text: 'wake', showarrow: false,
-        font: { size: 10, color: 'rgba(34,197,94,0.7)' }
+        font: { size: 10, color: '#5cb3ff' }
       });
       annotations.push({
         x: bedTime, y: 1.06, xref: 'x', yref: 'paper',
         text: 'bed', showarrow: false,
-        font: { size: 10, color: 'rgba(239,68,68,0.7)' }
+        font: { size: 10, color: '#ffe680' }
+      });
+
+      // "Now" cursor vertical line
+      const now = new Date();
+      const nowHour = now.getHours() + now.getMinutes() / 60;
+      shapes.push({
+        type: 'line', xref: 'x', yref: 'paper',
+        x0: nowHour, x1: nowHour, y0: 0, y1: 1,
+        line: { color: 'rgba(255,255,255,0.3)', width: 1, dash: 'dash' }
       });
 
       // Sunrise/sunset as x-axis text labels
-      const sunrise = sunTimes.sunrise_hour;
-      const sunset = sunTimes.sunset_hour;
+      const sunrise = sunTimes.sunrise;
+      const sunset = sunTimes.sunset;
       if (Number.isFinite(sunrise)) {
         annotations.push({
           x: sunrise, y: -0.12, xref: 'x', yref: 'paper',
@@ -1022,10 +1044,7 @@
 
     async function loadPreferences() {
       try {
-        const [configRes, sunRes] = await Promise.all([
-          fetch('./api/config'),
-          fetch('./api/sun_times')
-        ]);
+        const configRes = await fetch('./api/config');
 
         if (configRes.ok) {
           cachedConfig = await configRes.json();
@@ -1034,10 +1053,11 @@
           sortAsc = prefs.sort_asc !== false;
           zoneFilter = prefs.zone_filter || 'all';
           statusFilter = prefs.status_filter || 'all';
-        }
 
-        if (sunRes.ok) {
-          cachedSunTimes = await sunRes.json();
+          // Compute sun times client-side from config lat/lon
+          const lat = cachedConfig.latitude || 35.0;
+          const lon = cachedConfig.longitude || -78.6;
+          cachedSunTimes = getSunTimes(lat, lon);
         }
       } catch (err) {
         console.error('Error loading preferences:', err);
