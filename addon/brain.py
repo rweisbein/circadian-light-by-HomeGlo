@@ -328,18 +328,19 @@ class CircadianLight:
         which would produce invalid negative values.
 
         Args:
-            midpoint: The midpoint hour (0-24)
+            midpoint: The midpoint hour (may be 0-24 stored value or raw 48h value)
             phase_start: Start of phase in 48h space
             phase_end: End of phase in 48h space
 
         Returns:
             Midpoint clamped to [phase_start + margin, phase_end - margin]
         """
+        # Find the representation of midpoint closest to the phase center
+        phase_center = (phase_start + phase_end) / 2
         mid = midpoint
-        # Lift into roughly valid range first (within 12 hours of boundaries)
-        while mid < phase_start - 12:
+        while mid < phase_center - 12:
             mid += 24
-        while mid > phase_end + 12:
+        while mid > phase_center + 12:
             mid -= 24
         # Clamp to phase boundaries (with small margin for numerical stability)
         margin = 0.01
@@ -723,9 +724,14 @@ class CircadianLight:
         new_bri_mid = inverse_midpoint(calc_time, target_bri_norm, slope, b_min_norm, b_max_norm)
         new_color_mid = inverse_midpoint(calc_time, target_cct_norm, slope, 0, 1)
 
-        # Clamp midpoints to valid range (prevents wrap-around issues)
-        new_bri_mid = max(0, min(23.99, new_bri_mid % 24))
-        new_color_mid = max(0, min(23.99, new_color_mid % 24))
+        # Clamp midpoints to phase boundaries, then store in 0-24 range
+        if in_ascend:
+            new_bri_mid = CircadianLight.lift_midpoint_to_phase(new_bri_mid, t_ascend, t_descend) % 24
+            new_color_mid = CircadianLight.lift_midpoint_to_phase(new_color_mid, t_ascend, t_descend) % 24
+        else:
+            descend_end = t_ascend + 24
+            new_bri_mid = CircadianLight.lift_midpoint_to_phase(new_bri_mid, t_descend, descend_end) % 24
+            new_color_mid = CircadianLight.lift_midpoint_to_phase(new_color_mid, t_descend, descend_end) % 24
 
         # Only update midpoints for dimensions that actually moved
         state_updates: Dict[str, Any] = {}
@@ -813,7 +819,10 @@ class CircadianLight:
             calc_time = h48 + 24
 
         new_mid = inverse_midpoint(calc_time, target_norm, slope, b_min_norm, b_max_norm)
-        new_mid = max(0, min(24, new_mid % 24))
+        if in_ascend:
+            new_mid = CircadianLight.lift_midpoint_to_phase(new_mid, t_ascend, t_descend) % 24
+        else:
+            new_mid = CircadianLight.lift_midpoint_to_phase(new_mid, t_descend, t_ascend + 24) % 24
 
         state_updates: Dict[str, Any] = {"brightness_mid": new_mid}
 
@@ -919,7 +928,10 @@ class CircadianLight:
             calc_time = h48 + 24
 
         new_mid = inverse_midpoint(calc_time, target_norm, slope, 0, 1)
-        new_mid = max(0, min(24, new_mid % 24))
+        if in_ascend:
+            new_mid = CircadianLight.lift_midpoint_to_phase(new_mid, t_ascend, t_descend) % 24
+        else:
+            new_mid = CircadianLight.lift_midpoint_to_phase(new_mid, t_descend, t_ascend + 24) % 24
 
         state_updates: Dict[str, Any] = {"color_mid": new_mid}
         if new_override != state.color_override:

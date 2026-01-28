@@ -1,5 +1,29 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.195
+**Fix: Step up/down midpoint wrap-around**
+
+- Fixed `lift_midpoint_to_phase` to center-align the 24h wrap detection, preventing
+  stored midpoint values near 0 from being misinterpreted as phase-start instead of
+  phase-end (e.g., 0.2 stored → 24.2 in descend phase 12-27)
+- Replaced `% 24` clamping in `calculate_step`, `calculate_bright_step`, and
+  `calculate_color_step` with proper phase-aware `lift_midpoint_to_phase` + `% 24`
+- Step sequences now correctly stop at limits instead of cycling through min→max
+
+## 6.9.194
+**Feature: Mini circadian graph in area modal**
+
+- Added live mini circadian graph to the area modal on the Areas page
+- Brightness curve colored by CCT with gradient fill (same visual style as Glo designer)
+- Wake/bed time shown as vertical dashed lines; sunrise/sunset as x-axis labels
+- Live position marker (colored dot) at the area's current hour and brightness/CCT
+- Hover tooltip showing brightness% and Kelvin at any point on the curve
+- Per-area state overrides (brightness_mid, color_mid, color_override) reflected in curve
+- Frozen areas show marker at frozen_at hour instead of current time
+- Action buttons now re-render graph + status in place without closing the modal
+- Adjust section moved above Power for quicker access to step/bright/color buttons
+- State model display moved to bottom of modal
+
 ## 6.9.193
 **Fix: Color step through solar rules via color_override**
 
