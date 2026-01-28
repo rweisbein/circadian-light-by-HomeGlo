@@ -1886,6 +1886,7 @@
       const isCircadian = status.is_circadian || false;
       const isOn = area.is_on;
       const isFrozen = area.frozen;
+      const isBoosted = area.boosted;
 
       // Sun icon for circadian
       const sunIconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1939,7 +1940,7 @@
         <div class="row-controls">
           <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'reset')" title="Reset">${resetIconSvg}</button>
           <button class="row-btn ${isFrozen ? 'active' : ''}" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'freeze_toggle')" title="Freeze">${lockIconSvg}</button>
-          <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'boost')" title="Boost">${boostIconSvg}</button>
+          <button class="row-btn ${isBoosted ? 'active' : ''}" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'boost')" title="Boost">${boostIconSvg}</button>
           <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'glo_up')" title="Push to zone">${pushIconSvg}</button>
         </div>
       `;
@@ -2091,6 +2092,7 @@
       const powerBtn = document.getElementById('toggle-power');
       const circadianBtn = document.getElementById('toggle-circadian');
       const freezeBtn = document.getElementById('toggle-freeze');
+      const boostBtn = document.getElementById('toggle-boost');
 
       if (powerBtn) {
         powerBtn.classList.toggle('active', selectedArea.is_on);
@@ -2100,6 +2102,9 @@
       }
       if (freezeBtn) {
         freezeBtn.classList.toggle('active', selectedArea.frozen);
+      }
+      if (boostBtn) {
+        boostBtn.classList.toggle('active', selectedArea.boosted);
       }
 
       // Render mini chart (if requested)

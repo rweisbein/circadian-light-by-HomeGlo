@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.205
+**Boost button is now a toggle with active state indicator**
+
+- Boost button toggles on/off (clicking while boosted ends the boost)
+- Orange border shown on boost button when active (both area rows and modal)
+- Ending boost restores lights to circadian or turns off if they were off before boost
+
 ## 6.9.204
 **UI: Areas page and modal button layout improvements**
 

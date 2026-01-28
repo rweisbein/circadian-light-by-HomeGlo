@@ -3249,11 +3249,15 @@ class HomeAssistantWebSocketClient:
                     logger.info(f"[webserver] glo_reset for area: {area_id}")
                     await self.primitives.glo_reset(area_id, "webserver")
                 elif service == "boost":
-                    # Read boost_default from global config (not area-specific)
-                    raw_config = glozone.load_config_from_files()
-                    boost_amount = raw_config.get("boost_default", 30)
-                    logger.info(f"[webserver] boost for area: {area_id}, amount={boost_amount}%")
-                    await self.primitives.bright_boost(area_id, duration_seconds=0, boost_amount=boost_amount, source="webserver")
+                    # Toggle boost: if already boosted, end it; otherwise apply
+                    if state.is_boosted(area_id):
+                        logger.info(f"[webserver] boost toggle OFF for area: {area_id}")
+                        await self.primitives.end_boost(area_id, source="webserver")
+                    else:
+                        raw_config = glozone.load_config_from_files()
+                        boost_amount = raw_config.get("boost_default", 30)
+                        logger.info(f"[webserver] boost toggle ON for area: {area_id}, amount={boost_amount}%")
+                        await self.primitives.bright_boost(area_id, duration_seconds=0, boost_amount=boost_amount, source="webserver")
                 else:
                     logger.warning(f"Unknown circadian_light_service_event: service={service}, area_id={area_id}")
 
