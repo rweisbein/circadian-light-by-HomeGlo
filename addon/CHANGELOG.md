@@ -1,5 +1,11 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.214
+**Show times inline on chart labels**
+
+- Wake/bed/sunrise/sunset labels now show their times directly (e.g. "wake 7:30a", "sunset 5:18p")
+- Removed ghost marker tooltip approach (Plotly annotations don't support native hover)
+
 ## 6.9.213
 **Live countdown timers and consistent styling**
 

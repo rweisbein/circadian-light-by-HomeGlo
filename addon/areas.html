@@ -1390,30 +1390,30 @@
         });
       }
 
-      // Layer 1: Wake/bed labels (below x-axis labels)
+      // Layer 1: Wake/bed labels with times (below x-axis labels)
       annotations.push({
         x: wakeTime, y: -0.22, xref: 'x', yref: 'paper',
-        text: 'wake', showarrow: false,
+        text: `wake ${formatHourLabel(wakeTime)}`, showarrow: false,
         font: { size: 10, color: '#5cb3ff' }
       });
       annotations.push({
         x: bedTime, y: -0.22, xref: 'x', yref: 'paper',
-        text: 'bed', showarrow: false,
+        text: `bed ${formatHourLabel(bedTime)}`, showarrow: false,
         font: { size: 10, color: '#ffe680' }
       });
 
-      // Layer 2: Sunrise/sunset labels (below wake/bed)
+      // Layer 2: Sunrise/sunset labels with times (below wake/bed)
       if (Number.isFinite(sunrise)) {
         annotations.push({
           x: sunrise, y: -0.30, xref: 'x', yref: 'paper',
-          text: 'sunrise', showarrow: false,
+          text: `sunrise ${formatHourLabel(sunrise)}`, showarrow: false,
           font: { size: 9, color: 'rgba(215,215,215,0.6)' }
         });
       }
       if (Number.isFinite(sunset)) {
         annotations.push({
           x: sunset, y: -0.30, xref: 'x', yref: 'paper',
-          text: 'sunset', showarrow: false,
+          text: `sunset ${formatHourLabel(sunset)}`, showarrow: false,
           font: { size: 9, color: 'rgba(215,215,215,0.6)' }
         });
       }
@@ -1452,30 +1452,6 @@
         text: `now<br>${nowTimeStr}`, showarrow: false,
         font: { size: 10, color: '#fdfdfd' },
         align: 'center'
-      });
-
-      // Ghost markers for label tooltips (invisible scatter points that show times on hover)
-      const tooltipX = [wakeTime, bedTime];
-      const tooltipY = [0, 0];
-      const tooltipText = [formatHourLabel(wakeTime), formatHourLabel(bedTime)];
-      if (Number.isFinite(sunrise)) {
-        tooltipX.push(sunrise);
-        tooltipY.push(0);
-        tooltipText.push(formatHourLabel(sunrise));
-      }
-      if (Number.isFinite(sunset)) {
-        tooltipX.push(sunset);
-        tooltipY.push(0);
-        tooltipText.push(formatHourLabel(sunset));
-      }
-      traces.push({
-        type: 'scatter', mode: 'markers',
-        x: tooltipX, y: tooltipY,
-        marker: { size: 12, color: 'rgba(0,0,0,0)', line: { width: 0 } },
-        text: tooltipText,
-        hovertemplate: '%{text}<extra></extra>',
-        hoverlabel: { bgcolor: '#222', bordercolor: '#444', font: { color: '#eee', size: 12 } },
-        showlegend: false
       });
 
       const layout = {
