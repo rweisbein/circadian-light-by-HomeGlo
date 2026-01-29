@@ -675,7 +675,7 @@
       --row-fill: 0;
       display: flex;
       align-items: center;
-      padding: 10px 16px;
+      padding: 10px 16px 10px 28px;
       gap: 16px;
       background: var(--row-bg);
       color: var(--row-text);
@@ -839,6 +839,125 @@
     .zone-content.hidden {
       display: none;
     }
+
+    /* Rhythm group headers */
+    .rhythm-group {
+      margin-bottom: 20px;
+    }
+
+    .rhythm-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .rhythm-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.15s;
+      margin-bottom: 8px;
+      position: relative;
+    }
+
+    .rhythm-header:hover {
+      background: rgba(255,255,255,0.05);
+    }
+
+    .rhythm-header.collapsed {
+      margin-bottom: 0;
+    }
+
+    .rhythm-content.hidden {
+      display: none;
+    }
+
+    .rhythm-label {
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+
+    .rhythm-name-link {
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: var(--accent);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .rhythm-name-link:hover {
+      color: var(--accent-hover);
+      text-decoration: underline;
+    }
+
+    .rhythm-lighting {
+      font-size: 0.8rem;
+      opacity: 0.85;
+      margin-left: auto;
+    }
+
+    /* Red dot: area doesn't match zone */
+    .mismatch-dot-area {
+      position: absolute;
+      left: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: rgba(239, 68, 68, 0.6);
+      z-index: 2;
+    }
+
+    /* Red dot: zone doesn't match rhythm */
+    .mismatch-dot-zone {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: rgba(239, 68, 68, 0.75);
+      flex-shrink: 0;
+    }
+
+    /* Rhythm red dot */
+    .mismatch-dot-rhythm {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: rgba(239, 68, 68, 0.75);
+      flex-shrink: 0;
+    }
+
+    /* Zone reset button */
+    .zone-reset-btn {
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      border: 1px solid rgba(255,255,255,0.2);
+      background: rgba(30,30,30,0.9);
+      color: var(--muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+      padding: 0;
+      margin-left: auto;
+      flex-shrink: 0;
+    }
+
+    .zone-reset-btn:hover {
+      border-color: rgba(255,255,255,0.4);
+      background: rgba(50,50,50,0.9);
+    }
+
+    .zone-reset-btn svg {
+      width: 14px;
+      height: 14px;
+    }
   </style>
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
   <script src="./shared.js"></script>
@@ -910,8 +1029,8 @@
           <div class="area-state-controls">
             <button class="toggle-btn" id="toggle-reset" onclick="executeAction('reset')" title="Pull Area's light from Glo Zone's">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <polyline points="6 4 12 10 18 4"/>
-                <polyline points="6 10 12 16 18 10"/>
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                <path d="M3 3v5h5"/>
               </svg>
             </button>
             <button class="toggle-btn" id="toggle-freeze" onclick="executeAction('freeze_toggle')" title="Freeze">
@@ -966,6 +1085,7 @@
     // State
     let areas = [];
     let areaStatus = {};
+    let zoneStates = {};
     let sortColumn = 'name';
     let sortAsc = true;
     let statusFilter = 'all';
@@ -1647,9 +1767,10 @@
       container.innerHTML = '<div class="loading">Loading areas...</div>';
 
       try {
-        const [areasRes, statusRes] = await Promise.all([
+        const [areasRes, statusRes, zoneStatesRes] = await Promise.all([
           fetch('./api/areas'),
-          fetch('./api/area-status')
+          fetch('./api/area-status'),
+          fetch('./api/zone-states')
         ]);
 
         if (areasRes.ok) {
@@ -1658,6 +1779,11 @@
 
         if (statusRes.ok) {
           areaStatus = await statusRes.json();
+        }
+
+        if (zoneStatesRes.ok) {
+          const zs = await zoneStatesRes.json();
+          zoneStates = zs.zone_states || {};
         }
 
         renderAreas();
@@ -1691,6 +1817,57 @@
         header.classList.toggle('collapsed', isCollapsed);
         table.classList.toggle('hidden', isCollapsed);
       }
+    }
+
+    // Collapsed rhythm state (persisted in localStorage)
+    function getCollapsedRhythms() {
+      try {
+        return JSON.parse(localStorage.getItem('areas_collapsed_rhythms') || '{}');
+      } catch { return {}; }
+    }
+
+    function setRhythmCollapsed(rhythmName, collapsed) {
+      const st = getCollapsedRhythms();
+      st[rhythmName] = collapsed;
+      localStorage.setItem('areas_collapsed_rhythms', JSON.stringify(st));
+    }
+
+    function toggleRhythm(rhythmName) {
+      const st = getCollapsedRhythms();
+      const isCollapsed = !st[rhythmName];
+      setRhythmCollapsed(rhythmName, isCollapsed);
+
+      const header = document.querySelector(`[data-rhythm="${CSS.escape(rhythmName)}"]`);
+      const content = document.querySelector(`[data-rhythm-content="${CSS.escape(rhythmName)}"]`);
+      if (header && content) {
+        header.classList.toggle('collapsed', isCollapsed);
+        content.classList.toggle('hidden', isCollapsed);
+      }
+    }
+
+    function zoneReset(zoneName) {
+      // Find the first area_id in this zone
+      for (const area of areas) {
+        const status = areaStatus[area.area_id] || {};
+        if (status.zone_name === zoneName) {
+          rowAction(area.area_id, 'glo_reset');
+          return;
+        }
+      }
+    }
+
+    /**
+     * Compute pure rhythm brightness/kelvin at current hour from cachedConfig with empty state.
+     * Returns { brightness, kelvin } or null if config not available.
+     */
+    function getPureRhythmValues() {
+      if (!cachedConfig || !cachedSunTimes) return null;
+      const now = new Date();
+      const currentHour = now.getHours() + now.getMinutes() / 60;
+      const emptyState = { brightness_mid: null, color_mid: null, color_override: null, frozen_at: null };
+      const brightness = calcMiniBrightness(currentHour, cachedConfig, emptyState, currentHour) * 100;
+      const kelvin = calcMiniColor(currentHour, cachedConfig, emptyState, cachedSunTimes, currentHour);
+      return { brightness, kelvin };
     }
 
     function renderAreas() {
@@ -1769,6 +1946,7 @@
 
       // Collapsed state
       const collapsedState = getCollapsedZones();
+      const collapsedRhythms = getCollapsedRhythms();
 
       // Status filter HTML
       const statusOptions = `
@@ -1781,6 +1959,12 @@
       // Chevron icon
       const chevronIcon = `<svg class="zone-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>`;
 
+      // Reset icon (double-down chevron)
+      const zoneResetIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 4 12 10 18 4"/><polyline points="6 10 12 16 18 10"/></svg>`;
+
+      // Pure rhythm values for red dot comparisons
+      const pureRhythm = getPureRhythmValues();
+
       // Build zone groups HTML
       let html = `
         <div style="margin-bottom: 16px;">
@@ -1792,42 +1976,43 @@
         const isCollapsed = collapsedState[zoneName] || false;
         const sorted = sortAreas(areasInZone);
 
-        // Compute zone header shading from average brightness/CCT of on areas
+        // Use zone's own brightness/kelvin from zoneStates
         let zoneHeaderStyle = '';
         let zoneTextColor = 'var(--text)';
         let zoneLightingInfo = '';
-        let zoneRhythmHtml = '';
+        let zoneMismatchDot = '';
 
-        const onAreas = areasInZone.filter(a => a.is_on);
-        if (onAreas.length > 0) {
-          const avgBri = onAreas.reduce((s, a) => s + a.brightness, 0) / onAreas.length;
-          const avgKelvin = onAreas.reduce((s, a) => s + a.kelvin, 0) / onAreas.length;
-          const cctColor = cctToRGB(avgKelvin);
-          const tintedColor = tintColorByBrightness(cctColor, avgBri);
+        const zs = zoneStates[zoneName];
+        if (zs) {
+          const zoneBri = zs.brightness;
+          const zoneKelvin = zs.kelvin;
+          const cctColor = cctToRGB(zoneKelvin);
+          const tintedColor = tintColorByBrightness(cctColor, zoneBri);
           zoneTextColor = readableTextColor(tintedColor);
           zoneHeaderStyle = `background: ${tintedColor}; color: ${zoneTextColor};`;
-          zoneLightingInfo = `<span style="font-size: 0.8rem; opacity: 0.85;">${Math.round(avgBri)}% · ${Math.round(avgKelvin)}K</span>`;
+          zoneLightingInfo = `<span style="font-size: 0.8rem; opacity: 0.85;">${Math.round(zoneBri)}% · ${Math.round(zoneKelvin)}K</span>`;
+
+          // Red dot: zone doesn't match pure rhythm
+          if (pureRhythm) {
+            if (Math.round(zoneBri) !== Math.round(pureRhythm.brightness) ||
+                Math.round(zoneKelvin) !== Math.round(pureRhythm.kelvin)) {
+              zoneMismatchDot = '<span class="mismatch-dot-zone"></span>';
+            }
+          }
         }
 
-        // Get preset/rhythm name from first area with a preset
-        const presetArea = areasInZone.find(a => {
-          const s = areaStatus[a.area_id] || {};
-          return s.preset_name;
-        });
-        if (presetArea) {
-          const presetName = (areaStatus[presetArea.area_id] || {}).preset_name;
-          zoneRhythmHtml = `<a href="./glo/${encodeURIComponent(presetName)}" class="context-link" style="font-size: 0.8rem; margin-left: 8px;" onclick="event.stopPropagation();">Rhythm: ${presetName}</a>`;
-        }
+        const escapedZoneName = zoneName.replace(/'/g, "\\'");
 
         return `
           <div class="zone-group">
-            <div class="zone-header ${isCollapsed ? 'collapsed' : ''}" data-zone="${zoneName}" onclick="toggleZone('${zoneName}')" style="${zoneHeaderStyle}">
+            <div class="zone-header ${isCollapsed ? 'collapsed' : ''}" data-zone="${zoneName}" onclick="toggleZone('${escapedZoneName}')" style="${zoneHeaderStyle}">
+              ${zoneMismatchDot}
               ${chevronIcon}
               <span class="zone-label" style="color: ${zoneTextColor}; opacity: 0.7;">Glo zone:</span>
               <span class="zone-name" style="color: ${zoneTextColor};">${zoneName}</span>
+              <span style="font-size: 0.8rem; color: ${zoneTextColor}; opacity: 0.5;">(${areasInZone.length} area${areasInZone.length !== 1 ? 's' : ''})</span>
               ${zoneLightingInfo}
-              ${zoneRhythmHtml}
-              <span class="zone-count" style="color: ${zoneTextColor}; opacity: 0.7;">${areasInZone.length} area${areasInZone.length !== 1 ? 's' : ''}</span>
+              <button class="zone-reset-btn" onclick="event.stopPropagation(); zoneReset('${escapedZoneName}')" title="Reset GloZone to Rhythm">${zoneResetIcon}</button>
             </div>
             <div class="zone-content ${isCollapsed ? 'hidden' : ''}" data-zone-table="${zoneName}">
               ${sorted.map(area => renderAreaRow(area)).join('')}
@@ -1836,12 +2021,86 @@
         `;
       };
 
-      // Render each zone group
+      // Group zones by rhythm/preset
+      const rhythmGroups = {};
+      const unassignedRhythmZones = [];
+
       for (const zoneName of zoneNames) {
-        html += renderZoneGroup(zoneName, zoneGroups[zoneName]);
+        const zs = zoneStates[zoneName];
+        const presetName = zs ? zs.preset : null;
+        if (presetName) {
+          if (!rhythmGroups[presetName]) rhythmGroups[presetName] = [];
+          rhythmGroups[presetName].push(zoneName);
+        } else {
+          unassignedRhythmZones.push(zoneName);
+        }
       }
 
-      // Render unassigned at the end
+      const rhythmNames = Object.keys(rhythmGroups).sort();
+
+      // Render rhythm groups
+      const renderRhythmGroup = (rhythmName, rhythmZoneNames) => {
+        const isCollapsed = collapsedRhythms[rhythmName] || false;
+        const escapedName = rhythmName.replace(/'/g, "\\'");
+
+        // Rhythm header color from pure rhythm values
+        let rhythmHeaderStyle = '';
+        let rhythmTextColor = 'var(--text)';
+        let rhythmLightingInfo = '';
+
+        if (pureRhythm) {
+          const cctColor = cctToRGB(pureRhythm.kelvin);
+          const tintedColor = tintColorByBrightness(cctColor, pureRhythm.brightness);
+          rhythmTextColor = readableTextColor(tintedColor);
+          rhythmHeaderStyle = `background: ${tintedColor}; color: ${rhythmTextColor};`;
+          rhythmLightingInfo = `<span class="rhythm-lighting" style="color: ${rhythmTextColor};">${Math.round(pureRhythm.brightness)}% · ${Math.round(pureRhythm.kelvin)}K</span>`;
+        }
+
+        let zonesHtml = '';
+        for (const zn of rhythmZoneNames) {
+          zonesHtml += renderZoneGroup(zn, zoneGroups[zn]);
+        }
+
+        return `
+          <div class="rhythm-group">
+            <div class="rhythm-header ${isCollapsed ? 'collapsed' : ''}" data-rhythm="${rhythmName}" onclick="toggleRhythm('${escapedName}')" style="${rhythmHeaderStyle}">
+              ${chevronIcon}
+              <span class="rhythm-label" style="color: ${rhythmTextColor}; opacity: 0.7;">Rhythm:</span>
+              <a href="./glo/${encodeURIComponent(rhythmName)}" class="rhythm-name-link" onclick="event.stopPropagation();" style="color: ${rhythmTextColor};">${rhythmName}</a>
+              ${rhythmLightingInfo}
+            </div>
+            <div class="rhythm-content ${isCollapsed ? 'hidden' : ''}" data-rhythm-content="${rhythmName}">
+              ${zonesHtml}
+            </div>
+          </div>
+        `;
+      };
+
+      for (const rhythmName of rhythmNames) {
+        html += renderRhythmGroup(rhythmName, rhythmGroups[rhythmName]);
+      }
+
+      // Unassigned rhythm zones
+      if (unassignedRhythmZones.length > 0) {
+        let unassignedZonesHtml = '';
+        for (const zn of unassignedRhythmZones) {
+          unassignedZonesHtml += renderZoneGroup(zn, zoneGroups[zn]);
+        }
+        html += `
+          <div class="rhythm-group">
+            <div class="rhythm-header ${collapsedRhythms['Unassigned'] ? 'collapsed' : ''}" data-rhythm="Unassigned" onclick="toggleRhythm('Unassigned')" style="">
+              ${chevronIcon}
+              <span class="rhythm-label">Rhythm:</span>
+              <span style="font-weight: 600; font-size: 0.9rem; color: var(--muted);">Unassigned</span>
+            </div>
+            <div class="rhythm-content ${collapsedRhythms['Unassigned'] ? 'hidden' : ''}" data-rhythm-content="Unassigned">
+              ${unassignedZonesHtml}
+            </div>
+          </div>
+        `;
+      }
+
+      // Render unassigned areas (no zone) at the end
       if (unassigned.length > 0) {
         html += renderZoneGroup('Unassigned', unassigned);
       }
@@ -1863,8 +2122,19 @@
       const lightingInfo = getLightingInfo(area);
       const { leftControls, rightControls } = getRowControls(area);
 
+      // Red dot: area doesn't match zone values
+      let mismatchDot = '';
+      if (area.zone_name && zoneStates[area.zone_name]) {
+        const zs = zoneStates[area.zone_name];
+        if (Math.round(area.brightness) !== Math.round(zs.brightness) ||
+            Math.round(area.kelvin) !== Math.round(zs.kelvin)) {
+          mismatchDot = '<span class="mismatch-dot-area"></span>';
+        }
+      }
+
       return `
         <div class="area-row" style="--row-bg: ${style.bg}; --row-text: ${style.textColor}; --row-fill: ${style.fill.toFixed(3)};" onclick="openAreaModal('${area.area_id}')">
+          ${mismatchDot}
           ${leftControls}
           <span class="area-row-name">${area.name}</span>
           <span class="area-row-lighting">${lightingInfo}</span>
@@ -2211,12 +2481,19 @@
       modalRefreshInterval = setInterval(async () => {
         if (!selectedArea) return;
         try {
-          const res = await fetch('./api/area-status');
+          const [res, zsRes] = await Promise.all([
+            fetch('./api/area-status'),
+            fetch('./api/zone-states')
+          ]);
           if (res.ok) {
             areaStatus = await res.json();
-            updateModalContent(selectedArea.area_id, false);
-            renderAreas();
           }
+          if (zsRes.ok) {
+            const zs = await zsRes.json();
+            zoneStates = zs.zone_states || {};
+          }
+          updateModalContent(selectedArea.area_id, false);
+          renderAreas();
         } catch (err) {
           console.error('Error refreshing modal:', err);
         }
@@ -2257,12 +2534,19 @@
         });
 
         if (response.ok) {
-          // Re-fetch area status only, then update modal in place
+          // Re-fetch area status + zone states, then update modal in place
           setTimeout(async () => {
             try {
-              const statusRes = await fetch('./api/area-status');
+              const [statusRes, zsRes] = await Promise.all([
+                fetch('./api/area-status'),
+                fetch('./api/zone-states')
+              ]);
               if (statusRes.ok) {
                 areaStatus = await statusRes.json();
+              }
+              if (zsRes.ok) {
+                const zs = await zsRes.json();
+                zoneStates = zs.zone_states || {};
               }
               // Re-render modal content without closing
               if (selectedArea && selectedArea.area_id === areaId) {
@@ -2303,12 +2587,19 @@
         });
 
         if (response.ok) {
-          // Re-fetch area status and update table
+          // Re-fetch area status + zone states and update table
           setTimeout(async () => {
             try {
-              const statusRes = await fetch('./api/area-status');
+              const [statusRes, zsRes] = await Promise.all([
+                fetch('./api/area-status'),
+                fetch('./api/zone-states')
+              ]);
               if (statusRes.ok) {
                 areaStatus = await statusRes.json();
+              }
+              if (zsRes.ok) {
+                const zs = await zsRes.json();
+                zoneStates = zs.zone_states || {};
               }
               renderAreas();
               // Also update modal if it's open for this area

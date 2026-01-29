@@ -1,5 +1,19 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.220
+**Zone headers, rhythm grouping, red dots, modal reset icon**
+
+- Zone headers now use zone's own brightness/kelvin from `/api/zone-states` (not averaged from areas)
+- Zone header format: "Glo zone: Name (N areas)" with subtle muted area count
+- GloReset button (double-down chevron) on zone header right side — resets zone to rhythm
+- Rhythm grouping: zones grouped by preset name in collapsible rhythm sections above zone groups
+- Rhythm headers colored by pure rhythm values, with link to Glo Designer
+- Red dot on area rows when area brightness/kelvin doesn't match zone values
+- Slightly larger red dot on zone headers when zone values don't match pure rhythm
+- Modal reset button changed from double-down chevron to circular arrow icon
+- Area row reset button unchanged (still double-down chevron)
+- Fetch `/api/zone-states` alongside area data on load, refresh, and after actions
+
 ## 6.9.219
 **Home page UI polish: filtering, buttons, zone headers, chart tweaks**
 
