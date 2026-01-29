@@ -2476,11 +2476,6 @@ class LightDesignerServer:
             # Handle rename if "name" field is provided
             new_name = data.pop("name", None)
             if new_name and new_name != name:
-                if name == glozone.DEFAULT_PRESET:
-                    return web.json_response(
-                        {"error": f"Cannot rename default Glo '{name}'"},
-                        status=400
-                    )
                 if new_name in config.get("circadian_presets", {}):
                     return web.json_response(
                         {"error": f"Glo '{new_name}' already exists"},

@@ -1,5 +1,11 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.208
+**Allow renaming the default Glo preset**
+
+- Removed restriction preventing rename of "Glo 1" (default preset)
+- All zone references are already updated on rename, so the guard was unnecessary
+
 ## 6.9.207
 **Fix: Boost toggle now works reliably**
 
