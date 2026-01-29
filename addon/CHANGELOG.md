@@ -1,5 +1,16 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.210
+**Modal improvements, chart fixes, and rename Control zones to Glo zones**
+
+- Modal header: removed status text (Off/On/Circadian), enlarged brightness/color values with freeze icon inline
+- Added Glo zone and Rhythm context info links above the chart in area modal
+- Removed redundant Control Zone section from bottom of modal
+- Fixed chart annotation positions: wake/bed labels moved below x-axis tick labels, sunrise/sunset lines stop at x-axis, now label lowered to avoid overlap
+- Added hover tooltips on wake/bed/sunrise/sunset chart labels showing exact times
+- Renamed "Control zones" to "Glo zones" in all navigation links
+- Added preset_name to area status API response
+
 ## 6.9.209
 **Smarter rhythm deletion restrictions**
 

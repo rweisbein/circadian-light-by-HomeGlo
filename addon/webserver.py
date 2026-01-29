@@ -2110,6 +2110,7 @@ class LightDesignerServer:
                         'frozen': area_state.frozen_at is not None,
                         'boosted': is_boosted,
                         'zone_name': zone_name if zone_name != 'Unassigned' else None,
+                        'preset_name': zone_data.get('preset', 'Glo 1'),
                         # Raw state model
                         'brightness_mid': area_state.brightness_mid,
                         'color_mid': area_state.color_mid,

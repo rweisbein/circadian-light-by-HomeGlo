@@ -369,19 +369,17 @@
     .area-state-info {
       flex: 1;
       min-width: 0;
-    }
-
-    .area-state-status {
-      font-size: 0.9rem;
-      margin-bottom: 4px;
       display: flex;
       align-items: center;
-      gap: 6px;
     }
 
     .area-state-values {
-      font-size: 1.1rem;
+      font-size: 1.4rem;
       font-weight: 500;
+      display: flex;
+      align-items: center;
+      height: 100%;
+      gap: 6px;
     }
 
     .area-state-controls {
@@ -487,49 +485,33 @@
       border-color: var(--accent);
     }
 
-    /* Glo Zone section */
-    .glo-section {
-      margin-top: 16px;
-      padding-top: 16px;
-      border-top: 1px solid var(--line);
-    }
-
-    .glo-section-title {
-      font-size: 0.8rem;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 4px;
-      text-align: center;
-    }
-
-    .glo-zone-name {
-      font-size: 0.9rem;
-      color: var(--text);
-      text-align: center;
-      margin-bottom: 10px;
-    }
-
-    .glo-buttons {
+    /* Modal context info (Glo zone + Rhythm) */
+    .modal-context-info {
       display: flex;
-      justify-content: center;
-      gap: 8px;
-    }
-
-    .glo-btn {
-      padding: 8px 16px;
-      border-radius: 6px;
+      gap: 20px;
+      padding: 6px 0;
       font-size: 0.85rem;
-      cursor: pointer;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      color: var(--text);
-      transition: all 0.2s;
     }
 
-    .glo-btn:hover {
-      background: rgba(255,255,255,0.1);
-      border-color: var(--accent);
+    .context-line {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .context-label {
+      color: var(--muted);
+    }
+
+    .context-link {
+      color: var(--accent);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .context-link:hover {
+      color: var(--accent-hover);
+      text-decoration: underline;
     }
 
     /* Action buttons */
@@ -856,7 +838,7 @@
     <div class="nav-links">
       <a href="./" class="nav-link active">Home</a>
       <a href="./glo" class="nav-link">Rhythms</a>
-      <a href="./zones" class="nav-link">Control zones</a>
+      <a href="./zones" class="nav-link">Glo zones</a>
       <a href="./switches" class="nav-link">Controls</a>
       <a href="./settings" class="nav-link">Settings</a>
     </div>
@@ -906,7 +888,6 @@
             </button>
           </div>
           <div class="area-state-info">
-            <div class="area-state-status" id="modal-status"></div>
             <div class="area-state-values" id="modal-values"></div>
           </div>
           <div class="area-state-controls">
@@ -937,6 +918,11 @@
         </div>
       </div>
 
+      <div class="modal-context-info" id="modal-context-info">
+        <div class="context-line"><span class="context-label">Glo zone:</span> <a href="./zones" class="context-link" id="modal-zone-link">—</a></div>
+        <div class="context-line"><span class="context-label">Rhythm:</span> <a href="./glo" class="context-link" id="modal-rhythm-link">—</a></div>
+      </div>
+
       <div id="modal-mini-chart"></div>
 
       <div class="adjust-section">
@@ -962,15 +948,6 @@
               <button class="adjust-btn" id="btn-color-down" onclick="executeAction('color_down')"><span class="btn-arrow">&#9660;</span></button>
             </div>
           </div>
-        </div>
-      </div>
-
-      <div class="glo-section">
-        <div class="glo-section-title">Control Zone</div>
-        <div class="glo-zone-name" id="modal-zone">No zone assigned</div>
-        <div class="glo-buttons">
-          <button class="glo-btn" onclick="executeAction('glo_up')" title="Push all settings - except power - to all areas in control zone">Push to zone</button>
-          <button class="glo-btn" onclick="executeAction('glo_reset')">Reset control zone</button>
         </div>
       </div>
 
@@ -1354,12 +1331,12 @@
 
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
-        x0: wakeTime, x1: wakeTime, y0: -0.04, y1: 1,
+        x0: wakeTime, x1: wakeTime, y0: -0.18, y1: 1,
         line: { color: '#5cb3ff', width: 1, dash: 'dot' }
       });
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
-        x0: bedTime, x1: bedTime, y0: -0.04, y1: 1,
+        x0: bedTime, x1: bedTime, y0: -0.18, y1: 1,
         line: { color: 'rgba(255,230,128,0.7)', width: 1, dash: 'dot' }
       });
 
@@ -1370,26 +1347,26 @@
       if (Number.isFinite(sunrise)) {
         shapes.push({
           type: 'line', xref: 'x', yref: 'paper',
-          x0: sunrise, x1: sunrise, y0: -0.12, y1: 0.3,
+          x0: sunrise, x1: sunrise, y0: -0.26, y1: 0,
           line: sunTickStyle
         });
       }
       if (Number.isFinite(sunset)) {
         shapes.push({
           type: 'line', xref: 'x', yref: 'paper',
-          x0: sunset, x1: sunset, y0: -0.12, y1: 0.3,
+          x0: sunset, x1: sunset, y0: -0.26, y1: 0,
           line: sunTickStyle
         });
       }
 
       // Layer 1: Wake/bed labels (below x-axis labels)
       annotations.push({
-        x: wakeTime, y: -0.14, xref: 'x', yref: 'paper',
+        x: wakeTime, y: -0.22, xref: 'x', yref: 'paper',
         text: 'wake', showarrow: false,
         font: { size: 10, color: '#5cb3ff' }
       });
       annotations.push({
-        x: bedTime, y: -0.14, xref: 'x', yref: 'paper',
+        x: bedTime, y: -0.22, xref: 'x', yref: 'paper',
         text: 'bed', showarrow: false,
         font: { size: 10, color: '#ffe680' }
       });
@@ -1397,14 +1374,14 @@
       // Layer 2: Sunrise/sunset labels (below wake/bed)
       if (Number.isFinite(sunrise)) {
         annotations.push({
-          x: sunrise, y: -0.24, xref: 'x', yref: 'paper',
+          x: sunrise, y: -0.30, xref: 'x', yref: 'paper',
           text: 'sunrise', showarrow: false,
           font: { size: 9, color: 'rgba(215,215,215,0.6)' }
         });
       }
       if (Number.isFinite(sunset)) {
         annotations.push({
-          x: sunset, y: -0.24, xref: 'x', yref: 'paper',
+          x: sunset, y: -0.30, xref: 'x', yref: 'paper',
           text: 'sunset', showarrow: false,
           font: { size: 9, color: 'rgba(215,215,215,0.6)' }
         });
@@ -1433,23 +1410,47 @@
       // Line from x-axis down to above label (stops before text)
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
-        x0: nowHour, x1: nowHour, y0: -0.30, y1: 0,
+        x0: nowHour, x1: nowHour, y0: -0.35, y1: 0,
         line: nowLineStyle, layer: 'above'
       });
 
       // Layer 3 (lowest): "Now" label with time
       const nowTimeStr = formatHourLabel(nowHour);
       annotations.push({
-        x: nowHour, y: -0.36, xref: 'x', yref: 'paper',
+        x: nowHour, y: -0.40, xref: 'x', yref: 'paper',
         text: `now<br>${nowTimeStr}`, showarrow: false,
         font: { size: 10, color: '#fdfdfd' },
         align: 'center'
       });
 
+      // Ghost markers for label tooltips (invisible scatter points that show times on hover)
+      const tooltipX = [wakeTime, bedTime];
+      const tooltipY = [0, 0];
+      const tooltipText = [formatHourLabel(wakeTime), formatHourLabel(bedTime)];
+      if (Number.isFinite(sunrise)) {
+        tooltipX.push(sunrise);
+        tooltipY.push(0);
+        tooltipText.push(formatHourLabel(sunrise));
+      }
+      if (Number.isFinite(sunset)) {
+        tooltipX.push(sunset);
+        tooltipY.push(0);
+        tooltipText.push(formatHourLabel(sunset));
+      }
+      traces.push({
+        type: 'scatter', mode: 'markers',
+        x: tooltipX, y: tooltipY,
+        marker: { size: 12, color: 'rgba(0,0,0,0)', line: { width: 0 } },
+        text: tooltipText,
+        hovertemplate: '%{text}<extra></extra>',
+        hoverlabel: { bgcolor: '#222', bordercolor: '#444', font: { color: '#eee', size: 12 } },
+        showlegend: false
+      });
+
       const layout = {
         paper_bgcolor: '#0a0a0a',
         plot_bgcolor: '#0a0a0a',
-        margin: { t: 24, r: 12, l: 36, b: 90 },
+        margin: { t: 24, r: 12, l: 36, b: 100 },
         hovermode: 'closest',
         xaxis: {
           range: [0, 24],
@@ -1786,7 +1787,7 @@
           <div class="zone-group">
             <div class="zone-header ${isCollapsed ? 'collapsed' : ''}" data-zone="${zoneName}" onclick="toggleZone('${zoneName}')">
               ${chevronIcon}
-              <span class="zone-label">Control zone:</span>
+              <span class="zone-label">Glo zone:</span>
               <span class="zone-name">${zoneName}</span>
               <span class="zone-count">${areasInZone.length} area${areasInZone.length !== 1 ? 's' : ''}</span>
             </div>
@@ -1993,6 +1994,7 @@
         kelvin: status.kelvin || 4000,
         frozen: status.frozen || false,
         zone_name: status.zone_name || null,
+        preset_name: status.preset_name || null,
         is_circadian: status.is_circadian || false
       };
 
@@ -2011,25 +2013,8 @@
         stateEl.style.setProperty('--state-fill', '0');
       }
 
-      // Status text with ice icon for frozen
-      const statusEl = document.getElementById('modal-status');
-      let statusText = '';
       // Snowflake/ice crystal icon
       const iceIcon = '<span class="freeze-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="2" x2="12" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/><line x1="19.07" y1="4.93" x2="4.93" y2="19.07"/><line x1="12" y1="2" x2="9" y2="5"/><line x1="12" y1="2" x2="15" y2="5"/><line x1="12" y1="22" x2="9" y2="19"/><line x1="12" y1="22" x2="15" y2="19"/><line x1="2" y1="12" x2="5" y2="9"/><line x1="2" y1="12" x2="5" y2="15"/><line x1="22" y1="12" x2="19" y2="9"/><line x1="22" y1="12" x2="19" y2="15"/></svg></span>';
-
-      if (!selectedArea.is_on) {
-        statusText = 'Off';
-      } else if (selectedArea.is_circadian) {
-        statusText = 'Circadian';
-      } else {
-        statusText = 'On';
-      }
-
-      if (selectedArea.frozen) {
-        statusEl.innerHTML = statusText + iceIcon;
-      } else {
-        statusEl.textContent = statusText;
-      }
 
       // Values - always show CT and brightness (calculated from curve when off)
       const valuesEl = document.getElementById('modal-values');
@@ -2040,7 +2025,6 @@
         const cctColor = cctToRGB(displayKelvin);
         const tintedColor = tintColorByBrightness(cctColor, displayBri);
         valuesEl.style.color = readableTextColor(tintedColor);
-        statusEl.style.color = readableTextColor(tintedColor);
       } else {
         // Calculate what circadian values would be right now
         if (cachedConfig && cachedSunTimes) {
@@ -2054,16 +2038,31 @@
           displayKelvin = 4000;
         }
         valuesEl.style.color = 'var(--muted)';
-        statusEl.style.color = '';
       }
-      valuesEl.textContent = `${Math.round(displayBri)}% • ${Math.round(displayKelvin)}K`;
 
-      // Zone (now in Control Zone section)
-      const zoneEl = document.getElementById('modal-zone');
-      if (selectedArea.zone_name) {
-        zoneEl.textContent = selectedArea.zone_name;
+      // Show values with freeze icon if frozen
+      if (selectedArea.frozen) {
+        valuesEl.innerHTML = `${Math.round(displayBri)}% &bull; ${Math.round(displayKelvin)}K ${iceIcon}`;
       } else {
-        zoneEl.textContent = 'No zone assigned';
+        valuesEl.textContent = `${Math.round(displayBri)}% • ${Math.round(displayKelvin)}K`;
+      }
+
+      // Context info (Glo zone + Rhythm)
+      const zoneLinkEl = document.getElementById('modal-zone-link');
+      const rhythmLinkEl = document.getElementById('modal-rhythm-link');
+      if (selectedArea.zone_name) {
+        zoneLinkEl.textContent = selectedArea.zone_name;
+        zoneLinkEl.href = './zones';
+      } else {
+        zoneLinkEl.textContent = 'Unassigned';
+        zoneLinkEl.href = './zones';
+      }
+      if (selectedArea.preset_name) {
+        rhythmLinkEl.textContent = selectedArea.preset_name;
+        rhythmLinkEl.href = `./glo/${encodeURIComponent(selectedArea.preset_name)}`;
+      } else {
+        rhythmLinkEl.textContent = '—';
+        rhythmLinkEl.href = './glo';
       }
 
       // State model
