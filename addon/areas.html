@@ -1863,26 +1863,13 @@
     function getPureRhythmValues(presetName) {
       if (!cachedSunTimes) return null;
 
-      // Build config from preset's own settings only (not inheriting from cachedConfig,
-      // which contains the FIRST preset's settings and would leak into other presets).
-      // Missing keys use the same defaults as the server's Config.from_dict().
+      // Build config: start with cachedConfig (which has the effective first preset's
+      // settings flattened by /api/config), then overlay the specific preset's settings.
+      // Once the server-side glozone.py fix propagates complete preset configs via
+      // /api/circadian-presets, the overlay will contain all keys directly.
       let cfg;
       if (presetName && cachedPresets[presetName]) {
-        const presetDefaults = {
-          min_brightness: 1, max_brightness: 100,
-          min_color_temp: 500, max_color_temp: 6500,
-          ascend_start: 3.0, descend_start: 12.0,
-          wake_time: 6.0, bed_time: 22.0,
-          wake_speed: 8, bed_speed: 6,
-          warm_night_enabled: false, warm_night_mode: 'all',
-          warm_night_target: 2700, warm_night_start: -60,
-          warm_night_end: 60, warm_night_fade: 60,
-          cool_day_enabled: false, cool_day_mode: 'all',
-          cool_day_target: 6500, cool_day_start: 0,
-          cool_day_end: 0, cool_day_fade: 60,
-          max_dim_steps: 10,
-        };
-        cfg = { ...presetDefaults, ...cachedPresets[presetName] };
+        cfg = { ...cachedConfig, ...cachedPresets[presetName] };
       } else if (cachedConfig) {
         cfg = cachedConfig;
       } else {
