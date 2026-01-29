@@ -1,5 +1,19 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.219
+**Home page UI polish: filtering, buttons, zone headers, chart tweaks**
+
+- Filter "Circadian_Zigbee_Groups" from areas API (hidden on Home and Glo Zones pages)
+- Mute wake/bed vertical lines in modal chart (subtle 0.25 alpha instead of prominent)
+- Remove GloUp button from modal header (kept in area row only)
+- Fix chart rendering delay: use setTimeout(50ms) instead of requestAnimationFrame, add cachedSunTimes guard
+- Zone headers: colored background matching average brightness/CCT of on areas
+- Zone headers: show brightness % and color temp (e.g. "72% · 3200K")
+- Zone headers: show rhythm name with link to Glo Designer
+- Remove freeze and boost buttons from area rows (kept in modal only)
+- Reset button: new double-down chevron icon, tooltip "Pull Area's light from Glo Zone's"
+- GloUp button: tooltip updated to "Push Area's light to Glo Zone"
+
 ## 6.9.218
 **Fix: Boost now actually changes lights (complete fix)**
 

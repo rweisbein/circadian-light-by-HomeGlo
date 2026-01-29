@@ -908,10 +908,10 @@
             <div class="area-state-values" id="modal-values"></div>
           </div>
           <div class="area-state-controls">
-            <button class="toggle-btn" id="toggle-reset" onclick="executeAction('reset')" title="Reset">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-                <path d="M3 3v5h5"/>
+            <button class="toggle-btn" id="toggle-reset" onclick="executeAction('reset')" title="Pull Area's light from Glo Zone's">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="6 4 12 10 18 4"/>
+                <polyline points="6 10 12 16 18 10"/>
               </svg>
             </button>
             <button class="toggle-btn" id="toggle-freeze" onclick="executeAction('freeze_toggle')" title="Freeze">
@@ -923,12 +923,6 @@
             <button class="toggle-btn" id="toggle-boost" onclick="executeAction('boost')" title="Boost">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-              </svg>
-            </button>
-            <button class="toggle-btn" id="toggle-glo-up" onclick="executeAction('glo_up')" title="Push to zone">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <polyline points="6 15 12 9 18 15"/>
-                <polyline points="6 20 12 14 18 20"/>
               </svg>
             </button>
           </div>
@@ -1363,12 +1357,12 @@
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
         x0: wakeTime, x1: wakeTime, y0: -0.18, y1: 1,
-        line: { color: '#5cb3ff', width: 1, dash: 'dot' }
+        line: { color: 'rgba(92, 179, 255, 0.25)', width: 1, dash: 'dot' }
       });
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
         x0: bedTime, x1: bedTime, y0: -0.18, y1: 1,
-        line: { color: 'rgba(255,230,128,0.7)', width: 1, dash: 'dot' }
+        line: { color: 'rgba(255, 230, 128, 0.25)', width: 1, dash: 'dot' }
       });
 
       // Sunrise/sunset vertical ticks (partial height, from below axis to ~30% of graph)
@@ -1798,13 +1792,42 @@
         const isCollapsed = collapsedState[zoneName] || false;
         const sorted = sortAreas(areasInZone);
 
+        // Compute zone header shading from average brightness/CCT of on areas
+        let zoneHeaderStyle = '';
+        let zoneTextColor = 'var(--text)';
+        let zoneLightingInfo = '';
+        let zoneRhythmHtml = '';
+
+        const onAreas = areasInZone.filter(a => a.is_on);
+        if (onAreas.length > 0) {
+          const avgBri = onAreas.reduce((s, a) => s + a.brightness, 0) / onAreas.length;
+          const avgKelvin = onAreas.reduce((s, a) => s + a.kelvin, 0) / onAreas.length;
+          const cctColor = cctToRGB(avgKelvin);
+          const tintedColor = tintColorByBrightness(cctColor, avgBri);
+          zoneTextColor = readableTextColor(tintedColor);
+          zoneHeaderStyle = `background: ${tintedColor}; color: ${zoneTextColor};`;
+          zoneLightingInfo = `<span style="font-size: 0.8rem; opacity: 0.85;">${Math.round(avgBri)}% · ${Math.round(avgKelvin)}K</span>`;
+        }
+
+        // Get preset/rhythm name from first area with a preset
+        const presetArea = areasInZone.find(a => {
+          const s = areaStatus[a.area_id] || {};
+          return s.preset_name;
+        });
+        if (presetArea) {
+          const presetName = (areaStatus[presetArea.area_id] || {}).preset_name;
+          zoneRhythmHtml = `<a href="./glo/${encodeURIComponent(presetName)}" class="context-link" style="font-size: 0.8rem; margin-left: 8px;" onclick="event.stopPropagation();">Rhythm: ${presetName}</a>`;
+        }
+
         return `
           <div class="zone-group">
-            <div class="zone-header ${isCollapsed ? 'collapsed' : ''}" data-zone="${zoneName}" onclick="toggleZone('${zoneName}')">
+            <div class="zone-header ${isCollapsed ? 'collapsed' : ''}" data-zone="${zoneName}" onclick="toggleZone('${zoneName}')" style="${zoneHeaderStyle}">
               ${chevronIcon}
-              <span class="zone-label">Glo zone:</span>
-              <span class="zone-name">${zoneName}</span>
-              <span class="zone-count">${areasInZone.length} area${areasInZone.length !== 1 ? 's' : ''}</span>
+              <span class="zone-label" style="color: ${zoneTextColor}; opacity: 0.7;">Glo zone:</span>
+              <span class="zone-name" style="color: ${zoneTextColor};">${zoneName}</span>
+              ${zoneLightingInfo}
+              ${zoneRhythmHtml}
+              <span class="zone-count" style="color: ${zoneTextColor}; opacity: 0.7;">${areasInZone.length} area${areasInZone.length !== 1 ? 's' : ''}</span>
             </div>
             <div class="zone-content ${isCollapsed ? 'hidden' : ''}" data-zone-table="${zoneName}">
               ${sorted.map(area => renderAreaRow(area)).join('')}
@@ -1920,10 +1943,10 @@
         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
       </svg>`;
 
-      // Reset icon (circular arrow)
-      const resetIconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-        <path d="M3 3v5h5"/>
+      // Reset icon (double-down chevron — pull from zone)
+      const resetIconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <polyline points="6 4 12 10 18 4"/>
+        <polyline points="6 10 12 16 18 10"/>
       </svg>`;
 
       // Push to zone icon (double up chevron)
@@ -1941,10 +1964,8 @@
 
       const rightControls = `
         <div class="row-controls">
-          <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'reset')" title="Reset">${resetIconSvg}</button>
-          <button class="row-btn ${isFrozen ? 'active' : ''}" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'freeze_toggle')" title="Freeze">${lockIconSvg}</button>
-          <button class="row-btn ${isBoosted ? 'active' : ''}" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'boost')" title="Boost">${boostIconSvg}</button>
-          <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'glo_up')" title="Push to zone">${pushIconSvg}</button>
+          <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'reset')" title="Pull Area's light from Glo Zone's">${resetIconSvg}</button>
+          <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'glo_up')" title="Push Area's light to Glo Zone">${pushIconSvg}</button>
         </div>
       `;
 
@@ -2115,7 +2136,7 @@
 
     function renderMiniChartForArea(areaId) {
       const status = areaStatus[areaId] || {};
-      if (!cachedConfig) return;
+      if (!cachedConfig || !cachedSunTimes) return;
 
       const areaState = {
         brightness_mid: status.brightness_mid ?? null,
@@ -2179,10 +2200,10 @@
       const modal = document.getElementById('area-modal');
       modal.classList.add('visible');
 
-      // Small delay to let modal transition start and element get dimensions
-      requestAnimationFrame(() => {
+      // Small delay to let modal transition complete and element get dimensions
+      setTimeout(() => {
         renderMiniChartForArea(areaId);
-      });
+      }, 50);
 
       // Start live countdown tick (1s) and API refresh (10s)
       clearModalIntervals();

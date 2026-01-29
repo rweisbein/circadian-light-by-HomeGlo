@@ -1953,11 +1953,12 @@ class LightDesignerServer:
 
                 logger.info(f"[Live Design] Found {len(areas_with_lights)} areas with lights")
 
-                # Return only areas that have lights
+                # Return only areas that have lights (exclude internal groups area)
                 areas = [
                     {'area_id': area_id, 'name': all_areas[area_id]}
                     for area_id in areas_with_lights
                     if area_id in all_areas
+                    and all_areas[area_id] != 'Circadian_Zigbee_Groups'
                 ]
                 areas.sort(key=lambda x: x['name'].lower())
                 logger.info(f"[Live Design] Returning {len(areas)} areas with lights")
