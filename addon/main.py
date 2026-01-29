@@ -3397,25 +3397,25 @@ class HomeAssistantWebSocketClient:
                 if isinstance(first_item, dict) and "entity_id" in first_item:
                     # This is states data - update our cache
                     self.cached_states.clear()
-                    for state in result:
-                        entity_id = state.get("entity_id", "")
-                        self.cached_states[entity_id] = state
-                        
-                        attributes = state.get("attributes", {})
-                        
+                    for entity_state in result:
+                        entity_id = entity_state.get("entity_id", "")
+                        self.cached_states[entity_id] = entity_state
+
+                        attributes = entity_state.get("attributes", {})
+
                         # Store initial sun data
                         if entity_id == "sun.sun":
                             self.sun_data = attributes
                             logger.info(f"Initial sun data: elevation={self.sun_data.get('elevation')}")
-                        
+
                         # Detect ZHA group light entities (Circadian_AREA pattern)
                         if entity_id.startswith("light."):
                             # Check both entity_id and friendly_name for Circadian_ pattern
                             friendly_name = attributes.get("friendly_name", "")
-                            
+
                             # Debug log all light entities
                             logger.debug(f"Light entity: {entity_id}, friendly_name: {friendly_name}")
-                            
+
                             # Use the centralized method to update ZHA group mapping
                             self._update_area_group_mapping(entity_id, friendly_name, attributes)
                     
@@ -3424,9 +3424,9 @@ class HomeAssistantWebSocketClient:
                     
                     # Log ALL light entities for debugging
                     all_lights = []
-                    for entity_id, state in self.cached_states.items():
+                    for entity_id, entity_state in self.cached_states.items():
                         if entity_id.startswith("light."):
-                            friendly_name = state.get("attributes", {}).get("friendly_name", "")
+                            friendly_name = entity_state.get("attributes", {}).get("friendly_name", "")
                             all_lights.append((entity_id, friendly_name))
                     
                     if all_lights:
@@ -3669,10 +3669,10 @@ class HomeAssistantWebSocketClient:
                     logger.info(f"Found {light_count} light entities")
                     
                     # Process states to extract grouped light mappings
-                    for state in states:
-                        entity_id = state.get("entity_id", "")
+                    for entity_state in states:
+                        entity_id = entity_state.get("entity_id", "")
                         if entity_id.startswith("light."):
-                            attributes = state.get("attributes", {})
+                            attributes = entity_state.get("attributes", {})
                             friendly_name = attributes.get("friendly_name", "")
                             self._update_area_group_mapping(entity_id, friendly_name, attributes)
                     
