@@ -517,7 +517,7 @@
     }
 
     .timer-boost {
-      color: var(--accent);
+      color: var(--muted);
       margin-left: auto;
     }
 
@@ -978,6 +978,8 @@
     let selectedArea = null;
     let cachedConfig = null;
     let cachedSunTimes = null; // { sunrise, sunset, solarNoon, solarMid } in local hours
+    let modalTickInterval = null;   // 1s local countdown tick
+    let modalRefreshInterval = null; // 10s API refresh
 
     // ============================================================
     // Mini Circadian Graph — Calculation Functions
@@ -2100,33 +2102,7 @@
       }
 
       // Timer status (motion + boost)
-      const timerEl = document.getElementById('modal-timer-status');
-      const timerParts = [];
-
-      // Motion: only show timed expirations (not "forever")
-      if (selectedArea.motion_expires_at && selectedArea.motion_expires_at !== 'forever') {
-        const motionRemaining = formatCountdown(selectedArea.motion_expires_at);
-        if (motionRemaining) {
-          timerParts.push(`<span class="timer-motion">Motion: ${motionRemaining}<span class="timer-arrow">→</span>off</span>`);
-        }
-      }
-
-      // Boost: show amount + countdown + outcome
-      if (selectedArea.boosted && selectedArea.boost_brightness) {
-        let boostText = `+${selectedArea.boost_brightness}%`;
-        if (selectedArea.boost_expires_at === 'forever') {
-          boostText += ' · forever';
-        } else if (selectedArea.boost_expires_at) {
-          const boostRemaining = formatCountdown(selectedArea.boost_expires_at);
-          if (boostRemaining) {
-            const outcome = selectedArea.boost_started_from_off ? 'off' : 'rhythm';
-            boostText += ` · ${boostRemaining}<span class="timer-arrow">→</span>${outcome}`;
-          }
-        }
-        timerParts.push(`<span class="timer-boost">Boost: ${boostText}</span>`);
-      }
-
-      timerEl.innerHTML = timerParts.join('');
+      updateTimerStatus();
 
       // Update toggle button states
       const powerBtn = document.getElementById('toggle-power');
@@ -2180,6 +2156,38 @@
       styleAdjustButtons(areaId);
     }
 
+    function updateTimerStatus() {
+      if (!selectedArea) return;
+      const timerEl = document.getElementById('modal-timer-status');
+      if (!timerEl) return;
+      const parts = [];
+
+      // Motion: only show timed expirations (not "forever")
+      if (selectedArea.motion_expires_at && selectedArea.motion_expires_at !== 'forever') {
+        const remaining = formatCountdown(selectedArea.motion_expires_at);
+        if (remaining) {
+          parts.push(`<span class="timer-motion">Motion: ${remaining}<span class="timer-arrow">→</span>off</span>`);
+        }
+      }
+
+      // Boost: show amount + countdown + outcome
+      if (selectedArea.boosted && selectedArea.boost_brightness) {
+        let text = `+${selectedArea.boost_brightness}%`;
+        if (selectedArea.boost_expires_at === 'forever') {
+          text += ' · forever';
+        } else if (selectedArea.boost_expires_at) {
+          const remaining = formatCountdown(selectedArea.boost_expires_at);
+          if (remaining) {
+            const outcome = selectedArea.boost_started_from_off ? 'off' : 'rhythm';
+            text += ` · ${remaining}<span class="timer-arrow">→</span>${outcome}`;
+          }
+        }
+        parts.push(`<span class="timer-boost">Boost: ${text}</span>`);
+      }
+
+      timerEl.innerHTML = parts.join('');
+    }
+
     function openAreaModal(areaId) {
       updateModalContent(areaId, false);  // Update content but don't render chart yet
 
@@ -2191,9 +2199,32 @@
       requestAnimationFrame(() => {
         renderMiniChartForArea(areaId);
       });
+
+      // Start live countdown tick (1s) and API refresh (10s)
+      clearModalIntervals();
+      modalTickInterval = setInterval(updateTimerStatus, 1000);
+      modalRefreshInterval = setInterval(async () => {
+        if (!selectedArea) return;
+        try {
+          const res = await fetch('./api/area-status');
+          if (res.ok) {
+            areaStatus = await res.json();
+            updateModalContent(selectedArea.area_id, false);
+            renderAreas();
+          }
+        } catch (err) {
+          console.error('Error refreshing modal:', err);
+        }
+      }, 10000);
+    }
+
+    function clearModalIntervals() {
+      if (modalTickInterval) { clearInterval(modalTickInterval); modalTickInterval = null; }
+      if (modalRefreshInterval) { clearInterval(modalRefreshInterval); modalRefreshInterval = null; }
     }
 
     function closeModal() {
+      clearModalIntervals();
       document.getElementById('area-modal').classList.remove('visible');
       selectedArea = null;
     }

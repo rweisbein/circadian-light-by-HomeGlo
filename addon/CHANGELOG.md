@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.213
+**Live countdown timers and consistent styling**
+
+- Timer countdowns now tick every second while modal is open (local calculation, no API calls)
+- Area status refreshes from API every 10 seconds while modal is open (updates all state including timers, toggles, values)
+- Changed boost status color from orange to muted grey to match motion status
+- Intervals are cleared on modal close to avoid background work
+
 ## 6.9.212
 **Fix boost status display and remove debug box**
 
