@@ -2512,31 +2512,34 @@ class LightDesignerServer:
             return web.json_response({"error": str(e)}, status=500)
 
     async def delete_circadian_preset(self, request: Request) -> Response:
-        """Delete a circadian preset."""
+        """Delete a circadian preset (rhythm)."""
         try:
             name = request.match_info.get("name")
 
-            if name == glozone.DEFAULT_PRESET:
+            config = await self.load_raw_config()
+            presets = config.get("circadian_presets", {})
+
+            if name not in presets:
+                return web.json_response({"error": f"Rhythm '{name}' not found"}, status=404)
+
+            # Cannot delete the last preset
+            if len(presets) <= 1:
                 return web.json_response(
-                    {"error": f"Cannot delete default preset '{name}'"},
+                    {"error": "Cannot delete the last rhythm"},
                     status=400
                 )
 
-            config = await self.load_raw_config()
-
-            if name not in config.get("circadian_presets", {}):
-                return web.json_response({"error": f"Preset '{name}' not found"}, status=404)
-
-            # Check if any zones use this preset
+            # Cannot delete a preset that's in use by a zone
             zones_using = [
                 zn for zn, zc in config.get("glozones", {}).items()
                 if zc.get("preset") == name
             ]
             if zones_using:
-                # Switch those zones to default preset
-                for zone_name in zones_using:
-                    config["glozones"][zone_name]["preset"] = glozone.DEFAULT_PRESET
-                logger.info(f"Switched {len(zones_using)} zones to default preset")
+                zone_list = ", ".join(zones_using)
+                return web.json_response(
+                    {"error": f"Cannot delete rhythm '{name}' — it is used by zone(s): {zone_list}. Reassign them first."},
+                    status=400
+                )
 
             del config["circadian_presets"][name]
 

@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.209
+**Smarter rhythm deletion restrictions**
+
+- Replaced hardcoded "cannot delete Glo 1" check with meaningful restrictions:
+  - Cannot delete a rhythm that is in use by any zone (error lists which zones)
+  - Cannot delete the last remaining rhythm
+- Reassign zones to a different rhythm first, then delete
+
 ## 6.9.208
 **Allow renaming the default Glo preset**
 
