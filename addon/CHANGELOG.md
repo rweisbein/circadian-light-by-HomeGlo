@@ -1,5 +1,11 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.212
+**Fix boost status display and remove debug box**
+
+- Fixed boost status not showing: `boosted` flag was missing from selectedArea rebuild in updateModalContent
+- Removed bri_mid/color_mid/color_override/frozen_at debug box from bottom of area modal
+
 ## 6.9.211
 **Show motion and boost timer state in area modal**
 

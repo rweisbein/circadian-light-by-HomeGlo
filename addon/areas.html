@@ -445,22 +445,6 @@
       height: 14px;
     }
 
-    .area-state-model {
-      font-size: 0.75rem;
-      color: var(--muted);
-      margin-top: 12px;
-      padding: 12px 16px;
-      background: var(--panel);
-      border-radius: 8px;
-      font-family: monospace;
-      line-height: 1.6;
-    }
-
-    .area-state-model span {
-      display: inline-block;
-      margin-right: 12px;
-    }
-
     /* Reset button - prominent */
     .reset-section {
       display: flex;
@@ -981,7 +965,6 @@
         </div>
       </div>
 
-      <div class="area-state-model" id="modal-model"></div>
     </div>
   </div>
 
@@ -2039,6 +2022,7 @@
         brightness: status.brightness || 0,
         kelvin: status.kelvin || 4000,
         frozen: status.frozen || false,
+        boosted: status.boosted || false,
         zone_name: status.zone_name || null,
         preset_name: status.preset_name || null,
         is_circadian: status.is_circadian || false,
@@ -2143,15 +2127,6 @@
       }
 
       timerEl.innerHTML = timerParts.join('');
-
-      // State model
-      const fmtVal = (v) => v === null || v === undefined ? '—' : typeof v === 'number' ? v.toFixed(2) : v;
-      const modelEl = document.getElementById('modal-model');
-      modelEl.innerHTML =
-        `<span>bri_mid: ${fmtVal(status.brightness_mid)}</span>` +
-        `<span>color_mid: ${fmtVal(status.color_mid)}</span>` +
-        `<span>color_override: ${fmtVal(status.color_override)}</span>` +
-        `<span>frozen_at: ${fmtVal(status.frozen_at)}</span>`;
 
       // Update toggle button states
       const powerBtn = document.getElementById('toggle-power');
