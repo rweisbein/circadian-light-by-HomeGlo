@@ -1441,14 +1441,14 @@
       // Line from x-axis down to above label (stops before text)
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
-        x0: nowHour, x1: nowHour, y0: -0.35, y1: 0,
+        x0: nowHour, x1: nowHour, y0: -0.42, y1: 0,
         line: nowLineStyle, layer: 'above'
       });
 
       // Layer 3 (lowest): "Now" label with time
       const nowTimeStr = formatHourLabel(nowHour);
       annotations.push({
-        x: nowHour, y: -0.40, xref: 'x', yref: 'paper',
+        x: nowHour, y: -0.48, xref: 'x', yref: 'paper',
         text: `now<br>${nowTimeStr}`, showarrow: false,
         font: { size: 10, color: '#fdfdfd' },
         align: 'center'
@@ -1457,7 +1457,7 @@
       const layout = {
         paper_bgcolor: '#0a0a0a',
         plot_bgcolor: '#0a0a0a',
-        margin: { t: 24, r: 12, l: 36, b: 100 },
+        margin: { t: 24, r: 12, l: 36, b: 115 },
         hovermode: 'closest',
         xaxis: {
           range: [0, 24],

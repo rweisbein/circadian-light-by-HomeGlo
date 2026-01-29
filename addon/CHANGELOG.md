@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.215
+**Lower "now" label to avoid overlap with sunrise/sunset**
+
+- Moved "now" label from y=-0.40 to y=-0.48 (well below sunrise/sunset at -0.30)
+- Extended "now" dotted line from y0=-0.35 to y0=-0.42 to reach the label
+- Increased bottom margin from 100 to 115 to accommodate
+
 ## 6.9.214
 **Show times inline on chart labels**
 
