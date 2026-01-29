@@ -2097,10 +2097,13 @@ class LightDesignerServer:
 
                     # Check if area is boosted and add boost brightness
                     is_boosted = state.is_boosted(area_id)
+                    boost_state = state.get_boost_state(area_id) if is_boosted else {}
                     if is_boosted:
-                        boost_state = state.get_boost_state(area_id)
                         boost_amount = boost_state.get('boost_brightness') or 0
                         brightness = min(100, brightness + boost_amount)
+
+                    # Get motion timer state
+                    motion_expires_at = state.get_motion_expires(area_id)
 
                     area_status[area_id] = {
                         'is_circadian': area_state.is_circadian,
@@ -2109,6 +2112,10 @@ class LightDesignerServer:
                         'kelvin': kelvin,
                         'frozen': area_state.frozen_at is not None,
                         'boosted': is_boosted,
+                        'boost_brightness': boost_state.get('boost_brightness') if is_boosted else None,
+                        'boost_expires_at': boost_state.get('boost_expires_at') if is_boosted else None,
+                        'boost_started_from_off': boost_state.get('boost_started_from_off', False) if is_boosted else None,
+                        'motion_expires_at': motion_expires_at,
                         'zone_name': zone_name if zone_name != 'Unassigned' else None,
                         'preset_name': zone_data.get('preset', 'Glo 1'),
                         # Raw state model

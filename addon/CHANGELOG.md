@@ -1,5 +1,14 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.211
+**Show motion and boost timer state in area modal**
+
+- Added motion timer countdown to area modal (only for timed expirations, not forever)
+- Added boost status showing amount, countdown, and outcome (→ rhythm or → off)
+- Moved Glo zone + Rhythm info above the modal header
+- Motion/boost status row sits between header and chart (left-aligned motion, right-aligned boost)
+- Exposed boost_brightness, boost_expires_at, boost_started_from_off, and motion_expires_at in area status API
+
 ## 6.9.210
 **Modal improvements, chart fixes, and rename Control zones to Glo zones**
 

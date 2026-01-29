@@ -514,6 +514,34 @@
       text-decoration: underline;
     }
 
+    /* Timer status row (motion + boost between header and chart) */
+    .modal-timer-status {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 0;
+      font-size: 0.8rem;
+      min-height: 0;
+    }
+
+    .modal-timer-status:empty {
+      display: none;
+    }
+
+    .timer-motion {
+      color: var(--muted);
+    }
+
+    .timer-boost {
+      color: var(--accent);
+      margin-left: auto;
+    }
+
+    .timer-arrow {
+      color: var(--muted2);
+      margin: 0 3px;
+    }
+
     /* Action buttons */
     .action-section {
       margin-bottom: 16px;
@@ -865,6 +893,11 @@
         <button class="modal-close" onclick="closeModal()">&times;</button>
       </div>
 
+      <div class="modal-context-info" id="modal-context-info">
+        <div class="context-line"><span class="context-label">Glo zone:</span> <a href="./zones" class="context-link" id="modal-zone-link">—</a></div>
+        <div class="context-line"><span class="context-label">Rhythm:</span> <a href="./glo" class="context-link" id="modal-rhythm-link">—</a></div>
+      </div>
+
       <div class="area-state" id="modal-area-state">
         <div class="area-state-row">
           <div class="area-state-controls-left">
@@ -918,10 +951,7 @@
         </div>
       </div>
 
-      <div class="modal-context-info" id="modal-context-info">
-        <div class="context-line"><span class="context-label">Glo zone:</span> <a href="./zones" class="context-link" id="modal-zone-link">—</a></div>
-        <div class="context-line"><span class="context-label">Rhythm:</span> <a href="./glo" class="context-link" id="modal-rhythm-link">—</a></div>
-      </div>
+      <div class="modal-timer-status" id="modal-timer-status"></div>
 
       <div id="modal-mini-chart"></div>
 
@@ -1250,6 +1280,22 @@
       const suffix = hr < 12 ? 'a' : 'p';
       const hr12 = hr === 0 ? 12 : (hr > 12 ? hr - 12 : hr);
       return min === 0 ? `${hr12}${suffix}` : `${hr12}:${min.toString().padStart(2, '0')}${suffix}`;
+    }
+
+    function formatCountdown(isoTimestamp) {
+      if (!isoTimestamp) return null;
+      const expires = new Date(isoTimestamp);
+      const now = new Date();
+      const diffMs = expires - now;
+      if (diffMs <= 0) return null;
+      const totalSec = Math.floor(diffMs / 1000);
+      if (totalSec < 60) return `${totalSec}s`;
+      const min = Math.floor(totalSec / 60);
+      const sec = totalSec % 60;
+      if (min < 60) return sec > 0 ? `${min}m ${sec}s` : `${min}m`;
+      const hr = Math.floor(min / 60);
+      const remMin = min % 60;
+      return remMin > 0 ? `${hr}h ${remMin}m` : `${hr}h`;
     }
 
     function renderMiniChart(cfg, state, sunTimes, currentHour, isActive) {
@@ -1995,7 +2041,11 @@
         frozen: status.frozen || false,
         zone_name: status.zone_name || null,
         preset_name: status.preset_name || null,
-        is_circadian: status.is_circadian || false
+        is_circadian: status.is_circadian || false,
+        boost_brightness: status.boost_brightness || null,
+        boost_expires_at: status.boost_expires_at || null,
+        boost_started_from_off: status.boost_started_from_off || false,
+        motion_expires_at: status.motion_expires_at || null
       };
 
       // Update modal content
@@ -2064,6 +2114,35 @@
         rhythmLinkEl.textContent = '—';
         rhythmLinkEl.href = './glo';
       }
+
+      // Timer status (motion + boost)
+      const timerEl = document.getElementById('modal-timer-status');
+      const timerParts = [];
+
+      // Motion: only show timed expirations (not "forever")
+      if (selectedArea.motion_expires_at && selectedArea.motion_expires_at !== 'forever') {
+        const motionRemaining = formatCountdown(selectedArea.motion_expires_at);
+        if (motionRemaining) {
+          timerParts.push(`<span class="timer-motion">Motion: ${motionRemaining}<span class="timer-arrow">→</span>off</span>`);
+        }
+      }
+
+      // Boost: show amount + countdown + outcome
+      if (selectedArea.boosted && selectedArea.boost_brightness) {
+        let boostText = `+${selectedArea.boost_brightness}%`;
+        if (selectedArea.boost_expires_at === 'forever') {
+          boostText += ' · forever';
+        } else if (selectedArea.boost_expires_at) {
+          const boostRemaining = formatCountdown(selectedArea.boost_expires_at);
+          if (boostRemaining) {
+            const outcome = selectedArea.boost_started_from_off ? 'off' : 'rhythm';
+            boostText += ` · ${boostRemaining}<span class="timer-arrow">→</span>${outcome}`;
+          }
+        }
+        timerParts.push(`<span class="timer-boost">Boost: ${boostText}</span>`);
+      }
+
+      timerEl.innerHTML = timerParts.join('');
 
       // State model
       const fmtVal = (v) => v === null || v === undefined ? '—' : typeof v === 'number' ? v.toFixed(2) : v;
