@@ -1390,31 +1390,39 @@
         });
       }
 
-      // Layer 1: Wake/bed labels with times (below x-axis labels)
+      // Layer 1: Wake/bed labels (below x-axis labels) — hover shows time
       annotations.push({
         x: wakeTime, y: -0.22, xref: 'x', yref: 'paper',
-        text: `wake ${formatHourLabel(wakeTime)}`, showarrow: false,
-        font: { size: 10, color: '#5cb3ff' }
+        text: 'wake', showarrow: false,
+        font: { size: 10, color: '#5cb3ff' },
+        hovertext: formatHourLabel(wakeTime),
+        hoverlabel: { bgcolor: '#7fc7ff', bordercolor: '#7fc7ff', font: { color: '#000', size: 12 } }
       });
       annotations.push({
         x: bedTime, y: -0.22, xref: 'x', yref: 'paper',
-        text: `bed ${formatHourLabel(bedTime)}`, showarrow: false,
-        font: { size: 10, color: '#ffe680' }
+        text: 'bed', showarrow: false,
+        font: { size: 10, color: '#ffe680' },
+        hovertext: formatHourLabel(bedTime),
+        hoverlabel: { bgcolor: '#ffe680', bordercolor: '#ffe680', font: { color: '#000', size: 12 } }
       });
 
-      // Layer 2: Sunrise/sunset labels with times (below wake/bed)
+      // Layer 2: Sunrise/sunset labels (below wake/bed) — hover shows time
       if (Number.isFinite(sunrise)) {
         annotations.push({
           x: sunrise, y: -0.30, xref: 'x', yref: 'paper',
-          text: `sunrise ${formatHourLabel(sunrise)}`, showarrow: false,
-          font: { size: 9, color: 'rgba(215,215,215,0.6)' }
+          text: 'sunrise', showarrow: false,
+          font: { size: 9, color: 'rgba(215,215,215,0.6)' },
+          hovertext: formatHourLabel(sunrise),
+          hoverlabel: { bgcolor: '#3a3a3a', bordercolor: '#3a3a3a', font: { color: '#fff', size: 12 } }
         });
       }
       if (Number.isFinite(sunset)) {
         annotations.push({
           x: sunset, y: -0.30, xref: 'x', yref: 'paper',
-          text: `sunset ${formatHourLabel(sunset)}`, showarrow: false,
-          font: { size: 9, color: 'rgba(215,215,215,0.6)' }
+          text: 'sunset', showarrow: false,
+          font: { size: 9, color: 'rgba(215,215,215,0.6)' },
+          hovertext: formatHourLabel(sunset),
+          hoverlabel: { bgcolor: '#3a3a3a', bordercolor: '#3a3a3a', font: { color: '#fff', size: 12 } }
         });
       }
 

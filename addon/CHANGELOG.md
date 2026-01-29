@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.216
+**Chart label hover tooltips (matching rhythms page)**
+
+- Wake/bed/sunrise/sunset labels now show time on hover using Plotly's native annotation hoverlabel
+- Wake: blue hover bg, Bed: yellow hover bg, Sunrise/sunset: dark grey hover bg
+- Removed inline times from label text (back to just "wake", "bed", etc.)
+
 ## 6.9.215
 **Lower "now" label to avoid overlap with sunrise/sunset**
 
