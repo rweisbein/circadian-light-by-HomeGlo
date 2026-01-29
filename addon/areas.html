@@ -909,8 +909,9 @@
       width: 6px;
       height: 6px;
       border-radius: 50%;
-      background: rgba(239, 68, 68, 0.6);
+      background: rgba(239, 68, 68, 0.8);
       z-index: 2;
+      /* contrast ring set via inline box-shadow using row text color */
     }
 
     /* Red dot: zone doesn't match rhythm */
@@ -918,17 +919,9 @@
       width: 8px;
       height: 8px;
       border-radius: 50%;
-      background: rgba(239, 68, 68, 0.75);
+      background: rgba(239, 68, 68, 0.85);
       flex-shrink: 0;
-    }
-
-    /* Rhythm red dot */
-    .mismatch-dot-rhythm {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: rgba(239, 68, 68, 0.75);
-      flex-shrink: 0;
+      /* contrast ring set via inline box-shadow using header text color */
     }
 
     /* Zone reset button */
@@ -945,7 +938,6 @@
       justify-content: center;
       transition: all 0.15s;
       padding: 0;
-      margin-left: auto;
       flex-shrink: 0;
     }
 
@@ -1086,6 +1078,7 @@
     let areas = [];
     let areaStatus = {};
     let zoneStates = {};
+    let cachedPresets = {};
     let sortColumn = 'name';
     let sortAsc = true;
     let statusFilter = 'all';
@@ -1767,10 +1760,11 @@
       container.innerHTML = '<div class="loading">Loading areas...</div>';
 
       try {
-        const [areasRes, statusRes, zoneStatesRes] = await Promise.all([
+        const [areasRes, statusRes, zoneStatesRes, presetsRes] = await Promise.all([
           fetch('./api/areas'),
           fetch('./api/area-status'),
-          fetch('./api/zone-states')
+          fetch('./api/zone-states'),
+          fetch('./api/circadian-presets')
         ]);
 
         if (areasRes.ok) {
@@ -1784,6 +1778,11 @@
         if (zoneStatesRes.ok) {
           const zs = await zoneStatesRes.json();
           zoneStates = zs.zone_states || {};
+        }
+
+        if (presetsRes.ok) {
+          const p = await presetsRes.json();
+          cachedPresets = p.presets || {};
         }
 
         renderAreas();
@@ -1857,16 +1856,28 @@
     }
 
     /**
-     * Compute pure rhythm brightness/kelvin at current hour from cachedConfig with empty state.
+     * Compute pure rhythm brightness/kelvin at current hour for a specific preset.
+     * Uses the preset's own curve config (from cachedPresets) merged with global settings.
      * Returns { brightness, kelvin } or null if config not available.
      */
-    function getPureRhythmValues() {
-      if (!cachedConfig || !cachedSunTimes) return null;
+    function getPureRhythmValues(presetName) {
+      if (!cachedSunTimes) return null;
+
+      // Build config: preset-specific curve settings merged over global config
+      let cfg;
+      if (presetName && cachedPresets[presetName]) {
+        cfg = { ...cachedConfig, ...cachedPresets[presetName] };
+      } else if (cachedConfig) {
+        cfg = cachedConfig;
+      } else {
+        return null;
+      }
+
       const now = new Date();
       const currentHour = now.getHours() + now.getMinutes() / 60;
       const emptyState = { brightness_mid: null, color_mid: null, color_override: null, frozen_at: null };
-      const brightness = calcMiniBrightness(currentHour, cachedConfig, emptyState, currentHour) * 100;
-      const kelvin = calcMiniColor(currentHour, cachedConfig, emptyState, cachedSunTimes, currentHour);
+      const brightness = calcMiniBrightness(currentHour, cfg, emptyState, currentHour) * 100;
+      const kelvin = calcMiniColor(currentHour, cfg, emptyState, cachedSunTimes, currentHour);
       return { brightness, kelvin };
     }
 
@@ -1962,9 +1973,6 @@
       // Reset icon (double-down chevron)
       const zoneResetIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 4 12 10 18 4"/><polyline points="6 10 12 16 18 10"/></svg>`;
 
-      // Pure rhythm values for red dot comparisons
-      const pureRhythm = getPureRhythmValues();
-
       // Build zone groups HTML
       let html = `
         <div style="margin-bottom: 16px;">
@@ -1992,11 +2000,13 @@
           zoneHeaderStyle = `background: ${tintedColor}; color: ${zoneTextColor};`;
           zoneLightingInfo = `<span style="font-size: 0.8rem; opacity: 0.85;">${Math.round(zoneBri)}% · ${Math.round(zoneKelvin)}K</span>`;
 
-          // Red dot: zone doesn't match pure rhythm
-          if (pureRhythm) {
-            if (Math.round(zoneBri) !== Math.round(pureRhythm.brightness) ||
-                Math.round(zoneKelvin) !== Math.round(pureRhythm.kelvin)) {
-              zoneMismatchDot = '<span class="mismatch-dot-zone"></span>';
+          // Red dot: zone doesn't match its preset's pure rhythm
+          const zonePresetName = zs.preset;
+          const zonePureRhythm = getPureRhythmValues(zonePresetName);
+          if (zonePureRhythm) {
+            if (Math.round(zoneBri) !== Math.round(zonePureRhythm.brightness) ||
+                Math.round(zoneKelvin) !== Math.round(zonePureRhythm.kelvin)) {
+              zoneMismatchDot = `<span class="mismatch-dot-zone" style="box-shadow: 0 0 0 1.5px ${zoneTextColor};"></span>`;
             }
           }
         }
@@ -2010,7 +2020,7 @@
               ${chevronIcon}
               <span class="zone-label" style="color: ${zoneTextColor}; opacity: 0.7;">Glo zone:</span>
               <span class="zone-name" style="color: ${zoneTextColor};">${zoneName}</span>
-              <span style="font-size: 0.8rem; color: ${zoneTextColor}; opacity: 0.5;">(${areasInZone.length} area${areasInZone.length !== 1 ? 's' : ''})</span>
+              <span style="flex: 1; font-size: 0.8rem; color: ${zoneTextColor}; opacity: 0.5;">(${areasInZone.length} area${areasInZone.length !== 1 ? 's' : ''})</span>
               ${zoneLightingInfo}
               <button class="zone-reset-btn" onclick="event.stopPropagation(); zoneReset('${escapedZoneName}')" title="Reset GloZone to Rhythm">${zoneResetIcon}</button>
             </div>
@@ -2043,17 +2053,18 @@
         const isCollapsed = collapsedRhythms[rhythmName] || false;
         const escapedName = rhythmName.replace(/'/g, "\\'");
 
-        // Rhythm header color from pure rhythm values
+        // Rhythm header color from preset-specific pure rhythm values
         let rhythmHeaderStyle = '';
         let rhythmTextColor = 'var(--text)';
         let rhythmLightingInfo = '';
 
-        if (pureRhythm) {
-          const cctColor = cctToRGB(pureRhythm.kelvin);
-          const tintedColor = tintColorByBrightness(cctColor, pureRhythm.brightness);
+        const presetRhythm = getPureRhythmValues(rhythmName);
+        if (presetRhythm) {
+          const cctColor = cctToRGB(presetRhythm.kelvin);
+          const tintedColor = tintColorByBrightness(cctColor, presetRhythm.brightness);
           rhythmTextColor = readableTextColor(tintedColor);
           rhythmHeaderStyle = `background: ${tintedColor}; color: ${rhythmTextColor};`;
-          rhythmLightingInfo = `<span class="rhythm-lighting" style="color: ${rhythmTextColor};">${Math.round(pureRhythm.brightness)}% · ${Math.round(pureRhythm.kelvin)}K</span>`;
+          rhythmLightingInfo = `<span class="rhythm-lighting" style="color: ${rhythmTextColor};">${Math.round(presetRhythm.brightness)}% · ${Math.round(presetRhythm.kelvin)}K</span>`;
         }
 
         let zonesHtml = '';
@@ -2067,6 +2078,7 @@
               ${chevronIcon}
               <span class="rhythm-label" style="color: ${rhythmTextColor}; opacity: 0.7;">Rhythm:</span>
               <a href="./glo/${encodeURIComponent(rhythmName)}" class="rhythm-name-link" onclick="event.stopPropagation();" style="color: ${rhythmTextColor};">${rhythmName}</a>
+              <span style="flex: 1;"></span>
               ${rhythmLightingInfo}
             </div>
             <div class="rhythm-content ${isCollapsed ? 'hidden' : ''}" data-rhythm-content="${rhythmName}">
@@ -2128,7 +2140,7 @@
         const zs = zoneStates[area.zone_name];
         if (Math.round(area.brightness) !== Math.round(zs.brightness) ||
             Math.round(area.kelvin) !== Math.round(zs.kelvin)) {
-          mismatchDot = '<span class="mismatch-dot-area"></span>';
+          mismatchDot = `<span class="mismatch-dot-area" style="box-shadow: 0 0 0 1.5px ${style.textColor};"></span>`;
         }
       }
 
@@ -2234,8 +2246,8 @@
 
       const rightControls = `
         <div class="row-controls">
-          <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'reset')" title="Pull Area's light from Glo Zone's">${resetIconSvg}</button>
           <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'glo_up')" title="Push Area's light to Glo Zone">${pushIconSvg}</button>
+          <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'reset')" title="Pull Area's light from Glo Zone's">${resetIconSvg}</button>
         </div>
       `;
 
@@ -2481,9 +2493,10 @@
       modalRefreshInterval = setInterval(async () => {
         if (!selectedArea) return;
         try {
-          const [res, zsRes] = await Promise.all([
+          const [res, zsRes, pRes] = await Promise.all([
             fetch('./api/area-status'),
-            fetch('./api/zone-states')
+            fetch('./api/zone-states'),
+            fetch('./api/circadian-presets')
           ]);
           if (res.ok) {
             areaStatus = await res.json();
@@ -2491,6 +2504,10 @@
           if (zsRes.ok) {
             const zs = await zsRes.json();
             zoneStates = zs.zone_states || {};
+          }
+          if (pRes.ok) {
+            const p = await pRes.json();
+            cachedPresets = p.presets || {};
           }
           updateModalContent(selectedArea.area_id, false);
           renderAreas();
@@ -2534,12 +2551,13 @@
         });
 
         if (response.ok) {
-          // Re-fetch area status + zone states, then update modal in place
+          // Re-fetch area status + zone states + presets, then update modal in place
           setTimeout(async () => {
             try {
-              const [statusRes, zsRes] = await Promise.all([
+              const [statusRes, zsRes, pRes] = await Promise.all([
                 fetch('./api/area-status'),
-                fetch('./api/zone-states')
+                fetch('./api/zone-states'),
+                fetch('./api/circadian-presets')
               ]);
               if (statusRes.ok) {
                 areaStatus = await statusRes.json();
@@ -2547,6 +2565,10 @@
               if (zsRes.ok) {
                 const zs = await zsRes.json();
                 zoneStates = zs.zone_states || {};
+              }
+              if (pRes.ok) {
+                const p = await pRes.json();
+                cachedPresets = p.presets || {};
               }
               // Re-render modal content without closing
               if (selectedArea && selectedArea.area_id === areaId) {
@@ -2587,12 +2609,13 @@
         });
 
         if (response.ok) {
-          // Re-fetch area status + zone states and update table
+          // Re-fetch area status + zone states + presets and update table
           setTimeout(async () => {
             try {
-              const [statusRes, zsRes] = await Promise.all([
+              const [statusRes, zsRes, pRes] = await Promise.all([
                 fetch('./api/area-status'),
-                fetch('./api/zone-states')
+                fetch('./api/zone-states'),
+                fetch('./api/circadian-presets')
               ]);
               if (statusRes.ok) {
                 areaStatus = await statusRes.json();
@@ -2600,6 +2623,10 @@
               if (zsRes.ok) {
                 const zs = await zsRes.json();
                 zoneStates = zs.zone_states || {};
+              }
+              if (pRes.ok) {
+                const p = await pRes.json();
+                cachedPresets = p.presets || {};
               }
               renderAreas();
               // Also update modal if it's open for this area
