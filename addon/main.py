@@ -2329,10 +2329,10 @@ class HomeAssistantWebSocketClient:
             if not light_entity_id:
                 light_entity_id = self._get_fallback_group_entity(area_id)
             if light_entity_id:
-                state = self.cached_states.get(light_entity_id, {}).get("state")
-                logger.info(f"[group_fastpath] {light_entity_id=} {area_id=} state={state}")
-                if state in ("on", "off"):
-                    if state == "on":
+                light_state = self.cached_states.get(light_entity_id, {}).get("state")
+                logger.info(f"[group_fastpath] {light_entity_id=} {area_id=} state={light_state}")
+                if light_state in ("on", "off"):
+                    if light_state == "on":
                         return True
                     continue  # go next area
 

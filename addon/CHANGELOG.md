@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.217
+**Fix: Boost now actually changes lights**
+
+- Fixed `UnboundLocalError: local variable 'state' referenced before assignment` in handle_message
+- Root cause: local variable `state` (line 2332) shadowed the `state` module import, causing `state.init()` in boost_on/boost_off handlers to fail
+- Renamed local `state` to `light_state` to avoid shadowing
+- Without this fix, boost state was saved to disk (UI updated correctly) but main.py could never reload it, so lights never changed
+
 ## 6.9.216
 **Chart label hover tooltips (matching rhythms page)**
 
