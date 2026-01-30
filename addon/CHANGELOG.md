@@ -1,5 +1,15 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.222
+**Fix: webserver writing false solar rule defaults to config file**
+
+- Root cause: `load_raw_config()` had `warm_night_enabled: False` at top level as default
+- On save, this `false` was written to `designer_config.json`, poisoning the file
+- On next startup, `load_config_from_files()` moved this `false` into the preset, overriding user's `true`
+- Removed PRESET_SETTINGS from `load_raw_config()` defaults (they belong inside presets)
+- `save_config_to_file()` now strips top-level PRESET_SETTINGS before writing
+- `load_config_from_files()` merge uses `if key not in first_preset` guard
+
 ## 6.9.221
 **Fix: preset settings (solar rules, brightness range) not applied to lights**
 

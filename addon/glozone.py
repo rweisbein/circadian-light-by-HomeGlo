@@ -619,15 +619,16 @@ def load_config_from_files(data_dir: Optional[str] = None) -> Dict[str, Any]:
     config = _migrate_config(config)
 
     # Move any top-level PRESET_SETTINGS into the first preset.
-    # Since we don't start with preset defaults at the top level, any
-    # PRESET_SETTINGS found here came from the config files (user's settings).
-    # Always override the preset value since the file value is authoritative.
+    # Only set the key in the preset if it's not already there, to avoid
+    # stale top-level values (e.g., warm_night_enabled=false from old saves)
+    # overriding correct preset values. Always remove from top level either way.
     if "circadian_presets" in config and config["circadian_presets"]:
         first_preset_name = list(config["circadian_presets"].keys())[0]
         first_preset = config["circadian_presets"][first_preset_name]
         for key in list(config.keys()):
             if key in PRESET_SETTINGS:
-                first_preset[key] = config[key]
+                if key not in first_preset:
+                    first_preset[key] = config[key]
                 del config[key]
 
     # Cache the config first so ensure_default_zone_exists can use it

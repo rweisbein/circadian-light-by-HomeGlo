@@ -1248,32 +1248,13 @@ class LightDesignerServer:
         Returns the GloZone-format config with circadian_presets and glozones.
         Used internally for save operations.
         """
-        # Start with defaults
+        # Start with global-only defaults. PRESET_SETTINGS are intentionally NOT
+        # included here — they belong inside preset dicts, not at the top level.
+        # Having them here caused them to be saved to designer_config.json at the
+        # top level, which then poisoned load_config_from_files() on next startup
+        # (top-level false values would override preset's true values).
+        # Missing preset keys are handled by get_preset_config() and Config.from_dict().
         config: dict = {
-            "color_mode": "kelvin",
-            "min_color_temp": 500,
-            "max_color_temp": 6500,
-            "min_brightness": 1,
-            "max_brightness": 100,
-            "ascend_start": 3.0,
-            "descend_start": 12.0,
-            "wake_time": 6.0,
-            "bed_time": 22.0,
-            "wake_speed": 8,
-            "bed_speed": 6,
-            "warm_night_enabled": False,
-            "warm_night_mode": "all",
-            "warm_night_target": 2700,
-            "warm_night_start": -60,
-            "warm_night_end": 60,
-            "warm_night_fade": 60,
-            "cool_day_enabled": False,
-            "cool_day_mode": "all",
-            "cool_day_target": 6500,
-            "cool_day_start": 0,
-            "cool_day_end": 0,
-            "cool_day_fade": 60,
-            "activity_preset": "adult",
             "latitude": 35.0,
             "longitude": -78.6,
             "timezone": "US/Eastern",
@@ -1418,8 +1399,14 @@ class LightDesignerServer:
             raise RuntimeError("Cannot save config: original file was not loaded successfully")
 
         try:
-            # Remove internal tracking flag before saving
-            save_config = {k: v for k, v in config.items() if not k.startswith("_")}
+            # Remove internal tracking flags and top-level PRESET_SETTINGS before saving.
+            # PRESET_SETTINGS belong inside preset dicts, not at the top level.
+            # If left at the top level, they poison load_config_from_files() on next
+            # startup (e.g., warm_night_enabled=false overrides preset's true).
+            save_config = {
+                k: v for k, v in config.items()
+                if not k.startswith("_") and k not in self.PRESET_SETTINGS
+            }
             async with aiofiles.open(self.designer_file, 'w') as f:
                 await f.write(json.dumps(save_config, indent=2))
             logger.info(f"Configuration saved to {self.designer_file}")
