@@ -547,13 +547,13 @@ class CircadianLight:
                     window_end = wrap24(sunrise + end_offset_hrs)
 
                 in_window, weight = CircadianLight._get_window_weight(hour, window_start, window_end, fade_hrs)
-                logger.info(f"[WarmNight] hour={hour:.2f}, sunrise={sunrise:.2f}, sunset={sunset:.2f}, "
-                            f"window={window_start:.2f}-{window_end:.2f}, fade={fade_hrs:.2f}h, "
-                            f"in_window={in_window}, weight={weight:.3f}, base_kelvin={kelvin:.0f}")
+                logger.debug(f"[WarmNight] hour={hour:.2f}, sunrise={sunrise:.2f}, sunset={sunset:.2f}, "
+                             f"window={window_start:.2f}-{window_end:.2f}, fade={fade_hrs:.2f}h, "
+                             f"in_window={in_window}, weight={weight:.3f}, base_kelvin={kelvin:.0f}")
                 if in_window and weight > 0:
                     old_kelvin = kelvin
                     kelvin = kelvin + (warm_target - kelvin) * weight
-                    logger.info(f"[WarmNight] Applied: {old_kelvin:.0f}K -> {kelvin:.0f}K (target={warm_target})")
+                    logger.debug(f"[WarmNight] Applied: {old_kelvin:.0f}K -> {kelvin:.0f}K (target={warm_target})")
 
         # Cool during day - floor
         if config.cool_day_enabled:

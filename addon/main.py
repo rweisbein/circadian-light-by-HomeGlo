@@ -73,6 +73,7 @@ class HomeAssistantWebSocketClient:
         self.timezone = None  # Home Assistant timezone
         self.periodic_update_task = None  # Task for periodic light updates
         self.refresh_event = None  # Will be created lazily in the running event loop
+        self._log_periodic = False  # Updated by circadian tick from config
         # State is managed by state.py module (per-area midpoints, bounds, etc.)
         self.cached_states = {}  # Cache of entity states
         self.last_states_update = None  # Timestamp of last states update
@@ -2819,12 +2820,8 @@ class HomeAssistantWebSocketClient:
                 if reset_switches:
                     logger.debug(f"Reset {len(reset_switches)} switch(es) to scope 1 due to inactivity")
 
-                # Read log_periodic once per tick
-                try:
-                    raw_config = glozone.load_config_from_files()
-                    log_periodic = raw_config.get("log_periodic", False)
-                except Exception:
-                    log_periodic = False
+                # Use log_periodic from circadian tick (updated every circadian_refresh seconds)
+                log_periodic = self._log_periodic
 
                 # Check for motion warnings (before expiry check)
                 await self.primitives.check_motion_warnings(log_periodic=log_periodic)
@@ -2851,6 +2848,7 @@ class HomeAssistantWebSocketClient:
                 except Exception:
                     refresh_interval = 30
                     log_periodic = False
+                self._log_periodic = log_periodic
 
                 # Wait for configured interval OR until refresh_event is signaled
                 triggered_by_event = False
