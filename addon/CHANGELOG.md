@@ -1,5 +1,17 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.227
+**Refactor reach feedback: two selectable modes with per-switch indicator light**
+
+- Replace color flash for reach cycling with two feedback modes:
+  - **All-lights mode** (learn mode OFF): Fades all lights in reach areas out and back using configured transition speeds
+  - **Single-light mode** (learn mode ON, default): Flashes a per-switch indicator light 1x/2x/3x for reach 1/2/3
+- Add "Reach adjustment learn mode" global setting (Settings page, default ON)
+- Add per-switch "Indicator light" field in switch editor modal (dropdown filtered to lights in switch's area)
+- Error feedback in learn mode uses rapid 5x blink on indicator light instead of red flash
+- Falls back to all-lights mode when no indicator light is configured
+- New API endpoint: `GET /api/area-lights` returns light entities for a given area
+
 ## 6.9.225
 **Refactor periodic update loop: split tickers, off enforcement, manual sync**
 

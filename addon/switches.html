@@ -664,6 +664,16 @@
         <button class="add-scope-btn" id="add-scope-btn">+ Add Scope</button>
       </div>
 
+      <div class="modal-section" id="indicator-light-section" style="display: none;">
+        <label class="modal-label">Indicator Light
+          <span class="info-icon">i<span class="info-tooltip">Light used for reach feedback in learn mode. Flashes 1x/2x/3x to indicate which reach is active.</span></span>
+        </label>
+        <select class="modal-select" id="indicator-light-select" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.9rem;">
+          <option value="">None</option>
+          <!-- Populated with lights in switch's area -->
+        </select>
+      </div>
+
       <div class="modal-section" id="motion-config-section" style="display: none;">
         <div id="motion-areas-editor">
           <!-- Motion area editors populated by JS -->
@@ -696,6 +706,7 @@
     let editingMotionAreas = [];  // For motion/contact sensors: [{area_id, mode, duration, boost_enabled, boost_brightness}, ...]
     let editingControl = null;
     let editingInactive = false;  // For sensors: whether sensor is inactive
+    let editingIndicatorLight = '';  // For switches: indicator light entity_id
     let sortColumn = 'status';
     let sortAsc = true;
     let categoryFilter = 'all';
@@ -1155,6 +1166,28 @@
       editingScopes = [];
       editingMotionAreas = [];
       editingInactive = false;
+      editingIndicatorLight = '';
+    }
+
+    async function loadIndicatorLights(areaId, currentValue) {
+      const select = document.getElementById('indicator-light-select');
+      select.innerHTML = '<option value="">None</option>';
+      if (!areaId) return;
+      try {
+        const response = await fetch(`./api/area-lights?area_id=${encodeURIComponent(areaId)}`);
+        if (response.ok) {
+          const data = await response.json();
+          (data.lights || []).forEach(light => {
+            const opt = document.createElement('option');
+            opt.value = light.entity_id;
+            opt.textContent = light.name;
+            if (light.entity_id === currentValue) opt.selected = true;
+            select.appendChild(opt);
+          });
+        }
+      } catch (err) {
+        console.error('Error loading area lights:', err);
+      }
     }
 
     function editControl(id) {
@@ -1206,6 +1239,7 @@
         if (typeSectionEl) typeSectionEl.style.display = 'none';
         switchSection.style.display = 'none';
         motionSection.style.display = 'block';
+        document.getElementById('indicator-light-section').style.display = 'none';
         renderMotionAreasEditor();
         // Set inactive checkbox
         document.getElementById('sensor-inactive-checkbox').checked = editingInactive;
@@ -1214,6 +1248,12 @@
         if (typeSectionEl) typeSectionEl.style.display = 'none';
         switchSection.style.display = 'block';
         motionSection.style.display = 'none';
+
+        // Show indicator light section for switches
+        const indicatorSection = document.getElementById('indicator-light-section');
+        indicatorSection.style.display = 'block';
+        editingIndicatorLight = ctrl.indicator_light || '';
+        loadIndicatorLights(ctrl.area_id, editingIndicatorLight);
 
         renderScopesEditor();
       }
@@ -1387,11 +1427,13 @@
         };
       } else {
         // Switch config
+        const indicatorLight = document.getElementById('indicator-light-select').value;
         payload = {
           name: editingControl?.name,
           type: editingControl?.type,
           scopes: editingScopes,
-          device_id: editingDeviceId
+          device_id: editingDeviceId,
+          indicator_light: indicatorLight || ''
         };
       }
 

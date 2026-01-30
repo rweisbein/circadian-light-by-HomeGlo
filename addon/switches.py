@@ -257,6 +257,7 @@ class SwitchConfig:
     scopes: List[SwitchScope] = field(default_factory=list)
     button_overrides: Dict[str, Optional[str]] = field(default_factory=dict)
     device_id: Optional[str] = None            # HA device_id for area lookup
+    indicator_light: Optional[str] = None      # Entity ID for reach feedback indicator light
 
     def get_button_action(self, button_event: str) -> Optional[str]:
         """Get the action for a button event, with override support."""
@@ -286,6 +287,8 @@ class SwitchConfig:
         }
         if self.device_id:
             result["device_id"] = self.device_id
+        if self.indicator_light:
+            result["indicator_light"] = self.indicator_light
         return result
 
     @classmethod
@@ -305,6 +308,7 @@ class SwitchConfig:
             scopes=scopes,
             button_overrides=data.get("button_overrides", {}),
             device_id=data.get("device_id"),
+            indicator_light=data.get("indicator_light"),
         )
 
 
