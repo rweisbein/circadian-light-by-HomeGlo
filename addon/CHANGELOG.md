@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.223
+**Fix: designer saves preset settings to wrong preset**
+
+- Designer's `saveConfig()` sent flat preset settings, which the server always applied to the first preset ('Glo 1')
+- When editing a different preset (e.g., 'test 2'), settings like `warm_night_enabled` were saved to 'Glo 1' instead
+- Fix: `saveConfig()` now wraps preset settings inside `circadian_presets[selectedGloName]` so the server saves to the correct preset
+
 ## 6.9.222
 **Fix: webserver writing false solar rule defaults to config file**
 

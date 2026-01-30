@@ -4257,10 +4257,40 @@ async function loadConfig() {
 async function saveConfig() {
   const statusEl = document.getElementById('save-status');
   try {
+    // Build structured save data: preset settings go inside circadian_presets[selectedGloName]
+    // so the server saves them to the correct preset (not always the first one).
+    const PRESET_KEYS = new Set([
+      'color_mode', 'min_color_temp', 'max_color_temp',
+      'min_brightness', 'max_brightness',
+      'ascend_start', 'descend_start', 'wake_time', 'bed_time',
+      'wake_speed', 'bed_speed',
+      'warm_night_enabled', 'warm_night_mode', 'warm_night_target',
+      'warm_night_start', 'warm_night_end', 'warm_night_fade',
+      'cool_day_enabled', 'cool_day_mode', 'cool_day_target',
+      'cool_day_start', 'cool_day_end', 'cool_day_fade',
+      'activity_preset', 'max_dim_steps',
+    ]);
+    const presetSettings = {};
+    const globalSettings = {};
+    for (const [key, value] of Object.entries(config)) {
+      if (key === 'circadian_presets' || key === 'glozones') continue;
+      if (PRESET_KEYS.has(key)) {
+        presetSettings[key] = value;
+      } else {
+        globalSettings[key] = value;
+      }
+    }
+    const saveData = {
+      ...globalSettings,
+      circadian_presets: { [selectedGloName]: presetSettings },
+    };
+    // Preserve glozones if present
+    if (config.glozones) saveData.glozones = config.glozones;
+
     const resp = await fetch('./api/config', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(config)
+      body: JSON.stringify(saveData)
     });
 
     if (resp.ok) {
