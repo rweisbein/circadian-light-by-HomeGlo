@@ -1,5 +1,15 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.229
+**Fix motion boost display and add boost/motion indicators to home page**
+
+- Fix "Nanh" display in area modal when motion sensor triggers boost on already-on areas
+  - Root cause: `motion_on_only` set boost_expires_at to "motion" sentinel with no motion timer to couple to
+  - Backend: use timed boost (not motion-coupled) when on_only boost fires for already-on areas
+  - Frontend: guard `formatCountdown` against invalid dates, handle "motion" sentinel explicitly
+- Add boost (triangle) and motion (circle) indicators to home page area chips
+- Pass boost/motion state through to home page area data
+
 ## 6.9.228
 **Refactor reach feedback: two selectable modes with per-switch indicator light**
 

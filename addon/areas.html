@@ -1410,6 +1410,7 @@
     function formatCountdown(isoTimestamp) {
       if (!isoTimestamp) return null;
       const expires = new Date(isoTimestamp);
+      if (isNaN(expires.getTime())) return null;  // Invalid date (e.g. "motion" sentinel)
       const now = new Date();
       const diffMs = expires - now;
       if (diffMs <= 0) return null;
@@ -2591,6 +2592,8 @@
           let text = `+${selectedArea.boost_brightness}%`;
           if (selectedArea.boost_expires_at === 'forever') {
             text += ' · forever';
+          } else if (selectedArea.boost_expires_at === 'motion') {
+            text += ' · until motion ends';
           } else if (selectedArea.boost_expires_at) {
             const remaining = formatCountdown(selectedArea.boost_expires_at);
             if (remaining) {
