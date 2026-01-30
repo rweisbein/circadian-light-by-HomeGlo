@@ -260,6 +260,17 @@
       background: rgba(255, 255, 255, 0.1);
     }
 
+    .clear-filters-link {
+      color: var(--muted);
+      font-size: 0.85rem;
+      text-decoration: none;
+    }
+
+    .clear-filters-link:hover {
+      color: var(--accent);
+      text-decoration: underline;
+    }
+
     /* Clickable rows */
     .areas-table tbody tr {
       cursor: pointer;
@@ -1004,6 +1015,7 @@
   <!-- Main Content -->
   <main class="main">
     <div style="display: flex; align-items: center; justify-content: flex-end; margin-bottom: 16px; gap: 16px;">
+      <a href="#" class="clear-filters-link" id="clear-filters-link" style="display: none;" onclick="clearFilters(); return false;">Clear filters</a>
       <button class="btn btn-secondary" id="refresh-btn">Refresh</button>
     </div>
 
@@ -1112,7 +1124,9 @@
     let areaStatus = {};
     let zoneStates = {};
     let cachedPresets = {};
-    let sortMode = 'onoff';  // 'onoff', 'alpha', 'rhythm'
+    let sortColumn = 'name';
+    let sortAsc = true;
+    let statusFilter = 'all';
     let selectedArea = null;
     let cachedConfig = null;
     let cachedSunTimes = null; // { sunrise, sunset, solarNoon, solarMid } in local hours
@@ -1760,7 +1774,9 @@
         if (configRes.ok) {
           cachedConfig = await configRes.json();
           const prefs = cachedConfig.areas_ui || {};
-          sortMode = prefs.sort_mode || 'onoff';
+          sortColumn = prefs.sort_column || 'name';
+          sortAsc = prefs.sort_asc !== false;
+          statusFilter = prefs.status_filter || 'all';
 
           // Compute sun times client-side from config lat/lon
           const lat = cachedConfig.latitude || 35.0;
@@ -1779,7 +1795,9 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             areas_ui: {
-              sort_mode: sortMode
+              sort_column: sortColumn,
+              sort_asc: sortAsc,
+              status_filter: statusFilter
             }
           })
         });
@@ -2014,38 +2032,43 @@
         };
       });
 
-      // Sort areas within each zone group
-      const sortAreas = (list) => [...list].sort((a, b) => {
-        switch (sortMode) {
-          case 'onoff': {
-            // On areas first, then alphabetic within each group
-            if (a.is_on !== b.is_on) return a.is_on ? -1 : 1;
-            return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
-          }
-          case 'alpha': {
-            return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
-          }
-          case 'rhythm': {
-            // Out of sync first, then on/off, then alphabetic
-            const aMismatch = isAreaMismatched(a);
-            const bMismatch = isAreaMismatched(b);
-            if (aMismatch !== bMismatch) return aMismatch ? -1 : 1;
-            if (a.is_on !== b.is_on) return a.is_on ? -1 : 1;
-            return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
-          }
-          default:
-            return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
-        }
-      });
-
-      function isAreaMismatched(area) {
-        if (!area.zone_name || !zoneStates[area.zone_name]) return false;
-        const zs = zoneStates[area.zone_name];
-        return Math.abs(area.brightness - zs.brightness) > 2 ||
-               Math.abs(area.kelvin - zs.kelvin) > 100;
+      // Validate status filter
+      const validStatusValues = ['all', 'on', 'off', 'frozen'];
+      if (!validStatusValues.includes(statusFilter)) {
+        statusFilter = 'all';
+        savePreferences();
       }
 
-      const filtered = mergedAreas;
+      // Apply status filter only (no zone filter anymore)
+      const filtered = mergedAreas.filter(a => {
+        if (statusFilter !== 'all') {
+          if (statusFilter === 'on' && !a.is_on) return false;
+          if (statusFilter === 'off' && a.is_on) return false;
+          if (statusFilter === 'frozen' && !a.frozen) return false;
+        }
+        return true;
+      });
+
+      // Sort areas within each group
+      const sortAreas = (list) => [...list].sort((a, b) => {
+        let valA, valB;
+        switch (sortColumn) {
+          case 'name':
+            valA = a.name.toLowerCase();
+            valB = b.name.toLowerCase();
+            break;
+          case 'brightness':
+            valA = a.is_on ? a.brightness : -1;
+            valB = b.is_on ? b.brightness : -1;
+            break;
+          default:
+            valA = a.name.toLowerCase();
+            valB = b.name.toLowerCase();
+        }
+        if (valA < valB) return sortAsc ? -1 : 1;
+        if (valA > valB) return sortAsc ? 1 : -1;
+        return 0;
+      });
 
       // Group by zone
       const zoneGroups = {};
@@ -2062,15 +2085,20 @@
       // Sort zone names, put Unassigned at end
       const zoneNames = Object.keys(zoneGroups).sort();
 
+      // Check if any filters active
+      const hasActiveFilters = statusFilter !== 'all';
+      document.getElementById('clear-filters-link').style.display = hasActiveFilters ? 'inline' : 'none';
+
       // Collapsed state
       const collapsedState = getCollapsedZones();
       const collapsedRhythms = getCollapsedRhythms();
 
-      // Sort dropdown HTML
-      const sortOptions = `
-        <option value="onoff" ${sortMode === 'onoff' ? 'selected' : ''}>On / Off</option>
-        <option value="alpha" ${sortMode === 'alpha' ? 'selected' : ''}>Alphabetic</option>
-        <option value="rhythm" ${sortMode === 'rhythm' ? 'selected' : ''}>In Rhythm</option>
+      // Status filter HTML
+      const statusOptions = `
+        <option value="all" ${statusFilter === 'all' ? 'selected' : ''}>All</option>
+        <option value="on" ${statusFilter === 'on' ? 'selected' : ''}>On</option>
+        <option value="off" ${statusFilter === 'off' ? 'selected' : ''}>Off</option>
+        <option value="frozen" ${statusFilter === 'frozen' ? 'selected' : ''}>Frozen</option>
       `;
 
       // Chevron icon
@@ -2082,7 +2110,7 @@
       // Build zone groups HTML
       let html = `
         <div style="margin-bottom: 16px;">
-          <select class="header-filter" id="sort-dropdown" style="width: auto; padding: 6px 12px;">${sortOptions}</select>
+          <select class="header-filter" id="status-filter" style="width: auto; padding: 6px 12px;">${statusOptions}</select>
         </div>
       `;
 
@@ -2398,13 +2426,30 @@
       return { leftControls, rightControls };
     }
 
+    function sortBy(column) {
+      if (sortColumn === column) {
+        sortAsc = !sortAsc;
+      } else {
+        sortColumn = column;
+        sortAsc = true;
+      }
+      savePreferences();
+      renderAreas();
+    }
+
+    function clearFilters() {
+      statusFilter = 'all';
+      savePreferences();
+      renderAreas();
+    }
+
     function setupEventListeners() {
       document.getElementById('refresh-btn').addEventListener('click', loadData);
 
-      // Use event delegation for dynamically created sort dropdown
+      // Use event delegation for dynamically created filter dropdown
       document.getElementById('areas-container').addEventListener('change', (e) => {
-        if (e.target.id === 'sort-dropdown') {
-          sortMode = e.target.value;
+        if (e.target.id === 'status-filter') {
+          statusFilter = e.target.value;
           savePreferences();
           renderAreas();
         }
