@@ -1309,10 +1309,12 @@ class HomeAssistantWebSocketClient:
             areas = switch_config.get_areas_for_scope(new_scope)
 
         # Choose feedback mode
+        # Learn mode ON = all-lights (see which areas are in reach)
+        # Learn mode OFF = single indicator light (subtle, once you know your reaches)
         learn_mode = self._is_reach_learn_mode()
         indicator = switch_config.indicator_light
 
-        if learn_mode and indicator:
+        if not learn_mode and indicator:
             await self._show_reach_single_light_feedback(indicator, scope_number)
         else:
             await self._show_reach_all_lights_feedback(areas)
@@ -1436,15 +1438,15 @@ class HomeAssistantWebSocketClient:
     async def _show_scope_error_feedback(self, switch_id: str) -> None:
         """Show error feedback when can't cycle scope (flash red or rapid blink).
 
-        In learn mode with indicator light: rapid 5x blink on indicator.
+        In non-learn mode with indicator light: rapid 5x blink on indicator.
         Otherwise: red flash on all area lights.
 
         Args:
             switch_id: The switch IEEE address
         """
-        # Check for learn mode + indicator light
+        # Check for non-learn mode + indicator light
         switch_config = switches.get_switch(switch_id)
-        if switch_config and self._is_reach_learn_mode() and switch_config.indicator_light:
+        if switch_config and not self._is_reach_learn_mode() and switch_config.indicator_light:
             # Rapid 5x blink on indicator light
             indicator = switch_config.indicator_light
             light_state = self.cached_states.get(indicator, {})
