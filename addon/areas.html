@@ -823,6 +823,11 @@
       height: 16px;
       color: var(--muted);
       transition: transform 0.2s;
+      background: rgba(0,0,0,0.35);
+      border-radius: 50%;
+      padding: 2px;
+      box-sizing: content-box;
+      box-shadow: 0 0 0 1.5px rgba(255,255,255,0.25);
     }
 
     .zone-header.collapsed .zone-chevron,
@@ -1648,7 +1653,11 @@
       const status = areaStatus[areaId] || {};
       if (!cachedConfig || !cachedSunTimes) return;
 
-      const cfg = cachedConfig;
+      // Use the area's specific preset config
+      const presetName = status.preset_name;
+      const cfg = (presetName && cachedPresets[presetName])
+        ? { ...cachedConfig, ...cachedPresets[presetName] }
+        : cachedConfig;
       const state = {
         brightness_mid: status.brightness_mid ?? null,
         color_mid: status.color_mid ?? null,
@@ -2043,8 +2052,8 @@
           const zonePresetName = zs.preset;
           const zonePureRhythm = getPureRhythmValues(zonePresetName);
           if (zonePureRhythm) {
-            if (Math.round(zoneBri) !== Math.round(zonePureRhythm.brightness) ||
-                Math.round(zoneKelvin) !== Math.round(zonePureRhythm.kelvin)) {
+            if (Math.abs(zoneBri - zonePureRhythm.brightness) > 2 ||
+                Math.abs(zoneKelvin - zonePureRhythm.kelvin) > 100) {
               zoneMismatchDot = `<span class="mismatch-dot-zone" style="box-shadow: 0 0 0 1.5px ${zoneTextColor};"></span>`;
             }
           }
@@ -2173,12 +2182,12 @@
       const lightingInfo = getLightingInfo(area);
       const { leftControls, rightControls } = getRowControls(area);
 
-      // Red dot: area doesn't match zone values
+      // Red dot: area doesn't match zone values (±2% brightness, ±100K tolerance)
       let mismatchDot = '';
       if (area.zone_name && zoneStates[area.zone_name]) {
         const zs = zoneStates[area.zone_name];
-        if (Math.round(area.brightness) !== Math.round(zs.brightness) ||
-            Math.round(area.kelvin) !== Math.round(zs.kelvin)) {
+        if (Math.abs(area.brightness - zs.brightness) > 2 ||
+            Math.abs(area.kelvin - zs.kelvin) > 100) {
           mismatchDot = `<span class="mismatch-dot-area" style="box-shadow: 0 0 0 1.5px ${style.textColor};"></span>`;
         }
       }
@@ -2459,6 +2468,15 @@
       const status = areaStatus[areaId] || {};
       if (!cachedConfig || !cachedSunTimes) return;
 
+      // Use the area's specific preset config (same pattern as getPureRhythmValues)
+      const presetName = status.preset_name;
+      let cfg;
+      if (presetName && cachedPresets[presetName]) {
+        cfg = { ...cachedConfig, ...cachedPresets[presetName] };
+      } else {
+        cfg = cachedConfig;
+      }
+
       const areaState = {
         brightness_mid: status.brightness_mid ?? null,
         color_mid: status.color_mid ?? null,
@@ -2478,7 +2496,7 @@
       // isActive = lights are on AND being controlled by Circadian Light
       const isActive = (status.is_on || false) && (status.is_circadian || false);
 
-      renderMiniChart(cachedConfig, areaState, cachedSunTimes, currentHour, isActive);
+      renderMiniChart(cfg, areaState, cachedSunTimes, currentHour, isActive);
       styleAdjustButtons(areaId);
     }
 
