@@ -461,9 +461,11 @@ class LightDesignerServer:
         self.app.router.add_route('GET', '/{path:.*}/api/controls', self.get_controls)
         self.app.router.add_route('POST', '/{path:.*}/api/controls/{control_id}/configure', self.configure_control)
         self.app.router.add_route('DELETE', '/{path:.*}/api/controls/{control_id}/configure', self.remove_control_config)
+        self.app.router.add_route('GET', '/{path:.*}/api/area-lights', self.get_area_lights)
         self.app.router.add_get('/api/controls', self.get_controls)
         self.app.router.add_post('/api/controls/{control_id}/configure', self.configure_control)
         self.app.router.add_delete('/api/controls/{control_id}/configure', self.remove_control_config)
+        self.app.router.add_get('/api/area-lights', self.get_area_lights)
 
         # Legacy switches API routes (keeping for backwards compat)
         self.app.router.add_route('GET', '/{path:.*}/api/switches', self.get_switches)
@@ -1030,6 +1032,7 @@ class LightDesignerServer:
         "warning_intensity",  # Base depth of limit warning dip/flash (1-10, default 5)
         "warning_scaling",  # How much depth increases near the limit (1-10, default 5)
         "boost_default",  # Default boost percentage (10-100, default 30)
+        "reach_learn_mode",  # Reach feedback uses single indicator light (default true)
         "controls_ui",  # Controls page UI preferences (sort, filter)
         "areas_ui",  # Areas page UI preferences (sort, filter)
         "area_settings",  # Per-area settings (motion_function, motion_duration)
@@ -1204,6 +1207,9 @@ class LightDesignerServer:
             "limit_warning_speed": 3,  # tenths of seconds (0.3s)
             "warning_intensity": 3,  # 1-10
             "warning_scaling": 1,  # 1-10
+
+            # Reach feedback
+            "reach_learn_mode": True,  # Use single indicator light for reach feedback
         }
 
         # Merge supervisor-managed options.json (if present)
@@ -1284,6 +1290,8 @@ class LightDesignerServer:
             "limit_warning_speed": 3,  # tenths of seconds (0.3s)
             "warning_intensity": 3,  # 1-10
             "warning_scaling": 1,  # 1-10
+            # Reach feedback
+            "reach_learn_mode": True,
         }
 
         # Merge options.json
@@ -3211,6 +3219,59 @@ class LightDesignerServer:
             logger.warning(f"Error fetching device areas: {e}")
             return {}
 
+    async def get_area_lights(self, request: Request) -> Response:
+        """Get light entities for a given area.
+
+        Query param: area_id (required)
+        Returns list of {entity_id, name} for light entities in that area.
+        """
+        area_id = request.query.get("area_id")
+        if not area_id:
+            return web.json_response({"error": "area_id is required"}, status=400)
+
+        try:
+            rest_url, ws_url, token = self._get_ha_api_config()
+            if not token or not ws_url:
+                return web.json_response({"lights": []})
+
+            async with websockets.connect(ws_url) as ws:
+                # Auth
+                msg = json.loads(await ws.recv())
+                if msg.get('type') != 'auth_required':
+                    return web.json_response({"lights": []})
+                await ws.send(json.dumps({'type': 'auth', 'access_token': token}))
+                msg = json.loads(await ws.recv())
+                if msg.get('type') != 'auth_ok':
+                    return web.json_response({"lights": []})
+
+                # Get device registry to find devices in this area
+                await ws.send(json.dumps({'id': 1, 'type': 'config/device_registry/list'}))
+                device_msg = json.loads(await ws.recv())
+                area_device_ids = set()
+                if device_msg.get('success') and device_msg.get('result'):
+                    for device in device_msg['result']:
+                        if device.get('area_id') == area_id:
+                            area_device_ids.add(device.get('id'))
+
+                # Get entity registry to find light entities
+                await ws.send(json.dumps({'id': 2, 'type': 'config/entity_registry/list'}))
+                entity_msg = json.loads(await ws.recv())
+                lights = []
+                if entity_msg.get('success') and entity_msg.get('result'):
+                    for entity in entity_msg['result']:
+                        entity_id = entity.get('entity_id', '')
+                        if not entity_id.startswith('light.'):
+                            continue
+                        # Match by entity area_id or device area_id
+                        if entity.get('area_id') == area_id or entity.get('device_id') in area_device_ids:
+                            name = entity.get('name') or entity.get('original_name') or entity_id
+                            lights.append({"entity_id": entity_id, "name": name})
+
+                return web.json_response({"lights": lights})
+        except Exception as e:
+            logger.error(f"Error fetching area lights: {e}", exc_info=True)
+            return web.json_response({"lights": []})
+
     async def get_controls(self, request: Request) -> Response:
         """Get all controls from HA, merged with our configuration.
 
@@ -3276,6 +3337,7 @@ class LightDesignerServer:
                     "name": ctrl.get("name"),
                     "manufacturer": ctrl.get("manufacturer"),
                     "model": ctrl.get("model"),
+                    "area_id": ctrl.get("area_id"),
                     "area_name": ctrl.get("area_name"),
                     "category": category,
                     "integration": ctrl.get("integration"),
@@ -3291,6 +3353,7 @@ class LightDesignerServer:
                     control_data["inactive"] = config.get("inactive", False)
                 else:
                     control_data["scopes"] = config.get("scopes", [])
+                    control_data["indicator_light"] = config.get("indicator_light")
 
                 controls.append(control_data)
 
@@ -3556,12 +3619,14 @@ class LightDesignerServer:
                     scopes = [switches.SwitchScope(areas=[])]
 
                 # Create/update switch config
+                indicator_light = data.get("indicator_light") or None
                 switch_config = switches.SwitchConfig(
                     id=control_id,
                     name=name,
                     type=control_type,
                     scopes=scopes,
                     device_id=device_id,
+                    indicator_light=indicator_light,
                 )
 
                 switches.add_switch(switch_config)

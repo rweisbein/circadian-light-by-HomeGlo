@@ -1270,6 +1270,23 @@ class HomeAssistantWebSocketClient:
         else:
             logger.warning(f"Unknown action: {action}")
 
+    def _is_reach_learn_mode(self) -> bool:
+        """Check if reach learn mode is enabled (single indicator light feedback)."""
+        try:
+            raw_config = glozone.load_config_from_files()
+            return raw_config.get("reach_learn_mode", True)
+        except Exception:
+            return True
+
+    def _get_motion_warning_blink_threshold(self) -> int:
+        """Get the motion warning blink threshold as brightness 0-255."""
+        try:
+            raw_config = glozone.load_config_from_files()
+            pct = raw_config.get("motion_warning_blink_threshold", 15)
+            return int(pct / 100.0 * 255)
+        except Exception:
+            return int(0.15 * 255)
+
     async def _execute_cycle_scope(self, switch_id: str) -> None:
         """Cycle to the next scope and provide visual feedback.
 
@@ -1284,41 +1301,44 @@ class HomeAssistantWebSocketClient:
         valid_scopes = [i for i, s in enumerate(switch_config.scopes) if s.areas]
 
         if len(valid_scopes) <= 1:
-            # Only one scope - just show scope 1 feedback (not an error)
+            scope_number = 1
             areas = switch_config.get_areas_for_scope(0)
-            await self._show_scope_feedback(areas, 1)
         else:
-            # Multiple scopes - cycle to next and show feedback
             new_scope = switches.cycle_scope(switch_id)
-            new_areas = switch_config.get_areas_for_scope(new_scope)
-            await self._show_scope_feedback(new_areas, new_scope + 1)  # 1-indexed
+            scope_number = new_scope + 1  # 1-indexed
+            areas = switch_config.get_areas_for_scope(new_scope)
 
-    async def _show_scope_feedback(self, areas: List[str], scope_number: int) -> None:
-        """Show visual feedback for scope change (color flash).
+        # Choose feedback mode
+        learn_mode = self._is_reach_learn_mode()
+        indicator = switch_config.indicator_light
+
+        if learn_mode and indicator:
+            await self._show_reach_single_light_feedback(indicator, scope_number)
+        else:
+            await self._show_reach_all_lights_feedback(areas)
+
+    async def _show_reach_all_lights_feedback(self, areas: List[str]) -> None:
+        """Show visual feedback for reach change by fading all lights out and back.
+
+        Lights that are ON: fade off then back on with circadian values.
+        Lights that are OFF: briefly pulse on at blink threshold then off.
 
         Args:
-            areas: Areas to flash
-            scope_number: Which scope (1, 2, or 3) - determines color
+            areas: Areas to fade
         """
         if not areas:
             return
 
-        # Scope colors: Green (1), Cyan (2), Blue (3)
-        scope_colors = {
-            1: [50, 255, 50],    # Green
-            2: [50, 255, 255],   # Cyan
-            3: [50, 100, 255],   # Blue
-        }
-        flash_color = scope_colors.get(scope_number, [50, 255, 50])
+        turn_off_transition = self.primitives._get_turn_off_transition()
+        turn_on_transition = self.primitives._get_turn_on_transition()
+        blink_brightness = self._get_motion_warning_blink_threshold()
 
-        # Pre-calculate restore values for each area BEFORE flashing
+        # Pre-calculate restore values for each area BEFORE fading
         restore_data = {}
         for area in areas:
-            # Use internal state tracking - more reliable than entity state which can be stale
             was_on = state.is_circadian(area) and state.get_is_on(area)
 
             if was_on and state.is_circadian(area):
-                # Pre-calculate circadian values
                 area_state = AreaState.from_dict(state.get_area(area))
                 config_dict = glozone.get_effective_config_for_area(area)
                 config = Config.from_dict(config_dict)
@@ -1332,43 +1352,133 @@ class HomeAssistantWebSocketClient:
             else:
                 restore_data[area] = {"was_on": was_on}
 
-        # Determine flash brightness for lights that were off (based on sun position)
-        sun_is_up = False
-        if "sun.sun" in self.cached_states:
-            sun_state = self.cached_states["sun.sun"]
-            sun_is_up = sun_state.get("state") == "above_horizon"
-        off_flash_brightness = int(0.20 * 255) if sun_is_up else int(0.01 * 255)
-
-        # Flash the scope color (all areas at once)
+        # Phase 1: For ON lights, turn off with transition. For OFF lights, turn on at blink threshold.
         for area in areas:
             if restore_data[area].get("was_on"):
-                await self._set_area_color_quick(area, rgb_color=flash_color)
-            else:
-                await self._set_area_color_quick(area, rgb_color=flash_color, brightness=off_flash_brightness)
-
-        await asyncio.sleep(0.3)
-
-        # Restore instantly (all areas, no transition)
-        for area, data in restore_data.items():
-            if not data.get("was_on"):
-                await self.call_service("light", "turn_off", {}, target={"area_id": area})
-            elif data.get("xy"):
-                # Restore with pre-calculated circadian values, instant
                 await self.call_service(
-                    "light", "turn_on",
-                    {"xy_color": data["xy"], "brightness": data["brightness"], "transition": 0},
+                    "light", "turn_off",
+                    {"transition": turn_off_transition},
                     target={"area_id": area}
                 )
             else:
-                # Was on but no circadian data - just turn back on (keeps previous settings)
-                await self.call_service("light", "turn_on", {"transition": 0}, target={"area_id": area})
+                await self.call_service(
+                    "light", "turn_on",
+                    {"brightness": blink_brightness, "transition": turn_on_transition},
+                    target={"area_id": area}
+                )
+
+        # Wait for transitions to complete
+        await asyncio.sleep(max(turn_off_transition, turn_on_transition) + 0.1)
+
+        # Phase 2: Restore. ON lights back on with circadian values. OFF lights back off.
+        for area, data in restore_data.items():
+            if data.get("was_on"):
+                service_data = {"transition": turn_on_transition}
+                if data.get("xy"):
+                    service_data["xy_color"] = data["xy"]
+                    service_data["brightness"] = data["brightness"]
+                await self.call_service(
+                    "light", "turn_on",
+                    service_data,
+                    target={"area_id": area}
+                )
+            else:
+                await self.call_service(
+                    "light", "turn_off",
+                    {"transition": turn_off_transition},
+                    target={"area_id": area}
+                )
+
+    async def _show_reach_single_light_feedback(self, indicator_light: str, scope_number: int) -> None:
+        """Flash a single indicator light to show which reach is active.
+
+        Flashes 1x for reach 1, 2x for reach 2, 3x for reach 3.
+
+        Args:
+            indicator_light: Entity ID of the indicator light
+            scope_number: Which scope (1, 2, or 3) — determines number of flashes
+        """
+        # Get current state of indicator light
+        light_state = self.cached_states.get(indicator_light, {})
+        was_on = light_state.get("state") == "on"
+        attrs = light_state.get("attributes", {}) if was_on else {}
+        original_brightness = attrs.get("brightness", 128)
+        original_xy = attrs.get("xy_color")
+        original_color_temp = attrs.get("color_temp")
+
+        blink_brightness = original_brightness if was_on else self._get_motion_warning_blink_threshold()
+        target = {"entity_id": indicator_light}
+
+        # Flash sequence
+        for i in range(scope_number):
+            # Turn off
+            await self.call_service("light", "turn_off", {"transition": 0}, target=target)
+            await asyncio.sleep(0.3)
+            # Turn on at flash brightness
+            await self.call_service(
+                "light", "turn_on",
+                {"brightness": blink_brightness, "transition": 0},
+                target=target
+            )
+            await asyncio.sleep(0.3)
+
+        # Restore original state
+        if not was_on:
+            await self.call_service("light", "turn_off", {"transition": 0}, target=target)
+        else:
+            restore_data = {"brightness": original_brightness, "transition": 0}
+            if original_xy:
+                restore_data["xy_color"] = original_xy
+            elif original_color_temp:
+                restore_data["color_temp"] = original_color_temp
+            await self.call_service("light", "turn_on", restore_data, target=target)
 
     async def _show_scope_error_feedback(self, switch_id: str) -> None:
-        """Show error feedback when can't cycle scope (flash red).
+        """Show error feedback when can't cycle scope (flash red or rapid blink).
+
+        In learn mode with indicator light: rapid 5x blink on indicator.
+        Otherwise: red flash on all area lights.
 
         Args:
             switch_id: The switch IEEE address
         """
+        # Check for learn mode + indicator light
+        switch_config = switches.get_switch(switch_id)
+        if switch_config and self._is_reach_learn_mode() and switch_config.indicator_light:
+            # Rapid 5x blink on indicator light
+            indicator = switch_config.indicator_light
+            light_state = self.cached_states.get(indicator, {})
+            was_on = light_state.get("state") == "on"
+            attrs = light_state.get("attributes", {}) if was_on else {}
+            original_brightness = attrs.get("brightness", 128)
+            original_xy = attrs.get("xy_color")
+            original_color_temp = attrs.get("color_temp")
+            blink_brightness = original_brightness if was_on else self._get_motion_warning_blink_threshold()
+            target = {"entity_id": indicator}
+
+            for _ in range(5):
+                await self.call_service("light", "turn_off", {"transition": 0}, target=target)
+                await asyncio.sleep(0.1)
+                await self.call_service(
+                    "light", "turn_on",
+                    {"brightness": blink_brightness, "transition": 0},
+                    target=target
+                )
+                await asyncio.sleep(0.1)
+
+            # Restore
+            if not was_on:
+                await self.call_service("light", "turn_off", {"transition": 0}, target=target)
+            else:
+                restore_data = {"brightness": original_brightness, "transition": 0}
+                if original_xy:
+                    restore_data["xy_color"] = original_xy
+                elif original_color_temp:
+                    restore_data["color_temp"] = original_color_temp
+                await self.call_service("light", "turn_on", restore_data, target=target)
+            return
+
+        # Fallback: red flash on all area lights
         areas = switches.get_current_areas(switch_id)
         if not areas:
             return
@@ -1378,9 +1488,9 @@ class HomeAssistantWebSocketClient:
         for area in areas:
             light_entity = self._get_fallback_group_entity(area)
             if light_entity and light_entity in self.cached_states:
-                state = self.cached_states[light_entity]
-                was_on = state.get("state") == "on"
-                attrs = state.get("attributes", {}) if was_on else {}
+                cached = self.cached_states[light_entity]
+                was_on = cached.get("state") == "on"
+                attrs = cached.get("attributes", {}) if was_on else {}
                 original_states[area] = {
                     "was_on": was_on,
                     "color_temp": attrs.get("color_temp"),
@@ -1389,7 +1499,6 @@ class HomeAssistantWebSocketClient:
                     "brightness": attrs.get("brightness", 128),
                 }
             else:
-                # No cached state - assume off
                 original_states[area] = {"was_on": False}
 
         # Determine flash brightness for lights that were off (based on sun position)
@@ -1397,9 +1506,9 @@ class HomeAssistantWebSocketClient:
         if "sun.sun" in self.cached_states:
             sun_state = self.cached_states["sun.sun"]
             sun_is_up = sun_state.get("state") == "above_horizon"
-        off_flash_brightness = int(0.20 * 255) if sun_is_up else int(0.01 * 255)  # 20% or 1%
+        off_flash_brightness = int(0.20 * 255) if sun_is_up else int(0.01 * 255)
 
-        # Flash red (keep brightness if on, use sun-based brightness if off)
+        # Flash red
         for area in areas:
             orig = original_states.get(area, {})
             if orig.get("was_on"):
@@ -1412,7 +1521,6 @@ class HomeAssistantWebSocketClient:
         # Restore original states
         for area, orig in original_states.items():
             if not orig.get("was_on"):
-                # Was off - turn it back off
                 await self.call_service("light", "turn_off", {}, target={"area_id": area})
             elif orig.get("color_temp"):
                 await self._set_area_color_quick(area, color_temp=orig["color_temp"], brightness=orig.get("brightness"))
@@ -1421,7 +1529,6 @@ class HomeAssistantWebSocketClient:
             elif orig.get("xy_color"):
                 await self._set_area_color_quick(area, xy_color=orig["xy_color"], brightness=orig.get("brightness"))
             else:
-                # Was on but no color info - just restore brightness
                 await self._set_area_brightness_quick(area, orig.get("brightness", 128))
 
     async def _set_area_brightness_quick(self, area: str, brightness: int) -> None:
