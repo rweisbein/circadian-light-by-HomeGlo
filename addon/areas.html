@@ -2424,36 +2424,15 @@
       // Snowflake/ice crystal icon
       const iceIcon = '<span class="freeze-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="2" x2="12" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/><line x1="19.07" y1="4.93" x2="4.93" y2="19.07"/><line x1="12" y1="2" x2="9" y2="5"/><line x1="12" y1="2" x2="15" y2="5"/><line x1="12" y1="22" x2="9" y2="19"/><line x1="12" y1="22" x2="15" y2="19"/><line x1="2" y1="12" x2="5" y2="9"/><line x1="2" y1="12" x2="5" y2="15"/><line x1="22" y1="12" x2="19" y2="9"/><line x1="22" y1="12" x2="19" y2="15"/></svg></span>';
 
-      // Values - always show CT and brightness (calculated from curve when off)
+      // Values - always show CT and brightness from server-calculated values
       const valuesEl = document.getElementById('modal-values');
-      let displayBri, displayKelvin;
+      const displayBri = selectedArea.brightness;
+      const displayKelvin = selectedArea.kelvin;
       if (selectedArea.is_on) {
-        displayBri = selectedArea.brightness;
-        displayKelvin = selectedArea.kelvin;
         const cctColor = cctToRGB(displayKelvin);
         const tintedColor = tintColorByBrightness(cctColor, displayBri);
         valuesEl.style.color = readableTextColor(tintedColor);
       } else {
-        // Calculate what circadian values would be right now using area's preset
-        if (cachedConfig && cachedSunTimes) {
-          const presetName = selectedArea.preset_name;
-          const offCfg = (presetName && cachedPresets[presetName])
-            ? { ...cachedConfig, ...cachedPresets[presetName] }
-            : cachedConfig;
-          const now = new Date();
-          const currentHour = now.getHours() + now.getMinutes() / 60;
-          const offState = {
-            brightness_mid: status.brightness_mid ?? null,
-            color_mid: status.color_mid ?? null,
-            color_override: status.color_override ?? null,
-            frozen_at: status.frozen_at ?? null
-          };
-          displayBri = calcMiniBrightness(currentHour, offCfg, offState, currentHour) * 100;
-          displayKelvin = calcMiniColor(currentHour, offCfg, offState, cachedSunTimes, currentHour);
-        } else {
-          displayBri = 50;
-          displayKelvin = 4000;
-        }
         valuesEl.style.color = 'var(--muted)';
       }
 
@@ -2552,29 +2531,38 @@
       if (!timerEl) return;
       const parts = [];
 
-      // Motion: only show timed expirations (not "forever")
-      if (selectedArea.motion_expires_at && selectedArea.motion_expires_at !== 'forever') {
+      const hasMotion = selectedArea.motion_expires_at && selectedArea.motion_expires_at !== 'forever';
+      const hasBoostedMotion = selectedArea.boosted && selectedArea.boost_expires_at === 'motion';
+
+      if (hasMotion && hasBoostedMotion) {
+        // Motion-coupled boost: show as single combined line
         const remaining = formatCountdown(selectedArea.motion_expires_at);
         if (remaining) {
-          parts.push(`<span class="timer-motion">Motion: ${remaining}<span class="timer-arrow">→</span>off</span>`);
+          parts.push(`<span class="timer-motion">Motion +${selectedArea.boost_brightness}%: ${remaining}<span class="timer-arrow">→</span>off</span>`);
         }
-      }
-
-      // Boost: show amount + countdown + outcome
-      if (selectedArea.boosted && selectedArea.boost_brightness) {
-        let text = `+${selectedArea.boost_brightness}%`;
-        if (selectedArea.boost_expires_at === 'forever') {
-          text += ' · forever';
-        } else if (selectedArea.boost_expires_at === 'motion') {
-          text += ' · with motion';
-        } else if (selectedArea.boost_expires_at) {
-          const remaining = formatCountdown(selectedArea.boost_expires_at);
+      } else {
+        // Motion: only show timed expirations (not "forever")
+        if (hasMotion) {
+          const remaining = formatCountdown(selectedArea.motion_expires_at);
           if (remaining) {
-            const outcome = selectedArea.boost_started_from_off ? 'off' : 'rhythm';
-            text += ` · ${remaining}<span class="timer-arrow">→</span>${outcome}`;
+            parts.push(`<span class="timer-motion">Motion: ${remaining}<span class="timer-arrow">→</span>off</span>`);
           }
         }
-        parts.push(`<span class="timer-boost">Boost: ${text}</span>`);
+
+        // Boost: show amount + countdown + outcome (skip if coupled to motion, already shown above)
+        if (selectedArea.boosted && selectedArea.boost_brightness) {
+          let text = `+${selectedArea.boost_brightness}%`;
+          if (selectedArea.boost_expires_at === 'forever') {
+            text += ' · forever';
+          } else if (selectedArea.boost_expires_at) {
+            const remaining = formatCountdown(selectedArea.boost_expires_at);
+            if (remaining) {
+              const outcome = selectedArea.boost_started_from_off ? 'off' : 'rhythm';
+              text += ` · ${remaining}<span class="timer-arrow">→</span>${outcome}`;
+            }
+          }
+          parts.push(`<span class="timer-boost">Boost: ${text}</span>`);
+        }
       }
 
       timerEl.innerHTML = parts.join('');
