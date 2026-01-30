@@ -2543,7 +2543,29 @@
       timerEl.innerHTML = parts.join('');
     }
 
-    function openAreaModal(areaId) {
+    async function openAreaModal(areaId) {
+      // Fetch fresh data immediately before rendering modal
+      try {
+        const [res, zsRes, pRes] = await Promise.all([
+          fetch('./api/area-status'),
+          fetch('./api/zone-states'),
+          fetch('./api/circadian-presets')
+        ]);
+        if (res.ok) {
+          areaStatus = await res.json();
+        }
+        if (zsRes.ok) {
+          const zs = await zsRes.json();
+          zoneStates = zs.zone_states || {};
+        }
+        if (pRes.ok) {
+          const p = await pRes.json();
+          cachedPresets = p.presets || {};
+        }
+      } catch (err) {
+        console.error('Error fetching modal data:', err);
+      }
+
       updateModalContent(areaId, false);  // Update content but don't render chart yet
 
       // Show modal first, then render chart after it's visible
@@ -2555,7 +2577,7 @@
         renderMiniChartForArea(areaId);
       }, 50);
 
-      // Start live countdown tick (1s) and API refresh (10s)
+      // Start live countdown tick (1s) and API refresh (5s)
       clearModalIntervals();
       modalTickInterval = setInterval(updateTimerStatus, 1000);
       modalRefreshInterval = setInterval(async () => {
@@ -2582,7 +2604,7 @@
         } catch (err) {
           console.error('Error refreshing modal:', err);
         }
-      }, 10000);
+      }, 5000);
     }
 
     function clearModalIntervals() {

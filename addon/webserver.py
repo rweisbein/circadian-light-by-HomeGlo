@@ -453,6 +453,10 @@ class LightDesignerServer:
         self.app.router.add_route('POST', '/{path:.*}/api/area/action', self.handle_area_action)
         self.app.router.add_post('/api/area/action', self.handle_area_action)
 
+        # Manual sync endpoint
+        self.app.router.add_route('POST', '/{path:.*}/api/sync-devices', self.handle_sync_devices)
+        self.app.router.add_post('/api/sync-devices', self.handle_sync_devices)
+
         # Controls API routes (new unified endpoint)
         self.app.router.add_route('GET', '/{path:.*}/api/controls', self.get_controls)
         self.app.router.add_route('POST', '/{path:.*}/api/controls/{control_id}/configure', self.configure_control)
@@ -1017,7 +1021,7 @@ class LightDesignerServer:
         "multi_click_enabled",  # Enable multi-click detection for Hue Hub switches
         "multi_click_speed",  # Multi-click window in tenths of seconds
         "circadian_refresh",  # How often to refresh circadian lighting (seconds)
-        "sync_refresh_multiplier",  # Multiplier for sync refresh interval (default 5x circadian refresh)
+        "log_periodic",  # Whether to log periodic update details (default false)
         "motion_warning_time",  # Seconds before motion timer expires to trigger warning dim
         "motion_warning_blink_threshold",  # Brightness % below which warning blinks instead of dims
         "freeze_off_rise",  # Transition time in tenths of seconds for unfreeze rise (default 10 = 1.0s)
@@ -1187,7 +1191,7 @@ class LightDesignerServer:
             "multi_click_enabled": True,
             "multi_click_speed": 2,
             "circadian_refresh": 30,  # seconds
-            "sync_refresh_multiplier": 5,  # multiplier of circadian refresh
+            "log_periodic": False,  # log periodic update details
 
             # Motion warning settings
             "motion_warning_time": 0,  # seconds (0 = disabled)
@@ -1268,7 +1272,7 @@ class LightDesignerServer:
             "multi_click_enabled": True,
             "multi_click_speed": 2,
             "circadian_refresh": 30,  # seconds
-            "sync_refresh_multiplier": 5,  # multiplier of circadian refresh
+            "log_periodic": False,  # log periodic update details
             # Motion warning settings
             "motion_warning_time": 0,  # seconds (0 = disabled)
             "motion_warning_blink_threshold": 15,  # percent brightness
@@ -3102,6 +3106,26 @@ class LightDesignerServer:
             return web.json_response({"error": "Invalid JSON"}, status=400)
         except Exception as e:
             logger.error(f"Error handling area action: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    # -------------------------------------------------------------------------
+    # Manual Sync
+    # -------------------------------------------------------------------------
+
+    async def handle_sync_devices(self, request: Request) -> Response:
+        """Trigger manual device/area/group sync.
+
+        Re-scans Home Assistant for new/moved lights, areas, and ZHA devices.
+        Equivalent to the old slow-cycle sync but triggered manually.
+        """
+        try:
+            if self.client and hasattr(self.client, 'run_manual_sync'):
+                await self.client.run_manual_sync()
+                return web.json_response({"success": True, "message": "Device sync complete"})
+            else:
+                return web.json_response({"error": "WebSocket client not available"}, status=503)
+        except Exception as e:
+            logger.error(f"Error running manual sync: {e}")
             return web.json_response({"error": str(e)}, status=500)
 
     # -------------------------------------------------------------------------
