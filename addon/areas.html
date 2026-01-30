@@ -790,6 +790,24 @@
       cursor: pointer;
       user-select: none;
       transition: background 0.15s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .zone-header::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, rgba(255,255,255,0.03), rgba(255,255,255,0.5));
+      opacity: 0.6;
+      transform-origin: left center;
+      transform: scaleX(var(--header-fill, 0));
+      pointer-events: none;
+    }
+
+    .zone-header > * {
+      position: relative;
+      z-index: 1;
     }
 
     .zone-header:hover {
@@ -807,7 +825,8 @@
       transition: transform 0.2s;
     }
 
-    .zone-header.collapsed .zone-chevron {
+    .zone-header.collapsed .zone-chevron,
+    .rhythm-header.collapsed .zone-chevron {
       transform: rotate(-90deg);
     }
 
@@ -852,16 +871,33 @@
     .rhythm-header {
       display: flex;
       align-items: center;
-      gap: 8px;
-      padding: 8px 16px;
+      gap: 10px;
+      padding: 14px 20px;
       background: var(--panel);
       border: 1px solid var(--line);
-      border-radius: 8px;
+      border-radius: 10px;
       cursor: pointer;
       user-select: none;
       transition: background 0.15s;
       margin-bottom: 8px;
       position: relative;
+      overflow: hidden;
+    }
+
+    .rhythm-header::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, rgba(255,255,255,0.03), rgba(255,255,255,0.5));
+      opacity: 0.6;
+      transform-origin: left center;
+      transform: scaleX(var(--header-fill, 0));
+      pointer-events: none;
+    }
+
+    .rhythm-header > * {
+      position: relative;
+      z-index: 1;
     }
 
     .rhythm-header:hover {
@@ -877,13 +913,13 @@
     }
 
     .rhythm-label {
-      font-size: 0.82rem;
+      font-size: 0.9rem;
       color: var(--muted);
     }
 
     .rhythm-name-link {
-      font-weight: 600;
-      font-size: 0.9rem;
+      font-weight: 700;
+      font-size: 1.05rem;
       color: var(--accent);
       text-decoration: none;
       transition: color 0.2s;
@@ -895,7 +931,7 @@
     }
 
     .rhythm-lighting {
-      font-size: 0.8rem;
+      font-size: 0.9rem;
       opacity: 0.85;
       margin-left: auto;
     }
@@ -2000,7 +2036,7 @@
           const cctColor = cctToRGB(zoneKelvin);
           const tintedColor = tintColorByBrightness(cctColor, zoneBri);
           zoneTextColor = readableTextColor(tintedColor);
-          zoneHeaderStyle = `background: ${tintedColor}; color: ${zoneTextColor};`;
+          zoneHeaderStyle = `background: ${tintedColor}; color: ${zoneTextColor}; --header-fill: ${zoneBri / 100};`;
           zoneLightingInfo = `<span style="font-size: 0.8rem; opacity: 0.85;">${Math.round(zoneBri)}% · ${Math.round(zoneKelvin)}K</span>`;
 
           // Red dot: zone doesn't match its preset's pure rhythm
@@ -2025,7 +2061,7 @@
               <span class="zone-name" style="color: ${zoneTextColor};">${zoneName}</span>
               <span style="flex: 1; font-size: 0.8rem; color: ${zoneTextColor}; opacity: 0.5;">(${areasInZone.length} area${areasInZone.length !== 1 ? 's' : ''})</span>
               ${zoneLightingInfo}
-              <button class="zone-reset-btn" onclick="event.stopPropagation(); zoneReset('${escapedZoneName}')" title="Reset GloZone to Rhythm">${zoneResetIcon}</button>
+              <button class="zone-reset-btn" onclick="event.stopPropagation(); zoneReset('${escapedZoneName}')" title="Reset Glo Zone: reset all areas in Glo Zone to rhythm">${zoneResetIcon}</button>
             </div>
             <div class="zone-content ${isCollapsed ? 'hidden' : ''}" data-zone-table="${zoneName}">
               ${sorted.map(area => renderAreaRow(area)).join('')}
@@ -2066,7 +2102,7 @@
           const cctColor = cctToRGB(presetRhythm.kelvin);
           const tintedColor = tintColorByBrightness(cctColor, presetRhythm.brightness);
           rhythmTextColor = readableTextColor(tintedColor);
-          rhythmHeaderStyle = `background: ${tintedColor}; color: ${rhythmTextColor};`;
+          rhythmHeaderStyle = `background: ${tintedColor}; color: ${rhythmTextColor}; --header-fill: ${presetRhythm.brightness / 100};`;
           rhythmLightingInfo = `<span class="rhythm-lighting" style="color: ${rhythmTextColor};">${Math.round(presetRhythm.brightness)}% · ${Math.round(presetRhythm.kelvin)}K</span>`;
         }
 
@@ -2228,16 +2264,16 @@
         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
       </svg>`;
 
-      // Reset icon (double-down chevron — pull from zone)
+      // GloDown icon (single down chevron — pull from zone)
       const resetIconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-        <polyline points="6 4 12 10 18 4"/>
-        <polyline points="6 10 12 16 18 10"/>
+        <polyline points="6 9 12 15 18 9"/>
       </svg>`;
 
-      // Push to zone icon (double up chevron)
+      // GloUp icon (one up arrow + two down arrows — push to zone)
       const pushIconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-        <polyline points="6 15 12 9 18 15"/>
-        <polyline points="6 20 12 14 18 20"/>
+        <polyline points="6 9 12 3 18 9"/>
+        <polyline points="6 14 12 20 18 14"/>
+        <polyline points="6 18 12 24 18 18"/>
       </svg>`;
 
       const leftControls = `
@@ -2249,8 +2285,8 @@
 
       const rightControls = `
         <div class="row-controls">
-          <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'glo_up')" title="Push Area's light to Glo Zone">${pushIconSvg}</button>
-          <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'reset')" title="Pull Area's light from Glo Zone's">${resetIconSvg}</button>
+          <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'glo_up')" title="GloUp: push area's settings to all areas in Glo Zone">${pushIconSvg}</button>
+          <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'reset')" title="GloDown: pull Glo Zone light to this area">${resetIconSvg}</button>
         </div>
       `;
 

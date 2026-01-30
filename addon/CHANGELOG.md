@@ -1,5 +1,14 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.224
+**Home page: 2-tone shading on headers, rhythm prominence, icon updates**
+
+- Rhythm and zone headers now have the same 2-tone fill overlay as area rows
+- Rhythm headers are more prominent: larger font, thicker padding, larger border radius
+- Updated icons: GloUp = 1 up + 2 down arrows, GloDown = 1 down arrow
+- Updated tooltips: GloUp, GloDown, Reset Glo Zone with clearer descriptions
+- Rhythm chevron now rotates when collapsed (matching zone behavior)
+
 ## 6.9.223
 **Fix: designer saves preset settings to wrong preset**
 
