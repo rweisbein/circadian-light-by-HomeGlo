@@ -2108,6 +2108,7 @@ class LightDesignerServer:
 
                     # Get motion timer state
                     motion_expires_at = state.get_motion_expires(area_id)
+                    motion_warning_active = state.is_motion_warned(area_id)
 
                     area_status[area_id] = {
                         'is_circadian': area_state.is_circadian,
@@ -2121,6 +2122,7 @@ class LightDesignerServer:
                         'boost_started_from_off': boost_state.get('boost_started_from_off', False) if is_boosted else None,
                         'is_motion_coupled': boost_state.get('is_motion_coupled', False) if is_boosted else False,
                         'motion_expires_at': motion_expires_at,
+                        'motion_warning_active': motion_warning_active,
                         'zone_name': zone_name if zone_name != 'Unassigned' else None,
                         'preset_name': zone_data.get('preset', 'Glo 1'),
                         # Raw state model

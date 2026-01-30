@@ -526,6 +526,16 @@
       margin: 0 3px;
     }
 
+    .timer-warning {
+      color: #e6a817;
+      animation: timer-pulse 1s ease-in-out infinite;
+    }
+
+    @keyframes timer-pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
     /* Action buttons */
     .action-section {
       margin-bottom: 16px;
@@ -1824,11 +1834,12 @@
         const hasMotion = status.motion_expires_at && status.motion_expires_at !== 'forever';
         const isBoosted = status.boosted || false;
         const isMotionCoupled = status.is_motion_coupled || false;
+        const warnClass = status.motion_warning_active ? ' timer-warning' : '';
 
         if (hasMotion && isBoosted && isMotionCoupled) {
           const remaining = formatCountdown(status.motion_expires_at);
           el.innerHTML = remaining
-            ? `<span class="timer-motion">M+${status.boost_brightness}% ${remaining}</span>`
+            ? `<span class="timer-motion${warnClass}">M+${status.boost_brightness}% ${remaining}</span>`
             : '';
           return;
         }
@@ -1836,7 +1847,7 @@
         const parts = [];
         if (hasMotion) {
           const remaining = formatCountdown(status.motion_expires_at);
-          if (remaining) parts.push(`<span class="timer-motion">M ${remaining}</span>`);
+          if (remaining) parts.push(`<span class="timer-motion${warnClass}">M ${remaining}</span>`);
         }
         if (isBoosted && status.boost_brightness && !isMotionCoupled) {
           let text = `B+${status.boost_brightness}%`;
@@ -2028,6 +2039,7 @@
           boost_started_from_off: status.boost_started_from_off || false,
           is_motion_coupled: status.is_motion_coupled || false,
           motion_expires_at: status.motion_expires_at || null,
+          motion_warning_active: status.motion_warning_active || false,
           zone_name: status.zone_name || null
         };
       });
@@ -2306,12 +2318,12 @@
       const hasMotion = status.motion_expires_at && status.motion_expires_at !== 'forever';
       const isBoosted = status.boosted || false;
       const isMotionCoupled = status.is_motion_coupled || false;
+      const warnClass = status.motion_warning_active ? ' timer-warning' : '';
 
       if (hasMotion && isBoosted && isMotionCoupled) {
-        // Motion-coupled boost: single combined display
         const remaining = formatCountdown(status.motion_expires_at);
         if (remaining) {
-          return `<span class="area-row-timer" data-area-timer="${area.area_id}"><span class="timer-motion">M+${status.boost_brightness}% ${remaining}</span></span>`;
+          return `<span class="area-row-timer" data-area-timer="${area.area_id}"><span class="timer-motion${warnClass}">M+${status.boost_brightness}% ${remaining}</span></span>`;
         }
       }
 
@@ -2319,7 +2331,7 @@
       if (hasMotion) {
         const remaining = formatCountdown(status.motion_expires_at);
         if (remaining) {
-          parts.push(`<span class="timer-motion">M ${remaining}</span>`);
+          parts.push(`<span class="timer-motion${warnClass}">M ${remaining}</span>`);
         }
       }
       if (isBoosted && status.boost_brightness && !isMotionCoupled) {
@@ -2491,7 +2503,8 @@
         boost_expires_at: status.boost_expires_at || null,
         boost_started_from_off: status.boost_started_from_off || false,
         is_motion_coupled: status.is_motion_coupled || false,
-        motion_expires_at: status.motion_expires_at || null
+        motion_expires_at: status.motion_expires_at || null,
+        motion_warning_active: status.motion_warning_active || false
       };
 
       // Update modal content
@@ -2621,19 +2634,20 @@
 
       const hasMotion = selectedArea.motion_expires_at && selectedArea.motion_expires_at !== 'forever';
       const hasBoostedMotion = selectedArea.boosted && selectedArea.is_motion_coupled;
+      const warnClass = selectedArea.motion_warning_active ? ' timer-warning' : '';
 
       if (hasMotion && hasBoostedMotion) {
         // Motion-coupled boost: show as single combined line
         const remaining = formatCountdown(selectedArea.motion_expires_at);
         if (remaining) {
-          parts.push(`<span class="timer-motion">Motion +${selectedArea.boost_brightness}%: ${remaining}<span class="timer-arrow">→</span>off</span>`);
+          parts.push(`<span class="timer-motion${warnClass}">Motion +${selectedArea.boost_brightness}%: ${remaining}<span class="timer-arrow">→</span>off</span>`);
         }
       } else {
         // Motion: only show timed expirations (not "forever")
         if (hasMotion) {
           const remaining = formatCountdown(selectedArea.motion_expires_at);
           if (remaining) {
-            parts.push(`<span class="timer-motion">Motion: ${remaining}<span class="timer-arrow">→</span>off</span>`);
+            parts.push(`<span class="timer-motion${warnClass}">Motion: ${remaining}<span class="timer-arrow">→</span>off</span>`);
           }
         }
 
