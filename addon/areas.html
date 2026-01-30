@@ -721,6 +721,12 @@
       white-space: nowrap;
     }
 
+    .area-row-timer {
+      font-size: 0.75rem;
+      white-space: nowrap;
+      opacity: 0.7;
+    }
+
     /* Row control buttons - dark container like modal header */
     .row-controls {
       display: inline-flex;
@@ -1129,6 +1135,7 @@
     let modalTickInterval = null;   // 1s local countdown tick
     let modalRefreshInterval = null; // 1s modal API refresh (single area)
     let homeRefreshTimer = null;     // Home page card refresh timer
+    let homeTickTimer = null;        // 1s home page timer countdown tick
 
     // ============================================================
     // Mini Circadian Graph — Calculation Functions
@@ -1809,6 +1816,40 @@
       return 10;
     }
 
+    function updateHomeTimers() {
+      // Update all timer spans in-place without re-rendering (no API calls)
+      document.querySelectorAll('[data-area-timer]').forEach(el => {
+        const areaId = el.getAttribute('data-area-timer');
+        const status = areaStatus[areaId] || {};
+        const hasMotion = status.motion_expires_at && status.motion_expires_at !== 'forever';
+        const isBoosted = status.boosted || false;
+        const isMotionCoupled = status.is_motion_coupled || false;
+
+        if (hasMotion && isBoosted && isMotionCoupled) {
+          const remaining = formatCountdown(status.motion_expires_at);
+          el.innerHTML = remaining
+            ? `<span class="timer-motion">M+${status.boost_brightness}% ${remaining}</span>`
+            : '';
+          return;
+        }
+
+        const parts = [];
+        if (hasMotion) {
+          const remaining = formatCountdown(status.motion_expires_at);
+          if (remaining) parts.push(`<span class="timer-motion">M ${remaining}</span>`);
+        }
+        if (isBoosted && status.boost_brightness && !isMotionCoupled) {
+          let text = `B+${status.boost_brightness}%`;
+          if (status.boost_expires_at !== 'forever' && status.boost_expires_at) {
+            const remaining = formatCountdown(status.boost_expires_at);
+            if (remaining) text += ` ${remaining}`;
+          }
+          parts.push(`<span class="timer-boost">${text}</span>`);
+        }
+        el.innerHTML = parts.join(' ');
+      });
+    }
+
     function startHomeRefresh() {
       stopHomeRefresh();
       const interval = getHomeRefreshInterval() * 1000;
@@ -1830,10 +1871,13 @@
           console.error('Error refreshing home page:', err);
         }
       }, interval);
+      // 1s tick for timer countdowns (no API calls)
+      homeTickTimer = setInterval(updateHomeTimers, 1000);
     }
 
     function stopHomeRefresh() {
       if (homeRefreshTimer) { clearInterval(homeRefreshTimer); homeRefreshTimer = null; }
+      if (homeTickTimer) { clearInterval(homeTickTimer); homeTickTimer = null; }
     }
 
     async function loadData() {
@@ -1979,6 +2023,11 @@
           kelvin: status.kelvin || 4000,
           frozen: status.frozen || false,
           boosted: status.boosted || false,
+          boost_brightness: status.boost_brightness || null,
+          boost_expires_at: status.boost_expires_at || null,
+          boost_started_from_off: status.boost_started_from_off || false,
+          is_motion_coupled: status.is_motion_coupled || false,
+          motion_expires_at: status.motion_expires_at || null,
           zone_name: status.zone_name || null
         };
       });
@@ -2217,6 +2266,7 @@
     function renderAreaRow(area) {
       const style = getRowStyle(area);
       const lightingInfo = getLightingInfo(area);
+      const timerInfo = getRowTimerInfo(area);
       const { leftControls, rightControls } = getRowControls(area);
 
       // Red dot: area doesn't match zone values (±2% brightness, ±100K tolerance)
@@ -2234,6 +2284,7 @@
           ${mismatchDot}
           ${leftControls}
           <span class="area-row-name">${area.name}</span>
+          ${timerInfo}
           <span class="area-row-lighting">${lightingInfo}</span>
           ${rightControls}
         </div>
@@ -2248,6 +2299,42 @@
         return '<span class="status-badge status-frozen">Frozen</span>';
       }
       return '<span class="status-badge status-on">On</span>';
+    }
+
+    function getRowTimerInfo(area) {
+      const status = areaStatus[area.area_id] || {};
+      const hasMotion = status.motion_expires_at && status.motion_expires_at !== 'forever';
+      const isBoosted = status.boosted || false;
+      const isMotionCoupled = status.is_motion_coupled || false;
+
+      if (hasMotion && isBoosted && isMotionCoupled) {
+        // Motion-coupled boost: single combined display
+        const remaining = formatCountdown(status.motion_expires_at);
+        if (remaining) {
+          return `<span class="area-row-timer" data-area-timer="${area.area_id}"><span class="timer-motion">M+${status.boost_brightness}% ${remaining}</span></span>`;
+        }
+      }
+
+      const parts = [];
+      if (hasMotion) {
+        const remaining = formatCountdown(status.motion_expires_at);
+        if (remaining) {
+          parts.push(`<span class="timer-motion">M ${remaining}</span>`);
+        }
+      }
+      if (isBoosted && status.boost_brightness && !isMotionCoupled) {
+        let text = `B+${status.boost_brightness}%`;
+        if (status.boost_expires_at === 'forever') {
+          // No countdown needed
+        } else if (status.boost_expires_at) {
+          const remaining = formatCountdown(status.boost_expires_at);
+          if (remaining) text += ` ${remaining}`;
+        }
+        parts.push(`<span class="timer-boost">${text}</span>`);
+      }
+
+      if (parts.length === 0) return '';
+      return `<span class="area-row-timer" data-area-timer="${area.area_id}">${parts.join(' ')}</span>`;
     }
 
     function getLightingInfo(area) {
@@ -2403,6 +2490,7 @@
         boost_brightness: status.boost_brightness || null,
         boost_expires_at: status.boost_expires_at || null,
         boost_started_from_off: status.boost_started_from_off || false,
+        is_motion_coupled: status.is_motion_coupled || false,
         motion_expires_at: status.motion_expires_at || null
       };
 
@@ -2532,7 +2620,7 @@
       const parts = [];
 
       const hasMotion = selectedArea.motion_expires_at && selectedArea.motion_expires_at !== 'forever';
-      const hasBoostedMotion = selectedArea.boosted && selectedArea.boost_expires_at === 'motion';
+      const hasBoostedMotion = selectedArea.boosted && selectedArea.is_motion_coupled;
 
       if (hasMotion && hasBoostedMotion) {
         // Motion-coupled boost: show as single combined line

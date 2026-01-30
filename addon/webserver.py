@@ -2119,6 +2119,7 @@ class LightDesignerServer:
                         'boost_brightness': boost_state.get('boost_brightness') if is_boosted else None,
                         'boost_expires_at': boost_state.get('boost_expires_at') if is_boosted else None,
                         'boost_started_from_off': boost_state.get('boost_started_from_off', False) if is_boosted else None,
+                        'is_motion_coupled': boost_state.get('is_motion_coupled', False) if is_boosted else False,
                         'motion_expires_at': motion_expires_at,
                         'zone_name': zone_name if zone_name != 'Unassigned' else None,
                         'preset_name': zone_data.get('preset', 'Glo 1'),
