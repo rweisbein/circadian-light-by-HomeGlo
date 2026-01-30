@@ -1,5 +1,16 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.221
+**Fix: preset settings (solar rules, brightness range) not applied to lights**
+
+- Fixed `glozone.load_config_from_files()` not merging top-level preset settings into preset dict
+- Fixed defaults masking file values for solar rules (warm_night, cool_day)
+- `get_preset_config()` now returns complete config with all defaults
+- Per-preset rhythm values via `/api/circadian-presets` endpoint
+- Mismatch dots now use outline with contrast ring (visible on warm/red backgrounds)
+- Swapped glo up/down button order on area rows (up first, down second)
+- Fixed brightness/kelvin positioning on zone and rhythm headers
+
 ## 6.9.220
 **Zone headers, rhythm grouping, red dots, modal reset icon**
 
