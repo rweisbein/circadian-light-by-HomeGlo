@@ -2519,6 +2519,8 @@
         let text = `+${selectedArea.boost_brightness}%`;
         if (selectedArea.boost_expires_at === 'forever') {
           text += ' · forever';
+        } else if (selectedArea.boost_expires_at === 'motion') {
+          text += ' · with motion';
         } else if (selectedArea.boost_expires_at) {
           const remaining = formatCountdown(selectedArea.boost_expires_at);
           if (remaining) {
