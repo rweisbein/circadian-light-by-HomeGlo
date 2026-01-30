@@ -1316,8 +1316,10 @@ class CircadianLightPrimitives:
         if state.is_circadian(area_id) and state.get_is_on(area_id):
             logger.debug(f"[{source}] motion_on_off: area {area_id} already on (not from motion), skipping")
             # If boost requested, apply it (lights already on, so no flash issue)
+            # Don't use from_motion=True here because we didn't start a motion
+            # timer — the "motion" sentinel would never clear.
             if has_boost:
-                await self.bright_boost(area_id, boost_duration, boost_brightness, source=source, from_motion=True)
+                await self.bright_boost(area_id, boost_duration, boost_brightness, source=source, from_motion=False)
             return
 
         logger.info(f"[{source}] motion_on_off: turning on area {area_id}, timer={'forever' if is_forever else f'{duration_seconds}s'}")

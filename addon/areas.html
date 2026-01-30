@@ -2593,7 +2593,17 @@
           if (selectedArea.boost_expires_at === 'forever') {
             text += ' · forever';
           } else if (selectedArea.boost_expires_at === 'motion') {
-            text += ' · until motion ends';
+            // Motion-coupled boost without combined display (edge case)
+            if (selectedArea.motion_expires_at) {
+              const remaining = formatCountdown(selectedArea.motion_expires_at);
+              if (remaining) {
+                text += ` · ${remaining}<span class="timer-arrow">→</span>rhythm`;
+              } else {
+                text += ' · ending';
+              }
+            } else {
+              text += ' · until motion ends';
+            }
           } else if (selectedArea.boost_expires_at) {
             const remaining = formatCountdown(selectedArea.boost_expires_at);
             if (remaining) {

@@ -1,5 +1,11 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.230
+**Fix motion-coupled boost on already-on areas and improve boost countdown display**
+
+- Fix `motion_on_off` same bug as `motion_on_only`: when area is already on (not from motion), don't use motion-coupled boost since no motion timer is created. Use timed boost instead so countdown works correctly.
+- Improve "motion" sentinel fallback in modal: show motion timer countdown when available instead of just "until motion ends"
+
 ## 6.9.229
 **Fix motion boost display and add boost/motion indicators to home page**
 
