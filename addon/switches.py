@@ -107,7 +107,7 @@ _HUE_4BUTTON_MAPPING = {
     # On button (top)
     "on_short_release": "circadian_toggle",     # 1x - on/off
     "on_double_press": "glo_up",                # 2x - push to zone
-    "on_triple_press": "glo_reset",             # 3x - reset zone
+    "on_triple_press": "freeze_toggle",          # 3x - freeze
     "on_quadruple_press": None,                 # 4x - not used
     "on_quintuple_press": None,                 # 5x - coming soon: emergency toggle
     "on_hold": None,                            # long - RESERVED for magic button
@@ -130,8 +130,8 @@ _HUE_4BUTTON_MAPPING = {
     "down_long_release": None,
     # Hue button (bottom)
     "off_short_release": "cycle_scope",         # 1x - change controlled areas
-    "off_double_press": "freeze_toggle",        # 2x - freeze
-    "off_triple_press": "glo_down",             # 3x - pull zone state
+    "off_double_press": "glo_down",              # 2x - pull zone state
+    "off_triple_press": "glo_reset",            # 3x - reset zone
     "off_quadruple_press": None,                # 4x - not used
     "off_quintuple_press": None,                # 5x - coming soon: Sleep
     "off_hold": None,                           # long - RESERVED for magic button
