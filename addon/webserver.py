@@ -466,6 +466,8 @@ class LightDesignerServer:
         self.app.router.add_post('/api/controls/{control_id}/configure', self.configure_control)
         self.app.router.add_delete('/api/controls/{control_id}/configure', self.remove_control_config)
         self.app.router.add_get('/api/area-lights', self.get_area_lights)
+        self.app.router.add_route('POST', '/{path:.*}/api/flash-light', self.flash_light)
+        self.app.router.add_post('/api/flash-light', self.flash_light)
 
         # Legacy switches API routes (keeping for backwards compat)
         self.app.router.add_route('GET', '/{path:.*}/api/switches', self.get_switches)
@@ -3218,6 +3220,89 @@ class LightDesignerServer:
         except Exception as e:
             logger.warning(f"Error fetching device areas: {e}")
             return {}
+
+    async def flash_light(self, request: Request) -> Response:
+        """Flash a light entity briefly so the user can identify it.
+
+        POST body: {"entity_id": "light.xyz"}
+        """
+        try:
+            data = await request.json()
+            entity_id = data.get("entity_id")
+            if not entity_id or not entity_id.startswith("light."):
+                return web.json_response({"error": "Valid light entity_id required"}, status=400)
+
+            rest_url, ws_url, token = self._get_ha_api_config()
+            if not token or not ws_url:
+                return web.json_response({"error": "HA not configured"}, status=500)
+
+            async with websockets.connect(ws_url) as ws:
+                # Auth
+                msg = json.loads(await ws.recv())
+                if msg.get('type') != 'auth_required':
+                    return web.json_response({"error": "Auth failed"}, status=500)
+                await ws.send(json.dumps({'type': 'auth', 'access_token': token}))
+                msg = json.loads(await ws.recv())
+                if msg.get('type') != 'auth_ok':
+                    return web.json_response({"error": "Auth failed"}, status=500)
+
+                # Get current state
+                await ws.send(json.dumps({
+                    'id': 1, 'type': 'get_states'
+                }))
+                states_msg = json.loads(await ws.recv())
+                current_state = None
+                if states_msg.get('success') and states_msg.get('result'):
+                    for s in states_msg['result']:
+                        if s.get('entity_id') == entity_id:
+                            current_state = s
+                            break
+
+                was_on = current_state and current_state.get('state') == 'on'
+                attrs = current_state.get('attributes', {}) if was_on else {}
+                orig_brightness = attrs.get('brightness', 128)
+
+                # Flash: turn on bright
+                msg_id = 2
+                await ws.send(json.dumps({
+                    'id': msg_id, 'type': 'call_service',
+                    'domain': 'light', 'service': 'turn_on',
+                    'service_data': {'brightness': 255, 'transition': 0},
+                    'target': {'entity_id': entity_id}
+                }))
+                await ws.recv()
+
+                await asyncio.sleep(0.5)
+
+                # Restore
+                msg_id += 1
+                if not was_on:
+                    await ws.send(json.dumps({
+                        'id': msg_id, 'type': 'call_service',
+                        'domain': 'light', 'service': 'turn_off',
+                        'service_data': {'transition': 0},
+                        'target': {'entity_id': entity_id}
+                    }))
+                else:
+                    restore_data = {'brightness': orig_brightness, 'transition': 0}
+                    xy = attrs.get('xy_color')
+                    ct = attrs.get('color_temp')
+                    if xy:
+                        restore_data['xy_color'] = xy
+                    elif ct:
+                        restore_data['color_temp'] = ct
+                    await ws.send(json.dumps({
+                        'id': msg_id, 'type': 'call_service',
+                        'domain': 'light', 'service': 'turn_on',
+                        'service_data': restore_data,
+                        'target': {'entity_id': entity_id}
+                    }))
+                await ws.recv()
+
+            return web.json_response({"status": "ok"})
+        except Exception as e:
+            logger.error(f"Error flashing light: {e}", exc_info=True)
+            return web.json_response({"error": str(e)}, status=500)
 
     async def get_area_lights(self, request: Request) -> Response:
         """Get light entities for a given area.

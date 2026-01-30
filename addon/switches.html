@@ -604,6 +604,16 @@
       font-size: 0.75rem;
       color: var(--muted);
     }
+
+    .indicator-inline-select {
+      padding: 4px 6px;
+      border-radius: 4px;
+      border: 1px solid var(--line);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 0.8rem;
+      max-width: 160px;
+    }
   </style>
 </head>
 <body>
@@ -780,6 +790,7 @@
         }
 
         renderControls();
+        populateIndicatorDropdowns();
         window.scrollTo(0, scrollY);
       } catch (err) {
         console.error('Error loading controls:', err);
@@ -919,12 +930,13 @@
               <th class="${thClass('lastAction')}" onclick="sortBy('lastAction')">Last action ${arrow('lastAction')}</th>
               <th class="${thClass('controller')}" onclick="sortBy('controller')">Controller ${arrow('controller')}</th>
               <th class="${thClass('type')}" onclick="sortBy('type')">Type ${arrow('type')}</th>
+              <th>Indicator</th>
             </tr>
           </thead>
           <tbody>
             ${sorted.length === 0 ? `
               <tr>
-                <td colspan="7" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                <td colspan="8" style="text-align: center; padding: 40px; color: var(--text-secondary);">
                   ${controls.length > 0
                     ? 'No controls match the current filters.'
                     : 'No controls found. Click Update to scan Home Assistant.'}
@@ -955,6 +967,15 @@
                      <span class="inactive-toggle-label">${ctrl.inactive ? 'Paused' : ''}</span>
                    </label>`
                 : '';
+              // Indicator light dropdown for configured switches
+              const isSwitch = ctrl.category === 'switch';
+              const switchConfigured = isSwitch && (ctrl.status === 'active');
+              const indicatorCell = switchConfigured
+                ? `<select class="indicator-inline-select" data-control-id="${ctrl.id}" data-area-id="${ctrl.area_id || ''}"
+                     onchange="updateIndicatorLight('${ctrl.id}', this.value)">
+                     <option value="">None</option>
+                   </select>`
+                : '—';
               return `
                 <tr>
                   <td>${nameCell}</td>
@@ -964,6 +985,7 @@
                   <td>${lastAction}</td>
                   <td>${controllerLabel}</td>
                   <td>${typeName}</td>
+                  <td>${indicatorCell}</td>
                 </tr>
               `;
             }).join('')}
@@ -1119,6 +1141,76 @@
       }
     }
 
+    async function updateIndicatorLight(controlId, entityId) {
+      const ctrl = controls.find(c => c.id === controlId);
+      if (!ctrl) return;
+
+      // Flash the selected light so user can identify it
+      if (entityId) {
+        fetch('./api/flash-light', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ entity_id: entityId })
+        }).catch(err => console.error('Error flashing light:', err));
+      }
+
+      try {
+        const payload = {
+          name: ctrl.name,
+          type: ctrl.type,
+          scopes: ctrl.scopes || [],
+          device_id: ctrl.device_id,
+          indicator_light: entityId || ''
+        };
+
+        const response = await fetch(`./api/controls/${encodeURIComponent(controlId)}/configure`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+          const data = await response.json();
+          alert(data.error || 'Failed to update');
+          return;
+        }
+
+        // Update local state without full reload
+        ctrl.indicator_light = entityId || null;
+      } catch (err) {
+        console.error('Error updating indicator light:', err);
+        alert('Error updating indicator light');
+      }
+    }
+
+    async function populateIndicatorDropdowns() {
+      const selects = document.querySelectorAll('.indicator-inline-select');
+      for (const select of selects) {
+        const controlId = select.dataset.controlId;
+        const areaId = select.dataset.areaId;
+        if (!areaId) continue;
+
+        const ctrl = controls.find(c => c.id === controlId);
+        const currentValue = ctrl?.indicator_light || '';
+
+        try {
+          const response = await fetch(`./api/area-lights?area_id=${encodeURIComponent(areaId)}`);
+          if (response.ok) {
+            const data = await response.json();
+            (data.lights || []).forEach(light => {
+              const opt = document.createElement('option');
+              opt.value = light.entity_id;
+              opt.textContent = light.name;
+              if (light.entity_id === currentValue) opt.selected = true;
+              select.appendChild(opt);
+            });
+          }
+        } catch (err) {
+          console.error('Error loading area lights for dropdown:', err);
+        }
+      }
+    }
+
     function getAreaName(areaId) {
       const area = allAreas.find(a => a.area_id === areaId);
       return area ? area.name : areaId;
@@ -1189,6 +1281,21 @@
         console.error('Error loading area lights:', err);
       }
     }
+
+    // Flash indicator light when selected so user can identify it
+    document.getElementById('indicator-light-select').addEventListener('change', async (e) => {
+      const entityId = e.target.value;
+      if (!entityId) return;
+      try {
+        await fetch('./api/flash-light', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ entity_id: entityId })
+        });
+      } catch (err) {
+        console.error('Error flashing light:', err);
+      }
+    });
 
     function editControl(id) {
       const ctrl = controls.find(c => c.id === id);
