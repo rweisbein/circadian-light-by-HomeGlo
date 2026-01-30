@@ -433,18 +433,6 @@
       height: 18px;
     }
 
-    /* Ice/frozen icon */
-    .freeze-icon {
-      display: inline-flex;
-      color: #63b3ed;
-      margin-left: 4px;
-    }
-
-    .freeze-icon svg {
-      width: 14px;
-      height: 14px;
-    }
-
     /* Reset button - prominent */
     .reset-section {
       display: flex;
@@ -524,6 +512,16 @@
     .timer-arrow {
       color: var(--muted2);
       margin: 0 3px;
+    }
+
+    .timer-warning {
+      color: #e6a817;
+      animation: timer-pulse 1s ease-in-out infinite;
+    }
+
+    @keyframes timer-pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
     }
 
     /* Action buttons */
@@ -719,6 +717,12 @@
     .area-row-lighting {
       font-size: 0.85rem;
       white-space: nowrap;
+    }
+
+    .area-row-timer {
+      font-size: 0.75rem;
+      white-space: nowrap;
+      opacity: 0.7;
     }
 
     /* Row control buttons - dark container like modal header */
@@ -1127,7 +1131,9 @@
     let cachedConfig = null;
     let cachedSunTimes = null; // { sunrise, sunset, solarNoon, solarMid } in local hours
     let modalTickInterval = null;   // 1s local countdown tick
-    let modalRefreshInterval = null; // 10s API refresh
+    let modalRefreshInterval = null; // 1s modal API refresh (single area)
+    let homeRefreshTimer = null;     // Home page card refresh timer
+    let homeTickTimer = null;        // 1s home page timer countdown tick
 
     // ============================================================
     // Mini Circadian Graph — Calculation Functions
@@ -1800,6 +1806,79 @@
       }
     }
 
+    function getHomeRefreshInterval() {
+      if (cachedConfig) {
+        const val = cachedConfig.home_refresh_interval;
+        if (val && val >= 2 && val <= 60) return val;
+      }
+      return 10;
+    }
+
+    function updateHomeTimers() {
+      // Update all timer spans in-place without re-rendering (no API calls)
+      document.querySelectorAll('[data-area-timer]').forEach(el => {
+        const areaId = el.getAttribute('data-area-timer');
+        const status = areaStatus[areaId] || {};
+        const hasMotion = status.motion_expires_at && status.motion_expires_at !== 'forever';
+        const isBoosted = status.boosted || false;
+        const isMotionCoupled = status.is_motion_coupled || false;
+        const warnClass = status.motion_warning_active ? ' timer-warning' : '';
+
+        if (hasMotion && isBoosted && isMotionCoupled) {
+          const remaining = formatCountdown(status.motion_expires_at);
+          el.innerHTML = remaining
+            ? `<span class="timer-motion${warnClass}">M+${status.boost_brightness}% ${remaining}</span>`
+            : '';
+          return;
+        }
+
+        const parts = [];
+        if (hasMotion) {
+          const remaining = formatCountdown(status.motion_expires_at);
+          if (remaining) parts.push(`<span class="timer-motion${warnClass}">M ${remaining}</span>`);
+        }
+        if (isBoosted && status.boost_brightness && !isMotionCoupled) {
+          let text = `B+${status.boost_brightness}%`;
+          if (status.boost_expires_at !== 'forever' && status.boost_expires_at) {
+            const remaining = formatCountdown(status.boost_expires_at);
+            if (remaining) text += ` ${remaining}`;
+          }
+          parts.push(`<span class="timer-boost">${text}</span>`);
+        }
+        el.innerHTML = parts.join(' ');
+      });
+    }
+
+    function startHomeRefresh() {
+      stopHomeRefresh();
+      const interval = getHomeRefreshInterval() * 1000;
+      homeRefreshTimer = setInterval(async () => {
+        try {
+          const [res, zsRes] = await Promise.all([
+            fetch('./api/area-status'),
+            fetch('./api/zone-states')
+          ]);
+          if (res.ok) {
+            areaStatus = await res.json();
+          }
+          if (zsRes.ok) {
+            const zs = await zsRes.json();
+            zoneStates = zs.zone_states || {};
+          }
+          renderAreas();
+        } catch (err) {
+          console.error('Error refreshing home page:', err);
+        }
+      }, interval);
+      // 1s tick for timer countdowns (no API calls)
+      homeTickTimer = setInterval(updateHomeTimers, 1000);
+    }
+
+    function stopHomeRefresh() {
+      if (homeRefreshTimer) { clearInterval(homeRefreshTimer); homeRefreshTimer = null; }
+      if (homeTickTimer) { clearInterval(homeTickTimer); homeTickTimer = null; }
+    }
+
     async function loadData() {
       const container = document.getElementById('areas-container');
       container.innerHTML = '<div class="loading">Loading areas...</div>';
@@ -1831,6 +1910,7 @@
         }
 
         renderAreas();
+        startHomeRefresh();
       } catch (err) {
         console.error('Error loading data:', err);
         container.innerHTML = '<div class="loading">Error loading data</div>';
@@ -1942,6 +2022,12 @@
           kelvin: status.kelvin || 4000,
           frozen: status.frozen || false,
           boosted: status.boosted || false,
+          boost_brightness: status.boost_brightness || null,
+          boost_expires_at: status.boost_expires_at || null,
+          boost_started_from_off: status.boost_started_from_off || false,
+          is_motion_coupled: status.is_motion_coupled || false,
+          motion_expires_at: status.motion_expires_at || null,
+          motion_warning_active: status.motion_warning_active || false,
           zone_name: status.zone_name || null
         };
       });
@@ -2180,6 +2266,7 @@
     function renderAreaRow(area) {
       const style = getRowStyle(area);
       const lightingInfo = getLightingInfo(area);
+      const timerInfo = getRowTimerInfo(area);
       const { leftControls, rightControls } = getRowControls(area);
 
       // Red dot: area doesn't match zone values (±2% brightness, ±100K tolerance)
@@ -2197,6 +2284,7 @@
           ${mismatchDot}
           ${leftControls}
           <span class="area-row-name">${area.name}</span>
+          ${timerInfo}
           <span class="area-row-lighting">${lightingInfo}</span>
           ${rightControls}
         </div>
@@ -2211,6 +2299,42 @@
         return '<span class="status-badge status-frozen">Frozen</span>';
       }
       return '<span class="status-badge status-on">On</span>';
+    }
+
+    function getRowTimerInfo(area) {
+      const status = areaStatus[area.area_id] || {};
+      const hasMotion = status.motion_expires_at && status.motion_expires_at !== 'forever';
+      const isBoosted = status.boosted || false;
+      const isMotionCoupled = status.is_motion_coupled || false;
+      const warnClass = status.motion_warning_active ? ' timer-warning' : '';
+
+      if (hasMotion && isBoosted && isMotionCoupled) {
+        const remaining = formatCountdown(status.motion_expires_at);
+        if (remaining) {
+          return `<span class="area-row-timer" data-area-timer="${area.area_id}"><span class="timer-motion${warnClass}">M+${status.boost_brightness}% ${remaining}</span></span>`;
+        }
+      }
+
+      const parts = [];
+      if (hasMotion) {
+        const remaining = formatCountdown(status.motion_expires_at);
+        if (remaining) {
+          parts.push(`<span class="timer-motion${warnClass}">M ${remaining}</span>`);
+        }
+      }
+      if (isBoosted && status.boost_brightness && !isMotionCoupled) {
+        let text = `B+${status.boost_brightness}%`;
+        if (status.boost_expires_at === 'forever') {
+          // No countdown needed
+        } else if (status.boost_expires_at) {
+          const remaining = formatCountdown(status.boost_expires_at);
+          if (remaining) text += ` ${remaining}`;
+        }
+        parts.push(`<span class="timer-boost">${text}</span>`);
+      }
+
+      if (parts.length === 0) return '';
+      return `<span class="area-row-timer" data-area-timer="${area.area_id}">${parts.join(' ')}</span>`;
     }
 
     function getLightingInfo(area) {
@@ -2366,7 +2490,9 @@
         boost_brightness: status.boost_brightness || null,
         boost_expires_at: status.boost_expires_at || null,
         boost_started_from_off: status.boost_started_from_off || false,
-        motion_expires_at: status.motion_expires_at || null
+        is_motion_coupled: status.is_motion_coupled || false,
+        motion_expires_at: status.motion_expires_at || null,
+        motion_warning_active: status.motion_warning_active || false
       };
 
       // Update modal content
@@ -2384,48 +2510,19 @@
         stateEl.style.setProperty('--state-fill', '0');
       }
 
-      // Snowflake/ice crystal icon
-      const iceIcon = '<span class="freeze-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="2" x2="12" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/><line x1="19.07" y1="4.93" x2="4.93" y2="19.07"/><line x1="12" y1="2" x2="9" y2="5"/><line x1="12" y1="2" x2="15" y2="5"/><line x1="12" y1="22" x2="9" y2="19"/><line x1="12" y1="22" x2="15" y2="19"/><line x1="2" y1="12" x2="5" y2="9"/><line x1="2" y1="12" x2="5" y2="15"/><line x1="22" y1="12" x2="19" y2="9"/><line x1="22" y1="12" x2="19" y2="15"/></svg></span>';
-
-      // Values - always show CT and brightness (calculated from curve when off)
+      // Values - always show CT and brightness from server-calculated values
       const valuesEl = document.getElementById('modal-values');
-      let displayBri, displayKelvin;
+      const displayBri = selectedArea.brightness;
+      const displayKelvin = selectedArea.kelvin;
       if (selectedArea.is_on) {
-        displayBri = selectedArea.brightness;
-        displayKelvin = selectedArea.kelvin;
         const cctColor = cctToRGB(displayKelvin);
         const tintedColor = tintColorByBrightness(cctColor, displayBri);
         valuesEl.style.color = readableTextColor(tintedColor);
       } else {
-        // Calculate what circadian values would be right now using area's preset
-        if (cachedConfig && cachedSunTimes) {
-          const presetName = selectedArea.preset_name;
-          const offCfg = (presetName && cachedPresets[presetName])
-            ? { ...cachedConfig, ...cachedPresets[presetName] }
-            : cachedConfig;
-          const now = new Date();
-          const currentHour = now.getHours() + now.getMinutes() / 60;
-          const offState = {
-            brightness_mid: status.brightness_mid ?? null,
-            color_mid: status.color_mid ?? null,
-            color_override: status.color_override ?? null,
-            frozen_at: status.frozen_at ?? null
-          };
-          displayBri = calcMiniBrightness(currentHour, offCfg, offState, currentHour) * 100;
-          displayKelvin = calcMiniColor(currentHour, offCfg, offState, cachedSunTimes, currentHour);
-        } else {
-          displayBri = 50;
-          displayKelvin = 4000;
-        }
         valuesEl.style.color = 'var(--muted)';
       }
 
-      // Show values with freeze icon if frozen
-      if (selectedArea.frozen) {
-        valuesEl.innerHTML = `${Math.round(displayBri)}% &bull; ${Math.round(displayKelvin)}K ${iceIcon}`;
-      } else {
-        valuesEl.textContent = `${Math.round(displayBri)}% • ${Math.round(displayKelvin)}K`;
-      }
+      valuesEl.textContent = `${Math.round(displayBri)}% • ${Math.round(displayKelvin)}K`;
 
       // Context info (Glo zone + Rhythm)
       const zoneLinkEl = document.getElementById('modal-zone-link');
@@ -2515,35 +2612,70 @@
       if (!timerEl) return;
       const parts = [];
 
-      // Motion: only show timed expirations (not "forever")
-      if (selectedArea.motion_expires_at && selectedArea.motion_expires_at !== 'forever') {
+      const hasMotion = selectedArea.motion_expires_at && selectedArea.motion_expires_at !== 'forever';
+      const hasBoostedMotion = selectedArea.boosted && selectedArea.is_motion_coupled;
+      const warnClass = selectedArea.motion_warning_active ? ' timer-warning' : '';
+
+      if (hasMotion && hasBoostedMotion) {
+        // Motion-coupled boost: show as single combined line
         const remaining = formatCountdown(selectedArea.motion_expires_at);
         if (remaining) {
-          parts.push(`<span class="timer-motion">Motion: ${remaining}<span class="timer-arrow">→</span>off</span>`);
+          parts.push(`<span class="timer-motion${warnClass}">Motion +${selectedArea.boost_brightness}%: ${remaining}<span class="timer-arrow">→</span>off</span>`);
         }
-      }
-
-      // Boost: show amount + countdown + outcome
-      if (selectedArea.boosted && selectedArea.boost_brightness) {
-        let text = `+${selectedArea.boost_brightness}%`;
-        if (selectedArea.boost_expires_at === 'forever') {
-          text += ' · forever';
-        } else if (selectedArea.boost_expires_at === 'motion') {
-          text += ' · with motion';
-        } else if (selectedArea.boost_expires_at) {
-          const remaining = formatCountdown(selectedArea.boost_expires_at);
+      } else {
+        // Motion: only show timed expirations (not "forever")
+        if (hasMotion) {
+          const remaining = formatCountdown(selectedArea.motion_expires_at);
           if (remaining) {
-            const outcome = selectedArea.boost_started_from_off ? 'off' : 'rhythm';
-            text += ` · ${remaining}<span class="timer-arrow">→</span>${outcome}`;
+            parts.push(`<span class="timer-motion${warnClass}">Motion: ${remaining}<span class="timer-arrow">→</span>off</span>`);
           }
         }
-        parts.push(`<span class="timer-boost">Boost: ${text}</span>`);
+
+        // Boost: show amount + countdown + outcome (skip if coupled to motion, already shown above)
+        if (selectedArea.boosted && selectedArea.boost_brightness) {
+          let text = `+${selectedArea.boost_brightness}%`;
+          if (selectedArea.boost_expires_at === 'forever') {
+            text += ' · forever';
+          } else if (selectedArea.boost_expires_at) {
+            const remaining = formatCountdown(selectedArea.boost_expires_at);
+            if (remaining) {
+              const outcome = selectedArea.boost_started_from_off ? 'off' : 'rhythm';
+              text += ` · ${remaining}<span class="timer-arrow">→</span>${outcome}`;
+            }
+          }
+          parts.push(`<span class="timer-boost">Boost: ${text}</span>`);
+        }
       }
 
       timerEl.innerHTML = parts.join('');
     }
 
-    function openAreaModal(areaId) {
+    async function openAreaModal(areaId) {
+      // Stop home refresh while modal is open
+      stopHomeRefresh();
+
+      // Fetch all data fresh before rendering modal
+      try {
+        const [res, zsRes, pRes] = await Promise.all([
+          fetch('./api/area-status'),
+          fetch('./api/zone-states'),
+          fetch('./api/circadian-presets')
+        ]);
+        if (res.ok) {
+          areaStatus = await res.json();
+        }
+        if (zsRes.ok) {
+          const zs = await zsRes.json();
+          zoneStates = zs.zone_states || {};
+        }
+        if (pRes.ok) {
+          const p = await pRes.json();
+          cachedPresets = p.presets || {};
+        }
+      } catch (err) {
+        console.error('Error fetching modal data:', err);
+      }
+
       updateModalContent(areaId, false);  // Update content but don't render chart yet
 
       // Show modal first, then render chart after it's visible
@@ -2555,34 +2687,22 @@
         renderMiniChartForArea(areaId);
       }, 50);
 
-      // Start live countdown tick (1s) and API refresh (10s)
+      // Start live countdown tick (1s) and single-area API refresh (1s)
       clearModalIntervals();
       modalTickInterval = setInterval(updateTimerStatus, 1000);
       modalRefreshInterval = setInterval(async () => {
         if (!selectedArea) return;
         try {
-          const [res, zsRes, pRes] = await Promise.all([
-            fetch('./api/area-status'),
-            fetch('./api/zone-states'),
-            fetch('./api/circadian-presets')
-          ]);
+          const res = await fetch(`./api/area-status?area_id=${encodeURIComponent(selectedArea.area_id)}`);
           if (res.ok) {
-            areaStatus = await res.json();
-          }
-          if (zsRes.ok) {
-            const zs = await zsRes.json();
-            zoneStates = zs.zone_states || {};
-          }
-          if (pRes.ok) {
-            const p = await pRes.json();
-            cachedPresets = p.presets || {};
+            const singleStatus = await res.json();
+            Object.assign(areaStatus, singleStatus);
           }
           updateModalContent(selectedArea.area_id, false);
-          renderAreas();
         } catch (err) {
           console.error('Error refreshing modal:', err);
         }
-      }, 10000);
+      }, 1000);
     }
 
     function clearModalIntervals() {
@@ -2594,6 +2714,8 @@
       clearModalIntervals();
       document.getElementById('area-modal').classList.remove('visible');
       selectedArea = null;
+      // Resume home page refresh
+      startHomeRefresh();
     }
 
     function toggleCircadian() {
@@ -2619,31 +2741,18 @@
         });
 
         if (response.ok) {
-          // Re-fetch area status + zone states + presets, then update modal in place
+          // Re-fetch single area status, then update modal in place
           setTimeout(async () => {
             try {
-              const [statusRes, zsRes, pRes] = await Promise.all([
-                fetch('./api/area-status'),
-                fetch('./api/zone-states'),
-                fetch('./api/circadian-presets')
-              ]);
-              if (statusRes.ok) {
-                areaStatus = await statusRes.json();
-              }
-              if (zsRes.ok) {
-                const zs = await zsRes.json();
-                zoneStates = zs.zone_states || {};
-              }
-              if (pRes.ok) {
-                const p = await pRes.json();
-                cachedPresets = p.presets || {};
+              const res = await fetch(`./api/area-status?area_id=${encodeURIComponent(areaId)}`);
+              if (res.ok) {
+                const singleStatus = await res.json();
+                Object.assign(areaStatus, singleStatus);
               }
               // Re-render modal content without closing
               if (selectedArea && selectedArea.area_id === areaId) {
                 updateModalContent(areaId);
               }
-              // Also update the table behind the modal
-              renderAreas();
             } catch (err) {
               console.error('Error refreshing after action:', err);
             }
@@ -2677,13 +2786,12 @@
         });
 
         if (response.ok) {
-          // Re-fetch area status + zone states + presets and update table
+          // Re-fetch area status + zone states and update table
           setTimeout(async () => {
             try {
-              const [statusRes, zsRes, pRes] = await Promise.all([
+              const [statusRes, zsRes] = await Promise.all([
                 fetch('./api/area-status'),
-                fetch('./api/zone-states'),
-                fetch('./api/circadian-presets')
+                fetch('./api/zone-states')
               ]);
               if (statusRes.ok) {
                 areaStatus = await statusRes.json();
@@ -2691,10 +2799,6 @@
               if (zsRes.ok) {
                 const zs = await zsRes.json();
                 zoneStates = zs.zone_states || {};
-              }
-              if (pRes.ok) {
-                const p = await pRes.json();
-                cachedPresets = p.presets || {};
               }
               renderAreas();
               // Also update modal if it's open for this area

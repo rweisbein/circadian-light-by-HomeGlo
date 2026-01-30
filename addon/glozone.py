@@ -380,10 +380,10 @@ def get_preset_config(preset_name: str) -> Dict[str, Any]:
         "max_dim_steps": 10,
     }
     result = {**defaults, **preset}
-    logger.info(f"[get_preset_config] preset_name={preset_name}, "
-                f"raw preset keys={list(preset.keys())}, "
-                f"warm_night_enabled={result.get('warm_night_enabled')}, "
-                f"max_brightness={result.get('max_brightness')}")
+    logger.debug(f"[get_preset_config] preset_name={preset_name}, "
+                 f"raw preset keys={list(preset.keys())}, "
+                 f"warm_night_enabled={result.get('warm_night_enabled')}, "
+                 f"max_brightness={result.get('max_brightness')}")
     return result
 
 
@@ -637,10 +637,10 @@ def load_config_from_files(data_dir: Optional[str] = None) -> Dict[str, Any]:
 
     # Log what ended up in the presets after loading + merging
     for pname, pdata in config.get("circadian_presets", {}).items():
-        logger.info(f"[load_config] Preset '{pname}': "
-                    f"warm_night_enabled={pdata.get('warm_night_enabled', 'MISSING')}, "
-                    f"max_brightness={pdata.get('max_brightness', 'MISSING')}, "
-                    f"keys={list(pdata.keys())}")
+        logger.debug(f"[load_config] Preset '{pname}': "
+                     f"warm_night_enabled={pdata.get('warm_night_enabled', 'MISSING')}, "
+                     f"max_brightness={pdata.get('max_brightness', 'MISSING')}, "
+                     f"keys={list(pdata.keys())}")
     # Log any remaining top-level PRESET_SETTINGS (should be none)
     leftover = [k for k in config.keys() if k in PRESET_SETTINGS]
     if leftover:

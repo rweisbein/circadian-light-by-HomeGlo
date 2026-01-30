@@ -52,6 +52,8 @@ def _get_default_area_state() -> Dict[str, Any]:
         # Motion warning state
         "motion_warning_at": None,  # ISO timestamp when warning was triggered (None = not warned)
         "motion_pre_warning_brightness": None,  # Brightness % before warning (to restore if motion detected)
+        # Off enforcement (periodic loop optimization)
+        "off_enforced": False,  # True once we've verified all lights are off; skip re-sending off commands
     }
 
 
@@ -476,6 +478,16 @@ def is_boost_forever(area_id: str) -> bool:
     return get_area(area_id).get("boost_expires_at") == "forever"
 
 
+def is_boost_motion_coupled(area_id: str) -> bool:
+    """Check if an area's boost is coupled to its motion timer.
+
+    When boost is triggered by a motion/contact sensor, boost_expires_at is set
+    to "motion" instead of a timestamp. The boost ends only when the motion
+    timer ends (via end_motion_on_off), not independently.
+    """
+    return get_area(area_id).get("boost_expires_at") == "motion"
+
+
 def get_boost_state(area_id: str) -> Dict[str, Any]:
     """Get boost state for an area.
 
@@ -487,6 +499,7 @@ def get_boost_state(area_id: str) -> Dict[str, Any]:
     return {
         "is_boosted": expires_at is not None,
         "is_forever": expires_at == "forever",
+        "is_motion_coupled": expires_at == "motion",
         "boost_started_from_off": area.get("boost_started_from_off", False),
         "boost_expires_at": expires_at,
         "boost_brightness": area.get("boost_brightness"),
@@ -535,8 +548,8 @@ def get_expired_boosts() -> List[str]:
 
     for area_id, s in _state.items():
         expires_at = s.get("boost_expires_at")
-        # Skip if not boosted or if forever boost
-        if not expires_at or expires_at == "forever":
+        # Skip if not boosted, forever boost, or motion-coupled boost
+        if not expires_at or expires_at == "forever" or expires_at == "motion":
             continue
         if expires_at <= now:
             expired.append(area_id)
@@ -704,9 +717,10 @@ def get_areas_needing_warning(warning_seconds: int) -> List[str]:
                 pass
 
         # Check boost timer (only if boost will turn off lights when it ends)
+        # Skip motion-coupled boosts - their warning comes from the motion timer
         boost_expires = s.get("boost_expires_at")
         boost_started_from_off = s.get("boost_started_from_off", False)
-        if boost_expires and boost_expires != "forever" and boost_started_from_off:
+        if boost_expires and boost_expires not in ("forever", "motion") and boost_started_from_off:
             try:
                 expiry_time = datetime.fromisoformat(boost_expires)
                 if now < expiry_time <= warning_threshold:
@@ -715,3 +729,37 @@ def get_areas_needing_warning(warning_seconds: int) -> List[str]:
                 pass
 
     return needs_warning
+
+
+# ============================================================================
+# Off Enforcement State
+# ============================================================================
+
+def set_off_enforced(area_id: str, value: bool) -> None:
+    """Set the off_enforced flag for an area.
+
+    When True, the periodic circadian tick skips sending redundant off commands
+    because we've verified all lights in the area are actually off.
+
+    Args:
+        area_id: The area ID
+        value: Whether off state has been verified/enforced
+    """
+    update_area(area_id, {"off_enforced": value})
+
+
+def is_off_enforced(area_id: str) -> bool:
+    """Check if off state has been verified/enforced for an area."""
+    return get_area(area_id).get("off_enforced", False)
+
+
+def clear_all_off_enforced() -> None:
+    """Clear off_enforced for all areas.
+
+    Called at startup to force one enforcement pass after every reboot.
+    """
+    for area_id in list(_state.keys()):
+        if _state[area_id].get("off_enforced", False):
+            _state[area_id]["off_enforced"] = False
+    _save()
+    logger.debug("Cleared off_enforced for all areas")

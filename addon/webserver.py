@@ -453,6 +453,10 @@ class LightDesignerServer:
         self.app.router.add_route('POST', '/{path:.*}/api/area/action', self.handle_area_action)
         self.app.router.add_post('/api/area/action', self.handle_area_action)
 
+        # Manual sync endpoint
+        self.app.router.add_route('POST', '/{path:.*}/api/sync-devices', self.handle_sync_devices)
+        self.app.router.add_post('/api/sync-devices', self.handle_sync_devices)
+
         # Controls API routes (new unified endpoint)
         self.app.router.add_route('GET', '/{path:.*}/api/controls', self.get_controls)
         self.app.router.add_route('POST', '/{path:.*}/api/controls/{control_id}/configure', self.configure_control)
@@ -850,23 +854,23 @@ class LightDesignerServer:
             # Get zones and presets from glozone module (consistent with area-status)
             zones = glozone.get_glozones()
 
-            logger.info(f"[ZoneStates] Found {len(zones)} zones: {list(zones.keys())}")
+            logger.debug(f"[ZoneStates] Found {len(zones)} zones: {list(zones.keys())}")
 
             zone_states = {}
             for zone_name, zone_config in zones.items():
                 # Get the preset (Glo) for this zone using glozone module
                 preset_name = zone_config.get("preset", "Glo 1")
                 preset_config = glozone.get_preset_config(preset_name)
-                logger.info(f"[ZoneStates] Zone '{zone_name}' preset_config keys: {list(preset_config.keys())}")
-                logger.info(f"[ZoneStates] Zone '{zone_name}' preset min/max bri: {preset_config.get('min_brightness')}/{preset_config.get('max_brightness')}")
+                logger.debug(f"[ZoneStates] Zone '{zone_name}' preset_config keys: {list(preset_config.keys())}")
+                logger.debug(f"[ZoneStates] Zone '{zone_name}' preset min/max bri: {preset_config.get('min_brightness')}/{preset_config.get('max_brightness')}")
 
                 # Get zone runtime state (from GloUp/GloDown adjustments)
                 runtime_state = glozone_state.get_zone_state(zone_name)
-                logger.info(f"[ZoneStates] Zone '{zone_name}' runtime_state: {runtime_state}")
+                logger.debug(f"[ZoneStates] Zone '{zone_name}' runtime_state: {runtime_state}")
 
                 # Build Config from preset using from_dict (handles all fields with defaults)
                 brain_config = Config.from_dict(preset_config)
-                logger.info(f"[ZoneStates] Zone '{zone_name}' brain_config: wake={brain_config.wake_time}, bed={brain_config.bed_time}, min_bri={brain_config.min_brightness}, max_bri={brain_config.max_brightness}, warm_night={brain_config.warm_night_enabled}")
+                logger.debug(f"[ZoneStates] Zone '{zone_name}' brain_config: wake={brain_config.wake_time}, bed={brain_config.bed_time}, min_bri={brain_config.min_brightness}, max_bri={brain_config.max_brightness}, warm_night={brain_config.warm_night_enabled}")
 
                 # Build AreaState from zone runtime state
                 area_state = AreaState(
@@ -876,7 +880,7 @@ class LightDesignerServer:
                     color_mid=runtime_state.get('color_mid'),
                     frozen_at=runtime_state.get('frozen_at'),
                 )
-                logger.info(f"[ZoneStates] Zone '{zone_name}' area_state: brightness_mid={area_state.brightness_mid}, color_mid={area_state.color_mid}, frozen_at={area_state.frozen_at}")
+                logger.debug(f"[ZoneStates] Zone '{zone_name}' area_state: brightness_mid={area_state.brightness_mid}, color_mid={area_state.color_mid}, frozen_at={area_state.frozen_at}")
 
                 # Calculate lighting values - use frozen_at if set, otherwise current time
                 calc_hour = area_state.frozen_at if area_state.frozen_at is not None else hour
@@ -888,9 +892,9 @@ class LightDesignerServer:
                     "preset": preset_name,
                     "runtime_state": runtime_state,
                 }
-                logger.info(f"[ZoneStates] Zone '{zone_name}': {result.brightness}% {result.color_temp}K at hour {calc_hour:.2f} (preset: {preset_name}, sun_times: sunrise={sun_times.sunrise:.2f}, sunset={sun_times.sunset:.2f})")
+                logger.debug(f"[ZoneStates] Zone '{zone_name}': {result.brightness}% {result.color_temp}K at hour {calc_hour:.2f} (preset: {preset_name}, sun_times: sunrise={sun_times.sunrise:.2f}, sunset={sun_times.sunset:.2f})")
 
-            logger.info(f"[ZoneStates] Returning {len(zone_states)} zone states")
+            logger.debug(f"[ZoneStates] Returning {len(zone_states)} zone states")
             return web.json_response({"zone_states": zone_states})
 
         except Exception as e:
@@ -1017,7 +1021,8 @@ class LightDesignerServer:
         "multi_click_enabled",  # Enable multi-click detection for Hue Hub switches
         "multi_click_speed",  # Multi-click window in tenths of seconds
         "circadian_refresh",  # How often to refresh circadian lighting (seconds)
-        "sync_refresh_multiplier",  # Multiplier for sync refresh interval (default 5x circadian refresh)
+        "log_periodic",  # Whether to log periodic update details (default false)
+        "home_refresh_interval",  # How often to refresh home page cards (seconds, default 10)
         "motion_warning_time",  # Seconds before motion timer expires to trigger warning dim
         "motion_warning_blink_threshold",  # Brightness % below which warning blinks instead of dims
         "freeze_off_rise",  # Transition time in tenths of seconds for unfreeze rise (default 10 = 1.0s)
@@ -1187,7 +1192,8 @@ class LightDesignerServer:
             "multi_click_enabled": True,
             "multi_click_speed": 2,
             "circadian_refresh": 30,  # seconds
-            "sync_refresh_multiplier": 5,  # multiplier of circadian refresh
+            "log_periodic": False,  # log periodic update details
+            "home_refresh_interval": 10,  # seconds (home page card refresh)
 
             # Motion warning settings
             "motion_warning_time": 0,  # seconds (0 = disabled)
@@ -1268,7 +1274,8 @@ class LightDesignerServer:
             "multi_click_enabled": True,
             "multi_click_speed": 2,
             "circadian_refresh": 30,  # seconds
-            "sync_refresh_multiplier": 5,  # multiplier of circadian refresh
+            "log_periodic": False,  # log periodic update details
+            "home_refresh_interval": 10,  # seconds (home page card refresh)
             # Motion warning settings
             "motion_warning_time": 0,  # seconds (0 = disabled)
             "motion_warning_blink_threshold": 15,  # percent brightness
@@ -1987,11 +1994,13 @@ class LightDesignerServer:
             )
 
     async def get_area_status(self, request: Request) -> Response:
-        """Get status for all areas using Circadian Light state (no HA polling).
+        """Get status for areas using Circadian Light state (no HA polling).
+
+        Supports optional ?area_id=X query param to return a single area.
 
         Uses in-memory state from state.py and glozone_state.py, and calculates
         brightness from the circadian curve. This matches what lights are set to
-        after each 30-second update cycle.
+        after each circadian update cycle.
 
         Returns a dict mapping area_id to status:
         {
@@ -2054,6 +2063,9 @@ class LightDesignerServer:
             except Exception as e:
                 logger.debug(f"[AreaStatus] Error calculating sun times: {e}")
 
+            # Optional single-area filter
+            filter_area_id = request.query.get('area_id')
+
             # Build response for each area in zones (including Unassigned)
             area_status = {}
             for zone_name, zone_data in glozones.items():
@@ -2061,6 +2073,10 @@ class LightDesignerServer:
                 for area in zone_data.get('areas', []):
                     # Areas can be stored as {id, name} or just string
                     area_id = area.get('id') if isinstance(area, dict) else area
+
+                    # Skip if filtering for a specific area
+                    if filter_area_id and area_id != filter_area_id:
+                        continue
 
                     # Get area's state (includes brightness_mid, color_mid, frozen_at)
                     area_state_dict = state.get_area(area_id)
@@ -2092,6 +2108,7 @@ class LightDesignerServer:
 
                     # Get motion timer state
                     motion_expires_at = state.get_motion_expires(area_id)
+                    motion_warning_active = state.is_motion_warned(area_id)
 
                     area_status[area_id] = {
                         'is_circadian': area_state.is_circadian,
@@ -2103,7 +2120,9 @@ class LightDesignerServer:
                         'boost_brightness': boost_state.get('boost_brightness') if is_boosted else None,
                         'boost_expires_at': boost_state.get('boost_expires_at') if is_boosted else None,
                         'boost_started_from_off': boost_state.get('boost_started_from_off', False) if is_boosted else None,
+                        'is_motion_coupled': boost_state.get('is_motion_coupled', False) if is_boosted else False,
                         'motion_expires_at': motion_expires_at,
+                        'motion_warning_active': motion_warning_active,
                         'zone_name': zone_name if zone_name != 'Unassigned' else None,
                         'preset_name': zone_data.get('preset', 'Glo 1'),
                         # Raw state model
@@ -3102,6 +3121,26 @@ class LightDesignerServer:
             return web.json_response({"error": "Invalid JSON"}, status=400)
         except Exception as e:
             logger.error(f"Error handling area action: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    # -------------------------------------------------------------------------
+    # Manual Sync
+    # -------------------------------------------------------------------------
+
+    async def handle_sync_devices(self, request: Request) -> Response:
+        """Trigger manual device/area/group sync.
+
+        Re-scans Home Assistant for new/moved lights, areas, and ZHA devices.
+        Equivalent to the old slow-cycle sync but triggered manually.
+        """
+        try:
+            if self.client and hasattr(self.client, 'run_manual_sync'):
+                await self.client.run_manual_sync()
+                return web.json_response({"success": True, "message": "Device sync complete"})
+            else:
+                return web.json_response({"error": "WebSocket client not available"}, status=503)
+        except Exception as e:
+            logger.error(f"Error running manual sync: {e}")
             return web.json_response({"error": str(e)}, status=500)
 
     # -------------------------------------------------------------------------

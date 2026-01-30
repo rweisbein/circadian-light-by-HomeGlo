@@ -1,5 +1,18 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.225
+**Refactor periodic update loop: split tickers, off enforcement, manual sync**
+
+- Split periodic loop into fast tick (1s) for timer/state checks and configurable circadian tick for light updates
+- Timers (motion, boost, motion warning) now checked every second instead of every 30s
+- Added `off_enforced` flag: off commands sent once and verified, not redundantly every cycle
+- Moved device/group sync to manual "Sync devices" button in Settings (removed automatic slow cycle)
+- Added "Log periodic updates" toggle to reduce log noise (off by default)
+- Removed sync refresh multiplier setting (no longer needed)
+- Fix: boost state now saved BEFORE two-step turn-on to prevent circadian tick from overwriting boosted brightness with base value during asyncio yield
+- Fix: area modal now fetches fresh data immediately on open (was showing stale cached state)
+- Fix: area modal refresh interval reduced from 10s to 5s for faster state reflection
+
 ## 6.9.224
 **Home page: 2-tone shading on headers, rhythm prominence, icon updates**
 

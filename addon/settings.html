@@ -377,7 +377,7 @@
             <span class="info-icon">i<span class="info-tooltip">When Circadian Light turns on lights, they'll smoothly turn on over this amount of time.</span></span>
           </label>
           <div class="form-control">
-            <input type="number" class="form-input" id="turn-on-transition" min="0" max="100" step="1" value="3" style="width: 80px;">
+            <input type="number" class="form-input" id="turn-on-transition" min="0" max="100" step="0.1" value="3" style="width: 80px;">
             <span class="form-hint">tenths of a second</span>
           </div>
         </div>
@@ -388,7 +388,7 @@
             <span class="info-icon">i<span class="info-tooltip">When Circadian Light turns off lights, they'll smoothly turn off over this amount of time.</span></span>
           </label>
           <div class="form-control">
-            <input type="number" class="form-input" id="turn-off-transition" min="0" max="100" step="1" value="3" style="width: 80px;">
+            <input type="number" class="form-input" id="turn-off-transition" min="0" max="100" step="0.1" value="3" style="width: 80px;">
             <span class="form-hint">tenths of a second</span>
           </div>
         </div>
@@ -415,8 +415,8 @@
             </label>
             <span id="multi-click-speed-group" style="display: flex; align-items: center; gap: 8px; margin-left: 12px;">
               <span class="form-hint" style="margin-left: 0;">Speed</span>
-              <input type="number" class="form-input" id="multi-click-speed" min="2" max="10" step="1" value="2" style="width: 60px;">
-              <span class="form-hint">tenths</span>
+              <input type="number" class="form-input" id="multi-click-speed" min="1" max="10" step="0.1" value="2" style="width: 60px;">
+              <span class="form-hint">tenths of a second</span>
             </span>
           </div>
         </div>
@@ -424,7 +424,7 @@
         <div class="form-row" style="margin-top: 20px;">
           <label class="form-label">
             Circadian refresh
-            <span class="info-icon">i<span class="info-tooltip">How often Circadian Light updates the lights to match the current sun position. Also controls how quickly motion and boost timers are checked for expiration. Lower values give more precise timer cutoffs but increase Home Assistant API calls.</span></span>
+            <span class="info-icon">i<span class="info-tooltip">How often Circadian Light updates lights to match the current sun position. Timers (motion, boost) are checked every second regardless of this setting. Lower values give smoother light transitions but increase Home Assistant API calls.</span></span>
           </label>
           <div class="form-control">
             <input type="number" class="form-input" id="circadian-refresh" min="5" max="120" step="5" value="30" style="width: 80px;">
@@ -434,12 +434,36 @@
 
         <div class="form-row">
           <label class="form-label">
-            Sync refresh
-            <span class="info-icon">i<span class="info-tooltip">How often Circadian Light checks for area membership changes (new areas, moved lights, added lights) and syncs ZHA groups. Expressed as a multiplier of the Circadian refresh interval. For example, 5x with a 30s refresh means sync runs every 150 seconds.</span></span>
+            Home page refresh
+            <span class="info-icon">i<span class="info-tooltip">How often the home page area cards refresh to show current brightness, color temperature, and on/off state. Lower values show changes faster but increase browser network activity. The area modal always refreshes every 1 second regardless of this setting.</span></span>
           </label>
           <div class="form-control">
-            <input type="number" class="form-input" id="sync-refresh-multiplier" min="2" max="20" step="1" value="5" style="width: 80px;">
-            <span class="form-hint" id="sync-refresh-hint">x (every <span id="sync-interval-display">150</span>s)</span>
+            <input type="number" class="form-input" id="home-refresh-interval" min="2" max="60" step="1" value="10" style="width: 80px;">
+            <span class="form-hint">seconds (2-60)</span>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">
+            Log periodic updates
+            <span class="info-icon">i<span class="info-tooltip">When enabled, logs detailed info about every periodic light update cycle (per-area brightness/color values, group breakdowns, off enforcement). When disabled, only errors, warnings, and user-triggered actions are logged. Useful for debugging but very verbose.</span></span>
+          </label>
+          <div class="form-control">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+              <input type="checkbox" id="log-periodic" style="width: 18px; height: 18px;">
+              <span class="form-hint">Enable verbose periodic logging</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="form-row" style="margin-top: 10px;">
+          <label class="form-label">
+            Sync devices
+            <span class="info-icon">i<span class="info-tooltip">Re-scans Home Assistant for new or moved lights, areas, and ZHA devices. Only needed after adding or moving hardware. This does not run automatically.</span></span>
+          </label>
+          <div class="form-control">
+            <button type="button" class="btn" id="sync-devices-btn" onclick="syncDevices()" style="padding: 6px 16px; cursor: pointer;">Sync now</button>
+            <span class="form-hint" id="sync-status"></span>
           </div>
         </div>
       </div>
@@ -477,7 +501,7 @@
             <span class="info-icon">i<span class="info-tooltip">When unfreezing, lights rise back to circadian values over this amount of time. A slower rise gives a gentle visual confirmation that the area has been unfrozen.</span></span>
           </label>
           <div class="form-control">
-            <input type="number" class="form-input" id="freeze-off-rise" min="0" max="100" step="1" value="10" style="width: 80px;">
+            <input type="number" class="form-input" id="freeze-off-rise" min="0" max="100" step="0.1" value="10" style="width: 80px;">
             <span class="form-hint">tenths of a second</span>
           </div>
         </div>
@@ -488,7 +512,7 @@
             <span class="info-icon">i<span class="info-tooltip">When stepping up/down hits the brightness or color limit, lights bounce to indicate the limit. This controls how fast the bounce animation plays.</span></span>
           </label>
           <div class="form-control">
-            <input type="number" class="form-input" id="limit-warning-speed" min="0" max="100" step="1" value="3" style="width: 80px;">
+            <input type="number" class="form-input" id="limit-warning-speed" min="0" max="100" step="0.1" value="3" style="width: 80px;">
             <span class="form-hint">tenths of a second</span>
           </div>
         </div>
@@ -593,7 +617,8 @@
           document.getElementById('multi-click-enabled').checked = config.multi_click_enabled ?? true;
           document.getElementById('multi-click-speed').value = config.multi_click_speed ?? 2;
           document.getElementById('circadian-refresh').value = config.circadian_refresh ?? 30;
-          document.getElementById('sync-refresh-multiplier').value = config.sync_refresh_multiplier ?? 5;
+          document.getElementById('home-refresh-interval').value = config.home_refresh_interval ?? 10;
+          document.getElementById('log-periodic').checked = config.log_periodic ?? false;
           document.getElementById('motion-warning-time').value = config.motion_warning_time ?? 0;
           document.getElementById('motion-warning-blink-threshold').value = config.motion_warning_blink_threshold ?? 15;
           document.getElementById('freeze-off-rise').value = config.freeze_off_rise ?? 10;
@@ -602,7 +627,6 @@
           document.getElementById('warning-scaling').value = config.warning_scaling ?? 5;
           document.getElementById('boost-default').value = config.boost_default ?? 30;
           updateMultiClickState();
-          updateSyncIntervalDisplay();
           updateLocationSection(config);
         }
       } catch (err) {
@@ -612,17 +636,18 @@
 
     async function saveSettings() {
       const settings = {
-        turn_on_transition: parseInt(document.getElementById('turn-on-transition').value) || 3,
-        turn_off_transition: parseInt(document.getElementById('turn-off-transition').value) || 3,
+        turn_on_transition: parseFloat(document.getElementById('turn-on-transition').value) || 3,
+        turn_off_transition: parseFloat(document.getElementById('turn-off-transition').value) || 3,
         two_step_delay: parseFloat(document.getElementById('two-step-delay').value) || 3,
         multi_click_enabled: document.getElementById('multi-click-enabled').checked,
-        multi_click_speed: parseInt(document.getElementById('multi-click-speed').value) || 2,
+        multi_click_speed: parseFloat(document.getElementById('multi-click-speed').value) || 2,
         circadian_refresh: parseInt(document.getElementById('circadian-refresh').value) || 30,
-        sync_refresh_multiplier: parseInt(document.getElementById('sync-refresh-multiplier').value) || 5,
+        home_refresh_interval: parseInt(document.getElementById('home-refresh-interval').value) || 10,
+        log_periodic: document.getElementById('log-periodic').checked,
         motion_warning_time: parseInt(document.getElementById('motion-warning-time').value) || 0,
         motion_warning_blink_threshold: parseInt(document.getElementById('motion-warning-blink-threshold').value) || 15,
-        freeze_off_rise: parseInt(document.getElementById('freeze-off-rise').value) || 10,
-        limit_warning_speed: parseInt(document.getElementById('limit-warning-speed').value) || 3,
+        freeze_off_rise: parseFloat(document.getElementById('freeze-off-rise').value) || 10,
+        limit_warning_speed: parseFloat(document.getElementById('limit-warning-speed').value) || 3,
         warning_intensity: parseInt(document.getElementById('warning-intensity').value) || 5,
         warning_scaling: parseInt(document.getElementById('warning-scaling').value) || 5,
         boost_default: parseInt(document.getElementById('boost-default').value) || 30
@@ -657,10 +682,31 @@
       }
     }
 
-    function updateSyncIntervalDisplay() {
-      const refresh = parseInt(document.getElementById('circadian-refresh').value) || 30;
-      const multiplier = parseInt(document.getElementById('sync-refresh-multiplier').value) || 5;
-      document.getElementById('sync-interval-display').textContent = refresh * multiplier;
+    async function syncDevices() {
+      const btn = document.getElementById('sync-devices-btn');
+      const status = document.getElementById('sync-status');
+      btn.disabled = true;
+      btn.textContent = 'Syncing...';
+      status.textContent = '';
+      try {
+        const response = await fetch('./api/sync-devices', { method: 'POST' });
+        const result = await response.json();
+        if (response.ok) {
+          status.textContent = 'Sync complete';
+          status.style.color = '#4caf50';
+        } else {
+          status.textContent = result.error || 'Sync failed';
+          status.style.color = '#f44336';
+        }
+      } catch (err) {
+        status.textContent = 'Sync failed';
+        status.style.color = '#f44336';
+        console.error('Error syncing devices:', err);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Sync now';
+        setTimeout(() => { status.textContent = ''; }, 5000);
+      }
     }
 
     function showSaveStatus() {
@@ -678,14 +724,9 @@
       saveSettings();
     });
     document.getElementById('multi-click-speed').addEventListener('blur', saveSettings);
-    document.getElementById('circadian-refresh').addEventListener('blur', () => {
-      updateSyncIntervalDisplay();
-      saveSettings();
-    });
-    document.getElementById('sync-refresh-multiplier').addEventListener('blur', () => {
-      updateSyncIntervalDisplay();
-      saveSettings();
-    });
+    document.getElementById('circadian-refresh').addEventListener('blur', saveSettings);
+    document.getElementById('home-refresh-interval').addEventListener('blur', saveSettings);
+    document.getElementById('log-periodic').addEventListener('change', saveSettings);
     document.getElementById('motion-warning-time').addEventListener('blur', saveSettings);
     document.getElementById('motion-warning-blink-threshold').addEventListener('blur', saveSettings);
     document.getElementById('freeze-off-rise').addEventListener('blur', saveSettings);
