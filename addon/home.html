@@ -267,18 +267,6 @@
       font-size: 0.85rem;
     }
 
-    .area-boost {
-      color: #f0a030;
-      font-size: 0.75rem;
-      margin-left: 2px;
-    }
-
-    .area-motion {
-      color: #50b0ff;
-      font-size: 0.75rem;
-      margin-left: 2px;
-    }
-
     /* Unassigned Areas */
     .unassigned-section {
       margin-top: 24px;
@@ -937,10 +925,7 @@
               is_on: status.is_on,
               brightness: status.brightness,
               kelvin: status.kelvin || 4000,
-              frozen: status.frozen,
-              boosted: status.boosted,
-              boost_brightness: status.boost_brightness,
-              motion_expires_at: status.motion_expires_at,
+              frozen: status.frozen
             };
           }
         }
@@ -1110,18 +1095,12 @@
         chipStyle = `--area-cct-bg: ${bgColor}; --area-text: ${textColor}; --area-brightness-fill: ${brightnessFill}; --area-fill-opacity: ${fillOpacity};`;
       }
 
-      // Build status indicators
-      const indicators = [];
-      if (areaState.frozen) indicators.push('<span class="area-frozen" title="Frozen">&#128274;</span>');
-      if (areaState.boosted) indicators.push(`<span class="area-boost" title="Boosted +${areaState.boost_brightness || 0}%">&#9650;</span>`);
-      if (areaState.motion_expires_at) indicators.push('<span class="area-motion" title="Motion active">&#9673;</span>');
-
       return `
         <div class="area-chip ${syncClass}" draggable="true" data-area="${areaId}" data-zone="${zoneName || ''}" style="${chipStyle}">
           <span class="area-name">${areaName}</span>
           <div class="area-status">
             ${areaState.is_on ? `<span class="area-brightness">${areaState.brightness}% • ${Math.round(areaState.kelvin)}K</span>` : ''}
-            ${indicators.join('')}
+            ${areaState.frozen ? '<span class="area-frozen" title="Frozen">&#128274;</span>' : ''}
           </div>
         </div>
       `;
