@@ -568,37 +568,16 @@ def load_config_from_files(data_dir: Optional[str] = None) -> Dict[str, Any]:
     if data_dir is None:
         data_dir = _get_data_directory()
 
-    # Start with defaults
+    # Start with global-only defaults. PRESET_SETTINGS are intentionally NOT
+    # included here so that after merging the config files, any PRESET_SETTINGS
+    # at the top level must have come from the file (user's settings), not from
+    # defaults. This lets the merge step below reliably move them into the preset.
+    # Missing preset keys are handled by get_preset_config() and Config.from_dict().
     config: Dict[str, Any] = {
-        "color_mode": "kelvin",
-        "min_color_temp": 500,
-        "max_color_temp": 6500,
-        "min_brightness": 1,
-        "max_brightness": 100,
-        "ascend_start": 3.0,
-        "descend_start": 12.0,
-        "wake_time": 6.0,
-        "bed_time": 22.0,
-        "wake_speed": 8,
-        "bed_speed": 6,
-        "warm_night_enabled": False,
-        "warm_night_mode": "all",
-        "warm_night_target": 2700,
-        "warm_night_start": -60,
-        "warm_night_end": 60,
-        "warm_night_fade": 60,
-        "cool_day_enabled": False,
-        "cool_day_mode": "all",
-        "cool_day_target": 6500,
-        "cool_day_start": 0,
-        "cool_day_end": 0,
-        "cool_day_fade": 60,
-        "activity_preset": "adult",
         "latitude": 35.0,
         "longitude": -78.6,
         "timezone": "US/Eastern",
         "use_ha_location": True,
-        "max_dim_steps": 10,
         "month": 6,
     }
 
@@ -639,19 +618,16 @@ def load_config_from_files(data_dir: Optional[str] = None) -> Dict[str, Any]:
     needs_migration = "circadian_presets" not in config or "glozones" not in config
     config = _migrate_config(config)
 
-    # Ensure top-level preset settings are merged INTO the first preset.
-    # This handles configs where settings exist at top level but not inside
-    # the preset dict (e.g., added after initial migration, or partial saves).
-    # Without this, Config.from_dict() would use defaults for missing keys,
-    # causing solar rules and brightness limits to not be applied to lights.
+    # Move any top-level PRESET_SETTINGS into the first preset.
+    # Since we don't start with preset defaults at the top level, any
+    # PRESET_SETTINGS found here came from the config files (user's settings).
+    # Always override the preset value since the file value is authoritative.
     if "circadian_presets" in config and config["circadian_presets"]:
         first_preset_name = list(config["circadian_presets"].keys())[0]
         first_preset = config["circadian_presets"][first_preset_name]
         for key in list(config.keys()):
             if key in PRESET_SETTINGS:
-                if key not in first_preset:
-                    first_preset[key] = config[key]
-                    logger.debug(f"Merged top-level key '{key}' into preset '{first_preset_name}'")
+                first_preset[key] = config[key]
                 del config[key]
 
     # Cache the config first so ensure_default_zone_exists can use it
