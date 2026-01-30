@@ -2397,13 +2397,22 @@
         const tintedColor = tintColorByBrightness(cctColor, displayBri);
         valuesEl.style.color = readableTextColor(tintedColor);
       } else {
-        // Calculate what circadian values would be right now
+        // Calculate what circadian values would be right now using area's preset
         if (cachedConfig && cachedSunTimes) {
+          const presetName = selectedArea.preset_name;
+          const offCfg = (presetName && cachedPresets[presetName])
+            ? { ...cachedConfig, ...cachedPresets[presetName] }
+            : cachedConfig;
           const now = new Date();
           const currentHour = now.getHours() + now.getMinutes() / 60;
-          const emptyState = { brightness_mid: null, color_mid: null, color_override: null, frozen_at: null };
-          displayBri = calcMiniBrightness(currentHour, cachedConfig, emptyState, currentHour) * 100;
-          displayKelvin = calcMiniColor(currentHour, cachedConfig, emptyState, cachedSunTimes, currentHour);
+          const offState = {
+            brightness_mid: status.brightness_mid ?? null,
+            color_mid: status.color_mid ?? null,
+            color_override: status.color_override ?? null,
+            frozen_at: status.frozen_at ?? null
+          };
+          displayBri = calcMiniBrightness(currentHour, offCfg, offState, currentHour) * 100;
+          displayKelvin = calcMiniColor(currentHour, offCfg, offState, cachedSunTimes, currentHour);
         } else {
           displayBri = 50;
           displayKelvin = 4000;

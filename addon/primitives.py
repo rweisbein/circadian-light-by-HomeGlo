@@ -693,7 +693,6 @@ class CircadianLightPrimitives:
         source: str = "service_call",
         boost_brightness: int = None,
         boost_duration: int = None,
-        from_motion: bool = False,
     ):
         """Turn on lights with Circadian values and enable Circadian control.
 
@@ -710,8 +709,6 @@ class CircadianLightPrimitives:
                 boost_duration must also be provided.
             boost_duration: Optional boost duration in seconds (0 = forever). Required
                 if boost_brightness is provided.
-            from_motion: If True, couple boost timer to motion timer (boost ends
-                when motion timer ends, not independently).
         """
         has_boost = boost_brightness is not None and boost_duration is not None
         if has_boost:
@@ -754,13 +751,10 @@ class CircadianLightPrimitives:
 
         # Set boost state if boost was provided
         if has_boost:
+            is_forever = boost_duration == 0
+            expires_at = "forever" if is_forever else (datetime.now() + timedelta(seconds=boost_duration)).isoformat()
+            # started_from_off is True since we just turned lights on (not already on case is handled by bright_boost directly)
             started_from_off = not lights_were_on
-            if from_motion:
-                # Motion-coupled boost: use "motion" sentinel so boost ends with motion timer
-                expires_at = "motion"
-            else:
-                is_forever = boost_duration == 0
-                expires_at = "forever" if is_forever else (datetime.now() + timedelta(seconds=boost_duration)).isoformat()
             state.set_boost(area_id, started_from_off=started_from_off, expires_at=expires_at, brightness=boost_brightness)
             logger.info(
                 f"lights_on for area {area_id}: {result.brightness}% + {boost_brightness}% = {final_brightness}%, "
@@ -990,8 +984,7 @@ class CircadianLightPrimitives:
         duration_seconds: int,
         boost_amount: int,
         source: str = "motion_sensor",
-        lights_were_off: bool = None,
-        from_motion: bool = False,
+        lights_were_off: bool = None
     ):
         """Temporarily boost brightness for an area.
 
@@ -1003,7 +996,6 @@ class CircadianLightPrimitives:
         MAX logic when already boosted:
         - boost % = MAX(current %, new %)
         - If current timer is forever: stays forever
-        - If current timer is motion-coupled: stays motion-coupled
         - If current timer is timed: timer = MAX(remaining, new duration)
 
         Args:
@@ -1014,8 +1006,6 @@ class CircadianLightPrimitives:
             lights_were_off: If provided, use this instead of checking current light state.
                 This is useful when boost is called after motion_on_off, which already
                 turned the lights on - we need to know the state BEFORE motion_on_off ran.
-            from_motion: If True, couple boost timer to motion timer (boost ends
-                when motion timer ends, not independently).
         """
         is_forever = duration_seconds == 0
         logger.info(f"[{source}] bright_boost for area {area_id}, duration={'forever' if is_forever else f'{duration_seconds}s'}, boost={boost_amount}%")
@@ -1036,22 +1026,9 @@ class CircadianLightPrimitives:
                 logger.info(f"[{source}] Increased boost brightness to {new_brightness}% for area {area_id}")
 
             # MAX logic for timer
-            current_is_motion = boost_state.get("is_motion_coupled", False)
             if current_is_forever:
                 # Forever boost stays forever, can't be shortened
                 logger.debug(f"[{source}] Area {area_id} has forever boost, timer unchanged")
-            elif current_is_motion:
-                # Motion-coupled boost stays motion-coupled (can't shorten)
-                # But if new boost is forever, upgrade to forever
-                if is_forever:
-                    state.update_boost_expires(area_id, "forever")
-                    logger.info(f"[{source}] Upgraded motion-coupled boost to forever for area {area_id}")
-                else:
-                    logger.debug(f"[{source}] Area {area_id} has motion-coupled boost, timer unchanged")
-            elif from_motion:
-                # New boost is motion-coupled, upgrade existing timed boost
-                state.update_boost_expires(area_id, "motion")
-                logger.info(f"[{source}] Upgraded boost to motion-coupled for area {area_id}")
             elif is_forever:
                 # New boost is forever, upgrade to forever
                 state.update_boost_expires(area_id, "forever")
@@ -1096,10 +1073,7 @@ class CircadianLightPrimitives:
         boosted_brightness = min(100, result.brightness + boost_amount)
 
         # Set boost state
-        if from_motion:
-            expires_at = "motion"
-        else:
-            expires_at = "forever" if is_forever else (datetime.now() + timedelta(seconds=duration_seconds)).isoformat()
+        expires_at = "forever" if is_forever else (datetime.now() + timedelta(seconds=duration_seconds)).isoformat()
         state.set_boost(area_id, started_from_off=started_from_off, expires_at=expires_at, brightness=boost_amount)
 
         # Enable Circadian Light and set is_on=True
@@ -1233,14 +1207,14 @@ class CircadianLightPrimitives:
             logger.debug(f"[{source}] motion_on_only: area {area_id} already on, skipping")
             # If boost requested, apply it (lights already on, so no flash issue)
             if has_boost:
-                await self.bright_boost(area_id, boost_duration, boost_brightness, source=source, from_motion=True)
+                await self.bright_boost(area_id, boost_duration, boost_brightness, source=source)
             return
 
         logger.info(f"[{source}] motion_on_only: turning on area {area_id}")
 
         # Turn on with circadian values (enables circadian control if needed)
         # Pass boost params so we go directly to final brightness (no intermediate step)
-        await self.lights_on(area_id, source=source, boost_brightness=boost_brightness, boost_duration=boost_duration, from_motion=True)
+        await self.lights_on(area_id, source=source, boost_brightness=boost_brightness, boost_duration=boost_duration)
 
     async def motion_on_off(
         self,
@@ -1298,7 +1272,7 @@ class CircadianLightPrimitives:
 
             # If boost requested, apply/extend it (lights already on, so no flash issue)
             if has_boost:
-                await self.bright_boost(area_id, boost_duration, boost_brightness, source=source, from_motion=True)
+                await self.bright_boost(area_id, boost_duration, boost_brightness, source=source)
             return
 
         # Check if area is already on under circadian control (but not from on_off motion)
@@ -1306,7 +1280,7 @@ class CircadianLightPrimitives:
             logger.debug(f"[{source}] motion_on_off: area {area_id} already on (not from motion), skipping")
             # If boost requested, apply it (lights already on, so no flash issue)
             if has_boost:
-                await self.bright_boost(area_id, boost_duration, boost_brightness, source=source, from_motion=True)
+                await self.bright_boost(area_id, boost_duration, boost_brightness, source=source)
             return
 
         logger.info(f"[{source}] motion_on_off: turning on area {area_id}, timer={'forever' if is_forever else f'{duration_seconds}s'}")
@@ -1317,13 +1291,12 @@ class CircadianLightPrimitives:
 
         # Turn on with circadian values (enables circadian control if needed)
         # Pass boost params so we go directly to final brightness (no intermediate step)
-        await self.lights_on(area_id, source=source, boost_brightness=boost_brightness, boost_duration=boost_duration, from_motion=True)
+        await self.lights_on(area_id, source=source, boost_brightness=boost_brightness, boost_duration=boost_duration)
 
     async def end_motion_on_off(self, area_id: str, source: str = "timer"):
         """End motion on_off timer and turn off lights.
 
         Called when motion on_off timer expires.
-        Also clears any motion-coupled boost (boost_expires_at == "motion").
 
         Args:
             area_id: The area ID
@@ -1335,11 +1308,6 @@ class CircadianLightPrimitives:
 
         # Clear motion timer
         state.clear_motion_expires(area_id)
-
-        # Clear any motion-coupled boost (it ends with the motion timer)
-        if state.is_boost_motion_coupled(area_id):
-            state.clear_boost(area_id)
-            logger.info(f"[{source}] Cleared motion-coupled boost for area {area_id}")
 
         # Store CT before turning off for smart 2-step on next turn-on
         try:
