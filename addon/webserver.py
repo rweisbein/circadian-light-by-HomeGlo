@@ -2652,7 +2652,7 @@ class LightDesignerServer:
         try:
             data = await request.json()
             name = data.get("name")
-            preset = data.get("preset", glozone.DEFAULT_PRESET)
+            preset = data.get("preset")
 
             if not name:
                 return web.json_response({"error": "name is required"}, status=400)
@@ -2662,12 +2662,17 @@ class LightDesignerServer:
             if name in config.get("glozones", {}):
                 return web.json_response({"error": f"Zone '{name}' already exists"}, status=409)
 
-            # Validate preset exists
-            if preset not in config.get("circadian_presets", {}):
-                return web.json_response(
-                    {"error": f"Preset '{preset}' not found"},
-                    status=400
-                )
+            presets = config.setdefault("circadian_presets", {})
+
+            if preset and preset in presets:
+                # Use the explicitly provided preset
+                pass
+            else:
+                # Auto-create a rhythm named after the zone with defaults
+                preset = name
+                if preset not in presets:
+                    presets[preset] = {}
+                    logger.info(f"Auto-created rhythm '{preset}' for new zone")
 
             # Create the zone
             config.setdefault("glozones", {})[name] = {

@@ -993,7 +993,7 @@
 
     function renderZoneCard(zoneName, zone) {
       const areas = zone.areas || [];
-      const presetName = zone.preset || 'Glo 1';
+      const presetName = zone.preset || zoneName;
       const preset = presetsData[presetName] || {};
       const isDefault = zone.is_default === true;
       const isLastZone = Object.keys(zones).length === 1;
@@ -1433,7 +1433,7 @@
           const response = await fetch('./api/glozones', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, preset: 'Glo 1' })
+            body: JSON.stringify({ name })
           });
           if (!response.ok) {
             const data = await response.json();
