@@ -434,6 +434,17 @@
 
         <div class="form-row">
           <label class="form-label">
+            Home page refresh
+            <span class="info-icon">i<span class="info-tooltip">How often the home page area cards refresh to show current brightness, color temperature, and on/off state. Lower values show changes faster but increase browser network activity. The area modal always refreshes every 1 second regardless of this setting.</span></span>
+          </label>
+          <div class="form-control">
+            <input type="number" class="form-input" id="home-refresh-interval" min="2" max="60" step="1" value="10" style="width: 80px;">
+            <span class="form-hint">seconds (2-60)</span>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">
             Log periodic updates
             <span class="info-icon">i<span class="info-tooltip">When enabled, logs detailed info about every periodic light update cycle (per-area brightness/color values, group breakdowns, off enforcement). When disabled, only errors, warnings, and user-triggered actions are logged. Useful for debugging but very verbose.</span></span>
           </label>
@@ -606,6 +617,7 @@
           document.getElementById('multi-click-enabled').checked = config.multi_click_enabled ?? true;
           document.getElementById('multi-click-speed').value = config.multi_click_speed ?? 2;
           document.getElementById('circadian-refresh').value = config.circadian_refresh ?? 30;
+          document.getElementById('home-refresh-interval').value = config.home_refresh_interval ?? 10;
           document.getElementById('log-periodic').checked = config.log_periodic ?? false;
           document.getElementById('motion-warning-time').value = config.motion_warning_time ?? 0;
           document.getElementById('motion-warning-blink-threshold').value = config.motion_warning_blink_threshold ?? 15;
@@ -630,6 +642,7 @@
         multi_click_enabled: document.getElementById('multi-click-enabled').checked,
         multi_click_speed: parseInt(document.getElementById('multi-click-speed').value) || 2,
         circadian_refresh: parseInt(document.getElementById('circadian-refresh').value) || 30,
+        home_refresh_interval: parseInt(document.getElementById('home-refresh-interval').value) || 10,
         log_periodic: document.getElementById('log-periodic').checked,
         motion_warning_time: parseInt(document.getElementById('motion-warning-time').value) || 0,
         motion_warning_blink_threshold: parseInt(document.getElementById('motion-warning-blink-threshold').value) || 15,
@@ -712,6 +725,7 @@
     });
     document.getElementById('multi-click-speed').addEventListener('blur', saveSettings);
     document.getElementById('circadian-refresh').addEventListener('blur', saveSettings);
+    document.getElementById('home-refresh-interval').addEventListener('blur', saveSettings);
     document.getElementById('log-periodic').addEventListener('change', saveSettings);
     document.getElementById('motion-warning-time').addEventListener('blur', saveSettings);
     document.getElementById('motion-warning-blink-threshold').addEventListener('blur', saveSettings);

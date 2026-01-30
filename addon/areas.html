@@ -1127,7 +1127,8 @@
     let cachedConfig = null;
     let cachedSunTimes = null; // { sunrise, sunset, solarNoon, solarMid } in local hours
     let modalTickInterval = null;   // 1s local countdown tick
-    let modalRefreshInterval = null; // 10s API refresh
+    let modalRefreshInterval = null; // 1s modal API refresh (single area)
+    let homeRefreshTimer = null;     // Home page card refresh timer
 
     // ============================================================
     // Mini Circadian Graph — Calculation Functions
@@ -1800,6 +1801,41 @@
       }
     }
 
+    function getHomeRefreshInterval() {
+      if (cachedConfig) {
+        const val = cachedConfig.home_refresh_interval;
+        if (val && val >= 2 && val <= 60) return val;
+      }
+      return 10;
+    }
+
+    function startHomeRefresh() {
+      stopHomeRefresh();
+      const interval = getHomeRefreshInterval() * 1000;
+      homeRefreshTimer = setInterval(async () => {
+        try {
+          const [res, zsRes] = await Promise.all([
+            fetch('./api/area-status'),
+            fetch('./api/zone-states')
+          ]);
+          if (res.ok) {
+            areaStatus = await res.json();
+          }
+          if (zsRes.ok) {
+            const zs = await zsRes.json();
+            zoneStates = zs.zone_states || {};
+          }
+          renderAreas();
+        } catch (err) {
+          console.error('Error refreshing home page:', err);
+        }
+      }, interval);
+    }
+
+    function stopHomeRefresh() {
+      if (homeRefreshTimer) { clearInterval(homeRefreshTimer); homeRefreshTimer = null; }
+    }
+
     async function loadData() {
       const container = document.getElementById('areas-container');
       container.innerHTML = '<div class="loading">Loading areas...</div>';
@@ -1831,6 +1867,7 @@
         }
 
         renderAreas();
+        startHomeRefresh();
       } catch (err) {
         console.error('Error loading data:', err);
         container.innerHTML = '<div class="loading">Error loading data</div>';
@@ -2544,7 +2581,10 @@
     }
 
     async function openAreaModal(areaId) {
-      // Fetch fresh data immediately before rendering modal
+      // Stop home refresh while modal is open
+      stopHomeRefresh();
+
+      // Fetch all data fresh before rendering modal
       try {
         const [res, zsRes, pRes] = await Promise.all([
           fetch('./api/area-status'),
@@ -2577,34 +2617,22 @@
         renderMiniChartForArea(areaId);
       }, 50);
 
-      // Start live countdown tick (1s) and API refresh (5s)
+      // Start live countdown tick (1s) and single-area API refresh (1s)
       clearModalIntervals();
       modalTickInterval = setInterval(updateTimerStatus, 1000);
       modalRefreshInterval = setInterval(async () => {
         if (!selectedArea) return;
         try {
-          const [res, zsRes, pRes] = await Promise.all([
-            fetch('./api/area-status'),
-            fetch('./api/zone-states'),
-            fetch('./api/circadian-presets')
-          ]);
+          const res = await fetch(`./api/area-status?area_id=${encodeURIComponent(selectedArea.area_id)}`);
           if (res.ok) {
-            areaStatus = await res.json();
-          }
-          if (zsRes.ok) {
-            const zs = await zsRes.json();
-            zoneStates = zs.zone_states || {};
-          }
-          if (pRes.ok) {
-            const p = await pRes.json();
-            cachedPresets = p.presets || {};
+            const singleStatus = await res.json();
+            Object.assign(areaStatus, singleStatus);
           }
           updateModalContent(selectedArea.area_id, false);
-          renderAreas();
         } catch (err) {
           console.error('Error refreshing modal:', err);
         }
-      }, 5000);
+      }, 1000);
     }
 
     function clearModalIntervals() {
@@ -2616,6 +2644,8 @@
       clearModalIntervals();
       document.getElementById('area-modal').classList.remove('visible');
       selectedArea = null;
+      // Resume home page refresh
+      startHomeRefresh();
     }
 
     function toggleCircadian() {
@@ -2641,31 +2671,18 @@
         });
 
         if (response.ok) {
-          // Re-fetch area status + zone states + presets, then update modal in place
+          // Re-fetch single area status, then update modal in place
           setTimeout(async () => {
             try {
-              const [statusRes, zsRes, pRes] = await Promise.all([
-                fetch('./api/area-status'),
-                fetch('./api/zone-states'),
-                fetch('./api/circadian-presets')
-              ]);
-              if (statusRes.ok) {
-                areaStatus = await statusRes.json();
-              }
-              if (zsRes.ok) {
-                const zs = await zsRes.json();
-                zoneStates = zs.zone_states || {};
-              }
-              if (pRes.ok) {
-                const p = await pRes.json();
-                cachedPresets = p.presets || {};
+              const res = await fetch(`./api/area-status?area_id=${encodeURIComponent(areaId)}`);
+              if (res.ok) {
+                const singleStatus = await res.json();
+                Object.assign(areaStatus, singleStatus);
               }
               // Re-render modal content without closing
               if (selectedArea && selectedArea.area_id === areaId) {
                 updateModalContent(areaId);
               }
-              // Also update the table behind the modal
-              renderAreas();
             } catch (err) {
               console.error('Error refreshing after action:', err);
             }
@@ -2699,13 +2716,12 @@
         });
 
         if (response.ok) {
-          // Re-fetch area status + zone states + presets and update table
+          // Re-fetch area status + zone states and update table
           setTimeout(async () => {
             try {
-              const [statusRes, zsRes, pRes] = await Promise.all([
+              const [statusRes, zsRes] = await Promise.all([
                 fetch('./api/area-status'),
-                fetch('./api/zone-states'),
-                fetch('./api/circadian-presets')
+                fetch('./api/zone-states')
               ]);
               if (statusRes.ok) {
                 areaStatus = await statusRes.json();
@@ -2713,10 +2729,6 @@
               if (zsRes.ok) {
                 const zs = await zsRes.json();
                 zoneStates = zs.zone_states || {};
-              }
-              if (pRes.ok) {
-                const p = await pRes.json();
-                cachedPresets = p.presets || {};
               }
               renderAreas();
               // Also update modal if it's open for this area
