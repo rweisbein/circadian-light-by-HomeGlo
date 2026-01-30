@@ -377,8 +377,8 @@
             <span class="info-icon">i<span class="info-tooltip">When Circadian Light turns on lights, they'll smoothly turn on over this amount of time.</span></span>
           </label>
           <div class="form-control">
-            <input type="number" class="form-input" id="turn-on-transition" min="0" max="100" step="1" value="3" style="width: 80px;">
-            <span class="form-hint">tenths of a second</span>
+            <input type="number" class="form-input" id="turn-on-transition" min="0" max="10" step="0.1" value="0.3" style="width: 80px;">
+            <span class="form-hint">seconds</span>
           </div>
         </div>
 
@@ -388,8 +388,8 @@
             <span class="info-icon">i<span class="info-tooltip">When Circadian Light turns off lights, they'll smoothly turn off over this amount of time.</span></span>
           </label>
           <div class="form-control">
-            <input type="number" class="form-input" id="turn-off-transition" min="0" max="100" step="1" value="3" style="width: 80px;">
-            <span class="form-hint">tenths of a second</span>
+            <input type="number" class="form-input" id="turn-off-transition" min="0" max="10" step="0.1" value="0.3" style="width: 80px;">
+            <span class="form-hint">seconds</span>
           </div>
         </div>
 
@@ -399,8 +399,8 @@
             <span class="info-icon">i<span class="info-tooltip">When turning on lights, a two-step process sets color at 1% then transitions to target brightness. This delay between steps prevents some ZigBee lights from dropping the second command. Increase if lights stay dim after turn-on.</span></span>
           </label>
           <div class="form-control">
-            <input type="number" class="form-input" id="two-step-delay" min="0" max="20" step="0.1" value="3" style="width: 80px;">
-            <span class="form-hint">tenths of a second</span>
+            <input type="number" class="form-input" id="two-step-delay" min="0" max="2" step="0.1" value="0.3" style="width: 80px;">
+            <span class="form-hint">seconds</span>
           </div>
         </div>
 
@@ -415,8 +415,8 @@
             </label>
             <span id="multi-click-speed-group" style="display: flex; align-items: center; gap: 8px; margin-left: 12px;">
               <span class="form-hint" style="margin-left: 0;">Speed</span>
-              <input type="number" class="form-input" id="multi-click-speed" min="2" max="10" step="1" value="2" style="width: 60px;">
-              <span class="form-hint">tenths</span>
+              <input type="number" class="form-input" id="multi-click-speed" min="0.2" max="1" step="0.1" value="0.2" style="width: 60px;">
+              <span class="form-hint">seconds</span>
             </span>
           </div>
         </div>
@@ -501,8 +501,8 @@
             <span class="info-icon">i<span class="info-tooltip">When unfreezing, lights rise back to circadian values over this amount of time. A slower rise gives a gentle visual confirmation that the area has been unfrozen.</span></span>
           </label>
           <div class="form-control">
-            <input type="number" class="form-input" id="freeze-off-rise" min="0" max="100" step="1" value="10" style="width: 80px;">
-            <span class="form-hint">tenths of a second</span>
+            <input type="number" class="form-input" id="freeze-off-rise" min="0" max="10" step="0.1" value="1.0" style="width: 80px;">
+            <span class="form-hint">seconds</span>
           </div>
         </div>
 
@@ -512,8 +512,8 @@
             <span class="info-icon">i<span class="info-tooltip">When stepping up/down hits the brightness or color limit, lights bounce to indicate the limit. This controls how fast the bounce animation plays.</span></span>
           </label>
           <div class="form-control">
-            <input type="number" class="form-input" id="limit-warning-speed" min="0" max="100" step="1" value="3" style="width: 80px;">
-            <span class="form-hint">tenths of a second</span>
+            <input type="number" class="form-input" id="limit-warning-speed" min="0" max="10" step="0.1" value="0.3" style="width: 80px;">
+            <span class="form-hint">seconds</span>
           </div>
         </div>
 
@@ -611,18 +611,18 @@
         const response = await fetch('./api/config');
         if (response.ok) {
           const config = await response.json();
-          document.getElementById('turn-on-transition').value = config.turn_on_transition ?? 3;
-          document.getElementById('turn-off-transition').value = config.turn_off_transition ?? 3;
-          document.getElementById('two-step-delay').value = config.two_step_delay ?? 3;
+          document.getElementById('turn-on-transition').value = ((config.turn_on_transition ?? 3) / 10).toFixed(1);
+          document.getElementById('turn-off-transition').value = ((config.turn_off_transition ?? 3) / 10).toFixed(1);
+          document.getElementById('two-step-delay').value = ((config.two_step_delay ?? 3) / 10).toFixed(1);
           document.getElementById('multi-click-enabled').checked = config.multi_click_enabled ?? true;
-          document.getElementById('multi-click-speed').value = config.multi_click_speed ?? 2;
+          document.getElementById('multi-click-speed').value = ((config.multi_click_speed ?? 2) / 10).toFixed(1);
           document.getElementById('circadian-refresh').value = config.circadian_refresh ?? 30;
           document.getElementById('home-refresh-interval').value = config.home_refresh_interval ?? 10;
           document.getElementById('log-periodic').checked = config.log_periodic ?? false;
           document.getElementById('motion-warning-time').value = config.motion_warning_time ?? 0;
           document.getElementById('motion-warning-blink-threshold').value = config.motion_warning_blink_threshold ?? 15;
-          document.getElementById('freeze-off-rise').value = config.freeze_off_rise ?? 10;
-          document.getElementById('limit-warning-speed').value = config.limit_warning_speed ?? 3;
+          document.getElementById('freeze-off-rise').value = ((config.freeze_off_rise ?? 10) / 10).toFixed(1);
+          document.getElementById('limit-warning-speed').value = ((config.limit_warning_speed ?? 3) / 10).toFixed(1);
           document.getElementById('warning-intensity').value = config.warning_intensity ?? 5;
           document.getElementById('warning-scaling').value = config.warning_scaling ?? 5;
           document.getElementById('boost-default').value = config.boost_default ?? 30;
@@ -636,18 +636,18 @@
 
     async function saveSettings() {
       const settings = {
-        turn_on_transition: parseInt(document.getElementById('turn-on-transition').value) || 3,
-        turn_off_transition: parseInt(document.getElementById('turn-off-transition').value) || 3,
-        two_step_delay: parseFloat(document.getElementById('two-step-delay').value) || 3,
+        turn_on_transition: Math.round((parseFloat(document.getElementById('turn-on-transition').value) || 0.3) * 10),
+        turn_off_transition: Math.round((parseFloat(document.getElementById('turn-off-transition').value) || 0.3) * 10),
+        two_step_delay: Math.round((parseFloat(document.getElementById('two-step-delay').value) || 0.3) * 10),
         multi_click_enabled: document.getElementById('multi-click-enabled').checked,
-        multi_click_speed: parseInt(document.getElementById('multi-click-speed').value) || 2,
+        multi_click_speed: Math.round((parseFloat(document.getElementById('multi-click-speed').value) || 0.2) * 10),
         circadian_refresh: parseInt(document.getElementById('circadian-refresh').value) || 30,
         home_refresh_interval: parseInt(document.getElementById('home-refresh-interval').value) || 10,
         log_periodic: document.getElementById('log-periodic').checked,
         motion_warning_time: parseInt(document.getElementById('motion-warning-time').value) || 0,
         motion_warning_blink_threshold: parseInt(document.getElementById('motion-warning-blink-threshold').value) || 15,
-        freeze_off_rise: parseInt(document.getElementById('freeze-off-rise').value) || 10,
-        limit_warning_speed: parseInt(document.getElementById('limit-warning-speed').value) || 3,
+        freeze_off_rise: Math.round((parseFloat(document.getElementById('freeze-off-rise').value) || 1.0) * 10),
+        limit_warning_speed: Math.round((parseFloat(document.getElementById('limit-warning-speed').value) || 0.3) * 10),
         warning_intensity: parseInt(document.getElementById('warning-intensity').value) || 5,
         warning_scaling: parseInt(document.getElementById('warning-scaling').value) || 5,
         boost_default: parseInt(document.getElementById('boost-default').value) || 30
