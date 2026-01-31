@@ -937,47 +937,28 @@
       color: var(--muted);
     }
 
-    /* Sun bar */
-    .sun-bar {
+    /* Solar display */
+    .solar-display {
       display: flex;
       align-items: center;
-      gap: 10px;
-      padding: 6px 16px 12px;
-    }
-
-    .sun-bar-label {
-      color: var(--muted);
-      white-space: nowrap;
+      gap: 12px;
+      padding: 8px 16px 12px;
       font-size: 0.8rem;
+      color: var(--muted);
     }
 
-    .sun-bar-track {
-      position: relative;
-      flex: 1;
-      height: 4px;
-      background: var(--line);
-      border-radius: 2px;
+    .solar-icon {
+      flex-shrink: 0;
     }
 
-    .sun-bar-fill {
-      position: absolute;
-      top: 0;
-      height: 100%;
-      border-radius: 2px;
-      background: linear-gradient(90deg, #f0a040, #ffd050 50%, #e07030);
-      opacity: 0.35;
+    .solar-times {
+      display: flex;
+      gap: 14px;
+      align-items: center;
     }
 
-    .sun-bar-dot {
-      position: absolute;
-      top: 50%;
-      transform: translate(-50%, -50%);
-      width: 10px;
-      height: 10px;
-      background: #ffd050;
-      border: 2px solid var(--bg);
-      border-radius: 50%;
-      box-shadow: 0 0 6px rgba(255, 208, 80, 0.5);
+    .solar-times span {
+      white-space: nowrap;
     }
 
     /* Red dot: area doesn't match zone */
@@ -1048,14 +1029,12 @@
 
   <!-- Main Content -->
   <main class="main">
-    <div class="sun-bar" id="sun-bar">
-      <span class="sun-bar-label">☀ <span id="sunrise-time">--</span></span>
-      <div class="sun-bar-track">
-        <div class="sun-bar-fill" id="sun-bar-fill"></div>
-        <div class="sun-bar-dot" id="sun-bar-dot"></div>
+    <div class="solar-display" id="solar-display">
+      <svg id="solar-icon" class="solar-icon" width="28" height="28" viewBox="0 0 28 28"></svg>
+      <div class="solar-times">
+        <span id="sunrise-label">↑ --</span>
+        <span id="sunset-label">↓ --</span>
       </div>
-      <span class="sun-bar-label"><span id="sunset-time">--</span> ☽</span>
-      <svg id="moon-phase-icon" width="16" height="16" viewBox="0 0 16 16" style="flex-shrink: 0;"></svg>
     </div>
 
     <!-- Areas grouped by zone -->
@@ -2071,7 +2050,7 @@
     }
 
     // ============================================================
-    // Sun Bar Renderer
+    // Solar Display Renderer
     // ============================================================
     function updateSunDisplay() {
       if (!cachedSunTimes || !cachedConfig) return;
@@ -2080,37 +2059,71 @@
       const lon = cachedConfig.longitude || -78.6;
       const moon = getMoonTimes(lat, lon);
 
-      const bar = document.getElementById('sun-bar');
-      if (!bar) return;
+      const container = document.getElementById('solar-display');
+      if (!container) return;
 
       const now = new Date();
       const nowHour = now.getHours() + now.getMinutes() / 60;
+      const dayLength = ((sunset - sunrise) + 24) % 24 || 12;
+      const elapsed = ((nowHour - sunrise) + 24) % 24;
+      const isDaytime = elapsed < dayLength;
 
-      // Update sunrise/sunset labels
-      document.getElementById('sunrise-time').textContent = formatHourLabel(sunrise);
-      document.getElementById('sunset-time').textContent = formatHourLabel(sunset);
+      // Update text labels
+      const riseLabel = document.getElementById('sunrise-label');
+      const setLabel = document.getElementById('sunset-label');
+      if (riseLabel) riseLabel.textContent = '↑ ' + formatHourLabel(sunrise);
+      if (setLabel) setLabel.textContent = '↓ ' + formatHourLabel(sunset);
 
-      // Position the "now" dot along the full 24h track
-      // Map: 0h = 0%, 24h = 100%
-      const pct = (nowHour / 24) * 100;
-      const dot = document.getElementById('sun-bar-dot');
-      if (dot) dot.style.left = pct + '%';
+      // Build contextual icon
+      const icon = document.getElementById('solar-icon');
+      if (!icon) return;
+      const cx = 14, cy = 14, r = 7;
+      let svg = '';
 
-      // Fill covers the daylight portion of the 24h bar
-      const risePct = (sunrise / 24) * 100;
-      const setPct = (sunset / 24) * 100;
-      const fill = document.getElementById('sun-bar-fill');
-      if (fill) {
-        fill.style.left = risePct + '%';
-        fill.style.width = (setPct - risePct) + '%';
+      // How close to sunrise/sunset? (within ~40 min)
+      const nearRise = elapsed < 0.67;                         // just after sunrise
+      const beforeRise = ((sunrise - nowHour + 24) % 24) < 0.67; // just before sunrise
+      const nearSet = (dayLength - elapsed) < 0.67 && isDaytime; // just before sunset
+      const justAfterSet = !isDaytime && ((nowHour - sunset + 24) % 24) < 0.67;
+
+      if (nearRise || beforeRise || nearSet || justAfterSet) {
+        // Partial sun on horizon
+        const horizY = cy + 2;
+        const sunColor = (nearRise || beforeRise) ? '#f0a040' : '#e07030';
+        // Horizon line
+        svg += `<line x1="${cx - 11}" y1="${horizY}" x2="${cx + 11}" y2="${horizY}" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>`;
+        // Half sun peeking above horizon
+        svg += `<clipPath id="above-hz"><rect x="0" y="0" width="28" height="${horizY}"/></clipPath>`;
+        // Glow
+        svg += `<circle cx="${cx}" cy="${horizY}" r="${r + 4}" fill="${sunColor}" opacity="0.15"/>`;
+        // Sun body clipped to above horizon
+        svg += `<circle cx="${cx}" cy="${horizY}" r="${r}" fill="${sunColor}" clip-path="url(#above-hz)"/>`;
+        // Rays (above horizon only)
+        for (let i = 0; i < 5; i++) {
+          const a = (180 + i * 36) * Math.PI / 180; // 180° to 324° (upper semicircle)
+          svg += `<line x1="${cx + (r + 2) * Math.cos(a)}" y1="${horizY + (r + 2) * Math.sin(a)}" x2="${cx + (r + 5) * Math.cos(a)}" y2="${horizY + (r + 5) * Math.sin(a)}" stroke="${sunColor}" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>`;
+        }
+        // Arrow indicating rise or set
+        if (nearRise || beforeRise) {
+          svg += `<path d="M ${cx} ${cy - 10} l -3 3 h 6 z" fill="${sunColor}" opacity="0.7"/>`;
+        } else {
+          svg += `<path d="M ${cx} ${horizY + 6} l -3 -3 h 6 z" fill="${sunColor}" opacity="0.7"/>`;
+        }
+      } else if (isDaytime) {
+        // Full sun
+        svg += `<circle cx="${cx}" cy="${cy}" r="${r + 5}" fill="#ffd050" opacity="0.12"/>`;
+        svg += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="#ffd050"/>`;
+        for (let i = 0; i < 8; i++) {
+          const a = i * 45 * Math.PI / 180;
+          svg += `<line x1="${cx + (r + 2) * Math.cos(a)}" y1="${cy + (r + 2) * Math.sin(a)}" x2="${cx + (r + 5) * Math.cos(a)}" y2="${cy + (r + 5) * Math.sin(a)}" stroke="#ffd050" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>`;
+        }
+      } else {
+        // Night — show moon with phase
+        svg += `<circle cx="${cx}" cy="${cy}" r="${r + 4}" fill="#8899bb" opacity="0.08"/>`;
+        svg += getMoonPhaseSVG(moon.phase, cx, cy, r);
       }
 
-      // Moon phase icon
-      const moonIcon = document.getElementById('moon-phase-icon');
-      if (moonIcon && moon.phase != null) {
-        let svg = getMoonPhaseSVG(moon.phase, 8, 8, 6);
-        moonIcon.innerHTML = svg;
-      }
+      icon.innerHTML = svg;
     }
 
     // Collapsed zone state (persisted in localStorage)

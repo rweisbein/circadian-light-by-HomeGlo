@@ -1,5 +1,15 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.248
+**Replace sun bar with contextual solar icon + times**
+
+- Show sunrise and sunset times as simple text with ↑/↓ arrows
+- Contextual icon changes based on time of day:
+  - Full sun with glow and rays during daytime
+  - Partial sun on horizon with arrow near sunrise/sunset (~40 min window)
+  - Moon with accurate phase rendering at night
+- Minimal vertical footprint — one line of space
+
 ## 6.9.247
 **Replace sky arc with compact sun bar**
 
