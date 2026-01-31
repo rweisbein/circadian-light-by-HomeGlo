@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.249
+**Add grouping dropdown: Glo Zone or On/Off**
+
+- New "Group:" dropdown next to "Sort:" in the toolbar
+- "Glo Zone" mode: existing behavior, areas grouped by zone
+- "On / Off" mode: areas split into On and Off sections, sub-grouped by zone within each
+- Group preference persisted alongside sort preference
+
 ## 6.9.248
 **Replace sun bar with contextual solar icon + times**
 
