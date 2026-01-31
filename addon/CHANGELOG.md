@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.237
+**Make "Circadian Light" brand the home link, remove Home nav item**
+
+- "Circadian Light" in the nav bar is now a clickable link to the home page
+- Styled orange (active) when on the home page, normal text color on other pages
+- Removed the separate "Home" nav link across all pages
+- Updated all 5 HTML pages: areas, switches, settings, home (glo zones), glo-designer
+
 ## 6.9.236
 **Replace rhythm link with dropdown, clean up zone header**
 
