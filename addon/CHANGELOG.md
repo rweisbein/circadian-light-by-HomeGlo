@@ -1,5 +1,15 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.242
+**Polish sun timeline, rhythm pill, area row compactness**
+
+- Colorful filled SVG icons: golden sun (noon), orange half-sun+arrow (rise/set), blue-grey moon with craters (midnight)
+- Sun timeline: more horizontal/bottom padding, glowing now-dot
+- Rhythm pill: darker background (0.45 opacity), borderless dropdown trigger with caret
+- Chevron background darkened to match pill
+- Dropdown: exclude current rhythm from list (shows Edit, other rhythms, + New)
+- Area rows: thinner (2px vertical padding), smaller font (0.82rem)
+
 ## 6.9.241
 **Full 24h sun timeline, more compact area rows, bolder zone names**
 
