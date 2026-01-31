@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.241
+**Full 24h sun timeline, more compact area rows, bolder zone names**
+
+- Redesign sun display as a full 24h timeline with 4 markers: solar midnight (moon), sunrise (half-sun + up arrow), solar noon (full sun), sunset (half-sun + down arrow)
+- Markers positioned dynamically based on actual sun calculations
+- Shrink area row vertical padding further (4px)
+- Make zone name bolder (700 weight, 1.05rem) and bump "Glo zone:" label to 0.8rem
+
 ## 6.9.240
 **Add dark pill background to rhythm/wake/bed, use SVG icons**
 

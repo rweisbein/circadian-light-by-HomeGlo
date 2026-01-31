@@ -667,7 +667,7 @@
       --row-fill: 0;
       display: flex;
       align-items: center;
-      padding: 6px 16px 6px 28px;
+      padding: 4px 16px 4px 28px;
       gap: 16px;
       background: var(--row-bg);
       color: var(--row-text);
@@ -834,8 +834,9 @@
     }
 
     .zone-name {
-      font-weight: 600;
-      font-size: 0.95rem;
+      font-weight: 700;
+      font-size: 1.05rem;
+      letter-spacing: 0.01em;
       color: var(--text);
     }
 
@@ -931,42 +932,52 @@
       color: var(--muted);
     }
 
-    /* Sun Display */
+    /* Sun Display - full 24h timeline */
     .sun-display {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 16px;
-      padding: 8px 0 16px;
-      font-size: 1.05rem;
-    }
-
-    .sun-rise {
-      color: var(--muted);
-    }
-
-    .sun-timeline {
       position: relative;
-      width: 120px;
+      padding: 6px 16px 28px;
+    }
+
+    .sun-track {
+      position: relative;
+      width: 100%;
       height: 6px;
       background: var(--line);
       border-radius: 3px;
     }
 
-    .sun-position {
+    .sun-now-dot {
       position: absolute;
       top: 50%;
       transform: translate(-50%, -50%);
-      width: 12px;
-      height: 12px;
+      width: 10px;
+      height: 10px;
       background: var(--text);
       border: 2px solid var(--bg);
       border-radius: 50%;
       box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+      z-index: 2;
     }
 
-    .sun-set {
+    .sun-marker {
+      position: absolute;
+      top: 12px;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1px;
+    }
+
+    .sun-marker svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .sun-marker-time {
+      font-size: 0.7rem;
       color: var(--muted);
+      white-space: nowrap;
     }
 
     /* Red dot: area doesn't match zone */
@@ -1038,11 +1049,14 @@
   <!-- Main Content -->
   <main class="main">
     <div class="sun-display" id="sun-display">
-      <span class="sun-rise">☀️ <span id="sunrise-time">--:--</span></span>
-      <div class="sun-timeline" id="sun-timeline">
-        <div class="sun-position" id="sun-position" style="left: 50%;"></div>
+      <div class="sun-track" id="sun-track">
+        <div class="sun-now-dot" id="sun-now-dot" style="left: 50%;"></div>
       </div>
-      <span class="sun-set"><span id="sunset-time">--:--</span> 🌙</span>
+      <!-- markers positioned absolutely by JS -->
+      <div class="sun-marker" id="marker-midnight" style="left: 0%;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--muted);"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><span class="sun-marker-time" id="time-midnight">--</span></div>
+      <div class="sun-marker" id="marker-sunrise" style="left: 25%;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--muted);"><path d="M17 18a5 5 0 0 0-10 0"/><line x1="12" y1="9" x2="12" y2="2"/><polyline points="9 5 12 2 15 5"/><line x1="4.22" y1="20.78" x2="5.64" y2="19.36"/><line x1="18.36" y1="19.36" x2="19.78" y2="20.78"/><line x1="1" y1="23" x2="23" y2="23"/></svg><span class="sun-marker-time" id="time-sunrise">--</span></div>
+      <div class="sun-marker" id="marker-noon" style="left: 50%;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--muted);"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg><span class="sun-marker-time" id="time-noon">--</span></div>
+      <div class="sun-marker" id="marker-sunset" style="left: 75%;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--muted);"><path d="M17 18a5 5 0 0 0-10 0"/><line x1="12" y1="2" x2="12" y2="9"/><polyline points="9 6 12 9 15 6"/><line x1="4.22" y1="20.78" x2="5.64" y2="19.36"/><line x1="18.36" y1="19.36" x2="19.78" y2="20.78"/><line x1="1" y1="23" x2="23" y2="23"/></svg><span class="sun-marker-time" id="time-sunset">--</span></div>
     </div>
 
     <!-- Areas grouped by zone -->
@@ -1941,23 +1955,30 @@
 
     function updateSunDisplay() {
       if (!cachedSunTimes) return;
-      const sunrise = cachedSunTimes.sunrise;
-      const sunset = cachedSunTimes.sunset;
-      document.getElementById('sunrise-time').textContent = formatHourLabel(sunrise);
-      document.getElementById('sunset-time').textContent = formatHourLabel(sunset);
+      const { sunrise, sunset, solarNoon, solarMid } = cachedSunTimes;
 
-      // Position the sun dot
+      // Helper: hour → percentage of 24h day
+      const h2pct = (h) => (((h % 24) + 24) % 24) / 24 * 100;
+
+      // Position markers
+      const setMarker = (id, timeId, hour) => {
+        const el = document.getElementById(id);
+        const tEl = document.getElementById(timeId);
+        if (el) el.style.left = `${h2pct(hour)}%`;
+        if (tEl) tEl.textContent = formatHourLabel(hour);
+      };
+
+      setMarker('marker-midnight', 'time-midnight', solarMid);
+      setMarker('marker-sunrise', 'time-sunrise', sunrise);
+      setMarker('marker-noon', 'time-noon', solarNoon);
+      setMarker('marker-sunset', 'time-sunset', sunset);
+
+      // Now dot
       const now = new Date();
       const nowHour = now.getHours() + now.getMinutes() / 60;
-      const dayLength = sunset - sunrise;
-      const elapsed = nowHour - sunrise;
-      let percent = (elapsed / dayLength) * 100;
-      percent = Math.max(0, Math.min(100, percent));
-
-      const posEl = document.getElementById('sun-position');
-      if (posEl) {
-        posEl.style.left = `${percent}%`;
-        posEl.style.opacity = (nowHour < sunrise || nowHour > sunset) ? '0.3' : '1';
+      const dotEl = document.getElementById('sun-now-dot');
+      if (dotEl) {
+        dotEl.style.left = `${h2pct(nowHour)}%`;
       }
     }
 
@@ -2261,7 +2282,7 @@
             <div class="zone-header ${isCollapsed ? 'collapsed' : ''}" data-zone="${zoneName}" onclick="toggleZone('${escapedZoneName}')" style="${zoneHeaderStyle}">
               ${zoneMismatchDot}
               ${chevronIcon}
-              <span style="font-size: 0.75rem; opacity: 0.6; color: ${zoneTextColor};">Glo zone:</span>
+              <span style="font-size: 0.8rem; opacity: 0.6; color: ${zoneTextColor};">Glo zone:</span>
               <span class="zone-name" style="color: ${zoneTextColor};">${zoneName}</span>
               ${zoneRhythmLink}
               <span style="flex: 1;"></span>
