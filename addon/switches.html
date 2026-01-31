@@ -1441,6 +1441,9 @@
         const boostEnabled = areaConfig.boost_enabled !== undefined ? areaConfig.boost_enabled : (areaConfig.function === 'boost');
         const showDuration = hasAreaSelected && mode === 'on_off';
         const boostBrightness = areaConfig.boost_brightness || 50;
+        const activeWhen = areaConfig.active_when || 'always';
+        const activeOffset = areaConfig.active_offset || 0;
+        const showOffset = hasAreaSelected && activeWhen !== 'always';
 
         return `
           <div class="scope-editor" data-motion-idx="${idx}">
@@ -1478,6 +1481,22 @@
                   <span style="color: var(--muted); font-size: 0.85rem;">%</span>
                 </div>
               </div>
+              <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">
+                <span style="color: var(--muted); font-size: 0.85rem;">When:</span>
+                <select class="modal-select" style="width: auto;"
+                  onchange="updateMotionArea(${idx}, 'active_when', this.value)">
+                  <option value="always" ${activeWhen === 'always' ? 'selected' : ''}>Always</option>
+                  <option value="sunset_to_sunrise" ${activeWhen === 'sunset_to_sunrise' ? 'selected' : ''}>Sunset to Sunrise</option>
+                  <option value="wake_to_bed" ${activeWhen === 'wake_to_bed' ? 'selected' : ''}>Wake to Bed</option>
+                </select>
+                <div style="display: ${showOffset ? 'flex' : 'none'}; align-items: center; gap: 6px;">
+                  <span style="color: var(--muted); font-size: 0.85rem;">\u00b1</span>
+                  <input type="number" class="modal-input" style="width: 60px;" value="${activeOffset}"
+                    min="-120" max="120" step="5"
+                    onchange="updateMotionArea(${idx}, 'active_offset', parseInt(this.value))">
+                  <span style="color: var(--muted); font-size: 0.85rem;">min</span>
+                </div>
+              </div>
             </div>
             ` : ''}
           </div>
@@ -1491,7 +1510,9 @@
         mode: 'on_off',
         duration: 60,
         boost_enabled: false,
-        boost_brightness: 50
+        boost_brightness: 50,
+        active_when: 'always',
+        active_offset: 0
       });
       renderMotionAreasEditor();
     }

@@ -44,6 +44,22 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def _in_overnight_window(now: float, start: float, end: float) -> bool:
+    """Check if now is in an overnight window (e.g. sunset 18:00 to sunrise 6:00)."""
+    if start > end:  # wraps midnight (normal case)
+        return now >= start or now <= end
+    else:  # edge case: doesn't wrap
+        return start <= now <= end
+
+
+def _in_daytime_window(now: float, start: float, end: float) -> bool:
+    """Check if now is in a daytime window (e.g. wake 6:00 to bed 22:00)."""
+    if start <= end:  # normal case
+        return start <= now <= end
+    else:  # wraps midnight (edge case, e.g. night owl wake 14:00, bed 2:00)
+        return now >= start or now <= end
+
+
 class HomeAssistantWebSocketClient:
     """WebSocket client for Home Assistant."""
     
@@ -429,6 +445,28 @@ class HomeAssistantWebSocketClient:
     # Motion Sensor Event Handling
     # =========================================================================
 
+    def _is_motion_time_active(self, area_config) -> bool:
+        """Check if current time falls within the motion sensor's active window."""
+        if area_config.active_when == "always":
+            return True
+
+        now = get_current_hour()
+        offset_hours = area_config.active_offset / 60.0
+
+        if area_config.active_when == "sunset_to_sunrise":
+            sun_times = self._get_sun_times()
+            window_start = sun_times.sunset - offset_hours
+            window_end = sun_times.sunrise + offset_hours
+            return _in_overnight_window(now, window_start, window_end)
+
+        elif area_config.active_when == "wake_to_bed":
+            config_dict = glozone.get_effective_config_for_area(area_config.area_id)
+            wake = config_dict.get("wake_time", 6.0) - offset_hours
+            bed = config_dict.get("bed_time", 22.0) + offset_hours
+            return _in_daytime_window(now, wake, bed)
+
+        return True
+
     async def _handle_motion_event(self, entity_id: str, new_state: str, old_state: str) -> None:
         """Handle a motion sensor state change.
 
@@ -473,6 +511,10 @@ class HomeAssistantWebSocketClient:
 
             if mode == "disabled":
                 logger.debug(f"[Motion] Mode disabled for area {area_id}")
+                continue
+
+            if not self._is_motion_time_active(area_config):
+                logger.debug(f"[Motion] Outside active window for area {area_id} (when={area_config.active_when})")
                 continue
 
             logger.debug(f"[Motion] Area {area_id}: mode={mode}, boost={area_config.boost_enabled}, duration={duration}")
@@ -557,6 +599,10 @@ class HomeAssistantWebSocketClient:
 
             if mode == "disabled":
                 logger.debug(f"[ZHA Motion] Mode disabled for area {area_id}")
+                continue
+
+            if not self._is_motion_time_active(area_config):
+                logger.debug(f"[ZHA Motion] Outside active window for area {area_id} (when={area_config.active_when})")
                 continue
 
             logger.debug(f"[ZHA Motion] Area {area_id}: mode={mode}, boost={area_config.boost_enabled}, duration={duration}")

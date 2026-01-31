@@ -823,14 +823,8 @@
       box-shadow: 0 0 0 1.5px rgba(255,255,255,0.25);
     }
 
-    .zone-header.collapsed .zone-chevron,
-    .rhythm-header.collapsed .zone-chevron {
+    .zone-header.collapsed .zone-chevron {
       transform: rotate(-90deg);
-    }
-
-    .zone-label {
-      font-size: 0.85rem;
-      color: var(--muted);
     }
 
     .zone-name {
@@ -857,81 +851,20 @@
       display: none;
     }
 
-    /* Rhythm group headers */
-    .rhythm-group {
-      margin-bottom: 20px;
-    }
-
-    .rhythm-group:last-child {
-      margin-bottom: 0;
-    }
-
-    .rhythm-header {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 14px 20px;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      cursor: pointer;
-      user-select: none;
-      transition: background 0.15s;
-      margin-bottom: 8px;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .rhythm-header::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(90deg, rgba(255,255,255,0.03), rgba(255,255,255,0.5));
-      opacity: 0.6;
-      transform-origin: left center;
-      transform: scaleX(var(--header-fill, 0));
-      pointer-events: none;
-    }
-
-    .rhythm-header > * {
-      position: relative;
-      z-index: 1;
-    }
-
-    .rhythm-header:hover {
-      background: rgba(255,255,255,0.05);
-    }
-
-    .rhythm-header.collapsed {
-      margin-bottom: 0;
-    }
-
-    .rhythm-content.hidden {
-      display: none;
-    }
-
-    .rhythm-label {
-      font-size: 0.9rem;
-      color: var(--muted);
-    }
-
-    .rhythm-name-link {
-      font-weight: 700;
-      font-size: 1.05rem;
+    /* Zone rhythm link in header */
+    .zone-rhythm-link {
+      font-size: 0.8rem;
       color: var(--accent);
       text-decoration: none;
-      transition: color 0.2s;
+      opacity: 0.85;
+      transition: color 0.2s, opacity 0.2s;
+      margin-left: 4px;
     }
 
-    .rhythm-name-link:hover {
+    .zone-rhythm-link:hover {
       color: var(--accent-hover);
       text-decoration: underline;
-    }
-
-    .rhythm-lighting {
-      font-size: 0.9rem;
-      opacity: 0.85;
-      margin-left: auto;
+      opacity: 1;
     }
 
     /* Red dot: area doesn't match zone */
@@ -1926,32 +1859,6 @@
       }
     }
 
-    // Collapsed rhythm state (persisted in localStorage)
-    function getCollapsedRhythms() {
-      try {
-        return JSON.parse(localStorage.getItem('areas_collapsed_rhythms') || '{}');
-      } catch { return {}; }
-    }
-
-    function setRhythmCollapsed(rhythmName, collapsed) {
-      const st = getCollapsedRhythms();
-      st[rhythmName] = collapsed;
-      localStorage.setItem('areas_collapsed_rhythms', JSON.stringify(st));
-    }
-
-    function toggleRhythm(rhythmName) {
-      const st = getCollapsedRhythms();
-      const isCollapsed = !st[rhythmName];
-      setRhythmCollapsed(rhythmName, isCollapsed);
-
-      const header = document.querySelector(`[data-rhythm="${CSS.escape(rhythmName)}"]`);
-      const content = document.querySelector(`[data-rhythm-content="${CSS.escape(rhythmName)}"]`);
-      if (header && content) {
-        header.classList.toggle('collapsed', isCollapsed);
-        content.classList.toggle('hidden', isCollapsed);
-      }
-    }
-
     function zoneReset(zoneName) {
       // Find the first area_id in this zone
       for (const area of areas) {
@@ -2065,7 +1972,6 @@
 
       // Collapsed state
       const collapsedState = getCollapsedZones();
-      const collapsedRhythms = getCollapsedRhythms();
 
       // Sort dropdown HTML
       const sortOptions = `
@@ -2096,6 +2002,7 @@
         let zoneTextColor = 'var(--text)';
         let zoneLightingInfo = '';
         let zoneMismatchDot = '';
+        let zoneRhythmLink = '';
 
         const zs = zoneStates[zoneName];
         if (zs) {
@@ -2106,6 +2013,11 @@
           zoneTextColor = readableTextColor(tintedColor);
           zoneHeaderStyle = `background: ${tintedColor}; color: ${zoneTextColor}; --header-fill: ${zoneBri / 100};`;
           zoneLightingInfo = `<span style="font-size: 0.8rem; opacity: 0.85;">${Math.round(zoneBri)}% · ${Math.round(zoneKelvin)}K</span>`;
+
+          // Rhythm name link
+          if (zs.preset) {
+            zoneRhythmLink = `<a href="./glo/${encodeURIComponent(zs.preset)}" class="zone-rhythm-link" onclick="event.stopPropagation();" style="color: ${zoneTextColor};">${zs.preset}</a>`;
+          }
 
           // Red dot: zone doesn't match its preset's pure rhythm
           const zonePresetName = zs.preset;
@@ -2125,8 +2037,8 @@
             <div class="zone-header ${isCollapsed ? 'collapsed' : ''}" data-zone="${zoneName}" onclick="toggleZone('${escapedZoneName}')" style="${zoneHeaderStyle}">
               ${zoneMismatchDot}
               ${chevronIcon}
-              <span class="zone-label" style="color: ${zoneTextColor}; opacity: 0.7;">Glo zone:</span>
               <span class="zone-name" style="color: ${zoneTextColor};">${zoneName}</span>
+              ${zoneRhythmLink}
               <span style="flex: 1; font-size: 0.8rem; color: ${zoneTextColor}; opacity: 0.5;">(${areasInZone.length} area${areasInZone.length !== 1 ? 's' : ''})</span>
               ${zoneLightingInfo}
               <button class="zone-reset-btn" onclick="event.stopPropagation(); zoneReset('${escapedZoneName}')" title="Reset Glo Zone: reset all areas in Glo Zone to rhythm">${zoneResetIcon}</button>
@@ -2138,85 +2050,9 @@
         `;
       };
 
-      // Group zones by rhythm/preset
-      const rhythmGroups = {};
-      const unassignedRhythmZones = [];
-
+      // Render zones directly (no rhythm grouping)
       for (const zoneName of zoneNames) {
-        const zs = zoneStates[zoneName];
-        const presetName = zs ? zs.preset : null;
-        if (presetName) {
-          if (!rhythmGroups[presetName]) rhythmGroups[presetName] = [];
-          rhythmGroups[presetName].push(zoneName);
-        } else {
-          unassignedRhythmZones.push(zoneName);
-        }
-      }
-
-      const rhythmNames = Object.keys(rhythmGroups).sort();
-
-      // Render rhythm groups
-      const renderRhythmGroup = (rhythmName, rhythmZoneNames) => {
-        const isCollapsed = collapsedRhythms[rhythmName] || false;
-        const escapedName = rhythmName.replace(/'/g, "\\'");
-
-        // Rhythm header color from preset-specific pure rhythm values
-        let rhythmHeaderStyle = '';
-        let rhythmTextColor = 'var(--text)';
-        let rhythmLightingInfo = '';
-
-        const presetRhythm = getPureRhythmValues(rhythmName);
-        if (presetRhythm) {
-          const cctColor = cctToRGB(presetRhythm.kelvin);
-          const tintedColor = tintColorByBrightness(cctColor, presetRhythm.brightness);
-          rhythmTextColor = readableTextColor(tintedColor);
-          rhythmHeaderStyle = `background: ${tintedColor}; color: ${rhythmTextColor}; --header-fill: ${presetRhythm.brightness / 100};`;
-          rhythmLightingInfo = `<span class="rhythm-lighting" style="color: ${rhythmTextColor};">${Math.round(presetRhythm.brightness)}% · ${Math.round(presetRhythm.kelvin)}K</span>`;
-        }
-
-        let zonesHtml = '';
-        for (const zn of rhythmZoneNames) {
-          zonesHtml += renderZoneGroup(zn, zoneGroups[zn]);
-        }
-
-        return `
-          <div class="rhythm-group">
-            <div class="rhythm-header ${isCollapsed ? 'collapsed' : ''}" data-rhythm="${rhythmName}" onclick="toggleRhythm('${escapedName}')" style="${rhythmHeaderStyle}">
-              ${chevronIcon}
-              <span class="rhythm-label" style="color: ${rhythmTextColor}; opacity: 0.7;">Rhythm:</span>
-              <a href="./glo/${encodeURIComponent(rhythmName)}" class="rhythm-name-link" onclick="event.stopPropagation();" style="color: ${rhythmTextColor};">${rhythmName}</a>
-              <span style="flex: 1;"></span>
-              ${rhythmLightingInfo}
-            </div>
-            <div class="rhythm-content ${isCollapsed ? 'hidden' : ''}" data-rhythm-content="${rhythmName}">
-              ${zonesHtml}
-            </div>
-          </div>
-        `;
-      };
-
-      for (const rhythmName of rhythmNames) {
-        html += renderRhythmGroup(rhythmName, rhythmGroups[rhythmName]);
-      }
-
-      // Unassigned rhythm zones
-      if (unassignedRhythmZones.length > 0) {
-        let unassignedZonesHtml = '';
-        for (const zn of unassignedRhythmZones) {
-          unassignedZonesHtml += renderZoneGroup(zn, zoneGroups[zn]);
-        }
-        html += `
-          <div class="rhythm-group">
-            <div class="rhythm-header ${collapsedRhythms['Unassigned'] ? 'collapsed' : ''}" data-rhythm="Unassigned" onclick="toggleRhythm('Unassigned')" style="">
-              ${chevronIcon}
-              <span class="rhythm-label">Rhythm:</span>
-              <span style="font-weight: 600; font-size: 0.9rem; color: var(--muted);">Unassigned</span>
-            </div>
-            <div class="rhythm-content ${collapsedRhythms['Unassigned'] ? 'hidden' : ''}" data-rhythm-content="Unassigned">
-              ${unassignedZonesHtml}
-            </div>
-          </div>
-        `;
+        html += renderZoneGroup(zoneName, zoneGroups[zoneName]);
       }
 
       // Render unassigned areas (no zone) at the end

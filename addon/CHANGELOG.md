@@ -1,5 +1,22 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.232
+**Add motion sensor time-of-day filter**
+
+- Add "When" filter to motion sensor area config: Always (default), Sunset to Sunrise, or Wake to Bed
+- Add offset field (±minutes) to widen or shrink the active window
+- Motion events outside the active window are ignored with a debug log
+- Filter applies to both state-change and ZHA motion event paths
+- UI shows When dropdown and offset input in motion area editor
+
+## 6.9.231
+**Remove rhythm grouping layer from home page**
+
+- Remove the expand/collapse rhythm grouping that wrapped glo zones by their preset
+- Zones now render directly as a flat list, reducing visual nesting
+- Add rhythm name as a clickable link in each zone header (next to zone name), linking to rhythm editor
+- Remove "Glo zone:" label prefix from zone headers for cleaner appearance
+
 ## 6.9.230
 **Fix motion-coupled boost on already-on areas and improve boost countdown display**
 

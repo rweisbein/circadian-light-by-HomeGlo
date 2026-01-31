@@ -344,16 +344,22 @@ class MotionAreaConfig:
     duration: int = 60  # seconds for on_off auto-off timer
     boost_enabled: bool = False  # whether to boost brightness
     boost_brightness: int = 50  # percentage points to add when boosting
+    active_when: str = "always"  # always, sunset_to_sunrise, wake_to_bed
+    active_offset: int = 0  # minutes: positive = widen window, negative = shrink
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
-        return {
+        d = {
             "area_id": self.area_id,
             "mode": self.mode,
             "duration": self.duration,
             "boost_enabled": self.boost_enabled,
             "boost_brightness": self.boost_brightness,
         }
+        if self.active_when != "always":
+            d["active_when"] = self.active_when
+            d["active_offset"] = self.active_offset
+        return d
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "MotionAreaConfig":
@@ -369,6 +375,8 @@ class MotionAreaConfig:
                     duration=data.get("duration", 60),
                     boost_enabled=True,
                     boost_brightness=data.get("boost_brightness", 50),
+                    active_when=data.get("active_when", "always"),
+                    active_offset=data.get("active_offset", 0),
                 )
             else:
                 # on_only, on_off, disabled - just rename function to mode
@@ -378,6 +386,8 @@ class MotionAreaConfig:
                     duration=data.get("duration", 60),
                     boost_enabled=False,
                     boost_brightness=data.get("boost_brightness", 50),
+                    active_when=data.get("active_when", "always"),
+                    active_offset=data.get("active_offset", 0),
                 )
 
         # New format
@@ -387,6 +397,8 @@ class MotionAreaConfig:
             duration=data.get("duration", 60),
             boost_enabled=data.get("boost_enabled", False),
             boost_brightness=data.get("boost_brightness", 50),
+            active_when=data.get("active_when", "always"),
+            active_offset=data.get("active_offset", 0),
         )
 
 
