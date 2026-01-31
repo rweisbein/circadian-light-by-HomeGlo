@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.234
+**Fix sync dots to compare state fields instead of calculated values**
+
+- Zone dot: show when `brightness_mid`, `color_mid`, or `frozen_at` is non-null (zone has been stepped/frozen)
+- Area dot: compare area's state fields against zone's runtime_state instead of computed brightness/kelvin
+- Eliminates false positives from rounding/timing drift between client and server calculations
+- Reset now immediately clears the dot since it sets state fields back to null
+
 ## 6.9.233
 **Remove automatic resync on registry changes, fix WebSocket stability**
 

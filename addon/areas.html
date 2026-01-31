@@ -2019,14 +2019,10 @@
             zoneRhythmLink = `<a href="./glo/${encodeURIComponent(zs.preset)}" class="zone-rhythm-link" onclick="event.stopPropagation();" style="color: ${zoneTextColor};">${zs.preset}</a>`;
           }
 
-          // Red dot: zone doesn't match its preset's pure rhythm
-          const zonePresetName = zs.preset;
-          const zonePureRhythm = getPureRhythmValues(zonePresetName);
-          if (zonePureRhythm) {
-            if (Math.abs(zoneBri - zonePureRhythm.brightness) > 2 ||
-                Math.abs(zoneKelvin - zonePureRhythm.kelvin) > 100) {
-              zoneMismatchDot = `<span class="mismatch-dot-zone" style="box-shadow: 0 0 0 1.5px ${zoneTextColor};"></span>`;
-            }
+          // Red dot: zone has been stepped or frozen away from pure rhythm
+          const rs = zs.runtime_state;
+          if (rs && (rs.brightness_mid != null || rs.color_mid != null || rs.frozen_at != null)) {
+            zoneMismatchDot = `<span class="mismatch-dot-zone" style="box-shadow: 0 0 0 1.5px ${zoneTextColor};"></span>`;
           }
         }
 
@@ -2078,12 +2074,20 @@
       const timerInfo = getRowTimerInfo(area);
       const { leftControls, rightControls } = getRowControls(area);
 
-      // Red dot: area doesn't match zone values (±2% brightness, ±100K tolerance)
+      // Red dot: area's state differs from zone's state (stepped or frozen independently)
       let mismatchDot = '';
       if (area.zone_name && zoneStates[area.zone_name]) {
-        const zs = zoneStates[area.zone_name];
-        if (Math.abs(area.brightness - zs.brightness) > 2 ||
-            Math.abs(area.kelvin - zs.kelvin) > 100) {
+        const rs = zoneStates[area.zone_name].runtime_state || {};
+        const tol = 0.1;  // ~6 minutes, matches server SYNC_TOLERANCE
+        const differs = (a, b) => {
+          if (a == null && b == null) return false;
+          if (a == null || b == null) return true;
+          return Math.abs(a - b) >= tol;
+        };
+        if (differs(area.brightness_mid, rs.brightness_mid) ||
+            differs(area.color_mid, rs.color_mid) ||
+            differs(area.frozen_at, rs.frozen_at) ||
+            area.color_override != null) {
           mismatchDot = `<span class="mismatch-dot-area" style="box-shadow: 0 0 0 1.5px ${style.textColor};"></span>`;
         }
       }
