@@ -851,20 +851,78 @@
       display: none;
     }
 
-    /* Zone rhythm link in header */
-    .zone-rhythm-link {
-      font-size: 0.8rem;
-      color: var(--accent);
-      text-decoration: none;
-      opacity: 0.85;
-      transition: color 0.2s, opacity 0.2s;
+    /* Zone rhythm dropdown in header */
+    .zone-rhythm-display {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
       margin-left: 4px;
     }
 
-    .zone-rhythm-link:hover {
-      color: var(--accent-hover);
-      text-decoration: underline;
+    .zone-rhythm-label {
+      font-size: 0.75rem;
+      opacity: 0.6;
+    }
+
+    .zone-rhythm-btn {
+      background: transparent;
+      border: 1px solid currentColor;
+      border-radius: 4px;
+      padding: 1px 8px;
+      font-size: 0.8rem;
+      color: inherit;
+      opacity: 0.85;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+
+    .zone-rhythm-btn:hover {
       opacity: 1;
+    }
+
+    .zone-rhythm-dropdown {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      min-width: 160px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      z-index: 50;
+      display: none;
+      margin-top: 4px;
+    }
+
+    .zone-rhythm-dropdown.visible {
+      display: block;
+    }
+
+    .zone-rhythm-dropdown-item {
+      padding: 8px 14px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      border-bottom: 1px solid var(--line);
+      color: var(--text);
+    }
+
+    .zone-rhythm-dropdown-item:last-child {
+      border-bottom: none;
+    }
+
+    .zone-rhythm-dropdown-item:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .zone-rhythm-dropdown-item.selected {
+      color: var(--accent);
+    }
+
+    a.zone-rhythm-dropdown-item {
+      display: block;
+      text-decoration: none;
+      color: var(--muted);
     }
 
     /* Red dot: area doesn't match zone */
@@ -1870,6 +1928,41 @@
       }
     }
 
+    async function changeZoneRhythm(zoneName, presetName) {
+      try {
+        await fetch(`./api/glozones/${encodeURIComponent(zoneName)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ preset: presetName })
+        });
+        await loadData();
+      } catch (err) {
+        console.error('Error changing rhythm:', err);
+      }
+    }
+
+    async function createAndAssignRhythm(zoneName, rhythmName) {
+      try {
+        // Create new preset (copy from current zone's preset as base)
+        const zs = zoneStates[zoneName];
+        const sourcePreset = zs?.preset;
+        const baseConfig = sourcePreset && cachedPresets[sourcePreset]
+          ? { ...cachedPresets[sourcePreset] }
+          : {};
+
+        await fetch('./api/circadian-presets', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: rhythmName, settings: baseConfig })
+        });
+
+        // Assign it to the zone
+        await changeZoneRhythm(zoneName, rhythmName);
+      } catch (err) {
+        console.error('Error creating rhythm:', err);
+      }
+    }
+
     /**
      * Compute pure rhythm brightness/kelvin at current hour for a specific preset.
      * Uses the preset's own curve config (from cachedPresets) merged with global settings.
@@ -2026,9 +2119,21 @@
           zoneHeaderStyle = `background: ${tintedColor}; color: ${zoneTextColor}; --header-fill: ${zoneBri / 100};`;
           zoneLightingInfo = `<span style="font-size: 0.8rem; opacity: 0.85;">${Math.round(zoneBri)}% · ${Math.round(zoneKelvin)}K</span>`;
 
-          // Rhythm name link
+          // Rhythm dropdown
           if (zs.preset) {
-            zoneRhythmLink = `<a href="./glo/${encodeURIComponent(zs.preset)}" class="zone-rhythm-link" onclick="event.stopPropagation();" style="color: ${zoneTextColor};">${zs.preset}</a>`;
+            const presetNames = Object.keys(cachedPresets);
+            const dropdownItems =
+              `<a href="./glo/${encodeURIComponent(zs.preset)}" class="zone-rhythm-dropdown-item" onclick="event.stopPropagation();">Edit ${zs.preset}</a>` +
+              presetNames.map(p =>
+                `<div class="zone-rhythm-dropdown-item ${p === zs.preset ? 'selected' : ''}" data-zone="${zoneName}" data-preset="${p}">${p}</div>`
+              ).join('') +
+              `<div class="zone-rhythm-dropdown-item" data-zone="${zoneName}" data-preset="__new__">+ New Rhythm...</div>`;
+            zoneRhythmLink = `
+              <div class="zone-rhythm-display" onclick="event.stopPropagation();">
+                <span class="zone-rhythm-label" style="color: ${zoneTextColor};">Rhythm:</span>
+                <button class="zone-rhythm-btn" style="color: ${zoneTextColor}; border-color: ${zoneTextColor};">${zs.preset}</button>
+                <div class="zone-rhythm-dropdown">${dropdownItems}</div>
+              </div>`;
           }
 
           // Red dot: zone has been stepped or frozen away from pure rhythm
@@ -2047,7 +2152,7 @@
               ${chevronIcon}
               <span class="zone-name" style="color: ${zoneTextColor};">${zoneName}</span>
               ${zoneRhythmLink}
-              <span style="flex: 1; font-size: 0.8rem; color: ${zoneTextColor}; opacity: 0.5;">(${areasInZone.length} area${areasInZone.length !== 1 ? 's' : ''})</span>
+              <span style="flex: 1;"></span>
               ${zoneLightingInfo}
               <button class="zone-reset-btn" onclick="event.stopPropagation(); zoneReset('${escapedZoneName}')" title="Reset Glo Zone: reset all areas in Glo Zone to rhythm">${zoneResetIcon}</button>
             </div>
@@ -2274,6 +2379,50 @@
       document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
           closeModal();
+        }
+      });
+
+      // Rhythm dropdown: toggle on button click (event delegation)
+      document.getElementById('areas-container').addEventListener('click', (e) => {
+        const btn = e.target.closest('.zone-rhythm-btn');
+        if (btn) {
+          e.stopPropagation();
+          const display = btn.closest('.zone-rhythm-display');
+          const dropdown = display.querySelector('.zone-rhythm-dropdown');
+          // Close other rhythm dropdowns
+          document.querySelectorAll('.zone-rhythm-dropdown.visible').forEach(d => {
+            if (d !== dropdown) d.classList.remove('visible');
+          });
+          dropdown.classList.toggle('visible');
+          return;
+        }
+
+        // Rhythm dropdown item selection
+        const item = e.target.closest('.zone-rhythm-dropdown-item[data-preset]');
+        if (item) {
+          e.stopPropagation();
+          const zoneName = item.dataset.zone;
+          const preset = item.dataset.preset;
+          item.closest('.zone-rhythm-dropdown').classList.remove('visible');
+
+          if (preset === '__new__') {
+            const newName = prompt('New rhythm name:');
+            if (newName && newName.trim()) {
+              createAndAssignRhythm(zoneName, newName.trim());
+            }
+          } else {
+            changeZoneRhythm(zoneName, preset);
+          }
+          return;
+        }
+      });
+
+      // Close rhythm dropdowns when clicking outside
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('.zone-rhythm-display')) {
+          document.querySelectorAll('.zone-rhythm-dropdown.visible').forEach(d => {
+            d.classList.remove('visible');
+          });
         }
       });
     }
