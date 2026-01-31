@@ -768,6 +768,15 @@
       height: 14px;
     }
 
+    /* On/Off section headers */
+    .onoff-section-header {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--muted);
+      padding: 10px 16px 6px;
+      letter-spacing: 0.03em;
+    }
+
     /* Zone group headers */
     .zone-group {
       margin-bottom: 16px;
@@ -1143,6 +1152,7 @@
     let zoneStates = {};
     let cachedPresets = {};
     let sortMode = 'onoff';  // 'onoff', 'alpha', 'rhythm'
+    let groupMode = 'zone';  // 'zone', 'onoff'
     let selectedArea = null;
     let cachedConfig = null;
     let cachedSunTimes = null; // { sunrise, sunset, solarNoon, solarMid } in local hours
@@ -1792,6 +1802,7 @@
           cachedConfig = await configRes.json();
           const prefs = cachedConfig.areas_ui || {};
           sortMode = prefs.sort_mode || 'onoff';
+          groupMode = prefs.group_mode || 'zone';
 
           // Compute sun times client-side from config lat/lon
           const lat = cachedConfig.latitude || 35.0;
@@ -1810,7 +1821,8 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             areas_ui: {
-              sort_mode: sortMode
+              sort_mode: sortMode,
+              group_mode: groupMode
             }
           })
         });
@@ -2347,6 +2359,12 @@
         <option value="rhythm" ${sortMode === 'rhythm' ? 'selected' : ''}>In Rhythm</option>
       `;
 
+      // Group dropdown HTML
+      const groupOptions = `
+        <option value="zone" ${groupMode === 'zone' ? 'selected' : ''}>Glo Zone</option>
+        <option value="onoff" ${groupMode === 'onoff' ? 'selected' : ''}>On / Off</option>
+      `;
+
       // Chevron icon
       const chevronIcon = `<svg class="zone-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>`;
 
@@ -2355,7 +2373,9 @@
 
       // Build zone groups HTML
       let html = `
-        <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
+        <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;">
+          <span style="font-size: 0.85rem; color: var(--muted);">Group:</span>
+          <select class="header-filter" id="group-dropdown" style="width: auto; padding: 6px 12px;">${groupOptions}</select>
           <span style="font-size: 0.85rem; color: var(--muted);">Sort:</span>
           <select class="header-filter" id="sort-dropdown" style="width: auto; padding: 6px 12px;">${sortOptions}</select>
           <span style="flex: 1;"></span>
@@ -2441,14 +2461,47 @@
         `;
       };
 
-      // Render zones directly (no rhythm grouping)
-      for (const zoneName of zoneNames) {
-        html += renderZoneGroup(zoneName, zoneGroups[zoneName]);
-      }
+      if (groupMode === 'onoff') {
+        // Group by on/off first, then by zone within each
+        const onAreas = filtered.filter(a => a.is_on);
+        const offAreas = filtered.filter(a => !a.is_on);
 
-      // Render unassigned areas (no zone) at the end
-      if (unassigned.length > 0) {
-        html += renderZoneGroup('Unassigned', unassigned);
+        const renderOnOffSection = (label, sectionAreas, icon) => {
+          if (sectionAreas.length === 0) return '';
+          // Sub-group by zone
+          const subGroups = {};
+          const subUnassigned = [];
+          for (const area of sectionAreas) {
+            if (area.zone_name) {
+              if (!subGroups[area.zone_name]) subGroups[area.zone_name] = [];
+              subGroups[area.zone_name].push(area);
+            } else {
+              subUnassigned.push(area);
+            }
+          }
+          const subNames = Object.keys(subGroups).sort();
+          let sectionHtml = `<div class="onoff-section-header">${icon} ${label} <span style="opacity: 0.5; font-weight: 400;">(${sectionAreas.length})</span></div>`;
+          for (const zn of subNames) {
+            sectionHtml += renderZoneGroup(zn, subGroups[zn]);
+          }
+          if (subUnassigned.length > 0) {
+            sectionHtml += renderZoneGroup('Unassigned', subUnassigned);
+          }
+          return sectionHtml;
+        };
+
+        html += renderOnOffSection('On', onAreas, '●');
+        html += renderOnOffSection('Off', offAreas, '○');
+      } else {
+        // Default: group by zone
+        for (const zoneName of zoneNames) {
+          html += renderZoneGroup(zoneName, zoneGroups[zoneName]);
+        }
+
+        // Render unassigned areas (no zone) at the end
+        if (unassigned.length > 0) {
+          html += renderZoneGroup('Unassigned', unassigned);
+        }
       }
 
       // Handle empty state
@@ -2639,10 +2692,15 @@
         if (e.target.id === 'refresh-link') { e.preventDefault(); loadData(); }
       });
 
-      // Use event delegation for dynamically created sort dropdown
+      // Use event delegation for dynamically created dropdowns
       document.getElementById('areas-container').addEventListener('change', (e) => {
         if (e.target.id === 'sort-dropdown') {
           sortMode = e.target.value;
+          savePreferences();
+          renderAreas();
+        }
+        if (e.target.id === 'group-dropdown') {
+          groupMode = e.target.value;
           savePreferences();
           renderAreas();
         }
