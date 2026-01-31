@@ -931,6 +931,44 @@
       color: var(--muted);
     }
 
+    /* Sun Display */
+    .sun-display {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      padding: 8px 0 16px;
+      font-size: 1.05rem;
+    }
+
+    .sun-rise {
+      color: var(--muted);
+    }
+
+    .sun-timeline {
+      position: relative;
+      width: 120px;
+      height: 6px;
+      background: var(--line);
+      border-radius: 3px;
+    }
+
+    .sun-position {
+      position: absolute;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 12px;
+      height: 12px;
+      background: var(--text);
+      border: 2px solid var(--bg);
+      border-radius: 50%;
+      box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+    }
+
+    .sun-set {
+      color: var(--muted);
+    }
+
     /* Red dot: area doesn't match zone */
     .mismatch-dot-area {
       position: absolute;
@@ -999,7 +1037,13 @@
 
   <!-- Main Content -->
   <main class="main">
-    <div id="top-bar-placeholder"></div>
+    <div class="sun-display" id="sun-display">
+      <span class="sun-rise">☀️ <span id="sunrise-time">--:--</span></span>
+      <div class="sun-timeline" id="sun-timeline">
+        <div class="sun-position" id="sun-position" style="left: 50%;"></div>
+      </div>
+      <span class="sun-set"><span id="sunset-time">--:--</span> 🌙</span>
+    </div>
 
     <!-- Areas grouped by zone -->
     <div id="areas-container">
@@ -1887,10 +1931,33 @@
         }
 
         renderAreas();
+        updateSunDisplay();
         startHomeRefresh();
       } catch (err) {
         console.error('Error loading data:', err);
         container.innerHTML = '<div class="loading">Error loading data</div>';
+      }
+    }
+
+    function updateSunDisplay() {
+      if (!cachedSunTimes) return;
+      const sunrise = cachedSunTimes.sunrise;
+      const sunset = cachedSunTimes.sunset;
+      document.getElementById('sunrise-time').textContent = formatHourLabel(sunrise);
+      document.getElementById('sunset-time').textContent = formatHourLabel(sunset);
+
+      // Position the sun dot
+      const now = new Date();
+      const nowHour = now.getHours() + now.getMinutes() / 60;
+      const dayLength = sunset - sunrise;
+      const elapsed = nowHour - sunrise;
+      let percent = (elapsed / dayLength) * 100;
+      percent = Math.max(0, Math.min(100, percent));
+
+      const posEl = document.getElementById('sun-position');
+      if (posEl) {
+        posEl.style.left = `${percent}%`;
+        posEl.style.opacity = (nowHour < sunrise || nowHour > sunset) ? '0.3' : '1';
       }
     }
 
@@ -2142,7 +2209,6 @@
         let zoneMismatchDot = '';
         let zoneRhythmLink = '';
 
-        let zoneWakeBedPill = '';
         const zs = zoneStates[zoneName];
         if (zs) {
           const zoneBri = zs.brightness;
@@ -2153,15 +2219,7 @@
           zoneHeaderStyle = `background: ${tintedColor}; color: ${zoneTextColor}; --header-fill: ${zoneBri / 100};`;
           zoneLightingInfo = `<span style="font-size: 0.8rem; opacity: 0.85;">${Math.round(zoneBri)}% · ${Math.round(zoneKelvin)}K</span>`;
 
-          // Wake/bed times pill
-          if (zs.preset && cachedPresets[zs.preset]) {
-            const pr = cachedPresets[zs.preset];
-            if (pr.wake_time != null && pr.bed_time != null) {
-              zoneWakeBedPill = `<span style="font-size: 0.7rem; background: rgba(0,0,0,0.25); border-radius: 4px; padding: 1px 6px; white-space: nowrap;"><span style="color: #5cb3ff;">☀ ${formatHourLabel(pr.wake_time)}</span> · <span style="color: #ffe080;">☽ ${formatHourLabel(pr.bed_time)}</span></span>`;
-            }
-          }
-
-          // Rhythm dropdown
+          // Rhythm dropdown + wake/bed times combined pill
           if (zs.preset) {
             const presetNames = Object.keys(cachedPresets);
             const dropdownItems =
@@ -2170,11 +2228,20 @@
                 `<div class="zone-rhythm-dropdown-item ${p === zs.preset ? 'selected' : ''}" data-zone="${zoneName}" data-preset="${p}" onclick="selectRhythm(this)">${p}</div>`
               ).join('') +
               `<div class="zone-rhythm-dropdown-item" data-zone="${zoneName}" data-preset="__new__" onclick="selectRhythm(this)">+ New Rhythm...</div>`;
+
+            // Wake/bed times inline (same size as rhythm label/btn)
+            let wakeBedSpan = '';
+            const pr = cachedPresets[zs.preset];
+            if (pr && pr.wake_time != null && pr.bed_time != null) {
+              wakeBedSpan = `<span style="opacity: 0.7; margin-left: 6px; white-space: nowrap;"><span style="color: #5cb3ff;">⏰ ${formatHourLabel(pr.wake_time)}</span> · <span style="color: #ffe080;">🛏 ${formatHourLabel(pr.bed_time)}</span></span>`;
+            }
+
             zoneRhythmLink = `
               <div class="zone-rhythm-display">
                 <span class="zone-rhythm-label" style="color: ${zoneTextColor};">Rhythm:</span>
                 <button class="zone-rhythm-btn" style="color: ${zoneTextColor}; border-color: ${zoneTextColor};" onclick="event.stopPropagation(); toggleRhythmDropdown(this);">${zs.preset}</button>
                 <div class="zone-rhythm-dropdown">${dropdownItems}</div>
+                ${wakeBedSpan}
               </div>`;
           }
 
@@ -2196,7 +2263,6 @@
               <span class="zone-name" style="color: ${zoneTextColor};">${zoneName}</span>
               ${zoneRhythmLink}
               <span style="flex: 1;"></span>
-              ${zoneWakeBedPill}
               ${zoneLightingInfo}
               <button class="zone-reset-btn" onclick="event.stopPropagation(); zoneReset('${escapedZoneName}')" title="Reset Glo Zone: reset all areas in Glo Zone to rhythm">${zoneResetIcon}</button>
             </div>

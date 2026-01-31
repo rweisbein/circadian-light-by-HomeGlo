@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.239
+**Improve zone header rhythm/wake/bed display, add sunrise/sunset bar**
+
+- Combine rhythm dropdown and wake/bed times into a single pill in zone headers
+- Use ⏰/🛏 icons for wake/bed to avoid confusion with sunrise/sunset
+- Match wake/bed text size to rhythm label font size
+- Add sunrise/sunset timeline bar with sun position above the sort row
+
 ## 6.9.238
 **Areas page UI improvements**
 
