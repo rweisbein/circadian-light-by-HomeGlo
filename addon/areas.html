@@ -667,7 +667,7 @@
       --row-fill: 0;
       display: flex;
       align-items: center;
-      padding: 10px 16px 10px 28px;
+      padding: 2px 16px 2px 28px;
       gap: 16px;
       background: var(--row-bg);
       color: var(--row-text);
@@ -705,7 +705,7 @@
     .area-row-name {
       flex: 1;
       min-width: 0;
-      font-size: 0.9rem;
+      font-size: 0.82rem;
     }
 
     .area-row-lighting {
@@ -768,6 +768,15 @@
       height: 14px;
     }
 
+    /* On/Off section headers */
+    .onoff-section-header {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--muted);
+      padding: 10px 16px 6px;
+      letter-spacing: 0.03em;
+    }
+
     /* Zone group headers */
     .zone-group {
       margin-bottom: 16px;
@@ -781,7 +790,7 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 10px 16px;
+      padding: 14px 16px;
       background: var(--panel);
       border: 1px solid var(--line);
       border-radius: 8px 8px 0 0;
@@ -789,7 +798,6 @@
       user-select: none;
       transition: background 0.15s;
       position: relative;
-      overflow: hidden;
     }
 
     .zone-header::before {
@@ -801,6 +809,8 @@
       transform-origin: left center;
       transform: scaleX(var(--header-fill, 0));
       pointer-events: none;
+      border-radius: 8px 8px 0 0;
+      overflow: hidden;
     }
 
     .zone-header > * {
@@ -821,7 +831,7 @@
       height: 16px;
       color: var(--muted);
       transition: transform 0.2s;
-      background: rgba(0,0,0,0.35);
+      background: rgba(0,0,0,0.45);
       border-radius: 50%;
       padding: 2px;
       box-sizing: content-box;
@@ -833,8 +843,9 @@
     }
 
     .zone-name {
-      font-weight: 600;
-      font-size: 0.95rem;
+      font-weight: 700;
+      font-size: 1.05rem;
+      letter-spacing: 0.01em;
       color: var(--text);
     }
 
@@ -872,18 +883,23 @@
 
     .zone-rhythm-btn {
       background: transparent;
-      border: 1px solid currentColor;
-      border-radius: 4px;
-      padding: 1px 8px;
+      border: none;
+      padding: 0;
       font-size: 0.8rem;
+      font-weight: 600;
       color: inherit;
-      opacity: 0.85;
       cursor: pointer;
       transition: opacity 0.2s;
     }
 
+    .zone-rhythm-btn::after {
+      content: ' ▾';
+      font-size: 0.7rem;
+      opacity: 0.6;
+    }
+
     .zone-rhythm-btn:hover {
-      opacity: 1;
+      opacity: 0.8;
     }
 
     .zone-rhythm-dropdown {
@@ -928,6 +944,30 @@
       display: block;
       text-decoration: none;
       color: var(--muted);
+    }
+
+    /* Solar display */
+    .solar-display {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 16px 12px;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .solar-icon {
+      flex-shrink: 0;
+    }
+
+    .solar-times {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+    }
+
+    .solar-times span {
+      white-space: nowrap;
     }
 
     /* Red dot: area doesn't match zone */
@@ -998,8 +1038,12 @@
 
   <!-- Main Content -->
   <main class="main">
-    <div style="display: flex; align-items: center; justify-content: flex-end; margin-bottom: 16px; gap: 16px;">
-      <button class="btn btn-secondary" id="refresh-btn">Refresh</button>
+    <div class="solar-display" id="solar-display">
+      <svg id="solar-icon" class="solar-icon" width="28" height="28" viewBox="0 0 28 28"></svg>
+      <div class="solar-times">
+        <span id="sunrise-label">↑ --</span>
+        <span id="sunset-label">↓ --</span>
+      </div>
     </div>
 
     <!-- Areas grouped by zone -->
@@ -1108,6 +1152,7 @@
     let zoneStates = {};
     let cachedPresets = {};
     let sortMode = 'onoff';  // 'onoff', 'alpha', 'rhythm'
+    let groupMode = 'zone';  // 'zone', 'onoff'
     let selectedArea = null;
     let cachedConfig = null;
     let cachedSunTimes = null; // { sunrise, sunset, solarNoon, solarMid } in local hours
@@ -1499,12 +1544,12 @@
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
         x0: wakeTime, x1: wakeTime, y0: -0.18, y1: 1,
-        line: { color: 'rgba(92, 179, 255, 0.25)', width: 1, dash: 'dot' }
+        line: { color: 'rgba(92, 179, 255, 0.35)', width: 1.5, dash: 'dot' }
       });
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
         x0: bedTime, x1: bedTime, y0: -0.18, y1: 1,
-        line: { color: 'rgba(255, 230, 128, 0.25)', width: 1, dash: 'dot' }
+        line: { color: 'rgba(255, 230, 128, 0.35)', width: 1.5, dash: 'dot' }
       });
 
       // Sunrise/sunset vertical ticks (partial height, from below axis to ~30% of graph)
@@ -1757,6 +1802,7 @@
           cachedConfig = await configRes.json();
           const prefs = cachedConfig.areas_ui || {};
           sortMode = prefs.sort_mode || 'onoff';
+          groupMode = prefs.group_mode || 'zone';
 
           // Compute sun times client-side from config lat/lon
           const lat = cachedConfig.latitude || 35.0;
@@ -1775,7 +1821,8 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             areas_ui: {
-              sort_mode: sortMode
+              sort_mode: sortMode,
+              group_mode: groupMode
             }
           })
         });
@@ -1888,11 +1935,207 @@
         }
 
         renderAreas();
+        updateSunDisplay();
         startHomeRefresh();
       } catch (err) {
         console.error('Error loading data:', err);
         container.innerHTML = '<div class="loading">Error loading data</div>';
       }
+    }
+
+    // ============================================================
+    // Moon position calculation (simplified)
+    // ============================================================
+    function getMoonTimes(lat, lon) {
+      // Approximate moon position using simplified algorithm
+      const now = new Date();
+      const JD = now.getTime() / 86400000 + 2440587.5;
+      const T = (JD - 2451545.0) / 36525;
+
+      // Moon's mean longitude
+      const L0 = (218.3165 + 481267.8813 * T) % 360;
+      // Moon's mean anomaly
+      const M = (134.9634 + 477198.8676 * T) % 360;
+      // Moon's mean elongation
+      const D = (297.8502 + 445267.1115 * T) % 360;
+
+      const r = Math.PI / 180;
+      // Moon's ecliptic longitude (simplified)
+      const lng = L0 + 6.289 * Math.sin(M * r) + 1.274 * Math.sin((2 * D - M) * r) +
+                  0.658 * Math.sin(2 * D * r) + 0.214 * Math.sin(2 * M * r);
+      // Moon's ecliptic latitude (simplified)
+      const B = 5.128 * Math.sin((93.272 + 483202.0175 * T) * r);
+      // Declination (simplified)
+      const eps = 23.439 - 0.00000036 * (JD - 2451545.0);
+      const dec = Math.asin(Math.sin(B * r) * Math.cos(eps * r) +
+                  Math.cos(B * r) * Math.sin(eps * r) * Math.sin(lng * r));
+      // Right ascension
+      const ra = Math.atan2(
+        Math.sin(lng * r) * Math.cos(eps * r) - Math.tan(B * r) * Math.sin(eps * r),
+        Math.cos(lng * r)
+      );
+
+      // Hour angle at rise/set (moon apparent radius ~0.27°, refraction ~0.57°)
+      const latR = lat * r;
+      const cosH = (Math.sin(-0.83 * r) - Math.sin(latR) * Math.sin(dec)) /
+                   (Math.cos(latR) * Math.cos(dec));
+
+      if (cosH < -1 || cosH > 1) {
+        // Moon always above or below horizon
+        return { moonrise: null, moonset: null, phase: getMoonPhase(JD) };
+      }
+
+      const H = Math.acos(cosH) / r / 15; // in hours
+      // LST at Greenwich midnight
+      const GMST = (280.46061837 + 360.98564736629 * (JD - 2451545.0)) % 360;
+      const LST = (GMST + lon) % 360;
+      const raH = (ra / r) / 15; // RA in hours
+      const transit = ((raH - LST / 15 + 24) % 24);
+      const tz = -now.getTimezoneOffset() / 60;
+      const transitLocal = (transit + tz + 24) % 24;
+
+      return {
+        moonrise: (transitLocal - H + 24) % 24,
+        moonset: (transitLocal + H + 24) % 24,
+        phase: getMoonPhase(JD)
+      };
+    }
+
+    function getMoonPhase(JD) {
+      // Returns 0-1: 0=new, 0.25=first quarter, 0.5=full, 0.75=last quarter
+      const synodicMonth = 29.53059;
+      const knownNew = 2451550.1; // Jan 6, 2000 new moon
+      const daysSince = JD - knownNew;
+      return ((daysSince % synodicMonth) + synodicMonth) % synodicMonth / synodicMonth;
+    }
+
+    function getMoonPhaseSVG(phase, cx, cy, radius) {
+      // Draw a moon icon showing the current phase
+      // phase: 0=new, 0.25=first quarter, 0.5=full, 0.75=last quarter
+      const r = radius;
+      // Illumination curve: how much of the face is lit
+      // k goes from 0 (new) to 1 (full) and back
+      const k = phase <= 0.5 ? phase * 2 : (1 - phase) * 2;
+      // Which side is lit
+      const waxing = phase <= 0.5;
+
+      // Moon body (dark side)
+      let svg = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="#334" stroke="#8899bb" stroke-width="0.8"/>`;
+
+      if (k < 0.01) {
+        // New moon - just the dark circle with a faint outline
+        return svg;
+      }
+
+      if (k > 0.99) {
+        // Full moon - fully lit
+        svg = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="#eee8cc" stroke="#ffd050" stroke-width="0.8"/>`;
+        // Craters
+        svg += `<circle cx="${cx - r * 0.3}" cy="${cy - r * 0.2}" r="${r * 0.12}" fill="#ddd0aa" stroke="none"/>`;
+        svg += `<circle cx="${cx + r * 0.2}" cy="${cy + r * 0.25}" r="${r * 0.09}" fill="#ddd0aa" stroke="none"/>`;
+        return svg;
+      }
+
+      // Partial phase: draw lit portion using a path
+      // The terminator is an ellipse squished by illumination
+      const bulge = (2 * k - 1) * r; // ranges from -r to +r
+      const litSide = waxing ? 1 : -1; // 1 = right lit, -1 = left lit
+
+      // Build the lit area as a path:
+      // Arc from top to bottom on the lit edge, then terminator curve back
+      const top = cy - r;
+      const bot = cy + r;
+
+      // Lit edge arc (semicircle on the lit side)
+      const litArcSweep = litSide > 0 ? 1 : 0;
+      // Terminator curve (elliptical)
+      const termSweep = bulge * litSide >= 0 ? 1 : 0;
+
+      svg += `<path d="M ${cx} ${top} A ${r} ${r} 0 0 ${litArcSweep} ${cx} ${bot} A ${Math.abs(bulge) || 0.1} ${r} 0 0 ${termSweep} ${cx} ${top} Z" fill="#eee8cc" stroke="none"/>`;
+      // Crater on lit part
+      const craterX = cx + litSide * r * 0.2 * k;
+      if (k > 0.3) {
+        svg += `<circle cx="${craterX}" cy="${cy}" r="${r * 0.1}" fill="#ddd0aa" stroke="none"/>`;
+      }
+
+      return svg;
+    }
+
+    // ============================================================
+    // Solar Display Renderer
+    // ============================================================
+    function updateSunDisplay() {
+      if (!cachedSunTimes || !cachedConfig) return;
+      const { sunrise, sunset } = cachedSunTimes;
+      const lat = cachedConfig.latitude || 35.0;
+      const lon = cachedConfig.longitude || -78.6;
+      const moon = getMoonTimes(lat, lon);
+
+      const container = document.getElementById('solar-display');
+      if (!container) return;
+
+      const now = new Date();
+      const nowHour = now.getHours() + now.getMinutes() / 60;
+      const dayLength = ((sunset - sunrise) + 24) % 24 || 12;
+      const elapsed = ((nowHour - sunrise) + 24) % 24;
+      const isDaytime = elapsed < dayLength;
+
+      // Update text labels
+      const riseLabel = document.getElementById('sunrise-label');
+      const setLabel = document.getElementById('sunset-label');
+      if (riseLabel) riseLabel.textContent = '↑ ' + formatHourLabel(sunrise);
+      if (setLabel) setLabel.textContent = '↓ ' + formatHourLabel(sunset);
+
+      // Build contextual icon
+      const icon = document.getElementById('solar-icon');
+      if (!icon) return;
+      const cx = 14, cy = 14, r = 7;
+      let svg = '';
+
+      // How close to sunrise/sunset? (within ~40 min)
+      const nearRise = elapsed < 0.67;                         // just after sunrise
+      const beforeRise = ((sunrise - nowHour + 24) % 24) < 0.67; // just before sunrise
+      const nearSet = (dayLength - elapsed) < 0.67 && isDaytime; // just before sunset
+      const justAfterSet = !isDaytime && ((nowHour - sunset + 24) % 24) < 0.67;
+
+      if (nearRise || beforeRise || nearSet || justAfterSet) {
+        // Partial sun on horizon
+        const horizY = cy + 2;
+        const sunColor = (nearRise || beforeRise) ? '#f0a040' : '#e07030';
+        // Horizon line
+        svg += `<line x1="${cx - 11}" y1="${horizY}" x2="${cx + 11}" y2="${horizY}" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>`;
+        // Half sun peeking above horizon
+        svg += `<clipPath id="above-hz"><rect x="0" y="0" width="28" height="${horizY}"/></clipPath>`;
+        // Glow
+        svg += `<circle cx="${cx}" cy="${horizY}" r="${r + 4}" fill="${sunColor}" opacity="0.15"/>`;
+        // Sun body clipped to above horizon
+        svg += `<circle cx="${cx}" cy="${horizY}" r="${r}" fill="${sunColor}" clip-path="url(#above-hz)"/>`;
+        // Rays (above horizon only)
+        for (let i = 0; i < 5; i++) {
+          const a = (180 + i * 36) * Math.PI / 180; // 180° to 324° (upper semicircle)
+          svg += `<line x1="${cx + (r + 2) * Math.cos(a)}" y1="${horizY + (r + 2) * Math.sin(a)}" x2="${cx + (r + 5) * Math.cos(a)}" y2="${horizY + (r + 5) * Math.sin(a)}" stroke="${sunColor}" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>`;
+        }
+        // Arrow indicating rise or set
+        if (nearRise || beforeRise) {
+          svg += `<path d="M ${cx} ${cy - 10} l -3 3 h 6 z" fill="${sunColor}" opacity="0.7"/>`;
+        } else {
+          svg += `<path d="M ${cx} ${horizY + 6} l -3 -3 h 6 z" fill="${sunColor}" opacity="0.7"/>`;
+        }
+      } else if (isDaytime) {
+        // Full sun
+        svg += `<circle cx="${cx}" cy="${cy}" r="${r + 5}" fill="#ffd050" opacity="0.12"/>`;
+        svg += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="#ffd050"/>`;
+        for (let i = 0; i < 8; i++) {
+          const a = i * 45 * Math.PI / 180;
+          svg += `<line x1="${cx + (r + 2) * Math.cos(a)}" y1="${cy + (r + 2) * Math.sin(a)}" x2="${cx + (r + 5) * Math.cos(a)}" y2="${cy + (r + 5) * Math.sin(a)}" stroke="#ffd050" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>`;
+        }
+      } else {
+        // Night — show moon with phase
+        svg += `<circle cx="${cx}" cy="${cy}" r="${r + 4}" fill="#8899bb" opacity="0.08"/>`;
+        svg += getMoonPhaseSVG(moon.phase, cx, cy, r);
+      }
+
+      icon.innerHTML = svg;
     }
 
     // Collapsed zone state (persisted in localStorage)
@@ -1932,8 +2175,9 @@
       }
     }
 
-    function toggleRhythmDropdown(btn) {
-      const display = btn.closest('.zone-rhythm-display');
+    function toggleRhythmDropdown(el) {
+      const display = el.closest('.zone-rhythm-display');
+      if (!display) return;
       const dropdown = display.querySelector('.zone-rhythm-dropdown');
       // Close other rhythm dropdowns
       document.querySelectorAll('.zone-rhythm-dropdown.visible').forEach(d => {
@@ -2115,6 +2359,12 @@
         <option value="rhythm" ${sortMode === 'rhythm' ? 'selected' : ''}>In Rhythm</option>
       `;
 
+      // Group dropdown HTML
+      const groupOptions = `
+        <option value="zone" ${groupMode === 'zone' ? 'selected' : ''}>Glo Zone</option>
+        <option value="onoff" ${groupMode === 'onoff' ? 'selected' : ''}>On / Off</option>
+      `;
+
       // Chevron icon
       const chevronIcon = `<svg class="zone-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>`;
 
@@ -2123,8 +2373,14 @@
 
       // Build zone groups HTML
       let html = `
-        <div style="margin-bottom: 16px;">
+        <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;">
+          <span style="font-size: 0.85rem; color: var(--muted);">Group:</span>
+          <select class="header-filter" id="group-dropdown" style="width: auto; padding: 6px 12px;">${groupOptions}</select>
+          <span style="font-size: 0.85rem; color: var(--muted);">Sort:</span>
           <select class="header-filter" id="sort-dropdown" style="width: auto; padding: 6px 12px;">${sortOptions}</select>
+          <span style="flex: 1;"></span>
+          <a href="./zones" style="font-size: 0.85rem; color: var(--muted); text-decoration: none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">Edit Glo Zones</a>
+          <a href="#" id="refresh-link" style="font-size: 0.85rem; color: var(--muted); text-decoration: none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">Refresh</a>
         </div>
       `;
 
@@ -2149,20 +2405,31 @@
           zoneHeaderStyle = `background: ${tintedColor}; color: ${zoneTextColor}; --header-fill: ${zoneBri / 100};`;
           zoneLightingInfo = `<span style="font-size: 0.8rem; opacity: 0.85;">${Math.round(zoneBri)}% · ${Math.round(zoneKelvin)}K</span>`;
 
-          // Rhythm dropdown
+          // Rhythm dropdown + wake/bed times combined pill
           if (zs.preset) {
-            const presetNames = Object.keys(cachedPresets);
+            const presetNames = Object.keys(cachedPresets).filter(p => p !== zs.preset);
             const dropdownItems =
               `<a href="./glo/${encodeURIComponent(zs.preset)}" class="zone-rhythm-dropdown-item" onclick="event.stopPropagation();">Edit ${zs.preset}</a>` +
               presetNames.map(p =>
-                `<div class="zone-rhythm-dropdown-item ${p === zs.preset ? 'selected' : ''}" data-zone="${zoneName}" data-preset="${p}" onclick="selectRhythm(this)">${p}</div>`
+                `<div class="zone-rhythm-dropdown-item" data-zone="${zoneName}" data-preset="${p}" onclick="selectRhythm(this)">${p}</div>`
               ).join('') +
               `<div class="zone-rhythm-dropdown-item" data-zone="${zoneName}" data-preset="__new__" onclick="selectRhythm(this)">+ New Rhythm...</div>`;
+
+            // Wake/bed times inline (same size as rhythm label/btn)
+            let wakeBedSpan = '';
+            const pr = cachedPresets[zs.preset];
+            if (pr && pr.wake_time != null && pr.bed_time != null) {
+              const alarmIcon = `<svg style="width:12px;height:12px;vertical-align:-1px;margin-right:2px;" viewBox="0 0 24 24" fill="none" stroke="#5cb3ff" stroke-width="2"><circle cx="12" cy="13" r="7"/><line x1="12" y1="10" x2="12" y2="13"/><line x1="12" y1="13" x2="14.5" y2="13"/><line x1="1" y1="8" x2="5" y2="4"/><line x1="23" y1="8" x2="19" y2="4"/></svg>`;
+              const bedIcon = `<svg style="width:12px;height:12px;vertical-align:-1px;margin-right:2px;" viewBox="0 0 24 24" fill="none" stroke="#ffe080" stroke-width="2"><path d="M3 21V7h18v14"/><path d="M3 11h18"/><path d="M7 11V8"/><rect x="7" y="11" width="14" height="4" rx="1"/></svg>`;
+              wakeBedSpan = `<span style="margin-left: 6px; white-space: nowrap; font-size: 0.8rem;"><span style="color: #5cb3ff;">${alarmIcon}${formatHourLabel(pr.wake_time)}</span> <span style="opacity: 0.5;">·</span> <span style="color: #ffe080;">${bedIcon}${formatHourLabel(pr.bed_time)}</span></span>`;
+            }
+
             zoneRhythmLink = `
-              <div class="zone-rhythm-display">
+              <div class="zone-rhythm-display" style="background: rgba(0,0,0,0.45); border-radius: 6px; padding: 2px 10px; gap: 6px; cursor: pointer;" onclick="event.stopPropagation(); toggleRhythmDropdown(this);">
                 <span class="zone-rhythm-label" style="color: ${zoneTextColor};">Rhythm:</span>
-                <button class="zone-rhythm-btn" style="color: ${zoneTextColor}; border-color: ${zoneTextColor};" onclick="event.stopPropagation(); toggleRhythmDropdown(this);">${zs.preset}</button>
+                <span class="zone-rhythm-btn" style="color: ${zoneTextColor};">${zs.preset}</span>
                 <div class="zone-rhythm-dropdown">${dropdownItems}</div>
+                ${wakeBedSpan}
               </div>`;
           }
 
@@ -2180,6 +2447,7 @@
             <div class="zone-header ${isCollapsed ? 'collapsed' : ''}" data-zone="${zoneName}" onclick="toggleZone('${escapedZoneName}')" style="${zoneHeaderStyle}">
               ${zoneMismatchDot}
               ${chevronIcon}
+              <span style="font-size: 0.8rem; opacity: 0.6; color: ${zoneTextColor};">Glo zone:</span>
               <span class="zone-name" style="color: ${zoneTextColor};">${zoneName}</span>
               ${zoneRhythmLink}
               <span style="flex: 1;"></span>
@@ -2193,14 +2461,47 @@
         `;
       };
 
-      // Render zones directly (no rhythm grouping)
-      for (const zoneName of zoneNames) {
-        html += renderZoneGroup(zoneName, zoneGroups[zoneName]);
-      }
+      if (groupMode === 'onoff') {
+        // Group by on/off first, then by zone within each
+        const onAreas = filtered.filter(a => a.is_on);
+        const offAreas = filtered.filter(a => !a.is_on);
 
-      // Render unassigned areas (no zone) at the end
-      if (unassigned.length > 0) {
-        html += renderZoneGroup('Unassigned', unassigned);
+        const renderOnOffSection = (label, sectionAreas, icon) => {
+          if (sectionAreas.length === 0) return '';
+          // Sub-group by zone
+          const subGroups = {};
+          const subUnassigned = [];
+          for (const area of sectionAreas) {
+            if (area.zone_name) {
+              if (!subGroups[area.zone_name]) subGroups[area.zone_name] = [];
+              subGroups[area.zone_name].push(area);
+            } else {
+              subUnassigned.push(area);
+            }
+          }
+          const subNames = Object.keys(subGroups).sort();
+          let sectionHtml = `<div class="onoff-section-header">${icon} ${label} <span style="opacity: 0.5; font-weight: 400;">(${sectionAreas.length})</span></div>`;
+          for (const zn of subNames) {
+            sectionHtml += renderZoneGroup(zn, subGroups[zn]);
+          }
+          if (subUnassigned.length > 0) {
+            sectionHtml += renderZoneGroup('Unassigned', subUnassigned);
+          }
+          return sectionHtml;
+        };
+
+        html += renderOnOffSection('On', onAreas, '●');
+        html += renderOnOffSection('Off', offAreas, '○');
+      } else {
+        // Default: group by zone
+        for (const zoneName of zoneNames) {
+          html += renderZoneGroup(zoneName, zoneGroups[zoneName]);
+        }
+
+        // Render unassigned areas (no zone) at the end
+        if (unassigned.length > 0) {
+          html += renderZoneGroup('Unassigned', unassigned);
+        }
       }
 
       // Handle empty state
@@ -2387,12 +2688,19 @@
     }
 
     function setupEventListeners() {
-      document.getElementById('refresh-btn').addEventListener('click', loadData);
+      document.getElementById('areas-container').addEventListener('click', (e) => {
+        if (e.target.id === 'refresh-link') { e.preventDefault(); loadData(); }
+      });
 
-      // Use event delegation for dynamically created sort dropdown
+      // Use event delegation for dynamically created dropdowns
       document.getElementById('areas-container').addEventListener('change', (e) => {
         if (e.target.id === 'sort-dropdown') {
           sortMode = e.target.value;
+          savePreferences();
+          renderAreas();
+        }
+        if (e.target.id === 'group-dropdown') {
+          groupMode = e.target.value;
           savePreferences();
           renderAreas();
         }
@@ -2678,7 +2986,8 @@
       clearModalIntervals();
       document.getElementById('area-modal').classList.remove('visible');
       selectedArea = null;
-      // Resume home page refresh
+      // Immediate refresh then resume periodic refresh
+      loadData();
       startHomeRefresh();
     }
 

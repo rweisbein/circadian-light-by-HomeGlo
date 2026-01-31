@@ -1,5 +1,113 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.249
+**Add grouping dropdown: Glo Zone or On/Off**
+
+- New "Group:" dropdown next to "Sort:" in the toolbar
+- "Glo Zone" mode: existing behavior, areas grouped by zone
+- "On / Off" mode: areas split into On and Off sections, sub-grouped by zone within each
+- Group preference persisted alongside sort preference
+
+## 6.9.248
+**Replace sun bar with contextual solar icon + times**
+
+- Show sunrise and sunset times as simple text with ↑/↓ arrows
+- Contextual icon changes based on time of day:
+  - Full sun with glow and rays during daytime
+  - Partial sun on horizon with arrow near sunrise/sunset (~40 min window)
+  - Moon with accurate phase rendering at night
+- Minimal vertical footprint — one line of space
+
+## 6.9.247
+**Replace sky arc with compact sun bar**
+
+- Replace oversized sky arc SVG with a simple single-line sun bar
+- Sunrise time (left), sunset time (right), thin daylight-gradient track between
+- "Now" dot positioned along full 24h timeline
+- Small moon phase icon at the end
+- Takes minimal vertical space while still showing key solar info
+
+## 6.9.246
+**Fix sky arc: correct sun position, readable labels, proper sizing**
+
+- Fix angle math: sunrise maps to left (180°), noon to top (90°), sunset to right (0°)
+- Sun correctly appears above horizon only during daytime, dims below after sunset
+- Remove max-width constraint so SVG fills available width with proper scaling
+- Compact viewBox (500x160) with larger font sizes (15px labels, 12px times)
+- Noon label above arc, sunrise/sunset labels below horizon at their tick marks
+- Moon uses same sunrise-to-set arc mapping with its own rise/set times
+
+## 6.9.245
+**Fix step up/down jumping to rhythm when zone is frozen**
+
+- Bug: stepping up/down on a frozen zone would unfreeze, re-anchor midpoints using solar-rule-adjusted color, then step from the wrong position — lights would jump to the rhythm's current-time values
+- Fix: `_unfreeze_internal` now uses natural curve color (without solar rules) when re-anchoring the color midpoint, matching how `calculate_step` reads the curve
+- Solar rules are applied at render time, not baked into curve midpoints
+
+## 6.9.244
+**Fix sky arc labels: larger viewBox, horizontal text below horizon**
+
+- Increase SVG viewBox from 360x110 to 800x260 so text renders crisply
+- Move all labels (sunrise, noon, sunset) to horizontal text below the horizon line
+- Dashed drop-lines from arc tick marks down to labels
+- Midnight label positioned to the right of the horizon
+- Larger sun (r=10 with r=28 glow) and moon (r=8 with r=18 glow)
+- Font sizes 13-14px for labels, 11-12px for times — clearly readable
+
+## 6.9.243
+**Sky arc with real moon, clickable rhythm pill**
+
+- Replace flat timeline with semicircular sky arc showing sun path
+- Sun with glow and rays travels along the arc, dims below horizon
+- Real moon position calculated from lunar orbital elements (rise/set times, transit)
+- Phase-accurate moon rendering (new, crescent, quarter, gibbous, full) with craters
+- Gradient sky background, dashed arc path, colored tick marks for rise/noon/set/midnight
+- Clicking anywhere in the rhythm pill opens the dropdown (not just the name)
+- Rhythm name changed from button to plain text with caret
+
+## 6.9.242
+**Polish sun timeline, rhythm pill, area row compactness**
+
+- Colorful filled SVG icons: golden sun (noon), orange half-sun+arrow (rise/set), blue-grey moon with craters (midnight)
+- Sun timeline: more horizontal/bottom padding, glowing now-dot
+- Rhythm pill: darker background (0.45 opacity), borderless dropdown trigger with caret
+- Chevron background darkened to match pill
+- Dropdown: exclude current rhythm from list (shows Edit, other rhythms, + New)
+- Area rows: thinner (2px vertical padding), smaller font (0.82rem)
+
+## 6.9.241
+**Full 24h sun timeline, more compact area rows, bolder zone names**
+
+- Redesign sun display as a full 24h timeline with 4 markers: solar midnight (moon), sunrise (half-sun + up arrow), solar noon (full sun), sunset (half-sun + down arrow)
+- Markers positioned dynamically based on actual sun calculations
+- Shrink area row vertical padding further (4px)
+- Make zone name bolder (700 weight, 1.05rem) and bump "Glo zone:" label to 0.8rem
+
+## 6.9.240
+**Add dark pill background to rhythm/wake/bed, use SVG icons**
+
+- Wrap rhythm label, dropdown, and wake/bed times in a dark semi-transparent pill (`rgba(0,0,0,0.3)`) so blue/yellow colors aren't washed out by the zone tint
+- Replace emoji ⏰/🛏 with monochrome SVG alarm clock (blue stroke) and bed (yellow stroke) icons
+
+## 6.9.239
+**Improve zone header rhythm/wake/bed display, add sunrise/sunset bar**
+
+- Combine rhythm dropdown and wake/bed times into a single pill in zone headers
+- Use ⏰/🛏 icons for wake/bed to avoid confusion with sunrise/sunset
+- Match wake/bed text size to rhythm label font size
+- Add sunrise/sunset timeline bar with sun position above the sort row
+
+## 6.9.238
+**Areas page UI improvements**
+
+- Fix rhythm dropdown clipping by removing overflow:hidden from zone header
+- Add "Sort:" label next to sort dropdown
+- Convert Refresh button to a text link in the sort row, add "Edit Glo Zones" link
+- Add wake/bed times pill to zone headers (blue sun/yellow moon with times)
+- Increase wake/bed vertical line weight and opacity in modal chart
+- Swap zone header and area row vertical sizes (taller headers, more compact rows)
+- Add "Glo zone:" prefix to zone name in headers
+
 ## 6.9.237
 **Make "Circadian Light" brand the home link, remove Home nav item**
 
