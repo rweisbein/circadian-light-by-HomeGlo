@@ -1918,7 +1918,11 @@
           is_motion_coupled: status.is_motion_coupled || false,
           motion_expires_at: status.motion_expires_at || null,
           motion_warning_active: status.motion_warning_active || false,
-          zone_name: status.zone_name || null
+          zone_name: status.zone_name || null,
+          brightness_mid: status.brightness_mid ?? null,
+          color_mid: status.color_mid ?? null,
+          color_override: status.color_override ?? null,
+          frozen_at: status.frozen_at ?? null
         };
       });
 
@@ -1948,9 +1952,17 @@
 
       function isAreaMismatched(area) {
         if (!area.zone_name || !zoneStates[area.zone_name]) return false;
-        const zs = zoneStates[area.zone_name];
-        return Math.abs(area.brightness - zs.brightness) > 2 ||
-               Math.abs(area.kelvin - zs.kelvin) > 100;
+        const rs = zoneStates[area.zone_name].runtime_state || {};
+        const tol = 0.1;
+        const differs = (a, b) => {
+          if (a == null && b == null) return false;
+          if (a == null || b == null) return true;
+          return Math.abs(a - b) >= tol;
+        };
+        return differs(area.brightness_mid, rs.brightness_mid) ||
+               differs(area.color_mid, rs.color_mid) ||
+               differs(area.frozen_at, rs.frozen_at) ||
+               area.color_override != null;
       }
 
       const filtered = mergedAreas;
