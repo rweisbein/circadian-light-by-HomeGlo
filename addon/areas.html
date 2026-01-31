@@ -2233,11 +2233,13 @@
             let wakeBedSpan = '';
             const pr = cachedPresets[zs.preset];
             if (pr && pr.wake_time != null && pr.bed_time != null) {
-              wakeBedSpan = `<span style="opacity: 0.7; margin-left: 6px; white-space: nowrap;"><span style="color: #5cb3ff;">⏰ ${formatHourLabel(pr.wake_time)}</span> · <span style="color: #ffe080;">🛏 ${formatHourLabel(pr.bed_time)}</span></span>`;
+              const alarmIcon = `<svg style="width:12px;height:12px;vertical-align:-1px;margin-right:2px;" viewBox="0 0 24 24" fill="none" stroke="#5cb3ff" stroke-width="2"><circle cx="12" cy="13" r="7"/><line x1="12" y1="10" x2="12" y2="13"/><line x1="12" y1="13" x2="14.5" y2="13"/><line x1="1" y1="8" x2="5" y2="4"/><line x1="23" y1="8" x2="19" y2="4"/></svg>`;
+              const bedIcon = `<svg style="width:12px;height:12px;vertical-align:-1px;margin-right:2px;" viewBox="0 0 24 24" fill="none" stroke="#ffe080" stroke-width="2"><path d="M3 21V7h18v14"/><path d="M3 11h18"/><path d="M7 11V8"/><rect x="7" y="11" width="14" height="4" rx="1"/></svg>`;
+              wakeBedSpan = `<span style="margin-left: 6px; white-space: nowrap; font-size: 0.8rem;"><span style="color: #5cb3ff;">${alarmIcon}${formatHourLabel(pr.wake_time)}</span> <span style="opacity: 0.5;">·</span> <span style="color: #ffe080;">${bedIcon}${formatHourLabel(pr.bed_time)}</span></span>`;
             }
 
             zoneRhythmLink = `
-              <div class="zone-rhythm-display">
+              <div class="zone-rhythm-display" style="background: rgba(0,0,0,0.3); border-radius: 6px; padding: 2px 10px; gap: 6px;">
                 <span class="zone-rhythm-label" style="color: ${zoneTextColor};">Rhythm:</span>
                 <button class="zone-rhythm-btn" style="color: ${zoneTextColor}; border-color: ${zoneTextColor};" onclick="event.stopPropagation(); toggleRhythmDropdown(this);">${zs.preset}</button>
                 <div class="zone-rhythm-dropdown">${dropdownItems}</div>

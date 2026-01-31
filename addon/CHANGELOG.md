@@ -1,5 +1,11 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.240
+**Add dark pill background to rhythm/wake/bed, use SVG icons**
+
+- Wrap rhythm label, dropdown, and wake/bed times in a dark semi-transparent pill (`rgba(0,0,0,0.3)`) so blue/yellow colors aren't washed out by the zone tint
+- Replace emoji ⏰/🛏 with monochrome SVG alarm clock (blue stroke) and bed (yellow stroke) icons
+
 ## 6.9.239
 **Improve zone header rhythm/wake/bed display, add sunrise/sunset bar**
 
