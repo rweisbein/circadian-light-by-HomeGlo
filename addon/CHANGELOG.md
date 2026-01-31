@@ -1,5 +1,11 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.235
+**Fix area sync dots not appearing (missing state fields in merge)**
+
+- Add `brightness_mid`, `color_mid`, `color_override`, `frozen_at` to the merged area objects in `renderAreas()`
+- Fix `isAreaMismatched` sort helper to use state-based comparison matching `renderAreaRow`
+
 ## 6.9.234
 **Fix sync dots to compare state fields instead of calculated values**
 
