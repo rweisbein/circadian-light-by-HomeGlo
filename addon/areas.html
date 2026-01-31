@@ -2053,20 +2053,17 @@
       const container = document.getElementById('sky-arc');
       if (!container) return;
 
-      const W = 360, H = 110;
-      const cx = W / 2, horizonY = H - 28;
-      const arcR = horizonY - 12; // arc radius
-      const pad = 30; // left/right padding for labels
+      const W = 800, H = 260;
+      const cx = W / 2, horizonY = 175;
+      const arcR = 150;
 
       const now = new Date();
       const nowHour = now.getHours() + now.getMinutes() / 60;
 
-      // Map an hour to angle on the arc (sunrise=180°, noon=90°/top, sunset=0°)
-      // Below horizon: midnight maps to 270° (bottom of circle)
+      // Map hour to angle on arc: noon=90° (top), midnight=270° (bottom)
       const hourToAngle = (h) => {
-        // Fraction of 24h day, with solar noon at top
-        const dayFrac = ((h - solarNoon + 12 + 24) % 24) / 24; // 0 = midnight-ish, 0.5 = noon
-        return (1 - dayFrac) * 360; // angle in degrees, 0=right, 90=top, 180=left
+        const dayFrac = ((h - solarNoon + 12 + 24) % 24) / 24;
+        return (1 - dayFrac) * 360;
       };
 
       const angleToXY = (angleDeg, r) => {
@@ -2074,58 +2071,64 @@
         return { x: cx + r * Math.cos(a), y: horizonY - r * Math.sin(a) };
       };
 
-      // Build SVG
-      let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+      let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="font-family: -apple-system, system-ui, sans-serif;">`;
 
-      // Defs for gradients
+      // Defs
       svg += `<defs>
         <linearGradient id="sky-grad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="#1a1a3a" stop-opacity="0.4"/>
+          <stop offset="0%" stop-color="#1a1a3a" stop-opacity="0.5"/>
           <stop offset="100%" stop-color="transparent"/>
         </linearGradient>
         <radialGradient id="sun-glow" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stop-color="#ffd050" stop-opacity="0.6"/>
+          <stop offset="0%" stop-color="#ffd050" stop-opacity="0.7"/>
           <stop offset="100%" stop-color="#ffd050" stop-opacity="0"/>
         </radialGradient>
         <radialGradient id="moon-glow" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stop-color="#8899bb" stop-opacity="0.4"/>
+          <stop offset="0%" stop-color="#8899bb" stop-opacity="0.5"/>
           <stop offset="100%" stop-color="#8899bb" stop-opacity="0"/>
         </radialGradient>
       </defs>`;
 
-      // Sky background arc (upper semicircle fill)
+      // Sky fill
       svg += `<path d="M ${cx - arcR} ${horizonY} A ${arcR} ${arcR} 0 1 1 ${cx + arcR} ${horizonY} Z" fill="url(#sky-grad)"/>`;
 
       // Horizon line
-      svg += `<line x1="${pad - 5}" y1="${horizonY}" x2="${W - pad + 5}" y2="${horizonY}" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>`;
+      svg += `<line x1="${cx - arcR - 15}" y1="${horizonY}" x2="${cx + arcR + 15}" y2="${horizonY}" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>`;
 
-      // Arc path (dashed, above horizon only)
-      svg += `<path d="M ${cx - arcR} ${horizonY} A ${arcR} ${arcR} 0 1 1 ${cx + arcR} ${horizonY}" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1" stroke-dasharray="3 3"/>`;
+      // Arc path (dashed)
+      svg += `<path d="M ${cx - arcR} ${horizonY} A ${arcR} ${arcR} 0 1 1 ${cx + arcR} ${horizonY}" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1" stroke-dasharray="4 4"/>`;
 
-      // Tick marks and labels for sunrise, noon, sunset, midnight
+      // Markers: tick on arc + horizontal labels below horizon
       const markers = [
-        { hour: sunrise, label: formatHourLabel(sunrise), sublabel: 'rise', color: '#f0a040' },
+        { hour: sunrise, label: formatHourLabel(sunrise), sublabel: 'sunrise', color: '#f0a040' },
         { hour: solarNoon, label: formatHourLabel(solarNoon), sublabel: 'noon', color: '#ffd050' },
-        { hour: sunset, label: formatHourLabel(sunset), sublabel: 'set', color: '#e07030' },
-        { hour: solarMid, label: formatHourLabel(solarMid), sublabel: 'midnight', color: '#8899bb' },
+        { hour: sunset, label: formatHourLabel(sunset), sublabel: 'sunset', color: '#e07030' },
       ];
+
+      // Midnight label at right end of horizon
+      const midP = angleToXY(hourToAngle(solarMid), arcR);
+      const midTickX = cx + arcR + 10;
 
       for (const m of markers) {
         const angle = hourToAngle(m.hour);
         const p = angleToXY(angle, arcR);
-        const aboveHorizon = p.y < horizonY;
 
-        // Tick mark
-        const inner = angleToXY(angle, arcR - 4);
-        const outer = angleToXY(angle, arcR + 4);
-        svg += `<line x1="${inner.x}" y1="${inner.y}" x2="${outer.x}" y2="${outer.y}" stroke="${m.color}" stroke-width="1.5" opacity="0.6"/>`;
+        // Tick mark on the arc
+        const inner = angleToXY(angle, arcR - 6);
+        const outer = angleToXY(angle, arcR + 6);
+        svg += `<line x1="${inner.x}" y1="${inner.y}" x2="${outer.x}" y2="${outer.y}" stroke="${m.color}" stroke-width="2" opacity="0.5"/>`;
 
-        // Label
-        const labelP = angleToXY(angle, arcR + 14);
-        svg += `<text x="${labelP.x}" y="${labelP.y}" text-anchor="middle" dominant-baseline="middle" font-size="8" fill="${m.color}" opacity="0.8">${m.sublabel}</text>`;
-        const timeP = angleToXY(angle, arcR + 22);
-        svg += `<text x="${timeP.x}" y="${timeP.y}" text-anchor="middle" dominant-baseline="middle" font-size="7" fill="rgba(255,255,255,0.4)">${m.label}</text>`;
+        // Dashed line from tick down to label area
+        svg += `<line x1="${p.x}" y1="${p.y}" x2="${p.x}" y2="${horizonY + 4}" stroke="${m.color}" stroke-width="0.5" stroke-dasharray="2 2" opacity="0.3"/>`;
+
+        // Labels below the horizon, horizontally
+        svg += `<text x="${p.x}" y="${horizonY + 20}" text-anchor="middle" font-size="14" font-weight="500" fill="${m.color}" opacity="0.9">${m.sublabel}</text>`;
+        svg += `<text x="${p.x}" y="${horizonY + 35}" text-anchor="middle" font-size="12" fill="rgba(255,255,255,0.45)">${m.label}</text>`;
       }
+
+      // Midnight label
+      svg += `<text x="${midTickX}" y="${horizonY + 6}" text-anchor="start" font-size="13" font-weight="500" fill="#8899bb" opacity="0.7">midnight</text>`;
+      svg += `<text x="${midTickX}" y="${horizonY + 20}" text-anchor="start" font-size="11" fill="rgba(255,255,255,0.35)">${formatHourLabel(solarMid)}</text>`;
 
       // Sun position
       const sunAngle = hourToAngle(nowHour);
@@ -2133,36 +2136,27 @@
       const sunAbove = sunP.y < horizonY + 2;
 
       if (sunAbove) {
-        // Glow
-        svg += `<circle cx="${sunP.x}" cy="${sunP.y}" r="14" fill="url(#sun-glow)"/>`;
-        // Sun body
-        svg += `<circle cx="${sunP.x}" cy="${sunP.y}" r="5" fill="#ffd050" stroke="#ffb820" stroke-width="1"/>`;
-        // Rays
+        svg += `<circle cx="${sunP.x}" cy="${sunP.y}" r="28" fill="url(#sun-glow)"/>`;
+        svg += `<circle cx="${sunP.x}" cy="${sunP.y}" r="10" fill="#ffd050" stroke="#ffb820" stroke-width="1.5"/>`;
         for (let i = 0; i < 8; i++) {
           const a = i * 45 * Math.PI / 180;
-          const x1 = sunP.x + 7 * Math.cos(a), y1 = sunP.y + 7 * Math.sin(a);
-          const x2 = sunP.x + 10 * Math.cos(a), y2 = sunP.y + 10 * Math.sin(a);
-          svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#ffd050" stroke-width="1" opacity="0.5"/>`;
+          const x1 = sunP.x + 14 * Math.cos(a), y1 = sunP.y + 14 * Math.sin(a);
+          const x2 = sunP.x + 20 * Math.cos(a), y2 = sunP.y + 20 * Math.sin(a);
+          svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#ffd050" stroke-width="1.5" stroke-linecap="round" opacity="0.4"/>`;
         }
       } else {
-        // Sun below horizon - show dim
-        svg += `<circle cx="${sunP.x}" cy="${Math.min(sunP.y, horizonY + 4)}" r="4" fill="#ffd050" opacity="0.2"/>`;
+        // Dim sun below horizon
+        const dimY = Math.min(sunP.y, horizonY + 8);
+        svg += `<circle cx="${sunP.x}" cy="${dimY}" r="6" fill="#ffd050" opacity="0.15"/>`;
       }
 
-      // Moon position (if we have moonrise data)
+      // Moon
       if (moon.moonrise != null) {
-        // Place moon at its approximate position on the same arc
-        const moonAngle = hourToAngle(nowHour + 12); // rough: moon is ~opposite sun simplified
-        // Better: use actual moon transit
-        const moonTransit = (moon.moonrise + moon.moonset) / 2;
-        const moonNowAngle = hourToAngle(nowHour);
-        // Is moon above horizon?
         const moonUp = (moon.moonrise < moon.moonset)
           ? (nowHour >= moon.moonrise && nowHour <= moon.moonset)
           : (nowHour >= moon.moonrise || nowHour <= moon.moonset);
 
         if (moonUp) {
-          // Map moon's progress along its above-horizon arc
           let moonProgress;
           if (moon.moonrise < moon.moonset) {
             moonProgress = (nowHour - moon.moonrise) / (moon.moonset - moon.moonrise);
@@ -2172,14 +2166,11 @@
             moonProgress = elapsed / totalUp;
           }
           moonProgress = Math.max(0, Math.min(1, moonProgress));
-          // Map to angle: 180° (rise) → 90° (transit) → 0° (set)
           const moonDispAngle = 180 - moonProgress * 180;
-          const moonP = angleToXY(moonDispAngle, arcR * 0.85);
+          const moonP = angleToXY(moonDispAngle, arcR * 0.82);
 
-          // Glow
-          svg += `<circle cx="${moonP.x}" cy="${moonP.y}" r="10" fill="url(#moon-glow)"/>`;
-          // Phase-accurate moon
-          svg += getMoonPhaseSVG(moon.phase, moonP.x, moonP.y, 5);
+          svg += `<circle cx="${moonP.x}" cy="${moonP.y}" r="18" fill="url(#moon-glow)"/>`;
+          svg += getMoonPhaseSVG(moon.phase, moonP.x, moonP.y, 8);
         }
       }
 

@@ -1,5 +1,15 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.244
+**Fix sky arc labels: larger viewBox, horizontal text below horizon**
+
+- Increase SVG viewBox from 360x110 to 800x260 so text renders crisply
+- Move all labels (sunrise, noon, sunset) to horizontal text below the horizon line
+- Dashed drop-lines from arc tick marks down to labels
+- Midnight label positioned to the right of the horizon
+- Larger sun (r=10 with r=28 glow) and moon (r=8 with r=18 glow)
+- Font sizes 13-14px for labels, 11-12px for times — clearly readable
+
 ## 6.9.243
 **Sky arc with real moon, clickable rhythm pill**
 
