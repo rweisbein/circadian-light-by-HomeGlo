@@ -1684,12 +1684,9 @@ class CircadianLightPrimitives:
         current_hour = get_current_hour()
 
         # Calculate current frozen values
-        # Use brightness as-is, but use NATURAL color (no solar rules) for midpoint re-anchoring
-        # Solar rules are applied at render time, not baked into the curve midpoint
-        frozen_bri = CircadianLight.calculate_brightness_at_hour(frozen_at, config, area_state)
-        frozen_color = CircadianLight.calculate_color_at_hour(
-            frozen_at, config, area_state, apply_solar_rules=False
-        )
+        frozen_result = CircadianLight.calculate_lighting(frozen_at, config, area_state)
+        frozen_bri = frozen_result.brightness
+        frozen_color = frozen_result.color_temp
 
         # Get phase info for current time to determine slope
         # get_phase_info returns: (in_ascend, h48, t_ascend, t_descend, slope)

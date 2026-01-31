@@ -1,5 +1,14 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.247
+**Replace sky arc with compact sun bar**
+
+- Replace oversized sky arc SVG with a simple single-line sun bar
+- Sunrise time (left), sunset time (right), thin daylight-gradient track between
+- "Now" dot positioned along full 24h timeline
+- Small moon phase icon at the end
+- Takes minimal vertical space while still showing key solar info
+
 ## 6.9.246
 **Fix sky arc: correct sun position, readable labels, proper sizing**
 
