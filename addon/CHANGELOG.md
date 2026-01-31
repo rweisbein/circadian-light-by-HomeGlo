@@ -1,5 +1,16 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.238
+**Areas page UI improvements**
+
+- Fix rhythm dropdown clipping by removing overflow:hidden from zone header
+- Add "Sort:" label next to sort dropdown
+- Convert Refresh button to a text link in the sort row, add "Edit Glo Zones" link
+- Add wake/bed times pill to zone headers (blue sun/yellow moon with times)
+- Increase wake/bed vertical line weight and opacity in modal chart
+- Swap zone header and area row vertical sizes (taller headers, more compact rows)
+- Add "Glo zone:" prefix to zone name in headers
+
 ## 6.9.237
 **Make "Circadian Light" brand the home link, remove Home nav item**
 

@@ -667,7 +667,7 @@
       --row-fill: 0;
       display: flex;
       align-items: center;
-      padding: 10px 16px 10px 28px;
+      padding: 6px 16px 6px 28px;
       gap: 16px;
       background: var(--row-bg);
       color: var(--row-text);
@@ -781,7 +781,7 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 10px 16px;
+      padding: 14px 16px;
       background: var(--panel);
       border: 1px solid var(--line);
       border-radius: 8px 8px 0 0;
@@ -789,7 +789,6 @@
       user-select: none;
       transition: background 0.15s;
       position: relative;
-      overflow: hidden;
     }
 
     .zone-header::before {
@@ -801,6 +800,8 @@
       transform-origin: left center;
       transform: scaleX(var(--header-fill, 0));
       pointer-events: none;
+      border-radius: 8px 8px 0 0;
+      overflow: hidden;
     }
 
     .zone-header > * {
@@ -998,9 +999,7 @@
 
   <!-- Main Content -->
   <main class="main">
-    <div style="display: flex; align-items: center; justify-content: flex-end; margin-bottom: 16px; gap: 16px;">
-      <button class="btn btn-secondary" id="refresh-btn">Refresh</button>
-    </div>
+    <div id="top-bar-placeholder"></div>
 
     <!-- Areas grouped by zone -->
     <div id="areas-container">
@@ -1499,12 +1498,12 @@
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
         x0: wakeTime, x1: wakeTime, y0: -0.18, y1: 1,
-        line: { color: 'rgba(92, 179, 255, 0.25)', width: 1, dash: 'dot' }
+        line: { color: 'rgba(92, 179, 255, 0.35)', width: 1.5, dash: 'dot' }
       });
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
         x0: bedTime, x1: bedTime, y0: -0.18, y1: 1,
-        line: { color: 'rgba(255, 230, 128, 0.25)', width: 1, dash: 'dot' }
+        line: { color: 'rgba(255, 230, 128, 0.35)', width: 1.5, dash: 'dot' }
       });
 
       // Sunrise/sunset vertical ticks (partial height, from below axis to ~30% of graph)
@@ -2123,8 +2122,12 @@
 
       // Build zone groups HTML
       let html = `
-        <div style="margin-bottom: 16px;">
+        <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
+          <span style="font-size: 0.85rem; color: var(--muted);">Sort:</span>
           <select class="header-filter" id="sort-dropdown" style="width: auto; padding: 6px 12px;">${sortOptions}</select>
+          <span style="flex: 1;"></span>
+          <a href="./zones" style="font-size: 0.85rem; color: var(--muted); text-decoration: none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">Edit Glo Zones</a>
+          <a href="#" id="refresh-link" style="font-size: 0.85rem; color: var(--muted); text-decoration: none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">Refresh</a>
         </div>
       `;
 
@@ -2139,6 +2142,7 @@
         let zoneMismatchDot = '';
         let zoneRhythmLink = '';
 
+        let zoneWakeBedPill = '';
         const zs = zoneStates[zoneName];
         if (zs) {
           const zoneBri = zs.brightness;
@@ -2148,6 +2152,14 @@
           zoneTextColor = readableTextColor(tintedColor);
           zoneHeaderStyle = `background: ${tintedColor}; color: ${zoneTextColor}; --header-fill: ${zoneBri / 100};`;
           zoneLightingInfo = `<span style="font-size: 0.8rem; opacity: 0.85;">${Math.round(zoneBri)}% · ${Math.round(zoneKelvin)}K</span>`;
+
+          // Wake/bed times pill
+          if (zs.preset && cachedPresets[zs.preset]) {
+            const pr = cachedPresets[zs.preset];
+            if (pr.wake_time != null && pr.bed_time != null) {
+              zoneWakeBedPill = `<span style="font-size: 0.7rem; background: rgba(0,0,0,0.25); border-radius: 4px; padding: 1px 6px; white-space: nowrap;"><span style="color: #5cb3ff;">☀ ${formatHourLabel(pr.wake_time)}</span> · <span style="color: #ffe080;">☽ ${formatHourLabel(pr.bed_time)}</span></span>`;
+            }
+          }
 
           // Rhythm dropdown
           if (zs.preset) {
@@ -2180,9 +2192,11 @@
             <div class="zone-header ${isCollapsed ? 'collapsed' : ''}" data-zone="${zoneName}" onclick="toggleZone('${escapedZoneName}')" style="${zoneHeaderStyle}">
               ${zoneMismatchDot}
               ${chevronIcon}
+              <span style="font-size: 0.75rem; opacity: 0.6; color: ${zoneTextColor};">Glo zone:</span>
               <span class="zone-name" style="color: ${zoneTextColor};">${zoneName}</span>
               ${zoneRhythmLink}
               <span style="flex: 1;"></span>
+              ${zoneWakeBedPill}
               ${zoneLightingInfo}
               <button class="zone-reset-btn" onclick="event.stopPropagation(); zoneReset('${escapedZoneName}')" title="Reset Glo Zone: reset all areas in Glo Zone to rhythm">${zoneResetIcon}</button>
             </div>
@@ -2387,7 +2401,9 @@
     }
 
     function setupEventListeners() {
-      document.getElementById('refresh-btn').addEventListener('click', loadData);
+      document.getElementById('areas-container').addEventListener('click', (e) => {
+        if (e.target.id === 'refresh-link') { e.preventDefault(); loadData(); }
+      });
 
       // Use event delegation for dynamically created sort dropdown
       document.getElementById('areas-container').addEventListener('change', (e) => {
