@@ -1,6 +1,6 @@
 # https://developers.home-assistant.io/docs/add-ons/configuration#add-on-config
 name: Circadian Light by HomeGlo
-version: "6.9.249"
+version: "6.9.248"
 slug: circadian-light
 description: Connects to Home Assistant WebSocket API and listens for switch events
 url: "https://github.com/rweisbein/circadian-light-by-HomeGlo"

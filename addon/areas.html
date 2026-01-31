@@ -2986,7 +2986,8 @@
       clearModalIntervals();
       document.getElementById('area-modal').classList.remove('visible');
       selectedArea = null;
-      // Resume home page refresh
+      // Immediate refresh then resume periodic refresh
+      loadData();
       startHomeRefresh();
     }
 
