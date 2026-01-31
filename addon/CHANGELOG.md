@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.231
+**Remove rhythm grouping layer from home page**
+
+- Remove the expand/collapse rhythm grouping that wrapped glo zones by their preset
+- Zones now render directly as a flat list, reducing visual nesting
+- Add rhythm name as a clickable link in each zone header (next to zone name), linking to rhythm editor
+- Remove "Glo zone:" label prefix from zone headers for cleaner appearance
+
 ## 6.9.230
 **Fix motion-coupled boost on already-on areas and improve boost countdown display**
 
