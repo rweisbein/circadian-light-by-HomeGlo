@@ -1,5 +1,16 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.243
+**Sky arc with real moon, clickable rhythm pill**
+
+- Replace flat timeline with semicircular sky arc showing sun path
+- Sun with glow and rays travels along the arc, dims below horizon
+- Real moon position calculated from lunar orbital elements (rise/set times, transit)
+- Phase-accurate moon rendering (new, crescent, quarter, gibbous, full) with craters
+- Gradient sky background, dashed arc path, colored tick marks for rise/noon/set/midnight
+- Clicking anywhere in the rhythm pill opens the dropdown (not just the name)
+- Rhythm name changed from button to plain text with caret
+
 ## 6.9.242
 **Polish sun timeline, rhythm pill, area row compactness**
 
