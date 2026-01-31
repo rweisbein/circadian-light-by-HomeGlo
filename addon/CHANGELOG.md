@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.233
+**Remove automatic resync on registry changes, fix WebSocket stability**
+
+- Remove automatic `sync_zha_groups` calls from device, area, and entity registry event handlers — use the Sync button instead
+- Increase WebSocket ping timeout from 20s to 40s to prevent disconnects during heavy operations
+- Downgrade Signify/non-ZHA device log messages from WARNING to DEBUG to reduce log noise
+
 ## 6.9.232
 **Add motion sensor time-of-day filter**
 
