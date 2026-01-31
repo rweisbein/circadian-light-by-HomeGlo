@@ -1,5 +1,14 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.232
+**Add motion sensor time-of-day filter**
+
+- Add "When" filter to motion sensor area config: Always (default), Sunset to Sunrise, or Wake to Bed
+- Add offset field (±minutes) to widen or shrink the active window
+- Motion events outside the active window are ignored with a debug log
+- Filter applies to both state-change and ZHA motion event paths
+- UI shows When dropdown and offset input in motion area editor
+
 ## 6.9.231
 **Remove rhythm grouping layer from home page**
 
