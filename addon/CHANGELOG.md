@@ -1,5 +1,15 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.236
+**Replace rhythm link with dropdown, clean up zone header**
+
+- Remove area count from zone headers
+- Add "Rhythm:" label before rhythm name in zone header
+- Replace rhythm edit link with a dropdown matching the Glo Zones page pattern
+- Dropdown shows: Edit link, all available rhythms (current highlighted), + New Rhythm
+- Selecting a rhythm updates the zone's preset via the API
+- New Rhythm creates a preset (copied from current) and assigns it
+
 ## 6.9.235
 **Fix area sync dots not appearing (missing state fields in merge)**
 
