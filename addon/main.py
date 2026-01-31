@@ -2210,7 +2210,7 @@ class HomeAssistantWebSocketClient:
                             found_zha = True
                 # Debug: log Signify devices that aren't detected as ZHA
                 if manufacturer and "signify" in manufacturer.lower() and not found_zha:
-                    logger.warning(f"Signify device NOT detected as ZHA: {device_name} | identifiers: {identifiers}")
+                    logger.debug(f"Signify device NOT detected as ZHA: {device_name} | identifiers: {identifiers}")
 
         # Process light entities
         for entity in entities:
@@ -3513,39 +3513,27 @@ class HomeAssistantWebSocketClient:
                 else:
                     logger.warning(f"Unknown circadian_light_service_event: service={service}, area_id={area_id}")
 
-            # Handle device registry updates (when devices are added/removed/modified)
+            # Handle device registry updates (log only, use Sync button to apply)
             elif event_type == "device_registry_updated":
                 action = event_data.get("action")
                 device_id = event_data.get("device_id")
+                logger.debug(f"Device registry updated: action={action}, device_id={device_id}")
 
-                logger.info(f"Device registry updated: action={action}, device_id={device_id}")
-
-                # Trigger resync if a device was added, removed, or updated
-                if action in ["create", "update", "remove"]:
-                    await self.sync_zha_groups()  # This includes parity cache refresh
-            
-            # Handle area registry updates (when areas are added/removed/modified)
+            # Handle area registry updates (log only, use Sync button to apply)
             elif event_type == "area_registry_updated":
                 action = event_data.get("action")
                 area_id = event_data.get("area_id")
-                
-                logger.info(f"Area registry updated: action={action}, area_id={area_id}")
-                
-                # Always resync on area changes
-                await self.sync_zha_groups()  # This includes parity cache refresh
-            
-            # Handle entity registry updates (when entities change areas)
+                logger.debug(f"Area registry updated: action={action}, area_id={area_id}")
+
+            # Handle entity registry updates (log only, use Sync button to apply)
             elif event_type == "entity_registry_updated":
                 action = event_data.get("action")
                 entity_id = event_data.get("entity_id")
                 changes = event_data.get("changes", {})
-                
-                # Check if area_id changed
                 if "area_id" in changes:
                     old_area = changes["area_id"].get("old_value")
                     new_area = changes["area_id"].get("new_value")
-                    logger.info(f"Entity {entity_id} moved from area {old_area} to {new_area}")
-                    await self.sync_zha_groups()  # This includes parity cache refresh
+                    logger.info(f"Entity {entity_id} moved from area {old_area} to {new_area} (press Sync to apply)")
             
             # Handle state changes
             elif event_type == "state_changed":
@@ -3837,7 +3825,7 @@ class HomeAssistantWebSocketClient:
         try:
             logger.info(f"Connecting to {self.websocket_url}")
             
-            async with websockets.connect(self.websocket_url) as websocket:
+            async with websockets.connect(self.websocket_url, ping_timeout=40) as websocket:
                 self.websocket = websocket
                 
                 # Authenticate
