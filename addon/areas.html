@@ -1928,6 +1928,32 @@
       }
     }
 
+    function toggleRhythmDropdown(btn) {
+      const display = btn.closest('.zone-rhythm-display');
+      const dropdown = display.querySelector('.zone-rhythm-dropdown');
+      // Close other rhythm dropdowns
+      document.querySelectorAll('.zone-rhythm-dropdown.visible').forEach(d => {
+        if (d !== dropdown) d.classList.remove('visible');
+      });
+      dropdown.classList.toggle('visible');
+    }
+
+    function selectRhythm(item) {
+      event.stopPropagation();
+      const zoneName = item.dataset.zone;
+      const preset = item.dataset.preset;
+      item.closest('.zone-rhythm-dropdown').classList.remove('visible');
+
+      if (preset === '__new__') {
+        const newName = prompt('New rhythm name:');
+        if (newName && newName.trim()) {
+          createAndAssignRhythm(zoneName, newName.trim());
+        }
+      } else {
+        changeZoneRhythm(zoneName, preset);
+      }
+    }
+
     async function changeZoneRhythm(zoneName, presetName) {
       try {
         await fetch(`./api/glozones/${encodeURIComponent(zoneName)}`, {
@@ -2125,13 +2151,13 @@
             const dropdownItems =
               `<a href="./glo/${encodeURIComponent(zs.preset)}" class="zone-rhythm-dropdown-item" onclick="event.stopPropagation();">Edit ${zs.preset}</a>` +
               presetNames.map(p =>
-                `<div class="zone-rhythm-dropdown-item ${p === zs.preset ? 'selected' : ''}" data-zone="${zoneName}" data-preset="${p}">${p}</div>`
+                `<div class="zone-rhythm-dropdown-item ${p === zs.preset ? 'selected' : ''}" data-zone="${zoneName}" data-preset="${p}" onclick="selectRhythm(this)">${p}</div>`
               ).join('') +
-              `<div class="zone-rhythm-dropdown-item" data-zone="${zoneName}" data-preset="__new__">+ New Rhythm...</div>`;
+              `<div class="zone-rhythm-dropdown-item" data-zone="${zoneName}" data-preset="__new__" onclick="selectRhythm(this)">+ New Rhythm...</div>`;
             zoneRhythmLink = `
-              <div class="zone-rhythm-display" onclick="event.stopPropagation();">
+              <div class="zone-rhythm-display">
                 <span class="zone-rhythm-label" style="color: ${zoneTextColor};">Rhythm:</span>
-                <button class="zone-rhythm-btn" style="color: ${zoneTextColor}; border-color: ${zoneTextColor};">${zs.preset}</button>
+                <button class="zone-rhythm-btn" style="color: ${zoneTextColor}; border-color: ${zoneTextColor};" onclick="event.stopPropagation(); toggleRhythmDropdown(this);">${zs.preset}</button>
                 <div class="zone-rhythm-dropdown">${dropdownItems}</div>
               </div>`;
           }
@@ -2379,41 +2405,6 @@
       document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
           closeModal();
-        }
-      });
-
-      // Rhythm dropdown: toggle on button click (event delegation)
-      document.getElementById('areas-container').addEventListener('click', (e) => {
-        const btn = e.target.closest('.zone-rhythm-btn');
-        if (btn) {
-          e.stopPropagation();
-          const display = btn.closest('.zone-rhythm-display');
-          const dropdown = display.querySelector('.zone-rhythm-dropdown');
-          // Close other rhythm dropdowns
-          document.querySelectorAll('.zone-rhythm-dropdown.visible').forEach(d => {
-            if (d !== dropdown) d.classList.remove('visible');
-          });
-          dropdown.classList.toggle('visible');
-          return;
-        }
-
-        // Rhythm dropdown item selection
-        const item = e.target.closest('.zone-rhythm-dropdown-item[data-preset]');
-        if (item) {
-          e.stopPropagation();
-          const zoneName = item.dataset.zone;
-          const preset = item.dataset.preset;
-          item.closest('.zone-rhythm-dropdown').classList.remove('visible');
-
-          if (preset === '__new__') {
-            const newName = prompt('New rhythm name:');
-            if (newName && newName.trim()) {
-              createAndAssignRhythm(zoneName, newName.trim());
-            }
-          } else {
-            changeZoneRhythm(zoneName, preset);
-          }
-          return;
         }
       });
 
