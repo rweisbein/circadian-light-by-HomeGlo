@@ -1214,6 +1214,10 @@ input[type=range]::-moz-range-thumb {
   font-size: 1.1rem;
   color: #e2e8f0;
   margin-right: 32px;
+  text-decoration: none;
+}
+.nav-brand.active {
+  color: var(--accent, #feac60);
 }
 .nav-links {
   display: flex;
@@ -1292,9 +1296,8 @@ input[type=range]::-moz-range-thumb {
 <body>
 <!-- Navigation -->
 <nav class="nav">
-  <span class="nav-brand">Circadian Light</span>
+  <a href="./" class="nav-brand">Circadian Light</a>
   <div class="nav-links">
-    <a href="./" class="nav-link">Home</a>
     <a href="./glo" class="nav-link active">Rhythms</a>
     <a href="./zones" class="nav-link">Glo zones</a>
     <a href="./switches" class="nav-link">Controls</a>
