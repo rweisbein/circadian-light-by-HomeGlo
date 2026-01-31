@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.245
+**Fix step up/down jumping to rhythm when zone is frozen**
+
+- Bug: stepping up/down on a frozen zone would unfreeze, re-anchor midpoints using solar-rule-adjusted color, then step from the wrong position — lights would jump to the rhythm's current-time values
+- Fix: `_unfreeze_internal` now uses natural curve color (without solar rules) when re-anchoring the color midpoint, matching how `calculate_step` reads the curve
+- Solar rules are applied at render time, not baked into curve midpoints
+
 ## 6.9.244
 **Fix sky arc labels: larger viewBox, horizontal text below horizon**
 
