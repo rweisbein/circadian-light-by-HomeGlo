@@ -1,5 +1,15 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.246
+**Fix sky arc: correct sun position, readable labels, proper sizing**
+
+- Fix angle math: sunrise maps to left (180°), noon to top (90°), sunset to right (0°)
+- Sun correctly appears above horizon only during daytime, dims below after sunset
+- Remove max-width constraint so SVG fills available width with proper scaling
+- Compact viewBox (500x160) with larger font sizes (15px labels, 12px times)
+- Noon label above arc, sunrise/sunset labels below horizon at their tick marks
+- Moon uses same sunrise-to-set arc mapping with its own rise/set times
+
 ## 6.9.245
 **Fix step up/down jumping to rhythm when zone is frozen**
 
