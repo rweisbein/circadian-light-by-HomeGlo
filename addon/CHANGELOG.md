@@ -1,5 +1,14 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.251
+**Replace group dropdown with checkbox, simplify sort options**
+
+- Replace "Group:" dropdown with a "Group by on/off" checkbox
+- When checked, groups areas into On/Off sections; unchecked shows by Glo Zone
+- Hide "On / Off" sort option when grouping by on/off (redundant)
+- Remove "In Rhythm" sort option (will be replaced later)
+- Auto-switch sort to Alphabetic if on/off sort was active when enabling grouping
+
 ## 6.9.250
 **UI polish, NiteLite/BriteLite links, fix glo zone save bug**
 

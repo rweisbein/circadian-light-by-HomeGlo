@@ -2712,12 +2712,6 @@ class LightDesignerServer:
             await self.save_config_to_file(config)
             glozone.set_config(config)
 
-            # Fire refresh event to notify main.py to reload config
-            _, ws_url, token = self._get_ha_api_config()
-            if ws_url and token:
-                await self._fire_event_via_websocket(ws_url, token, 'circadian_light_refresh', {})
-                logger.info("Fired circadian_light_refresh event after zone create")
-
             logger.info(f"Created GloZone: {name} with preset {preset}")
             return web.json_response({"status": "created", "name": name})
         except json.JSONDecodeError:
@@ -2774,12 +2768,6 @@ class LightDesignerServer:
             await self.save_config_to_file(config)
             glozone.set_config(config)
 
-            # Fire refresh event to notify main.py to reload config
-            _, ws_url, token = self._get_ha_api_config()
-            if ws_url and token:
-                await self._fire_event_via_websocket(ws_url, token, 'circadian_light_refresh', {})
-                logger.info("Fired circadian_light_refresh event after zone update")
-
             logger.info(f"Updated GloZone: {name}")
             return web.json_response({"status": "updated", "name": name})
         except json.JSONDecodeError:
@@ -2834,12 +2822,6 @@ class LightDesignerServer:
 
             await self.save_config_to_file(config)
             glozone.set_config(config)
-
-            # Fire refresh event to notify main.py to reload config
-            _, ws_url, token = self._get_ha_api_config()
-            if ws_url and token:
-                await self._fire_event_via_websocket(ws_url, token, 'circadian_light_refresh', {})
-                logger.info("Fired circadian_light_refresh event after zone delete")
 
             logger.info(f"Deleted GloZone: {name}")
             return web.json_response({"status": "deleted", "name": name})
@@ -3089,8 +3071,7 @@ class LightDesignerServer:
             'color_up', 'color_down',
             'freeze_toggle', 'reset',
             'glo_up', 'glo_down', 'glo_reset',
-            'boost',
-            'set_nitelite', 'set_britelite'
+            'boost'
         }
 
         try:

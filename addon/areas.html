@@ -2375,18 +2375,12 @@
       // Collapsed state
       const collapsedState = getCollapsedZones();
 
-      // Sort dropdown HTML
-      const sortOptions = `
-        <option value="onoff" ${sortMode === 'onoff' ? 'selected' : ''}>On / Off</option>
-        <option value="alpha" ${sortMode === 'alpha' ? 'selected' : ''}>Alphabetic</option>
-        <option value="rhythm" ${sortMode === 'rhythm' ? 'selected' : ''}>In Rhythm</option>
-      `;
-
-      // Group dropdown HTML
-      const groupOptions = `
-        <option value="zone" ${groupMode === 'zone' ? 'selected' : ''}>Glo Zone</option>
-        <option value="onoff" ${groupMode === 'onoff' ? 'selected' : ''}>On / Off</option>
-      `;
+      // Sort dropdown HTML — hide "On / Off" sort when grouped by on/off (redundant)
+      const sortOptions = (groupMode === 'onoff'
+        ? `<option value="alpha" ${sortMode === 'alpha' ? 'selected' : ''}>Alphabetic</option>`
+        : `<option value="onoff" ${sortMode === 'onoff' ? 'selected' : ''}>On / Off</option>
+           <option value="alpha" ${sortMode === 'alpha' ? 'selected' : ''}>Alphabetic</option>`
+      );
 
       // Chevron icon
       const chevronIcon = `<svg class="zone-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>`;
@@ -2397,8 +2391,9 @@
       // Build zone groups HTML
       let html = `
         <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;">
-          <span style="font-size: 0.85rem; color: var(--muted);">Group:</span>
-          <select class="header-filter" id="group-dropdown" style="width: auto; padding: 6px 12px;">${groupOptions}</select>
+          <label style="font-size: 0.85rem; color: var(--muted); display: flex; align-items: center; gap: 6px; cursor: pointer;">
+            <input type="checkbox" id="group-onoff-checkbox" ${groupMode === 'onoff' ? 'checked' : ''} style="accent-color: var(--accent);"> Group by on/off
+          </label>
           <span style="font-size: 0.85rem; color: var(--muted);">Sort:</span>
           <select class="header-filter" id="sort-dropdown" style="width: auto; padding: 6px 12px;">${sortOptions}</select>
           <span style="flex: 1;"></span>
@@ -2722,8 +2717,12 @@
           savePreferences();
           renderAreas();
         }
-        if (e.target.id === 'group-dropdown') {
-          groupMode = e.target.value;
+        if (e.target.id === 'group-onoff-checkbox') {
+          groupMode = e.target.checked ? 'onoff' : 'zone';
+          // If switching to on/off grouping and sort is 'onoff', switch to alpha
+          if (groupMode === 'onoff' && sortMode === 'onoff') {
+            sortMode = 'alpha';
+          }
           savePreferences();
           renderAreas();
         }
