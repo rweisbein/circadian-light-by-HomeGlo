@@ -4298,9 +4298,6 @@ async function saveConfig() {
       ...globalSettings,
       circadian_presets: { [selectedGloName]: presetSettings },
     };
-    // Preserve glozones if present
-    if (config.glozones) saveData.glozones = config.glozones;
-
     const resp = await fetch('./api/config', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
