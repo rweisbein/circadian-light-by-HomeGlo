@@ -1239,6 +1239,10 @@ input[type=range]::-moz-range-thumb {
   color: var(--accent);
 }
 
+/* Nav solar display */
+.nav-solar { margin-left: auto; display: flex; align-items: center; font-size: 0.75rem; color: var(--muted); }
+.nav-solar-times { display: flex; flex-direction: column; line-height: 1.3; }
+
 /* Glo Selector */
 .glo-selector {
   background: var(--panel);
@@ -1302,6 +1306,12 @@ input[type=range]::-moz-range-thumb {
     <a href="./zones" class="nav-link">Glo zones</a>
     <a href="./switches" class="nav-link">Controls</a>
     <a href="./settings" class="nav-link">Settings</a>
+  </div>
+  <div class="nav-solar" id="nav-solar">
+    <div class="nav-solar-times">
+      <span id="nav-rise">--</span>
+      <span id="nav-set">--</span>
+    </div>
   </div>
 </nav>
 

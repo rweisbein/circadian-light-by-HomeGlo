@@ -965,30 +965,6 @@
       color: var(--muted);
     }
 
-    /* Solar display */
-    .solar-display {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 8px 16px 12px;
-      font-size: 0.8rem;
-      color: var(--muted);
-    }
-
-    .solar-icon {
-      flex-shrink: 0;
-    }
-
-    .solar-times {
-      display: flex;
-      gap: 14px;
-      align-items: center;
-    }
-
-    .solar-times span {
-      white-space: nowrap;
-    }
-
     /* Red dot: area doesn't match zone */
     .mismatch-dot-area {
       position: absolute;
@@ -1039,6 +1015,114 @@
       width: 14px;
       height: 14px;
     }
+
+    /* Nav solar display */
+    .nav-solar { margin-left: auto; display: flex; align-items: center; font-size: 0.75rem; color: var(--muted); }
+    .nav-solar-times { display: flex; flex-direction: column; line-height: 1.3; }
+
+    /* Edit mode styles */
+    .edit-toolbar { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+    .edit-toolbar-link { font-size: 0.85rem; color: var(--muted); text-decoration: none; cursor: pointer; }
+    .edit-toolbar-link:hover { text-decoration: underline; color: var(--text); }
+
+    .edit-zone-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 16px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px 8px 0 0;
+      cursor: pointer;
+      user-select: none;
+    }
+    .edit-zone-header.collapsed { border-radius: 8px; }
+
+    .edit-zone-arrows {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .edit-zone-arrow {
+      width: 22px;
+      height: 16px;
+      border-radius: 3px;
+      border: 1px solid var(--line);
+      background: var(--card);
+      color: var(--muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.6rem;
+      line-height: 1;
+      padding: 0;
+    }
+    .edit-zone-arrow:hover { background: rgba(255,255,255,0.1); color: var(--accent); border-color: var(--accent); }
+    .edit-zone-arrow:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    .edit-zone-name {
+      font-weight: 700;
+      font-size: 1.05rem;
+      color: var(--text);
+      flex: 1;
+    }
+
+    .edit-zone-actions { display: flex; gap: 6px; }
+    .edit-icon-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 4px;
+      border: 1px solid var(--line);
+      background: var(--card);
+      color: var(--muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      padding: 0;
+    }
+    .edit-icon-btn:hover { background: rgba(255,255,255,0.1); color: var(--text); border-color: var(--accent); }
+    .edit-icon-btn.danger:hover { color: var(--danger); border-color: var(--danger); }
+
+    .edit-rename-input {
+      font-weight: 700;
+      font-size: 1.05rem;
+      background: var(--card);
+      border: 1px solid var(--accent);
+      color: var(--text);
+      border-radius: 4px;
+      padding: 2px 8px;
+      flex: 1;
+      outline: none;
+    }
+
+    .edit-mode-row {
+      display: flex;
+      align-items: center;
+      padding: 8px 16px;
+      gap: 12px;
+      background: var(--card);
+      border-bottom: 1px solid var(--line);
+      cursor: grab;
+    }
+    .edit-mode-row:last-child { border-bottom: none; }
+    .edit-mode-row.dragging { opacity: 0.4; }
+
+    .drag-handle { color: var(--muted2); font-size: 1.1rem; cursor: grab; user-select: none; }
+    .drag-handle:active { cursor: grabbing; }
+
+    .zone-content.drag-over { outline: 2px dashed var(--accent); outline-offset: -2px; }
+    .zone-header.drag-over-target,
+    .edit-zone-header.drag-over-target { outline: 2px solid var(--accent); background: rgba(254,172,96,0.1); }
+
+    .drag-indicator {
+      height: 2px;
+      background: var(--accent);
+      margin: 0 16px;
+      pointer-events: none;
+    }
   </style>
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
   <script src="./shared.js"></script>
@@ -1053,18 +1137,16 @@
       <a href="./switches" class="nav-link">Controls</a>
       <a href="./settings" class="nav-link">Settings</a>
     </div>
+    <div class="nav-solar" id="nav-solar">
+      <div class="nav-solar-times">
+        <span id="nav-rise">--</span>
+        <span id="nav-set">--</span>
+      </div>
+    </div>
   </nav>
 
   <!-- Main Content -->
   <main class="main">
-    <div class="solar-display" id="solar-display">
-      <svg id="solar-icon" class="solar-icon" width="28" height="28" viewBox="0 0 28 28"></svg>
-      <div class="solar-times">
-        <span id="sunrise-label">↑ --</span>
-        <span id="sunset-label">↓ --</span>
-      </div>
-    </div>
-
     <!-- Areas grouped by zone -->
     <div id="areas-container">
       <div class="loading">Loading areas...</div>
@@ -1179,6 +1261,8 @@
     let selectedArea = null;
     let cachedConfig = null;
     let cachedSunTimes = null; // { sunrise, sunset, solarNoon, solarMid } in local hours
+    let editMode = false;
+    let cachedGlozones = null; // raw glozone data for edit mode ordering
     let modalTickInterval = null;   // 1s local countdown tick
     let modalRefreshInterval = null; // 1s modal API refresh (single area)
     let homeRefreshTimer = null;     // Home page card refresh timer
@@ -1932,11 +2016,12 @@
       container.innerHTML = '<div class="loading">Loading areas...</div>';
 
       try {
-        const [areasRes, statusRes, zoneStatesRes, presetsRes] = await Promise.all([
+        const [areasRes, statusRes, zoneStatesRes, presetsRes, glozonesRes] = await Promise.all([
           fetch('./api/areas'),
           fetch('./api/area-status'),
           fetch('./api/zone-states'),
-          fetch('./api/circadian-presets')
+          fetch('./api/circadian-presets'),
+          fetch('./api/glozones')
         ]);
 
         if (areasRes.ok) {
@@ -1957,208 +2042,16 @@
           cachedPresets = p.presets || {};
         }
 
+        if (glozonesRes.ok) {
+          cachedGlozones = await glozonesRes.json();
+        }
+
         renderAreas();
-        updateSunDisplay();
         startHomeRefresh();
       } catch (err) {
         console.error('Error loading data:', err);
         container.innerHTML = '<div class="loading">Error loading data</div>';
       }
-    }
-
-    // ============================================================
-    // Moon position calculation (simplified)
-    // ============================================================
-    function getMoonTimes(lat, lon) {
-      // Approximate moon position using simplified algorithm
-      const now = new Date();
-      const JD = now.getTime() / 86400000 + 2440587.5;
-      const T = (JD - 2451545.0) / 36525;
-
-      // Moon's mean longitude
-      const L0 = (218.3165 + 481267.8813 * T) % 360;
-      // Moon's mean anomaly
-      const M = (134.9634 + 477198.8676 * T) % 360;
-      // Moon's mean elongation
-      const D = (297.8502 + 445267.1115 * T) % 360;
-
-      const r = Math.PI / 180;
-      // Moon's ecliptic longitude (simplified)
-      const lng = L0 + 6.289 * Math.sin(M * r) + 1.274 * Math.sin((2 * D - M) * r) +
-                  0.658 * Math.sin(2 * D * r) + 0.214 * Math.sin(2 * M * r);
-      // Moon's ecliptic latitude (simplified)
-      const B = 5.128 * Math.sin((93.272 + 483202.0175 * T) * r);
-      // Declination (simplified)
-      const eps = 23.439 - 0.00000036 * (JD - 2451545.0);
-      const dec = Math.asin(Math.sin(B * r) * Math.cos(eps * r) +
-                  Math.cos(B * r) * Math.sin(eps * r) * Math.sin(lng * r));
-      // Right ascension
-      const ra = Math.atan2(
-        Math.sin(lng * r) * Math.cos(eps * r) - Math.tan(B * r) * Math.sin(eps * r),
-        Math.cos(lng * r)
-      );
-
-      // Hour angle at rise/set (moon apparent radius ~0.27°, refraction ~0.57°)
-      const latR = lat * r;
-      const cosH = (Math.sin(-0.83 * r) - Math.sin(latR) * Math.sin(dec)) /
-                   (Math.cos(latR) * Math.cos(dec));
-
-      if (cosH < -1 || cosH > 1) {
-        // Moon always above or below horizon
-        return { moonrise: null, moonset: null, phase: getMoonPhase(JD) };
-      }
-
-      const H = Math.acos(cosH) / r / 15; // in hours
-      // LST at Greenwich midnight
-      const GMST = (280.46061837 + 360.98564736629 * (JD - 2451545.0)) % 360;
-      const LST = (GMST + lon) % 360;
-      const raH = (ra / r) / 15; // RA in hours
-      const transit = ((raH - LST / 15 + 24) % 24);
-      const tz = -now.getTimezoneOffset() / 60;
-      const transitLocal = (transit + tz + 24) % 24;
-
-      return {
-        moonrise: (transitLocal - H + 24) % 24,
-        moonset: (transitLocal + H + 24) % 24,
-        phase: getMoonPhase(JD)
-      };
-    }
-
-    function getMoonPhase(JD) {
-      // Returns 0-1: 0=new, 0.25=first quarter, 0.5=full, 0.75=last quarter
-      const synodicMonth = 29.53059;
-      const knownNew = 2451550.1; // Jan 6, 2000 new moon
-      const daysSince = JD - knownNew;
-      return ((daysSince % synodicMonth) + synodicMonth) % synodicMonth / synodicMonth;
-    }
-
-    function getMoonPhaseSVG(phase, cx, cy, radius) {
-      // Draw a moon icon showing the current phase
-      // phase: 0=new, 0.25=first quarter, 0.5=full, 0.75=last quarter
-      const r = radius;
-      // Illumination curve: how much of the face is lit
-      // k goes from 0 (new) to 1 (full) and back
-      const k = phase <= 0.5 ? phase * 2 : (1 - phase) * 2;
-      // Which side is lit
-      const waxing = phase <= 0.5;
-
-      // Moon body (dark side)
-      let svg = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="#334" stroke="#8899bb" stroke-width="0.8"/>`;
-
-      if (k < 0.01) {
-        // New moon - just the dark circle with a faint outline
-        return svg;
-      }
-
-      if (k > 0.99) {
-        // Full moon - fully lit
-        svg = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="#eee8cc" stroke="#ffd050" stroke-width="0.8"/>`;
-        // Craters
-        svg += `<circle cx="${cx - r * 0.3}" cy="${cy - r * 0.2}" r="${r * 0.12}" fill="#ddd0aa" stroke="none"/>`;
-        svg += `<circle cx="${cx + r * 0.2}" cy="${cy + r * 0.25}" r="${r * 0.09}" fill="#ddd0aa" stroke="none"/>`;
-        return svg;
-      }
-
-      // Partial phase: draw lit portion using a path
-      // The terminator is an ellipse squished by illumination
-      const bulge = (2 * k - 1) * r; // ranges from -r to +r
-      const litSide = waxing ? 1 : -1; // 1 = right lit, -1 = left lit
-
-      // Build the lit area as a path:
-      // Arc from top to bottom on the lit edge, then terminator curve back
-      const top = cy - r;
-      const bot = cy + r;
-
-      // Lit edge arc (semicircle on the lit side)
-      const litArcSweep = litSide > 0 ? 1 : 0;
-      // Terminator curve (elliptical)
-      const termSweep = bulge * litSide >= 0 ? 1 : 0;
-
-      svg += `<path d="M ${cx} ${top} A ${r} ${r} 0 0 ${litArcSweep} ${cx} ${bot} A ${Math.abs(bulge) || 0.1} ${r} 0 0 ${termSweep} ${cx} ${top} Z" fill="#eee8cc" stroke="none"/>`;
-      // Crater on lit part
-      const craterX = cx + litSide * r * 0.2 * k;
-      if (k > 0.3) {
-        svg += `<circle cx="${craterX}" cy="${cy}" r="${r * 0.1}" fill="#ddd0aa" stroke="none"/>`;
-      }
-
-      return svg;
-    }
-
-    // ============================================================
-    // Solar Display Renderer
-    // ============================================================
-    function updateSunDisplay() {
-      if (!cachedSunTimes || !cachedConfig) return;
-      const { sunrise, sunset } = cachedSunTimes;
-      const lat = cachedConfig.latitude || 35.0;
-      const lon = cachedConfig.longitude || -78.6;
-      const moon = getMoonTimes(lat, lon);
-
-      const container = document.getElementById('solar-display');
-      if (!container) return;
-
-      const now = new Date();
-      const nowHour = now.getHours() + now.getMinutes() / 60;
-      const dayLength = ((sunset - sunrise) + 24) % 24 || 12;
-      const elapsed = ((nowHour - sunrise) + 24) % 24;
-      const isDaytime = elapsed < dayLength;
-
-      // Update text labels
-      const riseLabel = document.getElementById('sunrise-label');
-      const setLabel = document.getElementById('sunset-label');
-      if (riseLabel) riseLabel.textContent = '↑ ' + formatHourLabel(sunrise);
-      if (setLabel) setLabel.textContent = '↓ ' + formatHourLabel(sunset);
-
-      // Build contextual icon
-      const icon = document.getElementById('solar-icon');
-      if (!icon) return;
-      const cx = 14, cy = 14, r = 7;
-      let svg = '';
-
-      // How close to sunrise/sunset? (within ~40 min)
-      const nearRise = elapsed < 0.67;                         // just after sunrise
-      const beforeRise = ((sunrise - nowHour + 24) % 24) < 0.67; // just before sunrise
-      const nearSet = (dayLength - elapsed) < 0.67 && isDaytime; // just before sunset
-      const justAfterSet = !isDaytime && ((nowHour - sunset + 24) % 24) < 0.67;
-
-      if (nearRise || beforeRise || nearSet || justAfterSet) {
-        // Partial sun on horizon
-        const horizY = cy + 2;
-        const sunColor = (nearRise || beforeRise) ? '#f0a040' : '#e07030';
-        // Horizon line
-        svg += `<line x1="${cx - 11}" y1="${horizY}" x2="${cx + 11}" y2="${horizY}" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>`;
-        // Half sun peeking above horizon
-        svg += `<clipPath id="above-hz"><rect x="0" y="0" width="28" height="${horizY}"/></clipPath>`;
-        // Glow
-        svg += `<circle cx="${cx}" cy="${horizY}" r="${r + 4}" fill="${sunColor}" opacity="0.15"/>`;
-        // Sun body clipped to above horizon
-        svg += `<circle cx="${cx}" cy="${horizY}" r="${r}" fill="${sunColor}" clip-path="url(#above-hz)"/>`;
-        // Rays (above horizon only)
-        for (let i = 0; i < 5; i++) {
-          const a = (180 + i * 36) * Math.PI / 180; // 180° to 324° (upper semicircle)
-          svg += `<line x1="${cx + (r + 2) * Math.cos(a)}" y1="${horizY + (r + 2) * Math.sin(a)}" x2="${cx + (r + 5) * Math.cos(a)}" y2="${horizY + (r + 5) * Math.sin(a)}" stroke="${sunColor}" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>`;
-        }
-        // Arrow indicating rise or set
-        if (nearRise || beforeRise) {
-          svg += `<path d="M ${cx} ${cy - 10} l -3 3 h 6 z" fill="${sunColor}" opacity="0.7"/>`;
-        } else {
-          svg += `<path d="M ${cx} ${horizY + 6} l -3 -3 h 6 z" fill="${sunColor}" opacity="0.7"/>`;
-        }
-      } else if (isDaytime) {
-        // Full sun
-        svg += `<circle cx="${cx}" cy="${cy}" r="${r + 5}" fill="#ffd050" opacity="0.12"/>`;
-        svg += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="#ffd050"/>`;
-        for (let i = 0; i < 8; i++) {
-          const a = i * 45 * Math.PI / 180;
-          svg += `<line x1="${cx + (r + 2) * Math.cos(a)}" y1="${cy + (r + 2) * Math.sin(a)}" x2="${cx + (r + 5) * Math.cos(a)}" y2="${cy + (r + 5) * Math.sin(a)}" stroke="#ffd050" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>`;
-        }
-      } else {
-        // Night — show moon with phase
-        svg += `<circle cx="${cx}" cy="${cy}" r="${r + 4}" fill="#8899bb" opacity="0.08"/>`;
-        svg += getMoonPhaseSVG(moon.phase, cx, cy, r);
-      }
-
-      icon.innerHTML = svg;
     }
 
     // Collapsed zone state (persisted in localStorage)
@@ -2289,6 +2182,320 @@
       return { brightness, kelvin };
     }
 
+    // ============================================================
+    // Edit Mode Functions
+    // ============================================================
+
+    function enterEditMode() {
+      editMode = true;
+      stopHomeRefresh();
+      renderAreas();
+    }
+
+    function exitEditMode() {
+      editMode = false;
+      loadData();
+      startHomeRefresh();
+    }
+
+    async function moveZone(zoneName, direction) {
+      if (!cachedGlozones || !cachedGlozones.zones) return;
+      const zoneNames = Object.keys(cachedGlozones.zones);
+      const idx = zoneNames.indexOf(zoneName);
+      if (idx < 0) return;
+      const newIdx = idx + direction;
+      if (newIdx < 0 || newIdx >= zoneNames.length) return;
+
+      // Swap
+      [zoneNames[idx], zoneNames[newIdx]] = [zoneNames[newIdx], zoneNames[idx]];
+
+      try {
+        const res = await fetch('./api/glozones/reorder', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ order: zoneNames })
+        });
+        if (res.ok) {
+          // Re-fetch glozone data and re-render
+          const gzRes = await fetch('./api/glozones');
+          if (gzRes.ok) cachedGlozones = await gzRes.json();
+          renderAreas();
+        }
+      } catch (err) {
+        console.error('Error reordering zones:', err);
+      }
+    }
+
+    async function createZoneFromEdit() {
+      const name = prompt('New zone name:');
+      if (!name || !name.trim()) return;
+
+      try {
+        const res = await fetch('./api/glozones', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: name.trim() })
+        });
+        if (res.ok) {
+          const gzRes = await fetch('./api/glozones');
+          if (gzRes.ok) cachedGlozones = await gzRes.json();
+          // Also reload zone states
+          const zsRes = await fetch('./api/zone-states');
+          if (zsRes.ok) {
+            const zs = await zsRes.json();
+            zoneStates = zs.zone_states || {};
+          }
+          renderAreas();
+        } else {
+          const err = await res.json();
+          alert(err.error || 'Error creating zone');
+        }
+      } catch (err) {
+        console.error('Error creating zone:', err);
+      }
+    }
+
+    async function deleteZoneFromEdit(zoneName) {
+      // Count areas in this zone
+      const zoneData = cachedGlozones?.zones?.[zoneName];
+      const areaCount = zoneData?.areas?.length || 0;
+      const msg = areaCount > 0
+        ? `Move ${areaCount} area(s) to the default zone and delete "${zoneName}"?`
+        : `Delete "${zoneName}"?`;
+      if (!confirm(msg)) return;
+
+      try {
+        const res = await fetch(`./api/glozones/${encodeURIComponent(zoneName)}`, {
+          method: 'DELETE'
+        });
+        if (res.ok) {
+          const [gzRes, zsRes, statusRes] = await Promise.all([
+            fetch('./api/glozones'),
+            fetch('./api/zone-states'),
+            fetch('./api/area-status')
+          ]);
+          if (gzRes.ok) cachedGlozones = await gzRes.json();
+          if (zsRes.ok) {
+            const zs = await zsRes.json();
+            zoneStates = zs.zone_states || {};
+          }
+          if (statusRes.ok) areaStatus = await statusRes.json();
+          renderAreas();
+        } else {
+          const err = await res.json();
+          alert(err.error || 'Error deleting zone');
+        }
+      } catch (err) {
+        console.error('Error deleting zone:', err);
+      }
+    }
+
+    function startRenameZone(zoneName) {
+      const nameEl = document.querySelector(`[data-edit-zone-name="${zoneName}"]`);
+      if (!nameEl) return;
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = zoneName;
+      input.className = 'edit-rename-input';
+
+      async function doRename() {
+        const newName = input.value.trim();
+        if (!newName || newName === zoneName) {
+          // Revert
+          input.replaceWith(nameEl);
+          return;
+        }
+        try {
+          const res = await fetch(`./api/glozones/${encodeURIComponent(zoneName)}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: newName })
+          });
+          if (res.ok) {
+            const gzRes = await fetch('./api/glozones');
+            if (gzRes.ok) cachedGlozones = await gzRes.json();
+            const zsRes = await fetch('./api/zone-states');
+            if (zsRes.ok) {
+              const zs = await zsRes.json();
+              zoneStates = zs.zone_states || {};
+            }
+            renderAreas();
+          } else {
+            const err = await res.json();
+            alert(err.error || 'Error renaming zone');
+            input.replaceWith(nameEl);
+          }
+        } catch (err) {
+          console.error('Error renaming zone:', err);
+          input.replaceWith(nameEl);
+        }
+      }
+
+      input.addEventListener('blur', doRename);
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+        if (e.key === 'Escape') { input.removeEventListener('blur', doRename); input.replaceWith(nameEl); }
+      });
+
+      nameEl.replaceWith(input);
+      input.focus();
+      input.select();
+    }
+
+    // ============================================================
+    // Drag and Drop for Edit Mode
+    // ============================================================
+
+    let dragState = { areaId: null, sourceZone: null };
+
+    function onDragStart(e, areaId, zoneName) {
+      dragState = { areaId, sourceZone: zoneName };
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', areaId);
+      e.target.classList.add('dragging');
+    }
+
+    function onDragEnd(e) {
+      e.target.classList.remove('dragging');
+      // Clean up all drag-over indicators
+      document.querySelectorAll('.drag-over, .drag-over-target').forEach(el => {
+        el.classList.remove('drag-over', 'drag-over-target');
+      });
+      document.querySelectorAll('.drag-indicator').forEach(el => el.remove());
+      dragState = { areaId: null, sourceZone: null };
+    }
+
+    function onZoneContentDragOver(e, zoneName) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      const content = e.currentTarget;
+      content.classList.add('drag-over');
+
+      // Show insertion indicator
+      document.querySelectorAll('.drag-indicator').forEach(el => el.remove());
+      const rows = [...content.querySelectorAll('.edit-mode-row')];
+      let insertBefore = null;
+      for (const row of rows) {
+        const rect = row.getBoundingClientRect();
+        if (e.clientY < rect.top + rect.height / 2) {
+          insertBefore = row;
+          break;
+        }
+      }
+      const indicator = document.createElement('div');
+      indicator.className = 'drag-indicator';
+      if (insertBefore) {
+        content.insertBefore(indicator, insertBefore);
+      } else {
+        content.appendChild(indicator);
+      }
+    }
+
+    function onZoneContentDragLeave(e) {
+      // Only remove if actually leaving the container (not entering a child)
+      if (!e.currentTarget.contains(e.relatedTarget)) {
+        e.currentTarget.classList.remove('drag-over');
+        e.currentTarget.querySelectorAll('.drag-indicator').forEach(el => el.remove());
+      }
+    }
+
+    function onZoneHeaderDragOver(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      e.currentTarget.classList.add('drag-over-target');
+    }
+
+    function onZoneHeaderDragLeave(e) {
+      e.currentTarget.classList.remove('drag-over-target');
+    }
+
+    async function onZoneContentDrop(e, targetZone) {
+      e.preventDefault();
+      e.currentTarget.classList.remove('drag-over');
+      document.querySelectorAll('.drag-indicator').forEach(el => el.remove());
+
+      const areaId = dragState.areaId;
+      const sourceZone = dragState.sourceZone;
+      if (!areaId) return;
+
+      if (sourceZone === targetZone) {
+        // Reorder within zone: compute new order from DOM position
+        const content = e.currentTarget;
+        const rows = [...content.querySelectorAll('.edit-mode-row')];
+        const currentIds = rows.map(r => r.dataset.areaId).filter(id => id !== areaId);
+
+        // Find insertion index
+        let insertIdx = currentIds.length;
+        for (let i = 0; i < rows.length; i++) {
+          if (rows[i].dataset.areaId === areaId) continue;
+          const rect = rows[i].getBoundingClientRect();
+          if (e.clientY < rect.top + rect.height / 2) {
+            insertIdx = currentIds.indexOf(rows[i].dataset.areaId);
+            break;
+          }
+        }
+        currentIds.splice(insertIdx, 0, areaId);
+
+        try {
+          await fetch(`./api/glozones/${encodeURIComponent(targetZone)}/reorder-areas`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ area_ids: currentIds })
+          });
+          const gzRes = await fetch('./api/glozones');
+          if (gzRes.ok) cachedGlozones = await gzRes.json();
+          renderAreas();
+        } catch (err) {
+          console.error('Error reordering areas:', err);
+        }
+      } else {
+        // Cross-zone move: remove from source, add to target
+        await crossZoneMove(areaId, sourceZone, targetZone);
+      }
+    }
+
+    async function onZoneHeaderDrop(e, targetZone) {
+      e.preventDefault();
+      e.currentTarget.classList.remove('drag-over-target');
+
+      const areaId = dragState.areaId;
+      const sourceZone = dragState.sourceZone;
+      if (!areaId || sourceZone === targetZone) return;
+
+      await crossZoneMove(areaId, sourceZone, targetZone);
+    }
+
+    async function crossZoneMove(areaId, sourceZone, targetZone) {
+      try {
+        // Find area name
+        const area = areas.find(a => a.area_id === areaId);
+        const areaName = area ? area.name : areaId;
+
+        // Remove from source zone
+        await fetch(`./api/glozones/${encodeURIComponent(sourceZone)}/areas/${encodeURIComponent(areaId)}`, {
+          method: 'DELETE'
+        });
+
+        // Add to target zone
+        await fetch(`./api/glozones/${encodeURIComponent(targetZone)}/areas`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ area_id: areaId, area_name: areaName })
+        });
+
+        // Refresh
+        const [gzRes, statusRes] = await Promise.all([
+          fetch('./api/glozones'),
+          fetch('./api/area-status')
+        ]);
+        if (gzRes.ok) cachedGlozones = await gzRes.json();
+        if (statusRes.ok) areaStatus = await statusRes.json();
+        renderAreas();
+      } catch (err) {
+        console.error('Error moving area:', err);
+      }
+    }
+
     function renderAreas() {
       const container = document.getElementById('areas-container');
 
@@ -2388,25 +2595,79 @@
       // Reset icon (double-down chevron)
       const zoneResetIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 4 12 10 18 4"/><polyline points="6 10 12 16 18 10"/></svg>`;
 
-      // Build zone groups HTML
-      let html = `
-        <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;">
-          <label style="font-size: 0.85rem; color: var(--muted); display: flex; align-items: center; gap: 6px; cursor: pointer;">
-            <input type="checkbox" id="group-onoff-checkbox" ${groupMode === 'onoff' ? 'checked' : ''} style="accent-color: var(--accent);"> Group by on/off
-          </label>
-          <span style="font-size: 0.85rem; color: var(--muted);">Sort:</span>
-          <select class="header-filter" id="sort-dropdown" style="width: auto; padding: 6px 12px;">${sortOptions}</select>
-          <span style="flex: 1;"></span>
-          <a href="./zones" style="font-size: 0.85rem; color: var(--muted); text-decoration: none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">Edit Glo Zones</a>
-          <a href="#" id="refresh-link" style="font-size: 0.85rem; color: var(--muted); text-decoration: none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">Refresh</a>
-        </div>
-      `;
+      // Build toolbar HTML
+      let html;
+      if (editMode) {
+        html = `
+          <div class="edit-toolbar">
+            <a href="#" class="edit-toolbar-link" onclick="event.preventDefault(); exitEditMode()" style="color: var(--accent); font-weight: 600;">Done</a>
+            <a href="#" class="edit-toolbar-link" onclick="event.preventDefault(); exitEditMode()">Cancel</a>
+            <span style="flex: 1;"></span>
+            <a href="#" class="edit-toolbar-link" onclick="event.preventDefault(); createZoneFromEdit()" style="color: var(--accent);">+ New Zone</a>
+          </div>
+        `;
+      } else {
+        html = `
+          <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;">
+            <label style="font-size: 0.85rem; color: var(--muted); display: flex; align-items: center; gap: 6px; cursor: pointer;">
+              <input type="checkbox" id="group-onoff-checkbox" ${groupMode === 'onoff' ? 'checked' : ''} style="accent-color: var(--accent);"> Group by on/off
+            </label>
+            <span style="font-size: 0.85rem; color: var(--muted);">Sort:</span>
+            <select class="header-filter" id="sort-dropdown" style="width: auto; padding: 6px 12px;">${sortOptions}</select>
+            <span style="flex: 1;"></span>
+            <a href="#" id="edit-link" style="font-size: 0.85rem; color: var(--muted); text-decoration: none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">Edit</a>
+            <a href="#" id="refresh-link" style="font-size: 0.85rem; color: var(--muted); text-decoration: none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">Refresh</a>
+          </div>
+        `;
+      }
 
-      const renderZoneGroup = (zoneName, areasInZone) => {
+      const renderZoneGroup = (zoneName, areasInZone, zoneIndex, totalZones) => {
         const isCollapsed = collapsedState[zoneName] || false;
-        const sorted = sortAreas(areasInZone);
+        const sorted = editMode ? areasInZone : sortAreas(areasInZone);
+        const escapedZoneName = zoneName.replace(/'/g, "\\'");
 
-        // Use zone's own brightness/kelvin from zoneStates
+        if (editMode) {
+          // Edit mode: simplified header with arrows, rename, delete
+          const upDisabled = zoneIndex === 0 ? 'disabled' : '';
+          const downDisabled = zoneIndex === totalZones - 1 ? 'disabled' : '';
+
+          const areaRows = sorted.map(area => `
+            <div class="edit-mode-row" draggable="true" data-area-id="${area.area_id}"
+              ondragstart="onDragStart(event, '${area.area_id}', '${escapedZoneName}')"
+              ondragend="onDragEnd(event)">
+              <span class="drag-handle">&#9776;</span>
+              <span style="flex: 1; font-size: 0.9rem;">${area.name}</span>
+            </div>
+          `).join('');
+
+          return `
+            <div class="zone-group">
+              <div class="edit-zone-header ${isCollapsed ? 'collapsed' : ''}" data-zone="${zoneName}"
+                ondragover="onZoneHeaderDragOver(event)"
+                ondragleave="onZoneHeaderDragLeave(event)"
+                ondrop="onZoneHeaderDrop(event, '${escapedZoneName}')">
+                <div class="edit-zone-arrows">
+                  <button class="edit-zone-arrow" ${upDisabled} onclick="event.stopPropagation(); moveZone('${escapedZoneName}', -1)" title="Move up">&#9650;</button>
+                  <button class="edit-zone-arrow" ${downDisabled} onclick="event.stopPropagation(); moveZone('${escapedZoneName}', 1)" title="Move down">&#9660;</button>
+                </div>
+                <span class="edit-zone-name" data-edit-zone-name="${zoneName}" onclick="event.stopPropagation(); toggleZone('${escapedZoneName}')">${zoneName}</span>
+                <span style="font-size: 0.8rem; color: var(--muted);">(${areasInZone.length})</span>
+                <div class="edit-zone-actions">
+                  <button class="edit-icon-btn" onclick="event.stopPropagation(); startRenameZone('${escapedZoneName}')" title="Rename">&#9998;</button>
+                  <button class="edit-icon-btn danger" onclick="event.stopPropagation(); deleteZoneFromEdit('${escapedZoneName}')" title="Delete">&#128465;</button>
+                </div>
+              </div>
+              <div class="zone-content ${isCollapsed ? 'hidden' : ''}" data-zone-table="${zoneName}"
+                ondragover="onZoneContentDragOver(event, '${escapedZoneName}')"
+                ondragleave="onZoneContentDragLeave(event)"
+                ondrop="onZoneContentDrop(event, '${escapedZoneName}')">
+                ${areaRows}
+              </div>
+            </div>
+          `;
+        }
+
+        // Normal mode: full zone header with lighting info
         let zoneHeaderStyle = '';
         let zoneTextColor = 'var(--text)';
         let zoneLightingInfo = '';
@@ -2458,8 +2719,6 @@
           }
         }
 
-        const escapedZoneName = zoneName.replace(/'/g, "\\'");
-
         return `
           <div class="zone-group">
             <div class="zone-header ${isCollapsed ? 'collapsed' : ''}" data-zone="${zoneName}" onclick="toggleZone('${escapedZoneName}')" style="${zoneHeaderStyle}">
@@ -2479,7 +2738,26 @@
         `;
       };
 
-      if (groupMode === 'onoff') {
+      if (editMode) {
+        // Edit mode: use glozone API order (preserves user ordering)
+        const gzZonesObj = cachedGlozones?.zones || {};
+        const gzZoneNames = Object.keys(gzZonesObj);
+        const totalZones = gzZoneNames.length;
+
+        // Build area list per zone from glozone data (preserves area order within zone)
+        for (let i = 0; i < gzZoneNames.length; i++) {
+          const zoneName = gzZoneNames[i];
+          const gzData = gzZonesObj[zoneName];
+          const zoneAreaIds = (gzData.areas || []).map(a => typeof a === 'object' ? a.id : a);
+          const areasInZone = zoneAreaIds.map(id => mergedAreas.find(a => a.area_id === id)).filter(Boolean);
+          html += renderZoneGroup(zoneName, areasInZone, i, totalZones);
+        }
+
+        // Unassigned areas at the end
+        if (unassigned.length > 0) {
+          html += renderZoneGroup('Unassigned', unassigned, totalZones, totalZones + 1);
+        }
+      } else if (groupMode === 'onoff') {
         // Group by on/off first, then by zone within each
         const onAreas = filtered.filter(a => a.is_on);
         const offAreas = filtered.filter(a => !a.is_on);
@@ -2708,6 +2986,7 @@
     function setupEventListeners() {
       document.getElementById('areas-container').addEventListener('click', (e) => {
         if (e.target.id === 'refresh-link') { e.preventDefault(); loadData(); }
+        if (e.target.id === 'edit-link') { e.preventDefault(); enterEditMode(); }
       });
 
       // Use event delegation for dynamically created dropdowns

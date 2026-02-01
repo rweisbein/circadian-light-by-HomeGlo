@@ -428,14 +428,19 @@ class LightDesignerServer:
         self.app.router.add_delete('/api/circadian-presets/{name}', self.delete_circadian_preset)
 
         # GloZone API routes - Zones CRUD
+        # Reorder routes MUST be registered before {name} wildcard routes
+        self.app.router.add_route('PUT', '/{path:.*}/api/glozones/reorder', self.reorder_glozones)
+        self.app.router.add_put('/api/glozones/reorder', self.reorder_glozones)
         self.app.router.add_route('GET', '/{path:.*}/api/glozones', self.get_glozones)
         self.app.router.add_route('POST', '/{path:.*}/api/glozones', self.create_glozone)
+        self.app.router.add_route('PUT', '/{path:.*}/api/glozones/{name}/reorder-areas', self.reorder_zone_areas)
         self.app.router.add_route('PUT', '/{path:.*}/api/glozones/{name}', self.update_glozone)
         self.app.router.add_route('DELETE', '/{path:.*}/api/glozones/{name}', self.delete_glozone)
         self.app.router.add_route('POST', '/{path:.*}/api/glozones/{name}/areas', self.add_area_to_zone)
         self.app.router.add_route('DELETE', '/{path:.*}/api/glozones/{name}/areas/{area_id}', self.remove_area_from_zone)
         self.app.router.add_get('/api/glozones', self.get_glozones)
         self.app.router.add_post('/api/glozones', self.create_glozone)
+        self.app.router.add_put('/api/glozones/{name}/reorder-areas', self.reorder_zone_areas)
         self.app.router.add_put('/api/glozones/{name}', self.update_glozone)
         self.app.router.add_delete('/api/glozones/{name}', self.delete_glozone)
         self.app.router.add_post('/api/glozones/{name}/areas', self.add_area_to_zone)
@@ -2845,6 +2850,94 @@ class LightDesignerServer:
             return web.json_response({"status": "deleted", "name": name})
         except Exception as e:
             logger.error(f"Error deleting zone: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def reorder_glozones(self, request: Request) -> Response:
+        """Reorder GloZones by rebuilding the dict in the specified key order."""
+        try:
+            data = await request.json()
+            order = data.get("order")
+
+            if not order or not isinstance(order, list):
+                return web.json_response({"error": "order must be a list of zone names"}, status=400)
+
+            config = await self.load_raw_config()
+            zones = config.get("glozones", {})
+
+            # Validate all names match existing zones
+            if set(order) != set(zones.keys()):
+                return web.json_response(
+                    {"error": "order must contain exactly the existing zone names"},
+                    status=400
+                )
+
+            # Rebuild dict in new order
+            config["glozones"] = {name: zones[name] for name in order}
+
+            await self.save_config_to_file(config)
+            glozone.set_config(config)
+
+            # Fire refresh event
+            _, ws_url, token = self._get_ha_api_config()
+            if ws_url and token:
+                await self._fire_event_via_websocket(ws_url, token, 'circadian_light_refresh', {})
+
+            logger.info(f"Reordered GloZones: {order}")
+            return web.json_response({"status": "reordered"})
+        except json.JSONDecodeError:
+            return web.json_response({"error": "Invalid JSON"}, status=400)
+        except Exception as e:
+            logger.error(f"Error reordering zones: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def reorder_zone_areas(self, request: Request) -> Response:
+        """Reorder areas within a GloZone."""
+        try:
+            name = request.match_info.get("name")
+            data = await request.json()
+            area_ids = data.get("area_ids")
+
+            if not area_ids or not isinstance(area_ids, list):
+                return web.json_response({"error": "area_ids must be a list"}, status=400)
+
+            config = await self.load_raw_config()
+            zones = config.get("glozones", {})
+
+            if name not in zones:
+                return web.json_response({"error": f"Zone '{name}' not found"}, status=404)
+
+            zone_areas = zones[name].get("areas", [])
+
+            # Build lookup: area_id -> area entry
+            area_lookup = {}
+            for area in zone_areas:
+                aid = area.get("id") if isinstance(area, dict) else area
+                area_lookup[aid] = area
+
+            # Validate all IDs exist in this zone
+            if set(area_ids) != set(area_lookup.keys()):
+                return web.json_response(
+                    {"error": "area_ids must contain exactly the areas in this zone"},
+                    status=400
+                )
+
+            # Rebuild areas list in new order
+            zones[name]["areas"] = [area_lookup[aid] for aid in area_ids]
+
+            await self.save_config_to_file(config)
+            glozone.set_config(config)
+
+            # Fire refresh event
+            _, ws_url, token = self._get_ha_api_config()
+            if ws_url and token:
+                await self._fire_event_via_websocket(ws_url, token, 'circadian_light_refresh', {})
+
+            logger.info(f"Reordered areas in zone '{name}': {area_ids}")
+            return web.json_response({"status": "reordered"})
+        except json.JSONDecodeError:
+            return web.json_response({"error": "Invalid JSON"}, status=400)
+        except Exception as e:
+            logger.error(f"Error reordering zone areas: {e}")
             return web.json_response({"error": str(e)}, status=500)
 
     async def add_area_to_zone(self, request: Request) -> Response:

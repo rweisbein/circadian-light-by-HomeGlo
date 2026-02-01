@@ -82,6 +82,36 @@ function tintColorByBrightness(rgbStr, brightness) {
 }
 
 /**
+ * Initialize the nav bar solar display.
+ * Fetches sunrise/sunset from /api/sun_times and populates #nav-rise and #nav-set.
+ */
+function initNavSolar() {
+  function formatNavHour(h) {
+    if (h === undefined || h === null || !Number.isFinite(h)) return '--';
+    const h24 = ((h % 24) + 24) % 24;
+    let hr = Math.floor(h24);
+    let min = Math.round((h24 - hr) * 60);
+    if (min === 60) { min = 0; hr = (hr + 1) % 24; }
+    const suffix = hr < 12 ? 'a' : 'p';
+    const hr12 = hr === 0 ? 12 : (hr > 12 ? hr - 12 : hr);
+    return min === 0 ? `${hr12}${suffix}` : `${hr12}:${min.toString().padStart(2, '0')}${suffix}`;
+  }
+
+  fetch('./api/sun_times')
+    .then(r => r.ok ? r.json() : null)
+    .then(data => {
+      if (!data) return;
+      const riseEl = document.getElementById('nav-rise');
+      const setEl = document.getElementById('nav-set');
+      if (riseEl) riseEl.textContent = '\u2191 ' + formatNavHour(data.sunrise_hour);
+      if (setEl) setEl.textContent = '\u2193 ' + formatNavHour(data.sunset_hour);
+    })
+    .catch(() => {});
+}
+
+document.addEventListener('DOMContentLoaded', initNavSolar);
+
+/**
  * Get readable text color (black or white) for a background color.
  * @param {string} bgColor - Background color as rgb/rgba or hex
  * @returns {string} "#000" or "#fff"
