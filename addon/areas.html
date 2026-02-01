@@ -971,22 +971,22 @@
       left: 8px;
       top: 50%;
       transform: translateY(-50%);
-      width: 6px;
-      height: 6px;
+      width: 4px;
+      height: 4px;
       border-radius: 50%;
-      background: rgba(239, 68, 68, 0.8);
+      background: rgba(239, 68, 68, 0.9);
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.6);
       z-index: 2;
-      /* contrast ring set via inline box-shadow using row text color */
     }
 
     /* Red dot: zone doesn't match rhythm */
     .mismatch-dot-zone {
-      width: 8px;
-      height: 8px;
+      width: 5px;
+      height: 5px;
       border-radius: 50%;
-      background: rgba(239, 68, 68, 0.85);
+      background: rgba(239, 68, 68, 0.9);
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.6);
       flex-shrink: 0;
-      /* contrast ring set via inline box-shadow using header text color */
     }
 
     /* Toolbar menu */
@@ -1159,7 +1159,6 @@
     <a href="./" class="nav-brand active">Circadian Light</a>
     <div class="nav-links">
       <a href="./glo" class="nav-link">Rhythms</a>
-      <a href="./zones" class="nav-link">Glo zones</a>
       <a href="./switches" class="nav-link">Controls</a>
       <a href="./settings" class="nav-link">Settings</a>
     </div>
@@ -1189,7 +1188,7 @@
       </div>
 
       <div class="modal-context-info" id="modal-context-info">
-        <div class="context-line"><span class="context-label">Glo zone:</span> <a href="./zones" class="context-link" id="modal-zone-link">—</a></div>
+        <div class="context-line"><span class="context-label">Glo zone:</span> <span class="context-link" id="modal-zone-link">—</span></div>
         <div class="context-line"><span class="context-label">Rhythm:</span> <a href="./glo" class="context-link" id="modal-rhythm-link">—</a></div>
       </div>
 
@@ -1221,9 +1220,7 @@
               </svg>
             </button>
             <button class="toggle-btn" id="toggle-boost" onclick="executeAction('boost')" title="Boost">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-              </svg>
+              <span style="font-weight:900; font-size:16px; font-family:serif; line-height:1;">B</span>
             </button>
           </div>
           <div class="area-state-info">
@@ -1232,8 +1229,7 @@
           <div class="area-state-controls">
             <button class="toggle-btn" id="toggle-reset" onclick="executeAction('reset')" title="GloDown: pull Glo Zone light to this area">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <polyline points="6 5 12 11 18 5"/>
-                <polyline points="6 13 12 19 18 13"/>
+                <polyline points="6 9 12 15 18 9"/>
               </svg>
             </button>
           </div>
@@ -2092,13 +2088,20 @@
       localStorage.setItem('areas_collapsed_zones', JSON.stringify(state));
     }
 
-    function toggleZone(zoneName) {
-      const state = getCollapsedZones();
-      const isCollapsed = !state[zoneName];
-      setZoneCollapsed(zoneName, isCollapsed);
+    function toggleZone(zoneName, el) {
+      // Use clicked element's parent .zone-group to find the correct header/table
+      // (avoids querySelector hitting the wrong duplicate in On first view)
+      const zoneGroup = el ? el.closest('.zone-group') : null;
+      const header = zoneGroup
+        ? zoneGroup.querySelector(`[data-zone="${zoneName}"]`)
+        : document.querySelector(`[data-zone="${zoneName}"]`);
+      const table = zoneGroup
+        ? zoneGroup.querySelector(`[data-zone-table="${zoneName}"]`)
+        : document.querySelector(`[data-zone-table="${zoneName}"]`);
 
-      const header = document.querySelector(`[data-zone="${zoneName}"]`);
-      const table = document.querySelector(`[data-zone-table="${zoneName}"]`);
+      const isCurrentlyCollapsed = header ? header.classList.contains('collapsed') : false;
+      const isCollapsed = !isCurrentlyCollapsed;
+
       if (header && table) {
         header.classList.toggle('collapsed', isCollapsed);
         table.classList.toggle('hidden', isCollapsed);
@@ -2612,7 +2615,7 @@
         html = `
           <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;">
             <div class="view-pills">
-              <button class="view-pill ${viewMode === 'onoff' ? 'active' : ''}" data-view="onoff">'On' first</button>
+              <button class="view-pill ${viewMode === 'onoff' ? 'active' : ''}" data-view="onoff"><svg style="width:14px;height:14px;vertical-align:-2px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></svg></button>
               <button class="view-pill ${viewMode === 'custom' ? 'active' : ''}" data-view="custom">Your order</button>
               <button class="view-pill ${viewMode === 'alpha' ? 'active' : ''}" data-view="alpha">A–Z</button>
             </div>
@@ -2658,7 +2661,7 @@
                   <button class="edit-zone-arrow" ${upDisabled} onclick="event.stopPropagation(); moveZone('${escapedZoneName}', -1)" title="Move up">&#9650;</button>
                   <button class="edit-zone-arrow" ${downDisabled} onclick="event.stopPropagation(); moveZone('${escapedZoneName}', 1)" title="Move down">&#9660;</button>
                 </div>
-                <span class="edit-zone-name" data-edit-zone-name="${zoneName}" onclick="event.stopPropagation(); toggleZone('${escapedZoneName}')">${zoneName}</span>
+                <span class="edit-zone-name" data-edit-zone-name="${zoneName}" onclick="event.stopPropagation(); toggleZone('${escapedZoneName}', this)">${zoneName}</span>
                 <span style="font-size: 0.8rem; color: var(--muted);">(${areasInZone.length})</span>
                 <div class="edit-zone-actions">
                   <button class="edit-icon-btn" onclick="event.stopPropagation(); startRenameZone('${escapedZoneName}')" title="Rename">&#9998;</button>
@@ -2723,13 +2726,13 @@
           // Red dot: zone has been stepped or frozen away from pure rhythm
           const rs = zs.runtime_state;
           if (rs && (rs.brightness_mid != null || rs.color_mid != null || rs.frozen_at != null)) {
-            zoneMismatchDot = `<span class="mismatch-dot-zone" style="box-shadow: 0 0 0 1.5px ${zoneTextColor};"></span>`;
+            zoneMismatchDot = `<span class="mismatch-dot-zone"></span>`;
           }
         }
 
         return `
           <div class="zone-group">
-            <div class="zone-header ${isCollapsed ? 'collapsed' : ''}" data-zone="${zoneName}" onclick="toggleZone('${escapedZoneName}')" style="${zoneHeaderStyle}">
+            <div class="zone-header ${isCollapsed ? 'collapsed' : ''}" data-zone="${zoneName}" onclick="toggleZone('${escapedZoneName}', this)" style="${zoneHeaderStyle}">
               ${zoneMismatchDot}
               ${chevronIcon}
               <span style="font-size: 0.8rem; opacity: 0.6; color: ${zoneTextColor};">Glo zone:</span>
@@ -2783,10 +2786,26 @@
               subUnassigned.push(area);
             }
           }
-          const subNames = Object.keys(subGroups).sort();
+          // Use custom zone order from cachedGlozones, then any remaining
+          const gzZoneNames = Object.keys(cachedGlozones?.zones || {});
+          const subNames = gzZoneNames.filter(zn => subGroups[zn]);
+          // Add any zones not in cachedGlozones (shouldn't happen, but safe)
+          for (const zn of Object.keys(subGroups)) {
+            if (!subNames.includes(zn)) subNames.push(zn);
+          }
           let sectionHtml = `<div class="onoff-section-header">${icon} ${label} <span style="opacity: 0.5; font-weight: 400;">(${sectionAreas.length})</span></div>`;
           for (const zn of subNames) {
-            sectionHtml += renderZoneGroup(zn, subGroups[zn]);
+            // Sort areas within zone by custom order
+            const gzData = (cachedGlozones?.zones || {})[zn];
+            const customOrder = gzData ? (gzData.areas || []).map(a => typeof a === 'object' ? a.id : a) : [];
+            const sorted = customOrder.length > 0
+              ? subGroups[zn].sort((a, b) => {
+                  const ai = customOrder.indexOf(a.area_id);
+                  const bi = customOrder.indexOf(b.area_id);
+                  return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+                })
+              : subGroups[zn];
+            sectionHtml += renderZoneGroup(zn, sorted);
           }
           if (subUnassigned.length > 0) {
             sectionHtml += renderZoneGroup('Unassigned', subUnassigned);
@@ -2795,7 +2814,7 @@
         };
 
         html += renderOnOffSection('On', onAreas, '<span style="color: var(--success); font-size: 0.6rem; vertical-align: 1px;">●</span>');
-        html += renderOnOffSection('Off', offAreas, '<span style="color: var(--muted2); font-size: 0.5rem; vertical-align: 1px;">○</span>');
+        html += renderOnOffSection('Off', offAreas, '<span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--muted2); vertical-align: 0px;"></span>');
       } else if (viewMode === 'custom') {
         // Custom: use API zone order (preserves user arrangement from edit mode)
         const gzZonesObj = cachedGlozones?.zones || {};
@@ -2853,7 +2872,7 @@
             differs(area.color_mid, rs.color_mid) ||
             differs(area.frozen_at, rs.frozen_at) ||
             area.color_override != null) {
-          mismatchDot = `<span class="mismatch-dot-area" style="box-shadow: 0 0 0 1.5px ${style.textColor};"></span>`;
+          mismatchDot = `<span class="mismatch-dot-area"></span>`;
         }
       }
 
@@ -2970,22 +2989,19 @@
         <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
       </svg>`;
 
-      // Star icon for boost
-      const boostIconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-      </svg>`;
+      // Bold B icon for boost
+      const boostIconSvg = `<span style="font-weight:900; font-size:12px; font-family:serif; line-height:1;">B</span>`;
 
-      // GloDown icon (double down chevron — pull from zone)
+      // GloDown icon (single down chevron — pull from zone)
       const resetIconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-        <polyline points="6 5 12 11 18 5"/>
-        <polyline points="6 13 12 19 18 13"/>
+        <polyline points="6 9 12 15 18 9"/>
       </svg>`;
 
       // GloUp icon (one up arrow + two down arrows — push to zone)
       const pushIconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
         <polyline points="6 8 12 2 18 8"/>
-        <polyline points="6 14 12 20 18 14"/>
-        <polyline points="6 19 12 25 18 19"/>
+        <polyline points="6 15 12 21 18 15"/>
+        <polyline points="6 22 12 28 18 22"/>
       </svg>`;
 
       const leftControls = `
@@ -3117,10 +3133,8 @@
       const rhythmLinkEl = document.getElementById('modal-rhythm-link');
       if (selectedArea.zone_name) {
         zoneLinkEl.textContent = selectedArea.zone_name;
-        zoneLinkEl.href = './zones';
       } else {
         zoneLinkEl.textContent = 'Unassigned';
-        zoneLinkEl.href = './zones';
       }
       if (selectedArea.preset_name) {
         rhythmLinkEl.textContent = selectedArea.preset_name;

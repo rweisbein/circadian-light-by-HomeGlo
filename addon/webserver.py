@@ -489,7 +489,6 @@ class LightDesignerServer:
         # Page routes - specific pages first, then catch-all
         # With ingress path prefix
         self.app.router.add_route('GET', '/{path:.*}/switches', self.serve_switches)
-        self.app.router.add_route('GET', '/{path:.*}/zones', self.serve_zones)
         self.app.router.add_route('GET', '/{path:.*}/glo/{glo_name}', self.serve_glo_designer)
         self.app.router.add_route('GET', '/{path:.*}/glo', self.serve_glo_designer)
         self.app.router.add_route('GET', '/{path:.*}/settings', self.serve_settings)
@@ -497,7 +496,6 @@ class LightDesignerServer:
         # Without ingress path prefix
         self.app.router.add_get('/glo/{glo_name}', self.serve_glo_designer)
         self.app.router.add_get('/glo', self.serve_glo_designer)
-        self.app.router.add_get('/zones', self.serve_zones)
         self.app.router.add_get('/settings', self.serve_settings)
         self.app.router.add_get('/', self.serve_home)
         # Legacy routes
@@ -564,10 +562,6 @@ class LightDesignerServer:
     async def serve_home(self, request: Request) -> Response:
         """Serve the Home page (areas)."""
         return await self.serve_page("areas")
-
-    async def serve_zones(self, request: Request) -> Response:
-        """Serve the Control Zones page."""
-        return await self.serve_page("home")
 
     async def serve_glo_designer(self, request: Request) -> Response:
         """Serve the Glo Designer page."""

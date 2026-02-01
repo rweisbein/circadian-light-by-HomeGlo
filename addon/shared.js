@@ -1,6 +1,6 @@
 /**
  * Shared utility functions for Circadian Light UI.
- * Used by home.html, glo-designer.html, and other pages.
+ * Used by areas.html, glo-designer.html, and other pages.
  */
 
 /**
