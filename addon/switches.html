@@ -632,7 +632,6 @@
     <a href="./" class="nav-brand">Circadian Light</a>
     <div class="nav-links">
       <a href="./glo" class="nav-link">Rhythms</a>
-      <a href="./zones" class="nav-link">Glo zones</a>
       <a href="./switches" class="nav-link active">Controls</a>
       <a href="./settings" class="nav-link">Settings</a>
     </div>
@@ -856,7 +855,7 @@
       });
 
       // Sort controls
-      const statusOrder = { 'active': 0, 'inactive': 1, 'not_configured': 2, 'unsupported': 3 };
+      const statusOrder = { 'active': 0, 'inactive': 0, 'not_configured': 1, 'unsupported': 2 };
       const categoryOrder = { 'switch': 0, 'motion_sensor': 1, 'contact_sensor': 2, 'unknown': 3 };
       const sorted = [...filtered].sort((a, b) => {
         let valA, valB;
@@ -913,7 +912,7 @@
         (hasUnassigned ? `<option value="unassigned" ${areaFilter === 'unassigned' ? 'selected' : ''}>— Unassigned —</option>` : '') +
         areas.map(a => `<option value="${a}" ${areaFilter === a ? 'selected' : ''}>${a}</option>`).join('');
 
-      const statusLabels = { 'active': 'Configured', 'inactive': 'Inactive', 'not_configured': 'Not configured', 'unsupported': 'Unsupported' };
+      const statusLabels = { 'active': 'Active', 'inactive': 'Active', 'not_configured': 'Needs setup', 'unsupported': 'Coming soon' };
       const statusOptions = `<option value="all">All</option>` +
         statuses.map(s => `<option value="${s}" ${statusFilter === s ? 'selected' : ''}>${statusLabels[s] || s}</option>`).join('');
 
@@ -926,6 +925,7 @@
           <thead>
             <tr>
               <th class="${thClass('name')}" onclick="sortBy('name')">Name ${arrow('name')}</th>
+              <th>Pause</th>
               <th class="${thClass('category')}">
                 <div class="th-with-filter">
                   <div class="th-title-row" onclick="sortBy('category')">Category ${arrow('category')}</div>
@@ -945,15 +945,13 @@
                 </div>
               </th>
               <th class="${thClass('lastAction')}" onclick="sortBy('lastAction')">Last action ${arrow('lastAction')}</th>
-              <th class="${thClass('controller')}" onclick="sortBy('controller')">Controller ${arrow('controller')}</th>
-              <th class="${thClass('type')}" onclick="sortBy('type')">Type ${arrow('type')}</th>
               <th>Indicator</th>
             </tr>
           </thead>
           <tbody>
             ${sorted.length === 0 ? `
               <tr>
-                <td colspan="8" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                <td colspan="7" style="text-align: center; padding: 40px; color: var(--text-secondary);">
                   ${controls.length > 0
                     ? 'No controls match the current filters.'
                     : 'No controls found. Click Update to scan Home Assistant.'}
@@ -962,26 +960,16 @@
             ` : sorted.map(ctrl => {
               const categoryLabel = formatCategory(ctrl.category);
               const areaName = ctrl.area_name || '—';
-              const controllerLabel = formatController(ctrl.integration);
-              // For motion/contact sensors, just show model if no friendly name
-              // For switches, show manufacturer + model as fallback
-              const typeName = ctrl.type_name || (
-                ctrl.category === 'switch'
-                  ? `${ctrl.manufacturer || 'Unknown'} ${ctrl.model || ''}`.trim()
-                  : ctrl.model || '—'
-              );
               const statusBadge = getStatusBadge(ctrl);
               const lastAction = formatLastAction(ctrl);
               const nameCell = ctrl.supported
                 ? `<a class="switch-name-link" onclick="editControl('${ctrl.id}')">${ctrl.name}</a>`
                 : `<span>${ctrl.name}</span>`;
-              // Show inactive toggle for configured sensors
-              const isSensor = ctrl.category === 'motion_sensor' || ctrl.category === 'contact_sensor';
-              const isConfigured = ctrl.status === 'active' || ctrl.status === 'inactive';
-              const inactiveToggle = (isSensor && isConfigured)
-                ? `<label class="inactive-toggle" title="${ctrl.inactive ? 'Click to activate' : 'Click to deactivate'}">
+              // Show pause toggle for all configured controls
+              const isPausable = (ctrl.status === 'active' || ctrl.status === 'inactive');
+              const pauseCell = isPausable
+                ? `<label class="inactive-toggle" title="${ctrl.inactive ? 'Click to resume' : 'Click to pause'}">
                      <input type="checkbox" ${ctrl.inactive ? 'checked' : ''} onchange="toggleInactive('${ctrl.id}', '${ctrl.category}', this.checked)">
-                     <span class="inactive-toggle-label">${ctrl.inactive ? 'Paused' : ''}</span>
                    </label>`
                 : '';
               // Indicator light dropdown for configured switches
@@ -996,12 +984,11 @@
               return `
                 <tr>
                   <td>${nameCell}</td>
+                  <td>${pauseCell}</td>
                   <td>${categoryLabel}</td>
                   <td>${areaName}</td>
-                  <td>${statusBadge} ${inactiveToggle}</td>
+                  <td>${statusBadge}</td>
                   <td>${lastAction}</td>
-                  <td>${controllerLabel}</td>
-                  <td>${typeName}</td>
                   <td>${indicatorCell}</td>
                 </tr>
               `;
@@ -1012,15 +999,15 @@
     }
 
     function getStatusBadge(ctrl) {
-      if (ctrl.status === 'active') {
-        return '<span class="status-badge status-active"><span class="status-check">✓</span> Configured</span>';
-      } else if (ctrl.status === 'inactive') {
-        return '<span class="status-badge status-inactive">Inactive</span>';
+      if (ctrl.status === 'active' || ctrl.status === 'inactive') {
+        if (ctrl.inactive) {
+          return '<span class="status-badge status-inactive">Paused</span>';
+        }
+        return '<span class="status-badge status-active"><span class="status-check">✓</span> Active</span>';
       } else if (ctrl.status === 'not_configured') {
-        return '<span class="status-badge status-not-configured">Not configured</span>';
+        return '<span class="status-badge status-not-configured">Needs setup</span>';
       } else {
-        const mailto = `mailto:ron@home-glo.com?subject=Device Support Request&body=Manufacturer: ${encodeURIComponent(ctrl.manufacturer || 'Unknown')}%0AModel: ${encodeURIComponent(ctrl.model || 'Unknown')}%0ADevice: ${encodeURIComponent(ctrl.name || '')}`;
-        return `<span class="status-badge status-unsupported">Unsupported</span><a href="${mailto}" class="request-support-link">Request support</a>`;
+        return '<span class="status-badge status-unsupported">Coming soon</span>';
       }
     }
 
@@ -1130,13 +1117,26 @@
       if (!ctrl) return;
 
       try {
-        const payload = {
-          name: ctrl.name,
-          category: category,
-          areas: ctrl.areas || [],
-          device_id: ctrl.device_id,
-          inactive: inactive
-        };
+        let payload;
+        if (category === 'switch') {
+          payload = {
+            name: ctrl.name,
+            category: category,
+            type: ctrl.type,
+            scopes: ctrl.scopes || [],
+            device_id: ctrl.device_id,
+            indicator_light: ctrl.indicator_light,
+            inactive: inactive,
+          };
+        } else {
+          payload = {
+            name: ctrl.name,
+            category: category,
+            areas: ctrl.areas || [],
+            device_id: ctrl.device_id,
+            inactive: inactive,
+          };
+        }
 
         const response = await fetch(`./api/controls/${encodeURIComponent(controlId)}/configure`, {
           method: 'POST',
@@ -1147,14 +1147,22 @@
         if (!response.ok) {
           const data = await response.json();
           alert(data.error || 'Failed to update');
+          renderControls();
           return;
         }
 
-        // Reload to reflect changes
-        await loadData();
+        // Update locally and re-render without full reload
+        ctrl.inactive = inactive;
+        if (inactive && (ctrl.status === 'active' || ctrl.status === 'inactive')) {
+          ctrl.status = 'inactive';
+        } else if (!inactive && ctrl.status === 'inactive') {
+          ctrl.status = 'active';
+        }
+        renderControls();
       } catch (err) {
         console.error('Error toggling inactive:', err);
-        alert('Error updating sensor');
+        alert('Error updating control');
+        renderControls();
       }
     }
 

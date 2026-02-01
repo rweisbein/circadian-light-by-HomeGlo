@@ -762,6 +762,11 @@ class HomeAssistantWebSocketClient:
             await self._handle_unconfigured_switch(device_ieee, event_data)
             return
 
+        if switch_config.inactive:
+            logger.debug(f"Switch {switch_config.name} is inactive/paused, ignoring event")
+            switches.set_last_action(device_ieee, f"{command}")
+            return
+
         # Hue dimmers send duplicate events on multiple clusters:
         # - Cluster 5 (Scenes) for OFF button
         # - Cluster 6 (On/Off) for ON/OFF buttons
@@ -885,6 +890,12 @@ class HomeAssistantWebSocketClient:
             button_event = f"button_{subtype}_{event_type}"
             switches.set_last_action(device_id, button_event)
             logger.debug(f"Event from unconfigured Hue switch: {device_id} - {button_event}")
+            return
+
+        if switch_config.inactive:
+            logger.debug(f"Switch {switch_config.name} is inactive/paused, ignoring event")
+            button_event = f"button_{subtype}_{event_type}"
+            switches.set_last_action(device_id, button_event)
             return
 
         # Map Hue event to our button event format

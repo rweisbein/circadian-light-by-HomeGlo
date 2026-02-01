@@ -1304,7 +1304,6 @@ input[type=range]::-moz-range-thumb {
   <a href="./" class="nav-brand">Circadian Light</a>
   <div class="nav-links">
     <a href="./glo" class="nav-link active">Rhythms</a>
-    <a href="./zones" class="nav-link">Glo zones</a>
     <a href="./switches" class="nav-link">Controls</a>
     <a href="./settings" class="nav-link">Settings</a>
   </div>
@@ -4299,9 +4298,6 @@ async function saveConfig() {
       ...globalSettings,
       circadian_presets: { [selectedGloName]: presetSettings },
     };
-    // Preserve glozones if present
-    if (config.glozones) saveData.glozones = config.glozones;
-
     const resp = await fetch('./api/config', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
