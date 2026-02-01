@@ -1147,14 +1147,22 @@
         if (!response.ok) {
           const data = await response.json();
           alert(data.error || 'Failed to update');
+          renderControls();
           return;
         }
 
-        // Reload to reflect changes
-        await loadData();
+        // Update locally and re-render without full reload
+        ctrl.inactive = inactive;
+        if (inactive && (ctrl.status === 'active' || ctrl.status === 'inactive')) {
+          ctrl.status = 'inactive';
+        } else if (!inactive && ctrl.status === 'inactive') {
+          ctrl.status = 'active';
+        }
+        renderControls();
       } catch (err) {
         console.error('Error toggling inactive:', err);
-        alert('Error updating sensor');
+        alert('Error updating control');
+        renderControls();
       }
     }
 
