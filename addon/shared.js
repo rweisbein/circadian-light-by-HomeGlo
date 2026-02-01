@@ -105,6 +105,9 @@ function initNavSolar() {
       const setEl = document.getElementById('nav-set');
       if (riseEl) riseEl.textContent = '\u2191 ' + formatNavHour(data.sunrise_hour);
       if (setEl) setEl.textContent = '\u2193 ' + formatNavHour(data.sunset_hour);
+      // Show the container once loaded
+      const container = document.getElementById('nav-solar');
+      if (container) container.style.opacity = '1';
     })
     .catch(() => {});
 }

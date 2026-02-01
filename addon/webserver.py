@@ -700,26 +700,38 @@ class LightDesignerServer:
     async def get_sun_times(self, request: Request) -> Response:
         """Get sun times for a specific date (for date slider preview)."""
         try:
-            # Get parameters from query
+            from zoneinfo import ZoneInfo
+
+            # Get parameters from query, falling back to HA environment vars
             date_str = request.query.get('date')
-            lat = float(request.query.get('latitude', 35.0))
-            lon = float(request.query.get('longitude', -78.6))
+            lat = float(request.query.get('latitude', os.getenv("HASS_LATITUDE", "35.0")))
+            lon = float(request.query.get('longitude', os.getenv("HASS_LONGITUDE", "-78.6")))
+            timezone = os.getenv("HASS_TIME_ZONE", "US/Eastern")
+
+            try:
+                tzinfo = ZoneInfo(timezone)
+            except Exception:
+                tzinfo = None
 
             if not date_str:
-                # Default to today
-                date_str = datetime.now().strftime('%Y-%m-%d')
+                # Default to today in local timezone
+                now = datetime.now(tzinfo) if tzinfo else datetime.now()
+                date_str = now.strftime('%Y-%m-%d')
 
             # Calculate sun times using brain.py function
             sun_times = calculate_sun_times(lat, lon, date_str)
 
-            # Helper to convert ISO string to hour
+            # Helper to convert ISO string to hour (with timezone conversion)
             def iso_to_hour(iso_str, default):
                 if not iso_str:
                     return default
                 try:
                     dt = datetime.fromisoformat(iso_str)
+                    # Convert to local timezone if available
+                    if tzinfo and dt.tzinfo:
+                        dt = dt.astimezone(tzinfo)
                     return dt.hour + dt.minute / 60.0 + dt.second / 3600.0
-                except:
+                except Exception:
                     return default
 
             sunrise_hour = iso_to_hour(sun_times.get("sunrise"), 6.0)
