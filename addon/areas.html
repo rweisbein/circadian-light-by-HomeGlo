@@ -896,7 +896,7 @@
     }
 
     .zone-rhythm-label {
-      font-size: 0.75rem;
+      font-size: 0.8rem;
       opacity: 0.6;
     }
 
@@ -904,7 +904,7 @@
       background: transparent;
       border: none;
       padding: 0;
-      font-size: 0.8rem;
+      font-size: 0.85rem;
       font-weight: 600;
       color: inherit;
       cursor: pointer;
@@ -988,6 +988,15 @@
       flex-shrink: 0;
       /* contrast ring set via inline box-shadow using header text color */
     }
+
+    /* Toolbar menu */
+    .toolbar-menu { position: relative; }
+    .toolbar-menu-btn { background: none; border: none; color: var(--muted); font-size: 1.2rem; cursor: pointer; padding: 4px 8px; border-radius: 4px; }
+    .toolbar-menu-btn:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+    .toolbar-menu-dropdown { display: none; position: absolute; right: 0; top: 100%; min-width: 140px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.4); z-index: 50; overflow: hidden; }
+    .toolbar-menu-dropdown.visible { display: block; }
+    .toolbar-menu-item { display: block; padding: 8px 16px; color: var(--muted); text-decoration: none; font-size: 0.85rem; }
+    .toolbar-menu-item:hover { color: var(--text); background: rgba(255,255,255,0.05); }
 
     /* Zone reset button */
     .zone-reset-btn {
@@ -1187,17 +1196,6 @@
       <div class="area-state" id="modal-area-state">
         <div class="area-state-row">
           <div class="area-state-controls-left">
-            <button class="toggle-btn" id="toggle-power" onclick="executeAction('lights_toggle')" title="Power">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M18.36 6.64a9 9 0 1 1-12.73 0M12 2v10"/>
-              </svg>
-            </button>
-            <button class="toggle-btn" id="toggle-freeze" onclick="executeAction('freeze_toggle')" title="Freeze">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-              </svg>
-            </button>
             <button class="toggle-btn" id="toggle-circadian" onclick="toggleCircadian()" title="Circadian">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="12" cy="12" r="5"/>
@@ -1211,6 +1209,22 @@
                 <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
               </svg>
             </button>
+            <button class="toggle-btn" id="toggle-power" onclick="executeAction('lights_toggle')" title="Power">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18.36 6.64a9 9 0 1 1-12.73 0M12 2v10"/>
+              </svg>
+            </button>
+            <button class="toggle-btn" id="toggle-freeze" onclick="executeAction('freeze_toggle')" title="Freeze">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+            </button>
+            <button class="toggle-btn" id="toggle-boost" onclick="executeAction('boost')" title="Boost">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+              </svg>
+            </button>
           </div>
           <div class="area-state-info">
             <div class="area-state-values" id="modal-values"></div>
@@ -1218,12 +1232,8 @@
           <div class="area-state-controls">
             <button class="toggle-btn" id="toggle-reset" onclick="executeAction('reset')" title="GloDown: pull Glo Zone light to this area">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <polyline points="6 9 12 15 18 9"/>
-              </svg>
-            </button>
-            <button class="toggle-btn" id="toggle-boost" onclick="executeAction('boost')" title="Boost">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                <polyline points="6 5 12 11 18 5"/>
+                <polyline points="6 13 12 19 18 13"/>
               </svg>
             </button>
           </div>
@@ -2587,8 +2597,8 @@
       // Chevron icon
       const chevronIcon = `<svg class="zone-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>`;
 
-      // Reset icon (double-down chevron)
-      const zoneResetIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 4 12 10 18 4"/><polyline points="6 10 12 16 18 10"/></svg>`;
+      // Reset icon (double-down chevron with spacing)
+      const zoneResetIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 5 12 11 18 5"/><polyline points="6 13 12 19 18 13"/></svg>`;
 
       // Build toolbar HTML
       let html;
@@ -2605,13 +2615,19 @@
         html = `
           <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;">
             <div class="view-pills">
-              <button class="view-pill ${viewMode === 'custom' ? 'active' : ''}" data-view="custom">Custom</button>
+              <button class="view-pill ${viewMode === 'onoff' ? 'active' : ''}" data-view="onoff">Active first</button>
+              <button class="view-pill ${viewMode === 'custom' ? 'active' : ''}" data-view="custom">Your order</button>
               <button class="view-pill ${viewMode === 'alpha' ? 'active' : ''}" data-view="alpha">A–Z</button>
-              <button class="view-pill ${viewMode === 'onoff' ? 'active' : ''}" data-view="onoff">On · Off</button>
             </div>
             <span style="flex: 1;"></span>
-            <a href="#" id="edit-link" style="font-size: 0.85rem; color: var(--muted); text-decoration: none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">Edit</a>
-            <a href="#" id="refresh-link" style="font-size: 0.85rem; color: var(--muted); text-decoration: none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">Refresh</a>
+            <div class="toolbar-menu">
+              <button class="toolbar-menu-btn" onclick="toggleToolbarMenu(event)">⋮</button>
+              <div class="toolbar-menu-dropdown" id="toolbar-menu-dropdown">
+                <a href="#" class="toolbar-menu-item" id="organize-link">Organize</a>
+                <a href="#" class="toolbar-menu-item" id="refresh-link">Refresh</a>
+                <a href="#" class="toolbar-menu-item" id="add-zone-link">Add Glo Zone</a>
+              </div>
+            </div>
           </div>
         `;
       }
@@ -2693,9 +2709,9 @@
             let wakeBedSpan = '';
             const pr = cachedPresets[zs.preset];
             if (pr && pr.wake_time != null && pr.bed_time != null) {
-              const alarmIcon = `<svg style="width:12px;height:12px;vertical-align:-1px;margin-right:2px;" viewBox="0 0 24 24" fill="none" stroke="#5cb3ff" stroke-width="2"><circle cx="12" cy="13" r="7"/><line x1="12" y1="10" x2="12" y2="13"/><line x1="12" y1="13" x2="14.5" y2="13"/><line x1="1" y1="8" x2="5" y2="4"/><line x1="23" y1="8" x2="19" y2="4"/></svg>`;
-              const bedIcon = `<svg style="width:12px;height:12px;vertical-align:-1px;margin-right:2px;" viewBox="0 0 24 24" fill="none" stroke="#ffe080" stroke-width="2"><path d="M3 21V7h18v14"/><path d="M3 11h18"/><path d="M7 11V8"/><rect x="7" y="11" width="14" height="4" rx="1"/></svg>`;
-              wakeBedSpan = `<span style="margin-left: 6px; white-space: nowrap; font-size: 0.8rem;"><span style="color: #5cb3ff;">${alarmIcon}${formatHourLabel(pr.wake_time)}</span> <span style="opacity: 0.5;">·</span> <span style="color: #ffe080;">${bedIcon}${formatHourLabel(pr.bed_time)}</span></span>`;
+              const alarmIcon = `<svg style="width:12px;height:12px;vertical-align:-1px;margin-right:2px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="13" r="7"/><line x1="12" y1="10" x2="12" y2="13"/><line x1="12" y1="13" x2="14.5" y2="13"/><line x1="1" y1="8" x2="5" y2="4"/><line x1="23" y1="8" x2="19" y2="4"/></svg>`;
+              const bedIcon = `<svg style="width:12px;height:12px;vertical-align:-1px;margin-right:2px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21V7h18v14"/><path d="M3 11h18"/><path d="M7 11V8"/><rect x="7" y="11" width="14" height="4" rx="1"/></svg>`;
+              wakeBedSpan = `<span style="margin-left: 6px; white-space: nowrap; font-size: 0.75rem; color: var(--muted2);">${alarmIcon}${formatHourLabel(pr.wake_time)} <span style="opacity: 0.5;">·</span> ${bedIcon}${formatHourLabel(pr.bed_time)}</span>`;
             }
 
             zoneRhythmLink = `
@@ -2962,22 +2978,25 @@
         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
       </svg>`;
 
-      // GloDown icon (single down chevron — pull from zone)
+      // GloDown icon (double down chevron — pull from zone)
       const resetIconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-        <polyline points="6 9 12 15 18 9"/>
+        <polyline points="6 5 12 11 18 5"/>
+        <polyline points="6 13 12 19 18 13"/>
       </svg>`;
 
       // GloUp icon (one up arrow + two down arrows — push to zone)
       const pushIconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-        <polyline points="6 9 12 3 18 9"/>
+        <polyline points="6 8 12 2 18 8"/>
         <polyline points="6 14 12 20 18 14"/>
-        <polyline points="6 18 12 24 18 18"/>
+        <polyline points="6 19 12 25 18 19"/>
       </svg>`;
 
       const leftControls = `
         <div class="row-controls-left">
           <button class="row-btn ${isCircadian ? 'active' : ''}" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'circadian_toggle')" title="Circadian">${sunIconSvg}</button>
           <button class="row-btn ${isOn ? 'active' : ''}" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'lights_toggle')" title="Power">${powerIconSvg}</button>
+          <button class="row-btn ${area.frozen ? 'active' : ''}" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'freeze_toggle')" title="Freeze">${lockIconSvg}</button>
+          <button class="row-btn ${area.boosted ? 'active' : ''}" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'boost')" title="Boost">${boostIconSvg}</button>
         </div>
       `;
 
@@ -2991,10 +3010,22 @@
       return { leftControls, rightControls };
     }
 
+    function toggleToolbarMenu(event) {
+      event.stopPropagation();
+      const dd = document.getElementById('toolbar-menu-dropdown');
+      if (dd) dd.classList.toggle('visible');
+    }
+
     function setupEventListeners() {
+      // Close toolbar menu when clicking outside
+      document.addEventListener('click', () => {
+        const dd = document.getElementById('toolbar-menu-dropdown');
+        if (dd) dd.classList.remove('visible');
+      });
       document.getElementById('areas-container').addEventListener('click', (e) => {
         if (e.target.id === 'refresh-link') { e.preventDefault(); loadData(); }
-        if (e.target.id === 'edit-link') { e.preventDefault(); enterEditMode(); }
+        if (e.target.id === 'organize-link') { e.preventDefault(); enterEditMode(); }
+        if (e.target.id === 'add-zone-link') { e.preventDefault(); createZoneFromEdit(); }
       });
 
       // View mode pill clicks
