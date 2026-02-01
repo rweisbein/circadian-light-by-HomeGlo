@@ -2550,11 +2550,8 @@
 
       // Sort areas within each zone group
       const sortAreas = (list) => {
-        if (viewMode === 'custom') return list; // preserve API order
+        if (viewMode === 'custom' || viewMode === 'onoff') return list; // preserve API order
         return [...list].sort((a, b) => {
-          if (viewMode === 'onoff') {
-            if (a.is_on !== b.is_on) return a.is_on ? -1 : 1;
-          }
           return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
         });
       };
@@ -2615,7 +2612,7 @@
         html = `
           <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;">
             <div class="view-pills">
-              <button class="view-pill ${viewMode === 'onoff' ? 'active' : ''}" data-view="onoff">Active first</button>
+              <button class="view-pill ${viewMode === 'onoff' ? 'active' : ''}" data-view="onoff">'On' first</button>
               <button class="view-pill ${viewMode === 'custom' ? 'active' : ''}" data-view="custom">Your order</button>
               <button class="view-pill ${viewMode === 'alpha' ? 'active' : ''}" data-view="alpha">A–Z</button>
             </div>
