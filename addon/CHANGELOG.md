@@ -1,5 +1,15 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.250
+**UI polish, NiteLite/BriteLite links, fix glo zone save bug**
+
+- **Bug fix**: Saving/creating/deleting a Glo Zone now fires `circadian_light_refresh` event so main.py reloads config immediately — previously lights would go white/bright and zones would temporarily disappear
+- **Area modal**: Reorder header buttons — left: Power, Freeze, Circadian; right: GloDown (down arrow), Boost
+- **Area modal**: Add NiteLite and BriteLite links below the step/brightness/color controls
+- **Area modal**: GloDown button now uses down-chevron icon matching the home page
+- **On/Off grouping**: Green dot for On section, muted circle for Off section
+- **On/Off grouping**: Empty zones within a section are no longer shown (zone only appears in On if it has on areas, etc.)
+
 ## 6.9.249
 **Add grouping dropdown: Glo Zone or On/Off**
 
