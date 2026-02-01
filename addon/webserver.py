@@ -3551,9 +3551,9 @@ class LightDesignerServer:
                     "last_action": last_action,
                 }
 
+                control_data["inactive"] = config.get("inactive", False)
                 if category in ("motion_sensor", "contact_sensor"):
                     control_data["areas"] = config.get("areas", [])
-                    control_data["inactive"] = config.get("inactive", False)
                 else:
                     control_data["scopes"] = config.get("scopes", [])
                     control_data["indicator_light"] = config.get("indicator_light")
@@ -3830,6 +3830,7 @@ class LightDesignerServer:
                     scopes=scopes,
                     device_id=device_id,
                     indicator_light=indicator_light,
+                    inactive=data.get("inactive", False),
                 )
 
                 switches.add_switch(switch_config)

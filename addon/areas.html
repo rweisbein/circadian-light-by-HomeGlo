@@ -1189,7 +1189,7 @@
 
       <div class="modal-context-info" id="modal-context-info">
         <div class="context-line"><span class="context-label">Glo zone:</span> <span class="context-link" id="modal-zone-link">—</span></div>
-        <div class="context-line"><span class="context-label">Rhythm:</span> <a href="./glo" class="context-link" id="modal-rhythm-link">—</a></div>
+        <div class="context-line"><span class="context-label">Rhythm:</span> <span class="context-link" id="modal-rhythm-link">—</span></div>
       </div>
 
       <div class="area-state" id="modal-area-state">
@@ -2615,7 +2615,7 @@
         html = `
           <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;">
             <div class="view-pills">
-              <button class="view-pill ${viewMode === 'onoff' ? 'active' : ''}" data-view="onoff"><svg style="width:14px;height:14px;vertical-align:-2px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></svg></button>
+              <button class="view-pill ${viewMode === 'onoff' ? 'active' : ''}" data-view="onoff">💡</button>
               <button class="view-pill ${viewMode === 'custom' ? 'active' : ''}" data-view="custom">Your order</button>
               <button class="view-pill ${viewMode === 'alpha' ? 'active' : ''}" data-view="alpha">A–Z</button>
             </div>
@@ -2999,9 +2999,9 @@
 
       // GloUp icon (one up arrow + two down arrows — push to zone)
       const pushIconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-        <polyline points="6 8 12 2 18 8"/>
-        <polyline points="6 15 12 21 18 15"/>
-        <polyline points="6 22 12 28 18 22"/>
+        <polyline points="6 6 12 1 18 6"/>
+        <polyline points="6 14 12 19 18 14"/>
+        <polyline points="6 19 12 24 18 19"/>
       </svg>`;
 
       const leftControls = `
@@ -3138,10 +3138,8 @@
       }
       if (selectedArea.preset_name) {
         rhythmLinkEl.textContent = selectedArea.preset_name;
-        rhythmLinkEl.href = `./glo/${encodeURIComponent(selectedArea.preset_name)}`;
       } else {
         rhythmLinkEl.textContent = '—';
-        rhythmLinkEl.href = './glo';
       }
 
       // Timer status (motion + boost)
