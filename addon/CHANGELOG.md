@@ -1,5 +1,26 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.252
+**Edit Mode, nav solar display, Glo Zones cleanup**
+
+- **Edit Mode**: New "Edit" link on the home page (areas.html) to enter edit mode
+  - Reorder zones with up/down arrows (persisted via new reorder API)
+  - Rename zones inline with pencil icon
+  - Delete zones with trash icon (areas move to default zone)
+  - Create new zones with "+ New Zone"
+  - Drag and drop areas between zones and reorder within zones
+  - Auto-refresh paused during editing to prevent conflicts
+- **Nav bar solar display**: Sunrise/sunset times shown in the nav bar across all 5 pages
+  - Replaces the inline solar/moon display on the home page
+  - Uses existing `/api/sun_times` endpoint via `shared.js`
+- **Glo Zones page cleanup**: Simplified to focus on zone/area organization
+  - Removed sun timeline display (now in nav bar)
+  - Removed brightness/color from area chips (name only)
+  - Removed Glo state visualization from zone headers
+  - Removed rhythm dropdown and wake/bed times from zone headers
+  - Kept: zone cards, drag-and-drop, create/delete/rename
+- **API**: Added `PUT /api/glozones/reorder` and `PUT /api/glozones/{name}/reorder-areas` endpoints
+
 ## 6.9.251
 **Replace group dropdown with checkbox, simplify sort options**
 
