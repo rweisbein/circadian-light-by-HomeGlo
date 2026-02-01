@@ -581,6 +581,25 @@
     }
 
     /* Adjust buttons - styled like glo-designer */
+    .modal-presets {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      padding: 4px 0 12px;
+    }
+
+    .modal-preset-link {
+      font-size: 0.8rem;
+      color: var(--muted);
+      text-decoration: none;
+      letter-spacing: 0.03em;
+    }
+
+    .modal-preset-link:hover {
+      color: var(--text);
+      text-decoration: underline;
+    }
+
     .adjust-section {
       margin-bottom: 16px;
     }
@@ -1068,6 +1087,17 @@
       <div class="area-state" id="modal-area-state">
         <div class="area-state-row">
           <div class="area-state-controls-left">
+            <button class="toggle-btn" id="toggle-power" onclick="executeAction('lights_toggle')" title="Power">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18.36 6.64a9 9 0 1 1-12.73 0M12 2v10"/>
+              </svg>
+            </button>
+            <button class="toggle-btn" id="toggle-freeze" onclick="executeAction('freeze_toggle')" title="Freeze">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+            </button>
             <button class="toggle-btn" id="toggle-circadian" onclick="toggleCircadian()" title="Circadian">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="12" cy="12" r="5"/>
@@ -1081,26 +1111,14 @@
                 <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
               </svg>
             </button>
-            <button class="toggle-btn" id="toggle-power" onclick="executeAction('lights_toggle')" title="Power">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M18.36 6.64a9 9 0 1 1-12.73 0M12 2v10"/>
-              </svg>
-            </button>
           </div>
           <div class="area-state-info">
             <div class="area-state-values" id="modal-values"></div>
           </div>
           <div class="area-state-controls">
-            <button class="toggle-btn" id="toggle-reset" onclick="executeAction('reset')" title="Pull Area's light from Glo Zone's">
+            <button class="toggle-btn" id="toggle-reset" onclick="executeAction('reset')" title="GloDown: pull Glo Zone light to this area">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-                <path d="M3 3v5h5"/>
-              </svg>
-            </button>
-            <button class="toggle-btn" id="toggle-freeze" onclick="executeAction('freeze_toggle')" title="Freeze">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                <polyline points="6 9 12 15 18 9"/>
               </svg>
             </button>
             <button class="toggle-btn" id="toggle-boost" onclick="executeAction('boost')" title="Boost">
@@ -1140,6 +1158,11 @@
             </div>
           </div>
         </div>
+      </div>
+
+      <div class="modal-presets">
+        <a href="#" class="modal-preset-link" onclick="event.preventDefault(); executeAction('set_nitelite')">NiteLite</a>
+        <a href="#" class="modal-preset-link" onclick="event.preventDefault(); executeAction('set_britelite')">BriteLite</a>
       </div>
 
     </div>
@@ -2490,8 +2513,8 @@
           return sectionHtml;
         };
 
-        html += renderOnOffSection('On', onAreas, '●');
-        html += renderOnOffSection('Off', offAreas, '○');
+        html += renderOnOffSection('On', onAreas, '<span style="color: var(--success); font-size: 0.6rem; vertical-align: 1px;">●</span>');
+        html += renderOnOffSection('Off', offAreas, '<span style="color: var(--muted2); font-size: 0.5rem; vertical-align: 1px;">○</span>');
       } else {
         // Default: group by zone
         for (const zoneName of zoneNames) {
