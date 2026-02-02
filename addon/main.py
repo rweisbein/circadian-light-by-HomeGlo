@@ -763,7 +763,7 @@ class HomeAssistantWebSocketClient:
             return
 
         if switch_config.inactive:
-            logger.debug(f"Switch {switch_config.name} is inactive/paused, ignoring event")
+            logger.info(f"Switch {switch_config.name} is inactive/paused, ignoring event")
             switches.set_last_action(device_ieee, f"{command}")
             return
 
@@ -893,7 +893,7 @@ class HomeAssistantWebSocketClient:
             return
 
         if switch_config.inactive:
-            logger.debug(f"Switch {switch_config.name} is inactive/paused, ignoring event")
+            logger.info(f"Switch {switch_config.name} is inactive/paused, ignoring event")
             button_event = f"button_{subtype}_{event_type}"
             switches.set_last_action(device_id, button_event)
             return
