@@ -624,6 +624,57 @@
       font-size: 0.8rem;
       max-width: 160px;
     }
+
+    .toolbar-menu {
+      position: relative;
+    }
+
+    .toolbar-menu-btn {
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--text);
+      font-size: 1.3rem;
+      padding: 4px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      line-height: 1;
+      transition: all 0.2s;
+    }
+
+    .toolbar-menu-btn:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .toolbar-menu-dropdown {
+      display: none;
+      position: absolute;
+      right: 0;
+      top: 100%;
+      margin-top: 4px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      min-width: 140px;
+      z-index: 50;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .toolbar-menu-dropdown.open {
+      display: block;
+    }
+
+    .toolbar-menu-item {
+      display: block;
+      padding: 10px 16px;
+      color: var(--text);
+      text-decoration: none;
+      font-size: 0.9rem;
+      transition: background 0.15s;
+    }
+
+    .toolbar-menu-item:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
   </style>
 </head>
 <body>
@@ -647,11 +698,13 @@
   <!-- Main Content -->
   <main class="main">
     <div class="page-header">
-      <div style="display: flex; align-items: center; justify-content: space-between;">
-        <h1 class="page-title">Controls</h1>
-        <div style="display: flex; align-items: center; gap: 16px;">
-          <a href="#" class="clear-filters-link" id="clear-filters-link" style="display: none;" onclick="clearFilters(); return false;">Clear filters</a>
-          <button class="btn btn-secondary" id="update-btn">Update</button>
+      <div style="display: flex; align-items: center; justify-content: flex-end; gap: 16px;">
+        <a href="#" class="clear-filters-link" id="clear-filters-link" style="display: none;" onclick="clearFilters(); return false;">Clear filters</a>
+        <div class="toolbar-menu">
+          <button class="toolbar-menu-btn" onclick="toggleToolbarMenu(event)">&#8942;</button>
+          <div class="toolbar-menu-dropdown" id="toolbar-menu-dropdown">
+            <a href="#" class="toolbar-menu-item" id="refresh-link" onclick="loadData(); toggleToolbarMenu(event); return false;">Refresh</a>
+          </div>
         </div>
       </div>
     </div>
@@ -738,6 +791,7 @@
     let categoryFilter = 'all';
     let areaFilter = 'all';
     let statusFilter = 'all';
+    let pauseFilter = 'all';
 
     // Initialize
     document.addEventListener('DOMContentLoaded', async () => {
@@ -757,6 +811,7 @@
           categoryFilter = prefs.category_filter || 'all';
           areaFilter = prefs.area_filter || 'all';
           statusFilter = prefs.status_filter || 'all';
+          pauseFilter = prefs.pause_filter || 'all';
         }
       } catch (err) {
         console.error('Error loading preferences:', err);
@@ -774,7 +829,8 @@
               sort_asc: sortAsc,
               category_filter: categoryFilter,
               area_filter: areaFilter,
-              status_filter: statusFilter
+              status_filter: statusFilter,
+              pause_filter: pauseFilter
             }
           })
         });
@@ -851,6 +907,8 @@
         if (areaFilter === 'unassigned' && c.area_name) return false;  // Show only unassigned
         if (areaFilter !== 'all' && areaFilter !== 'unassigned' && c.area_name !== areaFilter) return false;
         if (statusFilter !== 'all' && c.status !== statusFilter) return false;
+        if (pauseFilter === 'paused' && !c.inactive) return false;
+        if (pauseFilter === 'live' && c.inactive) return false;
         return true;
       });
 
@@ -884,6 +942,10 @@
             valA = (a.integration || '').toLowerCase();
             valB = (b.integration || '').toLowerCase();
             break;
+          case 'pause':
+            valA = a.inactive ? 0 : 1;
+            valB = b.inactive ? 0 : 1;
+            break;
           case 'lastAction':
             // Sort by timestamp (ISO format sorts alphabetically correctly)
             valA = (a.last_action?.timestamp || '');
@@ -912,12 +974,12 @@
         (hasUnassigned ? `<option value="unassigned" ${areaFilter === 'unassigned' ? 'selected' : ''}>— Unassigned —</option>` : '') +
         areas.map(a => `<option value="${a}" ${areaFilter === a ? 'selected' : ''}>${a}</option>`).join('');
 
-      const statusLabels = { 'active': 'Active', 'inactive': 'Active', 'not_configured': 'Needs setup', 'unsupported': 'Coming soon' };
+      const statusLabels = { 'active': 'Active', 'not_configured': 'Needs setup', 'unsupported': 'Coming soon' };
       const statusOptions = `<option value="all">All</option>` +
         statuses.map(s => `<option value="${s}" ${statusFilter === s ? 'selected' : ''}>${statusLabels[s] || s}</option>`).join('');
 
       // Check if any filters are active and show/hide clear filters link
-      const hasActiveFilters = categoryFilter !== 'all' || areaFilter !== 'all' || statusFilter !== 'all';
+      const hasActiveFilters = categoryFilter !== 'all' || areaFilter !== 'all' || statusFilter !== 'all' || pauseFilter !== 'all';
       document.getElementById('clear-filters-link').style.display = hasActiveFilters ? 'inline' : 'none';
 
       container.innerHTML = `
@@ -925,7 +987,16 @@
           <thead>
             <tr>
               <th class="${thClass('name')}" onclick="sortBy('name')">Name ${arrow('name')}</th>
-              <th>Pause</th>
+              <th class="${thClass('pause')}">
+                <div class="th-with-filter">
+                  <div class="th-title-row" onclick="sortBy('pause')">Pause ${arrow('pause')}</div>
+                  <select class="header-filter" id="pause-filter" onclick="event.stopPropagation()">
+                    <option value="all">All</option>
+                    <option value="paused" ${pauseFilter === 'paused' ? 'selected' : ''}>Paused</option>
+                    <option value="live" ${pauseFilter === 'live' ? 'selected' : ''}>Live</option>
+                  </select>
+                </div>
+              </th>
               <th class="${thClass('category')}">
                 <div class="th-with-filter">
                   <div class="th-title-row" onclick="sortBy('category')">Category ${arrow('category')}</div>
@@ -945,13 +1016,12 @@
                 </div>
               </th>
               <th class="${thClass('lastAction')}" onclick="sortBy('lastAction')">Last action ${arrow('lastAction')}</th>
-              <th>Indicator</th>
             </tr>
           </thead>
           <tbody>
             ${sorted.length === 0 ? `
               <tr>
-                <td colspan="7" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                <td colspan="6" style="text-align: center; padding: 40px; color: var(--text-secondary);">
                   ${controls.length > 0
                     ? 'No controls match the current filters.'
                     : 'No controls found. Click Update to scan Home Assistant.'}
@@ -972,15 +1042,6 @@
                      <input type="checkbox" ${ctrl.inactive ? 'checked' : ''} onchange="toggleInactive('${ctrl.id}', '${ctrl.category}', this.checked)">
                    </label>`
                 : '';
-              // Indicator light dropdown for configured switches
-              const isSwitch = ctrl.category === 'switch';
-              const switchConfigured = isSwitch && (ctrl.status === 'active');
-              const indicatorCell = switchConfigured
-                ? `<select class="indicator-inline-select" data-control-id="${ctrl.id}" data-area-id="${ctrl.area_id || ''}"
-                     onchange="updateIndicatorLight('${ctrl.id}', this.value)">
-                     <option value="">None</option>
-                   </select>`
-                : '—';
               return `
                 <tr>
                   <td>${nameCell}</td>
@@ -989,7 +1050,6 @@
                   <td>${areaName}</td>
                   <td>${statusBadge}</td>
                   <td>${lastAction}</td>
-                  <td>${indicatorCell}</td>
                 </tr>
               `;
             }).join('')}
@@ -1107,6 +1167,7 @@
       categoryFilter = 'all';
       areaFilter = 'all';
       statusFilter = 'all';
+      pauseFilter = 'all';
       savePreferences();
       renderControls();
     }
@@ -1153,11 +1214,6 @@
 
         // Update locally and re-render without full reload
         ctrl.inactive = inactive;
-        if (inactive && (ctrl.status === 'active' || ctrl.status === 'inactive')) {
-          ctrl.status = 'inactive';
-        } else if (!inactive && ctrl.status === 'inactive') {
-          ctrl.status = 'active';
-        }
         renderControls();
       } catch (err) {
         console.error('Error toggling inactive:', err);
@@ -1241,8 +1297,17 @@
       return area ? area.name : areaId;
     }
 
+    function toggleToolbarMenu(event) {
+      event.stopPropagation();
+      document.getElementById('toolbar-menu-dropdown').classList.toggle('open');
+    }
+
+    document.addEventListener('click', () => {
+      const dropdown = document.getElementById('toolbar-menu-dropdown');
+      if (dropdown) dropdown.classList.remove('open');
+    });
+
     function setupEventListeners() {
-      document.getElementById('update-btn').addEventListener('click', loadData);
       document.getElementById('modal-cancel').addEventListener('click', hideModal);
       document.getElementById('modal-save').addEventListener('click', saveControl);
       document.getElementById('modal-remove-config').addEventListener('click', removeConfig);
@@ -1264,6 +1329,10 @@
           renderControls();
         } else if (e.target.id === 'status-filter') {
           statusFilter = e.target.value;
+          savePreferences();
+          renderControls();
+        } else if (e.target.id === 'pause-filter') {
+          pauseFilter = e.target.value;
           savePreferences();
           renderControls();
         }

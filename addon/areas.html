@@ -2723,6 +2723,7 @@
           const tintedColor = tintColorByBrightness(cctColor, zoneBri);
           zoneTextColor = readableTextColor(tintedColor);
           zoneHeaderStyle = `background: ${tintedColor}; color: ${zoneTextColor}; --header-fill: ${zoneBri / 100};`;
+          if (allOff) zoneHeaderStyle = '';
           zoneLightingInfo = `<span style="font-size: 0.8rem; opacity: 0.85;">${Math.round(zoneBri)}% · ${Math.round(zoneKelvin)}K</span>`;
 
           // Rhythm dropdown + wake/bed times combined pill
