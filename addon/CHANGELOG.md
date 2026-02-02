@@ -1,18 +1,5 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
-## 6.9.254
-**Atomic config writes, bug fixes, UI polish**
-
-- **Atomic file writes**: All config saves (designer, switches, last actions) now write to `.tmp` then `os.replace()` to prevent race-condition data loss
-- **Remove dangerous repair logic**: Corrupted JSON files are backed up but no longer overwritten with partial data
-- **Skip refresh on display-only operations**: Reordering zones/areas and renaming zones no longer fire `circadian_light_refresh`, eliminating the most common race trigger
-- **Fix solar rule persistence**: `saveGloSettings()` now sends all solar rule fields (`warm_night_*`, `cool_day_*`, `activity_preset`, `max_dim_steps`) to the backend
-- **Fix PosixPath crash**: Atomic write for switch last actions no longer crashes on `PosixPath + str`, restoring all switch/motion/contact sensor handling
-- **Rhythm dropdown bleed-through**: Increased z-index and added isolation so area text doesn't show through the dropdown
-- **Off zone header styling**: Zone headers with lights off now use plain black background instead of gradient shading
-- **Chevron tap target**: Expand/collapse tap target reduced to just the arrow instead of the whole zone header row
-- **GloReset icon**: New refresh circle with double-down arrow icon
-
 ## 6.9.252
 **Edit Mode, nav solar display, Glo Zones cleanup**
 
