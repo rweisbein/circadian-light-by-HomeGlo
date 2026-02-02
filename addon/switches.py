@@ -1178,6 +1178,5 @@ def get_switches_summary() -> List[Dict[str, Any]]:
             "scopes": [{"areas": s.areas} for s in switch.scopes],
             "device_id": switch.device_id,
             "indicator_light": switch.indicator_light,
-            "inactive": switch.inactive,
         })
     return result
