@@ -3598,6 +3598,7 @@ class LightDesignerServer:
                     "supported": ctrl.get("supported"),
                     "status": status,
                     "last_action": last_action,
+                    "illuminance": ctrl.get("illuminance"),
                 }
 
                 control_data["inactive"] = config.get("inactive", False)
@@ -3684,7 +3685,7 @@ class LightDesignerServer:
                 entity_msg = json.loads(await ws.recv())
 
                 # Track entity types per device
-                device_entities: Dict[str, Dict[str, bool]] = {}
+                device_entities: Dict[str, Dict[str, Any]] = {}
                 if entity_msg.get('success') and entity_msg.get('result'):
                     for entity in entity_msg['result']:
                         device_id = entity.get('device_id')
@@ -3700,6 +3701,7 @@ class LightDesignerServer:
                                 'has_contact': False,
                                 'has_button': False,
                                 'has_battery': False,
+                                'illuminance_entity': None,
                             }
 
                         if entity_id.startswith('light.'):
@@ -3719,6 +3721,24 @@ class LightDesignerServer:
                                 device_entities[device_id]['has_contact'] = True
                         elif entity_id.startswith('sensor.') and '_battery' in entity_id:
                             device_entities[device_id]['has_battery'] = True
+                        elif entity_id.startswith('sensor.') and ('illuminance' in entity_id or '_lux' in entity_id):
+                            device_entities[device_id]['illuminance_entity'] = entity_id
+
+                # Fetch current entity states for illuminance readings
+                entity_states = {}
+                illuminance_entities = {
+                    de['illuminance_entity']
+                    for de in device_entities.values()
+                    if de.get('illuminance_entity')
+                }
+                if illuminance_entities:
+                    await ws.send(json.dumps({'id': 4, 'type': 'get_states'}))
+                    states_msg = json.loads(await ws.recv())
+                    if states_msg.get('success') and states_msg.get('result'):
+                        for state in states_msg['result']:
+                            eid = state.get('entity_id', '')
+                            if eid in illuminance_entities:
+                                entity_states[eid] = state.get('state')
 
                 # Filter to potential controls
                 controls = []
@@ -3796,12 +3816,28 @@ class LightDesignerServer:
                         detected_type is not None
                     )
 
+                    # Attach illuminance entity info if present
+                    illum_entity = entities.get('illuminance_entity')
+                    illum_info = None
+                    if illum_entity:
+                        raw_val = entity_states.get(illum_entity)
+                        try:
+                            illum_val = round(float(raw_val)) if raw_val not in (None, 'unavailable', 'unknown') else None
+                        except (ValueError, TypeError):
+                            illum_val = None
+                        illum_info = {
+                            'entity_id': illum_entity,
+                            'value': illum_val,
+                            'unit': 'lx',
+                        }
+
                     controls.append({
                         **device,
                         'category': category,
                         'type': detected_type,
                         'type_name': type_name,
                         'supported': is_supported,
+                        'illuminance': illum_info,
                     })
 
                 logger.info(f"[Controls] Returning {len(controls)} controls: {[(c.get('name'), c.get('category')) for c in controls]}")

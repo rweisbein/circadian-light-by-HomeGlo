@@ -1016,12 +1016,13 @@
                 </div>
               </th>
               <th class="${thClass('lastAction')}" onclick="sortBy('lastAction')">Last action ${arrow('lastAction')}</th>
+              <th>Lux</th>
             </tr>
           </thead>
           <tbody>
             ${sorted.length === 0 ? `
               <tr>
-                <td colspan="6" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                <td colspan="7" style="text-align: center; padding: 40px; color: var(--text-secondary);">
                   ${controls.length > 0
                     ? 'No controls match the current filters.'
                     : 'No controls found. Click Update to scan Home Assistant.'}
@@ -1042,6 +1043,9 @@
                      <input type="checkbox" ${ctrl.inactive ? 'checked' : ''} onchange="toggleInactive('${ctrl.id}', '${ctrl.category}', this.checked)">
                    </label>`
                 : '';
+              const luxCell = ctrl.illuminance && ctrl.illuminance.value != null
+                ? `${ctrl.illuminance.value} lx`
+                : '—';
               return `
                 <tr>
                   <td>${nameCell}</td>
@@ -1050,6 +1054,7 @@
                   <td>${areaName}</td>
                   <td>${statusBadge}</td>
                   <td>${lastAction}</td>
+                  <td>${luxCell}</td>
                 </tr>
               `;
             }).join('')}
