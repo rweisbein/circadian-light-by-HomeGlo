@@ -57,7 +57,7 @@ def _save_last_actions(actions: Dict[str, str]) -> None:
     """Save all last actions to file."""
     action_file = _get_last_action_file()
     try:
-        tmp_file = action_file + ".tmp"
+        tmp_file = str(action_file) + ".tmp"
         with open(tmp_file, "w") as f:
             json.dump(actions, f, indent=2)
         os.replace(tmp_file, action_file)
