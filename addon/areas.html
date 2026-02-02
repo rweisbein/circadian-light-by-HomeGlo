@@ -3588,6 +3588,18 @@
         });
 
         if (response.ok) {
+          // Zone modal: push proxy area's change to entire zone via glo_up
+          if (selectedZoneName) {
+            try {
+              await fetch('./api/area/action', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ area_id: areaId, action: 'glo_up' })
+              });
+            } catch (err) {
+              console.error('Error pushing glo_up after zone action:', err);
+            }
+          }
           // Re-fetch status, then update modal in place
           setTimeout(async () => {
             try {
