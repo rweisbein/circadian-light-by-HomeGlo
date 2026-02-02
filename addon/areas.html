@@ -3573,52 +3573,46 @@
     }
 
     async function executeAction(action) {
-      if (!selectedArea) return;
-
-      const areaId = selectedArea.area_id;
+      if (!selectedArea && !selectedZoneName) return;
 
       try {
-        const response = await fetch('./api/area/action', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            area_id: areaId,
-            action: action
-          })
-        });
+        let response;
+        if (selectedZoneName) {
+          // Zone modal: modify zone state directly
+          response = await fetch('./api/zone/action', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              zone_name: selectedZoneName,
+              action: action
+            })
+          });
+        } else {
+          // Area modal: modify area state
+          response = await fetch('./api/area/action', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              area_id: selectedArea.area_id,
+              action: action
+            })
+          });
+        }
 
         if (response.ok) {
-          // Zone modal: push proxy area's change to entire zone via glo_up
-          if (selectedZoneName) {
-            try {
-              await fetch('./api/area/action', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ area_id: areaId, action: 'glo_up' })
-              });
-            } catch (err) {
-              console.error('Error pushing glo_up after zone action:', err);
-            }
-          }
           // Re-fetch status, then update modal in place
           setTimeout(async () => {
             try {
               if (selectedZoneName) {
                 // Zone modal: re-fetch zone states and update zone modal
-                const [zsRes, aRes] = await Promise.all([
-                  fetch('./api/zone-states'),
-                  fetch(`./api/area-status?area_id=${encodeURIComponent(areaId)}`)
-                ]);
+                const zsRes = await fetch('./api/zone-states');
                 if (zsRes.ok) {
                   const zs = await zsRes.json();
                   zoneStates = zs.zone_states || {};
                 }
-                if (aRes.ok) {
-                  const singleStatus = await aRes.json();
-                  Object.assign(areaStatus, singleStatus);
-                }
                 updateZoneModalContent(selectedZoneName);
               } else {
+                const areaId = selectedArea.area_id;
                 const res = await fetch(`./api/area-status?area_id=${encodeURIComponent(areaId)}`);
                 if (res.ok) {
                   const singleStatus = await res.json();

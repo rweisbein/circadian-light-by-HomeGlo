@@ -695,6 +695,36 @@ def get_effective_config_for_area(area_id: str, include_global: bool = True) -> 
     return result
 
 
+def get_effective_config_for_zone(zone_name: str, include_global: bool = True) -> Dict[str, Any]:
+    """Get the effective configuration for a zone.
+
+    Combines the preset settings for the zone with global settings.
+
+    Args:
+        zone_name: The zone name
+        include_global: Whether to include global settings (latitude, etc.)
+
+    Returns:
+        Flat config dict with all settings merged
+    """
+    if _config is None:
+        load_config_from_files()
+
+    result = {}
+
+    preset_name = get_preset_for_zone(zone_name)
+    if preset_name:
+        preset_config = get_preset_config(preset_name)
+        result.update(preset_config)
+
+    if include_global and _config:
+        for key in GLOBAL_SETTINGS:
+            if key in _config:
+                result[key] = _config[key]
+
+    return result
+
+
 def reload_config() -> Dict[str, Any]:
     """Reload config from files.
 

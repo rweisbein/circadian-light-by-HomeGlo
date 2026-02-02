@@ -2056,6 +2056,194 @@ class CircadianLightPrimitives:
         logger.info(f"GloReset complete: reset {len(zone_areas)} area(s) in zone '{zone_name}'")
 
     # -------------------------------------------------------------------------
+    # Zone-level actions (modify zone state only, no light control)
+    # -------------------------------------------------------------------------
+
+    def _get_zone_config(self, zone_name: str) -> Config:
+        """Get config for a zone."""
+        config_dict = glozone.get_effective_config_for_zone(zone_name)
+        if config_dict:
+            return Config.from_dict(config_dict)
+        return self._get_config()
+
+    def _get_zone_area_state(self, zone_name: str) -> AreaState:
+        """Create an AreaState from zone runtime state for calculation purposes."""
+        zs = glozone_state.get_zone_state(zone_name)
+        return AreaState(
+            is_circadian=True,
+            is_on=True,
+            frozen_at=zs.get("frozen_at"),
+            brightness_mid=zs.get("brightness_mid"),
+            color_mid=zs.get("color_mid"),
+            color_override=zs.get("color_override"),
+        )
+
+    def _update_zone_state(self, zone_name: str, updates: dict):
+        """Write state_updates back to zone runtime state."""
+        glozone_state.set_zone_state(zone_name, updates)
+
+    async def zone_step_up(self, zone_name: str, source: str = "webserver"):
+        """Step up zone state along circadian curve."""
+        config = self._get_zone_config(zone_name)
+        zone_state = self._get_zone_area_state(zone_name)
+
+        if zone_state.frozen_at is not None:
+            frozen_bri = CircadianLight.calculate_brightness_at_hour(
+                zone_state.frozen_at, config, zone_state
+            )
+            frozen_cct = CircadianLight.calculate_color_at_hour(
+                zone_state.frozen_at, config, zone_state, apply_solar_rules=False
+            )
+            bri_margin = max(1.0, (config.max_brightness - config.min_brightness) * 0.01)
+            cct_margin = max(10, (config.max_color_temp - config.min_color_temp) * 0.01)
+            if frozen_bri >= config.max_brightness - bri_margin and frozen_cct >= config.max_color_temp - cct_margin:
+                logger.info(f"Zone step up at limit for '{zone_name}'")
+                return
+            # Unfreeze
+            self._update_zone_state(zone_name, {"frozen_at": None})
+            zone_state = self._get_zone_area_state(zone_name)
+
+        hour = get_current_hour()
+        sun_times = self.client._get_sun_times() if hasattr(self.client, '_get_sun_times') else None
+        result = CircadianLight.calculate_step(hour=hour, direction="up", config=config, state=zone_state, sun_times=sun_times)
+        if result is None:
+            logger.info(f"Zone step up at limit for '{zone_name}'")
+            return
+        self._update_zone_state(zone_name, result.state_updates)
+        logger.info(f"[{source}] Zone step up for '{zone_name}': {result.state_updates}")
+
+    async def zone_step_down(self, zone_name: str, source: str = "webserver"):
+        """Step down zone state along circadian curve."""
+        config = self._get_zone_config(zone_name)
+        zone_state = self._get_zone_area_state(zone_name)
+
+        if zone_state.frozen_at is not None:
+            frozen_bri = CircadianLight.calculate_brightness_at_hour(
+                zone_state.frozen_at, config, zone_state
+            )
+            frozen_cct = CircadianLight.calculate_color_at_hour(
+                zone_state.frozen_at, config, zone_state, apply_solar_rules=False
+            )
+            bri_margin = max(1.0, (config.max_brightness - config.min_brightness) * 0.01)
+            cct_margin = max(10, (config.max_color_temp - config.min_color_temp) * 0.01)
+            if frozen_bri <= config.min_brightness + bri_margin and frozen_cct <= config.min_color_temp + cct_margin:
+                logger.info(f"Zone step down at limit for '{zone_name}'")
+                return
+            self._update_zone_state(zone_name, {"frozen_at": None})
+            zone_state = self._get_zone_area_state(zone_name)
+
+        hour = get_current_hour()
+        sun_times = self.client._get_sun_times() if hasattr(self.client, '_get_sun_times') else None
+        result = CircadianLight.calculate_step(hour=hour, direction="down", config=config, state=zone_state, sun_times=sun_times)
+        if result is None:
+            logger.info(f"Zone step down at limit for '{zone_name}'")
+            return
+        self._update_zone_state(zone_name, result.state_updates)
+        logger.info(f"[{source}] Zone step down for '{zone_name}': {result.state_updates}")
+
+    async def zone_bright_up(self, zone_name: str, source: str = "webserver"):
+        """Increase zone brightness only."""
+        config = self._get_zone_config(zone_name)
+        zone_state = self._get_zone_area_state(zone_name)
+
+        if zone_state.frozen_at is not None:
+            frozen_bri = CircadianLight.calculate_brightness_at_hour(
+                zone_state.frozen_at, config, zone_state
+            )
+            safe_margin = max(1.0, (config.max_brightness - config.min_brightness) * 0.01)
+            if frozen_bri >= config.max_brightness - safe_margin:
+                logger.info(f"Zone bright up at limit for '{zone_name}'")
+                return
+            self._update_zone_state(zone_name, {"frozen_at": None})
+            zone_state = self._get_zone_area_state(zone_name)
+
+        hour = get_current_hour()
+        sun_times = self.client._get_sun_times() if hasattr(self.client, '_get_sun_times') else None
+        result = CircadianLight.calculate_bright_step(hour=hour, direction="up", config=config, state=zone_state, sun_times=sun_times)
+        if result is None:
+            logger.info(f"Zone bright up at limit for '{zone_name}'")
+            return
+        self._update_zone_state(zone_name, result.state_updates)
+        logger.info(f"[{source}] Zone bright up for '{zone_name}': {result.state_updates}")
+
+    async def zone_bright_down(self, zone_name: str, source: str = "webserver"):
+        """Decrease zone brightness only."""
+        config = self._get_zone_config(zone_name)
+        zone_state = self._get_zone_area_state(zone_name)
+
+        if zone_state.frozen_at is not None:
+            frozen_bri = CircadianLight.calculate_brightness_at_hour(
+                zone_state.frozen_at, config, zone_state
+            )
+            safe_margin = max(1.0, (config.max_brightness - config.min_brightness) * 0.01)
+            if frozen_bri <= config.min_brightness + safe_margin:
+                logger.info(f"Zone bright down at limit for '{zone_name}'")
+                return
+            self._update_zone_state(zone_name, {"frozen_at": None})
+            zone_state = self._get_zone_area_state(zone_name)
+
+        hour = get_current_hour()
+        sun_times = self.client._get_sun_times() if hasattr(self.client, '_get_sun_times') else None
+        result = CircadianLight.calculate_bright_step(hour=hour, direction="down", config=config, state=zone_state, sun_times=sun_times)
+        if result is None:
+            logger.info(f"Zone bright down at limit for '{zone_name}'")
+            return
+        self._update_zone_state(zone_name, result.state_updates)
+        logger.info(f"[{source}] Zone bright down for '{zone_name}': {result.state_updates}")
+
+    async def zone_color_up(self, zone_name: str, source: str = "webserver"):
+        """Increase zone color temperature (cooler)."""
+        config = self._get_zone_config(zone_name)
+        zone_state = self._get_zone_area_state(zone_name)
+
+        if zone_state.frozen_at is not None:
+            sun_times = self.client._get_sun_times() if hasattr(self.client, '_get_sun_times') else None
+            frozen_cct = CircadianLight.calculate_color_at_hour(
+                zone_state.frozen_at, config, zone_state, apply_solar_rules=True, sun_times=sun_times
+            )
+            safe_margin = max(10, (config.max_color_temp - config.min_color_temp) * 0.01)
+            if frozen_cct >= config.max_color_temp - safe_margin:
+                logger.info(f"Zone color up at limit for '{zone_name}'")
+                return
+            self._update_zone_state(zone_name, {"frozen_at": None})
+            zone_state = self._get_zone_area_state(zone_name)
+
+        hour = get_current_hour()
+        sun_times = self.client._get_sun_times() if hasattr(self.client, '_get_sun_times') else None
+        result = CircadianLight.calculate_color_step(hour=hour, direction="up", config=config, state=zone_state, sun_times=sun_times)
+        if result is None:
+            logger.info(f"Zone color up at limit for '{zone_name}'")
+            return
+        self._update_zone_state(zone_name, result.state_updates)
+        logger.info(f"[{source}] Zone color up for '{zone_name}': {result.state_updates}")
+
+    async def zone_color_down(self, zone_name: str, source: str = "webserver"):
+        """Decrease zone color temperature (warmer)."""
+        config = self._get_zone_config(zone_name)
+        zone_state = self._get_zone_area_state(zone_name)
+
+        if zone_state.frozen_at is not None:
+            sun_times = self.client._get_sun_times() if hasattr(self.client, '_get_sun_times') else None
+            frozen_cct = CircadianLight.calculate_color_at_hour(
+                zone_state.frozen_at, config, zone_state, apply_solar_rules=True, sun_times=sun_times
+            )
+            safe_margin = max(10, (config.max_color_temp - config.min_color_temp) * 0.01)
+            if frozen_cct <= config.min_color_temp + safe_margin:
+                logger.info(f"Zone color down at limit for '{zone_name}'")
+                return
+            self._update_zone_state(zone_name, {"frozen_at": None})
+            zone_state = self._get_zone_area_state(zone_name)
+
+        hour = get_current_hour()
+        sun_times = self.client._get_sun_times() if hasattr(self.client, '_get_sun_times') else None
+        result = CircadianLight.calculate_color_step(hour=hour, direction="down", config=config, state=zone_state, sun_times=sun_times)
+        if result is None:
+            logger.info(f"Zone color down at limit for '{zone_name}'")
+            return
+        self._update_zone_state(zone_name, result.state_updates)
+        logger.info(f"[{source}] Zone color down for '{zone_name}': {result.state_updates}")
+
+    # -------------------------------------------------------------------------
     # Helper methods
     # -------------------------------------------------------------------------
 

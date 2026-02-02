@@ -458,6 +458,10 @@ class LightDesignerServer:
         self.app.router.add_route('POST', '/{path:.*}/api/area/action', self.handle_area_action)
         self.app.router.add_post('/api/area/action', self.handle_area_action)
 
+        # Zone action API route
+        self.app.router.add_route('POST', '/{path:.*}/api/zone/action', self.handle_zone_action)
+        self.app.router.add_post('/api/zone/action', self.handle_zone_action)
+
         # Manual sync endpoint
         self.app.router.add_route('POST', '/{path:.*}/api/sync-devices', self.handle_sync_devices)
         self.app.router.add_post('/api/sync-devices', self.handle_sync_devices)
@@ -3248,6 +3252,51 @@ class LightDesignerServer:
             return web.json_response({"error": "Invalid JSON"}, status=400)
         except Exception as e:
             logger.error(f"Error handling area action: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def handle_zone_action(self, request: Request) -> Response:
+        """Handle zone-level action (modifies zone state only, no light control).
+
+        Fires a circadian_light_zone_action event for main.py to handle.
+        Valid actions: step_up, step_down, bright_up, bright_down, color_up, color_down
+        """
+        VALID_ZONE_ACTIONS = {
+            'step_up', 'step_down',
+            'bright_up', 'bright_down',
+            'color_up', 'color_down',
+        }
+
+        try:
+            data = await request.json()
+            zone_name = data.get("zone_name")
+            action = data.get("action")
+
+            if not zone_name:
+                return web.json_response({"error": "zone_name is required"}, status=400)
+            if not action:
+                return web.json_response({"error": "action is required"}, status=400)
+            if action not in VALID_ZONE_ACTIONS:
+                return web.json_response({"error": f"Invalid zone action: {action}. Valid: {sorted(VALID_ZONE_ACTIONS)}"}, status=400)
+
+            # Fire event for main.py to handle
+            _, ws_url, token = self._get_ha_api_config()
+            if ws_url and token:
+                success = await self._fire_event_via_websocket(
+                    ws_url, token, 'circadian_light_zone_action',
+                    {'service': action, 'zone_name': zone_name}
+                )
+                if success:
+                    logger.info(f"Fired zone {action} event for zone '{zone_name}'")
+                    return web.json_response({"status": "ok", "action": action, "zone_name": zone_name})
+                else:
+                    return web.json_response({"error": "Failed to fire event"}, status=500)
+            else:
+                return web.json_response({"error": "HA API not configured"}, status=503)
+
+        except json.JSONDecodeError:
+            return web.json_response({"error": "Invalid JSON"}, status=400)
+        except Exception as e:
+            logger.error(f"Error handling zone action: {e}")
             return web.json_response({"error": str(e)}, status=500)
 
     # -------------------------------------------------------------------------
