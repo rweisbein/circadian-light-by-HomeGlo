@@ -57,8 +57,10 @@ def _save_last_actions(actions: Dict[str, str]) -> None:
     """Save all last actions to file."""
     action_file = _get_last_action_file()
     try:
-        with open(action_file, "w") as f:
+        tmp_file = action_file + ".tmp"
+        with open(tmp_file, "w") as f:
             json.dump(actions, f, indent=2)
+        os.replace(tmp_file, action_file)
     except IOError as e:
         logger.error(f"Failed to save last actions file: {e}")
 
@@ -659,8 +661,10 @@ def _save() -> None:
             "motion_sensors": [m.to_dict() for m in _motion_sensors.values()],
             "contact_sensors": [c.to_dict() for c in _contact_sensors.values()],
         }
-        with open(_config_file_path, "w", encoding="utf-8") as f:
+        tmp_path = _config_file_path + ".tmp"
+        with open(tmp_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
+        os.replace(tmp_path, _config_file_path)
         logger.debug(f"Saved switches config to {_config_file_path}")
     except Exception as e:
         logger.error(f"Failed to save switches config to {_config_file_path}: {e}")
@@ -1174,6 +1178,5 @@ def get_switches_summary() -> List[Dict[str, Any]]:
             "scopes": [{"areas": s.areas} for s in switch.scopes],
             "device_id": switch.device_id,
             "indicator_light": switch.indicator_light,
-            "inactive": switch.inactive,
         })
     return result

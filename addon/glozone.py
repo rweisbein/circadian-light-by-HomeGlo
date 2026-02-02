@@ -595,26 +595,17 @@ def load_config_from_files(data_dir: Optional[str] = None) -> Dict[str, Any]:
                     if isinstance(part, dict):
                         config.update(part)
             except json.JSONDecodeError as e:
-                # Try to repair corrupted JSON (e.g., "Extra data" from duplicate writes)
-                if "Extra data" in str(e):
-                    logger.warning(f"JSON error in {path}: {e}, attempting repair...")
-                    try:
-                        with open(path, 'r') as f:
-                            content = f.read()
-                        decoder = json.JSONDecoder()
-                        repaired_data, end_idx = decoder.raw_decode(content)
-                        if isinstance(repaired_data, dict):
-                            # Backup and repair
-                            with open(path + ".corrupted", 'w') as f:
-                                f.write(content)
-                            with open(path, 'w') as f:
-                                json.dump(repaired_data, f, indent=2)
-                            config.update(repaired_data)
-                            logger.info(f"Repaired {path}")
-                    except Exception as repair_err:
-                        logger.error(f"Failed to repair {path}: {repair_err}")
-                else:
-                    logger.debug(f"Could not load config from {path}: {e}")
+                logger.warning(f"JSON error reading {path}: {e}")
+                # Backup for diagnostics but don't attempt repair —
+                # with atomic writes this indicates a serious issue
+                try:
+                    with open(path, 'r') as f:
+                        content = f.read()
+                    with open(path + ".corrupted", 'w') as f:
+                        f.write(content)
+                    logger.warning(f"Backed up corrupted file to {path}.corrupted")
+                except Exception:
+                    pass
             except Exception as e:
                 logger.debug(f"Could not load config from {path}: {e}")
 
@@ -661,8 +652,10 @@ def load_config_from_files(data_dir: Optional[str] = None) -> Dict[str, Any]:
     if needs_save:
         designer_path = os.path.join(data_dir, "designer_config.json")
         try:
-            with open(designer_path, 'w') as f:
+            tmp_path = designer_path + ".tmp"
+            with open(tmp_path, 'w') as f:
                 json.dump(config, f, indent=2)
+            os.replace(tmp_path, designer_path)
             logger.info(f"Saved config to {designer_path}")
         except Exception as e:
             logger.warning(f"Failed to save config: {e}")

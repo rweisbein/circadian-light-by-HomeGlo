@@ -1435,8 +1435,10 @@ class LightDesignerServer:
                 k: v for k, v in config.items()
                 if not k.startswith("_") and k not in self.PRESET_SETTINGS
             }
-            async with aiofiles.open(self.designer_file, 'w') as f:
+            tmp_path = self.designer_file + ".tmp"
+            async with aiofiles.open(tmp_path, 'w') as f:
                 await f.write(json.dumps(save_config, indent=2))
+            os.replace(tmp_path, self.designer_file)
             logger.info(f"Configuration saved to {self.designer_file}")
         except Exception as e:
             logger.error(f"Error saving config to file: {e}")
@@ -2748,6 +2750,9 @@ class LightDesignerServer:
             if name not in config.get("glozones", {}):
                 return web.json_response({"error": f"Glo Zone '{name}' not found"}, status=404)
 
+            # Track whether lighting-relevant fields changed
+            needs_refresh = False
+
             # Handle rename if "name" field is provided
             new_name = data.pop("name", None)
             if new_name and new_name != name:
@@ -2770,10 +2775,12 @@ class LightDesignerServer:
                         status=400
                     )
                 config["glozones"][name]["preset"] = preset
+                needs_refresh = True
 
             # Update areas if provided (replaces entire list)
             if "areas" in data:
                 config["glozones"][name]["areas"] = data["areas"]
+                needs_refresh = True
 
             # Handle is_default - setting this zone as the default
             if data.get("is_default"):
@@ -2781,15 +2788,17 @@ class LightDesignerServer:
                 for zn, zc in config["glozones"].items():
                     zc["is_default"] = (zn == name)
                 logger.info(f"Set '{name}' as default zone")
+                needs_refresh = True
 
             await self.save_config_to_file(config)
             glozone.set_config(config)
 
-            # Fire refresh event to notify main.py to reload config
-            _, ws_url, token = self._get_ha_api_config()
-            if ws_url and token:
-                await self._fire_event_via_websocket(ws_url, token, 'circadian_light_refresh', {})
-                logger.info("Fired circadian_light_refresh event after zone update")
+            # Fire refresh event only when lighting-relevant fields changed
+            if needs_refresh:
+                _, ws_url, token = self._get_ha_api_config()
+                if ws_url and token:
+                    await self._fire_event_via_websocket(ws_url, token, 'circadian_light_refresh', {})
+                    logger.info("Fired circadian_light_refresh event after zone update")
 
             logger.info(f"Updated GloZone: {name}")
             return web.json_response({"status": "updated", "name": name})
@@ -2883,11 +2892,6 @@ class LightDesignerServer:
             await self.save_config_to_file(config)
             glozone.set_config(config)
 
-            # Fire refresh event
-            _, ws_url, token = self._get_ha_api_config()
-            if ws_url and token:
-                await self._fire_event_via_websocket(ws_url, token, 'circadian_light_refresh', {})
-
             logger.info(f"Reordered GloZones: {order}")
             return web.json_response({"status": "reordered"})
         except json.JSONDecodeError:
@@ -2932,11 +2936,6 @@ class LightDesignerServer:
 
             await self.save_config_to_file(config)
             glozone.set_config(config)
-
-            # Fire refresh event
-            _, ws_url, token = self._get_ha_api_config()
-            if ws_url and token:
-                await self._fire_event_via_websocket(ws_url, token, 'circadian_light_refresh', {})
 
             logger.info(f"Reordered areas in zone '{name}': {area_ids}")
             return web.json_response({"status": "reordered"})
