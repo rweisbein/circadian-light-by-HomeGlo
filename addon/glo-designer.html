@@ -5475,9 +5475,10 @@ function setupGloButtons() {
   });
 
   // Override save button to save Glo instead of global config
+  // stopImmediatePropagation prevents the base saveConfig() listener from also firing
   document.getElementById('save-config')?.addEventListener('click', (e) => {
     e.preventDefault();
-    e.stopPropagation();
+    e.stopImmediatePropagation();
     saveGloSettings();
   });
 }

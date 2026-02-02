@@ -13,6 +13,7 @@ Zone configuration is stored in designer_config.json and cached in memory.
 import json
 import logging
 import os
+import tempfile
 from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
@@ -227,8 +228,18 @@ def save_config() -> bool:
     designer_path = os.path.join(data_dir, "designer_config.json")
 
     try:
-        with open(designer_path, 'w') as f:
-            json.dump(_config, f, indent=2)
+        # Use unique temp file to prevent concurrent write collisions
+        fd, tmp_path = tempfile.mkstemp(dir=data_dir, suffix=".tmp", prefix=".designer_")
+        try:
+            with os.fdopen(fd, 'w') as f:
+                json.dump(_config, f, indent=2)
+            os.replace(tmp_path, designer_path)
+        except BaseException:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+            raise
         logger.debug(f"Saved config to {designer_path}")
         return True
     except Exception as e:
@@ -652,10 +663,18 @@ def load_config_from_files(data_dir: Optional[str] = None) -> Dict[str, Any]:
     if needs_save:
         designer_path = os.path.join(data_dir, "designer_config.json")
         try:
-            tmp_path = designer_path + ".tmp"
-            with open(tmp_path, 'w') as f:
-                json.dump(config, f, indent=2)
-            os.replace(tmp_path, designer_path)
+            # Use unique temp file to prevent concurrent write collisions
+            fd, tmp_path = tempfile.mkstemp(dir=data_dir, suffix=".tmp", prefix=".designer_")
+            try:
+                with os.fdopen(fd, 'w') as f:
+                    json.dump(config, f, indent=2)
+                os.replace(tmp_path, designer_path)
+            except BaseException:
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
+                raise
             logger.info(f"Saved config to {designer_path}")
         except Exception as e:
             logger.warning(f"Failed to save config: {e}")
