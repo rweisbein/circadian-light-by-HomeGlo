@@ -458,6 +458,10 @@ class LightDesignerServer:
         self.app.router.add_route('POST', '/{path:.*}/api/area/action', self.handle_area_action)
         self.app.router.add_post('/api/area/action', self.handle_area_action)
 
+        # Zone action API route
+        self.app.router.add_route('POST', '/{path:.*}/api/zone/action', self.handle_zone_action)
+        self.app.router.add_post('/api/zone/action', self.handle_zone_action)
+
         # Manual sync endpoint
         self.app.router.add_route('POST', '/{path:.*}/api/sync-devices', self.handle_sync_devices)
         self.app.router.add_post('/api/sync-devices', self.handle_sync_devices)
@@ -894,6 +898,7 @@ class LightDesignerServer:
                     brightness_mid=runtime_state.get('brightness_mid'),
                     color_mid=runtime_state.get('color_mid'),
                     frozen_at=runtime_state.get('frozen_at'),
+                    color_override=runtime_state.get('color_override'),
                 )
                 logger.debug(f"[ZoneStates] Zone '{zone_name}' area_state: brightness_mid={area_state.brightness_mid}, color_mid={area_state.color_mid}, frozen_at={area_state.frozen_at}")
 
@@ -3250,6 +3255,51 @@ class LightDesignerServer:
             logger.error(f"Error handling area action: {e}")
             return web.json_response({"error": str(e)}, status=500)
 
+    async def handle_zone_action(self, request: Request) -> Response:
+        """Handle zone-level action (modifies zone state only, no light control).
+
+        Fires a circadian_light_zone_action event for main.py to handle.
+        Valid actions: step_up, step_down, bright_up, bright_down, color_up, color_down
+        """
+        VALID_ZONE_ACTIONS = {
+            'step_up', 'step_down',
+            'bright_up', 'bright_down',
+            'color_up', 'color_down',
+        }
+
+        try:
+            data = await request.json()
+            zone_name = data.get("zone_name")
+            action = data.get("action")
+
+            if not zone_name:
+                return web.json_response({"error": "zone_name is required"}, status=400)
+            if not action:
+                return web.json_response({"error": "action is required"}, status=400)
+            if action not in VALID_ZONE_ACTIONS:
+                return web.json_response({"error": f"Invalid zone action: {action}. Valid: {sorted(VALID_ZONE_ACTIONS)}"}, status=400)
+
+            # Fire event for main.py to handle
+            _, ws_url, token = self._get_ha_api_config()
+            if ws_url and token:
+                success = await self._fire_event_via_websocket(
+                    ws_url, token, 'circadian_light_zone_action',
+                    {'service': action, 'zone_name': zone_name}
+                )
+                if success:
+                    logger.info(f"Fired zone {action} event for zone '{zone_name}'")
+                    return web.json_response({"status": "ok", "action": action, "zone_name": zone_name})
+                else:
+                    return web.json_response({"error": "Failed to fire event"}, status=500)
+            else:
+                return web.json_response({"error": "HA API not configured"}, status=503)
+
+        except json.JSONDecodeError:
+            return web.json_response({"error": "Invalid JSON"}, status=400)
+        except Exception as e:
+            logger.error(f"Error handling zone action: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
     # -------------------------------------------------------------------------
     # Manual Sync
     # -------------------------------------------------------------------------
@@ -3548,6 +3598,7 @@ class LightDesignerServer:
                     "supported": ctrl.get("supported"),
                     "status": status,
                     "last_action": last_action,
+                    "illuminance": ctrl.get("illuminance"),
                 }
 
                 control_data["inactive"] = config.get("inactive", False)
@@ -3634,7 +3685,7 @@ class LightDesignerServer:
                 entity_msg = json.loads(await ws.recv())
 
                 # Track entity types per device
-                device_entities: Dict[str, Dict[str, bool]] = {}
+                device_entities: Dict[str, Dict[str, Any]] = {}
                 if entity_msg.get('success') and entity_msg.get('result'):
                     for entity in entity_msg['result']:
                         device_id = entity.get('device_id')
@@ -3650,6 +3701,7 @@ class LightDesignerServer:
                                 'has_contact': False,
                                 'has_button': False,
                                 'has_battery': False,
+                                'illuminance_entity': None,
                             }
 
                         if entity_id.startswith('light.'):
@@ -3669,6 +3721,24 @@ class LightDesignerServer:
                                 device_entities[device_id]['has_contact'] = True
                         elif entity_id.startswith('sensor.') and '_battery' in entity_id:
                             device_entities[device_id]['has_battery'] = True
+                        elif entity_id.startswith('sensor.') and ('illuminance' in entity_id or '_lux' in entity_id):
+                            device_entities[device_id]['illuminance_entity'] = entity_id
+
+                # Fetch current entity states for illuminance readings
+                entity_states = {}
+                illuminance_entities = {
+                    de['illuminance_entity']
+                    for de in device_entities.values()
+                    if de.get('illuminance_entity')
+                }
+                if illuminance_entities:
+                    await ws.send(json.dumps({'id': 4, 'type': 'get_states'}))
+                    states_msg = json.loads(await ws.recv())
+                    if states_msg.get('success') and states_msg.get('result'):
+                        for state in states_msg['result']:
+                            eid = state.get('entity_id', '')
+                            if eid in illuminance_entities:
+                                entity_states[eid] = state.get('state')
 
                 # Filter to potential controls
                 controls = []
@@ -3746,12 +3816,28 @@ class LightDesignerServer:
                         detected_type is not None
                     )
 
+                    # Attach illuminance entity info if present
+                    illum_entity = entities.get('illuminance_entity')
+                    illum_info = None
+                    if illum_entity:
+                        raw_val = entity_states.get(illum_entity)
+                        try:
+                            illum_val = round(float(raw_val)) if raw_val not in (None, 'unavailable', 'unknown') else None
+                        except (ValueError, TypeError):
+                            illum_val = None
+                        illum_info = {
+                            'entity_id': illum_entity,
+                            'value': illum_val,
+                            'unit': 'lx',
+                        }
+
                     controls.append({
                         **device,
                         'category': category,
                         'type': detected_type,
                         'type_name': type_name,
                         'supported': is_supported,
+                        'illuminance': illum_info,
                     })
 
                 logger.info(f"[Controls] Returning {len(controls)} controls: {[(c.get('name'), c.get('category')) for c in controls]}")

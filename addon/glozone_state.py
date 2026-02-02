@@ -68,6 +68,7 @@ def _get_default_zone_state() -> Dict[str, Any]:
         "brightness_mid": None,  # None = use preset's wake_time/bed_time
         "color_mid": None,
         "frozen_at": None,
+        "color_override": None,
     }
 
 
@@ -113,7 +114,7 @@ def set_zone_state(zone_name: str, updates: Dict[str, Any]) -> None:
     if zone_name not in all_state:
         all_state[zone_name] = _get_default_zone_state()
 
-    for key in ["brightness_mid", "color_mid", "frozen_at"]:
+    for key in ["brightness_mid", "color_mid", "frozen_at", "color_override"]:
         if key in updates:
             all_state[zone_name][key] = updates[key]
 
@@ -217,4 +218,5 @@ def is_state_synced(area_state: Dict[str, Any], zone_state: Dict[str, Any]) -> b
         values_match(area_state.get("brightness_mid"), zone_state.get("brightness_mid"))
         and values_match(area_state.get("color_mid"), zone_state.get("color_mid"))
         and values_match(area_state.get("frozen_at"), zone_state.get("frozen_at"))
+        and values_match(area_state.get("color_override"), zone_state.get("color_override"))
     )

@@ -3530,6 +3530,33 @@ class HomeAssistantWebSocketClient:
                 else:
                     logger.warning(f"Unknown circadian_light_service_event: service={service}, area_id={area_id}")
 
+            # Handle zone-level actions (modify zone state only, no light control)
+            elif event_type == "circadian_light_zone_action":
+                service = event_data.get('service')
+                zone_name = event_data.get('zone_name')
+                if not zone_name:
+                    logger.warning(f"circadian_light_zone_action missing zone_name: service={service}")
+                elif service == "step_up":
+                    logger.info(f"[webserver] zone step_up for zone: {zone_name}")
+                    await self.primitives.zone_step_up(zone_name, "webserver")
+                elif service == "step_down":
+                    logger.info(f"[webserver] zone step_down for zone: {zone_name}")
+                    await self.primitives.zone_step_down(zone_name, "webserver")
+                elif service == "bright_up":
+                    logger.info(f"[webserver] zone bright_up for zone: {zone_name}")
+                    await self.primitives.zone_bright_up(zone_name, "webserver")
+                elif service == "bright_down":
+                    logger.info(f"[webserver] zone bright_down for zone: {zone_name}")
+                    await self.primitives.zone_bright_down(zone_name, "webserver")
+                elif service == "color_up":
+                    logger.info(f"[webserver] zone color_up for zone: {zone_name}")
+                    await self.primitives.zone_color_up(zone_name, "webserver")
+                elif service == "color_down":
+                    logger.info(f"[webserver] zone color_down for zone: {zone_name}")
+                    await self.primitives.zone_color_down(zone_name, "webserver")
+                else:
+                    logger.warning(f"Unknown circadian_light_zone_action: service={service}, zone_name={zone_name}")
+
             # Handle device registry updates (log only, use Sync button to apply)
             elif event_type == "device_registry_updated":
                 action = event_data.get("action")
