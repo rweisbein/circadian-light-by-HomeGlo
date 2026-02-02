@@ -2735,15 +2735,11 @@
               ).join('') +
               `<div class="zone-rhythm-dropdown-item" data-zone="${zoneName}" data-preset="__new__" onclick="selectRhythm(this)">+ New Rhythm...</div>`;
 
-            // Brightness + CT inline (same size as rhythm label/btn)
-            const rhythmInfoSpan = `<span style="margin-left: 6px; white-space: nowrap; font-size: 0.75rem; color: var(--muted);">${Math.round(zoneBri)}% · ${Math.round(zoneKelvin)}K</span>`;
-
             zoneRhythmLink = `
               <div class="zone-rhythm-display" style="background: rgba(0,0,0,0.45); border-radius: 6px; padding: 2px 10px; gap: 6px; cursor: pointer;" onclick="event.stopPropagation(); toggleRhythmDropdown(this);">
                 <span class="zone-rhythm-label" style="color: ${zoneTextColor};">Rhythm:</span>
                 <span class="zone-rhythm-btn" style="color: ${zoneTextColor};">${zs.preset}</span>
                 <div class="zone-rhythm-dropdown">${dropdownItems}</div>
-                ${rhythmInfoSpan}
               </div>`;
           }
 
@@ -2763,7 +2759,7 @@
               <span class="zone-name" style="color: ${zoneTextColor};">${zoneName}</span>
               ${zoneRhythmLink}
               <span style="flex: 1;"></span>
-              ${zoneRhythmLink ? '' : zoneLightingInfo}
+              ${zoneLightingInfo}
               <div class="row-controls"><button class="zone-reset-btn" onclick="event.stopPropagation(); zoneReset('${escapedZoneName}')" title="Reset Glo Zone: reset all areas in Glo Zone to rhythm">${zoneResetIcon}</button></div>
             </div>
             <div class="zone-content ${isCollapsed ? 'hidden' : ''}" data-zone-table="${zoneName}">
