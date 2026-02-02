@@ -921,6 +921,8 @@
       gap: 4px;
       margin-left: 4px;
       overflow: hidden;
+      align-self: center;
+      box-shadow: 0 0 0 1.5px rgba(255,255,255,0.15), 0 1px 4px rgba(0,0,0,0.3);
     }
 
     .zone-rhythm-pill-tinted::before {
@@ -2782,7 +2784,7 @@
               ? `<span style="margin-left: 6px; white-space: nowrap; font-size: 0.75rem; color: ${pillTextColor}; opacity: 0.7;">${Math.round(pureRhythm.brightness)}% · ${Math.round(pureRhythm.kelvin)}K</span>`
               : '';
             zoneRhythmLink = `
-              <div class="zone-rhythm-display zone-rhythm-pill-tinted" style="${pillStyle} border-radius: 6px; padding: 6px 10px; gap: 6px; cursor: pointer;" onclick="event.stopPropagation(); toggleRhythmDropdown(this);">
+              <div class="zone-rhythm-display zone-rhythm-pill-tinted" style="${pillStyle} border-radius: 6px; padding: 8px 12px; gap: 6px; cursor: pointer;" onclick="event.stopPropagation(); toggleRhythmDropdown(this);">
                 <span class="zone-rhythm-label" style="color: ${pillTextColor};">Rhythm:</span>
                 <span class="zone-rhythm-btn" style="color: ${pillTextColor};">${zs.preset}</span>
                 <div class="zone-rhythm-dropdown">${dropdownItems}</div>
