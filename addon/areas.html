@@ -811,6 +811,7 @@
       gap: 8px;
       padding: 14px 16px;
       background: var(--panel);
+      cursor: pointer;
       border: 1px solid var(--line);
       border-radius: 8px 8px 0 0;
       user-select: none;
@@ -1214,8 +1215,8 @@
       </div>
 
       <div class="modal-context-info" id="modal-context-info">
-        <div class="context-line"><span class="context-label">Glo zone:</span> <span class="context-link" id="modal-zone-link">—</span></div>
-        <div class="context-line"><span class="context-label">Rhythm:</span> <span class="context-link" id="modal-rhythm-link">—</span></div>
+        <div class="context-line"><span class="context-label">Glo zone:</span> <span id="modal-zone-link">—</span></div>
+        <div class="context-line" id="modal-rhythm-line" style="display:none;"><span class="context-label">Rhythm:</span> <span class="context-link" id="modal-rhythm-link">—</span></div>
       </div>
 
       <div class="area-state" id="modal-area-state">
@@ -1308,6 +1309,7 @@
     let cachedPresets = {};
     let viewMode = 'custom'; // 'custom', 'alpha', 'onoff'
     let selectedArea = null;
+    let selectedZoneName = null;
     let cachedConfig = null;
     let cachedSunTimes = null; // { sunrise, sunset, solarNoon, solarMid } in local hours
     let editMode = false;
@@ -2760,7 +2762,7 @@
 
         return `
           <div class="zone-group">
-            <div class="zone-header ${isCollapsed ? 'collapsed' : ''} ${allOff ? 'no-tint' : ''}" data-zone="${zoneName}" style="${zoneHeaderStyle}">
+            <div class="zone-header ${isCollapsed ? 'collapsed' : ''} ${allOff ? 'no-tint' : ''}" data-zone="${zoneName}" style="${zoneHeaderStyle}" onclick="openZoneModal('${escapedZoneName}')">
               ${zoneMismatchDot}
               <span class="zone-chevron-tap" onclick="event.stopPropagation(); toggleZone('${escapedZoneName}', this)">${chevronIcon}</span>
               <span style="font-size: 0.8rem; opacity: 0.6; color: ${zoneTextColor};">Glo zone:</span>
@@ -3128,7 +3130,7 @@
       };
 
       // Update modal content
-      document.getElementById('modal-area-name').textContent = area.name;
+      document.getElementById('modal-area-name').textContent = 'Area: ' + area.name;
 
       // Header area shading based on CCT and brightness
       const stateEl = document.getElementById('modal-area-state');
@@ -3156,19 +3158,15 @@
 
       valuesEl.textContent = `${Math.round(displayBri)}% • ${Math.round(displayKelvin)}K`;
 
-      // Context info (Glo zone + Rhythm)
+      // Context info (Glo zone)
       const zoneLinkEl = document.getElementById('modal-zone-link');
-      const rhythmLinkEl = document.getElementById('modal-rhythm-link');
       if (selectedArea.zone_name) {
         zoneLinkEl.textContent = selectedArea.zone_name;
       } else {
         zoneLinkEl.textContent = 'Unassigned';
       }
-      if (selectedArea.preset_name) {
-        rhythmLinkEl.textContent = selectedArea.preset_name;
-      } else {
-        rhythmLinkEl.textContent = '—';
-      }
+      // Hide rhythm line in area modal, show zone context line
+      document.getElementById('modal-rhythm-line').style.display = 'none';
 
       // Timer status (motion + boost)
       updateTimerStatus();
@@ -3350,10 +3348,218 @@
       if (modalRefreshInterval) { clearInterval(modalRefreshInterval); modalRefreshInterval = null; }
     }
 
+    async function openZoneModal(zoneName) {
+      // Stop home refresh while modal is open
+      stopHomeRefresh();
+
+      // Fetch all data fresh before rendering modal
+      try {
+        const [res, zsRes, pRes] = await Promise.all([
+          fetch('./api/area-status'),
+          fetch('./api/zone-states'),
+          fetch('./api/circadian-presets')
+        ]);
+        if (res.ok) {
+          areaStatus = await res.json();
+        }
+        if (zsRes.ok) {
+          const zs = await zsRes.json();
+          zoneStates = zs.zone_states || {};
+        }
+        if (pRes.ok) {
+          const p = await pRes.json();
+          cachedPresets = p.presets || {};
+        }
+      } catch (err) {
+        console.error('Error fetching zone modal data:', err);
+      }
+
+      selectedZoneName = zoneName;
+
+      // Find first area in the zone as proxy
+      for (const area of areas) {
+        const status = areaStatus[area.area_id] || {};
+        if (status.zone_name === zoneName) {
+          const proxyStatus = areaStatus[area.area_id] || {};
+          selectedArea = {
+            ...area,
+            is_on: proxyStatus.is_on || false,
+            brightness: proxyStatus.brightness || 0,
+            kelvin: proxyStatus.kelvin || 4000,
+            frozen: proxyStatus.frozen || false,
+            boosted: proxyStatus.boosted || false,
+            zone_name: proxyStatus.zone_name || null,
+            preset_name: proxyStatus.preset_name || null,
+            is_circadian: proxyStatus.is_circadian || false,
+            boost_brightness: proxyStatus.boost_brightness || null,
+            boost_expires_at: proxyStatus.boost_expires_at || null,
+            boost_started_from_off: proxyStatus.boost_started_from_off || false,
+            is_motion_coupled: proxyStatus.is_motion_coupled || false,
+            motion_expires_at: proxyStatus.motion_expires_at || null,
+            motion_warning_active: proxyStatus.motion_warning_active || false
+          };
+          break;
+        }
+      }
+
+      updateZoneModalContent(zoneName);
+
+      // Show modal first, then render chart after it's visible
+      const modal = document.getElementById('area-modal');
+      modal.classList.add('visible');
+
+      setTimeout(() => {
+        renderMiniChartForZone(zoneName);
+      }, 50);
+
+      // Start live refresh for zone modal
+      clearModalIntervals();
+      modalTickInterval = setInterval(updateTimerStatus, 1000);
+      modalRefreshInterval = setInterval(async () => {
+        if (!selectedZoneName) return;
+        try {
+          const [zsRes, aRes] = await Promise.all([
+            fetch('./api/zone-states'),
+            selectedArea ? fetch(`./api/area-status?area_id=${encodeURIComponent(selectedArea.area_id)}`) : Promise.resolve(null)
+          ]);
+          if (zsRes.ok) {
+            const zs = await zsRes.json();
+            zoneStates = zs.zone_states || {};
+          }
+          if (aRes && aRes.ok) {
+            const singleStatus = await aRes.json();
+            Object.assign(areaStatus, singleStatus);
+          }
+          updateZoneModalContent(selectedZoneName, false);
+        } catch (err) {
+          console.error('Error refreshing zone modal:', err);
+        }
+      }, 1000);
+    }
+
+    function updateZoneModalContent(zoneName, renderChart = true) {
+      const zs = zoneStates[zoneName] || {};
+
+      // Title
+      document.getElementById('modal-area-name').textContent = 'Glo Zone: ' + zoneName;
+
+      // Context info: show rhythm as link, hide zone line label
+      const zoneLinkEl = document.getElementById('modal-zone-link');
+      zoneLinkEl.textContent = '';
+
+      const rhythmLine = document.getElementById('modal-rhythm-line');
+      const rhythmLinkEl = document.getElementById('modal-rhythm-link');
+      const presetName = zs.preset || null;
+      if (presetName) {
+        rhythmLinkEl.innerHTML = `<a href="./glo/${encodeURIComponent(presetName)}" style="color: var(--accent); text-decoration: none;">${presetName}</a>`;
+        rhythmLine.style.display = '';
+      } else {
+        rhythmLinkEl.textContent = '—';
+        rhythmLine.style.display = '';
+      }
+
+      // Hide the zone context line (first context-line) since we're already in zone view
+      const contextLines = document.querySelectorAll('#modal-context-info .context-line');
+      if (contextLines[0]) contextLines[0].style.display = 'none';
+
+      // Use zone brightness/kelvin
+      const zoneBri = zs.brightness ?? 0;
+      const zoneKelvin = zs.kelvin ?? 4000;
+
+      // Header area shading
+      const stateEl = document.getElementById('modal-area-state');
+      if (zoneBri > 0) {
+        const cctColor = cctToRGB(zoneKelvin);
+        const tintedColor = tintColorByBrightness(cctColor, zoneBri);
+        stateEl.style.setProperty('--state-bg', tintedColor);
+        stateEl.style.setProperty('--state-fill', (zoneBri / 100).toFixed(3));
+      } else {
+        stateEl.style.setProperty('--state-bg', 'var(--panel)');
+        stateEl.style.setProperty('--state-fill', '0');
+      }
+
+      // Values display
+      const valuesEl = document.getElementById('modal-values');
+      if (zoneBri > 0) {
+        const cctColor = cctToRGB(zoneKelvin);
+        const tintedColor = tintColorByBrightness(cctColor, zoneBri);
+        valuesEl.style.color = readableTextColor(tintedColor);
+      } else {
+        valuesEl.style.color = 'var(--muted)';
+      }
+      valuesEl.textContent = `${Math.round(zoneBri)}% • ${Math.round(zoneKelvin)}K`;
+
+      // Hide area-specific controls (power, circadian, freeze, boost, glodown/reset)
+      const ctrlLeft = document.querySelector('.area-state-controls-left');
+      const ctrlRight = document.querySelector('.area-state-controls');
+      if (ctrlLeft) ctrlLeft.style.display = 'none';
+      if (ctrlRight) ctrlRight.style.display = 'none';
+
+      // Timer status
+      updateTimerStatus();
+
+      // Render chart
+      if (renderChart) {
+        renderMiniChartForZone(zoneName);
+      }
+    }
+
+    function renderMiniChartForZone(zoneName) {
+      const zs = zoneStates[zoneName] || {};
+      if (!cachedConfig || !cachedSunTimes) return;
+
+      // Get preset config
+      const presetName = zs.preset;
+      let cfg;
+      if (presetName && cachedPresets[presetName]) {
+        cfg = { ...cachedConfig, ...cachedPresets[presetName] };
+      } else {
+        cfg = cachedConfig;
+      }
+
+      // Use zone runtime_state
+      const rs = zs.runtime_state || {};
+      const zoneState = {
+        brightness_mid: rs.brightness_mid ?? null,
+        color_mid: rs.color_mid ?? null,
+        color_override: rs.color_override ?? null,
+        frozen_at: rs.frozen_at ?? null
+      };
+
+      // Current hour: use frozen_at if set, otherwise current time
+      let currentHour;
+      if (rs.frozen_at != null) {
+        currentHour = rs.frozen_at;
+      } else {
+        const now = new Date();
+        currentHour = now.getHours() + now.getMinutes() / 60;
+      }
+
+      // Zone is always "active" from the rhythm perspective
+      const isActive = true;
+
+      renderMiniChart(cfg, zoneState, cachedSunTimes, currentHour, isActive);
+
+      // Style adjust buttons using proxy area if available
+      if (selectedArea) {
+        styleAdjustButtons(selectedArea.area_id);
+      }
+    }
+
     function closeModal() {
       clearModalIntervals();
       document.getElementById('area-modal').classList.remove('visible');
       selectedArea = null;
+      selectedZoneName = null;
+      // Restore elements that zone modal may have hidden
+      const ctrlLeft = document.querySelector('.area-state-controls-left');
+      const ctrlRight = document.querySelector('.area-state-controls');
+      if (ctrlLeft) ctrlLeft.style.display = '';
+      if (ctrlRight) ctrlRight.style.display = '';
+      document.getElementById('modal-rhythm-line').style.display = 'none';
+      // Restore first context line (zone label) visibility
+      const contextLines = document.querySelectorAll('#modal-context-info .context-line');
+      if (contextLines[0]) contextLines[0].style.display = '';
       // Immediate refresh then resume periodic refresh
       loadData();
       startHomeRefresh();
@@ -3382,17 +3588,34 @@
         });
 
         if (response.ok) {
-          // Re-fetch single area status, then update modal in place
+          // Re-fetch status, then update modal in place
           setTimeout(async () => {
             try {
-              const res = await fetch(`./api/area-status?area_id=${encodeURIComponent(areaId)}`);
-              if (res.ok) {
-                const singleStatus = await res.json();
-                Object.assign(areaStatus, singleStatus);
-              }
-              // Re-render modal content without closing
-              if (selectedArea && selectedArea.area_id === areaId) {
-                updateModalContent(areaId);
+              if (selectedZoneName) {
+                // Zone modal: re-fetch zone states and update zone modal
+                const [zsRes, aRes] = await Promise.all([
+                  fetch('./api/zone-states'),
+                  fetch(`./api/area-status?area_id=${encodeURIComponent(areaId)}`)
+                ]);
+                if (zsRes.ok) {
+                  const zs = await zsRes.json();
+                  zoneStates = zs.zone_states || {};
+                }
+                if (aRes.ok) {
+                  const singleStatus = await aRes.json();
+                  Object.assign(areaStatus, singleStatus);
+                }
+                updateZoneModalContent(selectedZoneName);
+              } else {
+                const res = await fetch(`./api/area-status?area_id=${encodeURIComponent(areaId)}`);
+                if (res.ok) {
+                  const singleStatus = await res.json();
+                  Object.assign(areaStatus, singleStatus);
+                }
+                // Re-render modal content without closing
+                if (selectedArea && selectedArea.area_id === areaId) {
+                  updateModalContent(areaId);
+                }
               }
             } catch (err) {
               console.error('Error refreshing after action:', err);
