@@ -813,7 +813,6 @@
       background: var(--panel);
       border: 1px solid var(--line);
       border-radius: 8px 8px 0 0;
-      cursor: pointer;
       user-select: none;
       transition: background 0.15s;
       position: relative;
@@ -843,6 +842,28 @@
 
     .zone-header.collapsed {
       border-radius: 8px;
+    }
+
+    .zone-header.no-tint {
+      background: var(--bg);
+    }
+
+    .zone-header.no-tint::before {
+      display: none;
+    }
+
+    .zone-header.no-tint:hover {
+      background: rgba(255,255,255,0.03);
+    }
+
+    .zone-chevron-tap {
+      cursor: pointer;
+      padding: 4px;
+      margin: -4px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
     }
 
     .zone-chevron {
@@ -930,9 +951,10 @@
       border: 1px solid var(--line);
       border-radius: 8px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-      z-index: 50;
+      z-index: 100;
       display: none;
       margin-top: 4px;
+      isolation: isolate;
     }
 
     .zone-rhythm-dropdown.visible {
@@ -1001,7 +1023,7 @@
     /* Zone reset button */
     .zone-reset-btn {
       width: 24px;
-      height: 24px;
+      height: 28px;
       border-radius: 4px;
       border: 1px solid rgba(255,255,255,0.2);
       background: rgba(30,30,30,0.9);
@@ -1022,7 +1044,7 @@
 
     .zone-reset-btn svg {
       width: 14px;
-      height: 14px;
+      height: 18px;
     }
 
     /* Nav solar display */
@@ -2597,8 +2619,8 @@
       // Chevron icon
       const chevronIcon = `<svg class="zone-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>`;
 
-      // Reset icon (double-down chevron with spacing)
-      const zoneResetIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 5 12 11 18 5"/><polyline points="6 13 12 19 18 13"/></svg>`;
+      // Reset icon: refresh circle (3/4 clockwise) with double-down arrow below
+      const zoneResetIcon = `<svg viewBox="0 0 24 28" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 3.5A8 8 0 1 1 4 12"/><polyline points="12 2 17.5 3.5 16 8"/><polyline points="8 20 12 24 16 20"/><polyline points="8 16 12 20 16 16"/></svg>`;
 
       // Build toolbar HTML
       let html;
@@ -2732,9 +2754,9 @@
 
         return `
           <div class="zone-group">
-            <div class="zone-header ${isCollapsed ? 'collapsed' : ''}" data-zone="${zoneName}" onclick="toggleZone('${escapedZoneName}', this)" style="${zoneHeaderStyle}">
+            <div class="zone-header ${isCollapsed ? 'collapsed' : ''} ${zoneHeaderStyle ? '' : 'no-tint'}" data-zone="${zoneName}" style="${zoneHeaderStyle}">
               ${zoneMismatchDot}
-              ${chevronIcon}
+              <span class="zone-chevron-tap" onclick="event.stopPropagation(); toggleZone('${escapedZoneName}', this)">${chevronIcon}</span>
               <span style="font-size: 0.8rem; opacity: 0.6; color: ${zoneTextColor};">Glo zone:</span>
               <span class="zone-name" style="color: ${zoneTextColor};">${zoneName}</span>
               ${zoneRhythmLink}
