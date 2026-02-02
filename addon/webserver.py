@@ -6,6 +6,7 @@ import json
 import logging
 import math
 import os
+import tempfile
 from typing import Any, Dict, List, Optional
 from aiohttp import web, ClientSession
 from aiohttp.web import Request, Response
@@ -1440,10 +1441,20 @@ class LightDesignerServer:
                 k: v for k, v in config.items()
                 if not k.startswith("_") and k not in self.PRESET_SETTINGS
             }
-            tmp_path = self.designer_file + ".tmp"
-            async with aiofiles.open(tmp_path, 'w') as f:
-                await f.write(json.dumps(save_config, indent=2))
-            os.replace(tmp_path, self.designer_file)
+            # Use a unique temp file to prevent concurrent write collisions
+            dir_path = os.path.dirname(self.designer_file)
+            fd, tmp_path = tempfile.mkstemp(dir=dir_path, suffix=".tmp", prefix=".designer_")
+            try:
+                with os.fdopen(fd, 'w') as f:
+                    json.dump(save_config, f, indent=2)
+                os.replace(tmp_path, self.designer_file)
+            except BaseException:
+                # Clean up temp file on failure
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
+                raise
             logger.info(f"Configuration saved to {self.designer_file}")
         except Exception as e:
             logger.error(f"Error saving config to file: {e}")
@@ -2662,6 +2673,15 @@ class LightDesignerServer:
                 for area in zone_config.get("areas", []):
                     area_id = area.get("id") if isinstance(area, dict) else area
                     assigned_area_ids.add(area_id)
+
+            # Safety: if zones already have areas, this isn't a fresh install.
+            # Set the flag and skip — the migration is only for first-time setup.
+            if assigned_area_ids:
+                logger.info(f"Zones already have {len(assigned_area_ids)} assigned areas - marking migration complete")
+                config["areas_migrated_v1"] = True
+                await self.save_config_to_file(config)
+                glozone.set_config(config)
+                return
 
             # Find the default zone
             default_zone_name = next(
