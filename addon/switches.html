@@ -615,6 +615,51 @@
       color: var(--muted);
     }
 
+    .info-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,0.3);
+      font-size: 10px;
+      font-style: italic;
+      color: rgba(255,255,255,0.5);
+      cursor: help;
+      transition: all 0.15s ease;
+      flex-shrink: 0;
+    }
+
+    .info-icon:hover {
+      color: rgba(255,255,255,0.8);
+      border-color: rgba(255,255,255,0.5);
+    }
+
+    .info-tooltip {
+      display: none;
+      position: absolute;
+      top: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      width: 280px;
+      font-size: 0.8rem;
+      font-style: normal;
+      color: var(--muted);
+      line-height: 1.5;
+      z-index: 100;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+
+    .info-icon:hover .info-tooltip {
+      display: block;
+    }
+
     .indicator-inline-select {
       padding: 4px 6px;
       border-radius: 4px;
@@ -734,12 +779,13 @@
       </div>
 
       <div class="modal-section" id="switch-config-section">
-        <label class="modal-label">Scopes</label>
-        <p class="info-text">Each scope is a set of areas the control will manage. Cycle through scopes with the bottom button.</p>
+        <label class="modal-label">Reach
+          <span class="info-icon">i<span class="info-tooltip">The switch will control all areas in Reach 1. Pressing 'Change Reach' one time will shift the switch's control to areas in Reach 2. Again to Reach 3.</span></span>
+        </label>
         <div id="scopes-editor" style="margin-top: 12px;">
           <!-- Scope editors populated by JS -->
         </div>
-        <button class="add-scope-btn" id="add-scope-btn">+ Add Scope</button>
+        <button class="add-scope-btn" id="add-scope-btn">+ Add Reach</button>
       </div>
 
       <div class="modal-section" id="indicator-light-section" style="display: none;">
@@ -1431,9 +1477,17 @@
       const typeName = ctrl.type_name || ctrl.type || 'Unknown';
       const locationName = ctrl.area_name || 'Unassigned';
       document.getElementById('device-info').innerHTML = `
-        <div><strong>Category:</strong> ${categoryLabel}</div>
-        <div><strong>Type:</strong> ${typeName}</div>
-        <div><strong>Location:</strong> ${locationName}</div>
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div>
+            <div><strong>Category:</strong> ${categoryLabel}</div>
+            <div><strong>Type:</strong> ${typeName}</div>
+            <div><strong>Location:</strong> ${locationName}</div>
+          </div>
+          <div style="text-align: right; font-size: 0.7rem; color: var(--muted); opacity: 0.5; line-height: 1.6;">
+            ${ctrl.id ? `<div>${ctrl.id}</div>` : ''}
+            ${ctrl.device_id ? `<div>${ctrl.device_id}</div>` : ''}
+          </div>
+        </div>
       `;
 
       // Show/hide appropriate sections based on control type
@@ -1472,7 +1526,7 @@
       container.innerHTML = editingScopes.map((scope, idx) => `
         <div class="scope-editor" data-scope-idx="${idx}">
           <div class="scope-editor-header">
-            <span class="scope-editor-title">Scope ${idx + 1}</span>
+            <span class="scope-editor-title">Reach ${idx + 1}</span>
             ${editingScopes.length > 1 ? `<button class="scope-editor-remove" onclick="removeScope(${idx})">&times;</button>` : ''}
           </div>
           <div class="scope-editor-body">
@@ -1493,7 +1547,7 @@
 
     function addScope() {
       if (editingScopes.length >= 3) {
-        alert('Maximum 3 scopes allowed');
+        alert('Maximum 3 reaches allowed');
         return;
       }
       editingScopes.push({ areas: [] });
