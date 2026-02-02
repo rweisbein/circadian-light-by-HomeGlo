@@ -898,6 +898,7 @@ class LightDesignerServer:
                     brightness_mid=runtime_state.get('brightness_mid'),
                     color_mid=runtime_state.get('color_mid'),
                     frozen_at=runtime_state.get('frozen_at'),
+                    color_override=runtime_state.get('color_override'),
                 )
                 logger.debug(f"[ZoneStates] Zone '{zone_name}' area_state: brightness_mid={area_state.brightness_mid}, color_mid={area_state.color_mid}, frozen_at={area_state.frozen_at}")
 
