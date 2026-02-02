@@ -920,6 +920,24 @@
       align-items: center;
       gap: 4px;
       margin-left: 4px;
+      overflow: hidden;
+    }
+
+    .zone-rhythm-pill-tinted::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, rgba(255,255,255,0.03), rgba(255,255,255,0.5));
+      opacity: 0.6;
+      transform-origin: left center;
+      transform: scaleX(var(--pill-fill, 0));
+      pointer-events: none;
+      border-radius: 6px;
+    }
+
+    .zone-rhythm-pill-tinted > * {
+      position: relative;
+      z-index: 1;
     }
 
     .zone-rhythm-label {
@@ -2745,15 +2763,28 @@
 
             // Pure rhythm values (what zone would be at after GloReset)
             const pureRhythm = getPureRhythmValues(zs.preset);
-            const rhythmInfoSpan = pureRhythm
-              ? `<span style="margin-left: 6px; white-space: nowrap; font-size: 0.75rem; color: var(--muted);">${Math.round(pureRhythm.brightness)}% · ${Math.round(pureRhythm.kelvin)}K</span>`
-              : '';
 
-            const pillBg = allOff ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.45)';
+            let pillStyle = '';
+            let pillTextColor = zoneTextColor;
+            if (allOff) {
+              pillStyle = 'background: rgba(255,255,255,0.08);';
+              pillTextColor = 'var(--text)';
+            } else if (pureRhythm) {
+              const pillCctColor = cctToRGB(pureRhythm.kelvin);
+              const pillTinted = tintColorByBrightness(pillCctColor, pureRhythm.brightness);
+              pillTextColor = readableTextColor(pillTinted);
+              const pillFill = pureRhythm.brightness / 100;
+              pillStyle = `background: ${pillTinted}; --pill-fill: ${pillFill};`;
+            } else {
+              pillStyle = 'background: rgba(0,0,0,0.45);';
+            }
+            const rhythmInfoSpan = pureRhythm
+              ? `<span style="margin-left: 6px; white-space: nowrap; font-size: 0.75rem; color: ${pillTextColor}; opacity: 0.7;">${Math.round(pureRhythm.brightness)}% · ${Math.round(pureRhythm.kelvin)}K</span>`
+              : '';
             zoneRhythmLink = `
-              <div class="zone-rhythm-display" style="background: ${pillBg}; border-radius: 6px; padding: 2px 10px; gap: 6px; cursor: pointer;" onclick="event.stopPropagation(); toggleRhythmDropdown(this);">
-                <span class="zone-rhythm-label" style="color: ${zoneTextColor};">Rhythm:</span>
-                <span class="zone-rhythm-btn" style="color: ${zoneTextColor};">${zs.preset}</span>
+              <div class="zone-rhythm-display zone-rhythm-pill-tinted" style="${pillStyle} border-radius: 6px; padding: 6px 10px; gap: 6px; cursor: pointer;" onclick="event.stopPropagation(); toggleRhythmDropdown(this);">
+                <span class="zone-rhythm-label" style="color: ${pillTextColor};">Rhythm:</span>
+                <span class="zone-rhythm-btn" style="color: ${pillTextColor};">${zs.preset}</span>
                 <div class="zone-rhythm-dropdown">${dropdownItems}</div>
                 ${rhythmInfoSpan}
               </div>`;
