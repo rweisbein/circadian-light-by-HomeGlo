@@ -911,10 +911,9 @@
       display: inline-flex;
       align-items: center;
       gap: 4px;
-      margin-left: 4px;
-      overflow: hidden;
       align-self: center;
       box-shadow: 0 0 0 1.5px rgba(255,255,255,0.15), 0 1px 4px rgba(0,0,0,0.3);
+      border-radius: 6px;
     }
 
     .zone-rhythm-pill-tinted::before {
@@ -927,6 +926,7 @@
       transform: scaleX(var(--pill-fill, 0));
       pointer-events: none;
       border-radius: 6px;
+      overflow: hidden;
     }
 
     .zone-rhythm-pill-tinted > * {
@@ -2804,6 +2804,7 @@
               <span style="font-size: 0.8rem; opacity: 0.6; color: ${zoneTextColor};">Glo zone:</span>
               <span class="zone-name" style="color: ${zoneTextColor};">${zoneName}</span>
               ${zoneFrozenIndicator}
+              <span style="flex: 1;"></span>
               ${zoneRhythmLink}
               <span style="flex: 1;"></span>
               ${zoneLightingInfo}
