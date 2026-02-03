@@ -85,7 +85,7 @@
     .main {
       max-width: 1000px;
       margin: 0 auto;
-      padding: 24px;
+      padding: 12px 24px 24px;
     }
 
     .page-header {
@@ -2665,11 +2665,11 @@
         html = `
           <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
             <div class="view-links">
-              <button class="view-link ${viewMode === 'onoff' ? 'active' : ''}" data-view="onoff">On/Off</button>
+              <button class="view-link ${viewMode === 'onoff' ? 'active' : ''}" data-view="onoff">on/off</button>
               <span class="view-sep">·</span>
-              <button class="view-link ${viewMode === 'custom' ? 'active' : ''}" data-view="custom">Your order</button>
+              <button class="view-link ${viewMode === 'custom' ? 'active' : ''}" data-view="custom">your order</button>
               <span class="view-sep">·</span>
-              <button class="view-link ${viewMode === 'alpha' ? 'active' : ''}" data-view="alpha">A–Z</button>
+              <button class="view-link ${viewMode === 'alpha' ? 'active' : ''}" data-view="alpha">a–z</button>
             </div>
             <span style="flex: 1;"></span>
             <div class="toolbar-menu">
