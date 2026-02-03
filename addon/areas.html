@@ -385,6 +385,15 @@
       border-radius: 10px;
     }
 
+    .zone-state-controls {
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+      background: rgba(0,0,0,0.5);
+      padding: 6px;
+      border-radius: 10px;
+    }
+
     .area-state-controls-left {
       display: flex;
       gap: 8px;
@@ -1271,10 +1280,23 @@
             <div class="area-state-values" id="modal-values"></div>
           </div>
           <div class="area-state-controls">
-            <button class="toggle-btn" id="toggle-reset" onclick="executeAction('reset')" title="GloDown: pull Glo Zone light to this area">
+            <button class="toggle-btn" id="toggle-glo-up" onclick="executeAction('glo_up')" title="GloUp: send area settings to GloZone">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="6 15 12 9 18 15"/>
+              </svg>
+            </button>
+            <button class="toggle-btn" id="toggle-glo-down" onclick="executeAction('glo_down')" title="GloDown: pull GloZone settings to this area">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <polyline points="6 9 12 15 18 9"/>
               </svg>
+            </button>
+          </div>
+          <div class="zone-state-controls" style="display:none;">
+            <button class="toggle-btn" id="toggle-glozone-reset" onclick="executeAction('glozone_reset')" title="Reset GloZone: set GloZone to Daily Rhythm">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+            </button>
+            <button class="toggle-btn" id="toggle-glozone-down" onclick="executeAction('glozone_down')" title="GloZone Down: send GloZone settings to all areas">
+              <svg viewBox="0 0 16 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 5 8 10 13 5"/><polyline points="3 11 8 16 13 11"/></svg>
             </button>
           </div>
         </div>
@@ -2840,8 +2862,8 @@
               <span style="flex: 1;"></span>
               ${zoneLightingInfo}
               <div class="row-controls">
-                <button class="zone-reset-btn" onclick="event.stopPropagation(); glozoneReset('${escapedZoneName}')" title="Reset GloZone: set GloZone to Daily Rhythm settings">${glozoneResetIcon}</button>
-                <button class="zone-reset-btn" onclick="event.stopPropagation(); glozoneDown('${escapedZoneName}')" title="GloZone Down: send GloZone settings to all areas">${glozoneDownIcon}</button>
+                <button class="row-btn" onclick="event.stopPropagation(); glozoneReset('${escapedZoneName}')" title="Reset GloZone: set GloZone to Daily Rhythm settings">${glozoneResetIcon}</button>
+                <button class="row-btn" onclick="event.stopPropagation(); glozoneDown('${escapedZoneName}')" title="GloZone Down: send GloZone settings to all areas">${glozoneDownIcon}</button>
               </div>
             </div>
             <div class="zone-content ${isCollapsed ? 'hidden' : ''}" data-zone-table="${zoneName}">
@@ -3239,6 +3261,17 @@
       }
       // Hide rhythm line in area modal, show zone context line
       document.getElementById('modal-rhythm-line').style.display = 'none';
+      // Show first context line (zone) that zone modal hides
+      const contextLines = document.querySelectorAll('#modal-context-info .context-line');
+      if (contextLines[0]) contextLines[0].style.display = '';
+
+      // Show area controls, hide zone controls
+      const ctrlLeft = document.querySelector('.area-state-controls-left');
+      const ctrlRightArea = document.querySelector('.area-state-controls');
+      const ctrlRightZone = document.querySelector('.zone-state-controls');
+      if (ctrlLeft) ctrlLeft.style.display = 'flex';
+      if (ctrlRightArea) ctrlRightArea.style.display = 'flex';
+      if (ctrlRightZone) ctrlRightZone.style.display = 'none';
 
       // Timer status (motion + boost)
       updateTimerStatus();
@@ -3561,11 +3594,13 @@
       }
       valuesEl.textContent = `${Math.round(zoneBri)}% • ${Math.round(zoneKelvin)}K`;
 
-      // Hide area-specific controls (power, circadian, freeze, boost, glodown/reset)
+      // Hide area-specific controls, show zone controls
       const ctrlLeft = document.querySelector('.area-state-controls-left');
-      const ctrlRight = document.querySelector('.area-state-controls');
+      const ctrlRightArea = document.querySelector('.area-state-controls');
+      const ctrlRightZone = document.querySelector('.zone-state-controls');
       if (ctrlLeft) ctrlLeft.style.display = 'none';
-      if (ctrlRight) ctrlRight.style.display = 'none';
+      if (ctrlRightArea) ctrlRightArea.style.display = 'none';
+      if (ctrlRightZone) ctrlRightZone.style.display = 'flex';
 
       // Timer status
       updateTimerStatus();
@@ -3626,8 +3661,10 @@
       // Restore elements that zone modal may have hidden
       const ctrlLeft = document.querySelector('.area-state-controls-left');
       const ctrlRight = document.querySelector('.area-state-controls');
+      const ctrlRightZone = document.querySelector('.zone-state-controls');
       if (ctrlLeft) ctrlLeft.style.display = '';
       if (ctrlRight) ctrlRight.style.display = '';
+      if (ctrlRightZone) ctrlRightZone.style.display = 'none';
       document.getElementById('modal-rhythm-line').style.display = 'none';
       // Restore first context line (zone label) visibility
       const contextLines = document.querySelectorAll('#modal-context-info .context-line');
