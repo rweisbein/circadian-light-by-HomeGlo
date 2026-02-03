@@ -495,16 +495,19 @@
     }
 
     .timer-motion {
-      color: var(--muted);
+      color: var(--row-text, var(--muted));
+      opacity: 0.7;
     }
 
     .timer-boost {
-      color: var(--muted);
+      color: var(--row-text, var(--muted));
+      opacity: 0.7;
       margin-left: auto;
     }
 
     .timer-frozen {
       color: #63b3ed;
+      opacity: 0.85;
     }
 
     .timer-arrow {
@@ -2041,6 +2044,9 @@
             if (remaining) text += ` ${remaining}`;
           }
           parts.push(`<span class="timer-boost">${text}</span>`);
+        }
+        if (status.frozen) {
+          parts.push(`<span class="timer-frozen">❄</span>`);
         }
         el.innerHTML = parts.join(' ');
       });
