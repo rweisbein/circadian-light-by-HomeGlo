@@ -792,14 +792,6 @@
     }
 
     /* On/Off section headers */
-    .onoff-section-header {
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: var(--muted);
-      padding: 10px 16px 6px;
-      letter-spacing: 0.03em;
-    }
-
     /* Zone group headers */
     .zone-group {
       margin-bottom: 16px;
@@ -2848,7 +2840,7 @@
         const onAreas = filtered.filter(a => a.is_on);
         const offAreas = filtered.filter(a => !a.is_on);
 
-        const renderOnOffSection = (label, sectionAreas, icon, allOff = false) => {
+        const renderOnOffSection = (sectionAreas, allOff = false) => {
           if (sectionAreas.length === 0) return '';
           // Sub-group by zone
           const subGroups = {};
@@ -2868,7 +2860,7 @@
           for (const zn of Object.keys(subGroups)) {
             if (!subNames.includes(zn)) subNames.push(zn);
           }
-          let sectionHtml = `<div class="onoff-section-header">${icon} ${label} <span style="opacity: 0.5; font-weight: 400;">(${sectionAreas.length})</span></div>`;
+          let sectionHtml = '';
           for (const zn of subNames) {
             // Sort areas within zone by custom order
             const gzData = (cachedGlozones?.zones || {})[zn];
@@ -2888,8 +2880,8 @@
           return sectionHtml;
         };
 
-        html += renderOnOffSection('On', onAreas, '<span style="color: var(--success); font-size: 0.6rem; vertical-align: 1px;">●</span>', false);
-        html += renderOnOffSection('Off', offAreas, '<span style="color: var(--muted); font-size: 0.6rem; vertical-align: 1px;">●</span>', true);
+        html += renderOnOffSection(onAreas, false);
+        html += renderOnOffSection(offAreas, true);
       } else if (viewMode === 'custom') {
         // Custom: use API zone order (preserves user arrangement from edit mode)
         const gzZonesObj = cachedGlozones?.zones || {};
