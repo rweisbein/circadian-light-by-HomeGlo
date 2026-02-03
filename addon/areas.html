@@ -2045,6 +2045,9 @@
           }
           parts.push(`<span class="timer-boost">${text}</span>`);
         }
+        if (status.frozen) {
+          parts.push(`<span class="timer-frozen">❄</span>`);
+        }
         el.innerHTML = parts.join(' ');
       });
     }
