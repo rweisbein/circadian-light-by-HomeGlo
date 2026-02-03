@@ -32,11 +32,7 @@ from .const import (
     SERVICE_GLO_UP,
     SERVICE_GLO_DOWN,
     SERVICE_GLO_RESET,
-    SERVICE_GLOZONE_RESET,
-    SERVICE_GLOZONE_DOWN,
-    SERVICE_FULL_SEND,
     ATTR_AREA_ID,
-    ATTR_ZONE_NAME,
     ATTR_PRESET,
     ATTR_FROZEN_AT,
     ATTR_COPY_FROM,
@@ -179,26 +175,9 @@ async def _register_services(hass: HomeAssistant) -> None:
         area_id = call.data.get(ATTR_AREA_ID)
         _LOGGER.info("[%s] glo_reset called: area_id=%s", DOMAIN, area_id)
 
-    async def handle_glozone_reset(call: ServiceCall) -> None:
-        zone_name = call.data.get(ATTR_ZONE_NAME)
-        _LOGGER.info("[%s] glozone_reset called: zone_name=%s", DOMAIN, zone_name)
-
-    async def handle_glozone_down(call: ServiceCall) -> None:
-        zone_name = call.data.get(ATTR_ZONE_NAME)
-        _LOGGER.info("[%s] glozone_down called: zone_name=%s", DOMAIN, zone_name)
-
-    async def handle_full_send(call: ServiceCall) -> None:
-        area_id = call.data.get(ATTR_AREA_ID)
-        _LOGGER.info("[%s] full_send called: area_id=%s", DOMAIN, area_id)
-
     # Schema for services - area_id can be a string or list of strings
     area_schema = vol.Schema({
         vol.Required(ATTR_AREA_ID): vol.Any(cv.string, [cv.string]),
-    })
-
-    # Schema for zone-level services
-    zone_schema = vol.Schema({
-        vol.Required(ATTR_ZONE_NAME): cv.string,
     })
 
     # Schema for set service - includes additional optional parameters
@@ -229,21 +208,10 @@ async def _register_services(hass: HomeAssistant) -> None:
         (SERVICE_GLO_UP, handle_glo_up),
         (SERVICE_GLO_DOWN, handle_glo_down),
         (SERVICE_GLO_RESET, handle_glo_reset),
-        (SERVICE_FULL_SEND, handle_full_send),
     ]
 
     for service_name, handler in area_services:
         hass.services.async_register(DOMAIN, service_name, handler, schema=area_schema)
-        _LOGGER.debug("[%s] Registered service: %s.%s", DOMAIN, DOMAIN, service_name)
-
-    # Register zone-level services
-    zone_services = [
-        (SERVICE_GLOZONE_RESET, handle_glozone_reset),
-        (SERVICE_GLOZONE_DOWN, handle_glozone_down),
-    ]
-
-    for service_name, handler in zone_services:
-        hass.services.async_register(DOMAIN, service_name, handler, schema=zone_schema)
         _LOGGER.debug("[%s] Registered service: %s.%s", DOMAIN, DOMAIN, service_name)
 
     # Register set service with its own schema
@@ -278,7 +246,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             SERVICE_CIRCADIAN_ON, SERVICE_CIRCADIAN_OFF,
             SERVICE_FREEZE_TOGGLE, SERVICE_SET, SERVICE_BROADCAST, SERVICE_REFRESH,
             SERVICE_GLO_UP, SERVICE_GLO_DOWN, SERVICE_GLO_RESET,
-            SERVICE_GLOZONE_RESET, SERVICE_GLOZONE_DOWN, SERVICE_FULL_SEND,
         ]
         for service_name in services:
             hass.services.async_remove(DOMAIN, service_name)
