@@ -2766,15 +2766,15 @@
 
             let pillStyle = '';
             let pillTextColor = zoneTextColor;
-            if (allOff) {
-              pillStyle = 'background: rgba(255,255,255,0.08);';
-              pillTextColor = 'var(--text)';
-            } else if (pureRhythm) {
+            if (pureRhythm) {
               const pillCctColor = cctToRGB(pureRhythm.kelvin);
               const pillTinted = tintColorByBrightness(pillCctColor, pureRhythm.brightness);
               pillTextColor = readableTextColor(pillTinted);
               const pillFill = pureRhythm.brightness / 100;
               pillStyle = `background: ${pillTinted}; --pill-fill: ${pillFill};`;
+            } else if (allOff) {
+              pillStyle = 'background: rgba(255,255,255,0.08);';
+              pillTextColor = 'var(--text)';
             } else {
               pillStyle = 'background: rgba(0,0,0,0.45);';
             }
