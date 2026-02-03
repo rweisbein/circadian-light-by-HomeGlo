@@ -278,7 +278,7 @@ refresh:
 
 glo_up:
   name: GloUp
-  description: Push area's state to its zone and propagate to all areas in the zone
+  description: Push area's state to its GloZone
   icon: mdi:arrow-up-bold-circle
   fields:
     area_id:
@@ -291,7 +291,7 @@ glo_up:
 
 glo_down:
   name: GloDown
-  description: Pull zone's state to this area (sync area to match its zone)
+  description: Pull GloZone's state to this area
   icon: mdi:arrow-down-bold-circle
   fields:
     area_id:
@@ -304,12 +304,51 @@ glo_down:
 
 glo_reset:
   name: GloReset
-  description: Reset zone and all member areas to preset defaults
-  icon: mdi:restore-alert
+  description: Reset area to Daily Rhythm
+  icon: mdi:restore
   fields:
     area_id:
       name: Area
-      description: Any area in the zone to reset (zone is derived from this area)
+      description: The area to reset to Daily Rhythm
+      required: true
+      example: living_room
+      selector:
+        area:
+
+glozone_reset:
+  name: GloZone Reset
+  description: Reset GloZone state to Daily Rhythm defaults (does not affect areas)
+  icon: mdi:restore-alert
+  fields:
+    zone_name:
+      name: Zone Name
+      description: The GloZone to reset
+      required: true
+      example: downstairs
+      selector:
+        text:
+
+glozone_down:
+  name: GloZone Down
+  description: Push GloZone settings to all areas in the zone
+  icon: mdi:arrow-down-bold-box
+  fields:
+    zone_name:
+      name: Zone Name
+      description: The GloZone to push settings from
+      required: true
+      example: downstairs
+      selector:
+        text:
+
+full_send:
+  name: Full Send
+  description: Push area to GloZone and propagate to all areas (glo_up + glozone_down)
+  icon: mdi:arrow-up-bold-box
+  fields:
+    area_id:
+      name: Area
+      description: The area to push from (zone is derived, then propagated to all areas)
       required: true
       example: living_room
       selector:
