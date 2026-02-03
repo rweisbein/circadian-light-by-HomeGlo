@@ -79,11 +79,14 @@ AVAILABLE_ACTIONS = [
     "bright_down",       # Brightness only
     "color_up",          # Color temp only
     "color_down",        # Color temp only
-    "reset",             # Reset to current time position
+    "glo_reset",         # Reset area to Daily Rhythm
     "freeze_toggle",     # Toggle freeze at current position
-    "glo_up",            # Glo Up for zone
-    "glo_down",          # Glo Down for zone
-    "glo_reset",         # Glo Reset for zone
+    "glo_up",            # Push area settings to GloZone
+    "glo_down",          # Pull GloZone settings to area
+    "glozone_reset",     # Reset GloZone to Daily Rhythm
+    "glozone_down",      # Push GloZone settings to all areas
+    "full_send",         # glo_up + glozone_down (push area to zone to all)
+    "glozone_reset_full", # glozone_reset + glozone_down (reset zone + push to all)
     "cycle_scope",       # Cycle through scopes
     "set_britelite",     # 100% brightness, cool white (6500K)
     "set_nitelite",      # 5% brightness, warm (2200K)
@@ -133,7 +136,7 @@ _HUE_4BUTTON_MAPPING = {
     # Hue button (bottom)
     "off_short_release": "cycle_scope",         # 1x - change controlled areas
     "off_double_press": "glo_down",              # 2x - pull zone state
-    "off_triple_press": "glo_reset",            # 3x - reset zone
+    "off_triple_press": "glozone_reset_full",   # 3x - reset zone + push to all
     "off_quadruple_press": None,                # 4x - not used
     "off_quintuple_press": None,                # 5x - coming soon: Sleep
     "off_hold": None,                           # long - RESERVED for magic button
@@ -1178,5 +1181,6 @@ def get_switches_summary() -> List[Dict[str, Any]]:
             "scopes": [{"areas": s.areas} for s in switch.scopes],
             "device_id": switch.device_id,
             "indicator_light": switch.indicator_light,
+            "inactive": switch.inactive,
         })
     return result

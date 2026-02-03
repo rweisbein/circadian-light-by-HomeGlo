@@ -763,7 +763,7 @@ class HomeAssistantWebSocketClient:
             return
 
         if switch_config.inactive:
-            logger.debug(f"Switch {switch_config.name} is inactive/paused, ignoring event")
+            logger.info(f"Switch {switch_config.name} is inactive/paused, ignoring event")
             switches.set_last_action(device_ieee, f"{command}")
             return
 
@@ -893,7 +893,7 @@ class HomeAssistantWebSocketClient:
             return
 
         if switch_config.inactive:
-            logger.debug(f"Switch {switch_config.name} is inactive/paused, ignoring event")
+            logger.info(f"Switch {switch_config.name} is inactive/paused, ignoring event")
             button_event = f"button_{subtype}_{event_type}"
             switches.set_last_action(device_id, button_event)
             return
@@ -1281,29 +1281,61 @@ class HomeAssistantWebSocketClient:
             for area in areas:
                 await self.primitives.color_down(area, "switch")
 
-        elif action == "reset":
+        elif action == "glo_reset":
+            # Reset area to Daily Rhythm
             for area in areas:
-                await self.primitives.reset(area, "switch")
+                await self.primitives.glo_reset(area, "switch")
 
         elif action == "freeze_toggle":
             for area in areas:
                 await self.primitives.freeze_toggle(area, "switch")
 
         elif action == "glo_up":
-            # Glo primitives take area_id and look up zone internally
-            # Process all areas (they may be in different zones)
+            # Push area settings to GloZone (atomic - zone only, not to other areas)
             for area in areas:
                 await self.primitives.glo_up(area, "switch")
 
         elif action == "glo_down":
-            # Process all areas (they may be in different zones)
+            # Pull GloZone settings to this area
             for area in areas:
                 await self.primitives.glo_down(area, "switch")
 
-        elif action == "glo_reset":
-            # Process all areas (they may be in different zones)
+        elif action == "glozone_reset":
+            # Reset GloZone to Daily Rhythm (zone state only, not propagated)
+            # Get unique zones from areas
+            glozone.reload()
+            zones_done = set()
             for area in areas:
-                await self.primitives.glo_reset(area, "switch")
+                zone_name = glozone.get_zone_for_area(area)
+                if zone_name and zone_name not in zones_done:
+                    await self.primitives.glozone_reset(zone_name, "switch")
+                    zones_done.add(zone_name)
+
+        elif action == "glozone_down":
+            # Push GloZone settings to all areas in zone
+            glozone.reload()
+            zones_done = set()
+            for area in areas:
+                zone_name = glozone.get_zone_for_area(area)
+                if zone_name and zone_name not in zones_done:
+                    await self.primitives.glozone_down(zone_name, "switch")
+                    zones_done.add(zone_name)
+
+        elif action == "full_send":
+            # Compound: glo_up + glozone_down (push area to zone, then zone to all)
+            for area in areas:
+                await self.primitives.full_send(area, "switch")
+
+        elif action == "glozone_reset_full":
+            # Compound: glozone_reset + glozone_down (reset zone, then push to all)
+            glozone.reload()
+            zones_done = set()
+            for area in areas:
+                zone_name = glozone.get_zone_for_area(area)
+                if zone_name and zone_name not in zones_done:
+                    await self.primitives.glozone_reset(zone_name, "switch")
+                    await self.primitives.glozone_down(zone_name, "switch")
+                    zones_done.add(zone_name)
 
         elif action == "set_britelite":
             # Freeze at descend_start (max brightness/coolest color on curve)
@@ -3554,6 +3586,12 @@ class HomeAssistantWebSocketClient:
                 elif service == "color_down":
                     logger.info(f"[webserver] zone color_down for zone: {zone_name}")
                     await self.primitives.zone_color_down(zone_name, "webserver")
+                elif service == "glozone_reset":
+                    logger.info(f"[webserver] glozone_reset for zone: {zone_name}")
+                    await self.primitives.glozone_reset(zone_name, "webserver")
+                elif service == "glozone_down":
+                    logger.info(f"[webserver] glozone_down for zone: {zone_name}")
+                    await self.primitives.glozone_down(zone_name, "webserver")
                 else:
                     logger.warning(f"Unknown circadian_light_zone_action: service={service}, zone_name={zone_name}")
 

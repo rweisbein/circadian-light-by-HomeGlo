@@ -1880,8 +1880,8 @@ class CircadianLightPrimitives:
     # Reset
     # -------------------------------------------------------------------------
 
-    async def reset(self, area_id: str, source: str = "service_call"):
-        """Reset area to base config values.
+    async def glo_reset(self, area_id: str, source: str = "service_call"):
+        """Reset area to Daily Rhythm settings.
 
         Resets midpoints, bounds, and frozen_at to defaults.
         Preserves enabled status. Only applies lighting if already enabled.
@@ -1890,7 +1890,7 @@ class CircadianLightPrimitives:
             area_id: The area ID
             source: Source of the action
         """
-        logger.info(f"[{source}] Resetting area {area_id}")
+        logger.info(f"[{source}] glo_reset for area {area_id}")
 
         # Reset state (clears midpoints/bounds/frozen_at, preserves only enabled)
         state.reset_area(area_id)
@@ -1905,27 +1905,27 @@ class CircadianLightPrimitives:
             await self._apply_circadian_lighting(area_id, result.brightness, result.color_temp)
 
             logger.info(
-                f"Reset complete for area {area_id}: "
+                f"glo_reset complete for area {area_id}: "
                 f"{result.brightness}%, {result.color_temp}K"
             )
         else:
-            logger.info(f"Reset complete for area {area_id} (not circadian or lights off, no lighting change)")
+            logger.info(f"glo_reset complete for area {area_id} (not circadian or lights off, no lighting change)")
 
     # -------------------------------------------------------------------------
     # GloZone Primitives - Zone-based state synchronization
     # -------------------------------------------------------------------------
 
     async def glo_up(self, area_id: str, source: str = "service_call"):
-        """Push area's runtime state to its zone, then propagate to all areas in zone.
+        """Push area's runtime state to its GloZone.
 
-        GloUp syncs the entire zone to match this area's state. Use when you want
-        all areas in a zone to match the current area's brightness/color settings.
+        GloUp sends this area's brightness/color settings to the zone state.
+        Does not propagate to other areas - use glozone_down for that.
 
         Args:
             area_id: The area ID to push from
             source: Source of the action
         """
-        logger.info(f"[{source}] GloUp for area {area_id}")
+        logger.info(f"[{source}] glo_up for area {area_id}")
 
         # Reload glozone config from disk (webserver may have updated it)
         glozone.reload()
@@ -1945,33 +1945,12 @@ class CircadianLightPrimitives:
 
         # Push to zone state
         glozone_state.set_zone_state(zone_name, runtime_state)
-        logger.info(f"Pushed state to zone '{zone_name}': {runtime_state}")
-
-        # Get all areas in the zone
-        zone_areas = glozone.get_areas_in_zone(zone_name)
-        logger.info(f"Zone '{zone_name}' has {len(zone_areas)} area(s): {zone_areas}")
-
-        # Propagate to all other areas in the zone
-        for target_area_id in zone_areas:
-            if target_area_id == area_id:
-                continue  # Skip the source area
-
-            # Copy state to target area
-            state.update_area(target_area_id, runtime_state)
-            logger.debug(f"Copied state to area {target_area_id}")
-
-            # Apply lighting if the target area is circadian and is_on
-            # Use centralized update function which handles boost, frozen state, etc.
-            if state.is_circadian(target_area_id) and state.get_is_on(target_area_id):
-                await self.client.update_lights_in_circadian_mode(target_area_id)
-                logger.debug(f"Triggered lighting update for {target_area_id}")
-
-        logger.info(f"GloUp complete: synced {len(zone_areas)} area(s) in zone '{zone_name}'")
+        logger.info(f"glo_up complete: pushed state to zone '{zone_name}': {runtime_state}")
 
     async def glo_down(self, area_id: str, source: str = "service_call"):
-        """Pull zone's runtime state to this area.
+        """Pull GloZone's runtime state to this area.
 
-        GloDown syncs this area to match its zone's state. Use when you want
+        glo_down syncs this area to match its zone's state. Use when you want
         a single area to rejoin the zone's current settings.
 
         Also cancels any active boost for the area.
@@ -1980,12 +1959,12 @@ class CircadianLightPrimitives:
             area_id: The area ID to sync to zone state
             source: Source of the action
         """
-        logger.info(f"[{source}] GloDown for area {area_id}")
+        logger.info(f"[{source}] glo_down for area {area_id}")
 
-        # Clear boost state if boosted (GloDown overrides boost)
+        # Clear boost state if boosted (glo_down overrides boost)
         if state.is_boosted(area_id):
             state.clear_boost(area_id)
-            logger.info(f"Cleared boost for area {area_id} (GloDown)")
+            logger.info(f"Cleared boost for area {area_id} (glo_down)")
 
         # Reload glozone config from disk (webserver may have updated it)
         glozone.reload()
@@ -2011,51 +1990,102 @@ class CircadianLightPrimitives:
         # Use centralized update function for consistency
         if state.is_circadian(area_id) and state.get_is_on(area_id):
             await self.client.update_lights_in_circadian_mode(area_id)
-            logger.info(f"GloDown complete for {area_id}")
+            logger.info(f"glo_down complete for {area_id}")
         else:
-            logger.info(f"GloDown complete for {area_id} (not circadian or lights off, no lighting change)")
+            logger.info(f"glo_down complete for {area_id} (not circadian or lights off, no lighting change)")
 
-    async def glo_reset(self, area_id: str, source: str = "service_call"):
-        """Reset zone runtime state to defaults, reset all member areas.
+    # -------------------------------------------------------------------------
+    # GloZone-level Primitives - Zone state operations
+    # -------------------------------------------------------------------------
 
-        GloReset clears the zone's state (brightness_mid, color_mid, frozen_at
-        all become None), and resets all member areas. All areas return to
-        following the preset's default circadian curve.
+    async def glozone_reset(self, zone_name: str, source: str = "service_call"):
+        """Reset GloZone to Daily Rhythm settings.
+
+        Clears the zone's runtime state (brightness_mid, color_mid, frozen_at
+        all become None). Does not propagate to areas - use glozone_down for that.
 
         Args:
-            area_id: Any area ID in the zone to reset
+            zone_name: The zone name to reset
             source: Source of the action
         """
-        logger.info(f"[{source}] GloReset for area {area_id}")
+        logger.info(f"[{source}] glozone_reset for zone '{zone_name}'")
 
         # Reload glozone config from disk (webserver may have updated it)
         glozone.reload()
 
-        # Get the zone this area belongs to
-        zone_name = glozone.get_zone_for_area(area_id)
-        logger.info(f"Area {area_id} is in zone '{zone_name}'")
-
         # Reset zone state to defaults (None)
         glozone_state.reset_zone_state(zone_name)
-        logger.info(f"Reset zone '{zone_name}' runtime state to defaults")
+        logger.info(f"glozone_reset complete: zone '{zone_name}' reset to Daily Rhythm defaults")
+
+    async def glozone_down(self, zone_name: str, source: str = "service_call"):
+        """Push GloZone settings to all areas in the zone.
+
+        Copies the zone's runtime state to all member areas and applies lighting.
+
+        Args:
+            zone_name: The zone name
+            source: Source of the action
+        """
+        logger.info(f"[{source}] glozone_down for zone '{zone_name}'")
+
+        # Reload glozone config from disk (webserver may have updated it)
+        glozone.reload()
+
+        # Get zone's runtime state
+        zone_state = glozone_state.get_zone_state(zone_name)
+        runtime_state = {
+            "brightness_mid": zone_state.get("brightness_mid"),
+            "color_mid": zone_state.get("color_mid"),
+            "frozen_at": zone_state.get("frozen_at"),
+            "color_override": zone_state.get("color_override"),
+        }
+        logger.info(f"Zone '{zone_name}' state: {runtime_state}")
 
         # Get all areas in the zone
         zone_areas = glozone.get_areas_in_zone(zone_name)
         logger.info(f"Zone '{zone_name}' has {len(zone_areas)} area(s): {zone_areas}")
 
-        # Reset all areas in the zone
+        # Propagate to all areas in the zone
         for target_area_id in zone_areas:
-            # Reset area state (clears midpoints/bounds/frozen_at, preserves enabled)
-            state.reset_area(target_area_id)
-            logger.debug(f"Reset area {target_area_id}")
+            # Clear boost state if boosted (zone push overrides boost)
+            if state.is_boosted(target_area_id):
+                state.clear_boost(target_area_id)
+                logger.debug(f"Cleared boost for area {target_area_id}")
 
-            # Apply lighting if area is circadian and is_on
-            # Use centralized update function for consistency
+            # Copy state to target area
+            state.update_area(target_area_id, runtime_state)
+            logger.debug(f"Copied state to area {target_area_id}")
+
+            # Apply lighting if the target area is circadian and is_on
             if state.is_circadian(target_area_id) and state.get_is_on(target_area_id):
                 await self.client.update_lights_in_circadian_mode(target_area_id)
                 logger.debug(f"Triggered lighting update for {target_area_id}")
 
-        logger.info(f"GloReset complete: reset {len(zone_areas)} area(s) in zone '{zone_name}'")
+        logger.info(f"glozone_down complete: synced {len(zone_areas)} area(s) in zone '{zone_name}'")
+
+    async def full_send(self, area_id: str, source: str = "service_call"):
+        """Push area settings to GloZone, then to all areas in zone.
+
+        Compound action: glo_up + glozone_down.
+        Use when you want all areas in a zone to match this area's settings.
+
+        Args:
+            area_id: The area ID to push from
+            source: Source of the action
+        """
+        logger.info(f"[{source}] full_send for area {area_id}")
+
+        # Get the zone this area belongs to
+        glozone.reload()
+        zone_name = glozone.get_zone_for_area(area_id)
+
+        # Step 1: Push area state to zone
+        await self.glo_up(area_id, source)
+
+        # Step 2: Push zone state to all areas
+        await self.glozone_down(zone_name, source)
+
+        logger.info(f"full_send complete for area {area_id} in zone '{zone_name}'")
 
     # -------------------------------------------------------------------------
     # Zone-level actions (modify zone state only, no light control)
