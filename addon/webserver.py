@@ -3201,7 +3201,7 @@ class LightDesignerServer:
         - step_up, step_down
         - bright_up, bright_down
         - color_up, color_down
-        - freeze_toggle, reset
+        - freeze_toggle
         - glo_up, glo_down, glo_reset
         """
         VALID_ACTIONS = {
@@ -3210,7 +3210,7 @@ class LightDesignerServer:
             'step_up', 'step_down',
             'bright_up', 'bright_down',
             'color_up', 'color_down',
-            'freeze_toggle', 'reset',
+            'freeze_toggle',
             'glo_up', 'glo_down', 'glo_reset',
             'boost',
             'set_nitelite', 'set_britelite'
@@ -3285,6 +3285,7 @@ class LightDesignerServer:
             'step_up', 'step_down',
             'bright_up', 'bright_down',
             'color_up', 'color_down',
+            'glozone_reset', 'glozone_down',
         }
 
         try:
