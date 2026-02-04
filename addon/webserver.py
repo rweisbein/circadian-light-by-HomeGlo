@@ -3111,6 +3111,38 @@ class LightDesignerServer:
     # Reserved preset names that cannot be used for moments
     RESERVED_PRESET_NAMES = {"wake", "bed", "nitelite", "britelite"}
 
+    def _slugify_moment_name(self, name: str, existing_ids: set, exclude_id: str = None) -> str:
+        """Convert moment name to a URL-safe slug, handling duplicates.
+
+        Args:
+            name: The display name to slugify
+            existing_ids: Set of existing moment IDs
+            exclude_id: ID to exclude from duplicate check (for renames)
+
+        Returns:
+            Unique slug like 'sleep' or 'sleep_2' if duplicate
+        """
+        import re
+        # Lowercase, replace spaces/dashes with underscores, remove other special chars
+        slug = name.lower().strip()
+        slug = re.sub(r'[\s\-]+', '_', slug)  # spaces/dashes to underscores
+        slug = re.sub(r'[^a-z0-9_]', '', slug)  # remove non-alphanumeric
+        slug = re.sub(r'_+', '_', slug)  # collapse multiple underscores
+        slug = slug.strip('_')  # remove leading/trailing underscores
+
+        if not slug:
+            slug = 'moment'
+
+        # Check for duplicates and append number if needed
+        base_slug = slug
+        counter = 2
+        check_ids = existing_ids - {exclude_id} if exclude_id else existing_ids
+        while slug in check_ids or slug in self.RESERVED_PRESET_NAMES:
+            slug = f"{base_slug}_{counter}"
+            counter += 1
+
+        return slug
+
     async def get_moments(self, request: Request) -> Response:
         """Get all moments."""
         try:
@@ -3145,25 +3177,11 @@ class LightDesignerServer:
             if not name:
                 return web.json_response({"error": "Moment name is required"}, status=400)
 
-            # Generate ID from name (lowercase, underscores)
-            moment_id = name.lower().replace(" ", "_").replace("-", "_")
-
-            # Check reserved names
-            if moment_id in self.RESERVED_PRESET_NAMES:
-                return web.json_response(
-                    {"error": f"'{name}' is a reserved preset name and cannot be used"},
-                    status=400
-                )
-
             config = await self.load_raw_config()
             moments = config.setdefault("moments", {})
 
-            # Check for duplicates
-            if moment_id in moments:
-                return web.json_response(
-                    {"error": f"Moment '{name}' already exists"},
-                    status=400
-                )
+            # Generate unique slug from name
+            moment_id = self._slugify_moment_name(name, set(moments.keys()))
 
             # Create the moment with defaults
             moments[moment_id] = {
@@ -3208,17 +3226,7 @@ class LightDesignerServer:
             # Handle rename if name changed
             new_name = data.get("name")
             if new_name and new_name != moment.get("name"):
-                new_id = new_name.lower().replace(" ", "_").replace("-", "_")
-                if new_id in self.RESERVED_PRESET_NAMES:
-                    return web.json_response(
-                        {"error": f"'{new_name}' is a reserved preset name"},
-                        status=400
-                    )
-                if new_id != moment_id and new_id in moments:
-                    return web.json_response(
-                        {"error": f"Moment '{new_name}' already exists"},
-                        status=400
-                    )
+                new_id = self._slugify_moment_name(new_name, set(moments.keys()), exclude_id=moment_id)
                 # Rename: create new key, delete old
                 if new_id != moment_id:
                     moments[new_id] = moment

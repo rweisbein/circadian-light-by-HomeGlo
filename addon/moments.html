@@ -894,10 +894,10 @@
           <div class="section-content">
             <div class="trigger-display">
               <span class="trigger-icon">&#9654;</span>
-              <span>Set ${moment.name}</span>
+              <span>set_${selectedMomentId}</span>
             </div>
             <p style="font-size: 0.8rem; color: var(--muted2); margin-top: 8px;">
-              Trigger from a switch button or automation using the "Set ${moment.name}" action.
+              Use this action from a switch button or call <code style="background: var(--panel); padding: 2px 6px; border-radius: 4px;">circadian_light.set</code> with <code style="background: var(--panel); padding: 2px 6px; border-radius: 4px;">preset: ${selectedMomentId}</code>
             </p>
           </div>
         </div>
@@ -1100,6 +1100,7 @@
       if (!selectedMomentId || !moments[selectedMomentId]) return;
 
       const moment = moments[selectedMomentId];
+      const oldId = selectedMomentId;
 
       try {
         const response = await fetch(`./api/moments/${encodeURIComponent(selectedMomentId)}`, {
@@ -1109,6 +1110,15 @@
         });
 
         if (response.ok) {
+          const data = await response.json();
+          // Handle ID change on rename
+          if (data.id && data.id !== oldId) {
+            delete moments[oldId];
+            moments[data.id] = moment;
+            selectedMomentId = data.id;
+            renderMomentList();
+            renderMomentEditor();
+          }
           showSaveStatus();
         } else {
           const data = await response.json();
