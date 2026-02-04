@@ -450,6 +450,18 @@ class LightDesignerServer:
         self.app.router.add_post('/api/glozones/{name}/areas', self.add_area_to_zone)
         self.app.router.add_delete('/api/glozones/{name}/areas/{area_id}', self.remove_area_from_zone)
 
+        # Moments API routes
+        self.app.router.add_route('GET', '/{path:.*}/api/moments', self.get_moments)
+        self.app.router.add_route('POST', '/{path:.*}/api/moments', self.create_moment)
+        self.app.router.add_route('GET', '/{path:.*}/api/moments/{moment_id}', self.get_moment)
+        self.app.router.add_route('PUT', '/{path:.*}/api/moments/{moment_id}', self.update_moment)
+        self.app.router.add_route('DELETE', '/{path:.*}/api/moments/{moment_id}', self.delete_moment)
+        self.app.router.add_get('/api/moments', self.get_moments)
+        self.app.router.add_post('/api/moments', self.create_moment)
+        self.app.router.add_get('/api/moments/{moment_id}', self.get_moment)
+        self.app.router.add_put('/api/moments/{moment_id}', self.update_moment)
+        self.app.router.add_delete('/api/moments/{moment_id}', self.delete_moment)
+
         # GloZone API routes - Actions
         self.app.router.add_route('POST', '/{path:.*}/api/glozone/glo-up', self.handle_glo_up)
         self.app.router.add_route('POST', '/{path:.*}/api/glozone/glo-down', self.handle_glo_down)
@@ -500,11 +512,13 @@ class LightDesignerServer:
         self.app.router.add_route('GET', '/{path:.*}/glo/{glo_name}', self.serve_glo_designer)
         self.app.router.add_route('GET', '/{path:.*}/glo', self.serve_glo_designer)
         self.app.router.add_route('GET', '/{path:.*}/settings', self.serve_settings)
+        self.app.router.add_route('GET', '/{path:.*}/moments', self.serve_moments)
         self.app.router.add_route('GET', '/{path:.*}/', self.serve_home)
         # Without ingress path prefix
         self.app.router.add_get('/glo/{glo_name}', self.serve_glo_designer)
         self.app.router.add_get('/glo', self.serve_glo_designer)
         self.app.router.add_get('/settings', self.serve_settings)
+        self.app.router.add_get('/moments', self.serve_moments)
         self.app.router.add_get('/', self.serve_home)
         # Legacy routes
         self.app.router.add_get('/designer', self.serve_home)
@@ -579,6 +593,10 @@ class LightDesignerServer:
     async def serve_settings(self, request: Request) -> Response:
         """Serve the Settings page."""
         return await self.serve_page("settings")
+
+    async def serve_moments(self, request: Request) -> Response:
+        """Serve the Moments page."""
+        return await self.serve_page("moments")
 
     async def serve_areas(self, request: Request) -> Response:
         """Legacy: redirect to home (areas is now the home page)."""
@@ -3084,6 +3102,164 @@ class LightDesignerServer:
             return web.json_response({"status": "removed", "area_id": area_id})
         except Exception as e:
             logger.error(f"Error removing area from zone: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    # -------------------------------------------------------------------------
+    # Moments API - CRUD for whole-home presets
+    # -------------------------------------------------------------------------
+
+    # Reserved preset names that cannot be used for moments
+    RESERVED_PRESET_NAMES = {"wake", "bed", "nitelite", "britelite"}
+
+    async def get_moments(self, request: Request) -> Response:
+        """Get all moments."""
+        try:
+            config = await self.load_raw_config()
+            moments = config.get("moments", {})
+            return web.json_response({"moments": moments})
+        except Exception as e:
+            logger.error(f"Error getting moments: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def get_moment(self, request: Request) -> Response:
+        """Get a single moment by ID."""
+        try:
+            moment_id = request.match_info.get("moment_id")
+            config = await self.load_raw_config()
+            moments = config.get("moments", {})
+
+            if moment_id not in moments:
+                return web.json_response({"error": f"Moment '{moment_id}' not found"}, status=404)
+
+            return web.json_response({"moment": moments[moment_id], "id": moment_id})
+        except Exception as e:
+            logger.error(f"Error getting moment: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def create_moment(self, request: Request) -> Response:
+        """Create a new moment."""
+        try:
+            data = await request.json()
+            name = data.get("name", "").strip()
+
+            if not name:
+                return web.json_response({"error": "Moment name is required"}, status=400)
+
+            # Generate ID from name (lowercase, underscores)
+            moment_id = name.lower().replace(" ", "_").replace("-", "_")
+
+            # Check reserved names
+            if moment_id in self.RESERVED_PRESET_NAMES:
+                return web.json_response(
+                    {"error": f"'{name}' is a reserved preset name and cannot be used"},
+                    status=400
+                )
+
+            config = await self.load_raw_config()
+            moments = config.setdefault("moments", {})
+
+            # Check for duplicates
+            if moment_id in moments:
+                return web.json_response(
+                    {"error": f"Moment '{name}' already exists"},
+                    status=400
+                )
+
+            # Create the moment with defaults
+            moments[moment_id] = {
+                "name": name,
+                "icon": data.get("icon", "mdi:lightbulb"),
+                "category": data.get("category", "utility"),
+                "trigger": data.get("trigger", {"type": "primitive"}),
+                "default_action": data.get("default_action", "off"),
+                "exceptions": data.get("exceptions", {}),
+            }
+
+            # Add fun moment fields if applicable
+            if data.get("category") == "fun":
+                moments[moment_id]["default_participation"] = data.get("default_participation", "if_on")
+                if "effect" in data:
+                    moments[moment_id]["effect"] = data["effect"]
+
+            await self.save_config_to_file(config)
+
+            logger.info(f"Created moment: {name} (id: {moment_id})")
+            return web.json_response({"status": "created", "id": moment_id, "moment": moments[moment_id]})
+        except json.JSONDecodeError:
+            return web.json_response({"error": "Invalid JSON"}, status=400)
+        except Exception as e:
+            logger.error(f"Error creating moment: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def update_moment(self, request: Request) -> Response:
+        """Update a moment."""
+        try:
+            moment_id = request.match_info.get("moment_id")
+            data = await request.json()
+
+            config = await self.load_raw_config()
+            moments = config.get("moments", {})
+
+            if moment_id not in moments:
+                return web.json_response({"error": f"Moment '{moment_id}' not found"}, status=404)
+
+            moment = moments[moment_id]
+
+            # Handle rename if name changed
+            new_name = data.get("name")
+            if new_name and new_name != moment.get("name"):
+                new_id = new_name.lower().replace(" ", "_").replace("-", "_")
+                if new_id in self.RESERVED_PRESET_NAMES:
+                    return web.json_response(
+                        {"error": f"'{new_name}' is a reserved preset name"},
+                        status=400
+                    )
+                if new_id != moment_id and new_id in moments:
+                    return web.json_response(
+                        {"error": f"Moment '{new_name}' already exists"},
+                        status=400
+                    )
+                # Rename: create new key, delete old
+                if new_id != moment_id:
+                    moments[new_id] = moment
+                    del moments[moment_id]
+                    moment_id = new_id
+                    moment = moments[moment_id]
+
+            # Update fields
+            for field in ["name", "icon", "category", "trigger", "default_action",
+                          "exceptions", "default_participation", "effect"]:
+                if field in data:
+                    moment[field] = data[field]
+
+            await self.save_config_to_file(config)
+
+            logger.info(f"Updated moment: {moment_id}")
+            return web.json_response({"status": "updated", "id": moment_id, "moment": moment})
+        except json.JSONDecodeError:
+            return web.json_response({"error": "Invalid JSON"}, status=400)
+        except Exception as e:
+            logger.error(f"Error updating moment: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def delete_moment(self, request: Request) -> Response:
+        """Delete a moment."""
+        try:
+            moment_id = request.match_info.get("moment_id")
+
+            config = await self.load_raw_config()
+            moments = config.get("moments", {})
+
+            if moment_id not in moments:
+                return web.json_response({"error": f"Moment '{moment_id}' not found"}, status=404)
+
+            del moments[moment_id]
+            await self.save_config_to_file(config)
+
+            logger.info(f"Deleted moment: {moment_id}")
+            return web.json_response({"status": "deleted", "id": moment_id})
+        except Exception as e:
+            logger.error(f"Error deleting moment: {e}")
             return web.json_response({"error": str(e)}, status=500)
 
     # -------------------------------------------------------------------------

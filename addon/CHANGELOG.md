@@ -1,5 +1,23 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.268
+**Moments feature - Phase 3 UI Page**
+
+- **New Moments page**: Two-panel layout for creating whole-home lighting presets
+  - Left panel: Moment list grouped by category (Utility, Fun)
+  - Right panel: Moment editor with icon picker, default action, and exceptions
+- **UI Features**:
+  - Icon picker with 24 emoji options
+  - Trigger display showing "Set {moment_name}" action
+  - Category dropdown (Utility/Fun)
+  - Default action selector (Off, NiteLite, Circadian, Leave alone)
+  - Area exceptions with action overrides
+  - Summary line showing action counts
+  - Delete confirmation modal
+  - Auto-save on changes
+- **Navigation**: Moments link added to nav bar (between Controls and Settings)
+- **Mobile responsive**: Stacked layout on small screens
+
 ## 6.9.267
 **Moments feature - Phase 2 Area Picker Component**
 
