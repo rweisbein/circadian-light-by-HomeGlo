@@ -357,6 +357,9 @@ class LightDesignerServer:
         self.live_design_ct_lights: list = []  # CT-only lights in area
         self.live_design_saved_states: dict = {}  # Saved light states to restore when ending
 
+        # Areas cache - populated once on first request, refreshed by sync-devices
+        self.cached_areas_list: list = None  # List of {area_id, name} for areas with lights
+
         # Initialize switches module (loads from switches_config.json)
         switches.init()
 
@@ -1894,14 +1897,13 @@ class LightDesignerServer:
         Returns:
             List of area dicts with area_id and name (only areas with lights)
         """
-        logger.info(f"[Live Design] Connecting to WebSocket: {ws_url}")
+        logger.debug(f"Fetching areas via WebSocket: {ws_url}")
         try:
             async with websockets.connect(ws_url) as ws:
                 # Wait for auth_required message
                 msg = json.loads(await ws.recv())
-                logger.info(f"[Live Design] WS received: {msg.get('type')}")
                 if msg.get('type') != 'auth_required':
-                    logger.error(f"[Live Design] Unexpected WS message: {msg}")
+                    logger.error(f"Unexpected WS message during areas fetch: {msg}")
                     return []
 
                 # Send auth
@@ -1909,13 +1911,11 @@ class LightDesignerServer:
                     'type': 'auth',
                     'access_token': token
                 }))
-                logger.info("[Live Design] Sent auth")
 
                 # Wait for auth response
                 msg = json.loads(await ws.recv())
-                logger.info(f"[Live Design] Auth response: {msg.get('type')}")
                 if msg.get('type') != 'auth_ok':
-                    logger.error(f"[Live Design] WS auth failed: {msg}")
+                    logger.error(f"WS auth failed during areas fetch: {msg}")
                     return []
 
                 # Request area registry
@@ -1923,23 +1923,20 @@ class LightDesignerServer:
                     'id': 1,
                     'type': 'config/area_registry/list'
                 }))
-                logger.info("[Live Design] Requested area registry")
 
                 # Get area response
                 area_msg = json.loads(await ws.recv())
                 if not area_msg.get('success') or not area_msg.get('result'):
-                    logger.error(f"[Live Design] Failed to get areas: {area_msg}")
+                    logger.error(f"Failed to get areas: {area_msg}")
                     return []
 
                 all_areas = {a['area_id']: a['name'] for a in area_msg['result']}
-                logger.info(f"[Live Design] Found {len(all_areas)} total areas")
 
                 # Request device registry (lights often get area from device)
                 await ws.send(json.dumps({
                     'id': 2,
                     'type': 'config/device_registry/list'
                 }))
-                logger.info("[Live Design] Requested device registry")
 
                 # Get device response
                 device_msg = json.loads(await ws.recv())
@@ -1950,19 +1947,17 @@ class LightDesignerServer:
                         area_id = device.get('area_id')
                         if device_id and area_id:
                             device_areas[device_id] = area_id
-                logger.info(f"[Live Design] Found {len(device_areas)} devices with areas")
 
                 # Request entity registry to find light entities
                 await ws.send(json.dumps({
                     'id': 3,
                     'type': 'config/entity_registry/list'
                 }))
-                logger.info("[Live Design] Requested entity registry")
 
                 # Get entity response
                 entity_msg = json.loads(await ws.recv())
                 if not entity_msg.get('success') or not entity_msg.get('result'):
-                    logger.error(f"[Live Design] Failed to get entities: {entity_msg}")
+                    logger.error(f"Failed to get entities: {entity_msg}")
                     # Fall back to returning all areas
                     areas = [{'area_id': k, 'name': v} for k, v in all_areas.items()]
                     areas.sort(key=lambda x: x['name'].lower())
@@ -1984,8 +1979,6 @@ class LightDesignerServer:
                     if device_id and device_id in device_areas:
                         areas_with_lights.add(device_areas[device_id])
 
-                logger.info(f"[Live Design] Found {len(areas_with_lights)} areas with lights")
-
                 # Return only areas that have lights (exclude internal groups area)
                 areas = [
                     {'area_id': area_id, 'name': all_areas[area_id]}
@@ -1994,28 +1987,32 @@ class LightDesignerServer:
                     and all_areas[area_id] != 'Circadian_Zigbee_Groups'
                 ]
                 areas.sort(key=lambda x: x['name'].lower())
-                logger.info(f"[Live Design] Returning {len(areas)} areas with lights")
+                logger.info(f"Fetched {len(areas)} areas with lights from HA")
                 return areas
 
         except Exception as e:
-            logger.error(f"[Live Design] WebSocket error: {e}", exc_info=True)
+            logger.error(f"WebSocket error fetching areas: {e}", exc_info=True)
             return []
 
     async def get_areas(self, request: Request) -> Response:
-        """Fetch areas from Home Assistant area registry."""
+        """Return cached areas list, fetching from HA only if cache is empty."""
+        # Return cached areas if available
+        if self.cached_areas_list is not None:
+            logger.debug(f"Returning {len(self.cached_areas_list)} cached areas")
+            return web.json_response(self.cached_areas_list)
+
+        # Cache miss - fetch from HA
         rest_url, ws_url, token = self._get_ha_api_config()
 
-        logger.info(f"[Live Design] get_areas called - ws_url={ws_url}, has_token={bool(token)}")
-
         if not token:
-            logger.warning("[Live Design] No HA token configured")
+            logger.warning("No HA token configured for areas fetch")
             return web.json_response(
                 {'error': 'Home Assistant API not configured'},
                 status=503
             )
 
         if not ws_url:
-            logger.warning("[Live Design] No WebSocket URL configured")
+            logger.warning("No WebSocket URL configured for areas fetch")
             return web.json_response(
                 {'error': 'WebSocket URL not configured'},
                 status=503
@@ -2023,10 +2020,11 @@ class LightDesignerServer:
 
         try:
             areas = await self._fetch_areas_via_websocket(ws_url, token)
-            logger.info(f"[Live Design] Returning {len(areas)} areas to client")
+            self.cached_areas_list = areas  # Cache the result
+            logger.info(f"Cached {len(areas)} areas from HA")
             return web.json_response(areas)
         except Exception as e:
-            logger.error(f"[Live Design] Error fetching areas: {e}")
+            logger.error(f"Error fetching areas: {e}")
             return web.json_response(
                 {'error': str(e)},
                 status=500
@@ -3332,6 +3330,10 @@ class LightDesignerServer:
         Equivalent to the old slow-cycle sync but triggered manually.
         """
         try:
+            # Clear areas cache so it gets refreshed on next request
+            self.cached_areas_list = None
+            logger.info("Cleared areas cache for sync")
+
             if self.client and hasattr(self.client, 'run_manual_sync'):
                 await self.client.run_manual_sync()
                 return web.json_response({"success": True, "message": "Device sync complete"})
