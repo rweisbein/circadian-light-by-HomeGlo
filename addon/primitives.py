@@ -182,35 +182,35 @@ class CircadianLightPrimitives:
         except Exception:
             return 0.3
 
-    def _get_limit_bounce_percent(self) -> float:
-        """Get the limit bounce percentage (% of range to bounce).
+    def _get_warning_intensity(self) -> int:
+        """Get the warning intensity (base depth of dip/flash).
 
-        Controls how much the lights dip/flash when hitting a step limit.
-        Reads from global config, defaults to 20 (%).
+        Controls how deep the bounce effect is at the limit.
+        Reads from global config, defaults to 3 (range 1-10).
 
         Returns:
-            Bounce percentage (0-100)
+            Warning intensity value (1-10)
         """
         try:
             raw_config = glozone.load_config_from_files()
-            return raw_config.get("limit_bounce_percent", 20)
+            return raw_config.get("warning_intensity", 3)
         except Exception:
-            return 20
+            return 3
 
-    def _get_reach_dip_percent(self) -> float:
-        """Get the reach feedback dip percentage (% of current brightness).
+    def _get_warning_scaling(self) -> int:
+        """Get the warning scaling (how much depth increases near the limit).
 
-        Controls how much lights dip during reach change feedback.
-        Reads from global config, defaults to 50 (%).
+        Higher values make the bounce deeper when further from the opposite limit.
+        Reads from global config, defaults to 1 (range 1-10).
 
         Returns:
-            Dip percentage (0-100)
+            Warning scaling value (1-10)
         """
         try:
             raw_config = glozone.load_config_from_files()
-            return raw_config.get("reach_dip_percent", 50)
+            return raw_config.get("warning_scaling", 1)
         except Exception:
-            return 50
+            return 1
 
     async def _turn_off_area(self, area_id: str, transition: float = 0.3) -> None:
         """Turn off all lights in an area.
@@ -277,7 +277,7 @@ class CircadianLightPrimitives:
                     frozen_cct = CircadianLight.calculate_color_at_hour(
                         area_state.frozen_at, config, area_state, apply_solar_rules=True, sun_times=sun_times
                     )
-                    await self._bounce_at_limit(area_id, frozen_bri, frozen_cct, direction="up", bounce_type="step")
+                    await self._bounce_at_limit(area_id, frozen_bri, frozen_cct, direction="up")
                 return
             # At least one dimension has room → unfreeze and let calculate_step handle it
             self._unfreeze_internal(area_id, source)
@@ -304,7 +304,7 @@ class CircadianLightPrimitives:
             if area_state.is_on:
                 current_bri = CircadianLight.calculate_brightness_at_hour(hour, config, area_state)
                 current_cct = CircadianLight.calculate_color_at_hour(hour, config, area_state, apply_solar_rules=True, sun_times=sun_times)
-                await self._bounce_at_limit(area_id, current_bri, current_cct, direction="up", bounce_type="step")
+                await self._bounce_at_limit(area_id, current_bri, current_cct, direction="up")
             return
 
         # Update state (always, even if is_on=False)
@@ -359,7 +359,7 @@ class CircadianLightPrimitives:
                     frozen_cct = CircadianLight.calculate_color_at_hour(
                         area_state.frozen_at, config, area_state, apply_solar_rules=True, sun_times=sun_times
                     )
-                    await self._bounce_at_limit(area_id, frozen_bri, frozen_cct, direction="down", bounce_type="step")
+                    await self._bounce_at_limit(area_id, frozen_bri, frozen_cct, direction="down")
                 return
             # At least one dimension has room → unfreeze and let calculate_step handle it
             self._unfreeze_internal(area_id, source)
@@ -386,7 +386,7 @@ class CircadianLightPrimitives:
             if area_state.is_on:
                 current_bri = CircadianLight.calculate_brightness_at_hour(hour, config, area_state)
                 current_cct = CircadianLight.calculate_color_at_hour(hour, config, area_state, apply_solar_rules=True, sun_times=sun_times)
-                await self._bounce_at_limit(area_id, current_bri, current_cct, direction="down", bounce_type="step")
+                await self._bounce_at_limit(area_id, current_bri, current_cct, direction="down")
             return
 
         # Update state (always, even if is_on=False)
@@ -433,7 +433,7 @@ class CircadianLightPrimitives:
                     frozen_cct = CircadianLight.calculate_color_at_hour(
                         area_state.frozen_at, config, area_state, apply_solar_rules=True, sun_times=sun_times
                     )
-                    await self._bounce_at_limit(area_id, frozen_bri, frozen_cct, direction="up", bounce_type="bright")
+                    await self._bounce_at_limit(area_id, frozen_bri, frozen_cct, direction="up")
                 return
             self._unfreeze_internal(area_id, source)
             area_state = self._get_area_state(area_id)
@@ -458,7 +458,7 @@ class CircadianLightPrimitives:
             if area_state.is_on:
                 current_bri = CircadianLight.calculate_brightness_at_hour(hour, config, area_state)
                 current_cct = CircadianLight.calculate_color_at_hour(hour, config, area_state, apply_solar_rules=True, sun_times=sun_times)
-                await self._bounce_at_limit(area_id, current_bri, current_cct, direction="up", bounce_type="bright")
+                await self._bounce_at_limit(area_id, current_bri, current_cct, direction="up")
             return
 
         # Update state (always, even if is_on=False)
@@ -503,7 +503,7 @@ class CircadianLightPrimitives:
                     frozen_cct = CircadianLight.calculate_color_at_hour(
                         area_state.frozen_at, config, area_state, apply_solar_rules=True, sun_times=sun_times
                     )
-                    await self._bounce_at_limit(area_id, frozen_bri, frozen_cct, direction="down", bounce_type="bright")
+                    await self._bounce_at_limit(area_id, frozen_bri, frozen_cct, direction="down")
                 return
             self._unfreeze_internal(area_id, source)
             area_state = self._get_area_state(area_id)
@@ -528,7 +528,7 @@ class CircadianLightPrimitives:
             if area_state.is_on:
                 current_bri = CircadianLight.calculate_brightness_at_hour(hour, config, area_state)
                 current_cct = CircadianLight.calculate_color_at_hour(hour, config, area_state, apply_solar_rules=True, sun_times=sun_times)
-                await self._bounce_at_limit(area_id, current_bri, current_cct, direction="down", bounce_type="bright")
+                await self._bounce_at_limit(area_id, current_bri, current_cct, direction="down")
             return
 
         # Update state (always, even if is_on=False)
@@ -577,7 +577,7 @@ class CircadianLightPrimitives:
                     frozen_bri = CircadianLight.calculate_brightness_at_hour(
                         area_state.frozen_at, config, area_state
                     )
-                    await self._bounce_at_limit(area_id, frozen_bri, frozen_cct, direction="up", bounce_type="color")
+                    await self._bounce_at_limit(area_id, frozen_bri, frozen_cct, direction="up", bounce_axis="color")
                 return
             self._unfreeze_internal(area_id, source)
             area_state = self._get_area_state(area_id)
@@ -602,7 +602,7 @@ class CircadianLightPrimitives:
             if area_state.is_on:
                 current_bri = CircadianLight.calculate_brightness_at_hour(hour, config, area_state)
                 current_cct = CircadianLight.calculate_color_at_hour(hour, config, area_state, apply_solar_rules=True, sun_times=sun_times)
-                await self._bounce_at_limit(area_id, current_bri, current_cct, direction="up", bounce_type="color")
+                await self._bounce_at_limit(area_id, current_bri, current_cct, direction="up", bounce_axis="color")
             return
 
         # Update state (always, even if is_on=False)
@@ -645,7 +645,7 @@ class CircadianLightPrimitives:
                     frozen_bri = CircadianLight.calculate_brightness_at_hour(
                         area_state.frozen_at, config, area_state
                     )
-                    await self._bounce_at_limit(area_id, frozen_bri, frozen_cct, direction="down", bounce_type="color")
+                    await self._bounce_at_limit(area_id, frozen_bri, frozen_cct, direction="down", bounce_axis="color")
                 return
             self._unfreeze_internal(area_id, source)
             area_state = self._get_area_state(area_id)
@@ -670,7 +670,7 @@ class CircadianLightPrimitives:
             if area_state.is_on:
                 current_bri = CircadianLight.calculate_brightness_at_hour(hour, config, area_state)
                 current_cct = CircadianLight.calculate_color_at_hour(hour, config, area_state, apply_solar_rules=True, sun_times=sun_times)
-                await self._bounce_at_limit(area_id, current_bri, current_cct, direction="down", bounce_type="color")
+                await self._bounce_at_limit(area_id, current_bri, current_cct, direction="down", bounce_axis="color")
             return
 
         # Update state (always, even if is_on=False)
@@ -2496,17 +2496,20 @@ class CircadianLightPrimitives:
             include_color=True,
         )
 
-    async def _bounce_at_limit(self, area_id: str, current_brightness: int, current_color: int, direction: str = "up", bounce_type: str = "step"):
+    async def _bounce_at_limit(self, area_id: str, current_brightness: int, current_color: int, direction: str = "up", bounce_axis: str = "brightness"):
         """Visual bounce effect when hitting a bound limit.
 
-        Bounces by limit_bounce_percent of the range.
-        - "step": bounces both brightness and color
-        - "bright": bounces brightness only
-        - "color": bounces color only
+        Direction-aware: stepping up hits upper limit (dip down then recover),
+        stepping down hits lower limit (flash up then recover).
 
-        Direction-aware:
-        - "up" (hit upper limit): dip down (brightness decreases, color cools)
-        - "down" (hit lower limit): flash up (brightness increases, color warms)
+        Depth is controlled by warning_intensity (base) and warning_scaling
+        (how much depth increases based on proximity to the opposite limit).
+        Both values are squared for softer response at low settings.
+
+        bounce_axis controls which property is bounced:
+        - "brightness": bounces brightness (for step/bright limits), falls back
+          to color if brightness has no room
+        - "color": always bounces color temperature (for color limits)
 
         Note: This function is boost-aware. If the area is boosted, the bounce
         uses the effective (boosted) brightness, not just the circadian base.
@@ -2516,7 +2519,7 @@ class CircadianLightPrimitives:
             current_brightness: Current circadian base brightness percentage
             current_color: Current color temperature in Kelvin
             direction: "up" (hit upper limit, dip down) or "down" (hit lower limit, flash up)
-            bounce_type: "step", "bright", or "color"
+            bounce_axis: "brightness" or "color" — which property to bounce
         """
         import asyncio
 
@@ -2527,52 +2530,62 @@ class CircadianLightPrimitives:
             boost_amount = boost_state.get("boost_brightness") or 0
             effective_brightness = min(100, current_brightness + boost_amount)
 
+        # Get area min/max brightness from config
         config = self._get_config(area_id)
+        min_brightness = config.min_brightness
+        max_brightness = config.max_brightness
+        bri_range = max_brightness - min_brightness if max_brightness > min_brightness else 1
+
+        # Calculate depth using warning_intensity and warning_scaling (squared for softer low-end)
+        base = (self._get_warning_intensity() / 10.0) ** 2
+        scale = (self._get_warning_scaling() / 10.0) ** 2
+
         limit_speed = self._get_limit_warning_speed()
         two_step_delay = self._get_two_step_delay()
-        bounce_percent = self._get_limit_bounce_percent() / 100.0
 
-        # Calculate ranges
-        bri_range = config.max_brightness - config.min_brightness
-        color_range = config.max_color_temp - config.min_color_temp
+        min_color = config.min_color_temp
+        max_color = config.max_color_temp
+        color_range = max_color - min_color if max_color > min_color else 1
 
-        # Calculate bounce deltas (% of range)
-        bounce_bri = bounce_type in ("step", "bright")
-        bounce_color = bounce_type in ("step", "color")
-        bri_delta = (bounce_percent * bri_range) if bounce_bri else 0
-        color_delta = (bounce_percent * color_range) if bounce_color else 0
+        use_color_bounce = bounce_axis == "color"
 
-        # Calculate bounce targets based on direction
-        if direction == "up":
-            # Hit upper limit - dip down
-            target_brightness = max(config.min_brightness, int(effective_brightness - bri_delta))
-            target_color = max(config.min_color_temp, int(current_color - color_delta))
+        if not use_color_bounce:
+            # Brightness bounce
+            if direction == "up":
+                proximity = (effective_brightness - min_brightness) / bri_range
+                depth_ratio = min(1.0, base + scale * proximity)
+                bounce_target = max(min_brightness, int(effective_brightness - (effective_brightness - min_brightness) * depth_ratio))
+            else:
+                proximity = (max_brightness - effective_brightness) / bri_range
+                depth_ratio = min(1.0, base + scale * proximity)
+                bounce_target = min(max_brightness, int(effective_brightness + (max_brightness - effective_brightness) * depth_ratio))
+
+            # Fall back to color bounce if brightness has no room
+            if bounce_target == effective_brightness:
+                use_color_bounce = True
+
+        if use_color_bounce:
+            # Color temperature bounce
+            if direction == "up":
+                color_proximity = (current_color - min_color) / color_range
+                color_depth = min(1.0, base + scale * color_proximity)
+                color_target = max(min_color, int(current_color - (current_color - min_color) * color_depth))
+            else:
+                color_proximity = (max_color - current_color) / color_range
+                color_depth = min(1.0, base + scale * color_proximity)
+                color_target = min(max_color, int(current_color + (max_color - current_color) * color_depth))
+
+            await self._apply_lighting(area_id, effective_brightness, color_target, include_color=True, transition=limit_speed)
+            await asyncio.sleep(limit_speed + two_step_delay)
+            await self._apply_lighting(area_id, effective_brightness, current_color, include_color=True, transition=limit_speed)
+
+            logger.info(f"Color bounce for area {area_id}: {current_color}K -> {color_target}K -> {current_color}K (direction={direction})")
         else:
-            # Hit lower limit - flash up
-            target_brightness = min(config.max_brightness, int(effective_brightness + bri_delta))
-            target_color = min(config.max_color_temp, int(current_color + color_delta))
+            await self._apply_lighting(area_id, bounce_target, current_color, include_color=False, transition=limit_speed)
+            await asyncio.sleep(limit_speed + two_step_delay)
+            await self._apply_lighting(area_id, effective_brightness, current_color, transition=limit_speed)
 
-        # If not bouncing that axis, keep current value
-        if not bounce_bri:
-            target_brightness = effective_brightness
-        if not bounce_color:
-            target_color = current_color
-
-        # Phase 1: Bounce away
-        include_color = bounce_type in ("step", "color")
-        await self._apply_lighting(area_id, target_brightness, target_color, include_color=include_color, transition=limit_speed)
-        await asyncio.sleep(limit_speed + two_step_delay)
-
-        # Phase 2: Return to original
-        await self._apply_lighting(area_id, effective_brightness, current_color, include_color=include_color, transition=limit_speed)
-
-        # Log what happened
-        if bounce_type == "step":
-            logger.info(f"Step bounce for area {area_id}: {effective_brightness}%/{current_color}K -> {target_brightness}%/{target_color}K -> restore (direction={direction})")
-        elif bounce_type == "bright":
-            logger.info(f"Brightness bounce for area {area_id}: {effective_brightness}% -> {target_brightness}% -> restore (direction={direction})")
-        else:
-            logger.info(f"Color bounce for area {area_id}: {current_color}K -> {target_color}K -> restore (direction={direction})")
+            logger.info(f"Bounce effect for area {area_id}: {effective_brightness}% -> {bounce_target}% -> {effective_brightness}% (direction={direction})")
 
     async def _standard_brightness_step(
         self, area_id: str, direction: int, source: str

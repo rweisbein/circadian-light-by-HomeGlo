@@ -1230,75 +1230,61 @@ class HomeAssistantWebSocketClient:
             # Use internal state tracking - no need to query HA entity state
             any_on_circadian = any(state.is_circadian(area) and state.get_is_on(area) for area in areas)
             if any_on_circadian:
-                for area in areas:
-                    await self.primitives.step_up(area, "switch")
+                await asyncio.gather(*[self.primitives.step_up(area, "switch") for area in areas])
             else:
                 logger.info(f"[switch] step_up -> nitelite for areas: {areas} (not on+circadian)")
-                for area in areas:
-                    await self.primitives.set(area, "switch", preset="nitelite", is_on=True)
+                await asyncio.gather(*[self.primitives.set(area, "switch", preset="nitelite", is_on=True) for area in areas])
 
         elif action == "step_down":
             # Step down only if lights are on AND in circadian mode, else nitelite
             # Use internal state tracking - no need to query HA entity state
             any_on_circadian = any(state.is_circadian(area) and state.get_is_on(area) for area in areas)
             if any_on_circadian:
-                for area in areas:
-                    await self.primitives.step_down(area, "switch")
+                await asyncio.gather(*[self.primitives.step_down(area, "switch") for area in areas])
             else:
                 logger.info(f"[switch] step_down -> nitelite for areas: {areas} (not on+circadian)")
-                for area in areas:
-                    await self.primitives.set(area, "switch", preset="nitelite", is_on=True)
+                await asyncio.gather(*[self.primitives.set(area, "switch", preset="nitelite", is_on=True) for area in areas])
 
         elif action == "bright_up":
             # Bright up only if lights are on AND in circadian mode, else nitelite
             # Use internal state tracking - no need to query HA entity state
             any_on_circadian = any(state.is_circadian(area) and state.get_is_on(area) for area in areas)
             if any_on_circadian:
-                for area in areas:
-                    await self.primitives.bright_up(area, "switch")
+                await asyncio.gather(*[self.primitives.bright_up(area, "switch") for area in areas])
             else:
                 logger.info(f"[switch] bright_up -> nitelite for areas: {areas} (not on+circadian)")
-                for area in areas:
-                    await self.primitives.set(area, "switch", preset="nitelite", is_on=True)
+                await asyncio.gather(*[self.primitives.set(area, "switch", preset="nitelite", is_on=True) for area in areas])
 
         elif action == "bright_down":
             # Bright down only if lights are on AND in circadian mode, else nitelite
             # Use internal state tracking - no need to query HA entity state
             any_on_circadian = any(state.is_circadian(area) and state.get_is_on(area) for area in areas)
             if any_on_circadian:
-                for area in areas:
-                    await self.primitives.bright_down(area, "switch")
+                await asyncio.gather(*[self.primitives.bright_down(area, "switch") for area in areas])
             else:
                 logger.info(f"[switch] bright_down -> nitelite for areas: {areas} (not on+circadian)")
-                for area in areas:
-                    await self.primitives.set(area, "switch", preset="nitelite", is_on=True)
+                await asyncio.gather(*[self.primitives.set(area, "switch", preset="nitelite", is_on=True) for area in areas])
 
         elif action == "color_up":
-            for area in areas:
-                await self.primitives.color_up(area, "switch")
+            await asyncio.gather(*[self.primitives.color_up(area, "switch") for area in areas])
 
         elif action == "color_down":
-            for area in areas:
-                await self.primitives.color_down(area, "switch")
+            await asyncio.gather(*[self.primitives.color_down(area, "switch") for area in areas])
 
         elif action == "glo_reset":
             # Reset area to Daily Rhythm
-            for area in areas:
-                await self.primitives.glo_reset(area, "switch")
+            await asyncio.gather(*[self.primitives.glo_reset(area, "switch") for area in areas])
 
         elif action == "freeze_toggle":
-            for area in areas:
-                await self.primitives.freeze_toggle(area, "switch")
+            await asyncio.gather(*[self.primitives.freeze_toggle(area, "switch") for area in areas])
 
         elif action == "glo_up":
             # Push area settings to GloZone (atomic - zone only, not to other areas)
-            for area in areas:
-                await self.primitives.glo_up(area, "switch")
+            await asyncio.gather(*[self.primitives.glo_up(area, "switch") for area in areas])
 
         elif action == "glo_down":
             # Pull GloZone settings to this area
-            for area in areas:
-                await self.primitives.glo_down(area, "switch")
+            await asyncio.gather(*[self.primitives.glo_down(area, "switch") for area in areas])
 
         elif action == "glozone_reset":
             # Reset GloZone to Daily Rhythm (zone state only, not propagated)

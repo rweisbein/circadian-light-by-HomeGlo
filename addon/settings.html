@@ -547,23 +547,23 @@
 
         <div class="form-row">
           <label class="form-label">
-            Limit bounce
-            <span class="info-icon">i<span class="info-tooltip">How much to bounce when hitting a step/bright/color limit. Expressed as a percentage of the brightness or color range.</span></span>
+            Warning intensity
+            <span class="info-icon">i<span class="info-tooltip">Base depth of the dip/flash when hitting a step limit. Higher values produce a more noticeable bounce effect.</span></span>
           </label>
           <div class="form-control">
-            <input type="number" class="form-input" id="limit-bounce-percent" min="5" max="50" step="1" value="20" style="width: 80px;">
-            <span class="form-hint">% of range</span>
+            <input type="number" class="form-input" id="warning-intensity" min="1" max="10" step="1" value="5" style="width: 80px;">
+            <span class="form-hint">1-10</span>
           </div>
         </div>
 
         <div class="form-row">
           <label class="form-label">
-            Reach feedback dip
-            <span class="info-icon">i<span class="info-tooltip">How much lights dip during reach change feedback. Expressed as a percentage of current brightness.</span></span>
+            Warning scaling
+            <span class="info-icon">i<span class="info-tooltip">How much the bounce depth increases based on proximity to the opposite limit. Higher values make the bounce deeper when you have more room on the opposite side.</span></span>
           </label>
           <div class="form-control">
-            <input type="number" class="form-input" id="reach-dip-percent" min="10" max="80" step="5" value="50" style="width: 80px;">
-            <span class="form-hint">% of current</span>
+            <input type="number" class="form-input" id="warning-scaling" min="1" max="10" step="1" value="5" style="width: 80px;">
+            <span class="form-hint">1-10</span>
           </div>
         </div>
       </div>
@@ -653,8 +653,8 @@
           document.getElementById('motion-warning-blink-threshold').value = config.motion_warning_blink_threshold ?? 15;
           document.getElementById('freeze-off-rise').value = config.freeze_off_rise ?? 10;
           document.getElementById('limit-warning-speed').value = config.limit_warning_speed ?? 3;
-          document.getElementById('limit-bounce-percent').value = config.limit_bounce_percent ?? 20;
-          document.getElementById('reach-dip-percent').value = config.reach_dip_percent ?? 50;
+          document.getElementById('warning-intensity').value = config.warning_intensity ?? 5;
+          document.getElementById('warning-scaling').value = config.warning_scaling ?? 5;
           document.getElementById('boost-default').value = config.boost_default ?? 30;
           updateMultiClickState();
           updateLocationSection(config);
@@ -679,8 +679,8 @@
         motion_warning_blink_threshold: parseInt(document.getElementById('motion-warning-blink-threshold').value) || 15,
         freeze_off_rise: parseFloat(document.getElementById('freeze-off-rise').value) || 10,
         limit_warning_speed: parseFloat(document.getElementById('limit-warning-speed').value) || 3,
-        limit_bounce_percent: parseInt(document.getElementById('limit-bounce-percent').value) || 20,
-        reach_dip_percent: parseInt(document.getElementById('reach-dip-percent').value) || 50,
+        warning_intensity: parseInt(document.getElementById('warning-intensity').value) || 5,
+        warning_scaling: parseInt(document.getElementById('warning-scaling').value) || 5,
         boost_default: parseInt(document.getElementById('boost-default').value) || 30
       };
 
@@ -763,8 +763,8 @@
     document.getElementById('motion-warning-blink-threshold').addEventListener('blur', saveSettings);
     document.getElementById('freeze-off-rise').addEventListener('blur', saveSettings);
     document.getElementById('limit-warning-speed').addEventListener('blur', saveSettings);
-    document.getElementById('limit-bounce-percent').addEventListener('blur', saveSettings);
-    document.getElementById('reach-dip-percent').addEventListener('blur', saveSettings);
+    document.getElementById('warning-intensity').addEventListener('blur', saveSettings);
+    document.getElementById('warning-scaling').addEventListener('blur', saveSettings);
     document.getElementById('boost-default').addEventListener('blur', saveSettings);
 
     // Location functions
