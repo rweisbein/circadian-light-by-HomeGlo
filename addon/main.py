@@ -1342,31 +1342,8 @@ class HomeAssistantWebSocketClient:
             for area in areas:
                 await self.primitives.set(area, "switch", preset="wake")
 
-        elif action.startswith("set_"):
-            # Check if it's a moment action (set_sleep, set_exit, etc.)
-            moment_id = action[4:]  # Remove "set_" prefix
-            moments = self._get_moments()
-            if moment_id in moments:
-                logger.info(f"[switch] Applying moment '{moment_id}'")
-                # Moments apply to all areas per their config, not switch areas
-                await self.primitives.set(None, "switch", preset=moment_id)
-            else:
-                logger.warning(f"Unknown set action: {action}")
-
         else:
             logger.warning(f"Unknown action: {action}")
-
-    def _get_moments(self) -> dict:
-        """Get all moments from config.
-
-        Returns:
-            Dict of moment_id -> moment config
-        """
-        try:
-            raw_config = glozone.load_config_from_files()
-            return raw_config.get("moments", {})
-        except Exception:
-            return {}
 
     def _is_reach_learn_mode(self) -> bool:
         """Check if reach learn mode is enabled (single indicator light feedback)."""

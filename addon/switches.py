@@ -69,7 +69,6 @@ def _save_last_actions(actions: Dict[str, str]) -> None:
 # =============================================================================
 
 # Available actions that can be mapped to buttons
-# Note: Moment actions (set_sleep, set_exit, etc.) are also valid - see get_all_available_actions()
 AVAILABLE_ACTIONS = [
     "circadian_on",      # Enable + apply circadian values
     "circadian_off",     # Disable circadian mode (lights unchanged)
@@ -94,32 +93,6 @@ AVAILABLE_ACTIONS = [
     "toggle_wake_bed",   # Set midpoint to current time
     None,                # Unmapped / do nothing
 ]
-
-
-def get_all_available_actions() -> list:
-    """Get all available actions including moment actions.
-
-    Returns a copy of AVAILABLE_ACTIONS plus any configured moments
-    as set_{moment_id} actions.
-
-    Returns:
-        List of action names
-    """
-    actions = AVAILABLE_ACTIONS.copy()
-
-    # Add moment actions dynamically
-    try:
-        from . import glozone
-        raw_config = glozone.load_config_from_files()
-        moments = raw_config.get("moments", {})
-        for moment_id in moments.keys():
-            action_name = f"set_{moment_id}"
-            if action_name not in actions:
-                actions.insert(-1, action_name)  # Insert before None
-    except Exception:
-        pass
-
-    return actions
 
 # Button action types (event suffixes from ZHA)
 BUTTON_ACTION_TYPES = [

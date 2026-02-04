@@ -1,5 +1,17 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.267
+**Moments feature - Phase 2 Area Picker Component**
+
+- **Reusable area picker**: New `openAreaPicker()` function in shared.js
+  - Multi-select checkboxes for choosing areas
+  - Always grouped by Glo Zone
+  - Sort toggle: "Your order" (custom) vs "A-Z" (alphabetical within zones)
+  - Sort preference persisted in localStorage
+  - Disables already-selected items (greyed out)
+  - Escape key or click-outside to cancel
+- Will be used for: Moments exceptions, Controls reach selector
+
 ## 6.9.266
 **Moments feature - Phase 1 Backend**
 
