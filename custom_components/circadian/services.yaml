@@ -201,8 +201,8 @@ set:
   fields:
     area_id:
       name: Area
-      description: The area(s) to configure
-      required: true
+      description: The area(s) to configure (optional for moments which apply to all areas)
+      required: false
       example: ["living_room", "kitchen"]
       selector:
         area:
