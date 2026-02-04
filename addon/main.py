@@ -1409,9 +1409,11 @@ class HomeAssistantWebSocketClient:
             await self._show_reach_all_lights_feedback(areas)
 
     async def _show_reach_all_lights_feedback(self, areas: List[str]) -> None:
-        """Show visual feedback for reach change by fading all lights out and back.
+        """Show visual feedback for reach change with subtle dip effect.
 
-        Lights that are ON: fade off then back on with circadian values.
+        Lights that are ON:
+          - Above blink threshold: dip to 50% brightness then restore
+          - At or below threshold: fade to off then restore (need full range for visibility)
         Lights that are OFF: briefly pulse on at blink threshold then off.
 
         Args:
@@ -1422,7 +1424,7 @@ class HomeAssistantWebSocketClient:
 
         turn_off_transition = self.primitives._get_turn_off_transition()
         turn_on_transition = self.primitives._get_turn_on_transition()
-        blink_brightness = self._get_motion_warning_blink_threshold()
+        blink_threshold = self._get_motion_warning_blink_threshold()
 
         # Pre-calculate restore values for each area BEFORE fading
         restore_data = {}
@@ -1435,28 +1437,43 @@ class HomeAssistantWebSocketClient:
                 config = Config.from_dict(config_dict)
                 hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
                 result = CircadianLight.calculate_lighting(hour, config, area_state)
+                brightness = int(result.brightness * 2.55)
                 restore_data[area] = {
                     "was_on": True,
-                    "brightness": int(result.brightness * 2.55),
+                    "brightness": brightness,
                     "xy": result.xy,
+                    "dip_to_off": brightness <= blink_threshold,
                 }
             else:
                 restore_data[area] = {"was_on": was_on}
 
-        # Phase 1: For ON lights, turn off with transition. For OFF lights, turn on at blink threshold.
-        # Execute all areas in parallel
+        # Phase 1: Dip ON lights, pulse OFF lights
+        # - ON above threshold: dip to 50% brightness
+        # - ON at/below threshold: fade to off
+        # - OFF: pulse on at blink threshold
         phase1_tasks = []
         for area in areas:
-            if restore_data[area].get("was_on"):
-                phase1_tasks.append(self.call_service(
-                    "light", "turn_off",
-                    {"transition": turn_off_transition},
-                    target={"area_id": area}
-                ))
+            data = restore_data[area]
+            if data.get("was_on"):
+                if data.get("dip_to_off"):
+                    # Low brightness - fade to off for visibility
+                    phase1_tasks.append(self.call_service(
+                        "light", "turn_off",
+                        {"transition": turn_off_transition},
+                        target={"area_id": area}
+                    ))
+                else:
+                    # Above threshold - dip to 50%
+                    dip_brightness = data["brightness"] // 2
+                    phase1_tasks.append(self.call_service(
+                        "light", "turn_on",
+                        {"brightness": dip_brightness, "transition": turn_off_transition},
+                        target={"area_id": area}
+                    ))
             else:
                 phase1_tasks.append(self.call_service(
                     "light", "turn_on",
-                    {"brightness": blink_brightness, "transition": turn_on_transition},
+                    {"brightness": blink_threshold, "transition": turn_on_transition},
                     target={"area_id": area}
                 ))
         await asyncio.gather(*phase1_tasks)
@@ -1464,8 +1481,7 @@ class HomeAssistantWebSocketClient:
         # Wait for transitions to complete
         await asyncio.sleep(max(turn_off_transition, turn_on_transition) + 0.1)
 
-        # Phase 2: Restore. ON lights back on with circadian values. OFF lights back off.
-        # Execute all areas in parallel
+        # Phase 2: Restore all lights
         phase2_tasks = []
         for area, data in restore_data.items():
             if data.get("was_on"):
