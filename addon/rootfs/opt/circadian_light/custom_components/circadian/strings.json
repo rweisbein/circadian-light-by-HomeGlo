@@ -86,53 +86,33 @@
         }
       }
     },
-    "lights_on": {
-      "name": "Lights On",
-      "description": "Turn on lights with circadian values and take control of the area",
-      "fields": {
-        "area_id": {
-          "name": "Area",
-          "description": "The area(s) to turn on"
-        }
-      }
-    },
-    "lights_off": {
-      "name": "Lights Off",
-      "description": "Turn off lights and enforce off state (Circadian will keep them off)",
-      "fields": {
-        "area_id": {
-          "name": "Area",
-          "description": "The area(s) to turn off"
-        }
-      }
-    },
-    "lights_toggle": {
-      "name": "Lights Toggle",
-      "description": "Smart toggle - turns on with circadian if off, turns off if on",
-      "fields": {
-        "area_id": {
-          "name": "Area",
-          "description": "The area(s) to toggle"
-        }
-      }
-    },
     "circadian_on": {
       "name": "Circadian On",
-      "description": "Resume Circadian Light control with preserved settings (respects is_on state)",
+      "description": "Turn on lights and enable Circadian Light mode for an area",
       "fields": {
         "area_id": {
           "name": "Area",
-          "description": "The area(s) to return to Circadian control"
+          "description": "The area(s) to enable Circadian Light for"
         }
       }
     },
     "circadian_off": {
       "name": "Circadian Off",
-      "description": "Release Circadian Light control of an area (lights remain unchanged)",
+      "description": "Disable Circadian Light mode for an area (lights remain unchanged)",
       "fields": {
         "area_id": {
           "name": "Area",
-          "description": "The area(s) to release from Circadian control"
+          "description": "The area(s) to disable Circadian Light for"
+        }
+      }
+    },
+    "circadian_toggle": {
+      "name": "Circadian Toggle",
+      "description": "Smart toggle - turns on with Circadian Light if off, turns off if on",
+      "fields": {
+        "area_id": {
+          "name": "Area",
+          "description": "The area(s) to toggle"
         }
       }
     },

@@ -20,27 +20,18 @@ from .const import (
     SERVICE_COLOR_UP,
     SERVICE_COLOR_DOWN,
     SERVICE_RESET,
-    SERVICE_LIGHTS_ON,
-    SERVICE_LIGHTS_OFF,
-    SERVICE_LIGHTS_TOGGLE,
     SERVICE_CIRCADIAN_ON,
     SERVICE_CIRCADIAN_OFF,
+    SERVICE_CIRCADIAN_TOGGLE,
     SERVICE_FREEZE_TOGGLE,
     SERVICE_SET,
     SERVICE_BROADCAST,
     SERVICE_REFRESH,
-    SERVICE_GLO_UP,
-    SERVICE_GLO_DOWN,
-    SERVICE_GLO_RESET,
-    SERVICE_GLOZONE_RESET,
-    SERVICE_GLOZONE_DOWN,
-    SERVICE_FULL_SEND,
     ATTR_AREA_ID,
-    ATTR_ZONE_NAME,
     ATTR_PRESET,
     ATTR_FROZEN_AT,
     ATTR_COPY_FROM,
-    ATTR_IS_ON,
+    ATTR_ENABLE,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -127,18 +118,6 @@ async def _register_services(hass: HomeAssistant) -> None:
         area_id = call.data.get(ATTR_AREA_ID)
         _LOGGER.info("[%s] reset called: area_id=%s", DOMAIN, area_id)
 
-    async def handle_lights_on(call: ServiceCall) -> None:
-        area_id = call.data.get(ATTR_AREA_ID)
-        _LOGGER.info("[%s] lights_on called: area_id=%s", DOMAIN, area_id)
-
-    async def handle_lights_off(call: ServiceCall) -> None:
-        area_id = call.data.get(ATTR_AREA_ID)
-        _LOGGER.info("[%s] lights_off called: area_id=%s", DOMAIN, area_id)
-
-    async def handle_lights_toggle(call: ServiceCall) -> None:
-        area_id = call.data.get(ATTR_AREA_ID)
-        _LOGGER.info("[%s] lights_toggle called: area_id=%s", DOMAIN, area_id)
-
     async def handle_circadian_on(call: ServiceCall) -> None:
         area_id = call.data.get(ATTR_AREA_ID)
         _LOGGER.info("[%s] circadian_on called: area_id=%s", DOMAIN, area_id)
@@ -146,6 +125,10 @@ async def _register_services(hass: HomeAssistant) -> None:
     async def handle_circadian_off(call: ServiceCall) -> None:
         area_id = call.data.get(ATTR_AREA_ID)
         _LOGGER.info("[%s] circadian_off called: area_id=%s", DOMAIN, area_id)
+
+    async def handle_circadian_toggle(call: ServiceCall) -> None:
+        area_id = call.data.get(ATTR_AREA_ID)
+        _LOGGER.info("[%s] circadian_toggle called: area_id=%s", DOMAIN, area_id)
 
     async def handle_freeze_toggle(call: ServiceCall) -> None:
         area_id = call.data.get(ATTR_AREA_ID)
@@ -156,49 +139,16 @@ async def _register_services(hass: HomeAssistant) -> None:
         preset = call.data.get(ATTR_PRESET)
         frozen_at = call.data.get(ATTR_FROZEN_AT)
         copy_from = call.data.get(ATTR_COPY_FROM)
-        is_on = call.data.get(ATTR_IS_ON)
-        _LOGGER.info("[%s] set called: area_id=%s, preset=%s, frozen_at=%s, copy_from=%s, is_on=%s",
-                     DOMAIN, area_id, preset, frozen_at, copy_from, is_on)
-
-    async def handle_broadcast(call: ServiceCall) -> None:
-        area_id = call.data.get(ATTR_AREA_ID)
-        _LOGGER.info("[%s] broadcast called: area_id=%s", DOMAIN, area_id)
+        enable = call.data.get(ATTR_ENABLE, False)
+        _LOGGER.info("[%s] set called: area_id=%s, preset=%s, frozen_at=%s, copy_from=%s, enable=%s",
+                     DOMAIN, area_id, preset, frozen_at, copy_from, enable)
 
     async def handle_refresh(call: ServiceCall) -> None:
         _LOGGER.info("[%s] refresh called - signaling addon to update all enabled areas", DOMAIN)
 
-    async def handle_glo_up(call: ServiceCall) -> None:
-        area_id = call.data.get(ATTR_AREA_ID)
-        _LOGGER.info("[%s] glo_up called: area_id=%s", DOMAIN, area_id)
-
-    async def handle_glo_down(call: ServiceCall) -> None:
-        area_id = call.data.get(ATTR_AREA_ID)
-        _LOGGER.info("[%s] glo_down called: area_id=%s", DOMAIN, area_id)
-
-    async def handle_glo_reset(call: ServiceCall) -> None:
-        area_id = call.data.get(ATTR_AREA_ID)
-        _LOGGER.info("[%s] glo_reset called: area_id=%s", DOMAIN, area_id)
-
-    async def handle_glozone_reset(call: ServiceCall) -> None:
-        zone_name = call.data.get(ATTR_ZONE_NAME)
-        _LOGGER.info("[%s] glozone_reset called: zone_name=%s", DOMAIN, zone_name)
-
-    async def handle_glozone_down(call: ServiceCall) -> None:
-        zone_name = call.data.get(ATTR_ZONE_NAME)
-        _LOGGER.info("[%s] glozone_down called: zone_name=%s", DOMAIN, zone_name)
-
-    async def handle_full_send(call: ServiceCall) -> None:
-        area_id = call.data.get(ATTR_AREA_ID)
-        _LOGGER.info("[%s] full_send called: area_id=%s", DOMAIN, area_id)
-
     # Schema for services - area_id can be a string or list of strings
     area_schema = vol.Schema({
         vol.Required(ATTR_AREA_ID): vol.Any(cv.string, [cv.string]),
-    })
-
-    # Schema for zone-level services
-    zone_schema = vol.Schema({
-        vol.Required(ATTR_ZONE_NAME): cv.string,
     })
 
     # Schema for set service - includes additional optional parameters
@@ -207,7 +157,7 @@ async def _register_services(hass: HomeAssistant) -> None:
         vol.Optional(ATTR_PRESET): vol.In(["nitelite", "britelite", "wake", "bed"]),
         vol.Optional(ATTR_FROZEN_AT): vol.Coerce(float),
         vol.Optional(ATTR_COPY_FROM): cv.string,
-        vol.Optional(ATTR_IS_ON): cv.boolean,
+        vol.Optional(ATTR_ENABLE, default=False): cv.boolean,
     })
 
     # Register services with area_schema
@@ -219,31 +169,14 @@ async def _register_services(hass: HomeAssistant) -> None:
         (SERVICE_COLOR_UP, handle_color_up),
         (SERVICE_COLOR_DOWN, handle_color_down),
         (SERVICE_RESET, handle_reset),
-        (SERVICE_LIGHTS_ON, handle_lights_on),
-        (SERVICE_LIGHTS_OFF, handle_lights_off),
-        (SERVICE_LIGHTS_TOGGLE, handle_lights_toggle),
         (SERVICE_CIRCADIAN_ON, handle_circadian_on),
         (SERVICE_CIRCADIAN_OFF, handle_circadian_off),
+        (SERVICE_CIRCADIAN_TOGGLE, handle_circadian_toggle),
         (SERVICE_FREEZE_TOGGLE, handle_freeze_toggle),
-        (SERVICE_BROADCAST, handle_broadcast),
-        (SERVICE_GLO_UP, handle_glo_up),
-        (SERVICE_GLO_DOWN, handle_glo_down),
-        (SERVICE_GLO_RESET, handle_glo_reset),
-        (SERVICE_FULL_SEND, handle_full_send),
     ]
 
     for service_name, handler in area_services:
         hass.services.async_register(DOMAIN, service_name, handler, schema=area_schema)
-        _LOGGER.debug("[%s] Registered service: %s.%s", DOMAIN, DOMAIN, service_name)
-
-    # Register zone-level services
-    zone_services = [
-        (SERVICE_GLOZONE_RESET, handle_glozone_reset),
-        (SERVICE_GLOZONE_DOWN, handle_glozone_down),
-    ]
-
-    for service_name, handler in zone_services:
-        hass.services.async_register(DOMAIN, service_name, handler, schema=zone_schema)
         _LOGGER.debug("[%s] Registered service: %s.%s", DOMAIN, DOMAIN, service_name)
 
     # Register set service with its own schema
@@ -274,11 +207,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             SERVICE_BRIGHT_UP, SERVICE_BRIGHT_DOWN,
             SERVICE_COLOR_UP, SERVICE_COLOR_DOWN,
             SERVICE_RESET,
-            SERVICE_LIGHTS_ON, SERVICE_LIGHTS_OFF, SERVICE_LIGHTS_TOGGLE,
-            SERVICE_CIRCADIAN_ON, SERVICE_CIRCADIAN_OFF,
+            SERVICE_CIRCADIAN_ON, SERVICE_CIRCADIAN_OFF, SERVICE_CIRCADIAN_TOGGLE,
             SERVICE_FREEZE_TOGGLE, SERVICE_SET, SERVICE_BROADCAST, SERVICE_REFRESH,
-            SERVICE_GLO_UP, SERVICE_GLO_DOWN, SERVICE_GLO_RESET,
-            SERVICE_GLOZONE_RESET, SERVICE_GLOZONE_DOWN, SERVICE_FULL_SEND,
         ]
         for service_name in services:
             hass.services.async_remove(DOMAIN, service_name)
