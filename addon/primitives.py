@@ -182,35 +182,35 @@ class CircadianLightPrimitives:
         except Exception:
             return 0.3
 
-    def _get_warning_intensity(self) -> int:
-        """Get the warning intensity (base depth of dip/flash).
+    def _get_limit_bounce_percent(self) -> float:
+        """Get the limit bounce percentage (% of range to bounce).
 
-        Controls how deep the bounce effect is at the limit.
-        Reads from global config, defaults to 3 (range 1-10).
+        Controls how much the lights dip/flash when hitting a step limit.
+        Reads from global config, defaults to 20 (%).
 
         Returns:
-            Warning intensity value (1-10)
+            Bounce percentage (0-100)
         """
         try:
             raw_config = glozone.load_config_from_files()
-            return raw_config.get("warning_intensity", 3)
+            return raw_config.get("limit_bounce_percent", 20)
         except Exception:
-            return 3
+            return 20
 
-    def _get_warning_scaling(self) -> int:
-        """Get the warning scaling (how much depth increases near the limit).
+    def _get_reach_dip_percent(self) -> float:
+        """Get the reach feedback dip percentage (% of current brightness).
 
-        Higher values make the bounce deeper when further from the opposite limit.
-        Reads from global config, defaults to 1 (range 1-10).
+        Controls how much lights dip during reach change feedback.
+        Reads from global config, defaults to 50 (%).
 
         Returns:
-            Warning scaling value (1-10)
+            Dip percentage (0-100)
         """
         try:
             raw_config = glozone.load_config_from_files()
-            return raw_config.get("warning_scaling", 1)
+            return raw_config.get("reach_dip_percent", 50)
         except Exception:
-            return 1
+            return 50
 
     async def _turn_off_area(self, area_id: str, transition: float = 0.3) -> None:
         """Turn off all lights in an area.
@@ -2499,10 +2499,10 @@ class CircadianLightPrimitives:
     async def _bounce_at_limit(self, area_id: str, current_brightness: int, current_color: int, direction: str = "up", bounce_type: str = "step"):
         """Visual bounce effect when hitting a bound limit.
 
-        Simple algorithm: bounce by 2x the relevant increment.
-        - "step": bounces both brightness and color by 2 step increments
-        - "bright": bounces brightness only by 2 brightness increments
-        - "color": bounces color only by 2 color increments
+        Bounces by limit_bounce_percent of the range.
+        - "step": bounces both brightness and color
+        - "bright": bounces brightness only
+        - "color": bounces color only
 
         Direction-aware:
         - "up" (hit upper limit): dip down (brightness decreases, color cools)
@@ -2530,42 +2530,36 @@ class CircadianLightPrimitives:
         config = self._get_config(area_id)
         limit_speed = self._get_limit_warning_speed()
         two_step_delay = self._get_two_step_delay()
+        bounce_percent = self._get_limit_bounce_percent() / 100.0
 
         # Calculate ranges
         bri_range = config.max_brightness - config.min_brightness
         color_range = config.max_color_temp - config.min_color_temp
 
-        # Get appropriate increment counts
-        if bounce_type == "step":
-            bri_steps = config.step_increments or config.max_dim_steps or 10
-            color_steps = config.step_increments or config.max_dim_steps or 10
-        elif bounce_type == "bright":
-            bri_steps = config.brightness_increments or config.max_dim_steps or 10
-            color_steps = 0  # No color bounce
-        else:  # "color"
-            bri_steps = 0  # No brightness bounce
-            color_steps = config.color_increments or config.max_dim_steps or 10
-
-        # Calculate bounce deltas (2x the increment)
-        bri_delta = (2 * bri_range / bri_steps) if bri_steps > 0 else 0
-        color_delta = (2 * color_range / color_steps) if color_steps > 0 else 0
+        # Calculate bounce deltas (% of range)
+        bounce_bri = bounce_type in ("step", "bright")
+        bounce_color = bounce_type in ("step", "color")
+        bri_delta = (bounce_percent * bri_range) if bounce_bri else 0
+        color_delta = (bounce_percent * color_range) if bounce_color else 0
 
         # Calculate bounce targets based on direction
         if direction == "up":
             # Hit upper limit - dip down
-            bounce_brightness = max(config.min_brightness, int(effective_brightness - bri_delta))
-            bounce_color = max(config.min_color_temp, int(current_color - color_delta))
+            target_brightness = max(config.min_brightness, int(effective_brightness - bri_delta))
+            target_color = max(config.min_color_temp, int(current_color - color_delta))
         else:
             # Hit lower limit - flash up
-            bounce_brightness = min(config.max_brightness, int(effective_brightness + bri_delta))
-            bounce_color = min(config.max_color_temp, int(current_color + color_delta))
+            target_brightness = min(config.max_brightness, int(effective_brightness + bri_delta))
+            target_color = min(config.max_color_temp, int(current_color + color_delta))
 
-        # Determine what to include in the bounce
-        include_color = bounce_type in ("step", "color")
-        target_brightness = bounce_brightness if bri_steps > 0 else effective_brightness
-        target_color = bounce_color if color_steps > 0 else current_color
+        # If not bouncing that axis, keep current value
+        if not bounce_bri:
+            target_brightness = effective_brightness
+        if not bounce_color:
+            target_color = current_color
 
         # Phase 1: Bounce away
+        include_color = bounce_type in ("step", "color")
         await self._apply_lighting(area_id, target_brightness, target_color, include_color=include_color, transition=limit_speed)
         await asyncio.sleep(limit_speed + two_step_delay)
 

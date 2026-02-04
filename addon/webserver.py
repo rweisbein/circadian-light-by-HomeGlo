@@ -1051,8 +1051,8 @@ class LightDesignerServer:
         "motion_warning_blink_threshold",  # Brightness % below which warning blinks instead of dims
         "freeze_off_rise",  # Transition time in tenths of seconds for unfreeze rise (default 10 = 1.0s)
         "limit_warning_speed",  # Transition time in tenths of seconds for limit bounce animation (default 3 = 0.3s)
-        "warning_intensity",  # Base depth of limit warning dip/flash (1-10, default 5)
-        "warning_scaling",  # How much depth increases near the limit (1-10, default 5)
+        "limit_bounce_percent",  # Percentage of range to bounce when hitting a limit (default 20)
+        "reach_dip_percent",  # Percentage of current brightness to dip for reach feedback (default 50)
         "boost_default",  # Default boost percentage (10-100, default 30)
         "reach_learn_mode",  # Reach feedback uses single indicator light (default true)
         "controls_ui",  # Controls page UI preferences (sort, filter)
@@ -1227,8 +1227,8 @@ class LightDesignerServer:
             # Visual feedback settings
             "freeze_off_rise": 10,  # tenths of seconds (1.0s)
             "limit_warning_speed": 3,  # tenths of seconds (0.3s)
-            "warning_intensity": 3,  # 1-10
-            "warning_scaling": 1,  # 1-10
+            "limit_bounce_percent": 20,  # % of range
+            "reach_dip_percent": 50,  # % of current brightness
 
             # Reach feedback
             "reach_learn_mode": True,  # Use single indicator light for reach feedback
@@ -1310,8 +1310,8 @@ class LightDesignerServer:
             # Visual feedback settings
             "freeze_off_rise": 10,  # tenths of seconds (1.0s)
             "limit_warning_speed": 3,  # tenths of seconds (0.3s)
-            "warning_intensity": 3,  # 1-10
-            "warning_scaling": 1,  # 1-10
+            "limit_bounce_percent": 20,  # % of range
+            "reach_dip_percent": 50,  # % of current brightness
             # Reach feedback
             "reach_learn_mode": True,
         }

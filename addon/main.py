@@ -1412,7 +1412,7 @@ class HomeAssistantWebSocketClient:
         """Show visual feedback for reach change with subtle dip effect.
 
         Lights that are ON:
-          - Above blink threshold: dip to 50% brightness then restore
+          - Above blink threshold: dip by reach_dip_percent of current brightness
           - At or below threshold: fade to off then restore (need full range for visibility)
         Lights that are OFF: briefly pulse on at blink threshold then off.
 
@@ -1425,6 +1425,7 @@ class HomeAssistantWebSocketClient:
         turn_off_transition = self.primitives._get_turn_off_transition()
         turn_on_transition = self.primitives._get_turn_on_transition()
         blink_threshold = self._get_motion_warning_blink_threshold()
+        reach_dip_percent = self.primitives._get_reach_dip_percent() / 100.0
 
         # Pre-calculate restore values for each area BEFORE fading
         restore_data = {}
@@ -1448,7 +1449,7 @@ class HomeAssistantWebSocketClient:
                 restore_data[area] = {"was_on": was_on}
 
         # Phase 1: Dip ON lights, pulse OFF lights
-        # - ON above threshold: dip to 50% brightness
+        # - ON above threshold: dip by reach_dip_percent of current brightness
         # - ON at/below threshold: fade to off
         # - OFF: pulse on at blink threshold
         phase1_tasks = []
@@ -1463,8 +1464,8 @@ class HomeAssistantWebSocketClient:
                         target={"area_id": area}
                     ))
                 else:
-                    # Above threshold - dip to 50%
-                    dip_brightness = data["brightness"] // 2
+                    # Above threshold - dip by configured percentage of current
+                    dip_brightness = int(data["brightness"] * (1.0 - reach_dip_percent))
                     phase1_tasks.append(self.call_service(
                         "light", "turn_on",
                         {"brightness": dip_brightness, "transition": turn_off_transition},
