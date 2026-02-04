@@ -710,6 +710,15 @@ class CircadianLight:
         # Clamp color to config bounds after solar rules
         target_cct = max(c_min, min(c_max, target_cct))
 
+        # If rendered output didn't change meaningfully, treat as at-limit
+        # (curve saturation - can't push higher/lower at current hour)
+        bri_render_margin = max(1.0, bri_step * 0.1)
+        cct_render_margin = max(20, cct_step * 0.1)
+        bri_render_unchanged = abs(target_bri - current_bri) < bri_render_margin
+        cct_render_unchanged = abs(target_cct - current_cct) < cct_render_margin
+        if bri_render_unchanged and cct_render_unchanged:
+            return None
+
         # Calculate new midpoints that produce these target values at current time
         # Use target_natural_cct for color midpoint (curve position), not target_cct (rendered)
         b_min_norm = b_min / 100.0
@@ -914,6 +923,12 @@ class CircadianLight:
         )
         target_cct = CircadianLight._apply_solar_rules(target_natural_cct, hour, config, temp_state, sun_times)
         target_cct = max(c_min, min(c_max, target_cct))
+
+        # If rendered output didn't change meaningfully, treat as at-limit
+        # (curve saturation - can't push higher/lower at current hour)
+        render_margin = max(20, cct_step * 0.1)  # At least 20K or 10% of step
+        if abs(target_cct - rendered_cct) < render_margin:
+            return None
 
         # Brightness stays unchanged
         brightness = CircadianLight.calculate_brightness_at_hour(hour, config, state)
