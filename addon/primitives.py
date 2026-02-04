@@ -284,7 +284,7 @@ class CircadianLightPrimitives:
             if action == "leave_alone":
                 continue
             elif action == "off":
-                tasks.append(self.glo_off(area_id, source))
+                tasks.append(self.lights_off(area_id, source))
             elif action == "nitelite":
                 # Use set with nitelite preset, turn on the lights
                 tasks.append(self.set(area_id, source, preset="nitelite", is_on=True))

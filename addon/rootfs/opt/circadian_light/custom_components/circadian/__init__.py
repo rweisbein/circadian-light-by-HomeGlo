@@ -202,10 +202,9 @@ async def _register_services(hass: HomeAssistant) -> None:
     })
 
     # Schema for set service - includes additional optional parameters
-    # area_id is optional for moments (which apply to all areas)
     set_schema = vol.Schema({
-        vol.Optional(ATTR_AREA_ID): vol.Any(cv.string, [cv.string]),
-        vol.Optional(ATTR_PRESET): cv.string,  # nitelite, britelite, wake, bed, or moment name
+        vol.Required(ATTR_AREA_ID): vol.Any(cv.string, [cv.string]),
+        vol.Optional(ATTR_PRESET): vol.In(["nitelite", "britelite", "wake", "bed"]),
         vol.Optional(ATTR_FROZEN_AT): vol.Coerce(float),
         vol.Optional(ATTR_COPY_FROM): cv.string,
         vol.Optional(ATTR_IS_ON): cv.boolean,

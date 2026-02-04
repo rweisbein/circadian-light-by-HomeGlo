@@ -3393,7 +3393,7 @@ class HomeAssistantWebSocketClient:
 
                 elif service == "set":
                     areas = get_areas()
-                    preset = service_data.get("preset")  # wake, bed, nitelite, britelite, or moment name
+                    preset = service_data.get("preset")  # wake, bed, nitelite, britelite
                     frozen_at = service_data.get("frozen_at")  # Optional specific hour (0-24)
                     copy_from = service_data.get("copy_from")  # Optional area_id to copy from
                     is_on = service_data.get("is_on")  # Optional: None=just configure, True=configure+turn on, False=configure+turn off
@@ -3401,12 +3401,8 @@ class HomeAssistantWebSocketClient:
                         for area in areas:
                             logger.info(f"[{domain}] set for area: {area} (preset={preset}, frozen_at={frozen_at}, copy_from={copy_from}, is_on={is_on})")
                             await self.primitives.set(area, "service_call", preset=preset, frozen_at=frozen_at, copy_from=copy_from, is_on=is_on)
-                    elif preset:
-                        # No area specified but preset given - could be a moment (applies to all areas)
-                        logger.info(f"[{domain}] set with preset={preset} (no area - may be moment)")
-                        await self.primitives.set(None, "service_call", preset=preset, frozen_at=frozen_at, copy_from=copy_from, is_on=is_on)
                     else:
-                        logger.warning("set called without area_id or preset")
+                        logger.warning("set called without area_id")
 
                 elif service == "freeze_toggle":
                     areas = get_areas()
