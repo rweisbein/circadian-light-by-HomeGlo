@@ -703,23 +703,7 @@ class CircadianLight:
         if bri_unchanged and cct_unchanged:
             return None
 
-        # Apply solar rules to get the RENDERED color (for light output)
-        # The midpoint will be calculated from target_natural_cct so the curve position is correct
-        target_cct = CircadianLight._apply_solar_rules(target_natural_cct, hour, config, state, sun_times)
-
-        # Clamp color to config bounds after solar rules
-        target_cct = max(c_min, min(c_max, target_cct))
-
-        # If rendered output didn't change meaningfully, treat as at-limit
-        # (curve saturation - can't push higher/lower at current hour)
-        # Uses 0.5% for brightness, 10K for color to match frontend (glo-designer.html)
-        bri_render_unchanged = abs(target_bri - current_bri) < 0.5
-        cct_render_unchanged = abs(target_cct - current_cct) < 10
-        if bri_render_unchanged and cct_render_unchanged:
-            return None
-
         # Calculate new midpoints that produce these target values at current time
-        # Use target_natural_cct for color midpoint (curve position), not target_cct (rendered)
         b_min_norm = b_min / 100.0
         b_max_norm = b_max / 100.0
         target_bri_norm = max(b_min_norm + 0.001, min(b_max_norm - 0.001, target_bri / 100.0))
@@ -741,6 +725,25 @@ class CircadianLight:
             new_bri_mid = CircadianLight.lift_midpoint_to_phase(new_bri_mid, t_descend, descend_end) % 24
             new_color_mid = CircadianLight.lift_midpoint_to_phase(new_color_mid, t_descend, descend_end) % 24
 
+        # Recalculate what the curve actually produces with the new midpoints
+        # This catches curve saturation where the midpoint can't push the output higher
+        new_state = AreaState(
+            is_circadian=state.is_circadian,
+            is_on=state.is_on,
+            frozen_at=state.frozen_at,
+            brightness_mid=new_bri_mid if not bri_at_limit else state.brightness_mid,
+            color_mid=new_color_mid if not cct_at_limit else state.color_mid,
+        )
+        actual_bri = CircadianLight.calculate_brightness_at_hour(hour, config, new_state)
+        actual_cct = CircadianLight.calculate_color_at_hour(hour, config, new_state, apply_solar_rules=True, sun_times=sun_times)
+
+        # If actual output didn't change meaningfully, treat as at-limit
+        # Uses 0.5% for brightness, 10K for color to match frontend (glo-designer.html)
+        bri_render_unchanged = abs(actual_bri - current_bri) < 0.5
+        cct_render_unchanged = abs(actual_cct - current_cct) < 10
+        if bri_render_unchanged and cct_render_unchanged:
+            return None
+
         # Only update midpoints for dimensions that actually moved
         state_updates: Dict[str, Any] = {}
         if not bri_at_limit:
@@ -748,12 +751,12 @@ class CircadianLight:
         if not cct_at_limit:
             state_updates["color_mid"] = new_color_mid
 
-        rgb = CircadianLight.color_temperature_to_rgb(int(target_cct))
-        xy = CircadianLight.color_temperature_to_xy(int(target_cct))
+        rgb = CircadianLight.color_temperature_to_rgb(actual_cct)
+        xy = CircadianLight.color_temperature_to_xy(actual_cct)
 
         return StepResult(
-            brightness=int(target_bri),
-            color_temp=int(target_cct),
+            brightness=int(actual_bri),
+            color_temp=actual_cct,
             rgb=rgb,
             xy=xy,
             state_updates=state_updates
@@ -812,11 +815,6 @@ class CircadianLight:
         if abs(target_bri - current_bri) < safe_margin:
             return None
 
-        # Color stays unchanged - recalculate at current hour (with solar rules)
-        color_temp = CircadianLight.calculate_color_at_hour(hour, config, state, apply_solar_rules=True, sun_times=sun_times)
-        rgb = CircadianLight.color_temperature_to_rgb(color_temp)
-        xy = CircadianLight.color_temperature_to_xy(color_temp)
-
         # Calculate new midpoint
         b_min_norm = b_min / 100.0
         b_max_norm = b_max / 100.0
@@ -832,10 +830,29 @@ class CircadianLight:
         else:
             new_mid = CircadianLight.lift_midpoint_to_phase(new_mid, t_descend, t_ascend + 24) % 24
 
+        # Recalculate what the curve actually produces with the new midpoint
+        new_state = AreaState(
+            is_circadian=state.is_circadian,
+            is_on=state.is_on,
+            frozen_at=state.frozen_at,
+            brightness_mid=new_mid,
+            color_mid=state.color_mid,
+        )
+        actual_bri = CircadianLight.calculate_brightness_at_hour(hour, config, new_state)
+
+        # If actual output didn't change meaningfully, treat as at-limit
+        if abs(actual_bri - current_bri) < 0.5:
+            return None
+
+        # Color stays unchanged - recalculate at current hour (with solar rules)
+        color_temp = CircadianLight.calculate_color_at_hour(hour, config, state, apply_solar_rules=True, sun_times=sun_times)
+        rgb = CircadianLight.color_temperature_to_rgb(color_temp)
+        xy = CircadianLight.color_temperature_to_xy(color_temp)
+
         state_updates: Dict[str, Any] = {"brightness_mid": new_mid}
 
         return StepResult(
-            brightness=int(target_bri),
+            brightness=int(actual_bri),
             color_temp=color_temp,
             rgb=rgb,
             xy=xy,
@@ -920,20 +937,6 @@ class CircadianLight:
             color_mid=state.color_mid,
             color_override=new_override,
         )
-        target_cct = CircadianLight._apply_solar_rules(target_natural_cct, hour, config, temp_state, sun_times)
-        target_cct = max(c_min, min(c_max, target_cct))
-
-        # If rendered output didn't change meaningfully, treat as at-limit
-        # (curve saturation - can't push higher/lower at current hour)
-        # Uses 10K margin to match frontend (glo-designer.html getColorPreview)
-        if abs(target_cct - rendered_cct) < 10:
-            return None
-
-        # Brightness stays unchanged
-        brightness = CircadianLight.calculate_brightness_at_hour(hour, config, state)
-        rgb = CircadianLight.color_temperature_to_rgb(int(target_cct))
-        xy = CircadianLight.color_temperature_to_xy(int(target_cct))
-
         # Calculate new midpoint from NATURAL target
         target_norm = max(0.001, min(0.999, (target_natural_cct - c_min) / (c_max - c_min)))
 
@@ -947,13 +950,35 @@ class CircadianLight:
         else:
             new_mid = CircadianLight.lift_midpoint_to_phase(new_mid, t_descend, t_ascend + 24) % 24
 
+        # Recalculate what the curve actually produces with the new midpoint
+        # This catches curve saturation where the midpoint can't push the output higher
+        new_state = AreaState(
+            is_circadian=state.is_circadian,
+            is_on=state.is_on,
+            frozen_at=state.frozen_at,
+            brightness_mid=state.brightness_mid,
+            color_mid=new_mid,
+            color_override=new_override,
+        )
+        actual_cct = CircadianLight.calculate_color_at_hour(hour, config, new_state, apply_solar_rules=True, sun_times=sun_times)
+
+        # If actual output didn't change meaningfully, treat as at-limit
+        # Uses 10K margin to match frontend (glo-designer.html getColorPreview)
+        if abs(actual_cct - rendered_cct) < 10:
+            return None
+
+        # Brightness stays unchanged
+        brightness = CircadianLight.calculate_brightness_at_hour(hour, config, state)
+        rgb = CircadianLight.color_temperature_to_rgb(actual_cct)
+        xy = CircadianLight.color_temperature_to_xy(actual_cct)
+
         state_updates: Dict[str, Any] = {"color_mid": new_mid}
         if new_override != state.color_override:
             state_updates["color_override"] = new_override
 
         return StepResult(
             brightness=brightness,
-            color_temp=int(target_cct),
+            color_temp=actual_cct,
             rgb=rgb,
             xy=xy,
             state_updates=state_updates
