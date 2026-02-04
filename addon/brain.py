@@ -710,6 +710,14 @@ class CircadianLight:
         # Clamp color to config bounds after solar rules
         target_cct = max(c_min, min(c_max, target_cct))
 
+        # If rendered output didn't change meaningfully, treat as at-limit
+        # (curve saturation - can't push higher/lower at current hour)
+        # Uses 0.5% for brightness, 10K for color to match frontend (glo-designer.html)
+        bri_render_unchanged = abs(target_bri - current_bri) < 0.5
+        cct_render_unchanged = abs(target_cct - current_cct) < 10
+        if bri_render_unchanged and cct_render_unchanged:
+            return None
+
         # Calculate new midpoints that produce these target values at current time
         # Use target_natural_cct for color midpoint (curve position), not target_cct (rendered)
         b_min_norm = b_min / 100.0
@@ -914,6 +922,12 @@ class CircadianLight:
         )
         target_cct = CircadianLight._apply_solar_rules(target_natural_cct, hour, config, temp_state, sun_times)
         target_cct = max(c_min, min(c_max, target_cct))
+
+        # If rendered output didn't change meaningfully, treat as at-limit
+        # (curve saturation - can't push higher/lower at current hour)
+        # Uses 10K margin to match frontend (glo-designer.html getColorPreview)
+        if abs(target_cct - rendered_cct) < 10:
+            return None
 
         # Brightness stays unchanged
         brightness = CircadianLight.calculate_brightness_at_hour(hour, config, state)
