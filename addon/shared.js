@@ -155,13 +155,15 @@ function readableTextColor(bgColor) {
 
 /**
  * Open an area picker modal for selecting areas.
+ * Returns a Promise that resolves with selected area IDs, or null if cancelled.
  *
  * @param {Object} options - Configuration options
  * @param {string} options.title - Modal title (default: "Select Areas")
  * @param {string[]} options.selected - Array of already-selected area IDs (will be disabled)
  * @param {boolean} options.multi - Allow multi-select (default: true)
- * @param {Function} options.onConfirm - Callback with array of selected area IDs
+ * @param {Function} options.onConfirm - Optional callback with array of selected area IDs
  * @param {Function} options.onCancel - Optional callback when cancelled
+ * @returns {Promise<string[]|null>} Selected area IDs or null if cancelled
  */
 async function openAreaPicker(options = {}) {
   const {
@@ -171,6 +173,9 @@ async function openAreaPicker(options = {}) {
     onConfirm,
     onCancel
   } = options;
+
+  // Return a Promise that resolves when user confirms or cancels
+  return new Promise(async (resolve) => {
 
   // Fetch zones and areas
   let zones = {};
@@ -182,6 +187,7 @@ async function openAreaPicker(options = {}) {
     }
   } catch (err) {
     console.error('Failed to fetch zones:', err);
+    resolve(null);
     return;
   }
 
@@ -467,40 +473,43 @@ async function openAreaPicker(options = {}) {
   });
 
   // Handle cancel
-  const closeModal = () => {
+  const closeModal = (result) => {
     overlay.remove();
+    document.removeEventListener('keydown', handleKeydown);
+    resolve(result);
   };
 
   overlay.querySelector('#area-picker-cancel').addEventListener('click', () => {
-    closeModal();
     if (onCancel) onCancel();
+    closeModal(null);
   });
 
   // Click outside to close
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay) {
-      closeModal();
       if (onCancel) onCancel();
+      closeModal(null);
     }
   });
 
   // Handle confirm
   overlay.querySelector('#area-picker-confirm').addEventListener('click', () => {
     const selectedIds = Array.from(newSelections);
-    closeModal();
     if (onConfirm) onConfirm(selectedIds);
+    closeModal(selectedIds);
   });
 
   // Escape key to close
   const handleKeydown = (e) => {
     if (e.key === 'Escape') {
-      closeModal();
       if (onCancel) onCancel();
-      document.removeEventListener('keydown', handleKeydown);
+      closeModal(null);
     }
   };
   document.addEventListener('keydown', handleKeydown);
 
   // Initial render
   renderList();
+
+  }); // end Promise
 }
