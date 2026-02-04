@@ -712,10 +712,9 @@ class CircadianLight:
 
         # If rendered output didn't change meaningfully, treat as at-limit
         # (curve saturation - can't push higher/lower at current hour)
-        bri_render_margin = max(1.0, bri_step * 0.1)
-        cct_render_margin = max(20, cct_step * 0.1)
-        bri_render_unchanged = abs(target_bri - current_bri) < bri_render_margin
-        cct_render_unchanged = abs(target_cct - current_cct) < cct_render_margin
+        # Uses 0.5% for brightness, 10K for color to match frontend (glo-designer.html)
+        bri_render_unchanged = abs(target_bri - current_bri) < 0.5
+        cct_render_unchanged = abs(target_cct - current_cct) < 10
         if bri_render_unchanged and cct_render_unchanged:
             return None
 
@@ -926,8 +925,8 @@ class CircadianLight:
 
         # If rendered output didn't change meaningfully, treat as at-limit
         # (curve saturation - can't push higher/lower at current hour)
-        render_margin = max(20, cct_step * 0.1)  # At least 20K or 10% of step
-        if abs(target_cct - rendered_cct) < render_margin:
+        # Uses 10K margin to match frontend (glo-designer.html getColorPreview)
+        if abs(target_cct - rendered_cct) < 10:
             return None
 
         # Brightness stays unchanged

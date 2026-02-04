@@ -6,6 +6,7 @@
 - Fix limit bounce not triggering when hitting practical color/step limits
 - The logistic curve asymptotically approaches max/min but never reaches config bounds
 - Now detects when rendered output stops changing (curve saturation) and triggers limit bounce
+- Uses same margins as frontend (0.5% for brightness, 10K for color) from glo-designer.html
 - Applies to `calculate_step` (step up/down) and `calculate_color_step` (color up/down)
 
 ## 6.9.252
