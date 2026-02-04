@@ -1,5 +1,50 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.268
+**Moments feature - Phase 3 UI Page**
+
+- **New Moments page**: Two-panel layout for creating whole-home lighting presets
+  - Left panel: Moment list grouped by category (Utility, Fun)
+  - Right panel: Moment editor with icon picker, default action, and exceptions
+- **UI Features**:
+  - Icon picker with 24 emoji options
+  - Trigger display showing "Set {moment_name}" action
+  - Category dropdown (Utility/Fun)
+  - Default action selector (Off, NiteLite, Circadian, Leave alone)
+  - Area exceptions with action overrides
+  - Summary line showing action counts
+  - Delete confirmation modal
+  - Auto-save on changes
+- **Navigation**: Moments link added to nav bar (between Controls and Settings)
+- **Mobile responsive**: Stacked layout on small screens
+
+## 6.9.267
+**Moments feature - Phase 2 Area Picker Component**
+
+- **Reusable area picker**: New `openAreaPicker()` function in shared.js
+  - Multi-select checkboxes for choosing areas
+  - Always grouped by Glo Zone
+  - Sort toggle: "Your order" (custom) vs "A-Z" (alphabetical within zones)
+  - Sort preference persisted in localStorage
+  - Disables already-selected items (greyed out)
+  - Escape key or click-outside to cancel
+- Will be used for: Moments exceptions, Controls reach selector
+
+## 6.9.266
+**Moments feature - Phase 1 Backend**
+
+- **Moments API**: New REST endpoints for whole-home lighting presets
+  - `GET/POST /api/moments` - List and create moments
+  - `GET/PUT/DELETE /api/moments/{id}` - Read, update, delete individual moments
+- **Set primitive extension**: `set(preset="sleep")` now applies moment configs
+  - Moments are multi-area presets (Sleep, Exit, etc.)
+  - Reserved names: wake, bed, nitelite, britelite cannot be used as moment names
+- **Switch action support**: `set_{moment_id}` actions (e.g., `set_sleep`) work from switches
+- **Moment config structure**:
+  - `default_action`: off, nitelite, circadian, leave_alone
+  - `exceptions`: per-area overrides
+  - Future: fun moments with effects, sun-event triggers
+
 ## 6.9.265
 **Fix curve saturation detection - recalculate with new midpoint**
 

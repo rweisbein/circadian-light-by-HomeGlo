@@ -1342,8 +1342,31 @@ class HomeAssistantWebSocketClient:
             for area in areas:
                 await self.primitives.set(area, "switch", preset="wake")
 
+        elif action.startswith("set_"):
+            # Check if it's a moment action (set_sleep, set_exit, etc.)
+            moment_id = action[4:]  # Remove "set_" prefix
+            moments = self._get_moments()
+            if moment_id in moments:
+                logger.info(f"[switch] Applying moment '{moment_id}'")
+                # Moments apply to all areas per their config, not switch areas
+                await self.primitives.set(None, "switch", preset=moment_id)
+            else:
+                logger.warning(f"Unknown set action: {action}")
+
         else:
             logger.warning(f"Unknown action: {action}")
+
+    def _get_moments(self) -> dict:
+        """Get all moments from config.
+
+        Returns:
+            Dict of moment_id -> moment config
+        """
+        try:
+            raw_config = glozone.load_config_from_files()
+            return raw_config.get("moments", {})
+        except Exception:
+            return {}
 
     def _is_reach_learn_mode(self) -> bool:
         """Check if reach learn mode is enabled (single indicator light feedback)."""
@@ -3370,7 +3393,7 @@ class HomeAssistantWebSocketClient:
 
                 elif service == "set":
                     areas = get_areas()
-                    preset = service_data.get("preset")  # wake, bed, nitelite, britelite
+                    preset = service_data.get("preset")  # wake, bed, nitelite, britelite, or moment name
                     frozen_at = service_data.get("frozen_at")  # Optional specific hour (0-24)
                     copy_from = service_data.get("copy_from")  # Optional area_id to copy from
                     is_on = service_data.get("is_on")  # Optional: None=just configure, True=configure+turn on, False=configure+turn off
@@ -3378,8 +3401,12 @@ class HomeAssistantWebSocketClient:
                         for area in areas:
                             logger.info(f"[{domain}] set for area: {area} (preset={preset}, frozen_at={frozen_at}, copy_from={copy_from}, is_on={is_on})")
                             await self.primitives.set(area, "service_call", preset=preset, frozen_at=frozen_at, copy_from=copy_from, is_on=is_on)
+                    elif preset:
+                        # No area specified but preset given - could be a moment (applies to all areas)
+                        logger.info(f"[{domain}] set with preset={preset} (no area - may be moment)")
+                        await self.primitives.set(None, "service_call", preset=preset, frozen_at=frozen_at, copy_from=copy_from, is_on=is_on)
                     else:
-                        logger.warning("set called without area_id")
+                        logger.warning("set called without area_id or preset")
 
                 elif service == "freeze_toggle":
                     areas = get_areas()

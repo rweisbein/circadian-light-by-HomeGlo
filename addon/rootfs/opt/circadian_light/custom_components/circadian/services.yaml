@@ -96,14 +96,56 @@ reset:
         area:
           multiple: true
 
-circadian_on:
-  name: Circadian On
-  description: Turn on lights and enable Circadian Light mode for an area
+lights_on:
+  name: Lights On
+  description: Turn on lights with circadian values and take control of the area
   icon: mdi:lightbulb-on
   fields:
     area_id:
       name: Area
-      description: The area(s) to enable Circadian Light for
+      description: The area(s) to turn on
+      required: true
+      example: ["living_room", "kitchen"]
+      selector:
+        area:
+          multiple: true
+
+lights_off:
+  name: Lights Off
+  description: Turn off lights and enforce off state (Circadian will keep them off)
+  icon: mdi:lightbulb-off-outline
+  fields:
+    area_id:
+      name: Area
+      description: The area(s) to turn off
+      required: true
+      example: ["living_room", "kitchen"]
+      selector:
+        area:
+          multiple: true
+
+lights_toggle:
+  name: Lights Toggle
+  description: Smart toggle - turns on with circadian if off, turns off if on
+  icon: mdi:lightbulb-auto
+  fields:
+    area_id:
+      name: Area
+      description: The area(s) to toggle
+      required: true
+      example: ["living_room", "kitchen"]
+      selector:
+        area:
+          multiple: true
+
+circadian_on:
+  name: Circadian On
+  description: Resume Circadian Light control with preserved settings (respects is_on state)
+  icon: mdi:lightbulb-auto
+  fields:
+    area_id:
+      name: Area
+      description: The area(s) to return to Circadian control
       required: true
       example: ["living_room", "kitchen"]
       selector:
@@ -112,26 +154,12 @@ circadian_on:
 
 circadian_off:
   name: Circadian Off
-  description: Disable Circadian Light mode for an area (lights remain unchanged)
-  icon: mdi:lightbulb-off
+  description: Release Circadian Light control of an area (lights remain unchanged)
+  icon: mdi:lightbulb-auto-outline
   fields:
     area_id:
       name: Area
-      description: The area(s) to disable Circadian Light for
-      required: true
-      example: ["living_room", "kitchen"]
-      selector:
-        area:
-          multiple: true
-
-circadian_toggle:
-  name: Circadian Toggle
-  description: Smart toggle - turns on with Circadian Light if off, turns off if on
-  icon: mdi:lightbulb-auto
-  fields:
-    area_id:
-      name: Area
-      description: The area(s) to toggle
+      description: The area(s) to release from Circadian control
       required: true
       example: ["living_room", "kitchen"]
       selector:
@@ -173,24 +201,19 @@ set:
   fields:
     area_id:
       name: Area
-      description: The area(s) to configure
-      required: true
+      description: The area(s) to configure (optional for moments which apply to all areas)
+      required: false
       example: ["living_room", "kitchen"]
       selector:
         area:
           multiple: true
     preset:
       name: Preset
-      description: Preset to apply (nitelite, britelite, wake, bed)
+      description: Preset to apply (nitelite, britelite, wake, bed, or a moment name like sleep)
       required: false
-      example: nitelite
+      example: sleep
       selector:
-        select:
-          options:
-            - nitelite
-            - britelite
-            - wake
-            - bed
+        text:
     frozen_at:
       name: Frozen At
       description: Specific hour (0-24) to freeze at
@@ -209,11 +232,10 @@ set:
       example: living_room
       selector:
         area:
-    enable:
-      name: Enable
-      description: Also enable the area (default false)
+    is_on:
+      name: Turn On/Off
+      description: "Control whether to take control: omit to just configure settings, true to configure and turn on, false to configure and turn off"
       required: false
-      default: false
       selector:
         boolean:
 
@@ -231,7 +253,98 @@ freeze_toggle:
         area:
           multiple: true
 
+broadcast:
+  name: Broadcast
+  description: Copy settings from source area to all other areas
+  icon: mdi:broadcast
+  fields:
+    area_id:
+      name: Source Area
+      description: The area to copy settings FROM
+      required: true
+      example: living_room
+      selector:
+        area:
+
 refresh:
   name: Refresh
   description: Immediately update all enabled areas with current circadian values
   icon: mdi:refresh
+
+glo_up:
+  name: GloUp
+  description: Push area's state to its GloZone
+  icon: mdi:arrow-up-bold-circle
+  fields:
+    area_id:
+      name: Area
+      description: The area to push state from (zone is derived from this area)
+      required: true
+      example: living_room
+      selector:
+        area:
+
+glo_down:
+  name: GloDown
+  description: Pull GloZone's state to this area
+  icon: mdi:arrow-down-bold-circle
+  fields:
+    area_id:
+      name: Area
+      description: The area to sync to its zone's state
+      required: true
+      example: living_room
+      selector:
+        area:
+
+glo_reset:
+  name: GloReset
+  description: Reset area to Daily Rhythm
+  icon: mdi:restore
+  fields:
+    area_id:
+      name: Area
+      description: The area to reset to Daily Rhythm
+      required: true
+      example: living_room
+      selector:
+        area:
+
+glozone_reset:
+  name: GloZone Reset
+  description: Reset GloZone state to Daily Rhythm defaults (does not affect areas)
+  icon: mdi:restore-alert
+  fields:
+    zone_name:
+      name: Zone Name
+      description: The GloZone to reset
+      required: true
+      example: downstairs
+      selector:
+        text:
+
+glozone_down:
+  name: GloZone Down
+  description: Push GloZone settings to all areas in the zone
+  icon: mdi:arrow-down-bold-box
+  fields:
+    zone_name:
+      name: Zone Name
+      description: The GloZone to push settings from
+      required: true
+      example: downstairs
+      selector:
+        text:
+
+full_send:
+  name: Full Send
+  description: Push area to GloZone and propagate to all areas (glo_up + glozone_down)
+  icon: mdi:arrow-up-bold-box
+  fields:
+    area_id:
+      name: Area
+      description: The area to push from (zone is derived, then propagated to all areas)
+      required: true
+      example: living_room
+      selector:
+        area:
