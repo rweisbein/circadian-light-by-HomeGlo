@@ -1,5 +1,20 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.266
+**Moments feature - Phase 1 Backend**
+
+- **Moments API**: New REST endpoints for whole-home lighting presets
+  - `GET/POST /api/moments` - List and create moments
+  - `GET/PUT/DELETE /api/moments/{id}` - Read, update, delete individual moments
+- **Set primitive extension**: `set(preset="sleep")` now applies moment configs
+  - Moments are multi-area presets (Sleep, Exit, etc.)
+  - Reserved names: wake, bed, nitelite, britelite cannot be used as moment names
+- **Switch action support**: `set_{moment_id}` actions (e.g., `set_sleep`) work from switches
+- **Moment config structure**:
+  - `default_action`: off, nitelite, circadian, leave_alone
+  - `exceptions`: per-area overrides
+  - Future: fun moments with effects, sun-event triggers
+
 ## 6.9.265
 **Fix curve saturation detection - recalculate with new midpoint**
 

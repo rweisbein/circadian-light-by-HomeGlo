@@ -227,6 +227,77 @@ class CircadianLightPrimitives:
         except Exception:
             return 50
 
+    def _get_moments(self) -> dict:
+        """Get all moments from config.
+
+        Returns:
+            Dict of moment_id -> moment config
+        """
+        try:
+            raw_config = glozone.load_config_from_files()
+            return raw_config.get("moments", {})
+        except Exception:
+            return {}
+
+    def _get_all_area_ids(self) -> list:
+        """Get all area IDs from all GloZones.
+
+        Returns:
+            List of area IDs
+        """
+        area_ids = []
+        glozones = glozone.get_glozones()
+        for zone_name, zone_config in glozones.items():
+            areas = zone_config.get("areas", [])
+            for area in areas:
+                if isinstance(area, dict):
+                    area_ids.append(area.get("id"))
+                else:
+                    area_ids.append(area)
+        return area_ids
+
+    async def _apply_moment(self, moment_id: str, source: str = "moment"):
+        """Apply a moment configuration to all areas.
+
+        Args:
+            moment_id: The moment ID to apply
+            source: Source of the action
+        """
+        moments = self._get_moments()
+        moment = moments.get(moment_id)
+        if not moment:
+            logger.warning(f"[{source}] Moment '{moment_id}' not found")
+            return
+
+        default_action = moment.get("default_action", "leave_alone")
+        exceptions = moment.get("exceptions", {})
+
+        logger.info(f"[{source}] Applying moment '{moment.get('name', moment_id)}' "
+                    f"(default: {default_action}, {len(exceptions)} exceptions)")
+
+        all_areas = self._get_all_area_ids()
+        tasks = []
+
+        for area_id in all_areas:
+            action = exceptions.get(area_id, default_action)
+
+            if action == "leave_alone":
+                continue
+            elif action == "off":
+                tasks.append(self.glo_off(area_id, source))
+            elif action == "nitelite":
+                # Use set with nitelite preset, turn on the lights
+                tasks.append(self.set(area_id, source, preset="nitelite", is_on=True))
+            elif action == "circadian":
+                # Reset to current time position, turn on
+                tasks.append(self.reset(area_id, source))
+
+        if tasks:
+            await asyncio.gather(*tasks)
+            logger.info(f"[{source}] Moment '{moment_id}' applied to {len(tasks)} areas")
+        else:
+            logger.info(f"[{source}] Moment '{moment_id}' - no areas to update (all leave_alone)")
+
     async def _turn_off_area(self, area_id: str, transition: float = 0.3) -> None:
         """Turn off all lights in an area.
 
@@ -1619,6 +1690,13 @@ class CircadianLightPrimitives:
 
         # Priority 3: preset
         if preset:
+            # Check if preset is a moment (multi-area preset)
+            moments = self._get_moments()
+            if preset.lower() in moments:
+                await self._apply_moment(preset.lower(), source)
+                return
+
+            # Single-area built-in presets
             # Reset state first (clears midpoints, bounds, frozen_at; preserves enabled)
             state.reset_area(area_id)
 
