@@ -1839,9 +1839,11 @@ class CircadianLightPrimitives:
         dim_duration = self._get_turn_off_transition()
         two_step_delay = self._get_two_step_delay()
 
-        # Dim areas with lights on to 0%
-        for area_id in areas_on:
-            await self._apply_lighting(area_id, 0, 2700, include_color=False, transition=dim_duration)
+        # Dim all areas in parallel
+        await asyncio.gather(*[
+            self._apply_lighting(area_id, 0, 2700, include_color=False, transition=dim_duration)
+            for area_id in areas_on
+        ])
 
         await asyncio.sleep(dim_duration + two_step_delay)  # Wait for transition to complete
 
@@ -1850,14 +1852,16 @@ class CircadianLightPrimitives:
             for area_id in areas_on:
                 self._unfreeze_internal(area_id, source)
 
-            # Rise areas to unfrozen values at freeze-off-rise speed (boost-aware)
+            # Rise all areas in parallel at freeze-off-rise speed (boost-aware)
             rise_transition = self._get_freeze_off_rise()
             hour = get_current_hour()
+            rise_tasks = []
             for area_id in areas_on:
                 config = self._get_config(area_id)
                 area_state = self._get_area_state(area_id)
                 result = CircadianLight.calculate_lighting(hour, config, area_state)
-                await self._apply_circadian_lighting(area_id, result.brightness, result.color_temp, transition=rise_transition)
+                rise_tasks.append(self._apply_circadian_lighting(area_id, result.brightness, result.color_temp, transition=rise_transition))
+            await asyncio.gather(*rise_tasks)
 
             logger.info(f"[{source}] Freeze toggle: {len(areas_on)} area(s) unfrozen")
 
@@ -1867,12 +1871,14 @@ class CircadianLightPrimitives:
             for area_id in areas_on:
                 state.set_frozen_at(area_id, frozen_at)
 
-            # Flash areas up to frozen values instantly (boost-aware)
+            # Flash all areas in parallel to frozen values instantly (boost-aware)
+            flash_tasks = []
             for area_id in areas_on:
                 config = self._get_config(area_id)
                 area_state = self._get_area_state(area_id)
                 result = CircadianLight.calculate_lighting(frozen_at, config, area_state)
-                await self._apply_circadian_lighting(area_id, result.brightness, result.color_temp, transition=0)
+                flash_tasks.append(self._apply_circadian_lighting(area_id, result.brightness, result.color_temp, transition=0))
+            await asyncio.gather(*flash_tasks)
 
             logger.info(f"[{source}] Freeze toggle: {len(areas_on)} area(s) frozen at hour {frozen_at:.2f}")
 

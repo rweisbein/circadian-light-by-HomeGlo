@@ -1444,41 +1444,47 @@ class HomeAssistantWebSocketClient:
                 restore_data[area] = {"was_on": was_on}
 
         # Phase 1: For ON lights, turn off with transition. For OFF lights, turn on at blink threshold.
+        # Execute all areas in parallel
+        phase1_tasks = []
         for area in areas:
             if restore_data[area].get("was_on"):
-                await self.call_service(
+                phase1_tasks.append(self.call_service(
                     "light", "turn_off",
                     {"transition": turn_off_transition},
                     target={"area_id": area}
-                )
+                ))
             else:
-                await self.call_service(
+                phase1_tasks.append(self.call_service(
                     "light", "turn_on",
                     {"brightness": blink_brightness, "transition": turn_on_transition},
                     target={"area_id": area}
-                )
+                ))
+        await asyncio.gather(*phase1_tasks)
 
         # Wait for transitions to complete
         await asyncio.sleep(max(turn_off_transition, turn_on_transition) + 0.1)
 
         # Phase 2: Restore. ON lights back on with circadian values. OFF lights back off.
+        # Execute all areas in parallel
+        phase2_tasks = []
         for area, data in restore_data.items():
             if data.get("was_on"):
                 service_data = {"transition": turn_on_transition}
                 if data.get("xy"):
                     service_data["xy_color"] = data["xy"]
                     service_data["brightness"] = data["brightness"]
-                await self.call_service(
+                phase2_tasks.append(self.call_service(
                     "light", "turn_on",
                     service_data,
                     target={"area_id": area}
-                )
+                ))
             else:
-                await self.call_service(
+                phase2_tasks.append(self.call_service(
                     "light", "turn_off",
                     {"transition": turn_off_transition},
                     target={"area_id": area}
-                )
+                ))
+        await asyncio.gather(*phase2_tasks)
 
     async def _show_reach_single_light_feedback(self, indicator_light: str, scope_number: int) -> None:
         """Flash a single indicator light to show which reach is active.
