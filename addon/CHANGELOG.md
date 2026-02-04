@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 6.9.265
+**Fix curve saturation detection - recalculate with new midpoint**
+
+- Fixed saturation detection to actually recalculate curve output with new midpoint
+- Previous fix compared linear target to current, but midpoint adjustment doesn't produce linear results
+- Now calculates new midpoint, recalculates curve output, then compares to current
+- Applies to all step functions: `calculate_step`, `calculate_bright_step`, `calculate_color_step`
+
 ## 6.9.264
 **Fix color/step limit detection for curve saturation**
 
