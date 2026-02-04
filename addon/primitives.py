@@ -182,20 +182,35 @@ class CircadianLightPrimitives:
         except Exception:
             return 0.3
 
-    def _get_limit_bounce_percent(self) -> float:
-        """Get the limit bounce percentage (% of range to bounce).
+    def _get_limit_bounce_max_percent(self) -> float:
+        """Get the bounce percentage when hitting max limit (% of range).
 
-        Controls how much the lights dip/flash when hitting a step limit.
-        Reads from global config, defaults to 20 (%).
+        Controls how much lights dip when hitting the upper limit.
+        Reads from global config, defaults to 30 (%).
 
         Returns:
             Bounce percentage (0-100)
         """
         try:
             raw_config = glozone.load_config_from_files()
-            return raw_config.get("limit_bounce_percent", 20)
+            return raw_config.get("limit_bounce_max_percent", 30)
         except Exception:
-            return 20
+            return 30
+
+    def _get_limit_bounce_min_percent(self) -> float:
+        """Get the bounce percentage when hitting min limit (% of range).
+
+        Controls how much lights flash when hitting the lower limit.
+        Reads from global config, defaults to 10 (%).
+
+        Returns:
+            Bounce percentage (0-100)
+        """
+        try:
+            raw_config = glozone.load_config_from_files()
+            return raw_config.get("limit_bounce_min_percent", 10)
+        except Exception:
+            return 10
 
     def _get_reach_dip_percent(self) -> float:
         """Get the reach feedback dip percentage (% of current brightness).
@@ -2499,14 +2514,14 @@ class CircadianLightPrimitives:
     async def _bounce_at_limit(self, area_id: str, current_brightness: int, current_color: int, direction: str = "up", bounce_type: str = "step"):
         """Visual bounce effect when hitting a bound limit.
 
-        Bounces by limit_bounce_percent of the range.
+        Uses direction-specific bounce percentages:
+        - "up" (hit max): dip down by limit_bounce_max_percent of range
+        - "down" (hit min): flash up by limit_bounce_min_percent of range
+
+        Bounce type controls which axes:
         - "step": bounces both brightness and color
         - "bright": bounces brightness only
         - "color": bounces color only
-
-        Direction-aware:
-        - "up" (hit upper limit): dip down (brightness decreases, color cools)
-        - "down" (hit lower limit): flash up (brightness increases, color warms)
 
         Note: This function is boost-aware. If the area is boosted, the bounce
         uses the effective (boosted) brightness, not just the circadian base.
@@ -2530,7 +2545,12 @@ class CircadianLightPrimitives:
         config = self._get_config(area_id)
         limit_speed = self._get_limit_warning_speed()
         two_step_delay = self._get_two_step_delay()
-        bounce_percent = self._get_limit_bounce_percent() / 100.0
+
+        # Use direction-specific bounce percentage
+        if direction == "up":
+            bounce_percent = self._get_limit_bounce_max_percent() / 100.0
+        else:
+            bounce_percent = self._get_limit_bounce_min_percent() / 100.0
 
         # Calculate ranges
         bri_range = config.max_brightness - config.min_brightness

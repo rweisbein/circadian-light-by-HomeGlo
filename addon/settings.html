@@ -547,11 +547,22 @@
 
         <div class="form-row">
           <label class="form-label">
-            Limit bounce
-            <span class="info-icon">i<span class="info-tooltip">How much to bounce when hitting a step/bright/color limit. Expressed as a percentage of the brightness or color range.</span></span>
+            Limit bounce (max)
+            <span class="info-icon">i<span class="info-tooltip">How much to dip when hitting the upper limit. Expressed as a percentage of the brightness or color range.</span></span>
           </label>
           <div class="form-control">
-            <input type="number" class="form-input" id="limit-bounce-percent" min="5" max="50" step="1" value="20" style="width: 80px;">
+            <input type="number" class="form-input" id="limit-bounce-max-percent" min="5" max="50" step="1" value="30" style="width: 80px;">
+            <span class="form-hint">% of range</span>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">
+            Limit bounce (min)
+            <span class="info-icon">i<span class="info-tooltip">How much to flash when hitting the lower limit. Expressed as a percentage of the brightness or color range.</span></span>
+          </label>
+          <div class="form-control">
+            <input type="number" class="form-input" id="limit-bounce-min-percent" min="5" max="50" step="1" value="10" style="width: 80px;">
             <span class="form-hint">% of range</span>
           </div>
         </div>
@@ -653,7 +664,8 @@
           document.getElementById('motion-warning-blink-threshold').value = config.motion_warning_blink_threshold ?? 15;
           document.getElementById('freeze-off-rise').value = config.freeze_off_rise ?? 10;
           document.getElementById('limit-warning-speed').value = config.limit_warning_speed ?? 3;
-          document.getElementById('limit-bounce-percent').value = config.limit_bounce_percent ?? 20;
+          document.getElementById('limit-bounce-max-percent').value = config.limit_bounce_max_percent ?? 30;
+          document.getElementById('limit-bounce-min-percent').value = config.limit_bounce_min_percent ?? 10;
           document.getElementById('reach-dip-percent').value = config.reach_dip_percent ?? 50;
           document.getElementById('boost-default').value = config.boost_default ?? 30;
           updateMultiClickState();
@@ -679,7 +691,8 @@
         motion_warning_blink_threshold: parseInt(document.getElementById('motion-warning-blink-threshold').value) || 15,
         freeze_off_rise: parseFloat(document.getElementById('freeze-off-rise').value) || 10,
         limit_warning_speed: parseFloat(document.getElementById('limit-warning-speed').value) || 3,
-        limit_bounce_percent: parseInt(document.getElementById('limit-bounce-percent').value) || 20,
+        limit_bounce_max_percent: parseInt(document.getElementById('limit-bounce-max-percent').value) || 30,
+        limit_bounce_min_percent: parseInt(document.getElementById('limit-bounce-min-percent').value) || 10,
         reach_dip_percent: parseInt(document.getElementById('reach-dip-percent').value) || 50,
         boost_default: parseInt(document.getElementById('boost-default').value) || 30
       };
@@ -763,7 +776,8 @@
     document.getElementById('motion-warning-blink-threshold').addEventListener('blur', saveSettings);
     document.getElementById('freeze-off-rise').addEventListener('blur', saveSettings);
     document.getElementById('limit-warning-speed').addEventListener('blur', saveSettings);
-    document.getElementById('limit-bounce-percent').addEventListener('blur', saveSettings);
+    document.getElementById('limit-bounce-max-percent').addEventListener('blur', saveSettings);
+    document.getElementById('limit-bounce-min-percent').addEventListener('blur', saveSettings);
     document.getElementById('reach-dip-percent').addEventListener('blur', saveSettings);
     document.getElementById('boost-default').addEventListener('blur', saveSettings);
 
