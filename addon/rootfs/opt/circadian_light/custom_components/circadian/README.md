@@ -23,14 +23,17 @@ The Circadian Light custom integration provides Home Assistant services for cont
 
 ## Available Services
 
-### `circadian.circadian_on`
-Enable Circadian Light mode and set lights to current time position with circadian values.
+### `circadian.lights_on`
+Turn on lights with circadian values and take control of the area. Circadian Light will maintain these lights at the correct brightness and color temperature.
 
-### `circadian.circadian_off`  
-Disable Circadian Light mode without changing light state. Saves current time offset for later restoration.
+### `circadian.lights_off`
+Turn off lights and enforce the off state. While Circadian Light controls the area, it will keep lights off (e.g., after a power failure, lights will turn back off).
 
-### `circadian.circadian_toggle`
-Smart toggle based on light state. If lights are on, turns them off and disables Circadian Light. If lights are off, enables Circadian Light and turns them on with circadian values.
+### `circadian.lights_toggle`
+Smart toggle based on light state. If any lights are on, turns them off. If all lights are off, turns them on with circadian values.
+
+### `circadian.circadian_off`
+Release Circadian Light control of an area without changing light state. The lights will remain as-is but Circadian will no longer manage them.
 
 ### `circadian.step_up`
 Increase brightness by one step along the circadian lighting curve (brightens and cools).
@@ -39,7 +42,7 @@ Increase brightness by one step along the circadian lighting curve (brightens an
 Decrease brightness by one step along the circadian lighting curve (dims and warms).
 
 ### `circadian.reset`
-Reset time offset to current time, enable Circadian Light, and apply current circadian lighting.
+Reset area midpoints to phase defaults and apply current circadian lighting.
 
 **Service Data (all services):**
 ```yaml
@@ -58,7 +61,7 @@ automation:
         type: remote_button_short_press
         subtype: turn_on
     action:
-      - service: circadian.circadian_toggle
+      - service: circadian.lights_toggle
         data:
           area_id: living_room
 ```

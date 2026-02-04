@@ -201,24 +201,19 @@ set:
   fields:
     area_id:
       name: Area
-      description: The area(s) to configure
-      required: true
+      description: The area(s) to configure (optional for moments which apply to all areas)
+      required: false
       example: ["living_room", "kitchen"]
       selector:
         area:
           multiple: true
     preset:
       name: Preset
-      description: Preset to apply (nitelite, britelite, wake, bed)
+      description: Preset to apply (nitelite, britelite, wake, bed, or a moment name like sleep)
       required: false
-      example: nitelite
+      example: sleep
       selector:
-        select:
-          options:
-            - nitelite
-            - britelite
-            - wake
-            - bed
+        text:
     frozen_at:
       name: Frozen At
       description: Specific hour (0-24) to freeze at
