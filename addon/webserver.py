@@ -2639,13 +2639,48 @@ class LightDesignerServer:
             await self._migrate_unassigned_areas_to_default(config)
             zones = config.get("glozones", {})
 
-            # Enrich with runtime state
+            # Check if any areas are missing names before fetching from HA
+            needs_name_enrichment = False
+            for zone_config in zones.values():
+                for area in zone_config.get("areas", []):
+                    if isinstance(area, str) or (isinstance(area, dict) and not area.get("name")):
+                        needs_name_enrichment = True
+                        break
+                if needs_name_enrichment:
+                    break
+
+            # Only fetch HA area names if there are areas missing names
+            ha_area_names = {}
+            if needs_name_enrichment:
+                try:
+                    _, ws_url, token = self._get_ha_api_config()
+                    if ws_url and token:
+                        ha_areas = await self._fetch_areas_via_websocket(ws_url, token)
+                        ha_area_names = {a['area_id']: a.get('name', a['area_id']) for a in (ha_areas or [])}
+                except Exception as e:
+                    logger.debug(f"Could not fetch HA area names: {e}")
+
+            # Enrich with runtime state and area names
             result = {}
             for zone_name, zone_config in zones.items():
                 runtime = glozone_state.get_zone_state(zone_name)
+                # Enrich areas with friendly names from HA if missing
+                areas = []
+                for area in zone_config.get("areas", []):
+                    if isinstance(area, dict):
+                        area_id = area.get("id")
+                        # Use HA name if area doesn't have one stored
+                        if not area.get("name") and area_id in ha_area_names:
+                            area = {**area, "name": ha_area_names[area_id]}
+                        areas.append(area)
+                    else:
+                        # Legacy: area stored as just a string ID
+                        area_id = area
+                        areas.append({"id": area_id, "name": ha_area_names.get(area_id, area_id)})
+
                 result[zone_name] = {
                     "preset": zone_config.get("preset"),
-                    "areas": zone_config.get("areas", []),
+                    "areas": areas,
                     "runtime": runtime,
                     "is_default": zone_config.get("is_default", False),
                 }
@@ -3514,20 +3549,28 @@ class LightDesignerServer:
         """Trigger manual device/area/group sync.
 
         Re-scans Home Assistant for new/moved lights, areas, and ZHA devices.
-        Equivalent to the old slow-cycle sync but triggered manually.
+        Fires an event that main.py listens for to trigger the actual sync.
         """
         try:
             # Clear areas cache so it gets refreshed on next request
             self.cached_areas_list = None
             logger.info("Cleared areas cache for sync")
 
-            if self.client and hasattr(self.client, 'run_manual_sync'):
-                await self.client.run_manual_sync()
-                return web.json_response({"success": True, "message": "Device sync complete"})
+            # Fire event for main.py to handle the sync
+            _, ws_url, token = self._get_ha_api_config()
+            if ws_url and token:
+                fired = await self._fire_event_via_websocket(
+                    ws_url, token, 'circadian_light_sync_devices', {}
+                )
+                if fired:
+                    logger.info("Fired circadian_light_sync_devices event")
+                    return web.json_response({"success": True, "message": "Device sync triggered"})
+                else:
+                    return web.json_response({"error": "Failed to fire sync event"}, status=500)
             else:
-                return web.json_response({"error": "WebSocket client not available"}, status=503)
+                return web.json_response({"error": "WebSocket not configured"}, status=503)
         except Exception as e:
-            logger.error(f"Error running manual sync: {e}")
+            logger.error(f"Error triggering device sync: {e}")
             return web.json_response({"error": str(e)}, status=500)
 
     # -------------------------------------------------------------------------

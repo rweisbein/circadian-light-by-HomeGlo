@@ -518,39 +518,69 @@
       padding: 12px;
     }
 
-    .area-selector {
+    /* Area chips for scope editor */
+    .area-chips {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
+      min-height: 32px;
     }
 
-    .area-checkbox {
-      display: flex;
+    .area-chip {
+      display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 6px 10px;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 6px;
+      padding: 5px 8px 5px 12px;
+      background: rgba(254, 172, 96, 0.1);
+      border: 1px solid var(--accent);
+      border-radius: 16px;
+      font-size: 0.85rem;
+      color: var(--text);
+    }
+
+    .area-chip-remove {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      background: transparent;
+      border: none;
+      border-radius: 50%;
+      color: var(--muted);
+      font-size: 1rem;
+      line-height: 1;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .area-chip-remove:hover {
+      background: rgba(239, 68, 68, 0.2);
+      color: var(--danger);
+    }
+
+    .area-chips-empty {
+      color: var(--muted2);
+      font-size: 0.85rem;
+      font-style: italic;
+    }
+
+    .add-areas-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 0;
+      margin-top: 10px;
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      font-size: 0.9rem;
       cursor: pointer;
       transition: all 0.2s;
     }
 
-    .area-checkbox:hover {
-      border-color: var(--accent);
-    }
-
-    .area-checkbox.selected {
-      background: rgba(254, 172, 96, 0.1);
-      border-color: var(--accent);
-    }
-
-    .area-checkbox input {
-      display: none;
-    }
-
-    .area-checkbox-label {
-      font-size: 0.85rem;
+    .add-areas-btn:hover {
+      color: var(--accent);
     }
 
     .add-scope-btn {
@@ -1524,26 +1554,33 @@
 
     function renderScopesEditor() {
       const container = document.getElementById('scopes-editor');
-      container.innerHTML = editingScopes.map((scope, idx) => `
-        <div class="scope-editor" data-scope-idx="${idx}">
-          <div class="scope-editor-header">
-            <span class="scope-editor-title">Reach ${idx + 1}</span>
-            ${editingScopes.length > 1 ? `<button class="scope-editor-remove" onclick="removeScope(${idx})">&times;</button>` : ''}
-          </div>
-          <div class="scope-editor-body">
-            <div class="area-selector">
-              ${allAreas.map(area => `
-                <label class="area-checkbox ${scope.areas.includes(area.area_id) ? 'selected' : ''}">
-                  <input type="checkbox"
-                         ${scope.areas.includes(area.area_id) ? 'checked' : ''}
-                         onchange="toggleArea(${idx}, '${area.area_id}')">
-                  <span class="area-checkbox-label">${area.name}</span>
-                </label>
-              `).join('')}
+      container.innerHTML = editingScopes.map((scope, idx) => {
+        const areaChips = scope.areas.map(areaId => {
+          const area = allAreas.find(a => a.area_id === areaId);
+          const areaName = area ? area.name : areaId;
+          return `
+            <span class="area-chip">
+              ${areaName}
+              <button class="area-chip-remove" onclick="removeAreaFromScope(${idx}, '${areaId}')">&times;</button>
+            </span>
+          `;
+        }).join('');
+
+        return `
+          <div class="scope-editor" data-scope-idx="${idx}">
+            <div class="scope-editor-header">
+              <span class="scope-editor-title">Reach ${idx + 1}</span>
+              ${editingScopes.length > 1 ? `<button class="scope-editor-remove" onclick="removeScope(${idx})">&times;</button>` : ''}
+            </div>
+            <div class="scope-editor-body">
+              <div class="area-chips">
+                ${areaChips || '<span class="area-chips-empty">No areas selected</span>'}
+              </div>
+              <button class="add-areas-btn" onclick="addAreasToScope(${idx})">+ Add Areas</button>
             </div>
           </div>
-        </div>
-      `).join('');
+        `;
+      }).join('');
     }
 
     function addScope() {
@@ -1561,15 +1598,32 @@
       renderScopesEditor();
     }
 
-    function toggleArea(scopeIdx, areaId) {
+    function removeAreaFromScope(scopeIdx, areaId) {
       const scope = editingScopes[scopeIdx];
       const idx = scope.areas.indexOf(areaId);
       if (idx >= 0) {
         scope.areas.splice(idx, 1);
-      } else {
-        scope.areas.push(areaId);
       }
       renderScopesEditor();
+    }
+
+    async function addAreasToScope(scopeIdx) {
+      const scope = editingScopes[scopeIdx];
+      const selected = await openAreaPicker({
+        title: `Add Areas to Reach ${scopeIdx + 1}`,
+        selected: scope.areas,
+        multi: true
+      });
+
+      if (selected && selected.length > 0) {
+        // Add new areas (avoid duplicates)
+        selected.forEach(areaId => {
+          if (!scope.areas.includes(areaId)) {
+            scope.areas.push(areaId);
+          }
+        });
+        renderScopesEditor();
+      }
     }
 
     // Motion sensor area editor functions
@@ -1589,28 +1643,23 @@
 
       container.innerHTML = editingMotionAreas.map((areaConfig, idx) => {
         const durationMinutes = (areaConfig.duration || 60) / 60;
-        const hasAreaSelected = areaConfig.area_id && areaConfig.area_id !== '';
+        const area = allAreas.find(a => a.area_id === areaConfig.area_id);
+        const areaName = area ? area.name : areaConfig.area_id;
         // Migration: convert old 'function' to new 'mode' + 'boost_enabled'
         const mode = areaConfig.mode || (areaConfig.function === 'boost' ? 'on_off' : areaConfig.function) || 'on_off';
         const boostEnabled = areaConfig.boost_enabled !== undefined ? areaConfig.boost_enabled : (areaConfig.function === 'boost');
-        const showDuration = hasAreaSelected && mode === 'on_off';
+        const showDuration = mode === 'on_off';
         const boostBrightness = areaConfig.boost_brightness || 50;
         const activeWhen = areaConfig.active_when || 'always';
         const activeOffset = areaConfig.active_offset || 0;
-        const showOffset = hasAreaSelected && activeWhen !== 'always';
+        const showOffset = activeWhen !== 'always';
 
         return `
           <div class="scope-editor" data-motion-idx="${idx}">
             <div class="scope-editor-header">
-              <select class="modal-select" style="flex: 1; background: transparent; border: none; color: var(--text); font-weight: 500;" onchange="updateMotionArea(${idx}, 'area_id', this.value)">
-                <option value="" ${!hasAreaSelected ? 'selected' : ''}>[Select an area]</option>
-                ${allAreas.map(area => `
-                  <option value="${area.area_id}" ${areaConfig.area_id === area.area_id ? 'selected' : ''}>${area.name}</option>
-                `).join('')}
-              </select>
+              <span class="scope-editor-title">${areaName}</span>
               <button class="scope-editor-remove" onclick="removeMotionArea(${idx})">&times;</button>
             </div>
-            ${hasAreaSelected ? `
             <div class="scope-editor-body">
               <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
                 <select class="modal-select" style="width: auto;" onchange="updateMotionArea(${idx}, 'mode', this.value)">
@@ -1652,23 +1701,38 @@
                 </div>
               </div>
             </div>
-            ` : ''}
           </div>
         `;
       }).join('');
     }
 
-    function addMotionArea() {
-      editingMotionAreas.push({
-        area_id: '',  // Start with placeholder, user must select
-        mode: 'on_off',
-        duration: 60,
-        boost_enabled: false,
-        boost_brightness: 50,
-        active_when: 'always',
-        active_offset: 0
+    async function addMotionArea() {
+      // Get currently configured area IDs to exclude from picker
+      const existingAreaIds = editingMotionAreas.map(a => a.area_id).filter(Boolean);
+
+      const selected = await openAreaPicker({
+        title: 'Add Areas',
+        selected: existingAreaIds,
+        multi: true
       });
-      renderMotionAreasEditor();
+
+      if (selected && selected.length > 0) {
+        // Add new areas with default settings (skip already configured ones)
+        selected.forEach(areaId => {
+          if (!existingAreaIds.includes(areaId)) {
+            editingMotionAreas.push({
+              area_id: areaId,
+              mode: 'on_off',
+              duration: 60,
+              boost_enabled: false,
+              boost_brightness: 50,
+              active_when: 'always',
+              active_offset: 0
+            });
+          }
+        });
+        renderMotionAreasEditor();
+      }
     }
 
     function removeMotionArea(idx) {
@@ -1690,12 +1754,6 @@
         // Validate motion/contact sensor config
         if (editingMotionAreas.length === 0) {
           alert('Please add at least one area');
-          return;
-        }
-        // Check for unselected areas
-        const unselectedAreas = editingMotionAreas.filter(a => !a.area_id || a.area_id === '');
-        if (unselectedAreas.length > 0) {
-          alert('Please select an area for each entry, or remove unused entries');
           return;
         }
         // Get inactive status from checkbox
