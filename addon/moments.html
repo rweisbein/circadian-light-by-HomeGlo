@@ -251,18 +251,23 @@
       border-bottom-color: var(--accent);
     }
 
-    /* Editor Card - Clean minimal layout */
+    /* Editor Card */
     .editor-card {
       background: var(--card);
+      border: 1px solid var(--line);
       border-radius: 12px;
-      padding: 20px;
     }
 
     .editor-card-header {
       display: flex;
       align-items: center;
       gap: 12px;
-      margin-bottom: 24px;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .editor-card-body {
+      padding: 20px;
     }
 
     /* Settings rows */
@@ -373,20 +378,33 @@
     .exceptions-header {
       font-size: 0.85rem;
       color: var(--muted);
-      margin-bottom: 8px;
+      margin-bottom: 10px;
+    }
+
+    .exceptions-inset {
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 8px;
+      padding: 12px 14px;
     }
 
     .exceptions-list {
       display: flex;
       flex-direction: column;
-      gap: 8px;
-      margin-left: 4px;
+      gap: 6px;
     }
 
     .exception-item {
       display: flex;
       align-items: center;
       gap: 10px;
+      padding: 6px 8px;
+      margin: 0 -8px;
+      border-radius: 6px;
+      transition: background 0.15s;
+    }
+
+    .exception-item:hover {
+      background: rgba(255, 255, 255, 0.03);
     }
 
     .exception-area {
@@ -412,7 +430,7 @@
       cursor: pointer;
       padding: 2px 6px;
       line-height: 1;
-      opacity: 0.6;
+      opacity: 0.5;
       transition: all 0.15s;
     }
 
@@ -426,8 +444,9 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      margin-top: 12px;
-      margin-left: 4px;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
     }
 
     .add-exception-btn {
@@ -916,53 +935,56 @@
             </div>
           </div>
 
-          <div class="settings-row">
-            <span class="settings-label">Category</span>
-            <select class="form-select form-select-sm" onchange="updateMomentCategory(this.value); saveMoment();">
-              ${CATEGORY_OPTIONS.map(opt => `
-                <option value="${opt.value}" ${moment.category === opt.value ? 'selected' : ''}>${opt.label}</option>
-              `).join('')}
-            </select>
-          </div>
-
-          <div class="settings-row">
-            <span class="settings-label">Action</span>
-            <select class="form-select form-select-sm" onchange="updateDefaultAction(this.value); saveMoment();">
-              ${ACTION_OPTIONS.map(opt => `
-                <option value="${opt.value}" ${moment.default_action === opt.value ? 'selected' : ''}>${opt.label}</option>
-              `).join('')}
-            </select>
-          </div>
-
-          <div class="exceptions-section">
-            <div class="exceptions-header">Exceptions</div>
-            <div class="exceptions-list" id="exceptions-list">
-              ${Object.entries(exceptions).map(([areaId, action]) => {
-                const area = allAreas.find(a => a.area_id === areaId);
-                const areaName = area ? area.name : areaId;
-                return `
-                  <div class="exception-item">
-                    <span class="exception-area">${areaName}</span>
-                    <select class="exception-action" onchange="updateException('${areaId}', this.value); saveMoment();">
-                      ${ACTION_OPTIONS.map(opt => `
-                        <option value="${opt.value}" ${action === opt.value ? 'selected' : ''}>${opt.label}</option>
-                      `).join('')}
-                    </select>
-                    <button class="exception-remove" onclick="removeException('${areaId}'); saveMoment();">&times;</button>
-                  </div>
-                `;
-              }).join('')}
-            </div>
-            <div class="add-exception-row">
-              <select class="form-select form-select-sm" id="new-exception-action" onchange="newExceptionAction = this.value;">
-                ${ACTION_OPTIONS.map(opt => `
-                  <option value="${opt.value}" ${newExceptionAction === opt.value ? 'selected' : ''}>${opt.label}</option>
+          <div class="editor-card-body">
+            <div class="settings-row">
+              <span class="settings-label">Category</span>
+              <select class="form-select form-select-sm" onchange="updateMomentCategory(this.value); saveMoment();">
+                ${CATEGORY_OPTIONS.map(opt => `
+                  <option value="${opt.value}" ${moment.category === opt.value ? 'selected' : ''}>${opt.label}</option>
                 `).join('')}
               </select>
-              <button class="add-exception-btn" onclick="addException()">+ Add exception</button>
+            </div>
+
+            <div class="settings-row">
+              <span class="settings-label">Action</span>
+              <select class="form-select form-select-sm" onchange="updateDefaultAction(this.value); saveMoment();">
+                ${ACTION_OPTIONS.map(opt => `
+                  <option value="${opt.value}" ${moment.default_action === opt.value ? 'selected' : ''}>${opt.label}</option>
+                `).join('')}
+              </select>
+            </div>
+
+            <div class="exceptions-section">
+              <div class="exceptions-header">Exceptions</div>
+              <div class="exceptions-inset">
+                <div class="exceptions-list" id="exceptions-list">
+                  ${Object.entries(exceptions).map(([areaId, action]) => {
+                    const area = allAreas.find(a => a.area_id === areaId);
+                    const areaName = area ? area.name : areaId;
+                    return `
+                      <div class="exception-item">
+                        <span class="exception-area">${areaName}</span>
+                        <select class="exception-action" onchange="updateException('${areaId}', this.value); saveMoment();">
+                          ${ACTION_OPTIONS.map(opt => `
+                            <option value="${opt.value}" ${action === opt.value ? 'selected' : ''}>${opt.label}</option>
+                          `).join('')}
+                        </select>
+                        <button class="exception-remove" onclick="removeException('${areaId}'); saveMoment();">&times;</button>
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+                <div class="add-exception-row">
+                  <select class="form-select form-select-sm" id="new-exception-action" onchange="newExceptionAction = this.value;">
+                    ${ACTION_OPTIONS.map(opt => `
+                      <option value="${opt.value}" ${newExceptionAction === opt.value ? 'selected' : ''}>${opt.label}</option>
+                    `).join('')}
+                  </select>
+                  <button class="add-exception-btn" onclick="addException()">+ Add exception</button>
+                </div>
+              </div>
             </div>
           </div>
-
         </div>
       `;
     }
