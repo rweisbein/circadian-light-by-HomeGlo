@@ -669,21 +669,20 @@
 
     .info-tooltip {
       display: none;
-      position: absolute;
-      top: 24px;
-      left: 50%;
-      transform: translateX(-50%);
+      position: fixed;
       background: var(--panel);
       border: 1px solid var(--line);
       border-radius: 8px;
       padding: 12px;
       width: 280px;
+      max-width: 90vw;
       font-size: 0.8rem;
       font-style: normal;
       color: var(--muted);
       line-height: 1.5;
-      z-index: 100;
+      z-index: 1000;
       box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      pointer-events: none;
     }
 
     .info-icon:hover .info-tooltip {
@@ -1893,6 +1892,40 @@
         alert('Error removing configuration');
       }
     }
+
+    // Position info tooltips to avoid clipping
+    document.addEventListener('mouseover', (e) => {
+      const icon = e.target.closest('.info-icon');
+      if (!icon) return;
+
+      const tooltip = icon.querySelector('.info-tooltip');
+      if (!tooltip) return;
+
+      const iconRect = icon.getBoundingClientRect();
+      const tooltipWidth = 280;
+      const padding = 12;
+
+      // Position below the icon by default
+      let top = iconRect.bottom + 8;
+      let left = iconRect.left + (iconRect.width / 2) - (tooltipWidth / 2);
+
+      // Keep within viewport horizontally
+      if (left < padding) left = padding;
+      if (left + tooltipWidth > window.innerWidth - padding) {
+        left = window.innerWidth - tooltipWidth - padding;
+      }
+
+      // If would go off bottom, position above instead
+      if (top + 100 > window.innerHeight) {
+        top = iconRect.top - 8;
+        tooltip.style.transform = 'translateY(-100%)';
+      } else {
+        tooltip.style.transform = 'none';
+      }
+
+      tooltip.style.top = top + 'px';
+      tooltip.style.left = left + 'px';
+    });
   </script>
 </body>
 </html>
