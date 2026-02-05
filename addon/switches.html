@@ -793,15 +793,21 @@
   <!-- Main Content -->
   <main class="main">
     <div class="page-header">
-      <div style="display: flex; align-items: center; justify-content: flex-end; gap: 16px;">
-        <input type="text" id="search-input" placeholder="Search controls..."
-          style="padding: 6px 12px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 0.85rem; width: 180px;"
-          oninput="handleSearch(this.value)">
-        <a href="#" class="clear-filters-link" id="clear-filters-link" style="display: none;" onclick="clearFilters(); return false;">Clear filters</a>
-        <div class="toolbar-menu">
-          <button class="toolbar-menu-btn" onclick="toggleToolbarMenu(event)">&#8942;</button>
-          <div class="toolbar-menu-dropdown" id="toolbar-menu-dropdown">
-            <a href="#" class="toolbar-menu-item" id="refresh-link" onclick="loadData(); toggleToolbarMenu(event); return false;">Refresh</a>
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px;">
+        <div style="position: relative; display: inline-block;">
+          <input type="text" id="search-input" placeholder="Search..."
+            style="padding: 6px 28px 6px 12px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 0.85rem; width: 160px;"
+            oninput="handleSearch(this.value)">
+          <button id="search-clear" onclick="clearSearch()"
+            style="display: none; position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.9rem; padding: 2px 4px;">&times;</button>
+        </div>
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <a href="#" class="clear-filters-link" id="clear-filters-link" style="display: none;" onclick="clearFilters(); return false;">Clear filters</a>
+          <div class="toolbar-menu">
+            <button class="toolbar-menu-btn" onclick="toggleToolbarMenu(event)">&#8942;</button>
+            <div class="toolbar-menu-dropdown" id="toolbar-menu-dropdown">
+              <a href="#" class="toolbar-menu-item" id="refresh-link" onclick="loadData(); toggleToolbarMenu(event); return false;">Refresh</a>
+            </div>
           </div>
         </div>
       </div>
@@ -1031,9 +1037,10 @@
         if (pauseFilter === 'paused' && !c.inactive) return false;
         if (pauseFilter === 'live' && c.inactive) return false;
         // Glozone filter - check if control's area is in the selected glozone
+        // Check both area_id and area_name since glozone config may use either
         if (glozoneFilter !== 'all') {
           const zone = allGlozones.find(z => z.id === glozoneFilter);
-          if (zone && !zone.areas.includes(c.area_id)) return false;
+          if (zone && !zone.areas.includes(c.area_id) && !zone.areas.includes(c.area_name)) return false;
         }
         return true;
       });
@@ -1317,6 +1324,14 @@
 
     function handleSearch(value) {
       searchFilter = value;
+      document.getElementById('search-clear').style.display = value ? 'block' : 'none';
+      renderControls();
+    }
+
+    function clearSearch() {
+      searchFilter = '';
+      document.getElementById('search-input').value = '';
+      document.getElementById('search-clear').style.display = 'none';
       renderControls();
     }
 
