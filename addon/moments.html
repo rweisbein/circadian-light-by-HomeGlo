@@ -214,33 +214,19 @@
       font-size: 0.95rem;
     }
 
-    .editor-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 24px;
-      padding-bottom: 16px;
-      border-bottom: 1px solid var(--line);
-    }
-
-    .editor-header-left {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
     .editor-icon-btn {
-      width: 40px;
-      height: 40px;
+      width: 36px;
+      height: 36px;
       display: flex;
       align-items: center;
       justify-content: center;
-      background: var(--card);
+      background: var(--panel);
       border: 1px solid var(--line);
       border-radius: 8px;
-      font-size: 1.3rem;
+      font-size: 1.2rem;
       cursor: pointer;
       transition: all 0.2s;
+      flex-shrink: 0;
     }
 
     .editor-icon-btn:hover {
@@ -248,7 +234,7 @@
     }
 
     .editor-name-input {
-      font-size: 1.3rem;
+      font-size: 1.1rem;
       font-weight: 600;
       background: transparent;
       border: none;
@@ -256,6 +242,8 @@
       padding: 4px 0;
       border-bottom: 2px solid transparent;
       transition: border-color 0.2s;
+      flex: 1;
+      min-width: 120px;
     }
 
     .editor-name-input:focus {
@@ -263,74 +251,122 @@
       border-bottom-color: var(--accent);
     }
 
-    .editor-delete-btn {
-      padding: 8px 16px;
-      background: transparent;
-      border: 1px solid var(--danger);
-      border-radius: 6px;
-      color: var(--danger);
-      font-size: 0.85rem;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .editor-delete-btn:hover {
-      background: rgba(239, 68, 68, 0.1);
-    }
-
-    /* Editor Sections */
-    .editor-section {
+    /* Editor Card - Single flat card layout */
+    .editor-card {
       background: var(--card);
       border: 1px solid var(--line);
       border-radius: 12px;
-      margin-bottom: 20px;
     }
 
-    .section-header {
-      background: var(--panel);
-      padding: 14px 20px;
-      border-bottom: 1px solid var(--line);
-      border-radius: 12px 12px 0 0;
-      font-weight: 600;
-      font-size: 0.9rem;
+    .editor-card-header {
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      gap: 12px;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--line);
     }
 
-    .section-content {
+    .editor-card-body {
       padding: 20px;
     }
 
-    /* Form Controls */
-    .form-row {
+    /* Inline controls row */
+    .inline-controls {
       display: flex;
       align-items: center;
+      gap: 20px;
+      padding-bottom: 16px;
       margin-bottom: 16px;
+      border-bottom: 1px solid var(--line);
+      flex-wrap: wrap;
     }
 
-    .form-row:last-child {
-      margin-bottom: 0;
+    .inline-control {
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
 
-    .form-label {
-      min-width: 140px;
-      font-size: 0.9rem;
+    .inline-label {
+      font-size: 0.85rem;
       color: var(--muted);
     }
 
-    .form-control {
-      flex: 1;
+    /* Three-dot menu */
+    .more-menu {
+      position: relative;
+      margin-left: auto;
     }
 
+    .more-menu-btn {
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 1.2rem;
+      padding: 4px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      line-height: 1;
+      transition: all 0.2s;
+    }
+
+    .more-menu-btn:hover {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text);
+    }
+
+    .more-menu-dropdown {
+      display: none;
+      position: absolute;
+      right: 0;
+      top: 100%;
+      margin-top: 4px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      min-width: 120px;
+      z-index: 50;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .more-menu-dropdown.open {
+      display: block;
+    }
+
+    .more-menu-item {
+      display: block;
+      padding: 10px 16px;
+      color: var(--text);
+      text-decoration: none;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: background 0.15s;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+    }
+
+    .more-menu-item:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .more-menu-item.danger {
+      color: var(--danger);
+    }
+
+    .more-menu-item.danger:hover {
+      background: rgba(239, 68, 68, 0.1);
+    }
+
+    /* Form Controls */
     .form-select {
-      padding: 10px 12px;
+      padding: 8px 12px;
       background: var(--panel);
       border: 1px solid var(--line);
       border-radius: 6px;
       color: var(--text);
-      font-size: 0.9rem;
-      min-width: 180px;
+      font-size: 0.85rem;
       cursor: pointer;
     }
 
@@ -338,45 +374,61 @@
       outline: 2px solid var(--accent);
     }
 
-    /* Exceptions List */
+    .form-select-sm {
+      padding: 6px 10px;
+      font-size: 0.8rem;
+    }
+
+    /* Exceptions Section */
+    .exceptions-section {
+      margin-top: 4px;
+    }
+
+    .exceptions-header {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
     .exceptions-list {
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 6px;
     }
 
     .exception-item {
       display: flex;
       align-items: center;
-      gap: 12px;
-      padding: 10px 12px;
+      gap: 10px;
+      padding: 8px 12px;
       background: var(--panel);
       border: 1px solid var(--line);
-      border-radius: 8px;
+      border-radius: 6px;
     }
 
     .exception-area {
       flex: 1;
-      font-size: 0.9rem;
+      font-size: 0.85rem;
     }
 
     .exception-action {
-      padding: 6px 10px;
+      padding: 5px 8px;
       background: var(--bg);
       border: 1px solid var(--line);
       border-radius: 4px;
       color: var(--text);
-      font-size: 0.85rem;
-      min-width: 120px;
+      font-size: 0.8rem;
+      min-width: 110px;
     }
 
     .exception-remove {
       background: transparent;
       border: none;
       color: var(--muted);
-      font-size: 1.2rem;
+      font-size: 1.1rem;
       cursor: pointer;
-      padding: 4px;
+      padding: 2px 4px;
       line-height: 1;
     }
 
@@ -384,48 +436,60 @@
       color: var(--danger);
     }
 
+    /* Add Exception Row */
+    .add-exception-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
     .add-exception-btn {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      padding: 8px 0;
+      gap: 5px;
+      padding: 6px 0;
       background: transparent;
       border: none;
       color: var(--muted);
       font-size: 0.85rem;
       cursor: pointer;
       transition: all 0.2s;
-      margin-top: 8px;
     }
 
     .add-exception-btn:hover {
       color: var(--accent);
     }
 
+    .add-exception-action-label {
+      font-size: 0.8rem;
+      color: var(--muted2);
+      margin-left: auto;
+    }
+
     /* Summary */
     .summary-text {
-      font-size: 0.85rem;
-      color: var(--muted);
-      padding-top: 16px;
-      border-top: 1px solid var(--line);
+      font-size: 0.8rem;
+      color: var(--muted2);
       margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid var(--line);
     }
 
-    /* Trigger Display */
-    .trigger-display {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 14px;
+    /* Trigger hint */
+    .trigger-hint {
+      font-size: 0.8rem;
+      color: var(--muted2);
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid var(--line);
+    }
+
+    .trigger-hint code {
       background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      font-size: 0.9rem;
-      color: var(--muted);
-    }
-
-    .trigger-icon {
-      opacity: 0.7;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.75rem;
     }
 
     /* Icon Picker Modal */
@@ -629,22 +693,24 @@
         min-height: 60vh;
       }
 
-      .form-row {
+      .inline-controls {
         flex-direction: column;
+        gap: 12px;
         align-items: flex-start;
+      }
+
+      .inline-control {
+        width: 100%;
+        justify-content: space-between;
+      }
+
+      .add-exception-row {
+        flex-wrap: wrap;
         gap: 8px;
       }
 
-      .form-label {
-        min-width: auto;
-      }
-
-      .form-control {
-        width: 100%;
-      }
-
-      .form-select {
-        width: 100%;
+      .add-exception-action-label {
+        margin-left: 0;
       }
     }
   </style>
@@ -772,6 +838,7 @@
     let allZones = [];
     let selectedMomentId = null;
     let pendingIconChange = null;
+    let newExceptionAction = 'leave_alone'; // Default action for new exceptions
 
     // Initialize
     document.addEventListener('DOMContentLoaded', async () => {
@@ -880,90 +947,77 @@
       const summary = calculateSummary(moment);
 
       editor.innerHTML = `
-        <div class="editor-header">
-          <div class="editor-header-left">
+        <div class="editor-card">
+          <div class="editor-card-header">
             <button class="editor-icon-btn" onclick="showIconPicker()">${moment.icon || '&#127763;'}</button>
             <input type="text" class="editor-name-input" value="${moment.name}"
                    onchange="updateMomentName(this.value)" onblur="saveMoment()">
-          </div>
-          <button class="editor-delete-btn" onclick="confirmDelete()">Delete</button>
-        </div>
-
-        <div class="editor-section">
-          <div class="section-header">Trigger</div>
-          <div class="section-content">
-            <div class="trigger-display">
-              <span class="trigger-icon">&#9654;</span>
-              <span>set_${selectedMomentId}</span>
-            </div>
-            <p style="font-size: 0.8rem; color: var(--muted2); margin-top: 8px;">
-              Use this action from a switch button or call <code style="background: var(--panel); padding: 2px 6px; border-radius: 4px;">circadian_light.set</code> with <code style="background: var(--panel); padding: 2px 6px; border-radius: 4px;">preset: ${selectedMomentId}</code>
-            </p>
-          </div>
-        </div>
-
-        <div class="editor-section">
-          <div class="section-header">
-            <span>Category</span>
-          </div>
-          <div class="section-content">
-            <div class="form-row">
-              <select class="form-select" onchange="updateMomentCategory(this.value); saveMoment();">
-                ${CATEGORY_OPTIONS.map(opt => `
-                  <option value="${opt.value}" ${moment.category === opt.value ? 'selected' : ''}>${opt.label}</option>
-                `).join('')}
-              </select>
+            <div class="more-menu">
+              <button class="more-menu-btn" onclick="toggleMoreMenu(event)">&#8942;</button>
+              <div class="more-menu-dropdown" id="more-menu-dropdown">
+                <button class="more-menu-item danger" onclick="confirmDelete(); closeMoreMenu();">Delete</button>
+              </div>
             </div>
           </div>
-        </div>
-
-        <div class="editor-section">
-          <div class="section-header">
-            <span>Default Action</span>
-          </div>
-          <div class="section-content">
-            <div class="form-row">
-              <label class="form-label">All areas</label>
-              <div class="form-control">
-                <select class="form-select" onchange="updateDefaultAction(this.value); saveMoment();">
+          <div class="editor-card-body">
+            <div class="inline-controls">
+              <div class="inline-control">
+                <span class="inline-label">Category</span>
+                <select class="form-select form-select-sm" onchange="updateMomentCategory(this.value); saveMoment();">
+                  ${CATEGORY_OPTIONS.map(opt => `
+                    <option value="${opt.value}" ${moment.category === opt.value ? 'selected' : ''}>${opt.label}</option>
+                  `).join('')}
+                </select>
+              </div>
+              <div class="inline-control">
+                <span class="inline-label">Action</span>
+                <select class="form-select form-select-sm" onchange="updateDefaultAction(this.value); saveMoment();">
                   ${ACTION_OPTIONS.map(opt => `
                     <option value="${opt.value}" ${moment.default_action === opt.value ? 'selected' : ''}>${opt.label}</option>
                   `).join('')}
                 </select>
               </div>
             </div>
-          </div>
-        </div>
 
-        <div class="editor-section">
-          <div class="section-header">
-            <span>Exceptions</span>
-          </div>
-          <div class="section-content">
-            <div class="exceptions-list" id="exceptions-list">
-              ${Object.entries(exceptions).length === 0 ? `
-                <p style="color: var(--muted); font-size: 0.9rem;">No exceptions. All areas will use the default action.</p>
-              ` : Object.entries(exceptions).map(([areaId, action]) => {
-                const area = allAreas.find(a => a.area_id === areaId);
-                const areaName = area ? area.name : areaId;
-                return `
-                  <div class="exception-item">
-                    <span class="exception-area">${areaName}</span>
-                    <select class="exception-action" onchange="updateException('${areaId}', this.value); saveMoment();">
-                      ${ACTION_OPTIONS.map(opt => `
-                        <option value="${opt.value}" ${action === opt.value ? 'selected' : ''}>${opt.label}</option>
-                      `).join('')}
-                    </select>
-                    <button class="exception-remove" onclick="removeException('${areaId}'); saveMoment();">&times;</button>
-                  </div>
-                `;
-              }).join('')}
+            <div class="exceptions-section">
+              <div class="exceptions-header">Exceptions</div>
+              <div class="exceptions-list" id="exceptions-list">
+                ${Object.entries(exceptions).length === 0 ? `
+                  <p style="color: var(--muted2); font-size: 0.85rem;">No exceptions. All areas will use the default action.</p>
+                ` : Object.entries(exceptions).map(([areaId, action]) => {
+                  const area = allAreas.find(a => a.area_id === areaId);
+                  const areaName = area ? area.name : areaId;
+                  return `
+                    <div class="exception-item">
+                      <span class="exception-area">${areaName}</span>
+                      <select class="exception-action" onchange="updateException('${areaId}', this.value); saveMoment();">
+                        ${ACTION_OPTIONS.map(opt => `
+                          <option value="${opt.value}" ${action === opt.value ? 'selected' : ''}>${opt.label}</option>
+                        `).join('')}
+                      </select>
+                      <button class="exception-remove" onclick="removeException('${areaId}'); saveMoment();">&times;</button>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+              <div class="add-exception-row">
+                <button class="add-exception-btn" onclick="addException()">+ Add exception</button>
+                <span class="add-exception-action-label">as</span>
+                <select class="form-select form-select-sm" id="new-exception-action" onchange="newExceptionAction = this.value;">
+                  ${ACTION_OPTIONS.map(opt => `
+                    <option value="${opt.value}" ${newExceptionAction === opt.value ? 'selected' : ''}>${opt.label}</option>
+                  `).join('')}
+                </select>
+              </div>
             </div>
-            <button class="add-exception-btn" onclick="addException()">+ Add Exception</button>
 
-            ${Object.keys(exceptions).length > 0 || moment.default_action ? `
+            ${Object.keys(exceptions).length > 0 ? `
               <div class="summary-text">${summary}</div>
             ` : ''}
+
+            <div class="trigger-hint">
+              Call <code>circadian_light.set</code> with <code>preset: ${selectedMomentId}</code>
+            </div>
           </div>
         </div>
       `;
@@ -1042,13 +1096,39 @@
         if (!moment.exceptions) moment.exceptions = {};
         selected.forEach(areaId => {
           if (!moment.exceptions[areaId]) {
-            // Default to opposite of default action, or 'leave_alone'
-            const defaultAction = moment.default_action || 'off';
-            moment.exceptions[areaId] = defaultAction === 'off' ? 'leave_alone' : 'off';
+            // Use the action selected in the dropdown
+            moment.exceptions[areaId] = newExceptionAction;
           }
         });
         renderMomentEditor();
         saveMoment();
+      }
+    }
+
+    // More menu functions
+    function toggleMoreMenu(event) {
+      event.stopPropagation();
+      const dropdown = document.getElementById('more-menu-dropdown');
+      dropdown.classList.toggle('open');
+
+      // Close when clicking outside
+      if (dropdown.classList.contains('open')) {
+        setTimeout(() => {
+          document.addEventListener('click', closeMoreMenuOnOutside);
+        }, 0);
+      }
+    }
+
+    function closeMoreMenu() {
+      const dropdown = document.getElementById('more-menu-dropdown');
+      if (dropdown) dropdown.classList.remove('open');
+      document.removeEventListener('click', closeMoreMenuOnOutside);
+    }
+
+    function closeMoreMenuOnOutside(event) {
+      const dropdown = document.getElementById('more-menu-dropdown');
+      if (dropdown && !dropdown.contains(event.target)) {
+        closeMoreMenu();
       }
     }
 
