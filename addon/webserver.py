@@ -3725,14 +3725,19 @@ class LightDesignerServer:
             return web.json_response({"error": str(e)}, status=500)
 
     async def get_area_lights(self, request: Request) -> Response:
-        """Get light entities for a given area.
+        """Get light entities for a given area, or all lights.
 
-        Query param: area_id (required)
-        Returns list of {entity_id, name} for light entities in that area.
+        Query params:
+        - area_id: Filter to specific area
+        - all: If 'true', return all lights with area prefix in name
+
+        Returns list of {entity_id, name} for light entities.
         """
         area_id = request.query.get("area_id")
-        if not area_id:
-            return web.json_response({"error": "area_id is required"}, status=400)
+        show_all = request.query.get("all") == "true"
+
+        if not area_id and not show_all:
+            return web.json_response({"lights": []})
 
         try:
             rest_url, ws_url, token = self._get_ha_api_config()
@@ -3749,17 +3754,37 @@ class LightDesignerServer:
                 if msg.get('type') != 'auth_ok':
                     return web.json_response({"lights": []})
 
-                # Get device registry to find devices in this area
-                await ws.send(json.dumps({'id': 1, 'type': 'config/device_registry/list'}))
+                # Get area registry for area names
+                await ws.send(json.dumps({'id': 1, 'type': 'config/area_registry/list'}))
+                area_msg = json.loads(await ws.recv())
+                area_names = {}
+                if area_msg.get('success') and area_msg.get('result'):
+                    area_names = {a['area_id']: a['name'] for a in area_msg['result']}
+
+                # Get device registry to find devices and their areas
+                await ws.send(json.dumps({'id': 2, 'type': 'config/device_registry/list'}))
                 device_msg = json.loads(await ws.recv())
-                area_device_ids = set()
+                device_areas = {}  # device_id -> area_id
+                area_device_ids = set()  # devices in target area (for filtered mode)
                 if device_msg.get('success') and device_msg.get('result'):
                     for device in device_msg['result']:
+                        device_areas[device.get('id')] = device.get('area_id')
                         if device.get('area_id') == area_id:
                             area_device_ids.add(device.get('id'))
 
+                # Get states for friendly names
+                await ws.send(json.dumps({'id': 3, 'type': 'get_states'}))
+                states_msg = json.loads(await ws.recv())
+                friendly_names = {}
+                if states_msg.get('success') and states_msg.get('result'):
+                    for state in states_msg['result']:
+                        entity_id = state.get('entity_id', '')
+                        if entity_id.startswith('light.'):
+                            attrs = state.get('attributes', {})
+                            friendly_names[entity_id] = attrs.get('friendly_name', '')
+
                 # Get entity registry to find light entities
-                await ws.send(json.dumps({'id': 2, 'type': 'config/entity_registry/list'}))
+                await ws.send(json.dumps({'id': 4, 'type': 'config/entity_registry/list'}))
                 entity_msg = json.loads(await ws.recv())
                 lights = []
                 if entity_msg.get('success') and entity_msg.get('result'):
@@ -3767,10 +3792,24 @@ class LightDesignerServer:
                         entity_id = entity.get('entity_id', '')
                         if not entity_id.startswith('light.'):
                             continue
-                        # Match by entity area_id or device area_id
-                        if entity.get('area_id') == area_id or entity.get('device_id') in area_device_ids:
-                            name = entity.get('name') or entity.get('original_name') or entity_id
-                            lights.append({"entity_id": entity_id, "name": name})
+
+                        # Determine entity's area (direct or via device)
+                        entity_area = entity.get('area_id') or device_areas.get(entity.get('device_id'))
+
+                        if show_all:
+                            # Include all lights, prefix with area name
+                            base_name = friendly_names.get(entity_id) or entity.get('name') or entity.get('original_name') or entity_id.replace('light.', '').replace('_', ' ').title()
+                            area_name = area_names.get(entity_area, 'Unknown')
+                            name = f"{area_name}: {base_name}"
+                            lights.append({"entity_id": entity_id, "name": name, "area_id": entity_area})
+                        else:
+                            # Filter to target area
+                            if entity.get('area_id') == area_id or entity.get('device_id') in area_device_ids:
+                                name = friendly_names.get(entity_id) or entity.get('name') or entity.get('original_name') or entity_id.replace('light.', '').replace('_', ' ').title()
+                                lights.append({"entity_id": entity_id, "name": name})
+
+                # Sort by name
+                lights.sort(key=lambda x: x['name'].lower())
 
                 return web.json_response({"lights": lights})
         except Exception as e:

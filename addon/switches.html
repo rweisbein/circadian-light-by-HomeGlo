@@ -817,20 +817,19 @@
       </div>
 
       <div class="modal-section" id="indicator-light-section" style="display: none;">
-        <label class="modal-label">Light for Confirmation Cues
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+          <label class="modal-label" style="margin-bottom: 0;">Light for Confirmation Cues</label>
           <span class="info-icon">i<span class="info-tooltip">Light used for reach feedback in learn mode. Flashes 1x/2x/3x to indicate which reach is active.</span></span>
-        </label>
+          <a href="#" id="indicator-light-toggle" style="font-size: 0.75rem; color: var(--muted); margin-left: auto;" onclick="toggleIndicatorLightScope(); return false;">list all</a>
+        </div>
         <select class="modal-select" id="indicator-light-select" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.9rem;">
           <option value="">None</option>
-          <!-- Populated with lights in switch's area -->
+          <!-- Populated with lights -->
         </select>
       </div>
 
       <div class="modal-section" id="switch-config-section">
-        <label class="modal-label">Reach
-          <span class="info-icon">i<span class="info-tooltip">The switch will control all areas in Reach 1. Pressing 'Change Reach' one time will shift the switch's control to areas in Reach 2. Again to Reach 3.</span></span>
-        </label>
-        <div id="scopes-editor" style="margin-top: 12px;">
+        <div id="scopes-editor">
           <!-- Scope editors populated by JS -->
         </div>
         <button class="add-scope-btn" id="add-scope-btn">+ Add Reach</button>
@@ -863,6 +862,7 @@
     let editingControl = null;
     let editingInactive = false;  // For sensors: whether sensor is inactive
     let editingIndicatorLight = '';  // For switches: indicator light entity_id
+    let indicatorLightShowAll = false;  // Toggle between area-filtered and all lights
     let sortColumn = 'status';
     let sortAsc = true;
     let categoryFilter = 'all';
@@ -1435,14 +1435,25 @@
       editingMotionScopes = [];
       editingInactive = false;
       editingIndicatorLight = '';
+      indicatorLightShowAll = false;
     }
 
     async function loadIndicatorLights(areaId, currentValue) {
       const select = document.getElementById('indicator-light-select');
+      const toggleLink = document.getElementById('indicator-light-toggle');
       select.innerHTML = '<option value="">None</option>';
-      if (!areaId) return;
+
+      // Update toggle link text
+      if (toggleLink) {
+        toggleLink.textContent = indicatorLightShowAll ? 'filter to location' : 'list all';
+      }
+
       try {
-        const response = await fetch(`./api/area-lights?area_id=${encodeURIComponent(areaId)}`);
+        let url = indicatorLightShowAll
+          ? './api/area-lights?all=true'
+          : `./api/area-lights?area_id=${encodeURIComponent(areaId || '')}`;
+
+        const response = await fetch(url);
         if (response.ok) {
           const data = await response.json();
           (data.lights || []).forEach(light => {
@@ -1454,8 +1465,14 @@
           });
         }
       } catch (err) {
-        console.error('Error loading area lights:', err);
+        console.error('Error loading indicator lights:', err);
       }
+    }
+
+    function toggleIndicatorLightScope() {
+      indicatorLightShowAll = !indicatorLightShowAll;
+      const currentValue = document.getElementById('indicator-light-select').value;
+      loadIndicatorLights(editingControl?.area_id, currentValue);
     }
 
     // Flash indicator light when selected so user can identify it
@@ -1540,24 +1557,20 @@
         editingMotionScopes = [];
       }
 
-      document.getElementById('modal-title').textContent = `${titlePrefix}: ${ctrl.name}`;
+      // Set modal title: "Category: Control Name"
+      const categoryLabel = formatCategory(ctrl.category);
+      document.getElementById('modal-title').textContent = `${categoryLabel}: ${ctrl.name}`;
       document.getElementById('modal-remove-config').style.display = isConfigured ? 'block' : 'none';
 
-      // Populate device info section with Category, Type, Location
-      const categoryLabel = formatCategory(ctrl.category);
+      // Populate device info section
       const typeName = ctrl.type_name || ctrl.type || 'Unknown';
       const locationName = ctrl.area_name || 'Unassigned';
       document.getElementById('device-info').innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-          <div>
-            <div><strong>Category:</strong> ${categoryLabel}</div>
-            <div><strong>Type:</strong> ${typeName}</div>
-            <div><strong>Location:</strong> ${locationName}</div>
-          </div>
-          <div style="text-align: right; font-size: 0.7rem; color: var(--muted); opacity: 0.5; line-height: 1.6;">
-            ${ctrl.id ? `<div>${ctrl.id}</div>` : ''}
-            ${ctrl.device_id ? `<div>${ctrl.device_id}</div>` : ''}
-          </div>
+        <div style="margin-bottom: 4px;"><strong>Location:</strong> ${locationName}</div>
+        <div style="font-size: 0.7rem; color: var(--muted); opacity: 0.6; line-height: 1.5;">
+          <div>Type: ${typeName}</div>
+          ${ctrl.id ? `<div>IEEE: ${ctrl.id}</div>` : ''}
+          ${ctrl.device_id ? `<div>ID: ${ctrl.device_id}</div>` : ''}
         </div>
       `;
 
