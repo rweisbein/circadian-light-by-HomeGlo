@@ -3549,20 +3549,28 @@ class LightDesignerServer:
         """Trigger manual device/area/group sync.
 
         Re-scans Home Assistant for new/moved lights, areas, and ZHA devices.
-        Equivalent to the old slow-cycle sync but triggered manually.
+        Fires an event that main.py listens for to trigger the actual sync.
         """
         try:
             # Clear areas cache so it gets refreshed on next request
             self.cached_areas_list = None
             logger.info("Cleared areas cache for sync")
 
-            if self.client and hasattr(self.client, 'run_manual_sync'):
-                await self.client.run_manual_sync()
-                return web.json_response({"success": True, "message": "Device sync complete"})
+            # Fire event for main.py to handle the sync
+            _, ws_url, token = self._get_ha_api_config()
+            if ws_url and token:
+                fired = await self._fire_event_via_websocket(
+                    ws_url, token, 'circadian_light_sync_devices', {}
+                )
+                if fired:
+                    logger.info("Fired circadian_light_sync_devices event")
+                    return web.json_response({"success": True, "message": "Device sync triggered"})
+                else:
+                    return web.json_response({"error": "Failed to fire sync event"}, status=500)
             else:
-                return web.json_response({"error": "WebSocket client not available"}, status=503)
+                return web.json_response({"error": "WebSocket not configured"}, status=503)
         except Exception as e:
-            logger.error(f"Error running manual sync: {e}")
+            logger.error(f"Error triggering device sync: {e}")
             return web.json_response({"error": str(e)}, status=500)
 
     # -------------------------------------------------------------------------
