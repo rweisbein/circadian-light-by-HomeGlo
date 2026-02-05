@@ -506,8 +506,17 @@ class LightDesignerServer:
         self.app.router.add_delete('/api/switches/{switch_id}', self.delete_switch)
         self.app.router.add_get('/api/switch-types', self.get_switch_types)
 
+        # Switchmap API routes
+        self.app.router.add_route('GET', '/{path:.*}/api/switchmap', self.get_switchmap)
+        self.app.router.add_route('POST', '/{path:.*}/api/switchmap', self.save_switchmap)
+        self.app.router.add_route('GET', '/{path:.*}/api/switchmap/actions', self.get_switchmap_actions)
+        self.app.router.add_get('/api/switchmap', self.get_switchmap)
+        self.app.router.add_post('/api/switchmap', self.save_switchmap)
+        self.app.router.add_get('/api/switchmap/actions', self.get_switchmap_actions)
+
         # Page routes - specific pages first, then catch-all
         # With ingress path prefix
+        self.app.router.add_route('GET', '/{path:.*}/switchmap', self.serve_switchmap)
         self.app.router.add_route('GET', '/{path:.*}/switches', self.serve_switches)
         self.app.router.add_route('GET', '/{path:.*}/glo/{glo_name}', self.serve_glo_designer)
         self.app.router.add_route('GET', '/{path:.*}/glo', self.serve_glo_designer)
@@ -515,6 +524,7 @@ class LightDesignerServer:
         self.app.router.add_route('GET', '/{path:.*}/moments', self.serve_moments)
         self.app.router.add_route('GET', '/{path:.*}/', self.serve_home)
         # Without ingress path prefix
+        self.app.router.add_get('/switchmap', self.serve_switchmap)
         self.app.router.add_get('/glo/{glo_name}', self.serve_glo_designer)
         self.app.router.add_get('/glo', self.serve_glo_designer)
         self.app.router.add_get('/settings', self.serve_settings)
@@ -3580,6 +3590,86 @@ class LightDesignerServer:
     async def serve_switches(self, request: Request) -> Response:
         """Serve the Switches configuration page."""
         return await self.serve_page("switches")
+
+    async def serve_switchmap(self, request: Request) -> Response:
+        """Serve the Switchmap Designer page."""
+        return await self.serve_page("switchmap")
+
+    async def get_switchmap(self, request: Request) -> Response:
+        """Get current switch button mappings.
+
+        Returns the custom mappings from designer_config.json merged with defaults.
+        """
+        try:
+            # Get custom mappings (loads from designer_config.json)
+            custom = switches.get_custom_mappings()
+
+            # Build response with defaults and custom overrides
+            mappings = {}
+            for switch_type, type_info in switches.SWITCH_TYPES.items():
+                # Start with default mapping
+                default_mapping = type_info.get("default_mapping", {})
+
+                # Merge custom mappings on top
+                effective = dict(default_mapping)
+                if switch_type in custom:
+                    effective.update(custom[switch_type])
+
+                mappings[switch_type] = {
+                    "name": type_info.get("name", switch_type),
+                    "buttons": type_info.get("buttons", []),
+                    "action_types": type_info.get("action_types", []),
+                    "repeat_on_hold": type_info.get("repeat_on_hold", []),
+                    "default_mapping": default_mapping,
+                    "effective_mapping": effective,
+                    "has_custom": switch_type in custom,
+                }
+
+            return web.json_response({
+                "mappings": mappings,
+                "custom_mappings": custom,
+            })
+        except Exception as e:
+            logger.error(f"Error getting switchmap: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def save_switchmap(self, request: Request) -> Response:
+        """Save switch button mappings.
+
+        POST body: {"hue_4button_v2": {"on_short_release": "toggle", ...}, ...}
+        """
+        try:
+            data = await request.json()
+
+            # Validate the data structure
+            if not isinstance(data, dict):
+                return web.json_response({"error": "Expected object with switch_type keys"}, status=400)
+
+            # Save the mappings
+            if switches.save_custom_mappings(data):
+                return web.json_response({"status": "success"})
+            else:
+                return web.json_response({"error": "Failed to save mappings"}, status=500)
+
+        except json.JSONDecodeError:
+            return web.json_response({"error": "Invalid JSON"}, status=400)
+        except Exception as e:
+            logger.error(f"Error saving switchmap: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def get_switchmap_actions(self, request: Request) -> Response:
+        """Get available actions for switchmap, organized by category."""
+        try:
+            categories = switches.get_categorized_actions()
+            when_off_options = switches.get_when_off_options()
+
+            return web.json_response({
+                "categories": categories,
+                "when_off_options": when_off_options,
+            })
+        except Exception as e:
+            logger.error(f"Error getting switchmap actions: {e}")
+            return web.json_response({"error": str(e)}, status=500)
 
     async def get_switches(self, request: Request) -> Response:
         """Get all configured switches with area names looked up from HA."""

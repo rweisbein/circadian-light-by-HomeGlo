@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Circadian Light - Button Mappings</title>
+  <style>
+    :root {
+      --bg: #000;
+      --panel: #111;
+      --card: #1a1a1a;
+      --accent: #feac60;
+      --accent-hover: #ffc078;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --muted2: #64748b;
+      --line: #334155;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* Navigation */
+    .nav {
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      height: 56px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .nav-brand {
+      font-weight: 600;
+      font-size: 1.1rem;
+      color: var(--text);
+      margin-right: 32px;
+      text-decoration: none;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 8px;
+    }
+
+    .nav-link {
+      padding: 8px 16px;
+      color: var(--muted);
+      text-decoration: none;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+
+    .nav-link:hover {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .nav-link.active {
+      color: var(--accent);
+    }
+
+    /* Nav solar display */
+    .nav-solar { margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--muted); opacity: 0; transition: opacity 0.3s; }
+    .nav-solar-icon { width: 22px; height: 22px; flex-shrink: 0; }
+    .nav-solar-times { display: flex; flex-direction: column; line-height: 1.3; }
+
+    /* Main Content - Two Panel Layout */
+    .main {
+      display: flex;
+      height: calc(100vh - 56px);
+    }
+
+    /* Left Panel - Visual Switch */
+    .left-panel {
+      width: 200px;
+      background: var(--panel);
+      border-right: 1px solid var(--line);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px;
+      flex-shrink: 0;
+    }
+
+    .switch-visual {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 20px;
+    }
+
+    .switch-button {
+      width: 80px;
+      height: 50px;
+      border: 2px solid var(--line);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.2s;
+      background: var(--card);
+    }
+
+    .switch-button:hover {
+      border-color: var(--muted);
+      color: var(--text);
+    }
+
+    .switch-button.selected {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(254, 172, 96, 0.1);
+    }
+
+    .switch-button.has-magic {
+      position: relative;
+    }
+
+    .switch-button.has-magic::after {
+      content: '★';
+      position: absolute;
+      top: 2px;
+      right: 4px;
+      font-size: 0.6rem;
+      color: var(--warning);
+    }
+
+    .switch-type-select {
+      width: 100%;
+      margin-bottom: 16px;
+      padding: 8px 12px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 0.85rem;
+    }
+
+    /* Right Panel - Action Grid */
+    .right-panel {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+
+    .panel-title {
+      font-size: 1.2rem;
+      font-weight: 600;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-hover);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background: var(--card);
+      border: 1px solid var(--line);
+      color: var(--text);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .btn-danger {
+      background: transparent;
+      border: 1px solid var(--danger);
+      color: var(--danger);
+    }
+
+    .btn-danger:hover {
+      background: rgba(239, 68, 68, 0.1);
+    }
+
+    /* Button Section */
+    .button-section {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+
+    .button-section.selected {
+      border-color: var(--accent);
+    }
+
+    .button-section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .button-section-title {
+      font-size: 1rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .button-section-subtitle {
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    /* Action Grid */
+    .action-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .action-slot {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .action-label {
+      font-size: 0.75rem;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .action-select {
+      width: 100%;
+      padding: 8px 10px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 0.85rem;
+    }
+
+    .action-select:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .action-select.has-when-off {
+      border-color: var(--warning);
+    }
+
+    .action-select option {
+      background: var(--panel);
+    }
+
+    .action-select optgroup {
+      font-weight: 600;
+      color: var(--muted);
+    }
+
+    /* When Off Row */
+    .when-off-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .when-off-label {
+      font-size: 0.7rem;
+      color: var(--muted2);
+      white-space: nowrap;
+    }
+
+    .when-off-select {
+      flex: 1;
+      padding: 4px 8px;
+      background: var(--bg);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      color: var(--text);
+      font-size: 0.75rem;
+    }
+
+    /* Status Messages */
+    .status-message {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.3s;
+      z-index: 200;
+    }
+
+    .status-message.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .status-message.success {
+      background: var(--success);
+      color: white;
+    }
+
+    .status-message.error {
+      background: var(--danger);
+      color: white;
+    }
+
+    /* Print Styles */
+    @media print {
+      .nav, .left-panel, .header-actions { display: none; }
+      .main { display: block; height: auto; }
+      .right-panel { padding: 0; }
+      .button-section { break-inside: avoid; page-break-inside: avoid; }
+    }
+
+    /* Unsaved indicator */
+    .unsaved-indicator {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background: var(--warning);
+      border-radius: 50%;
+      margin-left: 8px;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .unsaved-indicator.visible {
+      opacity: 1;
+    }
+
+    /* Loading state */
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 48px;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <!-- Navigation -->
+  <nav class="nav">
+    <a href="./" class="nav-brand">Circadian Light</a>
+    <div class="nav-links">
+      <a href="./glo" class="nav-link">Rhythms</a>
+      <a href="./switches" class="nav-link active">Controls</a>
+      <a href="./moments" class="nav-link">Moments</a>
+      <a href="./settings" class="nav-link">Settings</a>
+    </div>
+    <div class="nav-solar" id="nav-solar">
+      <svg class="nav-solar-icon" viewBox="0 0 20 20" fill="none" stroke="#ffd050" stroke-width="1.5"><circle cx="10" cy="10" r="4"/><line x1="10" y1="1.5" x2="10" y2="3.5"/><line x1="10" y1="16.5" x2="10" y2="18.5"/><line x1="1.5" y1="10" x2="3.5" y2="10"/><line x1="16.5" y1="10" x2="18.5" y2="10"/><line x1="4" y1="4" x2="5.5" y2="5.5"/><line x1="14.5" y1="14.5" x2="16" y2="16"/><line x1="4" y1="16" x2="5.5" y2="14.5"/><line x1="14.5" y1="5.5" x2="16" y2="4"/></svg>
+      <div class="nav-solar-times">
+        <span id="nav-rise">--</span>
+        <span id="nav-set">--</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="main">
+    <!-- Left Panel - Visual Switch -->
+    <div class="left-panel">
+      <select class="switch-type-select" id="switch-type-select">
+        <!-- Populated by JS -->
+      </select>
+      <div class="switch-visual" id="switch-visual">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+
+    <!-- Right Panel - Action Grid -->
+    <div class="right-panel">
+      <div class="panel-header">
+        <div>
+          <span class="panel-title">Button Mappings</span>
+          <span class="unsaved-indicator" id="unsaved-indicator"></span>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-secondary" onclick="resetToDefaults()">Reset to Defaults</button>
+          <button class="btn btn-primary" id="save-btn" onclick="saveMappings()" disabled>Save</button>
+        </div>
+      </div>
+
+      <div id="mappings-container">
+        <div class="loading">Loading mappings...</div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Status Message -->
+  <div class="status-message" id="status-message"></div>
+
+  <script src="./shared.js"></script>
+  <script>
+    // State
+    let switchTypes = {};
+    let currentSwitchType = 'hue_4button_v2';
+    let currentMappings = {};  // Current effective mappings (defaults + custom)
+    let customMappings = {};   // Just the custom overrides
+    let actionCategories = {};
+    let whenOffOptions = [];
+    let selectedButton = 'on';
+    let hasUnsavedChanges = false;
+
+    // Button labels for display
+    const buttonLabels = {
+      'on': 'I',
+      'up': '▲',
+      'down': '▼',
+      'off': 'O'
+    };
+
+    // Action type labels
+    const actionTypeLabels = {
+      'short_release': '1×',
+      'double_press': '2×',
+      'triple_press': '3×',
+      'quadruple_press': '4×',
+      'quintuple_press': '5×',
+      'hold': 'Long'
+    };
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', async () => {
+      await loadData();
+      renderSwitchTypeSelect();
+      renderSwitchVisual();
+      renderMappings();
+    });
+
+    async function loadData() {
+      try {
+        const [mapRes, actionsRes] = await Promise.all([
+          fetch('./api/switchmap'),
+          fetch('./api/switchmap/actions')
+        ]);
+
+        if (mapRes.ok) {
+          const data = await mapRes.json();
+          switchTypes = data.mappings || {};
+          customMappings = data.custom_mappings || {};
+        }
+
+        if (actionsRes.ok) {
+          const data = await actionsRes.json();
+          actionCategories = data.categories || {};
+          whenOffOptions = data.when_off_options || [];
+        }
+
+        // Initialize current mappings from effective mappings
+        if (switchTypes[currentSwitchType]) {
+          currentMappings = { ...switchTypes[currentSwitchType].effective_mapping };
+        }
+      } catch (err) {
+        console.error('Error loading data:', err);
+        showStatus('Error loading data', 'error');
+      }
+    }
+
+    function renderSwitchTypeSelect() {
+      const select = document.getElementById('switch-type-select');
+      select.innerHTML = Object.entries(switchTypes).map(([id, info]) => `
+        <option value="${id}" ${id === currentSwitchType ? 'selected' : ''}>${info.name}</option>
+      `).join('');
+
+      select.addEventListener('change', (e) => {
+        currentSwitchType = e.target.value;
+        if (switchTypes[currentSwitchType]) {
+          // Start with effective mapping (defaults + any existing custom)
+          currentMappings = { ...switchTypes[currentSwitchType].effective_mapping };
+        }
+        renderSwitchVisual();
+        renderMappings();
+        checkForChanges();
+      });
+    }
+
+    function renderSwitchVisual() {
+      const container = document.getElementById('switch-visual');
+      const typeInfo = switchTypes[currentSwitchType];
+      if (!typeInfo) return;
+
+      const buttons = typeInfo.buttons || ['on', 'up', 'down', 'off'];
+
+      container.innerHTML = buttons.map(btn => {
+        // Check if this button has a magic action assigned
+        const hasMagic = Object.entries(currentMappings).some(([key, value]) => {
+          const [buttonName] = key.split('_');
+          return buttonName === btn && value === 'magic';
+        });
+
+        return `
+          <button class="switch-button ${btn === selectedButton ? 'selected' : ''} ${hasMagic ? 'has-magic' : ''}"
+                  onclick="selectButton('${btn}')">
+            ${buttonLabels[btn] || btn}
+          </button>
+        `;
+      }).join('');
+    }
+
+    function selectButton(btn) {
+      selectedButton = btn;
+      renderSwitchVisual();
+      renderMappings();
+    }
+
+    function renderMappings() {
+      const container = document.getElementById('mappings-container');
+      const typeInfo = switchTypes[currentSwitchType];
+      if (!typeInfo) {
+        container.innerHTML = '<div class="loading">No switch type selected</div>';
+        return;
+      }
+
+      const buttons = typeInfo.buttons || ['on', 'up', 'down', 'off'];
+      const actionTypes = ['short_release', 'double_press', 'triple_press', 'quadruple_press', 'quintuple_press', 'hold'];
+
+      // Filter to only show relevant action types for this switch
+      const availableActionTypes = actionTypes.filter(at =>
+        typeInfo.action_types?.includes(at) ||
+        typeInfo.action_types?.includes(at.replace('_press', '').replace('_release', ''))
+      );
+
+      container.innerHTML = buttons.map(btn => {
+        const isSelected = btn === selectedButton;
+        const buttonName = btn.charAt(0).toUpperCase() + btn.slice(1);
+
+        return `
+          <div class="button-section ${isSelected ? 'selected' : ''}" onclick="selectButton('${btn}')">
+            <div class="button-section-header">
+              <div>
+                <span class="button-section-title">${buttonName} Button</span>
+                <span class="button-section-subtitle">${buttonLabels[btn] || btn}</span>
+              </div>
+            </div>
+            <div class="action-grid">
+              ${availableActionTypes.map(actionType => {
+                const eventKey = `${btn}_${actionType}`;
+                const mapping = currentMappings[eventKey];
+
+                // Parse mapping - could be string or {action, when_off}
+                let actionValue = null;
+                let whenOffValue = null;
+                if (typeof mapping === 'object' && mapping !== null) {
+                  actionValue = mapping.action;
+                  whenOffValue = mapping.when_off;
+                } else {
+                  actionValue = mapping;
+                }
+
+                // Check if this action supports when_off
+                const supportsWhenOff = isAdjustmentAction(actionValue);
+
+                return `
+                  <div class="action-slot">
+                    <label class="action-label">${actionTypeLabels[actionType] || actionType}</label>
+                    <select class="action-select ${whenOffValue ? 'has-when-off' : ''}"
+                            onchange="updateMapping('${eventKey}', this.value)"
+                            data-event="${eventKey}">
+                      ${buildActionOptions(actionValue)}
+                    </select>
+                    ${supportsWhenOff ? `
+                      <div class="when-off-row">
+                        <span class="when-off-label">when off:</span>
+                        <select class="when-off-select" onchange="updateWhenOff('${eventKey}', this.value)">
+                          ${buildWhenOffOptions(whenOffValue)}
+                        </select>
+                      </div>
+                    ` : ''}
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function isAdjustmentAction(action) {
+      const adjustmentActions = ['step_up', 'step_down', 'bright_up', 'bright_down', 'color_up', 'color_down'];
+      return adjustmentActions.includes(action);
+    }
+
+    function buildActionOptions(selectedValue) {
+      let html = '';
+      for (const [category, actions] of Object.entries(actionCategories)) {
+        html += `<optgroup label="${category}">`;
+        for (const action of actions) {
+          const value = action.id === null ? '' : action.id;
+          const selected = (selectedValue === action.id || (selectedValue === null && action.id === null)) ? 'selected' : '';
+          html += `<option value="${value}" ${selected}>${action.label}</option>`;
+        }
+        html += '</optgroup>';
+      }
+      return html;
+    }
+
+    function buildWhenOffOptions(selectedValue) {
+      return whenOffOptions.map(opt => {
+        const value = opt.id === null ? '' : opt.id;
+        const selected = (selectedValue === opt.id || (selectedValue === null && opt.id === null)) ? 'selected' : '';
+        return `<option value="${value}" ${selected}>${opt.label}</option>`;
+      }).join('');
+    }
+
+    function updateMapping(eventKey, value) {
+      const newAction = value === '' ? null : value;
+      const currentValue = currentMappings[eventKey];
+
+      // Preserve when_off if it was set and the new action supports it
+      let newMapping;
+      if (typeof currentValue === 'object' && currentValue !== null && isAdjustmentAction(newAction)) {
+        newMapping = { action: newAction, when_off: currentValue.when_off };
+      } else {
+        newMapping = newAction;
+      }
+
+      currentMappings[eventKey] = newMapping;
+      checkForChanges();
+      renderMappings();
+      renderSwitchVisual();
+    }
+
+    function updateWhenOff(eventKey, value) {
+      const whenOffAction = value === '' ? null : value;
+      const currentValue = currentMappings[eventKey];
+
+      // Get the main action
+      let mainAction;
+      if (typeof currentValue === 'object' && currentValue !== null) {
+        mainAction = currentValue.action;
+      } else {
+        mainAction = currentValue;
+      }
+
+      // Set as object if when_off is specified, otherwise just the action
+      if (whenOffAction) {
+        currentMappings[eventKey] = { action: mainAction, when_off: whenOffAction };
+      } else {
+        currentMappings[eventKey] = mainAction;
+      }
+
+      checkForChanges();
+      renderMappings();
+    }
+
+    function checkForChanges() {
+      // Compare current mappings to default mappings
+      const typeInfo = switchTypes[currentSwitchType];
+      if (!typeInfo) return;
+
+      const defaults = typeInfo.default_mapping || {};
+      hasUnsavedChanges = false;
+
+      // Build what the custom mappings should be (differences from defaults)
+      const newCustom = {};
+      for (const [key, value] of Object.entries(currentMappings)) {
+        const defaultValue = defaults[key];
+        if (!isEqual(value, defaultValue)) {
+          hasUnsavedChanges = true;
+          newCustom[key] = value;
+        }
+      }
+
+      // Update UI
+      document.getElementById('unsaved-indicator').classList.toggle('visible', hasUnsavedChanges);
+      document.getElementById('save-btn').disabled = !hasUnsavedChanges;
+    }
+
+    function isEqual(a, b) {
+      if (a === b) return true;
+      if (a === null && b === undefined) return true;
+      if (a === undefined && b === null) return true;
+      if (typeof a === 'object' && typeof b === 'object') {
+        return JSON.stringify(a) === JSON.stringify(b);
+      }
+      return false;
+    }
+
+    async function saveMappings() {
+      // Build custom mappings (only differences from defaults)
+      const typeInfo = switchTypes[currentSwitchType];
+      if (!typeInfo) return;
+
+      const defaults = typeInfo.default_mapping || {};
+      const customForType = {};
+
+      for (const [key, value] of Object.entries(currentMappings)) {
+        const defaultValue = defaults[key];
+        if (!isEqual(value, defaultValue)) {
+          customForType[key] = value;
+        }
+      }
+
+      // Merge with existing custom mappings for other switch types
+      const allCustom = { ...customMappings };
+      if (Object.keys(customForType).length > 0) {
+        allCustom[currentSwitchType] = customForType;
+      } else {
+        delete allCustom[currentSwitchType];
+      }
+
+      try {
+        const res = await fetch('./api/switchmap', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(allCustom)
+        });
+
+        if (res.ok) {
+          customMappings = allCustom;
+          hasUnsavedChanges = false;
+          document.getElementById('unsaved-indicator').classList.remove('visible');
+          document.getElementById('save-btn').disabled = true;
+          showStatus('Mappings saved', 'success');
+        } else {
+          const data = await res.json();
+          showStatus(data.error || 'Failed to save', 'error');
+        }
+      } catch (err) {
+        console.error('Error saving mappings:', err);
+        showStatus('Error saving mappings', 'error');
+      }
+    }
+
+    function resetToDefaults() {
+      if (!confirm('Reset all mappings for this switch type to defaults?')) return;
+
+      const typeInfo = switchTypes[currentSwitchType];
+      if (!typeInfo) return;
+
+      currentMappings = { ...typeInfo.default_mapping };
+      checkForChanges();
+      renderMappings();
+      renderSwitchVisual();
+    }
+
+    function showStatus(message, type = 'success') {
+      const el = document.getElementById('status-message');
+      el.textContent = message;
+      el.className = `status-message ${type} visible`;
+      setTimeout(() => {
+        el.classList.remove('visible');
+      }, 3000);
+    }
+  </script>
+</body>
+</html>
