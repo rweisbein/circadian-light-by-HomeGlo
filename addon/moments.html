@@ -251,43 +251,29 @@
       border-bottom-color: var(--accent);
     }
 
-    /* Editor Card - Single flat card layout */
+    /* Editor Card - Clean minimal layout */
     .editor-card {
       background: var(--card);
-      border: 1px solid var(--line);
       border-radius: 12px;
+      padding: 20px;
     }
 
     .editor-card-header {
       display: flex;
       align-items: center;
       gap: 12px;
-      padding: 16px 20px;
-      border-bottom: 1px solid var(--line);
+      margin-bottom: 24px;
     }
 
-    .editor-card-body {
-      padding: 20px;
-    }
-
-    /* Inline controls row */
-    .inline-controls {
+    /* Settings rows */
+    .settings-row {
       display: flex;
       align-items: center;
-      gap: 20px;
-      padding-bottom: 16px;
-      margin-bottom: 16px;
-      border-bottom: 1px solid var(--line);
-      flex-wrap: wrap;
+      margin-bottom: 12px;
     }
 
-    .inline-control {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .inline-label {
+    .settings-label {
+      width: 80px;
       font-size: 0.85rem;
       color: var(--muted);
     }
@@ -381,74 +367,74 @@
 
     /* Exceptions Section */
     .exceptions-section {
-      margin-top: 4px;
+      margin-top: 20px;
     }
 
     .exceptions-header {
       font-size: 0.85rem;
-      font-weight: 600;
       color: var(--muted);
-      margin-bottom: 10px;
+      margin-bottom: 8px;
     }
 
     .exceptions-list {
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 8px;
+      margin-left: 4px;
     }
 
     .exception-item {
       display: flex;
       align-items: center;
       gap: 10px;
-      padding: 8px 12px;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 6px;
     }
 
     .exception-area {
-      flex: 1;
+      width: 140px;
       font-size: 0.85rem;
+      color: var(--text);
     }
 
     .exception-action {
       padding: 5px 8px;
-      background: var(--bg);
+      background: var(--panel);
       border: 1px solid var(--line);
       border-radius: 4px;
       color: var(--text);
       font-size: 0.8rem;
-      min-width: 110px;
     }
 
     .exception-remove {
       background: transparent;
       border: none;
-      color: var(--muted);
-      font-size: 1.1rem;
+      color: var(--muted2);
+      font-size: 1rem;
       cursor: pointer;
-      padding: 2px 4px;
+      padding: 2px 6px;
       line-height: 1;
+      opacity: 0.6;
+      transition: all 0.15s;
     }
 
     .exception-remove:hover {
       color: var(--danger);
+      opacity: 1;
     }
 
     /* Add Exception Row */
     .add-exception-row {
       display: flex;
       align-items: center;
-      gap: 10px;
-      margin-top: 10px;
+      gap: 8px;
+      margin-top: 12px;
+      margin-left: 4px;
     }
 
     .add-exception-btn {
       display: inline-flex;
       align-items: center;
-      gap: 5px;
-      padding: 6px 0;
+      gap: 4px;
+      padding: 0;
       background: transparent;
       border: none;
       color: var(--muted);
@@ -461,36 +447,6 @@
       color: var(--accent);
     }
 
-    .add-exception-action-label {
-      font-size: 0.8rem;
-      color: var(--muted2);
-      margin-left: auto;
-    }
-
-    /* Summary */
-    .summary-text {
-      font-size: 0.8rem;
-      color: var(--muted2);
-      margin-top: 16px;
-      padding-top: 12px;
-      border-top: 1px solid var(--line);
-    }
-
-    /* Trigger hint */
-    .trigger-hint {
-      font-size: 0.8rem;
-      color: var(--muted2);
-      margin-top: 16px;
-      padding-top: 12px;
-      border-top: 1px solid var(--line);
-    }
-
-    .trigger-hint code {
-      background: var(--panel);
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-size: 0.75rem;
-    }
 
     /* Icon Picker Modal */
     .icon-picker-overlay {
@@ -959,66 +915,54 @@
               </div>
             </div>
           </div>
-          <div class="editor-card-body">
-            <div class="inline-controls">
-              <div class="inline-control">
-                <span class="inline-label">Category</span>
-                <select class="form-select form-select-sm" onchange="updateMomentCategory(this.value); saveMoment();">
-                  ${CATEGORY_OPTIONS.map(opt => `
-                    <option value="${opt.value}" ${moment.category === opt.value ? 'selected' : ''}>${opt.label}</option>
-                  `).join('')}
-                </select>
-              </div>
-              <div class="inline-control">
-                <span class="inline-label">Action</span>
-                <select class="form-select form-select-sm" onchange="updateDefaultAction(this.value); saveMoment();">
-                  ${ACTION_OPTIONS.map(opt => `
-                    <option value="${opt.value}" ${moment.default_action === opt.value ? 'selected' : ''}>${opt.label}</option>
-                  `).join('')}
-                </select>
-              </div>
+
+          <div class="settings-row">
+            <span class="settings-label">Category</span>
+            <select class="form-select form-select-sm" onchange="updateMomentCategory(this.value); saveMoment();">
+              ${CATEGORY_OPTIONS.map(opt => `
+                <option value="${opt.value}" ${moment.category === opt.value ? 'selected' : ''}>${opt.label}</option>
+              `).join('')}
+            </select>
+          </div>
+
+          <div class="settings-row">
+            <span class="settings-label">Action</span>
+            <select class="form-select form-select-sm" onchange="updateDefaultAction(this.value); saveMoment();">
+              ${ACTION_OPTIONS.map(opt => `
+                <option value="${opt.value}" ${moment.default_action === opt.value ? 'selected' : ''}>${opt.label}</option>
+              `).join('')}
+            </select>
+          </div>
+
+          <div class="exceptions-section">
+            <div class="exceptions-header">Exceptions</div>
+            <div class="exceptions-list" id="exceptions-list">
+              ${Object.entries(exceptions).map(([areaId, action]) => {
+                const area = allAreas.find(a => a.area_id === areaId);
+                const areaName = area ? area.name : areaId;
+                return `
+                  <div class="exception-item">
+                    <span class="exception-area">${areaName}</span>
+                    <select class="exception-action" onchange="updateException('${areaId}', this.value); saveMoment();">
+                      ${ACTION_OPTIONS.map(opt => `
+                        <option value="${opt.value}" ${action === opt.value ? 'selected' : ''}>${opt.label}</option>
+                      `).join('')}
+                    </select>
+                    <button class="exception-remove" onclick="removeException('${areaId}'); saveMoment();">&times;</button>
+                  </div>
+                `;
+              }).join('')}
             </div>
-
-            <div class="exceptions-section">
-              <div class="exceptions-header">Exceptions</div>
-              <div class="exceptions-list" id="exceptions-list">
-                ${Object.entries(exceptions).length === 0 ? `
-                  <p style="color: var(--muted2); font-size: 0.85rem;">No exceptions. All areas will use the default action.</p>
-                ` : Object.entries(exceptions).map(([areaId, action]) => {
-                  const area = allAreas.find(a => a.area_id === areaId);
-                  const areaName = area ? area.name : areaId;
-                  return `
-                    <div class="exception-item">
-                      <span class="exception-area">${areaName}</span>
-                      <select class="exception-action" onchange="updateException('${areaId}', this.value); saveMoment();">
-                        ${ACTION_OPTIONS.map(opt => `
-                          <option value="${opt.value}" ${action === opt.value ? 'selected' : ''}>${opt.label}</option>
-                        `).join('')}
-                      </select>
-                      <button class="exception-remove" onclick="removeException('${areaId}'); saveMoment();">&times;</button>
-                    </div>
-                  `;
-                }).join('')}
-              </div>
-              <div class="add-exception-row">
-                <button class="add-exception-btn" onclick="addException()">+ Add exception</button>
-                <span class="add-exception-action-label">as</span>
-                <select class="form-select form-select-sm" id="new-exception-action" onchange="newExceptionAction = this.value;">
-                  ${ACTION_OPTIONS.map(opt => `
-                    <option value="${opt.value}" ${newExceptionAction === opt.value ? 'selected' : ''}>${opt.label}</option>
-                  `).join('')}
-                </select>
-              </div>
-            </div>
-
-            ${Object.keys(exceptions).length > 0 ? `
-              <div class="summary-text">${summary}</div>
-            ` : ''}
-
-            <div class="trigger-hint">
-              Call <code>circadian_light.set</code> with <code>preset: ${selectedMomentId}</code>
+            <div class="add-exception-row">
+              <select class="form-select form-select-sm" id="new-exception-action" onchange="newExceptionAction = this.value;">
+                ${ACTION_OPTIONS.map(opt => `
+                  <option value="${opt.value}" ${newExceptionAction === opt.value ? 'selected' : ''}>${opt.label}</option>
+                `).join('')}
+              </select>
+              <button class="add-exception-btn" onclick="addException()">+ Add exception</button>
             </div>
           </div>
+
         </div>
       `;
     }
