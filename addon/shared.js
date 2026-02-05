@@ -194,6 +194,9 @@ async function openAreaPicker(options = {}) {
   // Track sort preference (persisted in localStorage)
   let sortMode = localStorage.getItem('areaPicker_sort') || 'custom';
 
+  // Track search filter
+  let searchFilter = '';
+
   // Create modal HTML
   const overlay = document.createElement('div');
   overlay.className = 'area-picker-overlay';
@@ -201,6 +204,7 @@ async function openAreaPicker(options = {}) {
     <div class="area-picker-modal">
       <div class="area-picker-header">
         <h3>${title}</h3>
+        <input type="text" class="area-picker-search" placeholder="Search areas..." autocomplete="off">
         <div class="area-picker-sort">
           <span class="sort-option ${sortMode === 'custom' ? 'active' : ''}" data-sort="custom">Your order</span>
           <span class="sort-separator">|</span>
@@ -260,6 +264,24 @@ async function openAreaPicker(options = {}) {
         margin: 0 0 12px 0;
         font-size: 1.1rem;
         color: var(--text, #fff);
+      }
+      .area-picker-search {
+        width: 100%;
+        padding: 10px 12px;
+        margin-bottom: 12px;
+        background: var(--bg, #000);
+        border: 1px solid var(--line, #333);
+        border-radius: 6px;
+        color: var(--text, #fff);
+        font-size: 0.9rem;
+        outline: none;
+        transition: border-color 0.15s;
+      }
+      .area-picker-search:focus {
+        border-color: var(--accent, #feac60);
+      }
+      .area-picker-search::placeholder {
+        color: var(--muted, #888);
       }
       .area-picker-sort {
         display: flex;
@@ -344,6 +366,13 @@ async function openAreaPicker(options = {}) {
         font-size: 0.95rem;
         color: var(--text, #fff);
       }
+      .area-picker-no-results {
+        padding: 24px 20px;
+        text-align: center;
+        color: var(--muted, #888);
+        font-size: 0.9rem;
+        font-style: italic;
+      }
       .area-picker-footer {
         padding: 16px 20px;
         border-top: 1px solid var(--line, #333);
@@ -387,6 +416,8 @@ async function openAreaPicker(options = {}) {
     const listEl = overlay.querySelector('.area-picker-list');
     listEl.innerHTML = '';
 
+    const searchLower = searchFilter.toLowerCase().trim();
+
     // Convert zones to array for sorting
     let zoneEntries = Object.entries(zones);
 
@@ -396,9 +427,23 @@ async function openAreaPicker(options = {}) {
     }
     // 'custom' mode uses the order from the API (user's order)
 
+    let hasResults = false;
+
     for (const [zoneName, zoneData] of zoneEntries) {
       const areas = zoneData.areas || [];
       if (areas.length === 0) continue;
+
+      // Filter areas by search
+      let filteredAreas = areas;
+      if (searchLower) {
+        filteredAreas = areas.filter(area => {
+          const areaName = (typeof area === 'object' ? (area.name || area.id) : area) || '';
+          return areaName.toLowerCase().includes(searchLower);
+        });
+      }
+      if (filteredAreas.length === 0) continue;
+
+      hasResults = true;
 
       // Zone header
       const zoneHeader = document.createElement('div');
@@ -407,7 +452,7 @@ async function openAreaPicker(options = {}) {
       listEl.appendChild(zoneHeader);
 
       // Sort areas within zone
-      let sortedAreas = [...areas];
+      let sortedAreas = [...filteredAreas];
       if (sortMode === 'az') {
         sortedAreas.sort((a, b) => {
           const nameA = (typeof a === 'object' ? a.name : a) || '';
@@ -459,7 +504,22 @@ async function openAreaPicker(options = {}) {
         listEl.appendChild(item);
       }
     }
+
+    // Show "no results" if search yielded nothing
+    if (!hasResults && searchLower) {
+      const noResults = document.createElement('div');
+      noResults.className = 'area-picker-no-results';
+      noResults.textContent = 'No areas match your search';
+      listEl.appendChild(noResults);
+    }
   }
+
+  // Handle search input
+  const searchInput = overlay.querySelector('.area-picker-search');
+  searchInput.addEventListener('input', (e) => {
+    searchFilter = e.target.value;
+    renderList();
+  });
 
   // Handle sort toggle
   overlay.querySelectorAll('.sort-option').forEach(opt => {

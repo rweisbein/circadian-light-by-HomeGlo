@@ -3549,20 +3549,28 @@ class LightDesignerServer:
         """Trigger manual device/area/group sync.
 
         Re-scans Home Assistant for new/moved lights, areas, and ZHA devices.
-        Equivalent to the old slow-cycle sync but triggered manually.
+        Fires an event that main.py listens for to trigger the actual sync.
         """
         try:
             # Clear areas cache so it gets refreshed on next request
             self.cached_areas_list = None
             logger.info("Cleared areas cache for sync")
 
-            if self.client and hasattr(self.client, 'run_manual_sync'):
-                await self.client.run_manual_sync()
-                return web.json_response({"success": True, "message": "Device sync complete"})
+            # Fire event for main.py to handle the sync
+            _, ws_url, token = self._get_ha_api_config()
+            if ws_url and token:
+                fired = await self._fire_event_via_websocket(
+                    ws_url, token, 'circadian_light_sync_devices', {}
+                )
+                if fired:
+                    logger.info("Fired circadian_light_sync_devices event")
+                    return web.json_response({"success": True, "message": "Device sync triggered"})
+                else:
+                    return web.json_response({"error": "Failed to fire sync event"}, status=500)
             else:
-                return web.json_response({"error": "WebSocket client not available"}, status=503)
+                return web.json_response({"error": "WebSocket not configured"}, status=503)
         except Exception as e:
-            logger.error(f"Error running manual sync: {e}")
+            logger.error(f"Error triggering device sync: {e}")
             return web.json_response({"error": str(e)}, status=500)
 
     # -------------------------------------------------------------------------
@@ -4105,11 +4113,37 @@ class LightDesignerServer:
 
             if category == "motion_sensor":
                 # Handle motion sensor configuration
+                # Support both old format (areas with area_id) and new format (scopes with areas array)
+                scopes_data = data.get("scopes")
                 areas_data = data.get("areas", [])
                 areas = []
-                for area_data in areas_data:
-                    # Use from_dict for migration support (function -> mode)
-                    areas.append(switches.MotionAreaConfig.from_dict(area_data))
+
+                if scopes_data:
+                    # New format: scopes with multiple areas sharing settings
+                    # Expand each scope into individual MotionAreaConfig entries
+                    for scope in scopes_data:
+                        scope_areas = scope.get("areas", [])
+                        mode = scope.get("mode", "on_off")
+                        duration = scope.get("duration", 60)
+                        boost_enabled = scope.get("boost_enabled", False)
+                        boost_brightness = scope.get("boost_brightness", 50)
+                        active_when = scope.get("active_when", "always")
+                        active_offset = scope.get("active_offset", 0)
+
+                        for area_id in scope_areas:
+                            areas.append(switches.MotionAreaConfig(
+                                area_id=area_id,
+                                mode=mode,
+                                duration=duration,
+                                boost_enabled=boost_enabled,
+                                boost_brightness=boost_brightness,
+                                active_when=active_when,
+                                active_offset=active_offset,
+                            ))
+                else:
+                    # Old format: areas with area_id per entry
+                    for area_data in areas_data:
+                        areas.append(switches.MotionAreaConfig.from_dict(area_data))
 
                 motion_config = switches.MotionSensorConfig(
                     id=control_id,
@@ -4122,11 +4156,33 @@ class LightDesignerServer:
                 switches.add_motion_sensor(motion_config)
             elif category == "contact_sensor":
                 # Handle contact sensor configuration
+                # Support both old format (areas with area_id) and new format (scopes with areas array)
+                scopes_data = data.get("scopes")
                 areas_data = data.get("areas", [])
                 areas = []
-                for area_data in areas_data:
-                    # Use from_dict for migration support (function -> mode)
-                    areas.append(switches.ContactAreaConfig.from_dict(area_data))
+
+                if scopes_data:
+                    # New format: scopes with multiple areas sharing settings
+                    # Expand each scope into individual ContactAreaConfig entries
+                    for scope in scopes_data:
+                        scope_areas = scope.get("areas", [])
+                        mode = scope.get("mode", "on_off")
+                        duration = scope.get("duration", 60)
+                        boost_enabled = scope.get("boost_enabled", False)
+                        boost_brightness = scope.get("boost_brightness", 50)
+
+                        for area_id in scope_areas:
+                            areas.append(switches.ContactAreaConfig(
+                                area_id=area_id,
+                                mode=mode,
+                                duration=duration,
+                                boost_enabled=boost_enabled,
+                                boost_brightness=boost_brightness,
+                            ))
+                else:
+                    # Old format: areas with area_id per entry
+                    for area_data in areas_data:
+                        areas.append(switches.ContactAreaConfig.from_dict(area_data))
 
                 contact_config = switches.ContactSensorConfig(
                     id=control_id,
