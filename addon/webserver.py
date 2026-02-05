@@ -3772,21 +3772,26 @@ class LightDesignerServer:
                         if device.get('area_id') == area_id:
                             area_device_ids.add(device.get('id'))
 
-                # Get states for friendly names
+                # Get states for friendly names and detect groups
                 await ws.send(json.dumps({'id': 3, 'type': 'get_states'}))
                 states_msg = json.loads(await ws.recv())
                 friendly_names = {}
+                light_groups = set()  # entity_ids that are groups (have child entities)
                 if states_msg.get('success') and states_msg.get('result'):
                     for state in states_msg['result']:
                         entity_id = state.get('entity_id', '')
                         if entity_id.startswith('light.'):
                             attrs = state.get('attributes', {})
                             friendly_names[entity_id] = attrs.get('friendly_name', '')
+                            # Detect if this is a group (has entity_id list or is_group attribute)
+                            if attrs.get('entity_id') or attrs.get('is_group') or attrs.get('is_hue_group'):
+                                light_groups.add(entity_id)
 
                 # Get entity registry to find light entities
                 await ws.send(json.dumps({'id': 4, 'type': 'config/entity_registry/list'}))
                 entity_msg = json.loads(await ws.recv())
                 lights = []
+                entire_area_lights = []  # Groups go at top
                 if entity_msg.get('success') and entity_msg.get('result'):
                     for entity in entity_msg['result']:
                         entity_id = entity.get('entity_id', '')
@@ -3795,21 +3800,33 @@ class LightDesignerServer:
 
                         # Determine entity's area (direct or via device)
                         entity_area = entity.get('area_id') or device_areas.get(entity.get('device_id'))
+                        is_group = entity_id in light_groups
 
                         if show_all:
                             # Include all lights, prefix with area name
-                            base_name = friendly_names.get(entity_id) or entity.get('name') or entity.get('original_name') or entity_id.replace('light.', '').replace('_', ' ').title()
                             area_name = area_names.get(entity_area, 'Unknown')
-                            name = f"{area_name}: {base_name}"
-                            lights.append({"entity_id": entity_id, "name": name, "area_id": entity_area})
+                            if is_group:
+                                name = f"Entire area: {area_name}"
+                                entire_area_lights.append({"entity_id": entity_id, "name": name, "area_id": entity_area, "is_group": True})
+                            else:
+                                base_name = friendly_names.get(entity_id) or entity.get('name') or entity.get('original_name') or entity_id.replace('light.', '').replace('_', ' ').title()
+                                name = f"{area_name}: {base_name}"
+                                lights.append({"entity_id": entity_id, "name": name, "area_id": entity_area})
                         else:
                             # Filter to target area
                             if entity.get('area_id') == area_id or entity.get('device_id') in area_device_ids:
-                                name = friendly_names.get(entity_id) or entity.get('name') or entity.get('original_name') or entity_id.replace('light.', '').replace('_', ' ').title()
-                                lights.append({"entity_id": entity_id, "name": name})
+                                area_name = area_names.get(entity_area, '')
+                                if is_group:
+                                    name = f"Entire area: {area_name}" if area_name else "Entire area"
+                                    entire_area_lights.append({"entity_id": entity_id, "name": name, "is_group": True})
+                                else:
+                                    name = friendly_names.get(entity_id) or entity.get('name') or entity.get('original_name') or entity_id.replace('light.', '').replace('_', ' ').title()
+                                    lights.append({"entity_id": entity_id, "name": name})
 
-                # Sort by name
+                # Sort: entire area lights first, then others alphabetically
+                entire_area_lights.sort(key=lambda x: x['name'].lower())
                 lights.sort(key=lambda x: x['name'].lower())
+                lights = entire_area_lights + lights
 
                 return web.json_response({"lights": lights})
         except Exception as e:
