@@ -3471,6 +3471,11 @@ class HomeAssistantWebSocketClient:
                 else:
                     logger.warning("refresh_event not yet initialized, skipping signal")
 
+            # Handle circadian_light_sync_devices event (fired by webserver Sync Devices button)
+            elif event_type == "circadian_light_sync_devices":
+                logger.info("circadian_light_sync_devices event received - running manual sync")
+                await self.run_manual_sync()
+
             # Handle circadian_light_live_design event (fired by webserver when Live Design starts/stops)
             elif event_type == "circadian_light_live_design":
                 area_id = event_data.get('area_id')
