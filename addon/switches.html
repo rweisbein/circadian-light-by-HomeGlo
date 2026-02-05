@@ -183,6 +183,7 @@
       cursor: pointer;
       user-select: none;
       transition: color 0.2s;
+      vertical-align: top;
     }
 
     .switches-table th:hover {
@@ -793,6 +794,9 @@
   <main class="main">
     <div class="page-header">
       <div style="display: flex; align-items: center; justify-content: flex-end; gap: 16px;">
+        <input type="text" id="search-input" placeholder="Search controls..."
+          style="padding: 6px 12px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 0.85rem; width: 180px;"
+          oninput="handleSearch(this.value)">
         <a href="#" class="clear-filters-link" id="clear-filters-link" style="display: none;" onclick="clearFilters(); return false;">Clear filters</a>
         <div class="toolbar-menu">
           <button class="toolbar-menu-btn" onclick="toggleToolbarMenu(event)">&#8942;</button>
@@ -874,6 +878,7 @@
     // State
     let controls = [];
     let allAreas = [];
+    let allGlozones = [];  // For glozone filter
     let editingControlId = null;
     let editingDeviceId = null;
     let editingScopes = [];
@@ -888,6 +893,8 @@
     let areaFilter = 'all';
     let statusFilter = 'all';
     let pauseFilter = 'all';
+    let glozoneFilter = 'all';
+    let searchFilter = '';
 
     // Initialize
     document.addEventListener('DOMContentLoaded', async () => {
@@ -943,9 +950,10 @@
       try {
         // Add cache-busting timestamp to ensure fresh data from HA
         const cacheBust = `?_t=${Date.now()}`;
-        const [controlsRes, areasRes] = await Promise.all([
+        const [controlsRes, areasRes, configRes] = await Promise.all([
           fetch(`./api/controls${cacheBust}`),
-          fetch(`./api/areas${cacheBust}`)
+          fetch(`./api/areas${cacheBust}`),
+          fetch(`./api/config${cacheBust}`)
         ]);
 
         if (controlsRes.ok) {
@@ -955,6 +963,16 @@
 
         if (areasRes.ok) {
           allAreas = await areasRes.json();
+        }
+
+        if (configRes.ok) {
+          const config = await configRes.json();
+          // Extract glozones from config
+          allGlozones = Object.entries(config.glozones || {}).map(([id, zone]) => ({
+            id,
+            name: zone.name || id,
+            areas: zone.areas || []
+          }));
         }
 
         renderControls();
@@ -999,12 +1017,24 @@
 
       // Apply all filters
       const filtered = controls.filter(c => {
+        // Search filter - check name and area
+        if (searchFilter) {
+          const search = searchFilter.toLowerCase();
+          const nameMatch = (c.name || '').toLowerCase().includes(search);
+          const areaMatch = (c.area_name || '').toLowerCase().includes(search);
+          if (!nameMatch && !areaMatch) return false;
+        }
         if (categoryFilter !== 'all' && c.category !== categoryFilter) return false;
         if (areaFilter === 'unassigned' && c.area_name) return false;  // Show only unassigned
         if (areaFilter !== 'all' && areaFilter !== 'unassigned' && c.area_name !== areaFilter) return false;
         if (statusFilter !== 'all' && c.status !== statusFilter) return false;
         if (pauseFilter === 'paused' && !c.inactive) return false;
         if (pauseFilter === 'live' && c.inactive) return false;
+        // Glozone filter - check if control's area is in the selected glozone
+        if (glozoneFilter !== 'all') {
+          const zone = allGlozones.find(z => z.id === glozoneFilter);
+          if (zone && !zone.areas.includes(c.area_id)) return false;
+        }
         return true;
       });
 
@@ -1047,6 +1077,11 @@
             valA = (a.last_action?.timestamp || '');
             valB = (b.last_action?.timestamp || '');
             break;
+          case 'lux':
+            // Sort by illuminance value (null/undefined last)
+            valA = a.illuminance?.value ?? -1;
+            valB = b.illuminance?.value ?? -1;
+            break;
           default:
             return 0;
         }
@@ -1070,12 +1105,15 @@
         (hasUnassigned ? `<option value="unassigned" ${areaFilter === 'unassigned' ? 'selected' : ''}>— Unassigned —</option>` : '') +
         areas.map(a => `<option value="${a}" ${areaFilter === a ? 'selected' : ''}>${a}</option>`).join('');
 
+      const glozoneOptions = `<option value="all">Zone</option>` +
+        allGlozones.map(z => `<option value="${z.id}" ${glozoneFilter === z.id ? 'selected' : ''}>${z.name}</option>`).join('');
+
       const statusLabels = { 'active': 'Active', 'not_configured': 'Needs setup', 'unsupported': 'Coming soon' };
       const statusOptions = `<option value="all">All</option>` +
         statuses.map(s => `<option value="${s}" ${statusFilter === s ? 'selected' : ''}>${statusLabels[s] || s}</option>`).join('');
 
       // Check if any filters are active and show/hide clear filters link
-      const hasActiveFilters = categoryFilter !== 'all' || areaFilter !== 'all' || statusFilter !== 'all' || pauseFilter !== 'all';
+      const hasActiveFilters = categoryFilter !== 'all' || areaFilter !== 'all' || statusFilter !== 'all' || pauseFilter !== 'all' || glozoneFilter !== 'all' || searchFilter !== '';
       document.getElementById('clear-filters-link').style.display = hasActiveFilters ? 'inline' : 'none';
 
       container.innerHTML = `
@@ -1103,6 +1141,7 @@
                 <div class="th-with-filter">
                   <div class="th-title-row" onclick="sortBy('area')">Location ${arrow('area')}</div>
                   <select class="header-filter" id="area-filter" onclick="event.stopPropagation()">${areaOptions}</select>
+                  <select class="header-filter" id="glozone-filter" onclick="event.stopPropagation()" style="margin-top: 4px;">${glozoneOptions}</select>
                 </div>
               </th>
               <th class="${thClass('status')}">
@@ -1112,7 +1151,7 @@
                 </div>
               </th>
               <th class="${thClass('lastAction')}" onclick="sortBy('lastAction')">Last action ${arrow('lastAction')}</th>
-              <th>Lux</th>
+              <th class="${thClass('lux')}" onclick="sortBy('lux')">Lux ${arrow('lux')}</th>
             </tr>
           </thead>
           <tbody>
@@ -1269,7 +1308,15 @@
       areaFilter = 'all';
       statusFilter = 'all';
       pauseFilter = 'all';
+      glozoneFilter = 'all';
+      searchFilter = '';
+      document.getElementById('search-input').value = '';
       savePreferences();
+      renderControls();
+    }
+
+    function handleSearch(value) {
+      searchFilter = value;
       renderControls();
     }
 
@@ -1427,6 +1474,9 @@
         } else if (e.target.id === 'area-filter') {
           areaFilter = e.target.value;
           savePreferences();
+          renderControls();
+        } else if (e.target.id === 'glozone-filter') {
+          glozoneFilter = e.target.value;
           renderControls();
         } else if (e.target.id === 'status-filter') {
           statusFilter = e.target.value;

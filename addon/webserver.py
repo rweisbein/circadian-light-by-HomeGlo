@@ -3802,6 +3802,11 @@ class LightDesignerServer:
                         entity_area = entity.get('area_id') or device_areas.get(entity.get('device_id'))
                         is_group = entity_id in light_groups
 
+                        # Skip lights in Circadian_Zigbee_Groups area (internal use only)
+                        area_name_check = area_names.get(entity_area, '')
+                        if area_name_check == 'Circadian_Zigbee_Groups':
+                            continue
+
                         if show_all:
                             # Include all lights, prefix with area name
                             area_name = area_names.get(entity_area, 'Unknown')
