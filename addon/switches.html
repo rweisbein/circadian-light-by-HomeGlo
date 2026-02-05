@@ -809,6 +809,24 @@
         </select>
       </div>
 
+      <div class="modal-section" id="pause-section" style="display: none;">
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+          <input type="checkbox" id="control-pause-checkbox" style="width: 16px; height: 16px; accent-color: var(--accent);">
+          <span style="font-size: 0.9rem;">Pause</span>
+          <span class="info-icon">i<span class="info-tooltip">Control won't trigger actions while paused</span></span>
+        </label>
+      </div>
+
+      <div class="modal-section" id="indicator-light-section" style="display: none;">
+        <label class="modal-label">Light for Confirmation Cues
+          <span class="info-icon">i<span class="info-tooltip">Light used for reach feedback in learn mode. Flashes 1x/2x/3x to indicate which reach is active.</span></span>
+        </label>
+        <select class="modal-select" id="indicator-light-select" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.9rem;">
+          <option value="">None</option>
+          <!-- Populated with lights in switch's area -->
+        </select>
+      </div>
+
       <div class="modal-section" id="switch-config-section">
         <label class="modal-label">Reach
           <span class="info-icon">i<span class="info-tooltip">The switch will control all areas in Reach 1. Pressing 'Change Reach' one time will shift the switch's control to areas in Reach 2. Again to Reach 3.</span></span>
@@ -819,32 +837,15 @@
         <button class="add-scope-btn" id="add-scope-btn">+ Add Reach</button>
       </div>
 
-      <div class="modal-section" id="indicator-light-section" style="display: none;">
-        <label class="modal-label">Indicator Light
-          <span class="info-icon">i<span class="info-tooltip">Light used for reach feedback in learn mode. Flashes 1x/2x/3x to indicate which reach is active.</span></span>
-        </label>
-        <select class="modal-select" id="indicator-light-select" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.9rem;">
-          <option value="">None</option>
-          <!-- Populated with lights in switch's area -->
-        </select>
-      </div>
-
       <div class="modal-section" id="motion-config-section" style="display: none;">
         <div id="motion-areas-editor">
           <!-- Motion area editors populated by JS -->
         </div>
         <button class="add-scope-btn" id="add-motion-area-btn">+ Add Area</button>
-        <div id="inactive-checkbox-section" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line);">
-          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-            <input type="checkbox" id="sensor-inactive-checkbox" style="width: 16px; height: 16px; accent-color: var(--accent);">
-            <span style="font-size: 0.9rem;">Inactive</span>
-            <span style="font-size: 0.8rem; color: var(--muted); margin-left: 4px;">(sensor won't trigger actions)</span>
-          </label>
-        </div>
       </div>
 
       <div class="modal-actions">
-        <button class="btn btn-danger" id="modal-remove-config" style="display: none; margin-right: auto;">Remove configuration</button>
+        <button class="btn btn-danger" id="modal-remove-config" style="display: none; margin-right: auto;">Reset</button>
         <button class="btn btn-cancel" id="modal-cancel">Cancel</button>
         <button class="btn btn-primary" id="modal-save">Save</button>
       </div>
@@ -1485,13 +1486,15 @@
       const isConfigured = ctrl.status === 'active';
       const titlePrefix = isConfigured ? 'Edit' : 'Configure';
 
+      // Load inactive/pause state for all control types
+      editingInactive = ctrl.inactive || false;
+
       if (isSensorType) {
         // Load motion/contact sensor areas
         editingMotionAreas = ctrl.areas && ctrl.areas.length > 0
           ? ctrl.areas.map(a => ({ ...a }))
           : [];
         editingScopes = [];
-        editingInactive = ctrl.inactive || false;
       } else {
         // Load switch scopes
         editingScopes = ctrl.scopes && ctrl.scopes.length > 0
@@ -1525,6 +1528,11 @@
       const typeSectionEl = document.getElementById('type-section');
       const switchSection = document.getElementById('switch-config-section');
       const motionSection = document.getElementById('motion-config-section');
+      const pauseSection = document.getElementById('pause-section');
+
+      // Show pause section for all control types and set checkbox
+      pauseSection.style.display = 'block';
+      document.getElementById('control-pause-checkbox').checked = editingInactive;
 
       if (isSensorType) {
         if (typeSectionEl) typeSectionEl.style.display = 'none';
@@ -1532,8 +1540,6 @@
         motionSection.style.display = 'block';
         document.getElementById('indicator-light-section').style.display = 'none';
         renderMotionAreasEditor();
-        // Set inactive checkbox
-        document.getElementById('sensor-inactive-checkbox').checked = editingInactive;
       } else {
         // Type is now shown in device-info, hide the type section
         if (typeSectionEl) typeSectionEl.style.display = 'none';
@@ -1749,6 +1755,9 @@
     async function saveControl() {
       const isSensorType = editingControl?.category === 'motion_sensor' || editingControl?.category === 'contact_sensor';
 
+      // Get pause/inactive status from checkbox (applies to all control types)
+      const inactive = document.getElementById('control-pause-checkbox').checked;
+
       let payload;
       if (isSensorType) {
         // Validate motion/contact sensor config
@@ -1756,8 +1765,6 @@
           alert('Please add at least one area');
           return;
         }
-        // Get inactive status from checkbox
-        const inactive = document.getElementById('sensor-inactive-checkbox').checked;
         payload = {
           name: editingControl?.name,
           category: editingControl?.category,  // preserve original category (motion_sensor or contact_sensor)
@@ -1773,7 +1780,8 @@
           type: editingControl?.type,
           scopes: editingScopes,
           device_id: editingDeviceId,
-          indicator_light: indicatorLight || ''
+          indicator_light: indicatorLight || '',
+          inactive: inactive
         };
       }
 
@@ -1799,7 +1807,7 @@
     }
 
     async function removeConfig() {
-      if (!confirm(`Remove configuration from "${editingControl?.name || editingControlId}"? The control will remain in the list as "Not configured".`)) return;
+      if (!confirm(`Reset "${editingControl?.name || editingControlId}"? This will clear all configuration. The control will remain in the list as "Not configured".`)) return;
 
       try {
         const response = await fetch(`./api/controls/${encodeURIComponent(editingControlId)}/configure`, {
