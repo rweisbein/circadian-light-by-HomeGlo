@@ -522,10 +522,19 @@
 
     /* Consistent input heights */
     .scope-editor select,
-    .scope-editor input {
-      height: 36px;
-      padding: 6px 10px;
-      font-size: 0.85rem;
+    .scope-editor input[type="number"] {
+      height: 30px;
+      padding: 4px 8px;
+      font-size: 0.8rem;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      color: var(--text);
+    }
+
+    .scope-editor select:focus,
+    .scope-editor input[type="number"]:focus {
+      outline: 1px solid var(--accent);
     }
 
     /* Area chips for scope editor */
@@ -829,7 +838,7 @@
       <div class="modal-section" id="indicator-light-section" style="display: none;">
         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
           <label class="modal-label" style="margin-bottom: 0;">Light for Confirmation Cues</label>
-          <span class="info-icon">i<span class="info-tooltip">When Confirmation Cue style 'subtle' is selected, changing the reach of a switch will be cued by the selected light flashing 1 time for reach 1, 2 times for reach 2, and so on.</span></span>
+          <span class="info-icon">i<span class="info-tooltip">When confirmation cue 'subtle' is selected in Settings, changing the reach of a switch will be cued by the selected light flashing 1 time for reach 1, 2 times for reach 2, and so on.</span></span>
           <a href="#" id="indicator-light-toggle" style="font-size: 0.75rem; color: var(--muted); margin-left: auto;" onclick="toggleIndicatorLightScope(); return false;">list all</a>
         </div>
         <select class="modal-select" id="indicator-light-select" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.9rem;">
