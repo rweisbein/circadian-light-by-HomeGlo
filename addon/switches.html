@@ -485,20 +485,22 @@
       border: 1px solid var(--line);
       border-radius: 8px;
       margin-bottom: 12px;
+      padding: 12px;
     }
 
     .scope-editor-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 12px;
-      background: var(--panel);
-      border-bottom: 1px solid var(--line);
+      margin-bottom: 8px;
     }
 
     .scope-editor-title {
+      font-size: 0.75rem;
       font-weight: 500;
-      font-size: 0.9rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
 
     .scope-editor-remove {
@@ -506,8 +508,8 @@
       border: none;
       color: var(--muted);
       cursor: pointer;
-      font-size: 1.1rem;
-      padding: 4px;
+      font-size: 0.75rem;
+      padding: 2px 6px;
     }
 
     .scope-editor-remove:hover {
@@ -515,7 +517,24 @@
     }
 
     .scope-editor-body {
-      padding: 12px;
+      /* No padding - parent has it */
+    }
+
+    /* Consistent input heights */
+    .scope-editor select,
+    .scope-editor input[type="number"] {
+      height: 30px;
+      padding: 4px 8px;
+      font-size: 0.8rem;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      color: var(--text);
+    }
+
+    .scope-editor select:focus,
+    .scope-editor input[type="number"]:focus {
+      outline: 1px solid var(--accent);
     }
 
     /* Area chips for scope editor */
@@ -669,21 +688,20 @@
 
     .info-tooltip {
       display: none;
-      position: absolute;
-      top: 24px;
-      left: 50%;
-      transform: translateX(-50%);
+      position: fixed;
       background: var(--panel);
       border: 1px solid var(--line);
       border-radius: 8px;
       padding: 12px;
       width: 280px;
+      max-width: 90vw;
       font-size: 0.8rem;
       font-style: normal;
       color: var(--muted);
       line-height: 1.5;
-      z-index: 100;
+      z-index: 1000;
       box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      pointer-events: none;
     }
 
     .info-icon:hover .info-tooltip {
@@ -809,42 +827,42 @@
         </select>
       </div>
 
-      <div class="modal-section" id="switch-config-section">
-        <label class="modal-label">Reach
-          <span class="info-icon">i<span class="info-tooltip">The switch will control all areas in Reach 1. Pressing 'Change Reach' one time will shift the switch's control to areas in Reach 2. Again to Reach 3.</span></span>
+      <div class="modal-section" id="pause-section" style="display: none;">
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+          <input type="checkbox" id="control-pause-checkbox" style="width: 16px; height: 16px; accent-color: var(--accent);">
+          <span style="font-size: 0.9rem;">Pause</span>
+          <span class="info-icon">i<span class="info-tooltip">Control won't trigger actions while paused</span></span>
         </label>
-        <div id="scopes-editor" style="margin-top: 12px;">
+      </div>
+
+      <div class="modal-section" id="indicator-light-section" style="display: none;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+          <label class="modal-label" style="margin-bottom: 0;">Light for Confirmation Cues</label>
+          <span class="info-icon">i<span class="info-tooltip">When confirmation cue 'subtle' is selected in Settings, changing the reach of a switch will be cued by the selected light flashing 1 time for reach 1, 2 times for reach 2, and so on.</span></span>
+          <a href="#" id="indicator-light-toggle" style="font-size: 0.75rem; color: var(--muted); margin-left: auto;" onclick="toggleIndicatorLightScope(); return false;">list all</a>
+        </div>
+        <select class="modal-select" id="indicator-light-select" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.9rem;">
+          <option value="">None</option>
+          <!-- Populated with lights -->
+        </select>
+      </div>
+
+      <div class="modal-section" id="switch-config-section">
+        <div id="scopes-editor">
           <!-- Scope editors populated by JS -->
         </div>
         <button class="add-scope-btn" id="add-scope-btn">+ Add Reach</button>
       </div>
 
-      <div class="modal-section" id="indicator-light-section" style="display: none;">
-        <label class="modal-label">Indicator Light
-          <span class="info-icon">i<span class="info-tooltip">Light used for reach feedback in learn mode. Flashes 1x/2x/3x to indicate which reach is active.</span></span>
-        </label>
-        <select class="modal-select" id="indicator-light-select" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.9rem;">
-          <option value="">None</option>
-          <!-- Populated with lights in switch's area -->
-        </select>
-      </div>
-
       <div class="modal-section" id="motion-config-section" style="display: none;">
-        <div id="motion-areas-editor">
-          <!-- Motion area editors populated by JS -->
+        <div id="motion-scopes-editor">
+          <!-- Motion scope editors populated by JS -->
         </div>
-        <button class="add-scope-btn" id="add-motion-area-btn">+ Add Area</button>
-        <div id="inactive-checkbox-section" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line);">
-          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-            <input type="checkbox" id="sensor-inactive-checkbox" style="width: 16px; height: 16px; accent-color: var(--accent);">
-            <span style="font-size: 0.9rem;">Inactive</span>
-            <span style="font-size: 0.8rem; color: var(--muted); margin-left: 4px;">(sensor won't trigger actions)</span>
-          </label>
-        </div>
+        <button class="add-scope-btn" id="add-motion-scope-btn">+ Add Reach</button>
       </div>
 
       <div class="modal-actions">
-        <button class="btn btn-danger" id="modal-remove-config" style="display: none; margin-right: auto;">Remove configuration</button>
+        <button class="btn btn-danger" id="modal-remove-config" style="display: none; margin-right: auto;">Reset</button>
         <button class="btn btn-cancel" id="modal-cancel">Cancel</button>
         <button class="btn btn-primary" id="modal-save">Save</button>
       </div>
@@ -859,10 +877,11 @@
     let editingControlId = null;
     let editingDeviceId = null;
     let editingScopes = [];
-    let editingMotionAreas = [];  // For motion/contact sensors: [{area_id, mode, duration, boost_enabled, boost_brightness}, ...]
+    let editingMotionScopes = [];  // For motion/contact sensors: [{areas: [], mode, duration, boost_enabled, boost_brightness, active_when, active_offset}, ...]
     let editingControl = null;
     let editingInactive = false;  // For sensors: whether sensor is inactive
     let editingIndicatorLight = '';  // For switches: indicator light entity_id
+    let indicatorLightShowAll = false;  // Toggle between area-filtered and all lights
     let sortColumn = 'status';
     let sortAsc = true;
     let categoryFilter = 'all';
@@ -1397,7 +1416,7 @@
         if (e.target.classList.contains('modal-overlay')) hideModal();
       });
       document.getElementById('add-scope-btn').addEventListener('click', addScope);
-      document.getElementById('add-motion-area-btn').addEventListener('click', addMotionArea);
+      document.getElementById('add-motion-scope-btn').addEventListener('click', addMotionScope);
 
       // Use event delegation for dynamically created filter dropdowns
       document.getElementById('controls-container').addEventListener('change', (e) => {
@@ -1432,17 +1451,28 @@
       editingDeviceId = null;
       editingControl = null;
       editingScopes = [];
-      editingMotionAreas = [];
+      editingMotionScopes = [];
       editingInactive = false;
       editingIndicatorLight = '';
+      indicatorLightShowAll = false;
     }
 
     async function loadIndicatorLights(areaId, currentValue) {
       const select = document.getElementById('indicator-light-select');
+      const toggleLink = document.getElementById('indicator-light-toggle');
       select.innerHTML = '<option value="">None</option>';
-      if (!areaId) return;
+
+      // Update toggle link text
+      if (toggleLink) {
+        toggleLink.textContent = indicatorLightShowAll ? 'filter to location' : 'list all';
+      }
+
       try {
-        const response = await fetch(`./api/area-lights?area_id=${encodeURIComponent(areaId)}`);
+        let url = indicatorLightShowAll
+          ? './api/area-lights?all=true'
+          : `./api/area-lights?area_id=${encodeURIComponent(areaId || '')}`;
+
+        const response = await fetch(url);
         if (response.ok) {
           const data = await response.json();
           (data.lights || []).forEach(light => {
@@ -1454,8 +1484,14 @@
           });
         }
       } catch (err) {
-        console.error('Error loading area lights:', err);
+        console.error('Error loading indicator lights:', err);
       }
+    }
+
+    function toggleIndicatorLightScope() {
+      indicatorLightShowAll = !indicatorLightShowAll;
+      const currentValue = document.getElementById('indicator-light-select').value;
+      loadIndicatorLights(editingControl?.area_id, currentValue);
     }
 
     // Flash indicator light when selected so user can identify it
@@ -1485,39 +1521,75 @@
       const isConfigured = ctrl.status === 'active';
       const titlePrefix = isConfigured ? 'Edit' : 'Configure';
 
+      // Load inactive/pause state for all control types
+      editingInactive = ctrl.inactive || false;
+
       if (isSensorType) {
-        // Load motion/contact sensor areas
-        editingMotionAreas = ctrl.areas && ctrl.areas.length > 0
-          ? ctrl.areas.map(a => ({ ...a }))
-          : [];
+        // Load motion/contact sensor scopes
+        // Support new scopes format or migrate from legacy areas format
+        if (ctrl.scopes && ctrl.scopes.length > 0) {
+          // New format: scopes with areas array and settings
+          editingMotionScopes = ctrl.scopes.map(s => ({
+            areas: [...(s.areas || [])],
+            mode: s.mode || 'on_off',
+            duration: s.duration || 60,
+            boost_enabled: s.boost_enabled || false,
+            boost_brightness: s.boost_brightness || 50,
+            active_when: s.active_when || 'always',
+            active_offset: s.active_offset || 0
+          }));
+        } else if (ctrl.areas && ctrl.areas.length > 0) {
+          // Migrate from areas format: group areas with identical settings into same scope
+          // This preserves user-created groupings after save/reload cycle
+          const scopeMap = new Map();  // key: settings JSON, value: scope object
+          for (const a of ctrl.areas) {
+            const settings = {
+              mode: a.mode || 'on_off',
+              duration: a.duration || 60,
+              boost_enabled: a.boost_enabled || false,
+              boost_brightness: a.boost_brightness || 50,
+              active_when: a.active_when || 'always',
+              active_offset: a.active_offset || 0
+            };
+            const key = JSON.stringify(settings);
+            if (scopeMap.has(key)) {
+              // Add area to existing scope with same settings
+              scopeMap.get(key).areas.push(a.area_id);
+            } else {
+              // Create new scope for these settings
+              scopeMap.set(key, {
+                areas: [a.area_id],
+                ...settings
+              });
+            }
+          }
+          editingMotionScopes = Array.from(scopeMap.values());
+        } else {
+          editingMotionScopes = [];
+        }
         editingScopes = [];
-        editingInactive = ctrl.inactive || false;
       } else {
         // Load switch scopes
         editingScopes = ctrl.scopes && ctrl.scopes.length > 0
           ? ctrl.scopes.map(s => ({ areas: [...(s.areas || [])] }))
           : [{ areas: [] }];
-        editingMotionAreas = [];
+        editingMotionScopes = [];
       }
 
-      document.getElementById('modal-title').textContent = `${titlePrefix}: ${ctrl.name}`;
+      // Set modal title: "Category: Control Name"
+      const categoryLabel = formatCategory(ctrl.category);
+      document.getElementById('modal-title').textContent = `${categoryLabel}: ${ctrl.name}`;
       document.getElementById('modal-remove-config').style.display = isConfigured ? 'block' : 'none';
 
-      // Populate device info section with Category, Type, Location
-      const categoryLabel = formatCategory(ctrl.category);
+      // Populate device info section
       const typeName = ctrl.type_name || ctrl.type || 'Unknown';
       const locationName = ctrl.area_name || 'Unassigned';
       document.getElementById('device-info').innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-          <div>
-            <div><strong>Category:</strong> ${categoryLabel}</div>
-            <div><strong>Type:</strong> ${typeName}</div>
-            <div><strong>Location:</strong> ${locationName}</div>
-          </div>
-          <div style="text-align: right; font-size: 0.7rem; color: var(--muted); opacity: 0.5; line-height: 1.6;">
-            ${ctrl.id ? `<div>${ctrl.id}</div>` : ''}
-            ${ctrl.device_id ? `<div>${ctrl.device_id}</div>` : ''}
-          </div>
+        <div style="margin-bottom: 4px;"><strong>Location:</strong> ${locationName}</div>
+        <div style="font-size: 0.7rem; color: var(--muted); opacity: 0.6; line-height: 1.5;">
+          <div>Type: ${typeName}</div>
+          ${ctrl.id ? `<div>IEEE: ${ctrl.id}</div>` : ''}
+          ${ctrl.device_id ? `<div>ID: ${ctrl.device_id}</div>` : ''}
         </div>
       `;
 
@@ -1525,15 +1597,18 @@
       const typeSectionEl = document.getElementById('type-section');
       const switchSection = document.getElementById('switch-config-section');
       const motionSection = document.getElementById('motion-config-section');
+      const pauseSection = document.getElementById('pause-section');
+
+      // Show pause section for all control types and set checkbox
+      pauseSection.style.display = 'block';
+      document.getElementById('control-pause-checkbox').checked = editingInactive;
 
       if (isSensorType) {
         if (typeSectionEl) typeSectionEl.style.display = 'none';
         switchSection.style.display = 'none';
         motionSection.style.display = 'block';
         document.getElementById('indicator-light-section').style.display = 'none';
-        renderMotionAreasEditor();
-        // Set inactive checkbox
-        document.getElementById('sensor-inactive-checkbox').checked = editingInactive;
+        renderMotionScopesEditor();
       } else {
         // Type is now shown in device-info, hide the type section
         if (typeSectionEl) typeSectionEl.style.display = 'none';
@@ -1570,22 +1645,20 @@
           <div class="scope-editor" data-scope-idx="${idx}">
             <div class="scope-editor-header">
               <span class="scope-editor-title">Reach ${idx + 1}</span>
-              ${editingScopes.length > 1 ? `<button class="scope-editor-remove" onclick="removeScope(${idx})">&times;</button>` : ''}
+              ${editingScopes.length > 1 ? `<button class="scope-editor-remove" onclick="removeScope(${idx})">remove</button>` : ''}
             </div>
-            <div class="scope-editor-body">
-              <div class="area-chips">
-                ${areaChips || '<span class="area-chips-empty">No areas selected</span>'}
-              </div>
-              <button class="add-areas-btn" onclick="addAreasToScope(${idx})">+ Add Areas</button>
+            <div class="area-chips">
+              ${areaChips || '<span class="area-chips-empty">No areas selected</span>'}
             </div>
+            <button class="add-areas-btn" onclick="addAreasToScope(${idx})">+ Add Areas</button>
           </div>
         `;
       }).join('');
     }
 
     function addScope() {
-      if (editingScopes.length >= 3) {
-        alert('Maximum 3 reaches allowed');
+      if (editingScopes.length >= 5) {
+        alert('Maximum 5 reaches allowed');
         return;
       }
       editingScopes.push({ areas: [] });
@@ -1626,14 +1699,9 @@
       }
     }
 
-    // Motion sensor area editor functions
-    function renderMotionAreasEditor() {
-      const container = document.getElementById('motion-areas-editor');
-
-      if (editingMotionAreas.length === 0) {
-        container.innerHTML = '';
-        return;
-      }
+    // Motion/contact sensor scope editor functions
+    function renderMotionScopesEditor() {
+      const container = document.getElementById('motion-scopes-editor');
 
       const modeLabels = {
         'on_only': 'On only',
@@ -1641,64 +1709,75 @@
         'disabled': 'Disabled'
       };
 
-      container.innerHTML = editingMotionAreas.map((areaConfig, idx) => {
-        const durationMinutes = (areaConfig.duration || 60) / 60;
-        const area = allAreas.find(a => a.area_id === areaConfig.area_id);
-        const areaName = area ? area.name : areaConfig.area_id;
-        // Migration: convert old 'function' to new 'mode' + 'boost_enabled'
-        const mode = areaConfig.mode || (areaConfig.function === 'boost' ? 'on_off' : areaConfig.function) || 'on_off';
-        const boostEnabled = areaConfig.boost_enabled !== undefined ? areaConfig.boost_enabled : (areaConfig.function === 'boost');
+      container.innerHTML = editingMotionScopes.map((scope, idx) => {
+        const durationMinutes = (scope.duration || 60) / 60;
+        const mode = scope.mode || 'on_off';
+        const boostEnabled = scope.boost_enabled || false;
         const showDuration = mode === 'on_off';
-        const boostBrightness = areaConfig.boost_brightness || 50;
-        const activeWhen = areaConfig.active_when || 'always';
-        const activeOffset = areaConfig.active_offset || 0;
+        const boostBrightness = scope.boost_brightness || 50;
+        const activeWhen = scope.active_when || 'always';
+        const activeOffset = scope.active_offset || 0;
         const showOffset = activeWhen !== 'always';
+
+        // Build area chips
+        const areaChips = (scope.areas || []).map(areaId => {
+          const area = allAreas.find(a => a.area_id === areaId);
+          const areaName = area ? area.name : areaId;
+          return `
+            <span class="area-chip">
+              ${areaName}
+              <button class="area-chip-remove" onclick="removeAreaFromMotionScope(${idx}, '${areaId}')">&times;</button>
+            </span>
+          `;
+        }).join('');
 
         return `
           <div class="scope-editor" data-motion-idx="${idx}">
             <div class="scope-editor-header">
-              <span class="scope-editor-title">${areaName}</span>
-              <button class="scope-editor-remove" onclick="removeMotionArea(${idx})">&times;</button>
+              <span class="scope-editor-title">Reach ${idx + 1}</span>
+              ${editingMotionScopes.length > 1 ? `<button class="scope-editor-remove" onclick="removeMotionScope(${idx})">remove</button>` : ''}
             </div>
-            <div class="scope-editor-body">
-              <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-                <select class="modal-select" style="width: auto;" onchange="updateMotionArea(${idx}, 'mode', this.value)">
-                  ${Object.entries(modeLabels).map(([value, label]) => `
-                    <option value="${value}" ${mode === value ? 'selected' : ''}>${label}</option>
-                  `).join('')}
-                </select>
-                <div style="display: ${showDuration ? 'flex' : 'none'}; align-items: center; gap: 6px;">
-                  <input type="number" class="modal-input" style="width: 70px;" value="${durationMinutes}" min="0.5" max="60" step="0.5"
-                    onchange="updateMotionArea(${idx}, 'duration', Math.round(parseFloat(this.value) * 60))">
-                  <span style="color: var(--muted); font-size: 0.85rem;">min</span>
-                </div>
-                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                  <input type="checkbox" ${boostEnabled ? 'checked' : ''}
-                    onchange="updateMotionArea(${idx}, 'boost_enabled', this.checked)">
-                  <span style="font-size: 0.85rem;">Boost</span>
-                </label>
-                <div style="display: ${boostEnabled ? 'flex' : 'none'}; align-items: center; gap: 6px;">
-                  <span style="color: var(--muted); font-size: 0.85rem;">+</span>
-                  <input type="number" class="modal-input" style="width: 60px;" value="${boostBrightness}" min="5" max="100" step="5"
-                    onchange="updateMotionArea(${idx}, 'boost_brightness', parseInt(this.value))">
-                  <span style="color: var(--muted); font-size: 0.85rem;">%</span>
-                </div>
+            <div class="area-chips">
+              ${areaChips || '<span class="area-chips-empty">No areas selected</span>'}
+            </div>
+            <button class="add-areas-btn" onclick="addAreasToMotionScope(${idx})">+ Add Areas</button>
+
+            <div style="margin-top: 14px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+              <select onchange="updateMotionScope(${idx}, 'mode', this.value)">
+                ${Object.entries(modeLabels).map(([value, label]) => `
+                  <option value="${value}" ${mode === value ? 'selected' : ''}>${label}</option>
+                `).join('')}
+              </select>
+              <div style="display: ${showDuration ? 'flex' : 'none'}; align-items: center; gap: 6px;">
+                <input type="number" style="width: 60px;" value="${durationMinutes}" min="0.5" max="60" step="0.5"
+                  onchange="updateMotionScope(${idx}, 'duration', Math.round(parseFloat(this.value) * 60))">
+                <span style="color: var(--muted); font-size: 0.85rem;">min</span>
               </div>
-              <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">
-                <span style="color: var(--muted); font-size: 0.85rem;">When:</span>
-                <select class="modal-select" style="width: auto;"
-                  onchange="updateMotionArea(${idx}, 'active_when', this.value)">
-                  <option value="always" ${activeWhen === 'always' ? 'selected' : ''}>Always</option>
-                  <option value="sunset_to_sunrise" ${activeWhen === 'sunset_to_sunrise' ? 'selected' : ''}>Sunset to Sunrise</option>
-                  <option value="wake_to_bed" ${activeWhen === 'wake_to_bed' ? 'selected' : ''}>Wake to Bed</option>
-                </select>
-                <div style="display: ${showOffset ? 'flex' : 'none'}; align-items: center; gap: 6px;">
-                  <span style="color: var(--muted); font-size: 0.85rem;">\u00b1</span>
-                  <input type="number" class="modal-input" style="width: 60px;" value="${activeOffset}"
-                    min="-120" max="120" step="5"
-                    onchange="updateMotionArea(${idx}, 'active_offset', parseInt(this.value))">
-                  <span style="color: var(--muted); font-size: 0.85rem;">min</span>
-                </div>
+              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                <input type="checkbox" style="width: 16px; height: 16px;" ${boostEnabled ? 'checked' : ''}
+                  onchange="updateMotionScope(${idx}, 'boost_enabled', this.checked)">
+                <span style="font-size: 0.85rem;">Boost</span>
+              </label>
+              <div style="display: ${boostEnabled ? 'flex' : 'none'}; align-items: center; gap: 6px;">
+                <span style="color: var(--muted); font-size: 0.85rem;">+</span>
+                <input type="number" style="width: 55px;" value="${boostBrightness}" min="5" max="100" step="5"
+                  onchange="updateMotionScope(${idx}, 'boost_brightness', parseInt(this.value))">
+                <span style="color: var(--muted); font-size: 0.85rem;">%</span>
+              </div>
+            </div>
+            <div style="margin-top: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <span style="color: var(--muted); font-size: 0.85rem;">When:</span>
+              <select onchange="updateMotionScope(${idx}, 'active_when', this.value)">
+                <option value="always" ${activeWhen === 'always' ? 'selected' : ''}>Always</option>
+                <option value="sunset_to_sunrise" ${activeWhen === 'sunset_to_sunrise' ? 'selected' : ''}>Sunset to Sunrise</option>
+                <option value="wake_to_bed" ${activeWhen === 'wake_to_bed' ? 'selected' : ''}>Wake to Bed</option>
+              </select>
+              <div style="display: ${showOffset ? 'flex' : 'none'}; align-items: center; gap: 6px;">
+                <span style="color: var(--muted); font-size: 0.85rem;">±</span>
+                <input type="number" style="width: 55px;" value="${activeOffset}"
+                  min="-120" max="120" step="5"
+                  onchange="updateMotionScope(${idx}, 'active_offset', parseInt(this.value))">
+                <span style="color: var(--muted); font-size: 0.85rem;">min</span>
               </div>
             </div>
           </div>
@@ -1706,62 +1785,80 @@
       }).join('');
     }
 
-    async function addMotionArea() {
-      // Get currently configured area IDs to exclude from picker
-      const existingAreaIds = editingMotionAreas.map(a => a.area_id).filter(Boolean);
+    function addMotionScope() {
+      if (editingMotionScopes.length >= 5) {
+        alert('Maximum 5 reaches allowed');
+        return;
+      }
+      editingMotionScopes.push({
+        areas: [],
+        mode: 'on_off',
+        duration: 60,
+        boost_enabled: false,
+        boost_brightness: 50,
+        active_when: 'always',
+        active_offset: 0
+      });
+      renderMotionScopesEditor();
+    }
 
+    function removeMotionScope(idx) {
+      if (editingMotionScopes.length <= 1) return;
+      editingMotionScopes.splice(idx, 1);
+      renderMotionScopesEditor();
+    }
+
+    function removeAreaFromMotionScope(scopeIdx, areaId) {
+      const scope = editingMotionScopes[scopeIdx];
+      const idx = scope.areas.indexOf(areaId);
+      if (idx >= 0) {
+        scope.areas.splice(idx, 1);
+      }
+      renderMotionScopesEditor();
+    }
+
+    async function addAreasToMotionScope(scopeIdx) {
+      const scope = editingMotionScopes[scopeIdx];
       const selected = await openAreaPicker({
-        title: 'Add Areas',
-        selected: existingAreaIds,
+        title: `Add Areas to Reach ${scopeIdx + 1}`,
+        selected: scope.areas,
         multi: true
       });
 
       if (selected && selected.length > 0) {
-        // Add new areas with default settings (skip already configured ones)
+        // Add new areas (avoid duplicates)
         selected.forEach(areaId => {
-          if (!existingAreaIds.includes(areaId)) {
-            editingMotionAreas.push({
-              area_id: areaId,
-              mode: 'on_off',
-              duration: 60,
-              boost_enabled: false,
-              boost_brightness: 50,
-              active_when: 'always',
-              active_offset: 0
-            });
+          if (!scope.areas.includes(areaId)) {
+            scope.areas.push(areaId);
           }
         });
-        renderMotionAreasEditor();
+        renderMotionScopesEditor();
       }
     }
 
-    function removeMotionArea(idx) {
-      editingMotionAreas.splice(idx, 1);
-      renderMotionAreasEditor();
-    }
-
-    function updateMotionArea(idx, field, value) {
-      editingMotionAreas[idx][field] = value;
-      // Re-render to show/hide duration field based on function selection
-      renderMotionAreasEditor();
+    function updateMotionScope(idx, field, value) {
+      editingMotionScopes[idx][field] = value;
+      renderMotionScopesEditor();
     }
 
     async function saveControl() {
       const isSensorType = editingControl?.category === 'motion_sensor' || editingControl?.category === 'contact_sensor';
 
+      // Get pause/inactive status from checkbox (applies to all control types)
+      const inactive = document.getElementById('control-pause-checkbox').checked;
+
       let payload;
       if (isSensorType) {
-        // Validate motion/contact sensor config
-        if (editingMotionAreas.length === 0) {
-          alert('Please add at least one area');
+        // Validate motion/contact sensor config - need at least one scope with areas
+        const hasAreas = editingMotionScopes.some(s => s.areas && s.areas.length > 0);
+        if (editingMotionScopes.length === 0 || !hasAreas) {
+          alert('Please add at least one reach with areas');
           return;
         }
-        // Get inactive status from checkbox
-        const inactive = document.getElementById('sensor-inactive-checkbox').checked;
         payload = {
           name: editingControl?.name,
           category: editingControl?.category,  // preserve original category (motion_sensor or contact_sensor)
-          areas: editingMotionAreas,
+          scopes: editingMotionScopes,
           device_id: editingDeviceId,
           inactive: inactive
         };
@@ -1773,7 +1870,8 @@
           type: editingControl?.type,
           scopes: editingScopes,
           device_id: editingDeviceId,
-          indicator_light: indicatorLight || ''
+          indicator_light: indicatorLight || '',
+          inactive: inactive
         };
       }
 
@@ -1799,7 +1897,7 @@
     }
 
     async function removeConfig() {
-      if (!confirm(`Remove configuration from "${editingControl?.name || editingControlId}"? The control will remain in the list as "Not configured".`)) return;
+      if (!confirm(`Reset "${editingControl?.name || editingControlId}"? This will clear all configuration. The control will remain in the list as "Not configured".`)) return;
 
       try {
         const response = await fetch(`./api/controls/${encodeURIComponent(editingControlId)}/configure`, {
@@ -1819,6 +1917,40 @@
         alert('Error removing configuration');
       }
     }
+
+    // Position info tooltips to avoid clipping
+    document.addEventListener('mouseover', (e) => {
+      const icon = e.target.closest('.info-icon');
+      if (!icon) return;
+
+      const tooltip = icon.querySelector('.info-tooltip');
+      if (!tooltip) return;
+
+      const iconRect = icon.getBoundingClientRect();
+      const tooltipWidth = 280;
+      const padding = 12;
+
+      // Position below the icon by default
+      let top = iconRect.bottom + 8;
+      let left = iconRect.left + (iconRect.width / 2) - (tooltipWidth / 2);
+
+      // Keep within viewport horizontally
+      if (left < padding) left = padding;
+      if (left + tooltipWidth > window.innerWidth - padding) {
+        left = window.innerWidth - tooltipWidth - padding;
+      }
+
+      // If would go off bottom, position above instead
+      if (top + 100 > window.innerHeight) {
+        top = iconRect.top - 8;
+        tooltip.style.transform = 'translateY(-100%)';
+      } else {
+        tooltip.style.transform = 'none';
+      }
+
+      tooltip.style.top = top + 'px';
+      tooltip.style.left = left + 'px';
+    });
   </script>
 </body>
 </html>

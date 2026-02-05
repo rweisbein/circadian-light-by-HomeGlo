@@ -3725,14 +3725,19 @@ class LightDesignerServer:
             return web.json_response({"error": str(e)}, status=500)
 
     async def get_area_lights(self, request: Request) -> Response:
-        """Get light entities for a given area.
+        """Get light entities for a given area, or all lights.
 
-        Query param: area_id (required)
-        Returns list of {entity_id, name} for light entities in that area.
+        Query params:
+        - area_id: Filter to specific area
+        - all: If 'true', return all lights with area prefix in name
+
+        Returns list of {entity_id, name} for light entities.
         """
         area_id = request.query.get("area_id")
-        if not area_id:
-            return web.json_response({"error": "area_id is required"}, status=400)
+        show_all = request.query.get("all") == "true"
+
+        if not area_id and not show_all:
+            return web.json_response({"lights": []})
 
         try:
             rest_url, ws_url, token = self._get_ha_api_config()
@@ -3749,28 +3754,79 @@ class LightDesignerServer:
                 if msg.get('type') != 'auth_ok':
                     return web.json_response({"lights": []})
 
-                # Get device registry to find devices in this area
-                await ws.send(json.dumps({'id': 1, 'type': 'config/device_registry/list'}))
+                # Get area registry for area names
+                await ws.send(json.dumps({'id': 1, 'type': 'config/area_registry/list'}))
+                area_msg = json.loads(await ws.recv())
+                area_names = {}
+                if area_msg.get('success') and area_msg.get('result'):
+                    area_names = {a['area_id']: a['name'] for a in area_msg['result']}
+
+                # Get device registry to find devices and their areas
+                await ws.send(json.dumps({'id': 2, 'type': 'config/device_registry/list'}))
                 device_msg = json.loads(await ws.recv())
-                area_device_ids = set()
+                device_areas = {}  # device_id -> area_id
+                area_device_ids = set()  # devices in target area (for filtered mode)
                 if device_msg.get('success') and device_msg.get('result'):
                     for device in device_msg['result']:
+                        device_areas[device.get('id')] = device.get('area_id')
                         if device.get('area_id') == area_id:
                             area_device_ids.add(device.get('id'))
 
+                # Get states for friendly names and detect groups
+                await ws.send(json.dumps({'id': 3, 'type': 'get_states'}))
+                states_msg = json.loads(await ws.recv())
+                friendly_names = {}
+                light_groups = set()  # entity_ids that are groups (have child entities)
+                if states_msg.get('success') and states_msg.get('result'):
+                    for state in states_msg['result']:
+                        entity_id = state.get('entity_id', '')
+                        if entity_id.startswith('light.'):
+                            attrs = state.get('attributes', {})
+                            friendly_names[entity_id] = attrs.get('friendly_name', '')
+                            # Detect if this is a group (has entity_id list or is_group attribute)
+                            if attrs.get('entity_id') or attrs.get('is_group') or attrs.get('is_hue_group'):
+                                light_groups.add(entity_id)
+
                 # Get entity registry to find light entities
-                await ws.send(json.dumps({'id': 2, 'type': 'config/entity_registry/list'}))
+                await ws.send(json.dumps({'id': 4, 'type': 'config/entity_registry/list'}))
                 entity_msg = json.loads(await ws.recv())
                 lights = []
+                entire_area_lights = []  # Groups go at top
                 if entity_msg.get('success') and entity_msg.get('result'):
                     for entity in entity_msg['result']:
                         entity_id = entity.get('entity_id', '')
                         if not entity_id.startswith('light.'):
                             continue
-                        # Match by entity area_id or device area_id
-                        if entity.get('area_id') == area_id or entity.get('device_id') in area_device_ids:
-                            name = entity.get('name') or entity.get('original_name') or entity_id
-                            lights.append({"entity_id": entity_id, "name": name})
+
+                        # Determine entity's area (direct or via device)
+                        entity_area = entity.get('area_id') or device_areas.get(entity.get('device_id'))
+                        is_group = entity_id in light_groups
+
+                        if show_all:
+                            # Include all lights, prefix with area name
+                            area_name = area_names.get(entity_area, 'Unknown')
+                            if is_group:
+                                name = f"Entire area: {area_name}"
+                                entire_area_lights.append({"entity_id": entity_id, "name": name, "area_id": entity_area, "is_group": True})
+                            else:
+                                base_name = friendly_names.get(entity_id) or entity.get('name') or entity.get('original_name') or entity_id.replace('light.', '').replace('_', ' ').title()
+                                name = f"{area_name}: {base_name}"
+                                lights.append({"entity_id": entity_id, "name": name, "area_id": entity_area})
+                        else:
+                            # Filter to target area
+                            if entity.get('area_id') == area_id or entity.get('device_id') in area_device_ids:
+                                area_name = area_names.get(entity_area, '')
+                                if is_group:
+                                    name = f"Entire area: {area_name}" if area_name else "Entire area"
+                                    entire_area_lights.append({"entity_id": entity_id, "name": name, "is_group": True})
+                                else:
+                                    name = friendly_names.get(entity_id) or entity.get('name') or entity.get('original_name') or entity_id.replace('light.', '').replace('_', ' ').title()
+                                    lights.append({"entity_id": entity_id, "name": name})
+
+                # Sort: entire area lights first, then others alphabetically
+                entire_area_lights.sort(key=lambda x: x['name'].lower())
+                lights.sort(key=lambda x: x['name'].lower())
+                lights = entire_area_lights + lights
 
                 return web.json_response({"lights": lights})
         except Exception as e:
@@ -4113,11 +4169,37 @@ class LightDesignerServer:
 
             if category == "motion_sensor":
                 # Handle motion sensor configuration
+                # Support both old format (areas with area_id) and new format (scopes with areas array)
+                scopes_data = data.get("scopes")
                 areas_data = data.get("areas", [])
                 areas = []
-                for area_data in areas_data:
-                    # Use from_dict for migration support (function -> mode)
-                    areas.append(switches.MotionAreaConfig.from_dict(area_data))
+
+                if scopes_data:
+                    # New format: scopes with multiple areas sharing settings
+                    # Expand each scope into individual MotionAreaConfig entries
+                    for scope in scopes_data:
+                        scope_areas = scope.get("areas", [])
+                        mode = scope.get("mode", "on_off")
+                        duration = scope.get("duration", 60)
+                        boost_enabled = scope.get("boost_enabled", False)
+                        boost_brightness = scope.get("boost_brightness", 50)
+                        active_when = scope.get("active_when", "always")
+                        active_offset = scope.get("active_offset", 0)
+
+                        for area_id in scope_areas:
+                            areas.append(switches.MotionAreaConfig(
+                                area_id=area_id,
+                                mode=mode,
+                                duration=duration,
+                                boost_enabled=boost_enabled,
+                                boost_brightness=boost_brightness,
+                                active_when=active_when,
+                                active_offset=active_offset,
+                            ))
+                else:
+                    # Old format: areas with area_id per entry
+                    for area_data in areas_data:
+                        areas.append(switches.MotionAreaConfig.from_dict(area_data))
 
                 motion_config = switches.MotionSensorConfig(
                     id=control_id,
@@ -4130,11 +4212,33 @@ class LightDesignerServer:
                 switches.add_motion_sensor(motion_config)
             elif category == "contact_sensor":
                 # Handle contact sensor configuration
+                # Support both old format (areas with area_id) and new format (scopes with areas array)
+                scopes_data = data.get("scopes")
                 areas_data = data.get("areas", [])
                 areas = []
-                for area_data in areas_data:
-                    # Use from_dict for migration support (function -> mode)
-                    areas.append(switches.ContactAreaConfig.from_dict(area_data))
+
+                if scopes_data:
+                    # New format: scopes with multiple areas sharing settings
+                    # Expand each scope into individual ContactAreaConfig entries
+                    for scope in scopes_data:
+                        scope_areas = scope.get("areas", [])
+                        mode = scope.get("mode", "on_off")
+                        duration = scope.get("duration", 60)
+                        boost_enabled = scope.get("boost_enabled", False)
+                        boost_brightness = scope.get("boost_brightness", 50)
+
+                        for area_id in scope_areas:
+                            areas.append(switches.ContactAreaConfig(
+                                area_id=area_id,
+                                mode=mode,
+                                duration=duration,
+                                boost_enabled=boost_enabled,
+                                boost_brightness=boost_brightness,
+                            ))
+                else:
+                    # Old format: areas with area_id per entry
+                    for area_data in areas_data:
+                        areas.append(switches.ContactAreaConfig.from_dict(area_data))
 
                 contact_config = switches.ContactSensorConfig(
                     id=control_id,
