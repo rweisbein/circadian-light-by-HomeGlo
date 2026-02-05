@@ -458,21 +458,32 @@
 
     // Button labels for display
     const buttonLabels = {
+      // Hue 4-button
       'on': 'I',
       'up': '▲',
       'down': '▼',
-      'off': 'O'
+      'off': 'O',
+      // IKEA Tradfri
+      'toggle': '⏻',
+      'brightness_up': '▲',
+      'brightness_down': '▼',
+      'arrow_left': '◀',
+      'arrow_right': '▶'
     };
 
-    // Action type labels
+    // Action type labels (both Hue-style and IKEA-style naming)
     const actionTypeLabels = {
       'short_release': '1×',
+      'press': '1×',           // IKEA uses 'press' instead of 'short_release'
       'double_press': '2×',
       'triple_press': '3×',
       'quadruple_press': '4×',
       'quintuple_press': '5×',
       'hold': 'Long'
     };
+
+    // Action types to show (in order), excluding release-type actions
+    const displayableActionTypes = ['short_release', 'press', 'double_press', 'triple_press', 'quadruple_press', 'quintuple_press', 'hold'];
 
     // Initialize
     document.addEventListener('DOMContentLoaded', async () => {
@@ -567,12 +578,12 @@
       }
 
       const buttons = typeInfo.buttons || ['on', 'up', 'down', 'off'];
-      const actionTypes = ['short_release', 'double_press', 'triple_press', 'quadruple_press', 'quintuple_press', 'hold'];
 
       // Filter to only show relevant action types for this switch
-      const availableActionTypes = actionTypes.filter(at =>
-        typeInfo.action_types?.includes(at) ||
-        typeInfo.action_types?.includes(at.replace('_press', '').replace('_release', ''))
+      // - Include action types the switch supports
+      // - Exclude release/long_release (they're just "stop" signals, not user actions)
+      const availableActionTypes = displayableActionTypes.filter(at =>
+        typeInfo.action_types?.includes(at)
       );
 
       container.innerHTML = buttons.map(btn => {
