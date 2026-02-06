@@ -319,10 +319,9 @@
       background: transparent;
       border: none;
       color: var(--muted);
-      font-size: 1.5rem;
+      font-size: 0.8rem;
       cursor: pointer;
-      padding: 4px 8px;
-      line-height: 1;
+      padding: 0;
     }
 
     .modal-close:hover {
@@ -1238,7 +1237,7 @@
     <div class="modal">
       <div class="modal-header">
         <h3 class="modal-title" id="modal-area-name">Area Name</h3>
-        <button class="modal-close" onclick="closeModal()">&times;</button>
+        <button class="modal-close" onclick="closeModal()">Close</button>
       </div>
 
       <div class="modal-context-info" id="modal-context-info">
@@ -1283,14 +1282,14 @@
           <div class="area-state-controls">
             <button class="toggle-btn" id="toggle-glo-up" onclick="executeAction('glo_up')" title="GloUp: send area settings to GloZone">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="5" y1="14" x2="19" y2="14"/>
-                <polyline points="8 10 12 6 16 10"/>
+                <polyline points="5 13 12 6 19 13"/>
+                <line x1="4" y1="19" x2="20" y2="19"/>
               </svg>
             </button>
             <button class="toggle-btn" id="toggle-glo-down" onclick="executeAction('glo_down')" title="GloDown: pull GloZone settings to this area">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="5" y1="10" x2="19" y2="10"/>
-                <polyline points="8 14 12 18 16 14"/>
+                <line x1="4" y1="5" x2="20" y2="5"/>
+                <polyline points="5 11 12 18 19 11"/>
               </svg>
             </button>
           </div>
@@ -3123,16 +3122,16 @@
       // Bold B icon for boost
       const boostIconSvg = `<span style="font-weight:900; font-size:12px; font-family:serif; line-height:1;">B</span>`;
 
-      // GloDown icon (horizontal line + downward arrow — pull from zone)
+      // GloDown icon (chevron down + line on top — pull from zone)
       const resetIconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <line x1="5" y1="10" x2="19" y2="10"/>
-        <polyline points="8 14 12 18 16 14"/>
+        <line x1="4" y1="5" x2="20" y2="5"/>
+        <polyline points="5 11 12 18 19 11"/>
       </svg>`;
 
-      // GloUp icon (horizontal line + upward arrow — push to zone)
+      // GloUp icon (chevron up + line on bottom — push to zone)
       const pushIconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <line x1="5" y1="14" x2="19" y2="14"/>
-        <polyline points="8 10 12 6 16 10"/>
+        <polyline points="5 13 12 6 19 13"/>
+        <line x1="4" y1="19" x2="20" y2="19"/>
       </svg>`;
 
       const leftControls = `
