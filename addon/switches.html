@@ -442,7 +442,33 @@
 
     .modal-header-actions {
       display: flex;
-      gap: 8px;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .modal-header-actions .header-link {
+      background: none;
+      border: none;
+      font-size: 0.8rem;
+      cursor: pointer;
+      padding: 0;
+    }
+
+    .modal-header-actions .header-link-cancel {
+      color: var(--muted);
+    }
+
+    .modal-header-actions .header-link-cancel:hover {
+      color: var(--text);
+    }
+
+    .modal-header-actions .header-link-save {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .modal-header-actions .header-link-save:hover {
+      color: var(--accent-hover);
     }
 
     .modal-section {
@@ -691,14 +717,14 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 8px 0;
+      padding: 4px 0;
       background: transparent;
       border: none;
       color: var(--muted);
       font-size: 0.85rem;
       cursor: pointer;
       transition: all 0.2s;
-      margin-top: 8px;
+      margin-top: 4px;
     }
 
     .add-scope-btn:hover {
@@ -706,7 +732,8 @@
     }
 
     .magic-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-    .magic-row-label { font-size: 0.85rem; min-width: 140px; white-space: nowrap; }
+    .magic-row:last-child { margin-bottom: 0; }
+    .magic-row-label { font-size: 0.85rem; min-width: 140px; white-space: nowrap; color: var(--muted); }
     .magic-row select { flex: 1; padding: 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.9rem; }
     .magic-row-orphan { opacity: 0.45; }
     .magic-row-orphan .magic-row-label { font-style: italic; }
@@ -895,8 +922,8 @@
       <div class="modal-header">
         <h3 id="modal-title">Configure Control</h3>
         <div class="modal-header-actions">
-          <button class="btn btn-cancel" id="modal-cancel">Cancel</button>
-          <button class="btn btn-primary" id="modal-save">Save</button>
+          <button class="header-link header-link-cancel" id="modal-cancel">Cancel</button>
+          <button class="header-link header-link-save" id="modal-save">Save</button>
         </div>
       </div>
 
@@ -913,14 +940,14 @@
         </select>
       </div>
 
-      <div class="modal-section" id="switch-config-section">
+      <div class="modal-section" id="switch-config-section" style="margin-bottom: 0;">
         <div id="scopes-editor">
           <!-- Scope editors populated by JS -->
         </div>
         <button class="add-scope-btn" id="add-scope-btn">+ Add Reach</button>
       </div>
 
-      <div class="modal-section" id="motion-config-section" style="display: none;">
+      <div class="modal-section" id="motion-config-section" style="display: none; margin-bottom: 0;">
         <div id="motion-scopes-editor">
           <!-- Motion scope editors populated by JS -->
         </div>
@@ -930,9 +957,9 @@
       <div class="modal-settings-divider" id="settings-divider">
         <div class="modal-section" id="pause-section" style="display: none;">
           <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-            <input type="checkbox" id="control-pause-checkbox" style="width: 16px; height: 16px; accent-color: var(--accent);">
-            <span style="font-size: 0.9rem;">Pause</span>
+            <span style="font-size: 0.85rem; color: var(--muted);">Pause</span>
             <span class="info-icon">i<span class="info-tooltip">When paused, a control won't trigger actions</span></span>
+            <input type="checkbox" id="control-pause-checkbox" style="width: 16px; height: 16px; accent-color: var(--accent); margin-left: auto;">
           </label>
         </div>
 
@@ -949,8 +976,12 @@
         </div>
 
         <div class="modal-section" id="magic-section" style="display: none;">
-          <label class="modal-label">Magic Buttons</label>
-          <div id="magic-editor"></div>
+          <div class="scope-editor" style="margin-bottom: 0;">
+            <div class="scope-editor-header">
+              <span class="scope-editor-title">Magic Buttons</span>
+            </div>
+            <div id="magic-editor"></div>
+          </div>
         </div>
       </div>
 
