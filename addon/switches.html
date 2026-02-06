@@ -1206,7 +1206,7 @@
       const glozoneOptions = `<option value="all">All zones</option>` +
         allGlozones.map(z => `<option value="${z.id}" ${glozoneFilter === z.id ? 'selected' : ''}>${z.name}</option>`).join('');
 
-      const statusLabels = { 'active': 'Active', 'not_configured': 'Setup', 'unsupported': 'Request support' };
+      const statusLabels = { 'active': 'Active', 'not_configured': 'Setup', 'unsupported': 'Request' };
       const statusOptions = `<option value="all">All</option>` +
         statuses.map(s => `<option value="${s}" ${statusFilter === s ? 'selected' : ''}>${statusLabels[s] || s}</option>`).join('');
 
@@ -1310,7 +1310,7 @@
       } else if (ctrl.status === 'not_configured') {
         return '<span class="status-badge status-not-configured">Setup</span>';
       } else {
-        return '<span class="status-badge status-unsupported">Request support</span>';
+        return '<span class="status-badge status-unsupported">Request</span>';
       }
     }
 
