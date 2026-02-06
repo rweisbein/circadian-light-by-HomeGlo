@@ -481,25 +481,58 @@
       outline: 2px solid var(--accent);
     }
 
-    /* Style number input spinners to be more visible in modal */
+    /* Style number inputs in modal with visible increment/decrement */
     .modal input[type="number"] {
-      -moz-appearance: number-input;
+      -moz-appearance: textfield !important;
+      padding-right: 24px !important;
+      position: relative;
     }
 
     .modal input[type="number"]::-webkit-inner-spin-button,
     .modal input[type="number"]::-webkit-outer-spin-button {
-      -webkit-appearance: inner-spin-button;
-      opacity: 1;
-      width: 20px;
-      height: 100%;
-      cursor: pointer;
-      background: var(--line);
-      border-left: 1px solid var(--line);
+      -webkit-appearance: none !important;
+      appearance: none !important;
+      margin: 0;
     }
 
-    .modal input[type="number"]::-webkit-inner-spin-button:hover,
-    .modal input[type="number"]::-webkit-outer-spin-button:hover {
-      background: var(--muted2);
+    /* Custom spinner buttons via wrapper */
+    .number-input-wrap {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .number-input-wrap input[type="number"] {
+      padding-right: 8px;
+    }
+
+    .number-input-btns {
+      display: flex;
+      flex-direction: column;
+      margin-left: 4px;
+      gap: 2px;
+    }
+
+    .number-input-btns button {
+      width: 20px;
+      height: 14px;
+      padding: 0;
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      background: var(--panel);
+      color: var(--text);
+      font-size: 10px;
+      line-height: 1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .number-input-btns button:hover {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #000;
     }
 
     .modal-select {
@@ -1380,6 +1413,17 @@
       renderControls();
     }
 
+    function stepNumberInput(inputId, step) {
+      const input = document.getElementById(inputId);
+      if (!input) return;
+      const min = parseFloat(input.min) || -Infinity;
+      const max = parseFloat(input.max) || Infinity;
+      const currentVal = parseFloat(input.value) || 0;
+      const newVal = Math.min(max, Math.max(min, currentVal + step));
+      input.value = newVal;
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
     function clearFilters() {
       categoryFilter = 'all';
       areaFilter = 'all';
@@ -1896,8 +1940,14 @@
                 `).join('')}
               </select>
               <div style="display: ${showDuration ? 'flex' : 'none'}; align-items: center; gap: 6px;">
-                <input type="number" style="width: 60px;" value="${durationMinutes}" min="0.5" max="60" step="0.5"
-                  onchange="updateMotionScope(${idx}, 'duration', Math.round(parseFloat(this.value) * 60))">
+                <div class="number-input-wrap">
+                  <input type="number" id="duration-${idx}" style="width: 50px;" value="${durationMinutes}" min="0.5" max="60" step="0.5"
+                    onchange="updateMotionScope(${idx}, 'duration', Math.round(parseFloat(this.value) * 60))">
+                  <div class="number-input-btns">
+                    <button type="button" onclick="stepNumberInput('duration-${idx}', 0.5)">▲</button>
+                    <button type="button" onclick="stepNumberInput('duration-${idx}', -0.5)">▼</button>
+                  </div>
+                </div>
                 <span style="color: var(--muted); font-size: 0.85rem;">min</span>
               </div>
               <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
@@ -1907,8 +1957,14 @@
               </label>
               <div style="display: ${boostEnabled ? 'flex' : 'none'}; align-items: center; gap: 6px;">
                 <span style="color: var(--muted); font-size: 0.85rem;">+</span>
-                <input type="number" style="width: 55px;" value="${boostBrightness}" min="5" max="100" step="5"
-                  onchange="updateMotionScope(${idx}, 'boost_brightness', parseInt(this.value))">
+                <div class="number-input-wrap">
+                  <input type="number" id="boost-${idx}" style="width: 45px;" value="${boostBrightness}" min="5" max="100" step="5"
+                    onchange="updateMotionScope(${idx}, 'boost_brightness', parseInt(this.value))">
+                  <div class="number-input-btns">
+                    <button type="button" onclick="stepNumberInput('boost-${idx}', 5)">▲</button>
+                    <button type="button" onclick="stepNumberInput('boost-${idx}', -5)">▼</button>
+                  </div>
+                </div>
                 <span style="color: var(--muted); font-size: 0.85rem;">%</span>
               </div>
             </div>
@@ -1921,9 +1977,15 @@
               </select>
               <div style="display: ${showOffset ? 'flex' : 'none'}; align-items: center; gap: 6px;">
                 <span style="color: var(--muted); font-size: 0.85rem;">±</span>
-                <input type="number" style="width: 55px;" value="${activeOffset}"
-                  min="-120" max="120" step="5"
-                  onchange="updateMotionScope(${idx}, 'active_offset', parseInt(this.value))">
+                <div class="number-input-wrap">
+                  <input type="number" id="offset-${idx}" style="width: 45px;" value="${activeOffset}"
+                    min="-120" max="120" step="5"
+                    onchange="updateMotionScope(${idx}, 'active_offset', parseInt(this.value))">
+                  <div class="number-input-btns">
+                    <button type="button" onclick="stepNumberInput('offset-${idx}', 5)">▲</button>
+                    <button type="button" onclick="stepNumberInput('offset-${idx}', -5)">▼</button>
+                  </div>
+                </div>
                 <span style="color: var(--muted); font-size: 0.85rem;">min</span>
               </div>
             </div>
