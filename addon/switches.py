@@ -18,6 +18,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+import glozone
+
 logger = logging.getLogger(__name__)
 
 # =============================================================================
@@ -1375,7 +1377,19 @@ def get_all_switch_types() -> Dict[str, Dict[str, Any]]:
 
 
 def get_repeat_interval(switch_id: str) -> int:
-    """Get the repeat interval for hold actions (in ms)."""
+    """Get the repeat interval for hold actions (in ms).
+
+    Reads from global config setting (tenths of a second), falls back to
+    switch type default (300ms).
+    """
+    try:
+        raw_config = glozone.load_config_from_files()
+        tenths = raw_config.get("long_press_repeat_interval")
+        if tenths is not None:
+            return int(float(tenths) * 100)
+    except Exception:
+        pass
+    # Fall back to switch type default
     switch = _switches.get(switch_id)
     if switch:
         switch_type = SWITCH_TYPES.get(switch.type)

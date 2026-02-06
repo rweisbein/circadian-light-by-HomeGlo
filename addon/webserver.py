@@ -1084,6 +1084,7 @@ class LightDesignerServer:
         "reach_dip_percent",  # Percentage of current brightness to dip for reach feedback (default 50)
         "boost_default",  # Default boost percentage (10-100, default 30)
         "reach_learn_mode",  # Reach feedback uses single indicator light (default true)
+        "long_press_repeat_interval",  # Long-press repeat interval in tenths of seconds (default 3 = 300ms)
         "controls_ui",  # Controls page UI preferences (sort, filter)
         "areas_ui",  # Areas page UI preferences (sort, filter)
         "area_settings",  # Per-area settings (motion_function, motion_duration)

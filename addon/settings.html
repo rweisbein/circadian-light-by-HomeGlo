@@ -439,6 +439,17 @@
 
         <div class="form-row" style="margin-top: 20px;">
           <label class="form-label">
+            Long-press repeat interval
+            <span class="info-icon">i<span class="info-tooltip">How fast brightness changes when holding up/down buttons on a switch. Lower values = faster ramping.</span></span>
+          </label>
+          <div class="form-control">
+            <input type="number" class="form-input" id="long-press-repeat-interval" min="1" max="100" step="0.1" value="3" style="width: 80px;">
+            <span class="form-hint">tenths of a second</span>
+          </div>
+        </div>
+
+        <div class="form-row" style="margin-top: 20px;">
+          <label class="form-label">
             Reach adjustment learn mode
             <span class="info-icon">i<span class="info-tooltip">When enabled, all lights in the reach areas fade out and back so you can see which areas are included. When disabled, only a single indicator light flashes (1x/2x/3x for each reach level). Configure the indicator light per-switch in the Controls page.</span></span>
           </label>
@@ -657,6 +668,7 @@
           document.getElementById('two-step-delay').value = config.two_step_delay ?? 3;
           document.getElementById('multi-click-enabled').checked = config.multi_click_enabled ?? true;
           document.getElementById('multi-click-speed').value = config.multi_click_speed ?? 2;
+          document.getElementById('long-press-repeat-interval').value = config.long_press_repeat_interval ?? 3;
           document.getElementById('reach-learn-mode').checked = config.reach_learn_mode ?? true;
           document.getElementById('circadian-refresh').value = config.circadian_refresh ?? 30;
           document.getElementById('home-refresh-interval').value = config.home_refresh_interval ?? 10;
@@ -684,6 +696,7 @@
         two_step_delay: parseFloat(document.getElementById('two-step-delay').value) || 3,
         multi_click_enabled: document.getElementById('multi-click-enabled').checked,
         multi_click_speed: parseFloat(document.getElementById('multi-click-speed').value) || 2,
+        long_press_repeat_interval: parseFloat(document.getElementById('long-press-repeat-interval').value) || 3,
         reach_learn_mode: document.getElementById('reach-learn-mode').checked,
         circadian_refresh: parseInt(document.getElementById('circadian-refresh').value) || 30,
         home_refresh_interval: parseInt(document.getElementById('home-refresh-interval').value) || 10,
@@ -769,6 +782,7 @@
       saveSettings();
     });
     document.getElementById('multi-click-speed').addEventListener('blur', saveSettings);
+    document.getElementById('long-press-repeat-interval').addEventListener('blur', saveSettings);
     document.getElementById('reach-learn-mode').addEventListener('change', saveSettings);
     document.getElementById('circadian-refresh').addEventListener('blur', saveSettings);
     document.getElementById('home-refresh-interval').addEventListener('blur', saveSettings);
