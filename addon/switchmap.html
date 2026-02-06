@@ -491,6 +491,14 @@
       renderSwitchTypeSelect();
       renderSwitchVisual();
       renderMappings();
+
+      // Warn before leaving with unsaved changes
+      window.addEventListener('beforeunload', (e) => {
+        if (hasUnsavedChanges) {
+          e.preventDefault();
+          e.returnValue = '';
+        }
+      });
     });
 
     async function loadData() {
@@ -529,11 +537,23 @@
       `).join('');
 
       select.addEventListener('change', (e) => {
-        currentSwitchType = e.target.value;
+        const newType = e.target.value;
+
+        // Warn if there are unsaved changes
+        if (hasUnsavedChanges) {
+          if (!confirm('You have unsaved changes. Discard them?')) {
+            // Revert selection
+            e.target.value = currentSwitchType;
+            return;
+          }
+        }
+
+        currentSwitchType = newType;
         if (switchTypes[currentSwitchType]) {
           // Start with effective mapping (defaults + any existing custom)
           currentMappings = { ...switchTypes[currentSwitchType].effective_mapping };
         }
+        hasUnsavedChanges = false;
         renderSwitchVisual();
         renderMappings();
         checkForChanges();
@@ -774,6 +794,18 @@
 
         if (res.ok) {
           customMappings = allCustom;
+
+          // Update the switchTypes cache with new effective mapping
+          if (switchTypes[currentSwitchType]) {
+            const defaults = switchTypes[currentSwitchType].default_mapping || {};
+            const effective = { ...defaults };
+            if (allCustom[currentSwitchType]) {
+              Object.assign(effective, allCustom[currentSwitchType]);
+            }
+            switchTypes[currentSwitchType].effective_mapping = effective;
+            switchTypes[currentSwitchType].has_custom = !!allCustom[currentSwitchType];
+          }
+
           hasUnsavedChanges = false;
           document.getElementById('unsaved-indicator').classList.remove('visible');
           document.getElementById('save-btn').disabled = true;
