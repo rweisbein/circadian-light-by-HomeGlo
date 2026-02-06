@@ -974,7 +974,8 @@
           allGlozones = Object.entries(config.glozones || {}).map(([id, zone]) => ({
             id,
             name: zone.name || id,
-            areas: zone.areas || []
+            // Extract area IDs from area objects (areas can be {id, name} objects or plain strings)
+            areaIds: (zone.areas || []).map(a => typeof a === 'object' ? a.id : a).filter(Boolean)
           }));
         }
 
@@ -1036,15 +1037,9 @@
         // Glozone filter - check if control's area is in the selected glozone
         if (glozoneFilter !== 'all') {
           const zone = allGlozones.find(z => z.id === glozoneFilter);
-          if (zone && zone.areas && zone.areas.length > 0) {
-            // Check both area_id and area_name since glozone config may use either format
+          if (zone && zone.areaIds && zone.areaIds.length > 0) {
             const areaId = c.area_id || '';
-            const areaName = c.area_name || '';
-            const inZone = zone.areas.some(za =>
-              za === areaId || za === areaName ||
-              (za && areaId && za.toLowerCase() === areaId.toLowerCase()) ||
-              (za && areaName && za.toLowerCase() === areaName.toLowerCase())
-            );
+            const inZone = zone.areaIds.includes(areaId);
             if (!inZone) return false;
           }
         }
@@ -1110,13 +1105,14 @@
 
       const thClass = (col) => sortColumn === col ? 'sorted' : '';
 
-      // Filter indicator with clear button
+      // Filter indicator with clear button (orange X)
       const filterIndicator = (filterName, filterValue, clearFn) => {
         if (filterValue === 'all') return '';
         return `<span style="color: var(--accent); margin-left: 4px; cursor: pointer;" onclick="event.stopPropagation(); ${clearFn}">&times;</span>`;
       };
 
-      const filterActive = (filterValue) => filterValue !== 'all' ? 'color: var(--accent);' : '';
+      // Orange outline style for active filter dropdowns
+      const filterActiveStyle = (filterValue) => filterValue !== 'all' ? 'border-color: var(--accent);' : '';
 
       // Build filter select HTML
       const categoryOptions = `<option value="all">All</option>` +
@@ -1144,8 +1140,8 @@
               <th class="${thClass('name')}" onclick="sortBy('name')">${arrow('name')}Name</th>
               <th class="${thClass('pause')}">
                 <div class="th-with-filter">
-                  <div class="th-title-row" onclick="sortBy('pause')">${arrow('pause')}<span style="${filterActive(pauseFilter)}">Pause</span>${filterIndicator('pause', pauseFilter, "clearSingleFilter('pause')")}</div>
-                  <select class="header-filter" id="pause-filter" onclick="event.stopPropagation()">
+                  <div class="th-title-row" onclick="sortBy('pause')">${arrow('pause')}Pause${filterIndicator('pause', pauseFilter, "clearSingleFilter('pause')")}</div>
+                  <select class="header-filter" id="pause-filter" onclick="event.stopPropagation()" style="${filterActiveStyle(pauseFilter)}">
                     <option value="all">All</option>
                     <option value="paused" ${pauseFilter === 'paused' ? 'selected' : ''}>Paused</option>
                     <option value="live" ${pauseFilter === 'live' ? 'selected' : ''}>Live</option>
@@ -1154,21 +1150,21 @@
               </th>
               <th class="${thClass('category')}">
                 <div class="th-with-filter">
-                  <div class="th-title-row" onclick="sortBy('category')">${arrow('category')}<span style="${filterActive(categoryFilter)}">Category</span>${filterIndicator('category', categoryFilter, "clearSingleFilter('category')")}</div>
-                  <select class="header-filter" id="category-filter" onclick="event.stopPropagation()">${categoryOptions}</select>
+                  <div class="th-title-row" onclick="sortBy('category')">${arrow('category')}Category${filterIndicator('category', categoryFilter, "clearSingleFilter('category')")}</div>
+                  <select class="header-filter" id="category-filter" onclick="event.stopPropagation()" style="${filterActiveStyle(categoryFilter)}">${categoryOptions}</select>
                 </div>
               </th>
               <th class="${thClass('area')}">
                 <div class="th-with-filter">
-                  <div class="th-title-row" onclick="sortBy('area')">${arrow('area')}<span style="${filterActive(areaFilter)}${filterActive(glozoneFilter)}">Location</span>${filterIndicator('area', areaFilter, "clearSingleFilter('area')")}${filterIndicator('glozone', glozoneFilter, "clearSingleFilter('glozone')")}</div>
-                  <select class="header-filter" id="glozone-filter" onclick="event.stopPropagation()">${glozoneOptions}</select>
-                  <select class="header-filter" id="area-filter" onclick="event.stopPropagation()" style="margin-top: 4px;">${areaOptions}</select>
+                  <div class="th-title-row" onclick="sortBy('area')">${arrow('area')}Location${filterIndicator('area', areaFilter, "clearSingleFilter('area')")}${filterIndicator('glozone', glozoneFilter, "clearSingleFilter('glozone')")}</div>
+                  <select class="header-filter" id="glozone-filter" onclick="event.stopPropagation()" style="${filterActiveStyle(glozoneFilter)}">${glozoneOptions}</select>
+                  <select class="header-filter" id="area-filter" onclick="event.stopPropagation()" style="margin-top: 4px; ${filterActiveStyle(areaFilter)}">${areaOptions}</select>
                 </div>
               </th>
               <th class="${thClass('status')}">
                 <div class="th-with-filter">
-                  <div class="th-title-row" onclick="sortBy('status')">${arrow('status')}<span style="${filterActive(statusFilter)}">Status</span>${filterIndicator('status', statusFilter, "clearSingleFilter('status')")}</div>
-                  <select class="header-filter" id="status-filter" onclick="event.stopPropagation()">${statusOptions}</select>
+                  <div class="th-title-row" onclick="sortBy('status')">${arrow('status')}Status${filterIndicator('status', statusFilter, "clearSingleFilter('status')")}</div>
+                  <select class="header-filter" id="status-filter" onclick="event.stopPropagation()" style="${filterActiveStyle(statusFilter)}">${statusOptions}</select>
                 </div>
               </th>
               <th class="${thClass('lastAction')}" onclick="sortBy('lastAction')">${arrow('lastAction')}Last action</th>
