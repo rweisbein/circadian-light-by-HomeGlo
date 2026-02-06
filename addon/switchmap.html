@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Circadian Light - Button Mappings</title>
+  <title>Circadian Light - Design switches</title>
   <style>
     :root {
       --bg: #000;
@@ -257,23 +257,25 @@
       color: var(--muted);
     }
 
-    /* Action Grid */
-    .action-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
+    /* Action List (vertical layout) */
+    .action-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .action-row {
+      display: flex;
+      align-items: center;
       gap: 12px;
     }
 
-    .action-slot {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
     .action-label {
-      font-size: 0.75rem;
+      font-size: 0.85rem;
       color: var(--muted);
       font-weight: 500;
+      width: 40px;
+      flex-shrink: 0;
     }
 
     .action-select {
@@ -300,28 +302,21 @@
       color: var(--muted);
     }
 
-    /* When Off Row */
-    .when-off-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-top: 4px;
-    }
-
+    /* When Off (inline with action) */
     .when-off-label {
-      font-size: 0.7rem;
+      font-size: 0.75rem;
       color: var(--muted2);
       white-space: nowrap;
+      margin-left: 8px;
     }
 
     .when-off-select {
-      flex: 1;
-      padding: 4px 8px;
-      background: var(--bg);
+      padding: 8px 10px;
+      background: var(--panel);
       border: 1px solid var(--line);
-      border-radius: 4px;
+      border-radius: 6px;
       color: var(--text);
-      font-size: 0.75rem;
+      font-size: 0.85rem;
     }
 
     /* Status Messages */
@@ -422,7 +417,7 @@
     <div class="right-panel">
       <div class="panel-header">
         <div>
-          <span class="panel-title">Button Mappings</span>
+          <span class="panel-title">Design switches</span>
           <span class="unsaved-indicator" id="unsaved-indicator"></span>
         </div>
         <div class="header-actions">
@@ -444,7 +439,7 @@
   <script>
     // State
     let switchTypes = {};
-    let currentSwitchType = 'hue_4button_v2';
+    let currentSwitchType = 'hue_dimmer';
     let currentMappings = {};  // Current effective mappings (defaults + custom)
     let customMappings = {};   // Just the custom overrides
     let actionCategories = {};
@@ -467,7 +462,7 @@
       'arrow_right': '▶'
     };
 
-    // Action type labels (both Hue-style and IKEA-style naming)
+    // Action type labels
     const actionTypeLabels = {
       'short_release': '1×',
       'press': '1×',           // IKEA uses 'press' instead of 'short_release'
@@ -478,8 +473,29 @@
       'hold': 'Long'
     };
 
-    // Action types to show (in order), excluding release-type actions
-    const displayableActionTypes = ['short_release', 'press', 'double_press', 'triple_press', 'quadruple_press', 'quintuple_press', 'hold'];
+    // Get displayable action types for a switch, avoiding duplicates (prefer short_release over press)
+    function getDisplayableActionTypes(typeInfo) {
+      const supported = typeInfo.action_types || [];
+      const result = [];
+
+      // For 1x: prefer short_release, fall back to press
+      if (supported.includes('short_release')) {
+        result.push('short_release');
+      } else if (supported.includes('press')) {
+        result.push('press');
+      }
+
+      // Multi-press
+      if (supported.includes('double_press')) result.push('double_press');
+      if (supported.includes('triple_press')) result.push('triple_press');
+      if (supported.includes('quadruple_press')) result.push('quadruple_press');
+      if (supported.includes('quintuple_press')) result.push('quintuple_press');
+
+      // Hold
+      if (supported.includes('hold')) result.push('hold');
+
+      return result;
+    }
 
     // Initialize
     document.addEventListener('DOMContentLoaded', async () => {
@@ -594,13 +610,7 @@
       }
 
       const buttons = typeInfo.buttons || ['on', 'up', 'down', 'off'];
-
-      // Filter to only show relevant action types for this switch
-      // - Include action types the switch supports
-      // - Exclude release/long_release (they're just "stop" signals, not user actions)
-      const availableActionTypes = displayableActionTypes.filter(at =>
-        typeInfo.action_types?.includes(at)
-      );
+      const availableActionTypes = getDisplayableActionTypes(typeInfo);
 
       container.innerHTML = buttons.map(btn => {
         const isSelected = btn === selectedButton;
@@ -614,7 +624,7 @@
                 <span class="button-section-subtitle">${buttonLabels[btn] || btn}</span>
               </div>
             </div>
-            <div class="action-grid">
+            <div class="action-list">
               ${availableActionTypes.map(actionType => {
                 const eventKey = `${btn}_${actionType}`;
                 const mapping = currentMappings[eventKey];
@@ -633,7 +643,7 @@
                 const supportsWhenOff = isAdjustmentAction(actionValue);
 
                 return `
-                  <div class="action-slot">
+                  <div class="action-row">
                     <label class="action-label">${actionTypeLabels[actionType] || actionType}</label>
                     <select class="action-select"
                             onchange="updateMapping('${eventKey}', this.value)"
@@ -641,12 +651,10 @@
                       ${buildActionOptions(actionValue)}
                     </select>
                     ${supportsWhenOff ? `
-                      <div class="when-off-row">
-                        <span class="when-off-label">when off:</span>
-                        <select class="when-off-select" onchange="updateWhenOff('${eventKey}', this.value)">
-                          ${buildWhenOffOptions(whenOffValue)}
-                        </select>
-                      </div>
+                      <span class="when-off-label">when off:</span>
+                      <select class="when-off-select" onchange="updateWhenOff('${eventKey}', this.value)">
+                        ${buildWhenOffOptions(whenOffValue)}
+                      </select>
                     ` : ''}
                   </div>
                 `;

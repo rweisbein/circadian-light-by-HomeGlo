@@ -262,7 +262,7 @@ def get_categorized_actions() -> Dict[str, List[Dict[str, Any]]]:
         Dict of category name -> list of {id, label, supports_when_off} dicts
     """
     categories = {
-        "Adjust Lights": [
+        "Adjust areas in Reach": [
             {"id": "circadian_toggle", "label": "Toggle"},
             {"id": "circadian_on", "label": "On"},
             {"id": "circadian_off", "label": "Off"},
@@ -274,18 +274,17 @@ def get_categorized_actions() -> Dict[str, List[Dict[str, Any]]]:
             {"id": "color_down", "label": "Color Down", "supports_when_off": True},
             {"id": "set_britelite", "label": "BriteLite"},
             {"id": "set_nitelite", "label": "NiteLite"},
-            {"id": "set_wake", "label": "Wake"},
-            {"id": "set_bed", "label": "Bed"},
+            {"id": "set_wake", "label": "Wake / Bed"},
             {"id": "freeze_toggle", "label": "Freeze"},
-            {"id": "glo_reset", "label": "Reset to Rhythm"},
+            {"id": "glo_reset", "label": "Reset to Daily Rhythm"},
+            {"id": "glo_down", "label": "Reset to Glo Zone"},
         ],
-        "Zone": [
-            {"id": "glo_down", "label": "Pull from Zone"},
-            {"id": "full_send", "label": "Push to Zone + All"},
-            {"id": "glozone_reset_full", "label": "Reset Zone + All"},
+        "Glo Zone": [
+            {"id": "full_send", "label": "Push to whole Glo Zone"},
+            {"id": "glozone_reset_full", "label": "Reset whole Glo Zone"},
         ],
         "Switch": [
-            {"id": "cycle_scope", "label": "Cycle Reach"},
+            {"id": "cycle_scope", "label": "Advance to next Reach"},
         ],
         "Special": [
             {"id": None, "label": "No Action"},
@@ -382,20 +381,10 @@ _HUE_4BUTTON_MAPPING = {
 
 # Each type defines available buttons and default action mappings
 SWITCH_TYPES: Dict[str, Dict[str, Any]] = {
-    "hue_4button_v1": {
-        "name": "Hue 4-button v1",
+    "hue_dimmer": {
+        "name": "Hue Dimmer",
         "manufacturers": ["Philips", "Signify", "Signify Netherlands B.V."],
-        "models": ["RWL020"],
-        "buttons": ["on", "up", "down", "off"],
-        "action_types": ["press", "hold", "short_release", "long_release", "double_press", "triple_press", "quadruple_press", "quintuple_press"],
-        "default_mapping": _HUE_4BUTTON_MAPPING,
-        "repeat_on_hold": ["up_hold", "down_hold"],
-        "repeat_interval_ms": 300,
-    },
-    "hue_4button_v2": {
-        "name": "Hue 4-button v2",
-        "manufacturers": ["Philips", "Signify", "Signify Netherlands B.V."],
-        "models": ["RWL022"],
+        "models": ["RWL020", "RWL021", "RWL022"],  # v1, v1.5, v2
         "buttons": ["on", "up", "down", "off"],
         "action_types": ["press", "hold", "short_release", "long_release", "double_press", "triple_press", "quadruple_press", "quintuple_press"],
         "default_mapping": _HUE_4BUTTON_MAPPING,
