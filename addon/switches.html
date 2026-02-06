@@ -428,13 +428,53 @@
       overflow-y: auto;
     }
 
-    .modal h3 {
-      margin-bottom: 20px;
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .modal-header h3 {
+      margin: 0;
       font-size: 1.1rem;
+    }
+
+    .modal-header-actions {
+      display: flex;
+      gap: 8px;
     }
 
     .modal-section {
       margin-bottom: 20px;
+    }
+
+    .modal-settings-divider {
+      border-top: 1px solid var(--line);
+      margin: 20px 0 16px;
+      padding-top: 16px;
+    }
+
+    .modal-settings-divider .modal-section {
+      margin-bottom: 12px;
+    }
+
+    .modal-reset-footer {
+      margin-top: 16px;
+      text-align: left;
+    }
+
+    .modal-reset-link {
+      background: none;
+      border: none;
+      color: var(--muted2);
+      font-size: 0.75rem;
+      cursor: pointer;
+      padding: 0;
+    }
+
+    .modal-reset-link:hover {
+      color: var(--danger);
     }
 
     .modal-label {
@@ -665,16 +705,9 @@
       color: var(--accent);
     }
 
-    .modal-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 8px;
-      margin-top: 24px;
-    }
-
     .magic-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
     .magic-row-label { font-size: 0.85rem; min-width: 140px; white-space: nowrap; }
-    .magic-row select { flex: 1; }
+    .magic-row select { flex: 1; padding: 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.9rem; }
     .magic-row-orphan { opacity: 0.45; }
     .magic-row-orphan .magic-row-label { font-style: italic; }
     .magic-orphan-remove { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1rem; padding: 0 4px; }
@@ -859,9 +892,15 @@
   <!-- Edit Control Modal -->
   <div class="modal-overlay" id="modal-overlay">
     <div class="modal">
-      <h3 id="modal-title">Configure Control</h3>
+      <div class="modal-header">
+        <h3 id="modal-title">Configure Control</h3>
+        <div class="modal-header-actions">
+          <button class="btn btn-cancel" id="modal-cancel">Cancel</button>
+          <button class="btn btn-primary" id="modal-save">Save</button>
+        </div>
+      </div>
 
-      <div class="modal-section">
+      <div class="modal-section" style="margin-bottom: 12px;">
         <div id="device-info" style="font-size: 0.9rem; color: var(--muted); line-height: 1.6;">
           <!-- Populated by JS: Category, Type, Location -->
         </div>
@@ -872,31 +911,6 @@
         <select class="modal-select" id="control-type">
           <!-- Populated by JS -->
         </select>
-      </div>
-
-      <div class="modal-section" id="pause-section" style="display: none;">
-        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-          <input type="checkbox" id="control-pause-checkbox" style="width: 16px; height: 16px; accent-color: var(--accent);">
-          <span style="font-size: 0.9rem;">Pause</span>
-          <span class="info-icon">i<span class="info-tooltip">When paused, a control won't trigger actions</span></span>
-        </label>
-      </div>
-
-      <div class="modal-section" id="indicator-light-section" style="display: none;">
-        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-          <label class="modal-label" style="margin-bottom: 0;">Light for Feedback Cues</label>
-          <span class="info-icon">i<span class="info-tooltip">When Feedback Cue of 'subtle' is selected in Settings, this light will show the cue. For example, when a 'freeze' button is pressed on a switch, this light will perform a quick animation indicating the lights in the Reach of the switch are frozen.</span></span>
-          <a href="#" id="indicator-light-toggle" style="font-size: 0.75rem; color: var(--muted); margin-left: auto;" onclick="toggleIndicatorLightScope(); return false;">list all</a>
-        </div>
-        <select class="modal-select" id="indicator-light-select" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.9rem;">
-          <option value="">None</option>
-          <!-- Populated with lights -->
-        </select>
-      </div>
-
-      <div class="modal-section" id="magic-section" style="display: none;">
-        <label class="modal-label">Magic Buttons</label>
-        <div id="magic-editor"></div>
       </div>
 
       <div class="modal-section" id="switch-config-section">
@@ -913,10 +927,35 @@
         <button class="add-scope-btn" id="add-motion-scope-btn">+ Add Reach</button>
       </div>
 
-      <div class="modal-actions">
-        <button class="btn btn-danger" id="modal-remove-config" style="display: none; margin-right: auto;">Reset</button>
-        <button class="btn btn-cancel" id="modal-cancel">Cancel</button>
-        <button class="btn btn-primary" id="modal-save">Save</button>
+      <div class="modal-settings-divider" id="settings-divider">
+        <div class="modal-section" id="pause-section" style="display: none;">
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="control-pause-checkbox" style="width: 16px; height: 16px; accent-color: var(--accent);">
+            <span style="font-size: 0.9rem;">Pause</span>
+            <span class="info-icon">i<span class="info-tooltip">When paused, a control won't trigger actions</span></span>
+          </label>
+        </div>
+
+        <div class="modal-section" id="indicator-light-section" style="display: none;">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+            <label class="modal-label" style="margin-bottom: 0;">Light for Feedback Cues</label>
+            <span class="info-icon">i<span class="info-tooltip">When Feedback Cue of 'subtle' is selected in Settings, this light will show the cue. For example, when a 'freeze' button is pressed on a switch, this light will perform a quick animation indicating the lights in the Reach of the switch are frozen.</span></span>
+            <a href="#" id="indicator-light-toggle" style="font-size: 0.75rem; color: var(--muted); margin-left: auto;" onclick="toggleIndicatorLightScope(); return false;">list all</a>
+          </div>
+          <select class="modal-select" id="indicator-light-select" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.9rem;">
+            <option value="">None</option>
+            <!-- Populated with lights -->
+          </select>
+        </div>
+
+        <div class="modal-section" id="magic-section" style="display: none;">
+          <label class="modal-label">Magic Buttons</label>
+          <div id="magic-editor"></div>
+        </div>
+      </div>
+
+      <div class="modal-reset-footer" id="modal-reset-footer" style="display: none;">
+        <button class="modal-reset-link" id="modal-remove-config">Reset configuration</button>
       </div>
     </div>
   </div>
@@ -1848,7 +1887,7 @@
       // Set modal title: "Category: Control Name"
       const categoryLabel = formatCategory(ctrl.category);
       document.getElementById('modal-title').textContent = `${categoryLabel}: ${ctrl.name}`;
-      document.getElementById('modal-remove-config').style.display = isConfigured ? 'block' : 'none';
+      document.getElementById('modal-reset-footer').style.display = isConfigured ? 'block' : 'none';
 
       // Populate device info section
       const typeName = ctrl.type_name || ctrl.type || 'Unknown';
@@ -1987,7 +2026,7 @@
           momentName = allMoments[momentId]?.name || momentId;
         }
         html += `<div class="magic-row magic-row-orphan">
-          <span class="magic-row-label">${label} (not in current map)</span>
+          <span class="magic-row-label">${label} (no longer in switch design)</span>
           <span style="flex:1; font-size:0.85rem;">${momentName}</span>
           <button class="magic-orphan-remove" onclick="removeMagicOrphan('${key}')" title="Remove">✕</button>
         </div>`;
