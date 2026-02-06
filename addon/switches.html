@@ -1140,7 +1140,6 @@
         <table class="switches-table">
           <thead>
             <tr>
-              <th class="${thClass('name')}" onclick="sortBy('name')">${arrow('name')}Name</th>
               <th class="${thClass('pause')}">
                 <div class="th-with-filter">
                   <div class="th-title-row" onclick="sortBy('pause')">${arrow('pause')}Pause${filterIndicator('pause', pauseFilter, "clearSingleFilter('pause')")}</div>
@@ -1151,9 +1150,10 @@
                   </select>
                 </div>
               </th>
+              <th class="${thClass('name')}" onclick="sortBy('name')">${arrow('name')}Name</th>
               <th class="${thClass('category')}">
                 <div class="th-with-filter">
-                  <div class="th-title-row" onclick="sortBy('category')">${arrow('category')}Category${filterIndicator('category', categoryFilter, "clearSingleFilter('category')")}</div>
+                  <div class="th-title-row" onclick="sortBy('category')">${arrow('category')}Type${filterIndicator('category', categoryFilter, "clearSingleFilter('category')")}</div>
                   <select class="header-filter" id="category-filter" onclick="event.stopPropagation()" style="${filterActiveStyle(categoryFilter)}">${categoryOptions}</select>
                 </div>
               </th>
@@ -1203,8 +1203,8 @@
                 : '—';
               return `
                 <tr class="${rowClass}" ${rowClick}>
-                  <td><span class="switch-name-text">${ctrl.name}</span></td>
                   <td>${pauseCell}</td>
+                  <td><span class="switch-name-text">${ctrl.name}</span></td>
                   <td>${categoryLabel}</td>
                   <td>${areaName}</td>
                   <td>${statusBadge}</td>
