@@ -718,12 +718,10 @@
         mainAction = currentValue;
       }
 
-      // Set as object if when_off is specified, otherwise just the action
-      if (whenOffAction) {
-        currentMappings[eventKey] = { action: mainAction, when_off: whenOffAction };
-      } else {
-        currentMappings[eventKey] = mainAction;
-      }
+      // Always store as object for adjustment actions so we can distinguish
+      // "user chose No Action" (object with when_off: null) from
+      // "user never configured" (plain string)
+      currentMappings[eventKey] = { action: mainAction, when_off: whenOffAction };
 
       checkForChanges();
       renderMappings();

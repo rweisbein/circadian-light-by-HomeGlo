@@ -1211,19 +1211,27 @@ class HomeAssistantWebSocketClient:
         # Parse action - can be string or {action, when_off} object
         main_action = action
         when_off_action = None
+        user_configured_when_off = False  # True if user explicitly set when_off (even to null)
         if isinstance(action, dict):
             main_action = action.get("action")
             when_off_action = action.get("when_off")
+            user_configured_when_off = True  # User customized this mapping
 
         logger.info(f"Executing {main_action} on areas: {areas}" + (f" (when_off: {when_off_action})" if when_off_action else ""))
 
-        # Helper to execute when_off action or default to nitelite
+        # Helper to execute when_off action
+        # - If user configured when_off to an action: execute it
+        # - If user configured when_off to null (No Action): do nothing
+        # - If user never configured (plain string action): default to nitelite
         async def execute_when_off():
             if when_off_action:
                 logger.info(f"[switch] Lights off, executing when_off action: {when_off_action}")
                 await self._execute_switch_action(switch_id, when_off_action)
+            elif user_configured_when_off:
+                # User explicitly chose "No Action" - do nothing
+                logger.info(f"[switch] Lights off, when_off is No Action - doing nothing")
             else:
-                # Default fallback: nitelite
+                # Default fallback for uncustomized mappings: nitelite
                 logger.info(f"[switch] Lights off, defaulting to nitelite for areas: {areas}")
                 await asyncio.gather(*[self.primitives.set(area, "switch", preset="nitelite", is_on=True) for area in areas])
 
