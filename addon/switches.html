@@ -190,17 +190,14 @@
       color: var(--text);
     }
 
-    .switches-table th.sorted {
-      color: var(--accent);
-    }
-
     .switches-table th .sort-arrow {
-      margin-left: 6px;
+      margin-right: 4px;
       opacity: 0.5;
     }
 
     .switches-table th.sorted .sort-arrow {
       opacity: 1;
+      color: var(--accent);
     }
 
     .switches-table td {
@@ -213,19 +210,21 @@
       border-bottom: none;
     }
 
-    .switches-table tr:hover td {
+    .switches-table tr.clickable-row {
+      cursor: pointer;
       background: rgba(255, 255, 255, 0.02);
     }
 
-    .switch-name-link {
-      color: var(--accent);
-      text-decoration: none;
-      cursor: pointer;
-      font-weight: 500;
+    .switches-table tr.clickable-row:hover td {
+      background: rgba(255, 255, 255, 0.05);
     }
 
-    .switch-name-link:hover {
-      text-decoration: underline;
+    .switches-table tr:not(.clickable-row):hover td {
+      background: transparent;
+    }
+
+    .switch-name-text {
+      font-weight: 500;
     }
 
     /* Empty State */
@@ -456,14 +455,22 @@
       outline: 2px solid var(--accent);
     }
 
-    /* Hide number input spinners to prevent accidental value changes on click */
+    /* Style number input spinners to be more visible */
     .modal-input[type="number"]::-webkit-inner-spin-button,
     .modal-input[type="number"]::-webkit-outer-spin-button {
-      -webkit-appearance: none;
-      margin: 0;
+      -webkit-appearance: auto;
+      opacity: 1;
+      height: 24px;
+      cursor: pointer;
     }
-    .modal-input[type="number"] {
-      -moz-appearance: textfield;
+
+    /* Scope editor number inputs with visible spinners */
+    .scope-editor input[type="number"]::-webkit-inner-spin-button,
+    .scope-editor input[type="number"]::-webkit-outer-spin-button {
+      -webkit-appearance: auto;
+      opacity: 1;
+      height: 20px;
+      cursor: pointer;
     }
 
     .modal-select {
@@ -802,12 +809,12 @@
             style="display: none; position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.9rem; padding: 2px 4px;">&times;</button>
         </div>
         <div style="display: flex; align-items: center; gap: 16px;">
-          <a href="#" class="clear-filters-link" id="clear-filters-link" style="display: none;" onclick="clearFilters(); return false;">Clear filters</a>
           <div class="toolbar-menu">
             <button class="toolbar-menu-btn" onclick="toggleToolbarMenu(event)">&#8942;</button>
             <div class="toolbar-menu-dropdown" id="toolbar-menu-dropdown">
               <a href="./switchmap" class="toolbar-menu-item">Design switches</a>
               <a href="#" class="toolbar-menu-item" id="refresh-link" onclick="loadData(); toggleToolbarMenu(event); return false;">Refresh</a>
+              <a href="#" class="toolbar-menu-item" id="clear-filters-link" style="display: none;" onclick="clearFilters(); toggleToolbarMenu(event); return false;">Clear all filters</a>
             </div>
           </div>
         </div>
@@ -1038,10 +1045,19 @@
         if (pauseFilter === 'paused' && !c.inactive) return false;
         if (pauseFilter === 'live' && c.inactive) return false;
         // Glozone filter - check if control's area is in the selected glozone
-        // Check both area_id and area_name since glozone config may use either
         if (glozoneFilter !== 'all') {
           const zone = allGlozones.find(z => z.id === glozoneFilter);
-          if (zone && !zone.areas.includes(c.area_id) && !zone.areas.includes(c.area_name)) return false;
+          if (zone && zone.areas && zone.areas.length > 0) {
+            // Check both area_id and area_name since glozone config may use either format
+            const areaId = c.area_id || '';
+            const areaName = c.area_name || '';
+            const inZone = zone.areas.some(za =>
+              za === areaId || za === areaName ||
+              (za && areaId && za.toLowerCase() === areaId.toLowerCase()) ||
+              (za && areaName && za.toLowerCase() === areaName.toLowerCase())
+            );
+            if (!inZone) return false;
+          }
         }
         return true;
       });
@@ -1105,6 +1121,14 @@
 
       const thClass = (col) => sortColumn === col ? 'sorted' : '';
 
+      // Filter indicator with clear button
+      const filterIndicator = (filterName, filterValue, clearFn) => {
+        if (filterValue === 'all') return '';
+        return `<span style="color: var(--accent); margin-left: 4px; cursor: pointer;" onclick="event.stopPropagation(); ${clearFn}">&times;</span>`;
+      };
+
+      const filterActive = (filterValue) => filterValue !== 'all' ? 'color: var(--accent);' : '';
+
       // Build filter select HTML
       const categoryOptions = `<option value="all">All</option>` +
         categories.map(c => `<option value="${c}" ${categoryFilter === c ? 'selected' : ''}>${formatCategory(c)}</option>`).join('');
@@ -1113,10 +1137,10 @@
         (hasUnassigned ? `<option value="unassigned" ${areaFilter === 'unassigned' ? 'selected' : ''}>— Unassigned —</option>` : '') +
         areas.map(a => `<option value="${a}" ${areaFilter === a ? 'selected' : ''}>${a}</option>`).join('');
 
-      const glozoneOptions = `<option value="all">Zone</option>` +
+      const glozoneOptions = `<option value="all">All zones</option>` +
         allGlozones.map(z => `<option value="${z.id}" ${glozoneFilter === z.id ? 'selected' : ''}>${z.name}</option>`).join('');
 
-      const statusLabels = { 'active': 'Active', 'not_configured': 'Needs setup', 'unsupported': 'Coming soon' };
+      const statusLabels = { 'active': 'Active', 'not_configured': 'Setup', 'unsupported': 'Request support' };
       const statusOptions = `<option value="all">All</option>` +
         statuses.map(s => `<option value="${s}" ${statusFilter === s ? 'selected' : ''}>${statusLabels[s] || s}</option>`).join('');
 
@@ -1128,10 +1152,10 @@
         <table class="switches-table">
           <thead>
             <tr>
-              <th class="${thClass('name')}" onclick="sortBy('name')">Name ${arrow('name')}</th>
+              <th class="${thClass('name')}" onclick="sortBy('name')">${arrow('name')}Name</th>
               <th class="${thClass('pause')}">
                 <div class="th-with-filter">
-                  <div class="th-title-row" onclick="sortBy('pause')">Pause ${arrow('pause')}</div>
+                  <div class="th-title-row" onclick="sortBy('pause')">${arrow('pause')}<span style="${filterActive(pauseFilter)}">Pause</span>${filterIndicator('pause', pauseFilter, "clearSingleFilter('pause')")}</div>
                   <select class="header-filter" id="pause-filter" onclick="event.stopPropagation()">
                     <option value="all">All</option>
                     <option value="paused" ${pauseFilter === 'paused' ? 'selected' : ''}>Paused</option>
@@ -1141,25 +1165,25 @@
               </th>
               <th class="${thClass('category')}">
                 <div class="th-with-filter">
-                  <div class="th-title-row" onclick="sortBy('category')">Category ${arrow('category')}</div>
+                  <div class="th-title-row" onclick="sortBy('category')">${arrow('category')}<span style="${filterActive(categoryFilter)}">Category</span>${filterIndicator('category', categoryFilter, "clearSingleFilter('category')")}</div>
                   <select class="header-filter" id="category-filter" onclick="event.stopPropagation()">${categoryOptions}</select>
                 </div>
               </th>
               <th class="${thClass('area')}">
                 <div class="th-with-filter">
-                  <div class="th-title-row" onclick="sortBy('area')">Location ${arrow('area')}</div>
-                  <select class="header-filter" id="area-filter" onclick="event.stopPropagation()">${areaOptions}</select>
-                  <select class="header-filter" id="glozone-filter" onclick="event.stopPropagation()" style="margin-top: 4px;">${glozoneOptions}</select>
+                  <div class="th-title-row" onclick="sortBy('area')">${arrow('area')}<span style="${filterActive(areaFilter)}${filterActive(glozoneFilter)}">Location</span>${filterIndicator('area', areaFilter, "clearSingleFilter('area')")}${filterIndicator('glozone', glozoneFilter, "clearSingleFilter('glozone')")}</div>
+                  <select class="header-filter" id="glozone-filter" onclick="event.stopPropagation()">${glozoneOptions}</select>
+                  <select class="header-filter" id="area-filter" onclick="event.stopPropagation()" style="margin-top: 4px;">${areaOptions}</select>
                 </div>
               </th>
               <th class="${thClass('status')}">
                 <div class="th-with-filter">
-                  <div class="th-title-row" onclick="sortBy('status')">Status ${arrow('status')}</div>
+                  <div class="th-title-row" onclick="sortBy('status')">${arrow('status')}<span style="${filterActive(statusFilter)}">Status</span>${filterIndicator('status', statusFilter, "clearSingleFilter('status')")}</div>
                   <select class="header-filter" id="status-filter" onclick="event.stopPropagation()">${statusOptions}</select>
                 </div>
               </th>
-              <th class="${thClass('lastAction')}" onclick="sortBy('lastAction')">Last action ${arrow('lastAction')}</th>
-              <th class="${thClass('lux')}" onclick="sortBy('lux')">Lux ${arrow('lux')}</th>
+              <th class="${thClass('lastAction')}" onclick="sortBy('lastAction')">${arrow('lastAction')}Last action</th>
+              <th class="${thClass('lux')}" onclick="sortBy('lux')">${arrow('lux')}Lux</th>
             </tr>
           </thead>
           <tbody>
@@ -1176,13 +1200,13 @@
               const areaName = ctrl.area_name || '—';
               const statusBadge = getStatusBadge(ctrl);
               const lastAction = formatLastAction(ctrl);
-              const nameCell = ctrl.supported
-                ? `<a class="switch-name-link" onclick="editControl('${ctrl.id}')">${ctrl.name}</a>`
-                : `<span>${ctrl.name}</span>`;
+              const isClickable = ctrl.supported;
+              const rowClass = isClickable ? 'clickable-row' : '';
+              const rowClick = isClickable ? `onclick="editControl('${ctrl.id}')"` : '';
               // Show pause toggle for all configured controls
               const isPausable = (ctrl.status === 'active' || ctrl.status === 'inactive');
               const pauseCell = isPausable
-                ? `<label class="inactive-toggle" title="${ctrl.inactive ? 'Click to resume' : 'Click to pause'}">
+                ? `<label class="inactive-toggle" title="${ctrl.inactive ? 'Click to resume' : 'Click to pause'}" onclick="event.stopPropagation()">
                      <input type="checkbox" ${ctrl.inactive ? 'checked' : ''} onchange="toggleInactive('${ctrl.id}', '${ctrl.category}', this.checked)">
                    </label>`
                 : '';
@@ -1190,8 +1214,8 @@
                 ? `${ctrl.illuminance.value} lx`
                 : '—';
               return `
-                <tr>
-                  <td>${nameCell}</td>
+                <tr class="${rowClass}" ${rowClick}>
+                  <td><span class="switch-name-text">${ctrl.name}</span></td>
                   <td>${pauseCell}</td>
                   <td>${categoryLabel}</td>
                   <td>${areaName}</td>
@@ -1213,9 +1237,9 @@
         }
         return '<span class="status-badge status-active"><span class="status-check">✓</span> Active</span>';
       } else if (ctrl.status === 'not_configured') {
-        return '<span class="status-badge status-not-configured">Needs setup</span>';
+        return '<span class="status-badge status-not-configured">Setup</span>';
       } else {
-        return '<span class="status-badge status-unsupported">Coming soon</span>';
+        return '<span class="status-badge status-unsupported">Request support</span>';
       }
     }
 
@@ -1319,6 +1343,18 @@
       glozoneFilter = 'all';
       searchFilter = '';
       document.getElementById('search-input').value = '';
+      savePreferences();
+      renderControls();
+    }
+
+    function clearSingleFilter(filterName) {
+      switch (filterName) {
+        case 'category': categoryFilter = 'all'; break;
+        case 'area': areaFilter = 'all'; break;
+        case 'status': statusFilter = 'all'; break;
+        case 'pause': pauseFilter = 'all'; break;
+        case 'glozone': glozoneFilter = 'all'; break;
+      }
       savePreferences();
       renderControls();
     }
