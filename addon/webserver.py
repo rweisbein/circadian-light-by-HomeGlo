@@ -4011,6 +4011,7 @@ class LightDesignerServer:
                 else:
                     control_data["scopes"] = config.get("scopes", [])
                     control_data["indicator_light"] = config.get("indicator_light")
+                    control_data["magic_buttons"] = config.get("magic_buttons", {})
 
                 controls.append(control_data)
 
@@ -4365,6 +4366,7 @@ class LightDesignerServer:
                     name=name,
                     type=control_type,
                     scopes=scopes,
+                    magic_buttons=data.get("magic_buttons", {}),
                     device_id=device_id,
                     indicator_light=indicator_light,
                     inactive=data.get("inactive", False),
@@ -4432,7 +4434,7 @@ class LightDesignerServer:
                 name=name,
                 type=switch_type,
                 scopes=scopes,
-                button_overrides=data.get("button_overrides", {}),
+                magic_buttons=data.get("magic_buttons", {}),
                 device_id=data.get("device_id"),
             )
 
@@ -4486,8 +4488,8 @@ class LightDesignerServer:
             if not scopes:
                 scopes = [switches.SwitchScope(areas=[])]
 
-            # Update button overrides if provided
-            button_overrides = data.get("button_overrides", existing.button_overrides)
+            # Update magic buttons if provided
+            magic_buttons = data.get("magic_buttons", existing.magic_buttons)
 
             # Preserve device_id (or update if provided)
             device_id = data.get("device_id", existing.device_id)
@@ -4498,7 +4500,7 @@ class LightDesignerServer:
                 name=name,
                 type=switch_type,
                 scopes=scopes,
-                button_overrides=button_overrides,
+                magic_buttons=magic_buttons,
                 device_id=device_id,
             )
 
