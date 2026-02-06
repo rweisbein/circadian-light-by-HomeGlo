@@ -392,6 +392,32 @@
       border-color: var(--accent);
     }
 
+    /* Area sort toggle */
+    .area-sort-toggle {
+      display: flex;
+      gap: 4px;
+      font-size: 0.7rem;
+      margin-top: 4px;
+    }
+
+    .area-sort-option {
+      color: var(--muted2);
+      cursor: pointer;
+      transition: color 0.15s;
+    }
+
+    .area-sort-option:hover {
+      color: var(--text);
+    }
+
+    .area-sort-option.active {
+      color: var(--accent);
+    }
+
+    .area-sort-sep {
+      color: var(--muted2);
+    }
+
     /* Modal */
     .modal-overlay {
       position: fixed;
@@ -901,6 +927,8 @@
     let pauseFilter = 'all';
     let glozoneFilter = 'all';
     let searchFilter = '';
+    let areaSortMode = localStorage.getItem('controls_areaSortMode') || 'custom';  // 'custom' or 'az'
+    let customAreaOrder = {};  // area_id -> order index
 
     // Initialize
     document.addEventListener('DOMContentLoaded', async () => {
@@ -980,6 +1008,18 @@
             // Extract area IDs from area objects (areas can be {id, name} objects or plain strings)
             areaIds: (zone.areas || []).map(a => typeof a === 'object' ? a.id : a).filter(Boolean)
           }));
+
+          // Build custom area order from glozones (zone order, then area order within zone)
+          customAreaOrder = {};
+          let orderIndex = 0;
+          for (const [zoneId, zone] of Object.entries(config.glozones || {})) {
+            for (const area of (zone.areas || [])) {
+              const areaId = typeof area === 'object' ? area.id : area;
+              if (areaId && !(areaId in customAreaOrder)) {
+                customAreaOrder[areaId] = orderIndex++;
+              }
+            }
+          }
         }
 
         renderControls();
@@ -1064,8 +1104,14 @@
             valB = categoryOrder[b.category] ?? 99;
             break;
           case 'area':
-            valA = (a.area_name || '').toLowerCase();
-            valB = (b.area_name || '').toLowerCase();
+            if (areaSortMode === 'custom') {
+              // Use custom order from glozones (unassigned areas go to end)
+              valA = customAreaOrder[a.area_id] ?? 99999;
+              valB = customAreaOrder[b.area_id] ?? 99999;
+            } else {
+              valA = (a.area_name || '').toLowerCase();
+              valB = (b.area_name || '').toLowerCase();
+            }
             break;
           case 'status':
             valA = statusOrder[a.status] ?? 99;
@@ -1162,6 +1208,11 @@
                   <div class="th-title-row" onclick="sortBy('area')">${arrow('area')}Location${filterIndicator('area', areaFilter, "clearSingleFilter('area')")}${filterIndicator('glozone', glozoneFilter, "clearSingleFilter('glozone')")}</div>
                   <select class="header-filter" id="glozone-filter" onclick="event.stopPropagation()" style="${filterActiveStyle(glozoneFilter)}">${glozoneOptions}</select>
                   <select class="header-filter" id="area-filter" onclick="event.stopPropagation()" style="margin-top: 4px; ${filterActiveStyle(areaFilter)}">${areaOptions}</select>
+                  <div class="area-sort-toggle" onclick="event.stopPropagation()">
+                    <span class="area-sort-option ${areaSortMode === 'custom' ? 'active' : ''}" onclick="setAreaSortMode('custom')">Your order</span>
+                    <span class="area-sort-sep">|</span>
+                    <span class="area-sort-option ${areaSortMode === 'az' ? 'active' : ''}" onclick="setAreaSortMode('az')">A-Z</span>
+                  </div>
                 </div>
               </th>
               <th class="${thClass('status')}">
@@ -1320,6 +1371,12 @@
         sortAsc = true;
       }
       savePreferences();
+      renderControls();
+    }
+
+    function setAreaSortMode(mode) {
+      areaSortMode = mode;
+      localStorage.setItem('controls_areaSortMode', mode);
       renderControls();
     }
 

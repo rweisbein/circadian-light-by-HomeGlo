@@ -134,18 +134,6 @@
       background: rgba(254, 172, 96, 0.1);
     }
 
-    .switch-button.has-magic {
-      position: relative;
-    }
-
-    .switch-button.has-magic::after {
-      content: '★';
-      position: absolute;
-      top: 2px;
-      right: 4px;
-      font-size: 0.6rem;
-      color: var(--warning);
-    }
 
     .switch-type-select {
       width: 100%;
@@ -588,20 +576,12 @@
 
       const buttons = typeInfo.buttons || ['on', 'up', 'down', 'off'];
 
-      container.innerHTML = buttons.map(btn => {
-        // Check if this button has a magic action assigned
-        const hasMagic = Object.entries(currentMappings).some(([key, value]) => {
-          const [buttonName] = key.split('_');
-          return buttonName === btn && value === 'magic';
-        });
-
-        return `
-          <button class="switch-button ${btn === selectedButton ? 'selected' : ''} ${hasMagic ? 'has-magic' : ''}"
-                  onclick="selectButton('${btn}')">
-            ${buttonLabels[btn] || btn}
-          </button>
-        `;
-      }).join('');
+      container.innerHTML = buttons.map(btn => `
+        <button class="switch-button ${btn === selectedButton ? 'selected' : ''}"
+                onclick="selectButton('${btn}')">
+          ${buttonLabels[btn] || btn}
+        </button>
+      `).join('');
     }
 
     function selectButton(btn) {
