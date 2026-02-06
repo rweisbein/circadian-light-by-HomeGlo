@@ -175,7 +175,7 @@
 
     .switches-table th {
       text-align: left;
-      padding: 12px 16px;
+      padding: 12px 8px;
       background: var(--panel);
       border-bottom: 1px solid var(--line);
       font-weight: 600;
@@ -202,7 +202,7 @@
     }
 
     .switches-table td {
-      padding: 12px 16px;
+      padding: 12px 8px;
       border-bottom: 1px solid var(--line);
       font-size: 0.9rem;
     }
@@ -399,6 +399,14 @@
       align-items: center;
       gap: 6px;
       font-size: 0.8rem;
+    }
+
+    .area-sort-label {
+      color: var(--muted);
+    }
+
+    .area-sort-toggle.muted .area-sort-label {
+      color: var(--muted2);
     }
 
     .area-sort-toggle.muted .area-sort-option {
@@ -863,26 +871,27 @@
   <main class="main">
     <div class="page-header">
       <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px;">
-        <div style="position: relative; display: inline-block;">
-          <input type="text" id="search-input" placeholder="Search..."
-            style="padding: 6px 28px 6px 12px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 0.85rem; width: 160px;"
-            oninput="handleSearch(this.value)">
-          <button id="search-clear" onclick="clearSearch()"
-            style="display: none; position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.9rem; padding: 2px 4px;">&times;</button>
-        </div>
         <div style="display: flex; align-items: center; gap: 16px;">
+          <div style="position: relative; display: inline-block;">
+            <input type="text" id="search-input" placeholder="Search..."
+              style="padding: 6px 28px 6px 12px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 0.85rem; width: 160px;"
+              oninput="handleSearch(this.value)">
+            <button id="search-clear" onclick="clearSearch()"
+              style="display: none; position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.9rem; padding: 2px 4px;">&times;</button>
+          </div>
           <div class="area-sort-toggle" id="area-sort-toggle">
+            <span class="area-sort-label">Location sort:</span>
             <span class="area-sort-option" data-mode="custom" onclick="setAreaSortMode('custom')">Your order</span>
             <span class="area-sort-sep">|</span>
             <span class="area-sort-option" data-mode="az" onclick="setAreaSortMode('az')">A-Z</span>
           </div>
-          <div class="toolbar-menu">
-            <button class="toolbar-menu-btn" onclick="toggleToolbarMenu(event)">&#8942;</button>
-            <div class="toolbar-menu-dropdown" id="toolbar-menu-dropdown">
-              <a href="./switchmap" class="toolbar-menu-item">Design switches</a>
-              <a href="#" class="toolbar-menu-item" id="refresh-link" onclick="loadData(); toggleToolbarMenu(event); return false;">Refresh</a>
-              <a href="#" class="toolbar-menu-item" id="clear-filters-link" style="display: none;" onclick="clearFilters(); toggleToolbarMenu(event); return false;">Clear all filters</a>
-            </div>
+        </div>
+        <div class="toolbar-menu">
+          <button class="toolbar-menu-btn" onclick="toggleToolbarMenu(event)">&#8942;</button>
+          <div class="toolbar-menu-dropdown" id="toolbar-menu-dropdown">
+            <a href="./switchmap" class="toolbar-menu-item">Design switches</a>
+            <a href="#" class="toolbar-menu-item" id="refresh-link" onclick="loadData(); toggleToolbarMenu(event); return false;">Refresh</a>
+            <a href="#" class="toolbar-menu-item" id="clear-filters-link" style="display: none;" onclick="clearFilters(); toggleToolbarMenu(event); return false;">Clear all filters</a>
           </div>
         </div>
       </div>
@@ -1254,7 +1263,7 @@
                   <div class="th-title-row" onclick="sortBy('pause')">${arrow('pause')}Pause${filterIndicator('pause', pauseFilter, "clearSingleFilter('pause')")}</div>
                   <select class="header-filter" id="pause-filter" onclick="event.stopPropagation()" style="${filterActiveStyle(pauseFilter)}">
                     <option value="all">All</option>
-                    <option value="paused" ${pauseFilter === 'paused' ? 'selected' : ''}>Paused</option>
+                    <option value="paused" ${pauseFilter === 'paused' ? 'selected' : ''}>Pause</option>
                     <option value="live" ${pauseFilter === 'live' ? 'selected' : ''}>Live</option>
                   </select>
                 </div>
@@ -1308,7 +1317,7 @@
                    </label>`
                 : '';
               const luxCell = ctrl.illuminance && ctrl.illuminance.value != null
-                ? `${ctrl.illuminance.value} lx`
+                ? `${ctrl.illuminance.value}`
                 : '—';
               return `
                 <tr class="${rowClass}" ${rowClick}>
