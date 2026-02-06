@@ -263,9 +263,9 @@ def get_categorized_actions() -> Dict[str, List[Dict[str, Any]]]:
     """
     categories = {
         "Adjust areas in Reach": [
-            {"id": "circadian_toggle", "label": "Toggle"},
             {"id": "circadian_on", "label": "On"},
             {"id": "circadian_off", "label": "Off"},
+            {"id": "circadian_toggle", "label": "Toggle on/off"},
             {"id": "step_up", "label": "Step Up", "supports_when_off": True},
             {"id": "step_down", "label": "Step Down", "supports_when_off": True},
             {"id": "bright_up", "label": "Bright Up", "supports_when_off": True},
@@ -382,7 +382,7 @@ _HUE_4BUTTON_MAPPING = {
 # Each type defines available buttons and default action mappings
 SWITCH_TYPES: Dict[str, Dict[str, Any]] = {
     "hue_dimmer": {
-        "name": "Hue Dimmer",
+        "name": "Hue 4-button switch",
         "manufacturers": ["Philips", "Signify", "Signify Netherlands B.V."],
         "models": ["RWL020", "RWL021", "RWL022"],  # v1, v1.5, v2
         "buttons": ["on", "up", "down", "off"],

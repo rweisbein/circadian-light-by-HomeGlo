@@ -279,7 +279,9 @@
     }
 
     .action-select {
-      width: 100%;
+      flex: 1;
+      min-width: 0;
+      max-width: 280px;
       padding: 8px 10px;
       background: var(--panel);
       border: 1px solid var(--line);
@@ -311,6 +313,7 @@
     }
 
     .when-off-select {
+      max-width: 180px;
       padding: 8px 10px;
       background: var(--panel);
       border: 1px solid var(--line);
@@ -450,16 +453,22 @@
     // Button labels for display
     const buttonLabels = {
       // Hue 4-button
-      'on': 'I',
+      'on': '⏻',
       'up': '▲',
       'down': '▼',
-      'off': 'O',
+      'off': 'Hue',
       // IKEA Tradfri
       'toggle': '⏻',
       'brightness_up': '▲',
       'brightness_down': '▼',
       'arrow_left': '◀',
       'arrow_right': '▶'
+    };
+
+    // Button display names (for section headers)
+    const buttonNames = {
+      'on': 'Power',
+      'off': 'Hue Button',
     };
 
     // Action type labels
@@ -614,13 +623,13 @@
 
       container.innerHTML = buttons.map(btn => {
         const isSelected = btn === selectedButton;
-        const buttonName = btn.charAt(0).toUpperCase() + btn.slice(1);
+        const buttonName = buttonNames[btn] || btn.charAt(0).toUpperCase() + btn.slice(1);
 
         return `
           <div class="button-section ${isSelected ? 'selected' : ''}" onclick="selectButton('${btn}')">
             <div class="button-section-header">
               <div>
-                <span class="button-section-title">${buttonName} Button</span>
+                <span class="button-section-title">${buttonName}</span>
                 <span class="button-section-subtitle">${buttonLabels[btn] || btn}</span>
               </div>
             </div>
