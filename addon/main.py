@@ -773,7 +773,7 @@ class HomeAssistantWebSocketClient:
         # - Cluster 8 (Level Control) for UP/DOWN buttons
         # - Cluster 64512 (Hue proprietary) for ALL buttons with detailed info
         # We only want to handle cluster 64512 to avoid double-firing
-        if switch_config.type.startswith("hue_4button") and cluster_id in (5, 6, 8):
+        if switch_config.type in ("hue_dimmer", "hue_4button_v1", "hue_4button_v2") and cluster_id in (5, 6, 8):
             logger.debug(f"Ignoring cluster {cluster_id} event for Hue dimmer (will use cluster 64512)")
             return
 
