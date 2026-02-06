@@ -356,19 +356,19 @@ _HUE_4BUTTON_MAPPING = {
     "on_long_release": None,
     # Up button
     "up_short_release": {"action": "step_up", "when_off": "set_nitelite"},
-    "up_double_press": {"action": "color_up", "when_off": "set_nitelite"},
+    "up_double_press": {"action": "color_up", "when_off": None},
     "up_triple_press": "set_britelite",         # 3x
     "up_quadruple_press": None,                 # 4x - not used
     "up_quintuple_press": None,                 # 5x - not used
-    "up_hold": {"action": "bright_up", "when_off": "set_nitelite"},
+    "up_hold": {"action": "bright_up", "when_off": None},
     "up_long_release": None,
     # Down button
     "down_short_release": {"action": "step_down", "when_off": "set_nitelite"},
-    "down_double_press": {"action": "color_down", "when_off": "set_nitelite"},
+    "down_double_press": {"action": "color_down", "when_off": None},
     "down_triple_press": "set_nitelite",        # 3x
     "down_quadruple_press": None,               # 4x - not used
     "down_quintuple_press": None,               # 5x - not used
-    "down_hold": {"action": "bright_down", "when_off": "set_nitelite"},
+    "down_hold": {"action": "bright_down", "when_off": None},
     "down_long_release": None,
     # Hue button (bottom)
     "off_short_release": "cycle_scope",         # 1x - change controlled areas
@@ -411,15 +411,15 @@ SWITCH_TYPES: Dict[str, Dict[str, Any]] = {
         "default_mapping": {
             "toggle_press": "toggle",
             "brightness_up_press": {"action": "step_up", "when_off": "set_nitelite"},
-            "brightness_up_hold": {"action": "bright_up", "when_off": "set_nitelite"},
+            "brightness_up_hold": {"action": "bright_up", "when_off": None},
             "brightness_up_release": None,
             "brightness_down_press": "cycle_scope",
-            "brightness_down_hold": {"action": "bright_down", "when_off": "set_nitelite"},
+            "brightness_down_hold": {"action": "bright_down", "when_off": None},
             "brightness_down_release": None,
-            "arrow_left_press": {"action": "color_down", "when_off": "set_nitelite"},
-            "arrow_left_hold": {"action": "color_down", "when_off": "set_nitelite"},
-            "arrow_right_press": {"action": "color_up", "when_off": "set_nitelite"},
-            "arrow_right_hold": {"action": "color_up", "when_off": "set_nitelite"},
+            "arrow_left_press": {"action": "color_down", "when_off": None},
+            "arrow_left_hold": {"action": "color_down", "when_off": None},
+            "arrow_right_press": {"action": "color_up", "when_off": None},
+            "arrow_right_hold": {"action": "color_up", "when_off": None},
         },
         "repeat_on_hold": ["brightness_up_hold", "brightness_down_hold"],
         "repeat_interval_ms": 300,

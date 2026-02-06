@@ -291,10 +291,6 @@
       border-color: var(--accent);
     }
 
-    .when-off-select.has-when-off {
-      border-color: var(--warning);
-    }
-
     .action-select option {
       background: var(--panel);
     }
@@ -647,7 +643,7 @@
                     ${supportsWhenOff ? `
                       <div class="when-off-row">
                         <span class="when-off-label">when off:</span>
-                        <select class="when-off-select ${whenOffValue ? 'has-when-off' : ''}" onchange="updateWhenOff('${eventKey}', this.value)">
+                        <select class="when-off-select" onchange="updateWhenOff('${eventKey}', this.value)">
                           ${buildWhenOffOptions(whenOffValue)}
                         </select>
                       </div>
