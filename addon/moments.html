@@ -799,7 +799,7 @@
     const ACTION_OPTIONS = [
       { value: 'off', label: 'Off' },
       { value: 'nitelite', label: 'NiteLite' },
-      { value: 'circadian', label: 'Circadian' },
+      { value: 'circadian_off', label: 'Circadian off' },
       { value: 'leave_alone', label: 'Leave alone' }
     ];
 
@@ -996,17 +996,17 @@
       const defaultAction = moment.default_action || 'leave_alone';
 
       // Count actions
-      const counts = { off: 0, nitelite: 0, circadian: 0, leave_alone: 0 };
+      const counts = { off: 0, nitelite: 0, circadian_off: 0, leave_alone: 0 };
 
       allAreas.forEach(area => {
         const action = exceptions[area.area_id] || defaultAction;
-        counts[action]++;
+        if (action in counts) counts[action]++;
       });
 
       const parts = [];
       if (counts.off > 0) parts.push(`${counts.off} Off`);
       if (counts.nitelite > 0) parts.push(`${counts.nitelite} NiteLite`);
-      if (counts.circadian > 0) parts.push(`${counts.circadian} Circadian`);
+      if (counts.circadian_off > 0) parts.push(`${counts.circadian_off} Circadian off`);
       if (counts.leave_alone > 0) parts.push(`${counts.leave_alone} Skip`);
 
       return parts.join(', ');

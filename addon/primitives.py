@@ -288,9 +288,9 @@ class CircadianLightPrimitives:
             elif action == "nitelite":
                 # Use set with nitelite preset, turn on the lights
                 tasks.append(self.set(area_id, source, preset="nitelite", is_on=True))
-            elif action == "circadian":
-                # Reset to current time position, turn on
-                tasks.append(self.reset(area_id, source))
+            elif action == "circadian_off":
+                # Release circadian control (lights unchanged)
+                tasks.append(self.circadian_off(area_id, source))
 
         if tasks:
             await asyncio.gather(*tasks)

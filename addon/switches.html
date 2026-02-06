@@ -672,15 +672,6 @@
       margin-top: 24px;
     }
 
-    .magic-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-    .magic-row-label { font-size: 0.85rem; min-width: 140px; white-space: nowrap; }
-    .magic-row select { flex: 1; }
-    .magic-row-orphan { opacity: 0.45; }
-    .magic-row-orphan .magic-row-label { font-style: italic; }
-    .magic-orphan-remove { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1rem; padding: 0 4px; }
-    .magic-orphan-remove:hover { color: var(--danger); }
-    .magic-indicator { float: right; color: var(--accent); font-size: 0.7rem; opacity: 0.7; line-height: 1; }
-
     .info-text {
       color: var(--muted);
       font-size: 0.85rem;
@@ -894,11 +885,6 @@
         </select>
       </div>
 
-      <div class="modal-section" id="magic-section" style="display: none;">
-        <label class="modal-label">Magic Buttons</label>
-        <div id="magic-editor"></div>
-      </div>
-
       <div class="modal-section" id="switch-config-section">
         <div id="scopes-editor">
           <!-- Scope editors populated by JS -->
@@ -945,9 +931,6 @@
     let searchFilter = '';
     let areaSortMode = localStorage.getItem('controls_areaSortMode') || 'custom';  // 'custom' or 'az'
     let customAreaOrder = {};  // area_id -> order index
-    let switchMapData = {};  // Switch type mappings from /api/switchmap
-    let allMoments = {};     // All moments from /api/moments
-    let editingMagicButtons = {};  // Magic button assignments being edited
 
     // Initialize
     document.addEventListener('DOMContentLoaded', async () => {
@@ -1003,12 +986,10 @@
       try {
         // Add cache-busting timestamp to ensure fresh data from HA
         const cacheBust = `?_t=${Date.now()}`;
-        const [controlsRes, areasRes, configRes, switchmapRes, momentsRes] = await Promise.all([
+        const [controlsRes, areasRes, configRes] = await Promise.all([
           fetch(`./api/controls${cacheBust}`),
           fetch(`./api/areas${cacheBust}`),
-          fetch(`./api/config${cacheBust}`),
-          fetch(`./api/switchmap${cacheBust}`),
-          fetch(`./api/moments${cacheBust}`)
+          fetch(`./api/config${cacheBust}`)
         ]);
 
         if (controlsRes.ok) {
@@ -1041,16 +1022,6 @@
               }
             }
           }
-        }
-
-        if (switchmapRes.ok) {
-          const smData = await switchmapRes.json();
-          switchMapData = smData.mappings || {};
-        }
-
-        if (momentsRes.ok) {
-          const mData = await momentsRes.json();
-          allMoments = mData.moments || {};
         }
 
         renderControls();
@@ -1333,14 +1304,12 @@
                      <input type="checkbox" ${ctrl.inactive ? 'checked' : ''} onchange="toggleInactive('${ctrl.id}', '${ctrl.category}', this.checked)">
                    </label>`
                 : '';
-              const hasMagic = ctrl.magic_buttons && Object.keys(ctrl.magic_buttons).length > 0;
-              const magicIcon = hasMagic ? `<span class="magic-indicator" title="Has magic button assignments">✦</span>` : '';
               const luxCell = ctrl.illuminance && ctrl.illuminance.value != null
                 ? `${ctrl.illuminance.value}`
                 : '—';
               return `
                 <tr class="${rowClass}" ${rowClick}>
-                  <td>${pauseCell}${magicIcon}</td>
+                  <td>${pauseCell}</td>
                   <td><span class="switch-name-text">${ctrl.name}</span></td>
                   <td>${categoryLabel}</td>
                   <td>${areaName}</td>
@@ -1877,7 +1846,6 @@
         switchSection.style.display = 'none';
         motionSection.style.display = 'block';
         document.getElementById('indicator-light-section').style.display = 'none';
-        document.getElementById('magic-section').style.display = 'none';
         renderMotionScopesEditor();
       } else {
         // Type is now shown in device-info, hide the type section
@@ -1891,126 +1859,10 @@
         editingIndicatorLight = ctrl.indicator_light || '';
         loadIndicatorLights(ctrl.area_id, editingIndicatorLight);
 
-        // Load magic buttons and show section if switch type has magic slots
-        editingMagicButtons = { ...(ctrl.magic_buttons || {}) };
-        const magicSlots = getMagicSlots(ctrl.type);
-        const hasOrphans = Object.keys(editingMagicButtons).some(k => !magicSlots.includes(k));
-        const magicSection = document.getElementById('magic-section');
-        if (magicSlots.length > 0 || hasOrphans) {
-          magicSection.style.display = 'block';
-          renderMagicEditor();
-        } else {
-          magicSection.style.display = 'none';
-        }
-
         renderScopesEditor();
       }
 
       showModal();
-    }
-
-    // --- Magic Buttons helpers ---
-    const magicButtonNames = {
-      'on': 'Power', 'up': 'Up', 'down': 'Down', 'off': 'Hue',
-      'toggle': 'Toggle', 'brightness_up': 'Bright Up', 'brightness_down': 'Bright Down',
-      'arrow_left': 'Left', 'arrow_right': 'Right'
-    };
-    const magicActionLabels = {
-      'hold': 'Long press', 'short_release': 'Press', 'press': 'Press',
-      'double_press': '2× press', 'triple_press': '3× press',
-      'quadruple_press': '4× press', 'quintuple_press': '5× press'
-    };
-    // Known action suffixes, longest first so we match greedily
-    const knownActionSuffixes = [
-      'quintuple_press', 'quadruple_press', 'triple_press', 'double_press',
-      'short_release', 'press', 'hold'
-    ];
-
-    function formatMagicButtonEvent(key) {
-      // Parse button event key by matching known action suffixes from the end
-      for (const suffix of knownActionSuffixes) {
-        if (key.endsWith('_' + suffix)) {
-          const buttonPart = key.slice(0, key.length - suffix.length - 1);
-          const buttonLabel = magicButtonNames[buttonPart] || buttonPart;
-          const actionLabel = magicActionLabels[suffix] || suffix;
-          return `${buttonLabel} — ${actionLabel}`;
-        }
-      }
-      // Fallback: just format the key
-      return key.replace(/_/g, ' ');
-    }
-
-    function getMagicSlots(switchType) {
-      // Get button events mapped to "magic" in the effective mapping for this switch type
-      const typeData = switchMapData[switchType];
-      if (!typeData || !typeData.effective_mapping) return [];
-      return Object.entries(typeData.effective_mapping)
-        .filter(([_, action]) => action === 'magic')
-        .map(([key]) => key);
-    }
-
-    function renderMagicEditor() {
-      const container = document.getElementById('magic-editor');
-      const switchType = editingControl?.type;
-      const magicSlots = getMagicSlots(switchType);
-
-      // Find orphaned assignments (keys in editingMagicButtons not in active magic slots)
-      const orphanedKeys = Object.keys(editingMagicButtons).filter(k => !magicSlots.includes(k));
-
-      let html = '';
-
-      // Active magic slot rows
-      for (const slot of magicSlots) {
-        const currentValue = editingMagicButtons[slot] || '';
-        const label = formatMagicButtonEvent(slot);
-        html += `<div class="magic-row">
-          <span class="magic-row-label">${label}</span>
-          <select onchange="updateMagicButton('${slot}', this.value)">
-            <option value="">None</option>
-            ${Object.entries(allMoments).map(([id, m]) => {
-              const val = 'set_' + id;
-              const sel = currentValue === val ? ' selected' : '';
-              return `<option value="${val}"${sel}>${m.name || id}</option>`;
-            }).join('')}
-          </select>
-        </div>`;
-      }
-
-      // Orphaned assignment rows
-      for (const key of orphanedKeys) {
-        const label = formatMagicButtonEvent(key);
-        const momentAction = editingMagicButtons[key];
-        // Try to resolve moment name from the set_ prefix
-        let momentName = momentAction;
-        if (momentAction && momentAction.startsWith('set_')) {
-          const momentId = momentAction.slice(4);
-          momentName = allMoments[momentId]?.name || momentId;
-        }
-        html += `<div class="magic-row magic-row-orphan">
-          <span class="magic-row-label">${label} (not in current map)</span>
-          <span style="flex:1; font-size:0.85rem;">${momentName}</span>
-          <button class="magic-orphan-remove" onclick="removeMagicOrphan('${key}')" title="Remove">✕</button>
-        </div>`;
-      }
-
-      if (!html) {
-        html = '<div style="font-size:0.85rem; color:var(--muted);">No magic button slots available</div>';
-      }
-
-      container.innerHTML = html;
-    }
-
-    function updateMagicButton(slot, value) {
-      if (value) {
-        editingMagicButtons[slot] = value;
-      } else {
-        delete editingMagicButtons[slot];
-      }
-    }
-
-    function removeMagicOrphan(key) {
-      delete editingMagicButtons[key];
-      renderMagicEditor();
     }
 
     function renderScopesEditor() {
@@ -2275,7 +2127,6 @@
           scopes: editingScopes,
           device_id: editingDeviceId,
           indicator_light: indicatorLight || '',
-          magic_buttons: editingMagicButtons,
           inactive: inactive
         };
       }
