@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Circadian Light - Design switches</title>
+  <title>Circadian Light - Switch design</title>
   <style>
     :root {
       --bg: #000;
@@ -407,12 +407,13 @@
     <!-- Right Panel - Action Grid -->
     <div class="right-panel">
       <div class="panel-header">
-        <div>
-          <span class="panel-title">Design switches</span>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <a href="./switches" style="color: var(--muted); text-decoration: none; font-size: 1.1rem; line-height: 1;" title="Back to Controls">&larr;</a>
+          <span class="panel-title">Switch design</span>
           <span class="unsaved-indicator" id="unsaved-indicator"></span>
         </div>
         <div class="header-actions">
-          <button class="btn btn-secondary" onclick="resetToDefaults()">Reset to Defaults</button>
+          <button class="btn btn-secondary" onclick="resetToDefaults()">Reset</button>
           <button class="btn btn-primary" id="save-btn" onclick="saveMappings()" disabled>Save</button>
         </div>
       </div>

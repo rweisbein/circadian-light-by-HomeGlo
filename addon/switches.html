@@ -90,11 +90,11 @@
     .main {
       max-width: 900px;
       margin: 0 auto;
-      padding: 24px;
+      padding: 16px 24px;
     }
 
     .page-header {
-      margin-bottom: 24px;
+      margin-bottom: 8px;
     }
 
     .page-title {
@@ -386,6 +386,7 @@
       font-weight: normal;
       cursor: pointer;
       width: 100%;
+      height: 26px;
     }
 
     .header-filter:focus {
@@ -393,51 +394,6 @@
       border-color: var(--accent);
     }
 
-    /* Area sort toggle (in toolbar) */
-    .area-sort-toggle {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 0.8rem;
-    }
-
-    .area-sort-label {
-      color: var(--muted);
-    }
-
-    .area-sort-toggle.muted .area-sort-label {
-      color: var(--muted2);
-    }
-
-    .area-sort-toggle.muted .area-sort-option {
-      color: var(--muted2);
-    }
-
-    .area-sort-toggle.muted .area-sort-option.active {
-      color: var(--muted);
-    }
-
-    .area-sort-toggle.muted .area-sort-sep {
-      color: var(--muted2);
-    }
-
-    .area-sort-option {
-      color: var(--muted);
-      cursor: pointer;
-      transition: color 0.15s;
-    }
-
-    .area-sort-option:hover {
-      color: var(--text);
-    }
-
-    .area-sort-option.active {
-      color: var(--accent);
-    }
-
-    .area-sort-sep {
-      color: var(--muted2);
-    }
 
     /* Modal */
     .modal-overlay {
@@ -472,13 +428,79 @@
       overflow-y: auto;
     }
 
-    .modal h3 {
-      margin-bottom: 20px;
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .modal-header h3 {
+      margin: 0;
       font-size: 1.1rem;
+    }
+
+    .modal-header-actions {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .modal-header-actions .header-link {
+      background: none;
+      border: none;
+      font-size: 0.8rem;
+      cursor: pointer;
+      padding: 0;
+    }
+
+    .modal-header-actions .header-link-cancel {
+      color: var(--muted);
+    }
+
+    .modal-header-actions .header-link-cancel:hover {
+      color: var(--text);
+    }
+
+    .modal-header-actions .header-link-save {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .modal-header-actions .header-link-save:hover {
+      color: var(--accent-hover);
     }
 
     .modal-section {
       margin-bottom: 20px;
+    }
+
+    .modal-settings-divider {
+      border-top: 1px solid var(--line);
+      margin: 12px 0 0;
+      padding-top: 12px;
+    }
+
+    .modal-settings-divider .modal-section {
+      margin-bottom: 12px;
+    }
+
+    .modal-reset-footer {
+      margin-top: 16px;
+      text-align: right;
+    }
+
+    .modal-reset-link {
+      background: none;
+      border: none;
+      color: var(--muted2);
+      font-size: 0.75rem;
+      cursor: pointer;
+      padding: 0;
+    }
+
+    .modal-reset-link:hover {
+      color: var(--danger);
     }
 
     .modal-label {
@@ -573,7 +595,7 @@
     .scope-editor {
       border: 1px solid var(--line);
       border-radius: 8px;
-      margin-bottom: 12px;
+      margin-bottom: 8px;
       padding: 12px;
     }
 
@@ -695,26 +717,29 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 8px 0;
+      padding: 2px 0;
       background: transparent;
       border: none;
       color: var(--muted);
       font-size: 0.85rem;
       cursor: pointer;
       transition: all 0.2s;
-      margin-top: 8px;
+      margin-top: 0;
     }
 
     .add-scope-btn:hover {
       color: var(--accent);
     }
 
-    .modal-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 8px;
-      margin-top: 24px;
-    }
+    .magic-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .magic-row:last-child { margin-bottom: 0; }
+    .magic-row-label { font-size: 0.85rem; min-width: 140px; white-space: nowrap; color: var(--muted); }
+    .magic-row select { flex: 1; padding: 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.9rem; }
+    .magic-row-orphan { opacity: 0.45; }
+    .magic-row-orphan .magic-row-label { font-style: italic; }
+    .magic-orphan-remove { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1rem; padding: 0 4px; }
+    .magic-orphan-remove:hover { color: var(--danger); }
+    .magic-indicator { float: right; color: var(--accent); font-size: 0.7rem; opacity: 0.7; line-height: 1; }
 
     .info-text {
       color: var(--muted);
@@ -801,18 +826,19 @@
     }
 
     .toolbar-menu-btn {
-      background: transparent;
-      border: 1px solid var(--line);
-      color: var(--text);
-      font-size: 1.3rem;
-      padding: 4px 10px;
-      border-radius: 6px;
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 1.2rem;
+      padding: 4px 8px;
+      border-radius: 4px;
       cursor: pointer;
       line-height: 1;
       transition: all 0.2s;
     }
 
     .toolbar-menu-btn:hover {
+      color: var(--text);
       background: rgba(255, 255, 255, 0.05);
     }
 
@@ -828,6 +854,8 @@
       min-width: 140px;
       z-index: 50;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      overflow: hidden;
+      padding: 4px 0;
     }
 
     .toolbar-menu-dropdown.open {
@@ -870,28 +898,13 @@
   <!-- Main Content -->
   <main class="main">
     <div class="page-header">
-      <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px;">
-        <div style="display: flex; align-items: center; gap: 16px;">
-          <div style="position: relative; display: inline-block;">
-            <input type="text" id="search-input" placeholder="Search..."
-              style="padding: 6px 28px 6px 12px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 0.85rem; width: 160px;"
-              oninput="handleSearch(this.value)">
-            <button id="search-clear" onclick="clearSearch()"
-              style="display: none; position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.9rem; padding: 2px 4px;">&times;</button>
-          </div>
-          <div class="area-sort-toggle" id="area-sort-toggle">
-            <span class="area-sort-label">Location sort:</span>
-            <span class="area-sort-option" data-mode="custom" onclick="setAreaSortMode('custom')">Your order</span>
-            <span class="area-sort-sep">|</span>
-            <span class="area-sort-option" data-mode="az" onclick="setAreaSortMode('az')">A-Z</span>
-          </div>
-        </div>
+      <div style="display: flex; align-items: center; justify-content: flex-end; gap: 16px;">
         <div class="toolbar-menu">
           <button class="toolbar-menu-btn" onclick="toggleToolbarMenu(event)">&#8942;</button>
           <div class="toolbar-menu-dropdown" id="toolbar-menu-dropdown">
-            <a href="./switchmap" class="toolbar-menu-item">Design switches</a>
             <a href="#" class="toolbar-menu-item" id="refresh-link" onclick="loadData(); toggleToolbarMenu(event); return false;">Refresh</a>
-            <a href="#" class="toolbar-menu-item" id="clear-filters-link" style="display: none;" onclick="clearFilters(); toggleToolbarMenu(event); return false;">Clear all filters</a>
+            <a href="./switchmap" class="toolbar-menu-item">Switch design</a>
+            <a href="#" class="toolbar-menu-item" id="clear-filters-link" style="display: none; border-top: 1px solid var(--line); margin-top: 4px; padding-top: 14px;" onclick="clearFilters(); toggleToolbarMenu(event); return false;">Clear all filters</a>
           </div>
         </div>
       </div>
@@ -906,9 +919,15 @@
   <!-- Edit Control Modal -->
   <div class="modal-overlay" id="modal-overlay">
     <div class="modal">
-      <h3 id="modal-title">Configure Control</h3>
+      <div class="modal-header">
+        <h3 id="modal-title">Configure Control</h3>
+        <div class="modal-header-actions">
+          <button class="header-link header-link-cancel" id="modal-cancel">Cancel</button>
+          <button class="header-link header-link-save" id="modal-save">Save</button>
+        </div>
+      </div>
 
-      <div class="modal-section">
+      <div class="modal-section" style="margin-bottom: 12px;">
         <div id="device-info" style="font-size: 0.9rem; color: var(--muted); line-height: 1.6;">
           <!-- Populated by JS: Category, Type, Location -->
         </div>
@@ -921,44 +940,53 @@
         </select>
       </div>
 
-      <div class="modal-section" id="pause-section" style="display: none;">
-        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-          <input type="checkbox" id="control-pause-checkbox" style="width: 16px; height: 16px; accent-color: var(--accent);">
-          <span style="font-size: 0.9rem;">Pause</span>
-          <span class="info-icon">i<span class="info-tooltip">When paused, a control won't trigger actions</span></span>
-        </label>
-      </div>
-
-      <div class="modal-section" id="indicator-light-section" style="display: none;">
-        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-          <label class="modal-label" style="margin-bottom: 0;">Light for Feedback Cues</label>
-          <span class="info-icon">i<span class="info-tooltip">When Feedback Cue of 'subtle' is selected in Settings, this light will show the cue. For example, when a 'freeze' button is pressed on a switch, this light will perform a quick animation indicating the lights in the Reach of the switch are frozen.</span></span>
-          <a href="#" id="indicator-light-toggle" style="font-size: 0.75rem; color: var(--muted); margin-left: auto;" onclick="toggleIndicatorLightScope(); return false;">list all</a>
-        </div>
-        <select class="modal-select" id="indicator-light-select" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.9rem;">
-          <option value="">None</option>
-          <!-- Populated with lights -->
-        </select>
-      </div>
-
-      <div class="modal-section" id="switch-config-section">
+      <div class="modal-section" id="switch-config-section" style="margin-bottom: 0;">
         <div id="scopes-editor">
           <!-- Scope editors populated by JS -->
         </div>
         <button class="add-scope-btn" id="add-scope-btn">+ Add Reach</button>
       </div>
 
-      <div class="modal-section" id="motion-config-section" style="display: none;">
+      <div class="modal-section" id="motion-config-section" style="display: none; margin-bottom: 0;">
         <div id="motion-scopes-editor">
           <!-- Motion scope editors populated by JS -->
         </div>
         <button class="add-scope-btn" id="add-motion-scope-btn">+ Add Reach</button>
       </div>
 
-      <div class="modal-actions">
-        <button class="btn btn-danger" id="modal-remove-config" style="display: none; margin-right: auto;">Reset</button>
-        <button class="btn btn-cancel" id="modal-cancel">Cancel</button>
-        <button class="btn btn-primary" id="modal-save">Save</button>
+      <div class="modal-settings-divider" id="settings-divider">
+        <div class="modal-section" id="magic-section" style="display: none;">
+          <div class="scope-editor" style="margin-bottom: 0;">
+            <div class="scope-editor-header">
+              <span class="scope-editor-title">Magic Buttons</span>
+            </div>
+            <div id="magic-editor"></div>
+          </div>
+        </div>
+
+        <div class="modal-section" id="pause-section" style="display: none;">
+          <label style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer;">
+            <span style="font-size: 0.85rem; color: var(--muted);">Pause</span>
+            <span class="info-icon">i<span class="info-tooltip">When paused, a control won't trigger actions</span></span>
+            <input type="checkbox" id="control-pause-checkbox" style="width: 16px; height: 16px; accent-color: var(--accent);">
+          </label>
+        </div>
+
+        <div class="modal-section" id="indicator-light-section" style="display: none;">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+            <label class="modal-label" style="margin-bottom: 0;">Light for Feedback Cues</label>
+            <span class="info-icon">i<span class="info-tooltip">When Feedback Cue of 'subtle' is selected in Settings, this light will show the cue. For example, when a 'freeze' button is pressed on a switch, this light will perform a quick animation indicating the lights in the Reach of the switch are frozen.</span></span>
+            <a href="#" id="indicator-light-toggle" style="font-size: 0.75rem; color: var(--muted); margin-left: auto;" onclick="toggleIndicatorLightScope(); return false;">list all</a>
+          </div>
+          <select class="modal-select" id="indicator-light-select" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.9rem;">
+            <option value="">None</option>
+            <!-- Populated with lights -->
+          </select>
+        </div>
+      </div>
+
+      <div class="modal-reset-footer" id="modal-reset-footer" style="display: none;">
+        <button class="modal-reset-link" id="modal-remove-config">Reset</button>
       </div>
     </div>
   </div>
@@ -987,6 +1015,9 @@
     let searchFilter = '';
     let areaSortMode = localStorage.getItem('controls_areaSortMode') || 'custom';  // 'custom' or 'az'
     let customAreaOrder = {};  // area_id -> order index
+    let switchMapData = {};  // Switch type mappings from /api/switchmap
+    let allMoments = {};     // All moments from /api/moments
+    let editingMagicButtons = {};  // Magic button assignments being edited
 
     // Initialize
     document.addEventListener('DOMContentLoaded', async () => {
@@ -1042,10 +1073,12 @@
       try {
         // Add cache-busting timestamp to ensure fresh data from HA
         const cacheBust = `?_t=${Date.now()}`;
-        const [controlsRes, areasRes, configRes] = await Promise.all([
+        const [controlsRes, areasRes, configRes, switchmapRes, momentsRes] = await Promise.all([
           fetch(`./api/controls${cacheBust}`),
           fetch(`./api/areas${cacheBust}`),
-          fetch(`./api/config${cacheBust}`)
+          fetch(`./api/config${cacheBust}`),
+          fetch(`./api/switchmap${cacheBust}`),
+          fetch(`./api/moments${cacheBust}`)
         ]);
 
         if (controlsRes.ok) {
@@ -1078,6 +1111,16 @@
               }
             }
           }
+        }
+
+        if (switchmapRes.ok) {
+          const smData = await switchmapRes.json();
+          switchMapData = smData.mappings || {};
+        }
+
+        if (momentsRes.ok) {
+          const mData = await momentsRes.json();
+          allMoments = mData.moments || {};
         }
 
         renderControls();
@@ -1134,7 +1177,7 @@
         if (areaFilter !== 'all' && areaFilter !== 'unassigned' && c.area_name !== areaFilter) return false;
         if (statusFilter !== 'all' && c.status !== statusFilter) return false;
         if (pauseFilter === 'paused' && !c.inactive) return false;
-        if (pauseFilter === 'live' && c.inactive) return false;
+        if (pauseFilter === 'live' && (c.inactive || (c.status !== 'active' && c.status !== 'inactive'))) return false;
         // Glozone filter - check if control's area is in the selected glozone
         if (glozoneFilter !== 'all') {
           const zone = allGlozones.find(z => z.id === glozoneFilter);
@@ -1226,6 +1269,37 @@
 
       const thClass = (col) => sortColumn === col ? 'sorted' : '';
 
+      // Location column has two arrows: left (A-Z) and right (custom order)
+      const locationArrows = (() => {
+        const isPrimary = sortColumn === 'area';
+        const isCustom = areaSortMode === 'custom';
+        // Left arrow: A-Z alphabetical sort
+        let leftArrow, leftStyle;
+        if (isPrimary && !isCustom) {
+          leftArrow = sortAsc ? '↑' : '↓';
+          leftStyle = 'opacity:1; color:var(--accent);';
+        } else if (!isPrimary && !isCustom) {
+          leftArrow = '↑';
+          leftStyle = 'opacity:0.7;';
+        } else {
+          leftArrow = '↕';
+          leftStyle = 'opacity:0.5;';
+        }
+        // Right arrow: custom area order sort
+        let rightArrow, rightStyle;
+        if (isPrimary && isCustom) {
+          rightArrow = sortAsc ? '↑' : '↓';
+          rightStyle = 'opacity:1; color:var(--accent);';
+        } else if (!isPrimary && isCustom) {
+          rightArrow = '↑';
+          rightStyle = 'opacity:0.7;';
+        } else {
+          rightArrow = '↕';
+          rightStyle = 'opacity:0.5;';
+        }
+        return { leftArrow, leftStyle, rightArrow, rightStyle };
+      })();
+
       // Filter indicator with clear button (orange X)
       const filterIndicator = (filterName, filterValue, clearFn) => {
         if (filterValue === 'all') return '';
@@ -1268,7 +1342,18 @@
                   </select>
                 </div>
               </th>
-              <th class="${thClass('name')}" onclick="sortBy('name')">${arrow('name')}Name</th>
+              <th class="${thClass('name')}">
+                <div class="th-with-filter">
+                  <div class="th-title-row" onclick="sortBy('name')">${arrow('name')}Name</div>
+                  <div style="position: relative;">
+                    <input type="text" id="search-input" class="header-filter" placeholder="Search..."
+                      value="${searchFilter}" oninput="handleSearch(this.value)" onclick="event.stopPropagation()"
+                      style="${searchFilter ? 'border-color: var(--accent);' : ''}">
+                    <button id="search-clear" onclick="event.stopPropagation(); clearSearch()"
+                      style="display: ${searchFilter ? 'block' : 'none'}; position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--accent); cursor: pointer; font-size: 0.9rem; padding: 2px 4px;">&times;</button>
+                  </div>
+                </div>
+              </th>
               <th class="${thClass('category')}">
                 <div class="th-with-filter">
                   <div class="th-title-row" onclick="sortBy('category')">${arrow('category')}Type${filterIndicator('category', categoryFilter, "clearSingleFilter('category')")}</div>
@@ -1277,7 +1362,9 @@
               </th>
               <th class="${thClass('area')}">
                 <div class="th-with-filter">
-                  <div class="th-title-row" onclick="sortBy('area')">${arrow('area')}Location${filterIndicator('area', areaFilter, "clearSingleFilter('area')")}${filterIndicator('glozone', glozoneFilter, "clearSingleFilter('glozone')")}</div>
+                  <div class="th-title-row">
+                    <span style="${locationArrows.leftStyle} cursor:pointer; margin-right:4px;" onclick="event.stopPropagation(); sortLocationAZ()" title="Sort location alphabetically">${locationArrows.leftArrow}</span><span onclick="sortLocationAZ()" style="cursor:pointer;" title="Sort location alphabetically">Location</span>${filterIndicator('area', areaFilter, "clearSingleFilter('area')")}${filterIndicator('glozone', glozoneFilter, "clearSingleFilter('glozone')")}<span style="${locationArrows.rightStyle} cursor:pointer; margin-left:4px;" onclick="event.stopPropagation(); sortLocationCustom()" title="Sort location by your custom area sort order">${locationArrows.rightArrow}</span>
+                  </div>
                   <select class="header-filter" id="glozone-filter" onclick="event.stopPropagation()" style="${filterActiveStyle(glozoneFilter)}">${glozoneOptions}</select>
                   <select class="header-filter" id="area-filter" onclick="event.stopPropagation()" style="margin-top: 4px; ${filterActiveStyle(areaFilter)}">${areaOptions}</select>
                 </div>
@@ -1316,12 +1403,14 @@
                      <input type="checkbox" ${ctrl.inactive ? 'checked' : ''} onchange="toggleInactive('${ctrl.id}', '${ctrl.category}', this.checked)">
                    </label>`
                 : '';
+              const hasMagic = ctrl.magic_buttons && Object.keys(ctrl.magic_buttons).length > 0;
+              const magicIcon = hasMagic ? `<span class="magic-indicator" title="Has magic button assignments">✦</span>` : '';
               const luxCell = ctrl.illuminance && ctrl.illuminance.value != null
                 ? `${ctrl.illuminance.value}`
                 : '—';
               return `
                 <tr class="${rowClass}" ${rowClick}>
-                  <td>${pauseCell}</td>
+                  <td>${pauseCell}${magicIcon}</td>
                   <td><span class="switch-name-text">${ctrl.name}</span></td>
                   <td>${categoryLabel}</td>
                   <td>${areaName}</td>
@@ -1335,8 +1424,6 @@
         </table>
       `;
 
-      // Update the area sort toggle styling
-      updateAreaSortToggle();
     }
 
     function getStatusBadge(ctrl) {
@@ -1348,7 +1435,9 @@
       } else if (ctrl.status === 'not_configured') {
         return '<span class="status-badge status-not-configured">Setup</span>';
       } else {
-        return '<span class="status-badge status-unsupported">Request</span>';
+        const typeName = ctrl.type_name || ctrl.type || 'Unknown';
+        const subject = encodeURIComponent(`Circadian Light support request for ${typeName}`);
+        return `<a href="mailto:hello@home-glo.com?subject=${subject}" onclick="event.stopPropagation()" style="text-decoration: none;"><span class="status-badge status-unsupported">Request</span></a>`;
       }
     }
 
@@ -1444,32 +1533,30 @@
       renderControls();
     }
 
-    function setAreaSortMode(mode) {
-      areaSortMode = mode;
-      localStorage.setItem('controls_areaSortMode', mode);
-      updateAreaSortToggle();
+    function sortLocationAZ() {
+      if (sortColumn === 'area' && areaSortMode === 'az') {
+        sortAsc = !sortAsc;
+      } else {
+        areaSortMode = 'az';
+        sortColumn = 'area';
+        sortAsc = true;
+      }
+      localStorage.setItem('controls_areaSortMode', areaSortMode);
+      savePreferences();
       renderControls();
     }
 
-    function updateAreaSortToggle() {
-      const toggle = document.getElementById('area-sort-toggle');
-      if (!toggle) return;
-
-      // Muted when not sorting by area
-      if (sortColumn === 'area') {
-        toggle.classList.remove('muted');
+    function sortLocationCustom() {
+      if (sortColumn === 'area' && areaSortMode === 'custom') {
+        sortAsc = !sortAsc;
       } else {
-        toggle.classList.add('muted');
+        areaSortMode = 'custom';
+        sortColumn = 'area';
+        sortAsc = true;
       }
-
-      // Update active state
-      toggle.querySelectorAll('.area-sort-option').forEach(opt => {
-        if (opt.dataset.mode === areaSortMode) {
-          opt.classList.add('active');
-        } else {
-          opt.classList.remove('active');
-        }
-      });
+      localStorage.setItem('controls_areaSortMode', areaSortMode);
+      savePreferences();
+      renderControls();
     }
 
     function stepNumberInput(inputId, step) {
@@ -1490,7 +1577,6 @@
       pauseFilter = 'all';
       glozoneFilter = 'all';
       searchFilter = '';
-      document.getElementById('search-input').value = '';
       savePreferences();
       renderControls();
     }
@@ -1509,14 +1595,17 @@
 
     function handleSearch(value) {
       searchFilter = value;
-      document.getElementById('search-clear').style.display = value ? 'block' : 'none';
       renderControls();
+      // Re-focus the search input after re-render and restore cursor position
+      const input = document.getElementById('search-input');
+      if (input) {
+        input.focus();
+        input.setSelectionRange(value.length, value.length);
+      }
     }
 
     function clearSearch() {
       searchFilter = '';
-      document.getElementById('search-input').value = '';
-      document.getElementById('search-clear').style.display = 'none';
       renderControls();
     }
 
@@ -1829,7 +1918,7 @@
       // Set modal title: "Category: Control Name"
       const categoryLabel = formatCategory(ctrl.category);
       document.getElementById('modal-title').textContent = `${categoryLabel}: ${ctrl.name}`;
-      document.getElementById('modal-remove-config').style.display = isConfigured ? 'block' : 'none';
+      document.getElementById('modal-reset-footer').style.display = isConfigured ? 'block' : 'none';
 
       // Populate device info section
       const typeName = ctrl.type_name || ctrl.type || 'Unknown';
@@ -1858,6 +1947,7 @@
         switchSection.style.display = 'none';
         motionSection.style.display = 'block';
         document.getElementById('indicator-light-section').style.display = 'none';
+        document.getElementById('magic-section').style.display = 'none';
         renderMotionScopesEditor();
       } else {
         // Type is now shown in device-info, hide the type section
@@ -1871,10 +1961,126 @@
         editingIndicatorLight = ctrl.indicator_light || '';
         loadIndicatorLights(ctrl.area_id, editingIndicatorLight);
 
+        // Load magic buttons and show section if switch type has magic slots
+        editingMagicButtons = { ...(ctrl.magic_buttons || {}) };
+        const magicSlots = getMagicSlots(ctrl.type);
+        const hasOrphans = Object.keys(editingMagicButtons).some(k => !magicSlots.includes(k));
+        const magicSection = document.getElementById('magic-section');
+        if (magicSlots.length > 0 || hasOrphans) {
+          magicSection.style.display = 'block';
+          renderMagicEditor();
+        } else {
+          magicSection.style.display = 'none';
+        }
+
         renderScopesEditor();
       }
 
       showModal();
+    }
+
+    // --- Magic Buttons helpers ---
+    const magicButtonNames = {
+      'on': 'Power', 'up': 'Up', 'down': 'Down', 'off': 'Hue',
+      'toggle': 'Toggle', 'brightness_up': 'Bright Up', 'brightness_down': 'Bright Down',
+      'arrow_left': 'Left', 'arrow_right': 'Right'
+    };
+    const magicActionLabels = {
+      'hold': 'Long press', 'short_release': 'Press', 'press': 'Press',
+      'double_press': '2× press', 'triple_press': '3× press',
+      'quadruple_press': '4× press', 'quintuple_press': '5× press'
+    };
+    // Known action suffixes, longest first so we match greedily
+    const knownActionSuffixes = [
+      'quintuple_press', 'quadruple_press', 'triple_press', 'double_press',
+      'short_release', 'press', 'hold'
+    ];
+
+    function formatMagicButtonEvent(key) {
+      // Parse button event key by matching known action suffixes from the end
+      for (const suffix of knownActionSuffixes) {
+        if (key.endsWith('_' + suffix)) {
+          const buttonPart = key.slice(0, key.length - suffix.length - 1);
+          const buttonLabel = magicButtonNames[buttonPart] || buttonPart;
+          const actionLabel = magicActionLabels[suffix] || suffix;
+          return `${buttonLabel} — ${actionLabel}`;
+        }
+      }
+      // Fallback: just format the key
+      return key.replace(/_/g, ' ');
+    }
+
+    function getMagicSlots(switchType) {
+      // Get button events mapped to "magic" in the effective mapping for this switch type
+      const typeData = switchMapData[switchType];
+      if (!typeData || !typeData.effective_mapping) return [];
+      return Object.entries(typeData.effective_mapping)
+        .filter(([_, action]) => action === 'magic')
+        .map(([key]) => key);
+    }
+
+    function renderMagicEditor() {
+      const container = document.getElementById('magic-editor');
+      const switchType = editingControl?.type;
+      const magicSlots = getMagicSlots(switchType);
+
+      // Find orphaned assignments (keys in editingMagicButtons not in active magic slots)
+      const orphanedKeys = Object.keys(editingMagicButtons).filter(k => !magicSlots.includes(k));
+
+      let html = '';
+
+      // Active magic slot rows
+      for (const slot of magicSlots) {
+        const currentValue = editingMagicButtons[slot] || '';
+        const label = formatMagicButtonEvent(slot);
+        html += `<div class="magic-row">
+          <span class="magic-row-label">${label}</span>
+          <select onchange="updateMagicButton('${slot}', this.value)">
+            <option value="">None</option>
+            ${Object.entries(allMoments).map(([id, m]) => {
+              const val = 'set_' + id;
+              const sel = currentValue === val ? ' selected' : '';
+              return `<option value="${val}"${sel}>${m.name || id}</option>`;
+            }).join('')}
+          </select>
+        </div>`;
+      }
+
+      // Orphaned assignment rows
+      for (const key of orphanedKeys) {
+        const label = formatMagicButtonEvent(key);
+        const momentAction = editingMagicButtons[key];
+        // Try to resolve moment name from the set_ prefix
+        let momentName = momentAction;
+        if (momentAction && momentAction.startsWith('set_')) {
+          const momentId = momentAction.slice(4);
+          momentName = allMoments[momentId]?.name || momentId;
+        }
+        html += `<div class="magic-row magic-row-orphan">
+          <span class="magic-row-label">${label} (no longer in switch design)</span>
+          <span style="flex:1; font-size:0.85rem;">${momentName}</span>
+          <button class="magic-orphan-remove" onclick="removeMagicOrphan('${key}')" title="Remove">✕</button>
+        </div>`;
+      }
+
+      if (!html) {
+        html = '<div style="font-size:0.85rem; color:var(--muted);">No magic button slots available</div>';
+      }
+
+      container.innerHTML = html;
+    }
+
+    function updateMagicButton(slot, value) {
+      if (value) {
+        editingMagicButtons[slot] = value;
+      } else {
+        delete editingMagicButtons[slot];
+      }
+    }
+
+    function removeMagicOrphan(key) {
+      delete editingMagicButtons[key];
+      renderMagicEditor();
     }
 
     function renderScopesEditor() {
@@ -2139,6 +2345,7 @@
           scopes: editingScopes,
           device_id: editingDeviceId,
           indicator_light: indicatorLight || '',
+          magic_buttons: editingMagicButtons,
           inactive: inactive
         };
       }

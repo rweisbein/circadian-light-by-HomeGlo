@@ -1282,13 +1282,15 @@
           </div>
           <div class="area-state-controls">
             <button class="toggle-btn" id="toggle-glo-up" onclick="executeAction('glo_up')" title="GloUp: send area settings to GloZone">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <polyline points="6 15 12 9 18 15"/>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="5" y1="14" x2="19" y2="14"/>
+                <polyline points="8 10 12 6 16 10"/>
               </svg>
             </button>
             <button class="toggle-btn" id="toggle-glo-down" onclick="executeAction('glo_down')" title="GloDown: pull GloZone settings to this area">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <polyline points="6 9 12 15 18 9"/>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="5" y1="10" x2="19" y2="10"/>
+                <polyline points="8 14 12 18 16 14"/>
               </svg>
             </button>
           </div>
@@ -3121,14 +3123,16 @@
       // Bold B icon for boost
       const boostIconSvg = `<span style="font-weight:900; font-size:12px; font-family:serif; line-height:1;">B</span>`;
 
-      // GloDown icon (single down chevron — pull from zone)
-      const resetIconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-        <polyline points="6 9 12 15 18 9"/>
+      // GloDown icon (horizontal line + downward arrow — pull from zone)
+      const resetIconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="5" y1="10" x2="19" y2="10"/>
+        <polyline points="8 14 12 18 16 14"/>
       </svg>`;
 
-      // GloUp icon (single up chevron — push to zone)
-      const pushIconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-        <polyline points="6 15 12 9 18 15"/>
+      // GloUp icon (horizontal line + upward arrow — push to zone)
+      const pushIconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="5" y1="14" x2="19" y2="14"/>
+        <polyline points="8 10 12 6 16 10"/>
       </svg>`;
 
       const leftControls = `
