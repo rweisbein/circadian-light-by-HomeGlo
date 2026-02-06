@@ -477,8 +477,8 @@
 
     .modal-settings-divider {
       border-top: 1px solid var(--line);
-      margin: 20px 0 16px;
-      padding-top: 16px;
+      margin: 12px 0 0;
+      padding-top: 12px;
     }
 
     .modal-settings-divider .modal-section {
@@ -487,7 +487,7 @@
 
     .modal-reset-footer {
       margin-top: 16px;
-      text-align: left;
+      text-align: right;
     }
 
     .modal-reset-link {
@@ -595,7 +595,7 @@
     .scope-editor {
       border: 1px solid var(--line);
       border-radius: 8px;
-      margin-bottom: 12px;
+      margin-bottom: 8px;
       padding: 12px;
     }
 
@@ -717,14 +717,14 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 4px 0;
+      padding: 2px 0;
       background: transparent;
       border: none;
       color: var(--muted);
       font-size: 0.85rem;
       cursor: pointer;
       transition: all 0.2s;
-      margin-top: 4px;
+      margin-top: 0;
     }
 
     .add-scope-btn:hover {
@@ -955,11 +955,20 @@
       </div>
 
       <div class="modal-settings-divider" id="settings-divider">
+        <div class="modal-section" id="magic-section" style="display: none;">
+          <div class="scope-editor" style="margin-bottom: 0;">
+            <div class="scope-editor-header">
+              <span class="scope-editor-title">Magic Buttons</span>
+            </div>
+            <div id="magic-editor"></div>
+          </div>
+        </div>
+
         <div class="modal-section" id="pause-section" style="display: none;">
-          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+          <label style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer;">
             <span style="font-size: 0.85rem; color: var(--muted);">Pause</span>
             <span class="info-icon">i<span class="info-tooltip">When paused, a control won't trigger actions</span></span>
-            <input type="checkbox" id="control-pause-checkbox" style="width: 16px; height: 16px; accent-color: var(--accent); margin-left: auto;">
+            <input type="checkbox" id="control-pause-checkbox" style="width: 16px; height: 16px; accent-color: var(--accent);">
           </label>
         </div>
 
@@ -974,19 +983,10 @@
             <!-- Populated with lights -->
           </select>
         </div>
-
-        <div class="modal-section" id="magic-section" style="display: none;">
-          <div class="scope-editor" style="margin-bottom: 0;">
-            <div class="scope-editor-header">
-              <span class="scope-editor-title">Magic Buttons</span>
-            </div>
-            <div id="magic-editor"></div>
-          </div>
-        </div>
       </div>
 
       <div class="modal-reset-footer" id="modal-reset-footer" style="display: none;">
-        <button class="modal-reset-link" id="modal-remove-config">Reset configuration</button>
+        <button class="modal-reset-link" id="modal-remove-config">Reset</button>
       </div>
     </div>
   </div>
