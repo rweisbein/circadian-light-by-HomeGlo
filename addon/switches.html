@@ -393,51 +393,6 @@
       border-color: var(--accent);
     }
 
-    /* Area sort toggle (in toolbar) */
-    .area-sort-toggle {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 0.8rem;
-    }
-
-    .area-sort-label {
-      color: var(--muted);
-    }
-
-    .area-sort-toggle.muted .area-sort-label {
-      color: var(--muted2);
-    }
-
-    .area-sort-toggle.muted .area-sort-option {
-      color: var(--muted2);
-    }
-
-    .area-sort-toggle.muted .area-sort-option.active {
-      color: var(--muted);
-    }
-
-    .area-sort-toggle.muted .area-sort-sep {
-      color: var(--muted2);
-    }
-
-    .area-sort-option {
-      color: var(--muted);
-      cursor: pointer;
-      transition: color 0.15s;
-    }
-
-    .area-sort-option:hover {
-      color: var(--text);
-    }
-
-    .area-sort-option.active {
-      color: var(--accent);
-    }
-
-    .area-sort-sep {
-      color: var(--muted2);
-    }
 
     /* Modal */
     .modal-overlay {
@@ -801,18 +756,19 @@
     }
 
     .toolbar-menu-btn {
-      background: transparent;
-      border: 1px solid var(--line);
-      color: var(--text);
-      font-size: 1.3rem;
-      padding: 4px 10px;
-      border-radius: 6px;
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 1.2rem;
+      padding: 4px 8px;
+      border-radius: 4px;
       cursor: pointer;
       line-height: 1;
       transition: all 0.2s;
     }
 
     .toolbar-menu-btn:hover {
+      color: var(--text);
       background: rgba(255, 255, 255, 0.05);
     }
 
@@ -828,6 +784,8 @@
       min-width: 140px;
       z-index: 50;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      overflow: hidden;
+      padding: 4px 0;
     }
 
     .toolbar-menu-dropdown.open {
@@ -870,28 +828,13 @@
   <!-- Main Content -->
   <main class="main">
     <div class="page-header">
-      <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px;">
-        <div style="display: flex; align-items: center; gap: 16px;">
-          <div style="position: relative; display: inline-block;">
-            <input type="text" id="search-input" placeholder="Search..."
-              style="padding: 6px 28px 6px 12px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 0.85rem; width: 160px;"
-              oninput="handleSearch(this.value)">
-            <button id="search-clear" onclick="clearSearch()"
-              style="display: none; position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.9rem; padding: 2px 4px;">&times;</button>
-          </div>
-          <div class="area-sort-toggle" id="area-sort-toggle">
-            <span class="area-sort-label">Location sort:</span>
-            <span class="area-sort-option" data-mode="custom" onclick="setAreaSortMode('custom')">Your order</span>
-            <span class="area-sort-sep">|</span>
-            <span class="area-sort-option" data-mode="az" onclick="setAreaSortMode('az')">A-Z</span>
-          </div>
-        </div>
+      <div style="display: flex; align-items: center; justify-content: flex-end; gap: 16px;">
         <div class="toolbar-menu">
           <button class="toolbar-menu-btn" onclick="toggleToolbarMenu(event)">&#8942;</button>
           <div class="toolbar-menu-dropdown" id="toolbar-menu-dropdown">
-            <a href="./switchmap" class="toolbar-menu-item">Design switches</a>
             <a href="#" class="toolbar-menu-item" id="refresh-link" onclick="loadData(); toggleToolbarMenu(event); return false;">Refresh</a>
-            <a href="#" class="toolbar-menu-item" id="clear-filters-link" style="display: none;" onclick="clearFilters(); toggleToolbarMenu(event); return false;">Clear all filters</a>
+            <a href="./switchmap" class="toolbar-menu-item">Switch design</a>
+            <a href="#" class="toolbar-menu-item" id="clear-filters-link" style="display: none; border-top: 1px solid var(--line); margin-top: 4px; padding-top: 14px;" onclick="clearFilters(); toggleToolbarMenu(event); return false;">Clear all filters</a>
           </div>
         </div>
       </div>
@@ -1134,7 +1077,7 @@
         if (areaFilter !== 'all' && areaFilter !== 'unassigned' && c.area_name !== areaFilter) return false;
         if (statusFilter !== 'all' && c.status !== statusFilter) return false;
         if (pauseFilter === 'paused' && !c.inactive) return false;
-        if (pauseFilter === 'live' && c.inactive) return false;
+        if (pauseFilter === 'live' && (c.inactive || (c.status !== 'active' && c.status !== 'inactive'))) return false;
         // Glozone filter - check if control's area is in the selected glozone
         if (glozoneFilter !== 'all') {
           const zone = allGlozones.find(z => z.id === glozoneFilter);
@@ -1226,6 +1169,37 @@
 
       const thClass = (col) => sortColumn === col ? 'sorted' : '';
 
+      // Location column has two arrows: left (A-Z) and right (custom order)
+      const locationArrows = (() => {
+        const isPrimary = sortColumn === 'area';
+        const isCustom = areaSortMode === 'custom';
+        // Left arrow: A-Z alphabetical sort
+        let leftArrow, leftStyle;
+        if (isPrimary && !isCustom) {
+          leftArrow = sortAsc ? '↑' : '↓';
+          leftStyle = 'opacity:1; color:var(--accent);';
+        } else if (!isPrimary && !isCustom) {
+          leftArrow = '↑';
+          leftStyle = 'opacity:0.7;';
+        } else {
+          leftArrow = '↕';
+          leftStyle = 'opacity:0.5;';
+        }
+        // Right arrow: custom area order sort
+        let rightArrow, rightStyle;
+        if (isPrimary && isCustom) {
+          rightArrow = sortAsc ? '↑' : '↓';
+          rightStyle = 'opacity:1; color:var(--accent);';
+        } else if (!isPrimary && isCustom) {
+          rightArrow = '↑';
+          rightStyle = 'opacity:0.7;';
+        } else {
+          rightArrow = '↕';
+          rightStyle = 'opacity:0.5;';
+        }
+        return { leftArrow, leftStyle, rightArrow, rightStyle };
+      })();
+
       // Filter indicator with clear button (orange X)
       const filterIndicator = (filterName, filterValue, clearFn) => {
         if (filterValue === 'all') return '';
@@ -1268,7 +1242,18 @@
                   </select>
                 </div>
               </th>
-              <th class="${thClass('name')}" onclick="sortBy('name')">${arrow('name')}Name</th>
+              <th class="${thClass('name')}">
+                <div class="th-with-filter">
+                  <div class="th-title-row" onclick="sortBy('name')">${arrow('name')}Name</div>
+                  <div style="position: relative;">
+                    <input type="text" id="search-input" class="header-filter" placeholder="Search..."
+                      value="${searchFilter}" oninput="handleSearch(this.value)" onclick="event.stopPropagation()"
+                      style="${searchFilter ? 'border-color: var(--accent);' : ''}">
+                    <button id="search-clear" onclick="event.stopPropagation(); clearSearch()"
+                      style="display: ${searchFilter ? 'block' : 'none'}; position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--accent); cursor: pointer; font-size: 0.9rem; padding: 2px 4px;">&times;</button>
+                  </div>
+                </div>
+              </th>
               <th class="${thClass('category')}">
                 <div class="th-with-filter">
                   <div class="th-title-row" onclick="sortBy('category')">${arrow('category')}Type${filterIndicator('category', categoryFilter, "clearSingleFilter('category')")}</div>
@@ -1277,7 +1262,9 @@
               </th>
               <th class="${thClass('area')}">
                 <div class="th-with-filter">
-                  <div class="th-title-row" onclick="sortBy('area')">${arrow('area')}Location${filterIndicator('area', areaFilter, "clearSingleFilter('area')")}${filterIndicator('glozone', glozoneFilter, "clearSingleFilter('glozone')")}</div>
+                  <div class="th-title-row">
+                    <span style="${locationArrows.leftStyle} cursor:pointer; margin-right:4px;" onclick="event.stopPropagation(); sortLocationAZ()" title="Sort location alphabetically">${locationArrows.leftArrow}</span><span onclick="sortLocationAZ()" style="cursor:pointer;" title="Sort location alphabetically">Location</span>${filterIndicator('area', areaFilter, "clearSingleFilter('area')")}${filterIndicator('glozone', glozoneFilter, "clearSingleFilter('glozone')")}<span style="${locationArrows.rightStyle} cursor:pointer; margin-left:4px;" onclick="event.stopPropagation(); sortLocationCustom()" title="Sort location by your custom area sort order">${locationArrows.rightArrow}</span>
+                  </div>
                   <select class="header-filter" id="glozone-filter" onclick="event.stopPropagation()" style="${filterActiveStyle(glozoneFilter)}">${glozoneOptions}</select>
                   <select class="header-filter" id="area-filter" onclick="event.stopPropagation()" style="margin-top: 4px; ${filterActiveStyle(areaFilter)}">${areaOptions}</select>
                 </div>
@@ -1335,8 +1322,6 @@
         </table>
       `;
 
-      // Update the area sort toggle styling
-      updateAreaSortToggle();
     }
 
     function getStatusBadge(ctrl) {
@@ -1348,7 +1333,9 @@
       } else if (ctrl.status === 'not_configured') {
         return '<span class="status-badge status-not-configured">Setup</span>';
       } else {
-        return '<span class="status-badge status-unsupported">Request</span>';
+        const typeName = ctrl.type_name || ctrl.type || 'Unknown';
+        const subject = encodeURIComponent(`Circadian Light support request for ${typeName}`);
+        return `<a href="mailto:hello@home-glo.com?subject=${subject}" onclick="event.stopPropagation()" style="text-decoration: none;"><span class="status-badge status-unsupported">Request</span></a>`;
       }
     }
 
@@ -1444,32 +1431,30 @@
       renderControls();
     }
 
-    function setAreaSortMode(mode) {
-      areaSortMode = mode;
-      localStorage.setItem('controls_areaSortMode', mode);
-      updateAreaSortToggle();
+    function sortLocationAZ() {
+      if (sortColumn === 'area' && areaSortMode === 'az') {
+        sortAsc = !sortAsc;
+      } else {
+        areaSortMode = 'az';
+        sortColumn = 'area';
+        sortAsc = true;
+      }
+      localStorage.setItem('controls_areaSortMode', areaSortMode);
+      savePreferences();
       renderControls();
     }
 
-    function updateAreaSortToggle() {
-      const toggle = document.getElementById('area-sort-toggle');
-      if (!toggle) return;
-
-      // Muted when not sorting by area
-      if (sortColumn === 'area') {
-        toggle.classList.remove('muted');
+    function sortLocationCustom() {
+      if (sortColumn === 'area' && areaSortMode === 'custom') {
+        sortAsc = !sortAsc;
       } else {
-        toggle.classList.add('muted');
+        areaSortMode = 'custom';
+        sortColumn = 'area';
+        sortAsc = true;
       }
-
-      // Update active state
-      toggle.querySelectorAll('.area-sort-option').forEach(opt => {
-        if (opt.dataset.mode === areaSortMode) {
-          opt.classList.add('active');
-        } else {
-          opt.classList.remove('active');
-        }
-      });
+      localStorage.setItem('controls_areaSortMode', areaSortMode);
+      savePreferences();
+      renderControls();
     }
 
     function stepNumberInput(inputId, step) {
@@ -1490,7 +1475,6 @@
       pauseFilter = 'all';
       glozoneFilter = 'all';
       searchFilter = '';
-      document.getElementById('search-input').value = '';
       savePreferences();
       renderControls();
     }
@@ -1509,14 +1493,17 @@
 
     function handleSearch(value) {
       searchFilter = value;
-      document.getElementById('search-clear').style.display = value ? 'block' : 'none';
       renderControls();
+      // Re-focus the search input after re-render and restore cursor position
+      const input = document.getElementById('search-input');
+      if (input) {
+        input.focus();
+        input.setSelectionRange(value.length, value.length);
+      }
     }
 
     function clearSearch() {
       searchFilter = '';
-      document.getElementById('search-input').value = '';
-      document.getElementById('search-clear').style.display = 'none';
       renderControls();
     }
 
