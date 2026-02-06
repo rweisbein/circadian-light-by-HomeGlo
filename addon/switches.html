@@ -393,16 +393,28 @@
       border-color: var(--accent);
     }
 
-    /* Area sort toggle */
+    /* Area sort toggle (in toolbar) */
     .area-sort-toggle {
       display: flex;
-      gap: 4px;
-      font-size: 0.7rem;
-      margin-top: 4px;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.8rem;
+    }
+
+    .area-sort-toggle.muted .area-sort-option {
+      color: var(--muted2);
+    }
+
+    .area-sort-toggle.muted .area-sort-option.active {
+      color: var(--muted);
+    }
+
+    .area-sort-toggle.muted .area-sort-sep {
+      color: var(--muted2);
     }
 
     .area-sort-option {
-      color: var(--muted2);
+      color: var(--muted);
       cursor: pointer;
       transition: color 0.15s;
     }
@@ -859,6 +871,11 @@
             style="display: none; position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.9rem; padding: 2px 4px;">&times;</button>
         </div>
         <div style="display: flex; align-items: center; gap: 16px;">
+          <div class="area-sort-toggle" id="area-sort-toggle">
+            <span class="area-sort-option" data-mode="custom" onclick="setAreaSortMode('custom')">Your order</span>
+            <span class="area-sort-sep">|</span>
+            <span class="area-sort-option" data-mode="az" onclick="setAreaSortMode('az')">A-Z</span>
+          </div>
           <div class="toolbar-menu">
             <button class="toolbar-menu-btn" onclick="toggleToolbarMenu(event)">&#8942;</button>
             <div class="toolbar-menu-dropdown" id="toolbar-menu-dropdown">
@@ -1176,6 +1193,20 @@
         }
         if (valA < valB) return sortAsc ? -1 : 1;
         if (valA > valB) return sortAsc ? 1 : -1;
+
+        // Secondary sort by area (when primary values are equal)
+        if (sortColumn !== 'area') {
+          let areaA, areaB;
+          if (areaSortMode === 'custom') {
+            areaA = customAreaOrder[a.area_id] ?? 99999;
+            areaB = customAreaOrder[b.area_id] ?? 99999;
+          } else {
+            areaA = (a.area_name || '').toLowerCase();
+            areaB = (b.area_name || '').toLowerCase();
+          }
+          if (areaA < areaB) return -1;
+          if (areaA > areaB) return 1;
+        }
         return 0;
       });
 
@@ -1240,11 +1271,6 @@
                   <div class="th-title-row" onclick="sortBy('area')">${arrow('area')}Location${filterIndicator('area', areaFilter, "clearSingleFilter('area')")}${filterIndicator('glozone', glozoneFilter, "clearSingleFilter('glozone')")}</div>
                   <select class="header-filter" id="glozone-filter" onclick="event.stopPropagation()" style="${filterActiveStyle(glozoneFilter)}">${glozoneOptions}</select>
                   <select class="header-filter" id="area-filter" onclick="event.stopPropagation()" style="margin-top: 4px; ${filterActiveStyle(areaFilter)}">${areaOptions}</select>
-                  <div class="area-sort-toggle" onclick="event.stopPropagation()">
-                    <span class="area-sort-option ${areaSortMode === 'custom' ? 'active' : ''}" onclick="setAreaSortMode('custom')">Your order</span>
-                    <span class="area-sort-sep">|</span>
-                    <span class="area-sort-option ${areaSortMode === 'az' ? 'active' : ''}" onclick="setAreaSortMode('az')">A-Z</span>
-                  </div>
                 </div>
               </th>
               <th class="${thClass('status')}">
@@ -1299,6 +1325,9 @@
           </tbody>
         </table>
       `;
+
+      // Update the area sort toggle styling
+      updateAreaSortToggle();
     }
 
     function getStatusBadge(ctrl) {
@@ -1409,7 +1438,29 @@
     function setAreaSortMode(mode) {
       areaSortMode = mode;
       localStorage.setItem('controls_areaSortMode', mode);
+      updateAreaSortToggle();
       renderControls();
+    }
+
+    function updateAreaSortToggle() {
+      const toggle = document.getElementById('area-sort-toggle');
+      if (!toggle) return;
+
+      // Muted when not sorting by area
+      if (sortColumn === 'area') {
+        toggle.classList.remove('muted');
+      } else {
+        toggle.classList.add('muted');
+      }
+
+      // Update active state
+      toggle.querySelectorAll('.area-sort-option').forEach(opt => {
+        if (opt.dataset.mode === areaSortMode) {
+          opt.classList.add('active');
+        } else {
+          opt.classList.remove('active');
+        }
+      });
     }
 
     function stepNumberInput(inputId, step) {
