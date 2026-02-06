@@ -3,7 +3,7 @@
 
 This module manages:
 - Switch type definitions (button layouts, default mappings)
-- Per-switch configuration (scopes, optional button overrides)
+- Per-switch configuration (scopes, optional magic button assignments)
 - Runtime state (current scope, last activity, pending detection)
 
 Switch config is persisted to JSON. Runtime state is in-memory only.
@@ -486,25 +486,25 @@ class SwitchConfig:
     name: str                                  # User-friendly name
     type: str                                  # Switch type key (e.g., "hue_4button_v2")
     scopes: List[SwitchScope] = field(default_factory=list)
-    button_overrides: Dict[str, Optional[str]] = field(default_factory=dict)
+    magic_buttons: Dict[str, Optional[str]] = field(default_factory=dict)
     device_id: Optional[str] = None            # HA device_id for area lookup
     indicator_light: Optional[str] = None      # Entity ID for reach feedback indicator light
     inactive: bool = False                     # If True, switch won't trigger actions
 
     def get_button_action(self, button_event: str) -> Any:
-        """Get the action for a button event, with override support.
+        """Get the action for a button event, with magic button support.
 
         Resolution order:
-        1. Per-switch button_overrides (for magic buttons, etc.)
+        1. Per-switch magic_buttons (magic button assignments)
         2. Global custom mappings from designer_config.json (switchmap UI)
         3. Default mappings for the switch type
 
         Returns:
             Action string, dict {action, when_off}, or None for unmapped.
         """
-        # Check for switch-level override first (per-switch magic buttons, etc.)
-        if button_event in self.button_overrides:
-            return self.button_overrides[button_event]
+        # Check for switch-level magic button assignment first
+        if button_event in self.magic_buttons:
+            return self.magic_buttons[button_event]
         # Use effective mapping (custom -> default)
         return get_effective_mapping(self.type, button_event)
 
@@ -521,7 +521,7 @@ class SwitchConfig:
             "name": self.name,
             "type": self.type,
             "scopes": [{"areas": s.areas} for s in self.scopes],
-            "button_overrides": self.button_overrides,
+            "magic_buttons": self.magic_buttons,
         }
         if self.device_id:
             result["device_id"] = self.device_id
@@ -547,7 +547,7 @@ class SwitchConfig:
             name=data.get("name", ""),
             type=switch_type,
             scopes=scopes,
-            button_overrides=data.get("button_overrides", {}),
+            magic_buttons=data.get("magic_buttons", data.get("button_overrides", {})),
             device_id=data.get("device_id"),
             indicator_light=data.get("indicator_light"),
             inactive=data.get("inactive", False),
@@ -1415,5 +1415,6 @@ def get_switches_summary() -> List[Dict[str, Any]]:
             "device_id": switch.device_id,
             "indicator_light": switch.indicator_light,
             "inactive": switch.inactive,
+            "magic_buttons": switch.magic_buttons,
         })
     return result
