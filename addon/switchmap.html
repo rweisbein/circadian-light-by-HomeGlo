@@ -291,7 +291,7 @@
       border-color: var(--accent);
     }
 
-    .action-select.has-when-off {
+    .when-off-select.has-when-off {
       border-color: var(--warning);
     }
 
@@ -639,7 +639,7 @@
                 return `
                   <div class="action-slot">
                     <label class="action-label">${actionTypeLabels[actionType] || actionType}</label>
-                    <select class="action-select ${whenOffValue ? 'has-when-off' : ''}"
+                    <select class="action-select"
                             onchange="updateMapping('${eventKey}', this.value)"
                             data-event="${eventKey}">
                       ${buildActionOptions(actionValue)}
@@ -647,7 +647,7 @@
                     ${supportsWhenOff ? `
                       <div class="when-off-row">
                         <span class="when-off-label">when off:</span>
-                        <select class="when-off-select" onchange="updateWhenOff('${eventKey}', this.value)">
+                        <select class="when-off-select ${whenOffValue ? 'has-when-off' : ''}" onchange="updateWhenOff('${eventKey}', this.value)">
                           ${buildWhenOffOptions(whenOffValue)}
                         </select>
                       </div>
@@ -730,20 +730,29 @@
     }
 
     function checkForChanges() {
-      // Compare current mappings to default mappings
+      // Compare current mappings to effective (saved) mappings
       const typeInfo = switchTypes[currentSwitchType];
       if (!typeInfo) return;
 
-      const defaults = typeInfo.default_mapping || {};
+      const saved = typeInfo.effective_mapping || {};
       hasUnsavedChanges = false;
 
-      // Build what the custom mappings should be (differences from defaults)
-      const newCustom = {};
+      // Check if any current mapping differs from what's saved
       for (const [key, value] of Object.entries(currentMappings)) {
-        const defaultValue = defaults[key];
-        if (!isEqual(value, defaultValue)) {
+        const savedValue = saved[key];
+        if (!isEqual(value, savedValue)) {
           hasUnsavedChanges = true;
-          newCustom[key] = value;
+          break;
+        }
+      }
+
+      // Also check if saved has keys we don't have
+      if (!hasUnsavedChanges) {
+        for (const key of Object.keys(saved)) {
+          if (!isEqual(currentMappings[key], saved[key])) {
+            hasUnsavedChanges = true;
+            break;
+          }
         }
       }
 
