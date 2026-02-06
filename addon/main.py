@@ -1192,12 +1192,12 @@ class HomeAssistantWebSocketClient:
 
         return command_lower
 
-    async def _execute_switch_action(self, switch_id: str, action: str) -> None:
+    async def _execute_switch_action(self, switch_id: str, action) -> None:
         """Execute a switch action.
 
         Args:
             switch_id: The switch IEEE address
-            action: The action to execute
+            action: The action to execute - string or {action, when_off} dict
         """
         # Record activity for scope timeout
         switches.record_activity(switch_id)
@@ -1208,85 +1208,102 @@ class HomeAssistantWebSocketClient:
             logger.warning(f"No areas configured for switch {switch_id}")
             return
 
-        logger.info(f"Executing {action} on areas: {areas}")
+        # Parse action - can be string or {action, when_off} object
+        main_action = action
+        when_off_action = None
+        if isinstance(action, dict):
+            main_action = action.get("action")
+            when_off_action = action.get("when_off")
+
+        logger.info(f"Executing {main_action} on areas: {areas}" + (f" (when_off: {when_off_action})" if when_off_action else ""))
+
+        # Helper to execute when_off action (or do nothing if not set)
+        async def execute_when_off():
+            if when_off_action:
+                logger.info(f"[switch] Lights off, executing when_off action: {when_off_action}")
+                await self._execute_switch_action(switch_id, when_off_action)
+            else:
+                logger.info(f"[switch] Lights off, no when_off action configured")
 
         # Execute the action
-        if action == "cycle_scope":
+        if main_action == "cycle_scope":
             await self._execute_cycle_scope(switch_id)
 
-        elif action == "circadian_on":
+        elif main_action == "circadian_on":
             for area in areas:
                 await self.primitives.lights_on(area, "switch")
 
-        elif action == "circadian_off":
+        elif main_action == "circadian_off":
             for area in areas:
                 await self.primitives.circadian_off(area, "switch")
 
-        elif action in ("toggle", "circadian_toggle"):
+        elif main_action in ("toggle", "circadian_toggle"):
             await self.primitives.lights_toggle_multiple(areas, "switch")
 
-        elif action == "step_up":
-            # Step up only if lights are on AND in circadian mode, else nitelite
-            # Use internal state tracking - no need to query HA entity state
+        elif main_action == "step_up":
+            # Step up only if lights are on AND in circadian mode
             any_on_circadian = any(state.is_circadian(area) and state.get_is_on(area) for area in areas)
             if any_on_circadian:
                 await asyncio.gather(*[self.primitives.step_up(area, "switch") for area in areas])
             else:
-                logger.info(f"[switch] step_up -> nitelite for areas: {areas} (not on+circadian)")
-                await asyncio.gather(*[self.primitives.set(area, "switch", preset="nitelite", is_on=True) for area in areas])
+                await execute_when_off()
 
-        elif action == "step_down":
-            # Step down only if lights are on AND in circadian mode, else nitelite
-            # Use internal state tracking - no need to query HA entity state
+        elif main_action == "step_down":
+            # Step down only if lights are on AND in circadian mode
             any_on_circadian = any(state.is_circadian(area) and state.get_is_on(area) for area in areas)
             if any_on_circadian:
                 await asyncio.gather(*[self.primitives.step_down(area, "switch") for area in areas])
             else:
-                logger.info(f"[switch] step_down -> nitelite for areas: {areas} (not on+circadian)")
-                await asyncio.gather(*[self.primitives.set(area, "switch", preset="nitelite", is_on=True) for area in areas])
+                await execute_when_off()
 
-        elif action == "bright_up":
-            # Bright up only if lights are on AND in circadian mode, else nitelite
-            # Use internal state tracking - no need to query HA entity state
+        elif main_action == "bright_up":
+            # Bright up only if lights are on AND in circadian mode
             any_on_circadian = any(state.is_circadian(area) and state.get_is_on(area) for area in areas)
             if any_on_circadian:
                 await asyncio.gather(*[self.primitives.bright_up(area, "switch") for area in areas])
             else:
-                logger.info(f"[switch] bright_up -> nitelite for areas: {areas} (not on+circadian)")
-                await asyncio.gather(*[self.primitives.set(area, "switch", preset="nitelite", is_on=True) for area in areas])
+                await execute_when_off()
 
-        elif action == "bright_down":
-            # Bright down only if lights are on AND in circadian mode, else nitelite
-            # Use internal state tracking - no need to query HA entity state
+        elif main_action == "bright_down":
+            # Bright down only if lights are on AND in circadian mode
             any_on_circadian = any(state.is_circadian(area) and state.get_is_on(area) for area in areas)
             if any_on_circadian:
                 await asyncio.gather(*[self.primitives.bright_down(area, "switch") for area in areas])
             else:
-                logger.info(f"[switch] bright_down -> nitelite for areas: {areas} (not on+circadian)")
-                await asyncio.gather(*[self.primitives.set(area, "switch", preset="nitelite", is_on=True) for area in areas])
+                await execute_when_off()
 
-        elif action == "color_up":
-            await asyncio.gather(*[self.primitives.color_up(area, "switch") for area in areas])
+        elif main_action == "color_up":
+            # Color up only if lights are on AND in circadian mode
+            any_on_circadian = any(state.is_circadian(area) and state.get_is_on(area) for area in areas)
+            if any_on_circadian:
+                await asyncio.gather(*[self.primitives.color_up(area, "switch") for area in areas])
+            else:
+                await execute_when_off()
 
-        elif action == "color_down":
-            await asyncio.gather(*[self.primitives.color_down(area, "switch") for area in areas])
+        elif main_action == "color_down":
+            # Color down only if lights are on AND in circadian mode
+            any_on_circadian = any(state.is_circadian(area) and state.get_is_on(area) for area in areas)
+            if any_on_circadian:
+                await asyncio.gather(*[self.primitives.color_down(area, "switch") for area in areas])
+            else:
+                await execute_when_off()
 
-        elif action == "glo_reset":
+        elif main_action == "glo_reset":
             # Reset area to Daily Rhythm
             await asyncio.gather(*[self.primitives.glo_reset(area, "switch") for area in areas])
 
-        elif action == "freeze_toggle":
+        elif main_action == "freeze_toggle":
             await asyncio.gather(*[self.primitives.freeze_toggle(area, "switch") for area in areas])
 
-        elif action == "glo_up":
+        elif main_action == "glo_up":
             # Push area settings to GloZone (atomic - zone only, not to other areas)
             await asyncio.gather(*[self.primitives.glo_up(area, "switch") for area in areas])
 
-        elif action == "glo_down":
+        elif main_action == "glo_down":
             # Pull GloZone settings to this area
             await asyncio.gather(*[self.primitives.glo_down(area, "switch") for area in areas])
 
-        elif action == "glozone_reset":
+        elif main_action == "glozone_reset":
             # Reset GloZone to Daily Rhythm (zone state only, not propagated)
             # Get unique zones from areas
             glozone.reload()
@@ -1297,7 +1314,7 @@ class HomeAssistantWebSocketClient:
                     await self.primitives.glozone_reset(zone_name, "switch")
                     zones_done.add(zone_name)
 
-        elif action == "glozone_down":
+        elif main_action == "glozone_down":
             # Push GloZone settings to all areas in zone
             glozone.reload()
             zones_done = set()
@@ -1307,12 +1324,12 @@ class HomeAssistantWebSocketClient:
                     await self.primitives.glozone_down(zone_name, "switch")
                     zones_done.add(zone_name)
 
-        elif action == "full_send":
+        elif main_action == "full_send":
             # Compound: glo_up + glozone_down (push area to zone, then zone to all)
             for area in areas:
                 await self.primitives.full_send(area, "switch")
 
-        elif action == "glozone_reset_full":
+        elif main_action == "glozone_reset_full":
             # Compound: glozone_reset + glozone_down (reset zone, then push to all)
             glozone.reload()
             zones_done = set()
@@ -1323,38 +1340,38 @@ class HomeAssistantWebSocketClient:
                     await self.primitives.glozone_down(zone_name, "switch")
                     zones_done.add(zone_name)
 
-        elif action == "set_britelite":
+        elif main_action == "set_britelite":
             # Freeze at descend_start (max brightness/coolest color on curve)
             # Uses primitives.set() which keeps circadian enabled and calculates from curve
             logger.info(f"[switch] set_britelite for areas: {areas}")
             for area in areas:
                 await self.primitives.set(area, "switch", preset="britelite", is_on=True)
 
-        elif action == "set_nitelite":
+        elif main_action == "set_nitelite":
             # Freeze at ascend_start (min brightness/warmest color on curve)
             # Uses primitives.set() which keeps circadian enabled and calculates from curve
             logger.info(f"[switch] set_nitelite for areas: {areas}")
             for area in areas:
                 await self.primitives.set(area, "switch", preset="nitelite", is_on=True)
 
-        elif action == "toggle_wake_bed":
+        elif main_action == "toggle_wake_bed":
             # Set midpoint to current time (~50% values), stays unfrozen
             for area in areas:
                 await self.primitives.set(area, "switch", preset="wake")
 
-        elif action.startswith("set_"):
+        elif main_action and main_action.startswith("set_"):
             # Check if it's a moment action (set_sleep, set_exit, etc.)
-            moment_id = action[4:]  # Remove "set_" prefix
+            moment_id = main_action[4:]  # Remove "set_" prefix
             moments = self._get_moments()
             if moment_id in moments:
                 logger.info(f"[switch] Applying moment '{moment_id}'")
                 # Moments apply to all areas per their config, not switch areas
                 await self.primitives.set(None, "switch", preset=moment_id)
             else:
-                logger.warning(f"Unknown set action: {action}")
+                logger.warning(f"Unknown set action: {main_action}")
 
         else:
-            logger.warning(f"Unknown action: {action}")
+            logger.warning(f"Unknown action: {main_action}")
 
     def _get_moments(self) -> dict:
         """Get all moments from config.

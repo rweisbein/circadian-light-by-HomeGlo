@@ -65,6 +65,123 @@ def _save_last_actions(actions: Dict[str, str]) -> None:
         logger.error(f"Failed to save last actions file: {e}")
 
 # =============================================================================
+# Custom Button Mappings (from designer_config.json)
+# =============================================================================
+
+# Cached custom mappings loaded from designer_config.json
+_custom_mappings: Dict[str, Dict[str, Any]] = {}
+
+
+def _get_designer_config_path() -> str:
+    """Get the path to the designer_config.json file."""
+    if os.path.isdir("/config/circadian-light"):
+        return "/config/circadian-light/designer_config.json"
+    elif os.path.isdir("/data"):
+        return "/data/designer_config.json"
+    else:
+        return os.path.join(os.path.dirname(__file__), ".data", "designer_config.json")
+
+
+def load_custom_mappings() -> Dict[str, Dict[str, Any]]:
+    """Load custom switch mappings from designer_config.json.
+
+    Returns:
+        Dict of switch_type -> button_event -> action (or {action, when_off})
+    """
+    global _custom_mappings
+    config_path = _get_designer_config_path()
+
+    if not os.path.exists(config_path):
+        _custom_mappings = {}
+        return _custom_mappings
+
+    try:
+        with open(config_path, "r", encoding="utf-8") as f:
+            config = json.load(f)
+        _custom_mappings = config.get("switch_mappings", {})
+        logger.debug(f"Loaded custom switch mappings for types: {list(_custom_mappings.keys())}")
+    except (json.JSONDecodeError, IOError) as e:
+        logger.warning(f"Failed to load custom switch mappings: {e}")
+        _custom_mappings = {}
+
+    return _custom_mappings
+
+
+def get_custom_mappings() -> Dict[str, Dict[str, Any]]:
+    """Get the cached custom mappings (reloads if empty)."""
+    if not _custom_mappings:
+        load_custom_mappings()
+    return _custom_mappings
+
+
+def get_effective_mapping(switch_type: str, button_event: str) -> Optional[Any]:
+    """Get the effective action for a button event, merging custom over default.
+
+    Args:
+        switch_type: The switch type key (e.g., "hue_4button_v2")
+        button_event: The button event (e.g., "on_short_release")
+
+    Returns:
+        The action - either a string action name, a dict with {action, when_off},
+        or None for unmapped.
+    """
+    # Reload custom mappings to pick up changes
+    load_custom_mappings()
+
+    # Check custom mappings first
+    if switch_type in _custom_mappings:
+        custom = _custom_mappings[switch_type]
+        if button_event in custom:
+            return custom[button_event]
+
+    # Fall back to default mapping
+    switch_type_info = SWITCH_TYPES.get(switch_type)
+    if switch_type_info:
+        return switch_type_info.get("default_mapping", {}).get(button_event)
+
+    return None
+
+
+def save_custom_mappings(mappings: Dict[str, Dict[str, Any]]) -> bool:
+    """Save custom switch mappings to designer_config.json.
+
+    Args:
+        mappings: Dict of switch_type -> button_event -> action
+
+    Returns:
+        True on success, False on failure.
+    """
+    global _custom_mappings
+    config_path = _get_designer_config_path()
+
+    # Load existing config
+    config = {}
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                config = json.load(f)
+        except (json.JSONDecodeError, IOError):
+            config = {}
+
+    # Update switch mappings
+    config["switch_mappings"] = mappings
+
+    # Save atomically
+    try:
+        os.makedirs(os.path.dirname(config_path), exist_ok=True)
+        tmp_path = config_path + ".tmp"
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            json.dump(config, f, indent=2)
+        os.replace(tmp_path, config_path)
+        _custom_mappings = mappings
+        logger.info(f"Saved custom switch mappings for types: {list(mappings.keys())}")
+        return True
+    except IOError as e:
+        logger.error(f"Failed to save custom switch mappings: {e}")
+        return False
+
+
+# =============================================================================
 # Switch Type Definitions (hardcoded)
 # =============================================================================
 
@@ -121,6 +238,98 @@ def get_all_available_actions() -> list:
 
     return actions
 
+
+# Actions that support a when_off alternate action
+ADJUSTMENT_ACTIONS = [
+    "step_up", "step_down",
+    "bright_up", "bright_down",
+    "color_up", "color_down",
+]
+
+# Allowed alternate actions for when_off
+WHEN_OFF_ACTIONS = [
+    "circadian_on", "circadian_toggle",
+    "set_nitelite", "set_britelite",
+    "set_wake", "set_bed",
+    None,  # No alternate action
+]
+
+
+def get_categorized_actions() -> Dict[str, List[Dict[str, Any]]]:
+    """Get all available actions organized by category.
+
+    Returns:
+        Dict of category name -> list of {id, label, supports_when_off} dicts
+    """
+    categories = {
+        "Adjust areas in Reach": [
+            {"id": "circadian_on", "label": "On"},
+            {"id": "circadian_off", "label": "Off"},
+            {"id": "circadian_toggle", "label": "Toggle on/off"},
+            {"id": "step_up", "label": "Step Up", "supports_when_off": True},
+            {"id": "step_down", "label": "Step Down", "supports_when_off": True},
+            {"id": "bright_up", "label": "Bright Up", "supports_when_off": True},
+            {"id": "bright_down", "label": "Bright Down", "supports_when_off": True},
+            {"id": "color_up", "label": "Color Up", "supports_when_off": True},
+            {"id": "color_down", "label": "Color Down", "supports_when_off": True},
+            {"id": "set_britelite", "label": "BriteLite"},
+            {"id": "set_nitelite", "label": "NiteLite"},
+            {"id": "set_wake", "label": "Wake / Bed"},
+            {"id": "freeze_toggle", "label": "Freeze"},
+            {"id": "glo_reset", "label": "Reset to Daily Rhythm"},
+            {"id": "glo_down", "label": "Reset to Glo Zone"},
+        ],
+        "Glo Zone": [
+            {"id": "full_send", "label": "Push to whole Glo Zone"},
+            {"id": "glozone_reset_full", "label": "Reset whole Glo Zone"},
+        ],
+        "Switch": [
+            {"id": "cycle_scope", "label": "Advance to next Reach"},
+        ],
+        "Special": [
+            {"id": None, "label": "No Action"},
+            {"id": "magic", "label": "Magic"},
+        ],
+    }
+
+    # Add moment actions dynamically
+    try:
+        from . import glozone
+        raw_config = glozone.load_config_from_files()
+        moments = raw_config.get("moments", {})
+        if moments:
+            moment_actions = []
+            for moment_id, moment_data in moments.items():
+                moment_name = moment_data.get("name", moment_id)
+                moment_actions.append({
+                    "id": f"set_{moment_id}",
+                    "label": moment_name,
+                })
+            if moment_actions:
+                categories["Moments"] = moment_actions
+    except Exception:
+        pass
+
+    return categories
+
+
+def get_when_off_options() -> List[Dict[str, Any]]:
+    """Get available when_off options for adjustment actions.
+
+    Returns:
+        List of {id, label} dicts for when_off dropdown.
+    """
+    return [
+        {"id": None, "label": "No Action"},
+        {"id": "circadian_on", "label": "On"},
+        {"id": "circadian_toggle", "label": "Toggle"},
+        {"id": "set_nitelite", "label": "NiteLite"},
+        {"id": "set_britelite", "label": "BriteLite"},
+        {"id": "set_wake", "label": "Wake"},
+        {"id": "set_bed", "label": "Bed"},
+    ]
+
+
 # Button action types (event suffixes from ZHA)
 BUTTON_ACTION_TYPES = [
     "press",           # Immediately when pressed
@@ -145,20 +354,20 @@ _HUE_4BUTTON_MAPPING = {
     "on_hold": None,                            # long - RESERVED for magic button
     "on_long_release": None,
     # Up button
-    "up_short_release": "step_up",              # 1x (NiteLite if off)
-    "up_double_press": "color_up",              # 2x
+    "up_short_release": {"action": "step_up", "when_off": "set_nitelite"},
+    "up_double_press": {"action": "color_up", "when_off": None},
     "up_triple_press": "set_britelite",         # 3x
     "up_quadruple_press": None,                 # 4x - not used
     "up_quintuple_press": None,                 # 5x - not used
-    "up_hold": "bright_up",                     # long - repeats while held
+    "up_hold": {"action": "bright_up", "when_off": None},
     "up_long_release": None,
     # Down button
-    "down_short_release": "step_down",          # 1x (NiteLite if off)
-    "down_double_press": "color_down",          # 2x
+    "down_short_release": {"action": "step_down", "when_off": "set_nitelite"},
+    "down_double_press": {"action": "color_down", "when_off": None},
     "down_triple_press": "set_nitelite",        # 3x
     "down_quadruple_press": None,               # 4x - not used
     "down_quintuple_press": None,               # 5x - not used
-    "down_hold": "bright_down",                 # long - repeats while held
+    "down_hold": {"action": "bright_down", "when_off": None},
     "down_long_release": None,
     # Hue button (bottom)
     "off_short_release": "cycle_scope",         # 1x - change controlled areas
@@ -172,20 +381,10 @@ _HUE_4BUTTON_MAPPING = {
 
 # Each type defines available buttons and default action mappings
 SWITCH_TYPES: Dict[str, Dict[str, Any]] = {
-    "hue_4button_v1": {
-        "name": "Hue 4-button v1",
+    "hue_dimmer": {
+        "name": "Hue 4-button switch",
         "manufacturers": ["Philips", "Signify", "Signify Netherlands B.V."],
-        "models": ["RWL020"],
-        "buttons": ["on", "up", "down", "off"],
-        "action_types": ["press", "hold", "short_release", "long_release", "double_press", "triple_press", "quadruple_press", "quintuple_press"],
-        "default_mapping": _HUE_4BUTTON_MAPPING,
-        "repeat_on_hold": ["up_hold", "down_hold"],
-        "repeat_interval_ms": 300,
-    },
-    "hue_4button_v2": {
-        "name": "Hue 4-button v2",
-        "manufacturers": ["Philips", "Signify", "Signify Netherlands B.V."],
-        "models": ["RWL022"],
+        "models": ["RWL020", "RWL021", "RWL022"],  # v1, v1.5, v2
         "buttons": ["on", "up", "down", "off"],
         "action_types": ["press", "hold", "short_release", "long_release", "double_press", "triple_press", "quadruple_press", "quintuple_press"],
         "default_mapping": _HUE_4BUTTON_MAPPING,
@@ -200,16 +399,16 @@ SWITCH_TYPES: Dict[str, Dict[str, Any]] = {
         "action_types": ["press", "hold", "release"],
         "default_mapping": {
             "toggle_press": "toggle",
-            "brightness_up_press": "step_up",
-            "brightness_up_hold": "bright_up",
+            "brightness_up_press": {"action": "step_up", "when_off": "set_nitelite"},
+            "brightness_up_hold": {"action": "bright_up", "when_off": None},
             "brightness_up_release": None,
             "brightness_down_press": "cycle_scope",
-            "brightness_down_hold": "bright_down",
+            "brightness_down_hold": {"action": "bright_down", "when_off": None},
             "brightness_down_release": None,
-            "arrow_left_press": "color_down",
-            "arrow_left_hold": "color_down",
-            "arrow_right_press": "color_up",
-            "arrow_right_hold": "color_up",
+            "arrow_left_press": {"action": "color_down", "when_off": None},
+            "arrow_left_hold": {"action": "color_down", "when_off": None},
+            "arrow_right_press": {"action": "color_up", "when_off": None},
+            "arrow_right_hold": {"action": "color_up", "when_off": None},
         },
         "repeat_on_hold": ["brightness_up_hold", "brightness_down_hold"],
         "repeat_interval_ms": 300,
@@ -292,16 +491,22 @@ class SwitchConfig:
     indicator_light: Optional[str] = None      # Entity ID for reach feedback indicator light
     inactive: bool = False                     # If True, switch won't trigger actions
 
-    def get_button_action(self, button_event: str) -> Optional[str]:
-        """Get the action for a button event, with override support."""
-        # Check for switch-level override first
+    def get_button_action(self, button_event: str) -> Any:
+        """Get the action for a button event, with override support.
+
+        Resolution order:
+        1. Per-switch button_overrides (for magic buttons, etc.)
+        2. Global custom mappings from designer_config.json (switchmap UI)
+        3. Default mappings for the switch type
+
+        Returns:
+            Action string, dict {action, when_off}, or None for unmapped.
+        """
+        # Check for switch-level override first (per-switch magic buttons, etc.)
         if button_event in self.button_overrides:
             return self.button_overrides[button_event]
-        # Fall back to type default
-        switch_type = SWITCH_TYPES.get(self.type)
-        if switch_type:
-            return switch_type.get("default_mapping", {}).get(button_event)
-        return None
+        # Use effective mapping (custom -> default)
+        return get_effective_mapping(self.type, button_event)
 
     def get_areas_for_scope(self, scope_index: int) -> List[str]:
         """Get areas for a specific scope index."""
