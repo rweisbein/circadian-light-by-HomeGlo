@@ -4346,7 +4346,7 @@ class LightDesignerServer:
                 switches.add_contact_sensor(contact_config)
             else:
                 # Handle switch configuration
-                control_type = data.get("type", "hue_4button_v2")
+                control_type = data.get("type", "hue_dimmer")
 
                 # Build scopes
                 scopes_data = data.get("scopes", [])
@@ -4406,7 +4406,7 @@ class LightDesignerServer:
                 return web.json_response({"error": "Switch ID is required"}, status=400)
 
             name = data.get("name", f"Switch ({switch_id[-8:]})")
-            switch_type = data.get("type", "hue_4button_v2")
+            switch_type = data.get("type", "hue_dimmer")
 
             # Validate switch type
             if switch_type not in switches.SWITCH_TYPES:

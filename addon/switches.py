@@ -536,9 +536,10 @@ class SwitchConfig:
         """Create from dictionary."""
         scopes = [SwitchScope(areas=s.get("areas", [])) for s in data.get("scopes", [])]
         # Migrate old type names to new names
-        switch_type = data.get("type", "hue_4button_v2")
+        switch_type = data.get("type", "hue_dimmer")
         type_migrations = {
-            "hue_dimmer": "hue_4button_v2",  # Old name -> default to v2
+            "hue_4button_v1": "hue_dimmer",  # Old names -> merged type
+            "hue_4button_v2": "hue_dimmer",
         }
         switch_type = type_migrations.get(switch_type, switch_type)
         return cls(
