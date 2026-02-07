@@ -101,10 +101,11 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
 /* Parameter Rows */
 .param-row {
   display: grid;
-  grid-template-columns: 100px 70px 1fr;
+  grid-template-columns: 60px 90px 1fr;
   align-items: center;
   gap: 10px;
   margin: 8px 0;
+  max-width: 600px;
 }
 /* Hidden control rows - kept for future "custom" preset */
 .param-row.is-hidden {
@@ -194,19 +195,35 @@ input[type=range]::-moz-range-thumb {
   margin-left: auto;
 }
 .time-nav-btn {
-  background: rgba(255,255,255,0.06);
+  --btn-bg: rgba(255,255,255,0.06);
+  --btn-text: #fff;
+  --btn-fill: 0;
+  --btn-fill-opacity: 0;
+  background: var(--btn-bg);
   border: 1px solid rgba(255,255,255,0.2);
-  color: var(--muted);
+  color: var(--btn-text);
   font-size: 0.65rem;
-  padding: 3px 8px;
-  border-radius: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.15s;
+  position: relative;
+  overflow: hidden;
+}
+.time-nav-btn::after {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.05), rgba(255,255,255,0.95));
+  opacity: var(--btn-fill-opacity);
+  transform-origin: left center;
+  transform: scaleX(var(--btn-fill));
+  pointer-events: none;
 }
 .time-nav-btn:hover {
-  background: rgba(255,255,255,0.12);
-  color: var(--text);
+  border-color: rgba(255,255,255,0.4);
 }
 
 /* Time hover label - above x-axis, shows time with phase color */
@@ -1148,10 +1165,7 @@ input[type=range]::-moz-range-thumb {
 .nav-link.active {
   color: var(--accent);
 }
-.nav-link-2line {
-  line-height: 1.15;
-  padding: 6px 12px;
-}
+
 
 /* Nav solar display */
 .nav-solar { margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--muted); opacity: 0; transition: opacity 0.3s; }
@@ -1171,7 +1185,7 @@ input[type=range]::-moz-range-thumb {
 <nav class="nav">
   <a href="./" class="nav-brand">Circadian Light</a>
   <div class="nav-links">
-    <a href="./rhythm" class="nav-link nav-link-2line active">Daily Rhythm</a>
+    <a href="./rhythm" class="nav-link active">Daily Rhythm</a>
     <a href="./switches" class="nav-link">Controls</a>
     <a href="./moments" class="nav-link">Moments</a>
     <a href="./settings" class="nav-link">Settings</a>
@@ -3203,11 +3217,21 @@ function updateCursorButtons(point) {
     ? `Step down: at min ${Math.round(currentPct)}% @ ${Math.round(displayedCCT)}K`
     : `Step down ${Math.round(currentPct - stepPreview.downBri)}% / ${Math.round(displayedCCT - stepPreview.downCCT)}K to ${Math.round(stepPreview.downBri)}% at ${Math.round(stepPreview.downCCT)}K`;
 
-  // Style and update reset button to show cursor target values
+  // Style reset button with what values WILL be after reset (cleared runtime state)
   const resetBtn = document.getElementById('cursor-reset');
   if (resetBtn && config && cursorHour !== null) {
-    const resetBri = Math.round(calculateBrightnessAtHour(((cursorHour % 24) + 24) % 24) * 100);
-    const resetCct = Math.round(calculateColorAtHour(((cursorHour % 24) + 24) % 24, true));
+    const savedMidBri = runtimeState.brightness_mid;
+    const savedMidColor = runtimeState.color_mid;
+    const savedColorOverride = runtimeState.color_override;
+    runtimeState.brightness_mid = null;
+    runtimeState.color_mid = null;
+    runtimeState.color_override = null;
+    const h = ((cursorHour % 24) + 24) % 24;
+    const resetBri = Math.round(calculateBrightnessAtHour(h) * 100);
+    const resetCct = Math.round(calculateColorAtHour(h, true));
+    runtimeState.brightness_mid = savedMidBri;
+    runtimeState.color_mid = savedMidColor;
+    runtimeState.color_override = savedColorOverride;
     styleBtn(resetBtn, resetBri, resetCct, 'combo');
     resetBtn.title = `Reset to curve: ${resetBri}% at ${resetCct}K`;
   }
@@ -3248,6 +3272,7 @@ function updateCursorButtons(point) {
       const briStr = minusBriDelta >= 0 ? `+${minusBriDelta}%` : `${minusBriDelta}%`;
       const cctStr = minusCctDelta >= 0 ? `+${minusCctDelta}K` : `${minusCctDelta}K`;
       timeMinusBtn.title = `5 minutes earlier, ${briStr} / ${cctStr} to ${minusVals.bri}% at ${minusVals.cct}K`;
+      styleBtn(timeMinusBtn, minusVals.bri, minusVals.cct, 'combo');
     }
 
     const plusHour = cursorHour + 5/60;
@@ -3258,6 +3283,17 @@ function updateCursorButtons(point) {
       const briStr = plusBriDelta >= 0 ? `+${plusBriDelta}%` : `${plusBriDelta}%`;
       const cctStr = plusCctDelta >= 0 ? `+${plusCctDelta}K` : `${plusCctDelta}K`;
       timePlusBtn.title = `5 minutes later, ${briStr} / ${cctStr} to ${plusVals.bri}% at ${plusVals.cct}K`;
+      styleBtn(timePlusBtn, plusVals.bri, plusVals.cct, 'combo');
+    }
+
+    // Style Now button with current-time curve values
+    const timeNowBtn = document.getElementById('cursor-time-now');
+    if (timeNowBtn) {
+      const now = new Date();
+      const nowHour = now.getHours() + now.getMinutes() / 60;
+      const nowVals = getValuesAtHour(nowHour);
+      styleBtn(timeNowBtn, nowVals.bri, nowVals.cct, 'combo');
+      timeNowBtn.title = `Now: ${nowVals.bri}% at ${nowVals.cct}K`;
     }
   }
 }
