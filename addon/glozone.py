@@ -3,7 +3,7 @@
 
 This module handles GloZone configuration operations:
 - Looking up which zone an area belongs to
-- Getting the preset for a zone
+- Getting the rhythm for a zone
 - Getting all areas in a zone
 - Managing zone membership
 
@@ -21,8 +21,8 @@ logger = logging.getLogger(__name__)
 # Initial zone name (used for migration)
 INITIAL_ZONE_NAME = "Main"
 
-# Default preset name (used for migration and fallback)
-DEFAULT_PRESET = "Glo 1"
+# Default rhythm name (used for migration and fallback)
+DEFAULT_RHYTHM = "Daily Rhythm 1"
 
 # Cached config reference
 _config: Optional[Dict[str, Any]] = None
@@ -80,22 +80,22 @@ def get_glozones() -> Dict[str, Dict[str, Any]]:
     """Get all GloZone definitions from config.
 
     Returns:
-        Dict of zone_name -> zone config (preset, areas, is_default)
+        Dict of zone_name -> zone config (rhythm, areas, is_default)
     """
     if not _config:
-        return {INITIAL_ZONE_NAME: {"preset": DEFAULT_PRESET, "areas": [], "is_default": True}}
-    return _config.get("glozones", {INITIAL_ZONE_NAME: {"preset": DEFAULT_PRESET, "areas": [], "is_default": True}})
+        return {INITIAL_ZONE_NAME: {"rhythm": DEFAULT_RHYTHM, "areas": [], "is_default": True}}
+    return _config.get("glozones", {INITIAL_ZONE_NAME: {"rhythm": DEFAULT_RHYTHM, "areas": [], "is_default": True}})
 
 
-def get_presets() -> Dict[str, Dict[str, Any]]:
-    """Get all Circadian Preset definitions from config.
+def get_rhythms() -> Dict[str, Dict[str, Any]]:
+    """Get all Circadian Rhythm definitions from config.
 
     Returns:
-        Dict of preset_name -> preset settings
+        Dict of rhythm_name -> rhythm settings
     """
     if not _config:
         return {}
-    return _config.get("circadian_presets", {})
+    return _config.get("circadian_rhythms", {})
 
 
 def get_default_zone() -> str:
@@ -318,51 +318,51 @@ def get_areas_in_zone(zone_name: str) -> List[str]:
     return [a for a in result if a]  # Filter out None
 
 
-def get_preset_for_zone(zone_name: str) -> Optional[str]:
-    """Get the preset name for a zone.
+def get_rhythm_for_zone(zone_name: str) -> Optional[str]:
+    """Get the rhythm name for a zone.
 
     Args:
         zone_name: The zone name
 
     Returns:
-        Preset name, or None if zone doesn't exist
+        Rhythm name, or None if zone doesn't exist
     """
     glozones = get_glozones()
     zone_config = glozones.get(zone_name, {})
-    return zone_config.get("preset", DEFAULT_PRESET)
+    return zone_config.get("rhythm", DEFAULT_RHYTHM)
 
 
-def get_preset_for_area(area_id: str) -> Optional[str]:
-    """Get the preset name for an area (via its zone).
+def get_rhythm_for_area(area_id: str) -> Optional[str]:
+    """Get the rhythm name for an area (via its zone).
 
     Args:
         area_id: The area ID
 
     Returns:
-        Preset name
+        Rhythm name
     """
     zone_name = get_zone_for_area(area_id)
-    return get_preset_for_zone(zone_name)
+    return get_rhythm_for_zone(zone_name)
 
 
-def get_preset_config(preset_name: str) -> Dict[str, Any]:
-    """Get the full configuration for a preset.
+def get_rhythm_config(rhythm_name: str) -> Dict[str, Any]:
+    """Get the full configuration for a rhythm.
 
-    Returns a complete config dict with defaults for any missing PRESET_SETTINGS
+    Returns a complete config dict with defaults for any missing RHYTHM_SETTINGS
     keys, ensuring Config.from_dict() always gets the intended values rather than
     falling back to its own defaults.
 
     Args:
-        preset_name: The preset name
+        rhythm_name: The rhythm name
 
     Returns:
-        Preset config dict with defaults applied (empty dict if preset doesn't exist)
+        Rhythm config dict with defaults applied (empty dict if rhythm doesn't exist)
     """
-    presets = get_presets()
-    preset = presets.get(preset_name)
-    if preset is None:
+    rhythms = get_rhythms()
+    rhythm = rhythms.get(rhythm_name)
+    if rhythm is None:
         return {}
-    # Apply defaults for any missing preset settings
+    # Apply defaults for any missing rhythm settings
     defaults = {
         "color_mode": "kelvin",
         "min_color_temp": 500,
@@ -390,25 +390,25 @@ def get_preset_config(preset_name: str) -> Dict[str, Any]:
         "activity_preset": "adult",
         "max_dim_steps": 10,
     }
-    result = {**defaults, **preset}
-    logger.debug(f"[get_preset_config] preset_name={preset_name}, "
-                 f"raw preset keys={list(preset.keys())}, "
+    result = {**defaults, **rhythm}
+    logger.debug(f"[get_rhythm_config] rhythm_name={rhythm_name}, "
+                 f"raw rhythm keys={list(rhythm.keys())}, "
                  f"warm_night_enabled={result.get('warm_night_enabled')}, "
                  f"max_brightness={result.get('max_brightness')}")
     return result
 
 
-def get_preset_config_for_area(area_id: str) -> Dict[str, Any]:
-    """Get the full preset configuration for an area.
+def get_rhythm_config_for_area(area_id: str) -> Dict[str, Any]:
+    """Get the full rhythm configuration for an area.
 
     Args:
         area_id: The area ID
 
     Returns:
-        Preset config dict
+        Rhythm config dict
     """
-    preset_name = get_preset_for_area(area_id)
-    return get_preset_config(preset_name) if preset_name else {}
+    rhythm_name = get_rhythm_for_area(area_id)
+    return get_rhythm_config(rhythm_name) if rhythm_name else {}
 
 
 def get_all_zone_names() -> List[str]:
@@ -436,7 +436,7 @@ def ensure_default_zone_exists() -> None:
     # If no zones exist, create the initial zone
     if not glozones:
         glozones[INITIAL_ZONE_NAME] = {
-            "preset": DEFAULT_PRESET,
+            "rhythm": DEFAULT_RHYTHM,
             "areas": [],
             "is_default": True
         }
@@ -457,15 +457,15 @@ def is_config_migrated() -> bool:
     """Check if config has been migrated to new GloZone format.
 
     Returns:
-        True if config has circadian_presets and glozones keys
+        True if config has circadian_rhythms and glozones keys
     """
     if not _config:
         return False
-    return "circadian_presets" in _config and "glozones" in _config
+    return "circadian_rhythms" in _config and "glozones" in _config
 
 
-def get_area_zone_and_preset(area_id: str) -> Tuple[str, str, Dict[str, Any]]:
-    """Get zone name, preset name, and preset config for an area.
+def get_area_zone_and_rhythm(area_id: str) -> Tuple[str, str, Dict[str, Any]]:
+    """Get zone name, rhythm name, and rhythm config for an area.
 
     Convenience function that returns all zone-related info for an area.
 
@@ -473,16 +473,16 @@ def get_area_zone_and_preset(area_id: str) -> Tuple[str, str, Dict[str, Any]]:
         area_id: The area ID
 
     Returns:
-        Tuple of (zone_name, preset_name, preset_config)
+        Tuple of (zone_name, rhythm_name, rhythm_config)
     """
     zone_name = get_zone_for_area(area_id)
-    preset_name = get_preset_for_zone(zone_name) or DEFAULT_PRESET
-    preset_config = get_preset_config(preset_name)
-    return zone_name, preset_name, preset_config
+    rhythm_name = get_rhythm_for_zone(zone_name) or DEFAULT_RHYTHM
+    rhythm_config = get_rhythm_config(rhythm_name)
+    return zone_name, rhythm_name, rhythm_config
 
 
-# Settings that are per-preset (not global)
-PRESET_SETTINGS = {
+# Settings that are per-rhythm (not global)
+RHYTHM_SETTINGS = {
     "color_mode", "min_color_temp", "max_color_temp",
     "min_brightness", "max_brightness",
     "ascend_start", "descend_start", "wake_time", "bed_time",
@@ -494,7 +494,7 @@ PRESET_SETTINGS = {
     "activity_preset", "max_dim_steps",
 }
 
-# Settings that are global (not per-preset)
+# Settings that are global (not per-rhythm)
 GLOBAL_SETTINGS = {
     "latitude", "longitude", "timezone", "use_ha_location", "month",
 }
@@ -519,23 +519,35 @@ def _get_data_directory() -> str:
 def _migrate_config(config: Dict[str, Any]) -> Dict[str, Any]:
     """Migrate old flat config to new GloZone format.
 
+    Also migrates circadian_presets → circadian_rhythms and
+    zone preset → rhythm field names.
+
     Args:
         config: The loaded config dict
 
     Returns:
         Migrated config dict (or original if already migrated)
     """
+    # Migrate circadian_presets → circadian_rhythms
+    if "circadian_presets" in config and "circadian_rhythms" not in config:
+        config["circadian_rhythms"] = config.pop("circadian_presets")
+
+    # Migrate zone "preset" → "rhythm" field
+    for zone in config.get("glozones", {}).values():
+        if "preset" in zone and "rhythm" not in zone:
+            zone["rhythm"] = zone.pop("preset")
+
     # Check if already migrated
-    if "circadian_presets" in config and "glozones" in config:
+    if "circadian_rhythms" in config and "glozones" in config:
         return config
 
     logger.info("Migrating config to GloZone format...")
 
-    # Extract preset settings from flat config
-    preset_config = {}
-    for key in PRESET_SETTINGS:
+    # Extract rhythm settings from flat config
+    rhythm_config = {}
+    for key in RHYTHM_SETTINGS:
         if key in config:
-            preset_config[key] = config[key]
+            rhythm_config[key] = config[key]
 
     # Extract global settings
     global_config = {}
@@ -545,12 +557,12 @@ def _migrate_config(config: Dict[str, Any]) -> Dict[str, Any]:
 
     # Build new config structure
     new_config = {
-        "circadian_presets": {
-            DEFAULT_PRESET: preset_config
+        "circadian_rhythms": {
+            DEFAULT_RHYTHM: rhythm_config
         },
         "glozones": {
             INITIAL_ZONE_NAME: {
-                "preset": DEFAULT_PRESET,
+                "rhythm": DEFAULT_RHYTHM,
                 "areas": [],
                 "is_default": True
             }
@@ -560,7 +572,7 @@ def _migrate_config(config: Dict[str, Any]) -> Dict[str, Any]:
     # Add global settings
     new_config.update(global_config)
 
-    logger.info(f"Migration complete: created preset '{DEFAULT_PRESET}' "
+    logger.info(f"Migration complete: created rhythm '{DEFAULT_RHYTHM}' "
                 f"and zone '{INITIAL_ZONE_NAME}' (default)")
 
     return new_config
@@ -583,11 +595,11 @@ def load_config_from_files(data_dir: Optional[str] = None) -> Dict[str, Any]:
     if data_dir is None:
         data_dir = _get_data_directory()
 
-    # Start with global-only defaults. PRESET_SETTINGS are intentionally NOT
-    # included here so that after merging the config files, any PRESET_SETTINGS
+    # Start with global-only defaults. RHYTHM_SETTINGS are intentionally NOT
+    # included here so that after merging the config files, any RHYTHM_SETTINGS
     # at the top level must have come from the file (user's settings), not from
-    # defaults. This lets the merge step below reliably move them into the preset.
-    # Missing preset keys are handled by get_preset_config() and Config.from_dict().
+    # defaults. This lets the merge step below reliably move them into the rhythm.
+    # Missing rhythm keys are handled by get_rhythm_config() and Config.from_dict().
     config: Dict[str, Any] = {
         "latitude": 35.0,
         "longitude": -78.6,
@@ -621,32 +633,32 @@ def load_config_from_files(data_dir: Optional[str] = None) -> Dict[str, Any]:
                 logger.debug(f"Could not load config from {path}: {e}")
 
     # Migrate to GloZone format if needed
-    needs_migration = "circadian_presets" not in config or "glozones" not in config
+    needs_migration = "circadian_rhythms" not in config or "glozones" not in config
     config = _migrate_config(config)
 
-    # Move any top-level PRESET_SETTINGS into the first preset.
-    # Only set the key in the preset if it's not already there, to avoid
+    # Move any top-level RHYTHM_SETTINGS into the first rhythm.
+    # Only set the key in the rhythm if it's not already there, to avoid
     # stale top-level values (e.g., warm_night_enabled=false from old saves)
-    # overriding correct preset values. Always remove from top level either way.
-    if "circadian_presets" in config and config["circadian_presets"]:
-        first_preset_name = list(config["circadian_presets"].keys())[0]
-        first_preset = config["circadian_presets"][first_preset_name]
+    # overriding correct rhythm values. Always remove from top level either way.
+    if "circadian_rhythms" in config and config["circadian_rhythms"]:
+        first_rhythm_name = list(config["circadian_rhythms"].keys())[0]
+        first_rhythm = config["circadian_rhythms"][first_rhythm_name]
         for key in list(config.keys()):
-            if key in PRESET_SETTINGS:
-                if key not in first_preset:
-                    first_preset[key] = config[key]
+            if key in RHYTHM_SETTINGS:
+                if key not in first_rhythm:
+                    first_rhythm[key] = config[key]
                 del config[key]
 
-    # Log what ended up in the presets after loading + merging
-    for pname, pdata in config.get("circadian_presets", {}).items():
-        logger.debug(f"[load_config] Preset '{pname}': "
-                     f"warm_night_enabled={pdata.get('warm_night_enabled', 'MISSING')}, "
-                     f"max_brightness={pdata.get('max_brightness', 'MISSING')}, "
-                     f"keys={list(pdata.keys())}")
-    # Log any remaining top-level PRESET_SETTINGS (should be none)
-    leftover = [k for k in config.keys() if k in PRESET_SETTINGS]
+    # Log what ended up in the rhythms after loading + merging
+    for rname, rdata in config.get("circadian_rhythms", {}).items():
+        logger.debug(f"[load_config] Rhythm '{rname}': "
+                     f"warm_night_enabled={rdata.get('warm_night_enabled', 'MISSING')}, "
+                     f"max_brightness={rdata.get('max_brightness', 'MISSING')}, "
+                     f"keys={list(rdata.keys())}")
+    # Log any remaining top-level RHYTHM_SETTINGS (should be none)
+    leftover = [k for k in config.keys() if k in RHYTHM_SETTINGS]
     if leftover:
-        logger.warning(f"[load_config] Top-level PRESET_SETTINGS still present: {leftover}")
+        logger.warning(f"[load_config] Top-level RHYTHM_SETTINGS still present: {leftover}")
 
     # Cache the config first so ensure_default_zone_exists can use it
     _config = config
@@ -685,7 +697,7 @@ def load_config_from_files(data_dir: Optional[str] = None) -> Dict[str, Any]:
 def get_effective_config_for_area(area_id: str, include_global: bool = True) -> Dict[str, Any]:
     """Get the effective configuration for an area.
 
-    Combines the preset settings for the area's zone with global settings.
+    Combines the rhythm settings for the area's zone with global settings.
     This provides a flat config dict that can be used with existing code.
 
     Args:
@@ -701,9 +713,9 @@ def get_effective_config_for_area(area_id: str, include_global: bool = True) -> 
 
     result = {}
 
-    # Get preset config for this area
-    preset_config = get_preset_config_for_area(area_id)
-    result.update(preset_config)
+    # Get rhythm config for this area
+    rhythm_config = get_rhythm_config_for_area(area_id)
+    result.update(rhythm_config)
 
     # Add global settings if requested
     if include_global and _config:
@@ -717,7 +729,7 @@ def get_effective_config_for_area(area_id: str, include_global: bool = True) -> 
 def get_effective_config_for_zone(zone_name: str, include_global: bool = True) -> Dict[str, Any]:
     """Get the effective configuration for a zone.
 
-    Combines the preset settings for the zone with global settings.
+    Combines the rhythm settings for the zone with global settings.
 
     Args:
         zone_name: The zone name
@@ -731,10 +743,10 @@ def get_effective_config_for_zone(zone_name: str, include_global: bool = True) -
 
     result = {}
 
-    preset_name = get_preset_for_zone(zone_name)
-    if preset_name:
-        preset_config = get_preset_config(preset_name)
-        result.update(preset_config)
+    rhythm_name = get_rhythm_for_zone(zone_name)
+    if rhythm_name:
+        rhythm_config = get_rhythm_config(rhythm_name)
+        result.update(rhythm_config)
 
     if include_global and _config:
         for key in GLOBAL_SETTINGS:

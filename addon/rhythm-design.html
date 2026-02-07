@@ -1250,58 +1250,10 @@ input[type=range]::-moz-range-thumb {
 .nav-solar-icon { width: 22px; height: 22px; flex-shrink: 0; }
 .nav-solar-times { display: flex; flex-direction: column; line-height: 1.3; }
 
-/* Glo Selector */
-.glo-selector {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 16px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-.glo-selector label {
-  font-weight: 600;
-  color: var(--text);
-}
-.glo-selector select {
-  flex: 1;
-  max-width: 300px;
-  font-size: 1rem;
-  padding: 10px 14px;
-  border-radius: 10px;
-  border: 1px solid rgba(255,255,255,0.35);
-  background: rgba(255,255,255,0.06);
-  color: #fff;
-}
-.glo-selector .glo-actions {
-  display: flex;
-  gap: 8px;
-}
-.glo-selector .btn-rename,
-.glo-selector .btn-delete {
-  padding: 8px 12px;
-  border-radius: 6px;
-  border: 1px solid var(--line);
-  background: transparent;
-  color: var(--muted);
-  cursor: pointer;
-  font-size: 0.85rem;
-}
-.glo-selector .btn-rename:hover {
-  background: rgba(255,255,255,0.05);
-  color: var(--text);
-}
-.glo-selector .btn-delete:hover {
-  background: rgba(239, 68, 68, 0.1);
-  color: #ef4444;
-}
-.glo-used-by {
-  font-size: 0.85rem;
-  color: var(--muted);
-  margin-left: auto;
-}
+/* Header save link */
+.header-link { background: none; border: none; font-size: 0.8rem; cursor: pointer; padding: 0; }
+.header-link-save { color: var(--accent); font-weight: 600; }
+.header-link-save:hover { color: var(--accent-hover); }
 </style>
 </head>
 <body>
@@ -1309,7 +1261,7 @@ input[type=range]::-moz-range-thumb {
 <nav class="nav">
   <a href="./" class="nav-brand">Circadian Light</a>
   <div class="nav-links">
-    <a href="./glo" class="nav-link nav-link-2line active">Daily Rhythm</a>
+    <a href="./rhythm" class="nav-link nav-link-2line active">Daily Rhythm</a>
     <a href="./switches" class="nav-link">Controls</a>
     <a href="./moments" class="nav-link">Moments</a>
     <a href="./settings" class="nav-link">Settings</a>
@@ -1325,25 +1277,11 @@ input[type=range]::-moz-range-thumb {
 
 <div class="container">
   <div class="header">
-    <h1>Glo</h1>
     <div class="header-actions">
-      <button id="save-config" class="btn btn-primary">Save Glo</button>
+      <button id="save-config" class="header-link header-link-save">Save</button>
     </div>
   </div>
   <div id="save-status"></div>
-
-  <!-- Glo Selector -->
-  <div class="glo-selector">
-    <label for="glo-select">Editing:</label>
-    <select id="glo-select">
-      <!-- Populated by JavaScript -->
-    </select>
-    <div class="glo-actions">
-      <button class="btn-rename" id="glo-rename-btn">Rename</button>
-      <button class="btn-delete" id="glo-delete-btn">Delete</button>
-    </div>
-    <span class="glo-used-by" id="glo-used-by"></span>
-  </div>
 
   <!-- Circadian Pattern -->
   <div class="activity-select">
@@ -4278,9 +4216,9 @@ async function loadConfig() {
 async function saveConfig() {
   const statusEl = document.getElementById('save-status');
   try {
-    // Build structured save data: preset settings go inside circadian_presets[selectedGloName]
-    // so the server saves them to the correct preset (not always the first one).
-    const PRESET_KEYS = new Set([
+    // Build structured save data: rhythm settings go inside circadian_rhythms[selectedRhythmName]
+    // so the server saves them to the correct rhythm (not always the first one).
+    const RHYTHM_KEYS = new Set([
       'color_mode', 'min_color_temp', 'max_color_temp',
       'min_brightness', 'max_brightness',
       'ascend_start', 'descend_start', 'wake_time', 'bed_time',
@@ -4291,19 +4229,19 @@ async function saveConfig() {
       'cool_day_start', 'cool_day_end', 'cool_day_fade',
       'activity_preset', 'max_dim_steps',
     ]);
-    const presetSettings = {};
+    const rhythmSettings = {};
     const globalSettings = {};
     for (const [key, value] of Object.entries(config)) {
-      if (key === 'circadian_presets' || key === 'glozones') continue;
-      if (PRESET_KEYS.has(key)) {
-        presetSettings[key] = value;
+      if (key === 'circadian_rhythms' || key === 'glozones') continue;
+      if (RHYTHM_KEYS.has(key)) {
+        rhythmSettings[key] = value;
       } else {
         globalSettings[key] = value;
       }
     }
     const saveData = {
       ...globalSettings,
-      circadian_presets: { [selectedGloName]: presetSettings },
+      circadian_rhythms: { [selectedRhythmName]: rhythmSettings },
     };
     const resp = await fetch('./api/config', {
       method: 'POST',
@@ -4598,10 +4536,10 @@ function setupLiveDesign() {
 // ============================================================
 
 let glozonesData = {};
-let presetsData = {};
+let rhythmsData = {};
 let selectedZone = null;
 let allAreas = [];
-let modalMode = null; // 'create-zone', 'create-preset', 'edit-zone', 'edit-preset'
+let modalMode = null; // 'create-zone', 'create-rhythm', 'edit-zone', 'edit-rhythm'
 let modalTarget = null;
 
 /**
@@ -4625,15 +4563,15 @@ async function fetchGlozones() {
  */
 async function fetchPresets() {
   try {
-    const response = await fetch('./api/circadian-presets');
+    const response = await fetch('./api/circadian-rhythms');
     if (response.ok) {
       const data = await response.json();
-      presetsData = data.presets || {};
+      rhythmsData = data.rhythms || {};
       renderPresetsList();
       populatePresetSelects();
     }
   } catch (err) {
-    console.error('Error fetching presets:', err);
+    console.error('Error fetching rhythms:', err);
   }
 }
 
@@ -4674,7 +4612,7 @@ function renderZonesList() {
       <div class="glozone-item ${selectedZone === zoneName ? 'selected' : ''}" data-zone="${zoneName}">
         <div class="glozone-item-info">
           <span class="glozone-item-name">${zoneName}${isDefault ? ' ⭐' : ''}</span>
-          <span class="glozone-item-meta">${zone.preset || 'Glo 1'} &bull; ${areaCount} area${areaCount !== 1 ? 's' : ''}</span>
+          <span class="glozone-item-meta">${zone.rhythm || 'Daily Rhythm 1'} &bull; ${areaCount} area${areaCount !== 1 ? 's' : ''}</span>
         </div>
         <div class="glozone-item-actions">
           <button class="edit" data-zone="${zoneName}">Edit</button>
@@ -4702,56 +4640,56 @@ function renderZonesList() {
 }
 
 /**
- * Render presets list
+ * Render rhythms list
  */
 function renderPresetsList() {
-  const container = document.getElementById('presets-list');
+  const container = document.getElementById('rhythms-list');
   if (!container) return;
 
-  const presetNames = Object.keys(presetsData);
-  if (presetNames.length === 0) {
+  const rhythmNames = Object.keys(rhythmsData);
+  if (rhythmNames.length === 0) {
     container.innerHTML = '<div class="glozone-empty">No Glos configured.</div>';
     return;
   }
 
-  container.innerHTML = presetNames.map(presetName => {
-    const isDefault = presetName === 'Glo 1';
-    // Count zones using this preset
-    const zonesUsing = Object.entries(glozonesData).filter(([_, z]) => z.preset === presetName).length;
+  container.innerHTML = rhythmNames.map(rhythmName => {
+    const isDefault = rhythmName === 'Daily Rhythm 1';
+    // Count zones using this rhythm
+    const zonesUsing = Object.entries(glozonesData).filter(([_, z]) => z.rhythm === rhythmName).length;
     return `
-      <div class="glozone-item" data-preset="${presetName}">
+      <div class="glozone-item" data-rhythm="${rhythmName}">
         <div class="glozone-item-info">
-          <span class="glozone-item-name">${presetName}</span>
+          <span class="glozone-item-name">${rhythmName}</span>
           <span class="glozone-item-meta">Used by ${zonesUsing} Glo Zone${zonesUsing !== 1 ? 's' : ''}</span>
         </div>
         <div class="glozone-item-actions">
-          ${!isDefault ? `<button class="rename" data-preset="${presetName}">Rename</button>` : ''}
-          ${!isDefault ? `<button class="delete" data-preset="${presetName}">Delete</button>` : ''}
+          ${!isDefault ? `<button class="rename" data-rhythm="${rhythmName}">Rename</button>` : ''}
+          ${!isDefault ? `<button class="delete" data-rhythm="${rhythmName}">Delete</button>` : ''}
         </div>
       </div>
     `;
   }).join('');
 
   container.querySelectorAll('.rename').forEach(btn => {
-    btn.addEventListener('click', () => showModal('rename-preset', btn.dataset.preset));
+    btn.addEventListener('click', () => showModal('rename-rhythm', btn.dataset.rhythm));
   });
 
   container.querySelectorAll('.delete').forEach(btn => {
-    btn.addEventListener('click', () => deletePreset(btn.dataset.preset));
+    btn.addEventListener('click', () => deleteRhythm(btn.dataset.rhythm));
   });
 }
 
 /**
- * Populate preset select dropdowns
+ * Populate rhythm select dropdowns
  */
 function populatePresetSelects() {
   const selects = [
-    document.getElementById('zone-preset-select'),
-    document.getElementById('modal-preset-select')
+    document.getElementById('zone-rhythm-select'),
+    document.getElementById('modal-rhythm-select')
   ];
 
-  const presetNames = Object.keys(presetsData);
-  const options = presetNames.map(name => `<option value="${name}">${name}</option>`).join('');
+  const rhythmNames = Object.keys(rhythmsData);
+  const options = rhythmNames.map(name => `<option value="${name}">${name}</option>`).join('');
 
   selects.forEach(select => {
     if (select) select.innerHTML = options;
@@ -4840,7 +4778,7 @@ function setupDragAndDrop(container, zoneName, dropType) {
 function showZoneDetail(zoneName) {
   const detail = document.getElementById('zone-detail');
   const title = document.getElementById('zone-detail-title');
-  const presetSelect = document.getElementById('zone-preset-select');
+  const rhythmSelect = document.getElementById('zone-rhythm-select');
   const zoneAreas = document.getElementById('zone-areas');
   const availableAreas = document.getElementById('available-areas');
   const setDefaultBtn = document.getElementById('zone-set-default-btn');
@@ -4855,7 +4793,7 @@ function showZoneDetail(zoneName) {
 
   detail.style.display = 'block';
   title.textContent = zoneName + (zone.is_default ? ' ⭐' : '');
-  presetSelect.value = zone.preset || 'Glo 1';
+  rhythmSelect.value = zone.rhythm || 'Daily Rhythm 1';
 
   // Show/hide "Set as Default" button
   if (setDefaultBtn) {
@@ -4907,7 +4845,7 @@ function showZoneDetail(zoneName) {
   setupDragAndDrop(availableAreas, zoneName, 'available');
 
   // Preset change listener
-  presetSelect.onchange = () => updateZonePreset(zoneName, presetSelect.value);
+  rhythmSelect.onchange = () => updateZoneRhythm(zoneName, rhythmSelect.value);
 }
 
 /**
@@ -4954,20 +4892,20 @@ async function removeAreaFromZone(zoneName, areaId) {
 }
 
 /**
- * Update zone preset via API
+ * Update zone rhythm via API
  */
-async function updateZonePreset(zoneName, preset) {
+async function updateZoneRhythm(zoneName, rhythm) {
   try {
     const response = await fetch(`./api/glozones/${encodeURIComponent(zoneName)}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ preset })
+      body: JSON.stringify({ rhythm })
     });
     if (response.ok) {
       await fetchGlozones();
     }
   } catch (err) {
-    console.error('Error updating zone preset:', err);
+    console.error('Error updating zone rhythm:', err);
   }
 }
 
@@ -5018,11 +4956,11 @@ async function setZoneAsDefault(zoneName) {
 /**
  * Delete a preset via API
  */
-async function deletePreset(presetName) {
-  if (!confirm(`Delete Glo "${presetName}"? Glo Zones using it will switch to "Glo 1".`)) return;
+async function deleteRhythm(rhythmName) {
+  if (!confirm(`Delete rhythm "${rhythmName}"? Zones using it will need reassignment.`)) return;
 
   try {
-    const response = await fetch(`./api/circadian-presets/${encodeURIComponent(presetName)}`, {
+    const response = await fetch(`./api/circadian-rhythms/${encodeURIComponent(rhythmName)}`, {
       method: 'DELETE'
     });
     if (response.ok) {
@@ -5030,7 +4968,7 @@ async function deletePreset(presetName) {
       await fetchGlozones();
     }
   } catch (err) {
-    console.error('Error deleting preset:', err);
+    console.error('Error deleting rhythm:', err);
   }
 }
 
@@ -5044,28 +4982,28 @@ function showModal(mode, target = null) {
   const overlay = document.getElementById('glozone-modal');
   const title = document.getElementById('modal-title');
   const nameInput = document.getElementById('modal-name-input');
-  const presetRow = document.getElementById('modal-preset-row');
+  const rhythmRow = document.getElementById('modal-rhythm-row');
   const confirmBtn = document.getElementById('modal-confirm');
 
   nameInput.value = '';
 
   if (mode === 'create-zone') {
     title.textContent = 'Create Glo Zone';
-    presetRow.style.display = 'flex';
+    rhythmRow.style.display = 'flex';
     confirmBtn.textContent = 'Create';
-  } else if (mode === 'create-preset') {
+  } else if (mode === 'create-rhythm') {
     title.textContent = 'Create Glo';
-    presetRow.style.display = 'none';
+    rhythmRow.style.display = 'none';
     confirmBtn.textContent = 'Create';
   } else if (mode === 'rename-zone') {
     title.textContent = 'Rename Glo Zone';
     nameInput.value = target || '';
-    presetRow.style.display = 'none';
+    rhythmRow.style.display = 'none';
     confirmBtn.textContent = 'Rename';
-  } else if (mode === 'rename-preset') {
+  } else if (mode === 'rename-rhythm') {
     title.textContent = 'Rename Glo';
     nameInput.value = target || '';
-    presetRow.style.display = 'none';
+    rhythmRow.style.display = 'none';
     confirmBtn.textContent = 'Rename';
   }
 
@@ -5087,7 +5025,7 @@ function hideModal() {
  */
 async function handleModalConfirm() {
   const nameInput = document.getElementById('modal-name-input');
-  const presetSelect = document.getElementById('modal-preset-select');
+  const rhythmSelect = document.getElementById('modal-rhythm-select');
   const name = nameInput.value.trim();
 
   if (!name) {
@@ -5100,7 +5038,7 @@ async function handleModalConfirm() {
       const response = await fetch('./api/glozones', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, preset: presetSelect.value })
+        body: JSON.stringify({ name, rhythm: rhythmSelect.value })
       });
       if (response.ok) {
         hideModal();
@@ -5113,9 +5051,9 @@ async function handleModalConfirm() {
     } catch (err) {
       console.error('Error creating Glo Zone:', err);
     }
-  } else if (modalMode === 'create-preset') {
+  } else if (modalMode === 'create-rhythm') {
     try {
-      const response = await fetch('./api/circadian-presets', {
+      const response = await fetch('./api/circadian-rhythms', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, settings: {} })
@@ -5152,13 +5090,13 @@ async function handleModalConfirm() {
     } catch (err) {
       console.error('Error renaming Glo Zone:', err);
     }
-  } else if (modalMode === 'rename-preset') {
+  } else if (modalMode === 'rename-rhythm') {
     if (name === modalTarget) {
       hideModal();
       return;
     }
     try {
-      const response = await fetch(`./api/circadian-presets/${encodeURIComponent(modalTarget)}`, {
+      const response = await fetch(`./api/circadian-rhythms/${encodeURIComponent(modalTarget)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name })
@@ -5166,7 +5104,7 @@ async function handleModalConfirm() {
       if (response.ok) {
         hideModal();
         await fetchPresets();
-        await fetchGlozones(); // Refresh zones to show updated preset names
+        await fetchGlozones(); // Refresh zones to show updated rhythm names
       } else {
         const data = await response.json();
         alert(data.error || 'Failed to rename Glo');
@@ -5190,7 +5128,7 @@ function setupGlozoneUI() {
       document.getElementById(`${tab.dataset.tab}-content`).classList.add('active');
 
       // Hide zone detail when switching tabs
-      if (tab.dataset.tab === 'presets') {
+      if (tab.dataset.tab === 'rhythms') {
         document.getElementById('zone-detail').style.display = 'none';
       }
     });
@@ -5198,7 +5136,7 @@ function setupGlozoneUI() {
 
   // Add buttons
   document.getElementById('add-zone-btn')?.addEventListener('click', () => showModal('create-zone'));
-  document.getElementById('add-preset-btn')?.addEventListener('click', () => showModal('create-preset'));
+  document.getElementById('add-rhythm-btn')?.addEventListener('click', () => showModal('create-rhythm'));
 
   // Zone rename button
   document.getElementById('zone-rename-btn')?.addEventListener('click', () => {
@@ -5221,19 +5159,17 @@ function setupGlozoneUI() {
 }
 
 // ============================================================
-// Glo Selector Functions
+// Rhythm Loading & Saving
 // ============================================================
 
-let selectedGloName = 'Glo 1';
-let glosData = {};
-let glozonesDataForUsedBy = {};
+let selectedRhythmName = 'Daily Rhythm 1';
 
 /**
- * Get Glo name from URL path (e.g., /glo/MyGlo)
+ * Get rhythm name from URL path (e.g., /rhythm/MyRhythm)
  */
-function getGloNameFromUrl() {
+function getRhythmNameFromUrl() {
   const path = window.location.pathname;
-  const match = path.match(/\/glo\/([^/]+)$/);
+  const match = path.match(/\/rhythm\/([^/]+)$/);
   if (match) {
     return decodeURIComponent(match[1]);
   }
@@ -5241,142 +5177,46 @@ function getGloNameFromUrl() {
 }
 
 /**
- * Initialize the Glo selector dropdown
+ * Load rhythm settings from URL
  */
-async function initGloSelector() {
-  const select = document.getElementById('glo-select');
-  if (!select) return;
-
-  try {
-    // Fetch presets and zones
-    const [presetsRes, zonesRes] = await Promise.all([
-      fetch('./api/circadian-presets'),
-      fetch('./api/glozones')
-    ]);
-
-    if (presetsRes.ok) {
-      const data = await presetsRes.json();
-      glosData = data.presets || {};
-    }
-
-    if (zonesRes.ok) {
-      const data = await zonesRes.json();
-      glozonesDataForUsedBy = data.zones || {};
-    }
-
-    // Populate dropdown
-    const gloNames = Object.keys(glosData);
-    select.innerHTML = gloNames.map(name =>
-      `<option value="${name}">${name}</option>`
-    ).join('') + '<option value="__new__">+ New Glo...</option>';
-
-    // Get initial selection from URL or default
-    const urlGloName = getGloNameFromUrl();
-    if (urlGloName && glosData[urlGloName]) {
-      selectedGloName = urlGloName;
-    } else if (gloNames.length > 0) {
-      selectedGloName = gloNames[0];
-    }
-
-    select.value = selectedGloName;
-    updateGloUsedBy();
-
-    // Event listener for Glo change
-    select.addEventListener('change', handleGloChange);
-
-    // Load settings for selected Glo
-    loadGloSettings(selectedGloName);
-
-  } catch (err) {
-    console.error('Error initializing Glo selector:', err);
-  }
-}
-
-/**
- * Handle Glo selection change
- */
-async function handleGloChange(e) {
-  const newGlo = e.target.value;
-
-  if (newGlo === '__new__') {
-    const name = prompt('Enter name for new Glo:');
-    if (!name) {
-      e.target.value = selectedGloName;
-      return;
-    }
-
-    try {
-      const response = await fetch('./api/circadian-presets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, settings: {} })
-      });
-
-      if (response.ok) {
-        await initGloSelector();
-        document.getElementById('glo-select').value = name;
-        selectedGloName = name;
-        loadGloSettings(name);
-      } else {
-        const data = await response.json();
-        alert(data.error || 'Failed to create Glo');
-        e.target.value = selectedGloName;
-      }
-    } catch (err) {
-      console.error('Error creating Glo:', err);
-      e.target.value = selectedGloName;
-    }
+async function loadRhythmFromUrl() {
+  const rhythmName = getRhythmNameFromUrl();
+  if (!rhythmName) {
+    // No rhythm in URL - redirect to list page
+    const path = window.location.pathname;
+    const base = path.replace(/\/rhythm\/[^/]*\/?$/, '').replace(/\/rhythm\/?$/, '');
+    window.location.href = (base || '.') + '/rhythm';
     return;
   }
 
-  selectedGloName = newGlo;
-  loadGloSettings(newGlo);
-  updateGloUsedBy();
-}
+  selectedRhythmName = rhythmName;
 
-/**
- * Load settings for a specific Glo into the UI
- */
-function loadGloSettings(gloName) {
-  const settings = glosData[gloName] || {};
+  try {
+    const response = await fetch('./api/circadian-rhythms');
+    if (response.ok) {
+      const data = await response.json();
+      const rhythms = data.rhythms || {};
+      const settings = rhythms[rhythmName] || {};
 
-  // Merge Glo settings into config object
-  Object.assign(config, settings);
+      // Merge rhythm settings into config object
+      Object.assign(config, settings);
 
-  resetRuntimeState();
-  syncUIFromConfig();
-  renderChart();
-}
-
-/**
- * Update "Used by" display
- */
-function updateGloUsedBy() {
-  const el = document.getElementById('glo-used-by');
-  if (!el) return;
-
-  const zones = [];
-  for (const [zoneName, zone] of Object.entries(glozonesDataForUsedBy)) {
-    if (zone.preset === selectedGloName) {
-      zones.push(zoneName);
+      resetRuntimeState();
+      syncUIFromConfig();
+      renderChart();
     }
-  }
-
-  if (zones.length === 0) {
-    el.textContent = 'Not used by any zones';
-  } else {
-    el.textContent = 'Used by: ' + zones.join(', ');
+  } catch (err) {
+    console.error('Error loading rhythm:', err);
   }
 }
 
 /**
- * Save current settings to the selected Glo
+ * Save current settings to the selected rhythm
  */
-async function saveGloSettings() {
+async function saveRhythmSettings() {
   const statusEl = document.getElementById('save-status');
 
-  // Extract only the curve settings (not zone/area related)
-  const gloSettings = {
+  const rhythmSettings = {
     wake_time: config.wake_time,
     bed_time: config.bed_time,
     wake_speed: config.wake_speed,
@@ -5388,7 +5228,6 @@ async function saveGloSettings() {
     min_color_temp: config.min_color_temp,
     max_color_temp: config.max_color_temp,
     color_mode: config.color_mode,
-    // Solar rules
     warm_night_enabled: config.warm_night_enabled,
     warm_night_mode: config.warm_night_mode,
     warm_night_target: config.warm_night_target,
@@ -5401,22 +5240,19 @@ async function saveGloSettings() {
     cool_day_start: config.cool_day_start,
     cool_day_end: config.cool_day_end,
     cool_day_fade: config.cool_day_fade,
-    // Activity and steps
     activity_preset: config.activity_preset,
     max_dim_steps: config.max_dim_steps,
   };
 
   try {
-    const response = await fetch(`./api/circadian-presets/${encodeURIComponent(selectedGloName)}`, {
+    const response = await fetch(`./api/circadian-rhythms/${encodeURIComponent(selectedRhythmName)}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(gloSettings)
+      body: JSON.stringify(rhythmSettings)
     });
 
     if (response.ok) {
-      statusEl.innerHTML = '<div class="success">Glo saved!</div>';
-      // Update local cache
-      glosData[selectedGloName] = { ...glosData[selectedGloName], ...gloSettings };
+      statusEl.innerHTML = '<div class="success">Saved!</div>';
     } else {
       const data = await response.json();
       statusEl.innerHTML = '<div class="error">' + (data.error || 'Failed to save') + '</div>';
@@ -5429,76 +5265,25 @@ async function saveGloSettings() {
 }
 
 /**
- * Setup Glo rename/delete buttons
+ * Setup save button
  */
-function setupGloButtons() {
-  document.getElementById('glo-rename-btn')?.addEventListener('click', async () => {
-    const newName = prompt('Enter new name:', selectedGloName);
-    if (!newName || newName === selectedGloName) return;
-
-    try {
-      const response = await fetch(`./api/circadian-presets/${encodeURIComponent(selectedGloName)}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newName })
-      });
-
-      if (response.ok) {
-        await initGloSelector();
-        document.getElementById('glo-select').value = newName;
-        selectedGloName = newName;
-        updateGloUsedBy();
-      } else {
-        const data = await response.json();
-        alert(data.error || 'Failed to rename');
-      }
-    } catch (err) {
-      console.error('Error renaming Glo:', err);
-    }
-  });
-
-  document.getElementById('glo-delete-btn')?.addEventListener('click', async () => {
-    if (Object.keys(glosData).length <= 1) {
-      alert('Cannot delete the last Glo');
-      return;
-    }
-
-    if (!confirm(`Delete "${selectedGloName}"? Zones using it will switch to "Glo 1".`)) return;
-
-    try {
-      const response = await fetch(`./api/circadian-presets/${encodeURIComponent(selectedGloName)}`, {
-        method: 'DELETE'
-      });
-
-      if (response.ok) {
-        await initGloSelector();
-      } else {
-        const data = await response.json();
-        alert(data.error || 'Failed to delete');
-      }
-    } catch (err) {
-      console.error('Error deleting Glo:', err);
-    }
-  });
-
-  // Override save button to save Glo instead of global config
-  // stopImmediatePropagation prevents the base saveConfig() listener from also firing
+function setupSaveButton() {
   document.getElementById('save-config')?.addEventListener('click', (e) => {
     e.preventDefault();
     e.stopImmediatePropagation();
-    saveGloSettings();
+    saveRhythmSettings();
   });
 }
 
 // ============================================================
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Fix nav links when on /glo/SomeName URL
-  // Relative links like ./settings resolve incorrectly from /glo/SomeName
+  // Fix nav links when on /rhythm/SomeName URL
+  // Relative links like ./settings resolve incorrectly from /rhythm/SomeName
   const path = window.location.pathname;
-  const gloNameMatch = path.match(/\/glo\/[^/]+\/?$/);
-  if (gloNameMatch) {
-    // We're on /glo/SomeName - fix nav links to go up one level
+  const rhythmNameMatch = path.match(/\/rhythm\/[^/]+\/?$/);
+  if (rhythmNameMatch) {
+    // We're on /rhythm/SomeName - fix nav links to go up one level
     document.querySelectorAll('.nav-link').forEach(link => {
       const href = link.getAttribute('href');
       if (href && href.startsWith('./')) {
@@ -5519,8 +5304,7 @@ document.addEventListener('DOMContentLoaded', () => {
   resetRuntimeState();
   setupEventListeners();
   setupLiveDesign();
-  // setupGlozoneUI(); // Removed - zone management is on Home page now
-  setupGloButtons();
+  setupSaveButton();
   syncUIFromConfig();
 
   // Set cursor to current time on page load
@@ -5530,8 +5314,8 @@ document.addEventListener('DOMContentLoaded', () => {
   renderChart();
   applyCursor();
 
-  // Initialize Glo selector (replaces loadConfig for global settings)
-  initGloSelector();
+  // Load rhythm from URL
+  loadRhythmFromUrl();
 });
 </script>
 </body>

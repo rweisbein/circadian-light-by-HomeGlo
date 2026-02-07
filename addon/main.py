@@ -2725,7 +2725,7 @@ class HomeAssistantWebSocketClient:
         """Get circadian lighting values for a specific area.
 
         This is the centralized method that should be used for all circadian lighting calculations.
-        Uses zone-aware configuration - gets the preset config for the area's zone.
+        Uses zone-aware configuration - gets the rhythm config for the area's zone.
 
         Args:
             area_id: The area ID to get lighting values for
@@ -2735,7 +2735,7 @@ class HomeAssistantWebSocketClient:
         Returns:
             Dict containing circadian lighting values
         """
-        # Get zone-aware config for this area (preset settings + global settings)
+        # Get zone-aware config for this area (rhythm settings + global settings)
         merged_config = glozone.get_effective_config_for_area(area_id)
 
         # Load curve parameters from the merged config
@@ -2892,7 +2892,7 @@ class HomeAssistantWebSocketClient:
         that was set via step_up/step_down buttons.
 
         If the area is frozen (frozen_at is set), uses frozen_at instead of current time.
-        Uses zone-aware configuration - gets the preset config for the area's zone.
+        Uses zone-aware configuration - gets the rhythm config for the area's zone.
 
         Args:
             area_id: The area ID to update
@@ -2996,7 +2996,7 @@ class HomeAssistantWebSocketClient:
         State resets when crossing ascend_start or descend_start times.
         Resets both area runtime state and GloZone runtime state.
 
-        Note: Currently uses the first preset's phase times for the global check.
+        Note: Currently uses the first rhythm's phase times for the global check.
         Future enhancement: per-zone phase checks for different schedules.
 
         Args:
@@ -3016,17 +3016,17 @@ class HomeAssistantWebSocketClient:
         if last_check is None:
             return now
 
-        # Load config (uses first preset for phase times)
+        # Load config (uses first rhythm for phase times)
         # Future: could check per-zone phase times
         raw_config = glozone.load_config_from_files()
-        presets = raw_config.get("circadian_presets", {})
+        rhythms = raw_config.get("circadian_rhythms", {})
 
-        if not presets:
+        if not rhythms:
             return now
 
-        # Use first preset's phase times for global check
-        first_preset = list(presets.values())[0]
-        config = Config.from_dict(first_preset)
+        # Use first rhythm's phase times for global check
+        first_rhythm = list(rhythms.values())[0]
+        config = Config.from_dict(first_rhythm)
 
         # Convert hours to today's datetime
         ascend_dt = now.replace(

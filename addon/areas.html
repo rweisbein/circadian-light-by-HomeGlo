@@ -1217,7 +1217,7 @@
   <nav class="nav">
     <a href="./" class="nav-brand active">Circadian Light</a>
     <div class="nav-links">
-      <a href="./glo" class="nav-link nav-link-2line">Daily Rhythm</a>
+      <a href="./rhythm" class="nav-link nav-link-2line">Daily Rhythm</a>
       <a href="./switches" class="nav-link">Controls</a>
       <a href="./moments" class="nav-link">Moments</a>
       <a href="./settings" class="nav-link">Settings</a>
@@ -1354,7 +1354,7 @@
     let areas = [];
     let areaStatus = {};
     let zoneStates = {};
-    let cachedPresets = {};
+    let cachedRhythms = {};
     let viewMode = 'custom'; // 'custom', 'alpha', 'onoff'
     let selectedArea = null;
     let selectedZoneName = null;
@@ -1892,10 +1892,10 @@
       const status = areaStatus[areaId] || {};
       if (!cachedConfig || !cachedSunTimes) return;
 
-      // Use the area's specific preset config
-      const presetName = status.preset_name;
-      const cfg = (presetName && cachedPresets[presetName])
-        ? { ...cachedConfig, ...cachedPresets[presetName] }
+      // Use the area's specific rhythm config
+      const rhythmName = status.preset_name;
+      const cfg = (rhythmName && cachedRhythms[rhythmName])
+        ? { ...cachedConfig, ...cachedRhythms[rhythmName] }
         : cachedConfig;
       const state = {
         brightness_mid: status.brightness_mid ?? null,
@@ -2116,11 +2116,11 @@
       container.innerHTML = '<div class="loading">Loading areas...</div>';
 
       try {
-        const [areasRes, statusRes, zoneStatesRes, presetsRes, glozonesRes] = await Promise.all([
+        const [areasRes, statusRes, zoneStatesRes, rhythmsRes, glozonesRes] = await Promise.all([
           fetch('./api/areas'),
           fetch('./api/area-status'),
           fetch('./api/zone-states'),
-          fetch('./api/circadian-presets'),
+          fetch('./api/circadian-rhythms'),
           fetch('./api/glozones')
         ]);
 
@@ -2137,9 +2137,9 @@
           zoneStates = zs.zone_states || {};
         }
 
-        if (presetsRes.ok) {
-          const p = await presetsRes.json();
-          cachedPresets = p.presets || {};
+        if (rhythmsRes.ok) {
+          const p = await rhythmsRes.json();
+          cachedRhythms = p.rhythms || {};
         }
 
         if (glozonesRes.ok) {
@@ -2236,25 +2236,25 @@
     function selectRhythm(item) {
       event.stopPropagation();
       const zoneName = item.dataset.zone;
-      const preset = item.dataset.preset;
+      const rhythm = item.dataset.rhythm;
       item.closest('.zone-rhythm-dropdown').classList.remove('visible');
 
-      if (preset === '__new__') {
+      if (rhythm === '__new__') {
         const newName = prompt('New rhythm name:');
         if (newName && newName.trim()) {
           createAndAssignRhythm(zoneName, newName.trim());
         }
       } else {
-        changeZoneRhythm(zoneName, preset);
+        changeZoneRhythm(zoneName, rhythm);
       }
     }
 
-    async function changeZoneRhythm(zoneName, presetName) {
+    async function changeZoneRhythm(zoneName, rhythmName) {
       try {
         await fetch(`./api/glozones/${encodeURIComponent(zoneName)}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ preset: presetName })
+          body: JSON.stringify({ rhythm: rhythmName })
         });
         await loadData();
       } catch (err) {
@@ -2264,14 +2264,14 @@
 
     async function createAndAssignRhythm(zoneName, rhythmName) {
       try {
-        // Create new preset (copy from current zone's preset as base)
+        // Create new rhythm (copy from current zone's rhythm as base)
         const zs = zoneStates[zoneName];
-        const sourcePreset = zs?.preset;
-        const baseConfig = sourcePreset && cachedPresets[sourcePreset]
-          ? { ...cachedPresets[sourcePreset] }
+        const sourceRhythm = zs?.rhythm;
+        const baseConfig = sourceRhythm && cachedRhythms[sourceRhythm]
+          ? { ...cachedRhythms[sourceRhythm] }
           : {};
 
-        await fetch('./api/circadian-presets', {
+        await fetch('./api/circadian-rhythms', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: rhythmName, settings: baseConfig })
@@ -2285,20 +2285,20 @@
     }
 
     /**
-     * Compute pure rhythm brightness/kelvin at current hour for a specific preset.
-     * Uses the preset's own curve config (from cachedPresets) merged with global settings.
+     * Compute pure rhythm brightness/kelvin at current hour for a specific rhythm.
+     * Uses the rhythm's own curve config (from cachedRhythms) merged with global settings.
      * Returns { brightness, kelvin } or null if config not available.
      */
-    function getPureRhythmValues(presetName) {
+    function getPureRhythmValues(rhythmName) {
       if (!cachedSunTimes) return null;
 
-      // Build config: start with cachedConfig (which has the effective first preset's
-      // settings flattened by /api/config), then overlay the specific preset's settings.
-      // Once the server-side glozone.py fix propagates complete preset configs via
-      // /api/circadian-presets, the overlay will contain all keys directly.
+      // Build config: start with cachedConfig (which has the effective first rhythm's
+      // settings flattened by /api/config), then overlay the specific rhythm's settings.
+      // Once the server-side glozone.py fix propagates complete rhythm configs via
+      // /api/circadian-rhythms, the overlay will contain all keys directly.
       let cfg;
-      if (presetName && cachedPresets[presetName]) {
-        cfg = { ...cachedConfig, ...cachedPresets[presetName] };
+      if (rhythmName && cachedRhythms[rhythmName]) {
+        cfg = { ...cachedConfig, ...cachedRhythms[rhythmName] };
       } else if (cachedConfig) {
         cfg = cachedConfig;
       } else {
@@ -2808,17 +2808,17 @@
           zoneLightingInfo = `<span style="font-size: 0.8rem; opacity: 0.85;">${Math.round(zoneBri)}% · ${Math.round(zoneKelvin)}K</span>`;
 
           // Rhythm dropdown + wake/bed times combined pill
-          if (zs.preset) {
-            const presetNames = Object.keys(cachedPresets).filter(p => p !== zs.preset);
+          if (zs.rhythm) {
+            const rhythmNames = Object.keys(cachedRhythms).filter(p => p !== zs.rhythm);
             const dropdownItems =
-              `<a href="./glo/${encodeURIComponent(zs.preset)}" class="zone-rhythm-dropdown-item" onclick="event.stopPropagation();">Edit ${zs.preset}</a>` +
-              presetNames.map(p =>
-                `<div class="zone-rhythm-dropdown-item" data-zone="${zoneName}" data-preset="${p}" onclick="selectRhythm(this)">${p}</div>`
+              `<a href="./rhythm/${encodeURIComponent(zs.rhythm)}" class="zone-rhythm-dropdown-item" onclick="event.stopPropagation();">Edit ${zs.rhythm}</a>` +
+              rhythmNames.map(p =>
+                `<div class="zone-rhythm-dropdown-item" data-zone="${zoneName}" data-rhythm="${p}" onclick="selectRhythm(this)">${p}</div>`
               ).join('') +
-              `<div class="zone-rhythm-dropdown-item" data-zone="${zoneName}" data-preset="__new__" onclick="selectRhythm(this)">+ New Rhythm...</div>`;
+              `<div class="zone-rhythm-dropdown-item" data-zone="${zoneName}" data-rhythm="__new__" onclick="selectRhythm(this)">+ New Rhythm...</div>`;
 
             // Pure rhythm values (what zone would be at after GloReset)
-            const pureRhythm = getPureRhythmValues(zs.preset);
+            const pureRhythm = getPureRhythmValues(zs.rhythm);
 
             let pillStyle = '';
             let pillTextColor = zoneTextColor;
@@ -2840,7 +2840,7 @@
             zoneRhythmLink = `
               <div class="zone-rhythm-display zone-rhythm-pill-tinted" style="${pillStyle} border-radius: 6px; padding: 8px 12px; gap: 6px; cursor: pointer;" onclick="event.stopPropagation(); toggleRhythmDropdown(this);">
                 <span class="zone-rhythm-label" style="color: ${pillTextColor};">Rhythm:</span>
-                <span class="zone-rhythm-btn" style="color: ${pillTextColor};">${zs.preset}</span>
+                <span class="zone-rhythm-btn" style="color: ${pillTextColor};">${zs.rhythm}</span>
                 <div class="zone-rhythm-dropdown">${dropdownItems}</div>
                 ${rhythmInfoSpan}
               </div>`;
@@ -3316,11 +3316,11 @@
       const status = areaStatus[areaId] || {};
       if (!cachedConfig || !cachedSunTimes) return;
 
-      // Use the area's specific preset config (same pattern as getPureRhythmValues)
-      const presetName = status.preset_name;
+      // Use the area's specific rhythm config (same pattern as getPureRhythmValues)
+      const rhythmName = status.preset_name;
       let cfg;
-      if (presetName && cachedPresets[presetName]) {
-        cfg = { ...cachedConfig, ...cachedPresets[presetName] };
+      if (rhythmName && cachedRhythms[rhythmName]) {
+        cfg = { ...cachedConfig, ...cachedRhythms[rhythmName] };
       } else {
         cfg = cachedConfig;
       }
@@ -3413,7 +3413,7 @@
         const [res, zsRes, pRes] = await Promise.all([
           fetch('./api/area-status'),
           fetch('./api/zone-states'),
-          fetch('./api/circadian-presets')
+          fetch('./api/circadian-rhythms')
         ]);
         if (res.ok) {
           areaStatus = await res.json();
@@ -3424,7 +3424,7 @@
         }
         if (pRes.ok) {
           const p = await pRes.json();
-          cachedPresets = p.presets || {};
+          cachedRhythms = p.rhythms || {};
         }
       } catch (err) {
         console.error('Error fetching modal data:', err);
@@ -3473,7 +3473,7 @@
         const [res, zsRes, pRes] = await Promise.all([
           fetch('./api/area-status'),
           fetch('./api/zone-states'),
-          fetch('./api/circadian-presets')
+          fetch('./api/circadian-rhythms')
         ]);
         if (res.ok) {
           areaStatus = await res.json();
@@ -3484,7 +3484,7 @@
         }
         if (pRes.ok) {
           const p = await pRes.json();
-          cachedPresets = p.presets || {};
+          cachedRhythms = p.rhythms || {};
         }
       } catch (err) {
         console.error('Error fetching zone modal data:', err);
@@ -3565,9 +3565,9 @@
 
       const rhythmLine = document.getElementById('modal-rhythm-line');
       const rhythmLinkEl = document.getElementById('modal-rhythm-link');
-      const presetName = zs.preset || null;
-      if (presetName) {
-        rhythmLinkEl.innerHTML = `<a href="./glo/${encodeURIComponent(presetName)}" style="color: var(--accent); text-decoration: none;">${presetName}</a>`;
+      const rhythmName = zs.rhythm || null;
+      if (rhythmName) {
+        rhythmLinkEl.innerHTML = `<a href="./rhythm/${encodeURIComponent(rhythmName)}" style="color: var(--accent); text-decoration: none;">${rhythmName}</a>`;
         rhythmLine.style.display = '';
       } else {
         rhythmLinkEl.textContent = '—';
@@ -3626,11 +3626,11 @@
       const zs = zoneStates[zoneName] || {};
       if (!cachedConfig || !cachedSunTimes) return;
 
-      // Get preset config
-      const presetName = zs.preset;
+      // Get rhythm config
+      const rhythmName = zs.rhythm;
       let cfg;
-      if (presetName && cachedPresets[presetName]) {
-        cfg = { ...cachedConfig, ...cachedPresets[presetName] };
+      if (rhythmName && cachedRhythms[rhythmName]) {
+        cfg = { ...cachedConfig, ...cachedRhythms[rhythmName] };
       } else {
         cfg = cachedConfig;
       }
