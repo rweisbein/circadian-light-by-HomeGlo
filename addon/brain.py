@@ -501,7 +501,12 @@ class CircadianLight:
         state: AreaState,
         sun_times: Optional[SunTimes] = None
     ) -> float:
-        """Apply warm night and cool day solar rules with window + fade.
+        """Apply warm night and cool day solar rules with crossfade.
+
+        Both rules compute an independent strength (0-1) from their time
+        window. Warm night acts as a ceiling (pulls K down), cool day as
+        a floor (pulls K up). In overlap zones the strengths crossfade
+        naturally.
 
         Args:
             kelvin: Base color temperature from curve
@@ -522,66 +527,58 @@ class CircadianLight:
         solar_mid = sun_times.solar_mid
         wrap24 = CircadianLight._wrap24
 
-        # Warm at night - ceiling
+        # Compute night_strength from warm_night window
+        night_strength = 0.0
         if config.warm_night_enabled:
-            warm_target = config.warm_night_target
-            # Apply color_override if positive (raises WarmNight ceiling)
-            if state.color_override and state.color_override > 0:
-                warm_target = warm_target + state.color_override
+            fade_hrs = config.warm_night_fade / 60.0
+            start_offset_hrs = config.warm_night_start / 60.0
+            end_offset_hrs = config.warm_night_end / 60.0
+            mode = config.warm_night_mode
 
-            if kelvin > warm_target:
-                fade_hrs = config.warm_night_fade / 60.0
-                start_offset_hrs = config.warm_night_start / 60.0
-                end_offset_hrs = config.warm_night_end / 60.0
-                mode = config.warm_night_mode
+            if mode == "sunrise":
+                ws, we = wrap24(solar_mid), wrap24(sunrise + end_offset_hrs)
+            elif mode == "sunset":
+                ws, we = wrap24(sunset + start_offset_hrs), wrap24(solar_mid)
+            else:  # "all"
+                ws, we = wrap24(sunset + start_offset_hrs), wrap24(sunrise + end_offset_hrs)
 
-                # Determine window based on mode
-                if mode == "sunrise":
-                    window_start = wrap24(solar_mid)
-                    window_end = wrap24(sunrise + end_offset_hrs)
-                elif mode == "sunset":
-                    window_start = wrap24(sunset + start_offset_hrs)
-                    window_end = wrap24(solar_mid)
-                else:  # "all"
-                    window_start = wrap24(sunset + start_offset_hrs)
-                    window_end = wrap24(sunrise + end_offset_hrs)
+            in_window, weight = CircadianLight._get_window_weight(hour, ws, we, fade_hrs)
+            if in_window:
+                night_strength = weight
 
-                in_window, weight = CircadianLight._get_window_weight(hour, window_start, window_end, fade_hrs)
-                logger.debug(f"[WarmNight] hour={hour:.2f}, sunrise={sunrise:.2f}, sunset={sunset:.2f}, "
-                             f"window={window_start:.2f}-{window_end:.2f}, fade={fade_hrs:.2f}h, "
-                             f"in_window={in_window}, weight={weight:.3f}, base_kelvin={kelvin:.0f}")
-                if in_window and weight > 0:
-                    old_kelvin = kelvin
-                    kelvin = kelvin + (warm_target - kelvin) * weight
-                    logger.debug(f"[WarmNight] Applied: {old_kelvin:.0f}K -> {kelvin:.0f}K (target={warm_target})")
-
-        # Cool during day - floor
+        # Compute day_strength from cool_day window
+        day_strength = 0.0
         if config.cool_day_enabled:
-            cool_target = config.cool_day_target
-            # Apply color_override if negative (lowers CoolDay floor)
-            if state.color_override and state.color_override < 0:
-                cool_target = cool_target + state.color_override
+            fade_hrs = config.cool_day_fade / 60.0
+            start_offset_hrs = config.cool_day_start / 60.0
+            end_offset_hrs = config.cool_day_end / 60.0
+            mode = config.cool_day_mode
 
-            if kelvin < cool_target:
-                fade_hrs = config.cool_day_fade / 60.0
-                start_offset_hrs = config.cool_day_start / 60.0
-                end_offset_hrs = config.cool_day_end / 60.0
-                mode = config.cool_day_mode
+            if mode == "sunrise":
+                ws, we = wrap24(sunrise + start_offset_hrs), wrap24(solar_noon)
+            elif mode == "sunset":
+                ws, we = wrap24(solar_noon), wrap24(sunset + end_offset_hrs)
+            else:  # "all"
+                ws, we = wrap24(sunrise + start_offset_hrs), wrap24(sunset + end_offset_hrs)
 
-                # Determine window based on mode
-                if mode == "sunrise":
-                    window_start = wrap24(sunrise + start_offset_hrs)
-                    window_end = wrap24(solar_noon)
-                elif mode == "sunset":
-                    window_start = wrap24(solar_noon)
-                    window_end = wrap24(sunset + end_offset_hrs)
-                else:  # "all"
-                    window_start = wrap24(sunrise + start_offset_hrs)
-                    window_end = wrap24(sunset + end_offset_hrs)
+            in_window, weight = CircadianLight._get_window_weight(hour, ws, we, fade_hrs)
+            if in_window:
+                day_strength = weight
 
-                in_window, weight = CircadianLight._get_window_weight(hour, window_start, window_end, fade_hrs)
-                if in_window and weight > 0:
-                    kelvin = kelvin + (cool_target - kelvin) * weight
+        # Apply color_override to targets
+        warm_target = config.warm_night_target
+        if state.color_override and state.color_override > 0:
+            warm_target += state.color_override
+
+        cool_target = config.cool_day_target
+        if state.color_override and state.color_override < 0:
+            cool_target += state.color_override
+
+        # Crossfade: each effect only acts in one direction
+        night_effect = max(0, kelvin - warm_target) if night_strength > 0 else 0
+        day_effect = max(0, cool_target - kelvin) if day_strength > 0 else 0
+
+        kelvin = kelvin - night_effect * night_strength + day_effect * day_strength
 
         return kelvin
 
@@ -1159,7 +1156,7 @@ AdaptiveLighting = CircadianLight
 # Activity presets (simplified for backwards compatibility)
 ACTIVITY_PRESETS = {
     "young": {"bed_time": 18.0, "wake_time": 6.0},
-    "adult": {"bed_time": 22.0, "wake_time": 6.0},
+    "adult": {"bed_time": 21.0, "wake_time": 7.0},
     "nightowl": {"bed_time": 2.0, "wake_time": 10.0},
     "duskbat": {"bed_time": 6.0, "wake_time": 14.0},
     "shiftearly": {"bed_time": 10.0, "wake_time": 18.0},

@@ -8,129 +8,108 @@
 <style>
 :root {
   --bg: #000;
-  --panel: #181818;
+  --panel: #111;
   --panel2: #252525;
-  --text: #e6e6e6;
-  --muted: #bbb;
-  --muted2: #aaa;
-  --line: #333;
+  --card: #1a1a1a;
+  --text: #e2e8f0;
+  --muted: #94a3b8;
+  --muted2: #64748b;
+  --line: #334155;
   --line2: #2c2c2c;
   --grid: #202020;
   --accent: #feac60;
+  --accent-hover: #ffc078;
   --ascend: rgba(120, 190, 255, 0.32);
   --ascend-border: rgba(120, 185, 245, 0.5);
   --descend: rgba(255, 220, 100, 0.12);
   --descend-border: rgba(255, 230, 128, 0.45);
 }
 * { box-sizing: border-box; }
-html, body { height: 100%; margin: 0; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+html, body { height: 100%; margin: 0; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
 body { padding: 20px; }
 h1 { margin: 0 0 18px; font-size: 28px; font-weight: 600; }
 h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
 
 .container { max-width: 1200px; margin: 0 auto; }
-.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.header-actions { display: flex; gap: 12px; align-items: center; }
 
-/* Activity Preset */
-.activity-select { margin-bottom: 16px; }
-.activity-select select {
-  width: 100%;
+/* Page Header */
+.page-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+  gap: 2px;
+}
+.rhythm-name-input {
+  font-size: 1.2rem;
+  font-weight: 600;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  padding: 4px 0;
+  width: auto;
+  min-width: 120px;
   max-width: 300px;
-  font-size: 1rem;
-  padding: 10px 14px;
-  border-radius: 10px;
-  border: 1px solid rgba(255,255,255,0.35);
-  background: rgba(255,255,255,0.06);
-  color: #fff;
+}
+.rhythm-name-input:focus {
+  outline: none;
+}
+.header-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-left: auto;
 }
 
-/* Section Blocks */
+/* Rhythm group labels */
+.rhythm-group-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  margin: 10px 0 2px;
+}
+.rhythm-group-label.bed {
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+  margin-top: 12px;
+}
+
+/* Section Blocks (cards) */
 .section-block {
-  background: var(--panel);
+  background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 8px;
   padding: 16px;
   margin-bottom: 16px;
-}
-.section-block--ascend {
-  background: var(--ascend);
-  border-color: var(--ascend-border);
-}
-.section-block--ascend h2 { color: #7ec8ff; }
-.section-block--descend {
-  background: var(--descend);
-  border-color: var(--descend-border);
-}
-.section-block--descend h2 { color: #ffd47a; }
-/* Time badge in section headers with timeline */
-.section-block h2 {
-  margin-bottom: 4px;
-}
-.header-timeline {
-  position: relative;
-  height: 22px;
-  margin-bottom: 10px;
-}
-.header-timeline::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  height: 1px;
-  background: rgba(255,255,255,0.15);
-}
-.time-badge {
-  position: absolute;
-  top: 50%;
-  font-size: 0.7rem;
-  font-weight: 500;
-  padding: 2px 8px;
-  border-radius: 10px;
-  white-space: nowrap;
-  transform: translate(-50%, -50%);
-  transition: left 0.2s ease;
-}
-.section-block--ascend .time-badge {
-  background: rgba(126,200,255,0.25);
-  color: #7ec8ff;
-}
-.section-block--descend .time-badge {
-  background: rgba(255,212,122,0.25);
-  color: #ffd47a;
-}
-
-/* Timing Grid */
-.timing-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-}
-@media (max-width: 768px) {
-  .timing-grid { grid-template-columns: 1fr; }
 }
 
 /* Parameter Rows */
 .param-row {
   display: grid;
-  grid-template-columns: 140px 80px 1fr;
+  grid-template-columns: 140px 1fr 140px;
   align-items: center;
-  gap: 12px;
-  margin: 10px 0;
+  gap: 10px;
+  margin: 0 0 8px 0;
+  max-width: 600px;
 }
+/* Ranges section needs more breathing room between dual-range rows */
+#ranges-section .param-row { margin: 0 0 14px 0; }
+/* Solar slider rows: use explicit sibling margin, zero out nested param-row margin */
+.color-rule-slider-row .param-row { margin: 0; }
+.color-rule-slider-row + .color-rule-slider-row { margin-top: 8px; }
 /* Hidden control rows - kept for future "custom" preset */
 .param-row.is-hidden {
   display: none;
   pointer-events: none;
 }
 .param-row label {
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   color: var(--muted);
   font-weight: 600;
+  text-align: right;
 }
 .param-row .value {
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-weight: 600;
   color: var(--text);
   text-align: right;
@@ -176,24 +155,66 @@ input[type=range]::-moz-range-thumb {
 }
 
 /* Chart Section */
-.chart-wrapper { position: relative; margin-bottom: 32px; }
+.chart-wrapper { position: relative; margin-bottom: 6px; }
 #chart { height: 450px; }
+.chart-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0 8px;
+}
 .chart-date-control {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 10px;
-  margin: 6px auto 8px;
-  max-width: 420px;
+  gap: 8px;
+  flex: 1;
+  max-width: 300px;
 }
 .chart-date-display {
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   color: var(--text);
-  min-width: 70px;
+  min-width: 50px;
   font-weight: 600;
 }
 .chart-date-control input[type=range] {
   flex: 1;
+}
+.time-nav-group {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  margin-left: auto;
+}
+.time-nav-btn {
+  --btn-bg: rgba(255,255,255,0.06);
+  --btn-text: #fff;
+  --btn-fill: 0;
+  --btn-fill-opacity: 0;
+  background: var(--btn-bg);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: var(--btn-text);
+  font-size: 0.65rem;
+  padding: 3px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+  position: relative;
+  overflow: hidden;
+}
+.time-nav-btn::after {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.05), rgba(255,255,255,0.95));
+  opacity: var(--btn-fill-opacity);
+  transform-origin: left center;
+  transform: scaleX(var(--btn-fill));
+  pointer-events: none;
+}
+.time-nav-btn:hover {
+  border-color: rgba(255,255,255,0.4);
 }
 
 /* Time hover label - above x-axis, shows time with phase color */
@@ -219,10 +240,10 @@ input[type=range]::-moz-range-thumb {
 /* Cursor callout - shows values at cursor position */
 .graph-cursor-callout {
   position: absolute;
-  bottom: -8px;
+  bottom: 10px;
   padding: 4px 10px;
   border-radius: 8px;
-  border: 1px solid rgba(255,255,255,0.35);
+  border: 1.5px solid #fdfdfd;
   background: rgba(10,10,10,0.85);
   color: #fff;
   font-size: 0.78rem;
@@ -239,55 +260,21 @@ input[type=range]::-moz-range-thumb {
 .cursor-controls {
   display: flex;
   justify-content: center;
-  gap: 40px;
-  margin-top: 16px;
+  gap: 16px;
+  margin-top: 4px;
 }
 .cursor-controls.hidden { display: none; }
-.cursor-divider {
-  width: 1px;
-  background: rgba(255,255,255,0.2);
-  align-self: stretch;
-  margin: 8px 10px;
-}
-.cursor-stack {
+.cursor-btn-group {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  width: 100px;
+  gap: 4px;
 }
-.cursor-stack.wide {
-  width: auto;
-}
-.cursor-stack-label {
-  font-size: 0.9rem;
-  color: #f0f0f0;
-  letter-spacing: 0.08em;
-  min-height: 20px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.increment-input {
-  width: 36px;
-  padding: 2px 4px;
-  font-size: 0.75rem;
-  background: #333;
-  border: 1px solid #555;
-  border-radius: 3px;
-  color: #ddd;
-  text-align: center;
-}
-.cursor-btn-row {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  align-items: center;
-  width: 100%;
-}
-.cursor-btn-row.horizontal {
-  flex-direction: row;
-  justify-content: center;
+.cursor-btn-group-label {
+  font-size: 0.65rem;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 .cursor-btn {
   --btn-bg: rgba(255,255,255,0.06);
@@ -297,11 +284,11 @@ input[type=range]::-moz-range-thumb {
   border: 1px solid rgba(255,255,255,0.25);
   background: var(--btn-bg);
   color: var(--btn-text);
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 600;
-  padding: 4px 16px;
+  padding: 4px 0;
   border-radius: 999px;
-  width: 96px;
+  width: 72px;
   cursor: pointer;
   transition: background 0.15s, border 0.15s, color 0.15s;
   position: relative;
@@ -309,49 +296,6 @@ input[type=range]::-moz-range-thumb {
   display: flex;
   align-items: center;
   justify-content: center;
-}
-.cursor-btn.wide {
-  width: 140px;
-}
-.cursor-btn.small {
-  width: auto;
-  min-width: 40px;
-  padding: 4px 10px;
-  font-size: 0.85rem;
-}
-.cursor-btn.time-nav {
-  width: 115px;
-  height: 52px;
-  padding: 8px 12px;
-  flex-direction: column;
-  justify-content: center;
-  gap: 2px;
-  overflow: visible;
-}
-.time-nav-header {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  position: relative;
-  z-index: 1;
-}
-.time-nav-label {
-  font-size: 0.9rem;
-  font-weight: 600;
-}
-.time-nav-time {
-  font-size: 0.6rem;
-  opacity: 0.75;
-}
-.time-nav-values {
-  font-size: 0.6rem;
-  opacity: 0.9;
-  white-space: nowrap;
-  position: relative;
-  z-index: 1;
-}
-.time-nav-values:empty, .time-nav-time:empty {
-  display: none;
 }
 .cursor-btn::after {
   content: '';
@@ -368,7 +312,7 @@ input[type=range]::-moz-range-thumb {
 .cursor-btn .btn-arrow {
   position: relative;
   z-index: 1;
-  font-size: 1.05rem;
+  font-size: 1rem;
   line-height: 1;
 }
 .cursor-btn:hover {
@@ -384,32 +328,6 @@ input[type=range]::-moz-range-thumb {
 }
 .cursor-btn.at-extreme .btn-arrow {
   opacity: 0.4;
-}
-.cursor-midpoint-info {
-  font-size: 0.65rem;
-  font-weight: 400;
-  color: var(--muted);
-  opacity: 0.75;
-}
-
-/* Button callouts showing next value */
-.btn-callout {
-  position: relative;
-  z-index: 1;
-  font-size: 0.6rem;
-  font-weight: 500;
-  opacity: 0.85;
-  min-width: 32px;
-  text-align: center;
-}
-.btn-callout.left {
-  margin-right: 4px;
-}
-.btn-callout.right {
-  margin-left: 4px;
-}
-.btn-callout:empty {
-  display: none;
 }
 
 /* Dual Range Slider - fixed from llm_access for proper left handle grabbing */
@@ -479,7 +397,7 @@ input[type=range]::-moz-range-thumb {
   color: var(--muted);
   min-width: 60px;
 }
-.dual-chip.right { text-align: right; }
+.dual-chip.right { text-align: left; }
 
 /* Color Value Chip Button */
 .color-value-chip {
@@ -586,60 +504,49 @@ input[type=range]::-moz-range-thumb {
   height: 20px;
 }
 
-/* Offset Slider Rows */
-.offset-slider-row {
-  display: grid;
-  grid-template-columns: 60px 1fr 140px;
-  gap: 10px;
-  align-items: center;
-  margin: 8px 0;
-}
-.offset-slider-row label {
-  font-size: 0.8rem;
-  color: var(--muted2);
-  text-transform: lowercase;
-}
-.offset-slider-row .offset-text {
-  font-size: 0.75rem;
-  color: var(--muted);
-}
-
-/* Color Rule Stack - grouped layout like llm_access */
+/* Color Rule Stack */
 .color-rule-grid {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 0;
   margin-top: 16px;
 }
 .color-rule-stack {
-  display: grid;
-  grid-template-columns: 150px minmax(0, 1fr);
-  gap: 18px;
-  padding: 12px 0;
+  padding: 10px 0 2px;
   border-top: 1px solid var(--line);
 }
 .color-rule-stack:first-child { border-top: none; padding-top: 0; }
 .color-rule-stack-label {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
-  position: relative;
-  padding-right: 12px;
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+  max-width: 600px;
 }
-.color-rule-stack-label::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 1px;
-  background: rgba(255,255,255,0.2);
+.color-rule-stack-label .color-rule-label-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.color-rule-stack-label .color-rule-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.color-rule-stack-label select {
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--panel2);
+  color: var(--text);
+  font-size: 0.85rem;
 }
 .color-rule-label {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--text);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
 }
 .info-icon {
   display: inline-flex;
@@ -684,50 +591,29 @@ input[type=range]::-moz-range-thumb {
 .info-tooltip.is-open {
   display: block;
 }
-.color-rule-toggle {
-  margin-left: 0;
-}
 .color-rule-toggle input[type=checkbox] {
   width: 16px;
   height: 16px;
   accent-color: #7CFF72;
 }
 .color-rule-stack-body {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  display: block;
 }
 .color-rule-stack-body.is-disabled {
   opacity: 0.4;
   pointer-events: none;
 }
-.color-rule-main-row {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-.color-rule-main-row select {
-  padding: 6px 10px;
-  border-radius: 8px;
-  border: 1px solid var(--line);
-  background: var(--panel2);
-  color: var(--text);
-  font-size: 0.9rem;
-}
 .color-rule-slider-row {
-  width: 100%;
+  max-width: 600px;
 }
 .color-rule-slider-row.is-disabled {
-  opacity: 0.4;
+  opacity: 0.35;
   pointer-events: none;
 }
-
-/* Legacy solar-rule classes for backward compatibility */
-.solar-rule-offsets {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+.param-row .offset-text {
+  font-size: 0.85rem;
+  color: var(--muted);
+  text-align: left;
 }
 
 
@@ -845,11 +731,9 @@ input[type=range]::-moz-range-thumb {
 /* Live Design Controls */
 .live-design-controls {
   display: flex;
-  justify-content: center;
   align-items: center;
-  padding: 12px 0;
-  border-top: 1px solid var(--line);
-  margin-top: 8px;
+  padding: 4px 0;
+  margin-bottom: 12px;
   gap: 16px;
 }
 .live-design-controls label {
@@ -870,17 +754,31 @@ input[type=range]::-moz-range-thumb {
   outline: none;
   border-color: var(--accent);
 }
-.live-design-controls .btn.active {
-  background: var(--accent);
-  color: #fff;
+.live-design-link {
+  font-size: 0.85rem;
+  color: var(--muted);
+  cursor: pointer;
+  text-decoration: none;
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
 }
+.live-design-link:hover { color: var(--text); text-decoration: underline; }
 .live-design-status {
   font-size: 0.8rem;
-  color: var(--muted2);
-  margin-left: 8px;
+  color: var(--text);
+  margin-left: 4px;
 }
 .live-design-status.active {
-  color: #4ade80;
+  color: var(--text);
+}
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+.live-design-status.live-blink {
+  animation: live-pulse 1.8s ease-in-out infinite;
 }
 
 /* Responsive */
@@ -1212,12 +1110,12 @@ input[type=range]::-moz-range-thumb {
 .nav-brand {
   font-weight: 600;
   font-size: 1.1rem;
-  color: #e2e8f0;
+  color: var(--text);
   margin-right: 32px;
   text-decoration: none;
 }
 .nav-brand.active {
-  color: var(--accent, #feac60);
+  color: var(--accent);
 }
 .nav-links {
   display: flex;
@@ -1225,35 +1123,32 @@ input[type=range]::-moz-range-thumb {
 }
 .nav-link {
   padding: 8px 16px;
-  color: #94a3b8;
+  color: var(--muted);
   text-decoration: none;
   border-radius: 6px;
   font-size: 0.9rem;
   transition: all 0.2s;
 }
 .nav-link:hover {
-  color: #e2e8f0;
+  color: var(--text);
   background: rgba(255, 255, 255, 0.05);
 }
 .nav-link.active {
   color: var(--accent);
 }
-.nav-link-2line {
-  max-width: 52px;
-  text-align: center;
-  line-height: 1.15;
-  padding: 6px 12px;
-}
+
 
 /* Nav solar display */
 .nav-solar { margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--muted); opacity: 0; transition: opacity 0.3s; }
 .nav-solar-icon { width: 22px; height: 22px; flex-shrink: 0; }
 .nav-solar-times { display: flex; flex-direction: column; line-height: 1.3; }
 
-/* Header save link */
+/* Header action links */
 .header-link { background: none; border: none; font-size: 0.8rem; cursor: pointer; padding: 0; }
+.header-link-cancel { color: var(--muted); }
+.header-link-cancel:hover { color: var(--text); }
 .header-link-save { color: var(--accent); font-weight: 600; }
-.header-link-save:hover { color: var(--accent-hover); }
+.header-link-save:hover { opacity: 0.8; }
 </style>
 </head>
 <body>
@@ -1261,7 +1156,7 @@ input[type=range]::-moz-range-thumb {
 <nav class="nav">
   <a href="./" class="nav-brand">Circadian Light</a>
   <div class="nav-links">
-    <a href="./rhythm" class="nav-link nav-link-2line active">Daily Rhythm</a>
+    <a href="./rhythm" class="nav-link active">Daily Rhythm</a>
     <a href="./switches" class="nav-link">Controls</a>
     <a href="./moments" class="nav-link">Moments</a>
     <a href="./settings" class="nav-link">Settings</a>
@@ -1276,74 +1171,78 @@ input[type=range]::-moz-range-thumb {
 </nav>
 
 <div class="container">
-  <div class="header">
+  <div class="page-header">
+    <a id="back-btn" href="./rhythm" style="color:var(--muted);text-decoration:none;font-size:1rem;line-height:1;margin-right:2px;" title="Back">&larr;</a>
+    <input type="text" class="rhythm-name-input" id="rhythm-name" value="Daily Rhythm 1" placeholder="Rhythm name">
     <div class="header-actions">
-      <button id="save-config" class="header-link header-link-save">Save</button>
+      <button class="header-link header-link-cancel" id="cancel-btn">Cancel</button>
+      <button class="header-link header-link-save" id="save-config">Save</button>
     </div>
   </div>
   <div id="save-status"></div>
 
-  <!-- Circadian Pattern -->
-  <div class="activity-select">
-    <label for="activity-preset">Circadian Pattern</label>
-    <select id="activity-preset">
-      <option value="young">Young Child</option>
-      <option value="adult" selected>Adult</option>
-      <option value="nightowl">Night Owl</option>
-      <option value="duskbat">Dusk Bat</option>
-      <option value="shiftearly">Overnight Shift Early</option>
-      <option value="shiftlate">Overnight Shift Late</option>
+  <!-- Live Design Controls -->
+  <div class="live-design-controls" id="live-design-controls">
+    <label for="live-area-select">Live Design:</label>
+    <select id="live-area-select">
+      <option value="">Select Area</option>
     </select>
+    <a href="#" class="live-design-link" id="live-design-toggle" style="display: none;">Pause</a>
+    <span class="live-design-status" id="live-design-status"></span>
   </div>
 
-  <!-- Ascend/Descend Timing -->
-  <div class="timing-grid">
-    <div class="section-block section-block--ascend">
-      <h2>Ascend</h2>
-      <div class="header-timeline"><span class="time-badge" id="ascend-start-badge">4:00a</span></div>
-      <div class="param-row is-hidden">
-        <label>Ascend starts</label>
-        <span class="value" id="ascend-start-display">3:00a</span>
-        <input type="range" id="ascend-start" min="0" max="24" step="0.5" value="3">
-      </div>
-      <div class="param-row">
-        <label>Wake time</label>
-        <span class="value" id="wake-time-display">6:00a</span>
-        <input type="range" id="wake-time" min="0" max="24" step="0.5" value="6">
-      </div>
-      <div class="param-row">
-        <label>Wake speed</label>
-        <span class="value" id="wake-speed-display">Fast (8)</span>
-        <input type="range" id="wake-speed" min="1" max="10" step="1" value="8">
-      </div>
+  <div class="section-block">
+    <h2>Sleep</h2>
+    <div class="param-row" style="grid-template-columns: 140px 1fr;">
+      <label>Pattern</label>
+      <select id="activity-preset" style="background:var(--panel2);border:1px solid var(--line);border-radius:6px;color:var(--text);font-size:0.85rem;padding:6px 10px;max-width:180px;">
+        <option value="young">Young Child</option>
+        <option value="adult" selected>Adult</option>
+        <option value="nightowl">Night Owl</option>
+        <option value="duskbat">Dusk Bat</option>
+        <option value="shiftearly">Shift Early</option>
+        <option value="shiftlate">Shift Late</option>
+      </select>
     </div>
-
-    <div class="section-block section-block--descend">
-      <h2>Descend</h2>
-      <div class="header-timeline"><span class="time-badge" id="descend-start-badge">12:00p</span></div>
-      <div class="param-row is-hidden">
-        <label>Descend starts</label>
-        <span class="value" id="descend-start-display">12:00p</span>
-        <input type="range" id="descend-start" min="0" max="36" step="0.5" value="12">
-      </div>
-      <div class="param-row">
-        <label>Bed time</label>
-        <span class="value" id="bed-time-display">10:00p</span>
-        <input type="range" id="bed-time" min="0" max="36" step="0.5" value="22">
-      </div>
-      <div class="param-row">
-        <label>Bed speed</label>
-        <span class="value" id="bed-speed-display">Crisp (6)</span>
-        <input type="range" id="bed-speed" min="1" max="10" step="1" value="6">
-      </div>
+    <div class="rhythm-group-label">Wake</div>
+    <div class="param-row">
+      <label>Time</label>
+      <input type="range" id="wake-time" min="0" max="24" step="0.25" value="7">
+      <span class="dual-chip right" id="wake-time-display">7:00a</span>
     </div>
+    <div class="param-row">
+      <label>Speed</label>
+      <input type="range" id="wake-speed" min="1" max="10" step="1" value="6">
+      <span class="dual-chip right" id="wake-speed-display">Crisp (6)</span>
+    </div>
+    <div class="rhythm-group-label bed">Bed</div>
+    <div class="param-row">
+      <label>Time</label>
+      <input type="range" id="bed-time" min="0" max="36" step="0.25" value="21">
+      <span class="dual-chip right" id="bed-time-display">9:00p</span>
+    </div>
+    <div class="param-row">
+      <label>Speed</label>
+      <input type="range" id="bed-speed" min="1" max="10" step="1" value="4">
+      <span class="dual-chip right" id="bed-speed-display">Smooth (4)</span>
+    </div>
+    <!-- Hidden fields for ascend/descend (set by sleep pattern) -->
+    <input type="range" id="ascend-start" min="0" max="24" step="0.5" value="3" style="display:none">
+    <input type="range" id="descend-start" min="0" max="36" step="0.5" value="12" style="display:none">
   </div>
 
   <!-- Chart -->
   <div class="section-block">
-    <div class="chart-date-control">
-      <span class="chart-date-display" id="chart-date-display">Today</span>
-      <input type="range" id="chart-date-slider" min="0" max="364" value="0">
+    <div class="chart-toolbar">
+      <div class="chart-date-control">
+        <span class="chart-date-display" id="chart-date-display">Today</span>
+        <input type="range" id="chart-date-slider" min="0" max="364" value="0">
+      </div>
+      <div class="time-nav-group">
+        <button class="time-nav-btn" id="cursor-time-minus" title="-5 minutes">-5 min</button>
+        <button class="time-nav-btn" id="cursor-time-now" title="Jump to current time">Now</button>
+        <button class="time-nav-btn" id="cursor-time-plus" title="+5 minutes">+5 min</button>
+      </div>
     </div>
     <div class="chart-wrapper">
       <div id="chart"></div>
@@ -1353,88 +1252,45 @@ input[type=range]::-moz-range-thumb {
 
     <!-- Cursor Controls -->
     <div class="cursor-controls hidden" id="cursor-controls">
-      <div class="cursor-stack wide">
-        <span class="cursor-stack-label">Cursor</span>
-        <div class="cursor-btn-row horizontal">
-          <button class="cursor-btn time-nav" id="cursor-time-minus" title="-5 minutes">
-            <span class="time-nav-header"><span class="time-nav-label">-5</span> <span class="time-nav-time" id="time-minus-time"></span></span>
-            <span class="time-nav-values" id="time-minus-values"></span>
-          </button>
-          <button class="cursor-btn time-nav" id="cursor-time-plus" title="+5 minutes">
-            <span class="time-nav-header"><span class="time-nav-label">+5</span> <span class="time-nav-time" id="time-plus-time"></span></span>
-            <span class="time-nav-values" id="time-plus-values"></span>
-          </button>
-          <button class="btn" id="cursor-time-now" title="Now">Now</button>
-        </div>
+      <div class="cursor-btn-group">
+        <span class="cursor-btn-group-label">Step</span>
+        <button class="cursor-btn" id="cursor-step-up" data-mode="combo" title="Step Up"><span class="btn-arrow">↑</span></button>
+        <button class="cursor-btn" id="cursor-step-down" data-mode="combo" title="Step Down"><span class="btn-arrow">↓</span></button>
       </div>
-      <div class="cursor-divider"></div>
-      <div class="cursor-stack">
-        <span class="cursor-stack-label">Step <input type="number" class="increment-input" id="step-increments" min="1" max="50" title="Step increments"></span>
-        <div class="cursor-btn-row">
-          <button class="cursor-btn wide" id="cursor-step-up" data-mode="combo" title="Step Up">
-            <span class="btn-callout left" id="step-up-bri-callout"></span>
-            <span class="btn-arrow">↑</span>
-            <span class="btn-callout right" id="step-up-cct-callout"></span>
-          </button>
-          <button class="cursor-btn wide" id="cursor-step-down" data-mode="combo" title="Step Down">
-            <span class="btn-callout left" id="step-down-bri-callout"></span>
-            <span class="btn-arrow">↓</span>
-            <span class="btn-callout right" id="step-down-cct-callout"></span>
-          </button>
-        </div>
+      <div class="cursor-btn-group">
+        <span class="cursor-btn-group-label">Bright</span>
+        <button class="cursor-btn" id="cursor-bright-up" data-mode="brightness" title="Brighten"><span class="btn-arrow">↑</span></button>
+        <button class="cursor-btn" id="cursor-bright-down" data-mode="brightness" title="Dim"><span class="btn-arrow">↓</span></button>
       </div>
-      <div class="cursor-stack">
-        <span class="cursor-stack-label">Bright <input type="number" class="increment-input" id="brightness-increments" min="1" max="50" title="Brightness increments"> <span class="cursor-midpoint-info" id="brightness-midpoint-info"></span></span>
-        <div class="cursor-btn-row">
-          <button class="cursor-btn" id="cursor-bright-up" data-mode="brightness" title="Brighten">
-            <span class="btn-callout left" id="bright-up-callout"></span>
-            <span class="btn-arrow">↑</span>
-          </button>
-          <button class="cursor-btn" id="cursor-bright-down" data-mode="brightness" title="Dim">
-            <span class="btn-callout left" id="bright-down-callout"></span>
-            <span class="btn-arrow">↓</span>
-          </button>
-        </div>
+      <div class="cursor-btn-group">
+        <span class="cursor-btn-group-label">Color</span>
+        <button class="cursor-btn" id="cursor-color-up" data-mode="color" title="Cooler"><span class="btn-arrow">↑</span></button>
+        <button class="cursor-btn" id="cursor-color-down" data-mode="color" title="Warmer"><span class="btn-arrow">↓</span></button>
       </div>
-      <div class="cursor-stack">
-        <span class="cursor-stack-label">Color <input type="number" class="increment-input" id="color-increments" min="1" max="50" title="Color increments"> <span class="cursor-midpoint-info" id="color-midpoint-info"></span></span>
-        <div class="cursor-btn-row">
-          <button class="cursor-btn" id="cursor-color-up" data-mode="color" title="Cooler">
-            <span class="btn-arrow">↑</span>
-            <span class="btn-callout right" id="color-up-callout"></span>
-          </button>
-          <button class="cursor-btn" id="cursor-color-down" data-mode="color" title="Warmer">
-            <span class="btn-arrow">↓</span>
-            <span class="btn-callout right" id="color-down-callout"></span>
-          </button>
-        </div>
-      </div>
-      <div class="cursor-stack">
-        <span class="cursor-stack-label">&nbsp;</span>
-        <div class="cursor-btn-row">
-          <button class="btn" id="cursor-reset">Reset</button>
-        </div>
+      <div class="cursor-btn-group">
+        <span class="cursor-btn-group-label">&nbsp;</span>
+        <button class="cursor-btn" id="cursor-reset" title="Reset to curve"><span class="btn-arrow" style="font-size:0.75rem">Reset</span></button>
       </div>
     </div>
+    <div style="display:flex;justify-content:flex-end;margin-top:8px;">
+      <label style="display:flex;align-items:center;gap:6px;font-size:0.75rem;color:var(--muted);cursor:pointer;user-select:none;">
+        <input type="checkbox" id="simple-mode" checked style="width:14px;height:14px;accent-color:var(--muted2);">
+        Simple
+      </label>
+    </div>
+    <!-- Hidden increment inputs (synced from master Increments slider) -->
+    <input type="number" id="step-increments" style="display:none" value="10">
+    <input type="number" id="brightness-increments" style="display:none" value="10">
+    <input type="number" id="color-increments" style="display:none" value="10">
 
-    <!-- Live Design Controls -->
-    <div class="live-design-controls" id="live-design-controls">
-      <label for="live-area-select">Live Design:</label>
-      <select id="live-area-select">
-        <option value="">Select Area</option>
-      </select>
-      <button class="btn" id="live-design-toggle" style="display: none;">Pause</button>
-      <span class="live-design-status" id="live-design-status"></span>
-    </div>
   </div>
 
-  <!-- Brightness & Color Range -->
-  <div class="section-block">
-    <h2>Brightness &amp; Color</h2>
+  <!-- Ranges -->
+  <div class="section-block" id="ranges-section">
+    <h2>Ranges</h2>
 
-    <div class="param-row" style="grid-template-columns: 140px 60px 1fr 60px 28px;">
-      <label>Color range</label>
-      <span class="dual-chip" id="color-min-display">500 K</span>
+    <div class="param-row">
+      <label>Color temp.</label>
       <div class="dual-range">
         <div class="dual-track color-track" id="color-track">
           <div class="dual-mask" id="color-mask-left"></div>
@@ -1443,39 +1299,41 @@ input[type=range]::-moz-range-thumb {
         <input type="range" id="color-min" class="range-min" min="500" max="6500" step="100" value="500">
         <input type="range" id="color-max" class="range-max" min="500" max="6500" step="100" value="6500">
       </div>
-      <span class="dual-chip right" id="color-max-display">6500 K</span>
+      <span class="dual-chip" id="color-range-display">500 – 6500 K</span>
     </div>
 
-    <div class="param-row" style="grid-template-columns: 140px 60px 1fr 60px 28px;">
-      <label>Brightness range</label>
-      <span class="dual-chip" id="brightness-min-display">1%</span>
+    <div class="param-row">
+      <label>Brightness</label>
       <div class="dual-range">
-        <div class="dual-track">
-          <div class="dual-fill" id="brightness-fill"></div>
+        <div class="dual-track" id="brightness-track" style="background:linear-gradient(to right,#111,#fff);">
+          <div class="dual-mask" id="brightness-mask-left"></div>
+          <div class="dual-mask" id="brightness-mask-right"></div>
         </div>
         <input type="range" id="brightness-min" class="range-min" min="1" max="100" step="1" value="1">
         <input type="range" id="brightness-max" class="range-max" min="1" max="100" step="1" value="100">
       </div>
-      <span class="dual-chip right" id="brightness-max-display">100%</span>
+      <span class="dual-chip" id="brightness-range-display">1 – 100%</span>
     </div>
 
     <div class="param-row">
       <label>Increments</label>
-      <span class="value" id="step-count-display">10 steps</span>
       <input type="range" id="step-count" min="1" max="50" step="1" value="10">
+      <span class="dual-chip right" id="step-count-display">10 steps</span>
     </div>
 
-    <!-- Color Rules - integrated into Brightness & Color -->
+  </div>
+
+  <!-- Solar Adjustments -->
+  <div class="section-block">
+    <h2>Solar Adjustments</h2>
     <div class="color-rule-grid">
       <div class="color-rule-stack" data-color-row="night">
         <div class="color-rule-stack-label">
-          <label class="color-rule-label">Warm night<span class="info-icon" data-tooltip="warm-night-info">i<span class="info-tooltip" id="warm-night-info">Sets a minimum warmth when sun isn't up; if your Circadian curve is cool (high Kelvin) between sunset and the next day's sunrise, this applies warming.</span></span></label>
-          <div class="color-rule-toggle">
-            <input type="checkbox" id="warm-night-enabled">
+          <div class="color-rule-label-left">
+            <div class="color-rule-toggle"><input type="checkbox" id="warm-night-enabled"></div>
+            <label class="color-rule-label">Warm night<span class="info-icon" data-tooltip="warm-night-info">i<span class="info-tooltip" id="warm-night-info">Caps color temperature when sun isn't up; if your curve is cool (high K) between sunset and sunrise, this warms it.</span></span></label>
           </div>
-        </div>
-        <div class="color-rule-stack-body" id="warm-night-body">
-          <div class="color-rule-main-row">
+          <div class="color-rule-controls">
             <select id="warm-night-mode">
               <option value="all">all night</option>
               <option value="sunrise">before sunrise</option>
@@ -1486,30 +1344,32 @@ input[type=range]::-moz-range-thumb {
               <div class="color-slider-popup" id="warm-night-popup">
                 <div class="dual-range">
                   <div class="dual-track color-track" id="warm-night-track"></div>
-                  <input type="range" id="warm-night-target" class="range-min" min="500" max="4000" step="100" value="2700">
+                  <input type="range" id="warm-night-target" class="range-min" min="500" max="6500" step="100" value="2700">
                 </div>
               </div>
             </div>
           </div>
+        </div>
+        <div class="color-rule-stack-body" id="warm-night-body">
           <div class="color-rule-slider-row" data-rule-window="sunset">
-            <div class="offset-slider-row">
+            <div class="param-row">
               <label>Start</label>
-              <input type="range" id="warm-night-start" min="-180" max="180" step="5" value="-60">
-              <span class="offset-text" id="warm-night-start-text">60 min before sunset</span>
+              <input type="range" id="warm-night-start" min="-180" max="180" step="30" value="-60">
+              <span class="offset-text" id="warm-night-start-text">1 hr before sunset</span>
             </div>
           </div>
           <div class="color-rule-slider-row" data-rule-window="sunrise">
-            <div class="offset-slider-row">
+            <div class="param-row">
               <label>End</label>
-              <input type="range" id="warm-night-end" min="-180" max="180" step="5" value="60">
-              <span class="offset-text" id="warm-night-end-text">60 min after sunrise</span>
+              <input type="range" id="warm-night-end" min="-180" max="180" step="30" value="60">
+              <span class="offset-text" id="warm-night-end-text">1 hr after sunrise</span>
             </div>
           </div>
           <div class="color-rule-slider-row" data-rule-window="any">
-            <div class="offset-slider-row">
+            <div class="param-row">
               <label>Fade</label>
-              <input type="range" id="warm-night-fade" min="0" max="180" step="5" value="60">
-              <span class="offset-text" id="warm-night-fade-text">60 min</span>
+              <input type="range" id="warm-night-fade" min="0" max="300" step="30" value="60">
+              <span class="offset-text" id="warm-night-fade-text">1 hr</span>
             </div>
           </div>
         </div>
@@ -1517,13 +1377,11 @@ input[type=range]::-moz-range-thumb {
 
       <div class="color-rule-stack" data-color-row="daylight">
         <div class="color-rule-stack-label">
-          <label class="color-rule-label">Cool day<span class="info-icon" data-tooltip="cool-day-info">i<span class="info-tooltip" id="cool-day-info">Sets a minimum coolness when the sun is up; if your Circadian curve is warm (low Kelvin) between sunrise and sunset, this applies cooling.</span></span></label>
-          <div class="color-rule-toggle">
-            <input type="checkbox" id="cool-day-enabled">
+          <div class="color-rule-label-left">
+            <div class="color-rule-toggle"><input type="checkbox" id="cool-day-enabled"></div>
+            <label class="color-rule-label">Cool day<span class="info-icon" data-tooltip="cool-day-info">i<span class="info-tooltip" id="cool-day-info">Lifts color temperature when the sun is up; if your curve is warm (low K) between sunrise and sunset, this cools it.</span></span></label>
           </div>
-        </div>
-        <div class="color-rule-stack-body" id="cool-day-body">
-          <div class="color-rule-main-row">
+          <div class="color-rule-controls">
             <select id="cool-day-mode">
               <option value="all">all day</option>
               <option value="sunrise">after sunrise</option>
@@ -1534,30 +1392,32 @@ input[type=range]::-moz-range-thumb {
               <div class="color-slider-popup" id="cool-day-popup">
                 <div class="dual-range">
                   <div class="dual-track color-track" id="cool-day-track"></div>
-                  <input type="range" id="cool-day-target" class="range-min" min="4000" max="6500" step="100" value="6500">
+                  <input type="range" id="cool-day-target" class="range-min" min="500" max="6500" step="100" value="6500">
                 </div>
               </div>
             </div>
           </div>
+        </div>
+        <div class="color-rule-stack-body" id="cool-day-body">
           <div class="color-rule-slider-row" data-rule-window="sunrise">
-            <div class="offset-slider-row">
+            <div class="param-row">
               <label>Start</label>
-              <input type="range" id="cool-day-start" min="-180" max="180" step="5" value="0">
+              <input type="range" id="cool-day-start" min="-180" max="180" step="30" value="0">
               <span class="offset-text" id="cool-day-start-text">at sunrise</span>
             </div>
           </div>
           <div class="color-rule-slider-row" data-rule-window="sunset">
-            <div class="offset-slider-row">
+            <div class="param-row">
               <label>End</label>
-              <input type="range" id="cool-day-end" min="-180" max="180" step="5" value="0">
+              <input type="range" id="cool-day-end" min="-180" max="180" step="30" value="0">
               <span class="offset-text" id="cool-day-end-text">at sunset</span>
             </div>
           </div>
           <div class="color-rule-slider-row" data-rule-window="any">
-            <div class="offset-slider-row">
+            <div class="param-row">
               <label>Fade</label>
-              <input type="range" id="cool-day-fade" min="0" max="180" step="5" value="60">
-              <span class="offset-text" id="cool-day-fade-text">60 min</span>
+              <input type="range" id="cool-day-fade" min="0" max="300" step="30" value="60">
+              <span class="offset-text" id="cool-day-fade-text">1 hr</span>
             </div>
           </div>
         </div>
@@ -1572,7 +1432,7 @@ input[type=range]::-moz-range-thumb {
 // Circadian Light Designer - Ascend/Descend Model
 // ============================================================
 
-const GRAPH_Y_MAX = 150;
+const GRAPH_Y_MAX = 125;
 const SPEED_LABELS = ['', 'Calm', 'Gentle', 'Soft', 'Smooth', 'Balanced', 'Crisp', 'Fast', 'Snappy', 'Quick', 'Sharp'];
 const SPEED_TO_SLOPE = [0, 0.4, 0.6, 0.8, 1.0, 1.3, 1.7, 2.3, 3.0, 4.0, 5.5];
 
@@ -1597,21 +1457,24 @@ const DESCEND_COLORS = {
 // cool_day_enabled: false for all (per llm_access)
 const ACTIVITY_PRESETS = {
   young: { wake_time: 6.0, bed_time: 18.0, ascend_start: 0.0, descend_start: 12.0, warm_night_enabled: true, cool_day_enabled: false },
-  adult: { wake_time: 6.0, bed_time: 22.0, ascend_start: 4.0, descend_start: 12.0, warm_night_enabled: true, cool_day_enabled: false },
+  adult: { wake_time: 7.0, bed_time: 21.0, ascend_start: 3.0, descend_start: 12.0, warm_night_enabled: true, cool_day_enabled: false },
   nightowl: { wake_time: 10.0, bed_time: 2.0, ascend_start: 8.0, descend_start: 16.0, warm_night_enabled: true, cool_day_enabled: false },
   duskbat: { wake_time: 14.0, bed_time: 6.0, ascend_start: 12.0, descend_start: 20.0, warm_night_enabled: false, cool_day_enabled: false },
   shiftearly: { wake_time: 18.0, bed_time: 10.0, ascend_start: 16.0, descend_start: 0.0, warm_night_enabled: false, cool_day_enabled: false },
   shiftlate: { wake_time: 22.0, bed_time: 14.0, ascend_start: 20.0, descend_start: 4.0, warm_night_enabled: false, cool_day_enabled: false }
 };
 
+// Simple mode - hides advanced chart elements
+let simpleMode = true;
+
 // State
 let config = {
   ascend_start: 3.0,
   descend_start: 12.0,
-  wake_time: 6.0,
-  bed_time: 22.0,
-  wake_speed: 8,
-  bed_speed: 6,
+  wake_time: 7.0,
+  bed_time: 21.0,
+  wake_speed: 6,
+  bed_speed: 4,
   min_color_temp: 500,
   max_color_temp: 6500,
   min_brightness: 1,
@@ -1785,6 +1648,7 @@ function getWindowWeight(hour, windowStart, windowEnd, fadeHrs) {
 
 /**
  * Apply warm_night and cool_day solar rules to a single CCT value at a given hour.
+ * Uses crossfade model: each rule computes independent strength, effects combine additively.
  */
 function applySolarRuleAtHour(baseCCT, hour) {
   if (!sunTimes) return baseCCT;
@@ -1792,71 +1656,70 @@ function applySolarRuleAtHour(baseCCT, hour) {
   let cct = baseCCT;
   const { sunrise, sunset, solarNoon, solarMid } = sunTimes;
 
-  // Warm night - ceiling
+  // Compute night_strength from warm_night window
+  let nightStrength = 0;
   if (config.warm_night_enabled) {
-    let warmTarget = config.warm_night_target;
-    // Apply color_override if positive (raises WarmNight ceiling)
-    if (runtimeState.color_override && runtimeState.color_override > 0) {
-      warmTarget += runtimeState.color_override;
+    const fadeHrs = config.warm_night_fade / 60;
+    const startOffsetHrs = config.warm_night_start / 60;
+    const endOffsetHrs = config.warm_night_end / 60;
+    const mode = config.warm_night_mode;
+
+    let ws, we;
+    if (mode === 'sunrise') {
+      ws = wrap24(solarMid);
+      we = wrap24(sunrise + endOffsetHrs);
+    } else if (mode === 'sunset') {
+      ws = wrap24(sunset + startOffsetHrs);
+      we = wrap24(solarMid);
+    } else {
+      ws = wrap24(sunset + startOffsetHrs);
+      we = wrap24(sunrise + endOffsetHrs);
     }
 
-    if (cct > warmTarget) {
-      const fadeHrs = config.warm_night_fade / 60;
-      const startOffsetHrs = config.warm_night_start / 60;
-      const endOffsetHrs = config.warm_night_end / 60;
-      const mode = config.warm_night_mode;
-
-      let windowStart, windowEnd;
-      if (mode === 'sunrise') {
-        windowStart = wrap24(solarMid);
-        windowEnd = wrap24(sunrise + endOffsetHrs);
-      } else if (mode === 'sunset') {
-        windowStart = wrap24(sunset + startOffsetHrs);
-        windowEnd = wrap24(solarMid);
-      } else {
-        windowStart = wrap24(sunset + startOffsetHrs);
-        windowEnd = wrap24(sunrise + endOffsetHrs);
-      }
-
-      const { inWindow, weight } = getWindowWeight(hour, windowStart, windowEnd, fadeHrs);
-      if (inWindow && weight > 0) {
-        cct = cct + (warmTarget - cct) * weight;
-      }
-    }
+    const { inWindow, weight } = getWindowWeight(hour, ws, we, fadeHrs);
+    if (inWindow) nightStrength = weight;
   }
 
-  // Cool day - floor
+  // Compute day_strength from cool_day window
+  let dayStrength = 0;
   if (config.cool_day_enabled) {
-    let coolTarget = config.cool_day_target;
-    // Apply color_override if negative (lowers CoolDay floor)
-    if (runtimeState.color_override && runtimeState.color_override < 0) {
-      coolTarget += runtimeState.color_override;
+    const fadeHrs = config.cool_day_fade / 60;
+    const startOffsetHrs = config.cool_day_start / 60;
+    const endOffsetHrs = config.cool_day_end / 60;
+    const mode = config.cool_day_mode;
+
+    let ws, we;
+    if (mode === 'sunrise') {
+      ws = wrap24(sunrise + startOffsetHrs);
+      we = wrap24(solarNoon);
+    } else if (mode === 'sunset') {
+      ws = wrap24(solarNoon);
+      we = wrap24(sunset + endOffsetHrs);
+    } else {
+      ws = wrap24(sunrise + startOffsetHrs);
+      we = wrap24(sunset + endOffsetHrs);
     }
 
-    if (cct < coolTarget) {
-      const fadeHrs = config.cool_day_fade / 60;
-      const startOffsetHrs = config.cool_day_start / 60;
-      const endOffsetHrs = config.cool_day_end / 60;
-      const mode = config.cool_day_mode;
-
-      let windowStart, windowEnd;
-      if (mode === 'sunrise') {
-        windowStart = wrap24(sunrise + startOffsetHrs);
-        windowEnd = wrap24(solarNoon);
-      } else if (mode === 'sunset') {
-        windowStart = wrap24(solarNoon);
-        windowEnd = wrap24(sunset + endOffsetHrs);
-      } else {
-        windowStart = wrap24(sunrise + startOffsetHrs);
-        windowEnd = wrap24(sunset + endOffsetHrs);
-      }
-
-      const { inWindow, weight } = getWindowWeight(hour, windowStart, windowEnd, fadeHrs);
-      if (inWindow && weight > 0) {
-        cct = cct + (coolTarget - cct) * weight;
-      }
-    }
+    const { inWindow, weight } = getWindowWeight(hour, ws, we, fadeHrs);
+    if (inWindow) dayStrength = weight;
   }
+
+  // Apply color_override to targets
+  let warmTarget = config.warm_night_target;
+  if (runtimeState.color_override && runtimeState.color_override > 0) {
+    warmTarget += runtimeState.color_override;
+  }
+
+  let coolTarget = config.cool_day_target;
+  if (runtimeState.color_override && runtimeState.color_override < 0) {
+    coolTarget += runtimeState.color_override;
+  }
+
+  // Crossfade: each effect only acts in one direction
+  const nightEffect = nightStrength > 0 ? Math.max(0, cct - warmTarget) : 0;
+  const dayEffect = dayStrength > 0 ? Math.max(0, coolTarget - cct) : 0;
+
+  cct = cct - nightEffect * nightStrength + dayEffect * dayStrength;
 
   return cct;
 }
@@ -2248,149 +2111,11 @@ function updateColorChips() {
 
 }
 
-// Apply solar color rules to CCT curve
+// Apply solar color rules to CCT curve (batch version for chart rendering)
 function adjustCCTForSolarRules(cctArray, hoursArray, sunrise, sunset) {
-  const fadeHrs = config.warm_night_fade / 60;
-  const coolFadeHrs = config.cool_day_fade / 60;
-  const solarMid = wrap24(sunTimes.solarMid);  // solar midnight
-  const solarNoon = wrap24(sunTimes.solarNoon);
-
-  // Warm night rule
-  if (config.warm_night_enabled) {
-    const startOffsetHrs = config.warm_night_start / 60;  // offset from sunset
-    const endOffsetHrs = config.warm_night_end / 60;      // offset from sunrise
-    const mode = config.warm_night_mode;
-    const warmTarget = config.warm_night_target;
-
-    // Determine window based on mode
-    let windowStart, windowEnd;
-    if (mode === 'sunrise') {
-      // Before sunrise only: solar midnight to sunrise+end
-      windowStart = solarMid;
-      windowEnd = wrap24(sunrise + endOffsetHrs);
-    } else if (mode === 'sunset') {
-      // After sunset only: sunset+start to solar midnight
-      windowStart = wrap24(sunset + startOffsetHrs);
-      windowEnd = solarMid;
-    } else {
-      // All night: sunset+start to sunrise+end
-      windowStart = wrap24(sunset + startOffsetHrs);
-      windowEnd = wrap24(sunrise + endOffsetHrs);
-    }
-
-    for (let i = 0; i < cctArray.length; i++) {
-      const h = hoursArray[i];
-      const current = cctArray[i];
-
-      // Skip if already at or below target (using runtime ceiling)
-      if (current <= warmTarget) continue;
-
-      // Check if hour is in night window (handles wrap around midnight)
-      let inWindow = false;
-      let distFromStart = 0;
-      let distToEnd = 0;
-
-      if (windowStart > windowEnd) {
-        // Wraps around midnight
-        inWindow = h >= windowStart || h <= windowEnd;
-        if (inWindow) {
-          distFromStart = h >= windowStart ? (h - windowStart) : (h + 24 - windowStart);
-          distToEnd = h <= windowEnd ? (windowEnd - h) : (windowEnd + 24 - h);
-        }
-      } else {
-        // Normal range
-        inWindow = h >= windowStart && h <= windowEnd;
-        if (inWindow) {
-          distFromStart = h - windowStart;
-          distToEnd = windowEnd - h;
-        }
-      }
-
-      if (!inWindow) continue;
-
-      // Apply fade at BOTH ends
-      let weight = 1;
-      if (fadeHrs > 0.01) {
-        if (distFromStart < fadeHrs) {
-          weight = Math.min(weight, distFromStart / fadeHrs);
-        }
-        if (distToEnd < fadeHrs) {
-          weight = Math.min(weight, distToEnd / fadeHrs);
-        }
-      }
-
-      if (weight <= 0) continue;
-      cctArray[i] = current + (warmTarget - current) * weight;
-    }
-  }
-
-  // Cool day rule
-  if (config.cool_day_enabled) {
-    const startOffsetHrs = config.cool_day_start / 60;  // offset from sunrise
-    const endOffsetHrs = config.cool_day_end / 60;      // offset from sunset
-    const mode = config.cool_day_mode;
-    const coolTarget = config.cool_day_target;
-
-    // Determine window based on mode
-    let windowStart, windowEnd;
-    if (mode === 'sunrise') {
-      // After sunrise only: sunrise+start to solar noon
-      windowStart = wrap24(sunrise + startOffsetHrs);
-      windowEnd = solarNoon;
-    } else if (mode === 'sunset') {
-      // Before sunset only: solar noon to sunset+end
-      windowStart = solarNoon;
-      windowEnd = wrap24(sunset + endOffsetHrs);
-    } else {
-      // All day: sunrise+start to sunset+end
-      windowStart = wrap24(sunrise + startOffsetHrs);
-      windowEnd = wrap24(sunset + endOffsetHrs);
-    }
-
-    for (let i = 0; i < cctArray.length; i++) {
-      const h = hoursArray[i];
-      const current = cctArray[i];
-
-      // Skip if already at or above target (using runtime floor)
-      if (current >= coolTarget) continue;
-
-      // Check if hour is in day window
-      let inWindow = false;
-      let distFromStart = 0;
-      let distToEnd = 0;
-
-      if (windowStart > windowEnd) {
-        // Unusual case - day wraps around midnight
-        inWindow = h >= windowStart || h <= windowEnd;
-        if (inWindow) {
-          distFromStart = h >= windowStart ? (h - windowStart) : (h + 24 - windowStart);
-          distToEnd = h <= windowEnd ? (windowEnd - h) : (windowEnd + 24 - h);
-        }
-      } else {
-        // Normal daytime range
-        inWindow = h >= windowStart && h <= windowEnd;
-        if (inWindow) {
-          distFromStart = h - windowStart;
-          distToEnd = windowEnd - h;
-        }
-      }
-
-      if (!inWindow) continue;
-
-      // Apply fade at BOTH ends
-      let weight = 1;
-      if (coolFadeHrs > 0.01) {
-        if (distFromStart < coolFadeHrs) {
-          weight = Math.min(weight, distFromStart / coolFadeHrs);
-        }
-        if (distToEnd < coolFadeHrs) {
-          weight = Math.min(weight, distToEnd / coolFadeHrs);
-        }
-      }
-
-      if (weight <= 0) continue;
-      cctArray[i] = current + (coolTarget - current) * weight;
-    }
+  if (!config.warm_night_enabled && !config.cool_day_enabled) return;
+  for (let i = 0; i < cctArray.length; i++) {
+    cctArray[i] = applySolarRuleAtHour(cctArray[i], hoursArray[i]);
   }
 }
 
@@ -2706,24 +2431,25 @@ function renderChart() {
   const alpha = 1.5 / Math.max(...ghiWinter, 0.001);
   const sunScaledPct = ghiToday.map(v => v * alpha * 100);
 
-  // Sun curve - just line, no fill
-  traces.push({
-    type: 'scatter',
-    mode: 'lines',
-    x: hours,
-    y: sunScaledPct,
-    line: { width: 1, color: 'rgba(255,255,255,0.25)' },
-    name: 'Sun',
-    hoverinfo: 'skip',
-    showlegend: true
-  });
+  // Sun curve - just line, no fill (hidden in simple mode)
+  if (!simpleMode) {
+    traces.push({
+      type: 'scatter',
+      mode: 'lines',
+      x: hours,
+      y: sunScaledPct,
+      line: { width: 1, color: 'rgba(255,255,255,0.25)' },
+      name: 'Sun',
+      hoverinfo: 'skip',
+      showlegend: true
+    });
+  }
 
   // Hover trace - CCT colored background, shows phase, no time
   const hoverDetails = brightnessPct.map((v, i) => {
     const pct = Math.round(v);
     const kelvin = Math.round(cct[i]);
-    const phaseWord = phase[i] === 'Ascend' ? 'ascending' : 'descending';
-    return `${pct}% • ${kelvin}K • ${phaseWord}`;
+    return `${pct}% • ${kelvin}K`;
   });
 
   const hoverBgColors = cct.map(k => colorWithAlpha(cctToRGB(k), 0.92));
@@ -2807,23 +2533,25 @@ function renderChart() {
     });
   };
 
-  addCurveBand(ascendSegments, ASCEND_COLORS.shade);
-  addCurveBand(descendSegments, DESCEND_COLORS.shade);
-
-  // Phase boundary lines
   const ascendStart = wrap24(config.ascend_start);
   const descendStart = wrap24(config.descend_start);
 
-  shapes.push({
-    type: 'line', xref: 'x', yref: 'paper',
-    x0: ascendStart, x1: ascendStart, y0: 0, y1: 1,
-    line: { color: ASCEND_COLORS.axis, width: 1.5 }
-  });
-  shapes.push({
-    type: 'line', xref: 'x', yref: 'paper',
-    x0: descendStart, x1: descendStart, y0: 0, y1: 1,
-    line: { color: DESCEND_COLORS.axis, width: 1.5 }
-  });
+  if (!simpleMode) {
+    addCurveBand(ascendSegments, ASCEND_COLORS.shade);
+    addCurveBand(descendSegments, DESCEND_COLORS.shade);
+
+    // Phase boundary lines
+    shapes.push({
+      type: 'line', xref: 'x', yref: 'paper',
+      x0: ascendStart, x1: ascendStart, y0: 0, y1: 1,
+      line: { color: ASCEND_COLORS.axis, width: 1.5 }
+    });
+    shapes.push({
+      type: 'line', xref: 'x', yref: 'paper',
+      x0: descendStart, x1: descendStart, y0: 0, y1: 1,
+      line: { color: DESCEND_COLORS.axis, width: 1.5 }
+    });
+  }
 
   // Phase name labels above the curve (at y=115)
   const phaseNameY = 115;
@@ -2849,8 +2577,10 @@ function renderChart() {
       });
     });
   };
-  addPhaseNameLabels(ascendSegments, 'Ascend', ASCEND_COLORS);
-  addPhaseNameLabels(descendSegments, 'Descend', DESCEND_COLORS);
+  if (!simpleMode) {
+    addPhaseNameLabels(ascendSegments, 'Ascend', ASCEND_COLORS);
+    addPhaseNameLabels(descendSegments, 'Descend', DESCEND_COLORS);
+  }
 
   // X-axis labels (from top to bottom):
   // 1. Time labels (handled by xaxis ticktext at y=0)
@@ -2858,12 +2588,15 @@ function renderChart() {
   // 3. Solar labels (sunrise, sunset, etc.) at y = -0.20, muted grey
 
   // Phase labels with vertical lines
-  const phaseLabels = [
+  const allPhaseLabels = [
     { label: 'ascend starts', x: ascendStart, color: ASCEND_COLORS.text, lineColor: ASCEND_COLORS.axis, solid: true, extendUp: true },
     { label: 'wake', x: wrap24(config.wake_time), color: ASCEND_COLORS.text, lineColor: ASCEND_COLORS.axis, solid: false, extendUp: true },
     { label: 'descend starts', x: descendStart, color: DESCEND_COLORS.text, lineColor: DESCEND_COLORS.axis, solid: true, extendUp: true },
     { label: 'bed', x: wrap24(config.bed_time), color: DESCEND_COLORS.text, lineColor: DESCEND_COLORS.axis, solid: false, extendUp: true }
   ];
+  const phaseLabels = simpleMode
+    ? allPhaseLabels.filter(m => m.label === 'wake' || m.label === 'bed')
+    : allPhaseLabels;
 
   phaseLabels.forEach(marker => {
     // Vertical line from label up through the graph
@@ -2892,22 +2625,26 @@ function renderChart() {
   // Solar labels - all same muted grey color, lower position
   const solarLabelColor = 'rgba(215,215,215,0.8)';
   const solarLineColor = 'rgba(200,200,200,0.35)';
-  const solarLabels = [
+  const allSolarLabels = [
     { label: 'sunrise', x: wrap24(sunrise), extendUp: true },
     { label: 'sunset', x: wrap24(sunset), extendUp: true },
     { label: 'solar noon', x: wrap24(solarNoon), extendUp: false },
     { label: 'solar midnight', x: wrap24(solarMid), extendUp: false }
   ];
+  // In simple mode: only sunrise/sunset, lines stop at x-axis
+  const solarLabels = simpleMode
+    ? allSolarLabels.filter(m => m.label === 'sunrise' || m.label === 'sunset')
+    : allSolarLabels;
 
   const solarHoverBg = '#3a3a3a';
   solarLabels.forEach(marker => {
     if (!Number.isFinite(marker.x)) return;
-    // Line from label up (sunrise/sunset go all the way up)
+    // Line from label up (sunrise/sunset go all the way up, unless simple mode)
     shapes.push({
       type: 'line', xref: 'x', yref: 'paper',
       x0: marker.x, x1: marker.x,
       y0: -0.135,
-      y1: marker.extendUp ? 1 : 0,
+      y1: (simpleMode) ? 0 : (marker.extendUp ? 1 : 0),
       line: { color: solarLineColor, width: 1, dash: 'dot' }
     });
     annotations.push({
@@ -2931,8 +2668,9 @@ function renderChart() {
   const layout = {
     paper_bgcolor: '#0a0a0a',
     plot_bgcolor: '#0a0a0a',
-    margin: { t: 40, r: 40, l: 50, b: 100 },
+    margin: { t: simpleMode ? 10 : 40, r: 40, l: 50, b: 100 },
     legend: { orientation: 'h', x: 0, y: 1.1, font: { color: '#c8c8c8' } },
+    showlegend: !simpleMode,
     hovermode: 'closest',
     xaxis: {
       range: [0, 24],
@@ -3136,21 +2874,13 @@ function applyCursor() {
     });
   }
 
-  // Cursor line below x-axis to label
+  // Cursor line extending below x-axis down to callout
   shapes.push({
     type: 'line', xref: 'x', yref: 'paper',
-    x0: cursorHour, x1: cursorHour, y0: cursorLabelY + 0.05, y1: 0,
+    x0: cursorHour, x1: cursorHour, y0: -0.26, y1: 0,
     line: cursorLineStyle, layer: 'above'
   });
 
-  // Cursor label below axis
-  annotations.push({
-    x: cursorHour, y: cursorLabelY, xref: 'x', yref: 'paper',
-    text: 'cursor',
-    showarrow: false,
-    font: { size: 11, color: '#fdfdfd' },
-    opacity: 1
-  });
 
   Plotly.relayout(chart, { shapes, annotations });
 
@@ -3158,7 +2888,6 @@ function applyCursor() {
   if (cursorPoint) {
     const bri = Math.round(cursorPoint.y);
     const cctVal = Math.round(cursorPoint.cct);
-    const phaseWord = cursorPoint.phase === 'Ascend' ? 'ascending' : 'descending';
     const color = cctToRGB(cctVal);
 
     const plotArea = chart.querySelector('.cartesianlayer .plot') || chart.querySelector('.nsewdrag');
@@ -3172,14 +2901,14 @@ function applyCursor() {
       const ratio = (cursorHour - xRange[0]) / (xRange[1] - xRange[0] || 1);
       const leftPx = rect.left + ratio * rect.width - wrapperRect.left;
 
-      cursorCallout.textContent = `${fmtTime(cursorHour)} • ${bri}% • ${cctVal}K • ${phaseWord}`;
+      cursorCallout.textContent = `${fmtTime(cursorHour)} • ${bri}% • ${cctVal}K`;
       cursorCallout.style.left = `${leftPx}px`;
       cursorCallout.style.opacity = '1';
 
       // Color callout based on CCT
       cursorCallout.style.background = color;
       cursorCallout.style.color = readableTextColor(color);
-      cursorCallout.style.borderColor = 'rgba(255,255,255,0.5)';
+      cursorCallout.style.borderColor = '#fdfdfd';
     }
 
     // Update cursor ball marker (CCT-colored with white border)
@@ -3298,16 +3027,6 @@ function updateCursorButtons(point) {
   styleBtn(stepUp, stepPreview.upBri, stepPreview.upCCT, 'combo');
   styleBtn(stepDown, stepPreview.downBri, stepPreview.downCCT, 'combo');
 
-  // Update callouts with preview values
-  const briUpCallout = document.getElementById('bright-up-callout');
-  const briDownCallout = document.getElementById('bright-down-callout');
-  const colorUpCallout = document.getElementById('color-up-callout');
-  const colorDownCallout = document.getElementById('color-down-callout');
-  const stepUpBriCallout = document.getElementById('step-up-bri-callout');
-  const stepUpCctCallout = document.getElementById('step-up-cct-callout');
-  const stepDownBriCallout = document.getElementById('step-down-bri-callout');
-  const stepDownCctCallout = document.getElementById('step-down-cct-callout');
-
   // For display
   const displayedCCT = currentCCT;
 
@@ -3321,53 +3040,6 @@ function updateCursorButtons(point) {
   const stepUpAtExtreme = currentPct >= configMaxPct - 0.5;
   const stepDownAtExtreme = currentPct <= configMinPct + 0.5;
 
-  // Brightness callouts
-  if (briUpCallout) {
-    const delta = Math.round(briPreview.up.value - currentPct);
-    briUpCallout.textContent = briAtMax ? 'at max' : (delta === 0 ? '-' : `+${delta}%`);
-  }
-  if (briDownCallout) {
-    const delta = Math.round(currentPct - briPreview.down.value);
-    briDownCallout.textContent = briAtMin ? 'at min' : (delta === 0 ? '-' : `-${delta}%`);
-  }
-
-  // Color callouts
-  if (colorUpCallout) {
-    const delta = Math.round(colorPreview.up.value - displayedCCT);
-    colorUpCallout.textContent = cctAtMax ? 'at max' : (delta === 0 ? '-' : `+${delta}K`);
-  }
-  if (colorDownCallout) {
-    const delta = Math.round(displayedCCT - colorPreview.down.value);
-    colorDownCallout.textContent = cctAtMin ? 'at min' : (delta === 0 ? '-' : `-${delta}K`);
-  }
-  // Step buttons use stepPreview (which uses step_increments)
-  // Helper to format delta with proper sign
-  const formatDelta = (delta, suffix, expectedPositive) => {
-    if (delta === 0) return '-';
-    // If delta is in wrong direction, show "-" (no valid change)
-    if (expectedPositive && delta < 0) return '-';
-    if (!expectedPositive && delta > 0) return '-';
-    const sign = delta > 0 ? '+' : '';
-    return `${sign}${delta}${suffix}`;
-  };
-
-  if (stepUpBriCallout) {
-    const stepUpBriDelta = Math.round(stepPreview.upBri - currentPct);
-    stepUpBriCallout.textContent = stepUpAtExtreme ? 'at max' : formatDelta(stepUpBriDelta, '%', true);
-  }
-  if (stepUpCctCallout) {
-    const stepUpCctDelta = Math.round(stepPreview.upCCT - displayedCCT);
-    stepUpCctCallout.textContent = stepUpAtExtreme ? '-' : formatDelta(stepUpCctDelta, 'K', true);
-  }
-  if (stepDownBriCallout) {
-    const stepDownBriDelta = Math.round(stepPreview.downBri - currentPct);
-    stepDownBriCallout.textContent = stepDownAtExtreme ? 'at min' : formatDelta(stepDownBriDelta, '%', false);
-  }
-  if (stepDownCctCallout) {
-    const stepDownCctDelta = Math.round(stepPreview.downCCT - displayedCCT);
-    stepDownCctCallout.textContent = stepDownAtExtreme ? '-' : formatDelta(stepDownCctDelta, 'K', false);
-  }
-
   // Toggle at-extreme class for styling
   brightUp?.classList.toggle('at-extreme', briAtMax);
   brightDown?.classList.toggle('at-extreme', briAtMin);
@@ -3376,44 +3048,55 @@ function updateCursorButtons(point) {
   stepUp?.classList.toggle('at-extreme', stepUpAtExtreme);
   stepDown?.classList.toggle('at-extreme', stepDownAtExtreme);
 
-  // Update button titles with target values (or "at maximum/minimum" when at extreme)
+  // Update button tooltips with detailed preview info
   if (brightUp) brightUp.title = briAtMax
-    ? `at maximum ${Math.round(currentPct)}%`
-    : `Brighten to ${Math.round(briPreview.up.value)}%`;
+    ? `Bright up: at max ${Math.round(currentPct)}%`
+    : `Bright up ${Math.round(briPreview.up.value - currentPct)}% to ${Math.round(briPreview.up.value)}%`;
   if (brightDown) brightDown.title = briAtMin
-    ? `at minimum ${Math.round(currentPct)}%`
-    : `Dim to ${Math.round(briPreview.down.value)}%`;
+    ? `Bright down: at min ${Math.round(currentPct)}%`
+    : `Bright down ${Math.round(currentPct - briPreview.down.value)}% to ${Math.round(briPreview.down.value)}%`;
   if (colorUp) colorUp.title = cctAtMax
-    ? `at maximum ${Math.round(displayedCCT)}K`
-    : `Cooler to ${Math.round(colorPreview.up.value)}K`;
+    ? `Color up: at max ${Math.round(displayedCCT)}K`
+    : `Color up ${Math.round(colorPreview.up.value - displayedCCT)}K to ${Math.round(colorPreview.up.value)}K`;
   if (colorDown) colorDown.title = cctAtMin
-    ? `at minimum ${Math.round(displayedCCT)}K`
-    : `Warmer to ${Math.round(colorPreview.down.value)}K`;
+    ? `Color down: at min ${Math.round(displayedCCT)}K`
+    : `Color down ${Math.round(displayedCCT - colorPreview.down.value)}K to ${Math.round(colorPreview.down.value)}K`;
   if (stepUp) stepUp.title = stepUpAtExtreme
-    ? `at max: ${Math.round(currentPct)}% @ ${Math.round(displayedCCT)}K`
-    : `Step Up to ${Math.round(stepPreview.upBri)}% at ${Math.round(stepPreview.upCCT)}K`;
+    ? `Step up: at max ${Math.round(currentPct)}% @ ${Math.round(displayedCCT)}K`
+    : `Step up ${Math.round(stepPreview.upBri - currentPct)}% / ${Math.round(stepPreview.upCCT - displayedCCT)}K to ${Math.round(stepPreview.upBri)}% at ${Math.round(stepPreview.upCCT)}K`;
   if (stepDown) stepDown.title = stepDownAtExtreme
-    ? `at min: ${Math.round(currentPct)}% @ ${Math.round(stepPreview.downCCT)}K`
-    : `Step Down to ${Math.round(stepPreview.downBri)}% at ${Math.round(stepPreview.downCCT)}K`;
+    ? `Step down: at min ${Math.round(currentPct)}% @ ${Math.round(displayedCCT)}K`
+    : `Step down ${Math.round(currentPct - stepPreview.downBri)}% / ${Math.round(displayedCCT - stepPreview.downCCT)}K to ${Math.round(stepPreview.downBri)}% at ${Math.round(stepPreview.downCCT)}K`;
 
-  // Update time navigation button values
+  // Style reset button with what values WILL be after reset (cleared runtime state)
+  const resetBtn = document.getElementById('cursor-reset');
+  if (resetBtn && config && cursorHour !== null) {
+    const savedMidBri = runtimeState.brightness_mid;
+    const savedMidColor = runtimeState.color_mid;
+    const savedColorOverride = runtimeState.color_override;
+    runtimeState.brightness_mid = null;
+    runtimeState.color_mid = null;
+    runtimeState.color_override = null;
+    const h = ((cursorHour % 24) + 24) % 24;
+    const resetBri = Math.round(calculateBrightnessAtHour(h) * 100);
+    const resetCct = Math.round(calculateColorAtHour(h, true));
+    runtimeState.brightness_mid = savedMidBri;
+    runtimeState.color_mid = savedMidColor;
+    runtimeState.color_override = savedColorOverride;
+    styleBtn(resetBtn, resetBri, resetCct, 'combo');
+    resetBtn.title = `Reset to curve: ${resetBri}% at ${resetCct}K`;
+  }
+
+  // Update time navigation button tooltips
   const timeMinusBtn = document.getElementById('cursor-time-minus');
   const timePlusBtn = document.getElementById('cursor-time-plus');
-  const timeMinusTime = document.getElementById('time-minus-time');
-  const timePlusTime = document.getElementById('time-plus-time');
-  const timeMinusValues = document.getElementById('time-minus-values');
-  const timePlusValues = document.getElementById('time-plus-values');
 
   // Helper to format hour as H:MMa/p
   const formatTime = (hour) => {
     const h = ((hour % 24) + 24) % 24;
     let hours24 = Math.floor(h);
     let mins = Math.round((h - hours24) * 60);
-    // Handle rounding to 60 minutes
-    if (mins === 60) {
-      mins = 0;
-      hours24 = (hours24 + 1) % 24;
-    }
+    if (mins === 60) { mins = 0; hours24 = (hours24 + 1) % 24; }
     const isPM = hours24 >= 12;
     let hours12 = hours24 % 12;
     if (hours12 === 0) hours12 = 12;
@@ -3421,46 +3104,48 @@ function updateCursorButtons(point) {
   };
 
   if (config && cursorHour !== null) {
-    // Helper to get values at a specific hour using core calculation functions
     const getValuesAtHour = (hour) => {
-      const h = ((hour % 24) + 24) % 24;  // Normalize to 0-24
+      const h = ((hour % 24) + 24) % 24;
       return {
-        bri: Math.round(calculateBrightnessAtHour(h) * 100),  // Convert 0-1 to 0-100
-        cct: Math.round(calculateColorAtHour(h, true))        // With solar rules
+        bri: Math.round(calculateBrightnessAtHour(h) * 100),
+        cct: Math.round(calculateColorAtHour(h, true))
       };
     };
 
-    // Use displayed values as starting point (currentPct and displayedCCT from point)
     const displayedBri = Math.round(currentPct);
     const displayedCct = Math.round(displayedCCT);
 
-    // -5 minutes from cursor
     const minusHour = cursorHour - 5/60;
     const minusVals = getValuesAtHour(minusHour);
     const minusBriDelta = minusVals.bri - displayedBri;
     const minusCctDelta = minusVals.cct - displayedCct;
-    if (timeMinusTime) timeMinusTime.textContent = formatTime(minusHour);
-    if (timeMinusValues) {
+    if (timeMinusBtn) {
       const briStr = minusBriDelta >= 0 ? `+${minusBriDelta}%` : `${minusBriDelta}%`;
       const cctStr = minusCctDelta >= 0 ? `+${minusCctDelta}K` : `${minusCctDelta}K`;
-      timeMinusValues.textContent = `${briStr} ${cctStr}`;
+      timeMinusBtn.title = `5 minutes earlier, ${briStr} / ${cctStr} to ${minusVals.bri}% at ${minusVals.cct}K`;
+      styleBtn(timeMinusBtn, minusVals.bri, minusVals.cct, 'combo');
     }
-    styleBtn(timeMinusBtn, minusVals.bri, minusVals.cct, 'combo');
-    if (timeMinusBtn) timeMinusBtn.title = `-5 minutes to ${minusVals.bri}% at ${minusVals.cct}K`;
 
-    // +5 minutes from cursor
     const plusHour = cursorHour + 5/60;
     const plusVals = getValuesAtHour(plusHour);
     const plusBriDelta = plusVals.bri - displayedBri;
     const plusCctDelta = plusVals.cct - displayedCct;
-    if (timePlusTime) timePlusTime.textContent = formatTime(plusHour);
-    if (timePlusValues) {
+    if (timePlusBtn) {
       const briStr = plusBriDelta >= 0 ? `+${plusBriDelta}%` : `${plusBriDelta}%`;
       const cctStr = plusCctDelta >= 0 ? `+${plusCctDelta}K` : `${plusCctDelta}K`;
-      timePlusValues.textContent = `${briStr} ${cctStr}`;
+      timePlusBtn.title = `5 minutes later, ${briStr} / ${cctStr} to ${plusVals.bri}% at ${plusVals.cct}K`;
+      styleBtn(timePlusBtn, plusVals.bri, plusVals.cct, 'combo');
     }
-    styleBtn(timePlusBtn, plusVals.bri, plusVals.cct, 'combo');
-    if (timePlusBtn) timePlusBtn.title = `+5 minutes to ${plusVals.bri}% at ${plusVals.cct}K`;
+
+    // Style Now button with current-time curve values
+    const timeNowBtn = document.getElementById('cursor-time-now');
+    if (timeNowBtn) {
+      const now = new Date();
+      const nowHour = now.getHours() + now.getMinutes() / 60;
+      const nowVals = getValuesAtHour(nowHour);
+      styleBtn(timeNowBtn, nowVals.bri, nowVals.cct, 'combo');
+      timeNowBtn.title = `Now: ${nowVals.bri}% at ${nowVals.cct}K`;
+    }
   }
 }
 
@@ -3573,13 +3258,11 @@ function syncUIFromConfig() {
   document.getElementById('brightness-max').value = config.max_brightness;
   document.getElementById('step-count').value = config.max_dim_steps;
 
-  // Set individual increment inputs (show effective value, defaulting to max_dim_steps)
-  const effectiveStepInc = config.step_increments ?? config.max_dim_steps;
-  const effectiveBriInc = config.brightness_increments ?? config.max_dim_steps;
-  const effectiveColorInc = config.color_increments ?? config.max_dim_steps;
-  document.getElementById('step-increments').value = effectiveStepInc;
-  document.getElementById('brightness-increments').value = effectiveBriInc;
-  document.getElementById('color-increments').value = effectiveColorInc;
+  // Sync all increment inputs to the master Increments slider value
+  const masterInc = config.max_dim_steps;
+  document.getElementById('step-increments').value = masterInc;
+  document.getElementById('brightness-increments').value = masterInc;
+  document.getElementById('color-increments').value = masterInc;
 
   // Set warm/cool slider values FROM CONFIG BEFORE calling updateSolarTargetSliderConstraints
   // (that function reads slider values, so they must be set first to avoid overwriting config)
@@ -3617,10 +3300,7 @@ function syncUIFromConfig() {
   updateDisplay('bed-time-display', formatHour(config.bed_time));
   updateDisplay('wake-speed-display', `${SPEED_LABELS[config.wake_speed]} (${config.wake_speed})`);
   updateDisplay('bed-speed-display', `${SPEED_LABELS[config.bed_speed]} (${config.bed_speed})`);
-  updateDisplay('color-min-display', `${config.min_color_temp} K`);
-  updateDisplay('color-max-display', `${config.max_color_temp} K`);
-  updateDisplay('brightness-min-display', `${config.min_brightness}%`);
-  updateDisplay('brightness-max-display', `${config.max_brightness}%`);
+  updateRangeDisplays();
   updateDisplay('step-count-display', `${config.max_dim_steps} steps`);
 
   updateDualFills();
@@ -3630,24 +3310,33 @@ function syncUIFromConfig() {
   constrainWakeBedSliders();
 }
 
+// Update combined range displays (color temp + brightness)
+function updateRangeDisplays() {
+  updateDisplay('color-range-display', `${config.min_color_temp} – ${config.max_color_temp} K`);
+  updateDisplay('brightness-range-display', `${config.min_brightness} – ${config.max_brightness}%`);
+}
+
 // Update offset text displays
 function updateOffsetDisplays() {
+  const fmtHrs = (min) => {
+    const hrs = Math.abs(min) / 60;
+    return hrs === 1 ? '1 hr' : `${hrs} hrs`;
+  };
   const formatOffset = (val, baseEvent) => {
-    const absVal = Math.abs(val);
     if (val === 0) return `at ${baseEvent}`;
     const direction = val < 0 ? 'before' : 'after';
-    return `${absVal} min ${direction} ${baseEvent}`;
+    return `${fmtHrs(val)} ${direction} ${baseEvent}`;
   };
 
   updateDisplay('warm-night-start-text', formatOffset(config.warm_night_start, 'sunset'));
   updateDisplay('warm-night-end-text', formatOffset(config.warm_night_end, 'sunrise'));
-  updateDisplay('warm-night-fade-text', `${config.warm_night_fade} min`);
+  updateDisplay('warm-night-fade-text', fmtHrs(config.warm_night_fade));
   updateDisplay('cool-day-start-text', formatOffset(config.cool_day_start, 'sunrise'));
   updateDisplay('cool-day-end-text', formatOffset(config.cool_day_end, 'sunset'));
-  updateDisplay('cool-day-fade-text', `${config.cool_day_fade} min`);
+  updateDisplay('cool-day-fade-text', fmtHrs(config.cool_day_fade));
 }
 
-// Sync color rule rows - toggle is-disabled based on checkbox state
+// Sync color rule rows - toggle is-disabled based on checkbox + mode state
 function syncColorRuleRows() {
   const warmEnabled = config.warm_night_enabled;
   const coolEnabled = config.cool_day_enabled;
@@ -3669,6 +3358,27 @@ function syncColorRuleRows() {
       el.disabled = !coolEnabled;
     });
   }
+
+  // Mode-based slider disabling
+  // Warm night: "sunrise" → lock Start (sunset side unused), "sunset" → lock End (sunrise side unused)
+  document.querySelectorAll('[data-color-row="night"] .color-rule-slider-row').forEach(row => {
+    const win = row.dataset.ruleWindow;
+    if (win === 'any') return;
+    const mode = config.warm_night_mode;
+    const locked = (mode === 'sunrise' && win === 'sunset') || (mode === 'sunset' && win === 'sunrise');
+    row.classList.toggle('is-disabled', locked);
+    row.querySelectorAll('input[type="range"]').forEach(el => el.disabled = !warmEnabled || locked);
+  });
+
+  // Cool day: "sunrise" → lock End (sunset side unused), "sunset" → lock Start (sunrise side unused)
+  document.querySelectorAll('[data-color-row="daylight"] .color-rule-slider-row').forEach(row => {
+    const win = row.dataset.ruleWindow;
+    if (win === 'any') return;
+    const mode = config.cool_day_mode;
+    const locked = (mode === 'sunrise' && win === 'sunset') || (mode === 'sunset' && win === 'sunrise');
+    row.classList.toggle('is-disabled', locked);
+    row.querySelectorAll('input[type="range"]').forEach(el => el.disabled = !coolEnabled || locked);
+  });
 }
 
 // Update wake/bed slider min/max constraints only (no value clamping)
@@ -3702,27 +3412,16 @@ function updateSolarTargetSliderConstraints() {
   const minTemp = config.min_color_temp;
   const maxTemp = config.max_color_temp;
 
-  let warmVal = parseInt(warmSlider.value);
-  let coolVal = parseInt(coolSlider.value);
-
-  // Clamp both to color range first
-  warmVal = Math.max(minTemp, Math.min(maxTemp, warmVal));
-  coolVal = Math.max(minTemp, Math.min(maxTemp, coolVal));
-
-  // If color range change caused warm < cool, clamp cool down to warm
-  if (warmVal < coolVal) {
-    coolVal = warmVal;
-  }
-
-  // Set dynamic bounds:
-  // - warm can't go below cool (min = coolVal)
-  // - cool can't go above warm (max = warmVal)
-  warmSlider.min = coolVal;
+  // Both sliders use full color range (no cross-constraint)
+  warmSlider.min = minTemp;
   warmSlider.max = maxTemp;
   coolSlider.min = minTemp;
-  coolSlider.max = warmVal;
+  coolSlider.max = maxTemp;
 
-  // Apply values
+  // Clamp values to color range
+  let warmVal = Math.max(minTemp, Math.min(maxTemp, parseInt(warmSlider.value)));
+  let coolVal = Math.max(minTemp, Math.min(maxTemp, parseInt(coolSlider.value)));
+
   warmSlider.value = warmVal;
   coolSlider.value = coolVal;
   config.warm_night_target = warmVal;
@@ -3779,10 +3478,15 @@ function updateDualFills() {
 
   const briMin = parseInt(document.getElementById('brightness-min').value);
   const briMax = parseInt(document.getElementById('brightness-max').value);
-  const briFill = document.getElementById('brightness-fill');
-  if (briFill) {
-    briFill.style.left = `${briMin}%`;
-    briFill.style.width = `${briMax - briMin}%`;
+  const briMaskLeft = document.getElementById('brightness-mask-left');
+  const briMaskRight = document.getElementById('brightness-mask-right');
+  if (briMaskLeft && briMaskRight) {
+    const leftPct = ((briMin - 1) / 99) * 100;
+    const rightPct = ((briMax - 1) / 99) * 100;
+    briMaskLeft.style.left = '0%';
+    briMaskLeft.style.width = `${leftPct}%`;
+    briMaskRight.style.left = `${rightPct}%`;
+    briMaskRight.style.width = `${100 - rightPct}%`;
   }
 }
 
@@ -3808,36 +3512,26 @@ function setupEventListeners() {
   updateSliderValue('wake-speed', 'wake-speed-display', v => `${SPEED_LABELS[v]} (${v})`);
   updateSliderValue('bed-speed', 'bed-speed-display', v => `${SPEED_LABELS[v]} (${v})`);
 
-  updateSliderValue('color-min', 'color-min-display', v => `${v} K`);
-  updateSliderValue('color-max', 'color-max-display', v => `${v} K`);
-  updateSliderValue('brightness-min', 'brightness-min-display', v => `${v}%`);
-  updateSliderValue('brightness-max', 'brightness-max-display', v => `${v}%`);
+  // Dual-range sliders update combined display
+  ['color-min', 'color-max'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', () => { syncConfigFromUI(); updateRangeDisplays(); renderChart(); });
+  });
+  ['brightness-min', 'brightness-max'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', () => { syncConfigFromUI(); updateRangeDisplays(); renderChart(); });
+  });
   updateSliderValue('step-count', 'step-count-display', v => `${v} steps`);
 
-  // Master increments slider updates all 3 individual increment inputs
+  // Master increments slider syncs all hidden increment inputs
   document.getElementById('step-count')?.addEventListener('input', () => {
     const masterVal = parseInt(document.getElementById('step-count').value);
     document.getElementById('step-increments').value = masterVal;
     document.getElementById('brightness-increments').value = masterVal;
     document.getElementById('color-increments').value = masterVal;
-    // Clear individual overrides (they now match master)
     config.step_increments = null;
     config.brightness_increments = null;
     config.color_increments = null;
-  });
-
-  // Individual increment inputs update config directly (without resetting runtime state)
-  document.getElementById('step-increments')?.addEventListener('input', (e) => {
-    config.step_increments = e.target.value ? parseInt(e.target.value) : null;
-    renderChart();
-  });
-  document.getElementById('brightness-increments')?.addEventListener('input', (e) => {
-    config.brightness_increments = e.target.value ? parseInt(e.target.value) : null;
-    renderChart();
-  });
-  document.getElementById('color-increments')?.addEventListener('input', (e) => {
-    config.color_increments = e.target.value ? parseInt(e.target.value) : null;
-    renderChart();
   });
 
   // Warm/cool target sliders (inside popups)
@@ -3956,6 +3650,17 @@ function setupEventListeners() {
   document.getElementById('chart-date-slider').addEventListener('input', () => {
     renderChart();
   });
+
+  // Simple mode toggle
+  document.getElementById('simple-mode').addEventListener('change', (e) => {
+    simpleMode = e.target.checked;
+    document.querySelector('.chart-date-control').style.display = simpleMode ? 'none' : 'flex';
+    document.querySelector('.time-nav-group').style.display = simpleMode ? 'none' : 'flex';
+    renderChart();
+  });
+  // Apply initial simple mode state
+  document.querySelector('.chart-date-control').style.display = simpleMode ? 'none' : 'flex';
+  document.querySelector('.time-nav-group').style.display = simpleMode ? 'none' : 'flex';
 
   document.getElementById('cursor-step-up')?.addEventListener('click', () => stepCursor('up', true, true));
   document.getElementById('cursor-step-down')?.addEventListener('click', () => stepCursor('down', true, true));
@@ -4375,21 +4080,21 @@ async function applyLiveLight() {
 
     if (response.ok) {
       if (statusEl) {
-        statusEl.textContent = `${Math.round(values.brightness)}% / ${Math.round(values.colorTemp)}K`;
-        statusEl.classList.add('active');
+        statusEl.textContent = 'Live!';
+        statusEl.classList.add('active', 'live-blink');
       }
     } else {
       console.warn('Failed to apply light:', response.status);
       if (statusEl) {
         statusEl.textContent = 'Error';
-        statusEl.classList.remove('active');
+        statusEl.classList.remove('active', 'live-blink');
       }
     }
   } catch (err) {
     console.error('Error applying live light:', err);
     if (statusEl) {
       statusEl.textContent = 'Error';
-      statusEl.classList.remove('active');
+      statusEl.classList.remove('active', 'live-blink');
     }
   }
 }
@@ -4428,7 +4133,8 @@ function setupLiveDesign() {
   const statusEl = document.getElementById('live-design-status');
 
   if (toggleBtn) {
-    toggleBtn.addEventListener('click', async () => {
+    toggleBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
       if (!liveDesignAreaId) return;
 
       liveDesignEnabled = !liveDesignEnabled;
@@ -4439,7 +4145,8 @@ function setupLiveDesign() {
         // Disable Circadian so periodic updates don't override Live Design
         await setCircadianMode(liveDesignAreaId, false);
         if (statusEl) {
-          statusEl.textContent = 'Entering...';
+          statusEl.textContent = 'starting Live Design';
+          statusEl.classList.remove('live-blink');
           statusEl.classList.add('active');
         }
         // Apply current cursor position with 3s transition
@@ -4450,24 +4157,17 @@ function setupLiveDesign() {
         // Update status after transition
         setTimeout(() => {
           if (liveDesignEnabled && statusEl) {
-            const values = getCursorLightValues();
-            if (values) {
-              statusEl.textContent = `${Math.round(values.brightness)}% / ${Math.round(values.colorTemp)}K`;
-            } else {
-              statusEl.textContent = 'Live';
-            }
+            statusEl.textContent = 'Live!';
+            statusEl.classList.add('live-blink');
           }
         }, 2500);
       } else {
         // Re-enable Circadian when pausing (this restores lights via backend)
         if (statusEl) {
-          statusEl.textContent = 'Exiting...';
+          statusEl.textContent = 'Paused';
+          statusEl.classList.remove('active', 'live-blink');
         }
         await setCircadianMode(liveDesignAreaId, true);
-        if (statusEl) {
-          statusEl.textContent = 'Paused';
-          statusEl.classList.remove('active');
-        }
       }
     });
   }
@@ -4493,7 +4193,8 @@ function setupLiveDesign() {
         toggleBtn.style.display = '';
         toggleBtn.textContent = 'Pause';
         if (statusEl) {
-          statusEl.textContent = 'Entering...';
+          statusEl.textContent = 'starting Live Design';
+          statusEl.classList.remove('live-blink');
           statusEl.classList.add('active');
         }
         await setCircadianMode(newAreaId, false);
@@ -4505,12 +4206,8 @@ function setupLiveDesign() {
         // Update status after transition
         setTimeout(() => {
           if (liveDesignEnabled && statusEl) {
-            const values = getCursorLightValues();
-            if (values) {
-              statusEl.textContent = `${Math.round(values.brightness)}% / ${Math.round(values.colorTemp)}K`;
-            } else {
-              statusEl.textContent = 'Live';
-            }
+            statusEl.textContent = 'Live!';
+            statusEl.classList.add('live-blink');
           }
         }, 2500);
       } else {
@@ -4519,7 +4216,7 @@ function setupLiveDesign() {
         toggleBtn.style.display = 'none';
         if (statusEl) {
           statusEl.textContent = '';
-          statusEl.classList.remove('active');
+          statusEl.classList.remove('active', 'live-blink');
         }
       }
     });
@@ -5191,6 +4888,10 @@ async function loadRhythmFromUrl() {
 
   selectedRhythmName = rhythmName;
 
+  // Set name input
+  const nameInput = document.getElementById('rhythm-name');
+  if (nameInput) nameInput.value = rhythmName;
+
   try {
     const response = await fetch('./api/circadian-rhythms');
     if (response.ok) {
@@ -5215,6 +4916,13 @@ async function loadRhythmFromUrl() {
  */
 async function saveRhythmSettings() {
   const statusEl = document.getElementById('save-status');
+  const newName = document.getElementById('rhythm-name')?.value.trim();
+
+  if (!newName) {
+    statusEl.innerHTML = '<div class="error">Name cannot be empty</div>';
+    setTimeout(() => { statusEl.innerHTML = ''; }, 3000);
+    return;
+  }
 
   const rhythmSettings = {
     wake_time: config.wake_time,
@@ -5244,6 +4952,11 @@ async function saveRhythmSettings() {
     max_dim_steps: config.max_dim_steps,
   };
 
+  // Include name for rename support
+  if (newName !== selectedRhythmName) {
+    rhythmSettings.name = newName;
+  }
+
   try {
     const response = await fetch(`./api/circadian-rhythms/${encodeURIComponent(selectedRhythmName)}`, {
       method: 'PUT',
@@ -5252,6 +4965,12 @@ async function saveRhythmSettings() {
     });
 
     if (response.ok) {
+      if (newName !== selectedRhythmName) {
+        // Update URL to reflect new name
+        selectedRhythmName = newName;
+        const basePath = window.location.pathname.replace(/\/rhythm\/[^/]+\/?$/, '');
+        window.history.replaceState(null, '', basePath + '/rhythm/' + encodeURIComponent(newName));
+      }
       statusEl.innerHTML = '<div class="success">Saved!</div>';
     } else {
       const data = await response.json();
@@ -5265,7 +4984,7 @@ async function saveRhythmSettings() {
 }
 
 /**
- * Setup save button
+ * Setup save and cancel buttons
  */
 function setupSaveButton() {
   document.getElementById('save-config')?.addEventListener('click', (e) => {
@@ -5273,6 +4992,20 @@ function setupSaveButton() {
     e.stopImmediatePropagation();
     saveRhythmSettings();
   });
+  // Back navigation: use browser history if referred from same origin, else rhythm list
+  const path = window.location.pathname;
+  const base = path.replace(/\/rhythm\/[^/]*\/?$/, '').replace(/\/rhythm\/?$/, '');
+  const fallbackUrl = (base || '.') + '/rhythm';
+  const hasSameOriginReferrer = document.referrer && new URL(document.referrer).origin === window.location.origin;
+  function goBack() {
+    if (hasSameOriginReferrer) {
+      history.back();
+    } else {
+      window.location.href = fallbackUrl;
+    }
+  }
+  document.getElementById('back-btn').addEventListener('click', (e) => { e.preventDefault(); goBack(); });
+  document.getElementById('cancel-btn')?.addEventListener('click', goBack);
 }
 
 // ============================================================
