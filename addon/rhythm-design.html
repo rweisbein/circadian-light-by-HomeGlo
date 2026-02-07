@@ -36,9 +36,8 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
 .page-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   margin-bottom: 12px;
-  gap: 4px;
+  gap: 2px;
 }
 .rhythm-name-input {
   font-size: 1.2rem;
@@ -58,6 +57,7 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
   display: flex;
   gap: 12px;
   align-items: center;
+  margin-left: auto;
 }
 
 /* Rhythm group labels */
@@ -86,10 +86,10 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
 /* Parameter Rows */
 .param-row {
   display: grid;
-  grid-template-columns: 60px 90px 1fr;
+  grid-template-columns: 140px 1fr 140px;
   align-items: center;
   gap: 10px;
-  margin: 8px 0;
+  margin: 6px 0;
   max-width: 600px;
 }
 /* Hidden control rows - kept for future "custom" preset */
@@ -596,21 +596,7 @@ input[type=range]::-moz-range-thumb {
   opacity: 0.35;
   pointer-events: none;
 }
-.solar-param-row {
-  display: grid;
-  grid-template-columns: 140px 1fr 100px;
-  align-items: center;
-  gap: 10px;
-  margin: 8px 0;
-  max-width: 600px;
-}
-.solar-param-row label {
-  font-size: 0.85rem;
-  color: var(--muted);
-  font-weight: 600;
-  text-align: right;
-}
-.solar-param-row .offset-text {
+.param-row .offset-text {
   font-size: 0.85rem;
   color: var(--muted);
   text-align: left;
@@ -1183,23 +1169,23 @@ input[type=range]::-moz-range-thumb {
       </select>
     </div>
     <div class="rhythm-group-label">Wake</div>
-    <div class="param-row" style="grid-template-columns: 140px 1fr 100px;">
+    <div class="param-row">
       <label>Time</label>
       <input type="range" id="wake-time" min="0" max="24" step="0.25" value="7">
       <span class="dual-chip right" id="wake-time-display">7:00a</span>
     </div>
-    <div class="param-row" style="grid-template-columns: 140px 1fr 100px;">
+    <div class="param-row">
       <label>Speed</label>
       <input type="range" id="wake-speed" min="1" max="10" step="1" value="6">
       <span class="dual-chip right" id="wake-speed-display">Crisp (6)</span>
     </div>
     <div class="rhythm-group-label bed">Bed</div>
-    <div class="param-row" style="grid-template-columns: 140px 1fr 100px;">
+    <div class="param-row">
       <label>Time</label>
       <input type="range" id="bed-time" min="0" max="36" step="0.25" value="21">
       <span class="dual-chip right" id="bed-time-display">9:00p</span>
     </div>
-    <div class="param-row" style="grid-template-columns: 140px 1fr 100px;">
+    <div class="param-row">
       <label>Speed</label>
       <input type="range" id="bed-speed" min="1" max="10" step="1" value="4">
       <span class="dual-chip right" id="bed-speed-display">Smooth (4)</span>
@@ -1276,9 +1262,8 @@ input[type=range]::-moz-range-thumb {
   <div class="section-block">
     <h2>Ranges</h2>
 
-    <div class="param-row" style="grid-template-columns: 140px 60px 1fr 60px 28px;">
+    <div class="param-row">
       <label>Color temp.</label>
-      <span class="dual-chip" id="color-min-display">500 K</span>
       <div class="dual-range">
         <div class="dual-track color-track" id="color-track">
           <div class="dual-mask" id="color-mask-left"></div>
@@ -1287,12 +1272,11 @@ input[type=range]::-moz-range-thumb {
         <input type="range" id="color-min" class="range-min" min="500" max="6500" step="100" value="500">
         <input type="range" id="color-max" class="range-max" min="500" max="6500" step="100" value="6500">
       </div>
-      <span class="dual-chip right" id="color-max-display">6500 K</span>
+      <span class="dual-chip" id="color-range-display">500 – 6500 K</span>
     </div>
 
-    <div class="param-row" style="grid-template-columns: 140px 60px 1fr 60px 28px;">
+    <div class="param-row">
       <label>Brightness</label>
-      <span class="dual-chip" id="brightness-min-display">1%</span>
       <div class="dual-range">
         <div class="dual-track" id="brightness-track" style="background:linear-gradient(to right,#111,#fff);">
           <div class="dual-mask" id="brightness-mask-left"></div>
@@ -1301,10 +1285,10 @@ input[type=range]::-moz-range-thumb {
         <input type="range" id="brightness-min" class="range-min" min="1" max="100" step="1" value="1">
         <input type="range" id="brightness-max" class="range-max" min="1" max="100" step="1" value="100">
       </div>
-      <span class="dual-chip right" id="brightness-max-display">100%</span>
+      <span class="dual-chip" id="brightness-range-display">1 – 100%</span>
     </div>
 
-    <div class="param-row" style="grid-template-columns: 140px 1fr 100px;">
+    <div class="param-row">
       <label>Increments</label>
       <input type="range" id="step-count" min="1" max="50" step="1" value="10">
       <span class="dual-chip right" id="step-count-display">10 steps</span>
@@ -1337,21 +1321,21 @@ input[type=range]::-moz-range-thumb {
         </div>
         <div class="color-rule-stack-body" id="warm-night-body">
           <div class="color-rule-slider-row" data-rule-window="sunset">
-            <div class="solar-param-row">
+            <div class="param-row">
               <label>Start</label>
               <input type="range" id="warm-night-start" min="-180" max="180" step="30" value="-60">
               <span class="offset-text" id="warm-night-start-text">1 hr before sunset</span>
             </div>
           </div>
           <div class="color-rule-slider-row" data-rule-window="sunrise">
-            <div class="solar-param-row">
+            <div class="param-row">
               <label>End</label>
               <input type="range" id="warm-night-end" min="-180" max="180" step="30" value="60">
               <span class="offset-text" id="warm-night-end-text">1 hr after sunrise</span>
             </div>
           </div>
           <div class="color-rule-slider-row" data-rule-window="any">
-            <div class="solar-param-row">
+            <div class="param-row">
               <label>Fade</label>
               <input type="range" id="warm-night-fade" min="0" max="300" step="30" value="60">
               <span class="offset-text" id="warm-night-fade-text">1 hr</span>
@@ -1381,21 +1365,21 @@ input[type=range]::-moz-range-thumb {
         </div>
         <div class="color-rule-stack-body" id="cool-day-body">
           <div class="color-rule-slider-row" data-rule-window="sunrise">
-            <div class="solar-param-row">
+            <div class="param-row">
               <label>Start</label>
               <input type="range" id="cool-day-start" min="-180" max="180" step="30" value="0">
               <span class="offset-text" id="cool-day-start-text">at sunrise</span>
             </div>
           </div>
           <div class="color-rule-slider-row" data-rule-window="sunset">
-            <div class="solar-param-row">
+            <div class="param-row">
               <label>End</label>
               <input type="range" id="cool-day-end" min="-180" max="180" step="30" value="0">
               <span class="offset-text" id="cool-day-end-text">at sunset</span>
             </div>
           </div>
           <div class="color-rule-slider-row" data-rule-window="any">
-            <div class="solar-param-row">
+            <div class="param-row">
               <label>Fade</label>
               <input type="range" id="cool-day-fade" min="0" max="300" step="30" value="60">
               <span class="offset-text" id="cool-day-fade-text">1 hr</span>
@@ -3282,10 +3266,7 @@ function syncUIFromConfig() {
   updateDisplay('bed-time-display', formatHour(config.bed_time));
   updateDisplay('wake-speed-display', `${SPEED_LABELS[config.wake_speed]} (${config.wake_speed})`);
   updateDisplay('bed-speed-display', `${SPEED_LABELS[config.bed_speed]} (${config.bed_speed})`);
-  updateDisplay('color-min-display', `${config.min_color_temp} K`);
-  updateDisplay('color-max-display', `${config.max_color_temp} K`);
-  updateDisplay('brightness-min-display', `${config.min_brightness}%`);
-  updateDisplay('brightness-max-display', `${config.max_brightness}%`);
+  updateRangeDisplays();
   updateDisplay('step-count-display', `${config.max_dim_steps} steps`);
 
   updateDualFills();
@@ -3293,6 +3274,12 @@ function syncUIFromConfig() {
   updateOffsetDisplays();
   syncColorRuleRows();
   constrainWakeBedSliders();
+}
+
+// Update combined range displays (color temp + brightness)
+function updateRangeDisplays() {
+  updateDisplay('color-range-display', `${config.min_color_temp} – ${config.max_color_temp} K`);
+  updateDisplay('brightness-range-display', `${config.min_brightness} – ${config.max_brightness}%`);
 }
 
 // Update offset text displays
@@ -3491,10 +3478,15 @@ function setupEventListeners() {
   updateSliderValue('wake-speed', 'wake-speed-display', v => `${SPEED_LABELS[v]} (${v})`);
   updateSliderValue('bed-speed', 'bed-speed-display', v => `${SPEED_LABELS[v]} (${v})`);
 
-  updateSliderValue('color-min', 'color-min-display', v => `${v} K`);
-  updateSliderValue('color-max', 'color-max-display', v => `${v} K`);
-  updateSliderValue('brightness-min', 'brightness-min-display', v => `${v}%`);
-  updateSliderValue('brightness-max', 'brightness-max-display', v => `${v}%`);
+  // Dual-range sliders update combined display
+  ['color-min', 'color-max'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', () => { syncConfigFromUI(); updateRangeDisplays(); renderChart(); });
+  });
+  ['brightness-min', 'brightness-max'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', () => { syncConfigFromUI(); updateRangeDisplays(); renderChart(); });
+  });
   updateSliderValue('step-count', 'step-count-display', v => `${v} steps`);
 
   // Master increments slider syncs all hidden increment inputs
