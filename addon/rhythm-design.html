@@ -89,7 +89,7 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
   grid-template-columns: 140px 1fr 140px;
   align-items: center;
   gap: 10px;
-  margin: 6px 0;
+  margin: 8px 0;
   max-width: 600px;
 }
 /* Hidden control rows - kept for future "custom" preset */
@@ -512,11 +512,22 @@ input[type=range]::-moz-range-thumb {
 }
 .color-rule-stack:first-child { border-top: none; padding-top: 0; }
 .color-rule-stack-label {
-  display: flex;
+  display: grid;
+  grid-template-columns: 140px 1fr;
   align-items: center;
   gap: 10px;
   margin-bottom: 4px;
   max-width: 600px;
+}
+.color-rule-stack-label .color-rule-label-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.color-rule-stack-label .color-rule-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 .color-rule-stack-label select {
   padding: 4px 8px;
@@ -1302,19 +1313,23 @@ input[type=range]::-moz-range-thumb {
     <div class="color-rule-grid">
       <div class="color-rule-stack" data-color-row="night">
         <div class="color-rule-stack-label">
-          <div class="color-rule-toggle"><input type="checkbox" id="warm-night-enabled"></div>
-          <label class="color-rule-label">Warm night<span class="info-icon" data-tooltip="warm-night-info">i<span class="info-tooltip" id="warm-night-info">Caps color temperature when sun isn't up; if your curve is cool (high K) between sunset and sunrise, this warms it.</span></span></label>
-          <select id="warm-night-mode" style="margin-left:auto;">
-            <option value="all">all night</option>
-            <option value="sunrise">before sunrise</option>
-            <option value="sunset">after sunset</option>
-          </select>
-          <div class="color-controls-wrap">
-            <button type="button" class="color-value-chip" id="warm-night-target-chip">2700 K</button>
-            <div class="color-slider-popup" id="warm-night-popup">
-              <div class="dual-range">
-                <div class="dual-track color-track" id="warm-night-track"></div>
-                <input type="range" id="warm-night-target" class="range-min" min="500" max="6500" step="100" value="2700">
+          <div class="color-rule-label-left">
+            <div class="color-rule-toggle"><input type="checkbox" id="warm-night-enabled"></div>
+            <label class="color-rule-label">Warm night<span class="info-icon" data-tooltip="warm-night-info">i<span class="info-tooltip" id="warm-night-info">Caps color temperature when sun isn't up; if your curve is cool (high K) between sunset and sunrise, this warms it.</span></span></label>
+          </div>
+          <div class="color-rule-controls">
+            <select id="warm-night-mode">
+              <option value="all">all night</option>
+              <option value="sunrise">before sunrise</option>
+              <option value="sunset">after sunset</option>
+            </select>
+            <div class="color-controls-wrap">
+              <button type="button" class="color-value-chip" id="warm-night-target-chip">2700 K</button>
+              <div class="color-slider-popup" id="warm-night-popup">
+                <div class="dual-range">
+                  <div class="dual-track color-track" id="warm-night-track"></div>
+                  <input type="range" id="warm-night-target" class="range-min" min="500" max="6500" step="100" value="2700">
+                </div>
               </div>
             </div>
           </div>
@@ -1346,19 +1361,23 @@ input[type=range]::-moz-range-thumb {
 
       <div class="color-rule-stack" data-color-row="daylight">
         <div class="color-rule-stack-label">
-          <div class="color-rule-toggle"><input type="checkbox" id="cool-day-enabled"></div>
-          <label class="color-rule-label">Cool day<span class="info-icon" data-tooltip="cool-day-info">i<span class="info-tooltip" id="cool-day-info">Lifts color temperature when the sun is up; if your curve is warm (low K) between sunrise and sunset, this cools it.</span></span></label>
-          <select id="cool-day-mode" style="margin-left:auto;">
-            <option value="all">all day</option>
-            <option value="sunrise">after sunrise</option>
-            <option value="sunset">before sunset</option>
-          </select>
-          <div class="color-controls-wrap">
-            <button type="button" class="color-value-chip" id="cool-day-target-chip">6500 K</button>
-            <div class="color-slider-popup" id="cool-day-popup">
-              <div class="dual-range">
-                <div class="dual-track color-track" id="cool-day-track"></div>
-                <input type="range" id="cool-day-target" class="range-min" min="500" max="6500" step="100" value="6500">
+          <div class="color-rule-label-left">
+            <div class="color-rule-toggle"><input type="checkbox" id="cool-day-enabled"></div>
+            <label class="color-rule-label">Cool day<span class="info-icon" data-tooltip="cool-day-info">i<span class="info-tooltip" id="cool-day-info">Lifts color temperature when the sun is up; if your curve is warm (low K) between sunrise and sunset, this cools it.</span></span></label>
+          </div>
+          <div class="color-rule-controls">
+            <select id="cool-day-mode">
+              <option value="all">all day</option>
+              <option value="sunrise">after sunrise</option>
+              <option value="sunset">before sunset</option>
+            </select>
+            <div class="color-controls-wrap">
+              <button type="button" class="color-value-chip" id="cool-day-target-chip">6500 K</button>
+              <div class="color-slider-popup" id="cool-day-popup">
+                <div class="dual-range">
+                  <div class="dual-track color-track" id="cool-day-track"></div>
+                  <input type="range" id="cool-day-target" class="range-min" min="500" max="6500" step="100" value="6500">
+                </div>
               </div>
             </div>
           </div>
