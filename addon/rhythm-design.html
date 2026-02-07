@@ -8,22 +8,24 @@
 <style>
 :root {
   --bg: #000;
-  --panel: #181818;
+  --panel: #111;
   --panel2: #252525;
-  --text: #e6e6e6;
-  --muted: #bbb;
-  --muted2: #aaa;
-  --line: #333;
+  --card: #1a1a1a;
+  --text: #e2e8f0;
+  --muted: #94a3b8;
+  --muted2: #64748b;
+  --line: #334155;
   --line2: #2c2c2c;
   --grid: #202020;
   --accent: #feac60;
+  --accent-hover: #ffc078;
   --ascend: rgba(120, 190, 255, 0.32);
   --ascend-border: rgba(120, 185, 245, 0.5);
   --descend: rgba(255, 220, 100, 0.12);
   --descend-border: rgba(255, 230, 128, 0.45);
 }
 * { box-sizing: border-box; }
-html, body { height: 100%; margin: 0; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+html, body { height: 100%; margin: 0; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
 body { padding: 20px; }
 h1 { margin: 0 0 18px; font-size: 28px; font-weight: 600; }
 h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
@@ -65,16 +67,16 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
   margin: 10px 0 2px;
 }
 .rhythm-group-label.bed {
-  border-top: 1px solid rgba(255,255,255,0.06);
+  border-top: 1px solid var(--line);
   padding-top: 10px;
   margin-top: 12px;
 }
 
-/* Section Blocks (chart etc.) */
+/* Section Blocks (cards) */
 .section-block {
-  background: var(--panel);
+  background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 8px;
   padding: 16px;
   margin-bottom: 16px;
 }
@@ -145,7 +147,7 @@ input[type=range]::-moz-range-thumb {
 }
 
 /* Chart Section */
-.chart-wrapper { position: relative; margin-bottom: 32px; padding-bottom: 16px; }
+.chart-wrapper { position: relative; margin-bottom: 6px; padding-bottom: 36px; }
 #chart { height: 450px; }
 .chart-toolbar {
   display: flex;
@@ -251,7 +253,7 @@ input[type=range]::-moz-range-thumb {
   display: flex;
   justify-content: center;
   gap: 16px;
-  margin-top: 12px;
+  margin-top: 4px;
 }
 .cursor-controls.hidden { display: none; }
 .cursor-btn-group {
@@ -1120,12 +1122,12 @@ input[type=range]::-moz-range-thumb {
 .nav-brand {
   font-weight: 600;
   font-size: 1.1rem;
-  color: #e2e8f0;
+  color: var(--text);
   margin-right: 32px;
   text-decoration: none;
 }
 .nav-brand.active {
-  color: var(--accent, #feac60);
+  color: var(--accent);
 }
 .nav-links {
   display: flex;
@@ -1133,14 +1135,14 @@ input[type=range]::-moz-range-thumb {
 }
 .nav-link {
   padding: 8px 16px;
-  color: #94a3b8;
+  color: var(--muted);
   text-decoration: none;
   border-radius: 6px;
   font-size: 0.9rem;
   transition: all 0.2s;
 }
 .nav-link:hover {
-  color: #e2e8f0;
+  color: var(--text);
   background: rgba(255, 255, 255, 0.05);
 }
 .nav-link.active {
@@ -1158,7 +1160,7 @@ input[type=range]::-moz-range-thumb {
 .header-link-cancel { color: var(--muted); }
 .header-link-cancel:hover { color: var(--text); }
 .header-link-save { color: var(--accent); font-weight: 600; }
-.header-link-save:hover { color: var(--accent-hover); }
+.header-link-save:hover { opacity: 0.8; }
 </style>
 </head>
 <body>
@@ -1192,53 +1194,41 @@ input[type=range]::-moz-range-thumb {
 
   <div class="section-block">
     <h2>Sleep</h2>
-    <div class="param-row" style="grid-template-columns: 140px 60px 1fr 60px 28px;">
+    <div class="param-row" style="grid-template-columns: 140px 1fr;">
       <label>Pattern</label>
-      <span class="dual-chip">
-        <select id="activity-preset" style="background:transparent;border:none;color:var(--text);font-size:0.85rem;padding:0;">
-          <option value="young">Young Child</option>
-          <option value="adult" selected>Adult</option>
-          <option value="nightowl">Night Owl</option>
-          <option value="duskbat">Dusk Bat</option>
-          <option value="shiftearly">Shift Early</option>
-          <option value="shiftlate">Shift Late</option>
-        </select>
-      </span>
-      <div></div>
-      <span class="dual-chip right"></span>
+      <select id="activity-preset" style="background:var(--panel2);border:1px solid var(--line);border-radius:6px;color:var(--text);font-size:0.85rem;padding:6px 10px;max-width:180px;">
+        <option value="young">Young Child</option>
+        <option value="adult" selected>Adult</option>
+        <option value="nightowl">Night Owl</option>
+        <option value="duskbat">Dusk Bat</option>
+        <option value="shiftearly">Shift Early</option>
+        <option value="shiftlate">Shift Late</option>
+      </select>
     </div>
     <div class="rhythm-group-label">Wake</div>
     <div class="param-row" style="grid-template-columns: 140px 60px 1fr 60px 28px;">
       <label style="padding-left:16px">Time</label>
       <span class="dual-chip" id="wake-time-display">6:00a</span>
-      <div class="dual-range">
-        <input type="range" id="wake-time" min="0" max="24" step="0.5" value="6" style="width:100%">
-      </div>
+      <input type="range" id="wake-time" min="0" max="24" step="0.5" value="6">
       <span class="dual-chip right"></span>
     </div>
     <div class="param-row" style="grid-template-columns: 140px 60px 1fr 60px 28px;">
       <label style="padding-left:16px">Speed</label>
       <span class="dual-chip" id="wake-speed-display">Fast (8)</span>
-      <div class="dual-range">
-        <input type="range" id="wake-speed" min="1" max="10" step="1" value="8" style="width:100%">
-      </div>
+      <input type="range" id="wake-speed" min="1" max="10" step="1" value="8">
       <span class="dual-chip right"></span>
     </div>
     <div class="rhythm-group-label bed">Bed</div>
     <div class="param-row" style="grid-template-columns: 140px 60px 1fr 60px 28px;">
       <label style="padding-left:16px">Time</label>
       <span class="dual-chip" id="bed-time-display">10:00p</span>
-      <div class="dual-range">
-        <input type="range" id="bed-time" min="0" max="36" step="0.5" value="22" style="width:100%">
-      </div>
+      <input type="range" id="bed-time" min="0" max="36" step="0.5" value="22">
       <span class="dual-chip right"></span>
     </div>
     <div class="param-row" style="grid-template-columns: 140px 60px 1fr 60px 28px;">
       <label style="padding-left:16px">Speed</label>
       <span class="dual-chip" id="bed-speed-display">Crisp (6)</span>
-      <div class="dual-range">
-        <input type="range" id="bed-speed" min="1" max="10" step="1" value="6" style="width:100%">
-      </div>
+      <input type="range" id="bed-speed" min="1" max="10" step="1" value="6">
       <span class="dual-chip right"></span>
     </div>
     <!-- Hidden fields for ascend/descend (set by sleep pattern) -->
@@ -1337,9 +1327,7 @@ input[type=range]::-moz-range-thumb {
     <div class="param-row" style="grid-template-columns: 140px 60px 1fr 60px 28px;">
       <label>Increments</label>
       <span class="dual-chip" id="step-count-display">10 steps</span>
-      <div class="dual-range">
-        <input type="range" id="step-count" min="1" max="50" step="1" value="10" style="width:100%">
-      </div>
+      <input type="range" id="step-count" min="1" max="50" step="1" value="10">
       <span class="dual-chip right"></span>
     </div>
 
