@@ -209,7 +209,7 @@ class HomeAssistantWebSocketClient:
         """
         try:
             raw_config = glozone.load_config_from_files()
-            tenths = raw_config.get("multi_click_speed", 2)
+            tenths = raw_config.get("multi_click_speed", 10)
             return tenths / 10.0  # Convert tenths to seconds
         except Exception:
             return 0.2  # Default 0.2 seconds
