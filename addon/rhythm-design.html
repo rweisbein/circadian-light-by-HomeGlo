@@ -1322,8 +1322,9 @@ input[type=range]::-moz-range-thumb {
       <label>Brightness</label>
       <span class="dual-chip" id="brightness-min-display">1%</span>
       <div class="dual-range">
-        <div class="dual-track">
-          <div class="dual-fill" id="brightness-fill"></div>
+        <div class="dual-track" id="brightness-track" style="background:linear-gradient(to right,#111,#fff);">
+          <div class="dual-mask" id="brightness-mask-left"></div>
+          <div class="dual-mask" id="brightness-mask-right"></div>
         </div>
         <input type="range" id="brightness-min" class="range-min" min="1" max="100" step="1" value="1">
         <input type="range" id="brightness-max" class="range-max" min="1" max="100" step="1" value="100">
@@ -3619,10 +3620,15 @@ function updateDualFills() {
 
   const briMin = parseInt(document.getElementById('brightness-min').value);
   const briMax = parseInt(document.getElementById('brightness-max').value);
-  const briFill = document.getElementById('brightness-fill');
-  if (briFill) {
-    briFill.style.left = `${briMin}%`;
-    briFill.style.width = `${briMax - briMin}%`;
+  const briMaskLeft = document.getElementById('brightness-mask-left');
+  const briMaskRight = document.getElementById('brightness-mask-right');
+  if (briMaskLeft && briMaskRight) {
+    const leftPct = ((briMin - 1) / 99) * 100;
+    const rightPct = ((briMax - 1) / 99) * 100;
+    briMaskLeft.style.left = '0%';
+    briMaskLeft.style.width = `${leftPct}%`;
+    briMaskRight.style.left = `${rightPct}%`;
+    briMaskRight.style.width = `${100 - rightPct}%`;
   }
 }
 

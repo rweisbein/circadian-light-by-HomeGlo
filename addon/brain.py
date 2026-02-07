@@ -1159,7 +1159,7 @@ AdaptiveLighting = CircadianLight
 # Activity presets (simplified for backwards compatibility)
 ACTIVITY_PRESETS = {
     "young": {"bed_time": 18.0, "wake_time": 6.0},
-    "adult": {"bed_time": 21.0, "wake_time": 7.0},
+    "adult": {"bed_time": 22.0, "wake_time": 6.0},
     "nightowl": {"bed_time": 2.0, "wake_time": 10.0},
     "duskbat": {"bed_time": 6.0, "wake_time": 14.0},
     "shiftearly": {"bed_time": 10.0, "wake_time": 18.0},
