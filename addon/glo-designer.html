@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>Circadian Light - Rhythms</title>
+<title>Circadian Light - Daily Rhythm</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 <style>
@@ -1238,6 +1238,12 @@ input[type=range]::-moz-range-thumb {
 .nav-link.active {
   color: var(--accent);
 }
+.nav-link-2line {
+  max-width: 52px;
+  text-align: center;
+  line-height: 1.15;
+  padding: 6px 12px;
+}
 
 /* Nav solar display */
 .nav-solar { margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--muted); opacity: 0; transition: opacity 0.3s; }
@@ -1303,7 +1309,7 @@ input[type=range]::-moz-range-thumb {
 <nav class="nav">
   <a href="./" class="nav-brand">Circadian Light</a>
   <div class="nav-links">
-    <a href="./glo" class="nav-link active">Rhythms</a>
+    <a href="./glo" class="nav-link nav-link-2line active">Daily Rhythm</a>
     <a href="./switches" class="nav-link">Controls</a>
     <a href="./moments" class="nav-link">Moments</a>
     <a href="./settings" class="nav-link">Settings</a>
