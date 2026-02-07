@@ -29,23 +29,72 @@ h1 { margin: 0 0 18px; font-size: 28px; font-weight: 600; }
 h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
 
 .container { max-width: 1200px; margin: 0 auto; }
-.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.header-actions { display: flex; gap: 12px; align-items: center; }
 
-/* Activity Preset */
-.activity-select { margin-bottom: 16px; }
-.activity-select select {
+/* Page Header */
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.rhythm-name-input {
+  font-size: 1.2rem;
+  font-weight: 600;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  color: var(--text);
+  padding: 4px 0;
+  flex: 1;
+  max-width: 400px;
+}
+.rhythm-name-input:focus {
+  outline: none;
+  border-bottom-color: var(--accent);
+}
+.header-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+/* Rhythm Settings */
+.rhythm-settings {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+.rhythm-pattern {
+  margin-bottom: 12px;
+}
+.rhythm-pattern label {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 6px;
+  display: block;
+}
+.rhythm-pattern select {
   width: 100%;
-  max-width: 300px;
-  font-size: 1rem;
-  padding: 10px 14px;
-  border-radius: 10px;
-  border: 1px solid rgba(255,255,255,0.35);
+  max-width: 280px;
+  font-size: 0.95rem;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
   background: rgba(255,255,255,0.06);
   color: #fff;
 }
+.rhythm-timing {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 24px;
+}
+@media (max-width: 600px) {
+  .rhythm-timing { grid-template-columns: 1fr; }
+}
 
-/* Section Blocks */
+/* Section Blocks (chart etc.) */
 .section-block {
   background: var(--panel);
   border: 1px solid var(--line);
@@ -53,71 +102,14 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
   padding: 16px;
   margin-bottom: 16px;
 }
-.section-block--ascend {
-  background: var(--ascend);
-  border-color: var(--ascend-border);
-}
-.section-block--ascend h2 { color: #7ec8ff; }
-.section-block--descend {
-  background: var(--descend);
-  border-color: var(--descend-border);
-}
-.section-block--descend h2 { color: #ffd47a; }
-/* Time badge in section headers with timeline */
-.section-block h2 {
-  margin-bottom: 4px;
-}
-.header-timeline {
-  position: relative;
-  height: 22px;
-  margin-bottom: 10px;
-}
-.header-timeline::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  height: 1px;
-  background: rgba(255,255,255,0.15);
-}
-.time-badge {
-  position: absolute;
-  top: 50%;
-  font-size: 0.7rem;
-  font-weight: 500;
-  padding: 2px 8px;
-  border-radius: 10px;
-  white-space: nowrap;
-  transform: translate(-50%, -50%);
-  transition: left 0.2s ease;
-}
-.section-block--ascend .time-badge {
-  background: rgba(126,200,255,0.25);
-  color: #7ec8ff;
-}
-.section-block--descend .time-badge {
-  background: rgba(255,212,122,0.25);
-  color: #ffd47a;
-}
-
-/* Timing Grid */
-.timing-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-}
-@media (max-width: 768px) {
-  .timing-grid { grid-template-columns: 1fr; }
-}
 
 /* Parameter Rows */
 .param-row {
   display: grid;
-  grid-template-columns: 140px 80px 1fr;
+  grid-template-columns: 100px 70px 1fr;
   align-items: center;
-  gap: 12px;
-  margin: 10px 0;
+  gap: 10px;
+  margin: 8px 0;
 }
 /* Hidden control rows - kept for future "custom" preset */
 .param-row.is-hidden {
@@ -125,12 +117,12 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
   pointer-events: none;
 }
 .param-row label {
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   color: var(--muted);
   font-weight: 600;
 }
 .param-row .value {
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-weight: 600;
   color: var(--text);
   text-align: right;
@@ -1239,8 +1231,6 @@ input[type=range]::-moz-range-thumb {
   color: var(--accent);
 }
 .nav-link-2line {
-  max-width: 52px;
-  text-align: center;
   line-height: 1.15;
   padding: 6px 12px;
 }
@@ -1250,8 +1240,10 @@ input[type=range]::-moz-range-thumb {
 .nav-solar-icon { width: 22px; height: 22px; flex-shrink: 0; }
 .nav-solar-times { display: flex; flex-direction: column; line-height: 1.3; }
 
-/* Header save link */
+/* Header action links */
 .header-link { background: none; border: none; font-size: 0.8rem; cursor: pointer; padding: 0; }
+.header-link-cancel { color: var(--muted); }
+.header-link-cancel:hover { color: var(--text); }
 .header-link-save { color: var(--accent); font-weight: 600; }
 .header-link-save:hover { color: var(--accent-hover); }
 </style>
@@ -1276,55 +1268,32 @@ input[type=range]::-moz-range-thumb {
 </nav>
 
 <div class="container">
-  <div class="header">
+  <div class="page-header">
+    <input type="text" class="rhythm-name-input" id="rhythm-name" value="Daily Rhythm 1" placeholder="Rhythm name">
     <div class="header-actions">
-      <button id="save-config" class="header-link header-link-save">Save</button>
+      <button class="header-link header-link-cancel" id="cancel-btn">Cancel</button>
+      <button class="header-link header-link-save" id="save-config">Save</button>
     </div>
   </div>
   <div id="save-status"></div>
 
-  <!-- Circadian Pattern -->
-  <div class="activity-select">
-    <label for="activity-preset">Circadian Pattern</label>
-    <select id="activity-preset">
-      <option value="young">Young Child</option>
-      <option value="adult" selected>Adult</option>
-      <option value="nightowl">Night Owl</option>
-      <option value="duskbat">Dusk Bat</option>
-      <option value="shiftearly">Overnight Shift Early</option>
-      <option value="shiftlate">Overnight Shift Late</option>
-    </select>
-  </div>
-
-  <!-- Ascend/Descend Timing -->
-  <div class="timing-grid">
-    <div class="section-block section-block--ascend">
-      <h2>Ascend</h2>
-      <div class="header-timeline"><span class="time-badge" id="ascend-start-badge">4:00a</span></div>
-      <div class="param-row is-hidden">
-        <label>Ascend starts</label>
-        <span class="value" id="ascend-start-display">3:00a</span>
-        <input type="range" id="ascend-start" min="0" max="24" step="0.5" value="3">
-      </div>
+  <div class="rhythm-settings">
+    <div class="rhythm-pattern">
+      <label for="activity-preset">Circadian Pattern</label>
+      <select id="activity-preset">
+        <option value="young">Young Child</option>
+        <option value="adult" selected>Adult</option>
+        <option value="nightowl">Night Owl</option>
+        <option value="duskbat">Dusk Bat</option>
+        <option value="shiftearly">Overnight Shift Early</option>
+        <option value="shiftlate">Overnight Shift Late</option>
+      </select>
+    </div>
+    <div class="rhythm-timing">
       <div class="param-row">
         <label>Wake time</label>
         <span class="value" id="wake-time-display">6:00a</span>
         <input type="range" id="wake-time" min="0" max="24" step="0.5" value="6">
-      </div>
-      <div class="param-row">
-        <label>Wake speed</label>
-        <span class="value" id="wake-speed-display">Fast (8)</span>
-        <input type="range" id="wake-speed" min="1" max="10" step="1" value="8">
-      </div>
-    </div>
-
-    <div class="section-block section-block--descend">
-      <h2>Descend</h2>
-      <div class="header-timeline"><span class="time-badge" id="descend-start-badge">12:00p</span></div>
-      <div class="param-row is-hidden">
-        <label>Descend starts</label>
-        <span class="value" id="descend-start-display">12:00p</span>
-        <input type="range" id="descend-start" min="0" max="36" step="0.5" value="12">
       </div>
       <div class="param-row">
         <label>Bed time</label>
@@ -1332,11 +1301,19 @@ input[type=range]::-moz-range-thumb {
         <input type="range" id="bed-time" min="0" max="36" step="0.5" value="22">
       </div>
       <div class="param-row">
+        <label>Wake speed</label>
+        <span class="value" id="wake-speed-display">Fast (8)</span>
+        <input type="range" id="wake-speed" min="1" max="10" step="1" value="8">
+      </div>
+      <div class="param-row">
         <label>Bed speed</label>
         <span class="value" id="bed-speed-display">Crisp (6)</span>
         <input type="range" id="bed-speed" min="1" max="10" step="1" value="6">
       </div>
     </div>
+    <!-- Hidden fields for ascend/descend (set by circadian pattern) -->
+    <input type="range" id="ascend-start" min="0" max="24" step="0.5" value="3" style="display:none">
+    <input type="range" id="descend-start" min="0" max="36" step="0.5" value="12" style="display:none">
   </div>
 
   <!-- Chart -->
@@ -5191,6 +5168,10 @@ async function loadRhythmFromUrl() {
 
   selectedRhythmName = rhythmName;
 
+  // Set name input
+  const nameInput = document.getElementById('rhythm-name');
+  if (nameInput) nameInput.value = rhythmName;
+
   try {
     const response = await fetch('./api/circadian-rhythms');
     if (response.ok) {
@@ -5215,6 +5196,13 @@ async function loadRhythmFromUrl() {
  */
 async function saveRhythmSettings() {
   const statusEl = document.getElementById('save-status');
+  const newName = document.getElementById('rhythm-name')?.value.trim();
+
+  if (!newName) {
+    statusEl.innerHTML = '<div class="error">Name cannot be empty</div>';
+    setTimeout(() => { statusEl.innerHTML = ''; }, 3000);
+    return;
+  }
 
   const rhythmSettings = {
     wake_time: config.wake_time,
@@ -5244,6 +5232,11 @@ async function saveRhythmSettings() {
     max_dim_steps: config.max_dim_steps,
   };
 
+  // Include name for rename support
+  if (newName !== selectedRhythmName) {
+    rhythmSettings.name = newName;
+  }
+
   try {
     const response = await fetch(`./api/circadian-rhythms/${encodeURIComponent(selectedRhythmName)}`, {
       method: 'PUT',
@@ -5252,6 +5245,12 @@ async function saveRhythmSettings() {
     });
 
     if (response.ok) {
+      if (newName !== selectedRhythmName) {
+        // Update URL to reflect new name
+        selectedRhythmName = newName;
+        const basePath = window.location.pathname.replace(/\/rhythm\/[^/]+\/?$/, '');
+        window.history.replaceState(null, '', basePath + '/rhythm/' + encodeURIComponent(newName));
+      }
       statusEl.innerHTML = '<div class="success">Saved!</div>';
     } else {
       const data = await response.json();
@@ -5265,13 +5264,18 @@ async function saveRhythmSettings() {
 }
 
 /**
- * Setup save button
+ * Setup save and cancel buttons
  */
 function setupSaveButton() {
   document.getElementById('save-config')?.addEventListener('click', (e) => {
     e.preventDefault();
     e.stopImmediatePropagation();
     saveRhythmSettings();
+  });
+  document.getElementById('cancel-btn')?.addEventListener('click', () => {
+    const path = window.location.pathname;
+    const base = path.replace(/\/rhythm\/[^/]*\/?$/, '').replace(/\/rhythm\/?$/, '');
+    window.location.href = (base || '.') + '/rhythm';
   });
 }
 
