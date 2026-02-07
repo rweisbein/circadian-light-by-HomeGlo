@@ -793,21 +793,6 @@ class HomeAssistantWebSocketClient:
         # Get the action for this button event
         action = switch_config.get_button_action(button_event)
 
-        # Handle release events BEFORE the action-is-None check,
-        # because release events (e.g. down_long_release) often map to None
-        # but still need to stop active hold repeat loops.
-        if "_long_release" in button_event or "_release" in button_event:
-            was_holding = switches.is_holding(device_ieee)
-            await self._stop_hold_repeat(device_ieee)
-
-            if was_holding:
-                if action:
-                    await self._execute_switch_action(device_ieee, action)
-            elif "_short_release" in button_event:
-                if action:
-                    await self._execute_switch_action(device_ieee, action)
-            return
-
         if action is None:
             logger.debug(f"No action mapped for {button_event}")
             return
@@ -828,7 +813,18 @@ class HomeAssistantWebSocketClient:
                 # Single action on hold (non-repeating)
                 await self._execute_switch_action(device_ieee, action)
 
-        # Release events are handled above (before action-is-None check)
+        elif "_long_release" in button_event or "_release" in button_event:
+            # Always stop any active hold repeat on release
+            was_holding = switches.is_holding(device_ieee)
+            await self._stop_hold_repeat(device_ieee)
+
+            if was_holding:
+                # Execute the release action if any
+                if action:
+                    await self._execute_switch_action(device_ieee, action)
+            elif "_short_release" in button_event:
+                # Normal short press release - execute the action
+                await self._execute_switch_action(device_ieee, action)
 
         else:
             # Other events (press, double_press, triple_press, quadruple_press, etc.)
@@ -924,15 +920,6 @@ class HomeAssistantWebSocketClient:
         # Get the action for this button event
         action = switch_config.get_button_action(button_event)
 
-        # Handle release events BEFORE the action-is-None check,
-        # because release events often map to None but still need to stop hold loops.
-        if "_long_release" in button_event:
-            was_holding = switches.is_holding(switch_config.id)
-            await self._stop_hold_repeat(switch_config.id)
-            if action:
-                await self._execute_switch_action(switch_config.id, action)
-            return
-
         if action is None:
             logger.debug(f"No action mapped for {button_event}")
             return
@@ -949,15 +936,20 @@ class HomeAssistantWebSocketClient:
                     # There's a hold action - don't execute on initial press, wait for release or repeat
                     return
 
-            # Hold started (or Hue bridge repeat event)
+            # Hold started
             if switches.should_repeat_on_hold(switch_config.id, button_event):
-                if switches.is_holding(switch_config.id):
-                    # Already repeating — ignore Hue bridge repeat events
-                    logger.debug(f"Ignoring duplicate hold event for {switch_config.id} (already repeating)")
-                    return
+                switches.start_hold(switch_config.id, action)
                 await self._start_hold_repeat(switch_config.id, action)
             else:
                 # Single action on hold (non-repeating)
+                await self._execute_switch_action(switch_config.id, action)
+
+        elif "_long_release" in button_event:
+            # Long release - ending a hold
+            if switches.is_holding(switch_config.id):
+                await self._stop_hold_repeat(switch_config.id)
+            # Execute the release action if any
+            if action:
                 await self._execute_switch_action(switch_config.id, action)
 
         elif "_short_release" in button_event or "_release" in button_event:

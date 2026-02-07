@@ -1386,9 +1386,7 @@ def get_repeat_interval(switch_id: str) -> int:
         raw_config = glozone.load_config_from_files()
         tenths = raw_config.get("long_press_repeat_interval")
         if tenths is not None:
-            interval = int(float(tenths) * 100)
-            logger.info(f"Hold repeat interval from config: {tenths} tenths = {interval}ms")
-            return interval
+            return int(float(tenths) * 100)
     except Exception:
         pass
     # Fall back to switch type default
@@ -1396,9 +1394,7 @@ def get_repeat_interval(switch_id: str) -> int:
     if switch:
         switch_type = SWITCH_TYPES.get(switch.type)
         if switch_type:
-            default = switch_type.get("repeat_interval_ms", 300)
-            logger.info(f"Hold repeat interval from switch type default: {default}ms")
-            return default
+            return switch_type.get("repeat_interval_ms", 300)
     return 300
 
 
