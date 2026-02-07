@@ -1364,7 +1364,7 @@ input[type=range]::-moz-range-thumb {
               <div class="color-slider-popup" id="warm-night-popup">
                 <div class="dual-range">
                   <div class="dual-track color-track" id="warm-night-track"></div>
-                  <input type="range" id="warm-night-target" class="range-min" min="500" max="4000" step="100" value="2700">
+                  <input type="range" id="warm-night-target" class="range-min" min="500" max="6500" step="100" value="2700">
                 </div>
               </div>
             </div>
@@ -1412,7 +1412,7 @@ input[type=range]::-moz-range-thumb {
               <div class="color-slider-popup" id="cool-day-popup">
                 <div class="dual-range">
                   <div class="dual-track color-track" id="cool-day-track"></div>
-                  <input type="range" id="cool-day-target" class="range-min" min="4000" max="6500" step="100" value="6500">
+                  <input type="range" id="cool-day-target" class="range-min" min="500" max="6500" step="100" value="6500">
                 </div>
               </div>
             </div>
@@ -1666,6 +1666,7 @@ function getWindowWeight(hour, windowStart, windowEnd, fadeHrs) {
 
 /**
  * Apply warm_night and cool_day solar rules to a single CCT value at a given hour.
+ * Uses crossfade model: each rule computes independent strength, effects combine additively.
  */
 function applySolarRuleAtHour(baseCCT, hour) {
   if (!sunTimes) return baseCCT;
@@ -1673,71 +1674,70 @@ function applySolarRuleAtHour(baseCCT, hour) {
   let cct = baseCCT;
   const { sunrise, sunset, solarNoon, solarMid } = sunTimes;
 
-  // Warm night - ceiling
+  // Compute night_strength from warm_night window
+  let nightStrength = 0;
   if (config.warm_night_enabled) {
-    let warmTarget = config.warm_night_target;
-    // Apply color_override if positive (raises WarmNight ceiling)
-    if (runtimeState.color_override && runtimeState.color_override > 0) {
-      warmTarget += runtimeState.color_override;
+    const fadeHrs = config.warm_night_fade / 60;
+    const startOffsetHrs = config.warm_night_start / 60;
+    const endOffsetHrs = config.warm_night_end / 60;
+    const mode = config.warm_night_mode;
+
+    let ws, we;
+    if (mode === 'sunrise') {
+      ws = wrap24(solarMid);
+      we = wrap24(sunrise + endOffsetHrs);
+    } else if (mode === 'sunset') {
+      ws = wrap24(sunset + startOffsetHrs);
+      we = wrap24(solarMid);
+    } else {
+      ws = wrap24(sunset + startOffsetHrs);
+      we = wrap24(sunrise + endOffsetHrs);
     }
 
-    if (cct > warmTarget) {
-      const fadeHrs = config.warm_night_fade / 60;
-      const startOffsetHrs = config.warm_night_start / 60;
-      const endOffsetHrs = config.warm_night_end / 60;
-      const mode = config.warm_night_mode;
-
-      let windowStart, windowEnd;
-      if (mode === 'sunrise') {
-        windowStart = wrap24(solarMid);
-        windowEnd = wrap24(sunrise + endOffsetHrs);
-      } else if (mode === 'sunset') {
-        windowStart = wrap24(sunset + startOffsetHrs);
-        windowEnd = wrap24(solarMid);
-      } else {
-        windowStart = wrap24(sunset + startOffsetHrs);
-        windowEnd = wrap24(sunrise + endOffsetHrs);
-      }
-
-      const { inWindow, weight } = getWindowWeight(hour, windowStart, windowEnd, fadeHrs);
-      if (inWindow && weight > 0) {
-        cct = cct + (warmTarget - cct) * weight;
-      }
-    }
+    const { inWindow, weight } = getWindowWeight(hour, ws, we, fadeHrs);
+    if (inWindow) nightStrength = weight;
   }
 
-  // Cool day - floor
+  // Compute day_strength from cool_day window
+  let dayStrength = 0;
   if (config.cool_day_enabled) {
-    let coolTarget = config.cool_day_target;
-    // Apply color_override if negative (lowers CoolDay floor)
-    if (runtimeState.color_override && runtimeState.color_override < 0) {
-      coolTarget += runtimeState.color_override;
+    const fadeHrs = config.cool_day_fade / 60;
+    const startOffsetHrs = config.cool_day_start / 60;
+    const endOffsetHrs = config.cool_day_end / 60;
+    const mode = config.cool_day_mode;
+
+    let ws, we;
+    if (mode === 'sunrise') {
+      ws = wrap24(sunrise + startOffsetHrs);
+      we = wrap24(solarNoon);
+    } else if (mode === 'sunset') {
+      ws = wrap24(solarNoon);
+      we = wrap24(sunset + endOffsetHrs);
+    } else {
+      ws = wrap24(sunrise + startOffsetHrs);
+      we = wrap24(sunset + endOffsetHrs);
     }
 
-    if (cct < coolTarget) {
-      const fadeHrs = config.cool_day_fade / 60;
-      const startOffsetHrs = config.cool_day_start / 60;
-      const endOffsetHrs = config.cool_day_end / 60;
-      const mode = config.cool_day_mode;
-
-      let windowStart, windowEnd;
-      if (mode === 'sunrise') {
-        windowStart = wrap24(sunrise + startOffsetHrs);
-        windowEnd = wrap24(solarNoon);
-      } else if (mode === 'sunset') {
-        windowStart = wrap24(solarNoon);
-        windowEnd = wrap24(sunset + endOffsetHrs);
-      } else {
-        windowStart = wrap24(sunrise + startOffsetHrs);
-        windowEnd = wrap24(sunset + endOffsetHrs);
-      }
-
-      const { inWindow, weight } = getWindowWeight(hour, windowStart, windowEnd, fadeHrs);
-      if (inWindow && weight > 0) {
-        cct = cct + (coolTarget - cct) * weight;
-      }
-    }
+    const { inWindow, weight } = getWindowWeight(hour, ws, we, fadeHrs);
+    if (inWindow) dayStrength = weight;
   }
+
+  // Apply color_override to targets
+  let warmTarget = config.warm_night_target;
+  if (runtimeState.color_override && runtimeState.color_override > 0) {
+    warmTarget += runtimeState.color_override;
+  }
+
+  let coolTarget = config.cool_day_target;
+  if (runtimeState.color_override && runtimeState.color_override < 0) {
+    coolTarget += runtimeState.color_override;
+  }
+
+  // Crossfade: each effect only acts in one direction
+  const nightEffect = nightStrength > 0 ? Math.max(0, cct - warmTarget) : 0;
+  const dayEffect = dayStrength > 0 ? Math.max(0, coolTarget - cct) : 0;
+
+  cct = cct - nightEffect * nightStrength + dayEffect * dayStrength;
 
   return cct;
 }
@@ -2129,149 +2129,11 @@ function updateColorChips() {
 
 }
 
-// Apply solar color rules to CCT curve
+// Apply solar color rules to CCT curve (batch version for chart rendering)
 function adjustCCTForSolarRules(cctArray, hoursArray, sunrise, sunset) {
-  const fadeHrs = config.warm_night_fade / 60;
-  const coolFadeHrs = config.cool_day_fade / 60;
-  const solarMid = wrap24(sunTimes.solarMid);  // solar midnight
-  const solarNoon = wrap24(sunTimes.solarNoon);
-
-  // Warm night rule
-  if (config.warm_night_enabled) {
-    const startOffsetHrs = config.warm_night_start / 60;  // offset from sunset
-    const endOffsetHrs = config.warm_night_end / 60;      // offset from sunrise
-    const mode = config.warm_night_mode;
-    const warmTarget = config.warm_night_target;
-
-    // Determine window based on mode
-    let windowStart, windowEnd;
-    if (mode === 'sunrise') {
-      // Before sunrise only: solar midnight to sunrise+end
-      windowStart = solarMid;
-      windowEnd = wrap24(sunrise + endOffsetHrs);
-    } else if (mode === 'sunset') {
-      // After sunset only: sunset+start to solar midnight
-      windowStart = wrap24(sunset + startOffsetHrs);
-      windowEnd = solarMid;
-    } else {
-      // All night: sunset+start to sunrise+end
-      windowStart = wrap24(sunset + startOffsetHrs);
-      windowEnd = wrap24(sunrise + endOffsetHrs);
-    }
-
-    for (let i = 0; i < cctArray.length; i++) {
-      const h = hoursArray[i];
-      const current = cctArray[i];
-
-      // Skip if already at or below target (using runtime ceiling)
-      if (current <= warmTarget) continue;
-
-      // Check if hour is in night window (handles wrap around midnight)
-      let inWindow = false;
-      let distFromStart = 0;
-      let distToEnd = 0;
-
-      if (windowStart > windowEnd) {
-        // Wraps around midnight
-        inWindow = h >= windowStart || h <= windowEnd;
-        if (inWindow) {
-          distFromStart = h >= windowStart ? (h - windowStart) : (h + 24 - windowStart);
-          distToEnd = h <= windowEnd ? (windowEnd - h) : (windowEnd + 24 - h);
-        }
-      } else {
-        // Normal range
-        inWindow = h >= windowStart && h <= windowEnd;
-        if (inWindow) {
-          distFromStart = h - windowStart;
-          distToEnd = windowEnd - h;
-        }
-      }
-
-      if (!inWindow) continue;
-
-      // Apply fade at BOTH ends
-      let weight = 1;
-      if (fadeHrs > 0.01) {
-        if (distFromStart < fadeHrs) {
-          weight = Math.min(weight, distFromStart / fadeHrs);
-        }
-        if (distToEnd < fadeHrs) {
-          weight = Math.min(weight, distToEnd / fadeHrs);
-        }
-      }
-
-      if (weight <= 0) continue;
-      cctArray[i] = current + (warmTarget - current) * weight;
-    }
-  }
-
-  // Cool day rule
-  if (config.cool_day_enabled) {
-    const startOffsetHrs = config.cool_day_start / 60;  // offset from sunrise
-    const endOffsetHrs = config.cool_day_end / 60;      // offset from sunset
-    const mode = config.cool_day_mode;
-    const coolTarget = config.cool_day_target;
-
-    // Determine window based on mode
-    let windowStart, windowEnd;
-    if (mode === 'sunrise') {
-      // After sunrise only: sunrise+start to solar noon
-      windowStart = wrap24(sunrise + startOffsetHrs);
-      windowEnd = solarNoon;
-    } else if (mode === 'sunset') {
-      // Before sunset only: solar noon to sunset+end
-      windowStart = solarNoon;
-      windowEnd = wrap24(sunset + endOffsetHrs);
-    } else {
-      // All day: sunrise+start to sunset+end
-      windowStart = wrap24(sunrise + startOffsetHrs);
-      windowEnd = wrap24(sunset + endOffsetHrs);
-    }
-
-    for (let i = 0; i < cctArray.length; i++) {
-      const h = hoursArray[i];
-      const current = cctArray[i];
-
-      // Skip if already at or above target (using runtime floor)
-      if (current >= coolTarget) continue;
-
-      // Check if hour is in day window
-      let inWindow = false;
-      let distFromStart = 0;
-      let distToEnd = 0;
-
-      if (windowStart > windowEnd) {
-        // Unusual case - day wraps around midnight
-        inWindow = h >= windowStart || h <= windowEnd;
-        if (inWindow) {
-          distFromStart = h >= windowStart ? (h - windowStart) : (h + 24 - windowStart);
-          distToEnd = h <= windowEnd ? (windowEnd - h) : (windowEnd + 24 - h);
-        }
-      } else {
-        // Normal daytime range
-        inWindow = h >= windowStart && h <= windowEnd;
-        if (inWindow) {
-          distFromStart = h - windowStart;
-          distToEnd = windowEnd - h;
-        }
-      }
-
-      if (!inWindow) continue;
-
-      // Apply fade at BOTH ends
-      let weight = 1;
-      if (coolFadeHrs > 0.01) {
-        if (distFromStart < coolFadeHrs) {
-          weight = Math.min(weight, distFromStart / coolFadeHrs);
-        }
-        if (distToEnd < coolFadeHrs) {
-          weight = Math.min(weight, distToEnd / coolFadeHrs);
-        }
-      }
-
-      if (weight <= 0) continue;
-      cctArray[i] = current + (coolTarget - current) * weight;
-    }
+  if (!config.warm_night_enabled && !config.cool_day_enabled) return;
+  for (let i = 0; i < cctArray.length; i++) {
+    cctArray[i] = applySolarRuleAtHour(cctArray[i], hoursArray[i]);
   }
 }
 
@@ -3543,27 +3405,16 @@ function updateSolarTargetSliderConstraints() {
   const minTemp = config.min_color_temp;
   const maxTemp = config.max_color_temp;
 
-  let warmVal = parseInt(warmSlider.value);
-  let coolVal = parseInt(coolSlider.value);
-
-  // Clamp both to color range first
-  warmVal = Math.max(minTemp, Math.min(maxTemp, warmVal));
-  coolVal = Math.max(minTemp, Math.min(maxTemp, coolVal));
-
-  // If color range change caused warm < cool, clamp cool down to warm
-  if (warmVal < coolVal) {
-    coolVal = warmVal;
-  }
-
-  // Set dynamic bounds:
-  // - warm can't go below cool (min = coolVal)
-  // - cool can't go above warm (max = warmVal)
-  warmSlider.min = coolVal;
+  // Both sliders use full color range (no cross-constraint)
+  warmSlider.min = minTemp;
   warmSlider.max = maxTemp;
   coolSlider.min = minTemp;
-  coolSlider.max = warmVal;
+  coolSlider.max = maxTemp;
 
-  // Apply values
+  // Clamp values to color range
+  let warmVal = Math.max(minTemp, Math.min(maxTemp, parseInt(warmSlider.value)));
+  let coolVal = Math.max(minTemp, Math.min(maxTemp, parseInt(coolSlider.value)));
+
   warmSlider.value = warmVal;
   coolSlider.value = coolVal;
   config.warm_night_target = warmVal;
