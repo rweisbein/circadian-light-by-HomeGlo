@@ -2433,8 +2433,7 @@ function renderChart() {
   const hoverDetails = brightnessPct.map((v, i) => {
     const pct = Math.round(v);
     const kelvin = Math.round(cct[i]);
-    const phaseWord = phase[i] === 'Ascend' ? 'ascending' : 'descending';
-    return `${pct}% • ${kelvin}K • ${phaseWord}`;
+    return `${pct}% • ${kelvin}K`;
   });
 
   const hoverBgColors = cct.map(k => colorWithAlpha(cctToRGB(k), 0.92));
