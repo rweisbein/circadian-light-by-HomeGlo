@@ -35,14 +35,13 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 .rhythm-name-input {
   font-size: 1.2rem;
   font-weight: 600;
   background: transparent;
   border: none;
-  border-bottom: 1px solid var(--line);
   color: var(--text);
   padding: 4px 0;
   flex: 1;
@@ -50,7 +49,6 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
 }
 .rhythm-name-input:focus {
   outline: none;
-  border-bottom-color: var(--accent);
 }
 .header-actions {
   display: flex;
@@ -59,15 +57,8 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
 }
 
 /* Rhythm Settings */
-.rhythm-settings {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 16px;
-}
 .rhythm-pattern {
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 .rhythm-pattern label {
   font-size: 0.85rem;
@@ -85,13 +76,17 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
   background: rgba(255,255,255,0.06);
   color: #fff;
 }
-.rhythm-timing {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0 24px;
+.rhythm-group-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  margin: 10px 0 2px;
 }
-@media (max-width: 600px) {
-  .rhythm-timing { grid-template-columns: 1fr; }
+.rhythm-group-label.bed {
+  border-top: 1px solid rgba(255,255,255,0.06);
+  padding-top: 10px;
+  margin-top: 12px;
 }
 
 /* Section Blocks (chart etc.) */
@@ -170,22 +165,48 @@ input[type=range]::-moz-range-thumb {
 /* Chart Section */
 .chart-wrapper { position: relative; margin-bottom: 32px; }
 #chart { height: 450px; }
+.chart-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0 8px;
+}
 .chart-date-control {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 10px;
-  margin: 6px auto 8px;
-  max-width: 420px;
+  gap: 8px;
+  flex: 1;
+  max-width: 300px;
 }
 .chart-date-display {
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   color: var(--text);
-  min-width: 70px;
+  min-width: 50px;
   font-weight: 600;
 }
 .chart-date-control input[type=range] {
   flex: 1;
+}
+.time-nav-group {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  margin-left: auto;
+}
+.time-nav-btn {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: var(--muted);
+  font-size: 0.65rem;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+.time-nav-btn:hover {
+  background: rgba(255,255,255,0.12);
+  color: var(--text);
 }
 
 /* Time hover label - above x-axis, shows time with phase color */
@@ -231,55 +252,21 @@ input[type=range]::-moz-range-thumb {
 .cursor-controls {
   display: flex;
   justify-content: center;
-  gap: 40px;
-  margin-top: 16px;
+  gap: 16px;
+  margin-top: 12px;
 }
 .cursor-controls.hidden { display: none; }
-.cursor-divider {
-  width: 1px;
-  background: rgba(255,255,255,0.2);
-  align-self: stretch;
-  margin: 8px 10px;
-}
-.cursor-stack {
+.cursor-btn-group {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  width: 100px;
+  gap: 4px;
 }
-.cursor-stack.wide {
-  width: auto;
-}
-.cursor-stack-label {
-  font-size: 0.9rem;
-  color: #f0f0f0;
-  letter-spacing: 0.08em;
-  min-height: 20px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.increment-input {
-  width: 36px;
-  padding: 2px 4px;
-  font-size: 0.75rem;
-  background: #333;
-  border: 1px solid #555;
-  border-radius: 3px;
-  color: #ddd;
-  text-align: center;
-}
-.cursor-btn-row {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  align-items: center;
-  width: 100%;
-}
-.cursor-btn-row.horizontal {
-  flex-direction: row;
-  justify-content: center;
+.cursor-btn-group-label {
+  font-size: 0.65rem;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 .cursor-btn {
   --btn-bg: rgba(255,255,255,0.06);
@@ -289,11 +276,11 @@ input[type=range]::-moz-range-thumb {
   border: 1px solid rgba(255,255,255,0.25);
   background: var(--btn-bg);
   color: var(--btn-text);
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 600;
-  padding: 4px 16px;
+  padding: 4px 0;
   border-radius: 999px;
-  width: 96px;
+  width: 72px;
   cursor: pointer;
   transition: background 0.15s, border 0.15s, color 0.15s;
   position: relative;
@@ -301,49 +288,6 @@ input[type=range]::-moz-range-thumb {
   display: flex;
   align-items: center;
   justify-content: center;
-}
-.cursor-btn.wide {
-  width: 140px;
-}
-.cursor-btn.small {
-  width: auto;
-  min-width: 40px;
-  padding: 4px 10px;
-  font-size: 0.85rem;
-}
-.cursor-btn.time-nav {
-  width: 115px;
-  height: 52px;
-  padding: 8px 12px;
-  flex-direction: column;
-  justify-content: center;
-  gap: 2px;
-  overflow: visible;
-}
-.time-nav-header {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  position: relative;
-  z-index: 1;
-}
-.time-nav-label {
-  font-size: 0.9rem;
-  font-weight: 600;
-}
-.time-nav-time {
-  font-size: 0.6rem;
-  opacity: 0.75;
-}
-.time-nav-values {
-  font-size: 0.6rem;
-  opacity: 0.9;
-  white-space: nowrap;
-  position: relative;
-  z-index: 1;
-}
-.time-nav-values:empty, .time-nav-time:empty {
-  display: none;
 }
 .cursor-btn::after {
   content: '';
@@ -360,7 +304,7 @@ input[type=range]::-moz-range-thumb {
 .cursor-btn .btn-arrow {
   position: relative;
   z-index: 1;
-  font-size: 1.05rem;
+  font-size: 1rem;
   line-height: 1;
 }
 .cursor-btn:hover {
@@ -376,32 +320,6 @@ input[type=range]::-moz-range-thumb {
 }
 .cursor-btn.at-extreme .btn-arrow {
   opacity: 0.4;
-}
-.cursor-midpoint-info {
-  font-size: 0.65rem;
-  font-weight: 400;
-  color: var(--muted);
-  opacity: 0.75;
-}
-
-/* Button callouts showing next value */
-.btn-callout {
-  position: relative;
-  z-index: 1;
-  font-size: 0.6rem;
-  font-weight: 500;
-  opacity: 0.85;
-  min-width: 32px;
-  text-align: center;
-}
-.btn-callout.left {
-  margin-right: 4px;
-}
-.btn-callout.right {
-  margin-left: 4px;
-}
-.btn-callout:empty {
-  display: none;
 }
 
 /* Dual Range Slider - fixed from llm_access for proper left handle grabbing */
@@ -1277,50 +1195,58 @@ input[type=range]::-moz-range-thumb {
   </div>
   <div id="save-status"></div>
 
-  <div class="rhythm-settings">
-    <div class="rhythm-pattern">
-      <label for="activity-preset">Circadian Pattern</label>
-      <select id="activity-preset">
-        <option value="young">Young Child</option>
-        <option value="adult" selected>Adult</option>
-        <option value="nightowl">Night Owl</option>
-        <option value="duskbat">Dusk Bat</option>
-        <option value="shiftearly">Overnight Shift Early</option>
-        <option value="shiftlate">Overnight Shift Late</option>
-      </select>
-    </div>
-    <div class="rhythm-timing">
-      <div class="param-row">
-        <label>Wake time</label>
-        <span class="value" id="wake-time-display">6:00a</span>
-        <input type="range" id="wake-time" min="0" max="24" step="0.5" value="6">
-      </div>
-      <div class="param-row">
-        <label>Bed time</label>
-        <span class="value" id="bed-time-display">10:00p</span>
-        <input type="range" id="bed-time" min="0" max="36" step="0.5" value="22">
-      </div>
-      <div class="param-row">
-        <label>Wake speed</label>
-        <span class="value" id="wake-speed-display">Fast (8)</span>
-        <input type="range" id="wake-speed" min="1" max="10" step="1" value="8">
-      </div>
-      <div class="param-row">
-        <label>Bed speed</label>
-        <span class="value" id="bed-speed-display">Crisp (6)</span>
-        <input type="range" id="bed-speed" min="1" max="10" step="1" value="6">
-      </div>
-    </div>
-    <!-- Hidden fields for ascend/descend (set by circadian pattern) -->
-    <input type="range" id="ascend-start" min="0" max="24" step="0.5" value="3" style="display:none">
-    <input type="range" id="descend-start" min="0" max="36" step="0.5" value="12" style="display:none">
+  <div class="rhythm-pattern">
+    <label for="activity-preset">Sleep Pattern</label>
+    <select id="activity-preset">
+      <option value="young">Young Child</option>
+      <option value="adult" selected>Adult</option>
+      <option value="nightowl">Night Owl</option>
+      <option value="duskbat">Dusk Bat</option>
+      <option value="shiftearly">Overnight Shift Early</option>
+      <option value="shiftlate">Overnight Shift Late</option>
+    </select>
   </div>
+
+  <div class="rhythm-group-label">Wake</div>
+  <div class="param-row">
+    <label>Time</label>
+    <span class="value" id="wake-time-display">6:00a</span>
+    <input type="range" id="wake-time" min="0" max="24" step="0.5" value="6">
+  </div>
+  <div class="param-row">
+    <label>Speed</label>
+    <span class="value" id="wake-speed-display">Fast (8)</span>
+    <input type="range" id="wake-speed" min="1" max="10" step="1" value="8">
+  </div>
+
+  <div class="rhythm-group-label bed">Bed</div>
+  <div class="param-row">
+    <label>Time</label>
+    <span class="value" id="bed-time-display">10:00p</span>
+    <input type="range" id="bed-time" min="0" max="36" step="0.5" value="22">
+  </div>
+  <div class="param-row">
+    <label>Speed</label>
+    <span class="value" id="bed-speed-display">Crisp (6)</span>
+    <input type="range" id="bed-speed" min="1" max="10" step="1" value="6">
+  </div>
+
+  <!-- Hidden fields for ascend/descend (set by sleep pattern) -->
+  <input type="range" id="ascend-start" min="0" max="24" step="0.5" value="3" style="display:none">
+  <input type="range" id="descend-start" min="0" max="36" step="0.5" value="12" style="display:none">
 
   <!-- Chart -->
   <div class="section-block">
-    <div class="chart-date-control">
-      <span class="chart-date-display" id="chart-date-display">Today</span>
-      <input type="range" id="chart-date-slider" min="0" max="364" value="0">
+    <div class="chart-toolbar">
+      <div class="chart-date-control">
+        <span class="chart-date-display" id="chart-date-display">Today</span>
+        <input type="range" id="chart-date-slider" min="0" max="364" value="0">
+      </div>
+      <div class="time-nav-group">
+        <button class="time-nav-btn" id="cursor-time-minus" title="-5 minutes">-5 min</button>
+        <button class="time-nav-btn" id="cursor-time-now" title="Jump to current time">Now</button>
+        <button class="time-nav-btn" id="cursor-time-plus" title="+5 minutes">+5 min</button>
+      </div>
     </div>
     <div class="chart-wrapper">
       <div id="chart"></div>
@@ -1330,69 +1256,30 @@ input[type=range]::-moz-range-thumb {
 
     <!-- Cursor Controls -->
     <div class="cursor-controls hidden" id="cursor-controls">
-      <div class="cursor-stack wide">
-        <span class="cursor-stack-label">Cursor</span>
-        <div class="cursor-btn-row horizontal">
-          <button class="cursor-btn time-nav" id="cursor-time-minus" title="-5 minutes">
-            <span class="time-nav-header"><span class="time-nav-label">-5</span> <span class="time-nav-time" id="time-minus-time"></span></span>
-            <span class="time-nav-values" id="time-minus-values"></span>
-          </button>
-          <button class="cursor-btn time-nav" id="cursor-time-plus" title="+5 minutes">
-            <span class="time-nav-header"><span class="time-nav-label">+5</span> <span class="time-nav-time" id="time-plus-time"></span></span>
-            <span class="time-nav-values" id="time-plus-values"></span>
-          </button>
-          <button class="btn" id="cursor-time-now" title="Now">Now</button>
-        </div>
+      <div class="cursor-btn-group">
+        <span class="cursor-btn-group-label">Step</span>
+        <button class="cursor-btn" id="cursor-step-up" data-mode="combo" title="Step Up"><span class="btn-arrow">↑</span></button>
+        <button class="cursor-btn" id="cursor-step-down" data-mode="combo" title="Step Down"><span class="btn-arrow">↓</span></button>
       </div>
-      <div class="cursor-divider"></div>
-      <div class="cursor-stack">
-        <span class="cursor-stack-label">Step <input type="number" class="increment-input" id="step-increments" min="1" max="50" title="Step increments"></span>
-        <div class="cursor-btn-row">
-          <button class="cursor-btn wide" id="cursor-step-up" data-mode="combo" title="Step Up">
-            <span class="btn-callout left" id="step-up-bri-callout"></span>
-            <span class="btn-arrow">↑</span>
-            <span class="btn-callout right" id="step-up-cct-callout"></span>
-          </button>
-          <button class="cursor-btn wide" id="cursor-step-down" data-mode="combo" title="Step Down">
-            <span class="btn-callout left" id="step-down-bri-callout"></span>
-            <span class="btn-arrow">↓</span>
-            <span class="btn-callout right" id="step-down-cct-callout"></span>
-          </button>
-        </div>
+      <div class="cursor-btn-group">
+        <span class="cursor-btn-group-label">Bright</span>
+        <button class="cursor-btn" id="cursor-bright-up" data-mode="brightness" title="Brighten"><span class="btn-arrow">↑</span></button>
+        <button class="cursor-btn" id="cursor-bright-down" data-mode="brightness" title="Dim"><span class="btn-arrow">↓</span></button>
       </div>
-      <div class="cursor-stack">
-        <span class="cursor-stack-label">Bright <input type="number" class="increment-input" id="brightness-increments" min="1" max="50" title="Brightness increments"> <span class="cursor-midpoint-info" id="brightness-midpoint-info"></span></span>
-        <div class="cursor-btn-row">
-          <button class="cursor-btn" id="cursor-bright-up" data-mode="brightness" title="Brighten">
-            <span class="btn-callout left" id="bright-up-callout"></span>
-            <span class="btn-arrow">↑</span>
-          </button>
-          <button class="cursor-btn" id="cursor-bright-down" data-mode="brightness" title="Dim">
-            <span class="btn-callout left" id="bright-down-callout"></span>
-            <span class="btn-arrow">↓</span>
-          </button>
-        </div>
+      <div class="cursor-btn-group">
+        <span class="cursor-btn-group-label">Color</span>
+        <button class="cursor-btn" id="cursor-color-up" data-mode="color" title="Cooler"><span class="btn-arrow">↑</span></button>
+        <button class="cursor-btn" id="cursor-color-down" data-mode="color" title="Warmer"><span class="btn-arrow">↓</span></button>
       </div>
-      <div class="cursor-stack">
-        <span class="cursor-stack-label">Color <input type="number" class="increment-input" id="color-increments" min="1" max="50" title="Color increments"> <span class="cursor-midpoint-info" id="color-midpoint-info"></span></span>
-        <div class="cursor-btn-row">
-          <button class="cursor-btn" id="cursor-color-up" data-mode="color" title="Cooler">
-            <span class="btn-arrow">↑</span>
-            <span class="btn-callout right" id="color-up-callout"></span>
-          </button>
-          <button class="cursor-btn" id="cursor-color-down" data-mode="color" title="Warmer">
-            <span class="btn-arrow">↓</span>
-            <span class="btn-callout right" id="color-down-callout"></span>
-          </button>
-        </div>
-      </div>
-      <div class="cursor-stack">
-        <span class="cursor-stack-label">&nbsp;</span>
-        <div class="cursor-btn-row">
-          <button class="btn" id="cursor-reset">Reset</button>
-        </div>
+      <div class="cursor-btn-group">
+        <span class="cursor-btn-group-label">&nbsp;</span>
+        <button class="cursor-btn" id="cursor-reset" title="Reset to curve"><span class="btn-arrow" style="font-size:0.75rem">Reset</span></button>
       </div>
     </div>
+    <!-- Hidden increment inputs (synced from master Increments slider) -->
+    <input type="number" id="step-increments" style="display:none" value="10">
+    <input type="number" id="brightness-increments" style="display:none" value="10">
+    <input type="number" id="color-increments" style="display:none" value="10">
 
     <!-- Live Design Controls -->
     <div class="live-design-controls" id="live-design-controls">
@@ -3275,16 +3162,6 @@ function updateCursorButtons(point) {
   styleBtn(stepUp, stepPreview.upBri, stepPreview.upCCT, 'combo');
   styleBtn(stepDown, stepPreview.downBri, stepPreview.downCCT, 'combo');
 
-  // Update callouts with preview values
-  const briUpCallout = document.getElementById('bright-up-callout');
-  const briDownCallout = document.getElementById('bright-down-callout');
-  const colorUpCallout = document.getElementById('color-up-callout');
-  const colorDownCallout = document.getElementById('color-down-callout');
-  const stepUpBriCallout = document.getElementById('step-up-bri-callout');
-  const stepUpCctCallout = document.getElementById('step-up-cct-callout');
-  const stepDownBriCallout = document.getElementById('step-down-bri-callout');
-  const stepDownCctCallout = document.getElementById('step-down-cct-callout');
-
   // For display
   const displayedCCT = currentCCT;
 
@@ -3298,53 +3175,6 @@ function updateCursorButtons(point) {
   const stepUpAtExtreme = currentPct >= configMaxPct - 0.5;
   const stepDownAtExtreme = currentPct <= configMinPct + 0.5;
 
-  // Brightness callouts
-  if (briUpCallout) {
-    const delta = Math.round(briPreview.up.value - currentPct);
-    briUpCallout.textContent = briAtMax ? 'at max' : (delta === 0 ? '-' : `+${delta}%`);
-  }
-  if (briDownCallout) {
-    const delta = Math.round(currentPct - briPreview.down.value);
-    briDownCallout.textContent = briAtMin ? 'at min' : (delta === 0 ? '-' : `-${delta}%`);
-  }
-
-  // Color callouts
-  if (colorUpCallout) {
-    const delta = Math.round(colorPreview.up.value - displayedCCT);
-    colorUpCallout.textContent = cctAtMax ? 'at max' : (delta === 0 ? '-' : `+${delta}K`);
-  }
-  if (colorDownCallout) {
-    const delta = Math.round(displayedCCT - colorPreview.down.value);
-    colorDownCallout.textContent = cctAtMin ? 'at min' : (delta === 0 ? '-' : `-${delta}K`);
-  }
-  // Step buttons use stepPreview (which uses step_increments)
-  // Helper to format delta with proper sign
-  const formatDelta = (delta, suffix, expectedPositive) => {
-    if (delta === 0) return '-';
-    // If delta is in wrong direction, show "-" (no valid change)
-    if (expectedPositive && delta < 0) return '-';
-    if (!expectedPositive && delta > 0) return '-';
-    const sign = delta > 0 ? '+' : '';
-    return `${sign}${delta}${suffix}`;
-  };
-
-  if (stepUpBriCallout) {
-    const stepUpBriDelta = Math.round(stepPreview.upBri - currentPct);
-    stepUpBriCallout.textContent = stepUpAtExtreme ? 'at max' : formatDelta(stepUpBriDelta, '%', true);
-  }
-  if (stepUpCctCallout) {
-    const stepUpCctDelta = Math.round(stepPreview.upCCT - displayedCCT);
-    stepUpCctCallout.textContent = stepUpAtExtreme ? '-' : formatDelta(stepUpCctDelta, 'K', true);
-  }
-  if (stepDownBriCallout) {
-    const stepDownBriDelta = Math.round(stepPreview.downBri - currentPct);
-    stepDownBriCallout.textContent = stepDownAtExtreme ? 'at min' : formatDelta(stepDownBriDelta, '%', false);
-  }
-  if (stepDownCctCallout) {
-    const stepDownCctDelta = Math.round(stepPreview.downCCT - displayedCCT);
-    stepDownCctCallout.textContent = stepDownAtExtreme ? '-' : formatDelta(stepDownCctDelta, 'K', false);
-  }
-
   // Toggle at-extreme class for styling
   brightUp?.classList.toggle('at-extreme', briAtMax);
   brightDown?.classList.toggle('at-extreme', briAtMin);
@@ -3353,44 +3183,45 @@ function updateCursorButtons(point) {
   stepUp?.classList.toggle('at-extreme', stepUpAtExtreme);
   stepDown?.classList.toggle('at-extreme', stepDownAtExtreme);
 
-  // Update button titles with target values (or "at maximum/minimum" when at extreme)
+  // Update button tooltips with detailed preview info
   if (brightUp) brightUp.title = briAtMax
-    ? `at maximum ${Math.round(currentPct)}%`
-    : `Brighten to ${Math.round(briPreview.up.value)}%`;
+    ? `Bright up: at max ${Math.round(currentPct)}%`
+    : `Bright up ${Math.round(briPreview.up.value - currentPct)}% to ${Math.round(briPreview.up.value)}%`;
   if (brightDown) brightDown.title = briAtMin
-    ? `at minimum ${Math.round(currentPct)}%`
-    : `Dim to ${Math.round(briPreview.down.value)}%`;
+    ? `Bright down: at min ${Math.round(currentPct)}%`
+    : `Bright down ${Math.round(currentPct - briPreview.down.value)}% to ${Math.round(briPreview.down.value)}%`;
   if (colorUp) colorUp.title = cctAtMax
-    ? `at maximum ${Math.round(displayedCCT)}K`
-    : `Cooler to ${Math.round(colorPreview.up.value)}K`;
+    ? `Color up: at max ${Math.round(displayedCCT)}K`
+    : `Color up ${Math.round(colorPreview.up.value - displayedCCT)}K to ${Math.round(colorPreview.up.value)}K`;
   if (colorDown) colorDown.title = cctAtMin
-    ? `at minimum ${Math.round(displayedCCT)}K`
-    : `Warmer to ${Math.round(colorPreview.down.value)}K`;
+    ? `Color down: at min ${Math.round(displayedCCT)}K`
+    : `Color down ${Math.round(displayedCCT - colorPreview.down.value)}K to ${Math.round(colorPreview.down.value)}K`;
   if (stepUp) stepUp.title = stepUpAtExtreme
-    ? `at max: ${Math.round(currentPct)}% @ ${Math.round(displayedCCT)}K`
-    : `Step Up to ${Math.round(stepPreview.upBri)}% at ${Math.round(stepPreview.upCCT)}K`;
+    ? `Step up: at max ${Math.round(currentPct)}% @ ${Math.round(displayedCCT)}K`
+    : `Step up ${Math.round(stepPreview.upBri - currentPct)}% / ${Math.round(stepPreview.upCCT - displayedCCT)}K to ${Math.round(stepPreview.upBri)}% at ${Math.round(stepPreview.upCCT)}K`;
   if (stepDown) stepDown.title = stepDownAtExtreme
-    ? `at min: ${Math.round(currentPct)}% @ ${Math.round(stepPreview.downCCT)}K`
-    : `Step Down to ${Math.round(stepPreview.downBri)}% at ${Math.round(stepPreview.downCCT)}K`;
+    ? `Step down: at min ${Math.round(currentPct)}% @ ${Math.round(displayedCCT)}K`
+    : `Step down ${Math.round(currentPct - stepPreview.downBri)}% / ${Math.round(displayedCCT - stepPreview.downCCT)}K to ${Math.round(stepPreview.downBri)}% at ${Math.round(stepPreview.downCCT)}K`;
 
-  // Update time navigation button values
+  // Style and update reset button to show cursor target values
+  const resetBtn = document.getElementById('cursor-reset');
+  if (resetBtn && config && cursorHour !== null) {
+    const resetBri = Math.round(calculateBrightnessAtHour(((cursorHour % 24) + 24) % 24) * 100);
+    const resetCct = Math.round(calculateColorAtHour(((cursorHour % 24) + 24) % 24, true));
+    styleBtn(resetBtn, resetBri, resetCct, 'combo');
+    resetBtn.title = `Reset to curve: ${resetBri}% at ${resetCct}K`;
+  }
+
+  // Update time navigation button tooltips
   const timeMinusBtn = document.getElementById('cursor-time-minus');
   const timePlusBtn = document.getElementById('cursor-time-plus');
-  const timeMinusTime = document.getElementById('time-minus-time');
-  const timePlusTime = document.getElementById('time-plus-time');
-  const timeMinusValues = document.getElementById('time-minus-values');
-  const timePlusValues = document.getElementById('time-plus-values');
 
   // Helper to format hour as H:MMa/p
   const formatTime = (hour) => {
     const h = ((hour % 24) + 24) % 24;
     let hours24 = Math.floor(h);
     let mins = Math.round((h - hours24) * 60);
-    // Handle rounding to 60 minutes
-    if (mins === 60) {
-      mins = 0;
-      hours24 = (hours24 + 1) % 24;
-    }
+    if (mins === 60) { mins = 0; hours24 = (hours24 + 1) % 24; }
     const isPM = hours24 >= 12;
     let hours12 = hours24 % 12;
     if (hours12 === 0) hours12 = 12;
@@ -3398,46 +3229,36 @@ function updateCursorButtons(point) {
   };
 
   if (config && cursorHour !== null) {
-    // Helper to get values at a specific hour using core calculation functions
     const getValuesAtHour = (hour) => {
-      const h = ((hour % 24) + 24) % 24;  // Normalize to 0-24
+      const h = ((hour % 24) + 24) % 24;
       return {
-        bri: Math.round(calculateBrightnessAtHour(h) * 100),  // Convert 0-1 to 0-100
-        cct: Math.round(calculateColorAtHour(h, true))        // With solar rules
+        bri: Math.round(calculateBrightnessAtHour(h) * 100),
+        cct: Math.round(calculateColorAtHour(h, true))
       };
     };
 
-    // Use displayed values as starting point (currentPct and displayedCCT from point)
     const displayedBri = Math.round(currentPct);
     const displayedCct = Math.round(displayedCCT);
 
-    // -5 minutes from cursor
     const minusHour = cursorHour - 5/60;
     const minusVals = getValuesAtHour(minusHour);
     const minusBriDelta = minusVals.bri - displayedBri;
     const minusCctDelta = minusVals.cct - displayedCct;
-    if (timeMinusTime) timeMinusTime.textContent = formatTime(minusHour);
-    if (timeMinusValues) {
+    if (timeMinusBtn) {
       const briStr = minusBriDelta >= 0 ? `+${minusBriDelta}%` : `${minusBriDelta}%`;
       const cctStr = minusCctDelta >= 0 ? `+${minusCctDelta}K` : `${minusCctDelta}K`;
-      timeMinusValues.textContent = `${briStr} ${cctStr}`;
+      timeMinusBtn.title = `5 minutes earlier, ${briStr} / ${cctStr} to ${minusVals.bri}% at ${minusVals.cct}K`;
     }
-    styleBtn(timeMinusBtn, minusVals.bri, minusVals.cct, 'combo');
-    if (timeMinusBtn) timeMinusBtn.title = `-5 minutes to ${minusVals.bri}% at ${minusVals.cct}K`;
 
-    // +5 minutes from cursor
     const plusHour = cursorHour + 5/60;
     const plusVals = getValuesAtHour(plusHour);
     const plusBriDelta = plusVals.bri - displayedBri;
     const plusCctDelta = plusVals.cct - displayedCct;
-    if (timePlusTime) timePlusTime.textContent = formatTime(plusHour);
-    if (timePlusValues) {
+    if (timePlusBtn) {
       const briStr = plusBriDelta >= 0 ? `+${plusBriDelta}%` : `${plusBriDelta}%`;
       const cctStr = plusCctDelta >= 0 ? `+${plusCctDelta}K` : `${plusCctDelta}K`;
-      timePlusValues.textContent = `${briStr} ${cctStr}`;
+      timePlusBtn.title = `5 minutes later, ${briStr} / ${cctStr} to ${plusVals.bri}% at ${plusVals.cct}K`;
     }
-    styleBtn(timePlusBtn, plusVals.bri, plusVals.cct, 'combo');
-    if (timePlusBtn) timePlusBtn.title = `+5 minutes to ${plusVals.bri}% at ${plusVals.cct}K`;
   }
 }
 
@@ -3550,13 +3371,11 @@ function syncUIFromConfig() {
   document.getElementById('brightness-max').value = config.max_brightness;
   document.getElementById('step-count').value = config.max_dim_steps;
 
-  // Set individual increment inputs (show effective value, defaulting to max_dim_steps)
-  const effectiveStepInc = config.step_increments ?? config.max_dim_steps;
-  const effectiveBriInc = config.brightness_increments ?? config.max_dim_steps;
-  const effectiveColorInc = config.color_increments ?? config.max_dim_steps;
-  document.getElementById('step-increments').value = effectiveStepInc;
-  document.getElementById('brightness-increments').value = effectiveBriInc;
-  document.getElementById('color-increments').value = effectiveColorInc;
+  // Sync all increment inputs to the master Increments slider value
+  const masterInc = config.max_dim_steps;
+  document.getElementById('step-increments').value = masterInc;
+  document.getElementById('brightness-increments').value = masterInc;
+  document.getElementById('color-increments').value = masterInc;
 
   // Set warm/cool slider values FROM CONFIG BEFORE calling updateSolarTargetSliderConstraints
   // (that function reads slider values, so they must be set first to avoid overwriting config)
@@ -3791,30 +3610,15 @@ function setupEventListeners() {
   updateSliderValue('brightness-max', 'brightness-max-display', v => `${v}%`);
   updateSliderValue('step-count', 'step-count-display', v => `${v} steps`);
 
-  // Master increments slider updates all 3 individual increment inputs
+  // Master increments slider syncs all hidden increment inputs
   document.getElementById('step-count')?.addEventListener('input', () => {
     const masterVal = parseInt(document.getElementById('step-count').value);
     document.getElementById('step-increments').value = masterVal;
     document.getElementById('brightness-increments').value = masterVal;
     document.getElementById('color-increments').value = masterVal;
-    // Clear individual overrides (they now match master)
     config.step_increments = null;
     config.brightness_increments = null;
     config.color_increments = null;
-  });
-
-  // Individual increment inputs update config directly (without resetting runtime state)
-  document.getElementById('step-increments')?.addEventListener('input', (e) => {
-    config.step_increments = e.target.value ? parseInt(e.target.value) : null;
-    renderChart();
-  });
-  document.getElementById('brightness-increments')?.addEventListener('input', (e) => {
-    config.brightness_increments = e.target.value ? parseInt(e.target.value) : null;
-    renderChart();
-  });
-  document.getElementById('color-increments')?.addEventListener('input', (e) => {
-    config.color_increments = e.target.value ? parseInt(e.target.value) : null;
-    renderChart();
   });
 
   // Warm/cool target sliders (inside popups)
