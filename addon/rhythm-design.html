@@ -1184,6 +1184,7 @@ input[type=range]::-moz-range-thumb {
 
 <div class="container">
   <div class="page-header">
+    <a id="back-btn" href="./rhythm" style="color:var(--muted);text-decoration:none;font-size:1.1rem;line-height:1;margin-right:8px;" title="Back">&larr;</a>
     <input type="text" class="rhythm-name-input" id="rhythm-name" value="Daily Rhythm 1" placeholder="Rhythm name">
     <div class="header-actions">
       <button class="header-link header-link-cancel" id="cancel-btn">Cancel</button>
@@ -5128,10 +5129,19 @@ function setupSaveButton() {
     e.stopImmediatePropagation();
     saveRhythmSettings();
   });
-  document.getElementById('cancel-btn')?.addEventListener('click', () => {
+  // Determine back destination: areas page if referred from there, otherwise rhythm list
+  const backUrl = (() => {
+    const ref = document.referrer;
     const path = window.location.pathname;
     const base = path.replace(/\/rhythm\/[^/]*\/?$/, '').replace(/\/rhythm\/?$/, '');
-    window.location.href = (base || '.') + '/rhythm';
+    if (ref && new URL(ref).pathname.includes('/areas')) {
+      return (base || '.') + '/areas';
+    }
+    return (base || '.') + '/rhythm';
+  })();
+  document.getElementById('back-btn').href = backUrl;
+  document.getElementById('cancel-btn')?.addEventListener('click', () => {
+    window.location.href = backUrl;
   });
 }
 
