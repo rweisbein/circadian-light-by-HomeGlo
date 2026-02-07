@@ -37,7 +37,8 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 20px;
+  margin-bottom: 12px;
+  gap: 4px;
 }
 .rhythm-name-input {
   font-size: 1.2rem;
@@ -46,8 +47,9 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
   border: none;
   color: var(--text);
   padding: 4px 0;
-  flex: 1;
-  max-width: 400px;
+  width: auto;
+  min-width: 120px;
+  max-width: 300px;
 }
 .rhythm-name-input:focus {
   outline: none;
@@ -99,6 +101,7 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
   font-size: 0.85rem;
   color: var(--muted);
   font-weight: 600;
+  text-align: right;
 }
 .param-row .value {
   font-size: 0.9rem;
@@ -389,7 +392,7 @@ input[type=range]::-moz-range-thumb {
   color: var(--muted);
   min-width: 60px;
 }
-.dual-chip.right { text-align: right; }
+.dual-chip.right { text-align: left; }
 
 /* Color Value Chip Button */
 .color-value-chip {
@@ -504,7 +507,7 @@ input[type=range]::-moz-range-thumb {
   margin-top: 16px;
 }
 .color-rule-stack {
-  padding: 12px 0;
+  padding: 10px 0 2px;
   border-top: 1px solid var(--line);
 }
 .color-rule-stack:first-child { border-top: none; padding-top: 0; }
@@ -513,6 +516,15 @@ input[type=range]::-moz-range-thumb {
   align-items: center;
   gap: 10px;
   margin-bottom: 4px;
+  max-width: 600px;
+}
+.color-rule-stack-label select {
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--panel2);
+  color: var(--text);
+  font-size: 0.85rem;
 }
 .color-rule-label {
   font-size: 0.7rem;
@@ -577,21 +589,6 @@ input[type=range]::-moz-range-thumb {
   opacity: 0.4;
   pointer-events: none;
 }
-.color-rule-main-row {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  flex-wrap: wrap;
-  margin-bottom: 4px;
-}
-.color-rule-main-row select {
-  padding: 6px 10px;
-  border-radius: 8px;
-  border: 1px solid var(--line);
-  background: var(--panel2);
-  color: var(--text);
-  font-size: 0.85rem;
-}
 .color-rule-slider-row {
   max-width: 600px;
 }
@@ -611,12 +608,12 @@ input[type=range]::-moz-range-thumb {
   font-size: 0.85rem;
   color: var(--muted);
   font-weight: 600;
-  padding-left: 16px;
+  text-align: right;
 }
 .solar-param-row .offset-text {
   font-size: 0.85rem;
   color: var(--muted);
-  text-align: right;
+  text-align: left;
 }
 
 
@@ -1187,23 +1184,23 @@ input[type=range]::-moz-range-thumb {
     </div>
     <div class="rhythm-group-label">Wake</div>
     <div class="param-row" style="grid-template-columns: 140px 1fr 100px;">
-      <label style="padding-left:16px">Time</label>
+      <label>Time</label>
       <input type="range" id="wake-time" min="0" max="24" step="0.25" value="7">
       <span class="dual-chip right" id="wake-time-display">7:00a</span>
     </div>
     <div class="param-row" style="grid-template-columns: 140px 1fr 100px;">
-      <label style="padding-left:16px">Speed</label>
+      <label>Speed</label>
       <input type="range" id="wake-speed" min="1" max="10" step="1" value="6">
       <span class="dual-chip right" id="wake-speed-display">Crisp (6)</span>
     </div>
     <div class="rhythm-group-label bed">Bed</div>
     <div class="param-row" style="grid-template-columns: 140px 1fr 100px;">
-      <label style="padding-left:16px">Time</label>
+      <label>Time</label>
       <input type="range" id="bed-time" min="0" max="36" step="0.25" value="21">
       <span class="dual-chip right" id="bed-time-display">9:00p</span>
     </div>
     <div class="param-row" style="grid-template-columns: 140px 1fr 100px;">
-      <label style="padding-left:16px">Speed</label>
+      <label>Speed</label>
       <input type="range" id="bed-speed" min="1" max="10" step="1" value="4">
       <span class="dual-chip right" id="bed-speed-display">Smooth (4)</span>
     </div>
@@ -1323,24 +1320,22 @@ input[type=range]::-moz-range-thumb {
         <div class="color-rule-stack-label">
           <div class="color-rule-toggle"><input type="checkbox" id="warm-night-enabled"></div>
           <label class="color-rule-label">Warm night<span class="info-icon" data-tooltip="warm-night-info">i<span class="info-tooltip" id="warm-night-info">Caps color temperature when sun isn't up; if your curve is cool (high K) between sunset and sunrise, this warms it.</span></span></label>
-        </div>
-        <div class="color-rule-stack-body" id="warm-night-body">
-          <div class="color-rule-main-row">
-            <select id="warm-night-mode">
-              <option value="all">all night</option>
-              <option value="sunrise">before sunrise</option>
-              <option value="sunset">after sunset</option>
-            </select>
-            <div class="color-controls-wrap">
-              <button type="button" class="color-value-chip" id="warm-night-target-chip">2700 K</button>
-              <div class="color-slider-popup" id="warm-night-popup">
-                <div class="dual-range">
-                  <div class="dual-track color-track" id="warm-night-track"></div>
-                  <input type="range" id="warm-night-target" class="range-min" min="500" max="6500" step="100" value="2700">
-                </div>
+          <select id="warm-night-mode" style="margin-left:auto;">
+            <option value="all">all night</option>
+            <option value="sunrise">before sunrise</option>
+            <option value="sunset">after sunset</option>
+          </select>
+          <div class="color-controls-wrap">
+            <button type="button" class="color-value-chip" id="warm-night-target-chip">2700 K</button>
+            <div class="color-slider-popup" id="warm-night-popup">
+              <div class="dual-range">
+                <div class="dual-track color-track" id="warm-night-track"></div>
+                <input type="range" id="warm-night-target" class="range-min" min="500" max="6500" step="100" value="2700">
               </div>
             </div>
           </div>
+        </div>
+        <div class="color-rule-stack-body" id="warm-night-body">
           <div class="color-rule-slider-row" data-rule-window="sunset">
             <div class="solar-param-row">
               <label>Start</label>
@@ -1369,24 +1364,22 @@ input[type=range]::-moz-range-thumb {
         <div class="color-rule-stack-label">
           <div class="color-rule-toggle"><input type="checkbox" id="cool-day-enabled"></div>
           <label class="color-rule-label">Cool day<span class="info-icon" data-tooltip="cool-day-info">i<span class="info-tooltip" id="cool-day-info">Lifts color temperature when the sun is up; if your curve is warm (low K) between sunrise and sunset, this cools it.</span></span></label>
-        </div>
-        <div class="color-rule-stack-body" id="cool-day-body">
-          <div class="color-rule-main-row">
-            <select id="cool-day-mode">
-              <option value="all">all day</option>
-              <option value="sunrise">after sunrise</option>
-              <option value="sunset">before sunset</option>
-            </select>
-            <div class="color-controls-wrap">
-              <button type="button" class="color-value-chip" id="cool-day-target-chip">6500 K</button>
-              <div class="color-slider-popup" id="cool-day-popup">
-                <div class="dual-range">
-                  <div class="dual-track color-track" id="cool-day-track"></div>
-                  <input type="range" id="cool-day-target" class="range-min" min="500" max="6500" step="100" value="6500">
-                </div>
+          <select id="cool-day-mode" style="margin-left:auto;">
+            <option value="all">all day</option>
+            <option value="sunrise">after sunrise</option>
+            <option value="sunset">before sunset</option>
+          </select>
+          <div class="color-controls-wrap">
+            <button type="button" class="color-value-chip" id="cool-day-target-chip">6500 K</button>
+            <div class="color-slider-popup" id="cool-day-popup">
+              <div class="dual-range">
+                <div class="dual-track color-track" id="cool-day-track"></div>
+                <input type="range" id="cool-day-target" class="range-min" min="500" max="6500" step="100" value="6500">
               </div>
             </div>
           </div>
+        </div>
+        <div class="color-rule-stack-body" id="cool-day-body">
           <div class="color-rule-slider-row" data-rule-window="sunrise">
             <div class="solar-param-row">
               <label>Start</label>

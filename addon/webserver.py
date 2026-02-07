@@ -2556,8 +2556,34 @@ class LightDesignerServer:
             if name in config.get("circadian_rhythms", {}):
                 return web.json_response({"error": f"Rhythm '{name}' already exists"}, status=409)
 
-            # Create the rhythm with provided settings (or empty)
-            config.setdefault("circadian_rhythms", {})[name] = settings
+            # Create the rhythm with defaults, then overlay any provided settings
+            defaults = {
+                "activity_preset": "adult",
+                "wake_time": 7.0,
+                "bed_time": 21.0,
+                "wake_speed": 6,
+                "bed_speed": 4,
+                "ascend_start": 3.0,
+                "descend_start": 12.0,
+                "min_color_temp": 500,
+                "max_color_temp": 6500,
+                "min_brightness": 1,
+                "max_brightness": 100,
+                "max_dim_steps": 10,
+                "warm_night_enabled": True,
+                "warm_night_mode": "all",
+                "warm_night_target": 2700,
+                "warm_night_start": -60,
+                "warm_night_end": 60,
+                "warm_night_fade": 60,
+                "cool_day_enabled": False,
+                "cool_day_mode": "all",
+                "cool_day_target": 6500,
+                "cool_day_start": 0,
+                "cool_day_end": 0,
+                "cool_day_fade": 60,
+            }
+            config.setdefault("circadian_rhythms", {})[name] = {**defaults, **settings}
 
             await self.save_config_to_file(config)
             glozone.set_config(config)
