@@ -2806,7 +2806,7 @@
           if (zs.rhythm) {
             const rhythmNames = Object.keys(cachedRhythms).filter(p => p !== zs.rhythm);
             const dropdownItems =
-              `<a href="./rhythm/${encodeURIComponent(zs.rhythm)}" class="zone-rhythm-dropdown-item" onclick="event.stopPropagation();">Edit ${zs.rhythm}</a>` +
+              `<a href="./rhythm/${encodeURIComponent(zs.rhythm)}?back=home" class="zone-rhythm-dropdown-item" onclick="event.stopPropagation();">Edit ${zs.rhythm}</a>` +
               rhythmNames.map(p =>
                 `<div class="zone-rhythm-dropdown-item" data-zone="${zoneName}" data-rhythm="${p}" onclick="selectRhythm(this)">${p}</div>`
               ).join('') +
@@ -3562,7 +3562,7 @@
       const rhythmLinkEl = document.getElementById('modal-rhythm-link');
       const rhythmName = zs.rhythm || null;
       if (rhythmName) {
-        rhythmLinkEl.innerHTML = `<a href="./rhythm/${encodeURIComponent(rhythmName)}" style="color: var(--accent); text-decoration: none;">${rhythmName}</a>`;
+        rhythmLinkEl.innerHTML = `<a href="./rhythm/${encodeURIComponent(rhythmName)}?back=home" style="color: var(--accent); text-decoration: none;">${rhythmName}</a>`;
         rhythmLine.style.display = '';
       } else {
         rhythmLinkEl.textContent = '—';

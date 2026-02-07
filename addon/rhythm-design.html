@@ -1147,8 +1147,9 @@ input[type=range]::-moz-range-thumb {
 .header-link { background: none; border: none; font-size: 0.8rem; cursor: pointer; padding: 0; }
 .header-link-cancel { color: var(--muted); }
 .header-link-cancel:hover { color: var(--text); }
-.header-link-save { color: var(--accent); font-weight: 600; }
+.header-link-save { color: var(--accent); font-weight: 600; transition: color 0.6s ease; }
 .header-link-save:hover { opacity: 0.8; }
+.header-link-save.saved { color: var(--text); }
 </style>
 </head>
 <body>
@@ -3697,7 +3698,6 @@ function setupEventListeners() {
     document.getElementById(id)?.addEventListener('input', updateDualFills);
   });
 
-  document.getElementById('save-config')?.addEventListener('click', saveConfig);
 }
 
 // Inverse logistic: find midpoint that gives target value at time x
@@ -4964,23 +4964,32 @@ async function saveRhythmSettings() {
       body: JSON.stringify(rhythmSettings)
     });
 
+    const saveBtn = document.getElementById('save-config');
     if (response.ok) {
       if (newName !== selectedRhythmName) {
         // Update URL to reflect new name
         selectedRhythmName = newName;
         const basePath = window.location.pathname.replace(/\/rhythm\/[^/]+\/?$/, '');
-        window.history.replaceState(null, '', basePath + '/rhythm/' + encodeURIComponent(newName));
+        window.history.replaceState(null, '', basePath + '/rhythm/' + encodeURIComponent(newName) + window.location.search);
       }
-      statusEl.innerHTML = '<div class="success">Saved!</div>';
+      // Subtle feedback: briefly change button text, then fade back
+      if (saveBtn) {
+        saveBtn.textContent = 'Saved';
+        saveBtn.classList.add('saved');
+        setTimeout(() => {
+          saveBtn.classList.remove('saved');
+          setTimeout(() => { saveBtn.textContent = 'Save'; }, 600);
+        }, 1200);
+      }
     } else {
       const data = await response.json();
       statusEl.innerHTML = '<div class="error">' + (data.error || 'Failed to save') + '</div>';
+      setTimeout(() => { statusEl.innerHTML = ''; }, 3000);
     }
   } catch (err) {
     statusEl.innerHTML = '<div class="error">Error: ' + err.message + '</div>';
+    setTimeout(() => { statusEl.innerHTML = ''; }, 3000);
   }
-
-  setTimeout(() => { statusEl.innerHTML = ''; }, 3000);
 }
 
 /**
@@ -4992,18 +5001,12 @@ function setupSaveButton() {
     e.stopImmediatePropagation();
     saveRhythmSettings();
   });
-  // Back navigation: use browser history if referred from same origin, else rhythm list
+  // Back navigation: ?back=home means we came from the areas/home page
   const path = window.location.pathname;
   const base = path.replace(/\/rhythm\/[^/]*\/?$/, '').replace(/\/rhythm\/?$/, '');
-  const fallbackUrl = (base || '.') + '/rhythm';
-  const hasSameOriginReferrer = document.referrer && new URL(document.referrer).origin === window.location.origin;
-  function goBack() {
-    if (hasSameOriginReferrer) {
-      history.back();
-    } else {
-      window.location.href = fallbackUrl;
-    }
-  }
+  const fromHome = new URLSearchParams(window.location.search).get('back') === 'home';
+  const backUrl = fromHome ? (base || '.') + '/' : (base || '.') + '/rhythm';
+  function goBack() { window.location.href = backUrl; }
   document.getElementById('back-btn').addEventListener('click', (e) => { e.preventDefault(); goBack(); });
   document.getElementById('cancel-btn')?.addEventListener('click', goBack);
 }
