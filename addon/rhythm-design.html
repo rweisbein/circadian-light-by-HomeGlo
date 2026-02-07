@@ -56,26 +56,7 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
   align-items: center;
 }
 
-/* Rhythm Settings */
-.rhythm-pattern {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 14px;
-}
-.rhythm-pattern label {
-  font-size: 0.85rem;
-  color: var(--muted);
-}
-.rhythm-pattern select {
-  max-width: 220px;
-  font-size: 0.9rem;
-  padding: 6px 10px;
-  border-radius: 8px;
-  border: 1px solid var(--line);
-  background: rgba(255,255,255,0.06);
-  color: #fff;
-}
+/* Rhythm group labels */
 .rhythm-group-label {
   font-size: 0.7rem;
   text-transform: uppercase;
@@ -87,9 +68,6 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
   border-top: 1px solid rgba(255,255,255,0.06);
   padding-top: 10px;
   margin-top: 12px;
-}
-.rhythm-fields .param-row {
-  padding-left: 16px;
 }
 
 /* Section Blocks (chart etc.) */
@@ -252,7 +230,7 @@ input[type=range]::-moz-range-thumb {
 /* Cursor callout - shows values at cursor position */
 .graph-cursor-callout {
   position: absolute;
-  bottom: -8px;
+  bottom: 4px;
   padding: 4px 10px;
   border-radius: 8px;
   border: 1px solid rgba(255,255,255,0.35);
@@ -1212,49 +1190,61 @@ input[type=range]::-moz-range-thumb {
   </div>
   <div id="save-status"></div>
 
-  <div class="rhythm-pattern">
-    <label for="activity-preset">Sleep Pattern</label>
-    <select id="activity-preset">
-      <option value="young">Young Child</option>
-      <option value="adult" selected>Adult</option>
-      <option value="nightowl">Night Owl</option>
-      <option value="duskbat">Dusk Bat</option>
-      <option value="shiftearly">Overnight Shift Early</option>
-      <option value="shiftlate">Overnight Shift Late</option>
-    </select>
+  <div class="section-block">
+    <h2>Sleep</h2>
+    <div class="param-row" style="grid-template-columns: 140px 60px 1fr 60px 28px;">
+      <label>Pattern</label>
+      <span class="dual-chip">
+        <select id="activity-preset" style="background:transparent;border:none;color:var(--text);font-size:0.85rem;padding:0;">
+          <option value="young">Young Child</option>
+          <option value="adult" selected>Adult</option>
+          <option value="nightowl">Night Owl</option>
+          <option value="duskbat">Dusk Bat</option>
+          <option value="shiftearly">Shift Early</option>
+          <option value="shiftlate">Shift Late</option>
+        </select>
+      </span>
+      <div></div>
+      <span class="dual-chip right"></span>
+    </div>
+    <div class="rhythm-group-label">Wake</div>
+    <div class="param-row" style="grid-template-columns: 140px 60px 1fr 60px 28px;">
+      <label style="padding-left:16px">Time</label>
+      <span class="dual-chip" id="wake-time-display">6:00a</span>
+      <div class="dual-range">
+        <input type="range" id="wake-time" min="0" max="24" step="0.5" value="6" style="width:100%">
+      </div>
+      <span class="dual-chip right"></span>
+    </div>
+    <div class="param-row" style="grid-template-columns: 140px 60px 1fr 60px 28px;">
+      <label style="padding-left:16px">Speed</label>
+      <span class="dual-chip" id="wake-speed-display">Fast (8)</span>
+      <div class="dual-range">
+        <input type="range" id="wake-speed" min="1" max="10" step="1" value="8" style="width:100%">
+      </div>
+      <span class="dual-chip right"></span>
+    </div>
+    <div class="rhythm-group-label bed">Bed</div>
+    <div class="param-row" style="grid-template-columns: 140px 60px 1fr 60px 28px;">
+      <label style="padding-left:16px">Time</label>
+      <span class="dual-chip" id="bed-time-display">10:00p</span>
+      <div class="dual-range">
+        <input type="range" id="bed-time" min="0" max="36" step="0.5" value="22" style="width:100%">
+      </div>
+      <span class="dual-chip right"></span>
+    </div>
+    <div class="param-row" style="grid-template-columns: 140px 60px 1fr 60px 28px;">
+      <label style="padding-left:16px">Speed</label>
+      <span class="dual-chip" id="bed-speed-display">Crisp (6)</span>
+      <div class="dual-range">
+        <input type="range" id="bed-speed" min="1" max="10" step="1" value="6" style="width:100%">
+      </div>
+      <span class="dual-chip right"></span>
+    </div>
+    <!-- Hidden fields for ascend/descend (set by sleep pattern) -->
+    <input type="range" id="ascend-start" min="0" max="24" step="0.5" value="3" style="display:none">
+    <input type="range" id="descend-start" min="0" max="36" step="0.5" value="12" style="display:none">
   </div>
-
-  <div class="rhythm-group-label">Wake</div>
-  <div class="rhythm-fields">
-    <div class="param-row">
-      <label>Time</label>
-      <span class="value" id="wake-time-display">6:00a</span>
-      <input type="range" id="wake-time" min="0" max="24" step="0.5" value="6">
-    </div>
-    <div class="param-row">
-      <label>Speed</label>
-      <span class="value" id="wake-speed-display">Fast (8)</span>
-      <input type="range" id="wake-speed" min="1" max="10" step="1" value="8">
-    </div>
-  </div>
-
-  <div class="rhythm-group-label bed">Bed</div>
-  <div class="rhythm-fields">
-    <div class="param-row">
-      <label>Time</label>
-      <span class="value" id="bed-time-display">10:00p</span>
-      <input type="range" id="bed-time" min="0" max="36" step="0.5" value="22">
-    </div>
-    <div class="param-row">
-      <label>Speed</label>
-      <span class="value" id="bed-speed-display">Crisp (6)</span>
-      <input type="range" id="bed-speed" min="1" max="10" step="1" value="6">
-    </div>
-  </div>
-
-  <!-- Hidden fields for ascend/descend (set by sleep pattern) -->
-  <input type="range" id="ascend-start" min="0" max="24" step="0.5" value="3" style="display:none">
-  <input type="range" id="descend-start" min="0" max="36" step="0.5" value="12" style="display:none">
 
   <!-- Chart -->
   <div class="section-block">
@@ -1313,12 +1303,12 @@ input[type=range]::-moz-range-thumb {
     </div>
   </div>
 
-  <!-- Brightness & Color Range -->
+  <!-- Ranges -->
   <div class="section-block">
-    <h2>Brightness &amp; Color</h2>
+    <h2>Ranges</h2>
 
     <div class="param-row" style="grid-template-columns: 140px 60px 1fr 60px 28px;">
-      <label>Color range</label>
+      <label>Color temp.</label>
       <span class="dual-chip" id="color-min-display">500 K</span>
       <div class="dual-range">
         <div class="dual-track color-track" id="color-track">
@@ -1332,7 +1322,7 @@ input[type=range]::-moz-range-thumb {
     </div>
 
     <div class="param-row" style="grid-template-columns: 140px 60px 1fr 60px 28px;">
-      <label>Brightness range</label>
+      <label>Brightness</label>
       <span class="dual-chip" id="brightness-min-display">1%</span>
       <div class="dual-range">
         <div class="dual-track">
@@ -1353,7 +1343,11 @@ input[type=range]::-moz-range-thumb {
       <span class="dual-chip right"></span>
     </div>
 
-    <!-- Color Rules - integrated into Brightness & Color -->
+  </div>
+
+  <!-- Solar Adjustments -->
+  <div class="section-block">
+    <h2>Solar Adjustments</h2>
     <div class="color-rule-grid">
       <div class="color-rule-stack" data-color-row="night">
         <div class="color-rule-stack-label">
