@@ -3006,10 +3006,10 @@ function applyCursor() {
     });
   }
 
-  // Cursor line extending slightly below x-axis
+  // Cursor line extending below x-axis down to callout
   shapes.push({
     type: 'line', xref: 'x', yref: 'paper',
-    x0: cursorHour, x1: cursorHour, y0: -0.08, y1: 0,
+    x0: cursorHour, x1: cursorHour, y0: -0.26, y1: 0,
     line: cursorLineStyle, layer: 'above'
   });
 
