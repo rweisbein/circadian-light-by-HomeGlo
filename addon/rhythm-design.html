@@ -89,9 +89,12 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
   grid-template-columns: 140px 1fr 140px;
   align-items: center;
   gap: 10px;
-  margin: 8px 0;
+  margin: 0 0 8px 0;
   max-width: 600px;
 }
+/* Solar slider rows: use explicit sibling margin, zero out nested param-row margin */
+.color-rule-slider-row .param-row { margin: 0; }
+.color-rule-slider-row + .color-rule-slider-row { margin-top: 8px; }
 /* Hidden control rows - kept for future "custom" preset */
 .param-row.is-hidden {
   display: none;
@@ -726,11 +729,9 @@ input[type=range]::-moz-range-thumb {
 /* Live Design Controls */
 .live-design-controls {
   display: flex;
-  justify-content: center;
   align-items: center;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--line);
-  margin-bottom: 8px;
+  padding: 4px 0;
+  margin-bottom: 12px;
   gap: 16px;
 }
 .live-design-controls label {
@@ -1164,6 +1165,16 @@ input[type=range]::-moz-range-thumb {
   </div>
   <div id="save-status"></div>
 
+  <!-- Live Design Controls -->
+  <div class="live-design-controls" id="live-design-controls">
+    <label for="live-area-select">Live Design:</label>
+    <select id="live-area-select">
+      <option value="">Select Area</option>
+    </select>
+    <button class="btn" id="live-design-toggle" style="display: none;">Pause</button>
+    <span class="live-design-status" id="live-design-status"></span>
+  </div>
+
   <div class="section-block">
     <h2>Sleep</h2>
     <div class="param-row" style="grid-template-columns: 140px 1fr;">
@@ -1206,15 +1217,6 @@ input[type=range]::-moz-range-thumb {
 
   <!-- Chart -->
   <div class="section-block">
-    <!-- Live Design Controls -->
-    <div class="live-design-controls" id="live-design-controls">
-      <label for="live-area-select">Live Design:</label>
-      <select id="live-area-select">
-        <option value="">Select Area</option>
-      </select>
-      <button class="btn" id="live-design-toggle" style="display: none;">Pause</button>
-      <span class="live-design-status" id="live-design-status"></span>
-    </div>
     <div class="chart-toolbar">
       <div class="chart-date-control">
         <span class="chart-date-display" id="chart-date-display">Today</span>
@@ -3638,10 +3640,12 @@ function setupEventListeners() {
   document.getElementById('simple-mode').addEventListener('change', (e) => {
     simpleMode = e.target.checked;
     document.querySelector('.chart-date-control').style.display = simpleMode ? 'none' : 'flex';
+    document.querySelector('.time-nav-group').style.display = simpleMode ? 'none' : 'flex';
     renderChart();
   });
   // Apply initial simple mode state
   document.querySelector('.chart-date-control').style.display = simpleMode ? 'none' : 'flex';
+  document.querySelector('.time-nav-group').style.display = simpleMode ? 'none' : 'flex';
 
   document.getElementById('cursor-step-up')?.addEventListener('click', () => stepCursor('up', true, true));
   document.getElementById('cursor-step-down')?.addEventListener('click', () => stepCursor('down', true, true));
@@ -4981,20 +4985,20 @@ function setupSaveButton() {
     e.stopImmediatePropagation();
     saveRhythmSettings();
   });
-  // Determine back destination: areas page if referred from there, otherwise rhythm list
-  const backUrl = (() => {
-    const ref = document.referrer;
-    const path = window.location.pathname;
-    const base = path.replace(/\/rhythm\/[^/]*\/?$/, '').replace(/\/rhythm\/?$/, '');
-    if (ref && new URL(ref).pathname.includes('/areas')) {
-      return (base || '.') + '/areas';
+  // Back navigation: use browser history if referred from same origin, else rhythm list
+  const path = window.location.pathname;
+  const base = path.replace(/\/rhythm\/[^/]*\/?$/, '').replace(/\/rhythm\/?$/, '');
+  const fallbackUrl = (base || '.') + '/rhythm';
+  const hasSameOriginReferrer = document.referrer && new URL(document.referrer).origin === window.location.origin;
+  function goBack() {
+    if (hasSameOriginReferrer) {
+      history.back();
+    } else {
+      window.location.href = fallbackUrl;
     }
-    return (base || '.') + '/rhythm';
-  })();
-  document.getElementById('back-btn').href = backUrl;
-  document.getElementById('cancel-btn')?.addEventListener('click', () => {
-    window.location.href = backUrl;
-  });
+  }
+  document.getElementById('back-btn').addEventListener('click', (e) => { e.preventDefault(); goBack(); });
+  document.getElementById('cancel-btn')?.addEventListener('click', goBack);
 }
 
 // ============================================================
