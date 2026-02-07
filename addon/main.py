@@ -800,8 +800,13 @@ class HomeAssistantWebSocketClient:
 
         # Handle hold start/stop
         if "_hold" in button_event:
-            # Hold started
+            # Hold started (or Hue bridge repeat event)
             if switches.should_repeat_on_hold(device_ieee, button_event):
+                if switches.is_holding(device_ieee):
+                    # Already repeating — ignore Hue bridge repeat events
+                    # so our own timer controls the pace
+                    logger.debug(f"Ignoring duplicate hold event for {device_ieee} (already repeating)")
+                    return
                 switches.start_hold(device_ieee, action)
                 await self._start_hold_repeat(device_ieee, action)
             else:
