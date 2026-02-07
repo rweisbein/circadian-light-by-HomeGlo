@@ -1277,6 +1277,12 @@ input[type=range]::-moz-range-thumb {
         <button class="cursor-btn" id="cursor-reset" title="Reset to curve"><span class="btn-arrow" style="font-size:0.75rem">Reset</span></button>
       </div>
     </div>
+    <div style="display:flex;justify-content:flex-end;margin-top:8px;">
+      <label style="display:flex;align-items:center;gap:6px;font-size:0.75rem;color:var(--muted);cursor:pointer;user-select:none;">
+        <input type="checkbox" id="simple-mode" checked style="width:14px;height:14px;accent-color:var(--muted2);">
+        Simple
+      </label>
+    </div>
     <!-- Hidden increment inputs (synced from master Increments slider) -->
     <input type="number" id="step-increments" style="display:none" value="10">
     <input type="number" id="brightness-increments" style="display:none" value="10">
@@ -1473,6 +1479,9 @@ const ACTIVITY_PRESETS = {
   shiftearly: { wake_time: 18.0, bed_time: 10.0, ascend_start: 16.0, descend_start: 0.0, warm_night_enabled: false, cool_day_enabled: false },
   shiftlate: { wake_time: 22.0, bed_time: 14.0, ascend_start: 20.0, descend_start: 4.0, warm_night_enabled: false, cool_day_enabled: false }
 };
+
+// Simple mode - hides advanced chart elements
+let simpleMode = true;
 
 // State
 let config = {
@@ -2576,17 +2585,19 @@ function renderChart() {
   const alpha = 1.5 / Math.max(...ghiWinter, 0.001);
   const sunScaledPct = ghiToday.map(v => v * alpha * 100);
 
-  // Sun curve - just line, no fill
-  traces.push({
-    type: 'scatter',
-    mode: 'lines',
-    x: hours,
-    y: sunScaledPct,
-    line: { width: 1, color: 'rgba(255,255,255,0.25)' },
-    name: 'Sun',
-    hoverinfo: 'skip',
-    showlegend: true
-  });
+  // Sun curve - just line, no fill (hidden in simple mode)
+  if (!simpleMode) {
+    traces.push({
+      type: 'scatter',
+      mode: 'lines',
+      x: hours,
+      y: sunScaledPct,
+      line: { width: 1, color: 'rgba(255,255,255,0.25)' },
+      name: 'Sun',
+      hoverinfo: 'skip',
+      showlegend: true
+    });
+  }
 
   // Hover trace - CCT colored background, shows phase, no time
   const hoverDetails = brightnessPct.map((v, i) => {
@@ -2677,23 +2688,25 @@ function renderChart() {
     });
   };
 
-  addCurveBand(ascendSegments, ASCEND_COLORS.shade);
-  addCurveBand(descendSegments, DESCEND_COLORS.shade);
-
-  // Phase boundary lines
   const ascendStart = wrap24(config.ascend_start);
   const descendStart = wrap24(config.descend_start);
 
-  shapes.push({
-    type: 'line', xref: 'x', yref: 'paper',
-    x0: ascendStart, x1: ascendStart, y0: 0, y1: 1,
-    line: { color: ASCEND_COLORS.axis, width: 1.5 }
-  });
-  shapes.push({
-    type: 'line', xref: 'x', yref: 'paper',
-    x0: descendStart, x1: descendStart, y0: 0, y1: 1,
-    line: { color: DESCEND_COLORS.axis, width: 1.5 }
-  });
+  if (!simpleMode) {
+    addCurveBand(ascendSegments, ASCEND_COLORS.shade);
+    addCurveBand(descendSegments, DESCEND_COLORS.shade);
+
+    // Phase boundary lines
+    shapes.push({
+      type: 'line', xref: 'x', yref: 'paper',
+      x0: ascendStart, x1: ascendStart, y0: 0, y1: 1,
+      line: { color: ASCEND_COLORS.axis, width: 1.5 }
+    });
+    shapes.push({
+      type: 'line', xref: 'x', yref: 'paper',
+      x0: descendStart, x1: descendStart, y0: 0, y1: 1,
+      line: { color: DESCEND_COLORS.axis, width: 1.5 }
+    });
+  }
 
   // Phase name labels above the curve (at y=115)
   const phaseNameY = 115;
@@ -2719,8 +2732,10 @@ function renderChart() {
       });
     });
   };
-  addPhaseNameLabels(ascendSegments, 'Ascend', ASCEND_COLORS);
-  addPhaseNameLabels(descendSegments, 'Descend', DESCEND_COLORS);
+  if (!simpleMode) {
+    addPhaseNameLabels(ascendSegments, 'Ascend', ASCEND_COLORS);
+    addPhaseNameLabels(descendSegments, 'Descend', DESCEND_COLORS);
+  }
 
   // X-axis labels (from top to bottom):
   // 1. Time labels (handled by xaxis ticktext at y=0)
@@ -2728,12 +2743,15 @@ function renderChart() {
   // 3. Solar labels (sunrise, sunset, etc.) at y = -0.20, muted grey
 
   // Phase labels with vertical lines
-  const phaseLabels = [
+  const allPhaseLabels = [
     { label: 'ascend starts', x: ascendStart, color: ASCEND_COLORS.text, lineColor: ASCEND_COLORS.axis, solid: true, extendUp: true },
     { label: 'wake', x: wrap24(config.wake_time), color: ASCEND_COLORS.text, lineColor: ASCEND_COLORS.axis, solid: false, extendUp: true },
     { label: 'descend starts', x: descendStart, color: DESCEND_COLORS.text, lineColor: DESCEND_COLORS.axis, solid: true, extendUp: true },
     { label: 'bed', x: wrap24(config.bed_time), color: DESCEND_COLORS.text, lineColor: DESCEND_COLORS.axis, solid: false, extendUp: true }
   ];
+  const phaseLabels = simpleMode
+    ? allPhaseLabels.filter(m => m.label === 'wake' || m.label === 'bed')
+    : allPhaseLabels;
 
   phaseLabels.forEach(marker => {
     // Vertical line from label up through the graph
@@ -2762,22 +2780,26 @@ function renderChart() {
   // Solar labels - all same muted grey color, lower position
   const solarLabelColor = 'rgba(215,215,215,0.8)';
   const solarLineColor = 'rgba(200,200,200,0.35)';
-  const solarLabels = [
+  const allSolarLabels = [
     { label: 'sunrise', x: wrap24(sunrise), extendUp: true },
     { label: 'sunset', x: wrap24(sunset), extendUp: true },
     { label: 'solar noon', x: wrap24(solarNoon), extendUp: false },
     { label: 'solar midnight', x: wrap24(solarMid), extendUp: false }
   ];
+  // In simple mode: only sunrise/sunset, lines stop at x-axis
+  const solarLabels = simpleMode
+    ? allSolarLabels.filter(m => m.label === 'sunrise' || m.label === 'sunset')
+    : allSolarLabels;
 
   const solarHoverBg = '#3a3a3a';
   solarLabels.forEach(marker => {
     if (!Number.isFinite(marker.x)) return;
-    // Line from label up (sunrise/sunset go all the way up)
+    // Line from label up (sunrise/sunset go all the way up, unless simple mode)
     shapes.push({
       type: 'line', xref: 'x', yref: 'paper',
       x0: marker.x, x1: marker.x,
       y0: -0.135,
-      y1: marker.extendUp ? 1 : 0,
+      y1: (simpleMode) ? 0 : (marker.extendUp ? 1 : 0),
       line: { color: solarLineColor, width: 1, dash: 'dot' }
     });
     annotations.push({
@@ -2801,8 +2823,9 @@ function renderChart() {
   const layout = {
     paper_bgcolor: '#0a0a0a',
     plot_bgcolor: '#0a0a0a',
-    margin: { t: 40, r: 40, l: 50, b: 100 },
+    margin: { t: simpleMode ? 10 : 40, r: 40, l: 50, b: 100 },
     legend: { orientation: 'h', x: 0, y: 1.1, font: { color: '#c8c8c8' } },
+    showlegend: !simpleMode,
     hovermode: 'closest',
     xaxis: {
       range: [0, 24],
@@ -3757,6 +3780,15 @@ function setupEventListeners() {
   document.getElementById('chart-date-slider').addEventListener('input', () => {
     renderChart();
   });
+
+  // Simple mode toggle
+  document.getElementById('simple-mode').addEventListener('change', (e) => {
+    simpleMode = e.target.checked;
+    document.querySelector('.chart-date-control').style.display = simpleMode ? 'none' : 'flex';
+    renderChart();
+  });
+  // Apply initial simple mode state
+  document.querySelector('.chart-date-control').style.display = simpleMode ? 'none' : 'flex';
 
   document.getElementById('cursor-step-up')?.addEventListener('click', () => stepCursor('up', true, true));
   document.getElementById('cursor-step-down')?.addEventListener('click', () => stepCursor('down', true, true));
