@@ -1209,32 +1209,32 @@ input[type=range]::-moz-range-thumb {
     <div class="rhythm-group-label">Wake</div>
     <div class="param-row" style="grid-template-columns: 140px 60px 1fr 60px 28px;">
       <label style="padding-left:16px">Time</label>
-      <span class="dual-chip" id="wake-time-display">6:00a</span>
-      <input type="range" id="wake-time" min="0" max="24" step="0.5" value="6">
+      <span class="dual-chip" id="wake-time-display">7:00a</span>
+      <input type="range" id="wake-time" min="0" max="24" step="0.5" value="7">
       <span class="dual-chip right"></span>
     </div>
     <div class="param-row" style="grid-template-columns: 140px 60px 1fr 60px 28px;">
       <label style="padding-left:16px">Speed</label>
-      <span class="dual-chip" id="wake-speed-display">Fast (8)</span>
-      <input type="range" id="wake-speed" min="1" max="10" step="1" value="8">
+      <span class="dual-chip" id="wake-speed-display">Crisp (6)</span>
+      <input type="range" id="wake-speed" min="1" max="10" step="1" value="6">
       <span class="dual-chip right"></span>
     </div>
     <div class="rhythm-group-label bed">Bed</div>
     <div class="param-row" style="grid-template-columns: 140px 60px 1fr 60px 28px;">
       <label style="padding-left:16px">Time</label>
-      <span class="dual-chip" id="bed-time-display">10:00p</span>
-      <input type="range" id="bed-time" min="0" max="36" step="0.5" value="22">
+      <span class="dual-chip" id="bed-time-display">9:00p</span>
+      <input type="range" id="bed-time" min="0" max="36" step="0.5" value="21">
       <span class="dual-chip right"></span>
     </div>
     <div class="param-row" style="grid-template-columns: 140px 60px 1fr 60px 28px;">
       <label style="padding-left:16px">Speed</label>
-      <span class="dual-chip" id="bed-speed-display">Crisp (6)</span>
-      <input type="range" id="bed-speed" min="1" max="10" step="1" value="6">
+      <span class="dual-chip" id="bed-speed-display">Smooth (4)</span>
+      <input type="range" id="bed-speed" min="1" max="10" step="1" value="4">
       <span class="dual-chip right"></span>
     </div>
     <!-- Hidden fields for ascend/descend (set by sleep pattern) -->
-    <input type="range" id="ascend-start" min="0" max="24" step="0.5" value="3" style="display:none">
-    <input type="range" id="descend-start" min="0" max="36" step="0.5" value="12" style="display:none">
+    <input type="range" id="ascend-start" min="0" max="24" step="0.5" value="5" style="display:none">
+    <input type="range" id="descend-start" min="0" max="36" step="0.5" value="14" style="display:none">
   </div>
 
   <!-- Chart -->
@@ -1474,7 +1474,7 @@ const DESCEND_COLORS = {
 // cool_day_enabled: false for all (per llm_access)
 const ACTIVITY_PRESETS = {
   young: { wake_time: 6.0, bed_time: 18.0, ascend_start: 0.0, descend_start: 12.0, warm_night_enabled: true, cool_day_enabled: false },
-  adult: { wake_time: 6.0, bed_time: 22.0, ascend_start: 4.0, descend_start: 12.0, warm_night_enabled: true, cool_day_enabled: false },
+  adult: { wake_time: 7.0, bed_time: 21.0, ascend_start: 5.0, descend_start: 14.0, warm_night_enabled: true, cool_day_enabled: false },
   nightowl: { wake_time: 10.0, bed_time: 2.0, ascend_start: 8.0, descend_start: 16.0, warm_night_enabled: true, cool_day_enabled: false },
   duskbat: { wake_time: 14.0, bed_time: 6.0, ascend_start: 12.0, descend_start: 20.0, warm_night_enabled: false, cool_day_enabled: false },
   shiftearly: { wake_time: 18.0, bed_time: 10.0, ascend_start: 16.0, descend_start: 0.0, warm_night_enabled: false, cool_day_enabled: false },
@@ -1486,12 +1486,12 @@ let simpleMode = true;
 
 // State
 let config = {
-  ascend_start: 3.0,
-  descend_start: 12.0,
-  wake_time: 6.0,
-  bed_time: 22.0,
-  wake_speed: 8,
-  bed_speed: 6,
+  ascend_start: 5.0,
+  descend_start: 14.0,
+  wake_time: 7.0,
+  bed_time: 21.0,
+  wake_speed: 6,
+  bed_speed: 4,
   min_color_temp: 500,
   max_color_temp: 6500,
   min_brightness: 1,
