@@ -89,12 +89,12 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
   grid-template-columns: 140px 1fr 140px;
   align-items: center;
   gap: 10px;
-  margin: 0 0 8px 0;
+  margin: 0 0 12px 0;
   max-width: 600px;
 }
 /* Solar slider rows: use explicit sibling margin, zero out nested param-row margin */
 .color-rule-slider-row .param-row { margin: 0; }
-.color-rule-slider-row + .color-rule-slider-row { margin-top: 8px; }
+.color-rule-slider-row + .color-rule-slider-row { margin-top: 12px; }
 /* Hidden control rows - kept for future "custom" preset */
 .param-row.is-hidden {
   display: none;
@@ -752,17 +752,31 @@ input[type=range]::-moz-range-thumb {
   outline: none;
   border-color: var(--accent);
 }
-.live-design-controls .btn.active {
-  background: var(--accent);
-  color: #fff;
+.live-design-link {
+  font-size: 0.85rem;
+  color: var(--muted);
+  cursor: pointer;
+  text-decoration: none;
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
 }
+.live-design-link:hover { color: var(--text); text-decoration: underline; }
 .live-design-status {
   font-size: 0.8rem;
-  color: var(--muted2);
-  margin-left: 8px;
+  color: var(--text);
+  margin-left: 4px;
 }
 .live-design-status.active {
-  color: #4ade80;
+  color: var(--text);
+}
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+.live-design-status.live-blink {
+  animation: live-pulse 1.8s ease-in-out infinite;
 }
 
 /* Responsive */
@@ -1171,7 +1185,7 @@ input[type=range]::-moz-range-thumb {
     <select id="live-area-select">
       <option value="">Select Area</option>
     </select>
-    <button class="btn" id="live-design-toggle" style="display: none;">Pause</button>
+    <a href="#" class="live-design-link" id="live-design-toggle" style="display: none;">Pause</a>
     <span class="live-design-status" id="live-design-status"></span>
   </div>
 
@@ -4064,21 +4078,21 @@ async function applyLiveLight() {
 
     if (response.ok) {
       if (statusEl) {
-        statusEl.textContent = `${Math.round(values.brightness)}% / ${Math.round(values.colorTemp)}K`;
-        statusEl.classList.add('active');
+        statusEl.textContent = 'Live!';
+        statusEl.classList.add('active', 'live-blink');
       }
     } else {
       console.warn('Failed to apply light:', response.status);
       if (statusEl) {
         statusEl.textContent = 'Error';
-        statusEl.classList.remove('active');
+        statusEl.classList.remove('active', 'live-blink');
       }
     }
   } catch (err) {
     console.error('Error applying live light:', err);
     if (statusEl) {
       statusEl.textContent = 'Error';
-      statusEl.classList.remove('active');
+      statusEl.classList.remove('active', 'live-blink');
     }
   }
 }
@@ -4117,7 +4131,8 @@ function setupLiveDesign() {
   const statusEl = document.getElementById('live-design-status');
 
   if (toggleBtn) {
-    toggleBtn.addEventListener('click', async () => {
+    toggleBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
       if (!liveDesignAreaId) return;
 
       liveDesignEnabled = !liveDesignEnabled;
@@ -4128,7 +4143,8 @@ function setupLiveDesign() {
         // Disable Circadian so periodic updates don't override Live Design
         await setCircadianMode(liveDesignAreaId, false);
         if (statusEl) {
-          statusEl.textContent = 'Entering...';
+          statusEl.textContent = 'starting Live Design';
+          statusEl.classList.remove('live-blink');
           statusEl.classList.add('active');
         }
         // Apply current cursor position with 3s transition
@@ -4139,24 +4155,17 @@ function setupLiveDesign() {
         // Update status after transition
         setTimeout(() => {
           if (liveDesignEnabled && statusEl) {
-            const values = getCursorLightValues();
-            if (values) {
-              statusEl.textContent = `${Math.round(values.brightness)}% / ${Math.round(values.colorTemp)}K`;
-            } else {
-              statusEl.textContent = 'Live';
-            }
+            statusEl.textContent = 'Live!';
+            statusEl.classList.add('live-blink');
           }
         }, 2500);
       } else {
         // Re-enable Circadian when pausing (this restores lights via backend)
         if (statusEl) {
-          statusEl.textContent = 'Exiting...';
+          statusEl.textContent = 'Paused';
+          statusEl.classList.remove('active', 'live-blink');
         }
         await setCircadianMode(liveDesignAreaId, true);
-        if (statusEl) {
-          statusEl.textContent = 'Paused';
-          statusEl.classList.remove('active');
-        }
       }
     });
   }
@@ -4182,7 +4191,8 @@ function setupLiveDesign() {
         toggleBtn.style.display = '';
         toggleBtn.textContent = 'Pause';
         if (statusEl) {
-          statusEl.textContent = 'Entering...';
+          statusEl.textContent = 'starting Live Design';
+          statusEl.classList.remove('live-blink');
           statusEl.classList.add('active');
         }
         await setCircadianMode(newAreaId, false);
@@ -4194,12 +4204,8 @@ function setupLiveDesign() {
         // Update status after transition
         setTimeout(() => {
           if (liveDesignEnabled && statusEl) {
-            const values = getCursorLightValues();
-            if (values) {
-              statusEl.textContent = `${Math.round(values.brightness)}% / ${Math.round(values.colorTemp)}K`;
-            } else {
-              statusEl.textContent = 'Live';
-            }
+            statusEl.textContent = 'Live!';
+            statusEl.classList.add('live-blink');
           }
         }, 2500);
       } else {
@@ -4208,7 +4214,7 @@ function setupLiveDesign() {
         toggleBtn.style.display = 'none';
         if (statusEl) {
           statusEl.textContent = '';
-          statusEl.classList.remove('active');
+          statusEl.classList.remove('active', 'live-blink');
         }
       }
     });
