@@ -807,7 +807,6 @@ class HomeAssistantWebSocketClient:
                     # so our own timer controls the pace
                     logger.debug(f"Ignoring duplicate hold event for {device_ieee} (already repeating)")
                     return
-                switches.start_hold(device_ieee, action)
                 await self._start_hold_repeat(device_ieee, action)
             else:
                 # Single action on hold (non-repeating)
@@ -1718,8 +1717,17 @@ class HomeAssistantWebSocketClient:
             switch_id: The switch IEEE address
             action: The action to repeat
         """
-        # Cancel any existing repeat task
-        await self._stop_hold_repeat(switch_id)
+        # Cancel any existing repeat task (without clearing hold state)
+        if self._hold_repeat_task and not self._hold_repeat_task.done():
+            self._hold_repeat_task.cancel()
+            try:
+                await self._hold_repeat_task
+            except asyncio.CancelledError:
+                pass
+            self._hold_repeat_task = None
+
+        # Mark hold as active (after cancel, before loop starts)
+        switches.start_hold(switch_id, action)
 
         # Get repeat interval
         interval_ms = switches.get_repeat_interval(switch_id)
