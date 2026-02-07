@@ -972,6 +972,7 @@
           </label>
         </div>
 
+
         <div class="modal-section" id="indicator-light-section" style="display: none;">
           <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
             <label class="modal-label" style="margin-bottom: 0;">Light for Feedback Cues</label>
@@ -1363,7 +1364,7 @@
               <th class="${thClass('area')}">
                 <div class="th-with-filter">
                   <div class="th-title-row">
-                    <span style="${locationArrows.leftStyle} cursor:pointer; margin-right:4px;" onclick="event.stopPropagation(); sortLocationAZ()" title="Sort location alphabetically">${locationArrows.leftArrow}</span><span onclick="sortLocationAZ()" style="cursor:pointer;" title="Sort location alphabetically">Location</span>${filterIndicator('area', areaFilter, "clearSingleFilter('area')")}${filterIndicator('glozone', glozoneFilter, "clearSingleFilter('glozone')")}<span style="${locationArrows.rightStyle} cursor:pointer; margin-left:4px;" onclick="event.stopPropagation(); sortLocationCustom()" title="Sort location by your custom area sort order">${locationArrows.rightArrow}</span>
+                    <span style="${locationArrows.leftStyle} cursor:pointer; margin-right:4px;" onclick="event.stopPropagation(); sortLocationAZ()" title="Sort location by: alphabetic">${locationArrows.leftArrow}</span><span onclick="sortLocationAZ()" style="cursor:pointer;" title="Sort location by: alphabetic">Location</span>${filterIndicator('area', areaFilter, "clearSingleFilter('area')")}${filterIndicator('glozone', glozoneFilter, "clearSingleFilter('glozone')")}<span style="${locationArrows.rightStyle} cursor:pointer; margin-left:4px;" onclick="event.stopPropagation(); sortLocationCustom()" title="Sort location by: your area ordering">${locationArrows.rightArrow}</span>
                   </div>
                   <select class="header-filter" id="glozone-filter" onclick="event.stopPropagation()" style="${filterActiveStyle(glozoneFilter)}">${glozoneOptions}</select>
                   <select class="header-filter" id="area-filter" onclick="event.stopPropagation()" style="margin-top: 4px; ${filterActiveStyle(areaFilter)}">${areaOptions}</select>

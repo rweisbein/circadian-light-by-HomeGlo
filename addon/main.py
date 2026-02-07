@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import sys
+import time
 from datetime import datetime
 from typing import Dict, Any, List, Optional, Sequence, Set, Tuple, Union
 
@@ -792,6 +793,21 @@ class HomeAssistantWebSocketClient:
         # Get the action for this button event
         action = switch_config.get_button_action(button_event)
 
+        # Handle release events BEFORE the action-is-None check,
+        # because release events (e.g. down_long_release) often map to None
+        # but still need to stop active hold repeat loops.
+        if "_long_release" in button_event or "_release" in button_event:
+            was_holding = switches.is_holding(device_ieee)
+            await self._stop_hold_repeat(device_ieee)
+
+            if was_holding:
+                if action:
+                    await self._execute_switch_action(device_ieee, action)
+            elif "_short_release" in button_event:
+                if action:
+                    await self._execute_switch_action(device_ieee, action)
+            return
+
         if action is None:
             logger.debug(f"No action mapped for {button_event}")
             return
@@ -800,24 +816,19 @@ class HomeAssistantWebSocketClient:
 
         # Handle hold start/stop
         if "_hold" in button_event:
-            # Hold started
+            # Hold started (or Hue bridge repeat event)
             if switches.should_repeat_on_hold(device_ieee, button_event):
-                switches.start_hold(device_ieee, action)
+                if switches.is_holding(device_ieee):
+                    # Already repeating — ignore Hue bridge repeat events
+                    # so our own timer controls the pace
+                    logger.debug(f"Ignoring duplicate hold event for {device_ieee} (already repeating)")
+                    return
                 await self._start_hold_repeat(device_ieee, action)
             else:
                 # Single action on hold (non-repeating)
                 await self._execute_switch_action(device_ieee, action)
 
-        elif "_long_release" in button_event or "_release" in button_event:
-            # Check if this is ending a hold
-            if switches.is_holding(device_ieee):
-                await self._stop_hold_repeat(device_ieee)
-                # Execute the release action if any
-                if action:
-                    await self._execute_switch_action(device_ieee, action)
-            elif "_short_release" in button_event:
-                # Normal short press release - execute the action
-                await self._execute_switch_action(device_ieee, action)
+        # Release events are handled above (before action-is-None check)
 
         else:
             # Other events (press, double_press, triple_press, quadruple_press, etc.)
@@ -913,6 +924,15 @@ class HomeAssistantWebSocketClient:
         # Get the action for this button event
         action = switch_config.get_button_action(button_event)
 
+        # Handle release events BEFORE the action-is-None check,
+        # because release events often map to None but still need to stop hold loops.
+        if "_long_release" in button_event:
+            was_holding = switches.is_holding(switch_config.id)
+            await self._stop_hold_repeat(switch_config.id)
+            if action:
+                await self._execute_switch_action(switch_config.id, action)
+            return
+
         if action is None:
             logger.debug(f"No action mapped for {button_event}")
             return
@@ -929,20 +949,15 @@ class HomeAssistantWebSocketClient:
                     # There's a hold action - don't execute on initial press, wait for release or repeat
                     return
 
-            # Hold started
+            # Hold started (or Hue bridge repeat event)
             if switches.should_repeat_on_hold(switch_config.id, button_event):
-                switches.start_hold(switch_config.id, action)
+                if switches.is_holding(switch_config.id):
+                    # Already repeating — ignore Hue bridge repeat events
+                    logger.debug(f"Ignoring duplicate hold event for {switch_config.id} (already repeating)")
+                    return
                 await self._start_hold_repeat(switch_config.id, action)
             else:
                 # Single action on hold (non-repeating)
-                await self._execute_switch_action(switch_config.id, action)
-
-        elif "_long_release" in button_event:
-            # Long release - ending a hold
-            if switches.is_holding(switch_config.id):
-                await self._stop_hold_repeat(switch_config.id)
-            # Execute the release action if any
-            if action:
                 await self._execute_switch_action(switch_config.id, action)
 
         elif "_short_release" in button_event or "_release" in button_event:
@@ -1713,19 +1728,35 @@ class HomeAssistantWebSocketClient:
             switch_id: The switch IEEE address
             action: The action to repeat
         """
-        # Cancel any existing repeat task
-        await self._stop_hold_repeat(switch_id)
+        # Cancel any existing repeat task (without clearing hold state)
+        if self._hold_repeat_task and not self._hold_repeat_task.done():
+            self._hold_repeat_task.cancel()
+            try:
+                await self._hold_repeat_task
+            except asyncio.CancelledError:
+                pass
+            self._hold_repeat_task = None
+
+        # Mark hold as active (after cancel, before loop starts)
+        switches.start_hold(switch_id, action)
 
         # Get repeat interval
         interval_ms = switches.get_repeat_interval(switch_id)
 
+        max_hold_seconds = 30  # Safety timeout
+
         async def repeat_loop():
             try:
+                start_time = time.time()
                 # Execute immediately first
                 await self._execute_switch_action(switch_id, action)
 
-                # Then repeat at interval
+                # Then repeat at interval (with safety timeout)
                 while switches.is_holding(switch_id):
+                    if time.time() - start_time > max_hold_seconds:
+                        logger.warning(f"Hold repeat safety timeout ({max_hold_seconds}s) for {switch_id}")
+                        switches.stop_hold(switch_id)
+                        break
                     await asyncio.sleep(interval_ms / 1000.0)
                     if switches.is_holding(switch_id):
                         await self._execute_switch_action(switch_id, action)
