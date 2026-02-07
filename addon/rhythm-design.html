@@ -3006,21 +3006,13 @@ function applyCursor() {
     });
   }
 
-  // Cursor line below x-axis to label
+  // Cursor line extending slightly below x-axis
   shapes.push({
     type: 'line', xref: 'x', yref: 'paper',
-    x0: cursorHour, x1: cursorHour, y0: cursorLabelY + 0.05, y1: 0,
+    x0: cursorHour, x1: cursorHour, y0: -0.08, y1: 0,
     line: cursorLineStyle, layer: 'above'
   });
 
-  // Cursor label below axis
-  annotations.push({
-    x: cursorHour, y: cursorLabelY, xref: 'x', yref: 'paper',
-    text: 'cursor',
-    showarrow: false,
-    font: { size: 11, color: '#fdfdfd' },
-    opacity: 1
-  });
 
   Plotly.relayout(chart, { shapes, annotations });
 
