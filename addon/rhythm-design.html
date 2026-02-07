@@ -89,12 +89,14 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
   grid-template-columns: 140px 1fr 140px;
   align-items: center;
   gap: 10px;
-  margin: 0 0 12px 0;
+  margin: 0 0 8px 0;
   max-width: 600px;
 }
+/* Ranges section needs more breathing room between dual-range rows */
+#ranges-section .param-row { margin: 0 0 14px 0; }
 /* Solar slider rows: use explicit sibling margin, zero out nested param-row margin */
 .color-rule-slider-row .param-row { margin: 0; }
-.color-rule-slider-row + .color-rule-slider-row { margin-top: 12px; }
+.color-rule-slider-row + .color-rule-slider-row { margin-top: 8px; }
 /* Hidden control rows - kept for future "custom" preset */
 .param-row.is-hidden {
   display: none;
@@ -1284,7 +1286,7 @@ input[type=range]::-moz-range-thumb {
   </div>
 
   <!-- Ranges -->
-  <div class="section-block">
+  <div class="section-block" id="ranges-section">
     <h2>Ranges</h2>
 
     <div class="param-row">
