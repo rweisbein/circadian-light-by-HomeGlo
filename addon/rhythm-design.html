@@ -496,60 +496,29 @@ input[type=range]::-moz-range-thumb {
   height: 20px;
 }
 
-/* Offset Slider Rows */
-.offset-slider-row {
-  display: grid;
-  grid-template-columns: 60px 1fr 140px;
-  gap: 10px;
-  align-items: center;
-  margin: 8px 0;
-}
-.offset-slider-row label {
-  font-size: 0.8rem;
-  color: var(--muted2);
-  text-transform: lowercase;
-}
-.offset-slider-row .offset-text {
-  font-size: 0.75rem;
-  color: var(--muted);
-}
-
-/* Color Rule Stack - grouped layout like llm_access */
+/* Color Rule Stack */
 .color-rule-grid {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 0;
   margin-top: 16px;
 }
 .color-rule-stack {
-  display: grid;
-  grid-template-columns: 150px minmax(0, 1fr);
-  gap: 18px;
   padding: 12px 0;
   border-top: 1px solid var(--line);
 }
 .color-rule-stack:first-child { border-top: none; padding-top: 0; }
 .color-rule-stack-label {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
-  position: relative;
-  padding-right: 12px;
-}
-.color-rule-stack-label::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 1px;
-  background: rgba(255,255,255,0.2);
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
 }
 .color-rule-label {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--text);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
 }
 .info-icon {
   display: inline-flex;
@@ -594,9 +563,6 @@ input[type=range]::-moz-range-thumb {
 .info-tooltip.is-open {
   display: block;
 }
-.color-rule-toggle {
-  margin-left: 0;
-}
 .color-rule-toggle input[type=checkbox] {
   width: 16px;
   height: 16px;
@@ -605,7 +571,7 @@ input[type=range]::-moz-range-thumb {
 .color-rule-stack-body {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 0;
 }
 .color-rule-stack-body.is-disabled {
   opacity: 0.4;
@@ -616,6 +582,7 @@ input[type=range]::-moz-range-thumb {
   gap: 12px;
   align-items: center;
   flex-wrap: wrap;
+  margin-bottom: 4px;
 }
 .color-rule-main-row select {
   padding: 6px 10px;
@@ -623,21 +590,33 @@ input[type=range]::-moz-range-thumb {
   border: 1px solid var(--line);
   background: var(--panel2);
   color: var(--text);
-  font-size: 0.9rem;
+  font-size: 0.85rem;
 }
 .color-rule-slider-row {
-  width: 100%;
+  max-width: 600px;
 }
 .color-rule-slider-row.is-disabled {
-  opacity: 0.4;
+  opacity: 0.35;
   pointer-events: none;
 }
-
-/* Legacy solar-rule classes for backward compatibility */
-.solar-rule-offsets {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+.solar-param-row {
+  display: grid;
+  grid-template-columns: 140px 1fr 100px;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0;
+  max-width: 600px;
+}
+.solar-param-row label {
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-weight: 600;
+  padding-left: 16px;
+}
+.solar-param-row .offset-text {
+  font-size: 0.85rem;
+  color: var(--muted);
+  text-align: right;
 }
 
 
@@ -1207,30 +1186,26 @@ input[type=range]::-moz-range-thumb {
       </select>
     </div>
     <div class="rhythm-group-label">Wake</div>
-    <div class="param-row" style="grid-template-columns: 140px 60px 1fr 60px 28px;">
+    <div class="param-row" style="grid-template-columns: 140px 1fr 100px;">
       <label style="padding-left:16px">Time</label>
-      <span class="dual-chip" id="wake-time-display">7:00a</span>
       <input type="range" id="wake-time" min="0" max="24" step="0.25" value="7">
-      <span class="dual-chip right"></span>
+      <span class="dual-chip right" id="wake-time-display">7:00a</span>
     </div>
-    <div class="param-row" style="grid-template-columns: 140px 60px 1fr 60px 28px;">
+    <div class="param-row" style="grid-template-columns: 140px 1fr 100px;">
       <label style="padding-left:16px">Speed</label>
-      <span class="dual-chip" id="wake-speed-display">Crisp (6)</span>
       <input type="range" id="wake-speed" min="1" max="10" step="1" value="6">
-      <span class="dual-chip right"></span>
+      <span class="dual-chip right" id="wake-speed-display">Crisp (6)</span>
     </div>
     <div class="rhythm-group-label bed">Bed</div>
-    <div class="param-row" style="grid-template-columns: 140px 60px 1fr 60px 28px;">
+    <div class="param-row" style="grid-template-columns: 140px 1fr 100px;">
       <label style="padding-left:16px">Time</label>
-      <span class="dual-chip" id="bed-time-display">9:00p</span>
       <input type="range" id="bed-time" min="0" max="36" step="0.25" value="21">
-      <span class="dual-chip right"></span>
+      <span class="dual-chip right" id="bed-time-display">9:00p</span>
     </div>
-    <div class="param-row" style="grid-template-columns: 140px 60px 1fr 60px 28px;">
+    <div class="param-row" style="grid-template-columns: 140px 1fr 100px;">
       <label style="padding-left:16px">Speed</label>
-      <span class="dual-chip" id="bed-speed-display">Smooth (4)</span>
       <input type="range" id="bed-speed" min="1" max="10" step="1" value="4">
-      <span class="dual-chip right"></span>
+      <span class="dual-chip right" id="bed-speed-display">Smooth (4)</span>
     </div>
     <!-- Hidden fields for ascend/descend (set by sleep pattern) -->
     <input type="range" id="ascend-start" min="0" max="24" step="0.5" value="3" style="display:none">
@@ -1332,11 +1307,10 @@ input[type=range]::-moz-range-thumb {
       <span class="dual-chip right" id="brightness-max-display">100%</span>
     </div>
 
-    <div class="param-row" style="grid-template-columns: 140px 60px 1fr 60px 28px;">
+    <div class="param-row" style="grid-template-columns: 140px 1fr 100px;">
       <label>Increments</label>
-      <span class="dual-chip" id="step-count-display">10 steps</span>
       <input type="range" id="step-count" min="1" max="50" step="1" value="10">
-      <span class="dual-chip right"></span>
+      <span class="dual-chip right" id="step-count-display">10 steps</span>
     </div>
 
   </div>
@@ -1347,10 +1321,8 @@ input[type=range]::-moz-range-thumb {
     <div class="color-rule-grid">
       <div class="color-rule-stack" data-color-row="night">
         <div class="color-rule-stack-label">
-          <label class="color-rule-label">Warm night<span class="info-icon" data-tooltip="warm-night-info">i<span class="info-tooltip" id="warm-night-info">Sets a minimum warmth when sun isn't up; if your Circadian curve is cool (high Kelvin) between sunset and the next day's sunrise, this applies warming.</span></span></label>
-          <div class="color-rule-toggle">
-            <input type="checkbox" id="warm-night-enabled">
-          </div>
+          <div class="color-rule-toggle"><input type="checkbox" id="warm-night-enabled"></div>
+          <label class="color-rule-label">Warm night<span class="info-icon" data-tooltip="warm-night-info">i<span class="info-tooltip" id="warm-night-info">Caps color temperature when sun isn't up; if your curve is cool (high K) between sunset and sunrise, this warms it.</span></span></label>
         </div>
         <div class="color-rule-stack-body" id="warm-night-body">
           <div class="color-rule-main-row">
@@ -1370,21 +1342,21 @@ input[type=range]::-moz-range-thumb {
             </div>
           </div>
           <div class="color-rule-slider-row" data-rule-window="sunset">
-            <div class="offset-slider-row">
+            <div class="solar-param-row">
               <label>Start</label>
               <input type="range" id="warm-night-start" min="-180" max="180" step="30" value="-60">
               <span class="offset-text" id="warm-night-start-text">1 hr before sunset</span>
             </div>
           </div>
           <div class="color-rule-slider-row" data-rule-window="sunrise">
-            <div class="offset-slider-row">
+            <div class="solar-param-row">
               <label>End</label>
               <input type="range" id="warm-night-end" min="-180" max="180" step="30" value="60">
               <span class="offset-text" id="warm-night-end-text">1 hr after sunrise</span>
             </div>
           </div>
           <div class="color-rule-slider-row" data-rule-window="any">
-            <div class="offset-slider-row">
+            <div class="solar-param-row">
               <label>Fade</label>
               <input type="range" id="warm-night-fade" min="0" max="300" step="30" value="60">
               <span class="offset-text" id="warm-night-fade-text">1 hr</span>
@@ -1395,10 +1367,8 @@ input[type=range]::-moz-range-thumb {
 
       <div class="color-rule-stack" data-color-row="daylight">
         <div class="color-rule-stack-label">
-          <label class="color-rule-label">Cool day<span class="info-icon" data-tooltip="cool-day-info">i<span class="info-tooltip" id="cool-day-info">Sets a minimum coolness when the sun is up; if your Circadian curve is warm (low Kelvin) between sunrise and sunset, this applies cooling.</span></span></label>
-          <div class="color-rule-toggle">
-            <input type="checkbox" id="cool-day-enabled">
-          </div>
+          <div class="color-rule-toggle"><input type="checkbox" id="cool-day-enabled"></div>
+          <label class="color-rule-label">Cool day<span class="info-icon" data-tooltip="cool-day-info">i<span class="info-tooltip" id="cool-day-info">Lifts color temperature when the sun is up; if your curve is warm (low K) between sunrise and sunset, this cools it.</span></span></label>
         </div>
         <div class="color-rule-stack-body" id="cool-day-body">
           <div class="color-rule-main-row">
@@ -1418,21 +1388,21 @@ input[type=range]::-moz-range-thumb {
             </div>
           </div>
           <div class="color-rule-slider-row" data-rule-window="sunrise">
-            <div class="offset-slider-row">
+            <div class="solar-param-row">
               <label>Start</label>
               <input type="range" id="cool-day-start" min="-180" max="180" step="30" value="0">
               <span class="offset-text" id="cool-day-start-text">at sunrise</span>
             </div>
           </div>
           <div class="color-rule-slider-row" data-rule-window="sunset">
-            <div class="offset-slider-row">
+            <div class="solar-param-row">
               <label>End</label>
               <input type="range" id="cool-day-end" min="-180" max="180" step="30" value="0">
               <span class="offset-text" id="cool-day-end-text">at sunset</span>
             </div>
           </div>
           <div class="color-rule-slider-row" data-rule-window="any">
-            <div class="offset-slider-row">
+            <div class="solar-param-row">
               <label>Fade</label>
               <input type="range" id="cool-day-fade" min="0" max="300" step="30" value="60">
               <span class="offset-text" id="cool-day-fade-text">1 hr</span>
@@ -3352,7 +3322,7 @@ function updateOffsetDisplays() {
   updateDisplay('cool-day-fade-text', fmtHrs(config.cool_day_fade));
 }
 
-// Sync color rule rows - toggle is-disabled based on checkbox state
+// Sync color rule rows - toggle is-disabled based on checkbox + mode state
 function syncColorRuleRows() {
   const warmEnabled = config.warm_night_enabled;
   const coolEnabled = config.cool_day_enabled;
@@ -3374,6 +3344,27 @@ function syncColorRuleRows() {
       el.disabled = !coolEnabled;
     });
   }
+
+  // Mode-based slider disabling
+  // Warm night: "sunrise" → lock Start (sunset side unused), "sunset" → lock End (sunrise side unused)
+  document.querySelectorAll('[data-color-row="night"] .color-rule-slider-row').forEach(row => {
+    const win = row.dataset.ruleWindow;
+    if (win === 'any') return;
+    const mode = config.warm_night_mode;
+    const locked = (mode === 'sunrise' && win === 'sunset') || (mode === 'sunset' && win === 'sunrise');
+    row.classList.toggle('is-disabled', locked);
+    row.querySelectorAll('input[type="range"]').forEach(el => el.disabled = !warmEnabled || locked);
+  });
+
+  // Cool day: "sunrise" → lock End (sunset side unused), "sunset" → lock Start (sunrise side unused)
+  document.querySelectorAll('[data-color-row="daylight"] .color-rule-slider-row').forEach(row => {
+    const win = row.dataset.ruleWindow;
+    if (win === 'any') return;
+    const mode = config.cool_day_mode;
+    const locked = (mode === 'sunrise' && win === 'sunset') || (mode === 'sunset' && win === 'sunrise');
+    row.classList.toggle('is-disabled', locked);
+    row.querySelectorAll('input[type="range"]').forEach(el => el.disabled = !coolEnabled || locked);
+  });
 }
 
 // Update wake/bed slider min/max constraints only (no value clamping)
