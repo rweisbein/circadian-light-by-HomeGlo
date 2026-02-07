@@ -1210,7 +1210,7 @@ input[type=range]::-moz-range-thumb {
     <div class="param-row" style="grid-template-columns: 140px 60px 1fr 60px 28px;">
       <label style="padding-left:16px">Time</label>
       <span class="dual-chip" id="wake-time-display">7:00a</span>
-      <input type="range" id="wake-time" min="0" max="24" step="0.5" value="7">
+      <input type="range" id="wake-time" min="0" max="24" step="0.25" value="7">
       <span class="dual-chip right"></span>
     </div>
     <div class="param-row" style="grid-template-columns: 140px 60px 1fr 60px 28px;">
@@ -1223,7 +1223,7 @@ input[type=range]::-moz-range-thumb {
     <div class="param-row" style="grid-template-columns: 140px 60px 1fr 60px 28px;">
       <label style="padding-left:16px">Time</label>
       <span class="dual-chip" id="bed-time-display">9:00p</span>
-      <input type="range" id="bed-time" min="0" max="36" step="0.5" value="21">
+      <input type="range" id="bed-time" min="0" max="36" step="0.25" value="21">
       <span class="dual-chip right"></span>
     </div>
     <div class="param-row" style="grid-template-columns: 140px 60px 1fr 60px 28px;">
@@ -1372,22 +1372,22 @@ input[type=range]::-moz-range-thumb {
           <div class="color-rule-slider-row" data-rule-window="sunset">
             <div class="offset-slider-row">
               <label>Start</label>
-              <input type="range" id="warm-night-start" min="-180" max="180" step="5" value="-60">
-              <span class="offset-text" id="warm-night-start-text">60 min before sunset</span>
+              <input type="range" id="warm-night-start" min="-180" max="180" step="30" value="-60">
+              <span class="offset-text" id="warm-night-start-text">1 hr before sunset</span>
             </div>
           </div>
           <div class="color-rule-slider-row" data-rule-window="sunrise">
             <div class="offset-slider-row">
               <label>End</label>
-              <input type="range" id="warm-night-end" min="-180" max="180" step="5" value="60">
-              <span class="offset-text" id="warm-night-end-text">60 min after sunrise</span>
+              <input type="range" id="warm-night-end" min="-180" max="180" step="30" value="60">
+              <span class="offset-text" id="warm-night-end-text">1 hr after sunrise</span>
             </div>
           </div>
           <div class="color-rule-slider-row" data-rule-window="any">
             <div class="offset-slider-row">
               <label>Fade</label>
-              <input type="range" id="warm-night-fade" min="0" max="180" step="5" value="60">
-              <span class="offset-text" id="warm-night-fade-text">60 min</span>
+              <input type="range" id="warm-night-fade" min="0" max="300" step="30" value="60">
+              <span class="offset-text" id="warm-night-fade-text">1 hr</span>
             </div>
           </div>
         </div>
@@ -1420,22 +1420,22 @@ input[type=range]::-moz-range-thumb {
           <div class="color-rule-slider-row" data-rule-window="sunrise">
             <div class="offset-slider-row">
               <label>Start</label>
-              <input type="range" id="cool-day-start" min="-180" max="180" step="5" value="0">
+              <input type="range" id="cool-day-start" min="-180" max="180" step="30" value="0">
               <span class="offset-text" id="cool-day-start-text">at sunrise</span>
             </div>
           </div>
           <div class="color-rule-slider-row" data-rule-window="sunset">
             <div class="offset-slider-row">
               <label>End</label>
-              <input type="range" id="cool-day-end" min="-180" max="180" step="5" value="0">
+              <input type="range" id="cool-day-end" min="-180" max="180" step="30" value="0">
               <span class="offset-text" id="cool-day-end-text">at sunset</span>
             </div>
           </div>
           <div class="color-rule-slider-row" data-rule-window="any">
             <div class="offset-slider-row">
               <label>Fade</label>
-              <input type="range" id="cool-day-fade" min="0" max="180" step="5" value="60">
-              <span class="offset-text" id="cool-day-fade-text">60 min</span>
+              <input type="range" id="cool-day-fade" min="0" max="300" step="30" value="60">
+              <span class="offset-text" id="cool-day-fade-text">1 hr</span>
             </div>
           </div>
         </div>
@@ -2907,7 +2907,6 @@ function applyCursor() {
   if (cursorPoint) {
     const bri = Math.round(cursorPoint.y);
     const cctVal = Math.round(cursorPoint.cct);
-    const phaseWord = cursorPoint.phase === 'Ascend' ? 'ascending' : 'descending';
     const color = cctToRGB(cctVal);
 
     const plotArea = chart.querySelector('.cartesianlayer .plot') || chart.querySelector('.nsewdrag');
@@ -2921,7 +2920,7 @@ function applyCursor() {
       const ratio = (cursorHour - xRange[0]) / (xRange[1] - xRange[0] || 1);
       const leftPx = rect.left + ratio * rect.width - wrapperRect.left;
 
-      cursorCallout.textContent = `${fmtTime(cursorHour)} • ${bri}% • ${cctVal}K • ${phaseWord}`;
+      cursorCallout.textContent = `${fmtTime(cursorHour)} • ${bri}% • ${cctVal}K`;
       cursorCallout.style.left = `${leftPx}px`;
       cursorCallout.style.opacity = '1';
 
@@ -3335,19 +3334,22 @@ function syncUIFromConfig() {
 
 // Update offset text displays
 function updateOffsetDisplays() {
+  const fmtHrs = (min) => {
+    const hrs = Math.abs(min) / 60;
+    return hrs === 1 ? '1 hr' : `${hrs} hrs`;
+  };
   const formatOffset = (val, baseEvent) => {
-    const absVal = Math.abs(val);
     if (val === 0) return `at ${baseEvent}`;
     const direction = val < 0 ? 'before' : 'after';
-    return `${absVal} min ${direction} ${baseEvent}`;
+    return `${fmtHrs(val)} ${direction} ${baseEvent}`;
   };
 
   updateDisplay('warm-night-start-text', formatOffset(config.warm_night_start, 'sunset'));
   updateDisplay('warm-night-end-text', formatOffset(config.warm_night_end, 'sunrise'));
-  updateDisplay('warm-night-fade-text', `${config.warm_night_fade} min`);
+  updateDisplay('warm-night-fade-text', fmtHrs(config.warm_night_fade));
   updateDisplay('cool-day-start-text', formatOffset(config.cool_day_start, 'sunrise'));
   updateDisplay('cool-day-end-text', formatOffset(config.cool_day_end, 'sunset'));
-  updateDisplay('cool-day-fade-text', `${config.cool_day_fade} min`);
+  updateDisplay('cool-day-fade-text', fmtHrs(config.cool_day_fade));
 }
 
 // Sync color rule rows - toggle is-disabled based on checkbox state
