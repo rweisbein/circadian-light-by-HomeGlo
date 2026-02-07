@@ -2,11 +2,11 @@
 
 ## Overview
 
-GloZone is a feature that groups multiple Home Assistant areas into zones, allowing coordinated circadian lighting control across rooms. Each GloZone is tied to a Circadian Preset that defines the lighting behavior (wake/bed times, brightness/color ranges, etc.).
+GloZone is a feature that groups multiple Home Assistant areas into zones, allowing coordinated circadian lighting control across rooms. Each GloZone is tied to a Daily Rhythm that defines the lighting behavior (wake/bed times, brightness/color ranges, etc.).
 
 ## Core Concepts
 
-### Circadian Preset
+### Circadian Rhythm
 A named configuration containing all circadian lighting settings:
 - Wake time, wake speed
 - Bed time, bed speed
@@ -15,11 +15,11 @@ A named configuration containing all circadian lighting settings:
 - Solar adjustments (warm night, cool day)
 - Activity preset reference
 
-Multiple presets can exist (e.g., "Adult Schedule", "Kids Schedule", "Weekend").
+Multiple rhythms can exist (e.g., "Adult Schedule", "Kids Schedule", "Weekend").
 
 ### GloZone
-A named grouping of areas that share a Circadian Preset:
-- Each zone references exactly one preset
+A named grouping of areas that share a Circadian Rhythm:
+- Each zone references exactly one rhythm
 - Each area belongs to exactly one zone
 - Zones have their own runtime state (midpoints, frozen_at)
 - The "Unassigned" zone is the default for areas not explicitly assigned
@@ -37,7 +37,7 @@ A named grouping of areas that share a Circadian Preset:
 
 ```json
 {
-  "circadian_presets": {
+  "circadian_rhythms": {
     "Adult Schedule": {
       "wake_time": 7.0,
       "wake_speed": 2.0,
@@ -64,7 +64,7 @@ A named grouping of areas that share a Circadian Preset:
 
   "glozones": {
     "Main House": {
-      "preset": "Adult Schedule",
+      "rhythm": "Adult Schedule",
       "areas": [
         { "id": "living_room", "name": "Living Room" },
         { "id": "kitchen", "name": "Kitchen" },
@@ -72,14 +72,14 @@ A named grouping of areas that share a Circadian Preset:
       ]
     },
     "Kids Rooms": {
-      "preset": "Kids Schedule",
+      "rhythm": "Kids Schedule",
       "areas": [
         { "id": "kids_bedroom", "name": "Kids Bedroom" },
         { "id": "playroom", "name": "Playroom" }
       ]
     },
     "Unassigned": {
-      "preset": "Adult Schedule",
+      "rhythm": "Adult Schedule",
       "areas": []
     }
   }
@@ -98,7 +98,7 @@ glozone_runtime_state = {
         "frozen_at": None        # Hour (0-24) or None
     },
     "Kids Rooms": {
-        "brightness_mid": None,  # None = use preset defaults
+        "brightness_mid": None,  # None = use rhythm defaults
         "color_mid": None,
         "frozen_at": None
     }
@@ -119,7 +119,7 @@ area_state = {
 
 ### Value Semantics
 - `brightness_mid`, `color_mid`, `frozen_at`: Hours on 0-24 scale (e.g., 7.5 = 7:30am)
-- `None` = use preset defaults (wake_time or bed_time based on current phase)
+- `None` = use rhythm defaults (wake_time or bed_time based on current phase)
 
 ---
 
@@ -131,7 +131,7 @@ area_state = {
 |-----------|-------------|
 | **GloUp** | Push area's runtime state to its zone, then propagate to all areas in zone |
 | **GloDown** | Pull zone's runtime state to the area |
-| **GloReset** | Reset zone runtime to None (preset defaults), reset all member areas |
+| **GloReset** | Reset zone runtime to None (rhythm defaults), reset all member areas |
 
 #### GloUp Behavior
 1. Get area's current runtime state (brightness_mid, color_mid, frozen_at)
@@ -217,18 +217,18 @@ Updated Hue Dimmer Switch blueprint:
 
 ## Designer UI Changes
 
-### Presets Tab (replaces current single-config view)
-- List of presets on left (starts with "Preset 1" migrated from current settings)
-- Add/rename/delete presets
-- Selecting a preset opens full curve editor (current designer view)
-- Each preset has all current settings (wake/bed times, curves, ranges, etc.)
+### Rhythms Tab (replaces current single-config view)
+- List of rhythms on left (starts with "Daily Rhythm 1" migrated from current settings)
+- Add/rename/delete rhythms
+- Selecting a rhythm opens full curve editor (current designer view)
+- Each rhythm has all current settings (wake/bed times, curves, ranges, etc.)
 
 ### Zones Tab
 - Single view showing:
   - List of all zones
   - Areas assigned to each zone
-  - Preset dropdown for each zone
-  - Wake/bed times displayed (from selected preset)
+  - Rhythm dropdown for each zone
+  - Wake/bed times displayed (from selected rhythm)
 - Area assignment UI (drag-drop or dropdown)
 - "Unassigned" zone always exists (cannot be deleted)
 
@@ -238,14 +238,14 @@ Updated Hue Dimmer Switch blueprint:
 
 ### Phase 1: Data Model & Storage
 1. Update `designer_config.json` schema
-2. Create migration: current settings → "Preset 1"
+2. Create migration: current settings → "Daily Rhythm 1"
 3. Create `glozone_state.py` for zone runtime state
 4. Update `state.py` with zone-aware helpers
 
 ### Phase 2: Core Logic
-5. Update `brain.py` to accept preset config (not global)
-6. Add resolution helpers: area → zone → preset → settings
-7. Update `get_circadian_values()` to be preset-aware
+5. Update `brain.py` to accept rhythm config (not global)
+6. Add resolution helpers: area → zone → rhythm → settings
+7. Update `get_circadian_values()` to be rhythm-aware
 
 ### Phase 3: Primitives
 8. Add `glo_up()`, `glo_down()`, `glo_reset()` to `primitives.py`
@@ -253,7 +253,7 @@ Updated Hue Dimmer Switch blueprint:
 10. Update daily reset logic to include zones
 
 ### Phase 4: API & Services
-11. Add webserver endpoints for preset CRUD
+11. Add webserver endpoints for rhythm CRUD
 12. Add webserver endpoints for zone CRUD and area assignment
 13. Register new services in custom integration
 
@@ -261,7 +261,7 @@ Updated Hue Dimmer Switch blueprint:
 14. Update `hue_dimmer_switch.yaml` with new button mappings
 
 ### Phase 6: Designer UI
-15. Implement Presets tab with preset selector
+15. Implement Rhythms tab with rhythm selector
 16. Implement Zones tab with area assignment
 17. Migrate existing settings on first load
 
@@ -275,8 +275,8 @@ Updated Hue Dimmer Switch blueprint:
 ### Zone Deleted
 - All member areas move to "Unassigned" zone
 
-### Preset Deleted
-- Zones using that preset switch to first available preset (or "Preset 1")
+### Rhythm Deleted
+- Zones using that rhythm switch to first available rhythm (or "Daily Rhythm 1")
 
 ### Cross-Zone Switch
 - If switch targets areas in multiple zones, GloZone primitives use first area's zone
@@ -289,8 +289,8 @@ Updated Hue Dimmer Switch blueprint:
 ## Migration Path
 
 When upgrading from pre-GloZone version:
-1. Current `designer_config.json` settings become "Preset 1"
-2. Single "Unassigned" zone created, referencing "Preset 1"
+1. Current `designer_config.json` settings become "Daily Rhythm 1"
+2. Single "Unassigned" zone created, referencing "Daily Rhythm 1"
 3. All existing areas assigned to "Unassigned" zone
 4. User can then create zones and reassign areas
 
@@ -298,6 +298,6 @@ When upgrading from pre-GloZone version:
 
 ## Future Considerations (Not in Initial Implementation)
 
-- **Zone Scheduling**: Switch zone's preset based on time/day (weekday vs weekend)
+- **Zone Scheduling**: Switch zone's rhythm based on time/day (weekday vs weekend)
 - **Zone Templates**: Pre-built zone configurations
 - **Multi-home Support**: Multiple independent zone hierarchies

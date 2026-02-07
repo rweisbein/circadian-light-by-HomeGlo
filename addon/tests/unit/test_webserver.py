@@ -159,15 +159,15 @@ class TestLightDesignerServer(AioHTTPTestCase):
         with open(self.designer_file, 'r') as f:
             saved_config = json.load(f)
 
-        # Config is now saved in GloZone format with presets
-        self.assertIn("circadian_presets", saved_config)
+        # Config is now saved in GloZone format with rhythms
+        self.assertIn("circadian_rhythms", saved_config)
         self.assertIn("glozones", saved_config)
 
-        # Preset settings are inside the first preset
-        preset = saved_config["circadian_presets"]["Glo 1"]
-        self.assertEqual(preset["wake_time"], 7.0)
-        self.assertEqual(preset["bed_speed"], 5)
-        self.assertEqual(preset["color_mode"], "rgb")
+        # Rhythm settings are inside the first rhythm
+        rhythm = saved_config["circadian_rhythms"]["Daily Rhythm 1"]
+        self.assertEqual(rhythm["wake_time"], 7.0)
+        self.assertEqual(rhythm["bed_speed"], 5)
+        self.assertEqual(rhythm["color_mode"], "rgb")
 
     @unittest_run_loop
     async def test_save_config_with_ingress_path(self):
@@ -320,7 +320,8 @@ class TestLightDesignerServerIntegration:
         # Page routes (multi-page structure)
         assert "/" in route_paths
         assert "/{path}/" in route_paths or "/{path:.*}/" in route_paths  # Home with ingress
-        assert "/glo" in route_paths  # Glo Designer
+        assert "/rhythm" in route_paths  # Rhythm list
+        assert "/glo" in route_paths or "/glo/{glo_name}" in route_paths  # Legacy redirect
         assert "/settings" in route_paths  # Settings
 
     def test_server_start_integration(self):
