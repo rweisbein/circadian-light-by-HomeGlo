@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import sys
+import time
 from datetime import datetime
 from typing import Dict, Any, List, Optional, Sequence, Set, Tuple, Union
 
@@ -813,9 +814,11 @@ class HomeAssistantWebSocketClient:
                 await self._execute_switch_action(device_ieee, action)
 
         elif "_long_release" in button_event or "_release" in button_event:
-            # Check if this is ending a hold
-            if switches.is_holding(device_ieee):
-                await self._stop_hold_repeat(device_ieee)
+            # Always stop any active hold repeat on release
+            was_holding = switches.is_holding(device_ieee)
+            await self._stop_hold_repeat(device_ieee)
+
+            if was_holding:
                 # Execute the release action if any
                 if action:
                     await self._execute_switch_action(device_ieee, action)
@@ -1732,13 +1735,20 @@ class HomeAssistantWebSocketClient:
         # Get repeat interval
         interval_ms = switches.get_repeat_interval(switch_id)
 
+        max_hold_seconds = 30  # Safety timeout
+
         async def repeat_loop():
             try:
+                start_time = time.time()
                 # Execute immediately first
                 await self._execute_switch_action(switch_id, action)
 
-                # Then repeat at interval
+                # Then repeat at interval (with safety timeout)
                 while switches.is_holding(switch_id):
+                    if time.time() - start_time > max_hold_seconds:
+                        logger.warning(f"Hold repeat safety timeout ({max_hold_seconds}s) for {switch_id}")
+                        switches.stop_hold(switch_id)
+                        break
                     await asyncio.sleep(interval_ms / 1000.0)
                     if switches.is_holding(switch_id):
                         await self._execute_switch_action(switch_id, action)
