@@ -1107,6 +1107,7 @@ class LightDesignerServer:
         "controls_ui",  # Controls page UI preferences (sort, filter)
         "areas_ui",  # Areas page UI preferences (sort, filter)
         "area_settings",  # Per-area settings (motion_function, motion_duration)
+        "home_name",  # Display name for the home (shown on areas page)
     }
 
     def _migrate_to_glozone_format(self, config: dict) -> dict:
