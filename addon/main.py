@@ -1417,6 +1417,52 @@ class HomeAssistantWebSocketClient:
         except Exception:
             return int(0.15 * 255)
 
+    def _apply_ct_brightness_compensation(self, brightness: int, color_temp: int) -> int:
+        """Apply brightness compensation for warm color temperatures.
+
+        Hue bulbs transition from efficient warm-white LEDs to less efficient RGB LEDs
+        at very warm color temperatures, causing a perceived brightness drop. This
+        compensates by boosting brightness in the "handover zone".
+
+        Args:
+            brightness: Original brightness percentage (0-100)
+            color_temp: Color temperature in Kelvin
+
+        Returns:
+            Compensated brightness percentage (0-100, clamped)
+        """
+        try:
+            raw_config = glozone.load_config_from_files()
+            enabled = raw_config.get("ct_comp_enabled", False)
+            if not enabled:
+                return brightness
+
+            # Get compensation parameters
+            handover_begin = raw_config.get("ct_comp_begin", 1650)  # Warmer end (lower K)
+            handover_end = raw_config.get("ct_comp_end", 2250)      # Cooler end (higher K)
+            max_factor = raw_config.get("ct_comp_factor", 1.4)
+
+            # No compensation above handover zone
+            if color_temp >= handover_end:
+                return brightness
+
+            # Full compensation below handover zone
+            if color_temp <= handover_begin:
+                compensated = brightness * max_factor
+                return min(100, int(round(compensated)))
+
+            # Linear interpolation within handover zone
+            # At handover_end: factor = 1.0
+            # At handover_begin: factor = max_factor
+            position = (handover_end - color_temp) / (handover_end - handover_begin)
+            factor = 1.0 + position * (max_factor - 1.0)
+            compensated = brightness * factor
+            return min(100, int(round(compensated)))
+
+        except Exception as e:
+            logger.warning(f"CT compensation error: {e}")
+            return brightness
+
     async def _execute_cycle_scope(self, switch_id: str) -> None:
         """Cycle to the next scope and provide visual feedback.
 
@@ -1977,6 +2023,13 @@ class HomeAssistantWebSocketClient:
         # Compute xy from kelvin if not provided (for color-capable lights)
         if xy is None and kelvin is not None and include_color:
             xy = CircadianLight.color_temperature_to_xy(kelvin)
+
+        # Apply CT brightness compensation (for warm color temps on Hue bulbs)
+        if brightness is not None and kelvin is not None:
+            original_brightness = brightness
+            brightness = self._apply_ct_brightness_compensation(brightness, kelvin)
+            if brightness != original_brightness:
+                logger.debug(f"CT compensation: {original_brightness}% -> {brightness}% at {kelvin}K")
 
         color_lights, ct_lights, brightness_lights, onoff_lights = self.get_lights_by_capability(area_id)
 

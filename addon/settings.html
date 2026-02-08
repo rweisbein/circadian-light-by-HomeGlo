@@ -627,6 +627,54 @@
       </div>
     </div>
 
+    <!-- CT Brightness Compensation Section -->
+    <div class="settings-section">
+      <div class="section-header">
+        <div class="section-header-left">
+          CT Brightness Compensation
+          <span class="info-icon">i<span class="info-tooltip">Compensates for brightness loss when Hue bulbs transition from efficient warm-white LEDs to less efficient RGB LEDs at very warm color temperatures. The "handover zone" is where this transition occurs.</span></span>
+        </div>
+        <label class="checkbox-label" style="font-weight: normal;">
+          <input type="checkbox" id="ct-comp-enabled">
+          <span style="font-size: 0.85rem;">Enabled</span>
+        </label>
+      </div>
+      <div class="section-content" id="ct-comp-content">
+        <div class="form-row">
+          <label class="form-label">
+            Handover begin
+            <span class="info-icon">i<span class="info-tooltip">The warmer (lower) end of the handover zone where RGB LEDs take over completely. Below this temperature, compensation is capped at the max factor.</span></span>
+          </label>
+          <div class="form-control">
+            <input type="number" class="form-input" id="ct-comp-begin" min="500" max="2500" step="50" value="1650" style="width: 100px;">
+            <span class="form-hint">K</span>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">
+            Handover end
+            <span class="info-icon">i<span class="info-tooltip">The cooler (higher) end of the handover zone where warm-white LEDs are still efficient. Above this temperature, no compensation is applied.</span></span>
+          </label>
+          <div class="form-control">
+            <input type="number" class="form-input" id="ct-comp-end" min="1500" max="3500" step="50" value="2250" style="width: 100px;">
+            <span class="form-hint">K</span>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">
+            Max compensation
+            <span class="info-icon">i<span class="info-tooltip">The brightness multiplier applied at and below the handover begin temperature. 1.4 means brightness is boosted by 40% to counteract the perceived dimming.</span></span>
+          </label>
+          <div class="form-control">
+            <input type="number" class="form-input" id="ct-comp-factor" min="1.0" max="2.0" step="0.05" value="1.4" style="width: 100px;">
+            <span class="form-hint">× (1.0 = none, 1.4 = 40% boost)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Location Section -->
     <div class="settings-section">
       <div class="section-header">Location</div>
@@ -700,7 +748,12 @@
           document.getElementById('limit-bounce-min-percent').value = config.limit_bounce_min_percent ?? 10;
           document.getElementById('reach-dip-percent').value = config.reach_dip_percent ?? 50;
           document.getElementById('boost-default').value = config.boost_default ?? 30;
+          document.getElementById('ct-comp-enabled').checked = config.ct_comp_enabled ?? false;
+          document.getElementById('ct-comp-begin').value = config.ct_comp_begin ?? 1650;
+          document.getElementById('ct-comp-end').value = config.ct_comp_end ?? 2250;
+          document.getElementById('ct-comp-factor').value = config.ct_comp_factor ?? 1.4;
           updateMultiClickState();
+          updateCtCompState();
           updateLocationSection(config);
         }
       } catch (err) {
@@ -728,7 +781,11 @@
         limit_bounce_max_percent: parseInt(document.getElementById('limit-bounce-max-percent').value) || 30,
         limit_bounce_min_percent: parseInt(document.getElementById('limit-bounce-min-percent').value) || 10,
         reach_dip_percent: parseInt(document.getElementById('reach-dip-percent').value) || 50,
-        boost_default: parseInt(document.getElementById('boost-default').value) || 30
+        boost_default: parseInt(document.getElementById('boost-default').value) || 30,
+        ct_comp_enabled: document.getElementById('ct-comp-enabled').checked,
+        ct_comp_begin: parseInt(document.getElementById('ct-comp-begin').value) || 1650,
+        ct_comp_end: parseInt(document.getElementById('ct-comp-end').value) || 2250,
+        ct_comp_factor: parseFloat(document.getElementById('ct-comp-factor').value) || 1.4
       };
 
       try {
@@ -757,6 +814,16 @@
       } else {
         speedGroup.style.opacity = '0.4';
         speedInput.disabled = true;
+      }
+    }
+
+    function updateCtCompState() {
+      const enabled = document.getElementById('ct-comp-enabled').checked;
+      const content = document.getElementById('ct-comp-content');
+      if (enabled) {
+        content.classList.remove('disabled');
+      } else {
+        content.classList.add('disabled');
       }
     }
 
@@ -816,6 +883,13 @@
     document.getElementById('limit-bounce-min-percent').addEventListener('blur', saveSettings);
     document.getElementById('reach-dip-percent').addEventListener('blur', saveSettings);
     document.getElementById('boost-default').addEventListener('blur', saveSettings);
+    document.getElementById('ct-comp-enabled').addEventListener('change', () => {
+      updateCtCompState();
+      saveSettings();
+    });
+    document.getElementById('ct-comp-begin').addEventListener('blur', saveSettings);
+    document.getElementById('ct-comp-end').addEventListener('blur', saveSettings);
+    document.getElementById('ct-comp-factor').addEventListener('blur', saveSettings);
 
     // Location functions
     function updateLocationSection(config) {
