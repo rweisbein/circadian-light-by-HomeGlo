@@ -1108,10 +1108,6 @@ class LightDesignerServer:
         "areas_ui",  # Areas page UI preferences (sort, filter)
         "area_settings",  # Per-area settings (motion_function, motion_duration)
         "home_name",  # Display name for the home (shown on areas page)
-        "ct_comp_enabled",  # Enable CT brightness compensation for warm colors
-        "ct_comp_begin",  # Handover zone begin (warmer end) in Kelvin
-        "ct_comp_end",  # Handover zone end (cooler end) in Kelvin
-        "ct_comp_factor",  # Max brightness compensation factor (e.g., 1.4 = 40% boost)
     }
 
     def _migrate_to_glozone_format(self, config: dict) -> dict:
