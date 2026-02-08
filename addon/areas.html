@@ -1189,6 +1189,31 @@
     }
     .edit-mode-row:last-child { border-bottom: none; }
     .edit-mode-row.dragging { opacity: 0.4; }
+    .edit-mode-row.moving-out {
+      opacity: 0;
+      max-height: 0;
+      padding: 0 16px;
+      overflow: hidden;
+      transition: opacity 0.25s, max-height 0.3s ease 0.1s, padding 0.3s ease 0.1s;
+    }
+
+    .move-zone-select {
+      font-size: 0.78rem;
+      padding: 2px 6px;
+      border-radius: 5px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--muted);
+      cursor: pointer;
+    }
+    .move-zone-select:focus { border-color: var(--accent); color: var(--text); }
+
+    .home-name-heading {
+      font-size: 1.1rem;
+      font-weight: 500;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
 
     .drag-handle { color: var(--muted2); font-size: 1.1rem; cursor: grab; user-select: none; }
     .drag-handle:active { cursor: grabbing; }
@@ -2622,6 +2647,14 @@
       }
     }
 
+    async function moveAreaToZone(selectEl, areaId, sourceZone) {
+      const targetZone = selectEl.value;
+      if (!targetZone) return;
+      const row = selectEl.closest('.edit-mode-row');
+      row.classList.add('moving-out');
+      setTimeout(() => crossZoneMove(areaId, sourceZone, targetZone), 350);
+    }
+
     function renderAreas() {
       const container = document.getElementById('areas-container');
 
@@ -2702,18 +2735,23 @@
       const glozoneDownIcon = `<svg viewBox="0 0 16 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:14px;"><polyline points="3 5 8 10 13 5"/><polyline points="3 11 8 16 13 11"/></svg>`;
 
       // Build toolbar HTML
+      const homeName = cachedConfig?.home_name || '';
       let html;
       if (editMode) {
         html = `
           <div class="edit-toolbar">
-            <a href="#" class="edit-toolbar-link" onclick="event.preventDefault(); exitEditMode()" style="color: var(--accent); font-weight: 600;">Done</a>
-            <a href="#" class="edit-toolbar-link" onclick="event.preventDefault(); exitEditMode()">Cancel</a>
+            <span style="font-size: 1rem; font-weight: 600; color: var(--text);">Organize${homeName ? ': ' + homeName : ''}</span>
             <span style="flex: 1;"></span>
-            <a href="#" class="edit-toolbar-link" onclick="event.preventDefault(); createZoneFromEdit()" style="color: var(--accent);">+ New Zone</a>
+            <a href="#" class="edit-toolbar-link" onclick="event.preventDefault(); exitEditMode()">Cancel</a>
+            <a href="#" class="edit-toolbar-link" onclick="event.preventDefault(); exitEditMode()" style="color: var(--accent); font-weight: 600;">Done</a>
           </div>
         `;
       } else {
-        html = `
+        html = '';
+        if (homeName) {
+          html += `<div class="home-name-heading">${homeName}</div>`;
+        }
+        html += `
           <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
             <div class="view-links">
               <button class="view-link ${viewMode === 'onoff' ? 'active' : ''}" data-view="onoff">on/off</button>
@@ -2744,12 +2782,21 @@
           const upDisabled = zoneIndex === 0 ? 'disabled' : '';
           const downDisabled = zoneIndex === totalZones - 1 ? 'disabled' : '';
 
+          // Build move-to-zone options (all zones except current, sorted alpha)
+          const allZoneNames = Object.keys(cachedGlozones?.zones || {});
+          const otherZones = allZoneNames.filter(z => z !== zoneName).sort();
+          const moveOptions = otherZones.map(z => `<option value="${z}">${z}</option>`).join('');
+
           const areaRows = sorted.map(area => `
             <div class="edit-mode-row" draggable="true" data-area-id="${area.area_id}"
               ondragstart="onDragStart(event, '${area.area_id}', '${escapedZoneName}')"
               ondragend="onDragEnd(event)">
               <span class="drag-handle">&#9776;</span>
               <span style="flex: 1; font-size: 0.9rem;">${area.name}</span>
+              ${otherZones.length > 0 ? `<select class="move-zone-select" onchange="moveAreaToZone(this, '${area.area_id}', '${escapedZoneName}')">
+                <option value="" disabled selected>Move to\u2026</option>
+                ${moveOptions}
+              </select>` : ''}
             </div>
           `).join('');
 
@@ -2896,6 +2943,11 @@
         if (unassigned.length > 0) {
           html += renderZoneGroup('Unassigned', unassigned, totalZones, totalZones + 1);
         }
+
+        // + New Zone at the bottom
+        html += `<div style="text-align: center; padding: 16px 0;">
+          <a href="#" onclick="event.preventDefault(); createZoneFromEdit()" style="font-size: 0.85rem; color: var(--accent); text-decoration: none;">+ New Zone</a>
+        </div>`;
       } else if (viewMode === 'onoff') {
         // Group by on/off first, then by zone within each
         const onAreas = filtered.filter(a => a.is_on);

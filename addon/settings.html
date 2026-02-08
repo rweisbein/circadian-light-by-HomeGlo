@@ -385,6 +385,22 @@
       <h1 class="page-title">Settings</h1>
     </div>
 
+    <!-- General Section -->
+    <div class="settings-section">
+      <div class="section-header">General</div>
+      <div class="section-content">
+        <div class="form-row">
+          <label class="form-label">
+            Home name
+            <span class="info-icon">i<span class="info-tooltip">A display name for your home, shown as a heading on the home page.</span></span>
+          </label>
+          <div class="form-control">
+            <input type="text" class="form-input" id="home-name" placeholder="Your home" style="width: 200px;">
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Timing Section -->
     <div class="settings-section">
       <div class="section-header">Timing</div>
@@ -665,6 +681,7 @@
         const response = await fetch('./api/config');
         if (response.ok) {
           const config = await response.json();
+          document.getElementById('home-name').value = config.home_name ?? '';
           document.getElementById('turn-on-transition').value = config.turn_on_transition ?? 3;
           document.getElementById('turn-off-transition').value = config.turn_off_transition ?? 3;
           document.getElementById('two-step-delay').value = config.two_step_delay ?? 3;
@@ -693,6 +710,7 @@
 
     async function saveSettings() {
       const settings = {
+        home_name: document.getElementById('home-name').value.trim(),
         turn_on_transition: parseFloat(document.getElementById('turn-on-transition').value) || 3,
         turn_off_transition: parseFloat(document.getElementById('turn-off-transition').value) || 3,
         two_step_delay: parseFloat(document.getElementById('two-step-delay').value) || 3,
@@ -776,6 +794,7 @@
     }
 
     // Auto-save on blur for number inputs (avoids decrement bug on focus)
+    document.getElementById('home-name').addEventListener('blur', saveSettings);
     document.getElementById('turn-on-transition').addEventListener('blur', saveSettings);
     document.getElementById('turn-off-transition').addEventListener('blur', saveSettings);
     document.getElementById('two-step-delay').addEventListener('blur', saveSettings);
