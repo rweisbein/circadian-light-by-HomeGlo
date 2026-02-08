@@ -1331,7 +1331,7 @@
             <button class="toggle-btn" id="toggle-glozone-reset" onclick="executeAction('glozone_reset')" title="Reset GloZone: set GloZone to Daily Rhythm">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
             </button>
-            <button class="toggle-btn" id="toggle-glozone-down" onclick="executeAction('glozone_down')" title="GloZone Down: send GloZone settings to all areas">
+            <button class="toggle-btn" id="toggle-glozone-down" onclick="executeAction('glozone_down')" title="GloZone Down: push zone settings to all areas">
               <svg viewBox="0 0 16 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 5 8 10 13 5"/><polyline points="3 11 8 16 13 11"/></svg>
             </button>
           </div>
@@ -2940,7 +2940,7 @@
               ${zoneLightingInfo}
               <div class="row-controls">
                 <button class="row-btn" onclick="event.stopPropagation(); glozoneReset('${escapedZoneName}')" title="Reset GloZone: set GloZone to Daily Rhythm settings">${glozoneResetIcon}</button>
-                <button class="row-btn" onclick="event.stopPropagation(); glozoneDown('${escapedZoneName}')" title="GloZone Down: send GloZone settings to all areas">${glozoneDownIcon}</button>
+                <button class="row-btn" onclick="event.stopPropagation(); glozoneDown('${escapedZoneName}')" title="GloZone Down: push zone settings to all areas">${glozoneDownIcon}</button>
               </div>
             </div>
             <div class="zone-content ${isCollapsed ? 'hidden' : ''}" data-zone-table="${zoneName}">
