@@ -808,6 +808,12 @@
     /* Zone group headers */
     .zone-group {
       margin-bottom: 16px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .zone-group:has(.zone-rhythm-dropdown.visible) {
+      z-index: 10;
     }
 
     .zone-group:last-child {
@@ -1164,6 +1170,9 @@
     }
     .edit-icon-btn:hover { background: rgba(255,255,255,0.1); color: var(--text); border-color: var(--accent); }
     .edit-icon-btn.danger:hover { color: var(--danger); border-color: var(--danger); }
+    .edit-icon-btn.default-star { font-size: 1rem; border: none; background: none; width: auto; height: auto; color: var(--muted2); }
+    .edit-icon-btn.default-star.active { color: var(--accent); }
+    .edit-icon-btn.default-star:hover { color: var(--accent); }
 
     .edit-rename-input {
       font-weight: 700;
@@ -2408,9 +2417,16 @@
       // Count areas in this zone
       const zoneData = cachedGlozones?.zones?.[zoneName];
       const areaCount = zoneData?.areas?.length || 0;
-      const msg = areaCount > 0
-        ? `Move ${areaCount} area(s) to the default zone and delete "${zoneName}"?`
-        : `Delete "${zoneName}"?`;
+      let msg;
+      if (areaCount > 0) {
+        // Find the default zone (where areas will be moved)
+        const defaultZone = Object.entries(cachedGlozones?.zones || {})
+          .find(([zn, zc]) => zc.is_default && zn !== zoneName)?.[0]
+          || Object.keys(cachedGlozones?.zones || {}).find(zn => zn !== zoneName);
+        msg = `Move ${areaCount} area(s) to "${defaultZone}" and delete "${zoneName}"?`;
+      } else {
+        msg = `Delete "${zoneName}"?`;
+      }
       if (!confirm(msg)) return;
 
       try {
@@ -2436,6 +2452,21 @@
         }
       } catch (err) {
         console.error('Error deleting zone:', err);
+      }
+    }
+
+    async function setDefaultZone(zoneName) {
+      try {
+        await fetch(`./api/glozones/${encodeURIComponent(zoneName)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ is_default: true })
+        });
+        const gzRes = await fetch('./api/glozones');
+        if (gzRes.ok) cachedGlozones = await gzRes.json();
+        renderAreas();
+      } catch (err) {
+        console.error('Error setting default zone:', err);
       }
     }
 
@@ -2807,6 +2838,7 @@
                 </div>
                 <span class="edit-zone-name" data-edit-zone-name="${zoneName}" onclick="event.stopPropagation(); toggleZone('${escapedZoneName}', this)">${zoneName}</span>
                 <span style="font-size: 0.8rem; color: var(--muted);">(${areasInZone.length})</span>
+                <button class="edit-icon-btn default-star ${cachedGlozones?.zones?.[zoneName]?.is_default ? 'active' : ''}" onclick="event.stopPropagation(); setDefaultZone('${escapedZoneName}')" title="Default zone">&#9733;</button>
                 <div class="edit-zone-actions">
                   <button class="edit-icon-btn" onclick="event.stopPropagation(); startRenameZone('${escapedZoneName}')" title="Rename">&#9998;</button>
                   <button class="edit-icon-btn danger" onclick="event.stopPropagation(); deleteZoneFromEdit('${escapedZoneName}')" title="Delete">&#128465;</button>
