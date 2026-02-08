@@ -1173,7 +1173,7 @@ input[type=range]::-moz-range-thumb {
 
 <div class="container">
   <div class="page-header">
-    <a id="back-btn" href="./rhythm" style="color:var(--muted);text-decoration:none;font-size:1rem;line-height:1;margin-right:2px;" title="Back">&larr;</a>
+    <span style="color: var(--muted); font-size: 1.1rem; font-weight: 500; margin-right: 2px;">Design:</span>
     <input type="text" class="rhythm-name-input" id="rhythm-name" value="Daily Rhythm 1" placeholder="Rhythm name">
     <div class="header-actions">
       <button class="header-link header-link-cancel" id="cancel-btn">Cancel</button>
@@ -4972,14 +4972,13 @@ async function saveRhythmSettings() {
         const basePath = window.location.pathname.replace(/\/rhythm\/[^/]+\/?$/, '');
         window.history.replaceState(null, '', basePath + '/rhythm/' + encodeURIComponent(newName) + window.location.search);
       }
-      // Subtle feedback: briefly change button text, then fade back
+      // Brief feedback then navigate back
       if (saveBtn) {
         saveBtn.textContent = 'Saved';
         saveBtn.classList.add('saved');
-        setTimeout(() => {
-          saveBtn.classList.remove('saved');
-          setTimeout(() => { saveBtn.textContent = 'Save'; }, 600);
-        }, 1200);
+      }
+      if (typeof _saveCallback === 'function') {
+        setTimeout(_saveCallback, 600);
       }
     } else {
       const data = await response.json();
@@ -4995,19 +4994,23 @@ async function saveRhythmSettings() {
 /**
  * Setup save and cancel buttons
  */
+let _saveCallback = null;
+
 function setupSaveButton() {
-  document.getElementById('save-config')?.addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopImmediatePropagation();
-    saveRhythmSettings();
-  });
   // Back navigation: ?back=home means we came from the areas/home page
   const path = window.location.pathname;
   const base = path.replace(/\/rhythm\/[^/]*\/?$/, '').replace(/\/rhythm\/?$/, '');
   const fromHome = new URLSearchParams(window.location.search).get('back') === 'home';
   const backUrl = fromHome ? (base || '.') + '/' : (base || '.') + '/rhythm';
   function goBack() { window.location.href = backUrl; }
-  document.getElementById('back-btn').addEventListener('click', (e) => { e.preventDefault(); goBack(); });
+
+  _saveCallback = goBack;
+
+  document.getElementById('save-config')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    saveRhythmSettings();
+  });
   document.getElementById('cancel-btn')?.addEventListener('click', goBack);
 }
 
