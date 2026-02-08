@@ -1985,13 +1985,11 @@
       function styleBtn(btn, targetBri, targetColor, mode) {
         if (!btn) return;
 
-        // Brightness fill (for brightness and combo modes)
+        // Brightness glow (for brightness and combo modes)
         if ((mode === 'brightness' || mode === 'combo') && Number.isFinite(targetBri)) {
           const frac = Math.max(0, Math.min(1, targetBri / 100));
-          btn.style.setProperty('--btn-fill', frac.toFixed(3));
-          btn.style.setProperty('--btn-fill-opacity', frac > 0 ? '0.55' : '0');
+          btn.style.setProperty('--btn-fill-opacity', frac.toFixed(3));
         } else {
-          btn.style.removeProperty('--btn-fill');
           btn.style.removeProperty('--btn-fill-opacity');
         }
 
