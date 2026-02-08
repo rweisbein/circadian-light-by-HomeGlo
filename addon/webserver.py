@@ -3365,6 +3365,18 @@ class LightDesignerServer:
             del moments[moment_id]
             await self.save_config_to_file(config)
 
+            # Clean up magic button references in all switches
+            action_ref = f"set_{moment_id}"
+            cleaned = 0
+            for sw in switches.get_all_switches().values():
+                orphaned_keys = [k for k, v in sw.magic_buttons.items() if v == action_ref]
+                for k in orphaned_keys:
+                    del sw.magic_buttons[k]
+                    cleaned += 1
+            if cleaned:
+                switches._save()
+                logger.info(f"Removed {cleaned} magic button reference(s) to deleted moment '{moment_id}'")
+
             logger.info(f"Deleted moment: {moment_id}")
             return web.json_response({"status": "deleted", "id": moment_id})
         except Exception as e:
