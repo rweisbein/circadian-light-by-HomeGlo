@@ -1993,10 +1993,10 @@
           btn.style.removeProperty('--btn-fill-opacity');
         }
 
-        // Color background (for color and combo modes)
-        if ((mode === 'color' || mode === 'combo') && Number.isFinite(targetColor)) {
+        // Color background
+        if (Number.isFinite(targetColor)) {
           let color = cctToRGB(targetColor);
-          if (mode === 'combo' && Number.isFinite(targetBri)) {
+          if (Number.isFinite(targetBri)) {
             color = tintColorByBrightness(color, targetBri);
           }
           btn.style.setProperty('--btn-bg', color);
@@ -2018,8 +2018,8 @@
       // Style buttons
       styleBtn(stepUp, stepUpBri, stepUpCCT, 'combo');
       styleBtn(stepDown, stepDownBri, stepDownCCT, 'combo');
-      styleBtn(brightUp, briUpVal, null, 'brightness');
-      styleBtn(brightDown, briDownVal, null, 'brightness');
+      styleBtn(brightUp, briUpVal, currentCCT, 'brightness');
+      styleBtn(brightDown, briDownVal, currentCCT, 'brightness');
       styleBtn(colorUp, null, colorUpVal, 'color');
       styleBtn(colorDown, null, colorDownVal, 'color');
     }

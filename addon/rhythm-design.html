@@ -3018,10 +3018,10 @@ function updateCursorButtons(point) {
       btn.style.removeProperty('--btn-fill-opacity');
     }
 
-    // Color background (for color and combo modes)
-    if ((mode === 'color' || mode === 'combo') && Number.isFinite(targetColor)) {
+    // Color background
+    if (Number.isFinite(targetColor)) {
       let color = cctToRGB(targetColor);
-      if (mode === 'combo' && Number.isFinite(targetBri)) {
+      if (Number.isFinite(targetBri)) {
         color = tintColorByBrightness(color, targetBri);
       }
       btn.style.setProperty('--btn-bg', color);
@@ -3033,8 +3033,8 @@ function updateCursorButtons(point) {
   };
 
   // Style buttons with preview values
-  styleBtn(brightUp, briPreview.up.value, null, 'brightness');
-  styleBtn(brightDown, briPreview.down.value, null, 'brightness');
+  styleBtn(brightUp, briPreview.up.value, currentCCT, 'brightness');
+  styleBtn(brightDown, briPreview.down.value, currentCCT, 'brightness');
   styleBtn(colorUp, null, colorPreview.up.value, 'color');
   styleBtn(colorDown, null, colorPreview.down.value, 'color');
   styleBtn(stepUp, stepPreview.upBri, stepPreview.upCCT, 'combo');
