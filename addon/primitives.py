@@ -696,8 +696,10 @@ class CircadianLightPrimitives:
 
         # Apply to lights only if is_on=True
         if area_state.is_on:
-            await self._apply_color_only(area_id, result.color_temp)
-            logger.info(f"Color up applied: {result.color_temp}K")
+            # Calculate current brightness to include in command (needed for CT compensation)
+            current_bri = CircadianLight.calculate_brightness_at_hour(hour, config, area_state)
+            await self._apply_lighting(area_id, current_bri, result.color_temp)
+            logger.info(f"Color up applied: {result.color_temp}K, {current_bri}%")
         else:
             logger.info(f"Color up state updated (lights off): {result.color_temp}K")
 
@@ -764,8 +766,10 @@ class CircadianLightPrimitives:
 
         # Apply to lights only if is_on=True
         if area_state.is_on:
-            await self._apply_color_only(area_id, result.color_temp)
-            logger.info(f"Color down applied: {result.color_temp}K")
+            # Calculate current brightness to include in command (needed for CT compensation)
+            current_bri = CircadianLight.calculate_brightness_at_hour(hour, config, area_state)
+            await self._apply_lighting(area_id, current_bri, result.color_temp)
+            logger.info(f"Color down applied: {result.color_temp}K, {current_bri}%")
         else:
             logger.info(f"Color down state updated (lights off): {result.color_temp}K")
 

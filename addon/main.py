@@ -2024,14 +2024,6 @@ class HomeAssistantWebSocketClient:
         if xy is None and kelvin is not None and include_color:
             xy = CircadianLight.color_temperature_to_xy(kelvin)
 
-        # If brightness not provided, get it from area state (for color-only operations)
-        # This ensures CT compensation can be applied even for color_up/color_down
-        if brightness is None:
-            area_state = state.get_area(area_id)
-            brightness = area_state.get("brightness_mid")
-            if brightness is not None:
-                logger.debug(f"Color-only operation: using brightness {brightness}% from state")
-
         # Apply CT brightness compensation (for warm color temps on Hue bulbs)
         if brightness is not None and kelvin is not None:
             original_brightness = brightness
