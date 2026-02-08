@@ -308,10 +308,10 @@
   <main class="main">
     <div class="page-header">
       <div style="display: flex; align-items: center; justify-content: flex-end; gap: 16px;">
-        <button class="header-link header-link-add" onclick="addRhythm()">Add</button>
         <div class="toolbar-menu">
           <button class="toolbar-menu-btn" onclick="toggleToolbarMenu(event)">&#8942;</button>
           <div class="toolbar-menu-dropdown" id="toolbar-menu-dropdown">
+            <a href="#" class="toolbar-menu-item" onclick="addRhythm(); toggleToolbarMenu(event); return false;">Add Rhythm</a>
             <a href="#" class="toolbar-menu-item" onclick="loadData(); toggleToolbarMenu(event); return false;">Refresh</a>
           </div>
         </div>
@@ -459,10 +459,10 @@
           <thead>
             <tr>
               <th class="${thClass('name')}" onclick="setSort('name')">${arrow('name')}Name</th>
-              <th class="${thClass('sleep')}" onclick="setSort('sleep')">${arrow('sleep')}Sleep Pattern</th>
-              <th class="${thClass('bed')}" onclick="setSort('bed')">${arrow('bed')}Bed</th>
-              <th class="${thClass('wake')}" onclick="setSort('wake')">${arrow('wake')}Wake</th>
               <th class="${thClass('zones')}" onclick="setSort('zones')">${arrow('zones')}Glo Zones</th>
+              <th class="${thClass('sleep')}" onclick="setSort('sleep')">${arrow('sleep')}Sleep Pattern</th>
+              <th class="${thClass('wake')}" onclick="setSort('wake')">${arrow('wake')}Wake</th>
+              <th class="${thClass('bed')}" onclick="setSort('bed')">${arrow('bed')}Bed</th>
               <th style="width: 40px; cursor: default;"></th>
             </tr>
           </thead>
@@ -478,10 +478,10 @@
         html += `
           <tr class="data-row" onclick="navigateToRhythm('${name.replace(/'/g, "\\'")}')">
             <td><span class="rhythm-name-text">${escapeHtml(name)}</span></td>
-            <td>${escapeHtml(sleepLabel)}</td>
-            <td>${bed}</td>
-            <td>${wake}</td>
             <td class="zones-cell">${zones ? escapeHtml(zones) : '<span style="color: var(--muted2);">--</span>'}</td>
+            <td>${escapeHtml(sleepLabel)}</td>
+            <td>${wake}</td>
+            <td>${bed}</td>
             <td>
               <button class="row-delete-btn" title="Delete rhythm" onclick="event.stopPropagation(); deleteRhythm('${name.replace(/'/g, "\\'")}')">&#x2715;</button>
             </td>

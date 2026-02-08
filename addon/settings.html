@@ -681,7 +681,7 @@
         const response = await fetch('./api/config');
         if (response.ok) {
           const config = await response.json();
-          document.getElementById('home-name').value = config.home_name ?? '';
+          document.getElementById('home-name').value = config.home_name ?? 'Your home';
           document.getElementById('turn-on-transition').value = config.turn_on_transition ?? 3;
           document.getElementById('turn-off-transition').value = config.turn_off_transition ?? 3;
           document.getElementById('two-step-delay').value = config.two_step_delay ?? 3;

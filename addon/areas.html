@@ -911,7 +911,6 @@
       border: 1px solid var(--line);
       border-top: none;
       border-radius: 0 0 8px 8px;
-      overflow: hidden;
     }
 
     .zone-content.hidden {
@@ -1018,7 +1017,7 @@
     a.zone-rhythm-dropdown-item {
       display: block;
       text-decoration: none;
-      color: var(--muted);
+      color: var(--text);
     }
 
     /* Red dot: area doesn't match zone */
@@ -1212,7 +1211,6 @@
       font-size: 1.1rem;
       font-weight: 500;
       color: var(--muted);
-      margin-bottom: 8px;
     }
 
     .drag-handle { color: var(--muted2); font-size: 1.1rem; cursor: grab; user-select: none; }
@@ -2735,7 +2733,7 @@
       const glozoneDownIcon = `<svg viewBox="0 0 16 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:14px;"><polyline points="3 5 8 10 13 5"/><polyline points="3 11 8 16 13 11"/></svg>`;
 
       // Build toolbar HTML
-      const homeName = cachedConfig?.home_name || '';
+      const homeName = cachedConfig?.home_name || 'Your home';
       let html;
       if (editMode) {
         html = `
@@ -2747,13 +2745,10 @@
           </div>
         `;
       } else {
-        html = '';
-        if (homeName) {
-          html += `<div class="home-name-heading">${homeName}</div>`;
-        }
-        html += `
+        html = `
           <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-            <div class="view-links">
+            <span class="home-name-heading">${homeName || ''}</span>
+            <div class="view-links" style="margin-left: 8px;">
               <button class="view-link ${viewMode === 'onoff' ? 'active' : ''}" data-view="onoff">on/off</button>
               <span class="view-sep">·</span>
               <button class="view-link ${viewMode === 'custom' ? 'active' : ''}" data-view="custom">your order</button>
@@ -2761,7 +2756,7 @@
               <button class="view-link ${viewMode === 'alpha' ? 'active' : ''}" data-view="alpha">a–z</button>
             </div>
             <span style="flex: 1;"></span>
-            <div class="toolbar-menu">
+            <div class="toolbar-menu" style="padding-left: 8px;">
               <button class="toolbar-menu-btn" onclick="toggleToolbarMenu(event)">⋮</button>
               <div class="toolbar-menu-dropdown" id="toolbar-menu-dropdown">
                 <a href="#" class="toolbar-menu-item" id="organize-link">Organize</a>
@@ -2853,7 +2848,7 @@
           if (zs.rhythm) {
             const rhythmNames = Object.keys(cachedRhythms).filter(p => p !== zs.rhythm);
             const dropdownItems =
-              `<a href="./rhythm/${encodeURIComponent(zs.rhythm)}?back=home" class="zone-rhythm-dropdown-item" onclick="event.stopPropagation();">Edit ${zs.rhythm}</a>` +
+              `<a href="./rhythm/${encodeURIComponent(zs.rhythm)}?back=home" class="zone-rhythm-dropdown-item" onclick="event.stopPropagation();"><span style="color: var(--muted);">Edit</span> ${zs.rhythm}</a>` +
               rhythmNames.map(p =>
                 `<div class="zone-rhythm-dropdown-item" data-zone="${zoneName}" data-rhythm="${p}" onclick="selectRhythm(this)">${p}</div>`
               ).join('') +
