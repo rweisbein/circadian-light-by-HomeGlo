@@ -2211,6 +2211,7 @@
       if (header && table) {
         header.classList.toggle('collapsed', isCollapsed);
         table.classList.toggle('hidden', isCollapsed);
+        setZoneCollapsed(zoneName, isCollapsed);
       }
     }
 
@@ -2771,7 +2772,6 @@
           <div class="edit-toolbar">
             <span style="font-size: 1rem; font-weight: 600; color: var(--text);">Organize${homeName ? ': ' + homeName : ''}</span>
             <span style="flex: 1;"></span>
-            <a href="#" class="edit-toolbar-link" onclick="event.preventDefault(); exitEditMode()">Cancel</a>
             <a href="#" class="edit-toolbar-link" onclick="event.preventDefault(); exitEditMode()" style="color: var(--accent); font-weight: 600;">Done</a>
           </div>
         `;
@@ -2837,7 +2837,6 @@
                   <button class="edit-zone-arrow" ${downDisabled} onclick="event.stopPropagation(); moveZone('${escapedZoneName}', 1)" title="Move down">&#9660;</button>
                 </div>
                 <span class="edit-zone-name" data-edit-zone-name="${zoneName}" onclick="event.stopPropagation(); toggleZone('${escapedZoneName}', this)">${zoneName}</span>
-                <span style="font-size: 0.8rem; color: var(--muted);">(${areasInZone.length})</span>
                 <button class="edit-icon-btn default-star ${cachedGlozones?.zones?.[zoneName]?.is_default ? 'active' : ''}" onclick="event.stopPropagation(); setDefaultZone('${escapedZoneName}')" title="Default zone">&#9733;</button>
                 <div class="edit-zone-actions">
                   <button class="edit-icon-btn" onclick="event.stopPropagation(); startRenameZone('${escapedZoneName}')" title="Rename">&#9998;</button>
