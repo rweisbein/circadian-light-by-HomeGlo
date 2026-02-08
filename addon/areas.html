@@ -355,10 +355,8 @@
       content: '';
       position: absolute;
       inset: 0;
-      background: linear-gradient(90deg, rgba(255,255,255,0.03), rgba(255,255,255,0.5));
-      opacity: 0.6;
-      transform-origin: left center;
-      transform: scaleX(var(--state-fill));
+      background: rgba(255,255,255,0.12);
+      opacity: var(--state-fill);
       pointer-events: none;
     }
 
@@ -677,11 +675,9 @@
       position: absolute;
       inset: 2px;
       border-radius: 999px;
-      background: linear-gradient(90deg, rgba(255,255,255,0.05), rgba(255,255,255,0.95));
+      background: rgba(255,255,255,0.18);
       opacity: var(--btn-fill-opacity);
-      transform-origin: left center;
-      transform: scaleX(var(--btn-fill));
-      transition: transform 0.2s ease, opacity 0.2s ease;
+      transition: opacity 0.2s ease;
       pointer-events: none;
     }
     .adjust-btn .btn-arrow {
@@ -730,15 +726,13 @@
       background: color-mix(in srgb, var(--row-bg), white 3%);
     }
 
-    /* Fill overlay - identical to modal header ::before */
+    /* Uniform glow overlay */
     .area-row::before {
       content: '';
       position: absolute;
       inset: 0;
-      background: linear-gradient(90deg, rgba(255,255,255,0.03), rgba(255,255,255,0.5));
-      opacity: 0.6;
-      transform-origin: left center;
-      transform: scaleX(var(--row-fill));
+      background: rgba(255,255,255,0.12);
+      opacity: var(--row-fill);
       pointer-events: none;
     }
 
@@ -848,13 +842,10 @@
       content: '';
       position: absolute;
       inset: 0;
-      background: linear-gradient(90deg, rgba(255,255,255,0.03), rgba(255,255,255,0.5));
-      opacity: 0.6;
-      transform-origin: left center;
-      transform: scaleX(var(--header-fill, 0));
+      background: rgba(255,255,255,0.12);
+      opacity: var(--header-fill, 0);
       pointer-events: none;
       border-radius: 8px 8px 0 0;
-      overflow: hidden;
     }
 
     .zone-header > * {
@@ -947,13 +938,10 @@
       content: '';
       position: absolute;
       inset: 0;
-      background: linear-gradient(90deg, rgba(255,255,255,0.03), rgba(255,255,255,0.5));
-      opacity: 0.6;
-      transform-origin: left center;
-      transform: scaleX(var(--pill-fill, 0));
+      background: rgba(255,255,255,0.12);
+      opacity: var(--pill-fill, 0);
       pointer-events: none;
       border-radius: 6px;
-      overflow: hidden;
     }
 
     .zone-rhythm-pill-tinted > * {
@@ -1296,7 +1284,7 @@
 
       <div class="modal-context-info" id="modal-context-info">
         <div class="context-line"><span class="context-label">Glo zone:</span> <span id="modal-zone-link">—</span></div>
-        <div class="context-line" id="modal-rhythm-line" style="display:none;"><span class="context-label">Rhythm:</span> <span class="context-link" id="modal-rhythm-link">—</span></div>
+        <div class="context-line" id="modal-rhythm-line" style="display:none;"><span class="context-label">Daily Rhythm:</span> <span class="context-link" id="modal-rhythm-link">—</span></div>
       </div>
 
       <div class="area-state" id="modal-area-state">
@@ -1860,10 +1848,10 @@
         });
       }
 
-      // "Now" cursor vertical line (prominent, with gap around marker)
-      const now = new Date();
-      const nowHour = now.getHours() + now.getMinutes() / 60;
-      const nowLineStyle = { color: '#fdfdfd', width: 2, dash: 'dot' };
+      // Cursor vertical line: follows frozen position when frozen, otherwise "now"
+      const isFrozen = state && state.frozen_at != null;
+      const cursorHour = currentHour;
+      const cursorLineStyle = { color: '#fdfdfd', width: 2, dash: 'dot' };
       const gap = 5;  // Gap around marker in y-units
       const lowerEnd = Math.max(0, markerBri - gap);
       const upperStart = Math.min(110, markerBri + gap);
@@ -1871,28 +1859,30 @@
       // Lower segment (0 to just below marker)
       shapes.push({
         type: 'line', xref: 'x', yref: 'y',
-        x0: nowHour, x1: nowHour, y0: 0, y1: lowerEnd,
-        line: nowLineStyle, layer: 'above'
+        x0: cursorHour, x1: cursorHour, y0: 0, y1: lowerEnd,
+        line: cursorLineStyle, layer: 'above'
       });
       // Upper segment (just above marker to top)
       shapes.push({
         type: 'line', xref: 'x', yref: 'y',
-        x0: nowHour, x1: nowHour, y0: upperStart, y1: 110,
-        line: nowLineStyle, layer: 'above'
+        x0: cursorHour, x1: cursorHour, y0: upperStart, y1: 110,
+        line: cursorLineStyle, layer: 'above'
       });
       // Line from x-axis down to above label (stops before text)
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
-        x0: nowHour, x1: nowHour, y0: -0.42, y1: 0,
-        line: nowLineStyle, layer: 'above'
+        x0: cursorHour, x1: cursorHour, y0: -0.42, y1: 0,
+        line: cursorLineStyle, layer: 'above'
       });
 
-      // Layer 3 (lowest): "Now" label with time
-      const nowTimeStr = formatHourLabel(nowHour);
+      // Cursor label: "frozen" with time when frozen, "now" with time otherwise
+      const cursorTimeStr = formatHourLabel(cursorHour);
+      const cursorLabel = isFrozen ? 'frozen' : 'now';
+      const cursorColor = isFrozen ? '#63b3ed' : '#fdfdfd';
       annotations.push({
-        x: nowHour, y: -0.48, xref: 'x', yref: 'paper',
-        text: `now<br>${nowTimeStr}`, showarrow: false,
-        font: { size: 10, color: '#fdfdfd' },
+        x: cursorHour, y: -0.48, xref: 'x', yref: 'paper',
+        text: `${cursorLabel}<br>${cursorTimeStr}`, showarrow: false,
+        font: { size: 10, color: cursorColor },
         align: 'center'
       });
 
