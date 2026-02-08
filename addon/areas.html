@@ -627,28 +627,10 @@
     .adjust-section {
       margin-bottom: 16px;
     }
-    .adjust-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
-    }
-    .adjust-stack {
+    .adjust-row {
       display: flex;
-      flex-direction: column;
       align-items: center;
-      gap: 6px;
-    }
-    .adjust-stack-label {
-      font-size: 0.75rem;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    .adjust-btn-col {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      width: 100%;
+      gap: 10px;
     }
     .adjust-btn {
       --btn-bg: rgba(255,255,255,0.06);
@@ -669,6 +651,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      flex: 1;
     }
     .adjust-btn::after {
       content: '';
@@ -692,6 +675,31 @@
     .adjust-btn:disabled {
       opacity: 0.4;
       cursor: not-allowed;
+    }
+    .adjust-mode-selector {
+      display: flex;
+      gap: 4px;
+      flex-direction: column;
+    }
+    .adjust-mode-btn {
+      background: none;
+      border: 1px solid rgba(255,255,255,0.15);
+      color: var(--muted);
+      font-size: 0.7rem;
+      padding: 4px 10px;
+      border-radius: 999px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+    .adjust-mode-btn.active {
+      background: rgba(255,255,255,0.1);
+      border-color: var(--accent);
+      color: var(--text);
+    }
+    .adjust-mode-btn:hover:not(.active) {
+      border-color: rgba(255,255,255,0.35);
+      color: var(--text);
     }
 
     /* Mini chart container */
@@ -1351,28 +1359,14 @@
       <div id="modal-mini-chart"></div>
 
       <div class="adjust-section">
-        <div class="adjust-grid">
-          <div class="adjust-stack">
-            <span class="adjust-stack-label">Step</span>
-            <div class="adjust-btn-col">
-              <button class="adjust-btn" id="btn-step-up" onclick="executeAction('step_up')"><span class="btn-arrow">&#9650;</span></button>
-              <button class="adjust-btn" id="btn-step-down" onclick="executeAction('step_down')"><span class="btn-arrow">&#9660;</span></button>
-            </div>
+        <div class="adjust-row">
+          <button class="adjust-btn" id="btn-up" onclick="doAdjust('up')"><span class="btn-arrow">&#9650;</span></button>
+          <div class="adjust-mode-selector">
+            <button class="adjust-mode-btn active" data-mode="step" onclick="setAdjustMode('step')">Step</button>
+            <button class="adjust-mode-btn" data-mode="brightness" onclick="setAdjustMode('brightness')">Bright</button>
+            <button class="adjust-mode-btn" data-mode="color" onclick="setAdjustMode('color')">Color</button>
           </div>
-          <div class="adjust-stack">
-            <span class="adjust-stack-label">Brightness</span>
-            <div class="adjust-btn-col">
-              <button class="adjust-btn" id="btn-bright-up" onclick="executeAction('bright_up')"><span class="btn-arrow">&#9650;</span></button>
-              <button class="adjust-btn" id="btn-bright-down" onclick="executeAction('bright_down')"><span class="btn-arrow">&#9660;</span></button>
-            </div>
-          </div>
-          <div class="adjust-stack">
-            <span class="adjust-stack-label">Color</span>
-            <div class="adjust-btn-col">
-              <button class="adjust-btn" id="btn-color-up" onclick="executeAction('color_up')"><span class="btn-arrow">&#9650;</span></button>
-              <button class="adjust-btn" id="btn-color-down" onclick="executeAction('color_down')"><span class="btn-arrow">&#9660;</span></button>
-            </div>
-          </div>
+          <button class="adjust-btn" id="btn-down" onclick="doAdjust('down')"><span class="btn-arrow">&#9660;</span></button>
         </div>
       </div>
 
@@ -1397,6 +1391,7 @@
     let cachedSunTimes = null; // { sunrise, sunset, solarNoon, solarMid } in local hours
     let editMode = false;
     let cachedGlozones = null; // raw glozone data for edit mode ordering
+    let adjustMode = 'step'; // 'step', 'brightness', 'color'
     let modalTickInterval = null;   // 1s local countdown tick
     let modalRefreshInterval = null; // 1s modal API refresh (single area)
     let homeRefreshTimer = null;     // Home page card refresh timer
@@ -1784,12 +1779,12 @@
 
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
-        x0: wakeTime, x1: wakeTime, y0: -0.18, y1: 1,
+        x0: wakeTime, x1: wakeTime, y0: -0.15, y1: 1,
         line: { color: 'rgba(92, 179, 255, 0.35)', width: 1.5, dash: 'dot' }
       });
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
-        x0: bedTime, x1: bedTime, y0: -0.18, y1: 1,
+        x0: bedTime, x1: bedTime, y0: -0.15, y1: 1,
         line: { color: 'rgba(255, 230, 128, 0.35)', width: 1.5, dash: 'dot' }
       });
 
@@ -1800,28 +1795,28 @@
       if (Number.isFinite(sunrise)) {
         shapes.push({
           type: 'line', xref: 'x', yref: 'paper',
-          x0: sunrise, x1: sunrise, y0: -0.26, y1: 0,
+          x0: sunrise, x1: sunrise, y0: -0.22, y1: 0,
           line: sunTickStyle
         });
       }
       if (Number.isFinite(sunset)) {
         shapes.push({
           type: 'line', xref: 'x', yref: 'paper',
-          x0: sunset, x1: sunset, y0: -0.26, y1: 0,
+          x0: sunset, x1: sunset, y0: -0.22, y1: 0,
           line: sunTickStyle
         });
       }
 
       // Layer 1: Wake/bed labels (below x-axis labels) — hover shows time
       annotations.push({
-        x: wakeTime, y: -0.22, xref: 'x', yref: 'paper',
+        x: wakeTime, y: -0.18, xref: 'x', yref: 'paper',
         text: 'wake', showarrow: false,
         font: { size: 10, color: '#5cb3ff' },
         hovertext: formatHourLabel(wakeTime),
         hoverlabel: { bgcolor: '#7fc7ff', bordercolor: '#7fc7ff', font: { color: '#000', size: 12 } }
       });
       annotations.push({
-        x: bedTime, y: -0.22, xref: 'x', yref: 'paper',
+        x: bedTime, y: -0.18, xref: 'x', yref: 'paper',
         text: 'bed', showarrow: false,
         font: { size: 10, color: '#ffe680' },
         hovertext: formatHourLabel(bedTime),
@@ -1831,7 +1826,7 @@
       // Layer 2: Sunrise/sunset labels (below wake/bed) — hover shows time
       if (Number.isFinite(sunrise)) {
         annotations.push({
-          x: sunrise, y: -0.30, xref: 'x', yref: 'paper',
+          x: sunrise, y: -0.25, xref: 'x', yref: 'paper',
           text: 'sunrise', showarrow: false,
           font: { size: 9, color: 'rgba(215,215,215,0.6)' },
           hovertext: formatHourLabel(sunrise),
@@ -1840,7 +1835,7 @@
       }
       if (Number.isFinite(sunset)) {
         annotations.push({
-          x: sunset, y: -0.30, xref: 'x', yref: 'paper',
+          x: sunset, y: -0.25, xref: 'x', yref: 'paper',
           text: 'sunset', showarrow: false,
           font: { size: 9, color: 'rgba(215,215,215,0.6)' },
           hovertext: formatHourLabel(sunset),
@@ -1871,7 +1866,7 @@
       // Line from x-axis down to above label (stops before text)
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
-        x0: cursorHour, x1: cursorHour, y0: -0.32, y1: 0,
+        x0: cursorHour, x1: cursorHour, y0: -0.26, y1: 0,
         line: cursorLineStyle, layer: 'above'
       });
 
@@ -1880,7 +1875,7 @@
       const cursorLabel = isFrozen ? 'frozen' : 'now';
       const cursorColor = isFrozen ? '#63b3ed' : '#fdfdfd';
       annotations.push({
-        x: cursorHour, y: -0.48, xref: 'x', yref: 'paper',
+        x: cursorHour, y: -0.38, xref: 'x', yref: 'paper',
         text: `${cursorLabel}<br>${cursorTimeStr}`, showarrow: false,
         font: { size: 10, color: cursorColor },
         align: 'center'
@@ -1889,7 +1884,7 @@
       const layout = {
         paper_bgcolor: '#0a0a0a',
         plot_bgcolor: '#0a0a0a',
-        margin: { t: 24, r: 12, l: 36, b: 115 },
+        margin: { t: 24, r: 12, l: 36, b: 85 },
         hovermode: 'closest',
         xaxis: {
           range: [0, 24],
@@ -2007,21 +2002,20 @@
         }
       }
 
-      // Get button elements
-      const stepUp = document.getElementById('btn-step-up');
-      const stepDown = document.getElementById('btn-step-down');
-      const brightUp = document.getElementById('btn-bright-up');
-      const brightDown = document.getElementById('btn-bright-down');
-      const colorUp = document.getElementById('btn-color-up');
-      const colorDown = document.getElementById('btn-color-down');
+      // Style the single up/down buttons based on current adjust mode
+      const btnUp = document.getElementById('btn-up');
+      const btnDown = document.getElementById('btn-down');
 
-      // Style buttons
-      styleBtn(stepUp, stepUpBri, stepUpCCT, 'combo');
-      styleBtn(stepDown, stepDownBri, stepDownCCT, 'combo');
-      styleBtn(brightUp, briUpVal, currentCCT, 'brightness');
-      styleBtn(brightDown, briDownVal, currentCCT, 'brightness');
-      styleBtn(colorUp, null, colorUpVal, 'color');
-      styleBtn(colorDown, null, colorDownVal, 'color');
+      if (adjustMode === 'step') {
+        styleBtn(btnUp, stepUpBri, stepUpCCT, 'combo');
+        styleBtn(btnDown, stepDownBri, stepDownCCT, 'combo');
+      } else if (adjustMode === 'brightness') {
+        styleBtn(btnUp, briUpVal, currentCCT, 'brightness');
+        styleBtn(btnDown, briDownVal, currentCCT, 'brightness');
+      } else {
+        styleBtn(btnUp, null, colorUpVal, 'color');
+        styleBtn(btnDown, null, colorDownVal, 'color');
+      }
     }
 
     // ============================================================
@@ -3771,6 +3765,23 @@
       // Toggle based on current state
       const action = selectedArea.is_circadian ? 'circadian_off' : 'circadian_on';
       executeAction(action);
+    }
+
+    function setAdjustMode(mode) {
+      adjustMode = mode;
+      document.querySelectorAll('.adjust-mode-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.mode === mode);
+      });
+      updateModalButtonPreviews();
+    }
+
+    function doAdjust(dir) {
+      const actionMap = {
+        step:       { up: 'step_up',   down: 'step_down' },
+        brightness: { up: 'bright_up', down: 'bright_down' },
+        color:      { up: 'color_up',  down: 'color_down' }
+      };
+      executeAction(actionMap[adjustMode][dir]);
     }
 
     async function executeAction(action) {
