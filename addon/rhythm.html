@@ -161,6 +161,12 @@
       font-weight: 500;
     }
 
+    .zones-cell {
+      font-size: 0.85rem;
+      color: var(--muted);
+      max-width: 200px;
+    }
+
     /* Empty State */
     .empty-state {
       text-align: center;
@@ -322,6 +328,7 @@
   <script>
     // State
     let rhythms = {};
+    let glozones = {};
     let sortColumn = 'name';
     let sortAsc = true;
 
@@ -344,6 +351,14 @@
       return `${h12}:${String(m).padStart(2, '0')}${ampm}`;
     }
 
+    function getZonesForRhythm(rhythmName) {
+      const matching = Object.entries(glozones)
+        .filter(([_, z]) => z.rhythm === rhythmName)
+        .map(([name]) => name)
+        .sort();
+      return matching.join(', ');
+    }
+
     // Initialize
     document.addEventListener('DOMContentLoaded', () => {
       loadData();
@@ -356,11 +371,18 @@
 
       try {
         const cacheBust = `?_t=${Date.now()}`;
-        const res = await fetch(`./api/circadian-rhythms${cacheBust}`);
+        const [res, gzRes] = await Promise.all([
+          fetch(`./api/circadian-rhythms${cacheBust}`),
+          fetch(`./api/glozones${cacheBust}`)
+        ]);
 
         if (res.ok) {
           const data = await res.json();
           rhythms = data.rhythms || {};
+        }
+        if (gzRes.ok) {
+          const gzData = await gzRes.json();
+          glozones = gzData.zones || {};
         }
 
         renderRhythms();
@@ -409,13 +431,9 @@
             valA = rA.wake_time ?? 999;
             valB = rB.wake_time ?? 999;
             break;
-          case 'top':
-            valA = rA.descend_start ?? 999;
-            valB = rB.descend_start ?? 999;
-            break;
-          case 'bottom':
-            valA = rA.ascend_start ?? 999;
-            valB = rB.ascend_start ?? 999;
+          case 'zones':
+            valA = getZonesForRhythm(nameA).toLowerCase();
+            valB = getZonesForRhythm(nameB).toLowerCase();
             break;
           default:
             valA = nameA.toLowerCase();
@@ -444,8 +462,7 @@
               <th class="${thClass('sleep')}" onclick="setSort('sleep')">${arrow('sleep')}Sleep Pattern</th>
               <th class="${thClass('bed')}" onclick="setSort('bed')">${arrow('bed')}Bed</th>
               <th class="${thClass('wake')}" onclick="setSort('wake')">${arrow('wake')}Wake</th>
-              <th class="${thClass('top')}" onclick="setSort('top')">${arrow('top')}Top</th>
-              <th class="${thClass('bottom')}" onclick="setSort('bottom')">${arrow('bottom')}Bottom</th>
+              <th class="${thClass('zones')}" onclick="setSort('zones')">${arrow('zones')}Glo Zones</th>
               <th style="width: 40px; cursor: default;"></th>
             </tr>
           </thead>
@@ -456,8 +473,7 @@
         const sleepLabel = sleepPatternNames[r.activity_preset] || r.activity_preset || '--';
         const bed = r.bed_time != null ? formatTime(r.bed_time) : '--';
         const wake = r.wake_time != null ? formatTime(r.wake_time) : '--';
-        const top = r.descend_start != null ? formatTime(r.descend_start) : '--';
-        const bottom = r.ascend_start != null ? formatTime(r.ascend_start) : '--';
+        const zones = getZonesForRhythm(name);
 
         html += `
           <tr class="data-row" onclick="navigateToRhythm('${name.replace(/'/g, "\\'")}')">
@@ -465,8 +481,7 @@
             <td>${escapeHtml(sleepLabel)}</td>
             <td>${bed}</td>
             <td>${wake}</td>
-            <td>${top}</td>
-            <td>${bottom}</td>
+            <td class="zones-cell">${zones ? escapeHtml(zones) : '<span style="color: var(--muted2);">--</span>'}</td>
             <td>
               <button class="row-delete-btn" title="Delete rhythm" onclick="event.stopPropagation(); deleteRhythm('${name.replace(/'/g, "\\'")}')">&#x2715;</button>
             </td>
