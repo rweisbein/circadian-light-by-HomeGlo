@@ -52,10 +52,19 @@
       color: var(--text);
       margin-right: 32px;
       text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
 
     .nav-brand.active {
       color: var(--accent);
+    }
+
+    .nav-logo {
+      width: 24px;
+      height: 24px;
+      flex-shrink: 0;
     }
 
     .nav-links {
@@ -614,6 +623,7 @@
       color: var(--muted);
       text-transform: uppercase;
       letter-spacing: 0.5px;
+      flex: 1;
     }
 
     .scope-editor-remove {
@@ -628,6 +638,30 @@
     .scope-editor-remove:hover {
       color: var(--danger);
     }
+
+    .scope-editor-arrows {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      margin-right: 8px;
+    }
+    .scope-editor-arrow {
+      width: 20px;
+      height: 14px;
+      border-radius: 3px;
+      border: 1px solid var(--line);
+      background: var(--card);
+      color: var(--muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.55rem;
+      line-height: 1;
+      padding: 0;
+    }
+    .scope-editor-arrow:hover { background: rgba(255,255,255,0.1); color: var(--accent); border-color: var(--accent); }
+    .scope-editor-arrow:disabled { opacity: 0.3; cursor: not-allowed; }
 
     .scope-editor-body {
       /* No padding - parent has it */
@@ -881,11 +915,22 @@
 <body>
   <!-- Navigation -->
   <nav class="nav">
-    <a href="./" class="nav-brand">Circadian Light</a>
+    <a href="./" class="nav-brand">
+      <svg class="nav-logo" viewBox="0 0 40 40" fill="none">
+        <circle cx="20" cy="20" r="19" fill="#555"/>
+        <path d="M20 1 A19 19 0 0 1 20 39 Q20 28 8 20 Q20 12 20 1" fill="#ccc"/>
+        <circle cx="20" cy="12" r="5" fill="#fff"/>
+        <line x1="20" y1="3" x2="20" y2="5" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+        <line x1="27" y1="6" x2="25.5" y2="7.5" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+        <line x1="29" y1="12" x2="27" y2="12" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+        <path d="M16 30 A6 6 0 1 1 24 30 A4.5 4.5 0 1 0 16 30" fill="#fff"/>
+      </svg>
+      Home
+    </a>
     <div class="nav-links">
-      <a href="./rhythm" class="nav-link">Daily Rhythm</a>
       <a href="./switches" class="nav-link active">Controls</a>
-      <a href="./moments" class="nav-link">Moments</a>
+      <a href="./rhythm" class="nav-link">Daily Rhythm</a>
+      <a href="./moments" class="nav-link">Magic Moments</a>
       <a href="./settings" class="nav-link">Settings</a>
     </div>
     <div class="nav-solar" id="nav-solar">
@@ -960,7 +1005,7 @@
         <div class="modal-section" id="magic-section" style="display: none;">
           <div class="scope-editor" style="margin-bottom: 0;">
             <div class="scope-editor-header">
-              <span class="scope-editor-title">Magic Buttons</span>
+              <span class="scope-editor-title"><span style="color: var(--accent); margin-right: 4px;">✦</span>Magic Buttons</span>
             </div>
             <div id="magic-editor"></div>
           </div>
@@ -1394,6 +1439,7 @@
             ` : sorted.map(ctrl => {
               const categoryLabel = formatCategory(ctrl.category);
               const areaName = ctrl.area_name || '—';
+              const glozoneName = getGlozoneForArea(ctrl.area_id);
               const statusBadge = getStatusBadge(ctrl);
               const lastAction = formatLastAction(ctrl);
               const isClickable = ctrl.supported;
@@ -1411,12 +1457,13 @@
               const luxCell = ctrl.illuminance && ctrl.illuminance.value != null
                 ? `${ctrl.illuminance.value}`
                 : '—';
+              const glozoneLabel = glozoneName ? `<div style="font-size: 0.7rem; color: var(--muted); opacity: 0.7; margin-bottom: 1px;">${glozoneName}</div>` : '';
               return `
                 <tr class="${rowClass}" ${rowClick}>
                   <td>${pauseCell}${magicIcon}</td>
                   <td><span class="switch-name-text">${ctrl.name}</span></td>
                   <td>${categoryLabel}</td>
-                  <td>${areaName}</td>
+                  <td>${glozoneLabel}${areaName}</td>
                   <td>${statusBadge}</td>
                   <td>${lastAction}</td>
                   <td>${luxCell}</td>
@@ -1442,6 +1489,16 @@
         const subject = encodeURIComponent(`Circadian Light support request for ${typeName}`);
         return `<a href="mailto:hello@home-glo.com?subject=${subject}" onclick="event.stopPropagation()" style="text-decoration: none;"><span class="status-badge status-unsupported">Request</span></a>`;
       }
+    }
+
+    function getGlozoneForArea(areaId) {
+      if (!areaId) return null;
+      for (const zone of allGlozones) {
+        if (zone.areaIds && zone.areaIds.includes(areaId)) {
+          return zone.name;
+        }
+      }
+      return null;
     }
 
     function formatCategory(category) {
@@ -1926,9 +1983,11 @@
       // Populate device info section
       const typeName = ctrl.type_name || ctrl.type || 'Unknown';
       const locationName = ctrl.area_name || 'Unassigned';
+      const modalGlozone = getGlozoneForArea(ctrl.area_id);
       document.getElementById('device-info').innerHTML = `
         <div style="margin-bottom: 4px;"><strong>Location:</strong> ${locationName}</div>
         <div style="font-size: 0.7rem; color: var(--muted); opacity: 0.6; line-height: 1.5;">
+          ${modalGlozone ? `<div>Zone: ${modalGlozone}</div>` : ''}
           <div>Type: ${typeName}</div>
           ${ctrl.id ? `<div>IEEE: ${ctrl.id}</div>` : ''}
           ${ctrl.device_id ? `<div>ID: ${ctrl.device_id}</div>` : ''}
@@ -2100,9 +2159,18 @@
           `;
         }).join('');
 
+        const showArrows = editingScopes.length > 1;
+        const upDisabled = idx === 0 ? 'disabled' : '';
+        const downDisabled = idx === editingScopes.length - 1 ? 'disabled' : '';
         return `
           <div class="scope-editor" data-scope-idx="${idx}">
             <div class="scope-editor-header">
+              ${showArrows ? `
+                <div class="scope-editor-arrows">
+                  <button class="scope-editor-arrow" ${upDisabled} onclick="swapScope(${idx}, -1)" title="Move up">&#9650;</button>
+                  <button class="scope-editor-arrow" ${downDisabled} onclick="swapScope(${idx}, 1)" title="Move down">&#9660;</button>
+                </div>
+              ` : ''}
               <span class="scope-editor-title">Reach ${idx + 1}</span>
               ${editingScopes.length > 1 ? `<button class="scope-editor-remove" onclick="removeScope(${idx})">remove</button>` : ''}
             </div>
@@ -2127,6 +2195,13 @@
     function removeScope(idx) {
       if (editingScopes.length <= 1) return;
       editingScopes.splice(idx, 1);
+      renderScopesEditor();
+    }
+
+    function swapScope(idx, direction) {
+      const newIdx = idx + direction;
+      if (newIdx < 0 || newIdx >= editingScopes.length) return;
+      [editingScopes[idx], editingScopes[newIdx]] = [editingScopes[newIdx], editingScopes[idx]];
       renderScopesEditor();
     }
 
@@ -2190,9 +2265,19 @@
           `;
         }).join('');
 
+        const showMotionArrows = editingMotionScopes.length > 1;
+        const motionUpDisabled = idx === 0 ? 'disabled' : '';
+        const motionDownDisabled = idx === editingMotionScopes.length - 1 ? 'disabled' : '';
+
         return `
           <div class="scope-editor" data-motion-idx="${idx}">
             <div class="scope-editor-header">
+              ${showMotionArrows ? `
+                <div class="scope-editor-arrows">
+                  <button class="scope-editor-arrow" ${motionUpDisabled} onclick="swapMotionScope(${idx}, -1)" title="Move up">&#9650;</button>
+                  <button class="scope-editor-arrow" ${motionDownDisabled} onclick="swapMotionScope(${idx}, 1)" title="Move down">&#9660;</button>
+                </div>
+              ` : ''}
               <span class="scope-editor-title">Reach ${idx + 1}</span>
               ${editingMotionScopes.length > 1 ? `<button class="scope-editor-remove" onclick="removeMotionScope(${idx})">remove</button>` : ''}
             </div>
@@ -2282,6 +2367,13 @@
     function removeMotionScope(idx) {
       if (editingMotionScopes.length <= 1) return;
       editingMotionScopes.splice(idx, 1);
+      renderMotionScopesEditor();
+    }
+
+    function swapMotionScope(idx, direction) {
+      const newIdx = idx + direction;
+      if (newIdx < 0 || newIdx >= editingMotionScopes.length) return;
+      [editingMotionScopes[idx], editingMotionScopes[newIdx]] = [editingMotionScopes[newIdx], editingMotionScopes[idx]];
       renderMotionScopesEditor();
     }
 
