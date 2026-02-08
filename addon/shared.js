@@ -66,8 +66,7 @@ function colorWithAlpha(rgb, alpha) {
 
 /**
  * Tint/dim a color based on brightness level.
- * At 0% brightness, color is dimmed to 25% intensity.
- * At 100% brightness, color is full intensity.
+ * Blends toward a dark warm tone instead of black to preserve warm hues.
  * @param {string} rgbStr - RGB string like "rgb(255,230,200)"
  * @param {number} brightness - Brightness percentage 0-100
  * @returns {string} Tinted RGB string
@@ -76,8 +75,12 @@ function tintColorByBrightness(rgbStr, brightness) {
   const match = rgbStr.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
   if (!match) return rgbStr;
   const fraction = Math.max(0, Math.min(1, brightness / 100));
-  const dimFactor = 0.25 + 0.75 * fraction;
-  const [r, g, b] = [match[1], match[2], match[3]].map(v => Math.round(Number(v) * dimFactor));
+  const f = 0.25 + 0.75 * fraction;
+  const [sr, sg, sb] = [Number(match[1]), Number(match[2]), Number(match[3])];
+  // Blend toward dark warm brown (40,25,10) instead of black to keep warm hues
+  const r = Math.round(40 * (1 - f) + sr * f);
+  const g = Math.round(25 * (1 - f) + sg * f);
+  const b = Math.round(10 * (1 - f) + sb * f);
   return `rgb(${r},${g},${b})`;
 }
 

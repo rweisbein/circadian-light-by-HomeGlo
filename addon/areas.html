@@ -1852,7 +1852,7 @@
       const isFrozen = state && state.frozen_at != null;
       const cursorHour = currentHour;
       const cursorLineStyle = { color: '#fdfdfd', width: 2, dash: 'dot' };
-      const gap = 5;  // Gap around marker in y-units
+      const gap = 8;  // Gap around marker in y-units
       const lowerEnd = Math.max(0, markerBri - gap);
       const upperStart = Math.min(110, markerBri + gap);
 
@@ -1871,7 +1871,7 @@
       // Line from x-axis down to above label (stops before text)
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
-        x0: cursorHour, x1: cursorHour, y0: -0.42, y1: 0,
+        x0: cursorHour, x1: cursorHour, y0: -0.32, y1: 0,
         line: cursorLineStyle, layer: 'above'
       });
 
