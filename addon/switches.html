@@ -1363,7 +1363,7 @@
 
       // Check if any filters are active and show/hide clear filters link
       const hasActiveFilters = categoryFilter !== 'all' || areaFilter !== 'all' || statusFilter !== 'all' || pauseFilter !== 'all' || glozoneFilter !== 'all' || searchFilter !== '';
-      document.getElementById('clear-filters-link').style.display = hasActiveFilters ? 'inline' : 'none';
+      document.getElementById('clear-filters-link').style.display = hasActiveFilters ? 'block' : 'none';
 
       container.innerHTML = `
         <table class="switches-table">
