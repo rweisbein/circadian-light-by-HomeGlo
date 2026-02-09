@@ -4118,7 +4118,7 @@ class LightDesignerServer:
         """Fetch potential control devices from HA.
 
         Identifies controls by entity types:
-        - binary_sensor.*_motion, *_occupancy, *_contact → sensors
+        - binary_sensor.*_motion, *_occupancy, *_presence, *_contact → sensors
         - Devices with only battery sensor and no lights → likely remotes
         """
         rest_url, ws_url, token = self._get_ha_api_config()
@@ -4197,6 +4197,7 @@ class LightDesignerServer:
                                 'has_light': False,
                                 'has_motion': False,
                                 'has_occupancy': False,
+                                'has_presence': False,
                                 'has_contact': False,
                                 'has_button': False,
                                 'has_battery': False,
@@ -4217,6 +4218,9 @@ class LightDesignerServer:
                             elif '_occupancy' in entity_id:
                                 device_entities[device_id]['has_occupancy'] = True
                                 logger.info(f"[Controls] Found occupancy entity: {entity_id} for device {device_id}")
+                            elif '_presence' in entity_id:
+                                device_entities[device_id]['has_presence'] = True
+                                logger.info(f"[Controls] Found presence entity: {entity_id} for device {device_id}")
                             elif '_contact' in entity_id or '_opening' in entity_id:
                                 device_entities[device_id]['has_contact'] = True
                         elif entity_id.startswith('sensor.') and '_battery' in entity_id:
@@ -4253,6 +4257,7 @@ class LightDesignerServer:
                     if entities.get('has_light') and not any([
                         entities.get('has_motion'),
                         entities.get('has_occupancy'),
+                        entities.get('has_presence'),
                         entities.get('has_contact'),
                         entities.get('has_button'),
                     ]):
@@ -4262,6 +4267,7 @@ class LightDesignerServer:
                     is_control = any([
                         entities.get('has_motion'),
                         entities.get('has_occupancy'),
+                        entities.get('has_presence'),
                         entities.get('has_contact'),
                         entities.get('has_button'),
                         # Remote: has battery but no lights
@@ -4279,7 +4285,7 @@ class LightDesignerServer:
                         continue
 
                     # Determine category based on entity types
-                    if entities.get('has_motion') or entities.get('has_occupancy'):
+                    if entities.get('has_motion') or entities.get('has_occupancy') or entities.get('has_presence'):
                         category = 'motion_sensor'
                         logger.info(f"[Controls] Identified motion sensor: {device.get('name')} (device_id={device_id})")
                     elif entities.get('has_contact'):
