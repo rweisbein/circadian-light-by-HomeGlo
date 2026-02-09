@@ -605,33 +605,14 @@
     }
 
     /* Adjust buttons - styled like glo-designer */
-    .modal-presets {
-      display: flex;
-      justify-content: center;
-      gap: 24px;
-      padding: 4px 0 12px;
-    }
-
-    .modal-preset-link {
-      font-size: 0.8rem;
-      color: var(--muted);
-      text-decoration: none;
-      letter-spacing: 0.03em;
-    }
-
-    .modal-preset-link:hover {
-      color: var(--text);
-      text-decoration: underline;
-    }
-
     .adjust-section {
-      margin-bottom: 16px;
+      margin-bottom: 12px;
       -webkit-user-select: none;
       user-select: none;
     }
     .adjust-slider-row {
       display: flex;
-      align-items: flex-end;
+      align-items: stretch;
       justify-content: center;
       gap: 24px;
     }
@@ -639,7 +620,13 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 6px;
+      gap: 4px;
+    }
+    .slider-label {
+      font-size: 0.65rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
     }
     .slider-track {
       position: relative;
@@ -652,7 +639,6 @@
       overflow: hidden;
     }
     .slider-fill {
-      /* Dim overlay above the thumb */
       position: absolute;
       top: 0;
       left: 0;
@@ -680,19 +666,23 @@
     .slider-track.dragging .slider-thumb {
       transition: none;
     }
-    .slider-label {
-      font-size: 0.65rem;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
     .slider-value-display {
-      font-size: 0.75rem;
+      font-size: 0.72rem;
       color: var(--text);
       font-variant-numeric: tabular-nums;
       text-align: center;
       line-height: 1.3;
       min-height: 1.3em;
+    }
+    .slider-extreme {
+      font-size: 0.6rem;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 2px 0;
+      letter-spacing: 0.02em;
+    }
+    .slider-extreme:hover {
+      color: var(--text);
     }
 
     /* Mini chart container */
@@ -1354,35 +1344,31 @@
       <div class="adjust-section">
         <div class="adjust-slider-row">
           <div class="slider-column">
-            <div class="slider-value-display" id="slider-value-glo">--</div>
+            <div class="slider-label">Glo</div>
+            <div class="slider-extreme" onclick="executeAction('set_britelite')">BriteLite</div>
             <div class="slider-track" data-mode="step">
               <div class="slider-fill"></div>
               <div class="slider-thumb"></div>
             </div>
-            <div class="slider-label">Glo</div>
+            <div class="slider-extreme" onclick="executeAction('set_nitelite')">NiteLite</div>
           </div>
           <div class="slider-column">
+            <div class="slider-label">Bright</div>
             <div class="slider-value-display" id="slider-value-bright">--</div>
             <div class="slider-track" data-mode="brightness">
               <div class="slider-fill"></div>
               <div class="slider-thumb"></div>
             </div>
-            <div class="slider-label">Bright</div>
           </div>
           <div class="slider-column">
+            <div class="slider-label">Color</div>
             <div class="slider-value-display" id="slider-value-color">--</div>
             <div class="slider-track" data-mode="color">
               <div class="slider-fill"></div>
               <div class="slider-thumb"></div>
             </div>
-            <div class="slider-label">Color</div>
           </div>
         </div>
-      </div>
-
-      <div class="modal-presets">
-        <a href="#" class="modal-preset-link" onclick="event.preventDefault(); executeAction('set_nitelite')">NiteLite</a>
-        <a href="#" class="modal-preset-link" onclick="event.preventDefault(); executeAction('set_britelite')">BriteLite</a>
       </div>
 
     </div>
@@ -2011,16 +1997,14 @@
       document.querySelectorAll('.slider-track').forEach(track => {
         if (track.classList.contains('dragging')) return;
         const mode = track.dataset.mode;
-        track.style.background = buildTrackGradient(mode, cfg);
+        track.style.background = buildTrackGradient(mode, cfg, currentBri, currentCCT);
         const pct = mode === 'step' ? gloFrac : mode === 'brightness' ? briFrac : cctFrac;
         applyOneSlider(track, pct, currentBri, currentCCT, mode);
       });
 
       // Update value displays
-      const gloDisp = document.getElementById('slider-value-glo');
       const briDisp = document.getElementById('slider-value-bright');
       const cctDisp = document.getElementById('slider-value-color');
-      if (gloDisp) gloDisp.textContent = Math.round(currentBri) + '% ' + Math.round(currentCCT) + 'K';
       if (briDisp) briDisp.textContent = Math.round(currentBri) + '%';
       if (cctDisp) cctDisp.textContent = Math.round(currentCCT) + 'K';
     }
@@ -2031,7 +2015,7 @@
       return y * 100;
     }
 
-    function buildTrackGradient(mode, cfg) {
+    function buildTrackGradient(mode, cfg, currentBri, currentCCT) {
       const bMin = cfg.min_brightness, bMax = cfg.max_brightness;
       const cMin = cfg.min_color_temp, cMax = cfg.max_color_temp;
       const stops = [];
@@ -2044,10 +2028,8 @@
           color = cctToRGB(k);
         } else if (mode === 'brightness') {
           const b = bMin + (bMax - bMin) * frac;
-          const midK = (cMin + cMax) / 2;
-          color = tintColorByBrightness(cctToRGB(midK), b);
+          color = tintColorByBrightness(cctToRGB(currentCCT), b);
         } else {
-          // Glo: both change together
           const b = bMin + (bMax - bMin) * frac;
           const k = cMin + (cMax - cMin) * frac;
           color = tintColorByBrightness(cctToRGB(k), b);
@@ -2071,6 +2053,67 @@
       thumb.style.borderColor = color;
     }
 
+    // Inverse midpoint: solve for midpoint that produces targetValue at x
+    function jsInverseMidpoint(x, targetValue, slope, y0, y1) {
+      const eps = 0.001;
+      const clamped = Math.max(y0 + eps, Math.min(y1 - eps, targetValue));
+      const ratio = (clamped - y0) / (y1 - y0);
+      try { return x + Math.log((1 - ratio) / ratio) / slope; }
+      catch { return x; }
+    }
+
+    function jsLiftMidpointToPhase(mid, phaseStart, phaseEnd) {
+      const center = (phaseStart + phaseEnd) / 2;
+      let m = mid;
+      while (m < center - 12) m += 24;
+      while (m > center + 12) m -= 24;
+      return Math.max(phaseStart + 0.01, Math.min(phaseEnd - 0.01, m));
+    }
+
+    // Compute preview midpoints from a slider position
+    function computePreviewMidpoints(dragMode, position, cfg, currentHour) {
+      const tAscend = cfg.ascend_start;
+      let tDescend = cfg.descend_start;
+      if (tDescend <= tAscend) tDescend += 24;
+      const h48 = currentHour < tAscend ? currentHour + 24 : currentHour;
+      const inAscend = h48 >= tAscend && h48 < tDescend;
+      const kA = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.wake_speed))];
+      const kD = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.bed_speed))];
+      const slope = inAscend ? kA : -kD;
+      let calcTime = h48;
+      if (!inAscend && h48 < tDescend) calcTime = h48 + 24;
+
+      const bMin = cfg.min_brightness, bMax = cfg.max_brightness;
+      const cMin = cfg.min_color_temp, cMax = cfg.max_color_temp;
+      const bMinN = bMin / 100, bMaxN = bMax / 100;
+      const pos = Math.max(0, Math.min(100, position));
+
+      let newBriMid = null, newColorMid = null;
+
+      if (dragMode === 'step' || dragMode === 'brightness') {
+        const targetBri = bMin + (bMax - bMin) * pos / 100;
+        const tNorm = Math.max(bMinN + 0.001, Math.min(bMaxN - 0.001, targetBri / 100));
+        let mid = jsInverseMidpoint(calcTime, tNorm, slope, bMinN, bMaxN);
+        if (inAscend) mid = jsLiftMidpointToPhase(mid, tAscend, tDescend) % 24;
+        else mid = jsLiftMidpointToPhase(mid, tDescend, tAscend + 24) % 24;
+        newBriMid = mid;
+        if (dragMode === 'step') newColorMid = mid; // shared midpoint
+      }
+
+      if (dragMode === 'color') {
+        const targetCCT = cMin + (cMax - cMin) * pos / 100;
+        const tNorm = Math.max(0.001, Math.min(0.999, (targetCCT - cMin) / (cMax - cMin)));
+        let mid = jsInverseMidpoint(calcTime, tNorm, slope, 0, 1);
+        if (inAscend) mid = jsLiftMidpointToPhase(mid, tAscend, tDescend) % 24;
+        else mid = jsLiftMidpointToPhase(mid, tDescend, tAscend + 24) % 24;
+        newColorMid = mid;
+      }
+
+      return { newBriMid, newColorMid };
+    }
+
+    let chartPreviewTimer = null;
+
     function previewSlider(track, position) {
       const dragMode = track.dataset.mode;
       const ctx = selectedZoneName
@@ -2084,7 +2127,6 @@
       const currentBri = calcMiniBrightness(currentHour, cfg, areaState, currentHour) * 100;
       const currentCCT = calcMiniColor(currentHour, cfg, areaState, cachedSunTimes, currentHour);
 
-      // Compute preview bri/cct from the slider being dragged
       let previewBri, previewCCT;
       if (dragMode === 'brightness') {
         previewBri = bMin + (bMax - bMin) * position / 100;
@@ -2093,32 +2135,42 @@
         previewBri = currentBri;
         previewCCT = cMin + (cMax - cMin) * position / 100;
       } else {
-        // Glo: brightness-primary, color follows same curve fraction
         previewBri = bMin + (bMax - bMin) * position / 100;
         previewCCT = cMin + (cMax - cMin) * position / 100;
-        // (Approximate — server uses shared midpoint which produces similar result)
       }
 
       // Derived positions for all three sliders
       const briFrac = bMax > bMin ? Math.max(0, Math.min(100, (previewBri - bMin) / (bMax - bMin) * 100)) : 50;
       const cctFrac = cMax > cMin ? Math.max(0, Math.min(100, (previewCCT - cMin) / (cMax - cMin) * 100)) : 50;
-      const gloFrac = briFrac; // Glo is brightness-primary
+      const gloFrac = briFrac;
 
-      // Update all three sliders
+      // Update all sliders + gradients
       document.querySelectorAll('.slider-track').forEach(t => {
         const m = t.dataset.mode;
-        if (m === 'step') applyOneSlider(t, gloFrac, previewBri, previewCCT, m);
-        else if (m === 'brightness') applyOneSlider(t, briFrac, previewBri, previewCCT, m);
-        else applyOneSlider(t, cctFrac, previewBri, previewCCT, m);
+        t.style.background = buildTrackGradient(m, cfg, previewBri, previewCCT);
+        const pct = m === 'step' ? gloFrac : m === 'brightness' ? briFrac : cctFrac;
+        applyOneSlider(t, pct, previewBri, previewCCT, m);
       });
 
-      // Update all value displays
-      const gloDisp = document.getElementById('slider-value-glo');
       const briDisp = document.getElementById('slider-value-bright');
       const cctDisp = document.getElementById('slider-value-color');
-      if (gloDisp) gloDisp.textContent = Math.round(previewBri) + '% ' + Math.round(previewCCT) + 'K';
       if (briDisp) briDisp.textContent = Math.round(previewBri) + '%';
       if (cctDisp) cctDisp.textContent = Math.round(previewCCT) + 'K';
+
+      // Update chart with preview midpoints (throttled)
+      if (!chartPreviewTimer) {
+        chartPreviewTimer = setTimeout(() => {
+          chartPreviewTimer = null;
+          const { newBriMid, newColorMid } = computePreviewMidpoints(dragMode, position, cfg, currentHour);
+          const previewState = {
+            brightness_mid: newBriMid !== null ? newBriMid : areaState.brightness_mid,
+            color_mid: newColorMid !== null ? newColorMid : areaState.color_mid,
+            color_override: (dragMode === 'step' || dragMode === 'color') ? null : areaState.color_override,
+            frozen_at: null
+          };
+          renderMiniChart(cfg, previewState, cachedSunTimes, currentHour, true);
+        }, 80);
+      }
     }
 
     async function executeSetPosition(value, mode) {
