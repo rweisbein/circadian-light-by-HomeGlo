@@ -2004,35 +2004,12 @@
       const cctFrac = cMax > cMin ? Math.max(0, Math.min(100, (currentCCT - cMin) / (cMax - cMin) * 100)) : 50;
       const gloFrac = Math.max(0, Math.min(100, (briFrac + cctFrac) / 2));
 
-      // Update each slider (skip if that slider is being dragged)
-      const tracks = document.querySelectorAll('.slider-track');
-      tracks.forEach(track => {
-        const mode = track.dataset.mode;
+      // Update each slider (skip if being dragged)
+      document.querySelectorAll('.slider-track').forEach(track => {
         if (track.classList.contains('dragging')) return;
-        const fill = track.querySelector('.slider-fill');
-        const thumb = track.querySelector('.slider-thumb');
-        if (!fill || !thumb) return;
-
-        let pct, color, tinted;
-        if (mode === 'step') {
-          pct = gloFrac;
-          color = cctToRGB(currentCCT);
-          tinted = tintColorByBrightness(color, currentBri);
-        } else if (mode === 'brightness') {
-          pct = briFrac;
-          color = cctToRGB(currentCCT);
-          tinted = tintColorByBrightness(color, currentBri);
-        } else {
-          pct = cctFrac;
-          color = cctToRGB(currentCCT);
-          tinted = color;
-        }
-
-        fill.style.height = pct + '%';
-        thumb.style.bottom = pct + '%';
-        fill.style.background = tinted;
-        thumb.style.background = tinted;
-        thumb.style.borderColor = color;
+        const mode = track.dataset.mode;
+        const pct = mode === 'step' ? gloFrac : mode === 'brightness' ? briFrac : cctFrac;
+        applyOneSlider(track, pct, currentBri, currentCCT, mode);
       });
 
       // Update value displays
@@ -2050,12 +2027,21 @@
       return y * 100;
     }
 
-    function previewSlider(track, position) {
+    function applyOneSlider(track, pct, bri, cct, mode) {
       const fill = track.querySelector('.slider-fill');
       const thumb = track.querySelector('.slider-thumb');
       if (!fill || !thumb) return;
+      const color = cctToRGB(cct);
+      const tinted = mode === 'color' ? color : tintColorByBrightness(color, bri);
+      fill.style.height = pct + '%';
+      thumb.style.bottom = pct + '%';
+      fill.style.background = tinted;
+      thumb.style.background = tinted;
+      thumb.style.borderColor = color;
+    }
 
-      const mode = track.dataset.mode;
+    function previewSlider(track, position) {
+      const dragMode = track.dataset.mode;
       const ctx = selectedZoneName
         ? getSliderCfgAndStateForZone(selectedZoneName)
         : (selectedArea ? getSliderCfgAndState(selectedArea.area_id) : null);
@@ -2067,11 +2053,12 @@
       const currentBri = calcMiniBrightness(currentHour, cfg, areaState, currentHour) * 100;
       const currentCCT = calcMiniColor(currentHour, cfg, areaState, cachedSunTimes, currentHour);
 
+      // Compute preview bri/cct from the slider being dragged
       let previewBri, previewCCT;
-      if (mode === 'brightness') {
+      if (dragMode === 'brightness') {
         previewBri = bMin + (bMax - bMin) * position / 100;
         previewCCT = currentCCT;
-      } else if (mode === 'color') {
+      } else if (dragMode === 'color') {
         previewBri = currentBri;
         previewCCT = cMin + (cMax - cMin) * position / 100;
       } else {
@@ -2079,24 +2066,26 @@
         previewCCT = cMin + (cMax - cMin) * position / 100;
       }
 
-      const color = cctToRGB(previewCCT);
-      const tinted = mode === 'color' ? color : tintColorByBrightness(color, previewBri);
-      fill.style.height = position + '%';
-      thumb.style.bottom = position + '%';
-      fill.style.background = tinted;
-      thumb.style.background = tinted;
-      thumb.style.borderColor = color;
+      // Derived positions for all three sliders
+      const briFrac = bMax > bMin ? Math.max(0, Math.min(100, (previewBri - bMin) / (bMax - bMin) * 100)) : 50;
+      const cctFrac = cMax > cMin ? Math.max(0, Math.min(100, (previewCCT - cMin) / (cMax - cMin) * 100)) : 50;
+      const gloFrac = Math.max(0, Math.min(100, (briFrac + cctFrac) / 2));
 
-      // Update this slider's value display
-      const dispId = mode === 'step' ? 'slider-value-glo'
-                   : mode === 'brightness' ? 'slider-value-bright'
-                   : 'slider-value-color';
-      const disp = document.getElementById(dispId);
-      if (disp) {
-        if (mode === 'step') disp.textContent = Math.round(position) + '%';
-        else if (mode === 'brightness') disp.textContent = Math.round(previewBri) + '%';
-        else disp.textContent = Math.round(previewCCT) + 'K';
-      }
+      // Update all three sliders
+      document.querySelectorAll('.slider-track').forEach(t => {
+        const m = t.dataset.mode;
+        if (m === 'step') applyOneSlider(t, gloFrac, previewBri, previewCCT, m);
+        else if (m === 'brightness') applyOneSlider(t, briFrac, previewBri, previewCCT, m);
+        else applyOneSlider(t, cctFrac, previewBri, previewCCT, m);
+      });
+
+      // Update all value displays
+      const gloDisp = document.getElementById('slider-value-glo');
+      const briDisp = document.getElementById('slider-value-bright');
+      const cctDisp = document.getElementById('slider-value-color');
+      if (gloDisp) gloDisp.textContent = Math.round(gloFrac) + '%';
+      if (briDisp) briDisp.textContent = Math.round(previewBri) + '%';
+      if (cctDisp) cctDisp.textContent = Math.round(previewCCT) + 'K';
     }
 
     async function executeSetPosition(value, mode) {
