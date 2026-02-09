@@ -1046,7 +1046,20 @@ class CircadianLight:
         state_updates: Dict[str, Any] = {}
 
         # Compute new midpoints based on dimension
-        if dimension in ("step", "brightness"):
+        if dimension == "step":
+            # Brightness-primary: compute midpoint from brightness target,
+            # then share it with color so color follows the curve naturally
+            new_bri_mid = inverse_midpoint(calc_time, target_bri_norm, slope, b_min_norm, b_max_norm)
+            if in_ascend:
+                new_bri_mid = CircadianLight.lift_midpoint_to_phase(new_bri_mid, t_ascend, t_descend) % 24
+            else:
+                descend_end = t_ascend + 24
+                new_bri_mid = CircadianLight.lift_midpoint_to_phase(new_bri_mid, t_descend, descend_end) % 24
+            state_updates["brightness_mid"] = new_bri_mid
+            state_updates["color_mid"] = new_bri_mid  # shared midpoint
+            state_updates["color_override"] = None
+
+        elif dimension == "brightness":
             new_bri_mid = inverse_midpoint(calc_time, target_bri_norm, slope, b_min_norm, b_max_norm)
             if in_ascend:
                 new_bri_mid = CircadianLight.lift_midpoint_to_phase(new_bri_mid, t_ascend, t_descend) % 24
@@ -1055,7 +1068,7 @@ class CircadianLight:
                 new_bri_mid = CircadianLight.lift_midpoint_to_phase(new_bri_mid, t_descend, descend_end) % 24
             state_updates["brightness_mid"] = new_bri_mid
 
-        if dimension in ("step", "color"):
+        elif dimension == "color":
             new_color_mid = inverse_midpoint(calc_time, target_cct_norm, slope, 0, 1)
             if in_ascend:
                 new_color_mid = CircadianLight.lift_midpoint_to_phase(new_color_mid, t_ascend, t_descend) % 24
@@ -1063,7 +1076,6 @@ class CircadianLight:
                 descend_end = t_ascend + 24
                 new_color_mid = CircadianLight.lift_midpoint_to_phase(new_color_mid, t_descend, descend_end) % 24
             state_updates["color_mid"] = new_color_mid
-            # Clear color_override since user is explicitly choosing position
             state_updates["color_override"] = None
 
         # Build new state to verify actual output

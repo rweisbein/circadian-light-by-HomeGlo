@@ -2002,7 +2002,7 @@
 
       const briFrac = bMax > bMin ? Math.max(0, Math.min(100, (currentBri - bMin) / (bMax - bMin) * 100)) : 50;
       const cctFrac = cMax > cMin ? Math.max(0, Math.min(100, (currentCCT - cMin) / (cMax - cMin) * 100)) : 50;
-      const gloFrac = Math.max(0, Math.min(100, (briFrac + cctFrac) / 2));
+      const gloFrac = briFrac; // Glo is brightness-primary
 
       // Update each slider (skip if being dragged)
       document.querySelectorAll('.slider-track').forEach(track => {
@@ -2016,7 +2016,7 @@
       const gloDisp = document.getElementById('slider-value-glo');
       const briDisp = document.getElementById('slider-value-bright');
       const cctDisp = document.getElementById('slider-value-color');
-      if (gloDisp) gloDisp.textContent = Math.round(gloFrac) + '%';
+      if (gloDisp) gloDisp.textContent = Math.round(currentBri) + '% ' + Math.round(currentCCT) + 'K';
       if (briDisp) briDisp.textContent = Math.round(currentBri) + '%';
       if (cctDisp) cctDisp.textContent = Math.round(currentCCT) + 'K';
     }
@@ -2062,14 +2062,16 @@
         previewBri = currentBri;
         previewCCT = cMin + (cMax - cMin) * position / 100;
       } else {
+        // Glo: brightness-primary, color follows same curve fraction
         previewBri = bMin + (bMax - bMin) * position / 100;
         previewCCT = cMin + (cMax - cMin) * position / 100;
+        // (Approximate — server uses shared midpoint which produces similar result)
       }
 
       // Derived positions for all three sliders
       const briFrac = bMax > bMin ? Math.max(0, Math.min(100, (previewBri - bMin) / (bMax - bMin) * 100)) : 50;
       const cctFrac = cMax > cMin ? Math.max(0, Math.min(100, (previewCCT - cMin) / (cMax - cMin) * 100)) : 50;
-      const gloFrac = Math.max(0, Math.min(100, (briFrac + cctFrac) / 2));
+      const gloFrac = briFrac; // Glo is brightness-primary
 
       // Update all three sliders
       document.querySelectorAll('.slider-track').forEach(t => {
@@ -2083,7 +2085,7 @@
       const gloDisp = document.getElementById('slider-value-glo');
       const briDisp = document.getElementById('slider-value-bright');
       const cctDisp = document.getElementById('slider-value-color');
-      if (gloDisp) gloDisp.textContent = Math.round(gloFrac) + '%';
+      if (gloDisp) gloDisp.textContent = Math.round(previewBri) + '% ' + Math.round(previewCCT) + 'K';
       if (briDisp) briDisp.textContent = Math.round(previewBri) + '%';
       if (cctDisp) cctDisp.textContent = Math.round(previewCCT) + 'K';
     }
