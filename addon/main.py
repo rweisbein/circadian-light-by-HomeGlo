@@ -1607,6 +1607,12 @@ class HomeAssistantWebSocketClient:
             else:
                 restore_data[area] = {"was_on": was_on}
 
+        # Pre-compute targets for each area (use ZHA groups when available)
+        area_targets = {}
+        for area in areas:
+            target_type, target_value = await self.determine_light_target(area)
+            area_targets[area] = {target_type: target_value}
+
         # Phase 1: Dip ON lights, pulse OFF lights
         # - ON above threshold: dip by reach_dip_percent of current brightness
         # - ON at/below threshold: fade to off
@@ -1614,13 +1620,14 @@ class HomeAssistantWebSocketClient:
         phase1_tasks = []
         for area in areas:
             data = restore_data[area]
+            target = area_targets[area]
             if data.get("was_on"):
                 if data.get("dip_to_off"):
                     # Low brightness - fade to off for visibility
                     phase1_tasks.append(self.call_service(
                         "light", "turn_off",
                         {"transition": turn_off_transition},
-                        target={"area_id": area}
+                        target=target
                     ))
                 else:
                     # Above threshold - dip by configured percentage of current
@@ -1628,13 +1635,13 @@ class HomeAssistantWebSocketClient:
                     phase1_tasks.append(self.call_service(
                         "light", "turn_on",
                         {"brightness": dip_brightness, "transition": turn_off_transition},
-                        target={"area_id": area}
+                        target=target
                     ))
             else:
                 phase1_tasks.append(self.call_service(
                     "light", "turn_on",
                     {"brightness": blink_threshold, "transition": turn_on_transition},
-                    target={"area_id": area}
+                    target=target
                 ))
         await asyncio.gather(*phase1_tasks)
 
@@ -1644,6 +1651,7 @@ class HomeAssistantWebSocketClient:
         # Phase 2: Restore all lights
         phase2_tasks = []
         for area, data in restore_data.items():
+            target = area_targets[area]
             if data.get("was_on"):
                 service_data = {"transition": turn_on_transition}
                 if data.get("xy"):
@@ -1652,13 +1660,13 @@ class HomeAssistantWebSocketClient:
                 phase2_tasks.append(self.call_service(
                     "light", "turn_on",
                     service_data,
-                    target={"area_id": area}
+                    target=target
                 ))
             else:
                 phase2_tasks.append(self.call_service(
                     "light", "turn_off",
                     {"transition": turn_off_transition},
-                    target={"area_id": area}
+                    target=target
                 ))
         await asyncio.gather(*phase2_tasks)
 
@@ -1794,7 +1802,8 @@ class HomeAssistantWebSocketClient:
         # Restore original states
         for area, orig in original_states.items():
             if not orig.get("was_on"):
-                await self.call_service("light", "turn_off", {}, target={"area_id": area})
+                target_type, target_value = await self.determine_light_target(area)
+                await self.call_service("light", "turn_off", {}, target={target_type: target_value})
             elif orig.get("color_temp"):
                 await self._set_area_color_quick(area, color_temp=orig["color_temp"], brightness=orig.get("brightness"))
             elif orig.get("rgb_color"):
@@ -1805,12 +1814,16 @@ class HomeAssistantWebSocketClient:
                 await self._set_area_brightness_quick(area, orig.get("brightness", 128))
 
     async def _set_area_brightness_quick(self, area: str, brightness: int) -> None:
-        """Quickly set brightness for an area (no transition)."""
+        """Quickly set brightness for an area (no transition).
+
+        Uses ZHA groups when available for efficient hardware-level control.
+        """
+        target_type, target_value = await self.determine_light_target(area)
         await self.call_service(
             "light",
             "turn_on",
             {"brightness": brightness, "transition": 0},
-            target={"area_id": area}
+            target={target_type: target_value}
         )
 
     async def _set_area_color_quick(
@@ -1821,7 +1834,10 @@ class HomeAssistantWebSocketClient:
         xy_color: List[float] = None,
         brightness: int = None,
     ) -> None:
-        """Quickly set color for an area (no transition)."""
+        """Quickly set color for an area (no transition).
+
+        Uses ZHA groups when available for efficient hardware-level control.
+        """
         service_data = {"transition": 0}
         if rgb_color:
             service_data["rgb_color"] = rgb_color
@@ -1832,11 +1848,12 @@ class HomeAssistantWebSocketClient:
         if brightness is not None:
             service_data["brightness"] = brightness
 
+        target_type, target_value = await self.determine_light_target(area)
         await self.call_service(
             "light",
             "turn_on",
             service_data,
-            target={"area_id": area}
+            target={target_type: target_value}
         )
 
     async def _dial_debounce(self, device_ieee: str) -> None:
