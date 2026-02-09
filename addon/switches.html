@@ -1692,9 +1692,9 @@
           sensitivitySelect.innerHTML = '<option value="">Not available</option>';
         }
 
-        // Populate timeout
+        // Populate timeout (default to 10 if unusually low)
         if (data.timeout !== null && data.timeout !== undefined) {
-          timeoutInput.value = data.timeout;
+          timeoutInput.value = data.timeout <= 5 ? 10 : data.timeout;
           timeoutInput.disabled = false;
         } else {
           timeoutInput.placeholder = 'Not available';
