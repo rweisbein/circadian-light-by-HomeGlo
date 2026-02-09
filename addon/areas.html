@@ -627,54 +627,63 @@
     .adjust-section {
       margin-bottom: 16px;
     }
-    .adjust-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .adjust-btn {
-      --btn-bg: rgba(255,255,255,0.06);
-      --btn-text: #fff;
-      --btn-fill: 0;
-      --btn-fill-opacity: 0;
-      border: 1px solid rgba(255,255,255,0.25);
-      background: var(--btn-bg);
-      color: var(--btn-text);
-      font-size: 1.1rem;
-      font-weight: 600;
-      padding: 10px 16px;
-      border-radius: 999px;
-      cursor: pointer;
-      transition: border-color 0.15s, opacity 0.15s;
-      position: relative;
-      overflow: hidden;
+    .adjust-slider-row {
       display: flex;
       align-items: center;
       justify-content: center;
-      flex: 1;
+      gap: 16px;
     }
-    .adjust-btn::after {
-      content: '';
-      position: absolute;
-      inset: 2px;
-      border-radius: 999px;
-      background: rgba(255,255,255,0.18);
-      opacity: var(--btn-fill-opacity);
-      transition: opacity 0.2s ease;
-      pointer-events: none;
-    }
-    .adjust-btn .btn-arrow {
+    .slider-track {
       position: relative;
-      z-index: 1;
-      font-size: 1.1rem;
-      line-height: 1;
+      width: 10px;
+      height: 180px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 5px;
+      cursor: pointer;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
     }
-    .adjust-btn:hover {
-      border-color: rgba(255,255,255,0.45);
+    .slider-fill {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      border-radius: 5px;
+      background: rgba(255,255,255,0.25);
+      pointer-events: none;
+      transition: height 0.15s ease, background 0.15s ease;
     }
-    .adjust-btn:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
+    .slider-thumb {
+      position: absolute;
+      left: 50%;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #fff;
+      border: 2px solid rgba(255,255,255,0.8);
+      box-shadow: 0 1px 6px rgba(0,0,0,0.4);
+      transform: translate(-50%, 50%);
+      pointer-events: none;
+      transition: bottom 0.15s ease, background 0.15s ease;
+    }
+    .slider-track.dragging .slider-fill,
+    .slider-track.dragging .slider-thumb {
+      transition: none;
+    }
+    .slider-controls {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+    .slider-value-display {
+      font-size: 0.85rem;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+      min-width: 80px;
+      text-align: center;
+      line-height: 1.4;
     }
     .adjust-mode-selector {
       display: flex;
@@ -1359,14 +1368,19 @@
       <div id="modal-mini-chart"></div>
 
       <div class="adjust-section">
-        <div class="adjust-row">
-          <button class="adjust-btn" id="btn-up" onclick="doAdjust('up')"><span class="btn-arrow">&#9650;</span></button>
-          <div class="adjust-mode-selector">
-            <button class="adjust-mode-btn active" data-mode="step" onclick="setAdjustMode('step')">Step</button>
-            <button class="adjust-mode-btn" data-mode="brightness" onclick="setAdjustMode('brightness')">Bright</button>
-            <button class="adjust-mode-btn" data-mode="color" onclick="setAdjustMode('color')">Color</button>
+        <div class="adjust-slider-row">
+          <div class="slider-track" id="slider-track">
+            <div class="slider-fill" id="slider-fill"></div>
+            <div class="slider-thumb" id="slider-thumb"></div>
           </div>
-          <button class="adjust-btn" id="btn-down" onclick="doAdjust('down')"><span class="btn-arrow">&#9660;</span></button>
+          <div class="slider-controls">
+            <div class="slider-value-display" id="slider-value">--</div>
+            <div class="adjust-mode-selector">
+              <button class="adjust-mode-btn active" data-mode="step" onclick="setAdjustMode('step')">Step</button>
+              <button class="adjust-mode-btn" data-mode="brightness" onclick="setAdjustMode('brightness')">Bright</button>
+              <button class="adjust-mode-btn" data-mode="color" onclick="setAdjustMode('color')">Color</button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1917,26 +1931,33 @@
     }
 
     // ============================================================
-    // Adjust Button Styling (glo-designer style)
+    // Position Slider
     // ============================================================
 
+    let sliderInteracting = false;
+
     function styleAdjustButtons(areaId) {
+      // Renamed entry point — now updates the slider instead of buttons
+      updateSliderPosition(areaId);
+    }
+
+    function updateSliderPosition(areaId) {
+      if (sliderInteracting) return; // Don't fight with user drag
+
       const status = areaStatus[areaId] || {};
       if (!cachedConfig || !cachedSunTimes) return;
 
-      // Use the area's specific rhythm config
       const rhythmName = status.preset_name;
       const cfg = (rhythmName && cachedRhythms[rhythmName])
         ? { ...cachedConfig, ...cachedRhythms[rhythmName] }
         : cachedConfig;
-      const state = {
+      const areaState = {
         brightness_mid: status.brightness_mid ?? null,
         color_mid: status.color_mid ?? null,
         color_override: status.color_override ?? null,
         frozen_at: status.frozen_at ?? null
       };
 
-      // Get current hour
       let currentHour;
       if (status.frozen && status.frozen_at != null) {
         currentHour = status.frozen_at;
@@ -1945,77 +1966,240 @@
         currentHour = now.getHours() + now.getMinutes() / 60;
       }
 
-      const currentBri = calcMiniBrightness(currentHour, cfg, state, currentHour) * 100;
-      const currentCCT = calcMiniColor(currentHour, cfg, state, cachedSunTimes, currentHour);
+      const currentBri = calcMiniBrightness(currentHour, cfg, areaState, currentHour) * 100;
+      const currentCCT = calcMiniColor(currentHour, cfg, areaState, cachedSunTimes, currentHour);
 
-      // Calculate step preview values
       const bMin = cfg.min_brightness;
       const bMax = cfg.max_brightness;
       const cMin = cfg.min_color_temp;
       const cMax = cfg.max_color_temp;
-      const steps = cfg.step_increments ?? cfg.max_dim_steps ?? 10;
-      const briSteps = cfg.brightness_increments ?? cfg.max_dim_steps ?? 10;
-      const colorSteps = cfg.color_increments ?? cfg.max_dim_steps ?? 10;
 
-      const briStep = (bMax - bMin) / steps;
-      const briOnlyStep = (bMax - bMin) / briSteps;
-      const cctStep = (cMax - cMin) / steps;
-      const cctOnlyStep = (cMax - cMin) / colorSteps;
-
-      // Step up/down preview
-      const stepUpBri = Math.min(bMax, currentBri + briStep);
-      const stepDownBri = Math.max(bMin, currentBri - briStep);
-      const stepUpCCT = Math.min(cMax, currentCCT + cctStep);
-      const stepDownCCT = Math.max(cMin, currentCCT - cctStep);
-
-      // Brightness only preview
-      const briUpVal = Math.min(bMax, currentBri + briOnlyStep);
-      const briDownVal = Math.max(bMin, currentBri - briOnlyStep);
-
-      // Color only preview
-      const colorUpVal = Math.min(cMax, currentCCT + cctOnlyStep);
-      const colorDownVal = Math.max(cMin, currentCCT - cctOnlyStep);
-
-      // Helper to style a button
-      function styleBtn(btn, targetBri, targetColor, mode) {
-        if (!btn) return;
-
-        // Brightness glow (for brightness and combo modes)
-        if ((mode === 'brightness' || mode === 'combo') && Number.isFinite(targetBri)) {
-          const frac = Math.max(0, Math.min(1, targetBri / 100));
-          btn.style.setProperty('--btn-fill-opacity', frac.toFixed(3));
-        } else {
-          btn.style.removeProperty('--btn-fill-opacity');
-        }
-
-        // Color background
-        if (Number.isFinite(targetColor)) {
-          let color = cctToRGB(targetColor);
-          if (Number.isFinite(targetBri)) {
-            color = tintColorByBrightness(color, targetBri);
-          }
-          btn.style.setProperty('--btn-bg', color);
-          btn.style.setProperty('--btn-text', readableTextColor(color));
-        } else {
-          btn.style.removeProperty('--btn-bg');
-          btn.style.removeProperty('--btn-text');
-        }
-      }
-
-      // Style the single up/down buttons based on current adjust mode
-      const btnUp = document.getElementById('btn-up');
-      const btnDown = document.getElementById('btn-down');
-
-      if (adjustMode === 'step') {
-        styleBtn(btnUp, stepUpBri, stepUpCCT, 'combo');
-        styleBtn(btnDown, stepDownBri, stepDownCCT, 'combo');
-      } else if (adjustMode === 'brightness') {
-        styleBtn(btnUp, briUpVal, currentCCT, 'brightness');
-        styleBtn(btnDown, briDownVal, currentCCT, 'brightness');
+      // Compute current position (0-100) based on mode
+      let position;
+      if (adjustMode === 'brightness') {
+        position = bMax > bMin ? (currentBri - bMin) / (bMax - bMin) * 100 : 50;
+      } else if (adjustMode === 'color') {
+        position = cMax > cMin ? (currentCCT - cMin) / (cMax - cMin) * 100 : 50;
       } else {
-        styleBtn(btnUp, null, colorUpVal, 'color');
-        styleBtn(btnDown, null, colorDownVal, 'color');
+        // Step mode: average of both dimensions
+        const briFrac = bMax > bMin ? (currentBri - bMin) / (bMax - bMin) : 0.5;
+        const cctFrac = cMax > cMin ? (currentCCT - cMin) / (cMax - cMin) : 0.5;
+        position = (briFrac + cctFrac) / 2 * 100;
       }
+      position = Math.max(0, Math.min(100, position));
+
+      applySliderVisuals(position, currentBri, currentCCT);
+    }
+
+    function updateSliderFromZone(zoneName) {
+      if (sliderInteracting) return;
+
+      const zs = zoneStates[zoneName] || {};
+      if (!cachedConfig || !cachedSunTimes) return;
+
+      const rhythmName = zs.rhythm;
+      const cfg = (rhythmName && cachedRhythms[rhythmName])
+        ? { ...cachedConfig, ...cachedRhythms[rhythmName] }
+        : cachedConfig;
+
+      const rs = zs.runtime_state || {};
+      const zoneState = {
+        brightness_mid: rs.brightness_mid ?? null,
+        color_mid: rs.color_mid ?? null,
+        color_override: rs.color_override ?? null,
+        frozen_at: rs.frozen_at ?? null
+      };
+
+      let currentHour;
+      if (rs.frozen_at != null) {
+        currentHour = rs.frozen_at;
+      } else {
+        const now = new Date();
+        currentHour = now.getHours() + now.getMinutes() / 60;
+      }
+
+      const currentBri = calcMiniBrightness(currentHour, cfg, zoneState, currentHour) * 100;
+      const currentCCT = calcMiniColor(currentHour, cfg, zoneState, cachedSunTimes, currentHour);
+
+      const bMin = cfg.min_brightness;
+      const bMax = cfg.max_brightness;
+      const cMin = cfg.min_color_temp;
+      const cMax = cfg.max_color_temp;
+
+      let position;
+      if (adjustMode === 'brightness') {
+        position = bMax > bMin ? (currentBri - bMin) / (bMax - bMin) * 100 : 50;
+      } else if (adjustMode === 'color') {
+        position = cMax > cMin ? (currentCCT - cMin) / (cMax - cMin) * 100 : 50;
+      } else {
+        const briFrac = bMax > bMin ? (currentBri - bMin) / (bMax - bMin) : 0.5;
+        const cctFrac = cMax > cMin ? (currentCCT - cMin) / (cMax - cMin) : 0.5;
+        position = (briFrac + cctFrac) / 2 * 100;
+      }
+      position = Math.max(0, Math.min(100, position));
+
+      applySliderVisuals(position, currentBri, currentCCT);
+    }
+
+    function applySliderVisuals(position, bri, cct) {
+      const fill = document.getElementById('slider-fill');
+      const thumb = document.getElementById('slider-thumb');
+      const display = document.getElementById('slider-value');
+      if (!fill || !thumb || !display) return;
+
+      const pct = Math.max(0, Math.min(100, position));
+      fill.style.height = pct + '%';
+      thumb.style.bottom = pct + '%';
+
+      // Color the fill and thumb based on CCT
+      const color = cctToRGB(cct);
+      const tinted = tintColorByBrightness(color, bri);
+      fill.style.background = tinted;
+      thumb.style.background = tinted;
+      thumb.style.borderColor = color;
+
+      // Value display
+      display.textContent = Math.round(bri) + '% / ' + Math.round(cct) + 'K';
+    }
+
+    function getSliderPositionFromPointer(e) {
+      const track = document.getElementById('slider-track');
+      if (!track) return 50;
+      const rect = track.getBoundingClientRect();
+      // Bottom = 0, top = 100
+      const y = Math.max(0, Math.min(1, (rect.bottom - e.clientY) / rect.height));
+      return y * 100;
+    }
+
+    function previewSliderPosition(position) {
+      // Compute what bri/cct would be at this position (client-side preview)
+      const areaId = selectedArea ? selectedArea.area_id : null;
+      if (!areaId && !selectedZoneName) return;
+
+      const status = areaId ? (areaStatus[areaId] || {}) : {};
+      if (!cachedConfig) return;
+
+      const rhythmName = status.preset_name;
+      const cfg = (rhythmName && cachedRhythms[rhythmName])
+        ? { ...cachedConfig, ...cachedRhythms[rhythmName] }
+        : cachedConfig;
+      const areaState = {
+        brightness_mid: status.brightness_mid ?? null,
+        color_mid: status.color_mid ?? null,
+        color_override: status.color_override ?? null,
+        frozen_at: status.frozen_at ?? null
+      };
+
+      let currentHour;
+      if (status.frozen && status.frozen_at != null) {
+        currentHour = status.frozen_at;
+      } else {
+        const now = new Date();
+        currentHour = now.getHours() + now.getMinutes() / 60;
+      }
+
+      const bMin = cfg.min_brightness;
+      const bMax = cfg.max_brightness;
+      const cMin = cfg.min_color_temp;
+      const cMax = cfg.max_color_temp;
+
+      // Map position to preview values
+      const currentBri = calcMiniBrightness(currentHour, cfg, areaState, currentHour) * 100;
+      const currentCCT = calcMiniColor(currentHour, cfg, areaState, cachedSunTimes, currentHour);
+
+      let previewBri, previewCCT;
+      if (adjustMode === 'brightness') {
+        previewBri = bMin + (bMax - bMin) * position / 100;
+        previewCCT = currentCCT;
+      } else if (adjustMode === 'color') {
+        previewBri = currentBri;
+        previewCCT = cMin + (cMax - cMin) * position / 100;
+      } else {
+        previewBri = bMin + (bMax - bMin) * position / 100;
+        previewCCT = cMin + (cMax - cMin) * position / 100;
+      }
+
+      applySliderVisuals(position, previewBri, previewCCT);
+    }
+
+    async function executeSetPosition(value) {
+      const payload = selectedZoneName
+        ? { zone_name: selectedZoneName, action: 'set_position', value: value, mode: adjustMode }
+        : { area_id: selectedArea.area_id, action: 'set_position', value: value, mode: adjustMode };
+      const endpoint = selectedZoneName ? './api/zone/action' : './api/area/action';
+      try {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (response.ok) {
+          setTimeout(async () => {
+            try {
+              if (selectedZoneName) {
+                const zsRes = await fetch('./api/zone-states');
+                if (zsRes.ok) {
+                  const zs = await zsRes.json();
+                  zoneStates = zs.zone_states || {};
+                }
+                updateZoneModalContent(selectedZoneName, false);
+              } else if (selectedArea) {
+                const res = await fetch(`./api/area-status?area_id=${encodeURIComponent(selectedArea.area_id)}`);
+                if (res.ok) {
+                  const singleStatus = await res.json();
+                  Object.assign(areaStatus, singleStatus);
+                }
+                updateModalContent(selectedArea.area_id, false);
+              }
+            } catch (err) {
+              console.error('Error refreshing after set_position:', err);
+            }
+          }, 500);
+        }
+      } catch (err) {
+        console.error('Error executing set_position:', err);
+      }
+    }
+
+    // Attach slider touch/mouse handlers
+    function initSliderHandlers() {
+      const track = document.getElementById('slider-track');
+      if (!track) return;
+
+      let lastSentPosition = null;
+
+      function onPointerDown(e) {
+        e.preventDefault();
+        sliderInteracting = true;
+        track.classList.add('dragging');
+        track.setPointerCapture(e.pointerId);
+        const pos = getSliderPositionFromPointer(e);
+        previewSliderPosition(pos);
+        lastSentPosition = pos;
+      }
+
+      function onPointerMove(e) {
+        if (!sliderInteracting) return;
+        e.preventDefault();
+        const pos = getSliderPositionFromPointer(e);
+        previewSliderPosition(pos);
+        lastSentPosition = pos;
+      }
+
+      function onPointerUp(e) {
+        if (!sliderInteracting) return;
+        e.preventDefault();
+        track.classList.remove('dragging');
+        sliderInteracting = false;
+        if (lastSentPosition !== null) {
+          executeSetPosition(Math.round(lastSentPosition));
+        }
+      }
+
+      track.addEventListener('pointerdown', onPointerDown);
+      track.addEventListener('pointermove', onPointerMove);
+      track.addEventListener('pointerup', onPointerUp);
+      track.addEventListener('pointercancel', onPointerUp);
     }
 
     // ============================================================
@@ -3510,6 +3694,7 @@
       // Show modal first, then render chart after it's visible
       const modal = document.getElementById('area-modal');
       modal.classList.add('visible');
+      initSliderHandlers();
 
       // Small delay to let modal transition complete and element get dimensions
       setTimeout(() => {
@@ -3598,6 +3783,7 @@
       // Show modal first, then render chart after it's visible
       const modal = document.getElementById('area-modal');
       modal.classList.add('visible');
+      initSliderHandlers();
 
       setTimeout(() => {
         renderMiniChartForZone(zoneName);
@@ -3733,10 +3919,8 @@
 
       renderMiniChart(cfg, zoneState, cachedSunTimes, currentHour, isActive);
 
-      // Style adjust buttons using proxy area if available
-      if (selectedArea) {
-        styleAdjustButtons(selectedArea.area_id);
-      }
+      // Update slider from zone state
+      updateSliderFromZone(zoneName);
     }
 
     function closeModal() {
@@ -3772,16 +3956,12 @@
       document.querySelectorAll('.adjust-mode-btn').forEach(b => {
         b.classList.toggle('active', b.dataset.mode === mode);
       });
-      updateModalButtonPreviews();
-    }
-
-    function doAdjust(dir) {
-      const actionMap = {
-        step:       { up: 'step_up',   down: 'step_down' },
-        brightness: { up: 'bright_up', down: 'bright_down' },
-        color:      { up: 'color_up',  down: 'color_down' }
-      };
-      executeAction(actionMap[adjustMode][dir]);
+      // Recalculate slider position for the new mode
+      if (selectedZoneName) {
+        updateSliderFromZone(selectedZoneName);
+      } else if (selectedArea) {
+        updateSliderPosition(selectedArea.area_id);
+      }
     }
 
     async function executeAction(action) {

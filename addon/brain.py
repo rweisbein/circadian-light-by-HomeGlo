@@ -982,6 +982,179 @@ class CircadianLight:
         )
 
     # ---------------------------------------------------------------------------
+    # Position-based setting
+    # ---------------------------------------------------------------------------
+
+    @staticmethod
+    def calculate_set_position(
+        hour: float,
+        position: float,       # 0-100
+        dimension: str,        # "step", "brightness", "color"
+        config: Config,
+        state: AreaState,
+        sun_times: Optional[SunTimes] = None,
+    ) -> StepResult:
+        """Set position along the circadian curve (0=min, 100=max).
+
+        Maps a 0-100 slider position to target brightness/color values,
+        then computes new midpoints via inverse_midpoint. Unlike
+        calculate_step, this always returns a result (clamps to achievable
+        range instead of returning None at limits).
+
+        Args:
+            hour: Current hour (0-24)
+            position: Slider position 0-100
+            dimension: "step" (both), "brightness", or "color"
+            config: Global configuration
+            state: Area runtime state
+            sun_times: Sun position times for solar rules
+
+        Returns:
+            StepResult with new values and state updates
+        """
+        in_ascend, h48, t_ascend, t_descend, slope = CircadianLight.get_phase_info(hour, config)
+
+        b_min = config.min_brightness
+        b_max = config.max_brightness
+        c_min = config.min_color_temp
+        c_max = config.max_color_temp
+
+        safe_margin_bri = max(1.0, (b_max - b_min) * 0.01)
+        safe_margin_cct = max(10, (c_max - c_min) * 0.01)
+
+        # Clamp position to 0-100
+        position = max(0, min(100, position))
+
+        # Map position to target values
+        target_bri = b_min + (b_max - b_min) * position / 100
+        target_natural_cct = c_min + (c_max - c_min) * position / 100
+
+        # Clamp to safe bounds (avoid asymptote issues)
+        target_bri = max(b_min + safe_margin_bri, min(b_max - safe_margin_bri, target_bri))
+        target_natural_cct = max(c_min + safe_margin_cct, min(c_max - safe_margin_cct, target_natural_cct))
+
+        # Normalize for inverse_midpoint
+        b_min_norm = b_min / 100.0
+        b_max_norm = b_max / 100.0
+        target_bri_norm = max(b_min_norm + 0.001, min(b_max_norm - 0.001, target_bri / 100.0))
+        target_cct_norm = max(0.001, min(0.999, (target_natural_cct - c_min) / (c_max - c_min)))
+
+        calc_time = h48
+        if not in_ascend and h48 < t_descend:
+            calc_time = h48 + 24
+
+        state_updates: Dict[str, Any] = {}
+
+        # Compute new midpoints based on dimension
+        if dimension in ("step", "brightness"):
+            new_bri_mid = inverse_midpoint(calc_time, target_bri_norm, slope, b_min_norm, b_max_norm)
+            if in_ascend:
+                new_bri_mid = CircadianLight.lift_midpoint_to_phase(new_bri_mid, t_ascend, t_descend) % 24
+            else:
+                descend_end = t_ascend + 24
+                new_bri_mid = CircadianLight.lift_midpoint_to_phase(new_bri_mid, t_descend, descend_end) % 24
+            state_updates["brightness_mid"] = new_bri_mid
+
+        if dimension in ("step", "color"):
+            new_color_mid = inverse_midpoint(calc_time, target_cct_norm, slope, 0, 1)
+            if in_ascend:
+                new_color_mid = CircadianLight.lift_midpoint_to_phase(new_color_mid, t_ascend, t_descend) % 24
+            else:
+                descend_end = t_ascend + 24
+                new_color_mid = CircadianLight.lift_midpoint_to_phase(new_color_mid, t_descend, descend_end) % 24
+            state_updates["color_mid"] = new_color_mid
+            # Clear color_override since user is explicitly choosing position
+            state_updates["color_override"] = None
+
+        # Build new state to verify actual output
+        new_state = AreaState(
+            is_circadian=state.is_circadian,
+            is_on=state.is_on,
+            frozen_at=state.frozen_at,
+            brightness_mid=state_updates.get("brightness_mid", state.brightness_mid),
+            color_mid=state_updates.get("color_mid", state.color_mid),
+            color_override=state_updates.get("color_override", state.color_override),
+        )
+        actual_bri = CircadianLight.calculate_brightness_at_hour(hour, config, new_state)
+        actual_cct = CircadianLight.calculate_color_at_hour(
+            hour, config, new_state, apply_solar_rules=True, sun_times=sun_times
+        )
+
+        rgb = CircadianLight.color_temperature_to_rgb(actual_cct)
+        xy = CircadianLight.color_temperature_to_xy(actual_cct)
+
+        return StepResult(
+            brightness=int(actual_bri),
+            color_temp=actual_cct,
+            rgb=rgb,
+            xy=xy,
+            state_updates=state_updates
+        )
+
+    @staticmethod
+    def calculate_achievable_range(
+        hour: float,
+        config: Config,
+        state: AreaState,
+        sun_times: Optional[SunTimes] = None,
+    ) -> Dict[str, Any]:
+        """Calculate the achievable brightness/color range at the current hour.
+
+        Tests extreme midpoint positions to find what the curve can actually
+        produce at this hour. Returns min/max achievable values plus current.
+
+        Args:
+            hour: Current hour (0-24)
+            config: Global configuration
+            state: Area runtime state
+            sun_times: Sun position times for solar rules
+
+        Returns:
+            Dict with bri_min, bri_max, cct_min, cct_max, current_bri, current_cct
+        """
+        in_ascend, h48, t_ascend, t_descend, slope = CircadianLight.get_phase_info(hour, config)
+        margin = 0.01
+
+        if in_ascend:
+            phase_start = t_ascend
+            phase_end = t_descend
+        else:
+            phase_start = t_descend
+            phase_end = t_ascend + 24
+
+        # Test extreme midpoints
+        low_mid = (phase_start + margin) % 24
+        high_mid = (phase_end - margin) % 24
+
+        state_low = AreaState(
+            is_circadian=True, is_on=True,
+            brightness_mid=low_mid, color_mid=low_mid,
+        )
+        state_high = AreaState(
+            is_circadian=True, is_on=True,
+            brightness_mid=high_mid, color_mid=high_mid,
+        )
+
+        bri_a = CircadianLight.calculate_brightness_at_hour(hour, config, state_low)
+        bri_b = CircadianLight.calculate_brightness_at_hour(hour, config, state_high)
+        cct_a = CircadianLight.calculate_color_at_hour(hour, config, state_low, apply_solar_rules=False)
+        cct_b = CircadianLight.calculate_color_at_hour(hour, config, state_high, apply_solar_rules=False)
+
+        current_bri = CircadianLight.calculate_brightness_at_hour(hour, config, state)
+        current_cct = CircadianLight.calculate_color_at_hour(
+            hour, config, state, apply_solar_rules=True, sun_times=sun_times
+        )
+
+        return {
+            "bri_min": min(bri_a, bri_b),
+            "bri_max": max(bri_a, bri_b),
+            "cct_min": min(cct_a, cct_b),
+            "cct_max": max(cct_a, cct_b),
+            "current_bri": current_bri,
+            "current_cct": current_cct,
+        }
+
+    # ---------------------------------------------------------------------------
     # Color space conversions
     # ---------------------------------------------------------------------------
 

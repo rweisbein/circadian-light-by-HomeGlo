@@ -774,6 +774,55 @@ class CircadianLightPrimitives:
             logger.info(f"Color down state updated (lights off): {result.color_temp}K")
 
     # -------------------------------------------------------------------------
+    # Set Position - Slider-based absolute positioning
+    # -------------------------------------------------------------------------
+
+    async def set_position(self, area_id: str, value: float, mode: str = "step", source: str = "service_call"):
+        """Set position along the circadian curve (0=min, 100=max).
+
+        Maps a slider value to brightness/color targets via inverse midpoint.
+        Always succeeds (clamps to achievable range instead of returning None).
+
+        Args:
+            area_id: The area ID to control
+            value: Position 0-100
+            mode: "step" (both), "brightness", or "color"
+            source: Source of the action
+        """
+        area_state = self._get_area_state(area_id)
+
+        if not area_state.is_circadian:
+            logger.debug(f"[{source}] set_position ignored for area {area_id} (not in circadian mode)")
+            return
+
+        # Always unfreeze for position setting (no limit check needed)
+        if area_state.frozen_at is not None:
+            self._unfreeze_internal(area_id, source)
+            area_state = self._get_area_state(area_id)
+
+        config = self._get_config(area_id)
+        hour = get_current_hour()
+        sun_times = self.client._get_sun_times() if hasattr(self.client, '_get_sun_times') else None
+
+        result = CircadianLight.calculate_set_position(
+            hour=hour,
+            position=value,
+            dimension=mode,
+            config=config,
+            state=area_state,
+            sun_times=sun_times,
+        )
+
+        logger.info(f"[{source}] set_position({value}, {mode}) for area {area_id}: {result.state_updates}")
+        self._update_area_state(area_id, result.state_updates)
+
+        if area_state.is_on:
+            await self._apply_circadian_lighting(area_id, result.brightness, result.color_temp)
+            logger.info(f"set_position applied: {result.brightness}%, {result.color_temp}K")
+        else:
+            logger.info(f"set_position state updated (lights off): {result.brightness}%, {result.color_temp}K")
+
+    # -------------------------------------------------------------------------
     # Lights On / Off / Toggle - Control light state under Circadian management
     # -------------------------------------------------------------------------
 
@@ -2377,6 +2426,25 @@ class CircadianLightPrimitives:
             return
         self._update_zone_state(zone_name, result.state_updates)
         logger.info(f"[{source}] Zone color down for '{zone_name}': {result.state_updates}")
+
+    async def zone_set_position(self, zone_name: str, value: float, mode: str = "step", source: str = "webserver"):
+        """Set zone position along circadian curve (0=min, 100=max)."""
+        config = self._get_zone_config(zone_name)
+        zone_state = self._get_zone_area_state(zone_name)
+
+        # Always unfreeze for position setting
+        if zone_state.frozen_at is not None:
+            self._update_zone_state(zone_name, {"frozen_at": None})
+            zone_state = self._get_zone_area_state(zone_name)
+
+        hour = get_current_hour()
+        sun_times = self.client._get_sun_times() if hasattr(self.client, '_get_sun_times') else None
+        result = CircadianLight.calculate_set_position(
+            hour=hour, position=value, dimension=mode,
+            config=config, state=zone_state, sun_times=sun_times,
+        )
+        self._update_zone_state(zone_name, result.state_updates)
+        logger.info(f"[{source}] Zone set_position({value}, {mode}) for '{zone_name}': {result.state_updates}")
 
     # -------------------------------------------------------------------------
     # Helper methods

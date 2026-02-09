@@ -3511,7 +3511,8 @@ class LightDesignerServer:
             'freeze_toggle',
             'glo_up', 'glo_down', 'glo_reset',
             'boost',
-            'set_nitelite', 'set_britelite'
+            'set_nitelite', 'set_britelite',
+            'set_position',
         }
 
         try:
@@ -3548,12 +3549,21 @@ class LightDesignerServer:
                     logger.info(f"[boost] Set boost state for area {area_id} (amount={boost_amount}%), firing event for lighting")
                     action = 'boost_on'
 
+            # Build event data
+            event_data = {'service': action, 'area_id': area_id}
+            if action == 'set_position':
+                value = data.get("value")
+                if value is None:
+                    return web.json_response({"error": "value required for set_position"}, status=400)
+                event_data['value'] = float(value)
+                event_data['mode'] = data.get("mode", "step")
+
             # Fire event for main.py to handle
             _, ws_url, token = self._get_ha_api_config()
             if ws_url and token:
                 success = await self._fire_event_via_websocket(
                     ws_url, token, 'circadian_light_service_event',
-                    {'service': action, 'area_id': area_id}
+                    event_data
                 )
                 if success:
                     logger.info(f"Fired {action} event for area {area_id}")
@@ -3584,6 +3594,7 @@ class LightDesignerServer:
             'bright_up', 'bright_down',
             'color_up', 'color_down',
             'glozone_reset', 'glozone_down',
+            'set_position',
         }
 
         try:
@@ -3598,12 +3609,21 @@ class LightDesignerServer:
             if action not in VALID_ZONE_ACTIONS:
                 return web.json_response({"error": f"Invalid zone action: {action}. Valid: {sorted(VALID_ZONE_ACTIONS)}"}, status=400)
 
+            # Build event data
+            zone_event_data = {'service': action, 'zone_name': zone_name}
+            if action == 'set_position':
+                value = data.get("value")
+                if value is None:
+                    return web.json_response({"error": "value required for set_position"}, status=400)
+                zone_event_data['value'] = float(value)
+                zone_event_data['mode'] = data.get("mode", "step")
+
             # Fire event for main.py to handle
             _, ws_url, token = self._get_ha_api_config()
             if ws_url and token:
                 success = await self._fire_event_via_websocket(
                     ws_url, token, 'circadian_light_zone_action',
-                    {'service': action, 'zone_name': zone_name}
+                    zone_event_data
                 )
                 if success:
                     logger.info(f"Fired zone {action} event for zone '{zone_name}'")
