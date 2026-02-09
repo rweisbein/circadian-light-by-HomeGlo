@@ -778,6 +778,28 @@ class HomeAssistantWebSocketClient:
             logger.debug(f"Ignoring cluster {cluster_id} event for Hue dimmer (will use cluster 64512)")
             return
 
+        # Handle dial/rotary devices (e.g., Lutron Aurora) — rotation sends
+        # move_to_level_with_on_off with a 0-255 level value
+        type_info = switches.get_switch_type(switch_config.type)
+        if type_info and type_info.get("dial") and command in ("move_to_level_with_on_off", "move_to_level"):
+            level = args[0] if isinstance(args, list) and len(args) > 0 else 0
+            position = round(level / 255 * 100)
+            # Button press toggles between 0 and 255 — treat as toggle action
+            if level == 0 or level == 255:
+                button_event = "dial_press"
+                switches.set_last_action(device_ieee, f"dial_press ({level})")
+                action = switch_config.get_button_action(button_event)
+                if action:
+                    await self._execute_switch_action(device_ieee, action)
+                return
+            # Dial rotation — use set_position directly
+            switches.set_last_action(device_ieee, f"dial {position}%")
+            logger.info(f"[Dial] {switch_config.name}: level={level} -> set_position({position})")
+            areas = switches.get_current_areas(device_ieee)
+            for area in areas:
+                await self.primitives.set_position(area, position, "step", "switch")
+            return
+
         # Map the ZHA command to our button event format
         button_event = self._map_zha_command_to_button_event(command, args, switch_config.type)
 
