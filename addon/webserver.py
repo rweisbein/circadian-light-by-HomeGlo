@@ -4151,7 +4151,7 @@ class LightDesignerServer:
                     for device in device_msg['result']:
                         device_id = device.get('id')
                         if device_id:
-                            # Extract unique ID from identifiers (ZHA or Hue)
+                            # Extract unique ID from identifiers (ZHA, Hue, or Matter)
                             unique_id = None
                             integration = None
                             for identifier in device.get('identifiers', []):
@@ -4163,6 +4163,10 @@ class LightDesignerServer:
                                     elif identifier[0] == 'hue':
                                         unique_id = identifier[1]  # Hue device ID
                                         integration = 'hue'
+                                        break
+                                    elif identifier[0] == 'matter':
+                                        unique_id = identifier[1]  # Matter device ID
+                                        integration = 'matter'
                                         break
                             if unique_id:
                                 logger.debug(f"[Controls] HA device {device.get('name')}: id={unique_id} ({integration})")
