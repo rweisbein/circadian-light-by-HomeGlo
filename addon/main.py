@@ -137,6 +137,10 @@ class HomeAssistantWebSocketClient:
         # Key: device_ieee -> last level (0-255)
         self._dial_last_level: Dict[str, int] = {}
 
+        # Dial debounce: buffer latest event and process after settling
+        # Key: device_ieee -> {"level": int, "timer": asyncio.Task, "config": SwitchConfig}
+        self._dial_pending: Dict[str, Dict[str, Any]] = {}
+
         # Brightness curve configuration (populated from supervisor/designer config)
         self.max_dim_steps = DEFAULT_MAX_DIM_STEPS
         self.min_brightness = DEFAULT_MIN_BRIGHTNESS
@@ -796,38 +800,37 @@ class HomeAssistantWebSocketClient:
             if prev_level is not None:
                 delta = level - prev_level
                 if delta > 128:
-                    # Large upward jump = wrapped past 0 going counter-clockwise
                     level = 0
                 elif delta < -128:
-                    # Large downward jump = wrapped past 255 going clockwise
                     level = 255
             self._dial_last_level[device_ieee] = raw_level
 
-            position = round(level / 255 * 100)
-            # Button press toggles between 0 and 255 — treat as toggle action
+            # Button press toggles between 0 and 255 — execute immediately
             if level == 0 or level == 255:
+                # Cancel any pending dial rotation
+                pending = self._dial_pending.pop(device_ieee, None)
+                if pending and pending.get("timer"):
+                    pending["timer"].cancel()
                 button_event = "dial_press"
                 switches.set_last_action(device_ieee, f"dial_press ({level})")
                 action = switch_config.get_button_action(button_event)
                 if action:
                     await self._execute_switch_action(device_ieee, action)
                 return
-            # Dial rotation — look up dial_rotate mapping for mode
-            dial_action = switch_config.get_button_action("dial_rotate") or "set_position_step"
-            mode_map = {
-                "set_position_step": "step",
-                "set_position_brightness": "brightness",
-                "set_position_color": "color",
+
+            # Dial rotation — debounce: buffer latest level, process after 200ms
+            # This filters out-of-order ZigBee events during fast spinning
+            pending = self._dial_pending.get(device_ieee)
+            if pending and pending.get("timer"):
+                pending["timer"].cancel()
+            self._dial_pending[device_ieee] = {
+                "level": level,
+                "config": switch_config,
+                "timer": asyncio.ensure_future(self._dial_debounce(device_ieee)),
             }
-            mode = mode_map.get(dial_action, "step")
-            switches.set_last_action(device_ieee, f"dial {position}%")
-            logger.info(f"[Dial] {switch_config.name}: level={level} -> set_position({position}, {mode})")
-            areas = switches.get_current_areas(device_ieee)
-            for area in areas:
-                await self.primitives.set_position(area, position, mode, "switch")
             return
 
-        # Map the ZHA command to our button event format
+        # Map the ZHA command to our button event format (non-dial switches)
         button_event = self._map_zha_command_to_button_event(command, args, switch_config.type)
 
         # Record last action for UI display (even if unmapped, show raw command)
@@ -1815,6 +1818,38 @@ class HomeAssistantWebSocketClient:
             service_data,
             target={"area_id": area}
         )
+
+    async def _dial_debounce(self, device_ieee: str) -> None:
+        """Process a buffered dial rotation after a short settling delay.
+
+        Waits 200ms for events to settle, then processes the latest level.
+        This filters out-of-order ZigBee events during fast spinning.
+        """
+        try:
+            await asyncio.sleep(0.2)
+            pending = self._dial_pending.pop(device_ieee, None)
+            if not pending:
+                return
+            level = pending["level"]
+            switch_config = pending["config"]
+            position = round(level / 255 * 100)
+
+            dial_action = switch_config.get_button_action("dial_rotate") or "set_position_step"
+            mode_map = {
+                "set_position_step": "step",
+                "set_position_brightness": "brightness",
+                "set_position_color": "color",
+            }
+            mode = mode_map.get(dial_action, "step")
+            switches.set_last_action(device_ieee, f"dial {position}%")
+            logger.info(f"[Dial] {switch_config.name}: level={level} -> set_position({position}, {mode})")
+            areas = switches.get_current_areas(device_ieee)
+            for area in areas:
+                await self.primitives.set_position(area, position, mode, "switch")
+        except asyncio.CancelledError:
+            pass
+        except Exception as e:
+            logger.error(f"Error in dial debounce: {e}", exc_info=True)
 
     async def _start_hold_repeat(self, switch_id: str, action: str) -> None:
         """Start repeating an action while button is held.
