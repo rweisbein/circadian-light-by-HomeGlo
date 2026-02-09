@@ -790,6 +790,8 @@ class HomeAssistantWebSocketClient:
 
             # Detect wrap-around: if level jumps by more than 128, the dial
             # overflowed past 0 or 255. Clamp to the nearest extreme.
+            # Store raw level (not clamped) so wrap detection only fires once.
+            raw_level = level
             prev_level = self._dial_last_level.get(device_ieee)
             if prev_level is not None:
                 delta = level - prev_level
@@ -799,7 +801,7 @@ class HomeAssistantWebSocketClient:
                 elif delta < -128:
                     # Large downward jump = wrapped past 255 going clockwise
                     level = 255
-            self._dial_last_level[device_ieee] = level
+            self._dial_last_level[device_ieee] = raw_level
 
             position = round(level / 255 * 100)
             # Button press toggles between 0 and 255 — treat as toggle action
