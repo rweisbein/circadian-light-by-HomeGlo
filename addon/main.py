@@ -3275,6 +3275,8 @@ class HomeAssistantWebSocketClient:
             area_state = AreaState.from_dict(area_state_dict)
 
             # Check target power state - enforce is_on with off_enforced optimization
+            # Send redundant off commands for a few periods to catch missed turn-offs
+            OFF_CONFIRM_THRESHOLD = 3  # Send off for this many periods before stopping
             if not state.get_is_on(area_id):
                 if not state.is_off_enforced(area_id):
                     # Check cached_states to see if lights are actually off
@@ -3285,12 +3287,22 @@ class HomeAssistantWebSocketClient:
                             for l in lights
                         )
                         if any_on:
+                            # Straggler detected - send off and reset counter
                             transition = self.primitives._get_turn_off_transition()
                             logger.debug(f"Area {area_id} is_on=false, straggler light detected, sending off")
                             await self.turn_off_lights(area_id, transition=transition, log_periodic=log_periodic)
+                            state.reset_off_confirm_count(area_id)
                         else:
-                            state.set_off_enforced(area_id, True)
-                            logger.debug(f"Area {area_id} is_on=false, all lights confirmed off, setting off_enforced")
+                            # All lights confirmed off - increment counter
+                            confirm_count = state.increment_off_confirm_count(area_id)
+                            if confirm_count >= OFF_CONFIRM_THRESHOLD:
+                                state.set_off_enforced(area_id, True)
+                                logger.debug(f"Area {area_id} is_on=false, confirmed off {confirm_count}x, setting off_enforced")
+                            else:
+                                # Send redundant off command for reliability
+                                transition = self.primitives._get_turn_off_transition()
+                                logger.debug(f"Area {area_id} is_on=false, confirmed off {confirm_count}/{OFF_CONFIRM_THRESHOLD}, sending redundant off")
+                                await self.turn_off_lights(area_id, transition=transition, log_periodic=log_periodic)
                     else:
                         # No lights in cache (capability cache not built yet) — fallback: send off
                         transition = self.primitives._get_turn_off_transition()

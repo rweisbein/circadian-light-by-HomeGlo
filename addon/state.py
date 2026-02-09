@@ -54,6 +54,7 @@ def _get_default_area_state() -> Dict[str, Any]:
         "motion_pre_warning_brightness": None,  # Brightness % before warning (to restore if motion detected)
         # Off enforcement (periodic loop optimization)
         "off_enforced": False,  # True once we've verified all lights are off; skip re-sending off commands
+        "off_confirm_count": 0,  # Counter for consecutive off confirmations before setting off_enforced
     }
 
 
@@ -746,6 +747,9 @@ def set_off_enforced(area_id: str, value: bool) -> None:
         value: Whether off state has been verified/enforced
     """
     update_area(area_id, {"off_enforced": value})
+    if not value:
+        # Reset the confirmation counter when clearing off_enforced
+        update_area(area_id, {"off_confirm_count": 0})
 
 
 def is_off_enforced(area_id: str) -> bool:
@@ -753,13 +757,34 @@ def is_off_enforced(area_id: str) -> bool:
     return get_area(area_id).get("off_enforced", False)
 
 
+def increment_off_confirm_count(area_id: str) -> int:
+    """Increment and return the off confirmation counter for an area.
+
+    Used to track consecutive periods where lights are confirmed off.
+    After N confirmations, we can stop sending redundant off commands.
+
+    Returns:
+        The new counter value after incrementing
+    """
+    current = get_area(area_id).get("off_confirm_count", 0)
+    new_count = current + 1
+    update_area(area_id, {"off_confirm_count": new_count})
+    return new_count
+
+
+def reset_off_confirm_count(area_id: str) -> None:
+    """Reset the off confirmation counter for an area."""
+    update_area(area_id, {"off_confirm_count": 0})
+
+
 def clear_all_off_enforced() -> None:
-    """Clear off_enforced for all areas.
+    """Clear off_enforced and off_confirm_count for all areas.
 
     Called at startup to force one enforcement pass after every reboot.
     """
     for area_id in list(_state.keys()):
-        if _state[area_id].get("off_enforced", False):
+        if _state[area_id].get("off_enforced", False) or _state[area_id].get("off_confirm_count", 0) > 0:
             _state[area_id]["off_enforced"] = False
+            _state[area_id]["off_confirm_count"] = 0
     _save()
-    logger.debug("Cleared off_enforced for all areas")
+    logger.debug("Cleared off_enforced and off_confirm_count for all areas")
