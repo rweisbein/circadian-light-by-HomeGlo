@@ -133,12 +133,12 @@ class HomeAssistantWebSocketClient:
         # Key: (switch_id, button) -> {"count": int, "timer": Optional[asyncio.Task]}
         self._multi_click_state: Dict[tuple, Dict[str, Any]] = {}
 
-        # Last dial level per device (for wrap-around detection)
-        # Key: device_ieee -> last level (0-255)
+        # Dial state per device — relative mode
+        # _dial_last_level: raw ZigBee level from previous event (for computing deltas)
+        # _dial_position: virtual 0-100 position (tracks where we've set lights to)
+        # _dial_pending: debounce buffer accumulating deltas
         self._dial_last_level: Dict[str, int] = {}
-
-        # Dial debounce: buffer latest event and process after settling
-        # Key: device_ieee -> {"level": int, "timer": asyncio.Task, "config": SwitchConfig}
+        self._dial_position: Dict[str, float] = {}
         self._dial_pending: Dict[str, Dict[str, Any]] = {}
 
         # Brightness curve configuration (populated from supervisor/designer config)
@@ -786,48 +786,54 @@ class HomeAssistantWebSocketClient:
             logger.debug(f"Ignoring cluster {cluster_id} event for Hue dimmer (will use cluster 64512)")
             return
 
-        # Handle dial/rotary devices (e.g., Lutron Aurora) — rotation sends
-        # move_to_level_with_on_off with a 0-255 level value
+        # Handle dial/rotary devices (e.g., Lutron Aurora) — relative mode
+        # The dial reports absolute 0-255 positions, but we convert to relative
+        # deltas so spinning clockwise always brightens regardless of where the
+        # physical dial sits.
         type_info = switches.get_switch_type(switch_config.type)
         if type_info and type_info.get("dial") and command in ("move_to_level_with_on_off", "move_to_level"):
-            level = args[0] if isinstance(args, list) and len(args) > 0 else 0
+            raw_level = args[0] if isinstance(args, list) and len(args) > 0 else 0
 
-            # Detect wrap-around: if level jumps by more than 128, the dial
-            # overflowed past 0 or 255. Clamp to the nearest extreme.
-            # Store raw level (not clamped) so wrap detection only fires once.
-            raw_level = level
-            prev_level = self._dial_last_level.get(device_ieee)
-            if prev_level is not None:
-                delta = level - prev_level
-                if delta > 128:
-                    level = 0
-                elif delta < -128:
-                    level = 255
+            # First event after startup: just store baseline, don't move lights
+            prev_raw = self._dial_last_level.get(device_ieee)
             self._dial_last_level[device_ieee] = raw_level
+            if prev_raw is None:
+                logger.info(f"[Dial] {switch_config.name}: baseline level={raw_level}")
+                return
 
-            # Button press toggles between 0 and 255 — execute immediately
-            if level == 0 or level == 255:
+            # Compute delta with wrap-around handling
+            delta = raw_level - prev_raw
+            if delta > 128:
+                delta -= 256   # wrapped past 0 going counter-clockwise
+            elif delta < -128:
+                delta += 256   # wrapped past 255 going clockwise
+
+            if delta == 0:
+                return
+
+            # Button press: level jumps to 0 or 255 (delta ~= ±full range)
+            if raw_level == 0 or raw_level == 255:
                 # Cancel any pending dial rotation
                 pending = self._dial_pending.pop(device_ieee, None)
                 if pending and pending.get("timer"):
                     pending["timer"].cancel()
                 button_event = "dial_press"
-                switches.set_last_action(device_ieee, f"dial_press ({level})")
+                switches.set_last_action(device_ieee, f"dial_press ({raw_level})")
                 action = switch_config.get_button_action(button_event)
                 if action:
                     await self._execute_switch_action(device_ieee, action)
                 return
 
-            # Dial rotation — debounce: buffer latest level, process after 200ms
-            # This filters out-of-order ZigBee events during fast spinning
+            # Dial rotation — accumulate delta and debounce
+            delta_pct = delta / 255 * 100
             pending = self._dial_pending.get(device_ieee)
             if pending and pending.get("timer"):
                 pending["timer"].cancel()
-            self._dial_pending[device_ieee] = {
-                "level": level,
-                "config": switch_config,
-                "timer": asyncio.ensure_future(self._dial_debounce(device_ieee)),
-            }
+                pending["delta"] += delta_pct
+            else:
+                pending = {"delta": delta_pct, "config": switch_config}
+            pending["timer"] = asyncio.ensure_future(self._dial_debounce(device_ieee))
+            self._dial_pending[device_ieee] = pending
             return
 
         # Map the ZHA command to our button event format (non-dial switches)
@@ -1820,19 +1826,18 @@ class HomeAssistantWebSocketClient:
         )
 
     async def _dial_debounce(self, device_ieee: str) -> None:
-        """Process a buffered dial rotation after a short settling delay.
+        """Process accumulated dial rotation delta after a short settling delay.
 
-        Waits 200ms for events to settle, then processes the latest level.
-        This filters out-of-order ZigBee events during fast spinning.
+        Waits 200ms for events to settle, then applies the accumulated delta
+        to the virtual position and calls set_position.
         """
         try:
             await asyncio.sleep(0.2)
             pending = self._dial_pending.pop(device_ieee, None)
             if not pending:
                 return
-            level = pending["level"]
+            delta_pct = pending["delta"]
             switch_config = pending["config"]
-            position = round(level / 255 * 100)
 
             dial_action = switch_config.get_button_action("dial_rotate") or "set_position_step"
             mode_map = {
@@ -1841,9 +1846,34 @@ class HomeAssistantWebSocketClient:
                 "set_position_color": "color",
             }
             mode = mode_map.get(dial_action, "step")
-            switches.set_last_action(device_ieee, f"dial {position}%")
-            logger.info(f"[Dial] {switch_config.name}: level={level} -> set_position({position}, {mode})")
             areas = switches.get_current_areas(device_ieee)
+
+            # Initialize virtual position from current area state if needed
+            if device_ieee not in self._dial_position and areas:
+                area_id = areas[0]
+                try:
+                    config = self.primitives._get_config(area_id)
+                    area_state = self.primitives._get_area_state(area_id)
+                    now = datetime.now()
+                    hour = now.hour + now.minute / 60
+                    current_bri = CircadianLight.calculate_brightness_at_hour(hour, config, area_state)
+                    b_min = config.min_brightness
+                    b_max = config.max_brightness
+                    if b_max > b_min:
+                        self._dial_position[device_ieee] = (current_bri - b_min) / (b_max - b_min) * 100
+                    else:
+                        self._dial_position[device_ieee] = 50
+                    logger.info(f"[Dial] Initialized virtual position from area state: {self._dial_position[device_ieee]:.0f}%")
+                except Exception:
+                    self._dial_position[device_ieee] = 50
+
+            current_pos = self._dial_position.get(device_ieee, 50)
+            new_pos = max(0, min(100, current_pos + delta_pct))
+            self._dial_position[device_ieee] = new_pos
+            position = round(new_pos)
+
+            switches.set_last_action(device_ieee, f"dial {position}%")
+            logger.info(f"[Dial] {switch_config.name}: delta={delta_pct:+.1f}% -> set_position({position}, {mode})")
             for area in areas:
                 await self.primitives.set_position(area, position, mode, "switch")
         except asyncio.CancelledError:
