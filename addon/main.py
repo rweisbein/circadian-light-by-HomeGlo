@@ -792,12 +792,19 @@ class HomeAssistantWebSocketClient:
                 if action:
                     await self._execute_switch_action(device_ieee, action)
                 return
-            # Dial rotation — use set_position directly
+            # Dial rotation — look up dial_rotate mapping for mode
+            dial_action = switch_config.get_button_action("dial_rotate") or "set_position_step"
+            mode_map = {
+                "set_position_step": "step",
+                "set_position_brightness": "brightness",
+                "set_position_color": "color",
+            }
+            mode = mode_map.get(dial_action, "step")
             switches.set_last_action(device_ieee, f"dial {position}%")
-            logger.info(f"[Dial] {switch_config.name}: level={level} -> set_position({position})")
+            logger.info(f"[Dial] {switch_config.name}: level={level} -> set_position({position}, {mode})")
             areas = switches.get_current_areas(device_ieee)
             for area in areas:
-                await self.primitives.set_position(area, position, "step", "switch")
+                await self.primitives.set_position(area, position, mode, "switch")
             return
 
         # Map the ZHA command to our button event format

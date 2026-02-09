@@ -288,6 +288,11 @@ def get_categorized_actions() -> Dict[str, List[Dict[str, Any]]]:
         "Switch": [
             {"id": "cycle_scope", "label": "Advance to next Reach"},
         ],
+        "Dial": [
+            {"id": "set_position_step", "label": "Glo (brightness + color)"},
+            {"id": "set_position_brightness", "label": "Bright only"},
+            {"id": "set_position_color", "label": "Color only"},
+        ],
         "Special": [
             {"id": None, "label": "No Action"},
             {"id": "magic", "label": "Magic"},
@@ -416,10 +421,11 @@ SWITCH_TYPES: Dict[str, Dict[str, Any]] = {
         "manufacturers": ["Lutron"],
         "models": ["Z3-1BRL"],
         "buttons": ["dial"],
-        "action_types": ["rotate", "press"],
+        "action_types": ["press", "rotate"],
         "dial": True,  # Continuous input — rotation maps to set_position
         "default_mapping": {
-            "dial_press": "circadian_toggle",       # Push toggles on/off
+            "dial_press": "toggle",
+            "dial_rotate": "set_position_step",     # Dial controls Glo (step mode)
         },
         "repeat_on_hold": [],
         "repeat_interval_ms": 300,

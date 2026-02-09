@@ -493,7 +493,8 @@
       'triple_press': '3×',
       'quadruple_press': '4×',
       'quintuple_press': '5×',
-      'hold': 'Long'
+      'hold': 'Long',
+      'rotate': 'Rotate'
     };
 
     // Get displayable action types for a switch, avoiding duplicates (prefer short_release over press)
@@ -516,6 +517,9 @@
 
       // Hold
       if (supported.includes('hold')) result.push('hold');
+
+      // Rotate (dial devices)
+      if (supported.includes('rotate')) result.push('rotate');
 
       return result;
     }
@@ -663,7 +667,7 @@
                     <select class="action-select"
                             onchange="updateMapping('${eventKey}', this.value)"
                             data-event="${eventKey}">
-                      ${buildActionOptions(actionValue)}
+                      ${buildActionOptions(actionValue, actionType)}
                     </select>
                     ${supportsWhenOff ? `
                       <span class="when-off-label">when off:</span>
@@ -685,9 +689,13 @@
       return adjustmentActions.includes(action);
     }
 
-    function buildActionOptions(selectedValue) {
+    function buildActionOptions(selectedValue, actionType) {
       let html = '';
+      // Rotate action only shows Dial category options
+      const dialOnly = actionType === 'rotate';
       for (const [category, actions] of Object.entries(actionCategories)) {
+        if (dialOnly && category !== 'Dial') continue;
+        if (!dialOnly && category === 'Dial') continue;
         html += `<optgroup label="${category}">`;
         for (const action of actions) {
           const value = action.id === null ? '' : action.id;

@@ -2114,12 +2114,13 @@
     const magicActionLabels = {
       'hold': 'Long press', 'short_release': 'Press', 'press': 'Press',
       'double_press': '2× press', 'triple_press': '3× press',
-      'quadruple_press': '4× press', 'quintuple_press': '5× press'
+      'quadruple_press': '4× press', 'quintuple_press': '5× press',
+      'rotate': 'Rotate'
     };
     // Known action suffixes, longest first so we match greedily
     const knownActionSuffixes = [
       'quintuple_press', 'quadruple_press', 'triple_press', 'double_press',
-      'short_release', 'press', 'hold'
+      'short_release', 'press', 'hold', 'rotate'
     ];
 
     function formatMagicButtonEvent(key) {
