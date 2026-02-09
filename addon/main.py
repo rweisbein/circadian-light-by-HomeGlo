@@ -34,7 +34,8 @@ from light_controller import (
     LightControllerFactory,
     MultiProtocolController,
     LightCommand,
-    Protocol
+    Protocol,
+    ReachGroup,
 )
 
 # Configure logging
@@ -103,6 +104,10 @@ class HomeAssistantWebSocketClient:
         self.hue_lights: Set[str] = set()  # entity_ids of Hue-connected lights (skip 2-step for these)
         self.zha_lights: Set[str] = set()  # entity_ids of ZHA-connected lights (use ZHA groups for these)
         self.area_name_to_id: Dict[str, str] = {}  # area_name -> area_id (for group registration)
+
+        # Reach groups for multi-area switch scopes (synchronized ZigBee control)
+        # Maps reach_key (hash of sorted areas) -> ReachGroup with group entity IDs
+        self.reach_groups: Dict[str, ReachGroup] = {}
 
         # Pending response futures for async message routing (used when message loop is running)
         self._pending_responses: Dict[int, asyncio.Future] = {}
@@ -2407,9 +2412,129 @@ class HomeAssistantWebSocketClient:
         if tasks:
             await asyncio.gather(*tasks)
 
+    async def turn_on_reach_groups(
+        self,
+        areas: List[str],
+        brightness: int,
+        color_temp: int,
+        transition: float = 0.4,
+    ) -> bool:
+        """Turn on lights via reach groups for synchronized multi-area control.
+
+        Uses Circadian_Reach_{hash}_color and _ct groups to control lights
+        across multiple areas with a single command per capability type.
+        Falls back to per-area control if reach groups aren't available.
+
+        Args:
+            areas: List of area IDs to control
+            brightness: Brightness percentage 0-100
+            color_temp: Color temperature in Kelvin
+            transition: Transition time in seconds
+
+        Returns:
+            True if reach groups were used, False if fell back to per-area
+        """
+        if len(areas) < 2:
+            return False  # Single area doesn't use reach groups
+
+        reach_color, reach_ct = self.get_reach_groups(areas)
+        if not reach_color and not reach_ct:
+            return False  # No reach groups available
+
+        logger.info(f"Using reach groups for synchronized control: color={reach_color}, ct={reach_ct}")
+
+        # Compute xy from kelvin for color-capable lights
+        xy = CircadianLight.color_temperature_to_xy(color_temp)
+
+        # Apply CT brightness compensation
+        original_brightness = brightness
+        brightness = self._apply_ct_brightness_compensation(brightness, color_temp)
+        if brightness != original_brightness:
+            logger.debug(f"CT compensation: {original_brightness}% -> {brightness}% at {color_temp}K")
+
+        tasks = []
+
+        # Send command to reach color group
+        if reach_color:
+            color_data = {
+                "transition": transition,
+                "brightness_pct": brightness,
+                "xy_color": list(xy),
+            }
+            logger.info(f"Reach group (color): {reach_color}, xy={xy}, brightness={brightness}%")
+            tasks.append(
+                asyncio.create_task(
+                    self.call_service("light", "turn_on", color_data, {"entity_id": reach_color})
+                )
+            )
+
+        # Send command to reach CT group
+        if reach_ct:
+            ct_data = {
+                "transition": transition,
+                "brightness_pct": brightness,
+                "color_temp_kelvin": max(2000, color_temp),
+            }
+            logger.info(f"Reach group (CT): {reach_ct}, kelvin={color_temp}, brightness={brightness}%")
+            tasks.append(
+                asyncio.create_task(
+                    self.call_service("light", "turn_on", ct_data, {"entity_id": reach_ct})
+                )
+            )
+
+        if tasks:
+            await asyncio.gather(*tasks)
+
+        return True
+
+    async def turn_off_reach_groups(
+        self,
+        areas: List[str],
+        transition: float = 0.3,
+    ) -> bool:
+        """Turn off lights via reach groups for synchronized multi-area control.
+
+        Args:
+            areas: List of area IDs to control
+            transition: Transition time in seconds
+
+        Returns:
+            True if reach groups were used, False if fell back to per-area
+        """
+        if len(areas) < 2:
+            return False
+
+        reach_color, reach_ct = self.get_reach_groups(areas)
+        if not reach_color and not reach_ct:
+            return False
+
+        logger.info(f"Using reach groups for synchronized turn off: color={reach_color}, ct={reach_ct}")
+
+        tasks = []
+        service_data = {"transition": transition}
+
+        if reach_color:
+            tasks.append(
+                asyncio.create_task(
+                    self.call_service("light", "turn_off", service_data, {"entity_id": reach_color})
+                )
+            )
+
+        if reach_ct:
+            tasks.append(
+                asyncio.create_task(
+                    self.call_service("light", "turn_off", service_data, {"entity_id": reach_ct})
+                )
+            )
+
+        if tasks:
+            await asyncio.gather(*tasks)
+
+        return True
+
     async def get_states(self) -> List[Dict[str, Any]]:
         """Get all entity states.
-        
+
         Returns:
             List of entity states, or empty list if failed
         """
@@ -3475,6 +3600,9 @@ class HomeAssistantWebSocketClient:
                     logger.info("ZHA group sync completed")
                     # Refresh parity cache using the areas data we already have
                     await self.refresh_area_parity_cache(areas_data=areas)
+
+                    # Sync reach groups for multi-area scopes
+                    await self.sync_reach_groups(areas_data=areas)
             else:
                 logger.warning("ZigBee controller not available for group sync")
 
@@ -3484,6 +3612,65 @@ class HomeAssistantWebSocketClient:
                 logger.info("=" * 60)
         except Exception as e:
             logger.error(f"Failed to sync ZHA groups: {e}")
+
+    async def sync_reach_groups(self, areas_data: Dict[str, Dict[str, Any]] = None):
+        """Sync ZHA groups for multi-area reach combinations.
+
+        Creates Circadian_Reach_{hash}_color and _ct groups for each unique
+        multi-area switch scope. These groups enable synchronized control of
+        lights across multiple areas with a single ZigBee command.
+
+        Args:
+            areas_data: Optional areas data from sync_zha_groups. If not provided,
+                       will be fetched from ZigBee controller.
+        """
+        try:
+            # Get unique multi-area reaches from all switches
+            reaches = switches.get_all_unique_reaches()
+            if not reaches:
+                logger.debug("No multi-area reaches configured")
+                self.reach_groups = {}
+                return
+
+            logger.info(f"Syncing {len(reaches)} multi-area reach group(s)...")
+
+            # Get areas data if not provided
+            if areas_data is None:
+                zigbee_controller = self.light_controller.controllers.get(Protocol.ZIGBEE)
+                if zigbee_controller:
+                    areas_data = await zigbee_controller.get_areas()
+                else:
+                    logger.warning("ZigBee controller not available for reach group sync")
+                    return
+
+            # Use ZigBee controller to sync reach groups
+            zigbee_controller = self.light_controller.controllers.get(Protocol.ZIGBEE)
+            if zigbee_controller:
+                self.reach_groups = await zigbee_controller.sync_reach_groups(reaches, areas_data)
+                logger.info(f"Reach groups synced: {list(self.reach_groups.keys())}")
+            else:
+                logger.warning("ZigBee controller not available for reach group sync")
+
+        except Exception as e:
+            logger.error(f"Failed to sync reach groups: {e}")
+
+    def get_reach_groups(self, areas: List[str]) -> Tuple[Optional[str], Optional[str]]:
+        """Look up reach group entities for a set of areas.
+
+        Args:
+            areas: List of area IDs to look up
+
+        Returns:
+            Tuple of (color_entity_id, ct_entity_id) - either or both may be None
+        """
+        if len(areas) < 2:
+            return None, None  # Single-area uses area groups, not reach groups
+
+        key = switches.get_reach_key(areas)
+        reach = self.reach_groups.get(key)
+        if reach:
+            return reach.entity_id_color, reach.entity_id_ct
+        return None, None
     
     
     async def handle_message(self, message: Dict[str, Any]):
@@ -3699,6 +3886,11 @@ class HomeAssistantWebSocketClient:
             elif event_type == "circadian_light_sync_devices":
                 logger.info("circadian_light_sync_devices event received - running manual sync")
                 await self.run_manual_sync()
+
+            # Handle circadian_light_sync_reach_groups event (fired by webserver on switch config change)
+            elif event_type == "circadian_light_sync_reach_groups":
+                logger.info("circadian_light_sync_reach_groups event received - syncing reach groups")
+                await self.sync_reach_groups()
 
             # Handle circadian_light_live_design event (fired by webserver when Live Design starts/stops)
             elif event_type == "circadian_light_live_design":
