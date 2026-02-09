@@ -494,6 +494,12 @@ class LightDesignerServer:
         self.app.router.add_route('POST', '/{path:.*}/api/flash-light', self.flash_light)
         self.app.router.add_post('/api/flash-light', self.flash_light)
 
+        # ZHA motion sensor settings API routes
+        self.app.router.add_route('GET', '/{path:.*}/api/controls/{device_id}/zha-settings', self.get_zha_motion_settings)
+        self.app.router.add_route('POST', '/{path:.*}/api/controls/{device_id}/zha-settings', self.set_zha_motion_settings)
+        self.app.router.add_get('/api/controls/{device_id}/zha-settings', self.get_zha_motion_settings)
+        self.app.router.add_post('/api/controls/{device_id}/zha-settings', self.set_zha_motion_settings)
+
         # Legacy switches API routes (keeping for backwards compat)
         self.app.router.add_route('GET', '/{path:.*}/api/switches', self.get_switches)
         self.app.router.add_route('POST', '/{path:.*}/api/switches', self.create_switch)
@@ -4195,6 +4201,7 @@ class LightDesignerServer:
                                 'has_button': False,
                                 'has_battery': False,
                                 'illuminance_entity': None,
+                                'sensitivity_entity': None,
                             }
 
                         if entity_id.startswith('light.'):
@@ -4216,6 +4223,10 @@ class LightDesignerServer:
                             device_entities[device_id]['has_battery'] = True
                         elif entity_id.startswith('sensor.') and ('illuminance' in entity_id or '_lux' in entity_id):
                             device_entities[device_id]['illuminance_entity'] = entity_id
+                        # Detect sensitivity entities (select or number) for motion sensors
+                        elif (entity_id.startswith('select.') or entity_id.startswith('number.')) and 'sensitivity' in entity_id.lower():
+                            device_entities[device_id]['sensitivity_entity'] = entity_id
+                            logger.debug(f"[Controls] Found sensitivity entity: {entity_id} for device {device_id}")
 
                 # Fetch current entity states for illuminance readings
                 entity_states = {}
@@ -4324,6 +4335,9 @@ class LightDesignerServer:
                             'unit': 'lx',
                         }
 
+                    # Include sensitivity entity for motion sensors (ZHA only)
+                    sensitivity_entity = entities.get('sensitivity_entity') if category == 'motion_sensor' else None
+
                     controls.append({
                         **device,
                         'category': category,
@@ -4331,6 +4345,7 @@ class LightDesignerServer:
                         'type_name': type_name,
                         'supported': is_supported,
                         'illuminance': illum_info,
+                        'sensitivity_entity': sensitivity_entity,
                     })
 
                 logger.info(f"[Controls] Returning {len(controls)} controls: {[(c.get('name'), c.get('category')) for c in controls]}")
@@ -4484,6 +4499,264 @@ class LightDesignerServer:
             return web.json_response({"status": "ok"})
         except Exception as e:
             logger.error(f"Error removing control config: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def get_zha_motion_settings(self, request: Request) -> Response:
+        """Get ZHA motion sensor settings (sensitivity and timeout).
+
+        Returns:
+            - sensitivity: current value and available options (from HA select/number entity)
+            - timeout: occupancy timeout in seconds (from ZHA cluster attribute)
+            - is_zha: whether this is a ZHA device
+        """
+        device_id = request.match_info.get('device_id')
+        if not device_id:
+            return web.json_response({"error": "Device ID is required"}, status=400)
+
+        rest_url, ws_url, token = self._get_ha_api_config()
+        if not token or not ws_url:
+            return web.json_response({"error": "HA API not configured"}, status=500)
+
+        try:
+            async with websockets.connect(ws_url) as ws:
+                # Auth
+                msg = json.loads(await ws.recv())
+                if msg.get('type') != 'auth_required':
+                    return web.json_response({"error": "Auth failed"}, status=500)
+                await ws.send(json.dumps({'type': 'auth', 'access_token': token}))
+                msg = json.loads(await ws.recv())
+                if msg.get('type') != 'auth_ok':
+                    return web.json_response({"error": "Auth failed"}, status=500)
+
+                msg_id = 1
+
+                # Get device info to find IEEE address
+                await ws.send(json.dumps({'id': msg_id, 'type': 'config/device_registry/list'}))
+                msg_id += 1
+                device_msg = json.loads(await ws.recv())
+
+                device_ieee = None
+                is_zha = False
+                if device_msg.get('success') and device_msg.get('result'):
+                    for device in device_msg['result']:
+                        if device.get('id') == device_id:
+                            for identifier in device.get('identifiers', []):
+                                if isinstance(identifier, list) and len(identifier) >= 2:
+                                    if identifier[0] == 'zha':
+                                        device_ieee = identifier[1]
+                                        is_zha = True
+                                        break
+                            break
+
+                if not is_zha:
+                    return web.json_response({
+                        "is_zha": False,
+                        "sensitivity": None,
+                        "timeout": None,
+                    })
+
+                # Get entity registry to find sensitivity entity
+                await ws.send(json.dumps({'id': msg_id, 'type': 'config/entity_registry/list'}))
+                msg_id += 1
+                entity_msg = json.loads(await ws.recv())
+
+                sensitivity_entity = None
+                if entity_msg.get('success') and entity_msg.get('result'):
+                    for entity in entity_msg['result']:
+                        if entity.get('device_id') == device_id:
+                            entity_id = entity.get('entity_id', '')
+                            if 'sensitivity' in entity_id.lower() and (
+                                entity_id.startswith('select.') or entity_id.startswith('number.')
+                            ):
+                                sensitivity_entity = entity_id
+                                break
+
+                # Get current states
+                await ws.send(json.dumps({'id': msg_id, 'type': 'get_states'}))
+                msg_id += 1
+                states_msg = json.loads(await ws.recv())
+
+                sensitivity_info = None
+                if sensitivity_entity and states_msg.get('success') and states_msg.get('result'):
+                    for state in states_msg['result']:
+                        if state.get('entity_id') == sensitivity_entity:
+                            attrs = state.get('attributes', {})
+                            sensitivity_info = {
+                                'entity_id': sensitivity_entity,
+                                'value': state.get('state'),
+                                'options': attrs.get('options', []),  # For select entities
+                                'min': attrs.get('min'),  # For number entities
+                                'max': attrs.get('max'),
+                                'step': attrs.get('step'),
+                            }
+                            break
+
+                # Read occupancy timeout from ZHA cluster attribute
+                # Cluster 0x0406 (1030), attribute 0x0010 (16), endpoint 2
+                timeout_value = None
+                try:
+                    await ws.send(json.dumps({
+                        'id': msg_id,
+                        'type': 'zha/devices/clusters/attributes/value',
+                        'ieee': device_ieee,
+                        'endpoint_id': 2,
+                        'cluster_id': 1030,  # 0x0406
+                        'cluster_type': 'in',
+                        'attribute': 16,  # 0x0010
+                    }))
+                    msg_id += 1
+                    timeout_msg = json.loads(await ws.recv())
+                    if timeout_msg.get('success') and timeout_msg.get('result') is not None:
+                        timeout_value = timeout_msg['result']
+                except Exception as e:
+                    logger.warning(f"[ZHA Settings] Could not read timeout for {device_ieee}: {e}")
+
+                return web.json_response({
+                    "is_zha": True,
+                    "ieee": device_ieee,
+                    "sensitivity": sensitivity_info,
+                    "timeout": timeout_value,
+                })
+
+        except Exception as e:
+            logger.error(f"Error getting ZHA motion settings: {e}", exc_info=True)
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def set_zha_motion_settings(self, request: Request) -> Response:
+        """Set ZHA motion sensor settings (sensitivity and/or timeout).
+
+        Request body:
+            - sensitivity: new sensitivity value (string for select, number for number entity)
+            - timeout: new occupancy timeout in seconds
+        """
+        device_id = request.match_info.get('device_id')
+        if not device_id:
+            return web.json_response({"error": "Device ID is required"}, status=400)
+
+        try:
+            data = await request.json()
+        except Exception:
+            return web.json_response({"error": "Invalid JSON"}, status=400)
+
+        new_sensitivity = data.get('sensitivity')
+        new_timeout = data.get('timeout')
+
+        if new_sensitivity is None and new_timeout is None:
+            return web.json_response({"error": "No settings provided"}, status=400)
+
+        rest_url, ws_url, token = self._get_ha_api_config()
+        if not token or not ws_url:
+            return web.json_response({"error": "HA API not configured"}, status=500)
+
+        try:
+            async with websockets.connect(ws_url) as ws:
+                # Auth
+                msg = json.loads(await ws.recv())
+                if msg.get('type') != 'auth_required':
+                    return web.json_response({"error": "Auth failed"}, status=500)
+                await ws.send(json.dumps({'type': 'auth', 'access_token': token}))
+                msg = json.loads(await ws.recv())
+                if msg.get('type') != 'auth_ok':
+                    return web.json_response({"error": "Auth failed"}, status=500)
+
+                msg_id = 1
+
+                # Get device info to find IEEE address
+                await ws.send(json.dumps({'id': msg_id, 'type': 'config/device_registry/list'}))
+                msg_id += 1
+                device_msg = json.loads(await ws.recv())
+
+                device_ieee = None
+                for device in device_msg.get('result', []):
+                    if device.get('id') == device_id:
+                        for identifier in device.get('identifiers', []):
+                            if isinstance(identifier, list) and len(identifier) >= 2:
+                                if identifier[0] == 'zha':
+                                    device_ieee = identifier[1]
+                                    break
+                        break
+
+                if not device_ieee:
+                    return web.json_response({"error": "Not a ZHA device"}, status=400)
+
+                results = {}
+
+                # Set sensitivity via HA service call
+                if new_sensitivity is not None:
+                    # Find sensitivity entity
+                    await ws.send(json.dumps({'id': msg_id, 'type': 'config/entity_registry/list'}))
+                    msg_id += 1
+                    entity_msg = json.loads(await ws.recv())
+
+                    sensitivity_entity = None
+                    for entity in entity_msg.get('result', []):
+                        if entity.get('device_id') == device_id:
+                            entity_id = entity.get('entity_id', '')
+                            if 'sensitivity' in entity_id.lower() and (
+                                entity_id.startswith('select.') or entity_id.startswith('number.')
+                            ):
+                                sensitivity_entity = entity_id
+                                break
+
+                    if sensitivity_entity:
+                        # Determine service based on entity type
+                        if sensitivity_entity.startswith('select.'):
+                            service_call = {
+                                'id': msg_id,
+                                'type': 'call_service',
+                                'domain': 'select',
+                                'service': 'select_option',
+                                'service_data': {'option': new_sensitivity},
+                                'target': {'entity_id': sensitivity_entity},
+                            }
+                        else:  # number entity
+                            service_call = {
+                                'id': msg_id,
+                                'type': 'call_service',
+                                'domain': 'number',
+                                'service': 'set_value',
+                                'service_data': {'value': new_sensitivity},
+                                'target': {'entity_id': sensitivity_entity},
+                            }
+                        await ws.send(json.dumps(service_call))
+                        msg_id += 1
+                        result = json.loads(await ws.recv())
+                        results['sensitivity'] = result.get('success', False)
+                        logger.info(f"[ZHA Settings] Set sensitivity for {device_id}: {new_sensitivity} -> {results['sensitivity']}")
+                    else:
+                        results['sensitivity'] = False
+                        results['sensitivity_error'] = 'No sensitivity entity found'
+
+                # Set timeout via ZHA cluster attribute
+                if new_timeout is not None:
+                    try:
+                        timeout_int = int(new_timeout)
+                        await ws.send(json.dumps({
+                            'id': msg_id,
+                            'type': 'call_service',
+                            'domain': 'zha',
+                            'service': 'set_zigbee_cluster_attribute',
+                            'service_data': {
+                                'ieee': device_ieee,
+                                'endpoint_id': 2,
+                                'cluster_id': 1030,  # 0x0406
+                                'cluster_type': 'in',
+                                'attribute': 16,  # 0x0010
+                                'value': timeout_int,
+                            },
+                        }))
+                        msg_id += 1
+                        result = json.loads(await ws.recv())
+                        results['timeout'] = result.get('success', False)
+                        logger.info(f"[ZHA Settings] Set timeout for {device_ieee}: {timeout_int}s -> {results['timeout']}")
+                    except (ValueError, TypeError) as e:
+                        results['timeout'] = False
+                        results['timeout_error'] = f'Invalid timeout value: {e}'
+
+                return web.json_response({"status": "ok", "results": results})
+
+        except Exception as e:
+            logger.error(f"Error setting ZHA motion settings: {e}", exc_info=True)
             return web.json_response({"error": str(e)}, status=500)
 
     async def create_switch(self, request: Request) -> Response:
