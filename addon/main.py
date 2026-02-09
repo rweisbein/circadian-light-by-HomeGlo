@@ -133,6 +133,10 @@ class HomeAssistantWebSocketClient:
         # Key: (switch_id, button) -> {"count": int, "timer": Optional[asyncio.Task]}
         self._multi_click_state: Dict[tuple, Dict[str, Any]] = {}
 
+        # Last dial level per device (for wrap-around detection)
+        # Key: device_ieee -> last level (0-255)
+        self._dial_last_level: Dict[str, int] = {}
+
         # Brightness curve configuration (populated from supervisor/designer config)
         self.max_dim_steps = DEFAULT_MAX_DIM_STEPS
         self.min_brightness = DEFAULT_MIN_BRIGHTNESS
@@ -783,6 +787,20 @@ class HomeAssistantWebSocketClient:
         type_info = switches.get_switch_type(switch_config.type)
         if type_info and type_info.get("dial") and command in ("move_to_level_with_on_off", "move_to_level"):
             level = args[0] if isinstance(args, list) and len(args) > 0 else 0
+
+            # Detect wrap-around: if level jumps by more than 128, the dial
+            # overflowed past 0 or 255. Clamp to the nearest extreme.
+            prev_level = self._dial_last_level.get(device_ieee)
+            if prev_level is not None:
+                delta = level - prev_level
+                if delta > 128:
+                    # Large upward jump = wrapped past 0 going counter-clockwise
+                    level = 0
+                elif delta < -128:
+                    # Large downward jump = wrapped past 255 going clockwise
+                    level = 255
+            self._dial_last_level[device_ieee] = level
+
             position = round(level / 255 * 100)
             # Button press toggles between 0 and 255 — treat as toggle action
             if level == 0 or level == 255:
