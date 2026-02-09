@@ -3629,6 +3629,11 @@ class HomeAssistantWebSocketClient:
                 elif service == "color_down":
                     logger.info(f"[webserver] color_down for area: {area_id}")
                     await self.primitives.color_down(area_id, "webserver")
+                elif service == "set_position":
+                    value = event_data.get('value')
+                    mode = event_data.get('mode', 'step')
+                    logger.info(f"[webserver] set_position({value}, {mode}) for area: {area_id}")
+                    await self.primitives.set_position(area_id, value, mode, "webserver")
                 elif service == "freeze_toggle":
                     logger.info(f"[webserver] freeze_toggle for area: {area_id}")
                     await self.primitives.freeze_toggle(area_id, "webserver")
@@ -3728,6 +3733,11 @@ class HomeAssistantWebSocketClient:
                 elif service == "color_down":
                     logger.info(f"[webserver] zone color_down for zone: {zone_name}")
                     await self.primitives.zone_color_down(zone_name, "webserver")
+                elif service == "set_position":
+                    value = event_data.get('value')
+                    mode = event_data.get('mode', 'step')
+                    logger.info(f"[webserver] zone set_position({value}, {mode}) for zone: {zone_name}")
+                    await self.primitives.zone_set_position(zone_name, value, mode, "webserver")
                 elif service == "glozone_reset":
                     logger.info(f"[webserver] glozone_reset for zone: {zone_name}")
                     await self.primitives.glozone_reset(zone_name, "webserver")
