@@ -1894,6 +1894,23 @@
       }
     });
 
+    function copyDeviceInfo(btn, text) {
+      // Fallback for ingress iframe where navigator.clipboard is blocked
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand('copy');
+        btn.textContent = 'Copied!';
+      } catch (e) {
+        btn.textContent = 'Failed';
+      }
+      document.body.removeChild(ta);
+    }
+
     function showUnsupportedModal(ctrl) {
       editingControlId = null;
       editingDeviceId = null;
@@ -1919,7 +1936,7 @@
           ${ctrl.id ? `<div style="font-size: 0.75rem; color: var(--muted); opacity: 0.5; margin-top: 6px;">IEEE: ${ctrl.id}</div>` : ''}
           ${ctrl.device_id ? `<div style="font-size: 0.75rem; color: var(--muted); opacity: 0.5;">ID: ${ctrl.device_id}</div>` : ''}
         </div>
-        <button onclick="navigator.clipboard.writeText('${infoText.replace(/'/g, "\\'")}').then(() => this.textContent = 'Copied!').catch(() => {})"
+        <button onclick="copyDeviceInfo(this, '${infoText.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n')}')"
           style="font-size: 0.8rem; padding: 6px 14px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: var(--muted); cursor: pointer;">
           Copy Device Info
         </button>
