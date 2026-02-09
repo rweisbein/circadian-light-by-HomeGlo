@@ -1020,6 +1020,35 @@
             <!-- Populated with lights -->
           </select>
         </div>
+
+        <div class="modal-section" id="zha-settings-section" style="display: none;">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+            <span style="font-size: 0.75rem; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px;">Sensor Settings</span>
+            <span class="info-icon">i<span class="info-tooltip">Hardware settings for ZHA motion sensors. Sensitivity controls motion detection range. Timeout is how long after motion clears before the sensor reports "unoccupied".</span></span>
+          </div>
+          <div style="display: flex; flex-wrap: wrap; gap: 16px;">
+            <div style="flex: 1; min-width: 140px;">
+              <label style="font-size: 0.8rem; color: var(--muted); display: block; margin-bottom: 4px;">Sensitivity</label>
+              <select id="zha-sensitivity-select" style="width: 100%; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.85rem;">
+                <option value="">Loading...</option>
+              </select>
+            </div>
+            <div style="flex: 1; min-width: 120px;">
+              <label style="font-size: 0.8rem; color: var(--muted); display: block; margin-bottom: 4px;">Timeout (sec)</label>
+              <div class="number-input-wrap">
+                <input type="number" id="zha-timeout-input" style="width: 100%; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.85rem;" min="1" max="600" step="1" placeholder="—">
+                <div class="number-input-btns">
+                  <button type="button" onclick="stepNumberInput('zha-timeout-input', 10)">▲</button>
+                  <button type="button" onclick="stepNumberInput('zha-timeout-input', -10)">▼</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style="margin-top: 10px;">
+            <button id="zha-settings-save" style="padding: 6px 16px; border-radius: 6px; border: 1px solid var(--accent); background: transparent; color: var(--accent); font-size: 0.8rem; cursor: pointer;" onclick="saveZhaSettings()">Apply</button>
+            <span id="zha-settings-status" style="margin-left: 10px; font-size: 0.8rem; color: var(--muted);"></span>
+          </div>
+        </div>
       </div>
 
       <div class="modal-reset-footer" id="modal-reset-footer" style="display: none;">
@@ -1616,6 +1645,123 @@
       input.dispatchEvent(new Event('change', { bubbles: true }));
     }
 
+    // ZHA motion sensor settings
+    let currentZhaDeviceId = null;
+
+    async function loadZhaSettings(deviceId) {
+      currentZhaDeviceId = deviceId;
+      const sensitivitySelect = document.getElementById('zha-sensitivity-select');
+      const timeoutInput = document.getElementById('zha-timeout-input');
+      const statusEl = document.getElementById('zha-settings-status');
+
+      // Reset UI
+      sensitivitySelect.innerHTML = '<option value="">Loading...</option>';
+      sensitivitySelect.disabled = true;
+      timeoutInput.value = '';
+      timeoutInput.disabled = true;
+      statusEl.textContent = '';
+
+      try {
+        const res = await fetch(`./api/controls/${encodeURIComponent(deviceId)}/zha-settings`);
+        if (!res.ok) throw new Error('Failed to fetch settings');
+        const data = await res.json();
+
+        if (!data.is_zha) {
+          document.getElementById('zha-settings-section').style.display = 'none';
+          return;
+        }
+
+        // Populate sensitivity dropdown
+        if (data.sensitivity && data.sensitivity.options && data.sensitivity.options.length > 0) {
+          sensitivitySelect.innerHTML = data.sensitivity.options.map(opt =>
+            `<option value="${opt}" ${opt === data.sensitivity.value ? 'selected' : ''}>${opt}</option>`
+          ).join('');
+          sensitivitySelect.disabled = false;
+        } else if (data.sensitivity && data.sensitivity.min !== undefined) {
+          // Number entity - create a simple select with range
+          const min = data.sensitivity.min || 0;
+          const max = data.sensitivity.max || 4;
+          const step = data.sensitivity.step || 1;
+          const opts = [];
+          for (let v = min; v <= max; v += step) {
+            opts.push(`<option value="${v}" ${v == data.sensitivity.value ? 'selected' : ''}>${v}</option>`);
+          }
+          sensitivitySelect.innerHTML = opts.join('');
+          sensitivitySelect.disabled = false;
+        } else {
+          sensitivitySelect.innerHTML = '<option value="">Not available</option>';
+        }
+
+        // Populate timeout (default to 10 if unusually low)
+        if (data.timeout !== null && data.timeout !== undefined) {
+          timeoutInput.value = data.timeout <= 5 ? 10 : data.timeout;
+          timeoutInput.disabled = false;
+        } else {
+          timeoutInput.placeholder = 'Not available';
+        }
+
+      } catch (err) {
+        console.error('Error loading ZHA settings:', err);
+        sensitivitySelect.innerHTML = '<option value="">Error loading</option>';
+        statusEl.textContent = 'Error loading settings';
+      }
+    }
+
+    async function saveZhaSettings() {
+      if (!currentZhaDeviceId) return;
+
+      const sensitivitySelect = document.getElementById('zha-sensitivity-select');
+      const timeoutInput = document.getElementById('zha-timeout-input');
+      const statusEl = document.getElementById('zha-settings-status');
+
+      const payload = {};
+      if (!sensitivitySelect.disabled && sensitivitySelect.value) {
+        payload.sensitivity = sensitivitySelect.value;
+      }
+      if (!timeoutInput.disabled && timeoutInput.value) {
+        payload.timeout = parseInt(timeoutInput.value, 10);
+      }
+
+      if (Object.keys(payload).length === 0) {
+        statusEl.textContent = 'No changes to save';
+        return;
+      }
+
+      statusEl.textContent = 'Saving...';
+
+      try {
+        const res = await fetch(`./api/controls/${encodeURIComponent(currentZhaDeviceId)}/zha-settings`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) throw new Error('Failed to save settings');
+        const data = await res.json();
+
+        if (data.status === 'ok') {
+          const parts = [];
+          if (data.results.sensitivity) parts.push('sensitivity');
+          if (data.results.timeout) parts.push('timeout');
+          statusEl.textContent = parts.length > 0 ? `Saved ${parts.join(' & ')}` : 'Saved';
+          statusEl.style.color = 'var(--success)';
+          setTimeout(() => {
+            statusEl.textContent = '';
+            statusEl.style.color = 'var(--muted)';
+          }, 3000);
+        } else {
+          throw new Error(data.error || 'Unknown error');
+        }
+      } catch (err) {
+        console.error('Error saving ZHA settings:', err);
+        statusEl.textContent = 'Error saving';
+        statusEl.style.color = 'var(--danger)';
+        setTimeout(() => {
+          statusEl.style.color = 'var(--muted)';
+        }, 3000);
+      }
+    }
+
     function clearFilters() {
       categoryFilter = 'all';
       areaFilter = 'all';
@@ -2074,11 +2220,21 @@
         document.getElementById('indicator-light-section').style.display = 'none';
         document.getElementById('magic-section').style.display = 'none';
         renderMotionScopesEditor();
+
+        // Load ZHA settings for motion sensors (only for ZHA devices)
+        const zhaSection = document.getElementById('zha-settings-section');
+        if (ctrl.category === 'motion_sensor' && ctrl.integration === 'zha') {
+          zhaSection.style.display = 'block';
+          loadZhaSettings(ctrl.device_id);
+        } else {
+          zhaSection.style.display = 'none';
+        }
       } else {
         // Type is now shown in device-info, hide the type section
         if (typeSectionEl) typeSectionEl.style.display = 'none';
         switchSection.style.display = 'block';
         motionSection.style.display = 'none';
+        document.getElementById('zha-settings-section').style.display = 'none';
 
         // Show indicator light section for switches
         const indicatorSection = document.getElementById('indicator-light-section');
