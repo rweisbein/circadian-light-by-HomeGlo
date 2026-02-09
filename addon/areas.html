@@ -643,22 +643,24 @@
     }
     .slider-track {
       position: relative;
-      width: 10px;
+      width: 14px;
       height: 160px;
       background: rgba(255,255,255,0.08);
-      border-radius: 5px;
+      border-radius: 7px;
       cursor: pointer;
       touch-action: none;
+      overflow: hidden;
     }
     .slider-fill {
+      /* Dim overlay above the thumb */
       position: absolute;
-      bottom: 0;
+      top: 0;
       left: 0;
       width: 100%;
-      border-radius: 5px;
-      background: rgba(255,255,255,0.25);
+      background: rgba(0,0,0,0.55);
       pointer-events: none;
-      transition: height 0.15s ease, background 0.15s ease;
+      transition: height 0.15s ease;
+      border-radius: 7px 7px 0 0;
     }
     .slider-thumb {
       position: absolute;
@@ -672,6 +674,7 @@
       transform: translate(-50%, 50%);
       pointer-events: none;
       transition: bottom 0.15s ease, background 0.15s ease;
+      z-index: 2;
     }
     .slider-track.dragging .slider-fill,
     .slider-track.dragging .slider-thumb {
@@ -2008,6 +2011,7 @@
       document.querySelectorAll('.slider-track').forEach(track => {
         if (track.classList.contains('dragging')) return;
         const mode = track.dataset.mode;
+        track.style.background = buildTrackGradient(mode, cfg);
         const pct = mode === 'step' ? gloFrac : mode === 'brightness' ? briFrac : cctFrac;
         applyOneSlider(track, pct, currentBri, currentCCT, mode);
       });
@@ -2027,15 +2031,42 @@
       return y * 100;
     }
 
+    function buildTrackGradient(mode, cfg) {
+      const bMin = cfg.min_brightness, bMax = cfg.max_brightness;
+      const cMin = cfg.min_color_temp, cMax = cfg.max_color_temp;
+      const stops = [];
+      const n = 6;
+      for (let i = 0; i <= n; i++) {
+        const frac = i / n;
+        let color;
+        if (mode === 'color') {
+          const k = cMin + (cMax - cMin) * frac;
+          color = cctToRGB(k);
+        } else if (mode === 'brightness') {
+          const b = bMin + (bMax - bMin) * frac;
+          const midK = (cMin + cMax) / 2;
+          color = tintColorByBrightness(cctToRGB(midK), b);
+        } else {
+          // Glo: both change together
+          const b = bMin + (bMax - bMin) * frac;
+          const k = cMin + (cMax - cMin) * frac;
+          color = tintColorByBrightness(cctToRGB(k), b);
+        }
+        stops.push(color + ' ' + Math.round(frac * 100) + '%');
+      }
+      return 'linear-gradient(to top, ' + stops.join(', ') + ')';
+    }
+
     function applyOneSlider(track, pct, bri, cct, mode) {
       const fill = track.querySelector('.slider-fill');
       const thumb = track.querySelector('.slider-thumb');
       if (!fill || !thumb) return;
+      // Dim overlay: covers from top down to thumb position
+      fill.style.height = (100 - pct) + '%';
+      // Thumb position and color
+      thumb.style.bottom = pct + '%';
       const color = cctToRGB(cct);
       const tinted = mode === 'color' ? color : tintColorByBrightness(color, bri);
-      fill.style.height = pct + '%';
-      thumb.style.bottom = pct + '%';
-      fill.style.background = tinted;
       thumb.style.background = tinted;
       thumb.style.borderColor = color;
     }
