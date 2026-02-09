@@ -4091,7 +4091,10 @@ class LightDesignerServer:
                 else:
                     # Look up by ieee for switches
                     config = configured_switches.get(ieee, {})
-                    is_configured = config and config.get("scopes") and any(s.get("areas") for s in config.get("scopes", []))
+                    # A switch is configured if it has scopes with areas OR has magic buttons assigned
+                    has_areas = config and config.get("scopes") and any(s.get("areas") for s in config.get("scopes", []))
+                    has_magic = config and config.get("magic_buttons") and any(v for v in config.get("magic_buttons", {}).values())
+                    is_configured = has_areas or has_magic
 
                 # Determine status
                 is_inactive = config.get("inactive", False)

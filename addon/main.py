@@ -1289,12 +1289,6 @@ class HomeAssistantWebSocketClient:
         # Record activity for scope timeout
         switches.record_activity(switch_id)
 
-        # Get areas for current scope
-        areas = switches.get_current_areas(switch_id)
-        if not areas:
-            logger.warning(f"No areas configured for switch {switch_id}")
-            return
-
         # Parse action - can be string or {action, when_off} object
         main_action = action
         when_off_action = None
@@ -1302,7 +1296,17 @@ class HomeAssistantWebSocketClient:
             main_action = action.get("action")
             when_off_action = action.get("when_off")
 
-        logger.info(f"Executing {main_action} on areas: {areas}" + (f" (when_off: {when_off_action})" if when_off_action else ""))
+        # Check if this is a global action (doesn't need areas)
+        # Moments (set_*) apply globally, not to specific areas
+        is_moment_action = main_action and main_action.startswith("set_") and main_action not in ("set_britelite", "set_nitelite", "set_wake", "set_bed")
+
+        # Get areas for current scope
+        areas = switches.get_current_areas(switch_id)
+        if not areas and not is_moment_action:
+            logger.warning(f"No areas configured for switch {switch_id}")
+            return
+
+        logger.info(f"Executing {main_action}" + (f" on areas: {areas}" if areas else " (global)") + (f" (when_off: {when_off_action})" if when_off_action else ""))
 
         # Helper to execute when_off action (or do nothing if not set)
         async def execute_when_off():
