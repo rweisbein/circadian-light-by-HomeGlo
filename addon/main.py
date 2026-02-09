@@ -1607,11 +1607,20 @@ class HomeAssistantWebSocketClient:
             else:
                 restore_data[area] = {"was_on": was_on}
 
-        # Pre-compute targets for each area (use ZHA groups when available)
+        # Pre-compute targets for each area
+        # Use ZHA groups when available (may be multiple: color + CT)
+        # Fall back to area_id if no groups
         area_targets = {}
+        has_parity = {}
         for area in areas:
-            target_type, target_value = await self.determine_light_target(area)
-            area_targets[area] = {target_type: target_value}
+            zha_groups = self.get_area_zha_groups(area)
+            has_parity[area] = self.area_parity_cache.get(area, False)
+            if zha_groups and has_parity[area]:
+                # Use ZHA group entities for synchronized control
+                area_targets[area] = [{"entity_id": g} for g in zha_groups]
+            else:
+                # Fall back to area-based control
+                area_targets[area] = [{"area_id": area}]
 
         # Phase 1: Dip ON lights, pulse OFF lights
         # - ON above threshold: dip by reach_dip_percent of current brightness
@@ -1620,29 +1629,30 @@ class HomeAssistantWebSocketClient:
         phase1_tasks = []
         for area in areas:
             data = restore_data[area]
-            target = area_targets[area]
-            if data.get("was_on"):
-                if data.get("dip_to_off"):
-                    # Low brightness - fade to off for visibility
-                    phase1_tasks.append(self.call_service(
-                        "light", "turn_off",
-                        {"transition": turn_off_transition},
-                        target=target
-                    ))
+            targets = area_targets[area]
+            for target in targets:
+                if data.get("was_on"):
+                    if data.get("dip_to_off"):
+                        # Low brightness - fade to off for visibility
+                        phase1_tasks.append(self.call_service(
+                            "light", "turn_off",
+                            {"transition": turn_off_transition},
+                            target=target
+                        ))
+                    else:
+                        # Above threshold - dip by configured percentage of current
+                        dip_brightness = int(data["brightness"] * (1.0 - reach_dip_percent))
+                        phase1_tasks.append(self.call_service(
+                            "light", "turn_on",
+                            {"brightness": dip_brightness, "transition": turn_off_transition},
+                            target=target
+                        ))
                 else:
-                    # Above threshold - dip by configured percentage of current
-                    dip_brightness = int(data["brightness"] * (1.0 - reach_dip_percent))
                     phase1_tasks.append(self.call_service(
                         "light", "turn_on",
-                        {"brightness": dip_brightness, "transition": turn_off_transition},
+                        {"brightness": blink_threshold, "transition": turn_on_transition},
                         target=target
                     ))
-            else:
-                phase1_tasks.append(self.call_service(
-                    "light", "turn_on",
-                    {"brightness": blink_threshold, "transition": turn_on_transition},
-                    target=target
-                ))
         await asyncio.gather(*phase1_tasks)
 
         # Wait for transitions to complete
@@ -1651,23 +1661,24 @@ class HomeAssistantWebSocketClient:
         # Phase 2: Restore all lights
         phase2_tasks = []
         for area, data in restore_data.items():
-            target = area_targets[area]
-            if data.get("was_on"):
-                service_data = {"transition": turn_on_transition}
-                if data.get("xy"):
-                    service_data["xy_color"] = data["xy"]
-                    service_data["brightness"] = data["brightness"]
-                phase2_tasks.append(self.call_service(
-                    "light", "turn_on",
-                    service_data,
-                    target=target
-                ))
-            else:
-                phase2_tasks.append(self.call_service(
-                    "light", "turn_off",
-                    {"transition": turn_off_transition},
-                    target=target
-                ))
+            targets = area_targets[area]
+            for target in targets:
+                if data.get("was_on"):
+                    service_data = {"transition": turn_on_transition}
+                    if data.get("xy"):
+                        service_data["xy_color"] = data["xy"]
+                        service_data["brightness"] = data["brightness"]
+                    phase2_tasks.append(self.call_service(
+                        "light", "turn_on",
+                        service_data,
+                        target=target
+                    ))
+                else:
+                    phase2_tasks.append(self.call_service(
+                        "light", "turn_off",
+                        {"transition": turn_off_transition},
+                        target=target
+                    ))
         await asyncio.gather(*phase2_tasks)
 
     async def _show_reach_single_light_feedback(self, indicator_light: str, scope_number: int) -> None:
@@ -2075,14 +2086,14 @@ class HomeAssistantWebSocketClient:
         
     async def determine_light_target(self, area_id: str) -> tuple[str, Any]:
         """Determine the best target for controlling lights in an area.
-        
+
         This consolidates the logic for deciding whether to use:
         - ZHA group entity (if all lights are ZHA)
         - Area-based control (if any non-ZHA lights exist)
-        
+
         Args:
             area_id: The area ID to control
-            
+
         Returns:
             Tuple of (target_type, target_value) where:
             - target_type is "entity_id" or "area_id"
@@ -2093,6 +2104,9 @@ class HomeAssistantWebSocketClient:
 
         hue_entity = group_candidates.get("hue_group")
         zha_entity = group_candidates.get("zha_group")
+        # Also check capability-specific groups (created by sync_zha_groups_with_areas)
+        zha_color_entity = group_candidates.get("zha_group_color")
+        zha_ct_entity = group_candidates.get("zha_group_ct")
 
         # Fall back to legacy lookup table if we did not find a candidate above
         fallback_entity = self._get_fallback_group_entity(area_id)
@@ -2119,10 +2133,44 @@ class HomeAssistantWebSocketClient:
                 logger.debug(f"✓ Using ZHA group entity '{zha_entity}' for area '{area_id}' (all lights are ZHA)")
                 return "entity_id", zha_entity
             logger.debug(f"⚠ Area '{area_id}' has non-ZHA lights, using area-based control for full coverage")
-        
+
+        # Fall back to capability-specific groups if general zha_group not available
+        # Prefer color group as it typically contains more lights
+        if has_parity and (zha_color_entity or zha_ct_entity):
+            chosen = zha_color_entity or zha_ct_entity
+            logger.debug(f"✓ Using ZHA capability group '{chosen}' for area '{area_id}'")
+            return "entity_id", chosen
+
         logger.info(f"Using area-based control for area '{area_id}'")
         return "area_id", area_id
-    
+
+    def get_area_zha_groups(self, area_id: str) -> List[str]:
+        """Get all ZHA group entity IDs for an area.
+
+        Returns capability-specific groups (color and CT) for use in
+        brightness-only operations that need to hit all lights.
+
+        Args:
+            area_id: The area ID
+
+        Returns:
+            List of group entity IDs (may be empty if no groups exist)
+        """
+        normalized_key = self._normalize_area_key(area_id)
+        group_candidates = self.area_group_map.get(normalized_key, {}) if normalized_key else {}
+
+        groups = []
+        # Check for capability-specific groups
+        if group_candidates.get("zha_group_color"):
+            groups.append(group_candidates["zha_group_color"])
+        if group_candidates.get("zha_group_ct"):
+            groups.append(group_candidates["zha_group_ct"])
+        # Fall back to general zha_group if no capability groups
+        if not groups and group_candidates.get("zha_group"):
+            groups.append(group_candidates["zha_group"])
+
+        return groups
+
     async def turn_on_lights_circadian(
         self,
         area_id: str,
