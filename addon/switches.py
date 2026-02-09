@@ -288,6 +288,11 @@ def get_categorized_actions() -> Dict[str, List[Dict[str, Any]]]:
         "Switch": [
             {"id": "cycle_scope", "label": "Advance to next Reach"},
         ],
+        "Dial": [
+            {"id": "set_position_step", "label": "Glo (brightness + color)"},
+            {"id": "set_position_brightness", "label": "Bright only"},
+            {"id": "set_position_color", "label": "Color only"},
+        ],
         "Special": [
             {"id": None, "label": "No Action"},
             {"id": "magic", "label": "Magic"},
@@ -391,6 +396,38 @@ SWITCH_TYPES: Dict[str, Dict[str, Any]] = {
         "action_types": ["press", "hold", "short_release", "long_release", "double_press", "triple_press", "quadruple_press", "quintuple_press"],
         "default_mapping": _HUE_4BUTTON_MAPPING,
         "repeat_on_hold": ["up_hold", "down_hold"],
+        "repeat_interval_ms": 300,
+    },
+    "hue_smart_button": {
+        "name": "Hue Smart Button",
+        "manufacturers": ["Philips", "Signify", "Signify Netherlands B.V."],
+        "models": ["ROM001", "RDM003"],
+        "buttons": ["on"],
+        "action_types": ["press", "hold", "short_release", "long_release", "double_press", "triple_press", "quadruple_press", "quintuple_press"],
+        "default_mapping": {
+            "on_short_release": "magic",             # 1x - magic button
+            "on_double_press": None,
+            "on_triple_press": None,
+            "on_quadruple_press": None,
+            "on_quintuple_press": None,
+            "on_hold": "magic",                     # long - magic button
+            "on_long_release": None,
+        },
+        "repeat_on_hold": [],
+        "repeat_interval_ms": 300,
+    },
+    "lutron_aurora": {
+        "name": "Lutron Aurora Dimmer",
+        "manufacturers": ["Lutron"],
+        "models": ["Z3-1BRL"],
+        "buttons": ["dial"],
+        "action_types": ["press", "rotate"],
+        "dial": True,  # Continuous input — rotation maps to set_position
+        "default_mapping": {
+            "dial_press": "toggle",
+            "dial_rotate": "set_position_step",     # Dial controls Glo (step mode)
+        },
+        "repeat_on_hold": [],
         "repeat_interval_ms": 300,
     },
     "ikea_tradfri_remote": {

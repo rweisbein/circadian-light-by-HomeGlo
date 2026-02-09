@@ -774,8 +774,37 @@ class HomeAssistantWebSocketClient:
         # - Cluster 8 (Level Control) for UP/DOWN buttons
         # - Cluster 64512 (Hue proprietary) for ALL buttons with detailed info
         # We only want to handle cluster 64512 to avoid double-firing
-        if switch_config.type in ("hue_dimmer", "hue_4button_v1", "hue_4button_v2") and cluster_id in (5, 6, 8):
+        if switch_config.type in ("hue_dimmer", "hue_4button_v1", "hue_4button_v2", "hue_smart_button") and cluster_id in (5, 6, 8):
             logger.debug(f"Ignoring cluster {cluster_id} event for Hue dimmer (will use cluster 64512)")
+            return
+
+        # Handle dial/rotary devices (e.g., Lutron Aurora) — rotation sends
+        # move_to_level_with_on_off with a 0-255 level value
+        type_info = switches.get_switch_type(switch_config.type)
+        if type_info and type_info.get("dial") and command in ("move_to_level_with_on_off", "move_to_level"):
+            level = args[0] if isinstance(args, list) and len(args) > 0 else 0
+            position = round(level / 255 * 100)
+            # Button press toggles between 0 and 255 — treat as toggle action
+            if level == 0 or level == 255:
+                button_event = "dial_press"
+                switches.set_last_action(device_ieee, f"dial_press ({level})")
+                action = switch_config.get_button_action(button_event)
+                if action:
+                    await self._execute_switch_action(device_ieee, action)
+                return
+            # Dial rotation — look up dial_rotate mapping for mode
+            dial_action = switch_config.get_button_action("dial_rotate") or "set_position_step"
+            mode_map = {
+                "set_position_step": "step",
+                "set_position_brightness": "brightness",
+                "set_position_color": "color",
+            }
+            mode = mode_map.get(dial_action, "step")
+            switches.set_last_action(device_ieee, f"dial {position}%")
+            logger.info(f"[Dial] {switch_config.name}: level={level} -> set_position({position}, {mode})")
+            areas = switches.get_current_areas(device_ieee)
+            for area in areas:
+                await self.primitives.set_position(area, position, mode, "switch")
             return
 
         # Map the ZHA command to our button event format
