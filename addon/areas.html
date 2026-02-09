@@ -626,23 +626,29 @@
 
     .adjust-section {
       margin-bottom: 16px;
+      -webkit-user-select: none;
+      user-select: none;
     }
     .adjust-slider-row {
       display: flex;
-      align-items: center;
+      align-items: flex-end;
       justify-content: center;
-      gap: 16px;
+      gap: 24px;
+    }
+    .slider-column {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
     }
     .slider-track {
       position: relative;
       width: 10px;
-      height: 180px;
+      height: 160px;
       background: rgba(255,255,255,0.08);
       border-radius: 5px;
       cursor: pointer;
       touch-action: none;
-      user-select: none;
-      -webkit-user-select: none;
     }
     .slider-fill {
       position: absolute;
@@ -657,8 +663,8 @@
     .slider-thumb {
       position: absolute;
       left: 50%;
-      width: 24px;
-      height: 24px;
+      width: 22px;
+      height: 22px;
       border-radius: 50%;
       background: #fff;
       border: 2px solid rgba(255,255,255,0.8);
@@ -671,44 +677,19 @@
     .slider-track.dragging .slider-thumb {
       transition: none;
     }
-    .slider-controls {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 10px;
+    .slider-label {
+      font-size: 0.65rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
     }
     .slider-value-display {
-      font-size: 0.85rem;
+      font-size: 0.75rem;
       color: var(--text);
       font-variant-numeric: tabular-nums;
-      min-width: 80px;
       text-align: center;
-      line-height: 1.4;
-    }
-    .adjust-mode-selector {
-      display: flex;
-      gap: 4px;
-      flex-direction: column;
-    }
-    .adjust-mode-btn {
-      background: none;
-      border: 1px solid rgba(255,255,255,0.15);
-      color: var(--muted);
-      font-size: 0.7rem;
-      padding: 4px 10px;
-      border-radius: 999px;
-      cursor: pointer;
-      white-space: nowrap;
-      transition: all 0.15s;
-    }
-    .adjust-mode-btn.active {
-      background: rgba(255,255,255,0.1);
-      border-color: var(--accent);
-      color: var(--text);
-    }
-    .adjust-mode-btn:hover:not(.active) {
-      border-color: rgba(255,255,255,0.35);
-      color: var(--text);
+      line-height: 1.3;
+      min-height: 1.3em;
     }
 
     /* Mini chart container */
@@ -1369,17 +1350,29 @@
 
       <div class="adjust-section">
         <div class="adjust-slider-row">
-          <div class="slider-track" id="slider-track">
-            <div class="slider-fill" id="slider-fill"></div>
-            <div class="slider-thumb" id="slider-thumb"></div>
-          </div>
-          <div class="slider-controls">
-            <div class="slider-value-display" id="slider-value">--</div>
-            <div class="adjust-mode-selector">
-              <button class="adjust-mode-btn active" data-mode="step" onclick="setAdjustMode('step')">Step</button>
-              <button class="adjust-mode-btn" data-mode="brightness" onclick="setAdjustMode('brightness')">Bright</button>
-              <button class="adjust-mode-btn" data-mode="color" onclick="setAdjustMode('color')">Color</button>
+          <div class="slider-column">
+            <div class="slider-value-display" id="slider-value-glo">--</div>
+            <div class="slider-track" data-mode="step">
+              <div class="slider-fill"></div>
+              <div class="slider-thumb"></div>
             </div>
+            <div class="slider-label">Glo</div>
+          </div>
+          <div class="slider-column">
+            <div class="slider-value-display" id="slider-value-bright">--</div>
+            <div class="slider-track" data-mode="brightness">
+              <div class="slider-fill"></div>
+              <div class="slider-thumb"></div>
+            </div>
+            <div class="slider-label">Bright</div>
+          </div>
+          <div class="slider-column">
+            <div class="slider-value-display" id="slider-value-color">--</div>
+            <div class="slider-track" data-mode="color">
+              <div class="slider-fill"></div>
+              <div class="slider-thumb"></div>
+            </div>
+            <div class="slider-label">Color</div>
           </div>
         </div>
       </div>
@@ -1405,7 +1398,7 @@
     let cachedSunTimes = null; // { sunrise, sunset, solarNoon, solarMid } in local hours
     let editMode = false;
     let cachedGlozones = null; // raw glozone data for edit mode ordering
-    let adjustMode = 'step'; // 'step', 'brightness', 'color'
+    // adjustMode removed — each slider has its own data-mode attribute
     let modalTickInterval = null;   // 1s local countdown tick
     let modalRefreshInterval = null; // 1s modal API refresh (single area)
     let homeRefreshTimer = null;     // Home page card refresh timer
@@ -1937,16 +1930,13 @@
     let sliderInteracting = false;
 
     function styleAdjustButtons(areaId) {
-      // Renamed entry point — now updates the slider instead of buttons
-      updateSliderPosition(areaId);
+      // Renamed entry point — delegates to updateAllSliders
+      updateAllSliders(areaId);
     }
 
-    function updateSliderPosition(areaId) {
-      if (sliderInteracting) return; // Don't fight with user drag
-
+    function getSliderCfgAndState(areaId) {
       const status = areaStatus[areaId] || {};
-      if (!cachedConfig || !cachedSunTimes) return;
-
+      if (!cachedConfig || !cachedSunTimes) return null;
       const rhythmName = status.preset_name;
       const cfg = (rhythmName && cachedRhythms[rhythmName])
         ? { ...cachedConfig, ...cachedRhythms[rhythmName] }
@@ -1957,7 +1947,6 @@
         color_override: status.color_override ?? null,
         frozen_at: status.frozen_at ?? null
       };
-
       let currentHour;
       if (status.frozen && status.frozen_at != null) {
         currentHour = status.frozen_at;
@@ -1965,51 +1954,23 @@
         const now = new Date();
         currentHour = now.getHours() + now.getMinutes() / 60;
       }
-
-      const currentBri = calcMiniBrightness(currentHour, cfg, areaState, currentHour) * 100;
-      const currentCCT = calcMiniColor(currentHour, cfg, areaState, cachedSunTimes, currentHour);
-
-      const bMin = cfg.min_brightness;
-      const bMax = cfg.max_brightness;
-      const cMin = cfg.min_color_temp;
-      const cMax = cfg.max_color_temp;
-
-      // Compute current position (0-100) based on mode
-      let position;
-      if (adjustMode === 'brightness') {
-        position = bMax > bMin ? (currentBri - bMin) / (bMax - bMin) * 100 : 50;
-      } else if (adjustMode === 'color') {
-        position = cMax > cMin ? (currentCCT - cMin) / (cMax - cMin) * 100 : 50;
-      } else {
-        // Step mode: average of both dimensions
-        const briFrac = bMax > bMin ? (currentBri - bMin) / (bMax - bMin) : 0.5;
-        const cctFrac = cMax > cMin ? (currentCCT - cMin) / (cMax - cMin) : 0.5;
-        position = (briFrac + cctFrac) / 2 * 100;
-      }
-      position = Math.max(0, Math.min(100, position));
-
-      applySliderVisuals(position, currentBri, currentCCT);
+      return { cfg, areaState, currentHour };
     }
 
-    function updateSliderFromZone(zoneName) {
-      if (sliderInteracting) return;
-
+    function getSliderCfgAndStateForZone(zoneName) {
       const zs = zoneStates[zoneName] || {};
-      if (!cachedConfig || !cachedSunTimes) return;
-
+      if (!cachedConfig || !cachedSunTimes) return null;
       const rhythmName = zs.rhythm;
       const cfg = (rhythmName && cachedRhythms[rhythmName])
         ? { ...cachedConfig, ...cachedRhythms[rhythmName] }
         : cachedConfig;
-
       const rs = zs.runtime_state || {};
-      const zoneState = {
+      const areaState = {
         brightness_mid: rs.brightness_mid ?? null,
         color_mid: rs.color_mid ?? null,
         color_override: rs.color_override ?? null,
         frozen_at: rs.frozen_at ?? null
       };
-
       let currentHour;
       if (rs.frozen_at != null) {
         currentHour = rs.frozen_at;
@@ -2017,101 +1978,100 @@
         const now = new Date();
         currentHour = now.getHours() + now.getMinutes() / 60;
       }
-
-      const currentBri = calcMiniBrightness(currentHour, cfg, zoneState, currentHour) * 100;
-      const currentCCT = calcMiniColor(currentHour, cfg, zoneState, cachedSunTimes, currentHour);
-
-      const bMin = cfg.min_brightness;
-      const bMax = cfg.max_brightness;
-      const cMin = cfg.min_color_temp;
-      const cMax = cfg.max_color_temp;
-
-      let position;
-      if (adjustMode === 'brightness') {
-        position = bMax > bMin ? (currentBri - bMin) / (bMax - bMin) * 100 : 50;
-      } else if (adjustMode === 'color') {
-        position = cMax > cMin ? (currentCCT - cMin) / (cMax - cMin) * 100 : 50;
-      } else {
-        const briFrac = bMax > bMin ? (currentBri - bMin) / (bMax - bMin) : 0.5;
-        const cctFrac = cMax > cMin ? (currentCCT - cMin) / (cMax - cMin) : 0.5;
-        position = (briFrac + cctFrac) / 2 * 100;
-      }
-      position = Math.max(0, Math.min(100, position));
-
-      applySliderVisuals(position, currentBri, currentCCT);
+      return { cfg, areaState, currentHour };
     }
 
-    function applySliderVisuals(position, bri, cct) {
-      const fill = document.getElementById('slider-fill');
-      const thumb = document.getElementById('slider-thumb');
-      const display = document.getElementById('slider-value');
-      if (!fill || !thumb || !display) return;
-
-      const pct = Math.max(0, Math.min(100, position));
-      fill.style.height = pct + '%';
-      thumb.style.bottom = pct + '%';
-
-      // Color the fill and thumb based on CCT
-      const color = cctToRGB(cct);
-      const tinted = tintColorByBrightness(color, bri);
-      fill.style.background = tinted;
-      thumb.style.background = tinted;
-      thumb.style.borderColor = color;
-
-      // Value display
-      display.textContent = Math.round(bri) + '% / ' + Math.round(cct) + 'K';
+    function updateAllSliders(areaId) {
+      const ctx = getSliderCfgAndState(areaId);
+      if (!ctx) return;
+      updateSlidersFromContext(ctx);
     }
 
-    function getSliderPositionFromPointer(e) {
-      const track = document.getElementById('slider-track');
-      if (!track) return 50;
+    function updateSliderFromZone(zoneName) {
+      const ctx = getSliderCfgAndStateForZone(zoneName);
+      if (!ctx) return;
+      updateSlidersFromContext(ctx);
+    }
+
+    function updateSlidersFromContext(ctx) {
+      const { cfg, areaState, currentHour } = ctx;
+      const currentBri = calcMiniBrightness(currentHour, cfg, areaState, currentHour) * 100;
+      const currentCCT = calcMiniColor(currentHour, cfg, areaState, cachedSunTimes, currentHour);
+      const bMin = cfg.min_brightness, bMax = cfg.max_brightness;
+      const cMin = cfg.min_color_temp, cMax = cfg.max_color_temp;
+
+      const briFrac = bMax > bMin ? Math.max(0, Math.min(100, (currentBri - bMin) / (bMax - bMin) * 100)) : 50;
+      const cctFrac = cMax > cMin ? Math.max(0, Math.min(100, (currentCCT - cMin) / (cMax - cMin) * 100)) : 50;
+      const gloFrac = Math.max(0, Math.min(100, (briFrac + cctFrac) / 2));
+
+      // Update each slider (skip if that slider is being dragged)
+      const tracks = document.querySelectorAll('.slider-track');
+      tracks.forEach(track => {
+        const mode = track.dataset.mode;
+        if (track.classList.contains('dragging')) return;
+        const fill = track.querySelector('.slider-fill');
+        const thumb = track.querySelector('.slider-thumb');
+        if (!fill || !thumb) return;
+
+        let pct, color, tinted;
+        if (mode === 'step') {
+          pct = gloFrac;
+          color = cctToRGB(currentCCT);
+          tinted = tintColorByBrightness(color, currentBri);
+        } else if (mode === 'brightness') {
+          pct = briFrac;
+          color = cctToRGB(currentCCT);
+          tinted = tintColorByBrightness(color, currentBri);
+        } else {
+          pct = cctFrac;
+          color = cctToRGB(currentCCT);
+          tinted = color;
+        }
+
+        fill.style.height = pct + '%';
+        thumb.style.bottom = pct + '%';
+        fill.style.background = tinted;
+        thumb.style.background = tinted;
+        thumb.style.borderColor = color;
+      });
+
+      // Update value displays
+      const gloDisp = document.getElementById('slider-value-glo');
+      const briDisp = document.getElementById('slider-value-bright');
+      const cctDisp = document.getElementById('slider-value-color');
+      if (gloDisp) gloDisp.textContent = Math.round(gloFrac) + '%';
+      if (briDisp) briDisp.textContent = Math.round(currentBri) + '%';
+      if (cctDisp) cctDisp.textContent = Math.round(currentCCT) + 'K';
+    }
+
+    function getPositionFromPointer(track, e) {
       const rect = track.getBoundingClientRect();
-      // Bottom = 0, top = 100
       const y = Math.max(0, Math.min(1, (rect.bottom - e.clientY) / rect.height));
       return y * 100;
     }
 
-    function previewSliderPosition(position) {
-      // Compute what bri/cct would be at this position (client-side preview)
-      const areaId = selectedArea ? selectedArea.area_id : null;
-      if (!areaId && !selectedZoneName) return;
+    function previewSlider(track, position) {
+      const fill = track.querySelector('.slider-fill');
+      const thumb = track.querySelector('.slider-thumb');
+      if (!fill || !thumb) return;
 
-      const status = areaId ? (areaStatus[areaId] || {}) : {};
-      if (!cachedConfig) return;
+      const mode = track.dataset.mode;
+      const ctx = selectedZoneName
+        ? getSliderCfgAndStateForZone(selectedZoneName)
+        : (selectedArea ? getSliderCfgAndState(selectedArea.area_id) : null);
+      if (!ctx) return;
+      const { cfg, areaState, currentHour } = ctx;
 
-      const rhythmName = status.preset_name;
-      const cfg = (rhythmName && cachedRhythms[rhythmName])
-        ? { ...cachedConfig, ...cachedRhythms[rhythmName] }
-        : cachedConfig;
-      const areaState = {
-        brightness_mid: status.brightness_mid ?? null,
-        color_mid: status.color_mid ?? null,
-        color_override: status.color_override ?? null,
-        frozen_at: status.frozen_at ?? null
-      };
-
-      let currentHour;
-      if (status.frozen && status.frozen_at != null) {
-        currentHour = status.frozen_at;
-      } else {
-        const now = new Date();
-        currentHour = now.getHours() + now.getMinutes() / 60;
-      }
-
-      const bMin = cfg.min_brightness;
-      const bMax = cfg.max_brightness;
-      const cMin = cfg.min_color_temp;
-      const cMax = cfg.max_color_temp;
-
-      // Map position to preview values
+      const bMin = cfg.min_brightness, bMax = cfg.max_brightness;
+      const cMin = cfg.min_color_temp, cMax = cfg.max_color_temp;
       const currentBri = calcMiniBrightness(currentHour, cfg, areaState, currentHour) * 100;
       const currentCCT = calcMiniColor(currentHour, cfg, areaState, cachedSunTimes, currentHour);
 
       let previewBri, previewCCT;
-      if (adjustMode === 'brightness') {
+      if (mode === 'brightness') {
         previewBri = bMin + (bMax - bMin) * position / 100;
         previewCCT = currentCCT;
-      } else if (adjustMode === 'color') {
+      } else if (mode === 'color') {
         previewBri = currentBri;
         previewCCT = cMin + (cMax - cMin) * position / 100;
       } else {
@@ -2119,13 +2079,30 @@
         previewCCT = cMin + (cMax - cMin) * position / 100;
       }
 
-      applySliderVisuals(position, previewBri, previewCCT);
+      const color = cctToRGB(previewCCT);
+      const tinted = mode === 'color' ? color : tintColorByBrightness(color, previewBri);
+      fill.style.height = position + '%';
+      thumb.style.bottom = position + '%';
+      fill.style.background = tinted;
+      thumb.style.background = tinted;
+      thumb.style.borderColor = color;
+
+      // Update this slider's value display
+      const dispId = mode === 'step' ? 'slider-value-glo'
+                   : mode === 'brightness' ? 'slider-value-bright'
+                   : 'slider-value-color';
+      const disp = document.getElementById(dispId);
+      if (disp) {
+        if (mode === 'step') disp.textContent = Math.round(position) + '%';
+        else if (mode === 'brightness') disp.textContent = Math.round(previewBri) + '%';
+        else disp.textContent = Math.round(previewCCT) + 'K';
+      }
     }
 
-    async function executeSetPosition(value) {
+    async function executeSetPosition(value, mode) {
       const payload = selectedZoneName
-        ? { zone_name: selectedZoneName, action: 'set_position', value: value, mode: adjustMode }
-        : { area_id: selectedArea.area_id, action: 'set_position', value: value, mode: adjustMode };
+        ? { zone_name: selectedZoneName, action: 'set_position', value: value, mode: mode }
+        : { area_id: selectedArea.area_id, action: 'set_position', value: value, mode: mode };
       const endpoint = selectedZoneName ? './api/zone/action' : './api/area/action';
       try {
         const response = await fetch(endpoint, {
@@ -2161,45 +2138,40 @@
       }
     }
 
-    // Attach slider touch/mouse handlers
     function initSliderHandlers() {
-      const track = document.getElementById('slider-track');
-      if (!track) return;
+      document.querySelectorAll('.slider-track').forEach(track => {
+        let lastPos = null;
+        const mode = track.dataset.mode;
 
-      let lastSentPosition = null;
-
-      function onPointerDown(e) {
-        e.preventDefault();
-        sliderInteracting = true;
-        track.classList.add('dragging');
-        track.setPointerCapture(e.pointerId);
-        const pos = getSliderPositionFromPointer(e);
-        previewSliderPosition(pos);
-        lastSentPosition = pos;
-      }
-
-      function onPointerMove(e) {
-        if (!sliderInteracting) return;
-        e.preventDefault();
-        const pos = getSliderPositionFromPointer(e);
-        previewSliderPosition(pos);
-        lastSentPosition = pos;
-      }
-
-      function onPointerUp(e) {
-        if (!sliderInteracting) return;
-        e.preventDefault();
-        track.classList.remove('dragging');
-        sliderInteracting = false;
-        if (lastSentPosition !== null) {
-          executeSetPosition(Math.round(lastSentPosition));
+        function onDown(e) {
+          e.preventDefault();
+          sliderInteracting = true;
+          track.classList.add('dragging');
+          track.setPointerCapture(e.pointerId);
+          lastPos = getPositionFromPointer(track, e);
+          previewSlider(track, lastPos);
         }
-      }
+        function onMove(e) {
+          if (!track.classList.contains('dragging')) return;
+          e.preventDefault();
+          lastPos = getPositionFromPointer(track, e);
+          previewSlider(track, lastPos);
+        }
+        function onUp(e) {
+          if (!track.classList.contains('dragging')) return;
+          e.preventDefault();
+          track.classList.remove('dragging');
+          sliderInteracting = false;
+          if (lastPos !== null) {
+            executeSetPosition(Math.round(lastPos), mode);
+          }
+        }
 
-      track.addEventListener('pointerdown', onPointerDown);
-      track.addEventListener('pointermove', onPointerMove);
-      track.addEventListener('pointerup', onPointerUp);
-      track.addEventListener('pointercancel', onPointerUp);
+        track.addEventListener('pointerdown', onDown);
+        track.addEventListener('pointermove', onMove);
+        track.addEventListener('pointerup', onUp);
+        track.addEventListener('pointercancel', onUp);
+      });
     }
 
     // ============================================================
@@ -3949,19 +3921,6 @@
       // Toggle based on current state
       const action = selectedArea.is_circadian ? 'circadian_off' : 'circadian_on';
       executeAction(action);
-    }
-
-    function setAdjustMode(mode) {
-      adjustMode = mode;
-      document.querySelectorAll('.adjust-mode-btn').forEach(b => {
-        b.classList.toggle('active', b.dataset.mode === mode);
-      });
-      // Recalculate slider position for the new mode
-      if (selectedZoneName) {
-        updateSliderFromZone(selectedZoneName);
-      } else if (selectedArea) {
-        updateSliderPosition(selectedArea.area_id);
-      }
     }
 
     async function executeAction(action) {
