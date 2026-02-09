@@ -809,8 +809,16 @@ class HomeAssistantWebSocketClient:
                 delta += 256   # wrapped past 255 going clockwise
 
             if delta == 0:
-                logger.debug(f"[Dial] {switch_config.name}: level={raw_level} (no change, dial at physical limit?)")
-                return
+                # The dial spins endlessly but the ZigBee level clamps at
+                # ~2-254.  When the user keeps spinning past the level
+                # floor/ceiling we still receive events — synthesize a
+                # small delta so the virtual position keeps moving.
+                if raw_level <= 5:
+                    delta = -3   # counter-clockwise past level floor
+                elif raw_level >= 250:
+                    delta = 3    # clockwise past level ceiling
+                else:
+                    return
 
             # Button press: level jumps to 0 or 255 (delta ~= ±full range)
             if raw_level == 0 or raw_level == 255:
