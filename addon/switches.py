@@ -405,12 +405,12 @@ SWITCH_TYPES: Dict[str, Dict[str, Any]] = {
         "buttons": ["on"],
         "action_types": ["press", "hold", "short_release", "long_release", "double_press", "triple_press", "quadruple_press", "quintuple_press"],
         "default_mapping": {
-            "on_short_release": None,               # 1x - RESERVED for magic button
+            "on_short_release": "magic",             # 1x - magic button
             "on_double_press": None,
             "on_triple_press": None,
             "on_quadruple_press": None,
             "on_quintuple_press": None,
-            "on_hold": None,                        # long - RESERVED for magic button
+            "on_hold": "magic",                     # long - magic button
             "on_long_release": None,
         },
         "repeat_on_hold": [],
