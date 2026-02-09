@@ -2118,7 +2118,10 @@
         ? getSliderCfgAndStateForZone(selectedZoneName)
         : (selectedArea ? getSliderCfgAndState(selectedArea.area_id) : null);
       if (!ctx) return;
-      const { cfg, areaState, currentHour } = ctx;
+      const { cfg, areaState } = ctx;
+      // Always use real current time for preview — server-side set_position unfreezes first
+      const now = new Date();
+      const currentHour = now.getHours() + now.getMinutes() / 60;
 
       const bMin = cfg.min_brightness, bMax = cfg.max_brightness;
       const cMin = cfg.min_color_temp, cMax = cfg.max_color_temp;
@@ -2186,14 +2189,14 @@
                   const zs = await zsRes.json();
                   zoneStates = zs.zone_states || {};
                 }
-                updateZoneModalContent(selectedZoneName, false);
+                updateZoneModalContent(selectedZoneName);
               } else if (selectedArea) {
                 const res = await fetch(`./api/area-status?area_id=${encodeURIComponent(selectedArea.area_id)}`);
                 if (res.ok) {
                   const singleStatus = await res.json();
                   Object.assign(areaStatus, singleStatus);
                 }
-                updateModalContent(selectedArea.area_id, false);
+                updateModalContent(selectedArea.area_id);
               }
             } catch (err) {
               console.error('Error refreshing after set_position:', err);
