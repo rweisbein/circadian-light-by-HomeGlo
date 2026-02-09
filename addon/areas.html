@@ -666,14 +666,6 @@
     .slider-track.dragging .slider-thumb {
       transition: none;
     }
-    .slider-value-display {
-      font-size: 0.72rem;
-      color: var(--text);
-      font-variant-numeric: tabular-nums;
-      text-align: center;
-      line-height: 1.3;
-      min-height: 1.3em;
-    }
     .slider-extreme {
       font-size: 0.6rem;
       color: var(--muted);
@@ -1354,19 +1346,21 @@
           </div>
           <div class="slider-column">
             <div class="slider-label">Bright</div>
-            <div class="slider-value-display" id="slider-value-bright">--</div>
+            <div class="slider-extreme" id="bright-max" onclick="executeSetPosition(100,'brightness')">100%</div>
             <div class="slider-track" data-mode="brightness">
               <div class="slider-fill"></div>
               <div class="slider-thumb"></div>
             </div>
+            <div class="slider-extreme" id="bright-min" onclick="executeSetPosition(0,'brightness')">1%</div>
           </div>
           <div class="slider-column">
             <div class="slider-label">Color</div>
-            <div class="slider-value-display" id="slider-value-color">--</div>
+            <div class="slider-extreme" id="color-max" onclick="executeSetPosition(100,'color')">5000K</div>
             <div class="slider-track" data-mode="color">
               <div class="slider-fill"></div>
               <div class="slider-thumb"></div>
             </div>
+            <div class="slider-extreme" id="color-min" onclick="executeSetPosition(0,'color')">2000K</div>
           </div>
         </div>
       </div>
@@ -2002,11 +1996,15 @@
         applyOneSlider(track, pct, currentBri, currentCCT, mode);
       });
 
-      // Update value displays
-      const briDisp = document.getElementById('slider-value-bright');
-      const cctDisp = document.getElementById('slider-value-color');
-      if (briDisp) briDisp.textContent = Math.round(currentBri) + '%';
-      if (cctDisp) cctDisp.textContent = Math.round(currentCCT) + 'K';
+      // Update extreme labels from config
+      const briMaxEl = document.getElementById('bright-max');
+      const briMinEl = document.getElementById('bright-min');
+      const cctMaxEl = document.getElementById('color-max');
+      const cctMinEl = document.getElementById('color-min');
+      if (briMaxEl) briMaxEl.textContent = bMax + '%';
+      if (briMinEl) briMinEl.textContent = bMin + '%';
+      if (cctMaxEl) cctMaxEl.textContent = cMax + 'K';
+      if (cctMinEl) cctMinEl.textContent = cMin + 'K';
     }
 
     function getPositionFromPointer(track, e) {
@@ -2151,11 +2149,6 @@
         const pct = m === 'step' ? gloFrac : m === 'brightness' ? briFrac : cctFrac;
         applyOneSlider(t, pct, previewBri, previewCCT, m);
       });
-
-      const briDisp = document.getElementById('slider-value-bright');
-      const cctDisp = document.getElementById('slider-value-color');
-      if (briDisp) briDisp.textContent = Math.round(previewBri) + '%';
-      if (cctDisp) cctDisp.textContent = Math.round(previewCCT) + 'K';
 
       // Update chart with preview midpoints (throttled)
       if (!chartPreviewTimer) {
