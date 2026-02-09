@@ -809,6 +809,7 @@ class HomeAssistantWebSocketClient:
                 delta += 256   # wrapped past 255 going clockwise
 
             if delta == 0:
+                logger.debug(f"[Dial] {switch_config.name}: level={raw_level} (no change, dial at physical limit?)")
                 return
 
             # Button press: level jumps to 0 or 255 (delta ~= ±full range)
