@@ -207,10 +207,8 @@ input[type=range]::-moz-range-thumb {
   position: absolute;
   inset: 2px;
   border-radius: 999px;
-  background: linear-gradient(90deg, rgba(255,255,255,0.05), rgba(255,255,255,0.95));
+  background: rgba(255,255,255,0.18);
   opacity: var(--btn-fill-opacity);
-  transform-origin: left center;
-  transform: scaleX(var(--btn-fill));
   pointer-events: none;
 }
 .time-nav-btn:hover {
@@ -302,11 +300,9 @@ input[type=range]::-moz-range-thumb {
   position: absolute;
   inset: 2px;
   border-radius: 999px;
-  background: linear-gradient(90deg, rgba(255,255,255,0.05), rgba(255,255,255,0.95));
+  background: rgba(255,255,255,0.18);
   opacity: var(--btn-fill-opacity);
-  transform-origin: left center;
-  transform: scaleX(var(--btn-fill));
-  transition: transform 0.2s ease, opacity 0.2s ease;
+  transition: opacity 0.2s ease;
   pointer-events: none;
 }
 .cursor-btn .btn-arrow {
@@ -2972,7 +2968,6 @@ function updateCursorButtons(point) {
     if (!btn) return;
     btn.style.removeProperty('--btn-bg');
     btn.style.removeProperty('--btn-text');
-    btn.style.removeProperty('--btn-fill');
     btn.style.removeProperty('--btn-fill-opacity');
     btn.classList.remove('at-extreme');
   };
@@ -3015,20 +3010,18 @@ function updateCursorButtons(point) {
   const styleBtn = (btn, targetBri, targetColor, mode) => {
     if (!btn) return;
 
-    // Brightness fill (for brightness and combo modes)
+    // Brightness glow (for brightness and combo modes)
     if ((mode === 'brightness' || mode === 'combo') && Number.isFinite(targetBri)) {
       const frac = Math.max(0, Math.min(1, targetBri / 100));
-      btn.style.setProperty('--btn-fill', frac.toFixed(3));
-      btn.style.setProperty('--btn-fill-opacity', frac > 0 ? '0.55' : '0');
+      btn.style.setProperty('--btn-fill-opacity', frac.toFixed(3));
     } else {
-      btn.style.removeProperty('--btn-fill');
       btn.style.removeProperty('--btn-fill-opacity');
     }
 
-    // Color background (for color and combo modes)
-    if ((mode === 'color' || mode === 'combo') && Number.isFinite(targetColor)) {
+    // Color background
+    if (Number.isFinite(targetColor)) {
       let color = cctToRGB(targetColor);
-      if (mode === 'combo' && Number.isFinite(targetBri)) {
+      if (Number.isFinite(targetBri)) {
         color = tintColorByBrightness(color, targetBri);
       }
       btn.style.setProperty('--btn-bg', color);
@@ -3040,8 +3033,8 @@ function updateCursorButtons(point) {
   };
 
   // Style buttons with preview values
-  styleBtn(brightUp, briPreview.up.value, null, 'brightness');
-  styleBtn(brightDown, briPreview.down.value, null, 'brightness');
+  styleBtn(brightUp, briPreview.up.value, currentCCT, 'brightness');
+  styleBtn(brightDown, briPreview.down.value, currentCCT, 'brightness');
   styleBtn(colorUp, null, colorPreview.up.value, 'color');
   styleBtn(colorDown, null, colorPreview.down.value, 'color');
   styleBtn(stepUp, stepPreview.upBri, stepPreview.upCCT, 'combo');
