@@ -10,6 +10,7 @@ Switch config is persisted to JSON. Runtime state is in-memory only.
 Last action is persisted to a separate file for cross-process sharing.
 """
 
+import hashlib
 import json
 import logging
 import os
@@ -1443,6 +1444,47 @@ def should_repeat_on_hold(switch_id: str, button_event: str) -> bool:
         if switch_type:
             return button_event in switch_type.get("repeat_on_hold", [])
     return False
+
+
+# =============================================================================
+# Reach Group Utilities (for multi-area ZigBee group sync)
+# =============================================================================
+
+def get_reach_key(areas: List[str]) -> str:
+    """Generate stable hash key for a reach (sorted, deduped areas).
+
+    Args:
+        areas: List of area IDs in the reach
+
+    Returns:
+        8-character hex hash uniquely identifying this reach combination
+    """
+    sorted_areas = sorted(set(areas))
+    combined = "|".join(sorted_areas)
+    return hashlib.md5(combined.encode()).hexdigest()[:8]
+
+
+def get_all_unique_reaches() -> Dict[str, List[str]]:
+    """Collect multi-area reaches from all configured switches.
+
+    Scans all switches and their scopes to find unique reach combinations
+    that span multiple areas. Single-area reaches are excluded since they
+    can use existing area-level groups.
+
+    Returns:
+        Dict of reach_key -> list of sorted area IDs
+    """
+    _reload_switches()  # Ensure we have latest config
+    reaches = {}
+
+    for switch in _switches.values():
+        for scope in switch.scopes:
+            if len(scope.areas) >= 2:  # Only multi-area reaches
+                key = get_reach_key(scope.areas)
+                if key not in reaches:
+                    reaches[key] = sorted(set(scope.areas))
+
+    return reaches
 
 
 # =============================================================================

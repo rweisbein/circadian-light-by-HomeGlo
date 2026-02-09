@@ -41,6 +41,22 @@ class LightCommand:
 
 
 @dataclass
+class ReachGroup:
+    """ZHA group for a multi-area reach combination.
+
+    When a switch controls multiple areas, we create dedicated ZHA groups
+    containing lights from all those areas so we can control them atomically
+    with a single command (synchronized color/brightness changes).
+    """
+    key: str                           # Hash of sorted areas (from get_reach_key)
+    areas: List[str]                   # Areas in this reach
+    group_id_color: Optional[int] = None   # ZHA group ID for color-capable lights
+    group_id_ct: Optional[int] = None      # ZHA group ID for CT-only lights
+    entity_id_color: Optional[str] = None  # light.circadian_reach_xxx_color entity
+    entity_id_ct: Optional[str] = None     # light.circadian_reach_xxx_ct entity
+
+
+@dataclass
 class GroupCommand:
     """Command for group operations."""
     name: str
@@ -947,11 +963,230 @@ class ZigBeeController(LightController):
             logger.info(f"Group operation {command.operation} completed for group {command.group_id}")
             logger.debug(f"Result: {result}")
             return True
-            
+
         except Exception as e:
             logger.error(f"Failed to manage ZHA group: {e}")
             logger.error(f"Error details: {str(e)}")
             return False
+
+    async def sync_reach_groups(
+        self,
+        reaches: Dict[str, List[str]],
+        areas_data: Dict[str, Dict[str, Any]],
+    ) -> Dict[str, ReachGroup]:
+        """Synchronize ZHA groups for multi-area reach combinations.
+
+        Creates Circadian_Reach_{hash}_color and _ct groups for each unique
+        multi-area reach. Lights from all areas in the reach are combined
+        into these groups for synchronized control.
+
+        Args:
+            reaches: Dict of reach_key -> list of area IDs
+            areas_data: Areas data from sync_zha_groups_with_areas
+
+        Returns:
+            Dict of reach_key -> ReachGroup with group IDs and entity IDs
+        """
+        if not reaches:
+            logger.debug("No multi-area reaches to sync")
+            return {}
+
+        try:
+            logger.info(f"Syncing reach groups for {len(reaches)} multi-area reach(es)...")
+
+            # Ensure Circadian_Zigbee_Groups area exists
+            circadian_area_id = await self.ensure_circadian_area_exists()
+
+            # Get existing ZHA groups
+            existing_groups = await self.list_zha_groups()
+            existing_groups_by_name = {g.get('name'): g for g in existing_groups}
+
+            # Get light color modes from the main client
+            light_color_modes = getattr(self.ws_client, 'light_color_modes', {})
+
+            reach_groups: Dict[str, ReachGroup] = {}
+            expected_group_names = set()
+
+            for reach_key, area_ids in reaches.items():
+                logger.info(f"Processing reach {reach_key}: areas={area_ids}")
+
+                # Collect ZHA lights from all areas in this reach
+                color_members = []
+                ct_members = []
+
+                for area_id in area_ids:
+                    area_info = areas_data.get(area_id, {})
+                    zha_lights = area_info.get('zha_lights', [])
+
+                    for light in zha_lights:
+                        ieee = light.get('ieee')
+                        endpoint_id = light.get('endpoint_id', 11)
+                        entity_id = light.get('entity_id')
+
+                        if not ieee:
+                            continue
+
+                        member_entry = {
+                            'ieee': ieee.lower(),
+                            'endpoint_id': endpoint_id
+                        }
+
+                        # Determine capability from light_color_modes cache
+                        modes = light_color_modes.get(entity_id, {"color_temp"})
+
+                        if "xy" in modes or "rgb" in modes or "hs" in modes:
+                            # Avoid duplicates (same light in multiple areas)
+                            if not any(m['ieee'] == member_entry['ieee'] for m in color_members):
+                                color_members.append(member_entry)
+                        elif "color_temp" in modes:
+                            if not any(m['ieee'] == member_entry['ieee'] for m in ct_members):
+                                ct_members.append(member_entry)
+                        # brightness-only lights are skipped
+
+                # Create reach groups
+                reach_group = ReachGroup(key=reach_key, areas=area_ids)
+
+                # Process color group
+                if color_members:
+                    group_name = f"Circadian_Reach_{reach_key}_color"
+                    expected_group_names.add(group_name)
+                    logger.info(f"  Color group '{group_name}': {len(color_members)} lights")
+
+                    await self._sync_single_group(
+                        group_name, color_members,
+                        existing_groups_by_name, circadian_area_id
+                    )
+
+                    # Look up entity_id and group_id
+                    updated_groups = await self.list_zha_groups()
+                    for g in updated_groups:
+                        if g.get('name') == group_name:
+                            reach_group.group_id_color = g.get('group_id')
+                            # Entity ID is typically light.{group_name_lower}
+                            reach_group.entity_id_color = f"light.{group_name.lower()}"
+                            break
+
+                # Process CT group
+                if ct_members:
+                    group_name = f"Circadian_Reach_{reach_key}_ct"
+                    expected_group_names.add(group_name)
+                    logger.info(f"  CT group '{group_name}': {len(ct_members)} lights")
+
+                    await self._sync_single_group(
+                        group_name, ct_members,
+                        existing_groups_by_name, circadian_area_id
+                    )
+
+                    # Look up entity_id and group_id
+                    updated_groups = await self.list_zha_groups()
+                    for g in updated_groups:
+                        if g.get('name') == group_name:
+                            reach_group.group_id_ct = g.get('group_id')
+                            reach_group.entity_id_ct = f"light.{group_name.lower()}"
+                            break
+
+                reach_groups[reach_key] = reach_group
+
+            # Delete obsolete reach groups
+            for group_name, group in existing_groups_by_name.items():
+                if group_name.startswith('Circadian_Reach_') and group_name not in expected_group_names:
+                    logger.info(f"Removing obsolete reach group '{group_name}'")
+                    await self.manage_group(GroupCommand(
+                        name=group_name,
+                        group_id=group['group_id'],
+                        operation='delete'
+                    ))
+
+            logger.info(f"Reach group sync completed: {len(reach_groups)} reach(es) with groups")
+            return reach_groups
+
+        except Exception as e:
+            logger.error(f"Failed to sync reach groups: {e}")
+            return {}
+
+    async def _sync_single_group(
+        self,
+        group_name: str,
+        members: List[Dict[str, Any]],
+        existing_groups_by_name: Dict[str, Any],
+        circadian_area_id: Optional[str],
+    ) -> None:
+        """Sync a single ZHA group with the given members.
+
+        Creates the group if it doesn't exist, or updates membership if needed.
+
+        Args:
+            group_name: Name for the ZHA group
+            members: List of {ieee, endpoint_id} dicts
+            existing_groups_by_name: Dict of existing groups by name
+            circadian_area_id: Area ID for Circadian_Zigbee_Groups
+        """
+        existing_group = existing_groups_by_name.get(group_name)
+
+        if existing_group:
+            # Group exists - check membership
+            existing_members = existing_group.get('members', [])
+
+            if not existing_members or (len(existing_members) == 1 and existing_members[0] is None):
+                # Empty group - add all members
+                await self.manage_group(GroupCommand(
+                    name=group_name,
+                    group_id=existing_group['group_id'],
+                    members=members,
+                    operation='add_members'
+                ))
+            else:
+                # Compare members
+                existing_member_set = set()
+                for m in existing_members:
+                    if m:
+                        ieee = m.get('ieee') or (m.get('device', {}).get('ieee') if m.get('device') else None)
+                        endpoint_id = m.get('endpoint_id')
+                        if ieee and endpoint_id is not None:
+                            existing_member_set.add((ieee.lower(), endpoint_id))
+
+                new_member_set = {(m['ieee'].lower(), m['endpoint_id']) for m in members}
+
+                if existing_member_set != new_member_set:
+                    # Remove old members
+                    to_remove = [{'ieee': ieee, 'endpoint_id': ep}
+                                for ieee, ep in existing_member_set - new_member_set]
+                    if to_remove:
+                        await self.manage_group(GroupCommand(
+                            name=group_name,
+                            group_id=existing_group['group_id'],
+                            members=to_remove,
+                            operation='remove_members'
+                        ))
+
+                    # Add new members
+                    to_add = [{'ieee': ieee, 'endpoint_id': ep}
+                             for ieee, ep in new_member_set - existing_member_set]
+                    if to_add:
+                        await self.manage_group(GroupCommand(
+                            name=group_name,
+                            group_id=existing_group['group_id'],
+                            members=to_add,
+                            operation='add_members'
+                        ))
+
+            # Move to Circadian area if needed
+            if circadian_area_id:
+                await self.move_group_entity_to_circadian_area(group_name, circadian_area_id)
+        else:
+            # Create new group
+            random_group_id = random.randint(1, 65535)
+            logger.info(f"Creating reach group '{group_name}' with ID {random_group_id}")
+
+            await self.create_group(GroupCommand(
+                name=group_name,
+                group_id=random_group_id,
+                members=members
+            ))
+
+            # Move to Circadian area
+            if circadian_area_id:
+                await self.move_group_entity_to_circadian_area(group_name, circadian_area_id)
 
 
 class HomeAssistantController(LightController):

@@ -1784,6 +1784,38 @@ class LightDesignerServer:
             logger.warning(f"[WS Event] Error firing {event_type}: {e}")
             return False
 
+    async def _trigger_reach_group_sync(self) -> bool:
+        """Trigger reach group sync in main.py via WebSocket event.
+
+        Returns:
+            True if event was fired successfully
+        """
+        _, ws_url, token = self._get_ha_api_config()
+        if ws_url and token:
+            return await self._fire_event_via_websocket(
+                ws_url, token, 'circadian_light_sync_reach_groups', {}
+            )
+        return False
+
+    async def _trigger_reach_group_sync_if_needed(self, scopes: list) -> bool:
+        """Trigger reach group sync if any scope has multiple areas.
+
+        Only fires the sync event if there's a multi-area scope that would
+        benefit from reach group optimization.
+
+        Args:
+            scopes: List of SwitchScope objects
+
+        Returns:
+            True if sync was triggered, False otherwise
+        """
+        # Check if any scope has multiple areas
+        has_multi_area_scope = any(len(scope.areas) >= 2 for scope in scopes)
+        if has_multi_area_scope:
+            logger.info("Multi-area scope detected, triggering reach group sync")
+            return await self._trigger_reach_group_sync()
+        return False
+
     async def _fetch_light_states(self, ws_url: str, token: str, entity_ids: list) -> dict:
         """Fetch current states of lights for later restoration.
 
@@ -4811,6 +4843,9 @@ class LightDesignerServer:
 
             switches.add_switch(switch_config)
 
+            # Trigger reach group sync if any scope has multiple areas
+            await self._trigger_reach_group_sync_if_needed(switch_config.scopes)
+
             return web.json_response({
                 "status": "ok",
                 "switch": switch_config.to_dict()
@@ -4877,6 +4912,10 @@ class LightDesignerServer:
 
             switches.add_switch(switch_config)
 
+            # Trigger reach group sync if scopes changed and any has multiple areas
+            if "scopes" in data:
+                await self._trigger_reach_group_sync_if_needed(scopes)
+
             return web.json_response({
                 "status": "ok",
                 "switch": switch_config.to_dict()
@@ -4896,6 +4935,8 @@ class LightDesignerServer:
                 return web.json_response({"error": "Switch ID is required"}, status=400)
 
             if switches.remove_switch(switch_id):
+                # Trigger reach group sync to clean up any orphaned reach groups
+                await self._trigger_reach_group_sync()
                 return web.json_response({"status": "ok", "deleted": switch_id})
             else:
                 return web.json_response({"error": "Switch not found"}, status=404)
