@@ -124,6 +124,51 @@ class TestCalculateStep:
                 f"expected >3000K (rendered_before={rendered_before}K)"
             )
 
+    def test_step_down_recalibrates_override(self):
+        """Combined step down should reduce override toward zero.
+
+        After color-upping past a solar rule, stepping down should gradually
+        reduce the override so the solar rule re-engages when back in range.
+        """
+        config = Config(
+            ascend_start=6.0,
+            descend_start=18.0,
+            wake_time=8.0,
+            bed_time=22.0,
+            min_brightness=10,
+            max_brightness=100,
+            min_color_temp=2700,
+            max_color_temp=6500,
+            max_dim_steps=10,
+            warm_night_enabled=True,
+            warm_night_mode="all",
+            warm_night_target=2700,
+            warm_night_start=-60,
+            warm_night_end=60,
+            warm_night_fade=60,
+        )
+        sun_times = SunTimes()
+        hour = 22.0
+
+        # Start with a large override (as if user color-upped several times)
+        state = AreaState(color_override=1500)
+
+        # Step down multiple times
+        overrides = [state.color_override]
+        for _ in range(5):
+            result = CircadianLight.calculate_step(hour, "down", config, state, sun_times=sun_times)
+            if result is None:
+                break
+            for key, value in result.state_updates.items():
+                setattr(state, key, value)
+            overrides.append(state.color_override)
+
+        # Override should be reduced (or cleared) from initial 1500
+        final = overrides[-1]
+        assert final is None or final < 1500, (
+            f"Override should decrease on step down: {overrides}"
+        )
+
 
 class TestCalculateBrightStep:
     """Test calculate_bright_step (brightness only)."""
@@ -406,8 +451,8 @@ class TestColorStepWithSolarRules:
         assert "color_override" in result.state_updates
         assert result.state_updates["color_override"] < 0  # Negative = lowers cool floor
 
-    def test_multiple_steps_accumulate_override(self, warm_night_config, sun_times):
-        """Multiple step-ups through WarmNight should accumulate override."""
+    def test_multiple_steps_up_increase_override(self, warm_night_config, sun_times):
+        """Multiple step-ups through WarmNight should increase override."""
         state = AreaState()
         hour = 22.0
         overrides = []
@@ -426,6 +471,40 @@ class TestColorStepWithSolarRules:
             assert overrides[i + 1] > overrides[i], (
                 f"Override didn't increase: {overrides}"
             )
+
+    def test_stepping_back_reduces_override(self, warm_night_config, sun_times):
+        """Color-stepping up then down should reduce override back toward zero."""
+        state = AreaState()
+        hour = 22.0
+
+        # Step up 3 times to build override
+        for _ in range(3):
+            result = CircadianLight.calculate_color_step(
+                hour, "up", warm_night_config, state, sun_times=sun_times
+            )
+            assert result is not None
+            for key, value in result.state_updates.items():
+                setattr(state, key, value)
+
+        peak_override = state.color_override
+        assert peak_override is not None and peak_override > 0
+
+        # Step down 3 times — override should shrink
+        overrides_down = []
+        for _ in range(3):
+            result = CircadianLight.calculate_color_step(
+                hour, "down", warm_night_config, state, sun_times=sun_times
+            )
+            assert result is not None
+            for key, value in result.state_updates.items():
+                setattr(state, key, value)
+            overrides_down.append(state.color_override)
+
+        # Override should decrease (or clear to None)
+        last = overrides_down[-1]
+        assert last is None or last < peak_override, (
+            f"Override didn't decrease: peak={peak_override}, after down={overrides_down}"
+        )
 
     def test_no_override_without_solar_rules(self):
         """With no solar rules, stepping should not set color_override."""
@@ -585,3 +664,37 @@ class TestSetPositionWithSolarRules:
         )
 
         assert result.state_updates.get("color_override") is None
+
+    def test_step_slider_recalibrates_override(self, warm_night_config, sun_times):
+        """Combined slider should recalibrate override, not clear it blindly.
+
+        After color-upping past a solar rule, dragging the combined slider
+        to a low position should reduce/clear the override. Then dragging
+        back up should let the solar rule re-engage (override stays gone).
+        """
+        state = AreaState(color_override=1500)
+        hour = 22.0
+
+        # Drag slider to low position (5%) — natural curve near warm target,
+        # override should clear or shrink significantly
+        result_low = CircadianLight.calculate_set_position(
+            hour, 5, "step", warm_night_config, state, sun_times=sun_times
+        )
+        override_low = result_low.state_updates.get("color_override", state.color_override)
+        assert override_low is None or override_low < 500, (
+            f"Override should clear/shrink at low position, got {override_low}"
+        )
+
+        # Apply state updates, then drag back to 50%
+        for key, value in result_low.state_updates.items():
+            setattr(state, key, value)
+
+        result_back_up = CircadianLight.calculate_set_position(
+            hour, 50, "step", warm_night_config, state, sun_times=sun_times
+        )
+
+        # Solar rule should now re-engage — CCT should be clamped toward warm
+        # (not at 4200K+ like it was with override=1500)
+        assert result_back_up.color_temp < 3500, (
+            f"Solar rule should re-engage after override cleared, got {result_back_up.color_temp}K"
+        )

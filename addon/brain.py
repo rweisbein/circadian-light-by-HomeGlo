@@ -749,6 +749,24 @@ class CircadianLight:
         if not cct_at_limit:
             state_updates["color_mid"] = new_color_mid
 
+        # Recalibrate color_override to minimum needed
+        if state.color_override is not None:
+            base_state = AreaState(
+                is_circadian=state.is_circadian,
+                is_on=state.is_on,
+                frozen_at=state.frozen_at,
+                brightness_mid=new_state.brightness_mid,
+                color_mid=new_state.color_mid,
+                color_override=None,
+            )
+            base_cct = CircadianLight.calculate_color_at_hour(
+                hour, config, base_state, apply_solar_rules=True, sun_times=sun_times
+            )
+            if abs(base_cct - actual_cct) < 10:
+                state_updates["color_override"] = None
+            else:
+                state_updates["color_override"] = actual_cct - base_cct
+
         rgb = CircadianLight.color_temperature_to_rgb(actual_cct)
         xy = CircadianLight.color_temperature_to_xy(actual_cct)
 
@@ -921,25 +939,25 @@ class CircadianLight:
         else:
             new_mid = CircadianLight.lift_midpoint_to_phase(new_mid, t_descend, t_ascend + 24) % 24
 
-        # 5. Test-render with new midpoint + current override
+        # 5. Test-render with new midpoint + NO override (fresh recalibration)
         test_state = AreaState(
             is_circadian=state.is_circadian,
             is_on=state.is_on,
             frozen_at=state.frozen_at,
             brightness_mid=state.brightness_mid,
             color_mid=new_mid,
-            color_override=state.color_override,
+            color_override=None,
         )
-        test_rendered = CircadianLight.calculate_color_at_hour(
+        base_rendered = CircadianLight.calculate_color_at_hour(
             hour, config, test_state, apply_solar_rules=True, sun_times=sun_times
         )
 
-        # 6-7. If solar rule ate the change, compute deficit override
-        new_override = state.color_override
+        # 6-7. Recalibrate override to minimum needed to reach target
         tolerance = max(5, safe_margin * 0.5)
-        if abs(test_rendered - target) > tolerance:
-            deficit = target - test_rendered
-            new_override = (new_override or 0) + deficit
+        if abs(base_rendered - target) <= tolerance:
+            new_override = None  # Solar rule not blocking; clear override
+        else:
+            new_override = target - base_rendered  # Exact deficit
 
         # 8. Verify final rendered output changed meaningfully
         final_state = AreaState(
@@ -1059,7 +1077,8 @@ class CircadianLight:
                 new_bri_mid = CircadianLight.lift_midpoint_to_phase(new_bri_mid, t_descend, descend_end) % 24
             state_updates["brightness_mid"] = new_bri_mid
             state_updates["color_mid"] = new_bri_mid  # shared midpoint
-            state_updates["color_override"] = None
+            # Recalibrate override (don't clear blindly — preserve what's needed)
+            # Override is recalibrated after the verification render below
 
         elif dimension == "brightness":
             new_bri_mid = inverse_midpoint(calc_time, target_bri_norm, slope, b_min_norm, b_max_norm)
@@ -1113,6 +1132,24 @@ class CircadianLight:
         actual_cct = CircadianLight.calculate_color_at_hour(
             hour, config, new_state, apply_solar_rules=True, sun_times=sun_times
         )
+
+        # Recalibrate color_override for "step" dimension (deferred from above)
+        if dimension == "step" and state.color_override is not None:
+            base_state = AreaState(
+                is_circadian=new_state.is_circadian,
+                is_on=new_state.is_on,
+                frozen_at=new_state.frozen_at,
+                brightness_mid=new_state.brightness_mid,
+                color_mid=new_state.color_mid,
+                color_override=None,
+            )
+            base_cct = CircadianLight.calculate_color_at_hour(
+                hour, config, base_state, apply_solar_rules=True, sun_times=sun_times
+            )
+            if abs(base_cct - actual_cct) < 10:
+                state_updates["color_override"] = None
+            else:
+                state_updates["color_override"] = actual_cct - base_cct
 
         rgb = CircadianLight.color_temperature_to_rgb(actual_cct)
         xy = CircadianLight.color_temperature_to_xy(actual_cct)
