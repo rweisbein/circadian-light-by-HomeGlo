@@ -88,11 +88,11 @@
       padding: 16px;
     }
 
-    /* Context info (Glo zone + Rhythm) */
+    /* Context info (Glo zone + Rhythm) - copied from modal */
     .context-info {
       display: flex;
       gap: 20px;
-      padding: 8px 0 12px;
+      padding: 6px 0;
       font-size: 0.85rem;
     }
 
@@ -117,7 +117,7 @@
       text-decoration: underline;
     }
 
-    /* Area state display - with dynamic shading */
+    /* Area state display - with dynamic shading (from modal) */
     .area-state {
       --state-bg: var(--panel);
       --state-fill: 0;
@@ -141,15 +141,14 @@
     .area-state-row {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 16px;
       position: relative;
       z-index: 1;
-      flex-wrap: wrap;
     }
 
     .area-state-info {
       flex: 1;
-      min-width: 80px;
+      min-width: 0;
       display: flex;
       align-items: center;
     }
@@ -188,9 +187,10 @@
       background: rgba(0,0,0,0.5);
       padding: 6px;
       border-radius: 10px;
+      margin-right: 12px;
     }
 
-    /* Toggle switch styles */
+    /* Toggle switch styles (from modal) */
     .toggle-btn {
       width: 40px;
       height: 40px;
@@ -222,7 +222,7 @@
       height: 18px;
     }
 
-    /* Timer status row */
+    /* Timer status row (from modal) */
     .timer-status {
       display: flex;
       justify-content: space-between;
@@ -237,12 +237,12 @@
     }
 
     .timer-motion {
-      color: var(--muted);
+      color: var(--row-text, var(--muted));
       opacity: 0.7;
     }
 
     .timer-boost {
-      color: var(--muted);
+      color: var(--row-text, var(--muted));
       opacity: 0.7;
       margin-left: auto;
     }
@@ -267,41 +267,37 @@
       50% { opacity: 0.4; }
     }
 
-    /* Mini chart container */
+    /* Mini chart container (from modal) */
     #mini-chart {
       width: 100%;
       height: 280px;
       margin: 8px 0;
     }
 
-    /* Adjust sliders */
+    /* Adjust sliders (from modal - exact same styling) */
     .adjust-section {
       margin-bottom: 12px;
       -webkit-user-select: none;
       user-select: none;
     }
-
     .adjust-slider-row {
       display: flex;
       align-items: stretch;
       justify-content: center;
       gap: 24px;
     }
-
     .slider-column {
       display: flex;
       flex-direction: column;
       align-items: center;
       gap: 4px;
     }
-
     .slider-label {
       font-size: 0.65rem;
       color: var(--muted);
       text-transform: uppercase;
       letter-spacing: 0.04em;
     }
-
     .slider-track {
       position: relative;
       width: 14px;
@@ -312,19 +308,7 @@
       touch-action: none;
       overflow: hidden;
     }
-
     .slider-fill {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      width: 100%;
-      background: var(--accent);
-      pointer-events: none;
-      transition: height 0.15s ease;
-      border-radius: 0 0 7px 7px;
-    }
-
-    .slider-unfill {
       position: absolute;
       top: 0;
       left: 0;
@@ -334,7 +318,6 @@
       transition: height 0.15s ease;
       border-radius: 7px 7px 0 0;
     }
-
     .slider-thumb {
       position: absolute;
       left: 50%;
@@ -349,12 +332,10 @@
       transition: bottom 0.15s ease, background 0.15s ease;
       z-index: 2;
     }
-
     .slider-track.dragging .slider-fill,
     .slider-track.dragging .slider-thumb {
       transition: none;
     }
-
     .slider-extreme {
       font-size: 0.6rem;
       color: var(--muted);
@@ -362,7 +343,6 @@
       padding: 2px 0;
       letter-spacing: 0.02em;
     }
-
     .slider-extreme:hover {
       color: var(--text);
     }
@@ -402,6 +382,8 @@
       }
     }
   </style>
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <script src="./shared.js"></script>
 </head>
 <body>
   <!-- Page Header -->
@@ -416,8 +398,8 @@
 
   <main class="main">
     <div class="context-info" id="context-info">
-      <div class="context-line"><span class="context-label">Glo zone:</span> <span id="zone-link">-</span></div>
-      <div class="context-line" id="rhythm-line" style="display:none;"><span class="context-label">Daily Rhythm:</span> <span class="context-link" id="rhythm-link">-</span></div>
+      <div class="context-line"><span class="context-label">Glo zone:</span> <span id="zone-link">—</span></div>
+      <div class="context-line" id="rhythm-line" style="display:none;"><span class="context-label">Daily Rhythm:</span> <span class="context-link" id="rhythm-link">—</span></div>
     </div>
 
     <div class="area-state" id="area-state">
@@ -452,7 +434,7 @@
           </button>
         </div>
         <div class="area-state-info">
-          <div class="area-state-values" id="state-values">-</div>
+          <div class="area-state-values" id="state-values"></div>
         </div>
         <div class="area-state-controls" id="controls-area">
           <button class="toggle-btn" id="toggle-glo-up" onclick="executeAction('glo_up')" title="GloUp: send area settings to GloZone">
@@ -496,21 +478,21 @@
         </div>
         <div class="slider-column">
           <div class="slider-label">Bright</div>
-          <div class="slider-extreme" onclick="executeSetPosition(100,'brightness')">max</div>
+          <div class="slider-extreme" id="bright-max" onclick="executeSetPosition(100,'brightness')">max</div>
           <div class="slider-track" data-mode="brightness">
             <div class="slider-fill"></div>
             <div class="slider-thumb"></div>
           </div>
-          <div class="slider-extreme" onclick="executeSetPosition(0,'brightness')">min</div>
+          <div class="slider-extreme" id="bright-min" onclick="executeSetPosition(0,'brightness')">min</div>
         </div>
         <div class="slider-column">
           <div class="slider-label">Color</div>
-          <div class="slider-extreme" onclick="executeSetPosition(100,'color')">max</div>
+          <div class="slider-extreme" id="color-max" onclick="executeSetPosition(100,'color')">max</div>
           <div class="slider-track" data-mode="color">
             <div class="slider-fill"></div>
             <div class="slider-thumb"></div>
           </div>
-          <div class="slider-extreme" onclick="executeSetPosition(0,'color')">min</div>
+          <div class="slider-extreme" id="color-min" onclick="executeSetPosition(0,'color')">min</div>
         </div>
       </div>
     </div>
@@ -531,6 +513,705 @@
     let refreshInterval = null;
     let tickInterval = null;
     let basePath = '';
+    let sliderInteracting = false;
+
+    // ============================================================
+    // Circadian Curve Calculation (from areas.html modal)
+    // ============================================================
+
+    const SPEED_TO_SLOPE = [0, 0.4, 0.6, 0.8, 1.0, 1.3, 1.7, 2.3, 3.0, 4.0, 5.5];
+
+    function logistic(x, midpoint, slope, y0, y1) {
+      try {
+        const expVal = Math.exp(-slope * (x - midpoint));
+        return y0 + (y1 - y0) / (1 + expVal);
+      } catch {
+        return slope * (x - midpoint) > 0 ? y1 : y0;
+      }
+    }
+
+    function wrap24(x) {
+      return ((x % 24) + 24) % 24;
+    }
+
+    function getWindowWeight(hour, windowStart, windowEnd, fadeHrs) {
+      const h = wrap24(hour);
+      let inWindow = false;
+      let distFromStart = 0;
+      let distToEnd = 0;
+
+      if (windowStart > windowEnd) {
+        inWindow = h >= windowStart || h <= windowEnd;
+        if (inWindow) {
+          distFromStart = h >= windowStart ? (h - windowStart) : (h + 24 - windowStart);
+          distToEnd = h <= windowEnd ? (windowEnd - h) : (windowEnd + 24 - h);
+        }
+      } else {
+        inWindow = h >= windowStart && h <= windowEnd;
+        if (inWindow) {
+          distFromStart = h - windowStart;
+          distToEnd = windowEnd - h;
+        }
+      }
+
+      if (!inWindow) {
+        return { inWindow: false, weight: 0 };
+      }
+
+      let weight = 1;
+      if (fadeHrs > 0.01) {
+        if (distFromStart < fadeHrs) {
+          weight = Math.min(weight, distFromStart / fadeHrs);
+        }
+        if (distToEnd < fadeHrs) {
+          weight = Math.min(weight, distToEnd / fadeHrs);
+        }
+      }
+
+      return { inWindow: true, weight };
+    }
+
+    function rad(d) { return d * Math.PI / 180; }
+
+    function getSunTimes(lat, lon) {
+      const date = new Date();
+      const n = Math.floor((date - new Date(date.getFullYear(), 0, 0)) / 86400000);
+      const J = n + ((lon < 0 ? 360 + lon : lon) / 360);
+      const M = (357.5291 + 0.9856 * J) % 360;
+      const C = 1.9148 * Math.sin(rad(M)) + 0.02 * Math.sin(rad(2 * M)) + 0.0003 * Math.sin(rad(3 * M));
+      const L = (M + 102.9372 + C + 180) % 360;
+      const D = Math.asin(Math.sin(rad(L)) * Math.sin(rad(23.44)));
+      const cosH0 = (Math.cos(rad(90.833)) - Math.sin(rad(lat)) * Math.sin(D)) / (Math.cos(rad(lat)) * Math.cos(D));
+
+      if (cosH0 < -1 || cosH0 > 1) {
+        const sn = 12 - date.getTimezoneOffset() / 60 - (lon / 15);
+        return { sunrise: sn - 6, sunset: sn + 6, solarNoon: sn, solarMid: (sn + 12) % 24 };
+      }
+
+      const H0 = Math.acos(cosH0);
+      const dl = (2 * H0 * 180 / Math.PI) / 15;
+      const tz = -date.getTimezoneOffset() / 60;
+      const sn = 12 + tz - (lon / 15);
+      return { sunrise: sn - dl / 2, sunset: sn + dl / 2, solarNoon: sn, solarMid: (sn + 12) % 24 };
+    }
+
+    function liftMidpointToPhase(midpoint, phaseStart, phaseEnd) {
+      const phaseCenter = (phaseStart + phaseEnd) / 2;
+      let mid = midpoint;
+      while (mid < phaseCenter - 12) mid += 24;
+      while (mid > phaseCenter + 12) mid -= 24;
+      const margin = 0.01;
+      return Math.max(phaseStart + margin, Math.min(phaseEnd - margin, mid));
+    }
+
+    function applySolarRule(baseCCT, hour, cfg, sunTimes, colorOverride) {
+      if (!sunTimes) return baseCCT;
+
+      let cct = baseCCT;
+      const sunrise = sunTimes.sunrise;
+      const sunset = sunTimes.sunset;
+      const solarNoon = sunTimes.solarNoon;
+      const solarMid = sunTimes.solarMid;
+
+      // Warm night — ceiling
+      if (cfg.warm_night_enabled) {
+        let warmTarget = cfg.warm_night_target;
+        if (colorOverride && colorOverride > 0) {
+          warmTarget += colorOverride;
+        }
+
+        if (cct > warmTarget) {
+          const fadeHrs = cfg.warm_night_fade / 60;
+          const startOffsetHrs = cfg.warm_night_start / 60;
+          const endOffsetHrs = cfg.warm_night_end / 60;
+          const mode = cfg.warm_night_mode;
+
+          let windowStart, windowEnd;
+          if (mode === 'sunrise') {
+            windowStart = wrap24(solarMid);
+            windowEnd = wrap24(sunrise + endOffsetHrs);
+          } else if (mode === 'sunset') {
+            windowStart = wrap24(sunset + startOffsetHrs);
+            windowEnd = wrap24(solarMid);
+          } else {
+            windowStart = wrap24(sunset + startOffsetHrs);
+            windowEnd = wrap24(sunrise + endOffsetHrs);
+          }
+
+          const { inWindow, weight } = getWindowWeight(hour, windowStart, windowEnd, fadeHrs);
+          if (inWindow && weight > 0) {
+            cct = cct + (warmTarget - cct) * weight;
+          }
+        }
+      }
+
+      // Cool day — floor
+      if (cfg.cool_day_enabled) {
+        let coolTarget = cfg.cool_day_target;
+        if (colorOverride && colorOverride < 0) {
+          coolTarget += colorOverride;
+        }
+
+        if (cct < coolTarget) {
+          const fadeHrs = cfg.cool_day_fade / 60;
+          const startOffsetHrs = cfg.cool_day_start / 60;
+          const endOffsetHrs = cfg.cool_day_end / 60;
+          const mode = cfg.cool_day_mode;
+
+          let windowStart, windowEnd;
+          if (mode === 'sunrise') {
+            windowStart = wrap24(sunrise + startOffsetHrs);
+            windowEnd = wrap24(solarNoon);
+          } else if (mode === 'sunset') {
+            windowStart = wrap24(solarNoon);
+            windowEnd = wrap24(sunset + endOffsetHrs);
+          } else {
+            windowStart = wrap24(sunrise + startOffsetHrs);
+            windowEnd = wrap24(sunset + endOffsetHrs);
+          }
+
+          const { inWindow, weight } = getWindowWeight(hour, windowStart, windowEnd, fadeHrs);
+          if (inWindow && weight > 0) {
+            cct = cct + (coolTarget - cct) * weight;
+          }
+        }
+      }
+
+      return cct;
+    }
+
+    function calcMiniBrightness(hour, cfg, state, currentHour) {
+      const tAscend = cfg.ascend_start;
+      let tDescend = cfg.descend_start;
+      if (tDescend <= tAscend) tDescend += 24;
+
+      const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.wake_speed))];
+      const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.bed_speed))];
+      const bMin = cfg.min_brightness / 100;
+      const bMax = cfg.max_brightness / 100;
+
+      const cursorH48 = currentHour < tAscend ? currentHour + 24 : currentHour;
+      const cursorInAscend = cursorH48 >= tAscend && cursorH48 < tDescend;
+
+      const wakeMid = cursorInAscend ? (state.brightness_mid ?? cfg.wake_time) : cfg.wake_time;
+      const bedMid = !cursorInAscend ? (state.brightness_mid ?? cfg.bed_time) : cfg.bed_time;
+
+      const h48 = hour < tAscend ? hour + 24 : hour;
+      const inAscend = h48 >= tAscend && h48 < tDescend;
+
+      const mid48 = inAscend
+        ? liftMidpointToPhase(wakeMid, tAscend, tDescend)
+        : liftMidpointToPhase(bedMid, tDescend, tDescend + 24);
+
+      let value;
+      if (inAscend) {
+        value = logistic(h48, mid48, kAscend, bMin, bMax);
+      } else {
+        const hDescend48 = (h48 < tDescend) ? h48 + 24 : h48;
+        value = logistic(hDescend48, mid48, -kDescend, bMin, bMax);
+      }
+
+      return Math.max(bMin, Math.min(bMax, value));
+    }
+
+    function calcMiniColor(hour, cfg, state, sunTimes, currentHour) {
+      const tAscend = cfg.ascend_start;
+      let tDescend = cfg.descend_start;
+      if (tDescend <= tAscend) tDescend += 24;
+
+      const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.wake_speed))];
+      const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.bed_speed))];
+      const cLow = cfg.min_color_temp;
+      const cHigh = cfg.max_color_temp;
+
+      const cursorH48 = currentHour < tAscend ? currentHour + 24 : currentHour;
+      const cursorInAscend = cursorH48 >= tAscend && cursorH48 < tDescend;
+
+      const colorWakeMid = cursorInAscend ? (state.color_mid ?? cfg.wake_time) : cfg.wake_time;
+      const colorBedMid = !cursorInAscend ? (state.color_mid ?? cfg.bed_time) : cfg.bed_time;
+
+      const h48 = hour < tAscend ? hour + 24 : hour;
+      const inAscend = h48 >= tAscend && h48 < tDescend;
+
+      const mid48 = inAscend
+        ? liftMidpointToPhase(colorWakeMid, tAscend, tDescend)
+        : liftMidpointToPhase(colorBedMid, tDescend, tDescend + 24);
+
+      let normalized;
+      if (inAscend) {
+        normalized = logistic(h48, mid48, kAscend, 0, 1);
+      } else {
+        const hDescend48 = (h48 < tDescend) ? h48 + 24 : h48;
+        normalized = logistic(hDescend48, mid48, -kDescend, 0, 1);
+      }
+      normalized = Math.max(0, Math.min(1, normalized));
+
+      let cct = cLow + (cHigh - cLow) * normalized;
+      cct = applySolarRule(cct, hour, cfg, sunTimes, state.color_override);
+
+      return cct;
+    }
+
+    function calcMiniCurveData(cfg, state, sunTimes, currentHour) {
+      const numSamples = 240;
+      const hours = [];
+      const brightnessPct = [];
+      const cct = [];
+
+      for (let i = 0; i < numSamples; i++) {
+        const h = (i / numSamples) * 24;
+        hours.push(h);
+        brightnessPct.push(calcMiniBrightness(h, cfg, state, currentHour) * 100);
+        cct.push(calcMiniColor(h, cfg, state, sunTimes, currentHour));
+      }
+
+      return { hours, brightnessPct, cct };
+    }
+
+    // ============================================================
+    // Mini Circadian Graph — Rendering (from areas.html modal)
+    // ============================================================
+
+    function formatHourLabel(h) {
+      const h24 = ((h % 24) + 24) % 24;
+      let hr = Math.floor(h24);
+      let min = Math.round((h24 - hr) * 60);
+      if (min === 60) { min = 0; hr = (hr + 1) % 24; }
+      const suffix = hr < 12 ? 'a' : 'p';
+      const hr12 = hr === 0 ? 12 : (hr > 12 ? hr - 12 : hr);
+      return min === 0 ? `${hr12}${suffix}` : `${hr12}:${min.toString().padStart(2, '0')}${suffix}`;
+    }
+
+    function formatCountdown(isoTimestamp) {
+      if (!isoTimestamp) return null;
+      const expires = new Date(isoTimestamp);
+      if (isNaN(expires.getTime())) return null;
+      const now = new Date();
+      const diffMs = expires - now;
+      if (diffMs <= 0) return null;
+      const totalSec = Math.floor(diffMs / 1000);
+      if (totalSec < 60) return `${totalSec}s`;
+      const min = Math.floor(totalSec / 60);
+      const sec = totalSec % 60;
+      if (min < 60) return sec > 0 ? `${min}m ${sec}s` : `${min}m`;
+      const hr = Math.floor(min / 60);
+      const remMin = min % 60;
+      return remMin > 0 ? `${hr}h ${remMin}m` : `${hr}h`;
+    }
+
+    function renderMiniChart(cfg, state, sunTimes, currentHour, isActive) {
+      if (!cfg || !sunTimes) return;
+
+      const data = calcMiniCurveData(cfg, state, sunTimes, currentHour);
+      const { hours, brightnessPct, cct } = data;
+
+      const traces = [];
+
+      // Color-gradient brightness curve (filled + line segments)
+      const step = 2;
+      for (let i = step; i < hours.length; i += step) {
+        const color = cctToRGB(cct[i]);
+        const fillColor = colorWithAlpha(color, 0.5);
+        const x0 = hours[i - step];
+        const x1 = hours[i];
+        const y0 = brightnessPct[i - step];
+        const y1 = brightnessPct[i];
+
+        // Filled area under curve
+        traces.push({
+          type: 'scatter', mode: 'lines',
+          x: [x0, x1, x1, x0], y: [y0, y1, 0, 0],
+          fill: 'toself', line: { width: 0 }, fillcolor: fillColor,
+          hoverinfo: 'skip', showlegend: false
+        });
+
+        // Colored line segment
+        traces.push({
+          type: 'scatter', mode: 'lines',
+          x: [x0, x1], y: [y0, y1],
+          line: { width: 3, color },
+          hoverinfo: 'skip', showlegend: false
+        });
+      }
+
+      // Hover trace — CCT-colored tooltips
+      const hoverDetails = brightnessPct.map((v, i) =>
+        `${Math.round(v)}% • ${Math.round(cct[i])}K`
+      );
+      const hoverBgColors = cct.map(k => colorWithAlpha(cctToRGB(k), 0.92));
+      const hoverTextColors = cct.map(k => readableTextColor(cctToRGB(k)));
+      const hoverBorderColors = cct.map(k => colorWithAlpha(cctToRGB(k), 0.65));
+
+      traces.push({
+        type: 'scatter', mode: 'lines',
+        x: hours, y: brightnessPct,
+        line: { width: 0 }, showlegend: false,
+        text: hoverDetails,
+        hovertemplate: '%{text}<extra></extra>',
+        hoverlabel: {
+          bgcolor: hoverBgColors,
+          bordercolor: hoverBorderColors,
+          font: { color: hoverTextColors, size: 13 }
+        }
+      });
+
+      // Live position marker (large size, outline color depends on active state)
+      const markerBri = calcMiniBrightness(currentHour, cfg, state, currentHour) * 100;
+      const markerCCT = calcMiniColor(currentHour, cfg, state, sunTimes, currentHour);
+      const markerColor = cctToRGB(markerCCT);
+      const markerOutline = isActive ? '#fff' : '#000';
+
+      traces.push({
+        x: [currentHour], y: [markerBri],
+        mode: 'markers',
+        marker: { size: 22, color: markerColor, line: { width: 3, color: markerOutline } },
+        hoverinfo: 'skip', showlegend: false
+      });
+
+      // Shapes and annotations
+      const shapes = [];
+      const annotations = [];
+
+      // Wake/bed vertical dashed lines
+      const wakeTime = wrap24(cfg.wake_time);
+      const bedTime = wrap24(cfg.bed_time);
+
+      shapes.push({
+        type: 'line', xref: 'x', yref: 'paper',
+        x0: wakeTime, x1: wakeTime, y0: -0.15, y1: 1,
+        line: { color: 'rgba(92, 179, 255, 0.35)', width: 1.5, dash: 'dot' }
+      });
+      shapes.push({
+        type: 'line', xref: 'x', yref: 'paper',
+        x0: bedTime, x1: bedTime, y0: -0.15, y1: 1,
+        line: { color: 'rgba(255, 230, 128, 0.35)', width: 1.5, dash: 'dot' }
+      });
+
+      // Sunrise/sunset vertical ticks
+      const sunrise = sunTimes.sunrise;
+      const sunset = sunTimes.sunset;
+      const sunTickStyle = { color: 'rgba(215,215,215,0.4)', width: 1, dash: 'dot' };
+      if (Number.isFinite(sunrise)) {
+        shapes.push({
+          type: 'line', xref: 'x', yref: 'paper',
+          x0: sunrise, x1: sunrise, y0: -0.22, y1: 0,
+          line: sunTickStyle
+        });
+      }
+      if (Number.isFinite(sunset)) {
+        shapes.push({
+          type: 'line', xref: 'x', yref: 'paper',
+          x0: sunset, x1: sunset, y0: -0.22, y1: 0,
+          line: sunTickStyle
+        });
+      }
+
+      // Wake/bed labels
+      annotations.push({
+        x: wakeTime, y: -0.18, xref: 'x', yref: 'paper',
+        text: 'wake', showarrow: false,
+        font: { size: 10, color: '#5cb3ff' },
+        hovertext: formatHourLabel(wakeTime),
+        hoverlabel: { bgcolor: '#7fc7ff', bordercolor: '#7fc7ff', font: { color: '#000', size: 12 } }
+      });
+      annotations.push({
+        x: bedTime, y: -0.18, xref: 'x', yref: 'paper',
+        text: 'bed', showarrow: false,
+        font: { size: 10, color: '#ffe680' },
+        hovertext: formatHourLabel(bedTime),
+        hoverlabel: { bgcolor: '#ffe680', bordercolor: '#ffe680', font: { color: '#000', size: 12 } }
+      });
+
+      // Sunrise/sunset labels
+      if (Number.isFinite(sunrise)) {
+        annotations.push({
+          x: sunrise, y: -0.25, xref: 'x', yref: 'paper',
+          text: 'sunrise', showarrow: false,
+          font: { size: 9, color: 'rgba(215,215,215,0.6)' },
+          hovertext: formatHourLabel(sunrise),
+          hoverlabel: { bgcolor: '#3a3a3a', bordercolor: '#3a3a3a', font: { color: '#fff', size: 12 } }
+        });
+      }
+      if (Number.isFinite(sunset)) {
+        annotations.push({
+          x: sunset, y: -0.25, xref: 'x', yref: 'paper',
+          text: 'sunset', showarrow: false,
+          font: { size: 9, color: 'rgba(215,215,215,0.6)' },
+          hovertext: formatHourLabel(sunset),
+          hoverlabel: { bgcolor: '#3a3a3a', bordercolor: '#3a3a3a', font: { color: '#fff', size: 12 } }
+        });
+      }
+
+      // Cursor vertical line
+      const isFrozen = state && state.frozen_at != null;
+      const cursorHour = currentHour;
+      const cursorLineStyle = { color: '#fdfdfd', width: 2, dash: 'dot' };
+      const gap = 8;
+      const lowerEnd = Math.max(0, markerBri - gap);
+      const upperStart = Math.min(110, markerBri + gap);
+
+      shapes.push({
+        type: 'line', xref: 'x', yref: 'y',
+        x0: cursorHour, x1: cursorHour, y0: 0, y1: lowerEnd,
+        line: cursorLineStyle, layer: 'above'
+      });
+      shapes.push({
+        type: 'line', xref: 'x', yref: 'y',
+        x0: cursorHour, x1: cursorHour, y0: upperStart, y1: 110,
+        line: cursorLineStyle, layer: 'above'
+      });
+      shapes.push({
+        type: 'line', xref: 'x', yref: 'paper',
+        x0: cursorHour, x1: cursorHour, y0: -0.26, y1: 0,
+        line: cursorLineStyle, layer: 'above'
+      });
+
+      // Cursor label
+      const cursorTimeStr = formatHourLabel(cursorHour);
+      const cursorLabel = isFrozen ? 'frozen' : 'now';
+      const cursorColor = isFrozen ? '#63b3ed' : '#fdfdfd';
+      annotations.push({
+        x: cursorHour, y: -0.38, xref: 'x', yref: 'paper',
+        text: `${cursorLabel}<br>${cursorTimeStr}`, showarrow: false,
+        font: { size: 10, color: cursorColor },
+        align: 'center'
+      });
+
+      const layout = {
+        paper_bgcolor: '#0a0a0a',
+        plot_bgcolor: '#0a0a0a',
+        margin: { t: 24, r: 12, l: 36, b: 85 },
+        hovermode: 'closest',
+        xaxis: {
+          range: [0, 24],
+          dtick: 3,
+          tickvals: [0, 3, 6, 9, 12, 15, 18, 21, 24],
+          ticktext: ['12a', '3a', '6a', '9a', '12p', '3p', '6p', '9p', '12a'],
+          gridcolor: 'rgba(80,100,130,0.22)',
+          tickfont: { color: '#c8c8c8', size: 10 },
+          ticklen: 3,
+          tickcolor: 'rgba(160,190,220,0.2)'
+        },
+        yaxis: {
+          range: [0, 110],
+          gridcolor: 'rgba(80,100,130,0.22)',
+          tickfont: { color: '#c8c8c8', size: 10 },
+          ticklen: 3,
+          title: '',
+          showticklabels: true,
+          dtick: 25
+        },
+        shapes,
+        annotations,
+        showlegend: false
+      };
+
+      Plotly.react('mini-chart', traces, layout, {
+        displayModeBar: false,
+        responsive: true
+      });
+    }
+
+    // ============================================================
+    // Slider Functions (from areas.html modal)
+    // ============================================================
+
+    function getSliderCfgAndState() {
+      if (selectedZoneName) {
+        const zs = zoneStates[selectedZoneName] || {};
+        if (!cachedConfig || !cachedSunTimes) return null;
+        const rhythmName = zs.rhythm;
+        const cfg = (rhythmName && cachedRhythms[rhythmName])
+          ? { ...cachedConfig, ...cachedRhythms[rhythmName] }
+          : cachedConfig;
+        const rs = zs.runtime_state || {};
+        const areaState = {
+          brightness_mid: rs.brightness_mid ?? null,
+          color_mid: rs.color_mid ?? null,
+          color_override: rs.color_override ?? null,
+          frozen_at: rs.frozen_at ?? null
+        };
+        let currentHour;
+        if (rs.frozen_at != null) {
+          currentHour = rs.frozen_at;
+        } else {
+          const now = new Date();
+          currentHour = now.getHours() + now.getMinutes() / 60;
+        }
+        return { cfg, areaState, currentHour };
+      } else if (selectedArea) {
+        const status = areaStatus[selectedArea.area_id] || {};
+        if (!cachedConfig || !cachedSunTimes) return null;
+        const rhythmName = status.preset_name;
+        const cfg = (rhythmName && cachedRhythms[rhythmName])
+          ? { ...cachedConfig, ...cachedRhythms[rhythmName] }
+          : cachedConfig;
+        const areaState = {
+          brightness_mid: status.brightness_mid ?? null,
+          color_mid: status.color_mid ?? null,
+          color_override: status.color_override ?? null,
+          frozen_at: status.frozen_at ?? null
+        };
+        let currentHour;
+        if (status.frozen && status.frozen_at != null) {
+          currentHour = status.frozen_at;
+        } else {
+          const now = new Date();
+          currentHour = now.getHours() + now.getMinutes() / 60;
+        }
+        return { cfg, areaState, currentHour };
+      }
+      return null;
+    }
+
+    function updateAllSliders() {
+      const ctx = getSliderCfgAndState();
+      if (!ctx) return;
+      const { cfg, areaState, currentHour } = ctx;
+      const currentBri = calcMiniBrightness(currentHour, cfg, areaState, currentHour) * 100;
+      const currentCCT = calcMiniColor(currentHour, cfg, areaState, cachedSunTimes, currentHour);
+      const bMin = cfg.min_brightness, bMax = cfg.max_brightness;
+      const cMin = cfg.min_color_temp, cMax = cfg.max_color_temp;
+
+      const briFrac = bMax > bMin ? Math.max(0, Math.min(100, (currentBri - bMin) / (bMax - bMin) * 100)) : 50;
+      const cctFrac = cMax > cMin ? Math.max(0, Math.min(100, (currentCCT - cMin) / (cMax - cMin) * 100)) : 50;
+      const gloFrac = briFrac;
+
+      document.querySelectorAll('.slider-track').forEach(track => {
+        if (track.classList.contains('dragging')) return;
+        const mode = track.dataset.mode;
+        track.style.background = buildTrackGradient(mode, cfg, currentBri, currentCCT);
+        const pct = mode === 'step' ? gloFrac : mode === 'brightness' ? briFrac : cctFrac;
+        applyOneSlider(track, pct, currentBri, currentCCT, mode);
+      });
+
+      // Update extreme labels
+      const briMaxEl = document.getElementById('bright-max');
+      const briMinEl = document.getElementById('bright-min');
+      const cctMaxEl = document.getElementById('color-max');
+      const cctMinEl = document.getElementById('color-min');
+      if (briMaxEl) briMaxEl.textContent = bMax + '%';
+      if (briMinEl) briMinEl.textContent = bMin + '%';
+      if (cctMaxEl) cctMaxEl.textContent = cMax + 'K';
+      if (cctMinEl) cctMinEl.textContent = cMin + 'K';
+    }
+
+    function buildTrackGradient(mode, cfg, currentBri, currentCCT) {
+      const bMin = cfg.min_brightness, bMax = cfg.max_brightness;
+      const cMin = cfg.min_color_temp, cMax = cfg.max_color_temp;
+      const stops = [];
+      const n = 6;
+      for (let i = 0; i <= n; i++) {
+        const frac = i / n;
+        let color;
+        if (mode === 'color') {
+          const k = cMin + (cMax - cMin) * frac;
+          color = cctToRGB(k);
+        } else if (mode === 'brightness') {
+          const b = bMin + (bMax - bMin) * frac;
+          color = tintColorByBrightness(cctToRGB(currentCCT), b);
+        } else {
+          const b = bMin + (bMax - bMin) * frac;
+          const k = cMin + (cMax - cMin) * frac;
+          color = tintColorByBrightness(cctToRGB(k), b);
+        }
+        stops.push(color + ' ' + Math.round(frac * 100) + '%');
+      }
+      return 'linear-gradient(to top, ' + stops.join(', ') + ')';
+    }
+
+    function applyOneSlider(track, pct, bri, cct, mode) {
+      const fill = track.querySelector('.slider-fill');
+      const thumb = track.querySelector('.slider-thumb');
+      if (!fill || !thumb) return;
+      // Dim overlay: covers from top down to thumb position
+      fill.style.height = (100 - pct) + '%';
+      // Thumb position and color
+      thumb.style.bottom = pct + '%';
+      const color = cctToRGB(cct);
+      const tinted = mode === 'color' ? color : tintColorByBrightness(color, bri);
+      thumb.style.background = tinted;
+      thumb.style.borderColor = color;
+    }
+
+    function getPositionFromPointer(track, e) {
+      const rect = track.getBoundingClientRect();
+      const y = Math.max(0, Math.min(1, (rect.bottom - e.clientY) / rect.height));
+      return y * 100;
+    }
+
+    function initSliderHandlers() {
+      document.querySelectorAll('.slider-track').forEach(track => {
+        let lastPos = null;
+        const mode = track.dataset.mode;
+
+        function onDown(e) {
+          e.preventDefault();
+          sliderInteracting = true;
+          track.classList.add('dragging');
+          track.setPointerCapture(e.pointerId);
+          lastPos = getPositionFromPointer(track, e);
+          previewSlider(track, lastPos);
+        }
+        function onMove(e) {
+          if (!track.classList.contains('dragging')) return;
+          e.preventDefault();
+          lastPos = getPositionFromPointer(track, e);
+          previewSlider(track, lastPos);
+        }
+        function onUp(e) {
+          if (!track.classList.contains('dragging')) return;
+          e.preventDefault();
+          track.classList.remove('dragging');
+          sliderInteracting = false;
+          if (lastPos !== null) {
+            executeSetPosition(Math.round(lastPos), mode);
+          }
+        }
+
+        track.addEventListener('pointerdown', onDown);
+        track.addEventListener('pointermove', onMove);
+        track.addEventListener('pointerup', onUp);
+        track.addEventListener('pointercancel', onUp);
+      });
+    }
+
+    function previewSlider(track, position) {
+      const dragMode = track.dataset.mode;
+      const ctx = getSliderCfgAndState();
+      if (!ctx) return;
+      const { cfg, areaState } = ctx;
+      const now = new Date();
+      const currentHour = now.getHours() + now.getMinutes() / 60;
+
+      const bMin = cfg.min_brightness, bMax = cfg.max_brightness;
+      const cMin = cfg.min_color_temp, cMax = cfg.max_color_temp;
+      const currentBri = calcMiniBrightness(currentHour, cfg, areaState, currentHour) * 100;
+      const currentCCT = calcMiniColor(currentHour, cfg, areaState, cachedSunTimes, currentHour);
+
+      let previewBri, previewCCT;
+      if (dragMode === 'brightness') {
+        previewBri = bMin + (bMax - bMin) * position / 100;
+        previewCCT = currentCCT;
+      } else if (dragMode === 'color') {
+        previewBri = currentBri;
+        previewCCT = cMin + (cMax - cMin) * position / 100;
+      } else {
+        previewBri = bMin + (bMax - bMin) * position / 100;
+        previewCCT = cMin + (cMax - cMin) * position / 100;
+      }
+
+      const briFrac = bMax > bMin ? Math.max(0, Math.min(100, (previewBri - bMin) / (bMax - bMin) * 100)) : 50;
+      const cctFrac = cMax > cMin ? Math.max(0, Math.min(100, (previewCCT - cMin) / (cMax - cMin) * 100)) : 50;
+      const gloFrac = briFrac;
+
+      document.querySelectorAll('.slider-track').forEach(t => {
+        const m = t.dataset.mode;
+        t.style.background = buildTrackGradient(m, cfg, previewBri, previewCCT);
+        const pct = m === 'step' ? gloFrac : m === 'brightness' ? briFrac : cctFrac;
+        applyOneSlider(t, pct, previewBri, previewCCT, m);
+      });
+    }
 
     // ============================================================
     // Initialization
@@ -538,7 +1219,6 @@
     document.addEventListener('DOMContentLoaded', async () => {
       // Compute base path for API calls (handles ingress prefix)
       const path = window.location.pathname;
-      // Match /area/{id} or /zone/{name}
       const areaMatch = path.match(/^(.*)\/area\/[^/]+\/?$/);
       const zoneMatch = path.match(/^(.*)\/zone\/[^/]+\/?$/);
       if (areaMatch) {
@@ -552,6 +1232,13 @@
       const selectedAreaId = data.selectedAreaId;
       selectedZoneName = data.selectedZoneName;
       cachedConfig = data.config;
+
+      // Compute sun times client-side from config lat/lon
+      if (cachedConfig) {
+        const lat = cachedConfig.latitude || 35.0;
+        const lon = cachedConfig.longitude || -78.6;
+        cachedSunTimes = getSunTimes(lat, lon);
+      }
 
       // Fetch initial data
       await loadInitialData();
@@ -572,11 +1259,10 @@
 
     async function loadInitialData() {
       try {
-        const [statusRes, zsRes, areasRes, sunRes, rhythmsRes] = await Promise.all([
+        const [statusRes, zsRes, areasRes, rhythmsRes] = await Promise.all([
           fetch(basePath + '/api/area-status'),
           fetch(basePath + '/api/zone-states'),
           fetch(basePath + '/api/areas'),
-          fetch(basePath + '/api/sun_times'),
           fetch(basePath + '/api/circadian-rhythms')
         ]);
         if (statusRes.ok) areaStatus = await statusRes.json();
@@ -585,7 +1271,6 @@
           zoneStates = zs.zone_states || {};
         }
         if (areasRes.ok) areas = await areasRes.json();
-        if (sunRes.ok) cachedSunTimes = await sunRes.json();
         if (rhythmsRes.ok) {
           const r = await rhythmsRes.json();
           cachedRhythms = r.rhythms || {};
@@ -614,7 +1299,7 @@
         boosted: status.boosted || false,
         zone_name: status.zone_name || null,
         preset_name: status.preset_name || null,
-        is_circadian: status.is_circadian || false,
+        is_circadian: status.is_circadian !== false,
         boost_brightness: status.boost_brightness || null,
         boost_expires_at: status.boost_expires_at || null,
         boost_started_from_off: status.boost_started_from_off || false,
@@ -631,37 +1316,15 @@
       document.getElementById('controls-zone').style.display = 'none';
 
       updateContent();
-      setTimeout(() => renderMiniChart(), 50);
+      setTimeout(() => {
+        renderMiniChartForArea(areaId);
+        updateAllSliders();
+      }, 50);
     }
 
     function setupZonePage(zoneName) {
       selectedZoneName = zoneName;
-      document.getElementById('page-title').textContent = 'Zone: ' + zoneName;
-
-      // Find first area in the zone as proxy
-      for (const area of areas) {
-        const status = areaStatus[area.area_id] || {};
-        if (status.zone_name === zoneName) {
-          selectedArea = {
-            ...area,
-            is_on: status.is_on || false,
-            brightness: status.brightness || 0,
-            kelvin: status.kelvin || 4000,
-            frozen: status.frozen || false,
-            boosted: status.boosted || false,
-            zone_name: status.zone_name || null,
-            preset_name: status.preset_name || null,
-            is_circadian: status.is_circadian || false,
-            boost_brightness: status.boost_brightness || null,
-            boost_expires_at: status.boost_expires_at || null,
-            boost_started_from_off: status.boost_started_from_off || false,
-            is_motion_coupled: status.is_motion_coupled || false,
-            motion_expires_at: status.motion_expires_at || null,
-            motion_warning_active: status.motion_warning_active || false
-          };
-          break;
-        }
-      }
+      document.getElementById('page-title').textContent = 'Glo Zone: ' + zoneName;
 
       // Hide area controls, show zone controls
       document.getElementById('controls-left').style.display = 'none';
@@ -673,27 +1336,25 @@
       if (contextLines[0]) contextLines[0].style.display = 'none';
 
       updateZoneContent();
-      setTimeout(() => renderMiniChartForZone(), 50);
+      setTimeout(() => {
+        renderMiniChartForZone(zoneName);
+        updateAllSliders();
+      }, 50);
     }
 
     function startRefresh() {
       tickInterval = setInterval(updateTimerStatus, 1000);
       refreshInterval = setInterval(async () => {
+        if (sliderInteracting) return;
         try {
           if (selectedZoneName) {
-            const [zsRes, aRes] = await Promise.all([
-              fetch(basePath + '/api/zone-states'),
-              selectedArea ? fetch(basePath + `/api/area-status?area_id=${encodeURIComponent(selectedArea.area_id)}`) : Promise.resolve(null)
-            ]);
+            const zsRes = await fetch(basePath + '/api/zone-states');
             if (zsRes.ok) {
               const zs = await zsRes.json();
               zoneStates = zs.zone_states || {};
             }
-            if (aRes && aRes.ok) {
-              const singleStatus = await aRes.json();
-              Object.assign(areaStatus, singleStatus);
-            }
             updateZoneContent();
+            renderMiniChartForZone(selectedZoneName);
           } else if (selectedArea) {
             const res = await fetch(basePath + `/api/area-status?area_id=${encodeURIComponent(selectedArea.area_id)}`);
             if (res.ok) {
@@ -701,7 +1362,9 @@
               Object.assign(areaStatus, singleStatus);
             }
             updateContent();
+            renderMiniChartForArea(selectedArea.area_id);
           }
+          updateAllSliders();
         } catch (err) {
           console.error('Error refreshing:', err);
         }
@@ -718,7 +1381,6 @@
     // ============================================================
     function goBack() {
       stopRefresh();
-      // Navigate back to home
       window.location.href = basePath + '/';
     }
 
@@ -729,7 +1391,6 @@
       if (!selectedArea) return;
       const status = areaStatus[selectedArea.area_id] || {};
 
-      // Update selectedArea with latest status
       Object.assign(selectedArea, {
         is_on: status.is_on || false,
         brightness: status.brightness || 0,
@@ -738,7 +1399,7 @@
         boosted: status.boosted || false,
         zone_name: status.zone_name || null,
         preset_name: status.preset_name || null,
-        is_circadian: status.is_circadian || false,
+        is_circadian: status.is_circadian !== false,
         boost_brightness: status.boost_brightness || null,
         boost_expires_at: status.boost_expires_at || null,
         boost_started_from_off: status.boost_started_from_off || false,
@@ -747,7 +1408,7 @@
         motion_warning_active: status.motion_warning_active || false
       });
 
-      // Update header shading
+      // Header shading based on CCT and brightness
       const stateEl = document.getElementById('area-state');
       if (selectedArea.is_on) {
         const cctColor = cctToRGB(selectedArea.kelvin);
@@ -768,9 +1429,9 @@
       } else {
         valuesEl.style.color = 'var(--muted)';
       }
-      valuesEl.textContent = `${Math.round(selectedArea.brightness)}% \u2022 ${Math.round(selectedArea.kelvin)}K`;
+      valuesEl.textContent = `${Math.round(selectedArea.brightness)}% • ${Math.round(selectedArea.kelvin)}K`;
 
-      // Context info
+      // Context info (Glo zone)
       const zoneLinkEl = document.getElementById('zone-link');
       zoneLinkEl.textContent = selectedArea.zone_name || 'Unassigned';
 
@@ -802,43 +1463,37 @@
 
     function updateZoneContent() {
       if (!selectedZoneName) return;
+      const zs = zoneStates[selectedZoneName] || {};
+      const zoneBri = zs.brightness ?? 0;
+      const zoneKelvin = zs.kelvin ?? 4000;
 
-      // Re-fetch proxy area status
-      if (selectedArea) {
-        const status = areaStatus[selectedArea.area_id] || {};
-        Object.assign(selectedArea, {
-          is_on: status.is_on || false,
-          brightness: status.brightness || 0,
-          kelvin: status.kelvin || 4000,
-          frozen: status.frozen || false,
-          boosted: status.boosted || false,
-          zone_name: status.zone_name || null,
-          preset_name: status.preset_name || null,
-          is_circadian: status.is_circadian || false
-        });
-      }
-
-      // Get zone state
-      const zoneState = zoneStates[selectedZoneName] || {};
-      const brightness = zoneState.brightness || (selectedArea ? selectedArea.brightness : 0);
-      const kelvin = zoneState.kelvin || (selectedArea ? selectedArea.kelvin : 4000);
-
-      // Update header shading
+      // Header shading
       const stateEl = document.getElementById('area-state');
-      const cctColor = cctToRGB(kelvin);
-      const tintedColor = tintColorByBrightness(cctColor, brightness);
-      stateEl.style.setProperty('--state-bg', tintedColor);
-      stateEl.style.setProperty('--state-fill', (brightness / 100).toFixed(3));
+      if (zoneBri > 0) {
+        const cctColor = cctToRGB(zoneKelvin);
+        const tintedColor = tintColorByBrightness(cctColor, zoneBri);
+        stateEl.style.setProperty('--state-bg', tintedColor);
+        stateEl.style.setProperty('--state-fill', (zoneBri / 100).toFixed(3));
+      } else {
+        stateEl.style.setProperty('--state-bg', 'var(--panel)');
+        stateEl.style.setProperty('--state-fill', '0');
+      }
 
       // Values display
       const valuesEl = document.getElementById('state-values');
-      valuesEl.style.color = readableTextColor(tintedColor);
-      valuesEl.textContent = `${Math.round(brightness)}% \u2022 ${Math.round(kelvin)}K`;
+      if (zoneBri > 0) {
+        const cctColor = cctToRGB(zoneKelvin);
+        const tintedColor = tintColorByBrightness(cctColor, zoneBri);
+        valuesEl.style.color = readableTextColor(tintedColor);
+      } else {
+        valuesEl.style.color = 'var(--muted)';
+      }
+      valuesEl.textContent = `${Math.round(zoneBri)}% • ${Math.round(zoneKelvin)}K`;
 
       // Rhythm line
       const rhythmLine = document.getElementById('rhythm-line');
       const rhythmLinkEl = document.getElementById('rhythm-link');
-      const rhythmName = zoneState.rhythm;
+      const rhythmName = zs.rhythm;
       if (rhythmName) {
         rhythmLinkEl.innerHTML = `<a href="${basePath}/rhythm/${encodeURIComponent(rhythmName)}?back=home" style="color: var(--accent); text-decoration: none;">${rhythmName}</a>`;
         rhythmLine.style.display = '';
@@ -858,55 +1513,118 @@
 
       const parts = [];
 
-      if (selectedArea) {
-        // Motion timer
+      if (selectedArea && !selectedZoneName) {
         const hasMotion = selectedArea.motion_expires_at && selectedArea.motion_expires_at !== 'forever';
-        if (hasMotion) {
-          const expiresAt = new Date(selectedArea.motion_expires_at).getTime();
-          const now = Date.now();
-          const diff = expiresAt - now;
-          if (diff > 0) {
-            const remaining = formatDuration(diff);
-            const warnClass = selectedArea.motion_warning_active ? ' timer-warning' : '';
-            parts.push(`<span class="timer-motion${warnClass}">Motion +${selectedArea.boost_brightness}%: ${remaining}<span class="timer-arrow">\u2192</span>off</span>`);
+        const hasBoostedMotion = selectedArea.boosted && selectedArea.is_motion_coupled;
+        const warnClass = selectedArea.motion_warning_active ? ' timer-warning' : '';
+
+        if (hasMotion && hasBoostedMotion) {
+          const remaining = formatCountdown(selectedArea.motion_expires_at);
+          if (remaining) {
+            parts.push(`<span class="timer-motion${warnClass}">Motion +${selectedArea.boost_brightness}%: ${remaining}<span class="timer-arrow">→</span>off</span>`);
           }
-        }
-
-        // Frozen indicator
-        if (selectedArea.frozen && !selectedArea.boosted) {
-          parts.push(`<span class="timer-frozen">Frozen</span>`);
-        }
-
-        // Boost timer
-        if (selectedArea.boosted) {
-          if (selectedArea.boost_expires_at === 'forever') {
-            parts.push(`<span class="timer-boost">Boost: on</span>`);
-          } else if (selectedArea.boost_expires_at === 'motion') {
-            parts.push(`<span class="timer-boost">Boost: +motion</span>`);
-          } else if (selectedArea.boost_expires_at) {
-            const expiresAt = new Date(selectedArea.boost_expires_at).getTime();
-            const now = Date.now();
-            const diff = expiresAt - now;
-            if (diff > 0) {
-              const remaining = formatDuration(diff);
-              const suffix = selectedArea.boost_started_from_off ? 'off' : 'on';
-              parts.push(`<span class="timer-boost">Boost: ${remaining}<span class="timer-arrow">\u2192</span>${suffix}</span>`);
+        } else {
+          if (hasMotion) {
+            const remaining = formatCountdown(selectedArea.motion_expires_at);
+            if (remaining) {
+              parts.push(`<span class="timer-motion${warnClass}">Motion: ${remaining}<span class="timer-arrow">→</span>off</span>`);
             }
           }
+
+          if (selectedArea.boosted && selectedArea.boost_brightness) {
+            let text = `+${selectedArea.boost_brightness}%`;
+            if (selectedArea.boost_expires_at === 'forever') {
+              text += ' · forever';
+            } else if (selectedArea.boost_expires_at === 'motion') {
+              if (selectedArea.motion_expires_at) {
+                const remaining = formatCountdown(selectedArea.motion_expires_at);
+                if (remaining) {
+                  text += ` · ${remaining}<span class="timer-arrow">→</span>rhythm`;
+                } else {
+                  text += ' · ending';
+                }
+              } else {
+                text += ' · until motion ends';
+              }
+            } else if (selectedArea.boost_expires_at) {
+              const remaining = formatCountdown(selectedArea.boost_expires_at);
+              if (remaining) {
+                const outcome = selectedArea.boost_started_from_off ? 'off' : 'rhythm';
+                text += ` · ${remaining}<span class="timer-arrow">→</span>${outcome}`;
+              }
+            }
+            parts.push(`<span class="timer-boost">Boost: ${text}</span>`);
+          }
         }
       }
 
-      el.innerHTML = parts.join(' ');
+      el.innerHTML = parts.join('');
     }
 
-    function formatDuration(ms) {
-      const totalSec = Math.floor(ms / 1000);
-      const min = Math.floor(totalSec / 60);
-      const sec = totalSec % 60;
-      if (min > 0) {
-        return `${min}m ${sec}s`;
+    // ============================================================
+    // Chart Rendering
+    // ============================================================
+    function renderMiniChartForArea(areaId) {
+      const status = areaStatus[areaId] || {};
+      if (!cachedConfig || !cachedSunTimes) return;
+
+      const rhythmName = status.preset_name;
+      let cfg;
+      if (rhythmName && cachedRhythms[rhythmName]) {
+        cfg = { ...cachedConfig, ...cachedRhythms[rhythmName] };
+      } else {
+        cfg = cachedConfig;
       }
-      return `${sec}s`;
+
+      const areaState = {
+        brightness_mid: status.brightness_mid ?? null,
+        color_mid: status.color_mid ?? null,
+        color_override: status.color_override ?? null,
+        frozen_at: status.frozen_at ?? null
+      };
+
+      let currentHour;
+      if (status.frozen && status.frozen_at != null) {
+        currentHour = status.frozen_at;
+      } else {
+        const now = new Date();
+        currentHour = now.getHours() + now.getMinutes() / 60;
+      }
+
+      const isActive = (status.is_on || false) && (status.is_circadian !== false);
+      renderMiniChart(cfg, areaState, cachedSunTimes, currentHour, isActive);
+    }
+
+    function renderMiniChartForZone(zoneName) {
+      const zs = zoneStates[zoneName] || {};
+      if (!cachedConfig || !cachedSunTimes) return;
+
+      const rhythmName = zs.rhythm;
+      let cfg;
+      if (rhythmName && cachedRhythms[rhythmName]) {
+        cfg = { ...cachedConfig, ...cachedRhythms[rhythmName] };
+      } else {
+        cfg = cachedConfig;
+      }
+
+      const rs = zs.runtime_state || {};
+      const zoneState = {
+        brightness_mid: rs.brightness_mid ?? null,
+        color_mid: rs.color_mid ?? null,
+        color_override: rs.color_override ?? null,
+        frozen_at: rs.frozen_at ?? null
+      };
+
+      let currentHour;
+      if (rs.frozen_at != null) {
+        currentHour = rs.frozen_at;
+      } else {
+        const now = new Date();
+        currentHour = now.getHours() + now.getMinutes() / 60;
+      }
+
+      const isActive = true;
+      renderMiniChart(cfg, zoneState, cachedSunTimes, currentHour, isActive);
     }
 
     // ============================================================
@@ -947,6 +1665,7 @@
                   zoneStates = zs.zone_states || {};
                 }
                 updateZoneContent();
+                renderMiniChartForZone(selectedZoneName);
               } else {
                 const areaId = selectedArea.area_id;
                 const res = await fetch(basePath + `/api/area-status?area_id=${encodeURIComponent(areaId)}`);
@@ -955,7 +1674,9 @@
                   Object.assign(areaStatus, singleStatus);
                 }
                 updateContent();
+                renderMiniChartForArea(areaId);
               }
+              updateAllSliders();
             } catch (err) {
               console.error('Error refreshing after action:', err);
             }
@@ -971,371 +1692,49 @@
       }
     }
 
-    async function executeSetPosition(percent, dimension) {
+    async function executeSetPosition(value, mode) {
       if (!selectedArea && !selectedZoneName) return;
+
+      const payload = selectedZoneName
+        ? { zone_name: selectedZoneName, action: 'set_position', value: value, mode: mode }
+        : { area_id: selectedArea.area_id, action: 'set_position', value: value, mode: mode };
+      const endpoint = selectedZoneName ? basePath + '/api/zone/action' : basePath + '/api/area/action';
+
       try {
-        let response;
-        if (selectedZoneName) {
-          response = await fetch(basePath + '/api/zone/action', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ zone_name: selectedZoneName, action: 'set_position', percent, dimension })
-          });
-        } else {
-          response = await fetch(basePath + '/api/area/action', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ area_id: selectedArea.area_id, action: 'set_position', percent, dimension })
-          });
-        }
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
         if (response.ok) {
           setTimeout(async () => {
-            if (selectedZoneName) {
-              const zsRes = await fetch(basePath + '/api/zone-states');
-              if (zsRes.ok) {
-                const zs = await zsRes.json();
-                zoneStates = zs.zone_states || {};
+            try {
+              if (selectedZoneName) {
+                const zsRes = await fetch(basePath + '/api/zone-states');
+                if (zsRes.ok) {
+                  const zs = await zsRes.json();
+                  zoneStates = zs.zone_states || {};
+                }
+                updateZoneContent();
+                renderMiniChartForZone(selectedZoneName);
+              } else if (selectedArea) {
+                const res = await fetch(basePath + `/api/area-status?area_id=${encodeURIComponent(selectedArea.area_id)}`);
+                if (res.ok) {
+                  const singleStatus = await res.json();
+                  Object.assign(areaStatus, singleStatus);
+                }
+                updateContent();
+                renderMiniChartForArea(selectedArea.area_id);
               }
-              updateZoneContent();
-            } else if (selectedArea) {
-              const res = await fetch(basePath + `/api/area-status?area_id=${encodeURIComponent(selectedArea.area_id)}`);
-              if (res.ok) {
-                const singleStatus = await res.json();
-                Object.assign(areaStatus, singleStatus);
-              }
-              updateContent();
+              updateAllSliders();
+            } catch (err) {
+              console.error('Error refreshing after set_position:', err);
             }
           }, 500);
         }
       } catch (err) {
         console.error('Error executing set_position:', err);
       }
-    }
-
-    // ============================================================
-    // Slider Handlers
-    // ============================================================
-    function initSliderHandlers() {
-      const tracks = document.querySelectorAll('.slider-track');
-      tracks.forEach(track => {
-        const mode = track.dataset.mode;
-        let isDragging = false;
-
-        function getPercent(e) {
-          const rect = track.getBoundingClientRect();
-          const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-          const y = clientY - rect.top;
-          const pct = 1 - (y / rect.height);
-          return Math.max(0, Math.min(1, pct));
-        }
-
-        function updateVisual(pct) {
-          const fill = track.querySelector('.slider-fill');
-          const thumb = track.querySelector('.slider-thumb');
-          const heightPct = pct * 100;
-          fill.style.height = heightPct + '%';
-          thumb.style.bottom = heightPct + '%';
-        }
-
-        function startDrag(e) {
-          e.preventDefault();
-          isDragging = true;
-          track.classList.add('dragging');
-          const pct = getPercent(e);
-          updateVisual(pct);
-        }
-
-        function moveDrag(e) {
-          if (!isDragging) return;
-          e.preventDefault();
-          const pct = getPercent(e);
-          updateVisual(pct);
-        }
-
-        function endDrag(e) {
-          if (!isDragging) return;
-          isDragging = false;
-          track.classList.remove('dragging');
-          const pct = getPercent(e.changedTouches ? e.changedTouches[0] : e);
-          sendSliderAction(mode, pct);
-        }
-
-        track.addEventListener('mousedown', startDrag);
-        track.addEventListener('touchstart', startDrag, { passive: false });
-        document.addEventListener('mousemove', moveDrag);
-        document.addEventListener('touchmove', moveDrag, { passive: false });
-        document.addEventListener('mouseup', endDrag);
-        document.addEventListener('touchend', endDrag);
-      });
-    }
-
-    async function sendSliderAction(mode, pct) {
-      if (!selectedArea && !selectedZoneName) return;
-      const percent = Math.round(pct * 100);
-      let action, dimension;
-
-      if (mode === 'step') {
-        action = 'set_position';
-        dimension = 'step';
-      } else if (mode === 'brightness') {
-        action = 'set_position';
-        dimension = 'brightness';
-      } else if (mode === 'color') {
-        action = 'set_position';
-        dimension = 'color';
-      } else {
-        return;
-      }
-
-      try {
-        let response;
-        if (selectedZoneName) {
-          response = await fetch(basePath + '/api/zone/action', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ zone_name: selectedZoneName, action, percent, dimension })
-          });
-        } else {
-          response = await fetch(basePath + '/api/area/action', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ area_id: selectedArea.area_id, action, percent, dimension })
-          });
-        }
-        if (response.ok) {
-          setTimeout(async () => {
-            if (selectedZoneName) {
-              const zsRes = await fetch(basePath + '/api/zone-states');
-              if (zsRes.ok) {
-                const zs = await zsRes.json();
-                zoneStates = zs.zone_states || {};
-              }
-              updateZoneContent();
-            } else if (selectedArea) {
-              const res = await fetch(basePath + `/api/area-status?area_id=${encodeURIComponent(selectedArea.area_id)}`);
-              if (res.ok) {
-                const singleStatus = await res.json();
-                Object.assign(areaStatus, singleStatus);
-              }
-              updateContent();
-            }
-          }, 500);
-        }
-      } catch (err) {
-        console.error('Error sending slider action:', err);
-      }
-    }
-
-    // ============================================================
-    // Color Utilities
-    // ============================================================
-    function cctToRGB(kelvin) {
-      const temp = kelvin / 100;
-      let r, g, b;
-      if (temp <= 66) {
-        r = 255;
-        g = temp <= 1 ? 0 : 99.4708025861 * Math.log(temp) - 161.1195681661;
-        b = temp <= 19 ? 0 : 138.5177312231 * Math.log(temp - 10) - 305.0447927307;
-      } else {
-        r = 329.698727446 * Math.pow(temp - 60, -0.1332047592);
-        g = 288.1221695283 * Math.pow(temp - 60, -0.0755148492);
-        b = 255;
-      }
-      return `rgb(${Math.round(Math.max(0, Math.min(255, r)))}, ${Math.round(Math.max(0, Math.min(255, g)))}, ${Math.round(Math.max(0, Math.min(255, b)))})`;
-    }
-
-    function tintColorByBrightness(rgbStr, brightness) {
-      const match = rgbStr.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
-      if (!match) return rgbStr;
-      let [, r, g, b] = match.map(Number);
-      const factor = 0.08 + (brightness / 100) * 0.25;
-      r = Math.round(r * factor);
-      g = Math.round(g * factor);
-      b = Math.round(b * factor);
-      return `rgb(${r}, ${g}, ${b})`;
-    }
-
-    function readableTextColor(rgbStr) {
-      const match = rgbStr.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
-      if (!match) return 'var(--text)';
-      const [, r, g, b] = match.map(Number);
-      const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-      return luminance > 0.35 ? '#1a1a1a' : '#e2e8f0';
-    }
-
-    // ============================================================
-    // Mini Chart Rendering
-    // ============================================================
-    const SPEED_TO_SLOPE = [0, 0.4, 0.6, 0.8, 1.0, 1.3, 1.7, 2.3, 3.0, 4.0, 5.5];
-
-    function logistic(x, midpoint, slope, y0, y1) {
-      try {
-        const expVal = Math.exp(-slope * (x - midpoint));
-        return y0 + (y1 - y0) / (1 + expVal);
-      } catch {
-        return slope * (x - midpoint) > 0 ? y1 : y0;
-      }
-    }
-
-    function wrap24(x) {
-      return ((x % 24) + 24) % 24;
-    }
-
-    function signedDist(from, to) {
-      let d = to - from;
-      if (d > 12) d -= 24;
-      if (d < -12) d += 24;
-      return d;
-    }
-
-    function computeMiniChartData(cfg) {
-      const ascendStart = cfg.ascend_start ?? 6;
-      const descendStart = cfg.descend_start ?? 18;
-      const minBri = cfg.min_brightness ?? 5;
-      const maxBri = cfg.max_brightness ?? 100;
-      const minCT = cfg.min_ct ?? 2200;
-      const maxCT = cfg.max_ct ?? 5500;
-      const ascendSpeed = cfg.ascend_speed ?? 5;
-      const descendSpeed = cfg.descend_speed ?? 5;
-      const ascendSlope = SPEED_TO_SLOPE[ascendSpeed] || 1.0;
-      const descendSlope = SPEED_TO_SLOPE[descendSpeed] || 1.0;
-
-      const ascendMid = wrap24(ascendStart + 3);
-      const descendMid = wrap24(descendStart + 3);
-
-      const points = [];
-      for (let i = 0; i <= 288; i++) {
-        const hour = (i / 288) * 24;
-        const dAscend = signedDist(ascendMid, hour);
-        const dDescend = signedDist(descendMid, hour);
-
-        let bri, ct;
-        if (Math.abs(dAscend) <= 6) {
-          bri = logistic(dAscend, 0, ascendSlope, minBri, maxBri);
-          ct = logistic(dAscend, 0, ascendSlope, minCT, maxCT);
-        } else if (Math.abs(dDescend) <= 6) {
-          bri = logistic(dDescend, 0, descendSlope, maxBri, minBri);
-          ct = logistic(dDescend, 0, descendSlope, maxCT, minCT);
-        } else {
-          const midAscend = wrap24(ascendMid);
-          const midDescend = wrap24(descendMid);
-          const distToAsc = Math.abs(signedDist(hour, midAscend));
-          const distToDesc = Math.abs(signedDist(hour, midDescend));
-          if (distToAsc > distToDesc) {
-            bri = minBri; ct = minCT;
-          } else {
-            bri = maxBri; ct = maxCT;
-          }
-        }
-        points.push({ hour, bri, ct });
-      }
-      return points;
-    }
-
-    function renderMiniChart() {
-      if (!selectedArea || !cachedConfig) return;
-      const status = areaStatus[selectedArea.area_id] || {};
-      const rhythmName = status.preset_name;
-      let cfg;
-      if (rhythmName && cachedRhythms[rhythmName]) {
-        cfg = { ...cachedConfig, ...cachedRhythms[rhythmName] };
-      } else {
-        cfg = cachedConfig;
-      }
-      drawMiniChart(cfg);
-    }
-
-    function renderMiniChartForZone() {
-      if (!selectedZoneName || !cachedConfig) return;
-      const zoneState = zoneStates[selectedZoneName] || {};
-      const rhythmName = zoneState.rhythm;
-      let cfg;
-      if (rhythmName && cachedRhythms[rhythmName]) {
-        cfg = { ...cachedConfig, ...cachedRhythms[rhythmName] };
-      } else {
-        cfg = cachedConfig;
-      }
-      drawMiniChart(cfg);
-    }
-
-    function drawMiniChart(cfg) {
-      const container = document.getElementById('mini-chart');
-      if (!container) return;
-
-      const width = container.clientWidth || 400;
-      const height = container.clientHeight || 280;
-      const margin = { top: 10, right: 16, bottom: 20, left: 16 };
-      const chartW = width - margin.left - margin.right;
-      const chartH = height - margin.top - margin.bottom;
-
-      const points = computeMiniChartData(cfg);
-      const minBri = cfg.min_brightness ?? 5;
-      const maxBri = cfg.max_brightness ?? 100;
-      const minCT = cfg.min_ct ?? 2200;
-      const maxCT = cfg.max_ct ?? 5500;
-
-      // Get current hour
-      const now = new Date();
-      const cursorHour = now.getHours() + now.getMinutes() / 60;
-
-      // Sun times for markers
-      const sunrise = cachedSunTimes?.sunrise ?? 6;
-      const sunset = cachedSunTimes?.sunset ?? 18;
-
-      let svg = `<svg viewBox="0 0 ${width} ${height}" style="width:100%;height:100%;">`;
-
-      // Grid lines
-      for (let h = 0; h <= 24; h += 6) {
-        const x = margin.left + (h / 24) * chartW;
-        svg += `<line x1="${x}" y1="${margin.top}" x2="${x}" y2="${height - margin.bottom}" stroke="#333" stroke-width="1"/>`;
-        svg += `<text x="${x}" y="${height - 4}" text-anchor="middle" fill="#666" font-size="10">${h === 24 ? 0 : h}</text>`;
-      }
-
-      // Brightness area
-      let briPath = `M ${margin.left} ${height - margin.bottom}`;
-      points.forEach(p => {
-        const x = margin.left + (p.hour / 24) * chartW;
-        const y = margin.top + chartH - ((p.bri - minBri) / (maxBri - minBri)) * chartH;
-        briPath += ` L ${x} ${y}`;
-      });
-      briPath += ` L ${width - margin.right} ${height - margin.bottom} Z`;
-      svg += `<path d="${briPath}" fill="rgba(254,172,96,0.2)" stroke="none"/>`;
-
-      // Brightness line
-      let briLine = '';
-      points.forEach((p, i) => {
-        const x = margin.left + (p.hour / 24) * chartW;
-        const y = margin.top + chartH - ((p.bri - minBri) / (maxBri - minBri)) * chartH;
-        briLine += (i === 0 ? 'M' : 'L') + ` ${x} ${y}`;
-      });
-      svg += `<path d="${briLine}" fill="none" stroke="var(--accent)" stroke-width="2"/>`;
-
-      // CT line (color gradient)
-      let ctLine = '';
-      points.forEach((p, i) => {
-        const x = margin.left + (p.hour / 24) * chartW;
-        const y = margin.top + chartH - ((p.ct - minCT) / (maxCT - minCT)) * chartH;
-        ctLine += (i === 0 ? 'M' : 'L') + ` ${x} ${y}`;
-      });
-      svg += `<path d="${ctLine}" fill="none" stroke="#63b3ed" stroke-width="1.5" stroke-dasharray="4,2"/>`;
-
-      // Sun markers
-      const sunriseX = margin.left + (sunrise / 24) * chartW;
-      const sunsetX = margin.left + (sunset / 24) * chartW;
-      svg += `<circle cx="${sunriseX}" cy="${height - margin.bottom - 6}" r="4" fill="#fbbf24"/>`;
-      svg += `<circle cx="${sunsetX}" cy="${height - margin.bottom - 6}" r="4" fill="#f97316"/>`;
-
-      // Current time cursor
-      const cursorX = margin.left + (cursorHour / 24) * chartW;
-      svg += `<line x1="${cursorX}" y1="${margin.top}" x2="${cursorX}" y2="${height - margin.bottom}" stroke="var(--text)" stroke-width="1.5" stroke-dasharray="3,3"/>`;
-
-      // Current values dot
-      const cursorPoint = points[Math.round((cursorHour / 24) * 288)] || points[0];
-      const dotY = margin.top + chartH - ((cursorPoint.bri - minBri) / (maxBri - minBri)) * chartH;
-      svg += `<circle cx="${cursorX}" cy="${dotY}" r="5" fill="var(--accent)" stroke="white" stroke-width="2"/>`;
-
-      svg += '</svg>';
-      container.innerHTML = svg;
     }
   </script>
 </body>
