@@ -734,27 +734,36 @@
 
     /* Circadian-off row state */
     .area-row.circadian-off {
-      opacity: 0.35;
       cursor: pointer;
+      color: var(--muted2);
     }
 
-    .area-row.circadian-off .circadian-enable-cta {
-      opacity: 1;
+    .area-row.circadian-off .area-row-name {
+      opacity: 0.45;
     }
 
     .circadian-enable-cta {
-      display: flex;
+      display: inline-flex;
       align-items: center;
       gap: 5px;
       margin-left: auto;
       color: var(--accent);
-      font-size: 0.8rem;
+      font-size: 0.78rem;
       white-space: nowrap;
+      opacity: 0.6;
+      transition: opacity 0.2s;
+      padding: 6px 10px;
+      border: 1px dashed rgba(254, 172, 96, 0.3);
+      border-radius: 6px;
+    }
+
+    .area-row.circadian-off:hover .circadian-enable-cta {
+      opacity: 1;
     }
 
     .circadian-enable-cta svg {
-      width: 16px;
-      height: 16px;
+      width: 14px;
+      height: 14px;
     }
 
     .area-row-name {
