@@ -901,6 +901,8 @@ class CircadianLight:
         at_max = direction == "up" and natural_cct >= c_max - safe_margin
         at_min = direction == "down" and natural_cct <= c_min + safe_margin
 
+        logger.debug(f"calculate_color_step: direction={direction}, natural_cct={natural_cct:.0f}K, rendered_cct={rendered_cct:.0f}K, c_min={c_min}K, c_max={c_max}K, safe_margin={safe_margin:.0f}K, at_min={at_min}, at_max={at_max}")
+
         if at_max or at_min:
             return None  # At config bound, can't go further
 
@@ -962,6 +964,7 @@ class CircadianLight:
         # If actual output didn't change meaningfully, treat as at-limit
         # Uses 10K margin to match frontend (glo-designer.html getColorPreview)
         if abs(actual_cct - rendered_cct) < 10:
+            logger.debug(f"calculate_color_step: no meaningful change, actual_cct={actual_cct:.0f}K, rendered_cct={rendered_cct:.0f}K, diff={abs(actual_cct - rendered_cct):.0f}K")
             return None
 
         # Brightness stays unchanged
