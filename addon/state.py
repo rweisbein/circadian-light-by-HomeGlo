@@ -213,11 +213,19 @@ def is_circadian(area_id: str) -> bool:
 def set_is_on(area_id: str, is_on: bool) -> None:
     """Set the target light power state for an area.
 
+    When setting is_on=False, also resets off_enforced and off_confirm_count
+    to enable the redundant off command grace period.
+
     Args:
         area_id: The area ID
         is_on: Whether lights should be on
     """
-    update_area(area_id, {"is_on": is_on})
+    updates = {"is_on": is_on}
+    if not is_on:
+        # Reset off enforcement so periodic update sends redundant offs
+        updates["off_enforced"] = False
+        updates["off_confirm_count"] = 0
+    update_area(area_id, updates)
     logger.debug(f"Area {area_id} is_on set to {is_on}")
 
 
