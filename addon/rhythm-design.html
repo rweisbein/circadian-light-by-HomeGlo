@@ -1107,7 +1107,7 @@ input[type=range]::-moz-range-thumb {
   font-weight: 600;
   font-size: 1.1rem;
   color: var(--text);
-  margin-right: 32px;
+  margin-right: 16px;
   text-decoration: none;
   display: flex;
   align-items: center;
@@ -1126,7 +1126,7 @@ input[type=range]::-moz-range-thumb {
   gap: 8px;
 }
 .nav-link {
-  padding: 8px 16px;
+  padding: 8px 10px;
   color: var(--muted);
   text-decoration: none;
   border-radius: 6px;
@@ -1141,6 +1141,15 @@ input[type=range]::-moz-range-thumb {
   color: var(--accent);
 }
 
+.nav-settings-link {
+  display: flex;
+  align-items: center;
+}
+
+.nav-settings-icon {
+  width: 20px;
+  height: 20px;
+}
 
 /* Nav solar display */
 .nav-solar { margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--muted); opacity: 0; transition: opacity 0.3s; }
@@ -1172,10 +1181,10 @@ input[type=range]::-moz-range-thumb {
     Home
   </a>
   <div class="nav-links">
-    <a href="./switches" class="nav-link">Controls</a>
-    <a href="./rhythm" class="nav-link active">Daily Rhythm</a>
-    <a href="./moments" class="nav-link">Magic Moments</a>
-    <a href="./settings" class="nav-link">Settings</a>
+    <a href="./switches" class="nav-link">Control</a>
+    <a href="./rhythm" class="nav-link active">Rhythm</a>
+    <a href="./moments" class="nav-link">Magic</a>
+    <a href="./settings" class="nav-link nav-settings-link" title="Settings"><svg class="nav-settings-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="3"/><path d="M10 1.5v2M10 16.5v2M1.5 10h2M16.5 10h2M4 4l1.5 1.5M14.5 14.5L16 16M4 16l1.5-1.5M14.5 5.5L16 4"/></svg></a>
   </div>
   <div class="nav-solar" id="nav-solar">
     <svg class="nav-solar-icon" viewBox="0 0 20 20" fill="none" stroke="#ffd050" stroke-width="1.5"><circle cx="10" cy="10" r="4"/><line x1="10" y1="1.5" x2="10" y2="3.5"/><line x1="10" y1="16.5" x2="10" y2="18.5"/><line x1="1.5" y1="10" x2="3.5" y2="10"/><line x1="16.5" y1="10" x2="18.5" y2="10"/><line x1="4" y1="4" x2="5.5" y2="5.5"/><line x1="14.5" y1="14.5" x2="16" y2="16"/><line x1="4" y1="16" x2="5.5" y2="14.5"/><line x1="14.5" y1="5.5" x2="16" y2="4"/></svg>
