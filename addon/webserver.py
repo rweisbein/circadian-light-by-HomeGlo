@@ -534,6 +534,7 @@ class LightDesignerServer:
         self.app.router.add_route('GET', '/{path:.*}/moments', self.serve_moments)
         self.app.router.add_route('GET', '/{path:.*}/', self.serve_home)
         # Without ingress path prefix
+        self.app.router.add_get('/switches', self.serve_switches)
         self.app.router.add_get('/switchmap', self.serve_switchmap)
         self.app.router.add_get('/rhythm/{rhythm_name}', self.serve_rhythm_design)
         self.app.router.add_get('/rhythm', self.serve_rhythm_list)
