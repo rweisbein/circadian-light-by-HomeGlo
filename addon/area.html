@@ -284,7 +284,12 @@
       display: flex;
       align-items: stretch;
       justify-content: center;
-      gap: 24px;
+      gap: 36px;
+    }
+    .slider-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
     .slider-column {
       display: flex;
@@ -300,13 +305,13 @@
     }
     .slider-track {
       position: relative;
-      width: 14px;
+      width: 24px;
       height: 160px;
       background: rgba(255,255,255,0.08);
-      border-radius: 7px;
+      border-radius: 12px;
       cursor: pointer;
       touch-action: none;
-      overflow: hidden;
+      overflow: visible;
     }
     .slider-fill {
       position: absolute;
@@ -316,13 +321,14 @@
       background: rgba(0,0,0,0.55);
       pointer-events: none;
       transition: height 0.15s ease;
-      border-radius: 7px 7px 0 0;
+      border-radius: 12px 12px 0 0;
+      overflow: hidden;
     }
     .slider-thumb {
       position: absolute;
       left: 50%;
-      width: 22px;
-      height: 22px;
+      width: 32px;
+      height: 32px;
       border-radius: 50%;
       background: #fff;
       border: 2px solid rgba(255,255,255,0.8);
@@ -345,6 +351,38 @@
     }
     .slider-extreme:hover {
       color: var(--text);
+    }
+    .step-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-self: center;
+    }
+    .step-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      border: 1px solid rgba(255,255,255,0.15);
+      background: rgba(30,30,30,0.9);
+      color: var(--muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+      padding: 0;
+    }
+    .step-btn:hover {
+      border-color: rgba(255,255,255,0.35);
+      background: rgba(50,50,50,0.9);
+      color: var(--text);
+    }
+    .step-btn:active {
+      background: rgba(70,70,70,0.9);
+    }
+    .step-btn svg {
+      width: 16px;
+      height: 16px;
     }
 
     /* Loading state */
@@ -375,10 +413,14 @@
         font-size: 1.2rem;
       }
       .adjust-slider-row {
-        gap: 16px;
+        gap: 20px;
       }
       .slider-track {
         height: 140px;
+      }
+      .step-btn {
+        width: 28px;
+        height: 28px;
       }
     }
   </style>
@@ -463,39 +505,69 @@
 
     <div class="timer-status" id="timer-status"></div>
 
-    <div id="mini-chart"></div>
-
     <div class="adjust-section">
       <div class="adjust-slider-row">
-        <div class="slider-column">
-          <div class="slider-label">Glo</div>
-          <div class="slider-extreme" onclick="executeAction('set_britelite')">BriteLite</div>
-          <div class="slider-track" data-mode="step">
-            <div class="slider-fill"></div>
-            <div class="slider-thumb"></div>
+        <div class="slider-group">
+          <div class="slider-column">
+            <div class="slider-label">Circadian</div>
+            <div class="slider-extreme" onclick="executeAction('set_britelite')">BriteLite</div>
+            <div class="slider-track" data-mode="step">
+              <div class="slider-fill"></div>
+              <div class="slider-thumb"></div>
+            </div>
+            <div class="slider-extreme" onclick="executeAction('set_nitelite')">NiteLite</div>
           </div>
-          <div class="slider-extreme" onclick="executeAction('set_nitelite')">NiteLite</div>
+          <div class="step-buttons">
+            <button class="step-btn" onclick="executeAction('step_up')" title="Step Up">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 15 12 9 18 15"/></svg>
+            </button>
+            <button class="step-btn" onclick="executeAction('step_down')" title="Step Down">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+          </div>
         </div>
-        <div class="slider-column">
-          <div class="slider-label">Bright</div>
-          <div class="slider-extreme" id="bright-max" onclick="executeSetPosition(100,'brightness')">max</div>
-          <div class="slider-track" data-mode="brightness">
-            <div class="slider-fill"></div>
-            <div class="slider-thumb"></div>
+        <div class="slider-group">
+          <div class="slider-column">
+            <div class="slider-label">Bright</div>
+            <div class="slider-extreme" id="bright-max" onclick="executeSetPosition(100,'brightness')">max</div>
+            <div class="slider-track" data-mode="brightness">
+              <div class="slider-fill"></div>
+              <div class="slider-thumb"></div>
+            </div>
+            <div class="slider-extreme" id="bright-min" onclick="executeSetPosition(0,'brightness')">min</div>
           </div>
-          <div class="slider-extreme" id="bright-min" onclick="executeSetPosition(0,'brightness')">min</div>
+          <div class="step-buttons">
+            <button class="step-btn" onclick="executeAction('bright_up')" title="Brightness Up">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 15 12 9 18 15"/></svg>
+            </button>
+            <button class="step-btn" onclick="executeAction('bright_down')" title="Brightness Down">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+          </div>
         </div>
-        <div class="slider-column">
-          <div class="slider-label">Color</div>
-          <div class="slider-extreme" id="color-max" onclick="executeSetPosition(100,'color')">max</div>
-          <div class="slider-track" data-mode="color">
-            <div class="slider-fill"></div>
-            <div class="slider-thumb"></div>
+        <div class="slider-group">
+          <div class="slider-column">
+            <div class="slider-label">Color</div>
+            <div class="slider-extreme" id="color-max" onclick="executeSetPosition(100,'color')">max</div>
+            <div class="slider-track" data-mode="color">
+              <div class="slider-fill"></div>
+              <div class="slider-thumb"></div>
+            </div>
+            <div class="slider-extreme" id="color-min" onclick="executeSetPosition(0,'color')">min</div>
           </div>
-          <div class="slider-extreme" id="color-min" onclick="executeSetPosition(0,'color')">min</div>
+          <div class="step-buttons">
+            <button class="step-btn" onclick="executeAction('color_up')" title="Color Up">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 15 12 9 18 15"/></svg>
+            </button>
+            <button class="step-btn" onclick="executeAction('color_down')" title="Color Down">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+          </div>
         </div>
       </div>
     </div>
+
+    <div id="mini-chart"></div>
   </main>
 
   <script>
