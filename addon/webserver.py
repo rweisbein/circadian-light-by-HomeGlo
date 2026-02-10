@@ -528,6 +528,8 @@ class LightDesignerServer:
         self.app.router.add_route('GET', '/{path:.*}/rhythm', self.serve_rhythm_list)
         self.app.router.add_route('GET', '/{path:.*}/glo/{glo_name}', self.redirect_glo_to_rhythm)
         self.app.router.add_route('GET', '/{path:.*}/glo', self.redirect_glo_to_rhythm)
+        self.app.router.add_route('GET', '/{path:.*}/area/{area_id}', self.serve_area_detail)
+        self.app.router.add_route('GET', '/{path:.*}/zone/{zone_name}', self.serve_zone_detail)
         self.app.router.add_route('GET', '/{path:.*}/settings', self.serve_settings)
         self.app.router.add_route('GET', '/{path:.*}/moments', self.serve_moments)
         self.app.router.add_route('GET', '/{path:.*}/', self.serve_home)
@@ -537,6 +539,8 @@ class LightDesignerServer:
         self.app.router.add_get('/rhythm', self.serve_rhythm_list)
         self.app.router.add_get('/glo/{glo_name}', self.redirect_glo_to_rhythm)
         self.app.router.add_get('/glo', self.redirect_glo_to_rhythm)
+        self.app.router.add_get('/area/{area_id}', self.serve_area_detail)
+        self.app.router.add_get('/zone/{zone_name}', self.serve_zone_detail)
         self.app.router.add_get('/settings', self.serve_settings)
         self.app.router.add_get('/moments', self.serve_moments)
         self.app.router.add_get('/', self.serve_home)
@@ -613,6 +617,16 @@ class LightDesignerServer:
         """Serve the Rhythm Design page."""
         rhythm_name = request.match_info.get("rhythm_name")
         return await self.serve_page("rhythm-design", {"selectedRhythm": rhythm_name})
+
+    async def serve_area_detail(self, request: Request) -> Response:
+        """Serve the Area detail page."""
+        area_id = request.match_info.get("area_id")
+        return await self.serve_page("area", {"selectedAreaId": area_id})
+
+    async def serve_zone_detail(self, request: Request) -> Response:
+        """Serve the Zone detail page."""
+        zone_name = request.match_info.get("zone_name")
+        return await self.serve_page("area", {"selectedZoneName": zone_name})
 
     async def redirect_glo_to_rhythm(self, request: Request) -> Response:
         """Legacy redirect: /glo → /rhythm."""
