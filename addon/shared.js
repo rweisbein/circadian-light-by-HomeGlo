@@ -85,37 +85,70 @@ function tintColorByBrightness(rgbStr, brightness) {
 }
 
 /**
- * Initialize the nav bar solar display.
- * Fetches sunrise/sunset from /api/sun_times and populates #nav-rise and #nav-set.
+ * Initialize responsive nav overflow menu.
+ * When nav links don't fit, overflow items collapse behind a "..." button with a dropdown.
  */
-function initNavSolar() {
-  function formatNavHour(h) {
-    if (h === undefined || h === null || !Number.isFinite(h)) return '--';
-    const h24 = ((h % 24) + 24) % 24;
-    let hr = Math.floor(h24);
-    let min = Math.round((h24 - hr) * 60);
-    if (min === 60) { min = 0; hr = (hr + 1) % 24; }
-    const suffix = hr < 12 ? 'a' : 'p';
-    const hr12 = hr === 0 ? 12 : (hr > 12 ? hr - 12 : hr);
-    return min === 0 ? `${hr12}${suffix}` : `${hr12}:${min.toString().padStart(2, '0')}${suffix}`;
+function initNavOverflow() {
+  const nav = document.querySelector('.nav');
+  const linksContainer = document.querySelector('.nav-links');
+  const moreBtn = document.querySelector('.nav-more');
+  const overflow = document.querySelector('.nav-overflow');
+  if (!nav || !linksContainer || !moreBtn || !overflow) return;
+
+  function update() {
+    // Reset: show all links, hide overflow
+    const links = Array.from(linksContainer.querySelectorAll('.nav-link'));
+    links.forEach(l => l.style.visibility = '');
+    overflow.innerHTML = '';
+    moreBtn.style.display = 'none';
+    overflow.classList.remove('open');
+
+    // Check if links overflow their container
+    if (linksContainer.scrollWidth <= linksContainer.clientWidth) return;
+
+    // Show the more button
+    moreBtn.style.display = '';
+
+    // Find which links are clipped (their right edge exceeds container right)
+    const containerRight = linksContainer.getBoundingClientRect().right;
+    for (const link of links) {
+      if (link.getBoundingClientRect().right > containerRight + 1) {
+        link.style.visibility = 'hidden';
+        const item = document.createElement('a');
+        item.href = link.href;
+        item.className = 'nav-overflow-item';
+        if (link.classList.contains('active')) item.classList.add('active');
+        // Use title attribute for icon-only links (Settings gear), otherwise textContent
+        item.textContent = link.title || link.textContent.trim();
+        overflow.appendChild(item);
+      }
+    }
+
+    // If nothing actually overflowed into dropdown, hide button
+    if (overflow.children.length === 0) {
+      moreBtn.style.display = 'none';
+    }
   }
 
-  fetch('./api/sun_times')
-    .then(r => r.ok ? r.json() : null)
-    .then(data => {
-      if (!data) return;
-      const riseEl = document.getElementById('nav-rise');
-      const setEl = document.getElementById('nav-set');
-      if (riseEl) riseEl.textContent = '\u2191 ' + formatNavHour(data.sunrise_hour);
-      if (setEl) setEl.textContent = '\u2193 ' + formatNavHour(data.sunset_hour);
-      // Show the container once loaded
-      const container = document.getElementById('nav-solar');
-      if (container) container.style.opacity = '1';
-    })
-    .catch(() => {});
+  // Toggle dropdown on click
+  moreBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    overflow.classList.toggle('open');
+  });
+
+  // Close on outside click
+  document.addEventListener('click', () => {
+    overflow.classList.remove('open');
+  });
+
+  // Re-check on resize
+  new ResizeObserver(update).observe(nav);
+
+  // Initial check
+  update();
 }
 
-document.addEventListener('DOMContentLoaded', initNavSolar);
+document.addEventListener('DOMContentLoaded', initNavOverflow);
 
 /**
  * Get readable text color (black or white) for a background color.
