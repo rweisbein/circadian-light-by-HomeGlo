@@ -730,6 +730,7 @@ class CircadianLight:
             frozen_at=state.frozen_at,
             brightness_mid=new_bri_mid if not bri_at_limit else state.brightness_mid,
             color_mid=new_color_mid if not cct_at_limit else state.color_mid,
+            color_override=state.color_override,
         )
         actual_bri = CircadianLight.calculate_brightness_at_hour(hour, config, new_state)
         actual_cct = CircadianLight.calculate_color_at_hour(hour, config, new_state, apply_solar_rules=True, sun_times=sun_times)

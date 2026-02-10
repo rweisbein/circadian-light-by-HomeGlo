@@ -78,6 +78,53 @@ class TestCalculateStep:
         for i in range(len(brightness_values) - 1):
             assert brightness_values[i] > brightness_values[i + 1]
 
+    def test_step_preserves_color_override(self):
+        """Combined step should render color with existing color_override.
+
+        Regression: calculate_step was dropping color_override when building
+        the test-render state, causing the immediate light command to ignore
+        the override (solar rule applies in full → warm flash) even though
+        the periodic update would restore it.
+        """
+        config = Config(
+            ascend_start=6.0,
+            descend_start=18.0,
+            wake_time=8.0,
+            bed_time=22.0,
+            min_brightness=10,
+            max_brightness=100,
+            min_color_temp=2700,
+            max_color_temp=6500,
+            max_dim_steps=10,
+            warm_night_enabled=True,
+            warm_night_mode="all",
+            warm_night_target=2700,
+            warm_night_start=-60,
+            warm_night_end=60,
+            warm_night_fade=60,
+        )
+        sun_times = SunTimes()
+        hour = 22.0  # Warm night active
+
+        # Simulate: user has color-stepped up, accumulating override
+        state = AreaState(color_override=1500)
+
+        # Get rendered color with override (should be well above 2700)
+        rendered_before = CircadianLight.calculate_color_at_hour(
+            hour, config, state, apply_solar_rules=True, sun_times=sun_times
+        )
+        assert rendered_before > 3000, f"Override should raise CCT, got {rendered_before}K"
+
+        result = CircadianLight.calculate_step(hour, "down", config, state, sun_times=sun_times)
+
+        if result is not None:
+            # The returned color_temp must respect the override, not drop to 2700
+            assert result.color_temp > 3000, (
+                f"Step result dropped color_override: got {result.color_temp}K, "
+                f"expected >3000K (rendered_before={rendered_before}K)"
+            )
+
+
 class TestCalculateBrightStep:
     """Test calculate_bright_step (brightness only)."""
 
