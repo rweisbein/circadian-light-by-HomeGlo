@@ -1,0 +1,1813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Circadian Light - Area</title>
+  <style>
+    :root {
+      --bg: #000;
+      --panel: #111;
+      --card: #1a1a1a;
+      --accent: #feac60;
+      --accent-hover: #ffc078;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --muted2: #64748b;
+      --line: #334155;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* Page header with back button */
+    .page-header {
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .back-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: var(--card);
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+
+    .back-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: var(--accent);
+    }
+
+    .back-btn svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    .page-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Main content */
+    .main {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    /* Context info (Glo zone + Rhythm) - copied from modal */
+    .context-info {
+      display: flex;
+      gap: 20px;
+      padding: 6px 0;
+      font-size: 0.85rem;
+    }
+
+    .context-line {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .context-label {
+      color: var(--muted);
+    }
+
+    .context-link {
+      color: var(--accent);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .context-link:hover {
+      color: var(--accent-hover);
+      text-decoration: underline;
+    }
+
+    /* Area state display - with dynamic shading (from modal) */
+    .area-state {
+      --state-bg: var(--panel);
+      --state-fill: 0;
+      background: var(--state-bg);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 12px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .area-state::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0.12);
+      opacity: var(--state-fill);
+      pointer-events: none;
+    }
+
+    .area-state-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .area-state-info {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      align-items: center;
+    }
+
+    .area-state-values {
+      font-size: 1.4rem;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      height: 100%;
+      gap: 6px;
+    }
+
+    .area-state-controls {
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+      background: rgba(0,0,0,0.5);
+      padding: 6px;
+      border-radius: 10px;
+    }
+
+    .zone-state-controls {
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+      background: rgba(0,0,0,0.5);
+      padding: 6px;
+      border-radius: 10px;
+    }
+
+    .area-state-controls-left {
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+      background: rgba(0,0,0,0.5);
+      padding: 6px;
+      border-radius: 10px;
+      margin-right: 12px;
+    }
+
+    /* Toggle switch styles (from modal) */
+    .toggle-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 6px;
+      border: 1px solid rgba(255,255,255,0.2);
+      background: rgba(30,30,30,0.9);
+      color: var(--muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      font-size: 1.1rem;
+    }
+
+    .toggle-btn:hover {
+      border-color: rgba(255,255,255,0.4);
+      background: rgba(50,50,50,0.9);
+    }
+
+    .toggle-btn.active {
+      background: rgba(60,60,60,0.9);
+      color: var(--text);
+      border-color: var(--accent);
+    }
+
+    .toggle-btn svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    /* Timer status row (from modal) */
+    .timer-status {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 0;
+      font-size: 0.8rem;
+      min-height: 0;
+    }
+
+    .timer-status:empty {
+      display: none;
+    }
+
+    .timer-motion {
+      color: var(--row-text, var(--muted));
+      opacity: 0.7;
+    }
+
+    .timer-boost {
+      color: var(--row-text, var(--muted));
+      opacity: 0.7;
+      margin-left: auto;
+    }
+
+    .timer-frozen {
+      color: #63b3ed;
+      opacity: 0.85;
+    }
+
+    .timer-arrow {
+      color: var(--muted2);
+      margin: 0 3px;
+    }
+
+    .timer-warning {
+      color: #e6a817;
+      animation: timer-pulse 1s ease-in-out infinite;
+    }
+
+    @keyframes timer-pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* Mini chart container (from modal) */
+    #mini-chart {
+      width: 100%;
+      height: 280px;
+      margin: 8px 0;
+    }
+
+    /* Adjust sliders (from modal - exact same styling) */
+    .adjust-section {
+      margin-bottom: 12px;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    .adjust-slider-row {
+      display: flex;
+      align-items: stretch;
+      justify-content: center;
+      gap: 36px;
+    }
+    .slider-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .slider-column {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    .slider-label {
+      font-size: 0.65rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .slider-track {
+      position: relative;
+      width: 24px;
+      height: 160px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 12px;
+      cursor: pointer;
+      touch-action: none;
+      overflow: visible;
+    }
+    .slider-fill {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      background: rgba(0,0,0,0.55);
+      pointer-events: none;
+      transition: height 0.15s ease;
+      border-radius: 12px 12px 0 0;
+      overflow: hidden;
+    }
+    .slider-thumb {
+      position: absolute;
+      left: 50%;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: #fff;
+      border: 2px solid rgba(255,255,255,0.8);
+      box-shadow: 0 1px 6px rgba(0,0,0,0.4);
+      transform: translate(-50%, 50%);
+      pointer-events: none;
+      transition: bottom 0.15s ease, background 0.15s ease;
+      z-index: 2;
+    }
+    .slider-track.dragging .slider-fill,
+    .slider-track.dragging .slider-thumb {
+      transition: none;
+    }
+    .slider-extreme {
+      font-size: 0.6rem;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 2px 0;
+      letter-spacing: 0.02em;
+    }
+    .slider-extreme:hover {
+      color: var(--text);
+    }
+    .step-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-self: center;
+    }
+    .step-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      border: 1px solid rgba(255,255,255,0.15);
+      background: rgba(30,30,30,0.9);
+      color: var(--muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+      padding: 0;
+    }
+    .step-btn:hover {
+      border-color: rgba(255,255,255,0.35);
+      background: rgba(50,50,50,0.9);
+      color: var(--text);
+    }
+    .step-btn:active {
+      background: rgba(70,70,70,0.9);
+    }
+    .step-btn svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    /* Loading state */
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 48px;
+      color: var(--muted);
+    }
+
+    /* Mobile adjustments */
+    @media (max-width: 480px) {
+      .area-state-row {
+        gap: 8px;
+      }
+      .area-state-controls-left,
+      .area-state-controls,
+      .zone-state-controls {
+        padding: 4px;
+        gap: 4px;
+      }
+      .toggle-btn {
+        width: 36px;
+        height: 36px;
+      }
+      .area-state-values {
+        font-size: 1.2rem;
+      }
+      .adjust-slider-row {
+        gap: 20px;
+      }
+      .slider-track {
+        height: 140px;
+      }
+      .step-btn {
+        width: 28px;
+        height: 28px;
+      }
+    }
+  </style>
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <script src="./shared.js"></script>
+</head>
+<body>
+  <!-- Page Header -->
+  <header class="page-header">
+    <button class="back-btn" onclick="goBack()" title="Back">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="15 18 9 12 15 6"/>
+      </svg>
+    </button>
+    <h1 class="page-title" id="page-title">Loading...</h1>
+  </header>
+
+  <main class="main">
+    <div class="context-info" id="context-info">
+      <div class="context-line"><span class="context-label">Glo zone:</span> <span id="zone-link">—</span></div>
+      <div class="context-line" id="rhythm-line" style="display:none;"><span class="context-label">Daily Rhythm:</span> <span class="context-link" id="rhythm-link">—</span></div>
+    </div>
+
+    <div class="area-state" id="area-state">
+      <div class="area-state-row">
+        <div class="area-state-controls-left" id="controls-left">
+          <button class="toggle-btn" id="toggle-circadian" onclick="toggleCircadian()" title="Circadian">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="5"/>
+              <line x1="12" y1="1" x2="12" y2="3"/>
+              <line x1="12" y1="21" x2="12" y2="23"/>
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+              <line x1="1" y1="12" x2="3" y2="12"/>
+              <line x1="21" y1="12" x2="23" y2="12"/>
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+            </svg>
+          </button>
+          <button class="toggle-btn" id="toggle-power" onclick="executeAction('lights_toggle')" title="Power">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18.36 6.64a9 9 0 1 1-12.73 0M12 2v10"/>
+            </svg>
+          </button>
+          <button class="toggle-btn" id="toggle-freeze" onclick="executeAction('freeze_toggle')" title="Freeze">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+          </button>
+          <button class="toggle-btn" id="toggle-boost" onclick="executeAction('boost')" title="Boost">
+            <span style="font-weight:900; font-size:16px; font-family:serif; line-height:1;">B</span>
+          </button>
+        </div>
+        <div class="area-state-info">
+          <div class="area-state-values" id="state-values"></div>
+        </div>
+        <div class="area-state-controls" id="controls-area">
+          <button class="toggle-btn" id="toggle-glo-up" onclick="executeAction('glo_up')" title="GloUp: send area settings to GloZone">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="5 13 12 6 19 13"/>
+              <line x1="4" y1="19" x2="20" y2="19"/>
+            </svg>
+          </button>
+          <button class="toggle-btn" id="toggle-glo-down" onclick="executeAction('glo_down')" title="GloDown: pull GloZone settings to this area">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="4" y1="5" x2="20" y2="5"/>
+              <polyline points="5 11 12 18 19 11"/>
+            </svg>
+          </button>
+        </div>
+        <div class="zone-state-controls" id="controls-zone" style="display:none;">
+          <button class="toggle-btn" id="toggle-glozone-reset" onclick="executeAction('glozone_reset')" title="Reset GloZone: set GloZone to Daily Rhythm">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+          </button>
+          <button class="toggle-btn" id="toggle-glozone-down" onclick="executeAction('glozone_down')" title="GloZone Down: push zone settings to all areas">
+            <svg viewBox="0 0 16 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 5 8 10 13 5"/><polyline points="3 11 8 16 13 11"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="timer-status" id="timer-status"></div>
+
+    <div class="adjust-section">
+      <div class="adjust-slider-row">
+        <div class="slider-group">
+          <div class="slider-column">
+            <div class="slider-label">Circadian</div>
+            <div class="slider-extreme" onclick="executeAction('set_britelite')">BriteLite</div>
+            <div class="slider-track" data-mode="step">
+              <div class="slider-fill"></div>
+              <div class="slider-thumb"></div>
+            </div>
+            <div class="slider-extreme" onclick="executeAction('set_nitelite')">NiteLite</div>
+          </div>
+          <div class="step-buttons">
+            <button class="step-btn" onclick="executeAction('step_up')" title="Step Up">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 15 12 9 18 15"/></svg>
+            </button>
+            <button class="step-btn" onclick="executeAction('step_down')" title="Step Down">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="slider-group">
+          <div class="slider-column">
+            <div class="slider-label">Bright</div>
+            <div class="slider-extreme" id="bright-max" onclick="executeSetPosition(100,'brightness')">max</div>
+            <div class="slider-track" data-mode="brightness">
+              <div class="slider-fill"></div>
+              <div class="slider-thumb"></div>
+            </div>
+            <div class="slider-extreme" id="bright-min" onclick="executeSetPosition(0,'brightness')">min</div>
+          </div>
+          <div class="step-buttons">
+            <button class="step-btn" onclick="executeAction('bright_up')" title="Brightness Up">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 15 12 9 18 15"/></svg>
+            </button>
+            <button class="step-btn" onclick="executeAction('bright_down')" title="Brightness Down">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="slider-group">
+          <div class="slider-column">
+            <div class="slider-label">Color</div>
+            <div class="slider-extreme" id="color-max" onclick="executeSetPosition(100,'color')">max</div>
+            <div class="slider-track" data-mode="color">
+              <div class="slider-fill"></div>
+              <div class="slider-thumb"></div>
+            </div>
+            <div class="slider-extreme" id="color-min" onclick="executeSetPosition(0,'color')">min</div>
+          </div>
+          <div class="step-buttons">
+            <button class="step-btn" onclick="executeAction('color_up')" title="Color Up">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 15 12 9 18 15"/></svg>
+            </button>
+            <button class="step-btn" onclick="executeAction('color_down')" title="Color Down">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="mini-chart"></div>
+  </main>
+
+  <script>
+    // ============================================================
+    // State
+    // ============================================================
+    let selectedArea = null;
+    let selectedZoneName = null;
+    let areaStatus = {};
+    let zoneStates = {};
+    let cachedConfig = null;
+    let cachedSunTimes = null;
+    let cachedRhythms = {};
+    let areas = [];
+    let refreshInterval = null;
+    let tickInterval = null;
+    let basePath = '';
+    let sliderInteracting = false;
+
+    // ============================================================
+    // Circadian Curve Calculation (from areas.html modal)
+    // ============================================================
+
+    const SPEED_TO_SLOPE = [0, 0.4, 0.6, 0.8, 1.0, 1.3, 1.7, 2.3, 3.0, 4.0, 5.5];
+
+    function logistic(x, midpoint, slope, y0, y1) {
+      try {
+        const expVal = Math.exp(-slope * (x - midpoint));
+        return y0 + (y1 - y0) / (1 + expVal);
+      } catch {
+        return slope * (x - midpoint) > 0 ? y1 : y0;
+      }
+    }
+
+    function wrap24(x) {
+      return ((x % 24) + 24) % 24;
+    }
+
+    function getWindowWeight(hour, windowStart, windowEnd, fadeHrs) {
+      const h = wrap24(hour);
+      let inWindow = false;
+      let distFromStart = 0;
+      let distToEnd = 0;
+
+      if (windowStart > windowEnd) {
+        inWindow = h >= windowStart || h <= windowEnd;
+        if (inWindow) {
+          distFromStart = h >= windowStart ? (h - windowStart) : (h + 24 - windowStart);
+          distToEnd = h <= windowEnd ? (windowEnd - h) : (windowEnd + 24 - h);
+        }
+      } else {
+        inWindow = h >= windowStart && h <= windowEnd;
+        if (inWindow) {
+          distFromStart = h - windowStart;
+          distToEnd = windowEnd - h;
+        }
+      }
+
+      if (!inWindow) {
+        return { inWindow: false, weight: 0 };
+      }
+
+      let weight = 1;
+      if (fadeHrs > 0.01) {
+        if (distFromStart < fadeHrs) {
+          weight = Math.min(weight, distFromStart / fadeHrs);
+        }
+        if (distToEnd < fadeHrs) {
+          weight = Math.min(weight, distToEnd / fadeHrs);
+        }
+      }
+
+      return { inWindow: true, weight };
+    }
+
+    function rad(d) { return d * Math.PI / 180; }
+
+    function getSunTimes(lat, lon) {
+      const date = new Date();
+      const n = Math.floor((date - new Date(date.getFullYear(), 0, 0)) / 86400000);
+      const J = n + ((lon < 0 ? 360 + lon : lon) / 360);
+      const M = (357.5291 + 0.9856 * J) % 360;
+      const C = 1.9148 * Math.sin(rad(M)) + 0.02 * Math.sin(rad(2 * M)) + 0.0003 * Math.sin(rad(3 * M));
+      const L = (M + 102.9372 + C + 180) % 360;
+      const D = Math.asin(Math.sin(rad(L)) * Math.sin(rad(23.44)));
+      const cosH0 = (Math.cos(rad(90.833)) - Math.sin(rad(lat)) * Math.sin(D)) / (Math.cos(rad(lat)) * Math.cos(D));
+
+      if (cosH0 < -1 || cosH0 > 1) {
+        const sn = 12 - date.getTimezoneOffset() / 60 - (lon / 15);
+        return { sunrise: sn - 6, sunset: sn + 6, solarNoon: sn, solarMid: (sn + 12) % 24 };
+      }
+
+      const H0 = Math.acos(cosH0);
+      const dl = (2 * H0 * 180 / Math.PI) / 15;
+      const tz = -date.getTimezoneOffset() / 60;
+      const sn = 12 + tz - (lon / 15);
+      return { sunrise: sn - dl / 2, sunset: sn + dl / 2, solarNoon: sn, solarMid: (sn + 12) % 24 };
+    }
+
+    function liftMidpointToPhase(midpoint, phaseStart, phaseEnd) {
+      const phaseCenter = (phaseStart + phaseEnd) / 2;
+      let mid = midpoint;
+      while (mid < phaseCenter - 12) mid += 24;
+      while (mid > phaseCenter + 12) mid -= 24;
+      const margin = 0.01;
+      return Math.max(phaseStart + margin, Math.min(phaseEnd - margin, mid));
+    }
+
+    function applySolarRule(baseCCT, hour, cfg, sunTimes, colorOverride) {
+      if (!sunTimes) return baseCCT;
+
+      let cct = baseCCT;
+      const sunrise = sunTimes.sunrise;
+      const sunset = sunTimes.sunset;
+      const solarNoon = sunTimes.solarNoon;
+      const solarMid = sunTimes.solarMid;
+
+      // Warm night — ceiling
+      if (cfg.warm_night_enabled) {
+        let warmTarget = cfg.warm_night_target;
+        if (colorOverride && colorOverride > 0) {
+          warmTarget += colorOverride;
+        }
+
+        if (cct > warmTarget) {
+          const fadeHrs = cfg.warm_night_fade / 60;
+          const startOffsetHrs = cfg.warm_night_start / 60;
+          const endOffsetHrs = cfg.warm_night_end / 60;
+          const mode = cfg.warm_night_mode;
+
+          let windowStart, windowEnd;
+          if (mode === 'sunrise') {
+            windowStart = wrap24(solarMid);
+            windowEnd = wrap24(sunrise + endOffsetHrs);
+          } else if (mode === 'sunset') {
+            windowStart = wrap24(sunset + startOffsetHrs);
+            windowEnd = wrap24(solarMid);
+          } else {
+            windowStart = wrap24(sunset + startOffsetHrs);
+            windowEnd = wrap24(sunrise + endOffsetHrs);
+          }
+
+          const { inWindow, weight } = getWindowWeight(hour, windowStart, windowEnd, fadeHrs);
+          if (inWindow && weight > 0) {
+            cct = cct + (warmTarget - cct) * weight;
+          }
+        }
+      }
+
+      // Cool day — floor
+      if (cfg.cool_day_enabled) {
+        let coolTarget = cfg.cool_day_target;
+        if (colorOverride && colorOverride < 0) {
+          coolTarget += colorOverride;
+        }
+
+        if (cct < coolTarget) {
+          const fadeHrs = cfg.cool_day_fade / 60;
+          const startOffsetHrs = cfg.cool_day_start / 60;
+          const endOffsetHrs = cfg.cool_day_end / 60;
+          const mode = cfg.cool_day_mode;
+
+          let windowStart, windowEnd;
+          if (mode === 'sunrise') {
+            windowStart = wrap24(sunrise + startOffsetHrs);
+            windowEnd = wrap24(solarNoon);
+          } else if (mode === 'sunset') {
+            windowStart = wrap24(solarNoon);
+            windowEnd = wrap24(sunset + endOffsetHrs);
+          } else {
+            windowStart = wrap24(sunrise + startOffsetHrs);
+            windowEnd = wrap24(sunset + endOffsetHrs);
+          }
+
+          const { inWindow, weight } = getWindowWeight(hour, windowStart, windowEnd, fadeHrs);
+          if (inWindow && weight > 0) {
+            cct = cct + (coolTarget - cct) * weight;
+          }
+        }
+      }
+
+      return cct;
+    }
+
+    function calcMiniBrightness(hour, cfg, state, currentHour) {
+      const tAscend = cfg.ascend_start;
+      let tDescend = cfg.descend_start;
+      if (tDescend <= tAscend) tDescend += 24;
+
+      const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.wake_speed))];
+      const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.bed_speed))];
+      const bMin = cfg.min_brightness / 100;
+      const bMax = cfg.max_brightness / 100;
+
+      const cursorH48 = currentHour < tAscend ? currentHour + 24 : currentHour;
+      const cursorInAscend = cursorH48 >= tAscend && cursorH48 < tDescend;
+
+      const wakeMid = cursorInAscend ? (state.brightness_mid ?? cfg.wake_time) : cfg.wake_time;
+      const bedMid = !cursorInAscend ? (state.brightness_mid ?? cfg.bed_time) : cfg.bed_time;
+
+      const h48 = hour < tAscend ? hour + 24 : hour;
+      const inAscend = h48 >= tAscend && h48 < tDescend;
+
+      const mid48 = inAscend
+        ? liftMidpointToPhase(wakeMid, tAscend, tDescend)
+        : liftMidpointToPhase(bedMid, tDescend, tDescend + 24);
+
+      let value;
+      if (inAscend) {
+        value = logistic(h48, mid48, kAscend, bMin, bMax);
+      } else {
+        const hDescend48 = (h48 < tDescend) ? h48 + 24 : h48;
+        value = logistic(hDescend48, mid48, -kDescend, bMin, bMax);
+      }
+
+      return Math.max(bMin, Math.min(bMax, value));
+    }
+
+    function calcMiniColor(hour, cfg, state, sunTimes, currentHour) {
+      const tAscend = cfg.ascend_start;
+      let tDescend = cfg.descend_start;
+      if (tDescend <= tAscend) tDescend += 24;
+
+      const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.wake_speed))];
+      const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.bed_speed))];
+      const cLow = cfg.min_color_temp;
+      const cHigh = cfg.max_color_temp;
+
+      const cursorH48 = currentHour < tAscend ? currentHour + 24 : currentHour;
+      const cursorInAscend = cursorH48 >= tAscend && cursorH48 < tDescend;
+
+      const colorWakeMid = cursorInAscend ? (state.color_mid ?? cfg.wake_time) : cfg.wake_time;
+      const colorBedMid = !cursorInAscend ? (state.color_mid ?? cfg.bed_time) : cfg.bed_time;
+
+      const h48 = hour < tAscend ? hour + 24 : hour;
+      const inAscend = h48 >= tAscend && h48 < tDescend;
+
+      const mid48 = inAscend
+        ? liftMidpointToPhase(colorWakeMid, tAscend, tDescend)
+        : liftMidpointToPhase(colorBedMid, tDescend, tDescend + 24);
+
+      let normalized;
+      if (inAscend) {
+        normalized = logistic(h48, mid48, kAscend, 0, 1);
+      } else {
+        const hDescend48 = (h48 < tDescend) ? h48 + 24 : h48;
+        normalized = logistic(hDescend48, mid48, -kDescend, 0, 1);
+      }
+      normalized = Math.max(0, Math.min(1, normalized));
+
+      let cct = cLow + (cHigh - cLow) * normalized;
+      cct = applySolarRule(cct, hour, cfg, sunTimes, state.color_override);
+
+      return cct;
+    }
+
+    function calcMiniCurveData(cfg, state, sunTimes, currentHour) {
+      const numSamples = 240;
+      const hours = [];
+      const brightnessPct = [];
+      const cct = [];
+
+      for (let i = 0; i < numSamples; i++) {
+        const h = (i / numSamples) * 24;
+        hours.push(h);
+        brightnessPct.push(calcMiniBrightness(h, cfg, state, currentHour) * 100);
+        cct.push(calcMiniColor(h, cfg, state, sunTimes, currentHour));
+      }
+
+      return { hours, brightnessPct, cct };
+    }
+
+    // ============================================================
+    // Mini Circadian Graph — Rendering (from areas.html modal)
+    // ============================================================
+
+    function formatHourLabel(h) {
+      const h24 = ((h % 24) + 24) % 24;
+      let hr = Math.floor(h24);
+      let min = Math.round((h24 - hr) * 60);
+      if (min === 60) { min = 0; hr = (hr + 1) % 24; }
+      const suffix = hr < 12 ? 'a' : 'p';
+      const hr12 = hr === 0 ? 12 : (hr > 12 ? hr - 12 : hr);
+      return min === 0 ? `${hr12}${suffix}` : `${hr12}:${min.toString().padStart(2, '0')}${suffix}`;
+    }
+
+    function formatCountdown(isoTimestamp) {
+      if (!isoTimestamp) return null;
+      const expires = new Date(isoTimestamp);
+      if (isNaN(expires.getTime())) return null;
+      const now = new Date();
+      const diffMs = expires - now;
+      if (diffMs <= 0) return null;
+      const totalSec = Math.floor(diffMs / 1000);
+      if (totalSec < 60) return `${totalSec}s`;
+      const min = Math.floor(totalSec / 60);
+      const sec = totalSec % 60;
+      if (min < 60) return sec > 0 ? `${min}m ${sec}s` : `${min}m`;
+      const hr = Math.floor(min / 60);
+      const remMin = min % 60;
+      return remMin > 0 ? `${hr}h ${remMin}m` : `${hr}h`;
+    }
+
+    function renderMiniChart(cfg, state, sunTimes, currentHour, isActive) {
+      if (!cfg || !sunTimes) return;
+
+      const data = calcMiniCurveData(cfg, state, sunTimes, currentHour);
+      const { hours, brightnessPct, cct } = data;
+
+      const traces = [];
+
+      // Color-gradient brightness curve (filled + line segments)
+      const step = 2;
+      for (let i = step; i < hours.length; i += step) {
+        const color = cctToRGB(cct[i]);
+        const fillColor = colorWithAlpha(color, 0.5);
+        const x0 = hours[i - step];
+        const x1 = hours[i];
+        const y0 = brightnessPct[i - step];
+        const y1 = brightnessPct[i];
+
+        // Filled area under curve
+        traces.push({
+          type: 'scatter', mode: 'lines',
+          x: [x0, x1, x1, x0], y: [y0, y1, 0, 0],
+          fill: 'toself', line: { width: 0 }, fillcolor: fillColor,
+          hoverinfo: 'skip', showlegend: false
+        });
+
+        // Colored line segment
+        traces.push({
+          type: 'scatter', mode: 'lines',
+          x: [x0, x1], y: [y0, y1],
+          line: { width: 3, color },
+          hoverinfo: 'skip', showlegend: false
+        });
+      }
+
+      // Hover trace — CCT-colored tooltips
+      const hoverDetails = brightnessPct.map((v, i) =>
+        `${Math.round(v)}% • ${Math.round(cct[i])}K`
+      );
+      const hoverBgColors = cct.map(k => colorWithAlpha(cctToRGB(k), 0.92));
+      const hoverTextColors = cct.map(k => readableTextColor(cctToRGB(k)));
+      const hoverBorderColors = cct.map(k => colorWithAlpha(cctToRGB(k), 0.65));
+
+      traces.push({
+        type: 'scatter', mode: 'lines',
+        x: hours, y: brightnessPct,
+        line: { width: 0 }, showlegend: false,
+        text: hoverDetails,
+        hovertemplate: '%{text}<extra></extra>',
+        hoverlabel: {
+          bgcolor: hoverBgColors,
+          bordercolor: hoverBorderColors,
+          font: { color: hoverTextColors, size: 13 }
+        }
+      });
+
+      // Live position marker (large size, outline color depends on active state)
+      const markerBri = calcMiniBrightness(currentHour, cfg, state, currentHour) * 100;
+      const markerCCT = calcMiniColor(currentHour, cfg, state, sunTimes, currentHour);
+      const markerColor = cctToRGB(markerCCT);
+      const markerOutline = isActive ? '#fff' : '#000';
+
+      traces.push({
+        x: [currentHour], y: [markerBri],
+        mode: 'markers',
+        marker: { size: 22, color: markerColor, line: { width: 3, color: markerOutline } },
+        hoverinfo: 'skip', showlegend: false
+      });
+
+      // Shapes and annotations
+      const shapes = [];
+      const annotations = [];
+
+      // Wake/bed vertical dashed lines
+      const wakeTime = wrap24(cfg.wake_time);
+      const bedTime = wrap24(cfg.bed_time);
+
+      shapes.push({
+        type: 'line', xref: 'x', yref: 'paper',
+        x0: wakeTime, x1: wakeTime, y0: -0.15, y1: 1,
+        line: { color: 'rgba(92, 179, 255, 0.35)', width: 1.5, dash: 'dot' }
+      });
+      shapes.push({
+        type: 'line', xref: 'x', yref: 'paper',
+        x0: bedTime, x1: bedTime, y0: -0.15, y1: 1,
+        line: { color: 'rgba(255, 230, 128, 0.35)', width: 1.5, dash: 'dot' }
+      });
+
+      // Sunrise/sunset vertical ticks
+      const sunrise = sunTimes.sunrise;
+      const sunset = sunTimes.sunset;
+      const sunTickStyle = { color: 'rgba(215,215,215,0.4)', width: 1, dash: 'dot' };
+      if (Number.isFinite(sunrise)) {
+        shapes.push({
+          type: 'line', xref: 'x', yref: 'paper',
+          x0: sunrise, x1: sunrise, y0: -0.22, y1: 0,
+          line: sunTickStyle
+        });
+      }
+      if (Number.isFinite(sunset)) {
+        shapes.push({
+          type: 'line', xref: 'x', yref: 'paper',
+          x0: sunset, x1: sunset, y0: -0.22, y1: 0,
+          line: sunTickStyle
+        });
+      }
+
+      // Wake/bed labels
+      annotations.push({
+        x: wakeTime, y: -0.18, xref: 'x', yref: 'paper',
+        text: 'wake', showarrow: false,
+        font: { size: 10, color: '#5cb3ff' },
+        hovertext: formatHourLabel(wakeTime),
+        hoverlabel: { bgcolor: '#7fc7ff', bordercolor: '#7fc7ff', font: { color: '#000', size: 12 } }
+      });
+      annotations.push({
+        x: bedTime, y: -0.18, xref: 'x', yref: 'paper',
+        text: 'bed', showarrow: false,
+        font: { size: 10, color: '#ffe680' },
+        hovertext: formatHourLabel(bedTime),
+        hoverlabel: { bgcolor: '#ffe680', bordercolor: '#ffe680', font: { color: '#000', size: 12 } }
+      });
+
+      // Sunrise/sunset labels
+      if (Number.isFinite(sunrise)) {
+        annotations.push({
+          x: sunrise, y: -0.25, xref: 'x', yref: 'paper',
+          text: 'sunrise', showarrow: false,
+          font: { size: 9, color: 'rgba(215,215,215,0.6)' },
+          hovertext: formatHourLabel(sunrise),
+          hoverlabel: { bgcolor: '#3a3a3a', bordercolor: '#3a3a3a', font: { color: '#fff', size: 12 } }
+        });
+      }
+      if (Number.isFinite(sunset)) {
+        annotations.push({
+          x: sunset, y: -0.25, xref: 'x', yref: 'paper',
+          text: 'sunset', showarrow: false,
+          font: { size: 9, color: 'rgba(215,215,215,0.6)' },
+          hovertext: formatHourLabel(sunset),
+          hoverlabel: { bgcolor: '#3a3a3a', bordercolor: '#3a3a3a', font: { color: '#fff', size: 12 } }
+        });
+      }
+
+      // Cursor vertical line
+      const isFrozen = state && state.frozen_at != null;
+      const cursorHour = currentHour;
+      const cursorLineStyle = { color: '#fdfdfd', width: 2, dash: 'dot' };
+      const gap = 8;
+      const lowerEnd = Math.max(0, markerBri - gap);
+      const upperStart = Math.min(110, markerBri + gap);
+
+      shapes.push({
+        type: 'line', xref: 'x', yref: 'y',
+        x0: cursorHour, x1: cursorHour, y0: 0, y1: lowerEnd,
+        line: cursorLineStyle, layer: 'above'
+      });
+      shapes.push({
+        type: 'line', xref: 'x', yref: 'y',
+        x0: cursorHour, x1: cursorHour, y0: upperStart, y1: 110,
+        line: cursorLineStyle, layer: 'above'
+      });
+      shapes.push({
+        type: 'line', xref: 'x', yref: 'paper',
+        x0: cursorHour, x1: cursorHour, y0: -0.26, y1: 0,
+        line: cursorLineStyle, layer: 'above'
+      });
+
+      // Cursor label
+      const cursorTimeStr = formatHourLabel(cursorHour);
+      const cursorLabel = isFrozen ? 'frozen' : 'now';
+      const cursorColor = isFrozen ? '#63b3ed' : '#fdfdfd';
+      annotations.push({
+        x: cursorHour, y: -0.38, xref: 'x', yref: 'paper',
+        text: `${cursorLabel}<br>${cursorTimeStr}`, showarrow: false,
+        font: { size: 10, color: cursorColor },
+        align: 'center'
+      });
+
+      const layout = {
+        paper_bgcolor: '#0a0a0a',
+        plot_bgcolor: '#0a0a0a',
+        margin: { t: 24, r: 12, l: 36, b: 85 },
+        hovermode: 'closest',
+        xaxis: {
+          range: [0, 24],
+          dtick: 3,
+          tickvals: [0, 3, 6, 9, 12, 15, 18, 21, 24],
+          ticktext: ['12a', '3a', '6a', '9a', '12p', '3p', '6p', '9p', '12a'],
+          gridcolor: 'rgba(80,100,130,0.22)',
+          tickfont: { color: '#c8c8c8', size: 10 },
+          ticklen: 3,
+          tickcolor: 'rgba(160,190,220,0.2)'
+        },
+        yaxis: {
+          range: [0, 110],
+          gridcolor: 'rgba(80,100,130,0.22)',
+          tickfont: { color: '#c8c8c8', size: 10 },
+          ticklen: 3,
+          title: '',
+          showticklabels: true,
+          dtick: 25
+        },
+        shapes,
+        annotations,
+        showlegend: false
+      };
+
+      Plotly.react('mini-chart', traces, layout, {
+        displayModeBar: false,
+        responsive: true
+      });
+    }
+
+    // ============================================================
+    // Slider Functions (from areas.html modal)
+    // ============================================================
+
+    function getSliderCfgAndState() {
+      if (selectedZoneName) {
+        const zs = zoneStates[selectedZoneName] || {};
+        if (!cachedConfig || !cachedSunTimes) return null;
+        const rhythmName = zs.rhythm;
+        const cfg = (rhythmName && cachedRhythms[rhythmName])
+          ? { ...cachedConfig, ...cachedRhythms[rhythmName] }
+          : cachedConfig;
+        const rs = zs.runtime_state || {};
+        const areaState = {
+          brightness_mid: rs.brightness_mid ?? null,
+          color_mid: rs.color_mid ?? null,
+          color_override: rs.color_override ?? null,
+          frozen_at: rs.frozen_at ?? null
+        };
+        let currentHour;
+        if (rs.frozen_at != null) {
+          currentHour = rs.frozen_at;
+        } else {
+          const now = new Date();
+          currentHour = now.getHours() + now.getMinutes() / 60;
+        }
+        return { cfg, areaState, currentHour };
+      } else if (selectedArea) {
+        const status = areaStatus[selectedArea.area_id] || {};
+        if (!cachedConfig || !cachedSunTimes) return null;
+        const rhythmName = status.preset_name;
+        const cfg = (rhythmName && cachedRhythms[rhythmName])
+          ? { ...cachedConfig, ...cachedRhythms[rhythmName] }
+          : cachedConfig;
+        const areaState = {
+          brightness_mid: status.brightness_mid ?? null,
+          color_mid: status.color_mid ?? null,
+          color_override: status.color_override ?? null,
+          frozen_at: status.frozen_at ?? null
+        };
+        let currentHour;
+        if (status.frozen && status.frozen_at != null) {
+          currentHour = status.frozen_at;
+        } else {
+          const now = new Date();
+          currentHour = now.getHours() + now.getMinutes() / 60;
+        }
+        return { cfg, areaState, currentHour };
+      }
+      return null;
+    }
+
+    function updateAllSliders() {
+      const ctx = getSliderCfgAndState();
+      if (!ctx) return;
+      const { cfg, areaState, currentHour } = ctx;
+      const currentBri = calcMiniBrightness(currentHour, cfg, areaState, currentHour) * 100;
+      const currentCCT = calcMiniColor(currentHour, cfg, areaState, cachedSunTimes, currentHour);
+      const bMin = cfg.min_brightness, bMax = cfg.max_brightness;
+      const cMin = cfg.min_color_temp, cMax = cfg.max_color_temp;
+
+      const briFrac = bMax > bMin ? Math.max(0, Math.min(100, (currentBri - bMin) / (bMax - bMin) * 100)) : 50;
+      const cctFrac = cMax > cMin ? Math.max(0, Math.min(100, (currentCCT - cMin) / (cMax - cMin) * 100)) : 50;
+      const gloFrac = briFrac;
+
+      document.querySelectorAll('.slider-track').forEach(track => {
+        if (track.classList.contains('dragging')) return;
+        const mode = track.dataset.mode;
+        track.style.background = buildTrackGradient(mode, cfg, currentBri, currentCCT);
+        const pct = mode === 'step' ? gloFrac : mode === 'brightness' ? briFrac : cctFrac;
+        applyOneSlider(track, pct, currentBri, currentCCT, mode);
+      });
+
+      // Update extreme labels
+      const briMaxEl = document.getElementById('bright-max');
+      const briMinEl = document.getElementById('bright-min');
+      const cctMaxEl = document.getElementById('color-max');
+      const cctMinEl = document.getElementById('color-min');
+      if (briMaxEl) briMaxEl.textContent = bMax + '%';
+      if (briMinEl) briMinEl.textContent = bMin + '%';
+      if (cctMaxEl) cctMaxEl.textContent = cMax + 'K';
+      if (cctMinEl) cctMinEl.textContent = cMin + 'K';
+    }
+
+    function buildTrackGradient(mode, cfg, currentBri, currentCCT) {
+      const bMin = cfg.min_brightness, bMax = cfg.max_brightness;
+      const cMin = cfg.min_color_temp, cMax = cfg.max_color_temp;
+      const stops = [];
+      const n = 6;
+      for (let i = 0; i <= n; i++) {
+        const frac = i / n;
+        let color;
+        if (mode === 'color') {
+          const k = cMin + (cMax - cMin) * frac;
+          color = cctToRGB(k);
+        } else if (mode === 'brightness') {
+          const b = bMin + (bMax - bMin) * frac;
+          color = tintColorByBrightness(cctToRGB(currentCCT), b);
+        } else {
+          const b = bMin + (bMax - bMin) * frac;
+          const k = cMin + (cMax - cMin) * frac;
+          color = tintColorByBrightness(cctToRGB(k), b);
+        }
+        stops.push(color + ' ' + Math.round(frac * 100) + '%');
+      }
+      return 'linear-gradient(to top, ' + stops.join(', ') + ')';
+    }
+
+    function applyOneSlider(track, pct, bri, cct, mode) {
+      const fill = track.querySelector('.slider-fill');
+      const thumb = track.querySelector('.slider-thumb');
+      if (!fill || !thumb) return;
+      // Dim overlay: covers from top down to thumb position
+      fill.style.height = (100 - pct) + '%';
+      // Thumb position and color
+      thumb.style.bottom = pct + '%';
+      const color = cctToRGB(cct);
+      const tinted = mode === 'color' ? color : tintColorByBrightness(color, bri);
+      thumb.style.background = tinted;
+      thumb.style.borderColor = color;
+    }
+
+    function getPositionFromPointer(track, e) {
+      const rect = track.getBoundingClientRect();
+      const y = Math.max(0, Math.min(1, (rect.bottom - e.clientY) / rect.height));
+      return y * 100;
+    }
+
+    function initSliderHandlers() {
+      document.querySelectorAll('.slider-track').forEach(track => {
+        let lastPos = null;
+        const mode = track.dataset.mode;
+
+        function onDown(e) {
+          e.preventDefault();
+          sliderInteracting = true;
+          track.classList.add('dragging');
+          track.setPointerCapture(e.pointerId);
+          lastPos = getPositionFromPointer(track, e);
+          previewSlider(track, lastPos);
+        }
+        function onMove(e) {
+          if (!track.classList.contains('dragging')) return;
+          e.preventDefault();
+          lastPos = getPositionFromPointer(track, e);
+          previewSlider(track, lastPos);
+        }
+        function onUp(e) {
+          if (!track.classList.contains('dragging')) return;
+          e.preventDefault();
+          track.classList.remove('dragging');
+          sliderInteracting = false;
+          if (lastPos !== null) {
+            executeSetPosition(Math.round(lastPos), mode);
+          }
+        }
+
+        track.addEventListener('pointerdown', onDown);
+        track.addEventListener('pointermove', onMove);
+        track.addEventListener('pointerup', onUp);
+        track.addEventListener('pointercancel', onUp);
+      });
+    }
+
+    function previewSlider(track, position) {
+      const dragMode = track.dataset.mode;
+      const ctx = getSliderCfgAndState();
+      if (!ctx) return;
+      const { cfg, areaState } = ctx;
+      const now = new Date();
+      const currentHour = now.getHours() + now.getMinutes() / 60;
+
+      const bMin = cfg.min_brightness, bMax = cfg.max_brightness;
+      const cMin = cfg.min_color_temp, cMax = cfg.max_color_temp;
+      const currentBri = calcMiniBrightness(currentHour, cfg, areaState, currentHour) * 100;
+      const currentCCT = calcMiniColor(currentHour, cfg, areaState, cachedSunTimes, currentHour);
+
+      let previewBri, previewCCT;
+      if (dragMode === 'brightness') {
+        previewBri = bMin + (bMax - bMin) * position / 100;
+        previewCCT = currentCCT;
+      } else if (dragMode === 'color') {
+        previewBri = currentBri;
+        previewCCT = cMin + (cMax - cMin) * position / 100;
+      } else {
+        previewBri = bMin + (bMax - bMin) * position / 100;
+        previewCCT = cMin + (cMax - cMin) * position / 100;
+      }
+
+      const briFrac = bMax > bMin ? Math.max(0, Math.min(100, (previewBri - bMin) / (bMax - bMin) * 100)) : 50;
+      const cctFrac = cMax > cMin ? Math.max(0, Math.min(100, (previewCCT - cMin) / (cMax - cMin) * 100)) : 50;
+      const gloFrac = briFrac;
+
+      document.querySelectorAll('.slider-track').forEach(t => {
+        const m = t.dataset.mode;
+        t.style.background = buildTrackGradient(m, cfg, previewBri, previewCCT);
+        const pct = m === 'step' ? gloFrac : m === 'brightness' ? briFrac : cctFrac;
+        applyOneSlider(t, pct, previewBri, previewCCT, m);
+      });
+    }
+
+    // ============================================================
+    // Initialization
+    // ============================================================
+    document.addEventListener('DOMContentLoaded', async () => {
+      // Compute base path for API calls (handles ingress prefix)
+      const path = window.location.pathname;
+      const areaMatch = path.match(/^(.*)\/area\/[^/]+\/?$/);
+      const zoneMatch = path.match(/^(.*)\/zone\/[^/]+\/?$/);
+      if (areaMatch) {
+        basePath = areaMatch[1] || '';
+      } else if (zoneMatch) {
+        basePath = zoneMatch[1] || '';
+      }
+
+      // Get selected area/zone from injected data
+      const data = window.circadianData || {};
+      const selectedAreaId = data.selectedAreaId;
+      selectedZoneName = data.selectedZoneName;
+      cachedConfig = data.config;
+
+      // Compute sun times client-side from config lat/lon
+      if (cachedConfig) {
+        const lat = cachedConfig.latitude || 35.0;
+        const lon = cachedConfig.longitude || -78.6;
+        cachedSunTimes = getSunTimes(lat, lon);
+      }
+
+      // Fetch initial data
+      await loadInitialData();
+
+      // Determine if area or zone page
+      if (selectedZoneName) {
+        setupZonePage(selectedZoneName);
+      } else if (selectedAreaId) {
+        setupAreaPage(selectedAreaId);
+      } else {
+        document.getElementById('page-title').textContent = 'Not Found';
+      }
+
+      // Start refresh intervals
+      startRefresh();
+      initSliderHandlers();
+    });
+
+    async function loadInitialData() {
+      try {
+        const [statusRes, zsRes, areasRes, rhythmsRes] = await Promise.all([
+          fetch(basePath + '/api/area-status'),
+          fetch(basePath + '/api/zone-states'),
+          fetch(basePath + '/api/areas'),
+          fetch(basePath + '/api/circadian-rhythms')
+        ]);
+        if (statusRes.ok) areaStatus = await statusRes.json();
+        if (zsRes.ok) {
+          const zs = await zsRes.json();
+          zoneStates = zs.zone_states || {};
+        }
+        if (areasRes.ok) areas = await areasRes.json();
+        if (rhythmsRes.ok) {
+          const r = await rhythmsRes.json();
+          cachedRhythms = r.rhythms || {};
+        }
+      } catch (err) {
+        console.error('Error loading initial data:', err);
+      }
+    }
+
+    function setupAreaPage(areaId) {
+      const area = areas.find(a => a.area_id === areaId);
+      const status = areaStatus[areaId] || {};
+
+      if (!area) {
+        document.getElementById('page-title').textContent = 'Area not found';
+        return;
+      }
+
+      selectedArea = {
+        ...area,
+        area_id: areaId,
+        is_on: status.is_on || false,
+        brightness: status.brightness || 0,
+        kelvin: status.kelvin || 4000,
+        frozen: status.frozen || false,
+        boosted: status.boosted || false,
+        zone_name: status.zone_name || null,
+        preset_name: status.preset_name || null,
+        is_circadian: status.is_circadian !== false,
+        boost_brightness: status.boost_brightness || null,
+        boost_expires_at: status.boost_expires_at || null,
+        boost_started_from_off: status.boost_started_from_off || false,
+        is_motion_coupled: status.is_motion_coupled || false,
+        motion_expires_at: status.motion_expires_at || null,
+        motion_warning_active: status.motion_warning_active || false
+      };
+
+      document.getElementById('page-title').textContent = 'Area: ' + area.name;
+
+      // Show area controls, hide zone controls
+      document.getElementById('controls-left').style.display = 'flex';
+      document.getElementById('controls-area').style.display = 'flex';
+      document.getElementById('controls-zone').style.display = 'none';
+
+      updateContent();
+      setTimeout(() => {
+        renderMiniChartForArea(areaId);
+        updateAllSliders();
+      }, 50);
+    }
+
+    function setupZonePage(zoneName) {
+      selectedZoneName = zoneName;
+      document.getElementById('page-title').textContent = 'Glo Zone: ' + zoneName;
+
+      // Hide area controls, show zone controls
+      document.getElementById('controls-left').style.display = 'none';
+      document.getElementById('controls-area').style.display = 'none';
+      document.getElementById('controls-zone').style.display = 'flex';
+
+      // Hide first context line (zone name - we're already on zone page)
+      const contextLines = document.querySelectorAll('#context-info .context-line');
+      if (contextLines[0]) contextLines[0].style.display = 'none';
+
+      updateZoneContent();
+      setTimeout(() => {
+        renderMiniChartForZone(zoneName);
+        updateAllSliders();
+      }, 50);
+    }
+
+    function startRefresh() {
+      tickInterval = setInterval(updateTimerStatus, 1000);
+      refreshInterval = setInterval(async () => {
+        if (sliderInteracting) return;
+        try {
+          if (selectedZoneName) {
+            const zsRes = await fetch(basePath + '/api/zone-states');
+            if (zsRes.ok) {
+              const zs = await zsRes.json();
+              zoneStates = zs.zone_states || {};
+            }
+            updateZoneContent();
+            renderMiniChartForZone(selectedZoneName);
+          } else if (selectedArea) {
+            const res = await fetch(basePath + `/api/area-status?area_id=${encodeURIComponent(selectedArea.area_id)}`);
+            if (res.ok) {
+              const singleStatus = await res.json();
+              Object.assign(areaStatus, singleStatus);
+            }
+            updateContent();
+            renderMiniChartForArea(selectedArea.area_id);
+          }
+          updateAllSliders();
+        } catch (err) {
+          console.error('Error refreshing:', err);
+        }
+      }, 1000);
+    }
+
+    function stopRefresh() {
+      if (tickInterval) { clearInterval(tickInterval); tickInterval = null; }
+      if (refreshInterval) { clearInterval(refreshInterval); refreshInterval = null; }
+    }
+
+    // ============================================================
+    // Navigation
+    // ============================================================
+    function goBack() {
+      stopRefresh();
+      window.location.href = basePath + '/';
+    }
+
+    // ============================================================
+    // Content Updates
+    // ============================================================
+    function updateContent() {
+      if (!selectedArea) return;
+      const status = areaStatus[selectedArea.area_id] || {};
+
+      Object.assign(selectedArea, {
+        is_on: status.is_on || false,
+        brightness: status.brightness || 0,
+        kelvin: status.kelvin || 4000,
+        frozen: status.frozen || false,
+        boosted: status.boosted || false,
+        zone_name: status.zone_name || null,
+        preset_name: status.preset_name || null,
+        is_circadian: status.is_circadian !== false,
+        boost_brightness: status.boost_brightness || null,
+        boost_expires_at: status.boost_expires_at || null,
+        boost_started_from_off: status.boost_started_from_off || false,
+        is_motion_coupled: status.is_motion_coupled || false,
+        motion_expires_at: status.motion_expires_at || null,
+        motion_warning_active: status.motion_warning_active || false
+      });
+
+      // Header shading based on CCT and brightness
+      const stateEl = document.getElementById('area-state');
+      if (selectedArea.is_on) {
+        const cctColor = cctToRGB(selectedArea.kelvin);
+        const tintedColor = tintColorByBrightness(cctColor, selectedArea.brightness);
+        stateEl.style.setProperty('--state-bg', tintedColor);
+        stateEl.style.setProperty('--state-fill', (selectedArea.brightness / 100).toFixed(3));
+      } else {
+        stateEl.style.setProperty('--state-bg', 'var(--panel)');
+        stateEl.style.setProperty('--state-fill', '0');
+      }
+
+      // Values display
+      const valuesEl = document.getElementById('state-values');
+      if (selectedArea.is_on) {
+        const cctColor = cctToRGB(selectedArea.kelvin);
+        const tintedColor = tintColorByBrightness(cctColor, selectedArea.brightness);
+        valuesEl.style.color = readableTextColor(tintedColor);
+      } else {
+        valuesEl.style.color = 'var(--muted)';
+      }
+      valuesEl.textContent = `${Math.round(selectedArea.brightness)}% • ${Math.round(selectedArea.kelvin)}K`;
+
+      // Context info (Glo zone)
+      const zoneLinkEl = document.getElementById('zone-link');
+      zoneLinkEl.textContent = selectedArea.zone_name || 'Unassigned';
+
+      // Rhythm line
+      const rhythmLine = document.getElementById('rhythm-line');
+      const rhythmLinkEl = document.getElementById('rhythm-link');
+      const areaZoneState = selectedArea.zone_name ? (zoneStates[selectedArea.zone_name] || {}) : {};
+      const areaRhythmName = areaZoneState.rhythm || null;
+      if (areaRhythmName) {
+        rhythmLinkEl.innerHTML = `<a href="${basePath}/rhythm/${encodeURIComponent(areaRhythmName)}?back=home" style="color: var(--accent); text-decoration: none;">${areaRhythmName}</a>`;
+        rhythmLine.style.display = '';
+      } else {
+        rhythmLine.style.display = 'none';
+      }
+
+      // Update toggle button states
+      const powerBtn = document.getElementById('toggle-power');
+      const circadianBtn = document.getElementById('toggle-circadian');
+      const freezeBtn = document.getElementById('toggle-freeze');
+      const boostBtn = document.getElementById('toggle-boost');
+
+      if (powerBtn) powerBtn.classList.toggle('active', selectedArea.is_on);
+      if (circadianBtn) circadianBtn.classList.toggle('active', selectedArea.is_circadian);
+      if (freezeBtn) freezeBtn.classList.toggle('active', selectedArea.frozen);
+      if (boostBtn) boostBtn.classList.toggle('active', selectedArea.boosted);
+
+      updateTimerStatus();
+    }
+
+    function updateZoneContent() {
+      if (!selectedZoneName) return;
+      const zs = zoneStates[selectedZoneName] || {};
+      const zoneBri = zs.brightness ?? 0;
+      const zoneKelvin = zs.kelvin ?? 4000;
+
+      // Header shading
+      const stateEl = document.getElementById('area-state');
+      if (zoneBri > 0) {
+        const cctColor = cctToRGB(zoneKelvin);
+        const tintedColor = tintColorByBrightness(cctColor, zoneBri);
+        stateEl.style.setProperty('--state-bg', tintedColor);
+        stateEl.style.setProperty('--state-fill', (zoneBri / 100).toFixed(3));
+      } else {
+        stateEl.style.setProperty('--state-bg', 'var(--panel)');
+        stateEl.style.setProperty('--state-fill', '0');
+      }
+
+      // Values display
+      const valuesEl = document.getElementById('state-values');
+      if (zoneBri > 0) {
+        const cctColor = cctToRGB(zoneKelvin);
+        const tintedColor = tintColorByBrightness(cctColor, zoneBri);
+        valuesEl.style.color = readableTextColor(tintedColor);
+      } else {
+        valuesEl.style.color = 'var(--muted)';
+      }
+      valuesEl.textContent = `${Math.round(zoneBri)}% • ${Math.round(zoneKelvin)}K`;
+
+      // Rhythm line
+      const rhythmLine = document.getElementById('rhythm-line');
+      const rhythmLinkEl = document.getElementById('rhythm-link');
+      const rhythmName = zs.rhythm;
+      if (rhythmName) {
+        rhythmLinkEl.innerHTML = `<a href="${basePath}/rhythm/${encodeURIComponent(rhythmName)}?back=home" style="color: var(--accent); text-decoration: none;">${rhythmName}</a>`;
+        rhythmLine.style.display = '';
+      } else {
+        rhythmLine.style.display = 'none';
+      }
+
+      updateTimerStatus();
+    }
+
+    function updateTimerStatus() {
+      const el = document.getElementById('timer-status');
+      if (!selectedArea && !selectedZoneName) {
+        el.innerHTML = '';
+        return;
+      }
+
+      const parts = [];
+
+      if (selectedArea && !selectedZoneName) {
+        const hasMotion = selectedArea.motion_expires_at && selectedArea.motion_expires_at !== 'forever';
+        const hasBoostedMotion = selectedArea.boosted && selectedArea.is_motion_coupled;
+        const warnClass = selectedArea.motion_warning_active ? ' timer-warning' : '';
+
+        if (hasMotion && hasBoostedMotion) {
+          const remaining = formatCountdown(selectedArea.motion_expires_at);
+          if (remaining) {
+            parts.push(`<span class="timer-motion${warnClass}">Motion +${selectedArea.boost_brightness}%: ${remaining}<span class="timer-arrow">→</span>off</span>`);
+          }
+        } else {
+          if (hasMotion) {
+            const remaining = formatCountdown(selectedArea.motion_expires_at);
+            if (remaining) {
+              parts.push(`<span class="timer-motion${warnClass}">Motion: ${remaining}<span class="timer-arrow">→</span>off</span>`);
+            }
+          }
+
+          if (selectedArea.boosted && selectedArea.boost_brightness) {
+            let text = `+${selectedArea.boost_brightness}%`;
+            if (selectedArea.boost_expires_at === 'forever') {
+              text += ' · forever';
+            } else if (selectedArea.boost_expires_at === 'motion') {
+              if (selectedArea.motion_expires_at) {
+                const remaining = formatCountdown(selectedArea.motion_expires_at);
+                if (remaining) {
+                  text += ` · ${remaining}<span class="timer-arrow">→</span>rhythm`;
+                } else {
+                  text += ' · ending';
+                }
+              } else {
+                text += ' · until motion ends';
+              }
+            } else if (selectedArea.boost_expires_at) {
+              const remaining = formatCountdown(selectedArea.boost_expires_at);
+              if (remaining) {
+                const outcome = selectedArea.boost_started_from_off ? 'off' : 'rhythm';
+                text += ` · ${remaining}<span class="timer-arrow">→</span>${outcome}`;
+              }
+            }
+            parts.push(`<span class="timer-boost">Boost: ${text}</span>`);
+          }
+        }
+      }
+
+      el.innerHTML = parts.join('');
+    }
+
+    // ============================================================
+    // Chart Rendering
+    // ============================================================
+    function renderMiniChartForArea(areaId) {
+      const status = areaStatus[areaId] || {};
+      if (!cachedConfig || !cachedSunTimes) return;
+
+      const rhythmName = status.preset_name;
+      let cfg;
+      if (rhythmName && cachedRhythms[rhythmName]) {
+        cfg = { ...cachedConfig, ...cachedRhythms[rhythmName] };
+      } else {
+        cfg = cachedConfig;
+      }
+
+      const areaState = {
+        brightness_mid: status.brightness_mid ?? null,
+        color_mid: status.color_mid ?? null,
+        color_override: status.color_override ?? null,
+        frozen_at: status.frozen_at ?? null
+      };
+
+      let currentHour;
+      if (status.frozen && status.frozen_at != null) {
+        currentHour = status.frozen_at;
+      } else {
+        const now = new Date();
+        currentHour = now.getHours() + now.getMinutes() / 60;
+      }
+
+      const isActive = (status.is_on || false) && (status.is_circadian !== false);
+      renderMiniChart(cfg, areaState, cachedSunTimes, currentHour, isActive);
+    }
+
+    function renderMiniChartForZone(zoneName) {
+      const zs = zoneStates[zoneName] || {};
+      if (!cachedConfig || !cachedSunTimes) return;
+
+      const rhythmName = zs.rhythm;
+      let cfg;
+      if (rhythmName && cachedRhythms[rhythmName]) {
+        cfg = { ...cachedConfig, ...cachedRhythms[rhythmName] };
+      } else {
+        cfg = cachedConfig;
+      }
+
+      const rs = zs.runtime_state || {};
+      const zoneState = {
+        brightness_mid: rs.brightness_mid ?? null,
+        color_mid: rs.color_mid ?? null,
+        color_override: rs.color_override ?? null,
+        frozen_at: rs.frozen_at ?? null
+      };
+
+      let currentHour;
+      if (rs.frozen_at != null) {
+        currentHour = rs.frozen_at;
+      } else {
+        const now = new Date();
+        currentHour = now.getHours() + now.getMinutes() / 60;
+      }
+
+      const isActive = true;
+      renderMiniChart(cfg, zoneState, cachedSunTimes, currentHour, isActive);
+    }
+
+    // ============================================================
+    // Actions
+    // ============================================================
+    function toggleCircadian() {
+      if (!selectedArea) return;
+      const action = selectedArea.is_circadian ? 'circadian_off' : 'circadian_on';
+      executeAction(action);
+    }
+
+    async function executeAction(action) {
+      if (!selectedArea && !selectedZoneName) return;
+
+      try {
+        let response;
+        if (selectedZoneName) {
+          response = await fetch(basePath + '/api/zone/action', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ zone_name: selectedZoneName, action: action })
+          });
+        } else {
+          response = await fetch(basePath + '/api/area/action', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ area_id: selectedArea.area_id, action: action })
+          });
+        }
+
+        if (response.ok) {
+          setTimeout(async () => {
+            try {
+              if (selectedZoneName) {
+                const zsRes = await fetch(basePath + '/api/zone-states');
+                if (zsRes.ok) {
+                  const zs = await zsRes.json();
+                  zoneStates = zs.zone_states || {};
+                }
+                updateZoneContent();
+                renderMiniChartForZone(selectedZoneName);
+              } else {
+                const areaId = selectedArea.area_id;
+                const res = await fetch(basePath + `/api/area-status?area_id=${encodeURIComponent(areaId)}`);
+                if (res.ok) {
+                  const singleStatus = await res.json();
+                  Object.assign(areaStatus, singleStatus);
+                }
+                updateContent();
+                renderMiniChartForArea(areaId);
+              }
+              updateAllSliders();
+            } catch (err) {
+              console.error('Error refreshing after action:', err);
+            }
+          }, 500);
+        } else {
+          const error = await response.json();
+          console.error('Action failed:', error);
+          alert(`Action failed: ${error.error || 'Unknown error'}`);
+        }
+      } catch (err) {
+        console.error('Error executing action:', err);
+        alert('Error executing action');
+      }
+    }
+
+    async function executeSetPosition(value, mode) {
+      if (!selectedArea && !selectedZoneName) return;
+
+      const payload = selectedZoneName
+        ? { zone_name: selectedZoneName, action: 'set_position', value: value, mode: mode }
+        : { area_id: selectedArea.area_id, action: 'set_position', value: value, mode: mode };
+      const endpoint = selectedZoneName ? basePath + '/api/zone/action' : basePath + '/api/area/action';
+
+      try {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (response.ok) {
+          setTimeout(async () => {
+            try {
+              if (selectedZoneName) {
+                const zsRes = await fetch(basePath + '/api/zone-states');
+                if (zsRes.ok) {
+                  const zs = await zsRes.json();
+                  zoneStates = zs.zone_states || {};
+                }
+                updateZoneContent();
+                renderMiniChartForZone(selectedZoneName);
+              } else if (selectedArea) {
+                const res = await fetch(basePath + `/api/area-status?area_id=${encodeURIComponent(selectedArea.area_id)}`);
+                if (res.ok) {
+                  const singleStatus = await res.json();
+                  Object.assign(areaStatus, singleStatus);
+                }
+                updateContent();
+                renderMiniChartForArea(selectedArea.area_id);
+              }
+              updateAllSliders();
+            } catch (err) {
+              console.error('Error refreshing after set_position:', err);
+            }
+          }, 500);
+        }
+      } catch (err) {
+        console.error('Error executing set_position:', err);
+      }
+    }
+  </script>
+</body>
+</html>
