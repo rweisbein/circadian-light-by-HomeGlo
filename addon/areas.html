@@ -700,7 +700,7 @@
       display: flex;
       align-items: center;
       padding: 2px 8px 2px 8px;
-      gap: 6px;
+      gap: 8px;
       background: var(--row-bg);
       color: var(--row-text);
       border-bottom: 1px solid var(--line);
@@ -734,27 +734,36 @@
 
     /* Circadian-off row state */
     .area-row.circadian-off {
-      opacity: 0.35;
       cursor: pointer;
+      color: var(--muted2);
     }
 
-    .area-row.circadian-off .circadian-enable-cta {
-      opacity: 1;
+    .area-row.circadian-off .area-row-name {
+      opacity: 0.45;
     }
 
     .circadian-enable-cta {
-      display: flex;
+      display: inline-flex;
       align-items: center;
       gap: 5px;
       margin-left: auto;
       color: var(--accent);
-      font-size: 0.8rem;
+      font-size: 0.78rem;
       white-space: nowrap;
+      opacity: 0.6;
+      transition: opacity 0.2s;
+      padding: 6px 10px;
+      border: 1px dashed rgba(254, 172, 96, 0.3);
+      border-radius: 6px;
+    }
+
+    .area-row.circadian-off:hover .circadian-enable-cta {
+      opacity: 1;
     }
 
     .circadian-enable-cta svg {
-      width: 16px;
-      height: 16px;
+      width: 14px;
+      height: 14px;
     }
 
     .area-row-name {
@@ -3160,6 +3169,10 @@
           <div class="zone-group">
             <div class="zone-header ${isCollapsed ? 'collapsed' : ''} ${allOff ? 'no-tint' : ''}" data-zone="${zoneName}" style="${zoneHeaderStyle}" onclick="openZoneModal('${escapedZoneName}')">
               <span class="zone-chevron-tap" onclick="event.stopPropagation(); toggleZone('${escapedZoneName}', this)">${chevronIcon}</span>
+              <div class="row-controls-left">
+                <button class="row-btn" onclick="event.stopPropagation(); zoneAction('${escapedZoneName}', 'step_up')" title="Step Up">${zoneStepUpSvg}</button>
+                <button class="row-btn" onclick="event.stopPropagation(); zoneAction('${escapedZoneName}', 'step_down')" title="Step Down">${zoneStepDownSvg}</button>
+              </div>
               ${zoneMismatchDot}
               <span style="font-size: 0.8rem; opacity: 0.6; color: ${zoneTextColor};">Zone:</span>
               <span class="zone-name" style="color: ${zoneTextColor};">${zoneName}</span>
@@ -3167,10 +3180,8 @@
               <span style="flex: 1;"></span>
               ${zoneBriDisplay}
               <div class="row-controls">
-                <button class="row-btn" onclick="event.stopPropagation(); zoneAction('${escapedZoneName}', 'step_up')" title="Step Up">${zoneStepUpSvg}</button>
-                <button class="row-btn" onclick="event.stopPropagation(); zoneAction('${escapedZoneName}', 'step_down')" title="Step Down">${zoneStepDownSvg}</button>
-                <button class="row-btn" onclick="event.stopPropagation(); glozoneReset('${escapedZoneName}')" title="Reset zone to rhythm">${glozoneResetIcon}</button>
                 <button class="row-btn" onclick="event.stopPropagation(); glozoneDown('${escapedZoneName}')" title="GloZone Down: push to all areas">${glozoneDownIcon}</button>
+                <button class="row-btn" onclick="event.stopPropagation(); glozoneReset('${escapedZoneName}')" title="Reset zone to rhythm">${glozoneResetIcon}</button>
               </div>
             </div>
             <div class="zone-content ${isCollapsed ? 'hidden' : ''}" data-zone-table="${zoneName}">
@@ -3306,7 +3317,7 @@
       const style = getRowStyle(area);
       const lightingInfo = getLightingInfo(area);
       const timerInfo = getRowTimerInfo(area);
-      const { powerBtn, rightControls } = getRowControls(area);
+      const { leftControls, rightControls } = getRowControls(area);
 
       // Red dot: area's state differs from zone's state
       let mismatchDot = '';
@@ -3329,7 +3340,7 @@
 
       return `
         <div class="area-row" style="--row-bg: ${style.bg}; --row-text: ${style.textColor}; --row-fill: ${style.fill.toFixed(3)};" onclick="openAreaModal('${area.area_id}')">
-          ${powerBtn}
+          ${leftControls}
           ${dotOrPlaceholder}
           <span class="area-row-name">${area.name}</span>
           ${timerInfo}
@@ -3430,28 +3441,35 @@
         <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
       </svg>`;
 
-      // GloDown icon (double chevron down — pull from zone)
-      const gloDownSvg = `<svg viewBox="0 0 16 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:14px;">
-        <polyline points="3 5 8 10 13 5"/>
-        <polyline points="3 11 8 16 13 11"/>
+      // GloUp icon (chevron up + line on bottom — matches modal)
+      const gloUpSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="5 13 12 6 19 13"/>
+        <line x1="4" y1="19" x2="20" y2="19"/>
       </svg>`;
 
-      const powerBtn = `
+      // GloDown icon (line on top + chevron down — matches modal)
+      const gloDownSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="4" y1="5" x2="20" y2="5"/>
+        <polyline points="5 11 12 18 19 11"/>
+      </svg>`;
+
+      const leftControls = `
         <div class="row-controls-left">
           <button class="row-btn ${isOn ? 'active' : ''}" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'lights_toggle')" title="Power">${powerIconSvg}</button>
+          <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'step_up')" title="Step Up">${stepUpSvg}</button>
+          <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'step_down')" title="Step Down">${stepDownSvg}</button>
         </div>
       `;
 
       const rightControls = `
         <div class="row-controls">
-          <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'step_up')" title="Step Up">${stepUpSvg}</button>
-          <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'step_down')" title="Step Down">${stepDownSvg}</button>
-          <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'glo_reset')" title="Reset to rhythm">${resetSvg}</button>
+          <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'glo_up')" title="GloUp: push area to zone">${gloUpSvg}</button>
           <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'glo_down')" title="GloDown: pull zone settings">${gloDownSvg}</button>
+          <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'glo_reset')" title="Reset to rhythm">${resetSvg}</button>
         </div>
       `;
 
-      return { powerBtn, rightControls };
+      return { leftControls, rightControls };
     }
 
     function toggleToolbarMenu(event) {
