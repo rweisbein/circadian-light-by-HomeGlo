@@ -107,7 +107,7 @@ function initNavOverflow() {
     if (linksContainer.scrollWidth <= linksContainer.clientWidth) return;
 
     // Show the more button
-    moreBtn.style.display = '';
+    moreBtn.style.display = 'block';
 
     // Find which links are clipped (their right edge exceeds container right)
     const containerRight = linksContainer.getBoundingClientRect().right;
