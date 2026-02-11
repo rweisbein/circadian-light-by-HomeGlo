@@ -245,6 +245,12 @@
       border-color: var(--accent);
     }
 
+    .toggle-btn:disabled {
+      opacity: 0.3;
+      cursor: default;
+      pointer-events: none;
+    }
+
     .toggle-btn svg {
       width: 18px;
       height: 18px;
@@ -286,7 +292,7 @@
     }
 
     .timer-arrow {
-      color: var(--muted2);
+      color: inherit;
       margin: 0 3px;
     }
 
@@ -328,7 +334,7 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 6px;
+      gap: 2px;
     }
     .slider-label {
       font-size: 0.85rem;
@@ -380,7 +386,7 @@
       font-size: 0.6rem;
       color: var(--muted);
       cursor: pointer;
-      padding: 18px 0 2px 0;
+      padding: 2px 0 18px 0;
       letter-spacing: 0.02em;
     }
     .slider-extreme:hover {
@@ -526,17 +532,7 @@
             </svg>
           </button>
           <button class="toggle-btn" id="toggle-freeze" onclick="executeAction('freeze_toggle')" title="Freeze">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                 stroke-linecap="round" stroke-linejoin="round">
-              <line x1="12" y1="2" x2="12" y2="22"/>
-              <line x1="2" y1="12" x2="22" y2="12"/>
-              <line x1="5.6" y1="5.6" x2="18.4" y2="18.4"/>
-              <line x1="18.4" y1="5.6" x2="5.6" y2="18.4"/>
-              <line x1="12" y1="2" x2="9" y2="5"/><line x1="12" y1="2" x2="15" y2="5"/>
-              <line x1="22" y1="12" x2="19" y2="9"/><line x1="22" y1="12" x2="19" y2="15"/>
-              <line x1="12" y1="22" x2="15" y2="19"/><line x1="12" y1="22" x2="9" y2="19"/>
-              <line x1="2" y1="12" x2="5" y2="15"/><line x1="2" y1="12" x2="5" y2="9"/>
-            </svg>
+            <span style="font-size: 20px; line-height: 1;">❄</span>
           </button>
           <button class="toggle-btn" id="toggle-boost" onclick="executeAction('boost')" title="Boost">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -1247,10 +1243,12 @@
       const cctFrac = cMax > cMin ? Math.max(0, Math.min(100, (currentCCT - cMin) / (cMax - cMin) * 100)) : 50;
       const gloFrac = briFrac;
 
+      const effRange = getEffectiveColorRange(cfg, currentHour, areaState.color_override);
+
       document.querySelectorAll('.slider-track').forEach(track => {
         if (track.classList.contains('dragging')) return;
         const mode = track.dataset.mode;
-        track.style.background = buildTrackGradient(mode, cfg, currentBri, currentCCT);
+        track.style.background = buildTrackGradient(mode, cfg, currentBri, currentCCT, effRange);
         const pct = mode === 'step' ? gloFrac : mode === 'brightness' ? briFrac : cctFrac;
         applyOneSlider(track, pct, currentBri, currentCCT, mode);
       });
@@ -1258,7 +1256,16 @@
       // Extreme labels stay as "max"/"min" (set in HTML)
     }
 
-    function buildTrackGradient(mode, cfg, currentBri, currentCCT) {
+    function getEffectiveColorRange(cfg, currentHour, colorOverride) {
+      // Compute the effective CCT range after solar rules clamp at the current hour
+      const cMin = cfg.min_color_temp, cMax = cfg.max_color_temp;
+      if (!cachedSunTimes) return { effMin: cMin, effMax: cMax };
+      const effMin = applySolarRule(cMin, currentHour, cfg, cachedSunTimes, colorOverride);
+      const effMax = applySolarRule(cMax, currentHour, cfg, cachedSunTimes, colorOverride);
+      return { effMin, effMax };
+    }
+
+    function buildTrackGradient(mode, cfg, currentBri, currentCCT, effectiveColorRange) {
       const bMin = cfg.min_brightness, bMax = cfg.max_brightness;
       const cMin = cfg.min_color_temp, cMax = cfg.max_color_temp;
       const stops = [];
@@ -1273,8 +1280,11 @@
           const b = bMin + (bMax - bMin) * frac;
           color = tintColorByBrightness(cctToRGB(currentCCT), b);
         } else {
+          // Step/circadian slider: use effective (solar-clamped) color range
           const b = bMin + (bMax - bMin) * frac;
-          const k = cMin + (cMax - cMin) * frac;
+          const effMin = effectiveColorRange ? effectiveColorRange.effMin : cMin;
+          const effMax = effectiveColorRange ? effectiveColorRange.effMax : cMax;
+          const k = effMin + (effMax - effMin) * frac;
           color = tintColorByBrightness(cctToRGB(k), b);
         }
         stops.push(color + ' ' + Math.round(frac * 100) + '%');
@@ -1367,9 +1377,11 @@
       const cctFrac = cMax > cMin ? Math.max(0, Math.min(100, (previewCCT - cMin) / (cMax - cMin) * 100)) : 50;
       const gloFrac = briFrac;
 
+      const effRange = getEffectiveColorRange(cfg, currentHour, areaState.color_override);
+
       document.querySelectorAll('.slider-track').forEach(t => {
         const m = t.dataset.mode;
-        t.style.background = buildTrackGradient(m, cfg, previewBri, previewCCT);
+        t.style.background = buildTrackGradient(m, cfg, previewBri, previewCCT, effRange);
         const pct = m === 'step' ? gloFrac : m === 'brightness' ? briFrac : cctFrac;
         applyOneSlider(t, pct, previewBri, previewCCT, m);
       });
@@ -1569,7 +1581,11 @@
 
       // Header shading based on CCT and brightness
       const stateEl = document.getElementById('area-state');
-      if (selectedArea.is_on) {
+      if (selectedArea.is_circadian === false) {
+        // Circadian off: very muted neutral — don't imply off or a specific color
+        stateEl.style.setProperty('--state-bg', '#1a1a1a');
+        stateEl.style.setProperty('--state-fill', selectedArea.is_on ? '0.08' : '0');
+      } else if (selectedArea.is_on) {
         const cctColor = cctToRGB(selectedArea.kelvin);
         const tintedColor = tintColorByBrightness(cctColor, selectedArea.brightness);
         stateEl.style.setProperty('--state-bg', tintedColor);
@@ -1623,17 +1639,20 @@
       const wrap = document.getElementById('circadian-content-wrap');
       const enableBtn = document.getElementById('enable-circadian-btn');
       const circToggle = document.getElementById('header-circadian-toggle');
+      const rightBtns = document.querySelectorAll('#controls-area .toggle-btn');
       if (wrap && enableBtn) {
         if (selectedArea.is_circadian === false) {
           wrap.classList.add('circadian-off-overlay');
           enableBtn.style.display = 'flex';
           if (freezeBtn) freezeBtn.disabled = true;
           if (boostBtn) boostBtn.disabled = true;
+          rightBtns.forEach(btn => btn.disabled = true);
         } else {
           wrap.classList.remove('circadian-off-overlay');
           enableBtn.style.display = 'none';
           if (freezeBtn) freezeBtn.disabled = false;
           if (boostBtn) boostBtn.disabled = false;
+          rightBtns.forEach(btn => btn.disabled = false);
         }
       }
       if (circToggle) {

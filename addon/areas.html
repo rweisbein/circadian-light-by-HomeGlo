@@ -308,7 +308,7 @@
     }
 
     .timer-arrow {
-      color: var(--muted2);
+      color: inherit;
       margin: 0 3px;
     }
 
@@ -1289,8 +1289,9 @@
 
         if (hasMotion && isBoosted && isMotionCoupled) {
           const remaining = formatCountdown(status.motion_expires_at);
+          const frozenPart = status.frozen ? ` <span class="timer-frozen">❄</span>` : '';
           el.innerHTML = remaining
-            ? `<span class="timer-motion${warnClass}">M+${status.boost_brightness}% ${remaining}</span>`
+            ? `<span class="timer-motion${warnClass}">M+${status.boost_brightness}% ${remaining}</span>${frozenPart}`
             : '';
           return;
         }
@@ -2089,7 +2090,7 @@
 
           // Frozen indicator on zone header
           if (rs && rs.frozen_at != null) {
-            zoneFrozenIndicator = `<span style="font-size: 0.75rem; opacity: 0.7; color: #63b3ed;">❄</span>`;
+            zoneFrozenIndicator = `<span style="font-size: 0.75rem; color: #63b3ed; background: rgba(0,0,0,0.45); padding: 2px 8px; border-radius: 10px;">❄</span>`;
           }
         }
 
@@ -2108,8 +2109,8 @@
               ${zoneMismatchDot}
               <span style="font-size: 0.8rem; opacity: 0.6; color: ${zoneTextColor};">Zone:</span>
               <span class="zone-name" style="color: ${zoneTextColor};">${zoneName}</span>
-              ${zoneFrozenIndicator}
               <span style="flex: 1;"></span>
+              ${zoneFrozenIndicator}
               ${zoneBriDisplay}
               <div class="row-controls">
                 <button class="row-btn" onclick="event.stopPropagation(); glozoneDown('${escapedZoneName}')" title="GloZone Down: push to all areas">${glozoneDownIcon}</button>
@@ -2302,7 +2303,8 @@
       if (hasMotion && isBoosted && isMotionCoupled) {
         const remaining = formatCountdown(status.motion_expires_at);
         if (remaining) {
-          return `<span class="area-row-timer" data-area-timer="${area.area_id}"><span class="timer-motion${warnClass}">M+${status.boost_brightness}% ${remaining}</span></span>`;
+          const frozenPart = area.frozen ? ` <span class="timer-frozen">❄</span>` : '';
+          return `<span class="area-row-timer" data-area-timer="${area.area_id}"><span class="timer-motion${warnClass}">M+${status.boost_brightness}% ${remaining}</span>${frozenPart}</span>`;
         }
       }
 
