@@ -349,7 +349,7 @@
       font-size: 0.6rem;
       color: var(--muted);
       cursor: pointer;
-      padding: 10px 0 2px 0;
+      padding: 18px 0 2px 0;
       letter-spacing: 0.02em;
     }
     .slider-extreme:hover {
@@ -502,6 +502,13 @@
           </button>
         </div>
         <div class="area-state-controls" id="controls-area">
+          <button class="toggle-btn" id="toggle-full-send" onclick="confirmFullSend()" title="Full Send: push to entire Glo Zone">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="5 8 12 2 19 8"/>
+              <line x1="4" y1="12" x2="20" y2="12"/>
+              <polyline points="5 16 12 22 19 16"/>
+            </svg>
+          </button>
           <button class="toggle-btn" id="toggle-glo-up" onclick="executeAction('glo_up')" title="GloUp: send area settings to GloZone">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="5 13 12 6 19 13"/>
@@ -516,13 +523,6 @@
           </button>
           <button class="toggle-btn" id="toggle-glo-reset" onclick="executeAction('glo_reset')" title="Reset: return to rhythm">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
-          </button>
-          <button class="toggle-btn" id="toggle-full-send" onclick="confirmFullSend()" title="Full Send: push to entire Glo Zone">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="5 8 12 2 19 8"/>
-              <line x1="4" y1="12" x2="20" y2="12"/>
-              <polyline points="5 16 12 22 19 16"/>
-            </svg>
           </button>
         </div>
         <div class="zone-state-controls" id="controls-zone" style="display:none;">
@@ -545,7 +545,7 @@
       <div class="adjust-slider-row">
         <div class="slider-group">
           <div class="slider-column">
-            <div class="slider-label">Circadian</div>
+            <div class="slider-label" id="circadian-label" onclick="toggleCircadian()" style="cursor:pointer;" title="Toggle circadian mode">Circadian</div>
             <div class="slider-extreme" onclick="executeAction('set_britelite')">BriteLite</div>
             <div class="slider-track" data-mode="step">
               <div class="slider-fill"></div>
@@ -1577,17 +1577,20 @@
       // Circadian-off overlay
       const wrap = document.getElementById('circadian-content-wrap');
       const enableBtn = document.getElementById('enable-circadian-btn');
+      const circLabel = document.getElementById('circadian-label');
       if (wrap && enableBtn) {
         if (selectedArea.is_circadian === false) {
           wrap.classList.add('circadian-off-overlay');
           enableBtn.style.display = 'flex';
           if (freezeBtn) freezeBtn.disabled = true;
           if (boostBtn) boostBtn.disabled = true;
+          if (circLabel) { circLabel.style.opacity = '0.4'; circLabel.title = 'Enable circadian mode'; }
         } else {
           wrap.classList.remove('circadian-off-overlay');
           enableBtn.style.display = 'none';
           if (freezeBtn) freezeBtn.disabled = false;
           if (boostBtn) boostBtn.disabled = false;
+          if (circLabel) { circLabel.style.opacity = '1'; circLabel.title = 'Disable circadian mode'; }
         }
       }
 
@@ -1675,7 +1678,7 @@
               if (selectedArea.motion_expires_at) {
                 const remaining = formatCountdown(selectedArea.motion_expires_at);
                 if (remaining) {
-                  text += ` · ${remaining}<span class="timer-arrow">→</span>rhythm`;
+                  text += ` · ${remaining}<span class="timer-arrow">→</span>circadian`;
                 } else {
                   text += ' · ending';
                 }
@@ -1685,7 +1688,7 @@
             } else if (selectedArea.boost_expires_at) {
               const remaining = formatCountdown(selectedArea.boost_expires_at);
               if (remaining) {
-                const outcome = selectedArea.boost_started_from_off ? 'off' : 'rhythm';
+                const outcome = selectedArea.boost_started_from_off ? 'off' : 'circadian';
                 text += ` · ${remaining}<span class="timer-arrow">→</span>${outcome}`;
               }
             }
@@ -1773,6 +1776,12 @@
     // ============================================================
     // Actions
     // ============================================================
+    function toggleCircadian() {
+      if (!selectedArea) return;
+      const action = selectedArea.is_circadian ? 'circadian_off' : 'circadian_on';
+      executeAction(action);
+    }
+
     async function confirmFullSend() {
       if (!selectedArea) return;
       const zoneName = selectedArea.zone_name;
@@ -1793,7 +1802,7 @@
         ? onAreas.map(a => a.name).join('\n')
         : '(no areas currently on)';
 
-      const msg = `Send ${bri}% brightness and ${kelvin}K to the whole Glo Zone "${zoneName}"? These areas will adjust immediately:\n\n${areaList}`;
+      const msg = `Full Send ${bri}% / ${kelvin}K to "${zoneName}"? These areas will adjust:\n\n${areaList}`;
       if (!confirm(msg)) return;
       executeAction('full_send');
     }
