@@ -1513,7 +1513,7 @@
       const areaZoneState = selectedArea.zone_name ? (zoneStates[selectedArea.zone_name] || {}) : {};
       const areaRhythmName = areaZoneState.rhythm || null;
       if (areaRhythmName) {
-        rhythmLinkEl.innerHTML = `<a href="${basePath}/rhythm/${encodeURIComponent(areaRhythmName)}?back=home" style="color: var(--accent); text-decoration: none;">${areaRhythmName}</a>`;
+        rhythmLinkEl.innerHTML = `<a href="${basePath}/rhythm/${encodeURIComponent(areaRhythmName)}" style="color: var(--accent); text-decoration: none;">${areaRhythmName}</a>`;
         rhythmLine.style.display = '';
       } else {
         rhythmLine.style.display = 'none';
@@ -1567,7 +1567,7 @@
       const rhythmLinkEl = document.getElementById('rhythm-link');
       const rhythmName = zs.rhythm;
       if (rhythmName) {
-        rhythmLinkEl.innerHTML = `<a href="${basePath}/rhythm/${encodeURIComponent(rhythmName)}?back=home" style="color: var(--accent); text-decoration: none;">${rhythmName}</a>`;
+        rhythmLinkEl.innerHTML = `<a href="${basePath}/rhythm/${encodeURIComponent(rhythmName)}" style="color: var(--accent); text-decoration: none;">${rhythmName}</a>`;
         rhythmLine.style.display = '';
       } else {
         rhythmLine.style.display = 'none';
