@@ -226,6 +226,10 @@
       margin: 20px 0 0;
     }
 
+    .settings-content {
+      padding-left: 14px;
+    }
+
     .modal-settings-divider .modal-section {
       margin-bottom: 12px;
     }
@@ -318,10 +322,26 @@
       color: #000;
     }
 
+    /* Reach container */
+    .reach-container {
+      background: rgba(255, 255, 255, 0.025);
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 4px;
+    }
+
+    .reach-container .add-scope-btn {
+      margin-top: 4px;
+    }
+
     /* Scope Editor */
     .scope-editor {
-      margin-bottom: 16px;
+      margin-bottom: 14px;
       padding: 0;
+    }
+
+    .scope-editor:last-of-type {
+      margin-bottom: 0;
     }
 
     .scope-editor-header {
@@ -611,23 +631,27 @@
     </div>
 
     <div class="modal-section" id="switch-config-section" style="margin-bottom: 0;">
-      <div id="scopes-editor">
-        <!-- Scope editors populated by JS -->
+      <div class="reach-container">
+        <div id="scopes-editor">
+          <!-- Scope editors populated by JS -->
+        </div>
+        <button class="add-scope-btn" id="add-scope-btn">+ Add Reach</button>
       </div>
-      <button class="add-scope-btn" id="add-scope-btn">+ Add Reach</button>
     </div>
 
     <div class="modal-section" id="motion-config-section" style="display: none; margin-bottom: 0;">
-      <div id="motion-scopes-editor">
-        <!-- Motion scope editors populated by JS -->
+      <div class="reach-container">
+        <div id="motion-scopes-editor">
+          <!-- Motion scope editors populated by JS -->
+        </div>
+        <button class="add-scope-btn" id="add-motion-scope-btn">+ Add Reach</button>
       </div>
-      <button class="add-scope-btn" id="add-motion-scope-btn">+ Add Reach</button>
     </div>
 
     <div class="modal-settings-divider" id="settings-divider">
       <div class="modal-section" id="magic-section" style="display: none;">
         <div style="font-size: 0.75rem; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;"><span style="color: var(--accent); margin-right: 4px;">&#10022;</span>Magic Buttons</div>
-        <div id="magic-editor"></div>
+        <div id="magic-editor" class="settings-content"></div>
       </div>
     </div>
 
@@ -648,10 +672,12 @@
           <span class="info-icon">i<span class="info-tooltip">When Feedback Cue of 'subtle' is selected in Settings, this light will show the cue. For example, when a 'freeze' button is pressed on a switch, this light will perform a quick animation indicating the lights in the Reach of the switch are frozen.</span></span>
           <a href="#" id="indicator-light-toggle" style="font-size: 0.75rem; color: var(--muted); margin-left: auto;" onclick="toggleIndicatorLightScope(); return false;">list all</a>
         </div>
-        <select class="modal-select" id="indicator-light-select" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.9rem;">
-          <option value="">None</option>
-          <!-- Populated with lights -->
-        </select>
+        <div class="settings-content">
+          <select class="modal-select" id="indicator-light-select" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.9rem;">
+            <option value="">None</option>
+            <!-- Populated with lights -->
+          </select>
+        </div>
       </div>
     </div>
 
@@ -1273,6 +1299,7 @@
 
     function removeScope(idx) {
       if (editingScopes.length <= 1) return;
+      if (!confirm(`Remove Reach ${idx + 1}?`)) return;
       editingScopes.splice(idx, 1);
       renderScopesEditor();
       autoSave();
@@ -1451,6 +1478,7 @@
 
     function removeMotionScope(idx) {
       if (editingMotionScopes.length <= 1) return;
+      if (!confirm(`Remove Reach ${idx + 1}?`)) return;
       editingMotionScopes.splice(idx, 1);
       renderMotionScopesEditor();
       autoSave();
