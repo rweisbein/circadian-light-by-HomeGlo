@@ -128,20 +128,94 @@
       background: rgba(239, 68, 68, 0.1);
     }
 
-    .btn-save {
-      width: 100%;
-      padding: 12px;
-      margin-top: 20px;
-      background: var(--accent);
+    /* Toolbar menu */
+    .toolbar-menu {
+      position: relative;
+    }
+
+    .toolbar-menu-btn {
+      background: none;
       border: none;
-      border-radius: 8px;
-      color: #000;
-      font-size: 0.95rem;
-      font-weight: 600;
+      color: var(--muted);
+      font-size: 1.2rem;
+      padding: 4px 8px;
+      border-radius: 4px;
       cursor: pointer;
+      line-height: 1;
       transition: all 0.2s;
     }
-    .btn-save:hover { background: var(--accent-hover); }
+
+    .toolbar-menu-btn:hover {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .toolbar-menu-dropdown {
+      display: none;
+      position: absolute;
+      right: 0;
+      top: 100%;
+      margin-top: 4px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      min-width: 180px;
+      z-index: 50;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      overflow: hidden;
+      padding: 4px 0;
+    }
+
+    .toolbar-menu-dropdown.open {
+      display: block;
+    }
+
+    .toolbar-menu-item {
+      display: block;
+      padding: 10px 16px;
+      color: var(--text);
+      text-decoration: none;
+      font-size: 0.9rem;
+      transition: background 0.15s;
+      cursor: pointer;
+    }
+
+    .toolbar-menu-item:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .toolbar-menu-info {
+      padding: 6px 16px;
+      font-size: 0.75rem;
+      color: var(--muted2);
+      line-height: 1.6;
+    }
+
+    .toolbar-menu-divider {
+      border-top: 1px solid var(--line);
+      margin: 4px 0;
+    }
+
+    /* Save Status Toast */
+    .save-status {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      padding: 12px 20px;
+      background: var(--success);
+      color: white;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.3s;
+      z-index: 150;
+    }
+
+    .save-status.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
 
     /* Modal sections (adapted from switches.html modal) */
     .modal-section {
@@ -156,24 +230,6 @@
 
     .modal-settings-divider .modal-section {
       margin-bottom: 12px;
-    }
-
-    .modal-reset-footer {
-      margin-top: 16px;
-      text-align: right;
-    }
-
-    .modal-reset-link {
-      background: none;
-      border: none;
-      color: var(--muted2);
-      font-size: 0.75rem;
-      cursor: pointer;
-      padding: 0;
-    }
-
-    .modal-reset-link:hover {
-      color: var(--danger);
     }
 
     .modal-label {
@@ -266,10 +322,9 @@
 
     /* Scope Editor */
     .scope-editor {
-      border: 1px solid var(--line);
-      border-radius: 8px;
       margin-bottom: 8px;
-      padding: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--line);
     }
 
     .scope-editor-header {
@@ -301,29 +356,33 @@
       color: var(--danger);
     }
 
-    .scope-editor-arrows {
+    .drag-handle {
+      color: var(--muted2);
+      cursor: grab;
+      font-size: 1.1rem;
+      margin-right: 4px;
+      user-select: none;
+    }
+
+    .scope-reorder-arrows {
       display: flex;
       flex-direction: column;
-      gap: 1px;
+      gap: 0;
       margin-right: 8px;
     }
-    .scope-editor-arrow {
-      width: 20px;
-      height: 14px;
-      border-radius: 3px;
-      border: 1px solid var(--line);
-      background: var(--card);
-      color: var(--muted);
+
+    .scope-reorder-arrow {
+      background: none;
+      border: none;
+      color: var(--muted2);
+      font-size: 0.6rem;
       cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 0.55rem;
+      padding: 0 2px;
       line-height: 1;
-      padding: 0;
     }
-    .scope-editor-arrow:hover { background: rgba(255,255,255,0.1); color: var(--accent); border-color: var(--accent); }
-    .scope-editor-arrow:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    .scope-reorder-arrow:hover { color: var(--accent); }
+    .scope-reorder-arrow:disabled { opacity: 0.3; cursor: not-allowed; }
 
     .scope-editor-body {
       /* No padding - parent has it */
@@ -538,6 +597,14 @@
       </svg>
     </button>
     <h1 class="page-title" id="page-title">Loading...</h1>
+    <div class="toolbar-menu">
+      <button class="toolbar-menu-btn" onclick="toggleToolbarMenu(event)">&#8942;</button>
+      <div class="toolbar-menu-dropdown" id="toolbar-menu-dropdown">
+        <div class="toolbar-menu-info" id="toolbar-menu-info"></div>
+        <div class="toolbar-menu-divider" id="toolbar-menu-reset-divider" style="display:none;"></div>
+        <a href="#" class="toolbar-menu-item" id="toolbar-menu-reset" style="display:none; color: var(--danger);" onclick="removeConfig(); toggleToolbarMenu(event); return false;">Reset</a>
+      </div>
+    </div>
   </header>
 
   <main class="main">
@@ -570,12 +637,8 @@
 
     <div class="modal-settings-divider" id="settings-divider">
       <div class="modal-section" id="magic-section" style="display: none;">
-        <div class="scope-editor" style="margin-bottom: 0;">
-          <div class="scope-editor-header">
-            <span class="scope-editor-title"><span style="color: var(--accent); margin-right: 4px;">&#10022;</span>Magic Buttons</span>
-          </div>
-          <div id="magic-editor"></div>
-        </div>
+        <div style="font-size: 0.75rem; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;"><span style="color: var(--accent); margin-right: 4px;">&#10022;</span>Magic Buttons</div>
+        <div id="magic-editor"></div>
       </div>
 
       <div class="modal-section" id="pause-section" style="display: none;">
@@ -588,7 +651,7 @@
 
       <div class="modal-section" id="indicator-light-section" style="display: none;">
         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-          <label class="modal-label" style="margin-bottom: 0;">Light for Feedback Cues</label>
+          <label class="modal-label" style="margin-bottom: 0;">Feedback Cues</label>
           <span class="info-icon">i<span class="info-tooltip">When Feedback Cue of 'subtle' is selected in Settings, this light will show the cue. For example, when a 'freeze' button is pressed on a switch, this light will perform a quick animation indicating the lights in the Reach of the switch are frozen.</span></span>
           <a href="#" id="indicator-light-toggle" style="font-size: 0.75rem; color: var(--muted); margin-left: auto;" onclick="toggleIndicatorLightScope(); return false;">list all</a>
         </div>
@@ -628,12 +691,8 @@
       </div>
     </div>
 
-    <div class="modal-reset-footer" id="modal-reset-footer" style="display: none;">
-      <button class="modal-reset-link" id="modal-remove-config" onclick="removeConfig()">Reset</button>
-    </div>
-
-    <button class="btn btn-save" id="save-btn" onclick="saveControl()">Save</button>
   </main>
+  <div class="save-status" id="save-status">Saved</div>
 
   <script src="./shared.js"></script>
   <script>
@@ -655,6 +714,38 @@
       } else {
         window.location.href = basePath + '/switches';
       }
+    }
+
+    // ============================================================
+    // Toolbar menu
+    // ============================================================
+    function toggleToolbarMenu(e) {
+      e.stopPropagation();
+      const dd = document.getElementById('toolbar-menu-dropdown');
+      dd.classList.toggle('open');
+    }
+
+    document.addEventListener('click', () => {
+      const dd = document.getElementById('toolbar-menu-dropdown');
+      if (dd) dd.classList.remove('open');
+    });
+
+    // ============================================================
+    // Auto-save with toast
+    // ============================================================
+    let _autoSaveTimer = null;
+
+    function showSaveStatus() {
+      const status = document.getElementById('save-status');
+      status.classList.add('visible');
+      setTimeout(() => status.classList.remove('visible'), 2000);
+    }
+
+    function autoSave() {
+      if (_autoSaveTimer) clearTimeout(_autoSaveTimer);
+      _autoSaveTimer = setTimeout(() => {
+        saveControl();
+      }, 300);
     }
 
     // ============================================================
@@ -685,7 +776,6 @@
 
       if (!selectedControlId) {
         document.getElementById('page-title').textContent = 'Control not found';
-        document.getElementById('save-btn').style.display = 'none';
         return;
       }
 
@@ -955,9 +1045,10 @@
       loadIndicatorLights(editingControl?.area_id, currentValue);
     }
 
-    // Flash indicator light when selected so user can identify it
+    // Flash indicator light when selected so user can identify it, then auto-save
     document.getElementById('indicator-light-select').addEventListener('change', async (e) => {
       const entityId = e.target.value;
+      autoSave();
       if (!entityId) return;
       try {
         await fetch(basePath + '/api/flash-light', {
@@ -970,6 +1061,11 @@
       }
     });
 
+    // Auto-save on pause toggle
+    document.getElementById('control-pause-checkbox').addEventListener('change', () => {
+      autoSave();
+    });
+
     // ============================================================
     // Unsupported info display
     // ============================================================
@@ -980,7 +1076,8 @@
 
       const categoryLabel = formatCategory(ctrl.category);
       document.getElementById('page-title').textContent = `${categoryLabel}: ${ctrl.name}`;
-      document.getElementById('modal-reset-footer').style.display = 'none';
+      document.getElementById('toolbar-menu-reset').style.display = 'none';
+      document.getElementById('toolbar-menu-reset-divider').style.display = 'none';
 
       const mfr = ctrl.manufacturer || 'Unknown';
       const model = ctrl.model || 'Unknown';
@@ -1017,8 +1114,6 @@
       document.getElementById('magic-section').style.display = 'none';
       document.getElementById('settings-divider').style.display = 'none';
 
-      // Hide save button
-      document.getElementById('save-btn').style.display = 'none';
     }
 
     // ============================================================
@@ -1118,11 +1213,13 @@
       } else {
         delete editingMagicButtons[slot];
       }
+      autoSave();
     }
 
     function removeMagicOrphan(key) {
       delete editingMagicButtons[key];
       renderMagicEditor();
+      autoSave();
     }
 
     // ============================================================
@@ -1149,9 +1246,10 @@
           <div class="scope-editor" data-scope-idx="${idx}">
             <div class="scope-editor-header">
               ${showArrows ? `
-                <div class="scope-editor-arrows">
-                  <button class="scope-editor-arrow" ${upDisabled} onclick="swapScope(${idx}, -1)" title="Move up">&#9650;</button>
-                  <button class="scope-editor-arrow" ${downDisabled} onclick="swapScope(${idx}, 1)" title="Move down">&#9660;</button>
+                <span class="drag-handle">&#10303;</span>
+                <div class="scope-reorder-arrows">
+                  <button class="scope-reorder-arrow" ${upDisabled} onclick="swapScope(${idx}, -1)" title="Move up">&#9650;</button>
+                  <button class="scope-reorder-arrow" ${downDisabled} onclick="swapScope(${idx}, 1)" title="Move down">&#9660;</button>
                 </div>
               ` : ''}
               <span class="scope-editor-title">Reach ${idx + 1}</span>
@@ -1173,12 +1271,14 @@
       }
       editingScopes.push({ areas: [] });
       renderScopesEditor();
+      autoSave();
     }
 
     function removeScope(idx) {
       if (editingScopes.length <= 1) return;
       editingScopes.splice(idx, 1);
       renderScopesEditor();
+      autoSave();
     }
 
     function swapScope(idx, direction) {
@@ -1186,6 +1286,7 @@
       if (newIdx < 0 || newIdx >= editingScopes.length) return;
       [editingScopes[idx], editingScopes[newIdx]] = [editingScopes[newIdx], editingScopes[idx]];
       renderScopesEditor();
+      autoSave();
     }
 
     function removeAreaFromScope(scopeIdx, areaId) {
@@ -1195,6 +1296,7 @@
         scope.areas.splice(idx, 1);
       }
       renderScopesEditor();
+      autoSave();
     }
 
     async function addAreasToScope(scopeIdx) {
@@ -1212,6 +1314,7 @@
           }
         });
         renderScopesEditor();
+        autoSave();
       }
     }
 
@@ -1257,9 +1360,10 @@
           <div class="scope-editor" data-motion-idx="${idx}">
             <div class="scope-editor-header">
               ${showMotionArrows ? `
-                <div class="scope-editor-arrows">
-                  <button class="scope-editor-arrow" ${motionUpDisabled} onclick="swapMotionScope(${idx}, -1)" title="Move up">&#9650;</button>
-                  <button class="scope-editor-arrow" ${motionDownDisabled} onclick="swapMotionScope(${idx}, 1)" title="Move down">&#9660;</button>
+                <span class="drag-handle">&#10303;</span>
+                <div class="scope-reorder-arrows">
+                  <button class="scope-reorder-arrow" ${motionUpDisabled} onclick="swapMotionScope(${idx}, -1)" title="Move up">&#9650;</button>
+                  <button class="scope-reorder-arrow" ${motionDownDisabled} onclick="swapMotionScope(${idx}, 1)" title="Move down">&#9660;</button>
                 </div>
               ` : ''}
               <span class="scope-editor-title">Reach ${idx + 1}</span>
@@ -1346,12 +1450,14 @@
         active_offset: 0
       });
       renderMotionScopesEditor();
+      autoSave();
     }
 
     function removeMotionScope(idx) {
       if (editingMotionScopes.length <= 1) return;
       editingMotionScopes.splice(idx, 1);
       renderMotionScopesEditor();
+      autoSave();
     }
 
     function swapMotionScope(idx, direction) {
@@ -1359,6 +1465,7 @@
       if (newIdx < 0 || newIdx >= editingMotionScopes.length) return;
       [editingMotionScopes[idx], editingMotionScopes[newIdx]] = [editingMotionScopes[newIdx], editingMotionScopes[idx]];
       renderMotionScopesEditor();
+      autoSave();
     }
 
     function removeAreaFromMotionScope(scopeIdx, areaId) {
@@ -1368,6 +1475,7 @@
         scope.areas.splice(idx, 1);
       }
       renderMotionScopesEditor();
+      autoSave();
     }
 
     async function addAreasToMotionScope(scopeIdx) {
@@ -1385,12 +1493,14 @@
           }
         });
         renderMotionScopesEditor();
+        autoSave();
       }
     }
 
     function updateMotionScope(idx, field, value) {
       editingMotionScopes[idx][field] = value;
       renderMotionScopesEditor();
+      autoSave();
     }
 
     // ============================================================
@@ -1400,7 +1510,6 @@
       const ctrl = controls.find(c => c.id === editingControlId);
       if (!ctrl) {
         document.getElementById('page-title').textContent = 'Control not found';
-        document.getElementById('save-btn').style.display = 'none';
         return;
       }
 
@@ -1465,27 +1574,38 @@
         editingMotionScopes = [];
       }
 
-      // Set page title: "Category: Control Name"
+      // Set page title: "Category: Control Name" with optional "(paused)"
       const categoryLabel = formatCategory(ctrl.category);
-      document.getElementById('page-title').textContent = `${categoryLabel}: ${ctrl.name}`;
-      document.getElementById('modal-reset-footer').style.display = isConfigured ? 'block' : 'none';
+      const pausedSpan = editingInactive ? ' <span style="color:var(--muted);font-weight:normal;"> (paused)</span>' : '';
+      document.getElementById('page-title').innerHTML = `${categoryLabel}: ${ctrl.name}${pausedSpan}`;
 
-      // Populate device info section
+      // Populate toolbar menu with device metadata + Reset action
       const typeName = ctrl.type_name || ctrl.type || 'Unknown';
+      const toolbarInfo = document.getElementById('toolbar-menu-info');
+      toolbarInfo.innerHTML = `
+        <div>Type: ${typeName}</div>
+        ${ctrl.id ? `<div>IEEE: ${ctrl.id}</div>` : ''}
+        ${ctrl.device_id ? `<div>ID: ${ctrl.device_id}</div>` : ''}
+      `;
+
+      const resetItem = document.getElementById('toolbar-menu-reset');
+      const resetDivider = document.getElementById('toolbar-menu-reset-divider');
+      if (isConfigured) {
+        resetDivider.style.display = '';
+        resetItem.style.display = '';
+      } else {
+        resetDivider.style.display = 'none';
+        resetItem.style.display = 'none';
+      }
+
+      // Populate device info section: just Location + Glo Zone
       const locationName = ctrl.area_name || 'Unassigned';
       const modalGlozone = getGlozoneForArea(ctrl.area_id);
       document.getElementById('device-info').innerHTML = `
-        <div style="margin-bottom: 4px;"><strong>Location:</strong> ${locationName}</div>
-        <div style="font-size: 0.7rem; color: var(--muted); opacity: 0.6; line-height: 1.5;">
-          ${modalGlozone ? `<div>Zone: ${modalGlozone}</div>` : ''}
-          <div>Type: ${typeName}</div>
-          ${ctrl.id ? `<div>IEEE: ${ctrl.id}</div>` : ''}
-          ${ctrl.device_id ? `<div>ID: ${ctrl.device_id}</div>` : ''}
-        </div>
+        <span>Location: ${locationName}</span>${modalGlozone ? `<span style="margin-left: 16px;">Glo Zone: ${modalGlozone}</span>` : ''}
       `;
 
       // Restore elements that unsupported info may have hidden
-      document.getElementById('save-btn').style.display = '';
       document.getElementById('settings-divider').style.display = '';
 
       // Show/hide appropriate sections based on control type
@@ -1554,10 +1674,9 @@
 
       let payload;
       if (isSensorType) {
-        // Validate motion/contact sensor config - need at least one scope with areas
+        // Skip save if no scopes with areas yet (auto-save can fire before areas are added)
         const hasAreas = editingMotionScopes.some(s => s.areas && s.areas.length > 0);
         if (editingMotionScopes.length === 0 || !hasAreas) {
-          alert('Please add at least one reach with areas');
           return;
         }
         payload = {
@@ -1590,14 +1709,18 @@
 
         if (!response.ok) {
           const data = await response.json();
-          alert(data.error || 'Failed to save control');
+          console.error('Failed to save:', data.error);
           return;
         }
 
-        goBack();
+        // Update "(paused)" indicator in title
+        const categoryLabel = formatCategory(editingControl?.category);
+        const pausedSpan = inactive ? ' <span style="color:var(--muted);font-weight:normal;"> (paused)</span>' : '';
+        document.getElementById('page-title').innerHTML = `${categoryLabel}: ${editingControl?.name}${pausedSpan}`;
+
+        showSaveStatus();
       } catch (err) {
         console.error('Error saving control:', err);
-        alert('Error saving control');
       }
     }
 
