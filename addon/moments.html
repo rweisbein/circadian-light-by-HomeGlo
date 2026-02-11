@@ -105,94 +105,161 @@
 
     /* Main Content */
     .main {
-      max-width: 600px;
+      max-width: 900px;
       margin: 0 auto;
-      padding: 20px 16px;
+      padding: 16px 24px;
     }
 
-    .panel-header {
-      padding: 0 4px 16px;
+    .page-header {
+      margin-bottom: 8px;
     }
 
-    .panel-title {
-      font-size: 1.1rem;
-      font-weight: 600;
-    }
-
-    .moment-list {
-      display: flex;
-      flex-direction: column;
-    }
-
-    .moment-category {
-      margin-bottom: 16px;
-    }
-
-    .category-label {
-      font-size: 0.75rem;
-      font-weight: 600;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      padding: 8px 12px 4px;
-    }
-
-    .moment-item {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 12px;
+    /* Table */
+    .data-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      background: var(--card);
+      border: 1px solid var(--line);
       border-radius: 8px;
-      cursor: pointer;
-      transition: all 0.15s;
-      color: var(--text);
-      text-decoration: none;
+      overflow: hidden;
     }
 
-    .moment-item:hover {
+    .data-table th {
+      text-align: left;
+      padding: 12px 8px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      font-weight: 600;
+      font-size: 0.85rem;
+      color: var(--muted);
+      cursor: pointer;
+      user-select: none;
+      transition: color 0.2s;
+      vertical-align: top;
+    }
+
+    .data-table th:hover {
+      color: var(--text);
+    }
+
+    .data-table th .sort-arrow {
+      margin-right: 4px;
+      opacity: 0.5;
+    }
+
+    .data-table th.sorted .sort-arrow {
+      opacity: 1;
+      color: var(--accent);
+    }
+
+    .data-table td {
+      padding: 12px 8px;
+      border-bottom: 1px solid var(--line);
+      font-size: 0.9rem;
+    }
+
+    .data-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .data-table tr.data-row {
+      cursor: pointer;
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .data-table tr.data-row:hover td {
       background: rgba(255, 255, 255, 0.05);
     }
 
-    .moment-icon {
-      width: 20px;
-      height: 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1rem;
-      opacity: 0.8;
-    }
-
-    .moment-name {
-      font-size: 0.9rem;
-      font-weight: 500;
-      flex: 1;
-    }
-
-    .moment-chevron {
-      color: var(--muted2);
-      font-size: 0.8rem;
-    }
-
-    .add-moment-btn {
-      margin: 12px 0;
-      padding: 10px 16px;
-      background: transparent;
-      border: 1px dashed var(--line);
-      border-radius: 8px;
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 48px 24px;
       color: var(--muted);
-      font-size: 0.9rem;
-      cursor: pointer;
-      transition: all 0.2s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
     }
 
-    .add-moment-btn:hover {
-      border-color: var(--accent);
-      color: var(--accent);
+    .empty-state-title {
+      font-size: 1.1rem;
+      margin-bottom: 8px;
+      color: var(--text);
+    }
+
+    .empty-state-text {
+      font-size: 0.9rem;
+    }
+
+    /* Delete button in row */
+    .row-delete-btn {
+      background: transparent;
+      border: none;
+      color: var(--muted2);
+      cursor: pointer;
+      font-size: 1rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      line-height: 1;
+      transition: all 0.15s;
+    }
+
+    .row-delete-btn:hover {
+      color: var(--danger);
+      background: rgba(239, 68, 68, 0.1);
+    }
+
+    /* Toolbar menu */
+    .toolbar-menu {
+      position: relative;
+    }
+
+    .toolbar-menu-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 1.2rem;
+      padding: 4px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      line-height: 1;
+      transition: all 0.2s;
+    }
+
+    .toolbar-menu-btn:hover {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .toolbar-menu-dropdown {
+      display: none;
+      position: absolute;
+      right: 0;
+      top: 100%;
+      margin-top: 4px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      min-width: 140px;
+      z-index: 50;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      overflow: hidden;
+      padding: 4px 0;
+    }
+
+    .toolbar-menu-dropdown.open {
+      display: block;
+    }
+
+    .toolbar-menu-item {
+      display: block;
+      padding: 10px 16px;
+      color: var(--text);
+      text-decoration: none;
+      font-size: 0.9rem;
+      transition: background 0.15s;
+    }
+
+    .toolbar-menu-item:hover {
+      background: rgba(255, 255, 255, 0.05);
     }
   </style>
 </head>
@@ -224,21 +291,36 @@
 
   <!-- Main Content -->
   <main class="main">
-    <div class="panel-header">
-      <h2 class="panel-title">Moments</h2>
+    <div class="page-header">
+      <div style="display: flex; align-items: center; justify-content: flex-end; gap: 16px;">
+        <div class="toolbar-menu">
+          <button class="toolbar-menu-btn" onclick="toggleToolbarMenu(event)">&#8942;</button>
+          <div class="toolbar-menu-dropdown" id="toolbar-menu-dropdown">
+            <a href="#" class="toolbar-menu-item" onclick="createNewMoment(); toggleToolbarMenu(event); return false;">Add Magic Moment</a>
+            <a href="#" class="toolbar-menu-item" onclick="loadData(); toggleToolbarMenu(event); return false;">Refresh</a>
+          </div>
+        </div>
+      </div>
     </div>
-    <div class="moment-list" id="moment-list">
+
+    <div id="moment-list">
       <!-- Populated by JS -->
     </div>
-    <button class="add-moment-btn" onclick="createNewMoment()">
-      <span>+</span> New Moment
-    </button>
   </main>
 
   <script src="./shared.js"></script>
   <script>
     // State
     let moments = {};
+    let sortColumn = 'name';
+    let sortAsc = true;
+
+    const ACTION_LABELS = {
+      off: 'Off',
+      nitelite: 'NiteLite',
+      circadian_off: 'Circadian off',
+      leave_alone: 'Leave alone'
+    };
 
     // Initialize
     document.addEventListener('DOMContentLoaded', async () => {
@@ -256,48 +338,145 @@
       } catch (err) {
         console.error('Error loading data:', err);
       }
+      renderMomentList();
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    function setSort(col) {
+      if (sortColumn === col) {
+        sortAsc = !sortAsc;
+      } else {
+        sortColumn = col;
+        sortAsc = true;
+      }
+      renderMomentList();
     }
 
     function renderMomentList() {
       const container = document.getElementById('moment-list');
+      const entries = Object.entries(moments);
 
-      // Group moments by category
-      const byCategory = { utility: [], fun: [] };
-      Object.entries(moments).forEach(([id, moment]) => {
-        const cat = moment.category || 'utility';
-        if (!byCategory[cat]) byCategory[cat] = [];
-        byCategory[cat].push({ id, ...moment });
-      });
-
-      let html = '';
-      ['utility', 'fun'].forEach(category => {
-        const items = byCategory[category] || [];
-        if (items.length > 0) {
-          html += `
-            <div class="moment-category">
-              <div class="category-label">${category === 'utility' ? 'Utility' : 'Fun'}</div>
-              ${items.map(m => `
-                <a class="moment-item" href="./moment/${encodeURIComponent(m.id)}">
-                  <span class="moment-icon">${m.icon || '&#127763;'}</span>
-                  <span class="moment-name">${m.name}</span>
-                  <span class="moment-chevron">&#8250;</span>
-                </a>
-              `).join('')}
-            </div>
-          `;
-        }
-      });
-
-      if (Object.keys(moments).length === 0) {
-        html = `
-          <div style="text-align: center; padding: 40px 20px; color: var(--muted);">
-            <p>No moments yet.</p>
-            <p style="font-size: 0.85rem; margin-top: 8px;">Create your first moment to set whole-home lighting presets.</p>
+      if (entries.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-title">No moments yet</div>
+            <div class="empty-state-text">Create your first moment to set whole-home lighting presets.</div>
           </div>
+        `;
+        return;
+      }
+
+      // Build flat list
+      const items = entries.map(([id, m]) => ({
+        id,
+        icon: m.icon || '&#127763;',
+        name: m.name || 'Unnamed',
+        category: m.category || 'utility',
+        action: m.default_action || 'off',
+        exceptionCount: Object.keys(m.exceptions || {}).length
+      }));
+
+      // Sort
+      items.sort((a, b) => {
+        let valA, valB;
+        switch (sortColumn) {
+          case 'name':
+            valA = a.name.toLowerCase();
+            valB = b.name.toLowerCase();
+            break;
+          case 'category':
+            valA = a.category.toLowerCase();
+            valB = b.category.toLowerCase();
+            break;
+          case 'action':
+            valA = (ACTION_LABELS[a.action] || a.action).toLowerCase();
+            valB = (ACTION_LABELS[b.action] || b.action).toLowerCase();
+            break;
+          case 'exceptions':
+            valA = a.exceptionCount;
+            valB = b.exceptionCount;
+            break;
+          default:
+            valA = a.name.toLowerCase();
+            valB = b.name.toLowerCase();
+        }
+        if (valA < valB) return sortAsc ? -1 : 1;
+        if (valA > valB) return sortAsc ? 1 : -1;
+        return 0;
+      });
+
+      function thClass(col) {
+        return sortColumn === col ? 'sorted' : '';
+      }
+
+      function arrow(col) {
+        if (sortColumn !== col) return '<span class="sort-arrow">\u2195</span>';
+        return `<span class="sort-arrow">${sortAsc ? '\u2191' : '\u2193'}</span>`;
+      }
+
+      let html = `
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th style="width: 40px; cursor: default;"></th>
+              <th class="${thClass('name')}" onclick="setSort('name')">${arrow('name')}Name</th>
+              <th class="${thClass('category')}" onclick="setSort('category')">${arrow('category')}Category</th>
+              <th class="${thClass('action')}" onclick="setSort('action')">${arrow('action')}Action</th>
+              <th class="${thClass('exceptions')}" onclick="setSort('exceptions')">${arrow('exceptions')}Exceptions</th>
+              <th style="width: 40px; cursor: default;"></th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+
+      for (const m of items) {
+        const categoryLabel = m.category === 'fun' ? 'Fun' : 'Utility';
+        const actionLabel = ACTION_LABELS[m.action] || m.action;
+        const exceptionsLabel = m.exceptionCount > 0
+          ? m.exceptionCount
+          : '<span style="color: var(--muted2);">--</span>';
+
+        html += `
+          <tr class="data-row" onclick="window.location.href='./moment/${encodeURIComponent(m.id)}'">
+            <td style="font-size: 1rem; text-align: center;">${m.icon}</td>
+            <td><span style="font-weight: 500;">${escapeHtml(m.name)}</span></td>
+            <td>${escapeHtml(categoryLabel)}</td>
+            <td>${escapeHtml(actionLabel)}</td>
+            <td>${exceptionsLabel}</td>
+            <td>
+              <button class="row-delete-btn" title="Delete moment" onclick="event.stopPropagation(); deleteMoment('${m.id.replace(/'/g, "\\'")}', '${escapeHtml(m.name).replace(/'/g, "\\'")}')">&#x2715;</button>
+            </td>
+          </tr>
         `;
       }
 
+      html += '</tbody></table>';
       container.innerHTML = html;
+    }
+
+    async function deleteMoment(id, name) {
+      if (!confirm(`Delete "${name}"?`)) return;
+
+      try {
+        const response = await fetch(`./api/moments/${encodeURIComponent(id)}`, {
+          method: 'DELETE'
+        });
+
+        if (response.ok) {
+          await loadData();
+        } else {
+          const data = await response.json();
+          alert(data.error || 'Failed to delete moment');
+        }
+      } catch (err) {
+        console.error('Error deleting moment:', err);
+        alert('Error deleting moment');
+      }
     }
 
     async function createNewMoment() {
@@ -329,6 +508,16 @@
         alert('Error creating moment');
       }
     }
+
+    function toggleToolbarMenu(event) {
+      event.stopPropagation();
+      document.getElementById('toolbar-menu-dropdown').classList.toggle('open');
+    }
+
+    document.addEventListener('click', () => {
+      const dropdown = document.getElementById('toolbar-menu-dropdown');
+      if (dropdown) dropdown.classList.remove('open');
+    });
   </script>
 </body>
 </html>

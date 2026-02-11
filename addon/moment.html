@@ -90,14 +90,22 @@
       border-color: var(--accent);
     }
 
-    .page-title {
+    .page-title-input {
       font-size: 1.1rem;
       font-weight: 600;
+      color: var(--text);
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      padding: 4px 0;
       flex: 1;
       min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      transition: border-color 0.2s;
+    }
+
+    .page-title-input:focus {
+      outline: none;
+      border-bottom-color: var(--accent);
     }
 
     /* Main Content */
@@ -105,43 +113,6 @@
       max-width: 600px;
       margin: 0 auto;
       padding: 20px 16px;
-    }
-
-    /* Editor Card */
-    .editor-card {
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: 12px;
-    }
-
-    .editor-card-header {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 16px 20px;
-      border-bottom: 1px solid var(--line);
-    }
-
-    .editor-name-input {
-      font-size: 1.1rem;
-      font-weight: 600;
-      background: transparent;
-      border: none;
-      color: var(--text);
-      padding: 4px 0;
-      border-bottom: 2px solid transparent;
-      transition: border-color 0.2s;
-      flex: 1;
-      min-width: 120px;
-    }
-
-    .editor-name-input:focus {
-      outline: none;
-      border-bottom-color: var(--accent);
-    }
-
-    .editor-card-body {
-      padding: 20px;
     }
 
     /* Settings rows */
@@ -156,73 +127,6 @@
       font-size: 0.85rem;
       font-weight: 500;
       color: var(--muted);
-    }
-
-    /* Three-dot menu */
-    .more-menu {
-      position: relative;
-      margin-left: auto;
-    }
-
-    .more-menu-btn {
-      background: transparent;
-      border: 1px solid var(--line);
-      color: var(--muted);
-      font-size: 1.2rem;
-      padding: 4px 8px;
-      border-radius: 6px;
-      cursor: pointer;
-      line-height: 1;
-      transition: all 0.2s;
-    }
-
-    .more-menu-btn:hover {
-      background: rgba(255, 255, 255, 0.05);
-      color: var(--text);
-    }
-
-    .more-menu-dropdown {
-      display: none;
-      position: absolute;
-      right: 0;
-      top: 100%;
-      margin-top: 4px;
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      min-width: 120px;
-      z-index: 50;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    }
-
-    .more-menu-dropdown.open {
-      display: block;
-    }
-
-    .more-menu-item {
-      display: block;
-      padding: 10px 16px;
-      color: var(--text);
-      text-decoration: none;
-      font-size: 0.9rem;
-      cursor: pointer;
-      transition: background 0.15s;
-      border: none;
-      background: none;
-      width: 100%;
-      text-align: left;
-    }
-
-    .more-menu-item:hover {
-      background: rgba(255, 255, 255, 0.05);
-    }
-
-    .more-menu-item.danger {
-      color: var(--danger);
-    }
-
-    .more-menu-item.danger:hover {
-      background: rgba(239, 68, 68, 0.1);
     }
 
     /* Form Controls */
@@ -418,52 +322,6 @@
       border-top: 1px solid var(--line);
     }
 
-    /* Delete Confirmation Modal */
-    .confirm-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0, 0, 0, 0.7);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 200;
-      opacity: 0;
-      visibility: hidden;
-      transition: all 0.2s;
-    }
-
-    .confirm-overlay.visible {
-      opacity: 1;
-      visibility: visible;
-    }
-
-    .confirm-modal {
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      padding: 24px;
-      width: 360px;
-    }
-
-    .confirm-modal h4 {
-      margin-bottom: 12px;
-    }
-
-    .confirm-modal p {
-      color: var(--muted);
-      font-size: 0.9rem;
-      margin-bottom: 20px;
-    }
-
-    .confirm-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 8px;
-    }
-
     /* Buttons */
     .btn {
       padding: 8px 16px;
@@ -471,16 +329,6 @@
       font-size: 0.85rem;
       cursor: pointer;
       transition: all 0.2s;
-    }
-
-    .btn-primary {
-      background: var(--accent);
-      border: none;
-      color: white;
-    }
-
-    .btn-primary:hover {
-      background: var(--accent-hover);
     }
 
     .btn-cancel {
@@ -492,16 +340,6 @@
     .btn-cancel:hover {
       background: rgba(255, 255, 255, 0.05);
       color: var(--text);
-    }
-
-    .btn-danger {
-      background: var(--danger);
-      border: none;
-      color: white;
-    }
-
-    .btn-danger:hover {
-      background: #dc2626;
     }
 
     /* Save Status */
@@ -543,7 +381,8 @@
       </svg>
     </button>
     <button class="editor-icon-btn" id="header-icon-btn" onclick="showIconPicker()">&#127763;</button>
-    <h1 class="page-title" id="page-title">Loading...</h1>
+    <input type="text" class="page-title-input" id="page-title" value="Loading..."
+           onchange="updateMomentName(this.value)" onblur="saveMoment()">
   </header>
 
   <main class="main">
@@ -561,18 +400,6 @@
       </div>
       <div class="icon-picker-actions">
         <button class="btn btn-cancel" onclick="hideIconPicker()">Cancel</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Delete Confirmation Modal -->
-  <div class="confirm-overlay" id="confirm-overlay">
-    <div class="confirm-modal">
-      <h4 id="confirm-title">Delete Moment?</h4>
-      <p id="confirm-message">This cannot be undone.</p>
-      <div class="confirm-actions">
-        <button class="btn btn-cancel" onclick="hideConfirm()">Cancel</button>
-        <button class="btn btn-danger" id="confirm-delete-btn">Delete</button>
       </div>
     </div>
   </div>
@@ -628,7 +455,6 @@
     let selectedMomentId = null;
     let allAreas = [];
     let allZones = [];
-    let pendingIconChange = null;
     let newExceptionAction = 'leave_alone';
 
     // Compute base path for API calls (handles ingress prefix)
@@ -652,7 +478,7 @@
       selectedMomentId = data.selectedMomentId;
 
       if (!selectedMomentId) {
-        document.getElementById('page-title').textContent = 'Moment not found';
+        document.getElementById('page-title').value = 'Moment not found';
         return;
       }
 
@@ -696,12 +522,12 @@
     function updateHeader() {
       if (!moment) return;
       document.getElementById('header-icon-btn').innerHTML = moment.icon || '&#127763;';
-      document.getElementById('page-title').textContent = moment.name || 'Unnamed Moment';
+      document.getElementById('page-title').value = moment.name || 'Unnamed Moment';
     }
 
     function renderMomentEditor() {
       if (!moment) {
-        document.getElementById('page-title').textContent = 'Moment not found';
+        document.getElementById('page-title').value = 'Moment not found';
         document.getElementById('moment-editor').innerHTML = `
           <div style="text-align: center; padding: 40px 20px; color: var(--muted);">
             <p>This moment could not be found.</p>
@@ -715,66 +541,51 @@
       const exceptions = moment.exceptions || {};
 
       document.getElementById('moment-editor').innerHTML = `
-        <div class="editor-card">
-          <div class="editor-card-header">
-            <input type="text" class="editor-name-input" value="${moment.name}"
-                   onchange="updateMomentName(this.value)" onblur="saveMoment()">
-            <div class="more-menu">
-              <button class="more-menu-btn" onclick="toggleMoreMenu(event)">&#8942;</button>
-              <div class="more-menu-dropdown" id="more-menu-dropdown">
-                <button class="more-menu-item danger" onclick="confirmDelete(); closeMoreMenu();">Delete</button>
-              </div>
-            </div>
-          </div>
+        <div class="settings-row">
+          <span class="settings-label">Category</span>
+          <select class="form-select form-select-sm" onchange="updateMomentCategory(this.value); saveMoment();">
+            ${CATEGORY_OPTIONS.map(opt => `
+              <option value="${opt.value}" ${moment.category === opt.value ? 'selected' : ''}>${opt.label}</option>
+            `).join('')}
+          </select>
+        </div>
 
-          <div class="editor-card-body">
-            <div class="settings-row">
-              <span class="settings-label">Category</span>
-              <select class="form-select form-select-sm" onchange="updateMomentCategory(this.value); saveMoment();">
-                ${CATEGORY_OPTIONS.map(opt => `
-                  <option value="${opt.value}" ${moment.category === opt.value ? 'selected' : ''}>${opt.label}</option>
-                `).join('')}
-              </select>
-            </div>
+        <div class="settings-row">
+          <span class="settings-label">Action</span>
+          <select class="form-select form-select-sm" onchange="updateDefaultAction(this.value); saveMoment();">
+            ${ACTION_OPTIONS.map(opt => `
+              <option value="${opt.value}" ${moment.default_action === opt.value ? 'selected' : ''}>${opt.label}</option>
+            `).join('')}
+          </select>
+        </div>
 
-            <div class="settings-row">
-              <span class="settings-label">Action</span>
-              <select class="form-select form-select-sm" onchange="updateDefaultAction(this.value); saveMoment();">
+        <div class="exceptions-section">
+          <div class="exceptions-header">Exceptions</div>
+          <div class="exceptions-inset">
+            <div class="exceptions-list" id="exceptions-list">
+              ${Object.entries(exceptions).map(([areaId, action]) => {
+                const area = allAreas.find(a => a.area_id === areaId);
+                const areaName = area ? area.name : areaId;
+                return `
+                  <div class="exception-item">
+                    <span class="exception-area">${areaName}</span>
+                    <select class="exception-action" onchange="updateException('${areaId}', this.value); saveMoment();">
+                      ${ACTION_OPTIONS.map(opt => `
+                        <option value="${opt.value}" ${action === opt.value ? 'selected' : ''}>${opt.label}</option>
+                      `).join('')}
+                    </select>
+                    <button class="exception-remove" onclick="removeException('${areaId}'); saveMoment();">&times;</button>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+            <div class="add-exception-row">
+              <select class="form-select form-select-sm" id="new-exception-action" onchange="newExceptionAction = this.value;">
                 ${ACTION_OPTIONS.map(opt => `
-                  <option value="${opt.value}" ${moment.default_action === opt.value ? 'selected' : ''}>${opt.label}</option>
+                  <option value="${opt.value}" ${newExceptionAction === opt.value ? 'selected' : ''}>${opt.label}</option>
                 `).join('')}
               </select>
-            </div>
-
-            <div class="exceptions-section">
-              <div class="exceptions-header">Exceptions</div>
-              <div class="exceptions-inset">
-                <div class="exceptions-list" id="exceptions-list">
-                  ${Object.entries(exceptions).map(([areaId, action]) => {
-                    const area = allAreas.find(a => a.area_id === areaId);
-                    const areaName = area ? area.name : areaId;
-                    return `
-                      <div class="exception-item">
-                        <span class="exception-area">${areaName}</span>
-                        <select class="exception-action" onchange="updateException('${areaId}', this.value); saveMoment();">
-                          ${ACTION_OPTIONS.map(opt => `
-                            <option value="${opt.value}" ${action === opt.value ? 'selected' : ''}>${opt.label}</option>
-                          `).join('')}
-                        </select>
-                        <button class="exception-remove" onclick="removeException('${areaId}'); saveMoment();">&times;</button>
-                      </div>
-                    `;
-                  }).join('')}
-                </div>
-                <div class="add-exception-row">
-                  <select class="form-select form-select-sm" id="new-exception-action" onchange="newExceptionAction = this.value;">
-                    ${ACTION_OPTIONS.map(opt => `
-                      <option value="${opt.value}" ${newExceptionAction === opt.value ? 'selected' : ''}>${opt.label}</option>
-                    `).join('')}
-                  </select>
-                  <button class="add-exception-btn" onclick="addException()">+ Add exception</button>
-                </div>
-              </div>
+              <button class="add-exception-btn" onclick="addException()">+ Add exception</button>
             </div>
           </div>
         </div>
@@ -784,7 +595,6 @@
     function updateMomentName(name) {
       if (!moment) return;
       moment.name = name;
-      updateHeader();
     }
 
     function updateMomentCategory(category) {
@@ -833,32 +643,6 @@
         });
         renderMomentEditor();
         saveMoment();
-      }
-    }
-
-    // More menu functions
-    function toggleMoreMenu(event) {
-      event.stopPropagation();
-      const dropdown = document.getElementById('more-menu-dropdown');
-      dropdown.classList.toggle('open');
-
-      if (dropdown.classList.contains('open')) {
-        setTimeout(() => {
-          document.addEventListener('click', closeMoreMenuOnOutside);
-        }, 0);
-      }
-    }
-
-    function closeMoreMenu() {
-      const dropdown = document.getElementById('more-menu-dropdown');
-      if (dropdown) dropdown.classList.remove('open');
-      document.removeEventListener('click', closeMoreMenuOnOutside);
-    }
-
-    function closeMoreMenuOnOutside(event) {
-      const dropdown = document.getElementById('more-menu-dropdown');
-      if (dropdown && !dropdown.contains(event.target)) {
-        closeMoreMenu();
       }
     }
 
@@ -923,46 +707,9 @@
       saveMoment();
     }
 
-    // Delete Confirmation
-    function confirmDelete() {
-      if (!moment) return;
-      document.getElementById('confirm-title').textContent = `Delete "${moment.name}"?`;
-      document.getElementById('confirm-message').textContent = 'This cannot be undone.';
-      document.getElementById('confirm-delete-btn').onclick = deleteMoment;
-      document.getElementById('confirm-overlay').classList.add('visible');
-    }
-
-    function hideConfirm() {
-      document.getElementById('confirm-overlay').classList.remove('visible');
-    }
-
-    async function deleteMoment() {
-      if (!selectedMomentId) return;
-
-      try {
-        const response = await fetch(basePath + `/api/moments/${encodeURIComponent(selectedMomentId)}`, {
-          method: 'DELETE'
-        });
-
-        if (response.ok) {
-          hideConfirm();
-          goBack();
-        } else {
-          const data = await response.json();
-          alert(data.error || 'Failed to delete moment');
-        }
-      } catch (err) {
-        console.error('Error deleting moment:', err);
-        alert('Error deleting moment');
-      }
-    }
-
-    // Close modals on overlay click
+    // Close modal on overlay click
     document.getElementById('icon-picker-overlay').addEventListener('click', (e) => {
       if (e.target.classList.contains('icon-picker-overlay')) hideIconPicker();
-    });
-    document.getElementById('confirm-overlay').addEventListener('click', (e) => {
-      if (e.target.classList.contains('confirm-overlay')) hideConfirm();
     });
   </script>
 </body>
