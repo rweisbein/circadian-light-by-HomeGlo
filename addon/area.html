@@ -61,6 +61,37 @@
       flex-shrink: 0;
     }
 
+    .circadian-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: var(--card);
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+
+    .circadian-toggle:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: var(--accent);
+    }
+
+    .circadian-toggle.active {
+      color: var(--accent);
+      border-color: var(--accent);
+      background: rgba(254, 172, 96, 0.1);
+    }
+
+    .circadian-toggle svg {
+      width: 20px;
+      height: 20px;
+    }
+
     .back-btn:hover {
       background: rgba(255, 255, 255, 0.1);
       border-color: var(--accent);
@@ -464,6 +495,19 @@
         <polyline points="15 18 9 12 15 6"/>
       </svg>
     </button>
+    <button class="circadian-toggle" id="header-circadian-toggle" onclick="toggleCircadian()" title="Circadian Light: active">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="5"/>
+        <line x1="12" y1="1" x2="12" y2="3"/>
+        <line x1="12" y1="21" x2="12" y2="23"/>
+        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+        <line x1="1" y1="12" x2="3" y2="12"/>
+        <line x1="21" y1="12" x2="23" y2="12"/>
+        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+      </svg>
+    </button>
     <h1 class="page-title" id="page-title">Loading...</h1>
     <div class="page-header-meta" id="page-header-meta">
       <span id="header-meta-rhythm"></span>
@@ -545,7 +589,7 @@
       <div class="adjust-slider-row">
         <div class="slider-group">
           <div class="slider-column">
-            <div class="slider-label" id="circadian-label" onclick="toggleCircadian()" style="cursor:pointer;" title="Toggle circadian mode">Circadian</div>
+            <div class="slider-label">Circadian</div>
             <div class="slider-extreme" onclick="executeAction('set_britelite')">BriteLite</div>
             <div class="slider-track" data-mode="step">
               <div class="slider-fill"></div>
@@ -1448,6 +1492,7 @@
       document.getElementById('controls-left').style.display = 'none';
       document.getElementById('controls-area').style.display = 'none';
       document.getElementById('controls-zone').style.display = 'flex';
+      document.getElementById('header-circadian-toggle').style.display = 'none';
 
       updateZoneContent();
       setTimeout(() => {
@@ -1574,24 +1619,26 @@
       if (freezeBtn) freezeBtn.classList.toggle('active', selectedArea.frozen);
       if (boostBtn) boostBtn.classList.toggle('active', selectedArea.boosted);
 
-      // Circadian-off overlay
+      // Circadian-off overlay + header toggle
       const wrap = document.getElementById('circadian-content-wrap');
       const enableBtn = document.getElementById('enable-circadian-btn');
-      const circLabel = document.getElementById('circadian-label');
+      const circToggle = document.getElementById('header-circadian-toggle');
       if (wrap && enableBtn) {
         if (selectedArea.is_circadian === false) {
           wrap.classList.add('circadian-off-overlay');
           enableBtn.style.display = 'flex';
           if (freezeBtn) freezeBtn.disabled = true;
           if (boostBtn) boostBtn.disabled = true;
-          if (circLabel) { circLabel.style.opacity = '0.4'; circLabel.title = 'Enable circadian mode'; }
         } else {
           wrap.classList.remove('circadian-off-overlay');
           enableBtn.style.display = 'none';
           if (freezeBtn) freezeBtn.disabled = false;
           if (boostBtn) boostBtn.disabled = false;
-          if (circLabel) { circLabel.style.opacity = '1'; circLabel.title = 'Disable circadian mode'; }
         }
+      }
+      if (circToggle) {
+        circToggle.classList.toggle('active', selectedArea.is_circadian);
+        circToggle.title = selectedArea.is_circadian ? 'Circadian Light: active' : 'Circadian Light: off';
       }
 
       updateTimerStatus();
