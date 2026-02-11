@@ -26,18 +26,23 @@
 }
 * { box-sizing: border-box; }
 html, body { height: 100%; margin: 0; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-body { padding: 20px; }
+body { padding: 0; }
 h1 { margin: 0 0 18px; font-size: 28px; font-weight: 600; }
 h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
 
-.container { max-width: 1200px; margin: 0 auto; }
+.container { max-width: 1200px; margin: 0 auto; padding: 20px; }
 
 /* Page Header */
 .page-header {
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  padding: 12px 16px;
   display: flex;
   align-items: center;
-  margin-bottom: 12px;
-  gap: 2px;
+  gap: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 .rhythm-name-input {
   font-size: 1.2rem;
@@ -748,7 +753,7 @@ input[type=range]::-moz-range-thumb {
 }
 .live-design-controls select:focus {
   outline: none;
-  border-color: var(--accent);
+  border-color: dodgerblue;
 }
 .live-design-link {
   font-size: 0.85rem;
@@ -1090,69 +1095,29 @@ input[type=range]::-moz-range-thumb {
   color: #fff;
 }
 
-/* Navigation */
-.nav {
-  background: var(--panel);
-  border-bottom: 1px solid var(--line);
-  padding: 0 24px;
+/* Back-button page header */
+.back-btn {
   display: flex;
   align-items: center;
-  height: 56px;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  margin: -20px -20px 20px -20px;
-}
-.nav-brand {
-  font-weight: 600;
-  font-size: 1.1rem;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--card);
   color: var(--text);
-  margin-right: 16px;
-  text-decoration: none;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.nav-brand.active {
-  color: var(--accent);
-}
-.nav-logo {
-  width: 24px;
-  height: 24px;
+  cursor: pointer;
+  transition: all 0.2s;
   flex-shrink: 0;
 }
-.nav-links {
-  display: flex;
-  gap: 8px;
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
+.back-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--accent);
 }
-.nav-link {
-  padding: 8px 10px;
-  color: var(--muted);
-  text-decoration: none;
-  border-radius: 6px;
-  font-size: 0.9rem;
-  transition: all 0.2s;
+.back-btn svg {
+  width: 20px;
+  height: 20px;
 }
-.nav-link:hover {
-  color: var(--text);
-  background: rgba(255, 255, 255, 0.05);
-}
-.nav-link.active {
-  color: var(--accent);
-}
-
-
-/* Nav overflow menu */
-.nav-more { background: none; border: none; color: var(--muted); font-size: 1.2rem; cursor: pointer; padding: 4px 8px; border-radius: 6px; display: none; flex-shrink: 0; letter-spacing: 2px; line-height: 1; }
-.nav-more:hover { color: var(--text); background: rgba(255,255,255,0.05); }
-.nav-overflow { display: none; position: absolute; top: 100%; right: 12px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 4px 0; min-width: 140px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); z-index: 200; }
-.nav-overflow.open { display: block; }
-.nav-overflow-item { display: block; padding: 10px 16px; color: var(--muted); text-decoration: none; font-size: 0.9rem; white-space: nowrap; }
-.nav-overflow-item:hover { color: var(--text); background: rgba(255,255,255,0.05); }
-.nav-overflow-item.active { color: var(--accent); }
 
 /* Header action links */
 .header-link { background: none; border: none; font-size: 0.8rem; cursor: pointer; padding: 0; }
@@ -1164,40 +1129,22 @@ input[type=range]::-moz-range-thumb {
 </style>
 </head>
 <body>
-<!-- Navigation -->
-<nav class="nav">
-  <a href="./" class="nav-brand">
-    <svg class="nav-logo" viewBox="0 0 40 40" fill="none">
-      <circle cx="20" cy="20" r="19" fill="#555"/>
-      <path d="M20 1 A19 19 0 0 1 20 39 Q20 28 8 20 Q20 12 20 1" fill="#ccc"/>
-      <circle cx="20" cy="12" r="5" fill="#fff"/>
-      <line x1="20" y1="3" x2="20" y2="5" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
-      <line x1="27" y1="6" x2="25.5" y2="7.5" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
-      <line x1="29" y1="12" x2="27" y2="12" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
-      <path d="M16 30 A6 6 0 1 1 24 30 A4.5 4.5 0 1 0 16 30" fill="#fff"/>
+<!-- Page Header -->
+<header class="page-header">
+  <button class="back-btn" onclick="goBack()" title="Back">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <polyline points="15 18 9 12 15 6"/>
     </svg>
-    Home
-  </a>
-  <div class="nav-links">
-    <a href="./switches" class="nav-link">Control</a>
-    <a href="./lights" class="nav-link">Light</a>
-    <a href="./rhythm" class="nav-link active">Rhythm</a>
-    <a href="./moments" class="nav-link">Magic</a>
-    <a href="./settings" class="nav-link">Settings</a>
+  </button>
+  <span style="color: var(--muted); font-size: 1.1rem; font-weight: 500;">Design:</span>
+  <input type="text" class="rhythm-name-input" id="rhythm-name" value="Daily Rhythm 1" placeholder="Rhythm name">
+  <div class="header-actions">
+    <button class="header-link header-link-cancel" id="cancel-btn">Cancel</button>
+    <button class="header-link header-link-save" id="save-config">Save</button>
   </div>
-  <button class="nav-more" aria-label="More pages">&middot;&middot;&middot;</button>
-  <div class="nav-overflow"></div>
-</nav>
+</header>
 
 <div class="container">
-  <div class="page-header">
-    <span style="color: var(--muted); font-size: 1.1rem; font-weight: 500; margin-right: 2px;">Design:</span>
-    <input type="text" class="rhythm-name-input" id="rhythm-name" value="Daily Rhythm 1" placeholder="Rhythm name">
-    <div class="header-actions">
-      <button class="header-link header-link-cancel" id="cancel-btn">Cancel</button>
-      <button class="header-link header-link-save" id="save-config">Save</button>
-    </div>
-  </div>
   <div id="save-status"></div>
 
   <!-- Live Design Controls -->
@@ -5007,20 +4954,26 @@ async function saveRhythmSettings() {
 }
 
 /**
+ * Navigation
+ */
+const _basePath = window.location.pathname.replace(/\/rhythm\/[^/]*\/?$/, '').replace(/\/rhythm\/?$/, '');
+const _fromHome = new URLSearchParams(window.location.search).get('back') === 'home';
+const _backUrl = _fromHome ? (_basePath || '.') + '/' : (_basePath || '.') + '/rhythm';
+
+function goBack() {
+  if (window.history.length > 1 && document.referrer) {
+    window.history.back();
+  } else {
+    window.location.href = _backUrl;
+  }
+}
+
+let _saveCallback = goBack;
+
+/**
  * Setup save and cancel buttons
  */
-let _saveCallback = null;
-
 function setupSaveButton() {
-  // Back navigation: ?back=home means we came from the areas/home page
-  const path = window.location.pathname;
-  const base = path.replace(/\/rhythm\/[^/]*\/?$/, '').replace(/\/rhythm\/?$/, '');
-  const fromHome = new URLSearchParams(window.location.search).get('back') === 'home';
-  const backUrl = fromHome ? (base || '.') + '/' : (base || '.') + '/rhythm';
-  function goBack() { window.location.href = backUrl; }
-
-  _saveCallback = goBack;
-
   document.getElementById('save-config')?.addEventListener('click', (e) => {
     e.preventDefault();
     e.stopImmediatePropagation();
@@ -5032,20 +4985,6 @@ function setupSaveButton() {
 // ============================================================
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Fix nav links when on /rhythm/SomeName URL
-  // Relative links like ./settings resolve incorrectly from /rhythm/SomeName
-  const path = window.location.pathname;
-  const rhythmNameMatch = path.match(/\/rhythm\/[^/]+\/?$/);
-  if (rhythmNameMatch) {
-    // We're on /rhythm/SomeName - fix nav links to go up one level
-    document.querySelectorAll('.nav-link').forEach(link => {
-      const href = link.getAttribute('href');
-      if (href && href.startsWith('./')) {
-        link.setAttribute('href', '../' + href.slice(2)); // ./foo -> ../foo
-      }
-    });
-  }
-
   const slider = document.getElementById('chart-date-slider');
   if (slider) {
     const now = new Date();

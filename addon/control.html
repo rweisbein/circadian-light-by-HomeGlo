@@ -1,0 +1,1815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Circadian Light - Control</title>
+  <style>
+    :root {
+      --bg: #000;
+      --panel: #111;
+      --card: #1a1a1a;
+      --accent: #feac60;
+      --accent-hover: #ffc078;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --muted2: #64748b;
+      --line: #334155;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* Page header with back button */
+    .page-header {
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .back-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: var(--card);
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+
+    .back-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: var(--accent);
+    }
+
+    .back-btn svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    .page-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Main content */
+    .main {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    /* Buttons */
+    .btn {
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      border: none;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-hover);
+    }
+
+    .btn-cancel {
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--muted);
+    }
+
+    .btn-cancel:hover {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text);
+    }
+
+    .btn-danger {
+      background: transparent;
+      border: 1px solid var(--danger);
+      color: var(--danger);
+    }
+
+    .btn-danger:hover {
+      background: rgba(239, 68, 68, 0.1);
+    }
+
+    /* Toolbar menu */
+    .toolbar-menu {
+      position: relative;
+    }
+
+    .toolbar-menu-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 1.2rem;
+      padding: 4px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      line-height: 1;
+      transition: all 0.2s;
+    }
+
+    .toolbar-menu-btn:hover {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .toolbar-menu-dropdown {
+      display: none;
+      position: absolute;
+      right: 0;
+      top: 100%;
+      margin-top: 4px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      min-width: 180px;
+      z-index: 50;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      overflow: hidden;
+      padding: 4px 0;
+    }
+
+    .toolbar-menu-dropdown.open {
+      display: block;
+    }
+
+    .toolbar-menu-item {
+      display: block;
+      padding: 10px 16px;
+      color: var(--text);
+      text-decoration: none;
+      font-size: 0.9rem;
+      transition: background 0.15s;
+      cursor: pointer;
+    }
+
+    .toolbar-menu-item:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .toolbar-menu-info {
+      padding: 6px 16px;
+      font-size: 0.75rem;
+      color: var(--muted2);
+      line-height: 1.6;
+    }
+
+    .toolbar-menu-divider {
+      border-top: 1px solid var(--line);
+      margin: 4px 0;
+    }
+
+    /* Save Status Toast */
+    .save-status {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      padding: 12px 20px;
+      background: var(--success);
+      color: white;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.3s;
+      z-index: 150;
+    }
+
+    .save-status.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Modal sections (adapted from switches.html modal) */
+    .modal-section {
+      margin-bottom: 20px;
+    }
+
+    .modal-settings-divider {
+      margin: 20px 0 0;
+    }
+
+    .settings-content {
+      padding-left: 14px;
+    }
+
+    .modal-settings-divider .modal-section {
+      margin-bottom: 12px;
+    }
+
+    .modal-label {
+      display: block;
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    .modal-input {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 0.9rem;
+    }
+
+    .modal-input:focus {
+      outline: 2px solid dodgerblue;
+    }
+
+    .modal-select {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+
+    .modal-select:focus {
+      outline: 2px solid dodgerblue;
+    }
+
+    /* Hide native number input spinners */
+    input[type="number"] {
+      -moz-appearance: textfield !important;
+    }
+
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
+      -webkit-appearance: none !important;
+      appearance: none !important;
+      display: none !important;
+      margin: 0;
+    }
+
+    /* Custom spinner buttons via wrapper */
+    .number-input-wrap {
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .number-input-wrap input[type="number"] {
+      text-align: center;
+    }
+
+    .number-input-btns {
+      display: flex;
+      flex-direction: column;
+      margin-left: 4px;
+      gap: 2px;
+    }
+
+    .number-input-btns button {
+      width: 20px;
+      height: 14px;
+      padding: 0;
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      background: var(--panel);
+      color: var(--text);
+      font-size: 10px;
+      line-height: 1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .number-input-btns button:hover {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #000;
+    }
+
+    /* Reach container */
+    .reach-container {
+      background: var(--panel);
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 4px;
+    }
+
+    .reach-container .add-scope-btn {
+      margin-top: 4px;
+    }
+
+    /* Scope Editor */
+    .scope-editor {
+      margin-bottom: 14px;
+      padding: 0;
+    }
+
+    .scope-editor:last-of-type {
+      margin-bottom: 0;
+    }
+
+    .scope-editor-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .scope-editor-title {
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      flex: 1;
+    }
+
+    .scope-editor-remove {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 0.75rem;
+      padding: 2px 6px;
+    }
+
+    .scope-editor-remove:hover {
+      color: var(--danger);
+    }
+
+    .scope-reorder-arrows {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      margin-left: 6px;
+    }
+
+    .scope-reorder-arrow {
+      background: none;
+      border: none;
+      color: var(--muted2);
+      font-size: 0.6rem;
+      cursor: pointer;
+      padding: 0 2px;
+      line-height: 1;
+    }
+
+    .scope-reorder-arrow:hover { color: var(--accent); }
+    .scope-reorder-arrow:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    .scope-editor-body {
+      /* No padding - parent has it */
+    }
+
+    /* Consistent input heights */
+    .scope-editor select,
+    .scope-editor input[type="number"] {
+      height: 30px;
+      padding: 4px 8px;
+      font-size: 0.8rem;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      color: var(--text);
+    }
+
+    .scope-editor select:focus,
+    .scope-editor input[type="number"]:focus {
+      outline: 1px solid dodgerblue;
+    }
+
+    /* Area chips for scope editor */
+    .area-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .area-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 8px 5px 12px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      font-size: 0.85rem;
+      color: var(--text);
+    }
+
+    .area-chip-remove {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      background: transparent;
+      border: none;
+      border-radius: 50%;
+      color: var(--muted);
+      font-size: 1rem;
+      line-height: 1;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .area-chip-remove:hover {
+      background: rgba(239, 68, 68, 0.2);
+      color: var(--danger);
+    }
+
+    .area-chips-empty {
+      color: var(--muted2);
+      font-size: 0.85rem;
+      font-style: italic;
+    }
+
+    .add-areas-chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 5px 12px;
+      background: transparent;
+      border: 1px dashed var(--muted2);
+      border-radius: 16px;
+      color: var(--muted2);
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .add-areas-chip:hover {
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .add-scope-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 2px 0;
+      background: transparent;
+      border: none;
+      color: var(--muted2);
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-top: 4px;
+    }
+
+    .add-scope-btn:hover {
+      color: var(--accent);
+    }
+
+    .magic-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .magic-row:last-child { margin-bottom: 0; }
+    .magic-row-label { font-size: 0.85rem; min-width: 140px; white-space: nowrap; color: var(--muted); }
+    .magic-row select { flex: 1; padding: 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.9rem; }
+    .magic-row-orphan { opacity: 0.45; }
+    .magic-row-orphan .magic-row-label { font-style: italic; }
+    .magic-orphan-remove { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1rem; padding: 0 4px; }
+    .magic-orphan-remove:hover { color: var(--danger); }
+    .magic-indicator { float: right; color: var(--accent); font-size: 0.7rem; opacity: 0.7; line-height: 1; }
+
+    .info-text {
+      color: var(--muted);
+      font-size: 0.85rem;
+      margin-top: 8px;
+    }
+
+    .inactive-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin-left: 8px;
+      cursor: pointer;
+    }
+
+    .inactive-toggle input {
+      width: 14px;
+      height: 14px;
+      accent-color: var(--muted);
+      cursor: pointer;
+    }
+
+    .inactive-toggle-label {
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    .info-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,0.3);
+      font-size: 10px;
+      font-style: italic;
+      color: rgba(255,255,255,0.5);
+      cursor: help;
+      transition: all 0.15s ease;
+      flex-shrink: 0;
+    }
+
+    .info-icon:hover {
+      color: rgba(255,255,255,0.8);
+      border-color: rgba(255,255,255,0.5);
+    }
+
+    .info-tooltip {
+      display: none;
+      position: fixed;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      width: 280px;
+      max-width: 90vw;
+      font-size: 0.8rem;
+      font-style: normal;
+      color: var(--muted);
+      line-height: 1.5;
+      z-index: 1000;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      pointer-events: none;
+    }
+
+    .info-icon:hover .info-tooltip {
+      display: block;
+    }
+
+    .indicator-inline-select {
+      padding: 4px 6px;
+      border-radius: 4px;
+      border: 1px solid var(--line);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 0.8rem;
+      max-width: 160px;
+    }
+
+    /* Loading state */
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 48px;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <!-- Page Header -->
+  <header class="page-header">
+    <button class="back-btn" onclick="goBack()" title="Back">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="15 18 9 12 15 6"/>
+      </svg>
+    </button>
+    <h1 class="page-title" id="page-title">Loading...</h1>
+    <div class="toolbar-menu">
+      <button class="toolbar-menu-btn" onclick="toggleToolbarMenu(event)">&#8942;</button>
+      <div class="toolbar-menu-dropdown" id="toolbar-menu-dropdown">
+        <div class="toolbar-menu-info" id="toolbar-menu-info"></div>
+        <div class="toolbar-menu-divider" id="toolbar-menu-reset-divider" style="display:none;"></div>
+        <a href="#" class="toolbar-menu-item" id="toolbar-menu-reset" style="display:none; color: var(--danger);" onclick="removeConfig(); toggleToolbarMenu(event); return false;">Reset</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="modal-section" style="margin-bottom: 12px;">
+      <div id="device-info" style="font-size: 0.9rem; color: var(--muted); line-height: 1.6;">
+        <!-- Populated by JS: Category, Type, Location -->
+      </div>
+    </div>
+
+    <div class="modal-section" id="type-section" style="display: none;">
+      <label class="modal-label">Type</label>
+      <select class="modal-select" id="control-type">
+        <!-- Populated by JS -->
+      </select>
+    </div>
+
+    <div class="modal-section" id="switch-config-section" style="margin-bottom: 0;">
+      <div class="reach-container">
+        <div id="scopes-editor">
+          <!-- Scope editors populated by JS -->
+        </div>
+        <button class="add-scope-btn" id="add-scope-btn">+ Add Reach</button>
+      </div>
+    </div>
+
+    <div class="modal-section" id="motion-config-section" style="display: none; margin-bottom: 0;">
+      <div class="reach-container">
+        <div id="motion-scopes-editor">
+          <!-- Motion scope editors populated by JS -->
+        </div>
+        <button class="add-scope-btn" id="add-motion-scope-btn">+ Add Reach</button>
+      </div>
+    </div>
+
+    <div class="modal-settings-divider" id="settings-divider">
+      <div class="modal-section" id="magic-section" style="display: none;">
+        <div style="font-size: 0.75rem; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;"><span style="color: var(--accent); margin-right: 4px;">&#10022;</span>Magic Buttons</div>
+        <div id="magic-editor" class="settings-content"></div>
+      </div>
+    </div>
+
+    <div class="modal-settings-divider" id="pause-divider" style="display: none;">
+      <div class="modal-section" id="pause-section" style="display: none;">
+        <label style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer;">
+          <span style="font-size: 0.85rem; color: var(--muted);">Pause</span>
+          <span class="info-icon">i<span class="info-tooltip">When paused, a control won't trigger actions</span></span>
+          <input type="checkbox" id="control-pause-checkbox" style="width: 16px; height: 16px; accent-color: var(--accent);">
+        </label>
+      </div>
+    </div>
+
+    <div class="modal-settings-divider" id="indicator-divider" style="display: none;">
+      <div class="modal-section" id="indicator-light-section" style="display: none;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+          <label class="modal-label" style="margin-bottom: 0;">Feedback Cues</label>
+          <span class="info-icon">i<span class="info-tooltip">When Feedback Cue of 'subtle' is selected in Settings, this light will show the cue. For example, when a 'freeze' button is pressed on a switch, this light will perform a quick animation indicating the lights in the Reach of the switch are frozen.</span></span>
+          <a href="#" id="indicator-light-toggle" style="font-size: 0.75rem; color: var(--muted); margin-left: auto;" onclick="toggleIndicatorLightScope(); return false;">list all</a>
+        </div>
+        <div class="settings-content">
+          <select class="modal-select" id="indicator-light-select" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.9rem;">
+            <option value="">None</option>
+            <!-- Populated with lights -->
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-settings-divider" id="zha-divider" style="display: none;">
+      <div class="modal-section" id="zha-settings-section" style="display: none;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+          <span style="font-size: 0.75rem; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px;">Sensor Settings</span>
+          <span class="info-icon">i<span class="info-tooltip">Hardware settings for ZHA motion sensors. Sensitivity controls motion detection range. Timeout is how long after motion clears before the sensor reports "unoccupied".</span></span>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 16px;">
+          <div style="flex: 1; min-width: 140px;">
+            <label style="font-size: 0.8rem; color: var(--muted); display: block; margin-bottom: 4px;">Sensitivity</label>
+            <select id="zha-sensitivity-select" style="width: 100%; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.85rem;">
+              <option value="">Loading...</option>
+            </select>
+          </div>
+          <div style="flex: 1; min-width: 120px;">
+            <label style="font-size: 0.8rem; color: var(--muted); display: block; margin-bottom: 4px;">Timeout (sec)</label>
+            <div class="number-input-wrap">
+              <input type="number" id="zha-timeout-input" style="width: 100%; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.85rem;" min="1" max="600" step="1" placeholder="&#8212;">
+              <div class="number-input-btns">
+                <button type="button" onclick="stepNumberInput('zha-timeout-input', 10)">&#9650;</button>
+                <button type="button" onclick="stepNumberInput('zha-timeout-input', -10)">&#9660;</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top: 10px;">
+          <button id="zha-settings-save" style="padding: 6px 16px; border-radius: 6px; border: 1px solid var(--accent); background: transparent; color: var(--accent); font-size: 0.8rem; cursor: pointer;" onclick="saveZhaSettings()">Apply</button>
+          <span id="zha-settings-status" style="margin-left: 10px; font-size: 0.8rem; color: var(--muted);"></span>
+        </div>
+      </div>
+    </div>
+
+  </main>
+  <div class="save-status" id="save-status">Saved</div>
+
+  <script src="./shared.js"></script>
+  <script>
+    // ============================================================
+    // basePath computation
+    // ============================================================
+    const basePath = (() => {
+      const path = window.location.pathname;
+      const m = path.match(/^(.*)\/control\/[^/]+\/?$/);
+      return m ? (m[1] || '') : '';
+    })();
+
+    // ============================================================
+    // Navigation
+    // ============================================================
+    function goBack() {
+      if (window.history.length > 1 && document.referrer) {
+        window.history.back();
+      } else {
+        window.location.href = basePath + '/switches';
+      }
+    }
+
+    // ============================================================
+    // Toolbar menu
+    // ============================================================
+    function toggleToolbarMenu(e) {
+      e.stopPropagation();
+      const dd = document.getElementById('toolbar-menu-dropdown');
+      dd.classList.toggle('open');
+    }
+
+    document.addEventListener('click', () => {
+      const dd = document.getElementById('toolbar-menu-dropdown');
+      if (dd) dd.classList.remove('open');
+    });
+
+    // ============================================================
+    // Auto-save with toast
+    // ============================================================
+    let _autoSaveTimer = null;
+
+    function showSaveStatus() {
+      const status = document.getElementById('save-status');
+      status.classList.add('visible');
+      setTimeout(() => status.classList.remove('visible'), 2000);
+    }
+
+    function autoSave() {
+      if (_autoSaveTimer) clearTimeout(_autoSaveTimer);
+      _autoSaveTimer = setTimeout(() => {
+        saveControl();
+      }, 300);
+    }
+
+    // ============================================================
+    // State variables
+    // ============================================================
+    let controls = [];
+    let allAreas = [];
+    let allGlozones = [];
+    let editingControlId = null;
+    let editingDeviceId = null;
+    let editingScopes = [];
+    let editingMotionScopes = [];
+    let editingControl = null;
+    let editingInactive = false;
+    let editingIndicatorLight = '';
+    let indicatorLightShowAll = false;
+    let switchMapData = {};
+    let allMoments = {};
+    let editingMagicButtons = {};
+    let currentZhaDeviceId = null;
+
+    // ============================================================
+    // DOMContentLoaded
+    // ============================================================
+    document.addEventListener('DOMContentLoaded', async () => {
+      const data = window.circadianData || {};
+      const selectedControlId = data.selectedControlId;
+
+      if (!selectedControlId) {
+        document.getElementById('page-title').textContent = 'Control not found';
+        return;
+      }
+
+      editingControlId = selectedControlId;
+      await loadData();
+      setupControlPage();
+
+      // Wire up add-scope buttons
+      document.getElementById('add-scope-btn').addEventListener('click', addScope);
+      document.getElementById('add-motion-scope-btn').addEventListener('click', addMotionScope);
+    });
+
+    // ============================================================
+    // loadData
+    // ============================================================
+    async function loadData() {
+      try {
+        const cacheBust = `?_t=${Date.now()}`;
+        const [controlsRes, areasRes, configRes, switchmapRes, momentsRes] = await Promise.all([
+          fetch(basePath + `/api/controls${cacheBust}`),
+          fetch(basePath + `/api/areas${cacheBust}`),
+          fetch(basePath + `/api/config${cacheBust}`),
+          fetch(basePath + `/api/switchmap${cacheBust}`),
+          fetch(basePath + `/api/moments${cacheBust}`)
+        ]);
+
+        if (controlsRes.ok) {
+          const data = await controlsRes.json();
+          controls = data.controls || [];
+        }
+
+        if (areasRes.ok) {
+          allAreas = await areasRes.json();
+        }
+
+        if (configRes.ok) {
+          const config = await configRes.json();
+          allGlozones = Object.entries(config.glozones || {}).map(([id, zone]) => ({
+            id,
+            name: zone.name || id,
+            areaIds: (zone.areas || []).map(a => typeof a === 'object' ? a.id : a).filter(Boolean)
+          }));
+        }
+
+        if (switchmapRes.ok) {
+          const smData = await switchmapRes.json();
+          switchMapData = smData.mappings || {};
+        }
+
+        if (momentsRes.ok) {
+          const mData = await momentsRes.json();
+          allMoments = mData.moments || {};
+        }
+      } catch (err) {
+        console.error('Error loading data:', err);
+      }
+    }
+
+    // ============================================================
+    // Helper functions
+    // ============================================================
+    function formatCategory(category) {
+      const labels = {
+        'switch': 'Switch',
+        'motion_sensor': 'Motion',
+        'contact_sensor': 'Contact',
+        'unknown': 'Unknown'
+      };
+      return labels[category] || category || '\u2014';
+    }
+
+    function getGlozoneForArea(areaId) {
+      if (!areaId) return null;
+      for (const zone of allGlozones) {
+        if (zone.areaIds && zone.areaIds.includes(areaId)) {
+          return zone.name;
+        }
+      }
+      return null;
+    }
+
+    function getAreaName(areaId) {
+      const area = allAreas.find(a => a.area_id === areaId);
+      return area ? area.name : areaId;
+    }
+
+    function stepNumberInput(inputId, step) {
+      const input = document.getElementById(inputId);
+      if (!input) return;
+      const min = parseFloat(input.min) || -Infinity;
+      const max = parseFloat(input.max) || Infinity;
+      const currentVal = parseFloat(input.value) || 0;
+      const newVal = Math.min(max, Math.max(min, currentVal + step));
+      input.value = newVal;
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    function copyDeviceInfo(btn, text) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand('copy');
+        btn.textContent = 'Copied!';
+      } catch (e) {
+        btn.textContent = 'Failed';
+      }
+      document.body.removeChild(ta);
+    }
+
+    // ============================================================
+    // ZHA settings
+    // ============================================================
+    async function loadZhaSettings(deviceId) {
+      currentZhaDeviceId = deviceId;
+      const sensitivitySelect = document.getElementById('zha-sensitivity-select');
+      const timeoutInput = document.getElementById('zha-timeout-input');
+      const statusEl = document.getElementById('zha-settings-status');
+
+      // Reset UI
+      sensitivitySelect.innerHTML = '<option value="">Loading...</option>';
+      sensitivitySelect.disabled = true;
+      timeoutInput.value = '';
+      timeoutInput.disabled = true;
+      statusEl.textContent = '';
+
+      try {
+        const res = await fetch(basePath + `/api/controls/${encodeURIComponent(deviceId)}/zha-settings`);
+        if (!res.ok) throw new Error('Failed to fetch settings');
+        const data = await res.json();
+
+        if (!data.is_zha) {
+          document.getElementById('zha-settings-section').style.display = 'none';
+          return;
+        }
+
+        // Populate sensitivity dropdown
+        if (data.sensitivity && data.sensitivity.options && data.sensitivity.options.length > 0) {
+          sensitivitySelect.innerHTML = data.sensitivity.options.map(opt =>
+            `<option value="${opt}" ${opt === data.sensitivity.value ? 'selected' : ''}>${opt}</option>`
+          ).join('');
+          sensitivitySelect.disabled = false;
+        } else if (data.sensitivity && data.sensitivity.min !== undefined) {
+          const min = data.sensitivity.min || 0;
+          const max = data.sensitivity.max || 4;
+          const step = data.sensitivity.step || 1;
+          const opts = [];
+          for (let v = min; v <= max; v += step) {
+            opts.push(`<option value="${v}" ${v == data.sensitivity.value ? 'selected' : ''}>${v}</option>`);
+          }
+          sensitivitySelect.innerHTML = opts.join('');
+          sensitivitySelect.disabled = false;
+        } else {
+          sensitivitySelect.innerHTML = '<option value="">Not available</option>';
+        }
+
+        // Populate timeout
+        if (data.timeout !== null && data.timeout !== undefined) {
+          timeoutInput.value = data.timeout <= 5 ? 10 : data.timeout;
+          timeoutInput.disabled = false;
+        } else {
+          timeoutInput.placeholder = 'Not available';
+        }
+
+      } catch (err) {
+        console.error('Error loading ZHA settings:', err);
+        sensitivitySelect.innerHTML = '<option value="">Error loading</option>';
+        statusEl.textContent = 'Error loading settings';
+      }
+    }
+
+    async function saveZhaSettings() {
+      if (!currentZhaDeviceId) return;
+
+      const sensitivitySelect = document.getElementById('zha-sensitivity-select');
+      const timeoutInput = document.getElementById('zha-timeout-input');
+      const statusEl = document.getElementById('zha-settings-status');
+
+      const payload = {};
+      if (!sensitivitySelect.disabled && sensitivitySelect.value) {
+        payload.sensitivity = sensitivitySelect.value;
+      }
+      if (!timeoutInput.disabled && timeoutInput.value) {
+        payload.timeout = parseInt(timeoutInput.value, 10);
+      }
+
+      if (Object.keys(payload).length === 0) {
+        statusEl.textContent = 'No changes to save';
+        return;
+      }
+
+      statusEl.textContent = 'Saving...';
+
+      try {
+        const res = await fetch(basePath + `/api/controls/${encodeURIComponent(currentZhaDeviceId)}/zha-settings`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) throw new Error('Failed to save settings');
+        const data = await res.json();
+
+        if (data.status === 'ok') {
+          const parts = [];
+          if (data.results.sensitivity) parts.push('sensitivity');
+          if (data.results.timeout) parts.push('timeout');
+          statusEl.textContent = parts.length > 0 ? `Saved ${parts.join(' & ')}` : 'Saved';
+          statusEl.style.color = 'var(--success)';
+          setTimeout(() => {
+            statusEl.textContent = '';
+            statusEl.style.color = 'var(--muted)';
+          }, 3000);
+        } else {
+          throw new Error(data.error || 'Unknown error');
+        }
+      } catch (err) {
+        console.error('Error saving ZHA settings:', err);
+        statusEl.textContent = 'Error saving';
+        statusEl.style.color = 'var(--danger)';
+        setTimeout(() => {
+          statusEl.style.color = 'var(--muted)';
+        }, 3000);
+      }
+    }
+
+    // ============================================================
+    // Indicator lights
+    // ============================================================
+    async function loadIndicatorLights(areaId, currentValue) {
+      const select = document.getElementById('indicator-light-select');
+      const toggleLink = document.getElementById('indicator-light-toggle');
+      select.innerHTML = '<option value="">None</option>';
+
+      // Update toggle link text
+      if (toggleLink) {
+        toggleLink.textContent = indicatorLightShowAll ? 'filter to location' : 'list all';
+      }
+
+      try {
+        let url = indicatorLightShowAll
+          ? basePath + '/api/area-lights?all=true'
+          : basePath + `/api/area-lights?area_id=${encodeURIComponent(areaId || '')}`;
+
+        const response = await fetch(url);
+        if (response.ok) {
+          const data = await response.json();
+          (data.lights || []).forEach(light => {
+            const opt = document.createElement('option');
+            opt.value = light.entity_id;
+            opt.textContent = light.name;
+            if (light.entity_id === currentValue) opt.selected = true;
+            select.appendChild(opt);
+          });
+        }
+      } catch (err) {
+        console.error('Error loading indicator lights:', err);
+      }
+    }
+
+    function toggleIndicatorLightScope() {
+      indicatorLightShowAll = !indicatorLightShowAll;
+      const currentValue = document.getElementById('indicator-light-select').value;
+      loadIndicatorLights(editingControl?.area_id, currentValue);
+    }
+
+    // Flash indicator light when selected so user can identify it, then auto-save
+    document.getElementById('indicator-light-select').addEventListener('change', async (e) => {
+      const entityId = e.target.value;
+      autoSave();
+      if (!entityId) return;
+      try {
+        await fetch(basePath + '/api/flash-light', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ entity_id: entityId })
+        });
+      } catch (err) {
+        console.error('Error flashing light:', err);
+      }
+    });
+
+    // Auto-save on pause toggle
+    document.getElementById('control-pause-checkbox').addEventListener('change', () => {
+      autoSave();
+    });
+
+    // ============================================================
+    // Unsupported info display
+    // ============================================================
+    function showUnsupportedInfo(ctrl) {
+      editingControlId = null;
+      editingDeviceId = null;
+      editingControl = null;
+
+      const categoryLabel = formatCategory(ctrl.category);
+      document.getElementById('page-title').textContent = `${categoryLabel}: ${ctrl.name}`;
+      document.getElementById('toolbar-menu-reset').style.display = 'none';
+      document.getElementById('toolbar-menu-reset-divider').style.display = 'none';
+
+      const mfr = ctrl.manufacturer || 'Unknown';
+      const model = ctrl.model || 'Unknown';
+      const locationName = ctrl.area_name || 'Unassigned';
+      const modalGlozone = getGlozoneForArea(ctrl.area_id);
+      const infoText = `${ctrl.name}\nManufacturer: ${mfr}\nModel: ${model}\nArea: ${locationName}`;
+
+      document.getElementById('device-info').innerHTML = `
+        <div style="margin-bottom: 12px; padding: 12px; background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid rgba(255,255,255,0.06);">
+          <div style="font-size: 0.8rem; color: var(--muted); opacity: 0.5; margin-bottom: 8px;">This device isn't supported yet</div>
+          <div style="margin-bottom: 4px;"><strong>Manufacturer:</strong> ${mfr}</div>
+          <div style="margin-bottom: 4px;"><strong>Model:</strong> ${model}</div>
+          <div style="margin-bottom: 4px;"><strong>Location:</strong> ${locationName}</div>
+          ${modalGlozone ? `<div style="margin-bottom: 4px;"><strong>Zone:</strong> ${modalGlozone}</div>` : ''}
+          ${ctrl.id ? `<div style="font-size: 0.75rem; color: var(--muted); opacity: 0.5; margin-top: 6px;">IEEE: ${ctrl.id}</div>` : ''}
+          ${ctrl.device_id ? `<div style="font-size: 0.75rem; color: var(--muted); opacity: 0.5;">ID: ${ctrl.device_id}</div>` : ''}
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <button onclick="copyDeviceInfo(this, '${infoText.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n')}')"
+            style="font-size: 0.8rem; padding: 6px 14px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: var(--muted); cursor: pointer;">
+            Copy Device Info
+          </button>
+          <span style="font-size: 0.75rem; color: var(--muted); opacity: 0.5;">Send to <strong>hello@home-glo.com</strong> to request support</span>
+        </div>
+      `;
+
+      // Hide config sections
+      const typeSectionEl = document.getElementById('type-section');
+      if (typeSectionEl) typeSectionEl.style.display = 'none';
+      document.getElementById('switch-config-section').style.display = 'none';
+      document.getElementById('motion-config-section').style.display = 'none';
+      document.getElementById('pause-section').style.display = 'none';
+      document.getElementById('pause-divider').style.display = 'none';
+      document.getElementById('indicator-light-section').style.display = 'none';
+      document.getElementById('indicator-divider').style.display = 'none';
+      document.getElementById('magic-section').style.display = 'none';
+      document.getElementById('settings-divider').style.display = 'none';
+      document.getElementById('zha-divider').style.display = 'none';
+
+    }
+
+    // ============================================================
+    // Magic Buttons helpers
+    // ============================================================
+    const magicButtonNames = {
+      'on': 'Power', 'up': 'Up', 'down': 'Down', 'off': 'Hue',
+      'toggle': 'Toggle', 'brightness_up': 'Bright Up', 'brightness_down': 'Bright Down',
+      'arrow_left': 'Left', 'arrow_right': 'Right',
+      'dial': 'Dial'
+    };
+    const magicActionLabels = {
+      'hold': 'Long press', 'short_release': 'Press', 'press': 'Press',
+      'double_press': '2\u00d7 press', 'triple_press': '3\u00d7 press',
+      'quadruple_press': '4\u00d7 press', 'quintuple_press': '5\u00d7 press',
+      'rotate': 'Rotate'
+    };
+    // Known action suffixes, longest first so we match greedily
+    const knownActionSuffixes = [
+      'quintuple_press', 'quadruple_press', 'triple_press', 'double_press',
+      'short_release', 'press', 'hold', 'rotate'
+    ];
+
+    function formatMagicButtonEvent(key) {
+      for (const suffix of knownActionSuffixes) {
+        if (key.endsWith('_' + suffix)) {
+          const buttonPart = key.slice(0, key.length - suffix.length - 1);
+          const buttonLabel = magicButtonNames[buttonPart] || buttonPart;
+          const actionLabel = magicActionLabels[suffix] || suffix;
+          return `${buttonLabel} \u2014 ${actionLabel}`;
+        }
+      }
+      return key.replace(/_/g, ' ');
+    }
+
+    function getMagicSlots(switchType) {
+      const typeData = switchMapData[switchType];
+      if (!typeData || !typeData.effective_mapping) return [];
+      return Object.entries(typeData.effective_mapping)
+        .filter(([_, action]) => action === 'magic')
+        .map(([key]) => key);
+    }
+
+    function renderMagicEditor() {
+      const container = document.getElementById('magic-editor');
+      const switchType = editingControl?.type;
+      const magicSlots = getMagicSlots(switchType);
+
+      // Find orphaned assignments (keys in editingMagicButtons not in active magic slots)
+      const orphanedKeys = Object.keys(editingMagicButtons).filter(k => !magicSlots.includes(k));
+
+      let html = '';
+
+      // Active magic slot rows
+      for (const slot of magicSlots) {
+        const currentValue = editingMagicButtons[slot] || '';
+        const label = formatMagicButtonEvent(slot);
+        html += `<div class="magic-row">
+          <span class="magic-row-label">${label}</span>
+          <select onchange="updateMagicButton('${slot}', this.value)">
+            <option value="">None</option>
+            ${Object.entries(allMoments).map(([id, m]) => {
+              const val = 'set_' + id;
+              const sel = currentValue === val ? ' selected' : '';
+              return `<option value="${val}"${sel}>${m.name || id}</option>`;
+            }).join('')}
+          </select>
+        </div>`;
+      }
+
+      // Orphaned assignment rows
+      for (const key of orphanedKeys) {
+        const label = formatMagicButtonEvent(key);
+        const momentAction = editingMagicButtons[key];
+        let momentName = momentAction;
+        if (momentAction && momentAction.startsWith('set_')) {
+          const momentId = momentAction.slice(4);
+          momentName = allMoments[momentId]?.name || momentId;
+        }
+        html += `<div class="magic-row magic-row-orphan">
+          <span class="magic-row-label">${label} (no longer in switch design)</span>
+          <span style="flex:1; font-size:0.85rem;">${momentName}</span>
+          <button class="magic-orphan-remove" onclick="removeMagicOrphan('${key}')" title="Remove">\u2715</button>
+        </div>`;
+      }
+
+      if (!html) {
+        html = '<div style="font-size:0.85rem; color:var(--muted);">No magic button slots available</div>';
+      }
+
+      container.innerHTML = html;
+    }
+
+    function updateMagicButton(slot, value) {
+      if (value) {
+        editingMagicButtons[slot] = value;
+      } else {
+        delete editingMagicButtons[slot];
+      }
+      autoSave();
+    }
+
+    function removeMagicOrphan(key) {
+      delete editingMagicButtons[key];
+      renderMagicEditor();
+      autoSave();
+    }
+
+    // ============================================================
+    // Switch Scopes Editor
+    // ============================================================
+    function renderScopesEditor() {
+      const container = document.getElementById('scopes-editor');
+      container.innerHTML = editingScopes.map((scope, idx) => {
+        const areaChips = scope.areas.map(areaId => {
+          const area = allAreas.find(a => a.area_id === areaId);
+          const areaName = area ? area.name : areaId;
+          return `
+            <span class="area-chip">
+              ${areaName}
+              <button class="area-chip-remove" onclick="removeAreaFromScope(${idx}, '${areaId}')">&times;</button>
+            </span>
+          `;
+        }).join('');
+
+        const showArrows = editingScopes.length > 1;
+        const upDisabled = idx === 0 ? 'disabled' : '';
+        const downDisabled = idx === editingScopes.length - 1 ? 'disabled' : '';
+        return `
+          <div class="scope-editor" data-scope-idx="${idx}">
+            <div class="scope-editor-header">
+              <span class="scope-editor-title">Reach ${idx + 1}</span>
+              ${showArrows ? `
+                <div class="scope-reorder-arrows">
+                  <button class="scope-reorder-arrow" ${upDisabled} onclick="swapScope(${idx}, -1)" title="Move up">&#9650;</button>
+                  <button class="scope-reorder-arrow" ${downDisabled} onclick="swapScope(${idx}, 1)" title="Move down">&#9660;</button>
+                </div>
+              ` : ''}
+              ${editingScopes.length > 1 ? `<button class="scope-editor-remove" onclick="removeScope(${idx})">remove</button>` : ''}
+            </div>
+            <div class="area-chips">
+              ${areaChips}
+              <button class="add-areas-chip" onclick="addAreasToScope(${idx})">+</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function addScope() {
+      if (editingScopes.length >= 5) {
+        alert('Maximum 5 reaches allowed');
+        return;
+      }
+      editingScopes.push({ areas: [] });
+      renderScopesEditor();
+      autoSave();
+    }
+
+    function removeScope(idx) {
+      if (editingScopes.length <= 1) return;
+      if (!confirm(`Remove Reach ${idx + 1}?`)) return;
+      editingScopes.splice(idx, 1);
+      renderScopesEditor();
+      autoSave();
+    }
+
+    function swapScope(idx, direction) {
+      const newIdx = idx + direction;
+      if (newIdx < 0 || newIdx >= editingScopes.length) return;
+      [editingScopes[idx], editingScopes[newIdx]] = [editingScopes[newIdx], editingScopes[idx]];
+      renderScopesEditor();
+      autoSave();
+    }
+
+    function removeAreaFromScope(scopeIdx, areaId) {
+      const scope = editingScopes[scopeIdx];
+      const idx = scope.areas.indexOf(areaId);
+      if (idx >= 0) {
+        scope.areas.splice(idx, 1);
+      }
+      renderScopesEditor();
+      autoSave();
+    }
+
+    async function addAreasToScope(scopeIdx) {
+      const scope = editingScopes[scopeIdx];
+      const selected = await openAreaPicker({
+        title: `Add Areas to Reach ${scopeIdx + 1}`,
+        selected: scope.areas,
+        multi: true
+      });
+
+      if (selected && selected.length > 0) {
+        selected.forEach(areaId => {
+          if (!scope.areas.includes(areaId)) {
+            scope.areas.push(areaId);
+          }
+        });
+        renderScopesEditor();
+        autoSave();
+      }
+    }
+
+    // ============================================================
+    // Motion/Contact Sensor Scopes Editor
+    // ============================================================
+    function renderMotionScopesEditor() {
+      const container = document.getElementById('motion-scopes-editor');
+
+      const modeLabels = {
+        'on_only': 'On only',
+        'on_off': 'On/Off',
+        'disabled': 'Disabled'
+      };
+
+      container.innerHTML = editingMotionScopes.map((scope, idx) => {
+        const durationMinutes = (scope.duration || 60) / 60;
+        const mode = scope.mode || 'on_off';
+        const boostEnabled = scope.boost_enabled || false;
+        const showDuration = mode === 'on_off';
+        const boostBrightness = scope.boost_brightness || 50;
+        const activeWhen = scope.active_when || 'always';
+        const activeOffset = scope.active_offset || 0;
+        const showOffset = activeWhen !== 'always';
+
+        // Build area chips
+        const areaChips = (scope.areas || []).map(areaId => {
+          const area = allAreas.find(a => a.area_id === areaId);
+          const areaName = area ? area.name : areaId;
+          return `
+            <span class="area-chip">
+              ${areaName}
+              <button class="area-chip-remove" onclick="removeAreaFromMotionScope(${idx}, '${areaId}')">&times;</button>
+            </span>
+          `;
+        }).join('');
+
+        const showMotionArrows = editingMotionScopes.length > 1;
+        const motionUpDisabled = idx === 0 ? 'disabled' : '';
+        const motionDownDisabled = idx === editingMotionScopes.length - 1 ? 'disabled' : '';
+
+        return `
+          <div class="scope-editor" data-motion-idx="${idx}">
+            <div class="scope-editor-header">
+              <span class="scope-editor-title">Reach ${idx + 1}</span>
+              ${showMotionArrows ? `
+                <div class="scope-reorder-arrows">
+                  <button class="scope-reorder-arrow" ${motionUpDisabled} onclick="swapMotionScope(${idx}, -1)" title="Move up">&#9650;</button>
+                  <button class="scope-reorder-arrow" ${motionDownDisabled} onclick="swapMotionScope(${idx}, 1)" title="Move down">&#9660;</button>
+                </div>
+              ` : ''}
+              ${editingMotionScopes.length > 1 ? `<button class="scope-editor-remove" onclick="removeMotionScope(${idx})">remove</button>` : ''}
+            </div>
+            <div class="area-chips">
+              ${areaChips}
+              <button class="add-areas-chip" onclick="addAreasToMotionScope(${idx})">+</button>
+            </div>
+
+            <div style="margin-top: 14px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+              <select onchange="updateMotionScope(${idx}, 'mode', this.value)">
+                ${Object.entries(modeLabels).map(([value, label]) => `
+                  <option value="${value}" ${mode === value ? 'selected' : ''}>${label}</option>
+                `).join('')}
+              </select>
+              <div style="display: ${showDuration ? 'flex' : 'none'}; align-items: center; gap: 6px;">
+                <div class="number-input-wrap">
+                  <input type="number" id="duration-${idx}" style="width: 60px;" value="${durationMinutes}" min="0.5" max="60" step="0.5"
+                    onchange="updateMotionScope(${idx}, 'duration', Math.round(parseFloat(this.value) * 60))">
+                  <div class="number-input-btns">
+                    <button type="button" onclick="stepNumberInput('duration-${idx}', 0.5)">&#9650;</button>
+                    <button type="button" onclick="stepNumberInput('duration-${idx}', -0.5)">&#9660;</button>
+                  </div>
+                </div>
+                <span style="color: var(--muted); font-size: 0.85rem;">min</span>
+              </div>
+              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                <input type="checkbox" style="width: 16px; height: 16px;" ${boostEnabled ? 'checked' : ''}
+                  onchange="updateMotionScope(${idx}, 'boost_enabled', this.checked)">
+                <span style="font-size: 0.85rem;">Boost</span>
+              </label>
+              <div style="display: ${boostEnabled ? 'flex' : 'none'}; align-items: center; gap: 6px;">
+                <span style="color: var(--muted); font-size: 0.85rem;">+</span>
+                <div class="number-input-wrap">
+                  <input type="number" id="boost-${idx}" style="width: 55px;" value="${boostBrightness}" min="5" max="100" step="5"
+                    onchange="updateMotionScope(${idx}, 'boost_brightness', parseInt(this.value))">
+                  <div class="number-input-btns">
+                    <button type="button" onclick="stepNumberInput('boost-${idx}', 5)">&#9650;</button>
+                    <button type="button" onclick="stepNumberInput('boost-${idx}', -5)">&#9660;</button>
+                  </div>
+                </div>
+                <span style="color: var(--muted); font-size: 0.85rem;">%</span>
+              </div>
+            </div>
+            <div style="margin-top: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <span style="color: var(--muted); font-size: 0.85rem;">When:</span>
+              <select onchange="updateMotionScope(${idx}, 'active_when', this.value)">
+                <option value="always" ${activeWhen === 'always' ? 'selected' : ''}>Always</option>
+                <option value="sunset_to_sunrise" ${activeWhen === 'sunset_to_sunrise' ? 'selected' : ''}>Sunset to Sunrise</option>
+                <option value="wake_to_bed" ${activeWhen === 'wake_to_bed' ? 'selected' : ''}>Wake to Bed</option>
+              </select>
+              <div style="display: ${showOffset ? 'flex' : 'none'}; align-items: center; gap: 6px;">
+                <span style="color: var(--muted); font-size: 0.85rem;">\u00b1</span>
+                <div class="number-input-wrap">
+                  <input type="number" id="offset-${idx}" style="width: 45px;" value="${activeOffset}"
+                    min="-120" max="120" step="5"
+                    onchange="updateMotionScope(${idx}, 'active_offset', parseInt(this.value))">
+                  <div class="number-input-btns">
+                    <button type="button" onclick="stepNumberInput('offset-${idx}', 5)">&#9650;</button>
+                    <button type="button" onclick="stepNumberInput('offset-${idx}', -5)">&#9660;</button>
+                  </div>
+                </div>
+                <span style="color: var(--muted); font-size: 0.85rem;">min</span>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function addMotionScope() {
+      if (editingMotionScopes.length >= 5) {
+        alert('Maximum 5 reaches allowed');
+        return;
+      }
+      editingMotionScopes.push({
+        areas: [],
+        mode: 'on_off',
+        duration: 60,
+        boost_enabled: false,
+        boost_brightness: 50,
+        active_when: 'always',
+        active_offset: 0
+      });
+      renderMotionScopesEditor();
+      autoSave();
+    }
+
+    function removeMotionScope(idx) {
+      if (editingMotionScopes.length <= 1) return;
+      if (!confirm(`Remove Reach ${idx + 1}?`)) return;
+      editingMotionScopes.splice(idx, 1);
+      renderMotionScopesEditor();
+      autoSave();
+    }
+
+    function swapMotionScope(idx, direction) {
+      const newIdx = idx + direction;
+      if (newIdx < 0 || newIdx >= editingMotionScopes.length) return;
+      [editingMotionScopes[idx], editingMotionScopes[newIdx]] = [editingMotionScopes[newIdx], editingMotionScopes[idx]];
+      renderMotionScopesEditor();
+      autoSave();
+    }
+
+    function removeAreaFromMotionScope(scopeIdx, areaId) {
+      const scope = editingMotionScopes[scopeIdx];
+      const idx = scope.areas.indexOf(areaId);
+      if (idx >= 0) {
+        scope.areas.splice(idx, 1);
+      }
+      renderMotionScopesEditor();
+      autoSave();
+    }
+
+    async function addAreasToMotionScope(scopeIdx) {
+      const scope = editingMotionScopes[scopeIdx];
+      const selected = await openAreaPicker({
+        title: `Add Areas to Reach ${scopeIdx + 1}`,
+        selected: scope.areas,
+        multi: true
+      });
+
+      if (selected && selected.length > 0) {
+        selected.forEach(areaId => {
+          if (!scope.areas.includes(areaId)) {
+            scope.areas.push(areaId);
+          }
+        });
+        renderMotionScopesEditor();
+        autoSave();
+      }
+    }
+
+    function updateMotionScope(idx, field, value) {
+      editingMotionScopes[idx][field] = value;
+      renderMotionScopesEditor();
+      autoSave();
+    }
+
+    // ============================================================
+    // setupControlPage - main setup function
+    // ============================================================
+    function setupControlPage() {
+      const ctrl = controls.find(c => c.id === editingControlId);
+      if (!ctrl) {
+        document.getElementById('page-title').textContent = 'Control not found';
+        return;
+      }
+
+      // Unsupported devices get a simplified info display
+      if (!ctrl.supported) {
+        showUnsupportedInfo(ctrl);
+        return;
+      }
+
+      editingDeviceId = ctrl.device_id || null;
+      editingControl = ctrl;
+
+      const isSensorType = ctrl.category === 'motion_sensor' || ctrl.category === 'contact_sensor';
+      const isConfigured = ctrl.status === 'active';
+
+      // Load inactive/pause state for all control types
+      editingInactive = ctrl.inactive || false;
+
+      if (isSensorType) {
+        // Load motion/contact sensor scopes
+        if (ctrl.scopes && ctrl.scopes.length > 0) {
+          editingMotionScopes = ctrl.scopes.map(s => ({
+            areas: [...(s.areas || [])],
+            mode: s.mode || 'on_off',
+            duration: s.duration || 60,
+            boost_enabled: s.boost_enabled || false,
+            boost_brightness: s.boost_brightness || 50,
+            active_when: s.active_when || 'always',
+            active_offset: s.active_offset || 0
+          }));
+        } else if (ctrl.areas && ctrl.areas.length > 0) {
+          const scopeMap = new Map();
+          for (const a of ctrl.areas) {
+            const settings = {
+              mode: a.mode || 'on_off',
+              duration: a.duration || 60,
+              boost_enabled: a.boost_enabled || false,
+              boost_brightness: a.boost_brightness || 50,
+              active_when: a.active_when || 'always',
+              active_offset: a.active_offset || 0
+            };
+            const key = JSON.stringify(settings);
+            if (scopeMap.has(key)) {
+              scopeMap.get(key).areas.push(a.area_id);
+            } else {
+              scopeMap.set(key, {
+                areas: [a.area_id],
+                ...settings
+              });
+            }
+          }
+          editingMotionScopes = Array.from(scopeMap.values());
+        } else {
+          editingMotionScopes = [];
+        }
+        editingScopes = [];
+      } else {
+        // Load switch scopes
+        editingScopes = ctrl.scopes && ctrl.scopes.length > 0
+          ? ctrl.scopes.map(s => ({ areas: [...(s.areas || [])] }))
+          : [{ areas: [] }];
+        editingMotionScopes = [];
+      }
+
+      // Set page title: "Category: Control Name" with optional "(paused)"
+      const categoryLabel = formatCategory(ctrl.category);
+      const pausedSpan = editingInactive ? ' <span style="color:var(--muted);font-weight:normal;"> (paused)</span>' : '';
+      document.getElementById('page-title').innerHTML = `${categoryLabel}: ${ctrl.name}${pausedSpan}`;
+
+      // Populate toolbar menu with device metadata + Reset action
+      const typeName = ctrl.type_name || ctrl.type || 'Unknown';
+      const toolbarInfo = document.getElementById('toolbar-menu-info');
+      toolbarInfo.innerHTML = `
+        <div>Type: ${typeName}</div>
+        ${ctrl.id ? `<div>IEEE: ${ctrl.id}</div>` : ''}
+        ${ctrl.device_id ? `<div>ID: ${ctrl.device_id}</div>` : ''}
+      `;
+
+      const resetItem = document.getElementById('toolbar-menu-reset');
+      const resetDivider = document.getElementById('toolbar-menu-reset-divider');
+      if (isConfigured) {
+        resetDivider.style.display = '';
+        resetItem.style.display = '';
+      } else {
+        resetDivider.style.display = 'none';
+        resetItem.style.display = 'none';
+      }
+
+      // Populate device info section: just Location + Glo Zone
+      const locationName = ctrl.area_name || 'Unassigned';
+      const modalGlozone = getGlozoneForArea(ctrl.area_id);
+      document.getElementById('device-info').innerHTML = `
+        <span>Location: ${locationName}</span>${modalGlozone ? `<span style="margin-left: 16px;">Glo Zone: ${modalGlozone}</span>` : ''}
+      `;
+
+      // Restore elements that unsupported info may have hidden
+      document.getElementById('settings-divider').style.display = '';
+
+      // Show/hide appropriate sections based on control type
+      const typeSectionEl = document.getElementById('type-section');
+      const switchSection = document.getElementById('switch-config-section');
+      const motionSection = document.getElementById('motion-config-section');
+      const pauseSection = document.getElementById('pause-section');
+
+      // Show pause section for all control types and set checkbox
+      pauseSection.style.display = 'block';
+      document.getElementById('pause-divider').style.display = '';
+      document.getElementById('control-pause-checkbox').checked = editingInactive;
+
+      if (isSensorType) {
+        if (typeSectionEl) typeSectionEl.style.display = 'none';
+        switchSection.style.display = 'none';
+        motionSection.style.display = 'block';
+        document.getElementById('indicator-light-section').style.display = 'none';
+        document.getElementById('indicator-divider').style.display = 'none';
+        document.getElementById('magic-section').style.display = 'none';
+        renderMotionScopesEditor();
+
+        // Load ZHA settings for motion sensors (only for ZHA devices)
+        const zhaSection = document.getElementById('zha-settings-section');
+        if (ctrl.category === 'motion_sensor' && ctrl.integration === 'zha') {
+          zhaSection.style.display = 'block';
+          document.getElementById('zha-divider').style.display = '';
+          loadZhaSettings(ctrl.device_id);
+        } else {
+          zhaSection.style.display = 'none';
+          document.getElementById('zha-divider').style.display = 'none';
+        }
+      } else {
+        // Type is now shown in device-info, hide the type section
+        if (typeSectionEl) typeSectionEl.style.display = 'none';
+        switchSection.style.display = 'block';
+        motionSection.style.display = 'none';
+        document.getElementById('zha-settings-section').style.display = 'none';
+        document.getElementById('zha-divider').style.display = 'none';
+
+        // Show indicator light section for switches
+        const indicatorSection = document.getElementById('indicator-light-section');
+        indicatorSection.style.display = 'block';
+        document.getElementById('indicator-divider').style.display = '';
+        editingIndicatorLight = ctrl.indicator_light || '';
+        loadIndicatorLights(ctrl.area_id, editingIndicatorLight);
+
+        // Load magic buttons and show section if switch type has magic slots
+        editingMagicButtons = { ...(ctrl.magic_buttons || {}) };
+        const magicSlots = getMagicSlots(ctrl.type);
+        const hasOrphans = Object.keys(editingMagicButtons).some(k => !magicSlots.includes(k));
+        const magicSection = document.getElementById('magic-section');
+        if (magicSlots.length > 0 || hasOrphans) {
+          magicSection.style.display = 'block';
+          renderMagicEditor();
+        } else {
+          magicSection.style.display = 'none';
+        }
+
+        renderScopesEditor();
+      }
+    }
+
+    // ============================================================
+    // Save / Remove
+    // ============================================================
+    async function saveControl() {
+      const isSensorType = editingControl?.category === 'motion_sensor' || editingControl?.category === 'contact_sensor';
+
+      // Get pause/inactive status from checkbox (applies to all control types)
+      const inactive = document.getElementById('control-pause-checkbox').checked;
+
+      let payload;
+      if (isSensorType) {
+        // Skip save if no scopes with areas yet (auto-save can fire before areas are added)
+        const hasAreas = editingMotionScopes.some(s => s.areas && s.areas.length > 0);
+        if (editingMotionScopes.length === 0 || !hasAreas) {
+          return;
+        }
+        payload = {
+          name: editingControl?.name,
+          category: editingControl?.category,
+          scopes: editingMotionScopes,
+          device_id: editingDeviceId,
+          inactive: inactive
+        };
+      } else {
+        // Switch config
+        const indicatorLight = document.getElementById('indicator-light-select').value;
+        payload = {
+          name: editingControl?.name,
+          type: editingControl?.type,
+          scopes: editingScopes,
+          device_id: editingDeviceId,
+          indicator_light: indicatorLight || '',
+          magic_buttons: editingMagicButtons,
+          inactive: inactive
+        };
+      }
+
+      try {
+        const response = await fetch(basePath + `/api/controls/${encodeURIComponent(editingControlId)}/configure`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+          const data = await response.json();
+          console.error('Failed to save:', data.error);
+          return;
+        }
+
+        // Update "(paused)" indicator in title
+        const categoryLabel = formatCategory(editingControl?.category);
+        const pausedSpan = inactive ? ' <span style="color:var(--muted);font-weight:normal;"> (paused)</span>' : '';
+        document.getElementById('page-title').innerHTML = `${categoryLabel}: ${editingControl?.name}${pausedSpan}`;
+
+        showSaveStatus();
+      } catch (err) {
+        console.error('Error saving control:', err);
+      }
+    }
+
+    async function removeConfig() {
+      if (!confirm(`Reset "${editingControl?.name || editingControlId}"? This will clear all configuration. The control will remain in the list as "Not configured".`)) return;
+
+      try {
+        const response = await fetch(basePath + `/api/controls/${encodeURIComponent(editingControlId)}/configure`, {
+          method: 'DELETE'
+        });
+
+        if (!response.ok) {
+          const data = await response.json();
+          alert(data.error || 'Failed to remove configuration');
+          return;
+        }
+
+        goBack();
+      } catch (err) {
+        console.error('Error removing config:', err);
+        alert('Error removing configuration');
+      }
+    }
+
+    // ============================================================
+    // Tooltip positioning handler
+    // ============================================================
+    document.addEventListener('mouseover', (e) => {
+      const icon = e.target.closest('.info-icon');
+      if (!icon) return;
+
+      const tooltip = icon.querySelector('.info-tooltip');
+      if (!tooltip) return;
+
+      const iconRect = icon.getBoundingClientRect();
+      const tooltipWidth = 280;
+      const padding = 12;
+
+      // Position below the icon by default
+      let top = iconRect.bottom + 8;
+      let left = iconRect.left + (iconRect.width / 2) - (tooltipWidth / 2);
+
+      // Keep within viewport horizontally
+      if (left < padding) left = padding;
+      if (left + tooltipWidth > window.innerWidth - padding) {
+        left = window.innerWidth - tooltipWidth - padding;
+      }
+
+      // If would go off bottom, position above instead
+      if (top + 100 > window.innerHeight) {
+        top = iconRect.top - 8;
+        tooltip.style.transform = 'translateY(-100%)';
+      } else {
+        tooltip.style.transform = 'none';
+      }
+
+      tooltip.style.top = top + 'px';
+      tooltip.style.left = left + 'px';
+    });
+  </script>
+</body>
+</html>

@@ -103,228 +103,133 @@
     .nav-overflow-item:hover { color: var(--text); background: rgba(255,255,255,0.05); }
     .nav-overflow-item.active { color: var(--accent); }
 
-    /* Main Content - Two Panel Layout */
+    /* Main Content */
     .main {
-      display: flex;
-      height: calc(100vh - 56px);
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 16px 24px;
     }
 
-    /* Left Panel - Moment List */
-    .left-panel {
-      width: 280px;
-      background: var(--panel);
-      border-right: 1px solid var(--line);
-      display: flex;
-      flex-direction: column;
-      flex-shrink: 0;
+    .page-header {
+      margin-bottom: 8px;
     }
 
-    .panel-header {
-      padding: 20px;
-      border-bottom: 1px solid var(--line);
-    }
-
-    .panel-title {
-      font-size: 1.1rem;
-      font-weight: 600;
-    }
-
-    .moment-list {
-      flex: 1;
-      overflow-y: auto;
-      padding: 12px;
-    }
-
-    .moment-category {
-      margin-bottom: 16px;
-    }
-
-    .category-label {
-      font-size: 0.75rem;
-      font-weight: 600;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      padding: 8px 12px 4px;
-    }
-
-    .moment-item {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 12px;
+    /* Table */
+    .data-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      background: var(--card);
+      border: 1px solid var(--line);
       border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .data-table th {
+      text-align: left;
+      padding: 12px 8px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      font-weight: 600;
+      font-size: 0.85rem;
+      color: var(--muted);
       cursor: pointer;
-      transition: all 0.15s;
+      user-select: none;
+      transition: color 0.2s;
+      vertical-align: top;
+    }
+
+    .data-table th:hover {
       color: var(--text);
     }
 
-    .moment-item:hover {
-      background: rgba(255, 255, 255, 0.05);
-    }
-
-    .moment-item.selected {
-      background: rgba(254, 172, 96, 0.15);
-      color: var(--accent);
-    }
-
-    .moment-icon {
-      width: 20px;
-      height: 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1rem;
-      opacity: 0.8;
-    }
-
-    .moment-name {
-      font-size: 0.9rem;
-      font-weight: 500;
-    }
-
-    .add-moment-btn {
-      margin: 12px;
-      padding: 10px 16px;
-      background: transparent;
-      border: 1px dashed var(--line);
-      border-radius: 8px;
-      color: var(--muted);
-      font-size: 0.9rem;
-      cursor: pointer;
-      transition: all 0.2s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-    }
-
-    .add-moment-btn:hover {
-      border-color: var(--accent);
-      color: var(--accent);
-    }
-
-    /* Right Panel - Moment Editor */
-    .right-panel {
-      flex: 1;
-      overflow-y: auto;
-      padding: 24px;
-    }
-
-    .editor-empty {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100%;
-      color: var(--muted);
-      text-align: center;
-    }
-
-    .editor-empty-icon {
-      font-size: 3rem;
-      margin-bottom: 16px;
+    .data-table th .sort-arrow {
+      margin-right: 4px;
       opacity: 0.5;
     }
 
-    .editor-empty-text {
-      font-size: 0.95rem;
+    .data-table th.sorted .sort-arrow {
+      opacity: 1;
+      color: var(--accent);
     }
 
-    .editor-icon-btn {
-      width: 36px;
-      height: 36px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      font-size: 1.2rem;
-      cursor: pointer;
-      transition: all 0.2s;
-      flex-shrink: 0;
-    }
-
-    .editor-icon-btn:hover {
-      border-color: var(--accent);
-    }
-
-    .editor-name-input {
-      font-size: 1.1rem;
-      font-weight: 600;
-      background: transparent;
-      border: none;
-      color: var(--text);
-      padding: 4px 0;
-      border-bottom: 2px solid transparent;
-      transition: border-color 0.2s;
-      flex: 1;
-      min-width: 120px;
-    }
-
-    .editor-name-input:focus {
-      outline: none;
-      border-bottom-color: var(--accent);
-    }
-
-    /* Editor Card */
-    .editor-card {
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: 12px;
-    }
-
-    .editor-card-header {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 16px 20px;
+    .data-table td {
+      padding: 12px 8px;
       border-bottom: 1px solid var(--line);
+      font-size: 0.9rem;
     }
 
-    .editor-card-body {
-      padding: 20px;
+    .data-table tr:last-child td {
+      border-bottom: none;
     }
 
-    /* Settings rows */
-    .settings-row {
-      display: flex;
-      align-items: center;
-      margin-bottom: 12px;
+    .data-table tr.data-row {
+      cursor: pointer;
+      background: rgba(255, 255, 255, 0.02);
     }
 
-    .settings-label {
-      width: 80px;
-      font-size: 0.85rem;
-      font-weight: 500;
+    .data-table tr.data-row:hover td {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 48px 24px;
       color: var(--muted);
     }
 
-    /* Three-dot menu */
-    .more-menu {
-      position: relative;
-      margin-left: auto;
+    .empty-state-title {
+      font-size: 1.1rem;
+      margin-bottom: 8px;
+      color: var(--text);
     }
 
-    .more-menu-btn {
+    .empty-state-text {
+      font-size: 0.9rem;
+    }
+
+    /* Delete button in row */
+    .row-delete-btn {
       background: transparent;
-      border: 1px solid var(--line);
+      border: none;
+      color: var(--muted2);
+      cursor: pointer;
+      font-size: 1rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      line-height: 1;
+      transition: all 0.15s;
+    }
+
+    .row-delete-btn:hover {
+      color: var(--danger);
+      background: rgba(239, 68, 68, 0.1);
+    }
+
+    /* Toolbar menu */
+    .toolbar-menu {
+      position: relative;
+    }
+
+    .toolbar-menu-btn {
+      background: none;
+      border: none;
       color: var(--muted);
       font-size: 1.2rem;
       padding: 4px 8px;
-      border-radius: 6px;
+      border-radius: 4px;
       cursor: pointer;
       line-height: 1;
       transition: all 0.2s;
     }
 
-    .more-menu-btn:hover {
-      background: rgba(255, 255, 255, 0.05);
+    .toolbar-menu-btn:hover {
       color: var(--text);
+      background: rgba(255, 255, 255, 0.05);
     }
 
-    .more-menu-dropdown {
+    .toolbar-menu-dropdown {
       display: none;
       position: absolute;
       right: 0;
@@ -333,379 +238,28 @@
       background: var(--card);
       border: 1px solid var(--line);
       border-radius: 8px;
-      min-width: 120px;
+      min-width: 140px;
       z-index: 50;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      overflow: hidden;
+      padding: 4px 0;
     }
 
-    .more-menu-dropdown.open {
+    .toolbar-menu-dropdown.open {
       display: block;
     }
 
-    .more-menu-item {
+    .toolbar-menu-item {
       display: block;
       padding: 10px 16px;
       color: var(--text);
       text-decoration: none;
       font-size: 0.9rem;
-      cursor: pointer;
-      transition: background 0.15s;
-      border: none;
-      background: none;
-      width: 100%;
-      text-align: left;
-    }
-
-    .more-menu-item:hover {
-      background: rgba(255, 255, 255, 0.05);
-    }
-
-    .more-menu-item.danger {
-      color: var(--danger);
-    }
-
-    .more-menu-item.danger:hover {
-      background: rgba(239, 68, 68, 0.1);
-    }
-
-    /* Form Controls */
-    .form-select {
-      padding: 8px 12px;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      color: var(--text);
-      font-size: 0.9rem;
-      cursor: pointer;
-    }
-
-    .form-select:focus {
-      outline: 2px solid var(--accent);
-    }
-
-    .form-select-sm {
-      padding: 6px 10px;
-      font-size: 0.85rem;
-    }
-
-    /* Exceptions Section */
-    .exceptions-section {
-      margin-top: 20px;
-    }
-
-    .exceptions-header {
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: var(--muted);
-      margin-bottom: 10px;
-    }
-
-    .exceptions-inset {
-      background: rgba(0, 0, 0, 0.2);
-      border-radius: 8px;
-      padding: 12px 14px;
-    }
-
-    .exceptions-list {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .exception-item {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 6px 8px;
-      margin: 0 -8px;
-      border-radius: 6px;
       transition: background 0.15s;
     }
 
-    .exception-item:hover {
-      background: rgba(255, 255, 255, 0.03);
-    }
-
-    .exception-area {
-      width: 140px;
-      font-size: 0.9rem;
-      color: var(--text);
-    }
-
-    .exception-action {
-      padding: 5px 8px;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 4px;
-      color: var(--text);
-      font-size: 0.9rem;
-    }
-
-    .exception-remove {
-      background: transparent;
-      border: none;
-      color: var(--muted2);
-      font-size: 1rem;
-      cursor: pointer;
-      padding: 2px 6px;
-      line-height: 1;
-      opacity: 0.5;
-      transition: all 0.15s;
-    }
-
-    .exception-remove:hover {
-      color: var(--danger);
-      opacity: 1;
-    }
-
-    /* Add Exception Row */
-    .add-exception-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-top: 10px;
-      padding-top: 10px;
-      border-top: 1px solid rgba(255, 255, 255, 0.05);
-    }
-
-    .add-exception-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 0;
-      background: transparent;
-      border: none;
-      color: var(--muted);
-      font-size: 0.9rem;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .add-exception-btn:hover {
-      color: var(--accent);
-    }
-
-
-    /* Icon Picker Modal */
-    .icon-picker-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0, 0, 0, 0.7);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 200;
-      opacity: 0;
-      visibility: hidden;
-      transition: all 0.2s;
-    }
-
-    .icon-picker-overlay.visible {
-      opacity: 1;
-      visibility: visible;
-    }
-
-    .icon-picker {
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      padding: 20px;
-      width: 340px;
-      max-height: 80vh;
-      overflow-y: auto;
-    }
-
-    .icon-picker h4 {
-      margin-bottom: 16px;
-      font-size: 1rem;
-    }
-
-    .icon-grid {
-      display: grid;
-      grid-template-columns: repeat(6, 1fr);
-      gap: 8px;
-    }
-
-    .icon-option {
-      width: 40px;
-      height: 40px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      font-size: 1.2rem;
-      cursor: pointer;
-      transition: all 0.15s;
-    }
-
-    .icon-option:hover {
-      border-color: var(--accent);
-      background: rgba(254, 172, 96, 0.1);
-    }
-
-    .icon-option.selected {
-      border-color: var(--accent);
-      background: rgba(254, 172, 96, 0.2);
-    }
-
-    .icon-picker-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 8px;
-      margin-top: 16px;
-      padding-top: 16px;
-      border-top: 1px solid var(--line);
-    }
-
-    /* Delete Confirmation Modal */
-    .confirm-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0, 0, 0, 0.7);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 200;
-      opacity: 0;
-      visibility: hidden;
-      transition: all 0.2s;
-    }
-
-    .confirm-overlay.visible {
-      opacity: 1;
-      visibility: visible;
-    }
-
-    .confirm-modal {
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      padding: 24px;
-      width: 360px;
-    }
-
-    .confirm-modal h4 {
-      margin-bottom: 12px;
-    }
-
-    .confirm-modal p {
-      color: var(--muted);
-      font-size: 0.9rem;
-      margin-bottom: 20px;
-    }
-
-    .confirm-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 8px;
-    }
-
-    /* Buttons */
-    .btn {
-      padding: 8px 16px;
-      border-radius: 6px;
-      font-size: 0.85rem;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .btn-primary {
-      background: var(--accent);
-      border: none;
-      color: white;
-    }
-
-    .btn-primary:hover {
-      background: var(--accent-hover);
-    }
-
-    .btn-cancel {
-      background: transparent;
-      border: 1px solid var(--line);
-      color: var(--muted);
-    }
-
-    .btn-cancel:hover {
+    .toolbar-menu-item:hover {
       background: rgba(255, 255, 255, 0.05);
-      color: var(--text);
-    }
-
-    .btn-danger {
-      background: var(--danger);
-      border: none;
-      color: white;
-    }
-
-    .btn-danger:hover {
-      background: #dc2626;
-    }
-
-    /* Save Status */
-    .save-status {
-      position: fixed;
-      bottom: 24px;
-      right: 24px;
-      padding: 12px 20px;
-      background: var(--success);
-      color: white;
-      border-radius: 8px;
-      font-size: 0.9rem;
-      opacity: 0;
-      transform: translateY(10px);
-      transition: all 0.3s;
-      z-index: 150;
-    }
-
-    .save-status.visible {
-      opacity: 1;
-      transform: translateY(0);
-    }
-
-    /* Mobile Responsive */
-    @media (max-width: 768px) {
-      .main {
-        flex-direction: column;
-        height: auto;
-      }
-
-      .left-panel {
-        width: 100%;
-        border-right: none;
-        border-bottom: 1px solid var(--line);
-        max-height: 40vh;
-      }
-
-      .right-panel {
-        min-height: 60vh;
-      }
-
-      .inline-controls {
-        flex-direction: column;
-        gap: 12px;
-        align-items: flex-start;
-      }
-
-      .inline-control {
-        width: 100%;
-        justify-content: space-between;
-      }
-
-      .add-exception-row {
-        flex-wrap: wrap;
-        gap: 8px;
-      }
-
-      .add-exception-action-label {
-        margin-left: 0;
-      }
     }
   </style>
 </head>
@@ -737,109 +291,36 @@
 
   <!-- Main Content -->
   <main class="main">
-    <!-- Left Panel - Moment List -->
-    <div class="left-panel">
-      <div class="panel-header">
-        <h2 class="panel-title">Moments</h2>
+    <div class="page-header">
+      <div style="display: flex; align-items: center; justify-content: flex-end; gap: 16px;">
+        <div class="toolbar-menu">
+          <button class="toolbar-menu-btn" onclick="toggleToolbarMenu(event)">&#8942;</button>
+          <div class="toolbar-menu-dropdown" id="toolbar-menu-dropdown">
+            <a href="#" class="toolbar-menu-item" onclick="createNewMoment(); toggleToolbarMenu(event); return false;">Add Magic Moment</a>
+            <a href="#" class="toolbar-menu-item" onclick="loadData(); toggleToolbarMenu(event); return false;">Refresh</a>
+          </div>
+        </div>
       </div>
-      <div class="moment-list" id="moment-list">
-        <!-- Populated by JS -->
-      </div>
-      <button class="add-moment-btn" onclick="createNewMoment()">
-        <span>+</span> New Moment
-      </button>
     </div>
 
-    <!-- Right Panel - Moment Editor -->
-    <div class="right-panel" id="right-panel">
-      <div class="editor-empty" id="editor-empty">
-        <div class="editor-empty-icon">&#127763;</div>
-        <div class="editor-empty-text">Select a moment to edit, or create a new one.</div>
-      </div>
-      <div id="moment-editor" style="display: none;">
-        <!-- Editor content populated by JS -->
-      </div>
+    <div id="moment-list">
+      <!-- Populated by JS -->
     </div>
   </main>
 
-  <!-- Icon Picker Modal -->
-  <div class="icon-picker-overlay" id="icon-picker-overlay">
-    <div class="icon-picker">
-      <h4>Choose Icon</h4>
-      <div class="icon-grid" id="icon-grid">
-        <!-- Populated by JS -->
-      </div>
-      <div class="icon-picker-actions">
-        <button class="btn btn-cancel" onclick="hideIconPicker()">Cancel</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Delete Confirmation Modal -->
-  <div class="confirm-overlay" id="confirm-overlay">
-    <div class="confirm-modal">
-      <h4 id="confirm-title">Delete Moment?</h4>
-      <p id="confirm-message">This cannot be undone.</p>
-      <div class="confirm-actions">
-        <button class="btn btn-cancel" onclick="hideConfirm()">Cancel</button>
-        <button class="btn btn-danger" id="confirm-delete-btn">Delete</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="save-status" id="save-status">Saved</div>
-
   <script src="./shared.js"></script>
   <script>
-    // Icon options for moment icon picker
-    const MOMENT_ICONS = [
-      { icon: '&#128716;', name: 'bed' },          // bed
-      { icon: '&#127769;', name: 'moon' },         // crescent moon
-      { icon: '&#127763;', name: 'moon-face' },    // first quarter moon face
-      { icon: '&#127774;', name: 'sun' },          // sun with face
-      { icon: '&#127773;', name: 'sun-rays' },     // sun
-      { icon: '&#127749;', name: 'sunset' },       // bridge at night (sunset-like)
-      { icon: '&#127747;', name: 'sunrise' },      // sunrise over mountains
-      { icon: '&#127752;', name: 'rainbow' },      // rainbow
-      { icon: '&#127881;', name: 'party' },        // party popper
-      { icon: '&#127878;', name: 'celebrate' },    // confetti ball
-      { icon: '&#127871;', name: 'candle' },       // jack-o-lantern (candle-like)
-      { icon: '&#128161;', name: 'bulb' },         // light bulb
-      { icon: '&#127968;', name: 'home' },         // house
-      { icon: '&#128682;', name: 'door' },         // door
-      { icon: '&#128249;', name: 'movie' },        // movie camera
-      { icon: '&#127909;', name: 'clapperboard' }, // clapperboard
-      { icon: '&#127911;', name: 'headphones' },   // headphones
-      { icon: '&#127926;', name: 'music' },        // musical notes
-      { icon: '&#127860;', name: 'dinner' },       // fork and knife
-      { icon: '&#9749;', name: 'coffee' },         // hot beverage
-      { icon: '&#128218;', name: 'book' },         // books
-      { icon: '&#128187;', name: 'work' },         // laptop
-      { icon: '&#128170;', name: 'workout' },      // flexed biceps
-      { icon: '&#128704;', name: 'yoga' },         // person in lotus position
-    ];
-
-    // Action options
-    const ACTION_OPTIONS = [
-      { value: 'off', label: 'Off' },
-      { value: 'nitelite', label: 'NiteLite' },
-      { value: 'circadian_off', label: 'Circadian off' },
-      { value: 'leave_alone', label: 'Leave alone' }
-    ];
-
-    // Category options
-    const CATEGORY_OPTIONS = [
-      { value: 'utility', label: 'Utility' },
-      { value: 'fun', label: 'Fun' }
-    ];
-
     // State
     let moments = {};
-    let allAreas = [];
-    let allZones = [];
-    let selectedMomentId = null;
-    let pendingIconChange = null;
-    let newExceptionAction = 'leave_alone'; // Default action for new exceptions
+    let sortColumn = 'name';
+    let sortAsc = true;
+
+    const ACTION_LABELS = {
+      off: 'Off',
+      nitelite: 'NiteLite',
+      circadian_off: 'Circadian off',
+      leave_alone: 'Leave alone'
+    };
 
     // Initialize
     document.addEventListener('DOMContentLoaded', async () => {
@@ -849,284 +330,156 @@
 
     async function loadData() {
       try {
-        const [momentsRes, zonesRes] = await Promise.all([
-          fetch('./api/moments'),
-          fetch('./api/glozones')
-        ]);
-
+        const momentsRes = await fetch('./api/moments');
         if (momentsRes.ok) {
           const data = await momentsRes.json();
           moments = data.moments || {};
         }
-
-        if (zonesRes.ok) {
-          const data = await zonesRes.json();
-          allZones = data.zones || [];
-          // Flatten areas from zones
-          allAreas = [];
-          allZones.forEach(zone => {
-            (zone.areas || []).forEach(area => {
-              allAreas.push({
-                area_id: area.area_id,
-                name: area.name,
-                zone_id: zone.id,
-                zone_name: zone.name
-              });
-            });
-          });
-        }
       } catch (err) {
         console.error('Error loading data:', err);
       }
+      renderMomentList();
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    function setSort(col) {
+      if (sortColumn === col) {
+        sortAsc = !sortAsc;
+      } else {
+        sortColumn = col;
+        sortAsc = true;
+      }
+      renderMomentList();
     }
 
     function renderMomentList() {
       const container = document.getElementById('moment-list');
+      const entries = Object.entries(moments);
 
-      // Group moments by category
-      const byCategory = { utility: [], fun: [] };
-      Object.entries(moments).forEach(([id, moment]) => {
-        const cat = moment.category || 'utility';
-        if (!byCategory[cat]) byCategory[cat] = [];
-        byCategory[cat].push({ id, ...moment });
-      });
-
-      let html = '';
-      ['utility', 'fun'].forEach(category => {
-        const items = byCategory[category] || [];
-        if (items.length > 0) {
-          html += `
-            <div class="moment-category">
-              <div class="category-label">${category === 'utility' ? 'Utility' : 'Fun'}</div>
-              ${items.map(m => `
-                <div class="moment-item ${selectedMomentId === m.id ? 'selected' : ''}"
-                     onclick="selectMoment('${m.id}')">
-                  <span class="moment-icon">${m.icon || '&#127763;'}</span>
-                  <span class="moment-name">${m.name}</span>
-                </div>
-              `).join('')}
-            </div>
-          `;
-        }
-      });
-
-      if (Object.keys(moments).length === 0) {
-        html = `
-          <div style="text-align: center; padding: 40px 20px; color: var(--muted);">
-            <p>No moments yet.</p>
-            <p style="font-size: 0.85rem; margin-top: 8px;">Create your first moment to set whole-home lighting presets.</p>
+      if (entries.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-title">No moments yet</div>
+            <div class="empty-state-text">Create your first moment to set whole-home lighting presets.</div>
           </div>
         `;
-      }
-
-      container.innerHTML = html;
-    }
-
-    function selectMoment(id) {
-      selectedMomentId = id;
-      renderMomentList();
-      renderMomentEditor();
-    }
-
-    function renderMomentEditor() {
-      const editorEmpty = document.getElementById('editor-empty');
-      const editor = document.getElementById('moment-editor');
-
-      if (!selectedMomentId || !moments[selectedMomentId]) {
-        editorEmpty.style.display = 'flex';
-        editor.style.display = 'none';
         return;
       }
 
-      editorEmpty.style.display = 'none';
-      editor.style.display = 'block';
+      // Build flat list
+      const items = entries.map(([id, m]) => ({
+        id,
+        icon: m.icon || '&#127763;',
+        name: m.name || 'Unnamed',
+        category: m.category || 'utility',
+        action: m.default_action || 'off',
+        exceptionCount: Object.keys(m.exceptions || {}).length
+      }));
 
-      const moment = moments[selectedMomentId];
-      const exceptions = moment.exceptions || {};
+      // Sort
+      items.sort((a, b) => {
+        let valA, valB;
+        switch (sortColumn) {
+          case 'name':
+            valA = a.name.toLowerCase();
+            valB = b.name.toLowerCase();
+            break;
+          case 'category':
+            valA = a.category.toLowerCase();
+            valB = b.category.toLowerCase();
+            break;
+          case 'action':
+            valA = (ACTION_LABELS[a.action] || a.action).toLowerCase();
+            valB = (ACTION_LABELS[b.action] || b.action).toLowerCase();
+            break;
+          case 'exceptions':
+            valA = a.exceptionCount;
+            valB = b.exceptionCount;
+            break;
+          default:
+            valA = a.name.toLowerCase();
+            valB = b.name.toLowerCase();
+        }
+        if (valA < valB) return sortAsc ? -1 : 1;
+        if (valA > valB) return sortAsc ? 1 : -1;
+        return 0;
+      });
 
-      // Calculate summary
-      const summary = calculateSummary(moment);
+      function thClass(col) {
+        return sortColumn === col ? 'sorted' : '';
+      }
 
-      editor.innerHTML = `
-        <div class="editor-card">
-          <div class="editor-card-header">
-            <button class="editor-icon-btn" onclick="showIconPicker()">${moment.icon || '&#127763;'}</button>
-            <input type="text" class="editor-name-input" value="${moment.name}"
-                   onchange="updateMomentName(this.value)" onblur="saveMoment()">
-            <div class="more-menu">
-              <button class="more-menu-btn" onclick="toggleMoreMenu(event)">&#8942;</button>
-              <div class="more-menu-dropdown" id="more-menu-dropdown">
-                <button class="more-menu-item danger" onclick="confirmDelete(); closeMoreMenu();">Delete</button>
-              </div>
-            </div>
-          </div>
+      function arrow(col) {
+        if (sortColumn !== col) return '<span class="sort-arrow">\u2195</span>';
+        return `<span class="sort-arrow">${sortAsc ? '\u2191' : '\u2193'}</span>`;
+      }
 
-          <div class="editor-card-body">
-            <div class="settings-row">
-              <span class="settings-label">Category</span>
-              <select class="form-select form-select-sm" onchange="updateMomentCategory(this.value); saveMoment();">
-                ${CATEGORY_OPTIONS.map(opt => `
-                  <option value="${opt.value}" ${moment.category === opt.value ? 'selected' : ''}>${opt.label}</option>
-                `).join('')}
-              </select>
-            </div>
-
-            <div class="settings-row">
-              <span class="settings-label">Action</span>
-              <select class="form-select form-select-sm" onchange="updateDefaultAction(this.value); saveMoment();">
-                ${ACTION_OPTIONS.map(opt => `
-                  <option value="${opt.value}" ${moment.default_action === opt.value ? 'selected' : ''}>${opt.label}</option>
-                `).join('')}
-              </select>
-            </div>
-
-            <div class="exceptions-section">
-              <div class="exceptions-header">Exceptions</div>
-              <div class="exceptions-inset">
-                <div class="exceptions-list" id="exceptions-list">
-                  ${Object.entries(exceptions).map(([areaId, action]) => {
-                    const area = allAreas.find(a => a.area_id === areaId);
-                    const areaName = area ? area.name : areaId;
-                    return `
-                      <div class="exception-item">
-                        <span class="exception-area">${areaName}</span>
-                        <select class="exception-action" onchange="updateException('${areaId}', this.value); saveMoment();">
-                          ${ACTION_OPTIONS.map(opt => `
-                            <option value="${opt.value}" ${action === opt.value ? 'selected' : ''}>${opt.label}</option>
-                          `).join('')}
-                        </select>
-                        <button class="exception-remove" onclick="removeException('${areaId}'); saveMoment();">&times;</button>
-                      </div>
-                    `;
-                  }).join('')}
-                </div>
-                <div class="add-exception-row">
-                  <select class="form-select form-select-sm" id="new-exception-action" onchange="newExceptionAction = this.value;">
-                    ${ACTION_OPTIONS.map(opt => `
-                      <option value="${opt.value}" ${newExceptionAction === opt.value ? 'selected' : ''}>${opt.label}</option>
-                    `).join('')}
-                  </select>
-                  <button class="add-exception-btn" onclick="addException()">+ Add exception</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+      let html = `
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th style="width: 40px; cursor: default;"></th>
+              <th class="${thClass('name')}" onclick="setSort('name')">${arrow('name')}Name</th>
+              <th class="${thClass('category')}" onclick="setSort('category')">${arrow('category')}Category</th>
+              <th class="${thClass('action')}" onclick="setSort('action')">${arrow('action')}Action</th>
+              <th class="${thClass('exceptions')}" onclick="setSort('exceptions')">${arrow('exceptions')}Exceptions</th>
+              <th style="width: 40px; cursor: default;"></th>
+            </tr>
+          </thead>
+          <tbody>
       `;
-    }
 
-    function calculateSummary(moment) {
-      const exceptions = moment.exceptions || {};
-      const defaultAction = moment.default_action || 'leave_alone';
+      for (const m of items) {
+        const categoryLabel = m.category === 'fun' ? 'Fun' : 'Utility';
+        const actionLabel = ACTION_LABELS[m.action] || m.action;
+        const exceptionsLabel = m.exceptionCount > 0
+          ? m.exceptionCount
+          : '<span style="color: var(--muted2);">--</span>';
 
-      // Count actions
-      const counts = { off: 0, nitelite: 0, circadian_off: 0, leave_alone: 0 };
-
-      allAreas.forEach(area => {
-        const action = exceptions[area.area_id] || defaultAction;
-        if (action in counts) counts[action]++;
-      });
-
-      const parts = [];
-      if (counts.off > 0) parts.push(`${counts.off} Off`);
-      if (counts.nitelite > 0) parts.push(`${counts.nitelite} NiteLite`);
-      if (counts.circadian_off > 0) parts.push(`${counts.circadian_off} Circadian off`);
-      if (counts.leave_alone > 0) parts.push(`${counts.leave_alone} Skip`);
-
-      return parts.join(', ');
-    }
-
-    function updateMomentName(name) {
-      if (!selectedMomentId) return;
-      moments[selectedMomentId].name = name;
-      renderMomentList();
-    }
-
-    function updateMomentCategory(category) {
-      if (!selectedMomentId) return;
-      moments[selectedMomentId].category = category;
-      renderMomentList();
-    }
-
-    function updateDefaultAction(action) {
-      if (!selectedMomentId) return;
-      moments[selectedMomentId].default_action = action;
-      renderMomentEditor();
-    }
-
-    function updateException(areaId, action) {
-      if (!selectedMomentId) return;
-      if (!moments[selectedMomentId].exceptions) {
-        moments[selectedMomentId].exceptions = {};
+        html += `
+          <tr class="data-row" onclick="window.location.href='./moment/${encodeURIComponent(m.id)}'">
+            <td style="font-size: 1rem; text-align: center;">${m.icon}</td>
+            <td><span style="font-weight: 500;">${escapeHtml(m.name)}</span></td>
+            <td>${escapeHtml(categoryLabel)}</td>
+            <td>${escapeHtml(actionLabel)}</td>
+            <td>${exceptionsLabel}</td>
+            <td>
+              <button class="row-delete-btn" title="Delete moment" onclick="event.stopPropagation(); deleteMoment('${m.id.replace(/'/g, "\\'")}', '${escapeHtml(m.name).replace(/'/g, "\\'")}')">&#x2715;</button>
+            </td>
+          </tr>
+        `;
       }
-      moments[selectedMomentId].exceptions[areaId] = action;
-      renderMomentEditor();
+
+      html += '</tbody></table>';
+      container.innerHTML = html;
     }
 
-    function removeException(areaId) {
-      if (!selectedMomentId) return;
-      if (moments[selectedMomentId].exceptions) {
-        delete moments[selectedMomentId].exceptions[areaId];
-      }
-      renderMomentEditor();
-    }
+    async function deleteMoment(id, name) {
+      if (!confirm(`Delete "${name}"?`)) return;
 
-    async function addException() {
-      if (!selectedMomentId) return;
-
-      const moment = moments[selectedMomentId];
-      const existingExceptions = Object.keys(moment.exceptions || {});
-
-      // Use the area picker from shared.js
-      const selected = await openAreaPicker({
-        title: 'Add Exception',
-        selected: existingExceptions,
-        multi: true
-      });
-
-      if (selected && selected.length > 0) {
-        if (!moment.exceptions) moment.exceptions = {};
-        selected.forEach(areaId => {
-          if (!moment.exceptions[areaId]) {
-            // Use the action selected in the dropdown
-            moment.exceptions[areaId] = newExceptionAction;
-          }
+      try {
+        const response = await fetch(`./api/moments/${encodeURIComponent(id)}`, {
+          method: 'DELETE'
         });
-        renderMomentEditor();
-        saveMoment();
-      }
-    }
 
-    // More menu functions
-    function toggleMoreMenu(event) {
-      event.stopPropagation();
-      const dropdown = document.getElementById('more-menu-dropdown');
-      dropdown.classList.toggle('open');
-
-      // Close when clicking outside
-      if (dropdown.classList.contains('open')) {
-        setTimeout(() => {
-          document.addEventListener('click', closeMoreMenuOnOutside);
-        }, 0);
-      }
-    }
-
-    function closeMoreMenu() {
-      const dropdown = document.getElementById('more-menu-dropdown');
-      if (dropdown) dropdown.classList.remove('open');
-      document.removeEventListener('click', closeMoreMenuOnOutside);
-    }
-
-    function closeMoreMenuOnOutside(event) {
-      const dropdown = document.getElementById('more-menu-dropdown');
-      if (dropdown && !dropdown.contains(event.target)) {
-        closeMoreMenu();
+        if (response.ok) {
+          await loadData();
+        } else {
+          const data = await response.json();
+          alert(data.error || 'Failed to delete moment');
+        }
+      } catch (err) {
+        console.error('Error deleting moment:', err);
+        alert('Error deleting moment');
       }
     }
 
     async function createNewMoment() {
-      // Generate a unique ID
-      const id = 'moment_' + Date.now();
       const newMoment = {
         name: 'New Moment',
         icon: '&#127763;',
@@ -1145,19 +498,7 @@
 
         if (response.ok) {
           const data = await response.json();
-          moments[data.id] = { ...newMoment, id: data.id };
-          selectedMomentId = data.id;
-          renderMomentList();
-          renderMomentEditor();
-
-          // Focus the name input for immediate editing
-          setTimeout(() => {
-            const nameInput = document.querySelector('.editor-name-input');
-            if (nameInput) {
-              nameInput.focus();
-              nameInput.select();
-            }
-          }, 50);
+          window.location.href = './moment/' + encodeURIComponent(data.id);
         } else {
           const data = await response.json();
           alert(data.error || 'Failed to create moment');
@@ -1168,115 +509,14 @@
       }
     }
 
-    async function saveMoment() {
-      if (!selectedMomentId || !moments[selectedMomentId]) return;
-
-      const moment = moments[selectedMomentId];
-      const oldId = selectedMomentId;
-
-      try {
-        const response = await fetch(`./api/moments/${encodeURIComponent(selectedMomentId)}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(moment)
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          // Handle ID change on rename
-          if (data.id && data.id !== oldId) {
-            delete moments[oldId];
-            moments[data.id] = moment;
-            selectedMomentId = data.id;
-            renderMomentList();
-            renderMomentEditor();
-          }
-          showSaveStatus();
-        } else {
-          const data = await response.json();
-          console.error('Failed to save:', data.error);
-        }
-      } catch (err) {
-        console.error('Error saving moment:', err);
-      }
+    function toggleToolbarMenu(event) {
+      event.stopPropagation();
+      document.getElementById('toolbar-menu-dropdown').classList.toggle('open');
     }
 
-    function showSaveStatus() {
-      const status = document.getElementById('save-status');
-      status.classList.add('visible');
-      setTimeout(() => status.classList.remove('visible'), 2000);
-    }
-
-    // Icon Picker
-    function showIconPicker() {
-      const grid = document.getElementById('icon-grid');
-      const currentIcon = moments[selectedMomentId]?.icon || '&#127763;';
-
-      grid.innerHTML = MOMENT_ICONS.map(item => `
-        <div class="icon-option ${item.icon === currentIcon ? 'selected' : ''}"
-             onclick="selectIcon('${item.icon}')">${item.icon}</div>
-      `).join('');
-
-      document.getElementById('icon-picker-overlay').classList.add('visible');
-    }
-
-    function hideIconPicker() {
-      document.getElementById('icon-picker-overlay').classList.remove('visible');
-    }
-
-    function selectIcon(icon) {
-      if (!selectedMomentId) return;
-      moments[selectedMomentId].icon = icon;
-      hideIconPicker();
-      renderMomentList();
-      renderMomentEditor();
-      saveMoment();
-    }
-
-    // Delete Confirmation
-    function confirmDelete() {
-      if (!selectedMomentId) return;
-      const moment = moments[selectedMomentId];
-      document.getElementById('confirm-title').textContent = `Delete "${moment.name}"?`;
-      document.getElementById('confirm-message').textContent = 'This cannot be undone.';
-      document.getElementById('confirm-delete-btn').onclick = deleteMoment;
-      document.getElementById('confirm-overlay').classList.add('visible');
-    }
-
-    function hideConfirm() {
-      document.getElementById('confirm-overlay').classList.remove('visible');
-    }
-
-    async function deleteMoment() {
-      if (!selectedMomentId) return;
-
-      try {
-        const response = await fetch(`./api/moments/${encodeURIComponent(selectedMomentId)}`, {
-          method: 'DELETE'
-        });
-
-        if (response.ok) {
-          delete moments[selectedMomentId];
-          selectedMomentId = null;
-          hideConfirm();
-          renderMomentList();
-          renderMomentEditor();
-        } else {
-          const data = await response.json();
-          alert(data.error || 'Failed to delete moment');
-        }
-      } catch (err) {
-        console.error('Error deleting moment:', err);
-        alert('Error deleting moment');
-      }
-    }
-
-    // Close modals on overlay click
-    document.getElementById('icon-picker-overlay').addEventListener('click', (e) => {
-      if (e.target.classList.contains('icon-picker-overlay')) hideIconPicker();
-    });
-    document.getElementById('confirm-overlay').addEventListener('click', (e) => {
-      if (e.target.classList.contains('confirm-overlay')) hideConfirm();
+    document.addEventListener('click', () => {
+      const dropdown = document.getElementById('toolbar-menu-dropdown');
+      if (dropdown) dropdown.classList.remove('open');
     });
   </script>
 </body>
