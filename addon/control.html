@@ -71,6 +71,20 @@
       height: 20px;
     }
 
+    .page-header-meta {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 1px;
+      font-size: 0.75rem;
+      flex-shrink: 0;
+    }
+
+    .page-header-meta span {
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
     .page-title {
       font-size: 1.1rem;
       font-weight: 600;
@@ -606,6 +620,10 @@
       </svg>
     </button>
     <h1 class="page-title" id="page-title">Loading...</h1>
+    <div class="page-header-meta" id="page-header-meta">
+      <span id="header-meta-area"></span>
+      <span id="header-meta-glozone"></span>
+    </div>
     <div class="toolbar-menu">
       <button class="toolbar-menu-btn" onclick="toggleToolbarMenu(event)">&#8942;</button>
       <div class="toolbar-menu-dropdown" id="toolbar-menu-dropdown">
@@ -1106,13 +1124,23 @@
       const modalGlozone = getGlozoneForArea(ctrl.area_id);
       const infoText = `${ctrl.name}\nManufacturer: ${mfr}\nModel: ${model}\nArea: ${locationName}`;
 
+      // Populate header meta: area + glo zone
+      const metaArea = document.getElementById('header-meta-area');
+      const metaGlozone = document.getElementById('header-meta-glozone');
+      metaArea.textContent = locationName;
+      if (modalGlozone) {
+        metaGlozone.textContent = modalGlozone;
+        metaGlozone.style.display = '';
+      } else {
+        metaGlozone.textContent = '';
+        metaGlozone.style.display = 'none';
+      }
+
       document.getElementById('device-info').innerHTML = `
         <div style="margin-bottom: 12px; padding: 12px; background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid rgba(255,255,255,0.06);">
           <div style="font-size: 0.8rem; color: var(--muted); opacity: 0.5; margin-bottom: 8px;">This device isn't supported yet</div>
           <div style="margin-bottom: 4px;"><strong>Manufacturer:</strong> ${mfr}</div>
           <div style="margin-bottom: 4px;"><strong>Model:</strong> ${model}</div>
-          <div style="margin-bottom: 4px;"><strong>Location:</strong> ${locationName}</div>
-          ${modalGlozone ? `<div style="margin-bottom: 4px;"><strong>Zone:</strong> ${modalGlozone}</div>` : ''}
           ${ctrl.id ? `<div style="font-size: 0.75rem; color: var(--muted); opacity: 0.5; margin-top: 6px;">IEEE: ${ctrl.id}</div>` : ''}
           ${ctrl.device_id ? `<div style="font-size: 0.75rem; color: var(--muted); opacity: 0.5;">ID: ${ctrl.device_id}</div>` : ''}
         </div>
@@ -1622,12 +1650,20 @@
         resetItem.style.display = 'none';
       }
 
-      // Populate device info section: just Location + Glo Zone
+      // Populate header meta: area + glo zone (top-right in page header)
       const locationName = ctrl.area_name || 'Unassigned';
       const modalGlozone = getGlozoneForArea(ctrl.area_id);
-      document.getElementById('device-info').innerHTML = `
-        <span>Location: ${locationName}</span>${modalGlozone ? `<span style="margin-left: 16px;">Glo Zone: ${modalGlozone}</span>` : ''}
-      `;
+      const metaArea = document.getElementById('header-meta-area');
+      const metaGlozone = document.getElementById('header-meta-glozone');
+      metaArea.textContent = locationName;
+      if (modalGlozone) {
+        metaGlozone.textContent = modalGlozone;
+        metaGlozone.style.display = '';
+      } else {
+        metaGlozone.textContent = '';
+        metaGlozone.style.display = 'none';
+      }
+      document.getElementById('device-info').parentElement.style.display = 'none';
 
       // Restore elements that unsupported info may have hidden
       document.getElementById('settings-divider').style.display = '';
