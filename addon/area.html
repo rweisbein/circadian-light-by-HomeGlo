@@ -1499,7 +1499,7 @@
       const areaZoneState = selectedArea.zone_name ? (zoneStates[selectedArea.zone_name] || {}) : {};
       const areaRhythmName = areaZoneState.rhythm || null;
       if (areaRhythmName) {
-        metaRhythm.innerHTML = `<a href="${basePath}/rhythm/${encodeURIComponent(areaRhythmName)}?back=home">${areaRhythmName}</a>`;
+        metaRhythm.innerHTML = `<a href="${basePath}/rhythm/${encodeURIComponent(areaRhythmName)}?back=area/${encodeURIComponent(selectedArea.area_id)}">${areaRhythmName}</a>`;
         metaRhythm.style.display = '';
       } else {
         metaRhythm.innerHTML = '';
@@ -1556,7 +1556,7 @@
       metaZone.style.display = 'none';
       const rhythmName = zs.rhythm;
       if (rhythmName) {
-        metaRhythm.innerHTML = `<a href="${basePath}/rhythm/${encodeURIComponent(rhythmName)}?back=home">${rhythmName}</a>`;
+        metaRhythm.innerHTML = `<a href="${basePath}/rhythm/${encodeURIComponent(rhythmName)}?back=zone/${encodeURIComponent(selectedZoneName)}">${rhythmName}</a>`;
         metaRhythm.style.display = '';
       } else {
         metaRhythm.textContent = '—';

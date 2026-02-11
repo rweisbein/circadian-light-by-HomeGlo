@@ -534,12 +534,12 @@
     // State
     let controls = [];
     let allAreas = [];
-    let allGlozones = [];  // For glozone filter
+    let allGlozones = [];
     let sortColumn = 'area';
     let sortAsc = true;
     let categoryFilter = 'all';
     let areaFilter = 'all';
-    let glozoneFilter = 'all';
+    let fourthField = 'lastAction';
     let searchFilter = '';
     let activeOnly = false;
     let areaSortMode = localStorage.getItem('controls_areaSortMode') || 'custom';  // 'custom' or 'az'
@@ -559,10 +559,13 @@
           const config = await res.json();
           const prefs = config.controls_ui || {};
           sortColumn = prefs.sort_column || 'area';
+          // Migrate old lastAction/lux sort columns to 'fourth'
+          if (sortColumn === 'lastAction' || sortColumn === 'lux') sortColumn = 'fourth';
           sortAsc = prefs.sort_asc !== false;
           categoryFilter = prefs.category_filter || 'all';
           areaFilter = prefs.area_filter || 'all';
           activeOnly = prefs.active_only || false;
+          fourthField = prefs.fourth_field || 'lastAction';
         }
       } catch (err) {
         console.error('Error loading preferences:', err);
@@ -580,7 +583,8 @@
               sort_asc: sortAsc,
               category_filter: categoryFilter,
               area_filter: areaFilter,
-              active_only: activeOnly
+              active_only: activeOnly,
+              fourth_field: fourthField
             }
           })
         });
@@ -614,11 +618,9 @@
 
         if (configRes.ok) {
           const config = await configRes.json();
-          // Extract glozones from config
           allGlozones = Object.entries(config.glozones || {}).map(([id, zone]) => ({
             id,
             name: zone.name || id,
-            // Extract area IDs from area objects (areas can be {id, name} objects or plain strings)
             areaIds: (zone.areas || []).map(a => typeof a === 'object' ? a.id : a).filter(Boolean)
           }));
 
@@ -677,12 +679,6 @@
         if (areaFilter === 'unassigned' && c.area_name) return false;
         if (areaFilter !== 'all' && areaFilter !== 'unassigned' && c.area_name !== areaFilter) return false;
         if (activeOnly && c.status !== 'active' && c.status !== 'inactive') return false;
-        if (glozoneFilter !== 'all') {
-          const zone = allGlozones.find(z => z.id === glozoneFilter);
-          if (zone && zone.areaIds && zone.areaIds.length > 0) {
-            if (!zone.areaIds.includes(c.area_id || '')) return false;
-          }
-        }
         return true;
       });
 
@@ -708,13 +704,17 @@
               valB = (b.area_name || '').toLowerCase();
             }
             break;
-          case 'lastAction':
-            valA = (a.last_action?.timestamp || '');
-            valB = (b.last_action?.timestamp || '');
-            break;
-          case 'lux':
-            valA = a.illuminance?.value ?? -1;
-            valB = b.illuminance?.value ?? -1;
+          case 'fourth':
+            if (fourthField === 'lux') {
+              valA = a.illuminance?.value ?? -1;
+              valB = b.illuminance?.value ?? -1;
+            } else if (fourthField === 'pause') {
+              valA = a.inactive ? 1 : 0;
+              valB = b.inactive ? 1 : 0;
+            } else {
+              valA = (a.last_action?.timestamp || '');
+              valB = (b.last_action?.timestamp || '');
+            }
             break;
           default:
             return 0;
@@ -793,11 +793,8 @@
         (hasUnassigned ? `<option value="unassigned" ${areaFilter === 'unassigned' ? 'selected' : ''}>— Unassigned —</option>` : '') +
         areas.map(a => `<option value="${a}" ${areaFilter === a ? 'selected' : ''}>${a}</option>`).join('');
 
-      const glozoneOptions = `<option value="all">All zones</option>` +
-        allGlozones.map(z => `<option value="${z.id}" ${glozoneFilter === z.id ? 'selected' : ''}>${z.name}</option>`).join('');
-
       // Check if any filters are active and show/hide clear filters link
-      const hasActiveFilters = categoryFilter !== 'all' || areaFilter !== 'all' || glozoneFilter !== 'all' || searchFilter !== '' || activeOnly;
+      const hasActiveFilters = categoryFilter !== 'all' || areaFilter !== 'all' || searchFilter !== '' || activeOnly;
       document.getElementById('clear-filters-link').style.display = hasActiveFilters ? 'block' : 'none';
 
       // Update search bar and active checkbox (they live above the table)
@@ -825,20 +822,27 @@
               <th class="${thClass('area')}">
                 <div class="th-with-filter">
                   <div class="th-title-row">
-                    <span style="${locationArrows.leftStyle} cursor:pointer; margin-right:4px;" onclick="event.stopPropagation(); sortLocationAZ()" title="Sort alphabetic">${locationArrows.leftArrow}</span><span onclick="sortLocationAZ()" style="cursor:pointer;">Location</span>${filterIndicator('area', areaFilter, "clearSingleFilter('area')")}${filterIndicator('glozone', glozoneFilter, "clearSingleFilter('glozone')")}<span style="${locationArrows.rightStyle} cursor:pointer; margin-left:4px;" onclick="event.stopPropagation(); sortLocationCustom()" title="Sort by area order">${locationArrows.rightArrow}</span>
+                    <span style="${locationArrows.leftStyle} cursor:pointer; margin-right:4px;" onclick="event.stopPropagation(); sortLocationAZ()" title="Sort alphabetic">${locationArrows.leftArrow}</span><span onclick="sortLocationAZ()" style="cursor:pointer;">Location</span>${filterIndicator('area', areaFilter, "clearSingleFilter('area')")}<span style="${locationArrows.rightStyle} cursor:pointer; margin-left:4px;" onclick="event.stopPropagation(); sortLocationCustom()" title="Sort by area order">${locationArrows.rightArrow}</span>
                   </div>
-                  <select class="header-filter" id="glozone-filter" onclick="event.stopPropagation()" style="${filterActiveStyle(glozoneFilter)}">${glozoneOptions}</select>
-                  <select class="header-filter" id="area-filter" onclick="event.stopPropagation()" style="margin-top: 4px; ${filterActiveStyle(areaFilter)}">${areaOptions}</select>
+                  <select class="header-filter" id="area-filter" onclick="event.stopPropagation()" style="${filterActiveStyle(areaFilter)}">${areaOptions}</select>
                 </div>
               </th>
-              <th class="${thClass('lastAction')}" onclick="sortBy('lastAction')">${arrow('lastAction')}Last</th>
-              <th class="${thClass('lux')}" onclick="sortBy('lux')">${arrow('lux')}Lux</th>
+              <th class="${thClass('fourth')}">
+                <div class="th-with-filter">
+                  <div class="th-title-row" onclick="sortBy('fourth')">${arrow('fourth')}<span style="margin-left:2px;">${fourthField === 'lastAction' ? 'Last' : fourthField === 'lux' ? 'Lux' : 'Pause'}</span></div>
+                  <select class="header-filter" id="fourth-field-select" onclick="event.stopPropagation()">
+                    <option value="lastAction" ${fourthField === 'lastAction' ? 'selected' : ''}>Last action</option>
+                    <option value="lux" ${fourthField === 'lux' ? 'selected' : ''}>Lux</option>
+                    <option value="pause" ${fourthField === 'pause' ? 'selected' : ''}>Pause</option>
+                  </select>
+                </div>
+              </th>
             </tr>
           </thead>
           <tbody>
             ${sorted.length === 0 ? `
               <tr>
-                <td colspan="5" style="text-align: center; padding: 40px; color: var(--muted);">
+                <td colspan="4" style="text-align: center; padding: 40px; color: var(--muted);">
                   ${controls.length > 0
                     ? 'No controls match the current filters.'
                     : 'No controls found. Click Update to scan Home Assistant.'}
@@ -848,22 +852,25 @@
               const categoryLabel = formatCategory(ctrl.category);
               const areaName = ctrl.area_name || '—';
               const glozoneName = getGlozoneForArea(ctrl.area_id);
-              const lastAction = formatLastAction(ctrl);
               const rowClick = `onclick="editControl('${ctrl.id}')"`;
               const hasMagic = ctrl.magic_buttons && Object.keys(ctrl.magic_buttons).length > 0;
               const magicIcon = hasMagic ? ` <span class="magic-indicator" title="Has magic button assignments">✦</span>` : '';
               const statusSub = getStatusSubtitle(ctrl);
-              const luxCell = ctrl.illuminance && ctrl.illuminance.value != null
-                ? `${ctrl.illuminance.value}`
-                : '—';
               const glozoneLabel = glozoneName ? `<div style="font-size: 0.7rem; color: var(--muted); opacity: 0.7; margin-bottom: 1px;">${glozoneName}</div>` : '';
+              let fourthCell;
+              if (fourthField === 'lux') {
+                fourthCell = ctrl.illuminance && ctrl.illuminance.value != null ? `${ctrl.illuminance.value}` : '—';
+              } else if (fourthField === 'pause') {
+                fourthCell = `<input type="checkbox" ${ctrl.inactive ? 'checked' : ''} onclick="event.stopPropagation(); toggleInactive('${ctrl.id}', '${ctrl.category}', ${!ctrl.inactive})">`;
+              } else {
+                fourthCell = formatLastAction(ctrl);
+              }
               return `
                 <tr class="clickable-row" ${rowClick}>
                   <td><span class="switch-name-text">${ctrl.name}</span>${magicIcon}${statusSub}</td>
                   <td title="${categoryLabel}" style="text-align: center; color: var(--muted);">${categoryIcon(ctrl.category)}</td>
                   <td>${glozoneLabel}${areaName}</td>
-                  <td>${lastAction}</td>
-                  <td>${luxCell}</td>
+                  <td>${fourthCell}</td>
                 </tr>
               `;
             }).join('')}
@@ -1023,7 +1030,6 @@
     function clearFilters() {
       categoryFilter = 'all';
       areaFilter = 'all';
-      glozoneFilter = 'all';
       searchFilter = '';
       activeOnly = false;
       savePreferences();
@@ -1034,7 +1040,6 @@
       switch (filterName) {
         case 'category': categoryFilter = 'all'; break;
         case 'area': areaFilter = 'all'; break;
-        case 'glozone': glozoneFilter = 'all'; break;
       }
       savePreferences();
       renderControls();
@@ -1121,8 +1126,9 @@
           areaFilter = e.target.value;
           savePreferences();
           renderControls();
-        } else if (e.target.id === 'glozone-filter') {
-          glozoneFilter = e.target.value;
+        } else if (e.target.id === 'fourth-field-select') {
+          fourthField = e.target.value;
+          savePreferences();
           renderControls();
         }
       });

@@ -4957,8 +4957,12 @@ async function saveRhythmSettings() {
  * Navigation
  */
 const _basePath = window.location.pathname.replace(/\/rhythm\/[^/]*\/?$/, '').replace(/\/rhythm\/?$/, '');
-const _fromHome = new URLSearchParams(window.location.search).get('back') === 'home';
-const _backUrl = _fromHome ? (_basePath || '.') + '/' : (_basePath || '.') + '/rhythm';
+const _backParam = new URLSearchParams(window.location.search).get('back');
+const _backUrl = _backParam && _backParam !== 'home'
+  ? (_basePath || '.') + '/' + _backParam
+  : _backParam === 'home'
+    ? (_basePath || '.') + '/'
+    : (_basePath || '.') + '/rhythm';
 
 function goBack() {
   if (window.history.length > 1 && document.referrer) {
