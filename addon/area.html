@@ -343,7 +343,7 @@
       font-size: 0.6rem;
       color: var(--muted);
       cursor: pointer;
-      padding: 6px 0 2px 0;
+      padding: 10px 0 2px 0;
       letter-spacing: 0.02em;
     }
     .slider-extreme:hover {
@@ -522,12 +522,12 @@
         <div class="slider-group">
           <div class="slider-column">
             <div class="slider-label">Bright</div>
-            <div class="slider-extreme" id="bright-max" onclick="executeSetPosition(100,'brightness')">max</div>
+            <div class="slider-extreme" id="bright-max" onclick="executeSetPosition(100,'brightness')">brightest</div>
             <div class="slider-track" data-mode="brightness">
               <div class="slider-fill"></div>
               <div class="slider-thumb"></div>
             </div>
-            <div class="slider-extreme" id="bright-min" onclick="executeSetPosition(0,'brightness')">min</div>
+            <div class="slider-extreme" id="bright-min" onclick="executeSetPosition(0,'brightness')">dimmest</div>
           </div>
           <div class="step-buttons">
             <button class="step-btn" onclick="executeAction('bright_up')" title="Brightness Up">
@@ -541,12 +541,12 @@
         <div class="slider-group">
           <div class="slider-column">
             <div class="slider-label">Color</div>
-            <div class="slider-extreme" id="color-max" onclick="executeSetPosition(100,'color')">max</div>
+            <div class="slider-extreme" id="color-max" onclick="executeSetPosition(100,'color')">coolest</div>
             <div class="slider-track" data-mode="color">
               <div class="slider-fill"></div>
               <div class="slider-thumb"></div>
             </div>
-            <div class="slider-extreme" id="color-min" onclick="executeSetPosition(0,'color')">min</div>
+            <div class="slider-extreme" id="color-min" onclick="executeSetPosition(0,'color')">warmest</div>
           </div>
           <div class="step-buttons">
             <button class="step-btn" onclick="executeAction('color_up')" title="Color Up">
@@ -1596,7 +1596,7 @@
           if (selectedArea.boosted && selectedArea.boost_brightness) {
             let text = `+${selectedArea.boost_brightness}%`;
             if (selectedArea.boost_expires_at === 'forever') {
-              text += ' · forever';
+              // No suffix — just show the boost percentage
             } else if (selectedArea.boost_expires_at === 'motion') {
               if (selectedArea.motion_expires_at) {
                 const remaining = formatCountdown(selectedArea.motion_expires_at);
