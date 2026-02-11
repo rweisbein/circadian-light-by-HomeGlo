@@ -252,7 +252,7 @@
     }
 
     .modal-input:focus {
-      outline: 2px solid var(--accent);
+      outline: 2px solid dodgerblue;
     }
 
     .modal-select {
@@ -267,7 +267,7 @@
     }
 
     .modal-select:focus {
-      outline: 2px solid var(--accent);
+      outline: 2px solid dodgerblue;
     }
 
     /* Hide native number input spinners */
@@ -324,7 +324,7 @@
 
     /* Reach container */
     .reach-container {
-      background: rgba(255, 255, 255, 0.025);
+      background: var(--panel);
       border-radius: 10px;
       padding: 14px;
       margin-bottom: 4px;
@@ -377,7 +377,7 @@
       display: flex;
       flex-direction: column;
       gap: 0;
-      margin-right: 8px;
+      margin-left: 6px;
     }
 
     .scope-reorder-arrow {
@@ -411,7 +411,7 @@
 
     .scope-editor select:focus,
     .scope-editor input[type="number"]:focus {
-      outline: 1px solid var(--accent);
+      outline: 1px solid dodgerblue;
     }
 
     /* Area chips for scope editor */
@@ -427,8 +427,8 @@
       align-items: center;
       gap: 6px;
       padding: 5px 8px 5px 12px;
-      background: rgba(254, 172, 96, 0.1);
-      border: 1px solid var(--accent);
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--line);
       border-radius: 16px;
       font-size: 0.85rem;
       color: var(--text);
@@ -1269,13 +1269,13 @@
         return `
           <div class="scope-editor" data-scope-idx="${idx}">
             <div class="scope-editor-header">
+              <span class="scope-editor-title">Reach ${idx + 1}</span>
               ${showArrows ? `
                 <div class="scope-reorder-arrows">
                   <button class="scope-reorder-arrow" ${upDisabled} onclick="swapScope(${idx}, -1)" title="Move up">&#9650;</button>
                   <button class="scope-reorder-arrow" ${downDisabled} onclick="swapScope(${idx}, 1)" title="Move down">&#9660;</button>
                 </div>
               ` : ''}
-              <span class="scope-editor-title">Reach ${idx + 1}</span>
               ${editingScopes.length > 1 ? `<button class="scope-editor-remove" onclick="removeScope(${idx})">remove</button>` : ''}
             </div>
             <div class="area-chips">
@@ -1383,13 +1383,13 @@
         return `
           <div class="scope-editor" data-motion-idx="${idx}">
             <div class="scope-editor-header">
+              <span class="scope-editor-title">Reach ${idx + 1}</span>
               ${showMotionArrows ? `
                 <div class="scope-reorder-arrows">
                   <button class="scope-reorder-arrow" ${motionUpDisabled} onclick="swapMotionScope(${idx}, -1)" title="Move up">&#9650;</button>
                   <button class="scope-reorder-arrow" ${motionDownDisabled} onclick="swapMotionScope(${idx}, 1)" title="Move down">&#9660;</button>
                 </div>
               ` : ''}
-              <span class="scope-editor-title">Reach ${idx + 1}</span>
               ${editingMotionScopes.length > 1 ? `<button class="scope-editor-remove" onclick="removeMotionScope(${idx})">remove</button>` : ''}
             </div>
             <div class="area-chips">
