@@ -2289,7 +2289,7 @@ class LightDesignerServer:
                         'motion_expires_at': motion_expires_at,
                         'motion_warning_active': motion_warning_active,
                         'zone_name': zone_name if zone_name != 'Unassigned' else None,
-                        'preset_name': zone_data.get('rhythm', 'Glo 1'),
+                        'preset_name': zone_data.get('rhythm', glozone.DEFAULT_RHYTHM),
                         # Raw state model
                         'brightness_mid': area_state.brightness_mid,
                         'color_mid': area_state.color_mid,

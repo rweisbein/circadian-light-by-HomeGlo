@@ -324,9 +324,15 @@
 
     .modal-header {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: space-between;
-      margin-bottom: 20px;
+      margin-bottom: 12px;
+    }
+
+    .modal-header-left {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
     }
 
     .modal-title {
@@ -345,6 +351,30 @@
 
     .modal-close:hover {
       color: var(--text);
+    }
+
+    .modal-header-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 1px;
+      font-size: 0.75rem;
+      flex-shrink: 0;
+      padding-top: 2px;
+    }
+
+    .modal-header-meta {
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .modal-header-meta a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .modal-header-meta a:hover {
+      text-decoration: underline;
     }
 
     /* Area state display - with dynamic shading */
@@ -371,16 +401,20 @@
     .area-state-row {
       display: flex;
       align-items: center;
-      gap: 16px;
+      justify-content: space-between;
+      gap: 12px;
       position: relative;
       z-index: 1;
     }
 
-    .area-state-info {
-      flex: 1;
-      min-width: 0;
+    .area-state-status-row {
       display: flex;
       align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 10px;
+      position: relative;
+      z-index: 1;
     }
 
     .area-state-values {
@@ -388,7 +422,6 @@
       font-weight: 500;
       display: flex;
       align-items: center;
-      height: 100%;
       gap: 6px;
     }
 
@@ -417,7 +450,6 @@
       background: rgba(0,0,0,0.5);
       padding: 6px;
       border-radius: 10px;
-      margin-right: 12px;
     }
 
     /* Toggle switch styles */
@@ -476,43 +508,14 @@
       border-color: var(--accent);
     }
 
-    /* Modal context info (Glo zone + Rhythm) */
-    .modal-context-info {
-      display: flex;
-      gap: 20px;
-      padding: 6px 0;
-      font-size: 0.85rem;
-    }
-
-    .context-line {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-
-    .context-label {
-      color: var(--muted);
-    }
-
-    .context-link {
-      color: var(--accent);
-      text-decoration: none;
-      transition: color 0.2s;
-    }
-
-    .context-link:hover {
-      color: var(--accent-hover);
-      text-decoration: underline;
-    }
 
     /* Timer status row (motion + boost between header and chart) */
     .modal-timer-status {
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      padding: 4px 0;
+      gap: 8px;
       font-size: 0.8rem;
-      min-height: 0;
+      margin-left: auto;
     }
 
     .modal-timer-status:empty {
@@ -631,8 +634,9 @@
       gap: 4px;
     }
     .slider-label {
-      font-size: 0.65rem;
-      color: var(--muted);
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text);
       text-transform: uppercase;
       letter-spacing: 0.04em;
     }
@@ -678,7 +682,7 @@
       font-size: 0.6rem;
       color: var(--muted);
       cursor: pointer;
-      padding: 2px 0;
+      padding: 6px 0 2px 0;
       letter-spacing: 0.02em;
     }
     .slider-extreme:hover {
@@ -1308,13 +1312,14 @@
   <div class="modal-overlay" id="area-modal">
     <div class="modal">
       <div class="modal-header">
-        <h3 class="modal-title" id="modal-area-name">Area Name</h3>
-        <button class="modal-close" onclick="closeModal()">Close</button>
-      </div>
-
-      <div class="modal-context-info" id="modal-context-info">
-        <div class="context-line"><span class="context-label">Glo zone:</span> <span id="modal-zone-link">—</span></div>
-        <div class="context-line" id="modal-rhythm-line" style="display:none;"><span class="context-label">Daily Rhythm:</span> <span class="context-link" id="modal-rhythm-link">—</span></div>
+        <div class="modal-header-left">
+          <h3 class="modal-title" id="modal-area-name">Area Name</h3>
+          <button class="modal-close" onclick="closeModal()">Close</button>
+        </div>
+        <div class="modal-header-right" id="modal-header-meta">
+          <span class="modal-header-meta" id="modal-meta-zone"></span>
+          <span class="modal-header-meta" id="modal-meta-rhythm"></span>
+        </div>
       </div>
 
       <div class="area-state" id="modal-area-state">
@@ -1348,9 +1353,6 @@
               <span style="font-weight:900; font-size:16px; font-family:serif; line-height:1;">B</span>
             </button>
           </div>
-          <div class="area-state-info">
-            <div class="area-state-values" id="modal-values"></div>
-          </div>
           <div class="area-state-controls">
             <button class="toggle-btn" id="toggle-glo-up" onclick="executeAction('glo_up')" title="GloUp: send area settings to GloZone">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -1374,9 +1376,11 @@
             </button>
           </div>
         </div>
+        <div class="area-state-status-row">
+          <div class="area-state-values" id="modal-values"></div>
+          <div class="modal-timer-status" id="modal-timer-status"></div>
+        </div>
       </div>
-
-      <div class="modal-timer-status" id="modal-timer-status"></div>
 
       <div id="modal-mini-chart"></div>
 
@@ -1967,7 +1971,10 @@
     function getSliderCfgAndState(areaId) {
       const status = areaStatus[areaId] || {};
       if (!cachedConfig || !cachedSunTimes) return null;
-      const rhythmName = status.preset_name;
+      // Use zone's rhythm (authoritative), fall back to area's preset_name
+      const zoneName = status.zone_name;
+      const zs = zoneName ? (zoneStates[zoneName] || {}) : {};
+      const rhythmName = zs.rhythm || status.preset_name;
       const cfg = (rhythmName && cachedRhythms[rhythmName])
         ? { ...cachedConfig, ...cachedRhythms[rhythmName] }
         : cachedConfig;
@@ -2048,10 +2055,8 @@
       const briMinEl = document.getElementById('bright-min');
       const cctMaxEl = document.getElementById('color-max');
       const cctMinEl = document.getElementById('color-min');
-      if (briMaxEl) briMaxEl.textContent = bMax + '%';
-      if (briMinEl) briMinEl.textContent = bMin + '%';
-      if (cctMaxEl) cctMaxEl.textContent = cMax + 'K';
-      if (cctMinEl) cctMinEl.textContent = cMin + 'K';
+      // Bright and Color extremes stay as "max"/"min" labels
+      // (specific values are in the modal status area)
     }
 
     function getPositionFromPointer(track, e) {
@@ -3577,27 +3582,25 @@
 
       valuesEl.textContent = `${Math.round(displayBri)}% • ${Math.round(displayKelvin)}K`;
 
-      // Context info (Glo zone)
-      const zoneLinkEl = document.getElementById('modal-zone-link');
+      // Header meta: zone + rhythm (top-right)
+      const metaZone = document.getElementById('modal-meta-zone');
+      const metaRhythm = document.getElementById('modal-meta-rhythm');
       if (selectedArea.zone_name) {
-        zoneLinkEl.textContent = selectedArea.zone_name;
+        metaZone.textContent = selectedArea.zone_name;
+        metaZone.style.display = '';
       } else {
-        zoneLinkEl.textContent = 'Unassigned';
+        metaZone.textContent = '';
+        metaZone.style.display = 'none';
       }
-      // Show rhythm line in area modal (via zone's rhythm)
-      const rhythmLine = document.getElementById('modal-rhythm-line');
-      const rhythmLinkEl = document.getElementById('modal-rhythm-link');
       const areaZoneState = selectedArea.zone_name ? (zoneStates[selectedArea.zone_name] || {}) : {};
       const areaRhythmName = areaZoneState.rhythm || null;
       if (areaRhythmName) {
-        rhythmLinkEl.innerHTML = `<a href="./rhythm/${encodeURIComponent(areaRhythmName)}?back=home" style="color: var(--accent); text-decoration: none;">${areaRhythmName}</a>`;
-        rhythmLine.style.display = '';
+        metaRhythm.innerHTML = `<a href="./rhythm/${encodeURIComponent(areaRhythmName)}?back=home">${areaRhythmName}</a>`;
+        metaRhythm.style.display = '';
       } else {
-        rhythmLine.style.display = 'none';
+        metaRhythm.innerHTML = '';
+        metaRhythm.style.display = 'none';
       }
-      // Show first context line (zone) that zone modal hides
-      const contextLines = document.querySelectorAll('#modal-context-info .context-line');
-      if (contextLines[0]) contextLines[0].style.display = '';
 
       // Show area controls, hide zone controls
       const ctrlLeft = document.querySelector('.area-state-controls-left');
@@ -3639,8 +3642,10 @@
       const status = areaStatus[areaId] || {};
       if (!cachedConfig || !cachedSunTimes) return;
 
-      // Use the area's specific rhythm config (same pattern as getPureRhythmValues)
-      const rhythmName = status.preset_name;
+      // Use the zone's rhythm (authoritative source, matches label)
+      const zoneName = status.zone_name;
+      const zs = zoneName ? (zoneStates[zoneName] || {}) : {};
+      const rhythmName = zs.rhythm || status.preset_name;
       let cfg;
       if (rhythmName && cachedRhythms[rhythmName]) {
         cfg = { ...cachedConfig, ...cachedRhythms[rhythmName] };
@@ -3748,24 +3753,19 @@
       // Title
       document.getElementById('modal-area-name').textContent = 'Glo Zone: ' + zoneName;
 
-      // Context info: show rhythm as link, hide zone line label
-      const zoneLinkEl = document.getElementById('modal-zone-link');
-      zoneLinkEl.textContent = '';
-
-      const rhythmLine = document.getElementById('modal-rhythm-line');
-      const rhythmLinkEl = document.getElementById('modal-rhythm-link');
+      // Header meta: rhythm only (zone name already in title)
+      const metaZone = document.getElementById('modal-meta-zone');
+      const metaRhythm = document.getElementById('modal-meta-rhythm');
+      metaZone.textContent = '';
+      metaZone.style.display = 'none';
       const rhythmName = zs.rhythm || null;
       if (rhythmName) {
-        rhythmLinkEl.innerHTML = `<a href="./rhythm/${encodeURIComponent(rhythmName)}?back=home" style="color: var(--accent); text-decoration: none;">${rhythmName}</a>`;
-        rhythmLine.style.display = '';
+        metaRhythm.innerHTML = `<a href="./rhythm/${encodeURIComponent(rhythmName)}?back=home">${rhythmName}</a>`;
+        metaRhythm.style.display = '';
       } else {
-        rhythmLinkEl.textContent = '—';
-        rhythmLine.style.display = '';
+        metaRhythm.textContent = '—';
+        metaRhythm.style.display = '';
       }
-
-      // Hide the zone context line (first context-line) since we're already in zone view
-      const contextLines = document.querySelectorAll('#modal-context-info .context-line');
-      if (contextLines[0]) contextLines[0].style.display = 'none';
 
       // Use zone brightness/kelvin
       const zoneBri = zs.brightness ?? 0;
@@ -3863,10 +3863,11 @@
       if (ctrlLeft) ctrlLeft.style.display = '';
       if (ctrlRight) ctrlRight.style.display = '';
       if (ctrlRightZone) ctrlRightZone.style.display = 'none';
-      document.getElementById('modal-rhythm-line').style.display = 'none';
-      // Restore first context line (zone label) visibility
-      const contextLines = document.querySelectorAll('#modal-context-info .context-line');
-      if (contextLines[0]) contextLines[0].style.display = '';
+      // Reset header meta
+      const metaZone = document.getElementById('modal-meta-zone');
+      const metaRhythm = document.getElementById('modal-meta-rhythm');
+      if (metaZone) { metaZone.textContent = ''; metaZone.style.display = 'none'; }
+      if (metaRhythm) { metaRhythm.innerHTML = ''; metaRhythm.style.display = 'none'; }
       // Immediate refresh then resume periodic refresh
       loadData();
       startHomeRefresh();
