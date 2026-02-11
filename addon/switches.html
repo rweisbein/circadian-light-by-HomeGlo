@@ -843,7 +843,7 @@
                   </div>
                 </div>
               </th>
-              <th class="${thClass('category')}">
+              <th class="${thClass('category')}" style="width: 52px;">
                 <div class="th-with-filter">
                   <div class="th-title-row" onclick="sortBy('category')">${arrow('category')}Type${filterIndicator('category', categoryFilter, "clearSingleFilter('category')")}</div>
                   <select class="header-filter" id="category-filter" onclick="event.stopPropagation()" style="${filterActiveStyle(categoryFilter)}">${categoryOptions}</select>
@@ -902,7 +902,7 @@
                 <tr class="${rowClass}" ${rowClick}>
                   <td>${pauseCell}${magicIcon}</td>
                   <td><span class="switch-name-text">${ctrl.name}</span></td>
-                  <td>${categoryLabel}</td>
+                  <td title="${categoryLabel}" style="text-align: center; color: var(--muted);">${categoryIcon(ctrl.category)}</td>
                   <td>${glozoneLabel}${areaName}</td>
                   <td>${statusBadge}</td>
                   <td>${lastAction}</td>
@@ -947,6 +947,16 @@
         'unknown': 'Unknown'
       };
       return labels[category] || category || '—';
+    }
+
+    function categoryIcon(category) {
+      const size = 18;
+      const icons = {
+        'switch': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="3"/><circle cx="12" cy="8" r="1.5" fill="currentColor" stroke="none"/><circle cx="12" cy="13" r="1.5" fill="currentColor" stroke="none"/><line x1="10" y1="18" x2="14" y2="18"/></svg>`,
+        'motion_sensor': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 18 A8 8 0 0 1 8 6"/><path d="M5 20 A12 12 0 0 1 5 4"/><circle cx="14" cy="12" r="3" fill="currentColor" stroke="none" opacity="0.6"/><path d="M17 9 A5 5 0 0 1 17 15"/><path d="M20 7 A8 8 0 0 1 20 17"/></svg>`,
+        'contact_sensor': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="8" height="12" rx="2"/><rect x="14" y="6" width="8" height="12" rx="2"/><line x1="10" y1="11" x2="14" y2="11" stroke-dasharray="2 2"/><line x1="10" y1="13" x2="14" y2="13" stroke-dasharray="2 2"/></svg>`,
+      };
+      return icons[category] || '—';
     }
 
     function formatController(integration) {
