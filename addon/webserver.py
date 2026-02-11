@@ -523,6 +523,7 @@ class LightDesignerServer:
         # Page routes - specific pages first, then catch-all
         # With ingress path prefix
         self.app.router.add_route('GET', '/{path:.*}/switchmap', self.serve_switchmap)
+        self.app.router.add_route('GET', '/{path:.*}/control/{control_id}', self.serve_control_detail)
         self.app.router.add_route('GET', '/{path:.*}/switches', self.serve_switches)
         self.app.router.add_route('GET', '/{path:.*}/rhythm/{rhythm_name}', self.serve_rhythm_design)
         self.app.router.add_route('GET', '/{path:.*}/rhythm', self.serve_rhythm_list)
@@ -531,9 +532,11 @@ class LightDesignerServer:
         self.app.router.add_route('GET', '/{path:.*}/area/{area_id}', self.serve_area_detail)
         self.app.router.add_route('GET', '/{path:.*}/zone/{zone_name}', self.serve_zone_detail)
         self.app.router.add_route('GET', '/{path:.*}/settings', self.serve_settings)
+        self.app.router.add_route('GET', '/{path:.*}/moment/{moment_id}', self.serve_moment_detail)
         self.app.router.add_route('GET', '/{path:.*}/moments', self.serve_moments)
         self.app.router.add_route('GET', '/{path:.*}/', self.serve_home)
         # Without ingress path prefix
+        self.app.router.add_get('/control/{control_id}', self.serve_control_detail)
         self.app.router.add_get('/switches', self.serve_switches)
         self.app.router.add_get('/switchmap', self.serve_switchmap)
         self.app.router.add_get('/rhythm/{rhythm_name}', self.serve_rhythm_design)
@@ -543,6 +546,7 @@ class LightDesignerServer:
         self.app.router.add_get('/area/{area_id}', self.serve_area_detail)
         self.app.router.add_get('/zone/{zone_name}', self.serve_zone_detail)
         self.app.router.add_get('/settings', self.serve_settings)
+        self.app.router.add_get('/moment/{moment_id}', self.serve_moment_detail)
         self.app.router.add_get('/moments', self.serve_moments)
         self.app.router.add_get('/', self.serve_home)
         # Legacy routes
@@ -647,6 +651,16 @@ class LightDesignerServer:
     async def serve_moments(self, request: Request) -> Response:
         """Serve the Moments page."""
         return await self.serve_page("moments")
+
+    async def serve_moment_detail(self, request: Request) -> Response:
+        """Serve the Moment detail page."""
+        moment_id = request.match_info.get("moment_id")
+        return await self.serve_page("moment", {"selectedMomentId": moment_id})
+
+    async def serve_control_detail(self, request: Request) -> Response:
+        """Serve the Control detail page."""
+        control_id = request.match_info.get("control_id")
+        return await self.serve_page("control", {"selectedControlId": control_id})
 
     async def serve_areas(self, request: Request) -> Response:
         """Legacy: redirect to home (areas is now the home page)."""

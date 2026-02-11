@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Circadian Light - Moment</title>
+  <style>
+    :root {
+      --bg: #000;
+      --panel: #111;
+      --card: #1a1a1a;
+      --accent: #feac60;
+      --accent-hover: #ffc078;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --muted2: #64748b;
+      --line: #334155;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* Page Header */
+    .page-header {
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .back-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: var(--card);
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+
+    .back-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: var(--accent);
+    }
+
+    .back-btn svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    .editor-icon-btn {
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      font-size: 1.2rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+
+    .editor-icon-btn:hover {
+      border-color: var(--accent);
+    }
+
+    .page-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Main Content */
+    .main {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px 16px;
+    }
+
+    /* Editor Card */
+    .editor-card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+    }
+
+    .editor-card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .editor-name-input {
+      font-size: 1.1rem;
+      font-weight: 600;
+      background: transparent;
+      border: none;
+      color: var(--text);
+      padding: 4px 0;
+      border-bottom: 2px solid transparent;
+      transition: border-color 0.2s;
+      flex: 1;
+      min-width: 120px;
+    }
+
+    .editor-name-input:focus {
+      outline: none;
+      border-bottom-color: var(--accent);
+    }
+
+    .editor-card-body {
+      padding: 20px;
+    }
+
+    /* Settings rows */
+    .settings-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .settings-label {
+      width: 80px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--muted);
+    }
+
+    /* Three-dot menu */
+    .more-menu {
+      position: relative;
+      margin-left: auto;
+    }
+
+    .more-menu-btn {
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 1.2rem;
+      padding: 4px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      line-height: 1;
+      transition: all 0.2s;
+    }
+
+    .more-menu-btn:hover {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text);
+    }
+
+    .more-menu-dropdown {
+      display: none;
+      position: absolute;
+      right: 0;
+      top: 100%;
+      margin-top: 4px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      min-width: 120px;
+      z-index: 50;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .more-menu-dropdown.open {
+      display: block;
+    }
+
+    .more-menu-item {
+      display: block;
+      padding: 10px 16px;
+      color: var(--text);
+      text-decoration: none;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: background 0.15s;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+    }
+
+    .more-menu-item:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .more-menu-item.danger {
+      color: var(--danger);
+    }
+
+    .more-menu-item.danger:hover {
+      background: rgba(239, 68, 68, 0.1);
+    }
+
+    /* Form Controls */
+    .form-select {
+      padding: 8px 12px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+
+    .form-select:focus {
+      outline: 2px solid var(--accent);
+    }
+
+    .form-select-sm {
+      padding: 6px 10px;
+      font-size: 0.85rem;
+    }
+
+    /* Exceptions Section */
+    .exceptions-section {
+      margin-top: 20px;
+    }
+
+    .exceptions-header {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    .exceptions-inset {
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 8px;
+      padding: 12px 14px;
+    }
+
+    .exceptions-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .exception-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 8px;
+      margin: 0 -8px;
+      border-radius: 6px;
+      transition: background 0.15s;
+    }
+
+    .exception-item:hover {
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .exception-area {
+      width: 140px;
+      font-size: 0.9rem;
+      color: var(--text);
+    }
+
+    .exception-action {
+      padding: 5px 8px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      color: var(--text);
+      font-size: 0.9rem;
+    }
+
+    .exception-remove {
+      background: transparent;
+      border: none;
+      color: var(--muted2);
+      font-size: 1rem;
+      cursor: pointer;
+      padding: 2px 6px;
+      line-height: 1;
+      opacity: 0.5;
+      transition: all 0.15s;
+    }
+
+    .exception-remove:hover {
+      color: var(--danger);
+      opacity: 1;
+    }
+
+    /* Add Exception Row */
+    .add-exception-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .add-exception-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 0;
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .add-exception-btn:hover {
+      color: var(--accent);
+    }
+
+    /* Icon Picker Modal */
+    .icon-picker-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.2s;
+    }
+
+    .icon-picker-overlay.visible {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .icon-picker {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 20px;
+      width: 340px;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+
+    .icon-picker h4 {
+      margin-bottom: 16px;
+      font-size: 1rem;
+    }
+
+    .icon-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 8px;
+    }
+
+    .icon-option {
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      font-size: 1.2rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .icon-option:hover {
+      border-color: var(--accent);
+      background: rgba(254, 172, 96, 0.1);
+    }
+
+    .icon-option.selected {
+      border-color: var(--accent);
+      background: rgba(254, 172, 96, 0.2);
+    }
+
+    .icon-picker-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--line);
+    }
+
+    /* Delete Confirmation Modal */
+    .confirm-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.2s;
+    }
+
+    .confirm-overlay.visible {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .confirm-modal {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 24px;
+      width: 360px;
+    }
+
+    .confirm-modal h4 {
+      margin-bottom: 12px;
+    }
+
+    .confirm-modal p {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-bottom: 20px;
+    }
+
+    .confirm-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    /* Buttons */
+    .btn {
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      border: none;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-hover);
+    }
+
+    .btn-cancel {
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--muted);
+    }
+
+    .btn-cancel:hover {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text);
+    }
+
+    .btn-danger {
+      background: var(--danger);
+      border: none;
+      color: white;
+    }
+
+    .btn-danger:hover {
+      background: #dc2626;
+    }
+
+    /* Save Status */
+    .save-status {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      padding: 12px 20px;
+      background: var(--success);
+      color: white;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.3s;
+      z-index: 150;
+    }
+
+    .save-status.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Mobile Responsive */
+    @media (max-width: 768px) {
+      .add-exception-row {
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Page Header -->
+  <header class="page-header">
+    <button class="back-btn" onclick="goBack()" title="Back">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="15 18 9 12 15 6"/>
+      </svg>
+    </button>
+    <button class="editor-icon-btn" id="header-icon-btn" onclick="showIconPicker()">&#127763;</button>
+    <h1 class="page-title" id="page-title">Loading...</h1>
+  </header>
+
+  <main class="main">
+    <div id="moment-editor">
+      <!-- Editor content populated by JS -->
+    </div>
+  </main>
+
+  <!-- Icon Picker Modal -->
+  <div class="icon-picker-overlay" id="icon-picker-overlay">
+    <div class="icon-picker">
+      <h4>Choose Icon</h4>
+      <div class="icon-grid" id="icon-grid">
+        <!-- Populated by JS -->
+      </div>
+      <div class="icon-picker-actions">
+        <button class="btn btn-cancel" onclick="hideIconPicker()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Confirmation Modal -->
+  <div class="confirm-overlay" id="confirm-overlay">
+    <div class="confirm-modal">
+      <h4 id="confirm-title">Delete Moment?</h4>
+      <p id="confirm-message">This cannot be undone.</p>
+      <div class="confirm-actions">
+        <button class="btn btn-cancel" onclick="hideConfirm()">Cancel</button>
+        <button class="btn btn-danger" id="confirm-delete-btn">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="save-status" id="save-status">Saved</div>
+
+  <script src="./shared.js"></script>
+  <script>
+    // Icon options for moment icon picker
+    const MOMENT_ICONS = [
+      { icon: '&#128716;', name: 'bed' },
+      { icon: '&#127769;', name: 'moon' },
+      { icon: '&#127763;', name: 'moon-face' },
+      { icon: '&#127774;', name: 'sun' },
+      { icon: '&#127773;', name: 'sun-rays' },
+      { icon: '&#127749;', name: 'sunset' },
+      { icon: '&#127747;', name: 'sunrise' },
+      { icon: '&#127752;', name: 'rainbow' },
+      { icon: '&#127881;', name: 'party' },
+      { icon: '&#127878;', name: 'celebrate' },
+      { icon: '&#127871;', name: 'candle' },
+      { icon: '&#128161;', name: 'bulb' },
+      { icon: '&#127968;', name: 'home' },
+      { icon: '&#128682;', name: 'door' },
+      { icon: '&#128249;', name: 'movie' },
+      { icon: '&#127909;', name: 'clapperboard' },
+      { icon: '&#127911;', name: 'headphones' },
+      { icon: '&#127926;', name: 'music' },
+      { icon: '&#127860;', name: 'dinner' },
+      { icon: '&#9749;', name: 'coffee' },
+      { icon: '&#128218;', name: 'book' },
+      { icon: '&#128187;', name: 'work' },
+      { icon: '&#128170;', name: 'workout' },
+      { icon: '&#128704;', name: 'yoga' },
+    ];
+
+    // Action options
+    const ACTION_OPTIONS = [
+      { value: 'off', label: 'Off' },
+      { value: 'nitelite', label: 'NiteLite' },
+      { value: 'circadian_off', label: 'Circadian off' },
+      { value: 'leave_alone', label: 'Leave alone' }
+    ];
+
+    // Category options
+    const CATEGORY_OPTIONS = [
+      { value: 'utility', label: 'Utility' },
+      { value: 'fun', label: 'Fun' }
+    ];
+
+    // State
+    let moment = null;
+    let selectedMomentId = null;
+    let allAreas = [];
+    let allZones = [];
+    let pendingIconChange = null;
+    let newExceptionAction = 'leave_alone';
+
+    // Compute base path for API calls (handles ingress prefix)
+    const basePath = (() => {
+      const path = window.location.pathname;
+      const m = path.match(/^(.*)\/moment\/[^/]+\/?$/);
+      return m ? (m[1] || '') : '';
+    })();
+
+    function goBack() {
+      if (window.history.length > 1 && document.referrer) {
+        window.history.back();
+      } else {
+        window.location.href = basePath + '/moments';
+      }
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', async () => {
+      const data = window.circadianData || {};
+      selectedMomentId = data.selectedMomentId;
+
+      if (!selectedMomentId) {
+        document.getElementById('page-title').textContent = 'Moment not found';
+        return;
+      }
+
+      await loadData();
+      renderMomentEditor();
+    });
+
+    async function loadData() {
+      try {
+        const [momentsRes, zonesRes] = await Promise.all([
+          fetch(basePath + '/api/moments'),
+          fetch(basePath + '/api/glozones')
+        ]);
+
+        if (momentsRes.ok) {
+          const data = await momentsRes.json();
+          const allMoments = data.moments || {};
+          moment = allMoments[selectedMomentId] || null;
+        }
+
+        if (zonesRes.ok) {
+          const data = await zonesRes.json();
+          allZones = data.zones || [];
+          allAreas = [];
+          allZones.forEach(zone => {
+            (zone.areas || []).forEach(area => {
+              allAreas.push({
+                area_id: area.area_id,
+                name: area.name,
+                zone_id: zone.id,
+                zone_name: zone.name
+              });
+            });
+          });
+        }
+      } catch (err) {
+        console.error('Error loading data:', err);
+      }
+    }
+
+    function updateHeader() {
+      if (!moment) return;
+      document.getElementById('header-icon-btn').innerHTML = moment.icon || '&#127763;';
+      document.getElementById('page-title').textContent = moment.name || 'Unnamed Moment';
+    }
+
+    function renderMomentEditor() {
+      if (!moment) {
+        document.getElementById('page-title').textContent = 'Moment not found';
+        document.getElementById('moment-editor').innerHTML = `
+          <div style="text-align: center; padding: 40px 20px; color: var(--muted);">
+            <p>This moment could not be found.</p>
+          </div>
+        `;
+        return;
+      }
+
+      updateHeader();
+
+      const exceptions = moment.exceptions || {};
+
+      document.getElementById('moment-editor').innerHTML = `
+        <div class="editor-card">
+          <div class="editor-card-header">
+            <input type="text" class="editor-name-input" value="${moment.name}"
+                   onchange="updateMomentName(this.value)" onblur="saveMoment()">
+            <div class="more-menu">
+              <button class="more-menu-btn" onclick="toggleMoreMenu(event)">&#8942;</button>
+              <div class="more-menu-dropdown" id="more-menu-dropdown">
+                <button class="more-menu-item danger" onclick="confirmDelete(); closeMoreMenu();">Delete</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="editor-card-body">
+            <div class="settings-row">
+              <span class="settings-label">Category</span>
+              <select class="form-select form-select-sm" onchange="updateMomentCategory(this.value); saveMoment();">
+                ${CATEGORY_OPTIONS.map(opt => `
+                  <option value="${opt.value}" ${moment.category === opt.value ? 'selected' : ''}>${opt.label}</option>
+                `).join('')}
+              </select>
+            </div>
+
+            <div class="settings-row">
+              <span class="settings-label">Action</span>
+              <select class="form-select form-select-sm" onchange="updateDefaultAction(this.value); saveMoment();">
+                ${ACTION_OPTIONS.map(opt => `
+                  <option value="${opt.value}" ${moment.default_action === opt.value ? 'selected' : ''}>${opt.label}</option>
+                `).join('')}
+              </select>
+            </div>
+
+            <div class="exceptions-section">
+              <div class="exceptions-header">Exceptions</div>
+              <div class="exceptions-inset">
+                <div class="exceptions-list" id="exceptions-list">
+                  ${Object.entries(exceptions).map(([areaId, action]) => {
+                    const area = allAreas.find(a => a.area_id === areaId);
+                    const areaName = area ? area.name : areaId;
+                    return `
+                      <div class="exception-item">
+                        <span class="exception-area">${areaName}</span>
+                        <select class="exception-action" onchange="updateException('${areaId}', this.value); saveMoment();">
+                          ${ACTION_OPTIONS.map(opt => `
+                            <option value="${opt.value}" ${action === opt.value ? 'selected' : ''}>${opt.label}</option>
+                          `).join('')}
+                        </select>
+                        <button class="exception-remove" onclick="removeException('${areaId}'); saveMoment();">&times;</button>
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+                <div class="add-exception-row">
+                  <select class="form-select form-select-sm" id="new-exception-action" onchange="newExceptionAction = this.value;">
+                    ${ACTION_OPTIONS.map(opt => `
+                      <option value="${opt.value}" ${newExceptionAction === opt.value ? 'selected' : ''}>${opt.label}</option>
+                    `).join('')}
+                  </select>
+                  <button class="add-exception-btn" onclick="addException()">+ Add exception</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function updateMomentName(name) {
+      if (!moment) return;
+      moment.name = name;
+      updateHeader();
+    }
+
+    function updateMomentCategory(category) {
+      if (!moment) return;
+      moment.category = category;
+    }
+
+    function updateDefaultAction(action) {
+      if (!moment) return;
+      moment.default_action = action;
+      renderMomentEditor();
+    }
+
+    function updateException(areaId, action) {
+      if (!moment) return;
+      if (!moment.exceptions) moment.exceptions = {};
+      moment.exceptions[areaId] = action;
+      renderMomentEditor();
+    }
+
+    function removeException(areaId) {
+      if (!moment) return;
+      if (moment.exceptions) {
+        delete moment.exceptions[areaId];
+      }
+      renderMomentEditor();
+    }
+
+    async function addException() {
+      if (!moment) return;
+
+      const existingExceptions = Object.keys(moment.exceptions || {});
+
+      const selected = await openAreaPicker({
+        title: 'Add Exception',
+        selected: existingExceptions,
+        multi: true
+      });
+
+      if (selected && selected.length > 0) {
+        if (!moment.exceptions) moment.exceptions = {};
+        selected.forEach(areaId => {
+          if (!moment.exceptions[areaId]) {
+            moment.exceptions[areaId] = newExceptionAction;
+          }
+        });
+        renderMomentEditor();
+        saveMoment();
+      }
+    }
+
+    // More menu functions
+    function toggleMoreMenu(event) {
+      event.stopPropagation();
+      const dropdown = document.getElementById('more-menu-dropdown');
+      dropdown.classList.toggle('open');
+
+      if (dropdown.classList.contains('open')) {
+        setTimeout(() => {
+          document.addEventListener('click', closeMoreMenuOnOutside);
+        }, 0);
+      }
+    }
+
+    function closeMoreMenu() {
+      const dropdown = document.getElementById('more-menu-dropdown');
+      if (dropdown) dropdown.classList.remove('open');
+      document.removeEventListener('click', closeMoreMenuOnOutside);
+    }
+
+    function closeMoreMenuOnOutside(event) {
+      const dropdown = document.getElementById('more-menu-dropdown');
+      if (dropdown && !dropdown.contains(event.target)) {
+        closeMoreMenu();
+      }
+    }
+
+    async function saveMoment() {
+      if (!selectedMomentId || !moment) return;
+
+      const oldId = selectedMomentId;
+
+      try {
+        const response = await fetch(basePath + `/api/moments/${encodeURIComponent(selectedMomentId)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(moment)
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.id && data.id !== oldId) {
+            selectedMomentId = data.id;
+            // Update URL to reflect new ID
+            const newPath = basePath + '/moment/' + encodeURIComponent(data.id);
+            window.history.replaceState(null, '', newPath);
+          }
+          showSaveStatus();
+        } else {
+          const data = await response.json();
+          console.error('Failed to save:', data.error);
+        }
+      } catch (err) {
+        console.error('Error saving moment:', err);
+      }
+    }
+
+    function showSaveStatus() {
+      const status = document.getElementById('save-status');
+      status.classList.add('visible');
+      setTimeout(() => status.classList.remove('visible'), 2000);
+    }
+
+    // Icon Picker
+    function showIconPicker() {
+      const grid = document.getElementById('icon-grid');
+      const currentIcon = moment?.icon || '&#127763;';
+
+      grid.innerHTML = MOMENT_ICONS.map(item => `
+        <div class="icon-option ${item.icon === currentIcon ? 'selected' : ''}"
+             onclick="selectIcon('${item.icon}')">${item.icon}</div>
+      `).join('');
+
+      document.getElementById('icon-picker-overlay').classList.add('visible');
+    }
+
+    function hideIconPicker() {
+      document.getElementById('icon-picker-overlay').classList.remove('visible');
+    }
+
+    function selectIcon(icon) {
+      if (!moment) return;
+      moment.icon = icon;
+      hideIconPicker();
+      renderMomentEditor();
+      saveMoment();
+    }
+
+    // Delete Confirmation
+    function confirmDelete() {
+      if (!moment) return;
+      document.getElementById('confirm-title').textContent = `Delete "${moment.name}"?`;
+      document.getElementById('confirm-message').textContent = 'This cannot be undone.';
+      document.getElementById('confirm-delete-btn').onclick = deleteMoment;
+      document.getElementById('confirm-overlay').classList.add('visible');
+    }
+
+    function hideConfirm() {
+      document.getElementById('confirm-overlay').classList.remove('visible');
+    }
+
+    async function deleteMoment() {
+      if (!selectedMomentId) return;
+
+      try {
+        const response = await fetch(basePath + `/api/moments/${encodeURIComponent(selectedMomentId)}`, {
+          method: 'DELETE'
+        });
+
+        if (response.ok) {
+          hideConfirm();
+          goBack();
+        } else {
+          const data = await response.json();
+          alert(data.error || 'Failed to delete moment');
+        }
+      } catch (err) {
+        console.error('Error deleting moment:', err);
+        alert('Error deleting moment');
+      }
+    }
+
+    // Close modals on overlay click
+    document.getElementById('icon-picker-overlay').addEventListener('click', (e) => {
+      if (e.target.classList.contains('icon-picker-overlay')) hideIconPicker();
+    });
+    document.getElementById('confirm-overlay').addEventListener('click', (e) => {
+      if (e.target.classList.contains('confirm-overlay')) hideConfirm();
+    });
+  </script>
+</body>
+</html>
