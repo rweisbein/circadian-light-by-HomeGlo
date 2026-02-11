@@ -223,9 +223,7 @@
     }
 
     .modal-settings-divider {
-      border-top: 1px solid var(--line);
-      margin: 12px 0 0;
-      padding-top: 12px;
+      margin: 20px 0 0;
     }
 
     .modal-settings-divider .modal-section {
@@ -322,16 +320,15 @@
 
     /* Scope Editor */
     .scope-editor {
-      margin-bottom: 8px;
-      padding: 10px 0;
-      border-bottom: 1px solid var(--line);
+      margin-bottom: 16px;
+      padding: 0;
     }
 
     .scope-editor-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
     }
 
     .scope-editor-title {
@@ -402,7 +399,7 @@
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
-      min-height: 32px;
+      align-items: center;
     }
 
     .area-chip {
@@ -444,42 +441,40 @@
       font-style: italic;
     }
 
-    .add-areas-btn {
+    .add-areas-chip {
       display: inline-flex;
       align-items: center;
-      gap: 4px;
-      padding: 0;
-      margin-top: 10px;
+      padding: 5px 12px;
       background: transparent;
-      border: none;
-      color: var(--muted);
-      font-size: 0.9rem;
+      border: 1px dashed var(--muted2);
+      border-radius: 16px;
+      color: var(--muted2);
+      font-size: 0.85rem;
       cursor: pointer;
       transition: all 0.2s;
     }
 
-    .add-areas-btn:hover {
+    .add-areas-chip:hover {
       color: var(--accent);
+      border-color: var(--accent);
     }
 
     .add-scope-btn {
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 6px 12px;
+      padding: 2px 0;
       background: transparent;
-      border: 1px dashed var(--line);
-      border-radius: 6px;
-      color: var(--muted);
+      border: none;
+      color: var(--muted2);
       font-size: 0.85rem;
       cursor: pointer;
       transition: all 0.2s;
-      margin-top: 8px;
+      margin-top: 4px;
     }
 
     .add-scope-btn:hover {
       color: var(--accent);
-      border-color: var(--accent);
     }
 
     .magic-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
@@ -1258,9 +1253,9 @@
               ${editingScopes.length > 1 ? `<button class="scope-editor-remove" onclick="removeScope(${idx})">remove</button>` : ''}
             </div>
             <div class="area-chips">
-              ${areaChips || '<span class="area-chips-empty">No areas selected</span>'}
+              ${areaChips}
+              <button class="add-areas-chip" onclick="addAreasToScope(${idx})">+</button>
             </div>
-            <button class="add-areas-btn" onclick="addAreasToScope(${idx})">+ Add Areas</button>
           </div>
         `;
       }).join('');
@@ -1371,9 +1366,9 @@
               ${editingMotionScopes.length > 1 ? `<button class="scope-editor-remove" onclick="removeMotionScope(${idx})">remove</button>` : ''}
             </div>
             <div class="area-chips">
-              ${areaChips || '<span class="area-chips-empty">No areas selected</span>'}
+              ${areaChips}
+              <button class="add-areas-chip" onclick="addAreasToMotionScope(${idx})">+</button>
             </div>
-            <button class="add-areas-btn" onclick="addAreasToMotionScope(${idx})">+ Add Areas</button>
 
             <div style="margin-top: 14px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
               <select onchange="updateMotionScope(${idx}, 'mode', this.value)">
