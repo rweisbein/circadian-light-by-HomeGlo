@@ -356,14 +356,6 @@
       color: var(--danger);
     }
 
-    .drag-handle {
-      color: var(--muted2);
-      cursor: grab;
-      font-size: 1.1rem;
-      margin-right: 4px;
-      user-select: none;
-    }
-
     .scope-reorder-arrows {
       display: flex;
       flex-direction: column;
@@ -474,18 +466,20 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 2px 0;
+      padding: 6px 12px;
       background: transparent;
-      border: none;
+      border: 1px dashed var(--line);
+      border-radius: 6px;
       color: var(--muted);
       font-size: 0.85rem;
       cursor: pointer;
       transition: all 0.2s;
-      margin-top: 0;
+      margin-top: 8px;
     }
 
     .add-scope-btn:hover {
       color: var(--accent);
+      border-color: var(--accent);
     }
 
     .magic-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
@@ -640,7 +634,9 @@
         <div style="font-size: 0.75rem; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;"><span style="color: var(--accent); margin-right: 4px;">&#10022;</span>Magic Buttons</div>
         <div id="magic-editor"></div>
       </div>
+    </div>
 
+    <div class="modal-settings-divider" id="pause-divider" style="display: none;">
       <div class="modal-section" id="pause-section" style="display: none;">
         <label style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer;">
           <span style="font-size: 0.85rem; color: var(--muted);">Pause</span>
@@ -648,7 +644,9 @@
           <input type="checkbox" id="control-pause-checkbox" style="width: 16px; height: 16px; accent-color: var(--accent);">
         </label>
       </div>
+    </div>
 
+    <div class="modal-settings-divider" id="indicator-divider" style="display: none;">
       <div class="modal-section" id="indicator-light-section" style="display: none;">
         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
           <label class="modal-label" style="margin-bottom: 0;">Feedback Cues</label>
@@ -660,7 +658,9 @@
           <!-- Populated with lights -->
         </select>
       </div>
+    </div>
 
+    <div class="modal-settings-divider" id="zha-divider" style="display: none;">
       <div class="modal-section" id="zha-settings-section" style="display: none;">
         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
           <span style="font-size: 0.75rem; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px;">Sensor Settings</span>
@@ -1110,9 +1110,12 @@
       document.getElementById('switch-config-section').style.display = 'none';
       document.getElementById('motion-config-section').style.display = 'none';
       document.getElementById('pause-section').style.display = 'none';
+      document.getElementById('pause-divider').style.display = 'none';
       document.getElementById('indicator-light-section').style.display = 'none';
+      document.getElementById('indicator-divider').style.display = 'none';
       document.getElementById('magic-section').style.display = 'none';
       document.getElementById('settings-divider').style.display = 'none';
+      document.getElementById('zha-divider').style.display = 'none';
 
     }
 
@@ -1246,7 +1249,6 @@
           <div class="scope-editor" data-scope-idx="${idx}">
             <div class="scope-editor-header">
               ${showArrows ? `
-                <span class="drag-handle">&#10303;</span>
                 <div class="scope-reorder-arrows">
                   <button class="scope-reorder-arrow" ${upDisabled} onclick="swapScope(${idx}, -1)" title="Move up">&#9650;</button>
                   <button class="scope-reorder-arrow" ${downDisabled} onclick="swapScope(${idx}, 1)" title="Move down">&#9660;</button>
@@ -1360,7 +1362,6 @@
           <div class="scope-editor" data-motion-idx="${idx}">
             <div class="scope-editor-header">
               ${showMotionArrows ? `
-                <span class="drag-handle">&#10303;</span>
                 <div class="scope-reorder-arrows">
                   <button class="scope-reorder-arrow" ${motionUpDisabled} onclick="swapMotionScope(${idx}, -1)" title="Move up">&#9650;</button>
                   <button class="scope-reorder-arrow" ${motionDownDisabled} onclick="swapMotionScope(${idx}, 1)" title="Move down">&#9660;</button>
@@ -1616,6 +1617,7 @@
 
       // Show pause section for all control types and set checkbox
       pauseSection.style.display = 'block';
+      document.getElementById('pause-divider').style.display = '';
       document.getElementById('control-pause-checkbox').checked = editingInactive;
 
       if (isSensorType) {
@@ -1623,6 +1625,7 @@
         switchSection.style.display = 'none';
         motionSection.style.display = 'block';
         document.getElementById('indicator-light-section').style.display = 'none';
+        document.getElementById('indicator-divider').style.display = 'none';
         document.getElementById('magic-section').style.display = 'none';
         renderMotionScopesEditor();
 
@@ -1630,9 +1633,11 @@
         const zhaSection = document.getElementById('zha-settings-section');
         if (ctrl.category === 'motion_sensor' && ctrl.integration === 'zha') {
           zhaSection.style.display = 'block';
+          document.getElementById('zha-divider').style.display = '';
           loadZhaSettings(ctrl.device_id);
         } else {
           zhaSection.style.display = 'none';
+          document.getElementById('zha-divider').style.display = 'none';
         }
       } else {
         // Type is now shown in device-info, hide the type section
@@ -1640,10 +1645,12 @@
         switchSection.style.display = 'block';
         motionSection.style.display = 'none';
         document.getElementById('zha-settings-section').style.display = 'none';
+        document.getElementById('zha-divider').style.display = 'none';
 
         // Show indicator light section for switches
         const indicatorSection = document.getElementById('indicator-light-section');
         indicatorSection.style.display = 'block';
+        document.getElementById('indicator-divider').style.display = '';
         editingIndicatorLight = ctrl.indicator_light || '';
         loadIndicatorLights(ctrl.area_id, editingIndicatorLight);
 
