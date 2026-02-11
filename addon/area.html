@@ -88,32 +88,27 @@
       padding: 16px;
     }
 
-    /* Context info (Glo zone + Rhythm) - copied from modal */
-    .context-info {
+    /* Header meta (zone + rhythm, right-aligned in page header) */
+    .page-header-meta {
       display: flex;
-      gap: 20px;
-      padding: 6px 0;
-      font-size: 0.85rem;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 1px;
+      font-size: 0.75rem;
+      flex-shrink: 0;
     }
 
-    .context-line {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-
-    .context-label {
+    .page-header-meta span {
       color: var(--muted);
+      white-space: nowrap;
     }
 
-    .context-link {
+    .page-header-meta a {
       color: var(--accent);
       text-decoration: none;
-      transition: color 0.2s;
     }
 
-    .context-link:hover {
-      color: var(--accent-hover);
+    .page-header-meta a:hover {
       text-decoration: underline;
     }
 
@@ -141,16 +136,20 @@
     .area-state-row {
       display: flex;
       align-items: center;
-      gap: 16px;
+      justify-content: space-between;
+      gap: 12px;
       position: relative;
       z-index: 1;
     }
 
-    .area-state-info {
-      flex: 1;
-      min-width: 0;
+    .area-state-status-row {
       display: flex;
       align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 10px;
+      position: relative;
+      z-index: 1;
     }
 
     .area-state-values {
@@ -158,7 +157,6 @@
       font-weight: 500;
       display: flex;
       align-items: center;
-      height: 100%;
       gap: 6px;
     }
 
@@ -187,7 +185,6 @@
       background: rgba(0,0,0,0.5);
       padding: 6px;
       border-radius: 10px;
-      margin-right: 12px;
     }
 
     /* Toggle switch styles (from modal) */
@@ -222,14 +219,13 @@
       height: 18px;
     }
 
-    /* Timer status row (from modal) */
+    /* Timer status (inline in status row) */
     .timer-status {
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      padding: 4px 0;
+      gap: 8px;
       font-size: 0.8rem;
-      min-height: 0;
+      margin-left: auto;
     }
 
     .timer-status:empty {
@@ -298,8 +294,9 @@
       gap: 4px;
     }
     .slider-label {
-      font-size: 0.65rem;
-      color: var(--muted);
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text);
       text-transform: uppercase;
       letter-spacing: 0.04em;
     }
@@ -346,7 +343,7 @@
       font-size: 0.6rem;
       color: var(--muted);
       cursor: pointer;
-      padding: 2px 0;
+      padding: 6px 0 2px 0;
       letter-spacing: 0.02em;
     }
     .slider-extreme:hover {
@@ -409,9 +406,6 @@
         width: 36px;
         height: 36px;
       }
-      .area-state-values {
-        font-size: 1.2rem;
-      }
       .adjust-slider-row {
         gap: 20px;
       }
@@ -436,13 +430,13 @@
       </svg>
     </button>
     <h1 class="page-title" id="page-title">Loading...</h1>
+    <div class="page-header-meta" id="page-header-meta">
+      <span id="header-meta-zone"></span>
+      <span id="header-meta-rhythm"></span>
+    </div>
   </header>
 
   <main class="main">
-    <div class="context-info" id="context-info">
-      <div class="context-line"><span class="context-label">Glo zone:</span> <span id="zone-link">—</span></div>
-      <div class="context-line" id="rhythm-line" style="display:none;"><span class="context-label">Daily Rhythm:</span> <span class="context-link" id="rhythm-link">—</span></div>
-    </div>
 
     <div class="area-state" id="area-state">
       <div class="area-state-row">
@@ -475,9 +469,6 @@
             <span style="font-weight:900; font-size:16px; font-family:serif; line-height:1;">B</span>
           </button>
         </div>
-        <div class="area-state-info">
-          <div class="area-state-values" id="state-values"></div>
-        </div>
         <div class="area-state-controls" id="controls-area">
           <button class="toggle-btn" id="toggle-glo-up" onclick="executeAction('glo_up')" title="GloUp: send area settings to GloZone">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -501,15 +492,17 @@
           </button>
         </div>
       </div>
+      <div class="area-state-status-row">
+        <div class="area-state-values" id="state-values"></div>
+        <div class="timer-status" id="timer-status"></div>
+      </div>
     </div>
-
-    <div class="timer-status" id="timer-status"></div>
 
     <div class="adjust-section">
       <div class="adjust-slider-row">
         <div class="slider-group">
           <div class="slider-column">
-            <div class="slider-label">Circadian</div>
+            <div class="slider-label">Glo</div>
             <div class="slider-extreme" onclick="executeAction('set_britelite')">BriteLite</div>
             <div class="slider-track" data-mode="step">
               <div class="slider-fill"></div>
@@ -1114,7 +1107,9 @@
       } else if (selectedArea) {
         const status = areaStatus[selectedArea.area_id] || {};
         if (!cachedConfig || !cachedSunTimes) return null;
-        const rhythmName = status.preset_name;
+        const zoneName = status.zone_name;
+        const zs = zoneName ? (zoneStates[zoneName] || {}) : {};
+        const rhythmName = zs.rhythm || status.preset_name;
         const cfg = (rhythmName && cachedRhythms[rhythmName])
           ? { ...cachedConfig, ...cachedRhythms[rhythmName] }
           : cachedConfig;
@@ -1157,15 +1152,7 @@
         applyOneSlider(track, pct, currentBri, currentCCT, mode);
       });
 
-      // Update extreme labels
-      const briMaxEl = document.getElementById('bright-max');
-      const briMinEl = document.getElementById('bright-min');
-      const cctMaxEl = document.getElementById('color-max');
-      const cctMinEl = document.getElementById('color-min');
-      if (briMaxEl) briMaxEl.textContent = bMax + '%';
-      if (briMinEl) briMinEl.textContent = bMin + '%';
-      if (cctMaxEl) cctMaxEl.textContent = cMax + 'K';
-      if (cctMinEl) cctMinEl.textContent = cMin + 'K';
+      // Extreme labels stay as "max"/"min" (set in HTML)
     }
 
     function buildTrackGradient(mode, cfg, currentBri, currentCCT) {
@@ -1403,10 +1390,6 @@
       document.getElementById('controls-area').style.display = 'none';
       document.getElementById('controls-zone').style.display = 'flex';
 
-      // Hide first context line (zone name - we're already on zone page)
-      const contextLines = document.querySelectorAll('#context-info .context-line');
-      if (contextLines[0]) contextLines[0].style.display = 'none';
-
       updateZoneContent();
       setTimeout(() => {
         renderMiniChartForZone(zoneName);
@@ -1503,20 +1486,24 @@
       }
       valuesEl.textContent = `${Math.round(selectedArea.brightness)}% • ${Math.round(selectedArea.kelvin)}K`;
 
-      // Context info (Glo zone)
-      const zoneLinkEl = document.getElementById('zone-link');
-      zoneLinkEl.textContent = selectedArea.zone_name || 'Unassigned';
-
-      // Rhythm line
-      const rhythmLine = document.getElementById('rhythm-line');
-      const rhythmLinkEl = document.getElementById('rhythm-link');
+      // Header meta: zone + rhythm (top-right in page header)
+      const metaZone = document.getElementById('header-meta-zone');
+      const metaRhythm = document.getElementById('header-meta-rhythm');
+      if (selectedArea.zone_name) {
+        metaZone.textContent = selectedArea.zone_name;
+        metaZone.style.display = '';
+      } else {
+        metaZone.textContent = '';
+        metaZone.style.display = 'none';
+      }
       const areaZoneState = selectedArea.zone_name ? (zoneStates[selectedArea.zone_name] || {}) : {};
       const areaRhythmName = areaZoneState.rhythm || null;
       if (areaRhythmName) {
-        rhythmLinkEl.innerHTML = `<a href="${basePath}/rhythm/${encodeURIComponent(areaRhythmName)}" style="color: var(--accent); text-decoration: none;">${areaRhythmName}</a>`;
-        rhythmLine.style.display = '';
+        metaRhythm.innerHTML = `<a href="${basePath}/rhythm/${encodeURIComponent(areaRhythmName)}?back=home">${areaRhythmName}</a>`;
+        metaRhythm.style.display = '';
       } else {
-        rhythmLine.style.display = 'none';
+        metaRhythm.innerHTML = '';
+        metaRhythm.style.display = 'none';
       }
 
       // Update toggle button states
@@ -1562,15 +1549,18 @@
       }
       valuesEl.textContent = `${Math.round(zoneBri)}% • ${Math.round(zoneKelvin)}K`;
 
-      // Rhythm line
-      const rhythmLine = document.getElementById('rhythm-line');
-      const rhythmLinkEl = document.getElementById('rhythm-link');
+      // Header meta: rhythm only (zone name already in title)
+      const metaZone = document.getElementById('header-meta-zone');
+      const metaRhythm = document.getElementById('header-meta-rhythm');
+      metaZone.textContent = '';
+      metaZone.style.display = 'none';
       const rhythmName = zs.rhythm;
       if (rhythmName) {
-        rhythmLinkEl.innerHTML = `<a href="${basePath}/rhythm/${encodeURIComponent(rhythmName)}" style="color: var(--accent); text-decoration: none;">${rhythmName}</a>`;
-        rhythmLine.style.display = '';
+        metaRhythm.innerHTML = `<a href="${basePath}/rhythm/${encodeURIComponent(rhythmName)}?back=home">${rhythmName}</a>`;
+        metaRhythm.style.display = '';
       } else {
-        rhythmLine.style.display = 'none';
+        metaRhythm.textContent = '—';
+        metaRhythm.style.display = '';
       }
 
       updateTimerStatus();
@@ -1640,7 +1630,10 @@
       const status = areaStatus[areaId] || {};
       if (!cachedConfig || !cachedSunTimes) return;
 
-      const rhythmName = status.preset_name;
+      // Use zone rhythm as authoritative source
+      const zoneName = status.zone_name;
+      const zs = zoneName ? (zoneStates[zoneName] || {}) : {};
+      const rhythmName = zs.rhythm || status.preset_name;
       let cfg;
       if (rhythmName && cachedRhythms[rhythmName]) {
         cfg = { ...cachedConfig, ...cachedRhythms[rhythmName] };
