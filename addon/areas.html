@@ -292,19 +292,19 @@
 
     /* Timer styles (shared with homepage) */
     .timer-motion {
-      color: var(--row-text, var(--muted));
-      opacity: 0.7;
+      color: #e2e8f0;
+      opacity: 0.9;
     }
 
     .timer-boost {
-      color: var(--row-text, var(--muted));
-      opacity: 0.7;
+      color: #e2e8f0;
+      opacity: 0.9;
       margin-left: auto;
     }
 
     .timer-frozen {
       color: #63b3ed;
-      opacity: 0.85;
+      opacity: 1;
     }
 
     .timer-arrow {
@@ -411,7 +411,12 @@
     .area-row-timer {
       font-size: 0.75rem;
       white-space: nowrap;
-      opacity: 0.7;
+    }
+
+    .area-row-timer:not(:empty) {
+      background: rgba(0,0,0,0.45);
+      padding: 2px 8px;
+      border-radius: 10px;
     }
 
     /* Row control buttons - dark container like modal header */

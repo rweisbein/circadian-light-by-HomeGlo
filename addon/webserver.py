@@ -3577,7 +3577,7 @@ class LightDesignerServer:
             'color_up', 'color_down',
             'freeze_toggle',
             'glo_up', 'glo_down', 'glo_reset',
-            'boost',
+            'boost', 'full_send',
             'set_nitelite', 'set_britelite',
             'set_position',
         }
