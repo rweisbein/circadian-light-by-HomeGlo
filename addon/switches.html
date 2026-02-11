@@ -542,7 +542,6 @@
     let fourthField = 'lastAction';
     let searchFilter = '';
     let activeOnly = false;
-    let areaSortMode = localStorage.getItem('controls_areaSortMode') || 'custom';  // 'custom' or 'az'
     let customAreaOrder = {};  // area_id -> order index
 
     // Initialize
@@ -696,13 +695,8 @@
             valB = categoryOrder[b.category] ?? 99;
             break;
           case 'area':
-            if (areaSortMode === 'custom') {
-              valA = customAreaOrder[a.area_id] ?? 99999;
-              valB = customAreaOrder[b.area_id] ?? 99999;
-            } else {
-              valA = (a.area_name || '').toLowerCase();
-              valB = (b.area_name || '').toLowerCase();
-            }
+            valA = customAreaOrder[a.area_id] ?? 99999;
+            valB = customAreaOrder[b.area_id] ?? 99999;
             break;
           case 'fourth':
             if (fourthField === 'lux') {
@@ -722,16 +716,10 @@
         if (valA < valB) return sortAsc ? -1 : 1;
         if (valA > valB) return sortAsc ? 1 : -1;
 
-        // Secondary sort by area (when primary values are equal)
+        // Secondary sort by custom area order (when primary values are equal)
         if (sortColumn !== 'area') {
-          let areaA, areaB;
-          if (areaSortMode === 'custom') {
-            areaA = customAreaOrder[a.area_id] ?? 99999;
-            areaB = customAreaOrder[b.area_id] ?? 99999;
-          } else {
-            areaA = (a.area_name || '').toLowerCase();
-            areaB = (b.area_name || '').toLowerCase();
-          }
+          const areaA = customAreaOrder[a.area_id] ?? 99999;
+          const areaB = customAreaOrder[b.area_id] ?? 99999;
           if (areaA < areaB) return -1;
           if (areaA > areaB) return 1;
         }
@@ -744,37 +732,6 @@
       };
 
       const thClass = (col) => sortColumn === col ? 'sorted' : '';
-
-      // Location column has two arrows: left (A-Z) and right (custom order)
-      const locationArrows = (() => {
-        const isPrimary = sortColumn === 'area';
-        const isCustom = areaSortMode === 'custom';
-        // Left arrow: A-Z alphabetical sort
-        let leftArrow, leftStyle;
-        if (isPrimary && !isCustom) {
-          leftArrow = sortAsc ? '↑' : '↓';
-          leftStyle = 'opacity:1; color:var(--accent);';
-        } else if (!isPrimary && !isCustom) {
-          leftArrow = '↑';
-          leftStyle = 'opacity:0.7;';
-        } else {
-          leftArrow = '↕';
-          leftStyle = 'opacity:0.5;';
-        }
-        // Right arrow: custom area order sort
-        let rightArrow, rightStyle;
-        if (isPrimary && isCustom) {
-          rightArrow = sortAsc ? '↑' : '↓';
-          rightStyle = 'opacity:1; color:var(--accent);';
-        } else if (!isPrimary && isCustom) {
-          rightArrow = '↑';
-          rightStyle = 'opacity:0.7;';
-        } else {
-          rightArrow = '↕';
-          rightStyle = 'opacity:0.5;';
-        }
-        return { leftArrow, leftStyle, rightArrow, rightStyle };
-      })();
 
       // Filter indicator with clear button (orange X)
       const filterIndicator = (filterName, filterValue, clearFn) => {
@@ -821,9 +778,7 @@
               </th>
               <th class="${thClass('area')}">
                 <div class="th-with-filter">
-                  <div class="th-title-row">
-                    <span style="${locationArrows.leftStyle} cursor:pointer; margin-right:4px;" onclick="event.stopPropagation(); sortLocationAZ()" title="Sort alphabetic">${locationArrows.leftArrow}</span><span onclick="sortLocationAZ()" style="cursor:pointer;">Location</span>${filterIndicator('area', areaFilter, "clearSingleFilter('area')")}<span style="${locationArrows.rightStyle} cursor:pointer; margin-left:4px;" onclick="event.stopPropagation(); sortLocationCustom()" title="Sort by area order">${locationArrows.rightArrow}</span>
-                  </div>
+                  <div class="th-title-row" onclick="sortBy('area')">${arrow('area')}Location${filterIndicator('area', areaFilter, "clearSingleFilter('area')")}</div>
                   <select class="header-filter" id="area-filter" onclick="event.stopPropagation()" style="${filterActiveStyle(areaFilter)}">${areaOptions}</select>
                 </div>
               </th>
@@ -997,32 +952,6 @@
         sortColumn = column;
         sortAsc = true;
       }
-      savePreferences();
-      renderControls();
-    }
-
-    function sortLocationAZ() {
-      if (sortColumn === 'area' && areaSortMode === 'az') {
-        sortAsc = !sortAsc;
-      } else {
-        areaSortMode = 'az';
-        sortColumn = 'area';
-        sortAsc = true;
-      }
-      localStorage.setItem('controls_areaSortMode', areaSortMode);
-      savePreferences();
-      renderControls();
-    }
-
-    function sortLocationCustom() {
-      if (sortColumn === 'area' && areaSortMode === 'custom') {
-        sortAsc = !sortAsc;
-      } else {
-        areaSortMode = 'custom';
-        sortColumn = 'area';
-        sortAsc = true;
-      }
-      localStorage.setItem('controls_areaSortMode', areaSortMode);
       savePreferences();
       renderControls();
     }
