@@ -1455,13 +1455,12 @@
     }
 
     function glozoneDown(zoneName) {
+      const onAreas = areas.filter(a => a.zone_name === zoneName && a.is_on);
+      if (onAreas.length === 0) return;
       const zs = zoneStates[zoneName] || {};
       const bri = Math.round(zs.brightness ?? 0);
       const kelvin = Math.round(zs.kelvin ?? 4000);
-      const onAreas = areas.filter(a => a.zone_name === zoneName && a.is_on);
-      const areaList = onAreas.length > 0
-        ? onAreas.map(a => a.name).join('\n')
-        : '(no areas currently on)';
+      const areaList = onAreas.map(a => a.name).join('\n');
       const msg = `Send ${bri}% / ${kelvin}K to "${zoneName}"? These areas will adjust:\n\n${areaList}`;
       if (!confirm(msg)) return;
       zoneAction(zoneName, 'glozone_down');

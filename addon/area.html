@@ -204,6 +204,7 @@
       display: flex;
       gap: 8px;
       flex-shrink: 0;
+      margin-left: auto;
       background: rgba(0,0,0,0.5);
       padding: 6px;
       border-radius: 10px;
@@ -1899,12 +1900,11 @@
         const s = areaStatus[a.area_id] || {};
         return s.is_on;
       });
+      if (onAreas.length === 0) return;
 
       const bri = Math.round(selectedArea.brightness);
       const kelvin = Math.round(selectedArea.kelvin);
-      const areaList = onAreas.length > 0
-        ? onAreas.map(a => a.name).join('\n')
-        : '(no areas currently on)';
+      const areaList = onAreas.map(a => a.name).join('\n');
 
       const msg = `Full Send ${bri}% / ${kelvin}K to "${zoneName}"? These areas will adjust:\n\n${areaList}`;
       if (!confirm(msg)) return;
@@ -1913,13 +1913,12 @@
 
     async function confirmGlozoneDown() {
       if (!selectedZoneName) return;
+      const onAreas = getZoneOnAreas(selectedZoneName);
+      if (onAreas.length === 0) return;
       const zs = zoneStates[selectedZoneName] || {};
       const bri = Math.round(zs.brightness ?? 0);
       const kelvin = Math.round(zs.kelvin ?? 4000);
-      const onAreas = getZoneOnAreas(selectedZoneName);
-      const areaList = onAreas.length > 0
-        ? onAreas.map(a => a.name).join('\n')
-        : '(no areas currently on)';
+      const areaList = onAreas.map(a => a.name).join('\n');
       const msg = `Send ${bri}% / ${kelvin}K to "${selectedZoneName}"? These areas will adjust:\n\n${areaList}`;
       if (!confirm(msg)) return;
       executeAction('glozone_down');
