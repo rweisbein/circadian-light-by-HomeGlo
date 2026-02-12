@@ -1455,7 +1455,14 @@
     }
 
     function glozoneDown(zoneName) {
-      const onAreas = areas.filter(a => a.zone_name === zoneName && a.is_on);
+      const zoneAreas = areas.filter(a => {
+        const s = areaStatus[a.area_id] || {};
+        return (s.zone_name || a.zone_name) === zoneName;
+      });
+      const onAreas = zoneAreas.filter(a => {
+        const s = areaStatus[a.area_id] || {};
+        return s.is_on;
+      });
       if (onAreas.length === 0) return;
       const zs = zoneStates[zoneName] || {};
       const bri = Math.round(zs.brightness ?? 0);
