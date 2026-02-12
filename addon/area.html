@@ -622,13 +622,6 @@
           </button>
         </div>
         <div class="area-state-controls" id="controls-area">
-          <button class="toggle-btn" id="toggle-full-send" onclick="confirmFullSend()" title="Full Send: push to entire Glo Zone">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="5 8 12 2 19 8"/>
-              <line x1="4" y1="12" x2="20" y2="12"/>
-              <polyline points="5 16 12 22 19 16"/>
-            </svg>
-          </button>
           <button class="toggle-btn" id="toggle-glo-up" onclick="executeAction('glo_up')" title="GloUp: send area settings to GloZone">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="5 13 12 6 19 13"/>
@@ -644,6 +637,13 @@
           <button class="toggle-btn" id="toggle-glo-reset" onclick="executeAction('glo_reset')" title="Reset: return to rhythm">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
           </button>
+          <button class="toggle-btn" id="toggle-full-send" onclick="confirmFullSend()" title="Full Send: push to entire Glo Zone">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="5 8 12 2 19 8"/>
+              <line x1="4" y1="12" x2="20" y2="12"/>
+              <polyline points="5 16 12 22 19 16"/>
+            </svg>
+          </button>
         </div>
         <div class="area-state-controls-left" id="controls-zone-left" style="display:none;">
           <button class="toggle-btn" id="toggle-zone-power" onclick="confirmZonePowerOff()" title="Turn off lights in zone" style="display:none;">
@@ -653,11 +653,11 @@
           </button>
         </div>
         <div class="zone-state-controls" id="controls-zone" style="display:none;">
-          <button class="toggle-btn" id="toggle-glozone-down" onclick="confirmGlozoneDown()" title="GloZone Down: push zone settings to all areas">
-            <svg viewBox="0 0 16 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 5 8 10 13 5"/><polyline points="3 11 8 16 13 11"/></svg>
-          </button>
           <button class="toggle-btn" id="toggle-glozone-reset" onclick="executeAction('glozone_reset')" title="Reset GloZone: set GloZone to Daily Rhythm">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+          </button>
+          <button class="toggle-btn" id="toggle-glozone-down" onclick="confirmGlozoneDown()" title="GloZone Down: push zone settings to all areas">
+            <svg viewBox="0 0 16 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 5 8 10 13 5"/><polyline points="3 11 8 16 13 11"/></svg>
           </button>
         </div>
       </div>
