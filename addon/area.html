@@ -1799,26 +1799,30 @@
       valuesEl.textContent = `${Math.round(zoneBri)}% • ${Math.round(zoneKelvin)}K`;
 
       // Header meta: rhythm picker (zone name already in title)
+      // Skip rebuild if dropdown is open to avoid closing it
       const metaZone = document.getElementById('header-meta-zone');
       const metaRhythm = document.getElementById('header-meta-rhythm');
+      const dropdownOpen = metaRhythm.querySelector('.rhythm-picker-dropdown.visible');
       metaZone.textContent = '';
       metaZone.style.display = 'none';
       const rhythmName = zs.rhythm;
-      if (rhythmName) {
-        const rhythmNames = Object.keys(cachedRhythms);
-        const dropdownItems = rhythmNames.map(r =>
-          `<div class="rhythm-picker-item${r === rhythmName ? ' selected' : ''}" onclick="selectRhythm(this)" data-rhythm="${r}">${r}</div>`
-        ).join('');
-        metaRhythm.innerHTML = `<div class="rhythm-picker">` +
-          `<a href="${basePath}/rhythm/${encodeURIComponent(rhythmName)}?back=zone/${encodeURIComponent(selectedZoneName)}">${rhythmName}</a>` +
-          `<button class="rhythm-picker-chevron" onclick="toggleRhythmPicker(event)" title="Change rhythm">&#9662;</button>` +
-          `<div class="rhythm-picker-dropdown">${dropdownItems}` +
-          `<div class="rhythm-picker-item" onclick="selectRhythm(this)" data-rhythm="__new__" style="color: var(--muted); font-style: italic;">+ New rhythm...</div>` +
-          `</div></div>`;
-        metaRhythm.style.display = '';
-      } else {
-        metaRhythm.textContent = '—';
-        metaRhythm.style.display = '';
+      if (!dropdownOpen) {
+        if (rhythmName) {
+          const rhythmNames = Object.keys(cachedRhythms);
+          const dropdownItems = rhythmNames.map(r =>
+            `<div class="rhythm-picker-item${r === rhythmName ? ' selected' : ''}" onclick="selectRhythm(this)" data-rhythm="${r}">${r}</div>`
+          ).join('');
+          metaRhythm.innerHTML = `<div class="rhythm-picker">` +
+            `<a href="${basePath}/rhythm/${encodeURIComponent(rhythmName)}?back=zone/${encodeURIComponent(selectedZoneName)}">${rhythmName}</a>` +
+            `<button class="rhythm-picker-chevron" onclick="toggleRhythmPicker(event)" title="Change rhythm">&#9662;</button>` +
+            `<div class="rhythm-picker-dropdown">${dropdownItems}` +
+            `<div class="rhythm-picker-item" onclick="selectRhythm(this)" data-rhythm="__new__" style="color: var(--muted); font-style: italic;">+ New rhythm...</div>` +
+            `</div></div>`;
+          metaRhythm.style.display = '';
+        } else {
+          metaRhythm.textContent = '—';
+          metaRhythm.style.display = '';
+        }
       }
 
       // Dynamic tooltips for zone controls
