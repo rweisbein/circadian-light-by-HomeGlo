@@ -321,39 +321,57 @@
       background: rgba(239, 68, 68, 0.1);
     }
 
-    /* Status badges */
-    .status-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-size: 0.75rem;
+    /* Status subtitle under name */
+    .switch-status-sub {
+      font-size: 0.7rem;
       font-weight: 500;
+      margin-top: 1px;
     }
 
-    .status-active {
-      background: rgba(255, 255, 255, 0.08);
-      color: var(--text);
-    }
-
-    .status-check {
-      font-size: 0.85rem;
-    }
-
-    .status-not-configured {
-      background: rgba(245, 158, 11, 0.15);
+    .status-not-configured-text {
       color: var(--warning);
     }
 
-    .status-inactive {
-      background: rgba(148, 163, 184, 0.15);
+    .status-unsupported-text {
       color: var(--muted);
     }
 
-    .status-unsupported {
-      background: rgba(148, 163, 184, 0.15);
+    /* Toolbar search + active filter */
+    .toolbar-search {
+      padding: 6px 28px 6px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--line);
+      background: var(--card);
+      color: var(--text);
+      font-size: 0.85rem;
+      width: 160px;
+    }
+
+    .toolbar-search:focus {
+      outline: none;
+      border-color: dodgerblue;
+    }
+
+    .active-filter-label {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.85rem;
       color: var(--muted);
+      cursor: pointer;
+      white-space: nowrap;
+      user-select: none;
+    }
+
+    .active-filter-label input {
+      accent-color: var(--accent);
+    }
+
+    /* Magic button indicator */
+    .magic-indicator {
+      color: var(--accent);
+      font-size: 0.8rem;
+      margin-left: 4px;
     }
 
     /* Last action column */
@@ -486,13 +504,20 @@
   <!-- Main Content -->
   <main class="main">
     <div class="page-header">
-      <div style="display: flex; align-items: center; justify-content: flex-end; gap: 16px;">
-        <div class="toolbar-menu">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <div style="position: relative; flex: 0 0 auto;">
+          <input type="text" id="search-input" class="toolbar-search" placeholder="Search...">
+          <button id="search-clear" style="display: none; position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--accent); cursor: pointer; font-size: 0.9rem; padding: 2px 4px;">&times;</button>
+        </div>
+        <label class="active-filter-label" title="Show only active controls">
+          <input type="checkbox" id="active-filter"> Active
+        </label>
+        <div style="margin-left: auto;" class="toolbar-menu">
           <button class="toolbar-menu-btn" onclick="toggleToolbarMenu(event)">&#8942;</button>
           <div class="toolbar-menu-dropdown" id="toolbar-menu-dropdown">
             <a href="#" class="toolbar-menu-item" id="refresh-link" onclick="loadData(); toggleToolbarMenu(event); return false;">Refresh</a>
             <a href="./switchmap" class="toolbar-menu-item">Switch design</a>
-            <a href="#" class="toolbar-menu-item" id="clear-filters-link" style="display: none; border-top: 1px solid var(--line); margin-top: 4px; padding-top: 14px;" onclick="clearFilters(); toggleToolbarMenu(event); return false;">Clear all filters</a>
+            <a href="#" class="toolbar-menu-item" id="clear-filters-link" style="display: none;" onclick="clearFilters(); toggleToolbarMenu(event); return false;">Clear all filters</a>
           </div>
         </div>
       </div>
@@ -509,16 +534,14 @@
     // State
     let controls = [];
     let allAreas = [];
-    let allGlozones = [];  // For glozone filter
-    let sortColumn = 'status';
+    let allGlozones = [];
+    let sortColumn = 'area';
     let sortAsc = true;
     let categoryFilter = 'all';
     let areaFilter = 'all';
-    let statusFilter = 'all';
-    let pauseFilter = 'all';
-    let glozoneFilter = 'all';
+    let fourthField = 'lastAction';
     let searchFilter = '';
-    let areaSortMode = localStorage.getItem('controls_areaSortMode') || 'custom';  // 'custom' or 'az'
+    let activeOnly = false;
     let customAreaOrder = {};  // area_id -> order index
 
     // Initialize
@@ -534,12 +557,14 @@
         if (res.ok) {
           const config = await res.json();
           const prefs = config.controls_ui || {};
-          sortColumn = prefs.sort_column || 'status';
+          sortColumn = prefs.sort_column || 'area';
+          // Migrate old lastAction/lux sort columns to 'fourth'
+          if (sortColumn === 'lastAction' || sortColumn === 'lux') sortColumn = 'fourth';
           sortAsc = prefs.sort_asc !== false;
           categoryFilter = prefs.category_filter || 'all';
           areaFilter = prefs.area_filter || 'all';
-          statusFilter = prefs.status_filter || 'all';
-          pauseFilter = prefs.pause_filter || 'all';
+          activeOnly = prefs.active_only || false;
+          fourthField = prefs.fourth_field || 'lastAction';
         }
       } catch (err) {
         console.error('Error loading preferences:', err);
@@ -557,8 +582,8 @@
               sort_asc: sortAsc,
               category_filter: categoryFilter,
               area_filter: areaFilter,
-              status_filter: statusFilter,
-              pause_filter: pauseFilter
+              active_only: activeOnly,
+              fourth_field: fourthField
             }
           })
         });
@@ -592,11 +617,9 @@
 
         if (configRes.ok) {
           const config = await configRes.json();
-          // Extract glozones from config
           allGlozones = Object.entries(config.glozones || {}).map(([id, zone]) => ({
             id,
             name: zone.name || id,
-            // Extract area IDs from area objects (areas can be {id, name} objects or plain strings)
             areaIds: (zone.areas || []).map(a => typeof a === 'object' ? a.id : a).filter(Boolean)
           }));
 
@@ -628,33 +651,23 @@
       const categories = [...new Set(controls.map(c => c.category).filter(Boolean))].sort();
       const areas = [...new Set(controls.map(c => c.area_name).filter(Boolean))].sort();
       const hasUnassigned = controls.some(c => !c.area_name);
-      const statuses = [...new Set(controls.map(c => c.status).filter(Boolean))];
 
       // Validate saved filters - reset to 'all' if saved value doesn't exist in current data
       let filtersReset = false;
       if (categoryFilter !== 'all' && !categories.includes(categoryFilter)) {
-        console.log(`[Filters] Resetting invalid categoryFilter '${categoryFilter}' to 'all'`);
         categoryFilter = 'all';
         filtersReset = true;
       }
       if (areaFilter !== 'all' && areaFilter !== 'unassigned' && !areas.includes(areaFilter)) {
-        console.log(`[Filters] Resetting invalid areaFilter '${areaFilter}' to 'all'`);
         areaFilter = 'all';
         filtersReset = true;
       }
-      if (statusFilter !== 'all' && !statuses.includes(statusFilter)) {
-        console.log(`[Filters] Resetting invalid statusFilter '${statusFilter}' to 'all'`);
-        statusFilter = 'all';
-        filtersReset = true;
-      }
-      // Save corrected filters so they don't reload with invalid values
       if (filtersReset) {
         savePreferences();
       }
 
       // Apply all filters
       const filtered = controls.filter(c => {
-        // Search filter - check name and area
         if (searchFilter) {
           const search = searchFilter.toLowerCase();
           const nameMatch = (c.name || '').toLowerCase().includes(search);
@@ -662,25 +675,13 @@
           if (!nameMatch && !areaMatch) return false;
         }
         if (categoryFilter !== 'all' && c.category !== categoryFilter) return false;
-        if (areaFilter === 'unassigned' && c.area_name) return false;  // Show only unassigned
+        if (areaFilter === 'unassigned' && c.area_name) return false;
         if (areaFilter !== 'all' && areaFilter !== 'unassigned' && c.area_name !== areaFilter) return false;
-        if (statusFilter !== 'all' && c.status !== statusFilter) return false;
-        if (pauseFilter === 'paused' && !c.inactive) return false;
-        if (pauseFilter === 'live' && (c.inactive || (c.status !== 'active' && c.status !== 'inactive'))) return false;
-        // Glozone filter - check if control's area is in the selected glozone
-        if (glozoneFilter !== 'all') {
-          const zone = allGlozones.find(z => z.id === glozoneFilter);
-          if (zone && zone.areaIds && zone.areaIds.length > 0) {
-            const areaId = c.area_id || '';
-            const inZone = zone.areaIds.includes(areaId);
-            if (!inZone) return false;
-          }
-        }
+        if (activeOnly && c.status !== 'active' && c.status !== 'inactive') return false;
         return true;
       });
 
       // Sort controls
-      const statusOrder = { 'active': 0, 'inactive': 0, 'not_configured': 1, 'unsupported': 2 };
       const categoryOrder = { 'switch': 0, 'motion_sensor': 1, 'contact_sensor': 2, 'unknown': 3 };
       const sorted = [...filtered].sort((a, b) => {
         let valA, valB;
@@ -694,40 +695,20 @@
             valB = categoryOrder[b.category] ?? 99;
             break;
           case 'area':
-            if (areaSortMode === 'custom') {
-              // Use custom order from glozones (unassigned areas go to end)
-              valA = customAreaOrder[a.area_id] ?? 99999;
-              valB = customAreaOrder[b.area_id] ?? 99999;
+            valA = customAreaOrder[a.area_id] ?? 99999;
+            valB = customAreaOrder[b.area_id] ?? 99999;
+            break;
+          case 'fourth':
+            if (fourthField === 'lux') {
+              valA = a.illuminance?.value ?? -1;
+              valB = b.illuminance?.value ?? -1;
+            } else if (fourthField === 'pause') {
+              valA = a.inactive ? 1 : 0;
+              valB = b.inactive ? 1 : 0;
             } else {
-              valA = (a.area_name || '').toLowerCase();
-              valB = (b.area_name || '').toLowerCase();
+              valA = (a.last_action?.timestamp || '');
+              valB = (b.last_action?.timestamp || '');
             }
-            break;
-          case 'status':
-            valA = statusOrder[a.status] ?? 99;
-            valB = statusOrder[b.status] ?? 99;
-            break;
-          case 'type':
-            valA = (a.type_name || a.manufacturer || '').toLowerCase();
-            valB = (b.type_name || b.manufacturer || '').toLowerCase();
-            break;
-          case 'controller':
-            valA = (a.integration || '').toLowerCase();
-            valB = (b.integration || '').toLowerCase();
-            break;
-          case 'pause':
-            valA = a.inactive ? 0 : 1;
-            valB = b.inactive ? 0 : 1;
-            break;
-          case 'lastAction':
-            // Sort by timestamp (ISO format sorts alphabetically correctly)
-            valA = (a.last_action?.timestamp || '');
-            valB = (b.last_action?.timestamp || '');
-            break;
-          case 'lux':
-            // Sort by illuminance value (null/undefined last)
-            valA = a.illuminance?.value ?? -1;
-            valB = b.illuminance?.value ?? -1;
             break;
           default:
             return 0;
@@ -735,16 +716,10 @@
         if (valA < valB) return sortAsc ? -1 : 1;
         if (valA > valB) return sortAsc ? 1 : -1;
 
-        // Secondary sort by area (when primary values are equal)
+        // Secondary sort by custom area order (when primary values are equal)
         if (sortColumn !== 'area') {
-          let areaA, areaB;
-          if (areaSortMode === 'custom') {
-            areaA = customAreaOrder[a.area_id] ?? 99999;
-            areaB = customAreaOrder[b.area_id] ?? 99999;
-          } else {
-            areaA = (a.area_name || '').toLowerCase();
-            areaB = (b.area_name || '').toLowerCase();
-          }
+          const areaA = customAreaOrder[a.area_id] ?? 99999;
+          const areaB = customAreaOrder[b.area_id] ?? 99999;
           if (areaA < areaB) return -1;
           if (areaA > areaB) return 1;
         }
@@ -757,37 +732,6 @@
       };
 
       const thClass = (col) => sortColumn === col ? 'sorted' : '';
-
-      // Location column has two arrows: left (A-Z) and right (custom order)
-      const locationArrows = (() => {
-        const isPrimary = sortColumn === 'area';
-        const isCustom = areaSortMode === 'custom';
-        // Left arrow: A-Z alphabetical sort
-        let leftArrow, leftStyle;
-        if (isPrimary && !isCustom) {
-          leftArrow = sortAsc ? '↑' : '↓';
-          leftStyle = 'opacity:1; color:var(--accent);';
-        } else if (!isPrimary && !isCustom) {
-          leftArrow = '↑';
-          leftStyle = 'opacity:0.7;';
-        } else {
-          leftArrow = '↕';
-          leftStyle = 'opacity:0.5;';
-        }
-        // Right arrow: custom area order sort
-        let rightArrow, rightStyle;
-        if (isPrimary && isCustom) {
-          rightArrow = sortAsc ? '↑' : '↓';
-          rightStyle = 'opacity:1; color:var(--accent);';
-        } else if (!isPrimary && isCustom) {
-          rightArrow = '↑';
-          rightStyle = 'opacity:0.7;';
-        } else {
-          rightArrow = '↕';
-          rightStyle = 'opacity:0.5;';
-        }
-        return { leftArrow, leftStyle, rightArrow, rightStyle };
-      })();
 
       // Filter indicator with clear button (orange X)
       const filterIndicator = (filterName, filterValue, clearFn) => {
@@ -806,43 +750,26 @@
         (hasUnassigned ? `<option value="unassigned" ${areaFilter === 'unassigned' ? 'selected' : ''}>— Unassigned —</option>` : '') +
         areas.map(a => `<option value="${a}" ${areaFilter === a ? 'selected' : ''}>${a}</option>`).join('');
 
-      const glozoneOptions = `<option value="all">All zones</option>` +
-        allGlozones.map(z => `<option value="${z.id}" ${glozoneFilter === z.id ? 'selected' : ''}>${z.name}</option>`).join('');
-
-      const statusLabels = { 'active': 'Active', 'not_configured': 'Setup', 'unsupported': 'Request' };
-      const statusOptions = `<option value="all">All</option>` +
-        statuses.map(s => `<option value="${s}" ${statusFilter === s ? 'selected' : ''}>${statusLabels[s] || s}</option>`).join('');
-
       // Check if any filters are active and show/hide clear filters link
-      const hasActiveFilters = categoryFilter !== 'all' || areaFilter !== 'all' || statusFilter !== 'all' || pauseFilter !== 'all' || glozoneFilter !== 'all' || searchFilter !== '';
+      const hasActiveFilters = categoryFilter !== 'all' || areaFilter !== 'all' || searchFilter !== '' || activeOnly;
       document.getElementById('clear-filters-link').style.display = hasActiveFilters ? 'block' : 'none';
+
+      // Update search bar and active checkbox (they live above the table)
+      const searchInput = document.getElementById('search-input');
+      if (searchInput && searchInput !== document.activeElement) {
+        searchInput.value = searchFilter;
+        searchInput.style.borderColor = searchFilter ? 'var(--accent)' : '';
+      }
+      const searchClear = document.getElementById('search-clear');
+      if (searchClear) searchClear.style.display = searchFilter ? 'block' : 'none';
+      const activeCheckbox = document.getElementById('active-filter');
+      if (activeCheckbox) activeCheckbox.checked = activeOnly;
 
       container.innerHTML = `
         <table class="switches-table">
           <thead>
             <tr>
-              <th class="${thClass('pause')}">
-                <div class="th-with-filter">
-                  <div class="th-title-row" onclick="sortBy('pause')">${arrow('pause')}Pause${filterIndicator('pause', pauseFilter, "clearSingleFilter('pause')")}</div>
-                  <select class="header-filter" id="pause-filter" onclick="event.stopPropagation()" style="${filterActiveStyle(pauseFilter)}">
-                    <option value="all">All</option>
-                    <option value="paused" ${pauseFilter === 'paused' ? 'selected' : ''}>Pause</option>
-                    <option value="live" ${pauseFilter === 'live' ? 'selected' : ''}>Live</option>
-                  </select>
-                </div>
-              </th>
-              <th class="${thClass('name')}">
-                <div class="th-with-filter">
-                  <div class="th-title-row" onclick="sortBy('name')">${arrow('name')}Name</div>
-                  <div style="position: relative;">
-                    <input type="text" id="search-input" class="header-filter" placeholder="Search..."
-                      value="${searchFilter}" oninput="handleSearch(this.value)" onclick="event.stopPropagation()"
-                      style="${searchFilter ? 'border-color: var(--accent);' : ''}">
-                    <button id="search-clear" onclick="event.stopPropagation(); clearSearch()"
-                      style="display: ${searchFilter ? 'block' : 'none'}; position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--accent); cursor: pointer; font-size: 0.9rem; padding: 2px 4px;">&times;</button>
-                  </div>
-                </div>
-              </th>
+              <th class="${thClass('name')}" onclick="sortBy('name')">${arrow('name')}Name</th>
               <th class="${thClass('category')}" style="width: 52px;">
                 <div class="th-with-filter">
                   <div class="th-title-row" onclick="sortBy('category')">${arrow('category')}Type${filterIndicator('category', categoryFilter, "clearSingleFilter('category')")}</div>
@@ -851,27 +778,26 @@
               </th>
               <th class="${thClass('area')}">
                 <div class="th-with-filter">
-                  <div class="th-title-row">
-                    <span style="${locationArrows.leftStyle} cursor:pointer; margin-right:4px;" onclick="event.stopPropagation(); sortLocationAZ()" title="Sort location by: alphabetic">${locationArrows.leftArrow}</span><span onclick="sortLocationAZ()" style="cursor:pointer;" title="Sort location by: alphabetic">Location</span>${filterIndicator('area', areaFilter, "clearSingleFilter('area')")}${filterIndicator('glozone', glozoneFilter, "clearSingleFilter('glozone')")}<span style="${locationArrows.rightStyle} cursor:pointer; margin-left:4px;" onclick="event.stopPropagation(); sortLocationCustom()" title="Sort location by: your area ordering">${locationArrows.rightArrow}</span>
-                  </div>
-                  <select class="header-filter" id="glozone-filter" onclick="event.stopPropagation()" style="${filterActiveStyle(glozoneFilter)}">${glozoneOptions}</select>
-                  <select class="header-filter" id="area-filter" onclick="event.stopPropagation()" style="margin-top: 4px; ${filterActiveStyle(areaFilter)}">${areaOptions}</select>
+                  <div class="th-title-row" onclick="sortBy('area')">${arrow('area')}Location${filterIndicator('area', areaFilter, "clearSingleFilter('area')")}</div>
+                  <select class="header-filter" id="area-filter" onclick="event.stopPropagation()" style="${filterActiveStyle(areaFilter)}">${areaOptions}</select>
                 </div>
               </th>
-              <th class="${thClass('status')}">
+              <th class="${thClass('fourth')}">
                 <div class="th-with-filter">
-                  <div class="th-title-row" onclick="sortBy('status')">${arrow('status')}Status${filterIndicator('status', statusFilter, "clearSingleFilter('status')")}</div>
-                  <select class="header-filter" id="status-filter" onclick="event.stopPropagation()" style="${filterActiveStyle(statusFilter)}">${statusOptions}</select>
+                  <div class="th-title-row" onclick="sortBy('fourth')">${arrow('fourth')}<span style="margin-left:2px;">${fourthField === 'lastAction' ? 'Last' : fourthField === 'lux' ? 'Lux' : 'Pause'}</span></div>
+                  <select class="header-filter" id="fourth-field-select" onclick="event.stopPropagation()">
+                    <option value="lastAction" ${fourthField === 'lastAction' ? 'selected' : ''}>Last action</option>
+                    <option value="lux" ${fourthField === 'lux' ? 'selected' : ''}>Lux</option>
+                    <option value="pause" ${fourthField === 'pause' ? 'selected' : ''}>Pause</option>
+                  </select>
                 </div>
               </th>
-              <th class="${thClass('lastAction')}" onclick="sortBy('lastAction')">${arrow('lastAction')}Last action</th>
-              <th class="${thClass('lux')}" onclick="sortBy('lux')">${arrow('lux')}Lux</th>
             </tr>
           </thead>
           <tbody>
             ${sorted.length === 0 ? `
               <tr>
-                <td colspan="7" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                <td colspan="4" style="text-align: center; padding: 40px; color: var(--muted);">
                   ${controls.length > 0
                     ? 'No controls match the current filters.'
                     : 'No controls found. Click Update to scan Home Assistant.'}
@@ -881,32 +807,25 @@
               const categoryLabel = formatCategory(ctrl.category);
               const areaName = ctrl.area_name || '—';
               const glozoneName = getGlozoneForArea(ctrl.area_id);
-              const statusBadge = getStatusBadge(ctrl);
-              const lastAction = formatLastAction(ctrl);
-              const rowClass = 'clickable-row';
               const rowClick = `onclick="editControl('${ctrl.id}')"`;
-              // Show pause toggle for all configured controls
-              const isPausable = (ctrl.status === 'active' || ctrl.status === 'inactive');
-              const pauseCell = isPausable
-                ? `<label class="inactive-toggle" title="${ctrl.inactive ? 'Click to resume' : 'Click to pause'}" onclick="event.stopPropagation()">
-                     <input type="checkbox" ${ctrl.inactive ? 'checked' : ''} onchange="toggleInactive('${ctrl.id}', '${ctrl.category}', this.checked)">
-                   </label>`
-                : '';
               const hasMagic = ctrl.magic_buttons && Object.keys(ctrl.magic_buttons).length > 0;
-              const magicIcon = hasMagic ? `<span class="magic-indicator" title="Has magic button assignments">✦</span>` : '';
-              const luxCell = ctrl.illuminance && ctrl.illuminance.value != null
-                ? `${ctrl.illuminance.value}`
-                : '—';
+              const magicIcon = hasMagic ? ` <span class="magic-indicator" title="Has magic button assignments">✦</span>` : '';
+              const statusSub = getStatusSubtitle(ctrl);
               const glozoneLabel = glozoneName ? `<div style="font-size: 0.7rem; color: var(--muted); opacity: 0.7; margin-bottom: 1px;">${glozoneName}</div>` : '';
+              let fourthCell;
+              if (fourthField === 'lux') {
+                fourthCell = ctrl.illuminance && ctrl.illuminance.value != null ? `${ctrl.illuminance.value}` : '—';
+              } else if (fourthField === 'pause') {
+                fourthCell = `<input type="checkbox" ${ctrl.inactive ? 'checked' : ''} onclick="event.stopPropagation(); toggleInactive('${ctrl.id}', '${ctrl.category}', ${!ctrl.inactive})">`;
+              } else {
+                fourthCell = formatLastAction(ctrl);
+              }
               return `
-                <tr class="${rowClass}" ${rowClick}>
-                  <td>${pauseCell}${magicIcon}</td>
-                  <td><span class="switch-name-text">${ctrl.name}</span></td>
+                <tr class="clickable-row" ${rowClick}>
+                  <td><span class="switch-name-text">${ctrl.name}</span>${magicIcon}${statusSub}</td>
                   <td title="${categoryLabel}" style="text-align: center; color: var(--muted);">${categoryIcon(ctrl.category)}</td>
                   <td>${glozoneLabel}${areaName}</td>
-                  <td>${statusBadge}</td>
-                  <td>${lastAction}</td>
-                  <td>${luxCell}</td>
+                  <td>${fourthCell}</td>
                 </tr>
               `;
             }).join('')}
@@ -916,17 +835,13 @@
 
     }
 
-    function getStatusBadge(ctrl) {
-      if (ctrl.status === 'active' || ctrl.status === 'inactive') {
-        if (ctrl.inactive) {
-          return '<span class="status-badge status-inactive">Paused</span>';
-        }
-        return '<span class="status-badge status-active"><span class="status-check">✓</span> Active</span>';
-      } else if (ctrl.status === 'not_configured') {
-        return '<span class="status-badge status-not-configured">Setup</span>';
-      } else {
-        return '<span class="status-badge status-unsupported">Request</span>';
+    function getStatusSubtitle(ctrl) {
+      if (ctrl.status === 'not_configured') {
+        return '<div class="switch-status-sub status-not-configured-text">setup</div>';
+      } else if (ctrl.status === 'unsupported') {
+        return '<div class="switch-status-sub status-unsupported-text">request</div>';
       }
+      return '';
     }
 
     function getGlozoneForArea(areaId) {
@@ -1041,39 +956,11 @@
       renderControls();
     }
 
-    function sortLocationAZ() {
-      if (sortColumn === 'area' && areaSortMode === 'az') {
-        sortAsc = !sortAsc;
-      } else {
-        areaSortMode = 'az';
-        sortColumn = 'area';
-        sortAsc = true;
-      }
-      localStorage.setItem('controls_areaSortMode', areaSortMode);
-      savePreferences();
-      renderControls();
-    }
-
-    function sortLocationCustom() {
-      if (sortColumn === 'area' && areaSortMode === 'custom') {
-        sortAsc = !sortAsc;
-      } else {
-        areaSortMode = 'custom';
-        sortColumn = 'area';
-        sortAsc = true;
-      }
-      localStorage.setItem('controls_areaSortMode', areaSortMode);
-      savePreferences();
-      renderControls();
-    }
-
     function clearFilters() {
       categoryFilter = 'all';
       areaFilter = 'all';
-      statusFilter = 'all';
-      pauseFilter = 'all';
-      glozoneFilter = 'all';
       searchFilter = '';
+      activeOnly = false;
       savePreferences();
       renderControls();
     }
@@ -1082,9 +969,6 @@
       switch (filterName) {
         case 'category': categoryFilter = 'all'; break;
         case 'area': areaFilter = 'all'; break;
-        case 'status': statusFilter = 'all'; break;
-        case 'pause': pauseFilter = 'all'; break;
-        case 'glozone': glozoneFilter = 'all'; break;
       }
       savePreferences();
       renderControls();
@@ -1093,12 +977,6 @@
     function handleSearch(value) {
       searchFilter = value;
       renderControls();
-      // Re-focus the search input after re-render and restore cursor position
-      const input = document.getElementById('search-input');
-      if (input) {
-        input.focus();
-        input.setSelectionRange(value.length, value.length);
-      }
     }
 
     function clearSearch() {
@@ -1177,18 +1055,28 @@
           areaFilter = e.target.value;
           savePreferences();
           renderControls();
-        } else if (e.target.id === 'glozone-filter') {
-          glozoneFilter = e.target.value;
-          renderControls();
-        } else if (e.target.id === 'status-filter') {
-          statusFilter = e.target.value;
-          savePreferences();
-          renderControls();
-        } else if (e.target.id === 'pause-filter') {
-          pauseFilter = e.target.value;
+        } else if (e.target.id === 'fourth-field-select') {
+          fourthField = e.target.value;
           savePreferences();
           renderControls();
         }
+      });
+
+      // Search input (lives above the table, not re-rendered)
+      document.getElementById('search-input').addEventListener('input', (e) => {
+        handleSearch(e.target.value);
+      });
+      document.getElementById('search-clear').addEventListener('click', (e) => {
+        e.stopPropagation();
+        clearSearch();
+        document.getElementById('search-input').value = '';
+      });
+
+      // Active-only checkbox
+      document.getElementById('active-filter').addEventListener('change', (e) => {
+        activeOnly = e.target.checked;
+        savePreferences();
+        renderControls();
       });
     }
 

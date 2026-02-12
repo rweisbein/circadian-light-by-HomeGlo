@@ -289,254 +289,26 @@
       cursor: pointer;
     }
 
-    /* Modal */
-    .modal-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0, 0, 0, 0.7);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 200;
-      opacity: 0;
-      visibility: hidden;
-      transition: all 0.2s;
-    }
 
-    .modal-overlay.visible {
-      opacity: 1;
-      visibility: visible;
-    }
-
-    .modal {
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      padding: 24px;
-      min-width: 460px;
-      max-width: 90%;
-      max-height: 90vh;
-      overflow-y: auto;
-    }
-
-    .modal-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 20px;
-    }
-
-    .modal-title {
-      font-size: 1.2rem;
-      font-weight: 600;
-    }
-
-    .modal-close {
-      background: transparent;
-      border: none;
-      color: var(--muted);
-      font-size: 0.8rem;
-      cursor: pointer;
-      padding: 0;
-    }
-
-    .modal-close:hover {
-      color: var(--text);
-    }
-
-    /* Area state display - with dynamic shading */
-    .area-state {
-      --state-bg: var(--panel);
-      --state-fill: 0;
-      background: var(--state-bg);
-      border-radius: 8px;
-      padding: 16px;
-      margin-bottom: 12px;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .area-state::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: rgba(255,255,255,0.12);
-      opacity: var(--state-fill);
-      pointer-events: none;
-    }
-
-    .area-state-row {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      position: relative;
-      z-index: 1;
-    }
-
-    .area-state-info {
-      flex: 1;
-      min-width: 0;
-      display: flex;
-      align-items: center;
-    }
-
-    .area-state-values {
-      font-size: 1.4rem;
-      font-weight: 500;
-      display: flex;
-      align-items: center;
-      height: 100%;
-      gap: 6px;
-    }
-
-    .area-state-controls {
-      display: flex;
-      gap: 8px;
-      flex-shrink: 0;
-      background: rgba(0,0,0,0.5);
-      padding: 6px;
-      border-radius: 10px;
-    }
-
-    .zone-state-controls {
-      display: flex;
-      gap: 8px;
-      flex-shrink: 0;
-      background: rgba(0,0,0,0.5);
-      padding: 6px;
-      border-radius: 10px;
-    }
-
-    .area-state-controls-left {
-      display: flex;
-      gap: 8px;
-      flex-shrink: 0;
-      background: rgba(0,0,0,0.5);
-      padding: 6px;
-      border-radius: 10px;
-      margin-right: 12px;
-    }
-
-    /* Toggle switch styles */
-    .toggle-btn {
-      width: 40px;
-      height: 40px;
-      border-radius: 6px;
-      border: 1px solid rgba(255,255,255,0.2);
-      background: rgba(30,30,30,0.9);
-      color: var(--muted);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.2s;
-      font-size: 1.1rem;
-    }
-
-    .toggle-btn:hover {
-      border-color: rgba(255,255,255,0.4);
-      background: rgba(50,50,50,0.9);
-    }
-
-    .toggle-btn.active {
-      background: rgba(60,60,60,0.9);
-      color: var(--text);
-      border-color: var(--accent);
-    }
-
-    .toggle-btn svg {
-      width: 18px;
-      height: 18px;
-    }
-
-    /* Reset button - prominent */
-    .reset-section {
-      display: flex;
-      justify-content: center;
-      margin-bottom: 12px;
-    }
-
-    .reset-btn {
-      padding: 10px 32px;
-      border-radius: 6px;
-      font-size: 0.9rem;
-      font-weight: 600;
-      cursor: pointer;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      color: var(--text);
-      transition: all 0.2s;
-    }
-
-    .reset-btn:hover {
-      background: rgba(255,255,255,0.1);
-      border-color: var(--accent);
-    }
-
-    /* Modal context info (Glo zone + Rhythm) */
-    .modal-context-info {
-      display: flex;
-      gap: 20px;
-      padding: 6px 0;
-      font-size: 0.85rem;
-    }
-
-    .context-line {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-
-    .context-label {
-      color: var(--muted);
-    }
-
-    .context-link {
-      color: var(--accent);
-      text-decoration: none;
-      transition: color 0.2s;
-    }
-
-    .context-link:hover {
-      color: var(--accent-hover);
-      text-decoration: underline;
-    }
-
-    /* Timer status row (motion + boost between header and chart) */
-    .modal-timer-status {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 4px 0;
-      font-size: 0.8rem;
-      min-height: 0;
-    }
-
-    .modal-timer-status:empty {
-      display: none;
-    }
-
+    /* Timer styles (shared with homepage) */
     .timer-motion {
-      color: var(--row-text, var(--muted));
-      opacity: 0.7;
+      color: #e2e8f0;
+      opacity: 0.9;
     }
 
     .timer-boost {
-      color: var(--row-text, var(--muted));
-      opacity: 0.7;
+      color: #e2e8f0;
+      opacity: 0.9;
       margin-left: auto;
     }
 
     .timer-frozen {
       color: #63b3ed;
-      opacity: 0.85;
+      opacity: 1;
     }
 
     .timer-arrow {
-      color: var(--muted2);
+      color: inherit;
       margin: 0 3px;
     }
 
@@ -548,148 +320,6 @@
     @keyframes timer-pulse {
       0%, 100% { opacity: 1; }
       50% { opacity: 0.4; }
-    }
-
-    /* Action buttons */
-    .action-section {
-      margin-bottom: 16px;
-    }
-
-    .action-section-title {
-      font-size: 0.8rem;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 8px;
-    }
-
-    .action-buttons {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-
-    .action-btn {
-      padding: 10px 16px;
-      border-radius: 6px;
-      font-size: 0.85rem;
-      cursor: pointer;
-      transition: all 0.2s;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      color: var(--text);
-    }
-
-    .action-btn:hover {
-      background: rgba(255, 255, 255, 0.1);
-      border-color: var(--accent);
-    }
-
-    .action-btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-
-    .action-btn.primary {
-      background: var(--accent);
-      border-color: var(--accent);
-      color: #000;
-    }
-
-    .action-btn.primary:hover {
-      background: var(--accent-hover);
-    }
-
-    .action-btn.success {
-      background: rgba(34, 197, 94, 0.15);
-      border-color: var(--success);
-      color: var(--success);
-    }
-
-    .action-btn.danger {
-      background: rgba(239, 68, 68, 0.15);
-      border-color: var(--danger);
-      color: var(--danger);
-    }
-
-    /* Adjust buttons - styled like glo-designer */
-    .adjust-section {
-      margin-bottom: 12px;
-      -webkit-user-select: none;
-      user-select: none;
-    }
-    .adjust-slider-row {
-      display: flex;
-      align-items: stretch;
-      justify-content: center;
-      gap: 24px;
-    }
-    .slider-column {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 4px;
-    }
-    .slider-label {
-      font-size: 0.65rem;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
-    .slider-track {
-      position: relative;
-      width: 14px;
-      height: 160px;
-      background: rgba(255,255,255,0.08);
-      border-radius: 7px;
-      cursor: pointer;
-      touch-action: none;
-      overflow: hidden;
-    }
-    .slider-fill {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      background: rgba(0,0,0,0.55);
-      pointer-events: none;
-      transition: height 0.15s ease;
-      border-radius: 7px 7px 0 0;
-    }
-    .slider-thumb {
-      position: absolute;
-      left: 50%;
-      width: 22px;
-      height: 22px;
-      border-radius: 50%;
-      background: #fff;
-      border: 2px solid rgba(255,255,255,0.8);
-      box-shadow: 0 1px 6px rgba(0,0,0,0.4);
-      transform: translate(-50%, 50%);
-      pointer-events: none;
-      transition: bottom 0.15s ease, background 0.15s ease;
-      z-index: 2;
-    }
-    .slider-track.dragging .slider-fill,
-    .slider-track.dragging .slider-thumb {
-      transition: none;
-    }
-    .slider-extreme {
-      font-size: 0.6rem;
-      color: var(--muted);
-      cursor: pointer;
-      padding: 2px 0;
-      letter-spacing: 0.02em;
-    }
-    .slider-extreme:hover {
-      color: var(--text);
-    }
-
-    /* Mini chart container */
-    #modal-mini-chart {
-      width: 100%;
-      height: 280px;
-      margin: 8px 0;
     }
 
     /* Area row - div-based for proper shading like modal header */
@@ -781,7 +411,12 @@
     .area-row-timer {
       font-size: 0.75rem;
       white-space: nowrap;
-      opacity: 0.7;
+    }
+
+    .area-row-timer:not(:empty) {
+      background: rgba(0,0,0,0.45);
+      padding: 2px 8px;
+      border-radius: 10px;
     }
 
     /* Row control buttons - dark container like modal header */
@@ -1267,7 +902,6 @@
       pointer-events: none;
     }
   </style>
-  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
   <script src="./shared.js"></script>
 </head>
 <body>
@@ -1304,116 +938,6 @@
     </div>
   </main>
 
-  <!-- Area Modal -->
-  <div class="modal-overlay" id="area-modal">
-    <div class="modal">
-      <div class="modal-header">
-        <h3 class="modal-title" id="modal-area-name">Area Name</h3>
-        <button class="modal-close" onclick="closeModal()">Close</button>
-      </div>
-
-      <div class="modal-context-info" id="modal-context-info">
-        <div class="context-line"><span class="context-label">Glo zone:</span> <span id="modal-zone-link">—</span></div>
-        <div class="context-line" id="modal-rhythm-line" style="display:none;"><span class="context-label">Daily Rhythm:</span> <span class="context-link" id="modal-rhythm-link">—</span></div>
-      </div>
-
-      <div class="area-state" id="modal-area-state">
-        <div class="area-state-row">
-          <div class="area-state-controls-left">
-            <button class="toggle-btn" id="toggle-circadian" onclick="toggleCircadian()" title="Circadian">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="5"/>
-                <line x1="12" y1="1" x2="12" y2="3"/>
-                <line x1="12" y1="21" x2="12" y2="23"/>
-                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-                <line x1="1" y1="12" x2="3" y2="12"/>
-                <line x1="21" y1="12" x2="23" y2="12"/>
-                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-              </svg>
-            </button>
-            <button class="toggle-btn" id="toggle-power" onclick="executeAction('lights_toggle')" title="Power">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M18.36 6.64a9 9 0 1 1-12.73 0M12 2v10"/>
-              </svg>
-            </button>
-            <button class="toggle-btn" id="toggle-freeze" onclick="executeAction('freeze_toggle')" title="Freeze">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-              </svg>
-            </button>
-            <button class="toggle-btn" id="toggle-boost" onclick="executeAction('boost')" title="Boost">
-              <span style="font-weight:900; font-size:16px; font-family:serif; line-height:1;">B</span>
-            </button>
-          </div>
-          <div class="area-state-info">
-            <div class="area-state-values" id="modal-values"></div>
-          </div>
-          <div class="area-state-controls">
-            <button class="toggle-btn" id="toggle-glo-up" onclick="executeAction('glo_up')" title="GloUp: send area settings to GloZone">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="5 13 12 6 19 13"/>
-                <line x1="4" y1="19" x2="20" y2="19"/>
-              </svg>
-            </button>
-            <button class="toggle-btn" id="toggle-glo-down" onclick="executeAction('glo_down')" title="GloDown: pull GloZone settings to this area">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="4" y1="5" x2="20" y2="5"/>
-                <polyline points="5 11 12 18 19 11"/>
-              </svg>
-            </button>
-          </div>
-          <div class="zone-state-controls" style="display:none;">
-            <button class="toggle-btn" id="toggle-glozone-reset" onclick="executeAction('glozone_reset')" title="Reset GloZone: set GloZone to Daily Rhythm">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
-            </button>
-            <button class="toggle-btn" id="toggle-glozone-down" onclick="executeAction('glozone_down')" title="GloZone Down: push zone settings to all areas">
-              <svg viewBox="0 0 16 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 5 8 10 13 5"/><polyline points="3 11 8 16 13 11"/></svg>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div class="modal-timer-status" id="modal-timer-status"></div>
-
-      <div id="modal-mini-chart"></div>
-
-      <div class="adjust-section">
-        <div class="adjust-slider-row">
-          <div class="slider-column">
-            <div class="slider-label">Glo</div>
-            <div class="slider-extreme" onclick="executeAction('set_britelite')">BriteLite</div>
-            <div class="slider-track" data-mode="step">
-              <div class="slider-fill"></div>
-              <div class="slider-thumb"></div>
-            </div>
-            <div class="slider-extreme" onclick="executeAction('set_nitelite')">NiteLite</div>
-          </div>
-          <div class="slider-column">
-            <div class="slider-label">Bright</div>
-            <div class="slider-extreme" id="bright-max" onclick="executeSetPosition(100,'brightness')">max</div>
-            <div class="slider-track" data-mode="brightness">
-              <div class="slider-fill"></div>
-              <div class="slider-thumb"></div>
-            </div>
-            <div class="slider-extreme" id="bright-min" onclick="executeSetPosition(0,'brightness')">min</div>
-          </div>
-          <div class="slider-column">
-            <div class="slider-label">Color</div>
-            <div class="slider-extreme" id="color-max" onclick="executeSetPosition(100,'color')">max</div>
-            <div class="slider-track" data-mode="color">
-              <div class="slider-fill"></div>
-              <div class="slider-thumb"></div>
-            </div>
-            <div class="slider-extreme" id="color-min" onclick="executeSetPosition(0,'color')">min</div>
-          </div>
-        </div>
-      </div>
-
-    </div>
-  </div>
 
   <script>
     // State
@@ -1422,20 +946,15 @@
     let zoneStates = {};
     let cachedRhythms = {};
     let viewMode = 'custom'; // 'custom', 'alpha', 'onoff'
-    let selectedArea = null;
-    let selectedZoneName = null;
     let cachedConfig = null;
     let cachedSunTimes = null; // { sunrise, sunset, solarNoon, solarMid } in local hours
     let editMode = false;
     let cachedGlozones = null; // raw glozone data for edit mode ordering
-    // adjustMode removed — each slider has its own data-mode attribute
-    let modalTickInterval = null;   // 1s local countdown tick
-    let modalRefreshInterval = null; // 1s modal API refresh (single area)
     let homeRefreshTimer = null;     // Home page card refresh timer
     let homeTickTimer = null;        // 1s home page timer countdown tick
 
     // ============================================================
-    // Mini Circadian Graph — Calculation Functions
+    // Circadian Calculation Functions (for row shading)
     // ============================================================
 
     const SPEED_TO_SLOPE = [0, 0.4, 0.6, 0.8, 1.0, 1.3, 1.7, 2.3, 3.0, 4.0, 5.5];
@@ -1687,39 +1206,6 @@
       return cct;
     }
 
-    /**
-     * Generate 240 samples of brightness% and CCT across 24 hours.
-     */
-    function calcMiniCurveData(cfg, state, sunTimes, currentHour) {
-      const numSamples = 240;
-      const hours = [];
-      const brightnessPct = [];
-      const cct = [];
-
-      for (let i = 0; i < numSamples; i++) {
-        const h = (i / numSamples) * 24;
-        hours.push(h);
-        brightnessPct.push(calcMiniBrightness(h, cfg, state, currentHour) * 100);
-        cct.push(calcMiniColor(h, cfg, state, sunTimes, currentHour));
-      }
-
-      return { hours, brightnessPct, cct };
-    }
-
-    // ============================================================
-    // Mini Circadian Graph — Rendering
-    // ============================================================
-
-    function formatHourLabel(h) {
-      const h24 = ((h % 24) + 24) % 24;
-      let hr = Math.floor(h24);
-      let min = Math.round((h24 - hr) * 60);
-      if (min === 60) { min = 0; hr = (hr + 1) % 24; }
-      const suffix = hr < 12 ? 'a' : 'p';
-      const hr12 = hr === 0 ? 12 : (hr > 12 ? hr - 12 : hr);
-      return min === 0 ? `${hr12}${suffix}` : `${hr12}:${min.toString().padStart(2, '0')}${suffix}`;
-    }
-
     function formatCountdown(isoTimestamp) {
       if (!isoTimestamp) return null;
       const expires = new Date(isoTimestamp);
@@ -1735,560 +1221,6 @@
       const hr = Math.floor(min / 60);
       const remMin = min % 60;
       return remMin > 0 ? `${hr}h ${remMin}m` : `${hr}h`;
-    }
-
-    function renderMiniChart(cfg, state, sunTimes, currentHour, isActive) {
-      if (!cfg || !sunTimes) return;
-
-      const data = calcMiniCurveData(cfg, state, sunTimes, currentHour);
-      const { hours, brightnessPct, cct } = data;
-
-      const traces = [];
-
-      // Color-gradient brightness curve (filled + line segments)
-      const step = 2;
-      for (let i = step; i < hours.length; i += step) {
-        const color = cctToRGB(cct[i]);
-        const fillColor = colorWithAlpha(color, 0.5);
-        const x0 = hours[i - step];
-        const x1 = hours[i];
-        const y0 = brightnessPct[i - step];
-        const y1 = brightnessPct[i];
-
-        // Filled area under curve
-        traces.push({
-          type: 'scatter', mode: 'lines',
-          x: [x0, x1, x1, x0], y: [y0, y1, 0, 0],
-          fill: 'toself', line: { width: 0 }, fillcolor: fillColor,
-          hoverinfo: 'skip', showlegend: false
-        });
-
-        // Colored line segment
-        traces.push({
-          type: 'scatter', mode: 'lines',
-          x: [x0, x1], y: [y0, y1],
-          line: { width: 3, color },
-          hoverinfo: 'skip', showlegend: false
-        });
-      }
-
-      // Hover trace — CCT-colored tooltips
-      const hoverDetails = brightnessPct.map((v, i) =>
-        `${Math.round(v)}% • ${Math.round(cct[i])}K`
-      );
-      const hoverBgColors = cct.map(k => colorWithAlpha(cctToRGB(k), 0.92));
-      const hoverTextColors = cct.map(k => readableTextColor(cctToRGB(k)));
-      const hoverBorderColors = cct.map(k => colorWithAlpha(cctToRGB(k), 0.65));
-
-      traces.push({
-        type: 'scatter', mode: 'lines',
-        x: hours, y: brightnessPct,
-        line: { width: 0 }, showlegend: false,
-        text: hoverDetails,
-        hovertemplate: '%{text}<extra></extra>',
-        hoverlabel: {
-          bgcolor: hoverBgColors,
-          bordercolor: hoverBorderColors,
-          font: { color: hoverTextColors, size: 13 }
-        }
-      });
-
-      // Live position marker (large size, outline color depends on active state)
-      const markerBri = calcMiniBrightness(currentHour, cfg, state, currentHour) * 100;
-      const markerCCT = calcMiniColor(currentHour, cfg, state, sunTimes, currentHour);
-      const markerColor = cctToRGB(markerCCT);
-      const markerOutline = isActive ? '#fff' : '#000';
-
-      traces.push({
-        x: [currentHour], y: [markerBri],
-        mode: 'markers',
-        marker: { size: 22, color: markerColor, line: { width: 3, color: markerOutline } },
-        hoverinfo: 'skip', showlegend: false
-      });
-
-      // Shapes and annotations
-      const shapes = [];
-      const annotations = [];
-
-      // Wake/bed vertical dashed lines (glo-designer colors)
-      const wakeTime = wrap24(cfg.wake_time);
-      const bedTime = wrap24(cfg.bed_time);
-
-      shapes.push({
-        type: 'line', xref: 'x', yref: 'paper',
-        x0: wakeTime, x1: wakeTime, y0: -0.15, y1: 1,
-        line: { color: 'rgba(92, 179, 255, 0.35)', width: 1.5, dash: 'dot' }
-      });
-      shapes.push({
-        type: 'line', xref: 'x', yref: 'paper',
-        x0: bedTime, x1: bedTime, y0: -0.15, y1: 1,
-        line: { color: 'rgba(255, 230, 128, 0.35)', width: 1.5, dash: 'dot' }
-      });
-
-      // Sunrise/sunset vertical ticks (partial height, from below axis to ~30% of graph)
-      const sunrise = sunTimes.sunrise;
-      const sunset = sunTimes.sunset;
-      const sunTickStyle = { color: 'rgba(215,215,215,0.4)', width: 1, dash: 'dot' };
-      if (Number.isFinite(sunrise)) {
-        shapes.push({
-          type: 'line', xref: 'x', yref: 'paper',
-          x0: sunrise, x1: sunrise, y0: -0.22, y1: 0,
-          line: sunTickStyle
-        });
-      }
-      if (Number.isFinite(sunset)) {
-        shapes.push({
-          type: 'line', xref: 'x', yref: 'paper',
-          x0: sunset, x1: sunset, y0: -0.22, y1: 0,
-          line: sunTickStyle
-        });
-      }
-
-      // Layer 1: Wake/bed labels (below x-axis labels) — hover shows time
-      annotations.push({
-        x: wakeTime, y: -0.18, xref: 'x', yref: 'paper',
-        text: 'wake', showarrow: false,
-        font: { size: 10, color: '#5cb3ff' },
-        hovertext: formatHourLabel(wakeTime),
-        hoverlabel: { bgcolor: '#7fc7ff', bordercolor: '#7fc7ff', font: { color: '#000', size: 12 } }
-      });
-      annotations.push({
-        x: bedTime, y: -0.18, xref: 'x', yref: 'paper',
-        text: 'bed', showarrow: false,
-        font: { size: 10, color: '#ffe680' },
-        hovertext: formatHourLabel(bedTime),
-        hoverlabel: { bgcolor: '#ffe680', bordercolor: '#ffe680', font: { color: '#000', size: 12 } }
-      });
-
-      // Layer 2: Sunrise/sunset labels (below wake/bed) — hover shows time
-      if (Number.isFinite(sunrise)) {
-        annotations.push({
-          x: sunrise, y: -0.25, xref: 'x', yref: 'paper',
-          text: 'sunrise', showarrow: false,
-          font: { size: 9, color: 'rgba(215,215,215,0.6)' },
-          hovertext: formatHourLabel(sunrise),
-          hoverlabel: { bgcolor: '#3a3a3a', bordercolor: '#3a3a3a', font: { color: '#fff', size: 12 } }
-        });
-      }
-      if (Number.isFinite(sunset)) {
-        annotations.push({
-          x: sunset, y: -0.25, xref: 'x', yref: 'paper',
-          text: 'sunset', showarrow: false,
-          font: { size: 9, color: 'rgba(215,215,215,0.6)' },
-          hovertext: formatHourLabel(sunset),
-          hoverlabel: { bgcolor: '#3a3a3a', bordercolor: '#3a3a3a', font: { color: '#fff', size: 12 } }
-        });
-      }
-
-      // Cursor vertical line: follows frozen position when frozen, otherwise "now"
-      const isFrozen = state && state.frozen_at != null;
-      const cursorHour = currentHour;
-      const cursorLineStyle = { color: '#fdfdfd', width: 2, dash: 'dot' };
-      const gap = 8;  // Gap around marker in y-units
-      const lowerEnd = Math.max(0, markerBri - gap);
-      const upperStart = Math.min(110, markerBri + gap);
-
-      // Lower segment (0 to just below marker)
-      shapes.push({
-        type: 'line', xref: 'x', yref: 'y',
-        x0: cursorHour, x1: cursorHour, y0: 0, y1: lowerEnd,
-        line: cursorLineStyle, layer: 'above'
-      });
-      // Upper segment (just above marker to top)
-      shapes.push({
-        type: 'line', xref: 'x', yref: 'y',
-        x0: cursorHour, x1: cursorHour, y0: upperStart, y1: 110,
-        line: cursorLineStyle, layer: 'above'
-      });
-      // Line from x-axis down to above label (stops before text)
-      shapes.push({
-        type: 'line', xref: 'x', yref: 'paper',
-        x0: cursorHour, x1: cursorHour, y0: -0.26, y1: 0,
-        line: cursorLineStyle, layer: 'above'
-      });
-
-      // Cursor label: "frozen" with time when frozen, "now" with time otherwise
-      const cursorTimeStr = formatHourLabel(cursorHour);
-      const cursorLabel = isFrozen ? 'frozen' : 'now';
-      const cursorColor = isFrozen ? '#63b3ed' : '#fdfdfd';
-      annotations.push({
-        x: cursorHour, y: -0.38, xref: 'x', yref: 'paper',
-        text: `${cursorLabel}<br>${cursorTimeStr}`, showarrow: false,
-        font: { size: 10, color: cursorColor },
-        align: 'center'
-      });
-
-      const layout = {
-        paper_bgcolor: '#0a0a0a',
-        plot_bgcolor: '#0a0a0a',
-        margin: { t: 24, r: 12, l: 36, b: 85 },
-        hovermode: 'closest',
-        xaxis: {
-          range: [0, 24],
-          dtick: 3,
-          tickvals: [0, 3, 6, 9, 12, 15, 18, 21, 24],
-          ticktext: ['12a', '3a', '6a', '9a', '12p', '3p', '6p', '9p', '12a'],
-          gridcolor: 'rgba(80,100,130,0.22)',
-          tickfont: { color: '#c8c8c8', size: 10 },
-          ticklen: 3,
-          tickcolor: 'rgba(160,190,220,0.2)'
-        },
-        yaxis: {
-          range: [0, 110],
-          gridcolor: 'rgba(80,100,130,0.22)',
-          tickfont: { color: '#c8c8c8', size: 10 },
-          ticklen: 3,
-          title: '',
-          showticklabels: true,
-          dtick: 25
-        },
-        shapes,
-        annotations,
-        showlegend: false
-      };
-
-      Plotly.react('modal-mini-chart', traces, layout, {
-        displayModeBar: false,
-        responsive: true
-      });
-    }
-
-    // ============================================================
-    // Position Slider
-    // ============================================================
-
-    let sliderInteracting = false;
-
-    function styleAdjustButtons(areaId) {
-      // Renamed entry point — delegates to updateAllSliders
-      updateAllSliders(areaId);
-    }
-
-    function getSliderCfgAndState(areaId) {
-      const status = areaStatus[areaId] || {};
-      if (!cachedConfig || !cachedSunTimes) return null;
-      const rhythmName = status.preset_name;
-      const cfg = (rhythmName && cachedRhythms[rhythmName])
-        ? { ...cachedConfig, ...cachedRhythms[rhythmName] }
-        : cachedConfig;
-      const areaState = {
-        brightness_mid: status.brightness_mid ?? null,
-        color_mid: status.color_mid ?? null,
-        color_override: status.color_override ?? null,
-        frozen_at: status.frozen_at ?? null
-      };
-      let currentHour;
-      if (status.frozen && status.frozen_at != null) {
-        currentHour = status.frozen_at;
-      } else {
-        const now = new Date();
-        currentHour = now.getHours() + now.getMinutes() / 60;
-      }
-      return { cfg, areaState, currentHour };
-    }
-
-    function getSliderCfgAndStateForZone(zoneName) {
-      const zs = zoneStates[zoneName] || {};
-      if (!cachedConfig || !cachedSunTimes) return null;
-      const rhythmName = zs.rhythm;
-      const cfg = (rhythmName && cachedRhythms[rhythmName])
-        ? { ...cachedConfig, ...cachedRhythms[rhythmName] }
-        : cachedConfig;
-      const rs = zs.runtime_state || {};
-      const areaState = {
-        brightness_mid: rs.brightness_mid ?? null,
-        color_mid: rs.color_mid ?? null,
-        color_override: rs.color_override ?? null,
-        frozen_at: rs.frozen_at ?? null
-      };
-      let currentHour;
-      if (rs.frozen_at != null) {
-        currentHour = rs.frozen_at;
-      } else {
-        const now = new Date();
-        currentHour = now.getHours() + now.getMinutes() / 60;
-      }
-      return { cfg, areaState, currentHour };
-    }
-
-    function updateAllSliders(areaId) {
-      const ctx = getSliderCfgAndState(areaId);
-      if (!ctx) return;
-      updateSlidersFromContext(ctx);
-    }
-
-    function updateSliderFromZone(zoneName) {
-      const ctx = getSliderCfgAndStateForZone(zoneName);
-      if (!ctx) return;
-      updateSlidersFromContext(ctx);
-    }
-
-    function updateSlidersFromContext(ctx) {
-      const { cfg, areaState, currentHour } = ctx;
-      const currentBri = calcMiniBrightness(currentHour, cfg, areaState, currentHour) * 100;
-      const currentCCT = calcMiniColor(currentHour, cfg, areaState, cachedSunTimes, currentHour);
-      const bMin = cfg.min_brightness, bMax = cfg.max_brightness;
-      const cMin = cfg.min_color_temp, cMax = cfg.max_color_temp;
-
-      const briFrac = bMax > bMin ? Math.max(0, Math.min(100, (currentBri - bMin) / (bMax - bMin) * 100)) : 50;
-      const cctFrac = cMax > cMin ? Math.max(0, Math.min(100, (currentCCT - cMin) / (cMax - cMin) * 100)) : 50;
-      const gloFrac = briFrac; // Glo is brightness-primary
-
-      // Update each slider (skip if being dragged)
-      document.querySelectorAll('.slider-track').forEach(track => {
-        if (track.classList.contains('dragging')) return;
-        const mode = track.dataset.mode;
-        track.style.background = buildTrackGradient(mode, cfg, currentBri, currentCCT);
-        const pct = mode === 'step' ? gloFrac : mode === 'brightness' ? briFrac : cctFrac;
-        applyOneSlider(track, pct, currentBri, currentCCT, mode);
-      });
-
-      // Update extreme labels from config
-      const briMaxEl = document.getElementById('bright-max');
-      const briMinEl = document.getElementById('bright-min');
-      const cctMaxEl = document.getElementById('color-max');
-      const cctMinEl = document.getElementById('color-min');
-      if (briMaxEl) briMaxEl.textContent = bMax + '%';
-      if (briMinEl) briMinEl.textContent = bMin + '%';
-      if (cctMaxEl) cctMaxEl.textContent = cMax + 'K';
-      if (cctMinEl) cctMinEl.textContent = cMin + 'K';
-    }
-
-    function getPositionFromPointer(track, e) {
-      const rect = track.getBoundingClientRect();
-      const y = Math.max(0, Math.min(1, (rect.bottom - e.clientY) / rect.height));
-      return y * 100;
-    }
-
-    function buildTrackGradient(mode, cfg, currentBri, currentCCT) {
-      const bMin = cfg.min_brightness, bMax = cfg.max_brightness;
-      const cMin = cfg.min_color_temp, cMax = cfg.max_color_temp;
-      const stops = [];
-      const n = 6;
-      for (let i = 0; i <= n; i++) {
-        const frac = i / n;
-        let color;
-        if (mode === 'color') {
-          const k = cMin + (cMax - cMin) * frac;
-          color = cctToRGB(k);
-        } else if (mode === 'brightness') {
-          const b = bMin + (bMax - bMin) * frac;
-          color = tintColorByBrightness(cctToRGB(currentCCT), b);
-        } else {
-          const b = bMin + (bMax - bMin) * frac;
-          const k = cMin + (cMax - cMin) * frac;
-          color = tintColorByBrightness(cctToRGB(k), b);
-        }
-        stops.push(color + ' ' + Math.round(frac * 100) + '%');
-      }
-      return 'linear-gradient(to top, ' + stops.join(', ') + ')';
-    }
-
-    function applyOneSlider(track, pct, bri, cct, mode) {
-      const fill = track.querySelector('.slider-fill');
-      const thumb = track.querySelector('.slider-thumb');
-      if (!fill || !thumb) return;
-      // Dim overlay: covers from top down to thumb position
-      fill.style.height = (100 - pct) + '%';
-      // Thumb position and color
-      thumb.style.bottom = pct + '%';
-      const color = cctToRGB(cct);
-      const tinted = mode === 'color' ? color : tintColorByBrightness(color, bri);
-      thumb.style.background = tinted;
-      thumb.style.borderColor = color;
-    }
-
-    // Inverse midpoint: solve for midpoint that produces targetValue at x
-    function jsInverseMidpoint(x, targetValue, slope, y0, y1) {
-      const eps = 0.001;
-      const clamped = Math.max(y0 + eps, Math.min(y1 - eps, targetValue));
-      const ratio = (clamped - y0) / (y1 - y0);
-      try { return x + Math.log((1 - ratio) / ratio) / slope; }
-      catch { return x; }
-    }
-
-    function jsLiftMidpointToPhase(mid, phaseStart, phaseEnd) {
-      const center = (phaseStart + phaseEnd) / 2;
-      let m = mid;
-      while (m < center - 12) m += 24;
-      while (m > center + 12) m -= 24;
-      return Math.max(phaseStart + 0.01, Math.min(phaseEnd - 0.01, m));
-    }
-
-    // Compute preview midpoints from a slider position
-    function computePreviewMidpoints(dragMode, position, cfg, currentHour) {
-      const tAscend = cfg.ascend_start;
-      let tDescend = cfg.descend_start;
-      if (tDescend <= tAscend) tDescend += 24;
-      const h48 = currentHour < tAscend ? currentHour + 24 : currentHour;
-      const inAscend = h48 >= tAscend && h48 < tDescend;
-      const kA = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.wake_speed))];
-      const kD = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.bed_speed))];
-      const slope = inAscend ? kA : -kD;
-      let calcTime = h48;
-      if (!inAscend && h48 < tDescend) calcTime = h48 + 24;
-
-      const bMin = cfg.min_brightness, bMax = cfg.max_brightness;
-      const cMin = cfg.min_color_temp, cMax = cfg.max_color_temp;
-      const bMinN = bMin / 100, bMaxN = bMax / 100;
-      const pos = Math.max(0, Math.min(100, position));
-
-      let newBriMid = null, newColorMid = null;
-
-      if (dragMode === 'step' || dragMode === 'brightness') {
-        const targetBri = bMin + (bMax - bMin) * pos / 100;
-        const tNorm = Math.max(bMinN + 0.001, Math.min(bMaxN - 0.001, targetBri / 100));
-        let mid = jsInverseMidpoint(calcTime, tNorm, slope, bMinN, bMaxN);
-        if (inAscend) mid = jsLiftMidpointToPhase(mid, tAscend, tDescend) % 24;
-        else mid = jsLiftMidpointToPhase(mid, tDescend, tAscend + 24) % 24;
-        newBriMid = mid;
-        if (dragMode === 'step') newColorMid = mid; // shared midpoint
-      }
-
-      if (dragMode === 'color') {
-        const targetCCT = cMin + (cMax - cMin) * pos / 100;
-        const tNorm = Math.max(0.001, Math.min(0.999, (targetCCT - cMin) / (cMax - cMin)));
-        let mid = jsInverseMidpoint(calcTime, tNorm, slope, 0, 1);
-        if (inAscend) mid = jsLiftMidpointToPhase(mid, tAscend, tDescend) % 24;
-        else mid = jsLiftMidpointToPhase(mid, tDescend, tAscend + 24) % 24;
-        newColorMid = mid;
-      }
-
-      return { newBriMid, newColorMid };
-    }
-
-    let chartPreviewTimer = null;
-
-    function previewSlider(track, position) {
-      const dragMode = track.dataset.mode;
-      const ctx = selectedZoneName
-        ? getSliderCfgAndStateForZone(selectedZoneName)
-        : (selectedArea ? getSliderCfgAndState(selectedArea.area_id) : null);
-      if (!ctx) return;
-      const { cfg, areaState } = ctx;
-      // Always use real current time for preview — server-side set_position unfreezes first
-      const now = new Date();
-      const currentHour = now.getHours() + now.getMinutes() / 60;
-
-      const bMin = cfg.min_brightness, bMax = cfg.max_brightness;
-      const cMin = cfg.min_color_temp, cMax = cfg.max_color_temp;
-      const currentBri = calcMiniBrightness(currentHour, cfg, areaState, currentHour) * 100;
-      const currentCCT = calcMiniColor(currentHour, cfg, areaState, cachedSunTimes, currentHour);
-
-      let previewBri, previewCCT;
-      if (dragMode === 'brightness') {
-        previewBri = bMin + (bMax - bMin) * position / 100;
-        previewCCT = currentCCT;
-      } else if (dragMode === 'color') {
-        previewBri = currentBri;
-        previewCCT = cMin + (cMax - cMin) * position / 100;
-      } else {
-        previewBri = bMin + (bMax - bMin) * position / 100;
-        previewCCT = cMin + (cMax - cMin) * position / 100;
-      }
-
-      // Derived positions for all three sliders
-      const briFrac = bMax > bMin ? Math.max(0, Math.min(100, (previewBri - bMin) / (bMax - bMin) * 100)) : 50;
-      const cctFrac = cMax > cMin ? Math.max(0, Math.min(100, (previewCCT - cMin) / (cMax - cMin) * 100)) : 50;
-      const gloFrac = briFrac;
-
-      // Update all sliders + gradients
-      document.querySelectorAll('.slider-track').forEach(t => {
-        const m = t.dataset.mode;
-        t.style.background = buildTrackGradient(m, cfg, previewBri, previewCCT);
-        const pct = m === 'step' ? gloFrac : m === 'brightness' ? briFrac : cctFrac;
-        applyOneSlider(t, pct, previewBri, previewCCT, m);
-      });
-
-      // Update chart with preview midpoints (throttled)
-      if (!chartPreviewTimer) {
-        chartPreviewTimer = setTimeout(() => {
-          chartPreviewTimer = null;
-          const { newBriMid, newColorMid } = computePreviewMidpoints(dragMode, position, cfg, currentHour);
-          const previewState = {
-            brightness_mid: newBriMid !== null ? newBriMid : areaState.brightness_mid,
-            color_mid: newColorMid !== null ? newColorMid : areaState.color_mid,
-            color_override: (dragMode === 'step' || dragMode === 'color') ? null : areaState.color_override,
-            frozen_at: null
-          };
-          renderMiniChart(cfg, previewState, cachedSunTimes, currentHour, true);
-        }, 80);
-      }
-    }
-
-    async function executeSetPosition(value, mode) {
-      const payload = selectedZoneName
-        ? { zone_name: selectedZoneName, action: 'set_position', value: value, mode: mode }
-        : { area_id: selectedArea.area_id, action: 'set_position', value: value, mode: mode };
-      const endpoint = selectedZoneName ? './api/zone/action' : './api/area/action';
-      try {
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        if (response.ok) {
-          setTimeout(async () => {
-            try {
-              if (selectedZoneName) {
-                const zsRes = await fetch('./api/zone-states');
-                if (zsRes.ok) {
-                  const zs = await zsRes.json();
-                  zoneStates = zs.zone_states || {};
-                }
-                updateZoneModalContent(selectedZoneName);
-              } else if (selectedArea) {
-                const res = await fetch(`./api/area-status?area_id=${encodeURIComponent(selectedArea.area_id)}`);
-                if (res.ok) {
-                  const singleStatus = await res.json();
-                  Object.assign(areaStatus, singleStatus);
-                }
-                updateModalContent(selectedArea.area_id);
-              }
-            } catch (err) {
-              console.error('Error refreshing after set_position:', err);
-            }
-          }, 500);
-        }
-      } catch (err) {
-        console.error('Error executing set_position:', err);
-      }
-    }
-
-    function initSliderHandlers() {
-      document.querySelectorAll('.slider-track').forEach(track => {
-        let lastPos = null;
-        const mode = track.dataset.mode;
-
-        function onDown(e) {
-          e.preventDefault();
-          sliderInteracting = true;
-          track.classList.add('dragging');
-          track.setPointerCapture(e.pointerId);
-          lastPos = getPositionFromPointer(track, e);
-          previewSlider(track, lastPos);
-        }
-        function onMove(e) {
-          if (!track.classList.contains('dragging')) return;
-          e.preventDefault();
-          lastPos = getPositionFromPointer(track, e);
-          previewSlider(track, lastPos);
-        }
-        function onUp(e) {
-          if (!track.classList.contains('dragging')) return;
-          e.preventDefault();
-          track.classList.remove('dragging');
-          sliderInteracting = false;
-          if (lastPos !== null) {
-            executeSetPosition(Math.round(lastPos), mode);
-          }
-        }
-
-        track.addEventListener('pointerdown', onDown);
-        track.addEventListener('pointermove', onMove);
-        track.addEventListener('pointerup', onUp);
-        track.addEventListener('pointercancel', onUp);
-      });
     }
 
     // ============================================================
@@ -2357,8 +1289,9 @@
 
         if (hasMotion && isBoosted && isMotionCoupled) {
           const remaining = formatCountdown(status.motion_expires_at);
+          const frozenPart = status.frozen ? ` <span class="timer-frozen">❄</span>` : '';
           el.innerHTML = remaining
-            ? `<span class="timer-motion${warnClass}">M+${status.boost_brightness}% ${remaining}</span>`
+            ? `<span class="timer-motion${warnClass}">M+${status.boost_brightness}% ${remaining}</span>${frozenPart}`
             : '';
           return;
         }
@@ -2522,6 +1455,15 @@
     }
 
     function glozoneDown(zoneName) {
+      const zs = zoneStates[zoneName] || {};
+      const bri = Math.round(zs.brightness ?? 0);
+      const kelvin = Math.round(zs.kelvin ?? 4000);
+      const onAreas = areas.filter(a => a.zone_name === zoneName && a.is_on);
+      const areaList = onAreas.length > 0
+        ? onAreas.map(a => a.name).join('\n')
+        : '(no areas currently on)';
+      const msg = `Send ${bri}% / ${kelvin}K to "${zoneName}"? These areas will adjust:\n\n${areaList}`;
+      if (!confirm(msg)) return;
       zoneAction(zoneName, 'glozone_down');
     }
 
@@ -3157,7 +2099,7 @@
 
           // Frozen indicator on zone header
           if (rs && rs.frozen_at != null) {
-            zoneFrozenIndicator = `<span style="font-size: 0.75rem; opacity: 0.7; color: #63b3ed;">❄</span>`;
+            zoneFrozenIndicator = `<span style="font-size: 0.75rem; color: #63b3ed; background: rgba(0,0,0,0.45); padding: 2px 8px; border-radius: 10px;">❄</span>`;
           }
         }
 
@@ -3176,8 +2118,8 @@
               ${zoneMismatchDot}
               <span style="font-size: 0.8rem; opacity: 0.6; color: ${zoneTextColor};">Zone:</span>
               <span class="zone-name" style="color: ${zoneTextColor};">${zoneName}</span>
-              ${zoneFrozenIndicator}
               <span style="flex: 1;"></span>
+              ${zoneFrozenIndicator}
               ${zoneBriDisplay}
               <div class="row-controls">
                 <button class="row-btn" onclick="event.stopPropagation(); glozoneDown('${escapedZoneName}')" title="GloZone Down: push to all areas">${glozoneDownIcon}</button>
@@ -3370,7 +2312,8 @@
       if (hasMotion && isBoosted && isMotionCoupled) {
         const remaining = formatCountdown(status.motion_expires_at);
         if (remaining) {
-          return `<span class="area-row-timer" data-area-timer="${area.area_id}"><span class="timer-motion${warnClass}">M+${status.boost_brightness}% ${remaining}</span></span>`;
+          const frozenPart = area.frozen ? ` <span class="timer-frozen">❄</span>` : '';
+          return `<span class="area-row-timer" data-area-timer="${area.area_id}"><span class="timer-motion${warnClass}">M+${status.boost_brightness}% ${remaining}</span>${frozenPart}</span>`;
         }
       }
 
@@ -3499,20 +2442,6 @@
         }
       });
 
-      // Close modal on overlay click
-      document.getElementById('area-modal').addEventListener('click', (e) => {
-        if (e.target.classList.contains('modal-overlay')) {
-          closeModal();
-        }
-      });
-
-      // Close modal on Escape key
-      document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-          closeModal();
-        }
-      });
-
       // Close rhythm dropdowns when clicking outside
       document.addEventListener('click', (e) => {
         if (!e.target.closest('.zone-rhythm-display')) {
@@ -3523,426 +2452,13 @@
       });
     }
 
-    // Modal functions
-    function updateModalContent(areaId, renderChart = true) {
-      const area = areas.find(a => a.area_id === areaId);
-      const status = areaStatus[areaId] || {};
-
-      if (!area) return;
-
-      selectedArea = {
-        ...area,
-        is_on: status.is_on || false,
-        brightness: status.brightness || 0,
-        kelvin: status.kelvin || 4000,
-        frozen: status.frozen || false,
-        boosted: status.boosted || false,
-        zone_name: status.zone_name || null,
-        preset_name: status.preset_name || null,
-        is_circadian: status.is_circadian || false,
-        boost_brightness: status.boost_brightness || null,
-        boost_expires_at: status.boost_expires_at || null,
-        boost_started_from_off: status.boost_started_from_off || false,
-        is_motion_coupled: status.is_motion_coupled || false,
-        motion_expires_at: status.motion_expires_at || null,
-        motion_warning_active: status.motion_warning_active || false
-      };
-
-      // Update modal content
-      document.getElementById('modal-area-name').textContent = 'Area: ' + area.name;
-
-      // Header area shading based on CCT and brightness
-      const stateEl = document.getElementById('modal-area-state');
-      if (selectedArea.is_on) {
-        const cctColor = cctToRGB(selectedArea.kelvin);
-        const tintedColor = tintColorByBrightness(cctColor, selectedArea.brightness);
-        stateEl.style.setProperty('--state-bg', tintedColor);
-        stateEl.style.setProperty('--state-fill', (selectedArea.brightness / 100).toFixed(3));
-      } else {
-        stateEl.style.setProperty('--state-bg', 'var(--panel)');
-        stateEl.style.setProperty('--state-fill', '0');
-      }
-
-      // Values - always show CT and brightness from server-calculated values
-      const valuesEl = document.getElementById('modal-values');
-      const displayBri = selectedArea.brightness;
-      const displayKelvin = selectedArea.kelvin;
-      if (selectedArea.is_on) {
-        const cctColor = cctToRGB(displayKelvin);
-        const tintedColor = tintColorByBrightness(cctColor, displayBri);
-        valuesEl.style.color = readableTextColor(tintedColor);
-      } else {
-        valuesEl.style.color = 'var(--muted)';
-      }
-
-      valuesEl.textContent = `${Math.round(displayBri)}% • ${Math.round(displayKelvin)}K`;
-
-      // Context info (Glo zone)
-      const zoneLinkEl = document.getElementById('modal-zone-link');
-      if (selectedArea.zone_name) {
-        zoneLinkEl.textContent = selectedArea.zone_name;
-      } else {
-        zoneLinkEl.textContent = 'Unassigned';
-      }
-      // Show rhythm line in area modal (via zone's rhythm)
-      const rhythmLine = document.getElementById('modal-rhythm-line');
-      const rhythmLinkEl = document.getElementById('modal-rhythm-link');
-      const areaZoneState = selectedArea.zone_name ? (zoneStates[selectedArea.zone_name] || {}) : {};
-      const areaRhythmName = areaZoneState.rhythm || null;
-      if (areaRhythmName) {
-        rhythmLinkEl.innerHTML = `<a href="./rhythm/${encodeURIComponent(areaRhythmName)}?back=home" style="color: var(--accent); text-decoration: none;">${areaRhythmName}</a>`;
-        rhythmLine.style.display = '';
-      } else {
-        rhythmLine.style.display = 'none';
-      }
-      // Show first context line (zone) that zone modal hides
-      const contextLines = document.querySelectorAll('#modal-context-info .context-line');
-      if (contextLines[0]) contextLines[0].style.display = '';
-
-      // Show area controls, hide zone controls
-      const ctrlLeft = document.querySelector('.area-state-controls-left');
-      const ctrlRightArea = document.querySelector('.area-state-controls');
-      const ctrlRightZone = document.querySelector('.zone-state-controls');
-      if (ctrlLeft) ctrlLeft.style.display = 'flex';
-      if (ctrlRightArea) ctrlRightArea.style.display = 'flex';
-      if (ctrlRightZone) ctrlRightZone.style.display = 'none';
-
-      // Timer status (motion + boost)
-      updateTimerStatus();
-
-      // Update toggle button states
-      const powerBtn = document.getElementById('toggle-power');
-      const circadianBtn = document.getElementById('toggle-circadian');
-      const freezeBtn = document.getElementById('toggle-freeze');
-      const boostBtn = document.getElementById('toggle-boost');
-
-      if (powerBtn) {
-        powerBtn.classList.toggle('active', selectedArea.is_on);
-      }
-      if (circadianBtn) {
-        circadianBtn.classList.toggle('active', selectedArea.is_circadian);
-      }
-      if (freezeBtn) {
-        freezeBtn.classList.toggle('active', selectedArea.frozen);
-      }
-      if (boostBtn) {
-        boostBtn.classList.toggle('active', selectedArea.boosted);
-      }
-
-      // Render mini chart (if requested)
-      if (renderChart) {
-        renderMiniChartForArea(areaId);
-      }
-    }
-
-    function renderMiniChartForArea(areaId) {
-      const status = areaStatus[areaId] || {};
-      if (!cachedConfig || !cachedSunTimes) return;
-
-      // Use the area's specific rhythm config (same pattern as getPureRhythmValues)
-      const rhythmName = status.preset_name;
-      let cfg;
-      if (rhythmName && cachedRhythms[rhythmName]) {
-        cfg = { ...cachedConfig, ...cachedRhythms[rhythmName] };
-      } else {
-        cfg = cachedConfig;
-      }
-
-      const areaState = {
-        brightness_mid: status.brightness_mid ?? null,
-        color_mid: status.color_mid ?? null,
-        color_override: status.color_override ?? null,
-        frozen_at: status.frozen_at ?? null
-      };
-
-      // Current hour: use frozen_at if frozen, otherwise current time
-      let currentHour;
-      if (status.frozen && status.frozen_at != null) {
-        currentHour = status.frozen_at;
-      } else {
-        const now = new Date();
-        currentHour = now.getHours() + now.getMinutes() / 60;
-      }
-
-      // isActive = lights are on AND being controlled by Circadian Light
-      const isActive = (status.is_on || false) && (status.is_circadian || false);
-
-      renderMiniChart(cfg, areaState, cachedSunTimes, currentHour, isActive);
-      styleAdjustButtons(areaId);
-    }
-
-    function updateTimerStatus() {
-      if (!selectedArea) return;
-      const timerEl = document.getElementById('modal-timer-status');
-      if (!timerEl) return;
-      const parts = [];
-
-      const hasMotion = selectedArea.motion_expires_at && selectedArea.motion_expires_at !== 'forever';
-      const hasBoostedMotion = selectedArea.boosted && selectedArea.is_motion_coupled;
-      const warnClass = selectedArea.motion_warning_active ? ' timer-warning' : '';
-
-      if (hasMotion && hasBoostedMotion) {
-        // Motion-coupled boost: show as single combined line
-        const remaining = formatCountdown(selectedArea.motion_expires_at);
-        if (remaining) {
-          parts.push(`<span class="timer-motion${warnClass}">Motion +${selectedArea.boost_brightness}%: ${remaining}<span class="timer-arrow">→</span>off</span>`);
-        }
-      } else {
-        // Motion: only show timed expirations (not "forever")
-        if (hasMotion) {
-          const remaining = formatCountdown(selectedArea.motion_expires_at);
-          if (remaining) {
-            parts.push(`<span class="timer-motion${warnClass}">Motion: ${remaining}<span class="timer-arrow">→</span>off</span>`);
-          }
-        }
-
-        // Boost: show amount + countdown + outcome (skip if coupled to motion, already shown above)
-        if (selectedArea.boosted && selectedArea.boost_brightness) {
-          let text = `+${selectedArea.boost_brightness}%`;
-          if (selectedArea.boost_expires_at === 'forever') {
-            text += ' · forever';
-          } else if (selectedArea.boost_expires_at === 'motion') {
-            // Motion-coupled boost without combined display (edge case)
-            if (selectedArea.motion_expires_at) {
-              const remaining = formatCountdown(selectedArea.motion_expires_at);
-              if (remaining) {
-                text += ` · ${remaining}<span class="timer-arrow">→</span>rhythm`;
-              } else {
-                text += ' · ending';
-              }
-            } else {
-              text += ' · until motion ends';
-            }
-          } else if (selectedArea.boost_expires_at) {
-            const remaining = formatCountdown(selectedArea.boost_expires_at);
-            if (remaining) {
-              const outcome = selectedArea.boost_started_from_off ? 'off' : 'rhythm';
-              text += ` · ${remaining}<span class="timer-arrow">→</span>${outcome}`;
-            }
-          }
-          parts.push(`<span class="timer-boost">Boost: ${text}</span>`);
-        }
-      }
-
-      timerEl.innerHTML = parts.join('');
-    }
-
+    // Navigation to detail pages
     function openAreaModal(areaId) {
-      // Navigate to area detail page instead of opening modal
       window.location.href = './area/' + encodeURIComponent(areaId);
     }
 
-    function clearModalIntervals() {
-      if (modalTickInterval) { clearInterval(modalTickInterval); modalTickInterval = null; }
-      if (modalRefreshInterval) { clearInterval(modalRefreshInterval); modalRefreshInterval = null; }
-    }
-
     function openZoneModal(zoneName) {
-      // Navigate to zone detail page instead of opening modal
       window.location.href = './zone/' + encodeURIComponent(zoneName);
-    }
-
-    function updateZoneModalContent(zoneName, renderChart = true) {
-      const zs = zoneStates[zoneName] || {};
-
-      // Title
-      document.getElementById('modal-area-name').textContent = 'Glo Zone: ' + zoneName;
-
-      // Context info: show rhythm as link, hide zone line label
-      const zoneLinkEl = document.getElementById('modal-zone-link');
-      zoneLinkEl.textContent = '';
-
-      const rhythmLine = document.getElementById('modal-rhythm-line');
-      const rhythmLinkEl = document.getElementById('modal-rhythm-link');
-      const rhythmName = zs.rhythm || null;
-      if (rhythmName) {
-        rhythmLinkEl.innerHTML = `<a href="./rhythm/${encodeURIComponent(rhythmName)}?back=home" style="color: var(--accent); text-decoration: none;">${rhythmName}</a>`;
-        rhythmLine.style.display = '';
-      } else {
-        rhythmLinkEl.textContent = '—';
-        rhythmLine.style.display = '';
-      }
-
-      // Hide the zone context line (first context-line) since we're already in zone view
-      const contextLines = document.querySelectorAll('#modal-context-info .context-line');
-      if (contextLines[0]) contextLines[0].style.display = 'none';
-
-      // Use zone brightness/kelvin
-      const zoneBri = zs.brightness ?? 0;
-      const zoneKelvin = zs.kelvin ?? 4000;
-
-      // Header area shading
-      const stateEl = document.getElementById('modal-area-state');
-      if (zoneBri > 0) {
-        const cctColor = cctToRGB(zoneKelvin);
-        const tintedColor = tintColorByBrightness(cctColor, zoneBri);
-        stateEl.style.setProperty('--state-bg', tintedColor);
-        stateEl.style.setProperty('--state-fill', (zoneBri / 100).toFixed(3));
-      } else {
-        stateEl.style.setProperty('--state-bg', 'var(--panel)');
-        stateEl.style.setProperty('--state-fill', '0');
-      }
-
-      // Values display
-      const valuesEl = document.getElementById('modal-values');
-      if (zoneBri > 0) {
-        const cctColor = cctToRGB(zoneKelvin);
-        const tintedColor = tintColorByBrightness(cctColor, zoneBri);
-        valuesEl.style.color = readableTextColor(tintedColor);
-      } else {
-        valuesEl.style.color = 'var(--muted)';
-      }
-      valuesEl.textContent = `${Math.round(zoneBri)}% • ${Math.round(zoneKelvin)}K`;
-
-      // Hide area-specific controls, show zone controls
-      const ctrlLeft = document.querySelector('.area-state-controls-left');
-      const ctrlRightArea = document.querySelector('.area-state-controls');
-      const ctrlRightZone = document.querySelector('.zone-state-controls');
-      if (ctrlLeft) ctrlLeft.style.display = 'none';
-      if (ctrlRightArea) ctrlRightArea.style.display = 'none';
-      if (ctrlRightZone) ctrlRightZone.style.display = 'flex';
-
-      // Timer status
-      updateTimerStatus();
-
-      // Render chart
-      if (renderChart) {
-        renderMiniChartForZone(zoneName);
-      }
-    }
-
-    function renderMiniChartForZone(zoneName) {
-      const zs = zoneStates[zoneName] || {};
-      if (!cachedConfig || !cachedSunTimes) return;
-
-      // Get rhythm config
-      const rhythmName = zs.rhythm;
-      let cfg;
-      if (rhythmName && cachedRhythms[rhythmName]) {
-        cfg = { ...cachedConfig, ...cachedRhythms[rhythmName] };
-      } else {
-        cfg = cachedConfig;
-      }
-
-      // Use zone runtime_state
-      const rs = zs.runtime_state || {};
-      const zoneState = {
-        brightness_mid: rs.brightness_mid ?? null,
-        color_mid: rs.color_mid ?? null,
-        color_override: rs.color_override ?? null,
-        frozen_at: rs.frozen_at ?? null
-      };
-
-      // Current hour: use frozen_at if set, otherwise current time
-      let currentHour;
-      if (rs.frozen_at != null) {
-        currentHour = rs.frozen_at;
-      } else {
-        const now = new Date();
-        currentHour = now.getHours() + now.getMinutes() / 60;
-      }
-
-      // Zone is always "active" from the rhythm perspective
-      const isActive = true;
-
-      renderMiniChart(cfg, zoneState, cachedSunTimes, currentHour, isActive);
-
-      // Update slider from zone state
-      updateSliderFromZone(zoneName);
-    }
-
-    function closeModal() {
-      clearModalIntervals();
-      document.getElementById('area-modal').classList.remove('visible');
-      selectedArea = null;
-      selectedZoneName = null;
-      // Restore elements that zone modal may have hidden
-      const ctrlLeft = document.querySelector('.area-state-controls-left');
-      const ctrlRight = document.querySelector('.area-state-controls');
-      const ctrlRightZone = document.querySelector('.zone-state-controls');
-      if (ctrlLeft) ctrlLeft.style.display = '';
-      if (ctrlRight) ctrlRight.style.display = '';
-      if (ctrlRightZone) ctrlRightZone.style.display = 'none';
-      document.getElementById('modal-rhythm-line').style.display = 'none';
-      // Restore first context line (zone label) visibility
-      const contextLines = document.querySelectorAll('#modal-context-info .context-line');
-      if (contextLines[0]) contextLines[0].style.display = '';
-      // Immediate refresh then resume periodic refresh
-      loadData();
-      startHomeRefresh();
-    }
-
-    function toggleCircadian() {
-      if (!selectedArea) return;
-      // Toggle based on current state
-      const action = selectedArea.is_circadian ? 'circadian_off' : 'circadian_on';
-      executeAction(action);
-    }
-
-    async function executeAction(action) {
-      if (!selectedArea && !selectedZoneName) return;
-
-      try {
-        let response;
-        if (selectedZoneName) {
-          // Zone modal: modify zone state directly
-          response = await fetch('./api/zone/action', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              zone_name: selectedZoneName,
-              action: action
-            })
-          });
-        } else {
-          // Area modal: modify area state
-          response = await fetch('./api/area/action', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              area_id: selectedArea.area_id,
-              action: action
-            })
-          });
-        }
-
-        if (response.ok) {
-          // Re-fetch status, then update modal in place
-          setTimeout(async () => {
-            try {
-              if (selectedZoneName) {
-                // Zone modal: re-fetch zone states and update zone modal
-                const zsRes = await fetch('./api/zone-states');
-                if (zsRes.ok) {
-                  const zs = await zsRes.json();
-                  zoneStates = zs.zone_states || {};
-                }
-                updateZoneModalContent(selectedZoneName);
-              } else {
-                const areaId = selectedArea.area_id;
-                const res = await fetch(`./api/area-status?area_id=${encodeURIComponent(areaId)}`);
-                if (res.ok) {
-                  const singleStatus = await res.json();
-                  Object.assign(areaStatus, singleStatus);
-                }
-                // Re-render modal content without closing
-                if (selectedArea && selectedArea.area_id === areaId) {
-                  updateModalContent(areaId);
-                }
-              }
-            } catch (err) {
-              console.error('Error refreshing after action:', err);
-            }
-          }, 500);
-        } else {
-          const error = await response.json();
-          console.error('Action failed:', error);
-          alert(`Action failed: ${error.error || 'Unknown error'}`);
-        }
-      } catch (err) {
-        console.error('Error executing action:', err);
-        alert('Error executing action');
-      }
     }
 
     async function rowAction(areaId, action) {
@@ -3972,10 +2488,6 @@
                 zoneStates = zs.zone_states || {};
               }
               renderAreas();
-              // Also update modal if it's open for this area
-              if (selectedArea && selectedArea.area_id === areaId) {
-                updateModalContent(areaId);
-              }
             } catch (err) {
               console.error('Error refreshing after row action:', err);
             }
