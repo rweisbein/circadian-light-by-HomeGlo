@@ -386,11 +386,19 @@
       font-size: 0.6rem;
       color: var(--muted);
       cursor: pointer;
-      padding: 2px 0 18px 0;
+      padding: 2px 0;
       letter-spacing: 0.02em;
     }
     .slider-extreme:hover {
       color: var(--text);
+    }
+    /* Top extreme (before track): extra space below for thumb */
+    .slider-column > .slider-extreme:nth-child(2) {
+      padding-bottom: 18px;
+    }
+    /* Bottom extreme (after track): extra space above for thumb */
+    .slider-track + .slider-extreme {
+      padding-top: 18px;
     }
     .step-buttons {
       display: flex;
@@ -565,12 +573,19 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
           </button>
         </div>
+        <div class="area-state-controls-left" id="controls-zone-left" style="display:none;">
+          <button class="toggle-btn" id="toggle-zone-power" onclick="confirmZonePowerOff()" title="Turn off lights in zone" style="display:none;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18.36 6.64a9 9 0 1 1-12.73 0M12 2v10"/>
+            </svg>
+          </button>
+        </div>
         <div class="zone-state-controls" id="controls-zone" style="display:none;">
+          <button class="toggle-btn" id="toggle-glozone-down" onclick="confirmGlozoneDown()" title="GloZone Down: push zone settings to all areas">
+            <svg viewBox="0 0 16 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 5 8 10 13 5"/><polyline points="3 11 8 16 13 11"/></svg>
+          </button>
           <button class="toggle-btn" id="toggle-glozone-reset" onclick="executeAction('glozone_reset')" title="Reset GloZone: set GloZone to Daily Rhythm">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
-          </button>
-          <button class="toggle-btn" id="toggle-glozone-down" onclick="executeAction('glozone_down')" title="GloZone Down: push zone settings to all areas">
-            <svg viewBox="0 0 16 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 5 8 10 13 5"/><polyline points="3 11 8 16 13 11"/></svg>
           </button>
         </div>
       </div>
@@ -1504,6 +1519,7 @@
       document.getElementById('controls-left').style.display = 'none';
       document.getElementById('controls-area').style.display = 'none';
       document.getElementById('controls-zone').style.display = 'flex';
+      document.getElementById('controls-zone-left').style.display = 'flex';
       document.getElementById('header-circadian-toggle').style.display = 'none';
 
       updateZoneContent();
@@ -1706,7 +1722,26 @@
         metaRhythm.style.display = '';
       }
 
+      // Zone power button: visible only when at least one area is on
+      const zonePowerBtn = document.getElementById('toggle-zone-power');
+      if (zonePowerBtn && selectedZoneName) {
+        const onAreas = getZoneOnAreas(selectedZoneName);
+        if (onAreas.length > 0) {
+          zonePowerBtn.style.display = 'flex';
+          zonePowerBtn.classList.add('active');
+        } else {
+          zonePowerBtn.style.display = 'none';
+        }
+      }
+
       updateTimerStatus();
+    }
+
+    function getZoneOnAreas(zoneName) {
+      return areas.filter(a => {
+        const s = areaStatus[a.area_id] || {};
+        return s.zone_name === zoneName && s.is_on;
+      });
     }
 
     function updateTimerStatus() {
@@ -1871,6 +1906,53 @@
       const msg = `Full Send ${bri}% / ${kelvin}K to "${zoneName}"? These areas will adjust:\n\n${areaList}`;
       if (!confirm(msg)) return;
       executeAction('full_send');
+    }
+
+    async function confirmGlozoneDown() {
+      if (!selectedZoneName) return;
+      const zs = zoneStates[selectedZoneName] || {};
+      const bri = Math.round(zs.brightness ?? 0);
+      const kelvin = Math.round(zs.kelvin ?? 4000);
+      const onAreas = getZoneOnAreas(selectedZoneName);
+      const areaList = onAreas.length > 0
+        ? onAreas.map(a => a.name).join('\n')
+        : '(no areas currently on)';
+      const msg = `Send ${bri}% / ${kelvin}K to "${selectedZoneName}"? These areas will adjust:\n\n${areaList}`;
+      if (!confirm(msg)) return;
+      executeAction('glozone_down');
+    }
+
+    async function confirmZonePowerOff() {
+      if (!selectedZoneName) return;
+      const onAreas = getZoneOnAreas(selectedZoneName);
+      if (onAreas.length === 0) return;
+      const areaList = onAreas.map(a => a.name).join('\n');
+      const msg = `Turn off lights in these areas?\n\n${areaList}`;
+      if (!confirm(msg)) return;
+      for (const area of onAreas) {
+        await fetch(basePath + '/api/area/action', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ area_id: area.area_id, action: 'lights_off' })
+        });
+      }
+      // Refresh after a moment
+      setTimeout(async () => {
+        try {
+          const zsRes = await fetch(basePath + '/api/zone-states');
+          if (zsRes.ok) {
+            const zs = await zsRes.json();
+            zoneStates = zs.zone_states || {};
+          }
+          const statusRes = await fetch(basePath + '/api/area-status');
+          if (statusRes.ok) areaStatus = await statusRes.json();
+          updateZoneContent();
+          renderMiniChartForZone(selectedZoneName);
+          updateAllSliders();
+        } catch (err) {
+          console.error('Error refreshing after zone power off:', err);
+        }
+      }, 500);
     }
 
     async function executeAction(action) {
