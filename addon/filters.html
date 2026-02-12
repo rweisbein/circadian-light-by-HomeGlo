@@ -86,12 +86,17 @@
     .filter-pill { padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 500; }
 
     /* Area brightness row */
-    .brightness-row { display: flex; align-items: center; padding: 12px 16px; gap: 16px; }
-    .brightness-area-name { min-width: 140px; font-size: 0.9rem; }
+    .brightness-row { padding: 12px 16px; }
+    .brightness-area-name { font-size: 0.9rem; margin-bottom: 8px; }
+    .brightness-sliders { display: flex; flex-direction: column; gap: 6px; }
+    .slider-line { display: flex; align-items: center; gap: 12px; }
+    .slider-label { min-width: 70px; font-size: 0.75rem; color: var(--muted2); }
     .brightness-slider { flex: 1; accent-color: var(--accent); }
+    .exposure-slider { flex: 1; accent-color: #fbbf24; }
     .brightness-value { min-width: 45px; text-align: right; font-size: 0.85rem; font-variant-numeric: tabular-nums; }
-    .brightness-row.below-1 .brightness-value { color: #60a5fa; }
-    .brightness-row.above-1 .brightness-value { color: var(--accent); }
+    .slider-line.below-1 .brightness-value { color: #60a5fa; }
+    .slider-line.above-1 .brightness-value { color: var(--accent); }
+    .exposure-value { min-width: 45px; text-align: right; font-size: 0.85rem; font-variant-numeric: tabular-nums; color: #fbbf24; }
 
     /* Suggestion overlay */
     .suggest-results { background: var(--card); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 16px; overflow: hidden; }
@@ -277,23 +282,46 @@
 
     function createBrightnessRow(area) {
       const factor = area.brightness_factor ?? 1.0;
+      const exposure = area.natural_light_exposure ?? 0.0;
       const row = document.createElement('div');
-      row.className = 'brightness-row' + (factor < 1 ? ' below-1' : factor > 1 ? ' above-1' : '');
+      row.className = 'brightness-row';
       row.innerHTML = `
-        <span class="brightness-area-name">${area.name}</span>
-        <input type="range" class="brightness-slider" min="50" max="150" step="5" value="${Math.round(factor * 100)}" data-area="${area.id}">
-        <span class="brightness-value">${factor.toFixed(2)}</span>
+        <div class="brightness-area-name">${area.name}</div>
+        <div class="brightness-sliders">
+          <div class="slider-line ${factor < 1 ? 'below-1' : factor > 1 ? 'above-1' : ''}">
+            <span class="slider-label">Brightness</span>
+            <input type="range" class="brightness-slider" min="50" max="150" step="5" value="${Math.round(factor * 100)}" data-area="${area.id}">
+            <span class="brightness-value">${factor.toFixed(2)}</span>
+          </div>
+          <div class="slider-line">
+            <span class="slider-label">Nat. Light</span>
+            <input type="range" class="exposure-slider" min="0" max="100" step="5" value="${Math.round(exposure * 100)}" data-area="${area.id}">
+            <span class="exposure-value">${exposure > 0 ? exposure.toFixed(2) : 'off'}</span>
+          </div>
+        </div>
       `;
-      const slider = row.querySelector('input[type="range"]');
-      const valueSpan = row.querySelector('.brightness-value');
-      slider.addEventListener('input', () => {
-        const val = parseInt(slider.value) / 100;
-        valueSpan.textContent = val.toFixed(2);
-        row.className = 'brightness-row' + (val < 1 ? ' below-1' : val > 1 ? ' above-1' : '');
+      const briSlider = row.querySelector('.brightness-slider');
+      const briValue = row.querySelector('.brightness-value');
+      const briLine = briSlider.closest('.slider-line');
+      briSlider.addEventListener('input', () => {
+        const val = parseInt(briSlider.value) / 100;
+        briValue.textContent = val.toFixed(2);
+        briLine.className = 'slider-line' + (val < 1 ? ' below-1' : val > 1 ? ' above-1' : '');
       });
-      slider.addEventListener('change', () => {
-        const val = parseInt(slider.value) / 100;
-        saveAreaBrightness(area.id, val);
+      briSlider.addEventListener('change', () => {
+        const val = parseInt(briSlider.value) / 100;
+        saveAreaBrightness(area.id, { brightness_factor: val });
+      });
+
+      const expSlider = row.querySelector('.exposure-slider');
+      const expValue = row.querySelector('.exposure-value');
+      expSlider.addEventListener('input', () => {
+        const val = parseInt(expSlider.value) / 100;
+        expValue.textContent = val > 0 ? val.toFixed(2) : 'off';
+      });
+      expSlider.addEventListener('change', () => {
+        const val = parseInt(expSlider.value) / 100;
+        saveAreaBrightness(area.id, { natural_light_exposure: val });
       });
       return row;
     }
@@ -462,14 +490,15 @@
     }
 
     // ---- API calls ----
-    async function saveAreaBrightness(areaId, factor) {
-      clearTimeout(debounceTimers[areaId]);
-      debounceTimers[areaId] = setTimeout(async () => {
+    async function saveAreaBrightness(areaId, fields) {
+      const key = areaId + JSON.stringify(fields);
+      clearTimeout(debounceTimers[key]);
+      debounceTimers[key] = setTimeout(async () => {
         try {
           const resp = await fetch('./api/light-filters/area-brightness', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ area_id: areaId, brightness_factor: factor })
+            body: JSON.stringify({ area_id: areaId, ...fields })
           });
           if (resp.ok) showSave();
         } catch (err) {

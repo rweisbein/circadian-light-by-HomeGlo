@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Tests for light filter functions in brain.py."""
 
+import math
 import pytest
 from brain import (
     calculate_curve_position,
     calculate_filter_multiplier,
+    calculate_natural_light_factor,
     apply_light_filter_pipeline,
 )
 
@@ -93,6 +95,64 @@ class TestCalculateFilterMultiplier:
     def test_interpolation_above_100(self):
         # at_dim=100, at_bright=200, position=0.5 → 150/100 = 1.5
         assert calculate_filter_multiplier(0.5, 100, 200) == 1.5
+
+
+class TestCalculateNaturalLightFactor:
+    """Tests for calculate_natural_light_factor()."""
+
+    def test_no_exposure_returns_one(self):
+        """Zero exposure = no reduction regardless of sun."""
+        assert calculate_natural_light_factor(0.0, 45.0) == 1.0
+
+    def test_sun_below_horizon_returns_one(self):
+        """Sun below horizon = no reduction regardless of exposure."""
+        assert calculate_natural_light_factor(1.0, -5.0) == 1.0
+        assert calculate_natural_light_factor(0.8, 0.0) == 1.0
+
+    def test_sun_at_zenith_full_exposure(self):
+        """Sun at 90° + exposure 1.0 → maximum reduction (factor 0.0)."""
+        factor = calculate_natural_light_factor(1.0, 90.0)
+        assert factor == pytest.approx(0.0, abs=0.01)
+
+    def test_sun_at_zenith_half_exposure(self):
+        """Sun at 90° + exposure 0.5 → factor 0.5."""
+        factor = calculate_natural_light_factor(0.5, 90.0)
+        assert factor == pytest.approx(0.5, abs=0.01)
+
+    def test_sun_at_30_degrees(self):
+        """Sun at 30° → sin(30°) = 0.5, exposure 1.0 → factor 0.5."""
+        factor = calculate_natural_light_factor(1.0, 30.0)
+        assert factor == pytest.approx(0.5, abs=0.01)
+
+    def test_sun_at_45_degrees(self):
+        """Sun at 45° → sin(45°) ≈ 0.707."""
+        factor = calculate_natural_light_factor(1.0, 45.0)
+        expected = 1.0 - math.sin(math.radians(45.0))
+        assert factor == pytest.approx(expected, abs=0.01)
+
+    def test_low_sun_small_reduction(self):
+        """Sun at 10° → sin(10°) ≈ 0.174, exposure 0.7 → small reduction."""
+        factor = calculate_natural_light_factor(0.7, 10.0)
+        expected = 1.0 - 0.7 * math.sin(math.radians(10.0))
+        assert factor == pytest.approx(expected, abs=0.01)
+        assert factor > 0.85  # small reduction
+
+    def test_result_never_negative(self):
+        """Factor should never go below 0.0."""
+        factor = calculate_natural_light_factor(1.0, 90.0)
+        assert factor >= 0.0
+
+    def test_sun_above_90_clamped(self):
+        """Elevation > 90° is clamped to 90° (edge case)."""
+        factor = calculate_natural_light_factor(1.0, 100.0)
+        assert factor == pytest.approx(0.0, abs=0.01)
+
+    def test_typical_room_midday(self):
+        """Typical room: exposure 0.4, sun at 60° → moderate reduction."""
+        factor = calculate_natural_light_factor(0.4, 60.0)
+        expected = 1.0 - 0.4 * math.sin(math.radians(60.0))
+        assert factor == pytest.approx(expected, abs=0.01)
+        assert 0.6 < factor < 0.7  # ~35% reduction
 
 
 class TestApplyLightFilterPipeline:

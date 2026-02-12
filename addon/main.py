@@ -27,6 +27,7 @@ from brain import (
     get_circadian_lighting,
     calculate_sun_times,
     apply_light_filter_pipeline,
+    calculate_natural_light_factor,
     DEFAULT_MAX_DIM_STEPS,
     DEFAULT_MIN_BRIGHTNESS,
     DEFAULT_MAX_BRIGHTNESS,
@@ -2237,6 +2238,17 @@ class HomeAssistantWebSocketClient:
         # Compute xy from kelvin if not provided (for color-capable lights)
         if xy is None and kelvin is not None and include_color:
             xy = CircadianLight.color_temperature_to_xy(kelvin)
+
+        # Apply natural light reduction (sun-dependent, per-area exposure)
+        natural_exposure = glozone.get_area_natural_light_exposure(area_id)
+        if natural_exposure > 0.0 and brightness is not None:
+            sun_elev = self.sun_data.get("elevation", 0.0) if self.sun_data else 0.0
+            nl_factor = calculate_natural_light_factor(natural_exposure, sun_elev)
+            if nl_factor < 1.0:
+                original_bri = brightness
+                brightness = max(1, int(round(brightness * nl_factor)))
+                if log_periodic and brightness != original_bri:
+                    logger.info(f"Natural light: {original_bri}% -> {brightness}% (exposure={natural_exposure}, sun_elev={sun_elev:.1f})")
 
         # Check if light filters are active for this area
         area_filters = glozone.get_area_light_filters(area_id)

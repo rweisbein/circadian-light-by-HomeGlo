@@ -555,6 +555,25 @@ def get_area_brightness_factor(area_id: str) -> float:
     return float(entry.get("brightness_factor", 1.0))
 
 
+def get_area_natural_light_exposure(area_id: str) -> float:
+    """Get the natural light exposure for an area.
+
+    Represents how much outdoor natural light reaches this area
+    (0.0 = no natural light / interior room, 1.0 = sunroom / lots of windows).
+    Used with sun elevation to dynamically reduce artificial brightness during the day.
+
+    Args:
+        area_id: The area ID
+
+    Returns:
+        Exposure value 0.0–1.0 (default 0.0, meaning no natural light adjustment)
+    """
+    entry = get_area_entry(area_id)
+    if entry is None:
+        return 0.0
+    return float(entry.get("natural_light_exposure", 0.0))
+
+
 def get_area_light_filters(area_id: str) -> Dict[str, str]:
     """Get light filter assignments for an area.
 

@@ -233,6 +233,28 @@ class StepResult:
 # Light filter functions
 # ---------------------------------------------------------------------------
 
+def calculate_natural_light_factor(exposure: float, sun_elevation_deg: float) -> float:
+    """Calculate the natural light reduction factor based on area exposure and sun position.
+
+    When the sun is up, areas with natural light exposure need less artificial light.
+    Uses sin(elevation) to model that most natural light comes when the sun is high.
+
+    Args:
+        exposure: Area's natural light exposure 0.0 (cave) to 1.0 (sunroom)
+        sun_elevation_deg: Sun elevation in degrees (negative = below horizon)
+
+    Returns:
+        Multiplier 0.0–1.0 to apply to artificial brightness.
+        1.0 = no reduction (night or no exposure), lower = more natural light available.
+    """
+    if exposure <= 0.0 or sun_elevation_deg <= 0.0:
+        return 1.0
+    # Normalize elevation: sin(0°)=0, sin(90°)=1
+    elev_rad = math.radians(min(sun_elevation_deg, 90.0))
+    sun_intensity = math.sin(elev_rad)
+    return max(0.0, 1.0 - exposure * sun_intensity)
+
+
 def calculate_curve_position(brightness: int, min_brightness: int, max_brightness: int) -> float:
     """Calculate the curve position (0.0–1.0) from the current brightness.
 

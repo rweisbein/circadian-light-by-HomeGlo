@@ -694,6 +694,7 @@ class LightDesignerServer:
                         "id": area_id,
                         "name": area_name,
                         "brightness_factor": glozone.get_area_brightness_factor(area_id),
+                        "natural_light_exposure": glozone.get_area_natural_light_exposure(area_id),
                         "light_filters": glozone.get_area_light_filters(area_id),
                     })
                 zones[zone_name] = {
@@ -776,11 +777,10 @@ class LightDesignerServer:
             return web.json_response({"error": str(e)}, status=500)
 
     async def save_area_brightness(self, request: Request) -> Response:
-        """Save brightness factor for an area."""
+        """Save brightness factor and/or natural light exposure for an area."""
         try:
             data = await request.json()
             area_id = data.get("area_id")
-            factor = data.get("brightness_factor", 1.0)
 
             if not area_id:
                 return web.json_response({"error": "area_id required"}, status=400)
@@ -792,7 +792,10 @@ class LightDesignerServer:
             for zone_config in glozones.values():
                 for area in zone_config.get("areas", []):
                     if isinstance(area, dict) and area.get("id") == area_id:
-                        area["brightness_factor"] = round(float(factor), 2)
+                        if "brightness_factor" in data:
+                            area["brightness_factor"] = round(float(data["brightness_factor"]), 2)
+                        if "natural_light_exposure" in data:
+                            area["natural_light_exposure"] = round(float(data["natural_light_exposure"]), 2)
                         found = True
                         break
                 if found:
