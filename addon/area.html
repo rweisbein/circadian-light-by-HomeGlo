@@ -1608,8 +1608,17 @@
       }, 50);
     }
 
+    function getRefreshInterval() {
+      if (cachedConfig) {
+        const val = cachedConfig.home_refresh_interval;
+        if (val && val >= 2 && val <= 60) return val;
+      }
+      return 10;
+    }
+
     function startRefresh() {
       tickInterval = setInterval(updateTimerStatus, 1000);
+      const intervalMs = getRefreshInterval() * 1000;
       refreshInterval = setInterval(async () => {
         if (sliderInteracting) return;
         try {
@@ -1634,7 +1643,7 @@
         } catch (err) {
           console.error('Error refreshing:', err);
         }
-      }, 1000);
+      }, intervalMs);
     }
 
     function stopRefresh() {
