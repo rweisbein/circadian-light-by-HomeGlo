@@ -1463,13 +1463,14 @@
         const s = areaStatus[a.area_id] || {};
         return s.is_on;
       });
-      if (onAreas.length === 0) return;
-      const zs = zoneStates[zoneName] || {};
-      const bri = Math.round(zs.brightness ?? 0);
-      const kelvin = Math.round(zs.kelvin ?? 4000);
-      const areaList = onAreas.map(a => a.name).join('\n');
-      const msg = `Send ${bri}% / ${kelvin}K to "${zoneName}"? These areas will adjust:\n\n${areaList}`;
-      if (!confirm(msg)) return;
+      if (onAreas.length > 0) {
+        const zs = zoneStates[zoneName] || {};
+        const bri = Math.round(zs.brightness ?? 0);
+        const kelvin = Math.round(zs.kelvin ?? 4000);
+        const areaList = onAreas.map(a => a.name).join('\n');
+        const msg = `Send ${bri}% / ${kelvin}K to "${zoneName}"? These areas will adjust:\n\n${areaList}`;
+        if (!confirm(msg)) return;
+      }
       zoneAction(zoneName, 'glozone_down');
     }
 
