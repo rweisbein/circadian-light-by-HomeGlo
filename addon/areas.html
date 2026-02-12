@@ -1455,19 +1455,16 @@
     }
 
     function glozoneDown(zoneName) {
-      const zoneAreas = areas.filter(a => {
+      const zs = zoneStates[zoneName] || {};
+      const bri = Math.round(zs.brightness ?? 0);
+      const kelvin = Math.round(zs.kelvin ?? 4000);
+      const affectedAreas = areas.filter(a => {
         const s = areaStatus[a.area_id] || {};
-        return (s.zone_name || a.zone_name) === zoneName;
+        if ((s.zone_name || a.zone_name) !== zoneName || !s.is_on) return false;
+        return Math.round(s.brightness || 0) !== bri || Math.round(s.kelvin || 4000) !== kelvin;
       });
-      const onAreas = zoneAreas.filter(a => {
-        const s = areaStatus[a.area_id] || {};
-        return s.is_on;
-      });
-      if (onAreas.length > 0) {
-        const zs = zoneStates[zoneName] || {};
-        const bri = Math.round(zs.brightness ?? 0);
-        const kelvin = Math.round(zs.kelvin ?? 4000);
-        const areaList = onAreas.map(a => a.name).join('\n');
+      if (affectedAreas.length > 0) {
+        const areaList = affectedAreas.map(a => a.name).join('\n');
         const msg = `Send ${bri}% / ${kelvin}K to "${zoneName}"? These areas will adjust:\n\n${areaList}`;
         if (!confirm(msg)) return;
       }
@@ -1480,14 +1477,15 @@
       const status = areaStatus[areaId] || {};
       const zoneName = status.zone_name || area.zone_name;
       if (!zoneName) return;
-      const onAreas = areas.filter(a => {
+      const bri = Math.round(status.brightness || 0);
+      const kelvin = Math.round(status.kelvin || 4000);
+      const affectedAreas = areas.filter(a => {
         const s = areaStatus[a.area_id] || {};
-        return (s.zone_name || a.zone_name) === zoneName && s.is_on;
+        if ((s.zone_name || a.zone_name) !== zoneName || !s.is_on) return false;
+        return Math.round(s.brightness || 0) !== bri || Math.round(s.kelvin || 4000) !== kelvin;
       });
-      if (onAreas.length > 0) {
-        const bri = Math.round(status.brightness || 0);
-        const kelvin = Math.round(status.kelvin || 4000);
-        const areaList = onAreas.map(a => a.name).join('\n');
+      if (affectedAreas.length > 0) {
+        const areaList = affectedAreas.map(a => a.name).join('\n');
         const msg = `Full Send ${bri}% / ${kelvin}K to "${zoneName}"? These areas will adjust:\n\n${areaList}`;
         if (!confirm(msg)) return;
       }

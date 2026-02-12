@@ -4096,6 +4096,9 @@ class HomeAssistantWebSocketClient:
                         logger.info(f"[webserver] boost_off restored: {area_id} {result.brightness}%, {result.color_temp}K")
                     except Exception as e:
                         logger.error(f"[webserver] boost_off restore failed for {area_id}: {e}", exc_info=True)
+                elif service == "full_send":
+                    logger.info(f"[webserver] full_send for area: {area_id}")
+                    await self.primitives.full_send(area_id, "webserver")
                 elif service == "set_nitelite":
                     logger.info(f"[webserver] set_nitelite for area: {area_id}")
                     await self.primitives.set(area_id, "webserver", preset="nitelite", is_on=True)

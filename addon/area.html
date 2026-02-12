@@ -1920,18 +1920,15 @@
       const zoneName = selectedArea.zone_name;
       if (!zoneName) { alert('This area is not in a Glo Zone.'); return; }
 
-      const zoneAreas = areas.filter(a => {
+      const bri = Math.round(selectedArea.brightness);
+      const kelvin = Math.round(selectedArea.kelvin);
+      const affectedAreas = areas.filter(a => {
         const s = areaStatus[a.area_id] || {};
-        return s.zone_name === zoneName;
+        if (s.zone_name !== zoneName || !s.is_on) return false;
+        return Math.round(s.brightness || 0) !== bri || Math.round(s.kelvin || 4000) !== kelvin;
       });
-      const onAreas = zoneAreas.filter(a => {
-        const s = areaStatus[a.area_id] || {};
-        return s.is_on;
-      });
-      if (onAreas.length > 0) {
-        const bri = Math.round(selectedArea.brightness);
-        const kelvin = Math.round(selectedArea.kelvin);
-        const areaList = onAreas.map(a => a.name).join('\n');
+      if (affectedAreas.length > 0) {
+        const areaList = affectedAreas.map(a => a.name).join('\n');
         const msg = `Full Send ${bri}% / ${kelvin}K to "${zoneName}"? These areas will adjust:\n\n${areaList}`;
         if (!confirm(msg)) return;
       }
@@ -1940,12 +1937,16 @@
 
     async function confirmGlozoneDown() {
       if (!selectedZoneName) return;
-      const onAreas = getZoneOnAreas(selectedZoneName);
-      if (onAreas.length > 0) {
-        const zs = zoneStates[selectedZoneName] || {};
-        const bri = Math.round(zs.brightness ?? 0);
-        const kelvin = Math.round(zs.kelvin ?? 4000);
-        const areaList = onAreas.map(a => a.name).join('\n');
+      const zs = zoneStates[selectedZoneName] || {};
+      const bri = Math.round(zs.brightness ?? 0);
+      const kelvin = Math.round(zs.kelvin ?? 4000);
+      const affectedAreas = areas.filter(a => {
+        const s = areaStatus[a.area_id] || {};
+        if (s.zone_name !== selectedZoneName || !s.is_on) return false;
+        return Math.round(s.brightness || 0) !== bri || Math.round(s.kelvin || 4000) !== kelvin;
+      });
+      if (affectedAreas.length > 0) {
+        const areaList = affectedAreas.map(a => a.name).join('\n');
         const msg = `Send ${bri}% / ${kelvin}K to "${selectedZoneName}"? These areas will adjust:\n\n${areaList}`;
         if (!confirm(msg)) return;
       }
