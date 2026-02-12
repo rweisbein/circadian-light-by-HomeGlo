@@ -1662,6 +1662,17 @@
       if (freezeBtn) freezeBtn.classList.toggle('active', selectedArea.frozen);
       if (boostBtn) boostBtn.classList.toggle('active', selectedArea.boosted);
 
+      // Dynamic tooltips with zone/rhythm names
+      const zoneName = selectedArea.zone_name;
+      const fullSendBtn = document.getElementById('toggle-full-send');
+      const gloUpBtn = document.getElementById('toggle-glo-up');
+      const gloDownBtn = document.getElementById('toggle-glo-down');
+      const gloResetBtn = document.getElementById('toggle-glo-reset');
+      if (fullSendBtn) fullSendBtn.title = `Full Send --> to all areas in '${zoneName || 'Glo Zone'}'`;
+      if (gloUpBtn) gloUpBtn.title = `GloUp: send to '${zoneName || 'Glo Zone'}'`;
+      if (gloDownBtn) gloDownBtn.title = `GloDown: pull from '${zoneName || 'Glo Zone'}'`;
+      if (gloResetBtn) gloResetBtn.title = `Reset Glo --> '${areaRhythmName || 'rhythm'}'`;
+
       // Circadian-off overlay + header toggle
       const wrap = document.getElementById('circadian-content-wrap');
       const enableBtn = document.getElementById('enable-circadian-btn');
@@ -1733,8 +1744,15 @@
         metaRhythm.style.display = '';
       }
 
-      // Zone power button: visible only when at least one area is on
+      // Dynamic tooltips for zone controls
       const zonePowerBtn = document.getElementById('toggle-zone-power');
+      const zoneDownBtn = document.getElementById('toggle-glozone-down');
+      const zoneResetBtn = document.getElementById('toggle-glozone-reset');
+      if (zonePowerBtn) zonePowerBtn.title = `Turn off all areas in '${selectedZoneName}'`;
+      if (zoneDownBtn) zoneDownBtn.title = 'GloZone Down: send to all areas';
+      if (zoneResetBtn) zoneResetBtn.title = `Reset GloZone --> '${rhythmName || 'rhythm'}'`;
+
+      // Zone power button: visible only when at least one area is on
       const zoneLeftControls = document.getElementById('controls-zone-left');
       if (zonePowerBtn && selectedZoneName) {
         const onAreas = getZoneOnAreas(selectedZoneName);

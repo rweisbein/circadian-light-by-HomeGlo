@@ -2139,8 +2139,8 @@
             <div class="zone-header ${isCollapsed ? 'collapsed' : ''} ${allOff ? 'no-tint' : ''}" data-zone="${zoneName}" style="${zoneHeaderStyle}" onclick="openZoneModal('${escapedZoneName}')">
               <span class="zone-chevron-tap" onclick="event.stopPropagation(); toggleZone('${escapedZoneName}', this)">${chevronIcon}</span>
               <div class="row-controls-left">
-                <button class="row-btn" onclick="event.stopPropagation(); zoneAction('${escapedZoneName}', 'step_up')" title="Step Up">${zoneStepUpSvg}</button>
-                <button class="row-btn" onclick="event.stopPropagation(); zoneAction('${escapedZoneName}', 'step_down')" title="Step Down">${zoneStepDownSvg}</button>
+                <button class="row-btn" onclick="event.stopPropagation(); zoneAction('${escapedZoneName}', 'step_up')" title="Circadian Up">${zoneStepUpSvg}</button>
+                <button class="row-btn" onclick="event.stopPropagation(); zoneAction('${escapedZoneName}', 'step_down')" title="Circadian Down">${zoneStepDownSvg}</button>
               </div>
               ${zoneMismatchDot}
               <span style="font-size: 0.8rem; opacity: 0.6; color: ${zoneTextColor};">Zone:</span>
@@ -2149,7 +2149,7 @@
               ${zoneFrozenIndicator}
               ${zoneBriDisplay}
               <div class="row-controls">
-                <button class="row-btn" onclick="event.stopPropagation(); glozoneDown('${escapedZoneName}')" title="GloZone Down: push to all areas">${glozoneDownIcon}</button>
+                <button class="row-btn" onclick="event.stopPropagation(); glozoneDown('${escapedZoneName}')" title="GloZone Down: send to all areas">${glozoneDownIcon}</button>
               </div>
             </div>
             <div class="zone-content ${isCollapsed ? 'hidden' : ''}" data-zone-table="${zoneName}">
@@ -2425,8 +2425,8 @@
       const leftControls = `
         <div class="row-controls-left">
           <button class="row-btn ${isOn ? 'active' : ''}" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'lights_toggle')" title="Power">${powerIconSvg}</button>
-          <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'step_up')" title="Step Up">${stepUpSvg}</button>
-          <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'step_down')" title="Step Down">${stepDownSvg}</button>
+          <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'step_up')" title="Circadian Up">${stepUpSvg}</button>
+          <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'step_down')" title="Circadian Down">${stepDownSvg}</button>
         </div>
       `;
 
@@ -2439,7 +2439,7 @@
 
       const rightControls = `
         <div class="row-controls">
-          <button class="row-btn" onclick="event.stopPropagation(); rowFullSend('${area.area_id}')" title="Full Send: push to entire Glo Zone">${fullSendSvg}</button>
+          <button class="row-btn" onclick="event.stopPropagation(); rowFullSend('${area.area_id}')" title="Full Send --> to all areas in '${area.zone_name || 'Glo Zone'}'">${fullSendSvg}</button>
         </div>
       `;
 
