@@ -1474,6 +1474,26 @@
       zoneAction(zoneName, 'glozone_down');
     }
 
+    function rowFullSend(areaId) {
+      const area = areas.find(a => a.area_id === areaId);
+      if (!area) return;
+      const status = areaStatus[areaId] || {};
+      const zoneName = status.zone_name || area.zone_name;
+      if (!zoneName) return;
+      const onAreas = areas.filter(a => {
+        const s = areaStatus[a.area_id] || {};
+        return (s.zone_name || a.zone_name) === zoneName && s.is_on;
+      });
+      if (onAreas.length > 0) {
+        const bri = Math.round(status.brightness || 0);
+        const kelvin = Math.round(status.kelvin || 4000);
+        const areaList = onAreas.map(a => a.name).join('\n');
+        const msg = `Full Send ${bri}% / ${kelvin}K to "${zoneName}"? These areas will adjust:\n\n${areaList}`;
+        if (!confirm(msg)) return;
+      }
+      rowAction(areaId, 'full_send');
+    }
+
     function toggleRhythmDropdown(el) {
       const display = el.closest('.zone-rhythm-display');
       if (!display) return;
@@ -2130,7 +2150,6 @@
               ${zoneBriDisplay}
               <div class="row-controls">
                 <button class="row-btn" onclick="event.stopPropagation(); glozoneDown('${escapedZoneName}')" title="GloZone Down: push to all areas">${glozoneDownIcon}</button>
-                <button class="row-btn" onclick="event.stopPropagation(); glozoneReset('${escapedZoneName}')" title="Reset zone to rhythm">${glozoneResetIcon}</button>
               </div>
             </div>
             <div class="zone-content ${isCollapsed ? 'hidden' : ''}" data-zone-table="${zoneName}">
@@ -2411,11 +2430,16 @@
         </div>
       `;
 
+      // Full Send icon (up chevron + line + down chevron)
+      const fullSendSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="5 8 12 2 19 8"/>
+        <line x1="4" y1="12" x2="20" y2="12"/>
+        <polyline points="5 16 12 22 19 16"/>
+      </svg>`;
+
       const rightControls = `
         <div class="row-controls">
-          <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'glo_up')" title="GloUp: push area to zone">${gloUpSvg}</button>
-          <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'glo_down')" title="GloDown: pull zone settings">${gloDownSvg}</button>
-          <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'glo_reset')" title="Reset to rhythm">${resetSvg}</button>
+          <button class="row-btn" onclick="event.stopPropagation(); rowFullSend('${area.area_id}')" title="Full Send: push to entire Glo Zone">${fullSendSvg}</button>
         </div>
       `;
 
