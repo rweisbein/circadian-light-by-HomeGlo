@@ -759,7 +759,7 @@ class HomeAssistantWebSocketClient:
         if not device_ieee or not command:
             return
 
-        logger.info(f"[DEBUG] ZHA event: device={device_ieee}, device_id={device_id}, command={command}, args={args}, cluster={cluster_id}")
+        logger.debug(f"ZHA event: device={device_ieee}, device_id={device_id}, command={command}, args={args}, cluster={cluster_id}")
 
         # Check if this is a ZHA motion sensor (they fire ZHA events, not state_changed)
         if device_id:
@@ -4193,11 +4193,6 @@ class HomeAssistantWebSocketClient:
                 if entity_id == "sun.sun" and isinstance(new_state, dict):
                     self.sun_data = new_state.get("attributes", {})
                     logger.info(f"Updated sun data: elevation={self.sun_data.get('elevation')}")
-
-                # Debug: log binary_sensor state changes to diagnose motion
-                if entity_id and entity_id.startswith("binary_sensor."):
-                    new_state_val_dbg = new_state.get("state") if isinstance(new_state, dict) else None
-                    logger.info(f"[DEBUG] binary_sensor state_changed: {entity_id} -> {new_state_val_dbg} (in cache: {entity_id in self.motion_sensor_ids})")
 
                 # Handle motion sensor state changes
                 if entity_id and entity_id in self.motion_sensor_ids:
