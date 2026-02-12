@@ -4097,6 +4097,9 @@ class LightDesignerServer:
             configured_switches = {sw["id"]: sw for sw in switches.get_switches_summary()}
             configured_motion = switches.get_all_motion_sensors()
 
+            # Pre-load last actions once (avoids N file reads in the loop)
+            all_last_actions = switches._load_last_actions()
+
             # Merge and determine status
             controls = []
             for ctrl in ha_controls:
@@ -4137,12 +4140,11 @@ class LightDesignerServer:
                 else:
                     status = "unsupported"
 
-                # Try looking up last_action by ieee first, then by device_id
-                # (Hue hub devices use device_id for events, not ieee)
-                last_action = switches.get_last_action(ieee)
+                # Look up last_action from pre-loaded dict (ieee first, then device_id)
+                last_action = all_last_actions.get(ieee)
                 if not last_action and device_id:
-                    last_action = switches.get_last_action(device_id)
-                logger.info(f"[Controls] Looking up last_action for '{ieee}': {last_action}")
+                    last_action = all_last_actions.get(device_id)
+                logger.debug(f"[Controls] last_action for '{ieee}': {last_action}")
 
                 # Build response - include appropriate config based on category
                 control_data = {
