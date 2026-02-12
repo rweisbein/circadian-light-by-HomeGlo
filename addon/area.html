@@ -143,6 +143,66 @@
       text-decoration: underline;
     }
 
+    /* Rhythm picker (zone detail only) */
+    .rhythm-picker {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .rhythm-picker-chevron {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 0.65rem;
+      cursor: pointer;
+      padding: 0 0 0 3px;
+      opacity: 0.6;
+      transition: opacity 0.2s;
+    }
+
+    .rhythm-picker-chevron:hover {
+      opacity: 1;
+    }
+
+    .rhythm-picker-dropdown {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      min-width: 160px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      z-index: 100;
+      display: none;
+      margin-top: 4px;
+    }
+
+    .rhythm-picker-dropdown.visible {
+      display: block;
+    }
+
+    .rhythm-picker-item {
+      padding: 8px 14px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      border-bottom: 1px solid var(--line);
+      color: var(--text);
+    }
+
+    .rhythm-picker-item:last-child {
+      border-bottom: none;
+    }
+
+    .rhythm-picker-item:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .rhythm-picker-item.selected {
+      color: var(--accent);
+    }
+
     /* Area state display - with dynamic shading (from modal) */
     .area-state {
       --state-bg: var(--panel);
@@ -1455,6 +1515,13 @@
       // Start refresh intervals
       startRefresh();
       initSliderHandlers();
+
+      // Close rhythm picker on click outside
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('.rhythm-picker')) {
+          document.querySelectorAll('.rhythm-picker-dropdown.visible').forEach(d => d.classList.remove('visible'));
+        }
+      });
     });
 
     async function loadInitialData() {
@@ -1730,14 +1797,23 @@
       }
       valuesEl.textContent = `${Math.round(zoneBri)}% • ${Math.round(zoneKelvin)}K`;
 
-      // Header meta: rhythm only (zone name already in title)
+      // Header meta: rhythm picker (zone name already in title)
       const metaZone = document.getElementById('header-meta-zone');
       const metaRhythm = document.getElementById('header-meta-rhythm');
       metaZone.textContent = '';
       metaZone.style.display = 'none';
       const rhythmName = zs.rhythm;
       if (rhythmName) {
-        metaRhythm.innerHTML = `<a href="${basePath}/rhythm/${encodeURIComponent(rhythmName)}?back=zone/${encodeURIComponent(selectedZoneName)}">${rhythmName}</a>`;
+        const rhythmNames = Object.keys(cachedRhythms);
+        const dropdownItems = rhythmNames.map(r =>
+          `<div class="rhythm-picker-item${r === rhythmName ? ' selected' : ''}" onclick="selectRhythm(this)" data-rhythm="${r}">${r}</div>`
+        ).join('');
+        metaRhythm.innerHTML = `<div class="rhythm-picker">` +
+          `<a href="${basePath}/rhythm/${encodeURIComponent(rhythmName)}?back=zone/${encodeURIComponent(selectedZoneName)}">${rhythmName}</a>` +
+          `<button class="rhythm-picker-chevron" onclick="toggleRhythmPicker(event)" title="Change rhythm">&#9662;</button>` +
+          `<div class="rhythm-picker-dropdown">${dropdownItems}` +
+          `<div class="rhythm-picker-item" onclick="selectRhythm(this)" data-rhythm="__new__" style="color: var(--muted); font-style: italic;">+ New rhythm...</div>` +
+          `</div></div>`;
         metaRhythm.style.display = '';
       } else {
         metaRhythm.textContent = '—';
@@ -1984,6 +2060,82 @@
           console.error('Error refreshing after zone power off:', err);
         }
       }, 500);
+    }
+
+    // ============================================================
+    // Rhythm Picker (zone detail)
+    // ============================================================
+    function toggleRhythmPicker(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      const dropdown = e.target.closest('.rhythm-picker').querySelector('.rhythm-picker-dropdown');
+      dropdown.classList.toggle('visible');
+    }
+
+    function selectRhythm(item) {
+      event.stopPropagation();
+      const rhythm = item.dataset.rhythm;
+      item.closest('.rhythm-picker-dropdown').classList.remove('visible');
+
+      if (rhythm === '__new__') {
+        const newName = prompt('New rhythm name:');
+        if (newName && newName.trim()) {
+          createAndAssignRhythm(newName.trim());
+        }
+      } else {
+        changeZoneRhythm(rhythm);
+      }
+    }
+
+    async function changeZoneRhythm(rhythmName) {
+      if (!selectedZoneName) return;
+      try {
+        await fetch(basePath + `/api/glozones/${encodeURIComponent(selectedZoneName)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rhythm: rhythmName })
+        });
+        // Reload zone states and rhythms to reflect the change
+        const [zsRes, rhythmsRes] = await Promise.all([
+          fetch(basePath + '/api/zone-states'),
+          fetch(basePath + '/api/circadian-rhythms')
+        ]);
+        if (zsRes.ok) {
+          const zs = await zsRes.json();
+          zoneStates = zs.zone_states || {};
+        }
+        if (rhythmsRes.ok) {
+          const r = await rhythmsRes.json();
+          cachedRhythms = r.rhythms || {};
+        }
+        updateZoneContent();
+        renderMiniChartForZone(selectedZoneName);
+        updateAllSliders();
+      } catch (err) {
+        console.error('Error changing rhythm:', err);
+      }
+    }
+
+    async function createAndAssignRhythm(rhythmName) {
+      if (!selectedZoneName) return;
+      try {
+        // Copy current zone's rhythm as base
+        const zs = zoneStates[selectedZoneName] || {};
+        const sourceRhythm = zs.rhythm;
+        const baseConfig = sourceRhythm && cachedRhythms[sourceRhythm]
+          ? { ...cachedRhythms[sourceRhythm] }
+          : {};
+
+        await fetch(basePath + '/api/circadian-rhythms', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: rhythmName, settings: baseConfig })
+        });
+
+        await changeZoneRhythm(rhythmName);
+      } catch (err) {
+        console.error('Error creating rhythm:', err);
+      }
     }
 
     async function executeAction(action) {
