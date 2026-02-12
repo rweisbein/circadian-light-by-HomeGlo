@@ -373,6 +373,84 @@
       opacity: 0.6;
       cursor: not-allowed;
     }
+
+    /* Filter presets */
+    .filter-preset-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      margin-bottom: 8px;
+    }
+
+    .filter-preset-name {
+      min-width: 100px;
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    .filter-preset-name input {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text);
+      font-size: 0.9rem;
+      font-weight: 500;
+      padding: 4px 6px;
+      border-radius: 4px;
+      width: 100px;
+    }
+
+    .filter-preset-name input:focus {
+      border-color: var(--line);
+      outline: none;
+      background: var(--card);
+    }
+
+    .filter-slider-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex: 1;
+    }
+
+    .filter-slider-group label {
+      font-size: 0.75rem;
+      color: var(--muted2);
+      min-width: 50px;
+      text-align: right;
+    }
+
+    .filter-slider-group input[type="range"] {
+      flex: 1;
+      accent-color: var(--accent);
+      min-width: 80px;
+    }
+
+    .filter-slider-value {
+      font-size: 0.8rem;
+      color: var(--muted);
+      min-width: 35px;
+      text-align: right;
+    }
+
+    .filter-preset-delete {
+      background: none;
+      border: none;
+      color: var(--muted2);
+      cursor: pointer;
+      padding: 4px;
+      font-size: 1.1rem;
+      line-height: 1;
+      border-radius: 4px;
+    }
+
+    .filter-preset-delete:hover {
+      color: var(--danger);
+      background: rgba(239, 68, 68, 0.1);
+    }
   </style>
 </head>
 <body>
@@ -395,6 +473,7 @@
       <a href="./lights" class="nav-link">Light</a>
       <a href="./rhythm" class="nav-link">Rhythm</a>
       <a href="./moments" class="nav-link">Magic</a>
+      <a href="./filters" class="nav-link">Filters</a>
       <a href="./settings" class="nav-link active">Settings</a>
     </div>
     <button class="nav-more" aria-label="More pages">&middot;&middot;&middot;</button>
@@ -697,6 +776,34 @@
       </div>
     </div>
 
+    <!-- Light Filters Section -->
+    <div class="settings-section">
+      <div class="section-header">Light Filters</div>
+      <div class="section-content">
+        <div class="form-row">
+          <label class="form-label">
+            Off threshold
+            <span class="info-icon">i<span class="info-tooltip">Lights whose filtered brightness falls below this percentage will be turned off instead of dimmed to near-zero. Prevents lights from glowing faintly when they should be off.</span></span>
+          </label>
+          <div class="form-control">
+            <input type="number" class="form-input" id="off-threshold" min="1" max="20" step="1" value="3" style="width: 80px;">
+            <span class="form-hint">% brightness</span>
+          </div>
+        </div>
+
+        <div id="filter-presets-container" style="margin-top: 16px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+            <label class="form-label" style="min-width: auto;">
+              Filter presets
+              <span class="info-icon">i<span class="info-tooltip">Define brightness curve modifiers for different light roles. "at bright" is the multiplier when the circadian curve is at maximum brightness. "at dim" is the multiplier at minimum. Values interpolate linearly between. 100% = no change, 0% = off, 200% = double (capped at 100% final).</span></span>
+            </label>
+            <button type="button" class="btn" id="add-preset-btn" onclick="addFilterPreset()" style="padding: 4px 12px; cursor: pointer; font-size: 0.85rem;">+ Add preset</button>
+          </div>
+          <div id="filter-presets-list"></div>
+        </div>
+      </div>
+    </div>
+
     <!-- Location Section -->
     <div class="settings-section">
       <div class="section-header">Location</div>
@@ -965,8 +1072,118 @@
       document.getElementById(id).addEventListener('change', saveLocationSettings);
     });
 
+    // ---- Light Filters ----
+    let filterPresets = {};
+
+    function renderFilterPresets() {
+      const container = document.getElementById('filter-presets-list');
+      container.innerHTML = '';
+      for (const [name, preset] of Object.entries(filterPresets)) {
+        const isStandard = name === 'Standard';
+        const row = document.createElement('div');
+        row.className = 'filter-preset-row';
+        row.innerHTML = `
+          <div class="filter-preset-name">
+            ${isStandard ? `<span>${name}</span>` : `<input type="text" value="${name}" data-orig="${name}" onblur="renamePreset(this)" />`}
+          </div>
+          <div class="filter-slider-group">
+            <label>at bright</label>
+            <input type="range" min="0" max="200" step="1" value="${preset.at_bright}" oninput="updatePresetSlider(this, '${name}', 'at_bright')">
+            <span class="filter-slider-value">${preset.at_bright}%</span>
+          </div>
+          <div class="filter-slider-group">
+            <label>at dim</label>
+            <input type="range" min="0" max="200" step="1" value="${preset.at_dim}" oninput="updatePresetSlider(this, '${name}', 'at_dim')">
+            <span class="filter-slider-value">${preset.at_dim}%</span>
+          </div>
+          ${isStandard ? '<div style="width:28px"></div>' : `<button class="filter-preset-delete" onclick="deletePreset('${name}')" title="Delete preset">&times;</button>`}
+        `;
+        container.appendChild(row);
+      }
+    }
+
+    function updatePresetSlider(slider, presetName, field) {
+      slider.nextElementSibling.textContent = slider.value + '%';
+      filterPresets[presetName][field] = parseInt(slider.value);
+      saveFilterPresets();
+    }
+
+    function renamePreset(input) {
+      const orig = input.dataset.orig;
+      const newName = input.value.trim();
+      if (!newName || newName === orig) {
+        input.value = orig;
+        return;
+      }
+      if (filterPresets[newName]) {
+        input.value = orig;
+        return;
+      }
+      const data = filterPresets[orig];
+      delete filterPresets[orig];
+      filterPresets[newName] = data;
+      renderFilterPresets();
+      saveFilterPresets();
+    }
+
+    function deletePreset(name) {
+      if (name === 'Standard') return;
+      delete filterPresets[name];
+      renderFilterPresets();
+      saveFilterPresets();
+    }
+
+    function addFilterPreset() {
+      let name = 'Custom';
+      let i = 1;
+      while (filterPresets[name]) { name = 'Custom ' + (++i); }
+      filterPresets[name] = { at_bright: 100, at_dim: 100 };
+      renderFilterPresets();
+      saveFilterPresets();
+    }
+
+    async function saveFilterPresets() {
+      const lightFilters = {
+        off_threshold: parseInt(document.getElementById('off-threshold').value) || 3,
+        presets: filterPresets
+      };
+      try {
+        const response = await fetch('./api/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ light_filters: lightFilters })
+        });
+        if (response.ok) showSaveStatus();
+      } catch (err) {
+        console.error('Error saving filter presets:', err);
+      }
+    }
+
+    document.getElementById('off-threshold').addEventListener('blur', saveFilterPresets);
+
     // Load on page load
-    document.addEventListener('DOMContentLoaded', loadSettings);
+    document.addEventListener('DOMContentLoaded', async () => {
+      await loadSettings();
+      // Load filter presets
+      try {
+        const response = await fetch('./api/config');
+        if (response.ok) {
+          const config = await response.json();
+          const lf = config.light_filters || {};
+          document.getElementById('off-threshold').value = lf.off_threshold ?? 3;
+          filterPresets = lf.presets || {
+            "Standard": {"at_bright": 100, "at_dim": 100},
+            "Overhead": {"at_bright": 100, "at_dim": 0},
+            "Lamp": {"at_bright": 30, "at_dim": 100},
+            "Accent": {"at_bright": 50, "at_dim": 50},
+            "Nightlight": {"at_bright": 0, "at_dim": 40}
+          };
+          renderFilterPresets();
+        }
+      } catch (err) {
+        console.error('Error loading filter presets:', err);
+      }
+    });
   </script>
 </body>
 </html>

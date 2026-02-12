@@ -26,6 +26,7 @@ from brain import (
     get_current_hour,
     get_circadian_lighting,
     calculate_sun_times,
+    apply_light_filter_pipeline,
     DEFAULT_MAX_DIM_STEPS,
     DEFAULT_MIN_BRIGHTNESS,
     DEFAULT_MAX_BRIGHTNESS,
@@ -384,18 +385,34 @@ class HomeAssistantWebSocketClient:
             area_name = area_name.replace("light.", "")
 
         if area_name:
-            # Detect capability suffix for capability-based groups
-            # New format: Circadian_<area>_color or Circadian_<area>_ct
+            # Detect capability and filter suffix for groups
+            # Filter format: Circadian_<area>_<filter>_color or Circadian_<area>_<filter>_ct
+            # Legacy format: Circadian_<area>_color or Circadian_<area>_ct
             # Old format: Circadian_<area> (maps to zha_group for backwards compat)
             group_type = "zha_group"  # Default for old format
             area_name_lower = area_name.lower()
 
             if area_name_lower.endswith("_color"):
-                group_type = "zha_group_color"
                 area_name = area_name[:-6]  # Remove _color suffix
+                # Check if there's a filter name before _color
+                # e.g., "Kitchen_Overhead" -> area="Kitchen", filter="Overhead"
+                parts = area_name.rsplit("_", 1)
+                if len(parts) == 2 and parts[1]:
+                    # Could be area_filter or just area with underscore
+                    # We use a simple heuristic: if the last part matches a known
+                    # filter-like name, treat it as filter; otherwise treat whole as area
+                    group_type = f"zha_group_{parts[1]}_color"
+                    area_name = parts[0]
+                else:
+                    group_type = "zha_group_color"
             elif area_name_lower.endswith("_ct"):
-                group_type = "zha_group_ct"
                 area_name = area_name[:-3]  # Remove _ct suffix
+                parts = area_name.rsplit("_", 1)
+                if len(parts) == 2 and parts[1]:
+                    group_type = f"zha_group_{parts[1]}_ct"
+                    area_name = parts[0]
+                else:
+                    group_type = "zha_group_ct"
 
             self._register_area_group_entity(
                 entity_id,
@@ -2221,6 +2238,21 @@ class HomeAssistantWebSocketClient:
         if xy is None and kelvin is not None and include_color:
             xy = CircadianLight.color_temperature_to_xy(kelvin)
 
+        # Check if light filters are active for this area
+        area_filters = glozone.get_area_light_filters(area_id)
+        area_factor = glozone.get_area_brightness_factor(area_id)
+        has_filters = bool(area_filters) or area_factor != 1.0
+
+        if has_filters and brightness is not None:
+            # ---- Filtered path: per-filter brightness with sub-groups ----
+            await self._turn_on_lights_filtered(
+                area_id, brightness, kelvin, xy, transition,
+                include_color, log_periodic, area_filters, area_factor,
+            )
+            return
+
+        # ---- Fast path: no filters, existing behavior unchanged ----
+
         # Apply CT brightness compensation (for warm color temps on Hue bulbs)
         if brightness is not None and kelvin is not None:
             original_brightness = brightness
@@ -2249,8 +2281,8 @@ class HomeAssistantWebSocketClient:
         # Look up ZHA capability groups for this area
         normalized_key = self._normalize_area_key(area_id)
         group_candidates = self.area_group_map.get(normalized_key, {}) if normalized_key else {}
-        zha_color_group = group_candidates.get("zha_group_color")
-        zha_ct_group = group_candidates.get("zha_group_ct")
+        zha_color_group = group_candidates.get("zha_group_color") or group_candidates.get("zha_group_Standard_color")
+        zha_ct_group = group_candidates.get("zha_group_ct") or group_candidates.get("zha_group_Standard_ct")
 
         # Color-capable lights: use xy_color for full color range
         if color_lights:
@@ -2356,6 +2388,188 @@ class HomeAssistantWebSocketClient:
             )
 
         # Run all tasks concurrently
+        if tasks:
+            await asyncio.gather(*tasks)
+
+    async def _turn_on_lights_filtered(
+        self,
+        area_id: str,
+        base_brightness: int,
+        kelvin: int,
+        xy: tuple,
+        transition: float,
+        include_color: bool,
+        log_periodic: bool,
+        area_filters: Dict[str, str],
+        area_factor: float,
+    ) -> None:
+        """Filtered light dispatch: applies per-light filter brightness and routes to sub-groups.
+
+        Groups lights by filter assignment, computes filtered brightness for each group,
+        applies CT compensation per-group, and dispatches to filter-specific ZHA sub-groups.
+        Lights below the off threshold receive a turn_off command.
+        """
+        presets = glozone.get_light_filter_presets()
+        off_threshold = glozone.get_off_threshold()
+
+        # Get rhythm bounds for curve position calculation
+        rhythm_config = glozone.get_rhythm_config_for_area(area_id)
+        min_bri = rhythm_config.get("min_brightness", 1)
+        max_bri = rhythm_config.get("max_brightness", 100)
+
+        # Get all lights by capability
+        color_lights, ct_lights, brightness_lights, onoff_lights = self.get_lights_by_capability(area_id)
+        all_dimmable = set(color_lights + ct_lights + brightness_lights)
+
+        # Group lights by filter name
+        # filter_groups: {filter_name: {"color": [], "ct": [], "brightness": [], "onoff": []}}
+        filter_groups: Dict[str, Dict[str, list]] = {}
+        for entity_id in color_lights + ct_lights + brightness_lights + onoff_lights:
+            filt = area_filters.get(entity_id, "Standard")
+            if filt not in filter_groups:
+                filter_groups[filt] = {"color": [], "ct": [], "brightness": [], "onoff": []}
+            if entity_id in color_lights:
+                filter_groups[filt]["color"].append(entity_id)
+            elif entity_id in ct_lights:
+                filter_groups[filt]["ct"].append(entity_id)
+            elif entity_id in brightness_lights:
+                filter_groups[filt]["brightness"].append(entity_id)
+            else:
+                filter_groups[filt]["onoff"].append(entity_id)
+
+        # Look up ZHA groups for this area
+        normalized_key = self._normalize_area_key(area_id)
+        group_candidates = self.area_group_map.get(normalized_key, {}) if normalized_key else {}
+
+        tasks: List[asyncio.Task] = []
+
+        for filter_name, lights_by_cap in filter_groups.items():
+            preset = presets.get(filter_name, {"at_bright": 100, "at_dim": 100})
+
+            # Calculate filtered brightness
+            filtered_bri, should_off = apply_light_filter_pipeline(
+                base_brightness, min_bri, max_bri, area_factor, preset, off_threshold
+            )
+
+            if should_off:
+                # Send OFF to these lights
+                off_entities = lights_by_cap["color"] + lights_by_cap["ct"] + lights_by_cap["brightness"]
+                if off_entities:
+                    # Try filter-specific ZHA group first
+                    filt_norm = filter_name.replace(' ', '_')
+                    zha_off_color = group_candidates.get(f"zha_group_{filt_norm}_color")
+                    zha_off_ct = group_candidates.get(f"zha_group_{filt_norm}_ct")
+
+                    if zha_off_color:
+                        if log_periodic:
+                            logger.info(f"Filter OFF ({filter_name}): {zha_off_color}, brightness below {off_threshold}%")
+                        tasks.append(asyncio.create_task(
+                            self.call_service("light", "turn_off", {"transition": transition}, {"entity_id": zha_off_color})
+                        ))
+                    if zha_off_ct:
+                        if log_periodic:
+                            logger.info(f"Filter OFF ({filter_name}): {zha_off_ct}, brightness below {off_threshold}%")
+                        tasks.append(asyncio.create_task(
+                            self.call_service("light", "turn_off", {"transition": transition}, {"entity_id": zha_off_ct})
+                        ))
+
+                    # Non-ZHA lights in this filter: turn off individually
+                    non_group = []
+                    if not zha_off_color:
+                        non_group.extend(lights_by_cap["color"])
+                    else:
+                        non_group.extend([l for l in lights_by_cap["color"] if l not in self.zha_lights])
+                    if not zha_off_ct:
+                        non_group.extend(lights_by_cap["ct"])
+                    else:
+                        non_group.extend([l for l in lights_by_cap["ct"] if l not in self.zha_lights])
+                    non_group.extend(lights_by_cap["brightness"])
+
+                    if non_group:
+                        if log_periodic:
+                            logger.info(f"Filter OFF ({filter_name}): {len(non_group)} individual lights")
+                        tasks.append(asyncio.create_task(
+                            self.call_service("light", "turn_off", {"transition": transition}, {"entity_id": non_group})
+                        ))
+                continue
+
+            # Apply CT compensation per-filter (each filter category gets its own)
+            comp_brightness = filtered_bri
+            if kelvin is not None:
+                comp_brightness = self._apply_ct_brightness_compensation(filtered_bri, kelvin)
+
+            if log_periodic and (filtered_bri != base_brightness or filter_name != "Standard"):
+                logger.info(f"Filter '{filter_name}': base={base_brightness}% -> filtered={filtered_bri}% (factor={area_factor}, preset={preset})")
+
+            filt_norm = filter_name.replace(' ', '_')
+
+            # Color-capable lights in this filter
+            if lights_by_cap["color"]:
+                color_data = {"transition": transition, "brightness_pct": comp_brightness}
+                if include_color and xy is not None:
+                    color_data["xy_color"] = list(xy)
+
+                zha_group = group_candidates.get(f"zha_group_{filt_norm}_color")
+                if zha_group:
+                    non_zha = [l for l in lights_by_cap["color"] if l not in self.zha_lights]
+                    if log_periodic:
+                        logger.info(f"Filter update ({filter_name} color ZHA): {zha_group}, brightness={comp_brightness}%")
+                    tasks.append(asyncio.create_task(
+                        self.call_service("light", "turn_on", color_data, {"entity_id": zha_group})
+                    ))
+                    if non_zha:
+                        tasks.append(asyncio.create_task(
+                            self.call_service("light", "turn_on", color_data, {"entity_id": non_zha})
+                        ))
+                else:
+                    if log_periodic:
+                        logger.info(f"Filter update ({filter_name} color): {len(lights_by_cap['color'])} lights, brightness={comp_brightness}%")
+                    tasks.append(asyncio.create_task(
+                        self.call_service("light", "turn_on", color_data, {"entity_id": lights_by_cap["color"]})
+                    ))
+
+            # CT-only lights in this filter
+            if lights_by_cap["ct"]:
+                ct_data = {"transition": transition, "brightness_pct": comp_brightness}
+                if include_color and kelvin is not None:
+                    ct_data["color_temp_kelvin"] = max(2000, kelvin)
+
+                zha_group = group_candidates.get(f"zha_group_{filt_norm}_ct")
+                if zha_group:
+                    non_zha = [l for l in lights_by_cap["ct"] if l not in self.zha_lights]
+                    if log_periodic:
+                        logger.info(f"Filter update ({filter_name} CT ZHA): {zha_group}, brightness={comp_brightness}%")
+                    tasks.append(asyncio.create_task(
+                        self.call_service("light", "turn_on", ct_data, {"entity_id": zha_group})
+                    ))
+                    if non_zha:
+                        tasks.append(asyncio.create_task(
+                            self.call_service("light", "turn_on", ct_data, {"entity_id": non_zha})
+                        ))
+                else:
+                    if log_periodic:
+                        logger.info(f"Filter update ({filter_name} CT): {len(lights_by_cap['ct'])} lights, brightness={comp_brightness}%")
+                    tasks.append(asyncio.create_task(
+                        self.call_service("light", "turn_on", ct_data, {"entity_id": lights_by_cap["ct"]})
+                    ))
+
+            # Brightness-only lights in this filter
+            if lights_by_cap["brightness"]:
+                bri_data = {"transition": transition, "brightness_pct": comp_brightness}
+                if log_periodic:
+                    logger.info(f"Filter update ({filter_name} brightness): {len(lights_by_cap['brightness'])} lights, brightness={comp_brightness}%")
+                tasks.append(asyncio.create_task(
+                    self.call_service("light", "turn_on", bri_data, {"entity_id": lights_by_cap["brightness"]})
+                ))
+
+            # On/off lights: just turn on (no brightness/color)
+            if lights_by_cap["onoff"]:
+                if log_periodic:
+                    logger.info(f"Filter update ({filter_name} on/off): {len(lights_by_cap['onoff'])} lights")
+                tasks.append(asyncio.create_task(
+                    self.call_service("light", "turn_on", {"transition": transition}, {"entity_id": lights_by_cap["onoff"]})
+                ))
+
         if tasks:
             await asyncio.gather(*tasks)
 
@@ -3680,8 +3894,24 @@ class HomeAssistantWebSocketClient:
                         self.area_name_to_id[normalized_name] = area_id
                         self.area_name_to_id[area_name.lower()] = area_id
 
+                # Build filter config from glozone data
+                filter_config = {}
+                try:
+                    glozones = glozone.get_glozones()
+                    for zone_cfg in glozones.values():
+                        for area_entry in zone_cfg.get("areas", []):
+                            if isinstance(area_entry, dict):
+                                aid = area_entry.get("id")
+                                lf = area_entry.get("light_filters")
+                                if aid and lf and isinstance(lf, dict):
+                                    filter_config[aid] = lf
+                except Exception as e:
+                    logger.warning(f"Could not load filter config for group sync: {e}")
+
                 # Sync ZHA groups with all areas (no longer limited to areas with switches)
-                success, areas = await zigbee_controller.sync_zha_groups_with_areas()
+                success, areas = await zigbee_controller.sync_zha_groups_with_areas(
+                    filter_config=filter_config
+                )
                 if success:
                     logger.info("ZHA group sync completed")
                     # Refresh parity cache using the areas data we already have

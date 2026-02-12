@@ -230,6 +230,82 @@ class StepResult:
 
 
 # ---------------------------------------------------------------------------
+# Light filter functions
+# ---------------------------------------------------------------------------
+
+def calculate_curve_position(brightness: int, min_brightness: int, max_brightness: int) -> float:
+    """Calculate the curve position (0.0–1.0) from the current brightness.
+
+    0.0 = min brightness (dimmest), 1.0 = max brightness (brightest).
+
+    Args:
+        brightness: Current brightness percentage (0-100)
+        min_brightness: Configured minimum brightness
+        max_brightness: Configured maximum brightness
+
+    Returns:
+        Float 0.0–1.0 representing position on the brightness curve
+    """
+    bri_range = max_brightness - min_brightness
+    if bri_range <= 0:
+        return 0.0
+    return max(0.0, min(1.0, (brightness - min_brightness) / bri_range))
+
+
+def calculate_filter_multiplier(curve_position: float, at_dim: float, at_bright: float) -> float:
+    """Linearly interpolate between at_dim and at_bright based on curve position.
+
+    Args:
+        curve_position: 0.0 (dimmest) to 1.0 (brightest)
+        at_dim: Filter multiplier (percent) at minimum brightness
+        at_bright: Filter multiplier (percent) at maximum brightness
+
+    Returns:
+        Multiplier as a fraction (e.g., 100 -> 1.0, 50 -> 0.5)
+    """
+    pct = at_dim + (at_bright - at_dim) * curve_position
+    return pct / 100.0
+
+
+def apply_light_filter_pipeline(
+    base_brightness: int,
+    min_brightness: int,
+    max_brightness: int,
+    area_factor: float,
+    filter_preset: dict,
+    off_threshold: int,
+) -> tuple:
+    """Apply the full filter pipeline to a base brightness value.
+
+    Pipeline: base × area_factor × filter_multiplier → cap at 100 → off threshold check.
+
+    Args:
+        base_brightness: Brightness from the circadian curve (0-100)
+        min_brightness: Configured min brightness for the rhythm
+        max_brightness: Configured max brightness for the rhythm
+        area_factor: Per-area brightness factor (e.g., 0.85, 1.2)
+        filter_preset: Dict with "at_bright" and "at_dim" keys (percent values)
+        off_threshold: Brightness below which lights should be turned off
+
+    Returns:
+        Tuple of (final_brightness: int, should_turn_off: bool)
+    """
+    at_dim = filter_preset.get("at_dim", 100)
+    at_bright = filter_preset.get("at_bright", 100)
+
+    pos = calculate_curve_position(base_brightness, min_brightness, max_brightness)
+    multiplier = calculate_filter_multiplier(pos, at_dim, at_bright)
+
+    result = base_brightness * area_factor * multiplier
+
+    if result < off_threshold:
+        return (0, True)
+
+    final = int(min(100, round(result)))
+    return (final, False)
+
+
+# ---------------------------------------------------------------------------
 # Core math functions
 # ---------------------------------------------------------------------------
 

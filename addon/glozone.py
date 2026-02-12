@@ -481,6 +481,98 @@ def get_area_zone_and_rhythm(area_id: str) -> Tuple[str, str, Dict[str, Any]]:
     return zone_name, rhythm_name, rhythm_config
 
 
+# Default filter presets
+DEFAULT_FILTER_PRESETS = {
+    "Standard": {"at_bright": 100, "at_dim": 100},
+    "Overhead": {"at_bright": 100, "at_dim": 0},
+    "Lamp": {"at_bright": 30, "at_dim": 100},
+    "Accent": {"at_bright": 50, "at_dim": 50},
+    "Nightlight": {"at_bright": 0, "at_dim": 40},
+}
+
+DEFAULT_OFF_THRESHOLD = 3
+
+
+def get_light_filter_presets() -> Dict[str, Dict[str, int]]:
+    """Get light filter presets from config, falling back to defaults.
+
+    Returns:
+        Dict of preset_name -> {"at_bright": int, "at_dim": int}
+    """
+    if not _config:
+        return dict(DEFAULT_FILTER_PRESETS)
+    lf = _config.get("light_filters", {})
+    presets = lf.get("presets")
+    if presets and isinstance(presets, dict):
+        return presets
+    return dict(DEFAULT_FILTER_PRESETS)
+
+
+def get_off_threshold() -> int:
+    """Get the off threshold from config.
+
+    Lights filtered below this brightness percentage receive an OFF command
+    instead of being set to near-zero.
+
+    Returns:
+        Threshold percentage (default 3)
+    """
+    if not _config:
+        return DEFAULT_OFF_THRESHOLD
+    lf = _config.get("light_filters", {})
+    return lf.get("off_threshold", DEFAULT_OFF_THRESHOLD)
+
+
+def get_area_entry(area_id: str) -> Optional[Dict[str, Any]]:
+    """Find the area dict entry in glozones by area_id.
+
+    Args:
+        area_id: The area ID to look up
+
+    Returns:
+        The area dict entry, or None if not found
+    """
+    glozones = get_glozones()
+    for zone_config in glozones.values():
+        for area in zone_config.get("areas", []):
+            if isinstance(area, dict) and area.get("id") == area_id:
+                return area
+    return None
+
+
+def get_area_brightness_factor(area_id: str) -> float:
+    """Get the brightness factor for an area.
+
+    Args:
+        area_id: The area ID
+
+    Returns:
+        Brightness factor (default 1.0)
+    """
+    entry = get_area_entry(area_id)
+    if entry is None:
+        return 1.0
+    return float(entry.get("brightness_factor", 1.0))
+
+
+def get_area_light_filters(area_id: str) -> Dict[str, str]:
+    """Get light filter assignments for an area.
+
+    Args:
+        area_id: The area ID
+
+    Returns:
+        Dict of entity_id -> filter_preset_name (empty dict if none)
+    """
+    entry = get_area_entry(area_id)
+    if entry is None:
+        return {}
+    filters = entry.get("light_filters")
+    if filters and isinstance(filters, dict):
+        return filters
+    return {}
+
+
 # Settings that are per-rhythm (not global)
 RHYTHM_SETTINGS = {
     "color_mode", "min_color_temp", "max_color_temp",
@@ -497,6 +589,7 @@ RHYTHM_SETTINGS = {
 # Settings that are global (not per-rhythm)
 GLOBAL_SETTINGS = {
     "latitude", "longitude", "timezone", "use_ha_location", "month",
+    "light_filters",
 }
 
 

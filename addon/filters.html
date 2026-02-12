@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Circadian Light - Filters</title>
+  <style>
+    :root {
+      --bg: #000;
+      --panel: #111;
+      --card: #1a1a1a;
+      --accent: #feac60;
+      --accent-hover: #ffc078;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --muted2: #64748b;
+      --line: #334155;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* Navigation */
+    .nav { background: var(--panel); border-bottom: 1px solid var(--line); padding: 0 24px; display: flex; align-items: center; height: 56px; position: sticky; top: 0; z-index: 100; }
+    .nav-brand { font-weight: 600; font-size: 1.1rem; color: var(--text); margin-right: 16px; text-decoration: none; display: flex; align-items: center; gap: 8px; }
+    .nav-brand.active { color: var(--accent); }
+    .nav-logo { width: 24px; height: 24px; flex-shrink: 0; }
+    .nav-links { display: flex; gap: 8px; flex: 1; min-width: 0; overflow: hidden; }
+    .nav-link { padding: 8px 10px; color: var(--muted); text-decoration: none; border-radius: 6px; font-size: 0.9rem; transition: all 0.2s; }
+    .nav-link:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+    .nav-link.active { color: var(--accent); background: rgba(99,102,241,0.1); }
+    .nav-more { background: none; border: none; color: var(--muted); font-size: 1.2rem; cursor: pointer; padding: 4px 8px; border-radius: 6px; display: none; flex-shrink: 0; letter-spacing: 2px; line-height: 1; }
+    .nav-more:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+    .nav-overflow { display: none; position: absolute; top: 100%; right: 12px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 4px 0; min-width: 140px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); z-index: 200; }
+    .nav-overflow.open { display: block; }
+    .nav-overflow-item { display: block; padding: 10px 16px; color: var(--muted); text-decoration: none; font-size: 0.9rem; white-space: nowrap; }
+    .nav-overflow-item:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+    .nav-overflow-item.active { color: var(--accent); }
+
+    /* Main Content */
+    .main { max-width: 900px; margin: 0 auto; padding: 24px; }
+    .page-header { margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+    .page-title { font-size: 1.5rem; font-weight: 600; }
+
+    /* Mode toggle */
+    .mode-toggle { display: flex; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+    .mode-btn { padding: 8px 16px; font-size: 0.9rem; color: var(--muted); background: none; border: none; cursor: pointer; transition: all 0.2s; }
+    .mode-btn:hover { color: var(--text); }
+    .mode-btn.active { color: var(--accent); background: rgba(254,172,96,0.12); }
+
+    /* Paint toolbar */
+    .paint-toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; align-items: center; }
+    .paint-btn { padding: 6px 14px; border-radius: 20px; border: 2px solid var(--line); background: var(--panel); color: var(--muted); font-size: 0.85rem; cursor: pointer; transition: all 0.2s; }
+    .paint-btn:hover { color: var(--text); border-color: var(--muted); }
+    .paint-btn.active { color: #000; background: var(--accent); border-color: var(--accent); }
+    .suggest-btn { padding: 6px 14px; border-radius: 20px; border: 1px solid var(--line); background: none; color: var(--muted); font-size: 0.85rem; cursor: pointer; margin-left: auto; }
+    .suggest-btn:hover { color: var(--text); border-color: var(--muted); }
+
+    /* Zone/Area grouping */
+    .zone-group { margin-bottom: 20px; }
+    .zone-header { font-size: 0.75rem; font-weight: 600; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 0 4px; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+    .zone-header .arrow { transition: transform 0.2s; font-size: 0.65rem; }
+    .zone-header.collapsed .arrow { transform: rotate(-90deg); }
+    .zone-content { overflow: hidden; }
+    .zone-content.collapsed { display: none; }
+
+    .area-group { background: var(--card); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 8px; overflow: hidden; }
+    .area-header { padding: 12px 16px; font-size: 0.9rem; font-weight: 500; display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
+    .area-header:hover { background: rgba(255,255,255,0.02); }
+    .area-lights { padding: 0 16px 8px; }
+
+    /* Light row (filter mode) */
+    .light-row { display: flex; align-items: center; padding: 8px 0; gap: 12px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.04); }
+    .light-row:last-child { border-bottom: none; }
+    .light-row:hover { opacity: 0.85; }
+    .light-name { flex: 1; font-size: 0.88rem; color: var(--muted); }
+    .filter-pill { padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 500; }
+
+    /* Area brightness row */
+    .brightness-row { display: flex; align-items: center; padding: 12px 16px; gap: 16px; }
+    .brightness-area-name { min-width: 140px; font-size: 0.9rem; }
+    .brightness-slider { flex: 1; accent-color: var(--accent); }
+    .brightness-value { min-width: 45px; text-align: right; font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+    .brightness-row.below-1 .brightness-value { color: #60a5fa; }
+    .brightness-row.above-1 .brightness-value { color: var(--accent); }
+
+    /* Suggestion overlay */
+    .suggest-results { background: var(--card); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 16px; overflow: hidden; }
+    .suggest-header { padding: 12px 16px; font-size: 0.9rem; font-weight: 500; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; }
+    .suggest-row { display: flex; align-items: center; padding: 10px 16px; gap: 12px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+    .suggest-row:last-child { border-bottom: none; }
+    .suggest-light-name { flex: 1; font-size: 0.88rem; }
+    .suggest-change { font-size: 0.8rem; color: var(--muted2); }
+    .suggest-accept { background: none; border: 1px solid var(--success); color: var(--success); padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; cursor: pointer; }
+    .suggest-accept:hover { background: rgba(34,197,94,0.15); }
+    .suggest-reject { background: none; border: 1px solid var(--line); color: var(--muted); padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; cursor: pointer; }
+    .suggest-reject:hover { background: rgba(255,255,255,0.05); }
+
+    /* Sort controls */
+    .sort-controls { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; font-size: 0.85rem; }
+    .sort-btn { color: var(--muted2); cursor: pointer; padding: 4px 8px; border-radius: 4px; background: none; border: none; font-size: 0.85rem; }
+    .sort-btn:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+    .sort-btn.active { color: var(--accent); background: rgba(254,172,96,0.12); }
+
+    /* Save status */
+    .save-status { position: fixed; bottom: 24px; right: 24px; padding: 12px 20px; background: var(--success); color: white; border-radius: 8px; font-size: 0.9rem; opacity: 0; transform: translateY(10px); transition: all 0.3s; z-index: 50; }
+    .save-status.visible { opacity: 1; transform: translateY(0); }
+
+    /* Filter pill colors */
+    .pill-Standard { background: var(--panel); color: var(--muted); border: 1px solid var(--line); }
+    .pill-Overhead { background: rgba(59,130,246,0.2); color: #93c5fd; }
+    .pill-Lamp { background: rgba(254,172,96,0.2); color: #ffc078; }
+    .pill-Accent { background: rgba(168,85,247,0.2); color: #c4b5fd; }
+    .pill-Nightlight { background: rgba(34,197,94,0.2); color: #86efac; }
+
+    .empty-state { padding: 40px 20px; text-align: center; color: var(--muted2); font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <!-- Navigation -->
+  <nav class="nav">
+    <a href="./" class="nav-brand">
+      <svg class="nav-logo" viewBox="0 0 40 40" fill="none">
+        <circle cx="20" cy="20" r="19" fill="#555"/>
+        <path d="M20 1 A19 19 0 0 1 20 39 Q20 28 8 20 Q20 12 20 1" fill="#ccc"/>
+        <circle cx="20" cy="12" r="5" fill="#fff"/>
+        <line x1="20" y1="3" x2="20" y2="5" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+        <line x1="27" y1="6" x2="25.5" y2="7.5" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+        <line x1="29" y1="12" x2="27" y2="12" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+        <path d="M16 30 A6 6 0 1 1 24 30 A4.5 4.5 0 1 0 16 30" fill="#fff"/>
+      </svg>
+      Home
+    </a>
+    <div class="nav-links">
+      <a href="./switches" class="nav-link">Control</a>
+      <a href="./lights" class="nav-link">Light</a>
+      <a href="./rhythm" class="nav-link">Rhythm</a>
+      <a href="./moments" class="nav-link">Magic</a>
+      <a href="./filters" class="nav-link active">Filters</a>
+      <a href="./settings" class="nav-link">Settings</a>
+    </div>
+    <button class="nav-more" aria-label="More pages">&middot;&middot;&middot;</button>
+    <div class="nav-overflow"></div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="main">
+    <div class="page-header">
+      <h1 class="page-title">Filters</h1>
+      <div class="mode-toggle">
+        <button class="mode-btn active" data-mode="brightness" onclick="setMode('brightness')">Area Brightness</button>
+        <button class="mode-btn" data-mode="filters" onclick="setMode('filters')">Light Filters</button>
+      </div>
+    </div>
+
+    <!-- Area Brightness Mode -->
+    <div id="brightness-mode">
+      <div class="sort-controls">
+        <button class="sort-btn active" data-sort="zone" onclick="setBriSort('zone')">Zone Order</button>
+        <button class="sort-btn" data-sort="factor" onclick="setBriSort('factor')">Factor</button>
+        <button class="sort-btn" data-sort="az" onclick="setBriSort('az')">A-Z</button>
+      </div>
+      <div id="brightness-content"></div>
+    </div>
+
+    <!-- Light Filters Mode -->
+    <div id="filters-mode" style="display:none;">
+      <div class="paint-toolbar" id="paint-toolbar"></div>
+      <div id="suggest-container"></div>
+      <div id="filters-content"></div>
+    </div>
+
+    <div class="save-status" id="save-status">Saved</div>
+  </main>
+
+  <script src="./shared.js"></script>
+  <script>
+    let filtersData = null;
+    let currentMode = 'brightness';
+    let briSort = 'zone';
+    let selectedPaint = 'Standard';
+    let debounceTimers = {};
+
+    // ---- Data loading ----
+    async function loadFiltersData() {
+      try {
+        const resp = await fetch('./api/light-filters');
+        if (resp.ok) {
+          filtersData = await resp.json();
+          render();
+        }
+      } catch (err) {
+        console.error('Error loading filters data:', err);
+      }
+    }
+
+    // ---- Mode switching ----
+    function setMode(mode) {
+      currentMode = mode;
+      document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+      document.getElementById('brightness-mode').style.display = mode === 'brightness' ? '' : 'none';
+      document.getElementById('filters-mode').style.display = mode === 'filters' ? '' : 'none';
+    }
+
+    function setBriSort(sort) {
+      briSort = sort;
+      document.querySelectorAll('.sort-controls .sort-btn').forEach(b => b.classList.toggle('active', b.dataset.sort === sort));
+      renderBrightness();
+    }
+
+    // ---- Rendering ----
+    function render() {
+      if (!filtersData) return;
+      renderBrightness();
+      renderPaintToolbar();
+      renderFilters();
+    }
+
+    function getPillClass(filterName) {
+      const known = ['Standard', 'Overhead', 'Lamp', 'Accent', 'Nightlight'];
+      return known.includes(filterName) ? `pill-${filterName}` : 'pill-Standard';
+    }
+
+    // ---- Area Brightness ----
+    function renderBrightness() {
+      if (!filtersData) return;
+      const container = document.getElementById('brightness-content');
+      container.innerHTML = '';
+
+      // Collect all areas with zone info
+      let allAreas = [];
+      for (const [zoneName, zone] of Object.entries(filtersData.zones)) {
+        for (const area of zone.areas) {
+          allAreas.push({ ...area, zoneName });
+        }
+      }
+
+      // Sort
+      if (briSort === 'factor') {
+        allAreas.sort((a, b) => a.brightness_factor - b.brightness_factor);
+      } else if (briSort === 'az') {
+        allAreas.sort((a, b) => a.name.localeCompare(b.name));
+      }
+      // 'zone' uses natural order
+
+      // Group by zone if zone sort
+      if (briSort === 'zone') {
+        for (const [zoneName, zone] of Object.entries(filtersData.zones)) {
+          if (zone.areas.length === 0) continue;
+          const zoneEl = createZoneGroup(zoneName);
+          const content = zoneEl.querySelector('.zone-content');
+          for (const area of zone.areas) {
+            content.appendChild(createBrightnessRow(area));
+          }
+          container.appendChild(zoneEl);
+        }
+      } else {
+        // Flat list
+        for (const area of allAreas) {
+          container.appendChild(createBrightnessRow(area));
+        }
+      }
+
+      if (allAreas.length === 0) {
+        container.innerHTML = '<div class="empty-state">No areas configured. Add areas in the Home page first.</div>';
+      }
+    }
+
+    function createBrightnessRow(area) {
+      const factor = area.brightness_factor ?? 1.0;
+      const row = document.createElement('div');
+      row.className = 'brightness-row' + (factor < 1 ? ' below-1' : factor > 1 ? ' above-1' : '');
+      row.innerHTML = `
+        <span class="brightness-area-name">${area.name}</span>
+        <input type="range" class="brightness-slider" min="50" max="150" step="5" value="${Math.round(factor * 100)}" data-area="${area.id}">
+        <span class="brightness-value">${factor.toFixed(2)}</span>
+      `;
+      const slider = row.querySelector('input[type="range"]');
+      const valueSpan = row.querySelector('.brightness-value');
+      slider.addEventListener('input', () => {
+        const val = parseInt(slider.value) / 100;
+        valueSpan.textContent = val.toFixed(2);
+        row.className = 'brightness-row' + (val < 1 ? ' below-1' : val > 1 ? ' above-1' : '');
+      });
+      slider.addEventListener('change', () => {
+        const val = parseInt(slider.value) / 100;
+        saveAreaBrightness(area.id, val);
+      });
+      return row;
+    }
+
+    // ---- Light Filters ----
+    function renderPaintToolbar() {
+      if (!filtersData) return;
+      const toolbar = document.getElementById('paint-toolbar');
+      toolbar.innerHTML = '';
+      for (const name of Object.keys(filtersData.presets)) {
+        const btn = document.createElement('button');
+        btn.className = 'paint-btn ' + getPillClass(name) + (name === selectedPaint ? ' active' : '');
+        btn.textContent = name;
+        btn.onclick = () => {
+          selectedPaint = name;
+          toolbar.querySelectorAll('.paint-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+        };
+        toolbar.appendChild(btn);
+      }
+      // Suggest button
+      const suggestBtn = document.createElement('button');
+      suggestBtn.className = 'suggest-btn';
+      suggestBtn.textContent = 'Suggest';
+      suggestBtn.onclick = runSuggestions;
+      toolbar.appendChild(suggestBtn);
+    }
+
+    function renderFilters() {
+      if (!filtersData) return;
+      const container = document.getElementById('filters-content');
+      container.innerHTML = '';
+
+      for (const [zoneName, zone] of Object.entries(filtersData.zones)) {
+        if (zone.areas.length === 0) continue;
+        const zoneEl = createZoneGroup(zoneName);
+        const content = zoneEl.querySelector('.zone-content');
+
+        for (const area of zone.areas) {
+          const areaEl = document.createElement('div');
+          areaEl.className = 'area-group';
+          const lights = (filtersData.area_lights || {})[area.id] || [];
+          const filterCount = Object.keys(area.light_filters || {}).length;
+          areaEl.innerHTML = `
+            <div class="area-header">
+              <span>${area.name}</span>
+              <span style="font-size:0.8rem;color:var(--muted2)">${lights.length} lights${filterCount ? `, ${filterCount} filtered` : ''}</span>
+            </div>
+            <div class="area-lights"></div>
+          `;
+          const lightsContainer = areaEl.querySelector('.area-lights');
+
+          if (lights.length === 0) {
+            lightsContainer.innerHTML = '<div style="padding:8px 0;color:var(--muted2);font-size:0.85rem;">No lights found</div>';
+          } else {
+            for (const light of lights) {
+              const currentFilter = (area.light_filters || {})[light.entity_id] || 'Standard';
+              const lightRow = document.createElement('div');
+              lightRow.className = 'light-row';
+              lightRow.innerHTML = `
+                <span class="light-name">${light.name}</span>
+                <span class="filter-pill ${getPillClass(currentFilter)}">${currentFilter}</span>
+              `;
+              lightRow.onclick = () => {
+                saveLightFilter(area.id, light.entity_id, selectedPaint);
+                // Update local state
+                if (!area.light_filters) area.light_filters = {};
+                if (selectedPaint === 'Standard') {
+                  delete area.light_filters[light.entity_id];
+                } else {
+                  area.light_filters[light.entity_id] = selectedPaint;
+                }
+                const pill = lightRow.querySelector('.filter-pill');
+                pill.textContent = selectedPaint;
+                pill.className = 'filter-pill ' + getPillClass(selectedPaint);
+                // Update header count
+                const count = Object.keys(area.light_filters || {}).length;
+                const header = areaEl.querySelector('.area-header span:last-child');
+                header.textContent = `${lights.length} lights${count ? `, ${count} filtered` : ''}`;
+              };
+              lightsContainer.appendChild(lightRow);
+            }
+          }
+
+          content.appendChild(areaEl);
+        }
+        container.appendChild(zoneEl);
+      }
+    }
+
+    // ---- Zone group helper ----
+    function createZoneGroup(zoneName) {
+      const el = document.createElement('div');
+      el.className = 'zone-group';
+      el.innerHTML = `
+        <div class="zone-header"><span class="arrow">&#9660;</span> ${zoneName}</div>
+        <div class="zone-content"></div>
+      `;
+      const header = el.querySelector('.zone-header');
+      const content = el.querySelector('.zone-content');
+      header.onclick = () => {
+        header.classList.toggle('collapsed');
+        content.classList.toggle('collapsed');
+      };
+      return el;
+    }
+
+    // ---- Suggestions ----
+    async function runSuggestions() {
+      const container = document.getElementById('suggest-container');
+      container.innerHTML = '<div style="padding:12px;color:var(--muted);">Scanning light names...</div>';
+      try {
+        const resp = await fetch('./api/light-filters/suggest', { method: 'POST' });
+        if (!resp.ok) { container.innerHTML = ''; return; }
+        const data = await resp.json();
+        const suggestions = data.suggestions || [];
+        if (suggestions.length === 0) {
+          container.innerHTML = '<div class="suggest-results"><div class="suggest-header">No suggestions</div></div>';
+          setTimeout(() => container.innerHTML = '', 3000);
+          return;
+        }
+        const el = document.createElement('div');
+        el.className = 'suggest-results';
+        el.innerHTML = `
+          <div class="suggest-header">
+            <span>${suggestions.length} suggestion${suggestions.length > 1 ? 's' : ''}</span>
+            <button class="suggest-reject" onclick="this.closest('.suggest-results').remove()">Dismiss all</button>
+          </div>
+        `;
+        for (const s of suggestions) {
+          const row = document.createElement('div');
+          row.className = 'suggest-row';
+          row.innerHTML = `
+            <span class="suggest-light-name">${s.name}</span>
+            <span class="suggest-change">${s.current_filter} &rarr; <strong>${s.suggested_filter}</strong></span>
+            <button class="suggest-accept">Accept</button>
+            <button class="suggest-reject">Skip</button>
+          `;
+          row.querySelector('.suggest-accept').onclick = async () => {
+            await saveLightFilter(s.area_id, s.entity_id, s.suggested_filter);
+            row.remove();
+            // Update local data
+            const zone = Object.values(filtersData.zones).find(z => z.areas.some(a => a.id === s.area_id));
+            if (zone) {
+              const area = zone.areas.find(a => a.id === s.area_id);
+              if (area) {
+                if (!area.light_filters) area.light_filters = {};
+                area.light_filters[s.entity_id] = s.suggested_filter;
+              }
+            }
+            renderFilters();
+            if (el.querySelectorAll('.suggest-row').length === 0) el.remove();
+          };
+          row.querySelector('.suggest-reject').onclick = () => {
+            row.remove();
+            if (el.querySelectorAll('.suggest-row').length === 0) el.remove();
+          };
+          el.appendChild(row);
+        }
+        container.innerHTML = '';
+        container.appendChild(el);
+      } catch (err) {
+        console.error('Error fetching suggestions:', err);
+        container.innerHTML = '';
+      }
+    }
+
+    // ---- API calls ----
+    async function saveAreaBrightness(areaId, factor) {
+      clearTimeout(debounceTimers[areaId]);
+      debounceTimers[areaId] = setTimeout(async () => {
+        try {
+          const resp = await fetch('./api/light-filters/area-brightness', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ area_id: areaId, brightness_factor: factor })
+          });
+          if (resp.ok) showSave();
+        } catch (err) {
+          console.error('Error saving area brightness:', err);
+        }
+      }, 300);
+    }
+
+    async function saveLightFilter(areaId, entityId, filterName) {
+      try {
+        const resp = await fetch('./api/light-filters/light-filter', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ area_id: areaId, entity_id: entityId, filter: filterName })
+        });
+        if (resp.ok) showSave();
+      } catch (err) {
+        console.error('Error saving light filter:', err);
+      }
+    }
+
+    function showSave() {
+      const el = document.getElementById('save-status');
+      el.classList.add('visible');
+      setTimeout(() => el.classList.remove('visible'), 2000);
+    }
+
+    // ---- Init ----
+    document.addEventListener('DOMContentLoaded', loadFiltersData);
+  </script>
+</body>
+</html>

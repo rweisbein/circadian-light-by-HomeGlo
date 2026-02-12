@@ -683,15 +683,17 @@ class ZigBeeController(LightController):
             logger.error(f"Error moving entity {entity_id} to area: {e}")
             return False
     
-    async def sync_zha_groups_with_areas(self, areas_with_switches: set = None) -> tuple[bool, dict]:
+    async def sync_zha_groups_with_areas(self, areas_with_switches: set = None, filter_config: dict = None) -> tuple[bool, dict]:
         """Synchronize ZHA groups to match Home Assistant areas that have switches.
-        
-        Creates a ZHA group for each area that has both ZHA lights and switches,
-        updates membership as needed, and deletes groups for areas that no longer exist.
-        
+
+        Creates ZHA groups for each area, split by filter assignment AND color capability.
+        When filter_config is provided, lights are grouped by their filter assignment
+        (e.g., Circadian_Kitchen_Overhead_color, Circadian_Kitchen_Standard_ct).
+
         Args:
             areas_with_switches: Set of area IDs that have switches. If None, creates groups for all areas.
-            
+            filter_config: Dict of area_id -> {entity_id: filter_name}. If None, all lights use "Standard".
+
         Returns:
             Tuple of (success, areas_dict) where areas_dict is the areas data for reuse
         """
@@ -751,12 +753,15 @@ class ZigBeeController(LightController):
                     logger.info(f"  ZHA: {zha_entity_ids}")
                     logger.info(f"  Non-ZHA: {non_zha_lights}")
 
-                # Split ZHA lights by color capability
-                color_members = []
-                ct_members = []
+                # Split ZHA lights by filter assignment, then by color capability
                 area_name_normalized = area_name.replace(' ', '_')
+                area_filters = (filter_config or {}).get(area_id, {})
 
-                logger.debug(f"Area '{area_name}' has {len(zha_lights)} ZHA lights - splitting by capability")
+                # Group lights by filter name
+                # filter_groups: {filter_name: {"color": [member], "ct": [member]}}
+                filter_groups = {}
+
+                logger.debug(f"Area '{area_name}' has {len(zha_lights)} ZHA lights - splitting by filter + capability")
                 for light in zha_lights:
                     ieee = light.get('ieee')
                     endpoint_id = light.get('endpoint_id', 11)
@@ -775,23 +780,29 @@ class ZigBeeController(LightController):
                     modes = light_color_modes.get(entity_id, {"color_temp"})
 
                     if "xy" in modes or "rgb" in modes or "hs" in modes:
-                        color_members.append(member_entry)
-                        logger.debug(f"  - Color light {entity_id}: IEEE={ieee}, endpoint={endpoint_id}")
+                        cap = "color"
                     elif "color_temp" in modes:
-                        # Only CT-capable lights go to CT group
-                        ct_members.append(member_entry)
-                        logger.debug(f"  - CT light {entity_id}: IEEE={ieee}, endpoint={endpoint_id}")
+                        cap = "ct"
                     else:
                         # brightness-only and on/off lights are NOT added to groups
-                        # They're controlled individually to avoid sending unsupported commands
                         logger.debug(f"  - Non-color light {entity_id} (brightness/onoff only): skipping group")
+                        continue
 
-                # Create capability-specific groups
+                    # Determine filter assignment (default to Standard)
+                    filt = area_filters.get(entity_id, "Standard")
+                    if filt not in filter_groups:
+                        filter_groups[filt] = {"color": [], "ct": []}
+                    filter_groups[filt][cap].append(member_entry)
+                    logger.debug(f"  - {cap} light {entity_id}: filter={filt}, IEEE={ieee}, endpoint={endpoint_id}")
+
+                # Create capability-specific groups per filter
                 capability_groups = []
-                if color_members:
-                    capability_groups.append((f"Circadian_{area_name_normalized}_color", color_members, "color"))
-                if ct_members:
-                    capability_groups.append((f"Circadian_{area_name_normalized}_ct", ct_members, "ct"))
+                for filt_name, caps in filter_groups.items():
+                    filt_normalized = filt_name.replace(' ', '_')
+                    if caps["color"]:
+                        capability_groups.append((f"Circadian_{area_name_normalized}_{filt_normalized}_color", caps["color"], "color"))
+                    if caps["ct"]:
+                        capability_groups.append((f"Circadian_{area_name_normalized}_{filt_normalized}_ct", caps["ct"], "ct"))
 
                 if not capability_groups:
                     logger.warning(f"No valid ZHA devices found for area '{area_name}' after capability split")

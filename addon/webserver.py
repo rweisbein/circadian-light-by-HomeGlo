@@ -521,6 +521,20 @@ class LightDesignerServer:
         self.app.router.add_get('/api/switchmap/actions', self.get_switchmap_actions)
 
         # Page routes - specific pages first, then catch-all
+        # Light filters API
+        self.app.router.add_route('GET', '/{path:.*}/api/light-filters', self.get_light_filters)
+        self.app.router.add_route('POST', '/{path:.*}/api/light-filters/area-brightness', self.save_area_brightness)
+        self.app.router.add_route('POST', '/{path:.*}/api/light-filters/light-filter', self.save_light_filter)
+        self.app.router.add_route('POST', '/{path:.*}/api/light-filters/suggest', self.suggest_light_filters)
+        self.app.router.add_get('/api/light-filters', self.get_light_filters)
+        self.app.router.add_post('/api/light-filters/area-brightness', self.save_area_brightness)
+        self.app.router.add_post('/api/light-filters/light-filter', self.save_light_filter)
+        self.app.router.add_post('/api/light-filters/suggest', self.suggest_light_filters)
+
+        # Filters page
+        self.app.router.add_route('GET', '/{path:.*}/filters', self.serve_filters)
+        self.app.router.add_get('/filters', self.serve_filters)
+
         # With ingress path prefix
         self.app.router.add_route('GET', '/{path:.*}/switchmap', self.serve_switchmap)
         self.app.router.add_route('GET', '/{path:.*}/control/{control_id}', self.serve_control_detail)
@@ -647,6 +661,313 @@ class LightDesignerServer:
     async def serve_settings(self, request: Request) -> Response:
         """Serve the Settings page."""
         return await self.serve_page("settings")
+
+    async def serve_filters(self, request: Request) -> Response:
+        """Serve the Filters page."""
+        return await self.serve_page("filters")
+
+    async def get_light_filters(self, request: Request) -> Response:
+        """Get all data for the Filters page.
+
+        Returns zones, areas, lights with names, filter assignments,
+        brightness factors, and presets in one call.
+        """
+        try:
+            glozones = glozone.get_glozones()
+            presets = glozone.get_light_filter_presets()
+            off_threshold = glozone.get_off_threshold()
+
+            # Build zone/area structure with filter data
+            zones = {}
+            for zone_name, zone_config in glozones.items():
+                zone_areas = []
+                for area in zone_config.get("areas", []):
+                    if isinstance(area, dict):
+                        area_id = area.get("id")
+                        area_name = area.get("name", area_id)
+                    else:
+                        area_id = area
+                        area_name = area
+                    if not area_id:
+                        continue
+                    zone_areas.append({
+                        "id": area_id,
+                        "name": area_name,
+                        "brightness_factor": glozone.get_area_brightness_factor(area_id),
+                        "light_filters": glozone.get_area_light_filters(area_id),
+                    })
+                zones[zone_name] = {
+                    "rhythm": zone_config.get("rhythm"),
+                    "areas": zone_areas,
+                }
+
+            # Get light entities per area from cached areas list
+            area_lights = {}
+            if self.cached_areas_list:
+                # Use cached_entity_areas if available (populated by get_area_lights)
+                # Otherwise return empty - the frontend will call get_area_lights per area
+                rest_url, ws_url, token = self._get_ha_api_config()
+                if ws_url and token:
+                    try:
+                        async with websockets.connect(ws_url) as ws:
+                            msg = json.loads(await ws.recv())
+                            if msg.get('type') == 'auth_required':
+                                await ws.send(json.dumps({'type': 'auth', 'access_token': token}))
+                                msg = json.loads(await ws.recv())
+                                if msg.get('type') == 'auth_ok':
+                                    # Get device registry for area lookup
+                                    await ws.send(json.dumps({'id': 1, 'type': 'config/device_registry/list'}))
+                                    device_msg = json.loads(await ws.recv())
+                                    device_areas = {}
+                                    if device_msg.get('success') and device_msg.get('result'):
+                                        for device in device_msg['result']:
+                                            if device.get('id') and device.get('area_id'):
+                                                device_areas[device['id']] = device['area_id']
+
+                                    # Get entity registry
+                                    await ws.send(json.dumps({'id': 2, 'type': 'config/entity_registry/list'}))
+                                    entity_msg = json.loads(await ws.recv())
+
+                                    # Get states for friendly names
+                                    await ws.send(json.dumps({'id': 3, 'type': 'get_states'}))
+                                    states_msg = json.loads(await ws.recv())
+                                    friendly_names = {}
+                                    if states_msg.get('success') and states_msg.get('result'):
+                                        for s in states_msg['result']:
+                                            eid = s.get('entity_id', '')
+                                            if eid.startswith('light.'):
+                                                friendly_names[eid] = s.get('attributes', {}).get('friendly_name', eid)
+
+                                    if entity_msg.get('success') and entity_msg.get('result'):
+                                        for entity in entity_msg['result']:
+                                            eid = entity.get('entity_id', '')
+                                            if not eid.startswith('light.'):
+                                                continue
+                                            # Skip disabled entities
+                                            if entity.get('disabled_by'):
+                                                continue
+                                            # Skip group entities
+                                            if 'circadian_' in eid.lower():
+                                                continue
+                                            # Determine area
+                                            a_id = entity.get('area_id')
+                                            if not a_id:
+                                                dev_id = entity.get('device_id')
+                                                if dev_id:
+                                                    a_id = device_areas.get(dev_id)
+                                            if a_id:
+                                                if a_id not in area_lights:
+                                                    area_lights[a_id] = []
+                                                area_lights[a_id].append({
+                                                    "entity_id": eid,
+                                                    "name": friendly_names.get(eid, eid),
+                                                })
+                    except Exception as e:
+                        logger.warning(f"Could not fetch lights for filters page: {e}")
+
+            return web.json_response({
+                "zones": zones,
+                "presets": presets,
+                "off_threshold": off_threshold,
+                "area_lights": area_lights,
+            })
+        except Exception as e:
+            logger.error(f"Error getting light filters: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def save_area_brightness(self, request: Request) -> Response:
+        """Save brightness factor for an area."""
+        try:
+            data = await request.json()
+            area_id = data.get("area_id")
+            factor = data.get("brightness_factor", 1.0)
+
+            if not area_id:
+                return web.json_response({"error": "area_id required"}, status=400)
+
+            # Load raw config and find the area entry
+            config = await self.load_raw_config()
+            glozones = config.get("glozones", {})
+            found = False
+            for zone_config in glozones.values():
+                for area in zone_config.get("areas", []):
+                    if isinstance(area, dict) and area.get("id") == area_id:
+                        area["brightness_factor"] = round(float(factor), 2)
+                        found = True
+                        break
+                if found:
+                    break
+
+            if not found:
+                return web.json_response({"error": f"Area {area_id} not found"}, status=404)
+
+            await self.save_config_to_file(config)
+            glozone.set_config(config)
+
+            # Fire refresh event
+            _, ws_url, token = self._get_ha_api_config()
+            if ws_url and token:
+                await self._fire_event_via_websocket(ws_url, token, 'circadian_light_refresh', {})
+
+            return web.json_response({"status": "ok"})
+        except Exception as e:
+            logger.error(f"Error saving area brightness: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def save_light_filter(self, request: Request) -> Response:
+        """Save filter assignment for a light entity."""
+        try:
+            data = await request.json()
+            area_id = data.get("area_id")
+            entity_id = data.get("entity_id")
+            filter_name = data.get("filter", "Standard")
+
+            if not area_id or not entity_id:
+                return web.json_response({"error": "area_id and entity_id required"}, status=400)
+
+            config = await self.load_raw_config()
+            glozones = config.get("glozones", {})
+            found = False
+            for zone_config in glozones.values():
+                for area in zone_config.get("areas", []):
+                    if isinstance(area, dict) and area.get("id") == area_id:
+                        if "light_filters" not in area:
+                            area["light_filters"] = {}
+                        if filter_name == "Standard":
+                            area["light_filters"].pop(entity_id, None)
+                        else:
+                            area["light_filters"][entity_id] = filter_name
+                        # Clean up empty dict
+                        if not area["light_filters"]:
+                            del area["light_filters"]
+                        found = True
+                        break
+                if found:
+                    break
+
+            if not found:
+                return web.json_response({"error": f"Area {area_id} not found"}, status=404)
+
+            await self.save_config_to_file(config)
+            glozone.set_config(config)
+
+            # Fire refresh event
+            _, ws_url, token = self._get_ha_api_config()
+            if ws_url and token:
+                await self._fire_event_via_websocket(ws_url, token, 'circadian_light_refresh', {})
+
+            return web.json_response({"status": "ok"})
+        except Exception as e:
+            logger.error(f"Error saving light filter: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def suggest_light_filters(self, request: Request) -> Response:
+        """Suggest filter assignments based on entity friendly names."""
+        try:
+            # Keyword -> suggested filter mapping
+            keyword_map = {
+                "ceiling": "Overhead",
+                "overhead": "Overhead",
+                "recessed": "Overhead",
+                "can": "Overhead",
+                "flush": "Overhead",
+                "lamp": "Lamp",
+                "table": "Lamp",
+                "floor": "Lamp",
+                "bedside": "Lamp",
+                "strip": "Accent",
+                "accent": "Accent",
+                "under cabinet": "Accent",
+                "backlight": "Accent",
+                "led": "Accent",
+                "nightlight": "Nightlight",
+                "night light": "Nightlight",
+                "plug": "Nightlight",
+            }
+
+            # Get current filter data
+            glozones = glozone.get_glozones()
+            presets = glozone.get_light_filter_presets()
+
+            # Get area lights via the same websocket approach
+            rest_url, ws_url, token = self._get_ha_api_config()
+            suggestions = []
+
+            if ws_url and token:
+                try:
+                    async with websockets.connect(ws_url) as ws:
+                        msg = json.loads(await ws.recv())
+                        if msg.get('type') == 'auth_required':
+                            await ws.send(json.dumps({'type': 'auth', 'access_token': token}))
+                            msg = json.loads(await ws.recv())
+                            if msg.get('type') == 'auth_ok':
+                                await ws.send(json.dumps({'id': 1, 'type': 'config/device_registry/list'}))
+                                device_msg = json.loads(await ws.recv())
+                                device_areas = {}
+                                if device_msg.get('success') and device_msg.get('result'):
+                                    for device in device_msg['result']:
+                                        if device.get('id') and device.get('area_id'):
+                                            device_areas[device['id']] = device['area_id']
+
+                                await ws.send(json.dumps({'id': 2, 'type': 'config/entity_registry/list'}))
+                                entity_msg = json.loads(await ws.recv())
+
+                                await ws.send(json.dumps({'id': 3, 'type': 'get_states'}))
+                                states_msg = json.loads(await ws.recv())
+                                friendly_names = {}
+                                if states_msg.get('success') and states_msg.get('result'):
+                                    for s in states_msg['result']:
+                                        eid = s.get('entity_id', '')
+                                        if eid.startswith('light.'):
+                                            friendly_names[eid] = s.get('attributes', {}).get('friendly_name', eid)
+
+                                if entity_msg.get('success') and entity_msg.get('result'):
+                                    for entity in entity_msg['result']:
+                                        eid = entity.get('entity_id', '')
+                                        if not eid.startswith('light.') or entity.get('disabled_by'):
+                                            continue
+                                        if 'circadian_' in eid.lower():
+                                            continue
+                                        a_id = entity.get('area_id')
+                                        if not a_id:
+                                            dev_id = entity.get('device_id')
+                                            if dev_id:
+                                                a_id = device_areas.get(dev_id)
+                                        if not a_id:
+                                            continue
+
+                                        name = friendly_names.get(eid, eid)
+                                        name_lower = name.lower()
+
+                                        # Get current filter
+                                        current = "Standard"
+                                        area_filters = glozone.get_area_light_filters(a_id)
+                                        if eid in area_filters:
+                                            current = area_filters[eid]
+
+                                        # Check keywords
+                                        suggested = None
+                                        for kw, filt in keyword_map.items():
+                                            if kw in name_lower:
+                                                if filt in presets and filt != current:
+                                                    suggested = filt
+                                                    break
+
+                                        if suggested:
+                                            suggestions.append({
+                                                "entity_id": eid,
+                                                "name": name,
+                                                "area_id": a_id,
+                                                "current_filter": current,
+                                                "suggested_filter": suggested,
+                                            })
+                except Exception as e:
+                    logger.warning(f"Error during filter suggestion: {e}")
+
+            return web.json_response({"suggestions": suggestions})
+        except Exception as e:
+            logger.error(f"Error suggesting light filters: {e}")
+            return web.json_response({"error": str(e)}, status=500)
 
     async def serve_moments(self, request: Request) -> Response:
         """Serve the Moments page."""
@@ -1147,6 +1468,7 @@ class LightDesignerServer:
         "ct_comp_begin",  # Handover zone begin (warmer end) in Kelvin
         "ct_comp_end",  # Handover zone end (cooler end) in Kelvin
         "ct_comp_factor",  # Max brightness compensation factor (e.g., 1.4 = 40% boost)
+        "light_filters",  # Filter presets + off threshold for per-light brightness curves
     }
 
     def _migrate_to_glozone_format(self, config: dict) -> dict:
