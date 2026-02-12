@@ -2792,10 +2792,15 @@ class HomeAssistantWebSocketClient:
             if device_id:
                 self.motion_sensor_ids[entity_id] = device_id
 
+        # Log binary_sensor count for debugging
+        binary_sensors = [e for e in entities if isinstance(e, dict) and e.get("entity_id", "").startswith("binary_sensor.")]
+        logger.info(f"  Entity registry has {len(binary_sensors)} binary_sensor entities")
         if self.motion_sensor_ids:
             logger.info(f"✓ Motion sensor cache built: {len(self.motion_sensor_ids)} sensors")
             for entity_id, device_id in self.motion_sensor_ids.items():
                 logger.debug(f"  {entity_id} -> device:{device_id}")
+        else:
+            logger.warning("⚠ Motion sensor cache is EMPTY - no binary_sensor entities with '_motion' or '_occupancy' found")
 
         # Build contact sensor entity_id -> device_id mapping
         # This lets us look up contact sensor config when events come in
