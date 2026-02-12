@@ -1724,13 +1724,16 @@
 
       // Zone power button: visible only when at least one area is on
       const zonePowerBtn = document.getElementById('toggle-zone-power');
+      const zoneLeftControls = document.getElementById('controls-zone-left');
       if (zonePowerBtn && selectedZoneName) {
         const onAreas = getZoneOnAreas(selectedZoneName);
         if (onAreas.length > 0) {
           zonePowerBtn.style.display = 'flex';
           zonePowerBtn.classList.add('active');
+          if (zoneLeftControls) zoneLeftControls.style.display = 'flex';
         } else {
           zonePowerBtn.style.display = 'none';
+          if (zoneLeftControls) zoneLeftControls.style.display = 'none';
         }
       }
 
