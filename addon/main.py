@@ -759,7 +759,7 @@ class HomeAssistantWebSocketClient:
         if not device_ieee or not command:
             return
 
-        logger.debug(f"ZHA event: device={device_ieee}, command={command}, args={args}, cluster={cluster_id}")
+        logger.info(f"[DEBUG] ZHA event: device={device_ieee}, device_id={device_id}, command={command}, args={args}, cluster={cluster_id}")
 
         # Check if this is a ZHA motion sensor (they fire ZHA events, not state_changed)
         if device_id:
