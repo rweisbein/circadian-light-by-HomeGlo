@@ -705,27 +705,29 @@
           <span style="font-size: 0.75rem; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px;">Sensor Settings</span>
           <span class="info-icon">i<span class="info-tooltip">Hardware settings for ZHA motion sensors. Sensitivity controls motion detection range. Timeout is how long after motion clears before the sensor reports "unoccupied".</span></span>
         </div>
-        <div style="display: flex; flex-wrap: wrap; gap: 16px;">
-          <div style="flex: 1; min-width: 140px;">
-            <label style="font-size: 0.8rem; color: var(--muted); display: block; margin-bottom: 4px;">Sensitivity</label>
-            <select id="zha-sensitivity-select" style="width: 100%; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.85rem;">
-              <option value="">Loading...</option>
-            </select>
-          </div>
-          <div style="flex: 1; min-width: 120px;">
-            <label style="font-size: 0.8rem; color: var(--muted); display: block; margin-bottom: 4px;">Timeout (sec)</label>
-            <div class="number-input-wrap">
-              <input type="number" id="zha-timeout-input" style="width: 100%; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.85rem;" min="1" max="600" step="1" placeholder="&#8212;">
-              <div class="number-input-btns">
-                <button type="button" onclick="stepNumberInput('zha-timeout-input', 10)">&#9650;</button>
-                <button type="button" onclick="stepNumberInput('zha-timeout-input', -10)">&#9660;</button>
+        <div class="settings-content">
+          <div style="display: flex; flex-wrap: wrap; gap: 16px;">
+            <div style="flex: 1; min-width: 140px;">
+              <label style="font-size: 0.8rem; color: var(--muted); display: block; margin-bottom: 4px;">Sensitivity</label>
+              <select id="zha-sensitivity-select" style="width: 100%; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.85rem;">
+                <option value="">Loading...</option>
+              </select>
+            </div>
+            <div style="flex: 1; min-width: 120px;">
+              <label style="font-size: 0.8rem; color: var(--muted); display: block; margin-bottom: 4px;">Timeout (sec)</label>
+              <div class="number-input-wrap">
+                <input type="number" id="zha-timeout-input" style="width: 100%; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.85rem;" min="1" max="600" step="1" placeholder="&#8212;">
+                <div class="number-input-btns">
+                  <button type="button" onclick="stepNumberInput('zha-timeout-input', 10)">&#9650;</button>
+                  <button type="button" onclick="stepNumberInput('zha-timeout-input', -10)">&#9660;</button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-        <div style="margin-top: 10px;">
-          <button id="zha-settings-save" style="padding: 6px 16px; border-radius: 6px; border: 1px solid var(--accent); background: transparent; color: var(--accent); font-size: 0.8rem; cursor: pointer;" onclick="saveZhaSettings()">Apply</button>
-          <span id="zha-settings-status" style="margin-left: 10px; font-size: 0.8rem; color: var(--muted);"></span>
+          <div style="margin-top: 10px;">
+            <button id="zha-settings-save" style="padding: 6px 16px; border-radius: 6px; border: 1px solid var(--accent); background: transparent; color: var(--accent); font-size: 0.8rem; cursor: pointer;" onclick="saveZhaSettings()">Apply</button>
+            <span id="zha-settings-status" style="margin-left: 10px; font-size: 0.8rem; color: var(--muted);"></span>
+          </div>
         </div>
       </div>
     </div>
@@ -1246,7 +1248,7 @@
           momentName = allMoments[momentId]?.name || momentId;
         }
         html += `<div class="magic-row magic-row-orphan">
-          <span class="magic-row-label">${label} (no longer in switch design)</span>
+          <span class="magic-row-label">${label} (no longer in Switch actions)</span>
           <span style="flex:1; font-size:0.85rem;">${momentName}</span>
           <button class="magic-orphan-remove" onclick="removeMagicOrphan('${key}')" title="Remove">\u2715</button>
         </div>`;

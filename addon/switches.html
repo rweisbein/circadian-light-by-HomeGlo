@@ -418,6 +418,14 @@
       border-color: dodgerblue;
     }
 
+    .fourth-field-picker {
+      width: auto;
+      border: none;
+      background: transparent;
+      font-weight: 500;
+      padding: 0 2px;
+      height: auto;
+    }
 
 
     .toolbar-menu {
@@ -516,7 +524,7 @@
           <button class="toolbar-menu-btn" onclick="toggleToolbarMenu(event)">&#8942;</button>
           <div class="toolbar-menu-dropdown" id="toolbar-menu-dropdown">
             <a href="#" class="toolbar-menu-item" id="refresh-link" onclick="loadData(); toggleToolbarMenu(event); return false;">Refresh</a>
-            <a href="./switchmap" class="toolbar-menu-item">Switch design</a>
+            <a href="./switchmap" class="toolbar-menu-item">Switch actions</a>
             <a href="#" class="toolbar-menu-item" id="clear-filters-link" style="display: none;" onclick="clearFilters(); toggleToolbarMenu(event); return false;">Clear all filters</a>
           </div>
         </div>
@@ -783,9 +791,9 @@
                 </div>
               </th>
               <th class="${thClass('fourth')}">
-                <div class="th-with-filter">
-                  <div class="th-title-row" onclick="sortBy('fourth')">${arrow('fourth')}<span style="margin-left:2px;">${fourthField === 'lastAction' ? 'Last' : fourthField === 'lux' ? 'Lux' : 'Pause'}</span></div>
-                  <select class="header-filter" id="fourth-field-select" onclick="event.stopPropagation()">
+                <div class="th-title-row" onclick="sortBy('fourth')">
+                  ${arrow('fourth')}
+                  <select class="header-filter fourth-field-picker" id="fourth-field-select" onclick="event.stopPropagation()">
                     <option value="lastAction" ${fourthField === 'lastAction' ? 'selected' : ''}>Last action</option>
                     <option value="lux" ${fourthField === 'lux' ? 'selected' : ''}>Lux</option>
                     <option value="pause" ${fourthField === 'pause' ? 'selected' : ''}>Pause</option>
