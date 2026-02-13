@@ -2668,6 +2668,11 @@ class LightDesignerServer:
                         'motion_warning_active': motion_warning_active,
                         'zone_name': zone_name if zone_name != 'Unassigned' else None,
                         'preset_name': zone_data.get('rhythm', glozone.DEFAULT_RHYTHM),
+                        # Effective brightness/CCT range for this area's rhythm
+                        'min_brightness': area_config.min_brightness,
+                        'max_brightness': area_config.max_brightness,
+                        'min_color_temp': area_config.min_color_temp,
+                        'max_color_temp': area_config.max_color_temp,
                         # Raw state model
                         'brightness_mid': area_state.brightness_mid,
                         'color_mid': area_state.color_mid,

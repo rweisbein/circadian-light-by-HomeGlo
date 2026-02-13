@@ -2041,6 +2041,10 @@
           motion_expires_at: status.motion_expires_at || null,
           motion_warning_active: status.motion_warning_active || false,
           zone_name: status.zone_name || null,
+          min_brightness: status.min_brightness ?? null,
+          max_brightness: status.max_brightness ?? null,
+          min_color_temp: status.min_color_temp ?? null,
+          max_color_temp: status.max_color_temp ?? null,
           brightness_mid: status.brightness_mid ?? null,
           color_mid: status.color_mid ?? null,
           color_override: status.color_override ?? null,
@@ -2378,7 +2382,7 @@
       const style = getRowStyle(area);
       const statusSymbols = getStatusSymbols(area);
       const { leftControls, rightControls } = getRowControls(area);
-      const sliderPct = getSliderPct(area.brightness || 0);
+      const sliderPct = getSliderPct(area.brightness || 0, area);
 
       return `
         <div class="area-row" style="--row-bg: ${style.bg}; --row-text: ${style.textColor}; --row-fill: ${style.fill.toFixed(3)};">
@@ -2388,7 +2392,7 @@
               <span class="area-row-name" onclick="openAreaModal('${area.area_id}')">${area.name}</span>
               ${statusSymbols}
             </div>
-            <div class="row-slider-track" data-area-id="${area.area_id}">
+            <div class="row-slider-track" data-area-id="${area.area_id}" data-bmin="${area.min_brightness ?? 1}" data-bmax="${area.max_brightness ?? 100}" data-cmin="${area.min_color_temp ?? 2200}" data-cmax="${area.max_color_temp ?? 6500}">
               <div class="row-slider-fill"></div>
               <div class="row-slider-thumb" style="left: ${sliderPct.toFixed(1)}%"></div>
             </div>
@@ -2453,9 +2457,10 @@
       return parts.join('');
     }
 
-    function getSliderPct(brightness) {
-      const bMin = cachedConfig?.min_brightness || 0;
-      const bMax = cachedConfig?.max_brightness || 100;
+    function getSliderPct(brightness, area) {
+      // Use area's effective min/max from its rhythm
+      const bMin = area?.min_brightness ?? 1;
+      const bMax = area?.max_brightness ?? 100;
       return bMax > bMin ? Math.max(0, Math.min(100, (brightness - bMin) / (bMax - bMin) * 100)) : 0;
     }
 
@@ -2606,19 +2611,20 @@
     // Row Slider Pointer Handlers (with live row color preview)
     // ============================================================
 
-    function colorAtPct(pct) {
-      const bMin = cachedConfig?.min_brightness || 0;
-      const bMax = cachedConfig?.max_brightness || 100;
-      const cMin = cachedConfig?.min_color_temp || 2200;
-      const cMax = cachedConfig?.max_color_temp || 6500;
+    function colorAtPct(pct, track) {
+      // pct is slider position 0-100; use track's per-area range
+      const bMin = parseFloat(track?.dataset?.bmin) || 1;
+      const bMax = parseFloat(track?.dataset?.bmax) || 100;
+      const cMin = parseFloat(track?.dataset?.cmin) || 2200;
+      const cMax = parseFloat(track?.dataset?.cmax) || 6500;
       const frac = pct / 100;
       const brightness = bMin + (bMax - bMin) * frac;
       const kelvin = cMin + (cMax - cMin) * frac;
       return { brightness, kelvin };
     }
 
-    function previewRowColor(row, pct) {
-      const { brightness, kelvin } = colorAtPct(pct);
+    function previewRowColor(row, pct, track) {
+      const { brightness, kelvin } = colorAtPct(pct, track);
       const cctColor = cctToRGB(kelvin);
       const tinted = tintColorByBrightness(cctColor, brightness);
       const textColor = readableTextColor(tinted);
@@ -2640,13 +2646,13 @@
           track.setPointerCapture(e.pointerId);
           track.classList.add('dragging');
           updateSliderFromPointer(track, e);
-          previewRowColor(row, getSliderPctFromPointer(track, e));
+          previewRowColor(row, getSliderPctFromPointer(track, e), track);
         });
         track.addEventListener('pointermove', (e) => {
           if (!track.hasPointerCapture(e.pointerId)) return;
           e.stopPropagation();
           updateSliderFromPointer(track, e);
-          previewRowColor(row, getSliderPctFromPointer(track, e));
+          previewRowColor(row, getSliderPctFromPointer(track, e), track);
         });
         track.addEventListener('pointerup', (e) => {
           if (!track.hasPointerCapture(e.pointerId)) return;
