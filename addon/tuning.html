@@ -64,11 +64,11 @@
     .view-link.active { color: var(--accent); }
     .view-sep { color: var(--muted2); }
 
-    /* Zone filter chips */
-    .zone-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
-    .zone-chip { padding: 4px 12px; border-radius: 14px; border: 1px solid var(--line); background: none; color: var(--muted); font-size: 0.8rem; cursor: pointer; transition: all 0.2s; }
-    .zone-chip:hover { color: var(--text); border-color: var(--muted); }
-    .zone-chip.active { color: var(--accent); border-color: var(--accent); background: rgba(254,172,96,0.1); }
+    /* Zone filter dropdown */
+    .zone-filter { margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .zone-filter label { font-size: 0.8rem; color: var(--muted2); }
+    .zone-select { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; font-size: 0.85rem; cursor: pointer; appearance: auto; }
+    .zone-select:focus { outline: 1px solid var(--accent); border-color: var(--accent); }
 
     /* Paint toolbar */
     .paint-toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; align-items: center; }
@@ -101,18 +101,20 @@
     .light-name { flex: 1; font-size: 0.88rem; color: var(--muted); }
     .filter-pill { padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 500; }
 
-    /* Area brightness row */
-    .brightness-row { padding: 12px 16px; }
-    .brightness-area-name { font-size: 0.9rem; margin-bottom: 8px; }
-    .brightness-sliders { display: flex; flex-direction: column; gap: 6px; }
-    .slider-line { display: flex; align-items: center; gap: 12px; }
-    .slider-label { min-width: 70px; font-size: 0.75rem; color: var(--muted2); }
+    /* Area tuning table */
+    .tuning-table { width: 100%; border-collapse: collapse; }
+    .tuning-table th { font-size: 0.7rem; font-weight: 500; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.3px; padding: 0 8px 6px; text-align: left; }
+    .tuning-table th:first-child { padding-left: 16px; }
+    .tuning-table th.slider-col { text-align: center; }
+    .tuning-table td { padding: 8px; vertical-align: middle; }
+    .tuning-table td:first-child { padding-left: 16px; font-size: 0.9rem; width: 35%; }
+    .tuning-table .slider-cell { display: flex; align-items: center; gap: 8px; }
     .brightness-slider { flex: 1; accent-color: var(--accent); }
     .exposure-slider { flex: 1; accent-color: #fbbf24; }
-    .brightness-value { min-width: 45px; text-align: right; font-size: 0.85rem; font-variant-numeric: tabular-nums; }
-    .slider-line.below-1 .brightness-value { color: #60a5fa; }
-    .slider-line.above-1 .brightness-value { color: var(--accent); }
-    .exposure-value { min-width: 45px; text-align: right; font-size: 0.85rem; font-variant-numeric: tabular-nums; color: #fbbf24; }
+    .brightness-value { min-width: 40px; text-align: right; font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+    .slider-cell.below-1 .brightness-value { color: #60a5fa; }
+    .slider-cell.above-1 .brightness-value { color: var(--accent); }
+    .exposure-value { min-width: 40px; text-align: right; font-size: 0.85rem; font-variant-numeric: tabular-nums; color: #fbbf24; }
 
     /* Suggestion overlay */
     .suggest-results { background: var(--card); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 16px; overflow: hidden; }
@@ -190,7 +192,7 @@
 
     <!-- Individual Light Mode -->
     <div id="individual-mode" style="display:none;">
-      <div id="zone-chips" class="zone-chips"></div>
+      <div id="zone-filter" class="zone-filter"></div>
       <div class="paint-toolbar" id="paint-toolbar"></div>
       <div class="view-links" id="individual-sort-links">
         <button class="view-link active" data-sort="custom">your order</button>
@@ -252,7 +254,7 @@
     function render() {
       if (!filtersData) return;
       renderBrightness();
-      renderZoneChips();
+      renderZoneFilter();
       renderPaintToolbar();
       renderIndividual();
     }
@@ -283,9 +285,20 @@
 
         const zoneEl = createZoneGroup(zoneName);
         const content = zoneEl.querySelector('.zone-content');
+
+        const table = document.createElement('table');
+        table.className = 'tuning-table';
+        table.innerHTML = `<thead><tr>
+          <th>Area</th>
+          <th class="slider-col">Light</th>
+          <th class="slider-col">Sun</th>
+        </tr></thead>`;
+        const tbody = document.createElement('tbody');
         for (const area of sortedAreas) {
-          content.appendChild(createBrightnessRow(area));
+          tbody.appendChild(createBrightnessRow(area));
         }
+        table.appendChild(tbody);
+        content.appendChild(table);
         container.appendChild(zoneEl);
       }
 
@@ -300,30 +313,29 @@
     function createBrightnessRow(area) {
       const factor = area.brightness_factor ?? 1.0;
       const exposure = area.natural_light_exposure ?? 0.0;
-      const row = document.createElement('div');
-      row.className = 'brightness-row';
+      const row = document.createElement('tr');
       row.innerHTML = `
-        <div class="brightness-area-name">${area.name}</div>
-        <div class="brightness-sliders">
-          <div class="slider-line ${factor < 1 ? 'below-1' : factor > 1 ? 'above-1' : ''}">
-            <span class="slider-label">Light</span>
+        <td>${area.name}</td>
+        <td>
+          <div class="slider-cell ${factor < 1 ? 'below-1' : factor > 1 ? 'above-1' : ''}">
             <input type="range" class="brightness-slider" min="50" max="150" step="5" value="${Math.round(factor * 100)}" data-area="${area.id}">
             <span class="brightness-value">${factor.toFixed(2)}</span>
           </div>
-          <div class="slider-line">
-            <span class="slider-label">Sun</span>
+        </td>
+        <td>
+          <div class="slider-cell">
             <input type="range" class="exposure-slider" min="0" max="100" step="5" value="${Math.round(exposure * 100)}" data-area="${area.id}">
             <span class="exposure-value">${exposure > 0 ? exposure.toFixed(2) : 'off'}</span>
           </div>
-        </div>
+        </td>
       `;
       const briSlider = row.querySelector('.brightness-slider');
       const briValue = row.querySelector('.brightness-value');
-      const briLine = briSlider.closest('.slider-line');
+      const briCell = briSlider.closest('.slider-cell');
       briSlider.addEventListener('input', () => {
         const val = parseInt(briSlider.value) / 100;
         briValue.textContent = val.toFixed(2);
-        briLine.className = 'slider-line' + (val < 1 ? ' below-1' : val > 1 ? ' above-1' : '');
+        briCell.className = 'slider-cell' + (val < 1 ? ' below-1' : val > 1 ? ' above-1' : '');
       });
       briSlider.addEventListener('change', () => {
         const val = parseInt(briSlider.value) / 100;
@@ -343,27 +355,34 @@
       return row;
     }
 
-    // ---- Zone filter chips ----
-    function renderZoneChips() {
+    // ---- Zone filter dropdown ----
+    function renderZoneFilter() {
       if (!filtersData) return;
-      const container = document.getElementById('zone-chips');
+      const container = document.getElementById('zone-filter');
       container.innerHTML = '';
       const zoneNames = Object.keys(filtersData.zones);
-      if (zoneNames.length <= 1) return; // no chips needed for single zone
+      if (zoneNames.length <= 1) return; // no dropdown needed for single zone
 
-      const allChip = document.createElement('button');
-      allChip.className = 'zone-chip' + (selectedZone === 'All' ? ' active' : '');
-      allChip.textContent = 'All';
-      allChip.onclick = () => { selectedZone = 'All'; renderZoneChips(); renderIndividual(); };
-      container.appendChild(allChip);
+      const label = document.createElement('label');
+      label.textContent = 'Zone';
+      container.appendChild(label);
 
+      const select = document.createElement('select');
+      select.className = 'zone-select';
+      const allOpt = document.createElement('option');
+      allOpt.value = 'All';
+      allOpt.textContent = 'All zones';
+      select.appendChild(allOpt);
       for (const name of zoneNames) {
-        const chip = document.createElement('button');
-        chip.className = 'zone-chip' + (selectedZone === name ? ' active' : '');
-        chip.textContent = name;
-        chip.onclick = () => { selectedZone = name; renderZoneChips(); renderIndividual(); };
-        container.appendChild(chip);
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        if (selectedZone === name) opt.selected = true;
+        select.appendChild(opt);
       }
+      select.value = selectedZone;
+      select.onchange = () => { selectedZone = select.value; renderIndividual(); };
+      container.appendChild(select);
     }
 
     // ---- Individual Light section ----

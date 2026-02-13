@@ -733,11 +733,15 @@ class LightDesignerServer:
                                     await ws.send(json.dumps({'id': 3, 'type': 'get_states'}))
                                     states_msg = json.loads(await ws.recv())
                                     friendly_names = {}
+                                    light_groups = set()
                                     if states_msg.get('success') and states_msg.get('result'):
                                         for s in states_msg['result']:
                                             eid = s.get('entity_id', '')
                                             if eid.startswith('light.'):
-                                                friendly_names[eid] = s.get('attributes', {}).get('friendly_name', eid)
+                                                attrs = s.get('attributes', {})
+                                                friendly_names[eid] = attrs.get('friendly_name', eid)
+                                                if attrs.get('entity_id') or attrs.get('is_group') or attrs.get('is_hue_group'):
+                                                    light_groups.add(eid)
 
                                     if entity_msg.get('success') and entity_msg.get('result'):
                                         for entity in entity_msg['result']:
@@ -747,8 +751,10 @@ class LightDesignerServer:
                                             # Skip disabled entities
                                             if entity.get('disabled_by'):
                                                 continue
-                                            # Skip group entities
+                                            # Skip group entities (Circadian groups and area-level groups)
                                             if 'circadian_' in eid.lower():
+                                                continue
+                                            if eid in light_groups:
                                                 continue
                                             # Determine area
                                             a_id = entity.get('area_id')
