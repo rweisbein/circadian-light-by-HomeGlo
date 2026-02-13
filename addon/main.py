@@ -4774,6 +4774,17 @@ class HomeAssistantWebSocketClient:
                 # Sync ZHA groups with all areas (includes parity cache refresh)
                 await self.sync_zha_groups()
 
+                # Re-fetch states to pick up newly created ZHA group entities
+                refreshed_states = await self.get_states()
+                if refreshed_states:
+                    for entity_state in refreshed_states:
+                        entity_id = entity_state.get("entity_id", "")
+                        if entity_id.startswith("light."):
+                            attributes = entity_state.get("attributes", {})
+                            friendly_name = attributes.get("friendly_name", "")
+                            self._update_area_group_mapping(entity_id, friendly_name, attributes)
+                    logger.info(f"Refreshed group mappings after ZHA sync: {len(self.group_entity_info)} grouped lights")
+
                 # Subscribe to all events
                 await self.subscribe_events()
                 
