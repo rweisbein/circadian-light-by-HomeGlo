@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Circadian Light - Filters</title>
+  <title>Circadian Light - Tuning</title>
   <style>
     :root {
       --bg: #000;
@@ -57,6 +57,19 @@
     .mode-btn:hover { color: var(--text); }
     .mode-btn.active { color: var(--accent); background: rgba(254,172,96,0.12); }
 
+    /* View links (home-page style sort) */
+    .view-links { display: flex; align-items: center; gap: 6px; font-size: 0.7rem; margin-bottom: 12px; }
+    .view-link { color: var(--muted); background: none; border: none; cursor: pointer; font-size: 0.7rem; text-decoration: none; padding: 0; }
+    .view-link:hover { color: var(--text); }
+    .view-link.active { color: var(--accent); }
+    .view-sep { color: var(--muted2); }
+
+    /* Zone filter chips */
+    .zone-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+    .zone-chip { padding: 4px 12px; border-radius: 14px; border: 1px solid var(--line); background: none; color: var(--muted); font-size: 0.8rem; cursor: pointer; transition: all 0.2s; }
+    .zone-chip:hover { color: var(--text); border-color: var(--muted); }
+    .zone-chip.active { color: var(--accent); border-color: var(--accent); background: rgba(254,172,96,0.1); }
+
     /* Paint toolbar */
     .paint-toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; align-items: center; }
     .paint-btn { padding: 6px 14px; border-radius: 20px; border: 2px solid var(--line); background: var(--panel); color: var(--muted); font-size: 0.85rem; cursor: pointer; transition: all 0.2s; }
@@ -76,7 +89,10 @@
     .area-group { background: var(--card); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 8px; overflow: hidden; }
     .area-header { padding: 12px 16px; font-size: 0.9rem; font-weight: 500; display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
     .area-header:hover { background: rgba(255,255,255,0.02); }
+    .area-header .area-arrow { font-size: 0.6rem; color: var(--muted2); transition: transform 0.2s; margin-right: 8px; }
+    .area-header.collapsed .area-arrow { transform: rotate(-90deg); }
     .area-lights { padding: 0 16px 8px; }
+    .area-lights.collapsed { display: none; }
 
     /* Light row (filter mode) */
     .light-row { display: flex; align-items: center; padding: 8px 0; gap: 12px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.04); }
@@ -110,22 +126,13 @@
     .suggest-reject { background: none; border: 1px solid var(--line); color: var(--muted); padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; cursor: pointer; }
     .suggest-reject:hover { background: rgba(255,255,255,0.05); }
 
-    /* Sort controls */
-    .sort-controls { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; font-size: 0.85rem; }
-    .sort-btn { color: var(--muted2); cursor: pointer; padding: 4px 8px; border-radius: 4px; background: none; border: none; font-size: 0.85rem; }
-    .sort-btn:hover { color: var(--text); background: rgba(255,255,255,0.05); }
-    .sort-btn.active { color: var(--accent); background: rgba(254,172,96,0.12); }
-
     /* Save status */
     .save-status { position: fixed; bottom: 24px; right: 24px; padding: 12px 20px; background: var(--success); color: white; border-radius: 8px; font-size: 0.9rem; opacity: 0; transform: translateY(10px); transition: all 0.3s; z-index: 50; }
     .save-status.visible { opacity: 1; transform: translateY(0); }
 
-    /* Filter pill colors */
+    /* Filter pill colors — subtle uniform style */
     .pill-Standard { background: var(--panel); color: var(--muted); border: 1px solid var(--line); }
-    .pill-Overhead { background: rgba(59,130,246,0.2); color: #93c5fd; }
-    .pill-Lamp { background: rgba(254,172,96,0.2); color: #ffc078; }
-    .pill-Accent { background: rgba(168,85,247,0.2); color: #c4b5fd; }
-    .pill-Nightlight { background: rgba(34,197,94,0.2); color: #86efac; }
+    .pill-assigned { background: rgba(255,255,255,0.06); color: var(--text); border: 1px solid var(--line); }
 
     .empty-state { padding: 40px 20px; text-align: center; color: var(--muted2); font-size: 0.9rem; }
   </style>
@@ -150,7 +157,7 @@
       <a href="./lights" class="nav-link">Light</a>
       <a href="./rhythm" class="nav-link">Rhythm</a>
       <a href="./moments" class="nav-link">Magic</a>
-      <a href="./filters" class="nav-link active">Filters</a>
+      <a href="./tuning" class="nav-link active">Tuning</a>
       <a href="./settings" class="nav-link">Settings</a>
     </div>
     <button class="nav-more" aria-label="More pages">&middot;&middot;&middot;</button>
@@ -160,28 +167,38 @@
   <!-- Main Content -->
   <main class="main">
     <div class="page-header">
-      <h1 class="page-title">Filters</h1>
+      <h1 class="page-title">Tuning</h1>
       <div class="mode-toggle">
-        <button class="mode-btn active" data-mode="brightness" onclick="setMode('brightness')">Area Brightness</button>
-        <button class="mode-btn" data-mode="filters" onclick="setMode('filters')">Light Filters</button>
+        <button class="mode-btn active" data-mode="brightness" onclick="setMode('brightness')">Area</button>
+        <button class="mode-btn" data-mode="individual" onclick="setMode('individual')">Individual Light</button>
       </div>
     </div>
 
-    <!-- Area Brightness Mode -->
+    <!-- Area Mode -->
     <div id="brightness-mode">
-      <div class="sort-controls">
-        <button class="sort-btn active" data-sort="zone" onclick="setBriSort('zone')">Zone Order</button>
-        <button class="sort-btn" data-sort="factor" onclick="setBriSort('factor')">Factor</button>
-        <button class="sort-btn" data-sort="az" onclick="setBriSort('az')">A-Z</button>
+      <div class="view-links">
+        <button class="view-link active" data-sort="custom">your order</button>
+        <span class="view-sep">&middot;</span>
+        <button class="view-link" data-sort="az">a&ndash;z</button>
+        <span class="view-sep">&middot;</span>
+        <button class="view-link" data-sort="light">intensity &ndash; light</button>
+        <span class="view-sep">&middot;</span>
+        <button class="view-link" data-sort="sun">intensity &ndash; sun</button>
       </div>
       <div id="brightness-content"></div>
     </div>
 
-    <!-- Light Filters Mode -->
-    <div id="filters-mode" style="display:none;">
+    <!-- Individual Light Mode -->
+    <div id="individual-mode" style="display:none;">
+      <div id="zone-chips" class="zone-chips"></div>
       <div class="paint-toolbar" id="paint-toolbar"></div>
+      <div class="view-links" id="individual-sort-links">
+        <button class="view-link active" data-sort="custom">your order</button>
+        <span class="view-sep">&middot;</span>
+        <button class="view-link" data-sort="az">a&ndash;z</button>
+      </div>
       <div id="suggest-container"></div>
-      <div id="filters-content"></div>
+      <div id="individual-content"></div>
     </div>
 
     <div class="save-status" id="save-status">Saved</div>
@@ -191,8 +208,11 @@
   <script>
     let filtersData = null;
     let currentMode = 'brightness';
-    let briSort = 'zone';
+    let briSort = 'custom';
+    let indSort = 'custom';
     let selectedPaint = 'Standard';
+    let selectedZone = 'All';
+    let expandedAreas = {};
     let debounceTimers = {};
 
     // ---- Data loading ----
@@ -213,69 +233,66 @@
       currentMode = mode;
       document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
       document.getElementById('brightness-mode').style.display = mode === 'brightness' ? '' : 'none';
-      document.getElementById('filters-mode').style.display = mode === 'filters' ? '' : 'none';
+      document.getElementById('individual-mode').style.display = mode === 'individual' ? '' : 'none';
     }
 
     function setBriSort(sort) {
       briSort = sort;
-      document.querySelectorAll('.sort-controls .sort-btn').forEach(b => b.classList.toggle('active', b.dataset.sort === sort));
+      document.querySelectorAll('#brightness-mode .view-link').forEach(b => b.classList.toggle('active', b.dataset.sort === sort));
       renderBrightness();
+    }
+
+    function setIndSort(sort) {
+      indSort = sort;
+      document.querySelectorAll('#individual-sort-links .view-link').forEach(b => b.classList.toggle('active', b.dataset.sort === sort));
+      renderIndividual();
     }
 
     // ---- Rendering ----
     function render() {
       if (!filtersData) return;
       renderBrightness();
+      renderZoneChips();
       renderPaintToolbar();
-      renderFilters();
+      renderIndividual();
     }
 
     function getPillClass(filterName) {
-      const known = ['Standard', 'Overhead', 'Lamp', 'Accent', 'Nightlight'];
-      return known.includes(filterName) ? `pill-${filterName}` : 'pill-Standard';
+      return filterName === 'Standard' ? 'pill-Standard' : 'pill-assigned';
     }
 
-    // ---- Area Brightness ----
+    // ---- Area section ----
     function renderBrightness() {
       if (!filtersData) return;
       const container = document.getElementById('brightness-content');
       container.innerHTML = '';
 
-      // Collect all areas with zone info
-      let allAreas = [];
+      // Always group by zone; sort areas within each zone
       for (const [zoneName, zone] of Object.entries(filtersData.zones)) {
-        for (const area of zone.areas) {
-          allAreas.push({ ...area, zoneName });
+        if (zone.areas.length === 0) continue;
+
+        const sortedAreas = [...zone.areas];
+        if (briSort === 'az') {
+          sortedAreas.sort((a, b) => a.name.localeCompare(b.name));
+        } else if (briSort === 'light') {
+          sortedAreas.sort((a, b) => (a.brightness_factor ?? 1.0) - (b.brightness_factor ?? 1.0));
+        } else if (briSort === 'sun') {
+          sortedAreas.sort((a, b) => (a.natural_light_exposure ?? 0.0) - (b.natural_light_exposure ?? 0.0));
         }
+        // 'custom' uses natural order
+
+        const zoneEl = createZoneGroup(zoneName);
+        const content = zoneEl.querySelector('.zone-content');
+        for (const area of sortedAreas) {
+          content.appendChild(createBrightnessRow(area));
+        }
+        container.appendChild(zoneEl);
       }
 
-      // Sort
-      if (briSort === 'factor') {
-        allAreas.sort((a, b) => a.brightness_factor - b.brightness_factor);
-      } else if (briSort === 'az') {
-        allAreas.sort((a, b) => a.name.localeCompare(b.name));
-      }
-      // 'zone' uses natural order
-
-      // Group by zone if zone sort
-      if (briSort === 'zone') {
-        for (const [zoneName, zone] of Object.entries(filtersData.zones)) {
-          if (zone.areas.length === 0) continue;
-          const zoneEl = createZoneGroup(zoneName);
-          const content = zoneEl.querySelector('.zone-content');
-          for (const area of zone.areas) {
-            content.appendChild(createBrightnessRow(area));
-          }
-          container.appendChild(zoneEl);
-        }
-      } else {
-        // Flat list
-        for (const area of allAreas) {
-          container.appendChild(createBrightnessRow(area));
-        }
-      }
-
-      if (allAreas.length === 0) {
+      // Check if empty
+      let totalAreas = 0;
+      for (const zone of Object.values(filtersData.zones)) totalAreas += zone.areas.length;
+      if (totalAreas === 0) {
         container.innerHTML = '<div class="empty-state">No areas configured. Add areas in the Home page first.</div>';
       }
     }
@@ -289,12 +306,12 @@
         <div class="brightness-area-name">${area.name}</div>
         <div class="brightness-sliders">
           <div class="slider-line ${factor < 1 ? 'below-1' : factor > 1 ? 'above-1' : ''}">
-            <span class="slider-label">Brightness</span>
+            <span class="slider-label">Light</span>
             <input type="range" class="brightness-slider" min="50" max="150" step="5" value="${Math.round(factor * 100)}" data-area="${area.id}">
             <span class="brightness-value">${factor.toFixed(2)}</span>
           </div>
           <div class="slider-line">
-            <span class="slider-label">Nat. Light</span>
+            <span class="slider-label">Sun</span>
             <input type="range" class="exposure-slider" min="0" max="100" step="5" value="${Math.round(exposure * 100)}" data-area="${area.id}">
             <span class="exposure-value">${exposure > 0 ? exposure.toFixed(2) : 'off'}</span>
           </div>
@@ -326,14 +343,37 @@
       return row;
     }
 
-    // ---- Light Filters ----
+    // ---- Zone filter chips ----
+    function renderZoneChips() {
+      if (!filtersData) return;
+      const container = document.getElementById('zone-chips');
+      container.innerHTML = '';
+      const zoneNames = Object.keys(filtersData.zones);
+      if (zoneNames.length <= 1) return; // no chips needed for single zone
+
+      const allChip = document.createElement('button');
+      allChip.className = 'zone-chip' + (selectedZone === 'All' ? ' active' : '');
+      allChip.textContent = 'All';
+      allChip.onclick = () => { selectedZone = 'All'; renderZoneChips(); renderIndividual(); };
+      container.appendChild(allChip);
+
+      for (const name of zoneNames) {
+        const chip = document.createElement('button');
+        chip.className = 'zone-chip' + (selectedZone === name ? ' active' : '');
+        chip.textContent = name;
+        chip.onclick = () => { selectedZone = name; renderZoneChips(); renderIndividual(); };
+        container.appendChild(chip);
+      }
+    }
+
+    // ---- Individual Light section ----
     function renderPaintToolbar() {
       if (!filtersData) return;
       const toolbar = document.getElementById('paint-toolbar');
       toolbar.innerHTML = '';
       for (const name of Object.keys(filtersData.presets)) {
         const btn = document.createElement('button');
-        btn.className = 'paint-btn ' + getPillClass(name) + (name === selectedPaint ? ' active' : '');
+        btn.className = 'paint-btn' + (name === selectedPaint ? ' active' : '');
         btn.textContent = name;
         btn.onclick = () => {
           selectedPaint = name;
@@ -350,29 +390,48 @@
       toolbar.appendChild(suggestBtn);
     }
 
-    function renderFilters() {
+    function renderIndividual() {
       if (!filtersData) return;
-      const container = document.getElementById('filters-content');
+      const container = document.getElementById('individual-content');
       container.innerHTML = '';
 
       for (const [zoneName, zone] of Object.entries(filtersData.zones)) {
         if (zone.areas.length === 0) continue;
+        if (selectedZone !== 'All' && selectedZone !== zoneName) continue;
+
+        const sortedAreas = [...zone.areas];
+        if (indSort === 'az') {
+          sortedAreas.sort((a, b) => a.name.localeCompare(b.name));
+        }
+
         const zoneEl = createZoneGroup(zoneName);
         const content = zoneEl.querySelector('.zone-content');
 
-        for (const area of zone.areas) {
+        for (const area of sortedAreas) {
           const areaEl = document.createElement('div');
           areaEl.className = 'area-group';
           const lights = (filtersData.area_lights || {})[area.id] || [];
           const filterCount = Object.keys(area.light_filters || {}).length;
+          const isExpanded = expandedAreas[area.id] === true;
+
           areaEl.innerHTML = `
-            <div class="area-header">
-              <span>${area.name}</span>
+            <div class="area-header${isExpanded ? '' : ' collapsed'}">
+              <span><span class="area-arrow">${isExpanded ? '&#9660;' : '&#9654;'}</span>${area.name}</span>
               <span style="font-size:0.8rem;color:var(--muted2)">${lights.length} lights${filterCount ? `, ${filterCount} filtered` : ''}</span>
             </div>
-            <div class="area-lights"></div>
+            <div class="area-lights${isExpanded ? '' : ' collapsed'}"></div>
           `;
+
+          const header = areaEl.querySelector('.area-header');
           const lightsContainer = areaEl.querySelector('.area-lights');
+          const arrowEl = areaEl.querySelector('.area-arrow');
+
+          header.onclick = () => {
+            const nowExpanded = lightsContainer.classList.toggle('collapsed');
+            header.classList.toggle('collapsed');
+            expandedAreas[area.id] = !nowExpanded;
+            arrowEl.innerHTML = nowExpanded ? '&#9654;' : '&#9660;';
+          };
 
           if (lights.length === 0) {
             lightsContainer.innerHTML = '<div style="padding:8px 0;color:var(--muted2);font-size:0.85rem;">No lights found</div>';
@@ -385,9 +444,9 @@
                 <span class="light-name">${light.name}</span>
                 <span class="filter-pill ${getPillClass(currentFilter)}">${currentFilter}</span>
               `;
-              lightRow.onclick = () => {
+              lightRow.onclick = (e) => {
+                e.stopPropagation();
                 saveLightFilter(area.id, light.entity_id, selectedPaint);
-                // Update local state
                 if (!area.light_filters) area.light_filters = {};
                 if (selectedPaint === 'Standard') {
                   delete area.light_filters[light.entity_id];
@@ -397,10 +456,9 @@
                 const pill = lightRow.querySelector('.filter-pill');
                 pill.textContent = selectedPaint;
                 pill.className = 'filter-pill ' + getPillClass(selectedPaint);
-                // Update header count
                 const count = Object.keys(area.light_filters || {}).length;
-                const header = areaEl.querySelector('.area-header span:last-child');
-                header.textContent = `${lights.length} lights${count ? `, ${count} filtered` : ''}`;
+                const headerSpan = areaEl.querySelector('.area-header span:last-child');
+                headerSpan.textContent = `${lights.length} lights${count ? `, ${count} filtered` : ''}`;
               };
               lightsContainer.appendChild(lightRow);
             }
@@ -463,7 +521,6 @@
           row.querySelector('.suggest-accept').onclick = async () => {
             await saveLightFilter(s.area_id, s.entity_id, s.suggested_filter);
             row.remove();
-            // Update local data
             const zone = Object.values(filtersData.zones).find(z => z.areas.some(a => a.id === s.area_id));
             if (zone) {
               const area = zone.areas.find(a => a.id === s.area_id);
@@ -472,7 +529,7 @@
                 area.light_filters[s.entity_id] = s.suggested_filter;
               }
             }
-            renderFilters();
+            renderIndividual();
             if (el.querySelectorAll('.suggest-row').length === 0) el.remove();
           };
           row.querySelector('.suggest-reject').onclick = () => {
@@ -525,6 +582,18 @@
       el.classList.add('visible');
       setTimeout(() => el.classList.remove('visible'), 2000);
     }
+
+    // ---- Event delegation for sort links ----
+    document.getElementById('brightness-mode').addEventListener('click', (e) => {
+      if (e.target.classList.contains('view-link') && !e.target.classList.contains('active')) {
+        setBriSort(e.target.dataset.sort);
+      }
+    });
+    document.getElementById('individual-sort-links').addEventListener('click', (e) => {
+      if (e.target.classList.contains('view-link') && !e.target.classList.contains('active')) {
+        setIndSort(e.target.dataset.sort);
+      }
+    });
 
     // ---- Init ----
     document.addEventListener('DOMContentLoaded', loadFiltersData);
