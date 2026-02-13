@@ -334,7 +334,6 @@
       background: var(--row-bg);
       color: var(--row-text);
       border-bottom: 1px solid var(--line);
-      cursor: pointer;
       position: relative;
       overflow: hidden;
     }
@@ -403,6 +402,7 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      cursor: pointer;
     }
 
     /* Row middle: stacked name + slider column */
@@ -436,7 +436,6 @@
       height: 4px;
       border-radius: 2px;
       background: rgba(0,0,0,0.4);
-      box-shadow: inset 0 1px 2px rgba(0,0,0,0.3), 0 0.5px 0 rgba(255,255,255,0.1);
       position: relative;
       cursor: pointer;
       touch-action: none;
@@ -2371,11 +2370,11 @@
       const sliderPct = getSliderPct(area.brightness || 0);
 
       return `
-        <div class="area-row" style="--row-bg: ${style.bg}; --row-text: ${style.textColor}; --row-fill: ${style.fill.toFixed(3)};" onclick="openAreaModal('${area.area_id}')">
+        <div class="area-row" style="--row-bg: ${style.bg}; --row-text: ${style.textColor}; --row-fill: ${style.fill.toFixed(3)};">
           ${leftControls}
           <div class="row-middle">
             <div class="row-middle-top">
-              <span class="area-row-name">${area.name}</span>
+              <span class="area-row-name" onclick="openAreaModal('${area.area_id}')">${area.name}</span>
               ${statusSymbols}
             </div>
             <div class="row-slider-track" data-area-id="${area.area_id}">
