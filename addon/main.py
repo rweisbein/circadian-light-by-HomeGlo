@@ -4705,7 +4705,7 @@ class HomeAssistantWebSocketClient:
         try:
             logger.info(f"Connecting to {self.websocket_url}")
             
-            async with websockets.connect(self.websocket_url, ping_timeout=40) as websocket:
+            async with websockets.connect(self.websocket_url, ping_timeout=40, max_size=2**23) as websocket:
                 self.websocket = websocket
                 
                 # Authenticate
