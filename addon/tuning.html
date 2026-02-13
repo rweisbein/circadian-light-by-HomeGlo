@@ -64,7 +64,7 @@
     .suggest-btn:hover { color: var(--text); border-color: var(--muted); }
 
     /* View links (sort) */
-    .view-links { display: flex; align-items: center; gap: 6px; font-size: 0.7rem; margin-bottom: 12px; }
+    .view-links { display: flex; align-items: center; gap: 6px; font-size: 0.7rem; }
     .view-link { color: var(--muted); background: none; border: none; cursor: pointer; font-size: 0.7rem; text-decoration: none; padding: 0; }
     .view-link:hover { color: var(--text); }
     .view-link.active { color: var(--accent); }
@@ -72,14 +72,15 @@
 
     /* Area card */
     .area-card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 8px; overflow: hidden; }
-    .area-card-header { padding: 10px 16px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
-    .area-card-header:hover { background: rgba(255,255,255,0.02); }
-    .area-arrow { font-size: 0.6rem; color: var(--muted2); transition: transform 0.2s; flex-shrink: 0; }
-    .area-card-header.collapsed .area-arrow { transform: rotate(-90deg); }
+    .area-card-header { padding: 10px 16px; display: flex; align-items: center; gap: 10px; }
+    .area-tap-zone { cursor: pointer; display: flex; align-items: center; gap: 10px; }
+    .area-tap-zone:hover { opacity: 0.85; }
+    .area-chevron { width: 16px; height: 16px; color: var(--muted); transition: transform 0.2s; background: rgba(0,0,0,0.45); border-radius: 50%; padding: 2px; box-sizing: content-box; box-shadow: 0 0 0 1.5px rgba(255,255,255,0.25); flex-shrink: 0; }
+    .area-card-header.collapsed .area-chevron { transform: rotate(-90deg); }
     .area-name { font-size: 0.9rem; font-weight: 500; white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
     .area-sliders { display: flex; align-items: center; gap: 14px; margin-left: auto; flex-shrink: 0; }
     .slider-group { display: flex; align-items: center; gap: 6px; }
-    .slider-label { font-size: 0.7rem; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.3px; }
+    .slider-label { font-size: 0.7rem; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.3px; cursor: pointer; }
     .brightness-slider { width: 100px; accent-color: var(--accent); }
     .sun-slider { width: 80px; accent-color: #fbbf24; }
     .slider-val { min-width: 36px; text-align: right; font-size: 0.82rem; font-variant-numeric: tabular-nums; }
@@ -88,7 +89,8 @@
     .slider-val.sun-active { color: #fbbf24; }
 
     /* Light list inside area card */
-    .area-lights { padding: 0 16px 8px; }
+    .area-lights { padding: 0 16px 8px; padding-left: 24px; }
+    .light-meta { font-size: 0.7rem; color: var(--muted2); white-space: nowrap; }
     .area-lights.collapsed { display: none; }
     .light-row { display: flex; align-items: center; padding: 8px 0; gap: 12px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.04); }
     .light-row:last-child { border-bottom: none; }
@@ -158,17 +160,6 @@
     <!-- Paint toolbar -->
     <div class="paint-toolbar" id="paint-toolbar"></div>
 
-    <!-- Sort links -->
-    <div class="view-links" id="sort-links">
-      <button class="view-link active" data-sort="custom">your order</button>
-      <span class="view-sep">&middot;</span>
-      <button class="view-link" data-sort="az">a&ndash;z</button>
-      <span class="view-sep">&middot;</span>
-      <button class="view-link" data-sort="light">intensity &ndash; light</button>
-      <span class="view-sep">&middot;</span>
-      <button class="view-link" data-sort="sun">intensity &ndash; sun</button>
-    </div>
-
     <!-- Suggest container -->
     <div id="suggest-container"></div>
 
@@ -204,7 +195,8 @@
     // ---- Sorting ----
     function setSort(sort) {
       sortOrder = sort;
-      document.querySelectorAll('#sort-links .view-link').forEach(b => b.classList.toggle('active', b.dataset.sort === sort));
+      const sortLinks = document.getElementById('sort-links');
+      if (sortLinks) sortLinks.querySelectorAll('.view-link').forEach(b => b.classList.toggle('active', b.dataset.sort === sort));
       renderUnified();
     }
 
@@ -284,6 +276,27 @@
         };
         container.appendChild(aSelect);
       }
+
+      // Sort links (pushed right)
+      const sortWrap = document.createElement('span');
+      sortWrap.id = 'sort-links';
+      sortWrap.className = 'view-links';
+      sortWrap.style.marginLeft = 'auto';
+      sortWrap.innerHTML = `
+        <button class="view-link${sortOrder === 'custom' ? ' active' : ''}" data-sort="custom">your order</button>
+        <span class="view-sep">&middot;</span>
+        <button class="view-link${sortOrder === 'az' ? ' active' : ''}" data-sort="az">a&ndash;z</button>
+        <span class="view-sep">&middot;</span>
+        <button class="view-link${sortOrder === 'light' ? ' active' : ''}" data-sort="light">light</button>
+        <span class="view-sep">&middot;</span>
+        <button class="view-link${sortOrder === 'sun' ? ' active' : ''}" data-sort="sun">sun</button>
+      `;
+      sortWrap.addEventListener('click', (e) => {
+        if (e.target.classList.contains('view-link') && !e.target.classList.contains('active')) {
+          setSort(e.target.dataset.sort);
+        }
+      });
+      container.appendChild(sortWrap);
     }
 
     function getAllAreas() {
@@ -358,6 +371,18 @@
       }
     }
 
+    function getPresetMeta(filterName) {
+      if (!filtersData || !filtersData.presets) return '';
+      const preset = filtersData.presets[filterName];
+      if (!preset) return '';
+      const atBright = preset.at_bright ?? 100;
+      const atDim = preset.at_dim ?? 100;
+      const offThresh = preset.off_threshold ?? 0;
+      let meta = atBright + '&#8593; ' + atDim + '&#8595;';
+      if (offThresh > 0) meta += ' off&lt;' + offThresh;
+      return meta;
+    }
+
     function createAreaCard(area) {
       const card = document.createElement('div');
       card.className = 'area-card';
@@ -372,16 +397,18 @@
       const header = document.createElement('div');
       header.className = 'area-card-header' + (isExpanded ? '' : ' collapsed');
       header.innerHTML = `
-        <span class="area-arrow">${isExpanded ? '&#9660;' : '&#9654;'}</span>
-        <span class="area-name">${area.name}</span>
+        <div class="area-tap-zone">
+          <svg class="area-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          <span class="area-name">${area.name}</span>
+        </div>
         <div class="area-sliders">
           <div class="slider-group">
-            <span class="slider-label">Light</span>
+            <span class="slider-label" data-reset="light">Light</span>
             <input type="range" class="brightness-slider" min="50" max="200" step="5" value="${Math.round(factor * 100)}">
             <span class="slider-val ${factor < 1 ? 'below-1' : factor > 1 ? 'above-1' : ''}">${factor.toFixed(2)}</span>
           </div>
           <div class="slider-group">
-            <span class="slider-label">Sun</span>
+            <span class="slider-label" data-reset="sun">Sun</span>
             <input type="range" class="sun-slider" min="0" max="100" step="5" value="${sunDisplay}">
             <span class="slider-val ${sunDisplay < 100 ? 'sun-active' : ''}">${sunDisplay}%</span>
           </div>
@@ -391,48 +418,52 @@
       // Slider event handlers
       const briSlider = header.querySelector('.brightness-slider');
       const briVal = header.querySelector('.slider-val');
-      const briGroup = briSlider.closest('.slider-group');
-      briSlider.addEventListener('input', (e) => {
-        e.stopPropagation();
+      briSlider.addEventListener('input', () => {
         const val = parseInt(briSlider.value) / 100;
         briVal.textContent = val.toFixed(2);
         briVal.className = 'slider-val' + (val < 1 ? ' below-1' : val > 1 ? ' above-1' : '');
       });
-      briSlider.addEventListener('change', (e) => {
-        e.stopPropagation();
+      briSlider.addEventListener('change', () => {
         const val = parseInt(briSlider.value) / 100;
         saveAreaBrightness(area.id, { brightness_factor: val });
       });
-      briSlider.addEventListener('mousedown', e => e.stopPropagation());
-      briSlider.addEventListener('touchstart', e => e.stopPropagation());
 
       const sunSlider = header.querySelector('.sun-slider');
       const sunVal = header.querySelectorAll('.slider-val')[1];
-      sunSlider.addEventListener('input', (e) => {
-        e.stopPropagation();
+      sunSlider.addEventListener('input', () => {
         const display = parseInt(sunSlider.value);
         sunVal.textContent = display + '%';
         sunVal.className = 'slider-val' + (display < 100 ? ' sun-active' : '');
       });
-      sunSlider.addEventListener('change', (e) => {
-        e.stopPropagation();
+      sunSlider.addEventListener('change', () => {
         const display = parseInt(sunSlider.value);
         const exp = 1.0 - (display / 100);
         saveAreaBrightness(area.id, { natural_light_exposure: exp });
       });
-      sunSlider.addEventListener('mousedown', e => e.stopPropagation());
-      sunSlider.addEventListener('touchstart', e => e.stopPropagation());
 
-      // Expand/collapse
+      // Label click resets to default
+      header.querySelector('[data-reset="light"]').addEventListener('click', () => {
+        briSlider.value = 100;
+        briVal.textContent = '1.00';
+        briVal.className = 'slider-val';
+        saveAreaBrightness(area.id, { brightness_factor: 1.0 });
+      });
+      header.querySelector('[data-reset="sun"]').addEventListener('click', () => {
+        sunSlider.value = 100;
+        sunVal.textContent = '100%';
+        sunVal.className = 'slider-val';
+        saveAreaBrightness(area.id, { natural_light_exposure: 0.0 });
+      });
+
+      // Expand/collapse — only on tap zone
       const lightsContainer = document.createElement('div');
       lightsContainer.className = 'area-lights' + (isExpanded ? '' : ' collapsed');
 
-      header.addEventListener('click', () => {
+      header.querySelector('.area-tap-zone').addEventListener('click', () => {
         const nowCollapsed = !lightsContainer.classList.contains('collapsed');
         lightsContainer.classList.toggle('collapsed');
         header.classList.toggle('collapsed');
         expandedAreas[area.id] = !nowCollapsed;
-        header.querySelector('.area-arrow').innerHTML = nowCollapsed ? '&#9654;' : '&#9660;';
       });
 
       // Lights list (sorted alphabetically)
@@ -446,10 +477,10 @@
           lightRow.className = 'light-row';
           lightRow.innerHTML = `
             <span class="light-name">${light.name}</span>
+            <span class="light-meta">${getPresetMeta(currentFilter)}</span>
             <span class="filter-pill ${getPillClass(currentFilter)}">${currentFilter}</span>
           `;
-          lightRow.onclick = (e) => {
-            e.stopPropagation();
+          lightRow.onclick = () => {
             saveLightFilter(area.id, light.entity_id, selectedPaint);
             if (!area.light_filters) area.light_filters = {};
             if (selectedPaint === 'Standard') {
@@ -460,6 +491,7 @@
             const pill = lightRow.querySelector('.filter-pill');
             pill.textContent = selectedPaint;
             pill.className = 'filter-pill ' + getPillClass(selectedPaint);
+            lightRow.querySelector('.light-meta').innerHTML = getPresetMeta(selectedPaint);
           };
           lightsContainer.appendChild(lightRow);
         }
@@ -565,13 +597,6 @@
       el.classList.add('visible');
       setTimeout(() => el.classList.remove('visible'), 2000);
     }
-
-    // ---- Event delegation for sort links ----
-    document.getElementById('sort-links').addEventListener('click', (e) => {
-      if (e.target.classList.contains('view-link') && !e.target.classList.contains('active')) {
-        setSort(e.target.dataset.sort);
-      }
-    });
 
     // ---- Init ----
     document.addEventListener('DOMContentLoaded', loadFiltersData);
