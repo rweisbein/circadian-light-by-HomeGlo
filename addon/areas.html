@@ -2573,6 +2573,10 @@
         track.addEventListener('pointercancel', (e) => {
           track.classList.remove('dragging');
         });
+        // Prevent click from bubbling to row's onclick (which opens detail page)
+        track.addEventListener('click', (e) => {
+          e.stopPropagation();
+        });
       });
     }
 
