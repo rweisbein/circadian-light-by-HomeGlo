@@ -2422,7 +2422,8 @@
       const n = 6;
       for (let i = 0; i <= n; i++) {
         const frac = i / n;
-        const b = bMin + (bMax - bMin) * frac;
+        // Darken to ~55% of actual brightness so track contrasts with row
+        const b = (bMin + (bMax - bMin) * frac) * 0.55;
         const k = cMin + (cMax - cMin) * frac;
         const color = tintColorByBrightness(cctToRGB(k), b);
         stops.push(color + ' ' + Math.round(frac * 100) + '%');
