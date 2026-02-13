@@ -440,7 +440,8 @@
       position: relative;
       cursor: pointer;
       touch-action: none;
-      margin: 2px 0;
+      padding: 12px 0;
+      background-clip: content-box;
     }
 
     .row-slider-fill {
@@ -2573,16 +2574,20 @@
                 const zs = await zsRes.json();
                 zoneStates = zs.zone_states || {};
               }
+              sliderDragging = false;
               renderAreas();
             } catch (err) {
+              sliderDragging = false;
               console.error('Error refreshing after row action:', err);
             }
           }, 500);
         } else {
+          sliderDragging = false;
           const error = await response.json();
           console.error('Row action failed:', error);
         }
       } catch (err) {
+        sliderDragging = false;
         console.error('Error executing row action:', err);
       }
     }
@@ -2636,11 +2641,13 @@
         track.addEventListener('pointerup', (e) => {
           if (!track.hasPointerCapture(e.pointerId)) return;
           e.stopPropagation();
-          sliderDragging = false;
+          // sliderDragging stays true — cleared by rowAction's refresh callback
+          // so periodic refreshes don't snap the slider back to stale data
           track.classList.remove('dragging');
           const pct = getSliderPctFromPointer(track, e);
           const areaId = track.dataset.areaId;
           if (areaId) rowAction(areaId, 'set_position', Math.round(pct), 'step');
+          else sliderDragging = false; // no action to clear it, clear now
         });
         track.addEventListener('pointercancel', (e) => {
           sliderDragging = false;
