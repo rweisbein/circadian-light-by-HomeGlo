@@ -451,9 +451,9 @@
       position: absolute;
       top: 50%;
       transform: translate(-50%, -50%);
-      width: 28px;
-      height: 14px;
-      border-radius: 7px;
+      width: 30px;
+      height: 16px;
+      border-radius: 8px 8px 5px 5px;
       background: rgba(255,255,255,0.9);
       box-shadow: 0 1px 4px rgba(0,0,0,0.4);
       pointer-events: none;
@@ -1502,6 +1502,40 @@
       zoneAction(zoneName, 'glozone_reset');
     }
 
+    async function confirmZonePowerOff(zoneName) {
+      const onAreas = areas.filter(a => {
+        const s = areaStatus[a.area_id] || {};
+        return s.zone_name === zoneName && s.is_on;
+      });
+      if (onAreas.length === 0) return;
+      const areaList = onAreas.map(a => a.name).join('\n');
+      const msg = `Turn off lights in these areas?\n\n${areaList}`;
+      if (!confirm(msg)) return;
+      for (const area of onAreas) {
+        await fetch('./api/area/action', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ area_id: area.area_id, action: 'lights_off' })
+        });
+      }
+      setTimeout(async () => {
+        try {
+          const [statusRes, zsRes] = await Promise.all([
+            fetch('./api/area-status'),
+            fetch('./api/zone-states')
+          ]);
+          if (statusRes.ok) areaStatus = await statusRes.json();
+          if (zsRes.ok) {
+            const zs = await zsRes.json();
+            zoneStates = zs.zone_states || {};
+          }
+          renderAreas();
+        } catch (err) {
+          console.error('Error refreshing after zone power off:', err);
+        }
+      }, 500);
+    }
+
     function glozoneDown(zoneName) {
       const zs = zoneStates[zoneName] || {};
       const bri = Math.round(zs.brightness ?? 0);
@@ -2049,6 +2083,9 @@
       // Chevron icon
       const chevronIcon = `<svg class="zone-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>`;
 
+      // Power icon (shared for zone header)
+      const powerIconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0M12 2v10"/></svg>`;
+
       // GloZone Reset icon: rewind arrow
       const glozoneResetIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>`;
 
@@ -2175,16 +2212,24 @@
           }
         }
 
+        // Power button: only show if one or more areas in zone have lights on
+        const zoneOnAreas = sorted.filter(a => a.is_on);
+        const zonePowerBtn = zoneOnAreas.length > 0
+          ? `<div class="row-controls-left"><button class="row-btn active" onclick="event.stopPropagation(); confirmZonePowerOff('${escapedZoneName}')" title="Turn off all in '${zoneName}'">${powerIconSvg}</button></div>`
+          : '';
+
         return `
           <div class="zone-group">
             <div class="zone-header ${isCollapsed ? 'collapsed' : ''} ${allOff ? 'no-tint' : ''}" data-zone="${zoneName}" style="${zoneHeaderStyle}" onclick="openZoneModal('${escapedZoneName}')">
               <span class="zone-chevron-tap" onclick="event.stopPropagation(); toggleZone('${escapedZoneName}', this)">${chevronIcon}</span>
-              <span style="font-size: 0.65rem; opacity: 0.5;">Glo Zone</span>
-              <span class="zone-name" style="font-size: 1.05rem;">${zoneName}</span>
+              ${zonePowerBtn}
+              <span style="font-size: 0.65rem; opacity: 0.5; color: ${zoneTextColor};">Glo Zone</span>
+              <span class="zone-name" style="font-size: 1.05rem; color: ${zoneTextColor};">${zoneName}</span>
               ${zoneFrozenIndicator}
               ${zoneMismatchDot}
               <span style="flex: 1;"></span>
               <div class="row-controls">
+                <button class="row-btn" onclick="event.stopPropagation(); glozoneReset('${escapedZoneName}')" title="Reset GloZone">${glozoneResetIcon}</button>
                 <button class="row-btn" onclick="event.stopPropagation(); glozoneDown('${escapedZoneName}')" title="GloZone Down: send to all areas">${glozoneDownIcon}</button>
               </div>
             </div>
@@ -2428,16 +2473,29 @@
         </div>
       `;
 
-      // Full Send icon (up chevron + line + down chevron)
-      const fullSendSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="5 8 12 2 19 8"/>
-        <line x1="4" y1="12" x2="20" y2="12"/>
-        <polyline points="5 16 12 22 19 16"/>
+      // GloUp icon (chevron up + line on bottom)
+      const gloUpSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="5 13 12 6 19 13"/>
+        <line x1="4" y1="19" x2="20" y2="19"/>
+      </svg>`;
+
+      // GloDown icon (line on top + chevron down)
+      const gloDownSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="4" y1="5" x2="20" y2="5"/>
+        <polyline points="5 11 12 18 19 11"/>
+      </svg>`;
+
+      // Reset icon (rewind arrow)
+      const resetSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="1 4 1 10 7 10"/>
+        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
       </svg>`;
 
       const rightControls = `
         <div class="row-controls">
-          <button class="row-btn" onclick="event.stopPropagation(); rowFullSend('${area.area_id}')" title="Full Send --> to all areas in '${area.zone_name || 'Glo Zone'}'">${fullSendSvg}</button>
+          <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'glo_up')" title="GloUp: send to '${area.zone_name || 'Glo Zone'}'">${gloUpSvg}</button>
+          <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'glo_down')" title="GloDown: pull from '${area.zone_name || 'Glo Zone'}'">${gloDownSvg}</button>
+          <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'glozone_reset')" title="Reset GloZone">${resetSvg}</button>
         </div>
       `;
 
