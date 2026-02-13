@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Circadian Light - Tuning</title>
+  <title>Circadian Light - Tune</title>
   <style>
     :root {
       --bg: #000;
@@ -48,27 +48,12 @@
 
     /* Main Content */
     .main { max-width: 900px; margin: 0 auto; padding: 24px; }
-    .page-header { margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
-    .page-title { font-size: 1.5rem; font-weight: 600; }
 
-    /* Mode toggle */
-    .mode-toggle { display: flex; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
-    .mode-btn { padding: 8px 16px; font-size: 0.9rem; color: var(--muted); background: none; border: none; cursor: pointer; transition: all 0.2s; }
-    .mode-btn:hover { color: var(--text); }
-    .mode-btn.active { color: var(--accent); background: rgba(254,172,96,0.12); }
-
-    /* View links (home-page style sort) */
-    .view-links { display: flex; align-items: center; gap: 6px; font-size: 0.7rem; margin-bottom: 12px; }
-    .view-link { color: var(--muted); background: none; border: none; cursor: pointer; font-size: 0.7rem; text-decoration: none; padding: 0; }
-    .view-link:hover { color: var(--text); }
-    .view-link.active { color: var(--accent); }
-    .view-sep { color: var(--muted2); }
-
-    /* Zone filter dropdown */
-    .zone-filter { margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
-    .zone-filter label { font-size: 0.8rem; color: var(--muted2); }
-    .zone-select { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; font-size: 0.85rem; cursor: pointer; appearance: auto; }
-    .zone-select:focus { outline: 1px solid var(--accent); border-color: var(--accent); }
+    /* Filter row */
+    .filter-row { margin-bottom: 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .filter-row label { font-size: 0.8rem; color: var(--muted2); }
+    .filter-select { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; font-size: 0.85rem; cursor: pointer; appearance: auto; }
+    .filter-select:focus { outline: 1px solid var(--accent); border-color: var(--accent); }
 
     /* Paint toolbar */
     .paint-toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; align-items: center; }
@@ -78,43 +63,40 @@
     .suggest-btn { padding: 6px 14px; border-radius: 20px; border: 1px solid var(--line); background: none; color: var(--muted); font-size: 0.85rem; cursor: pointer; margin-left: auto; }
     .suggest-btn:hover { color: var(--text); border-color: var(--muted); }
 
-    /* Zone/Area grouping */
-    .zone-group { margin-bottom: 20px; }
-    .zone-header { font-size: 0.75rem; font-weight: 600; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 0 4px; cursor: pointer; display: flex; align-items: center; gap: 6px; }
-    .zone-header .arrow { transition: transform 0.2s; font-size: 0.65rem; }
-    .zone-header.collapsed .arrow { transform: rotate(-90deg); }
-    .zone-content { overflow: hidden; }
-    .zone-content.collapsed { display: none; }
+    /* View links (sort) */
+    .view-links { display: flex; align-items: center; gap: 6px; font-size: 0.7rem; margin-bottom: 12px; }
+    .view-link { color: var(--muted); background: none; border: none; cursor: pointer; font-size: 0.7rem; text-decoration: none; padding: 0; }
+    .view-link:hover { color: var(--text); }
+    .view-link.active { color: var(--accent); }
+    .view-sep { color: var(--muted2); }
 
-    .area-group { background: var(--card); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 8px; overflow: hidden; }
-    .area-header { padding: 12px 16px; font-size: 0.9rem; font-weight: 500; display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
-    .area-header:hover { background: rgba(255,255,255,0.02); }
-    .area-header .area-arrow { font-size: 0.6rem; color: var(--muted2); transition: transform 0.2s; margin-right: 8px; }
-    .area-header.collapsed .area-arrow { transform: rotate(-90deg); }
+    /* Area card */
+    .area-card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 8px; overflow: hidden; }
+    .area-card-header { padding: 10px 16px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+    .area-card-header:hover { background: rgba(255,255,255,0.02); }
+    .area-arrow { font-size: 0.6rem; color: var(--muted2); transition: transform 0.2s; flex-shrink: 0; }
+    .area-card-header.collapsed .area-arrow { transform: rotate(-90deg); }
+    .area-name { font-size: 0.9rem; font-weight: 500; white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+    .area-sliders { display: flex; align-items: center; gap: 14px; margin-left: auto; flex-shrink: 0; }
+    .slider-group { display: flex; align-items: center; gap: 6px; }
+    .slider-label { font-size: 0.7rem; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.3px; }
+    .brightness-slider { width: 100px; accent-color: var(--accent); }
+    .sun-slider { width: 80px; accent-color: #fbbf24; }
+    .slider-val { min-width: 36px; text-align: right; font-size: 0.82rem; font-variant-numeric: tabular-nums; }
+    .slider-val.below-1 { color: #60a5fa; }
+    .slider-val.above-1 { color: var(--accent); }
+    .slider-val.sun-active { color: #fbbf24; }
+
+    /* Light list inside area card */
     .area-lights { padding: 0 16px 8px; }
     .area-lights.collapsed { display: none; }
-
-    /* Light row (filter mode) */
     .light-row { display: flex; align-items: center; padding: 8px 0; gap: 12px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.04); }
     .light-row:last-child { border-bottom: none; }
     .light-row:hover { opacity: 0.85; }
     .light-name { flex: 1; font-size: 0.88rem; color: var(--muted); }
     .filter-pill { padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 500; }
-
-    /* Area tuning table */
-    .tuning-table { width: 100%; border-collapse: collapse; }
-    .tuning-table th { font-size: 0.7rem; font-weight: 500; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.3px; padding: 0 8px 6px; text-align: left; }
-    .tuning-table th:first-child { padding-left: 16px; }
-    .tuning-table th.slider-col { text-align: center; }
-    .tuning-table td { padding: 8px; vertical-align: middle; }
-    .tuning-table td:first-child { padding-left: 16px; font-size: 0.9rem; width: 35%; }
-    .tuning-table .slider-cell { display: flex; align-items: center; gap: 8px; }
-    .brightness-slider { flex: 1; accent-color: var(--accent); }
-    .exposure-slider { flex: 1; accent-color: #fbbf24; }
-    .brightness-value { min-width: 40px; text-align: right; font-size: 0.85rem; font-variant-numeric: tabular-nums; }
-    .slider-cell.below-1 .brightness-value { color: #60a5fa; }
-    .slider-cell.above-1 .brightness-value { color: var(--accent); }
-    .exposure-value { min-width: 40px; text-align: right; font-size: 0.85rem; font-variant-numeric: tabular-nums; color: #fbbf24; }
+    .pill-Standard { background: var(--panel); color: var(--muted); border: 1px solid var(--line); }
+    .pill-assigned { background: rgba(255,255,255,0.06); color: var(--text); border: 1px solid var(--line); }
 
     /* Suggestion overlay */
     .suggest-results { background: var(--card); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 16px; overflow: hidden; }
@@ -132,11 +114,14 @@
     .save-status { position: fixed; bottom: 24px; right: 24px; padding: 12px 20px; background: var(--success); color: white; border-radius: 8px; font-size: 0.9rem; opacity: 0; transform: translateY(10px); transition: all 0.3s; z-index: 50; }
     .save-status.visible { opacity: 1; transform: translateY(0); }
 
-    /* Filter pill colors — subtle uniform style */
-    .pill-Standard { background: var(--panel); color: var(--muted); border: 1px solid var(--line); }
-    .pill-assigned { background: rgba(255,255,255,0.06); color: var(--text); border: 1px solid var(--line); }
-
     .empty-state { padding: 40px 20px; text-align: center; color: var(--muted2); font-size: 0.9rem; }
+
+    @media (max-width: 600px) {
+      .area-sliders { gap: 8px; }
+      .brightness-slider { width: 70px; }
+      .sun-slider { width: 60px; }
+      .slider-label { display: none; }
+    }
   </style>
 </head>
 <body>
@@ -158,7 +143,7 @@
       <a href="./switches" class="nav-link">Control</a>
       <a href="./rhythm" class="nav-link">Rhythm</a>
       <a href="./moments" class="nav-link">Magic</a>
-      <a href="./tuning" class="nav-link active">Tuning</a>
+      <a href="./tuning" class="nav-link active">Tune</a>
       <a href="./settings" class="nav-link">Settings</a>
     </div>
     <button class="nav-more" aria-label="More pages">&middot;&middot;&middot;</button>
@@ -167,40 +152,28 @@
 
   <!-- Main Content -->
   <main class="main">
-    <div class="page-header">
-      <h1 class="page-title">Tuning</h1>
-      <div class="mode-toggle">
-        <button class="mode-btn active" data-mode="brightness" onclick="setMode('brightness')">Area</button>
-        <button class="mode-btn" data-mode="individual" onclick="setMode('individual')">Individual Light</button>
-      </div>
+    <!-- Filters row -->
+    <div class="filter-row" id="filter-row"></div>
+
+    <!-- Paint toolbar -->
+    <div class="paint-toolbar" id="paint-toolbar"></div>
+
+    <!-- Sort links -->
+    <div class="view-links" id="sort-links">
+      <button class="view-link active" data-sort="custom">your order</button>
+      <span class="view-sep">&middot;</span>
+      <button class="view-link" data-sort="az">a&ndash;z</button>
+      <span class="view-sep">&middot;</span>
+      <button class="view-link" data-sort="light">intensity &ndash; light</button>
+      <span class="view-sep">&middot;</span>
+      <button class="view-link" data-sort="sun">intensity &ndash; sun</button>
     </div>
 
-    <!-- Area Mode -->
-    <div id="brightness-mode">
-      <div class="view-links">
-        <button class="view-link active" data-sort="custom">your order</button>
-        <span class="view-sep">&middot;</span>
-        <button class="view-link" data-sort="az">a&ndash;z</button>
-        <span class="view-sep">&middot;</span>
-        <button class="view-link" data-sort="light">intensity &ndash; light</button>
-        <span class="view-sep">&middot;</span>
-        <button class="view-link" data-sort="sun">intensity &ndash; sun</button>
-      </div>
-      <div id="brightness-content"></div>
-    </div>
+    <!-- Suggest container -->
+    <div id="suggest-container"></div>
 
-    <!-- Individual Light Mode -->
-    <div id="individual-mode" style="display:none;">
-      <div id="zone-filter" class="zone-filter"></div>
-      <div class="paint-toolbar" id="paint-toolbar"></div>
-      <div class="view-links" id="individual-sort-links">
-        <button class="view-link active" data-sort="custom">your order</button>
-        <span class="view-sep">&middot;</span>
-        <button class="view-link" data-sort="az">a&ndash;z</button>
-      </div>
-      <div id="suggest-container"></div>
-      <div id="individual-content"></div>
-    </div>
+    <!-- Area cards -->
+    <div id="unified-content"></div>
 
     <div class="save-status" id="save-status">Saved</div>
   </main>
@@ -208,11 +181,10 @@
   <script src="./shared.js"></script>
   <script>
     let filtersData = null;
-    let currentMode = 'brightness';
-    let briSort = 'custom';
-    let indSort = 'custom';
+    let sortOrder = 'custom';
     let selectedPaint = 'Standard';
     let selectedZone = 'All';
+    let selectedAreaFilter = 'All';
     let expandedAreas = {};
     let debounceTimers = {};
 
@@ -229,162 +201,104 @@
       }
     }
 
-    // ---- Mode switching ----
-    function setMode(mode) {
-      currentMode = mode;
-      document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
-      document.getElementById('brightness-mode').style.display = mode === 'brightness' ? '' : 'none';
-      document.getElementById('individual-mode').style.display = mode === 'individual' ? '' : 'none';
-    }
-
-    function setBriSort(sort) {
-      briSort = sort;
-      document.querySelectorAll('#brightness-mode .view-link').forEach(b => b.classList.toggle('active', b.dataset.sort === sort));
-      renderBrightness();
-    }
-
-    function setIndSort(sort) {
-      indSort = sort;
-      document.querySelectorAll('#individual-sort-links .view-link').forEach(b => b.classList.toggle('active', b.dataset.sort === sort));
-      renderIndividual();
+    // ---- Sorting ----
+    function setSort(sort) {
+      sortOrder = sort;
+      document.querySelectorAll('#sort-links .view-link').forEach(b => b.classList.toggle('active', b.dataset.sort === sort));
+      renderUnified();
     }
 
     // ---- Rendering ----
     function render() {
       if (!filtersData) return;
-      renderBrightness();
-      renderZoneFilter();
+      renderFilters();
       renderPaintToolbar();
-      renderIndividual();
+      renderUnified();
     }
 
     function getPillClass(filterName) {
       return filterName === 'Standard' ? 'pill-Standard' : 'pill-assigned';
     }
 
-    // ---- Area section ----
-    function renderBrightness() {
+    // ---- Filters row (GloZone + Area) ----
+    function renderFilters() {
       if (!filtersData) return;
-      const container = document.getElementById('brightness-content');
+      const container = document.getElementById('filter-row');
       container.innerHTML = '';
 
-      // Always group by zone; sort areas within each zone
-      for (const [zoneName, zone] of Object.entries(filtersData.zones)) {
-        if (zone.areas.length === 0) continue;
-
-        const sortedAreas = [...zone.areas];
-        if (briSort === 'az') {
-          sortedAreas.sort((a, b) => a.name.localeCompare(b.name));
-        } else if (briSort === 'light') {
-          sortedAreas.sort((a, b) => (a.brightness_factor ?? 1.0) - (b.brightness_factor ?? 1.0));
-        } else if (briSort === 'sun') {
-          sortedAreas.sort((a, b) => (a.natural_light_exposure ?? 0.0) - (b.natural_light_exposure ?? 0.0));
-        }
-        // 'custom' uses natural order
-
-        const zoneEl = createZoneGroup(zoneName);
-        const content = zoneEl.querySelector('.zone-content');
-
-        const table = document.createElement('table');
-        table.className = 'tuning-table';
-        table.innerHTML = `<thead><tr>
-          <th>Area</th>
-          <th class="slider-col">Light</th>
-          <th class="slider-col">Sun</th>
-        </tr></thead>`;
-        const tbody = document.createElement('tbody');
-        for (const area of sortedAreas) {
-          tbody.appendChild(createBrightnessRow(area));
-        }
-        table.appendChild(tbody);
-        content.appendChild(table);
-        container.appendChild(zoneEl);
-      }
-
-      // Check if empty
-      let totalAreas = 0;
-      for (const zone of Object.values(filtersData.zones)) totalAreas += zone.areas.length;
-      if (totalAreas === 0) {
-        container.innerHTML = '<div class="empty-state">No areas configured. Add areas in the Home page first.</div>';
-      }
-    }
-
-    function createBrightnessRow(area) {
-      const factor = area.brightness_factor ?? 1.0;
-      const exposure = area.natural_light_exposure ?? 0.0;
-      const row = document.createElement('tr');
-      row.innerHTML = `
-        <td>${area.name}</td>
-        <td>
-          <div class="slider-cell ${factor < 1 ? 'below-1' : factor > 1 ? 'above-1' : ''}">
-            <input type="range" class="brightness-slider" min="50" max="150" step="5" value="${Math.round(factor * 100)}" data-area="${area.id}">
-            <span class="brightness-value">${factor.toFixed(2)}</span>
-          </div>
-        </td>
-        <td>
-          <div class="slider-cell">
-            <input type="range" class="exposure-slider" min="0" max="100" step="5" value="${Math.round(exposure * 100)}" data-area="${area.id}">
-            <span class="exposure-value">${exposure > 0 ? exposure.toFixed(2) : 'off'}</span>
-          </div>
-        </td>
-      `;
-      const briSlider = row.querySelector('.brightness-slider');
-      const briValue = row.querySelector('.brightness-value');
-      const briCell = briSlider.closest('.slider-cell');
-      briSlider.addEventListener('input', () => {
-        const val = parseInt(briSlider.value) / 100;
-        briValue.textContent = val.toFixed(2);
-        briCell.className = 'slider-cell' + (val < 1 ? ' below-1' : val > 1 ? ' above-1' : '');
-      });
-      briSlider.addEventListener('change', () => {
-        const val = parseInt(briSlider.value) / 100;
-        saveAreaBrightness(area.id, { brightness_factor: val });
-      });
-
-      const expSlider = row.querySelector('.exposure-slider');
-      const expValue = row.querySelector('.exposure-value');
-      expSlider.addEventListener('input', () => {
-        const val = parseInt(expSlider.value) / 100;
-        expValue.textContent = val > 0 ? val.toFixed(2) : 'off';
-      });
-      expSlider.addEventListener('change', () => {
-        const val = parseInt(expSlider.value) / 100;
-        saveAreaBrightness(area.id, { natural_light_exposure: val });
-      });
-      return row;
-    }
-
-    // ---- Zone filter dropdown ----
-    function renderZoneFilter() {
-      if (!filtersData) return;
-      const container = document.getElementById('zone-filter');
-      container.innerHTML = '';
       const zoneNames = Object.keys(filtersData.zones);
-      if (zoneNames.length <= 1) return; // no dropdown needed for single zone
 
-      const label = document.createElement('label');
-      label.textContent = 'Zone';
-      container.appendChild(label);
+      // GloZone dropdown (only if multiple zones)
+      if (zoneNames.length > 1) {
+        const zLabel = document.createElement('label');
+        zLabel.textContent = 'GloZone';
+        container.appendChild(zLabel);
 
-      const select = document.createElement('select');
-      select.className = 'zone-select';
-      const allOpt = document.createElement('option');
-      allOpt.value = 'All';
-      allOpt.textContent = 'All zones';
-      select.appendChild(allOpt);
-      for (const name of zoneNames) {
-        const opt = document.createElement('option');
-        opt.value = name;
-        opt.textContent = name;
-        if (selectedZone === name) opt.selected = true;
-        select.appendChild(opt);
+        const zSelect = document.createElement('select');
+        zSelect.className = 'filter-select';
+        const allOpt = document.createElement('option');
+        allOpt.value = 'All';
+        allOpt.textContent = 'All zones';
+        zSelect.appendChild(allOpt);
+        for (const name of zoneNames) {
+          const opt = document.createElement('option');
+          opt.value = name;
+          opt.textContent = name;
+          if (selectedZone === name) opt.selected = true;
+          zSelect.appendChild(opt);
+        }
+        zSelect.value = selectedZone;
+        zSelect.onchange = () => {
+          selectedZone = zSelect.value;
+          selectedAreaFilter = 'All';
+          renderFilters();
+          renderUnified();
+        };
+        container.appendChild(zSelect);
       }
-      select.value = selectedZone;
-      select.onchange = () => { selectedZone = select.value; renderIndividual(); };
-      container.appendChild(select);
+
+      // Area dropdown
+      const allAreas = getAllAreas();
+      if (allAreas.length > 1) {
+        const aLabel = document.createElement('label');
+        aLabel.textContent = 'Area';
+        container.appendChild(aLabel);
+
+        const aSelect = document.createElement('select');
+        aSelect.className = 'filter-select';
+        const aAllOpt = document.createElement('option');
+        aAllOpt.value = 'All';
+        aAllOpt.textContent = 'All areas';
+        aSelect.appendChild(aAllOpt);
+        for (const area of allAreas.sort((a, b) => a.name.localeCompare(b.name))) {
+          const opt = document.createElement('option');
+          opt.value = area.id;
+          opt.textContent = area.name;
+          if (selectedAreaFilter === area.id) opt.selected = true;
+          aSelect.appendChild(opt);
+        }
+        aSelect.value = selectedAreaFilter;
+        aSelect.onchange = () => {
+          selectedAreaFilter = aSelect.value;
+          renderUnified();
+        };
+        container.appendChild(aSelect);
+      }
     }
 
-    // ---- Individual Light section ----
+    function getAllAreas() {
+      if (!filtersData) return [];
+      const areas = [];
+      for (const [zoneName, zone] of Object.entries(filtersData.zones)) {
+        if (selectedZone !== 'All' && selectedZone !== zoneName) continue;
+        for (const area of zone.areas) {
+          areas.push(area);
+        }
+      }
+      return areas;
+    }
+
+    // ---- Paint toolbar ----
     function renderPaintToolbar() {
       if (!filtersData) return;
       const toolbar = document.getElementById('paint-toolbar');
@@ -408,101 +322,152 @@
       toolbar.appendChild(suggestBtn);
     }
 
-    function renderIndividual() {
+    // ---- Unified rendering ----
+    function renderUnified() {
       if (!filtersData) return;
-      const container = document.getElementById('individual-content');
+      const container = document.getElementById('unified-content');
       container.innerHTML = '';
 
+      // Collect all visible areas (flat, no zone wrappers)
+      let areas = [];
       for (const [zoneName, zone] of Object.entries(filtersData.zones)) {
-        if (zone.areas.length === 0) continue;
         if (selectedZone !== 'All' && selectedZone !== zoneName) continue;
-
-        const sortedAreas = [...zone.areas];
-        if (indSort === 'az') {
-          sortedAreas.sort((a, b) => a.name.localeCompare(b.name));
+        for (const area of zone.areas) {
+          if (selectedAreaFilter !== 'All' && selectedAreaFilter !== area.id) continue;
+          areas.push(area);
         }
+      }
 
-        const zoneEl = createZoneGroup(zoneName);
-        const content = zoneEl.querySelector('.zone-content');
+      // Sort
+      if (sortOrder === 'az') {
+        areas.sort((a, b) => a.name.localeCompare(b.name));
+      } else if (sortOrder === 'light') {
+        areas.sort((a, b) => (a.brightness_factor ?? 1.0) - (b.brightness_factor ?? 1.0));
+      } else if (sortOrder === 'sun') {
+        // Sort by inverted display value (low display = high exposure = left)
+        areas.sort((a, b) => (b.natural_light_exposure ?? 0.0) - (a.natural_light_exposure ?? 0.0));
+      }
 
-        for (const area of sortedAreas) {
-          const areaEl = document.createElement('div');
-          areaEl.className = 'area-group';
-          const lights = (filtersData.area_lights || {})[area.id] || [];
-          const filterCount = Object.keys(area.light_filters || {}).length;
-          const isExpanded = expandedAreas[area.id] === true;
+      if (areas.length === 0) {
+        container.innerHTML = '<div class="empty-state">No areas configured. Add areas in the Home page first.</div>';
+        return;
+      }
 
-          areaEl.innerHTML = `
-            <div class="area-header${isExpanded ? '' : ' collapsed'}">
-              <span><span class="area-arrow">${isExpanded ? '&#9660;' : '&#9654;'}</span>${area.name}</span>
-              <span style="font-size:0.8rem;color:var(--muted2)">${lights.length} lights${filterCount ? `, ${filterCount} filtered` : ''}</span>
-            </div>
-            <div class="area-lights${isExpanded ? '' : ' collapsed'}"></div>
-          `;
-
-          const header = areaEl.querySelector('.area-header');
-          const lightsContainer = areaEl.querySelector('.area-lights');
-          const arrowEl = areaEl.querySelector('.area-arrow');
-
-          header.onclick = () => {
-            const nowExpanded = lightsContainer.classList.toggle('collapsed');
-            header.classList.toggle('collapsed');
-            expandedAreas[area.id] = !nowExpanded;
-            arrowEl.innerHTML = nowExpanded ? '&#9654;' : '&#9660;';
-          };
-
-          if (lights.length === 0) {
-            lightsContainer.innerHTML = '<div style="padding:8px 0;color:var(--muted2);font-size:0.85rem;">No lights found</div>';
-          } else {
-            for (const light of lights) {
-              const currentFilter = (area.light_filters || {})[light.entity_id] || 'Standard';
-              const lightRow = document.createElement('div');
-              lightRow.className = 'light-row';
-              lightRow.innerHTML = `
-                <span class="light-name">${light.name}</span>
-                <span class="filter-pill ${getPillClass(currentFilter)}">${currentFilter}</span>
-              `;
-              lightRow.onclick = (e) => {
-                e.stopPropagation();
-                saveLightFilter(area.id, light.entity_id, selectedPaint);
-                if (!area.light_filters) area.light_filters = {};
-                if (selectedPaint === 'Standard') {
-                  delete area.light_filters[light.entity_id];
-                } else {
-                  area.light_filters[light.entity_id] = selectedPaint;
-                }
-                const pill = lightRow.querySelector('.filter-pill');
-                pill.textContent = selectedPaint;
-                pill.className = 'filter-pill ' + getPillClass(selectedPaint);
-                const count = Object.keys(area.light_filters || {}).length;
-                const headerSpan = areaEl.querySelector('.area-header span:last-child');
-                headerSpan.textContent = `${lights.length} lights${count ? `, ${count} filtered` : ''}`;
-              };
-              lightsContainer.appendChild(lightRow);
-            }
-          }
-
-          content.appendChild(areaEl);
-        }
-        container.appendChild(zoneEl);
+      for (const area of areas) {
+        container.appendChild(createAreaCard(area));
       }
     }
 
-    // ---- Zone group helper ----
-    function createZoneGroup(zoneName) {
-      const el = document.createElement('div');
-      el.className = 'zone-group';
-      el.innerHTML = `
-        <div class="zone-header"><span class="arrow">&#9660;</span> ${zoneName}</div>
-        <div class="zone-content"></div>
+    function createAreaCard(area) {
+      const card = document.createElement('div');
+      card.className = 'area-card';
+
+      const factor = area.brightness_factor ?? 1.0;
+      const exposure = area.natural_light_exposure ?? 0.0;
+      const sunDisplay = Math.round((1.0 - exposure) * 100);
+      const isExpanded = expandedAreas[area.id] === true;
+      const lights = (filtersData.area_lights || {})[area.id] || [];
+
+      // Header
+      const header = document.createElement('div');
+      header.className = 'area-card-header' + (isExpanded ? '' : ' collapsed');
+      header.innerHTML = `
+        <span class="area-arrow">${isExpanded ? '&#9660;' : '&#9654;'}</span>
+        <span class="area-name">${area.name}</span>
+        <div class="area-sliders">
+          <div class="slider-group">
+            <span class="slider-label">Light</span>
+            <input type="range" class="brightness-slider" min="50" max="200" step="5" value="${Math.round(factor * 100)}">
+            <span class="slider-val ${factor < 1 ? 'below-1' : factor > 1 ? 'above-1' : ''}">${factor.toFixed(2)}</span>
+          </div>
+          <div class="slider-group">
+            <span class="slider-label">Sun</span>
+            <input type="range" class="sun-slider" min="0" max="100" step="5" value="${sunDisplay}">
+            <span class="slider-val ${sunDisplay < 100 ? 'sun-active' : ''}">${sunDisplay}%</span>
+          </div>
+        </div>
       `;
-      const header = el.querySelector('.zone-header');
-      const content = el.querySelector('.zone-content');
-      header.onclick = () => {
+
+      // Slider event handlers
+      const briSlider = header.querySelector('.brightness-slider');
+      const briVal = header.querySelector('.slider-val');
+      const briGroup = briSlider.closest('.slider-group');
+      briSlider.addEventListener('input', (e) => {
+        e.stopPropagation();
+        const val = parseInt(briSlider.value) / 100;
+        briVal.textContent = val.toFixed(2);
+        briVal.className = 'slider-val' + (val < 1 ? ' below-1' : val > 1 ? ' above-1' : '');
+      });
+      briSlider.addEventListener('change', (e) => {
+        e.stopPropagation();
+        const val = parseInt(briSlider.value) / 100;
+        saveAreaBrightness(area.id, { brightness_factor: val });
+      });
+      briSlider.addEventListener('mousedown', e => e.stopPropagation());
+      briSlider.addEventListener('touchstart', e => e.stopPropagation());
+
+      const sunSlider = header.querySelector('.sun-slider');
+      const sunVal = header.querySelectorAll('.slider-val')[1];
+      sunSlider.addEventListener('input', (e) => {
+        e.stopPropagation();
+        const display = parseInt(sunSlider.value);
+        sunVal.textContent = display + '%';
+        sunVal.className = 'slider-val' + (display < 100 ? ' sun-active' : '');
+      });
+      sunSlider.addEventListener('change', (e) => {
+        e.stopPropagation();
+        const display = parseInt(sunSlider.value);
+        const exp = 1.0 - (display / 100);
+        saveAreaBrightness(area.id, { natural_light_exposure: exp });
+      });
+      sunSlider.addEventListener('mousedown', e => e.stopPropagation());
+      sunSlider.addEventListener('touchstart', e => e.stopPropagation());
+
+      // Expand/collapse
+      const lightsContainer = document.createElement('div');
+      lightsContainer.className = 'area-lights' + (isExpanded ? '' : ' collapsed');
+
+      header.addEventListener('click', () => {
+        const nowCollapsed = !lightsContainer.classList.contains('collapsed');
+        lightsContainer.classList.toggle('collapsed');
         header.classList.toggle('collapsed');
-        content.classList.toggle('collapsed');
-      };
-      return el;
+        expandedAreas[area.id] = !nowCollapsed;
+        header.querySelector('.area-arrow').innerHTML = nowCollapsed ? '&#9654;' : '&#9660;';
+      });
+
+      // Lights list (sorted alphabetically)
+      const sortedLights = [...lights].sort((a, b) => a.name.localeCompare(b.name));
+      if (sortedLights.length === 0) {
+        lightsContainer.innerHTML = '<div style="padding:8px 0;color:var(--muted2);font-size:0.85rem;">No lights found</div>';
+      } else {
+        for (const light of sortedLights) {
+          const currentFilter = (area.light_filters || {})[light.entity_id] || 'Standard';
+          const lightRow = document.createElement('div');
+          lightRow.className = 'light-row';
+          lightRow.innerHTML = `
+            <span class="light-name">${light.name}</span>
+            <span class="filter-pill ${getPillClass(currentFilter)}">${currentFilter}</span>
+          `;
+          lightRow.onclick = (e) => {
+            e.stopPropagation();
+            saveLightFilter(area.id, light.entity_id, selectedPaint);
+            if (!area.light_filters) area.light_filters = {};
+            if (selectedPaint === 'Standard') {
+              delete area.light_filters[light.entity_id];
+            } else {
+              area.light_filters[light.entity_id] = selectedPaint;
+            }
+            const pill = lightRow.querySelector('.filter-pill');
+            pill.textContent = selectedPaint;
+            pill.className = 'filter-pill ' + getPillClass(selectedPaint);
+          };
+          lightsContainer.appendChild(lightRow);
+        }
+      }
+
+      card.appendChild(header);
+      card.appendChild(lightsContainer);
+      return card;
     }
 
     // ---- Suggestions ----
@@ -547,7 +512,7 @@
                 area.light_filters[s.entity_id] = s.suggested_filter;
               }
             }
-            renderIndividual();
+            renderUnified();
             if (el.querySelectorAll('.suggest-row').length === 0) el.remove();
           };
           row.querySelector('.suggest-reject').onclick = () => {
@@ -602,14 +567,9 @@
     }
 
     // ---- Event delegation for sort links ----
-    document.getElementById('brightness-mode').addEventListener('click', (e) => {
+    document.getElementById('sort-links').addEventListener('click', (e) => {
       if (e.target.classList.contains('view-link') && !e.target.classList.contains('active')) {
-        setBriSort(e.target.dataset.sort);
-      }
-    });
-    document.getElementById('individual-sort-links').addEventListener('click', (e) => {
-      if (e.target.classList.contains('view-link') && !e.target.classList.contains('active')) {
-        setIndSort(e.target.dataset.sort);
+        setSort(e.target.dataset.sort);
       }
     });
 

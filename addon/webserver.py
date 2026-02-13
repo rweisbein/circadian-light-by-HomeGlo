@@ -2561,7 +2561,7 @@ class LightDesignerServer:
         }
         """
         try:
-            from brain import SunTimes, calculate_sun_times
+            from brain import SunTimes, calculate_sun_times, calculate_natural_light_factor
 
             # Load config to get glozone mappings and rhythms
             config = await self.load_config()
@@ -2610,6 +2610,17 @@ class LightDesignerServer:
             except Exception as e:
                 logger.debug(f"[AreaStatus] Error calculating sun times: {e}")
 
+            # Compute sun elevation (once, same for all areas)
+            sun_elev = 0.0
+            try:
+                from astral.sun import elevation as sun_elevation_func
+                loc = LocationInfo(latitude=latitude, longitude=longitude)
+                sun_elev = sun_elevation_func(loc.observer, now)
+            except Exception as e:
+                logger.debug(f"[AreaStatus] Error computing sun elevation: {e}")
+
+            daylight_sat_deg = config.get('daylight_saturation_deg', 8)
+
             # Optional single-area filter
             filter_area_id = request.query.get('area_id')
 
@@ -2657,6 +2668,10 @@ class LightDesignerServer:
                     motion_expires_at = state.get_motion_expires(area_id)
                     motion_warning_active = state.is_motion_warned(area_id)
 
+                    # Natural light factor for this area
+                    area_nl_exposure = glozone.get_area_natural_light_exposure(area_id)
+                    nl_factor = calculate_natural_light_factor(area_nl_exposure, sun_elev, daylight_sat_deg)
+
                     area_status[area_id] = {
                         'is_circadian': area_state.is_circadian,
                         'is_on': area_state.is_on,
@@ -2682,6 +2697,10 @@ class LightDesignerServer:
                         'color_mid': area_state.color_mid,
                         'color_override': area_state.color_override,
                         'frozen_at': area_state.frozen_at,
+                        # Solar / natural light
+                        'sun_elevation': round(sun_elev, 1),
+                        'natural_light_exposure': area_nl_exposure,
+                        'nl_factor': round(nl_factor, 3),
                     }
 
             return web.json_response(area_status)

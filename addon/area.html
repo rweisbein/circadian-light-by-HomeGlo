@@ -2268,16 +2268,19 @@
       container.style.display = 'block';
 
       try {
-        const [filtersRes, configRes] = await Promise.all([
+        const areaId = selectedArea.area_id;
+        const [filtersRes, configRes, statusRes] = await Promise.all([
           fetch(basePath + '/api/light-filters'),
-          fetch(basePath + '/api/config')
+          fetch(basePath + '/api/config'),
+          fetch(basePath + '/api/area-status?area_id=' + encodeURIComponent(areaId))
         ]);
         if (!filtersRes.ok || !configRes.ok) { areaDiv.textContent = 'Failed to load data'; return; }
         const filtersData = await filtersRes.json();
         const config = await configRes.json();
+        const statusData = statusRes.ok ? await statusRes.json() : {};
 
-        const areaId = selectedArea.area_id;
         const status = areaStatus[areaId] || {};
+        const liveStatus = statusData[areaId] || {};
         const baseBri = status.brightness || 50;
         const kelvin = status.kelvin || 4000;
 
@@ -2289,7 +2292,11 @@
         }
 
         const areaFactor = areaInfo ? (areaInfo.brightness_factor || 1.0) : 1.0;
-        const naturalExposure = areaInfo ? (areaInfo.natural_light_exposure || 0) : 0;
+
+        // Solar data from live API
+        const sunElev = liveStatus.sun_elevation ?? 0;
+        const nlExposure = liveStatus.natural_light_exposure ?? 0;
+        const nlFactor = liveStatus.nl_factor ?? 1.0;
 
         // CT compensation factor
         const ctEnabled = config.ct_comp_enabled || false;
@@ -2302,19 +2309,19 @@
           else if (kelvin < ctEnd) ctFactor = 1.0 + ((ctEnd - kelvin) / (ctEnd - ctBegin)) * (ctMax - 1.0);
         }
 
-        // Get rhythm min/max for filter multiplier calc
-        const rhythmName = selectedArea.preset_name;
-        const rhythm = (rhythmName && cachedRhythms[rhythmName]) || {};
-        const minBri = rhythm.min_brightness || (cachedConfig && cachedConfig.min_brightness) || 1;
-        const maxBri = rhythm.max_brightness || (cachedConfig && cachedConfig.max_brightness) || 100;
+        // Total area factor
+        const totalFactor = areaFactor * nlFactor * ctFactor;
+        const effectiveBri = Math.min(100, Math.round(baseBri * totalFactor));
 
-        // Area-level summary
+        // Area-level summary — multiplication chain
         let html = '<table style="width:100%; border-collapse:collapse;">';
-        html += '<tr><td style="color:var(--muted);padding:2px 8px 2px 0;">Base brightness (curve)</td><td>' + baseBri + '%</td></tr>';
-        html += '<tr><td style="color:var(--muted);padding:2px 8px 2px 0;">Area intensity factor</td><td>' + areaFactor.toFixed(2) + '</td></tr>';
-        html += '<tr><td style="color:var(--muted);padding:2px 8px 2px 0;">Natural light exposure</td><td>' + naturalExposure.toFixed(2) + (naturalExposure > 0 ? ' (sun-dependent at runtime)' : '') + '</td></tr>';
-        html += '<tr><td style="color:var(--muted);padding:2px 8px 2px 0;">CT compensation</td><td>' + (ctEnabled ? ctFactor.toFixed(3) + ' @ ' + kelvin + 'K' : 'disabled') + '</td></tr>';
-        html += '<tr><td style="color:var(--muted);padding:2px 8px 2px 0;">Rhythm bounds</td><td>' + minBri + '% &ndash; ' + maxBri + '%</td></tr>';
+        html += '<tr><td style="color:var(--muted);padding:2px 8px 2px 0;">Base brightness (curve)</td><td style="text-align:right;">' + baseBri + '%</td></tr>';
+        html += '<tr><td style="color:var(--muted);padding:2px 8px 2px 0;">Area intensity</td><td style="text-align:right;">&times;' + areaFactor.toFixed(2) + '</td></tr>';
+        html += '<tr><td style="color:var(--muted);padding:2px 8px 2px 0;">Solar (' + (sunElev > 0 ? '&#9788; ' : '') + sunElev.toFixed(0) + '&deg;, exp ' + nlExposure.toFixed(2) + ')</td><td style="text-align:right;">&times;' + nlFactor.toFixed(2) + '</td></tr>';
+        html += '<tr><td style="color:var(--muted);padding:2px 8px 2px 0;">CT compensation (@ ' + kelvin + 'K)</td><td style="text-align:right;">' + (ctEnabled ? '&times;' + ctFactor.toFixed(2) : 'disabled') + '</td></tr>';
+        html += '<tr><td colspan="2" style="border-top:1px solid var(--line);padding:0;"></td></tr>';
+        html += '<tr><td style="color:var(--text);padding:2px 8px 2px 0;font-weight:500;">Total area factor</td><td style="text-align:right;font-weight:500;">&times;' + totalFactor.toFixed(2) + '</td></tr>';
+        html += '<tr><td style="color:var(--text);padding:2px 8px 2px 0;font-weight:500;">Effective brightness</td><td style="text-align:right;font-weight:500;">' + effectiveBri + '%</td></tr>';
         html += '</table>';
         areaDiv.innerHTML = html;
 
@@ -2328,6 +2335,12 @@
           return;
         }
 
+        // Get rhythm min/max for filter multiplier calc
+        const rhythmName = selectedArea.preset_name;
+        const rhythm = (rhythmName && cachedRhythms[rhythmName]) || {};
+        const minBri = rhythm.min_brightness || (cachedConfig && cachedConfig.min_brightness) || 1;
+        const maxBri = rhythm.max_brightness || (cachedConfig && cachedConfig.max_brightness) || 100;
+
         // Curve position for filter multiplier
         const briRange = maxBri - minBri;
         const curvePos = briRange > 0 ? Math.max(0, Math.min(1, (baseBri - minBri) / briRange)) : 0;
@@ -2336,9 +2349,8 @@
         lhtml += '<tr style="border-bottom:1px solid var(--line);">'
           + '<th style="text-align:left;padding:4px 8px 4px 0;color:var(--muted);font-weight:500;">Light</th>'
           + '<th style="text-align:left;padding:4px 8px;color:var(--muted);font-weight:500;">Preset</th>'
-          + '<th style="text-align:right;padding:4px 8px;color:var(--muted);font-weight:500;">Filter</th>'
-          + '<th style="text-align:right;padding:4px 8px;color:var(--muted);font-weight:500;">After area</th>'
-          + '<th style="text-align:right;padding:4px 0 4px 8px;color:var(--muted);font-weight:500;">Final+CT</th>'
+          + '<th style="text-align:right;padding:4px 8px;color:var(--muted);font-weight:500;">Filter %</th>'
+          + '<th style="text-align:right;padding:4px 0 4px 8px;color:var(--muted);font-weight:500;">Final</th>'
           + '</tr>';
 
         for (const light of areaLights) {
@@ -2347,18 +2359,16 @@
           const atDim = preset.at_dim ?? 100;
           const atBright = preset.at_bright ?? 100;
           const filterMult = (atDim + (atBright - atDim) * curvePos) / 100;
-          const afterArea = baseBri * areaFactor * filterMult;
+          const finalBri = baseBri * totalFactor * filterMult;
           const offThresh = preset.off_threshold ?? filtersData.off_threshold ?? 3;
-          const isOff = afterArea < offThresh;
-          const final = isOff ? 0 : Math.min(100, Math.round(afterArea));
-          const withCT = isOff ? 0 : Math.min(100, Math.round(final * ctFactor));
+          const isOff = finalBri < offThresh;
+          const finalVal = isOff ? 0 : Math.min(100, Math.round(finalBri));
 
           lhtml += '<tr style="border-bottom:1px solid rgba(51,65,81,0.3);">'
             + '<td style="padding:4px 8px 4px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px;" title="' + light.entity_id + '">' + light.name + '</td>'
             + '<td style="padding:4px 8px;color:' + (filterName === 'Standard' ? 'var(--muted)' : 'var(--accent)') + ';">' + filterName + '</td>'
             + '<td style="text-align:right;padding:4px 8px;">' + (filterMult * 100).toFixed(0) + '%</td>'
-            + '<td style="text-align:right;padding:4px 8px;">' + (isOff ? '<span style="color:var(--danger);">OFF</span>' : final + '%') + '</td>'
-            + '<td style="text-align:right;padding:4px 0 4px 8px;font-weight:600;">' + (isOff ? '<span style="color:var(--danger);">OFF</span>' : withCT + '%') + '</td>'
+            + '<td style="text-align:right;padding:4px 0 4px 8px;font-weight:600;">' + (isOff ? '<span style="color:var(--danger);">OFF</span>' : finalVal + '%') + '</td>'
             + '</tr>';
         }
         lhtml += '</table>';
