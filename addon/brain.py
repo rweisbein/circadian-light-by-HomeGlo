@@ -320,7 +320,8 @@ def apply_light_filter_pipeline(
 
     result = base_brightness * area_factor * multiplier
 
-    if result < off_threshold:
+    preset_threshold = filter_preset.get("off_threshold", off_threshold)
+    if result < preset_threshold:
         return (0, True)
 
     final = int(min(100, round(result)))

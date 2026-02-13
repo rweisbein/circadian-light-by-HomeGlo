@@ -341,3 +341,52 @@ class TestApplyLightFilterPipeline:
         bri, off = apply_light_filter_pipeline(10, 1, 100, 0.5, self.ACCENT, 3)
         assert bri == 0
         assert off is True
+
+    # --- Per-preset off_threshold ---
+
+    def test_preset_off_threshold_turns_off(self):
+        """Preset with off_threshold=10 turns off at brightness 9."""
+        preset = {"at_bright": 100, "at_dim": 100, "off_threshold": 10}
+        bri, off = apply_light_filter_pipeline(9, 1, 100, 1.0, preset, 3)
+        assert bri == 0
+        assert off is True
+
+    def test_preset_off_threshold_stays_on(self):
+        """Preset with off_threshold=10 stays on at brightness 10."""
+        preset = {"at_bright": 100, "at_dim": 100, "off_threshold": 10}
+        bri, off = apply_light_filter_pipeline(10, 1, 100, 1.0, preset, 3)
+        assert bri == 10
+        assert off is False
+
+    def test_preset_off_threshold_fallback_to_global(self):
+        """Preset without off_threshold key falls back to global value."""
+        preset = {"at_bright": 100, "at_dim": 100}
+        # Global threshold is 5; brightness 4 should be off
+        bri, off = apply_light_filter_pipeline(4, 1, 100, 1.0, preset, 5)
+        assert bri == 0
+        assert off is True
+        # brightness 5 should stay on
+        bri, off = apply_light_filter_pipeline(5, 1, 100, 1.0, preset, 5)
+        assert bri == 5
+        assert off is False
+
+    def test_different_presets_different_thresholds(self):
+        """Two presets with different thresholds at the same base brightness."""
+        overhead = {"at_bright": 100, "at_dim": 100, "off_threshold": 10}
+        lamp = {"at_bright": 100, "at_dim": 100, "off_threshold": 0}
+        base = 8
+        # Overhead: 8 < 10 → off
+        bri, off = apply_light_filter_pipeline(base, 1, 100, 1.0, overhead, 3)
+        assert bri == 0
+        assert off is True
+        # Lamp: 8 >= 0 → stays on
+        bri, off = apply_light_filter_pipeline(base, 1, 100, 1.0, lamp, 3)
+        assert bri == 8
+        assert off is False
+
+    def test_preset_off_threshold_zero_nothing_off(self):
+        """Preset with off_threshold=0 never turns off (even at brightness 1)."""
+        preset = {"at_bright": 100, "at_dim": 100, "off_threshold": 0}
+        bri, off = apply_light_filter_pipeline(1, 1, 100, 1.0, preset, 3)
+        assert bri == 1
+        assert off is False

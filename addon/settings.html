@@ -780,18 +780,7 @@
     <div class="settings-section">
       <div class="section-header">Light Filters</div>
       <div class="section-content">
-        <div class="form-row">
-          <label class="form-label">
-            Off threshold
-            <span class="info-icon">i<span class="info-tooltip">Lights whose filtered brightness falls below this percentage will be turned off instead of dimmed to near-zero. Prevents lights from glowing faintly when they should be off.</span></span>
-          </label>
-          <div class="form-control">
-            <input type="number" class="form-input" id="off-threshold" min="1" max="20" step="1" value="3" style="width: 80px;">
-            <span class="form-hint">% brightness</span>
-          </div>
-        </div>
-
-        <div id="filter-presets-container" style="margin-top: 16px;">
+        <div id="filter-presets-container">
           <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
             <label class="form-label" style="min-width: auto;">
               Filter presets
@@ -1096,6 +1085,11 @@
             <input type="range" min="0" max="200" step="1" value="${preset.at_dim}" oninput="updatePresetSlider(this, '${name}', 'at_dim')">
             <span class="filter-slider-value">${preset.at_dim}%</span>
           </div>
+          <div class="filter-slider-group">
+            <label>off below</label>
+            <input type="range" min="0" max="20" step="1" value="${preset.off_threshold ?? 3}" oninput="updatePresetSlider(this, '${name}', 'off_threshold')">
+            <span class="filter-slider-value">${preset.off_threshold ?? 3}%</span>
+          </div>
           ${isStandard ? '<div style="width:28px"></div>' : `<button class="filter-preset-delete" onclick="deletePreset('${name}')" title="Delete preset">&times;</button>`}
         `;
         container.appendChild(row);
@@ -1137,14 +1131,13 @@
       let name = 'Custom';
       let i = 1;
       while (filterPresets[name]) { name = 'Custom ' + (++i); }
-      filterPresets[name] = { at_bright: 100, at_dim: 100 };
+      filterPresets[name] = { at_bright: 100, at_dim: 100, off_threshold: 3 };
       renderFilterPresets();
       saveFilterPresets();
     }
 
     async function saveFilterPresets() {
       const lightFilters = {
-        off_threshold: parseInt(document.getElementById('off-threshold').value) || 3,
         presets: filterPresets
       };
       try {
@@ -1159,8 +1152,6 @@
       }
     }
 
-    document.getElementById('off-threshold').addEventListener('blur', saveFilterPresets);
-
     // Load on page load
     document.addEventListener('DOMContentLoaded', async () => {
       await loadSettings();
@@ -1170,13 +1161,12 @@
         if (response.ok) {
           const config = await response.json();
           const lf = config.light_filters || {};
-          document.getElementById('off-threshold').value = lf.off_threshold ?? 3;
           filterPresets = lf.presets || {
-            "Standard": {"at_bright": 100, "at_dim": 100},
-            "Overhead": {"at_bright": 100, "at_dim": 0},
-            "Lamp": {"at_bright": 30, "at_dim": 100},
-            "Accent": {"at_bright": 50, "at_dim": 50},
-            "Nightlight": {"at_bright": 0, "at_dim": 40}
+            "Standard": {"at_bright": 100, "at_dim": 100, "off_threshold": 3},
+            "Overhead": {"at_bright": 100, "at_dim": 0, "off_threshold": 3},
+            "Lamp": {"at_bright": 30, "at_dim": 100, "off_threshold": 3},
+            "Accent": {"at_bright": 50, "at_dim": 50, "off_threshold": 3},
+            "Nightlight": {"at_bright": 0, "at_dim": 40, "off_threshold": 3}
           };
           renderFilterPresets();
         }

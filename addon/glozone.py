@@ -483,11 +483,11 @@ def get_area_zone_and_rhythm(area_id: str) -> Tuple[str, str, Dict[str, Any]]:
 
 # Default filter presets
 DEFAULT_FILTER_PRESETS = {
-    "Standard": {"at_bright": 100, "at_dim": 100},
-    "Overhead": {"at_bright": 100, "at_dim": 0},
-    "Lamp": {"at_bright": 30, "at_dim": 100},
-    "Accent": {"at_bright": 50, "at_dim": 50},
-    "Nightlight": {"at_bright": 0, "at_dim": 40},
+    "Standard": {"at_bright": 100, "at_dim": 100, "off_threshold": 3},
+    "Overhead": {"at_bright": 100, "at_dim": 0, "off_threshold": 3},
+    "Lamp": {"at_bright": 30, "at_dim": 100, "off_threshold": 3},
+    "Accent": {"at_bright": 50, "at_dim": 50, "off_threshold": 3},
+    "Nightlight": {"at_bright": 0, "at_dim": 40, "off_threshold": 3},
 }
 
 DEFAULT_OFF_THRESHOLD = 3
