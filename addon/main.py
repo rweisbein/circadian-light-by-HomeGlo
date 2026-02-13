@@ -402,7 +402,7 @@ class HomeAssistantWebSocketClient:
                     # Could be area_filter or just area with underscore
                     # We use a simple heuristic: if the last part matches a known
                     # filter-like name, treat it as filter; otherwise treat whole as area
-                    group_type = f"zha_group_{parts[1]}_color"
+                    group_type = f"zha_group_{parts[1].lower()}_color"
                     area_name = parts[0]
                 else:
                     group_type = "zha_group_color"
@@ -410,7 +410,7 @@ class HomeAssistantWebSocketClient:
                 area_name = area_name[:-3]  # Remove _ct suffix
                 parts = area_name.rsplit("_", 1)
                 if len(parts) == 2 and parts[1]:
-                    group_type = f"zha_group_{parts[1]}_ct"
+                    group_type = f"zha_group_{parts[1].lower()}_ct"
                     area_name = parts[0]
                 else:
                     group_type = "zha_group_ct"
@@ -2293,8 +2293,8 @@ class HomeAssistantWebSocketClient:
         # Look up ZHA capability groups for this area
         normalized_key = self._normalize_area_key(area_id)
         group_candidates = self.area_group_map.get(normalized_key, {}) if normalized_key else {}
-        zha_color_group = group_candidates.get("zha_group_color") or group_candidates.get("zha_group_Standard_color")
-        zha_ct_group = group_candidates.get("zha_group_ct") or group_candidates.get("zha_group_Standard_ct")
+        zha_color_group = group_candidates.get("zha_group_color") or group_candidates.get("zha_group_standard_color")
+        zha_ct_group = group_candidates.get("zha_group_ct") or group_candidates.get("zha_group_standard_ct")
 
         # Color-capable lights: use xy_color for full color range
         if color_lights:
@@ -2468,7 +2468,7 @@ class HomeAssistantWebSocketClient:
                 off_entities = lights_by_cap["color"] + lights_by_cap["ct"] + lights_by_cap["brightness"]
                 if off_entities:
                     # Try filter-specific ZHA group first
-                    filt_norm = filter_name.replace(' ', '_')
+                    filt_norm = filter_name.replace(' ', '_').lower()
                     zha_off_color = group_candidates.get(f"zha_group_{filt_norm}_color")
                     zha_off_ct = group_candidates.get(f"zha_group_{filt_norm}_ct")
 
@@ -2513,7 +2513,7 @@ class HomeAssistantWebSocketClient:
             if log_periodic and (filtered_bri != base_brightness or filter_name != "Standard"):
                 logger.info(f"Filter '{filter_name}': base={base_brightness}% -> filtered={filtered_bri}% (factor={area_factor}, preset={preset})")
 
-            filt_norm = filter_name.replace(' ', '_')
+            filt_norm = filter_name.replace(' ', '_').lower()
 
             # Color-capable lights in this filter
             if lights_by_cap["color"]:
