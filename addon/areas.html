@@ -398,7 +398,7 @@
 
     .area-row-name {
       min-width: 0;
-      font-size: 0.82rem;
+      font-size: 0.95rem;
       line-height: 1.3;
       white-space: nowrap;
       overflow: hidden;
@@ -433,14 +433,14 @@
     /* Horizontal slider track */
     .row-slider-track {
       width: 100%;
-      height: 3px;
+      height: 4px;
       border-radius: 2px;
-      background: rgba(0,0,0,0.35);
+      background: rgba(0,0,0,0.4);
+      box-shadow: inset 0 1px 2px rgba(0,0,0,0.3), 0 0.5px 0 rgba(255,255,255,0.1);
       position: relative;
       cursor: pointer;
       touch-action: none;
-      padding: 10px 0;
-      background-clip: content-box;
+      margin: 2px 0;
     }
 
     .row-slider-fill {
@@ -451,9 +451,9 @@
       position: absolute;
       top: 50%;
       transform: translate(-50%, -50%);
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
+      width: 28px;
+      height: 14px;
+      border-radius: 7px;
       background: rgba(255,255,255,0.9);
       box-shadow: 0 1px 4px rgba(0,0,0,0.4);
       pointer-events: none;
@@ -997,6 +997,7 @@
     let cachedGlozones = null; // raw glozone data for edit mode ordering
     let homeRefreshTimer = null;     // Home page card refresh timer
     let homeTickTimer = null;        // 1s home page timer countdown tick
+    let sliderDragging = false;      // Suppress renderAreas during slider drag
 
     // ============================================================
     // Circadian Calculation Functions (for row shading)
@@ -1975,6 +1976,7 @@
     }
 
     function renderAreas() {
+      if (sliderDragging) return; // Don't re-render while user is dragging
       const container = document.getElementById('areas-container');
 
       // Merge area data with status
@@ -2561,6 +2563,7 @@
         track.addEventListener('pointerdown', (e) => {
           e.stopPropagation();
           e.preventDefault();
+          sliderDragging = true;
           track.setPointerCapture(e.pointerId);
           track.classList.add('dragging');
           updateSliderFromPointer(track, e);
@@ -2575,12 +2578,14 @@
         track.addEventListener('pointerup', (e) => {
           if (!track.hasPointerCapture(e.pointerId)) return;
           e.stopPropagation();
+          sliderDragging = false;
           track.classList.remove('dragging');
           const pct = getSliderPctFromPointer(track, e);
           const areaId = track.dataset.areaId;
           if (areaId) rowAction(areaId, 'set_position', Math.round(pct), 'step');
         });
         track.addEventListener('pointercancel', (e) => {
+          sliderDragging = false;
           track.classList.remove('dragging');
         });
         // Prevent click from bubbling to row's onclick (which opens detail page)
