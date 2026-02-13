@@ -444,13 +444,7 @@
     }
 
     .row-slider-fill {
-      height: 8px;
-      border-radius: 4px;
-      background: rgba(255,255,255,0.2);
-      pointer-events: none;
-      position: absolute;
-      top: 8px;
-      left: 0;
+      display: none;
     }
 
     .row-slider-thumb {
@@ -2192,8 +2186,8 @@
                   ${zoneFrozenIndicator}
                   ${zoneMismatchDot}
                 </div>
-                <div class="row-slider-track" data-zone-name="${escapedZoneName}">
-                  <div class="row-slider-fill" style="width: ${zoneSliderPct.toFixed(1)}%"></div>
+                <div class="row-slider-track" data-zone-name="${escapedZoneName}" style="background: ${buildRowTrackGradient()}; background-clip: content-box;">
+                  <div class="row-slider-fill"></div>
                   <div class="row-slider-thumb" style="left: ${zoneSliderPct.toFixed(1)}%"></div>
                 </div>
               </div>
@@ -2336,6 +2330,7 @@
       const statusSymbols = getStatusSymbols(area);
       const { leftControls, rightControls } = getRowControls(area);
       const sliderPct = getSliderPct(area.brightness || 0);
+      const trackGradient = buildRowTrackGradient();
 
       return `
         <div class="area-row" style="--row-bg: ${style.bg}; --row-text: ${style.textColor}; --row-fill: ${style.fill.toFixed(3)};" onclick="openAreaModal('${area.area_id}')">
@@ -2345,8 +2340,8 @@
               <span class="area-row-name">${area.name}</span>
               ${statusSymbols}
             </div>
-            <div class="row-slider-track" data-area-id="${area.area_id}">
-              <div class="row-slider-fill" style="width: ${sliderPct.toFixed(1)}%"></div>
+            <div class="row-slider-track" data-area-id="${area.area_id}" style="background: ${trackGradient}; background-clip: content-box;">
+              <div class="row-slider-fill"></div>
               <div class="row-slider-thumb" style="left: ${sliderPct.toFixed(1)}%"></div>
             </div>
           </div>
@@ -2414,6 +2409,23 @@
       const bMin = cachedConfig?.min_brightness || 0;
       const bMax = cachedConfig?.max_brightness || 100;
       return bMax > bMin ? Math.max(0, Math.min(100, (brightness - bMin) / (bMax - bMin) * 100)) : 0;
+    }
+
+    function buildRowTrackGradient() {
+      const bMin = cachedConfig?.min_brightness || 0;
+      const bMax = cachedConfig?.max_brightness || 100;
+      const cMin = cachedConfig?.min_color_temp || 2200;
+      const cMax = cachedConfig?.max_color_temp || 6500;
+      const stops = [];
+      const n = 6;
+      for (let i = 0; i <= n; i++) {
+        const frac = i / n;
+        const b = bMin + (bMax - bMin) * frac;
+        const k = cMin + (cMax - cMin) * frac;
+        const color = tintColorByBrightness(cctToRGB(k), b);
+        stops.push(color + ' ' + Math.round(frac * 100) + '%');
+      }
+      return 'linear-gradient(to right, ' + stops.join(', ') + ')';
     }
 
     function getRowStyle(area) {
