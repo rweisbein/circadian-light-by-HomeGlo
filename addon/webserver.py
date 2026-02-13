@@ -525,10 +525,12 @@ class LightDesignerServer:
         self.app.router.add_route('GET', '/{path:.*}/api/light-filters', self.get_light_filters)
         self.app.router.add_route('POST', '/{path:.*}/api/light-filters/area-brightness', self.save_area_brightness)
         self.app.router.add_route('POST', '/{path:.*}/api/light-filters/light-filter', self.save_light_filter)
+        self.app.router.add_route('POST', '/{path:.*}/api/light-filters/reassign-preset', self.reassign_preset)
         self.app.router.add_route('POST', '/{path:.*}/api/light-filters/suggest', self.suggest_light_filters)
         self.app.router.add_get('/api/light-filters', self.get_light_filters)
         self.app.router.add_post('/api/light-filters/area-brightness', self.save_area_brightness)
         self.app.router.add_post('/api/light-filters/light-filter', self.save_light_filter)
+        self.app.router.add_post('/api/light-filters/reassign-preset', self.reassign_preset)
         self.app.router.add_post('/api/light-filters/suggest', self.suggest_light_filters)
 
         # Tuning page
@@ -868,6 +870,51 @@ class LightDesignerServer:
             return web.json_response({"status": "ok"})
         except Exception as e:
             logger.error(f"Error saving light filter: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def reassign_preset(self, request: Request) -> Response:
+        """Reassign all lights from one filter preset to another."""
+        try:
+            data = await request.json()
+            from_preset = data.get("from_preset")
+            to_preset = data.get("to_preset", "Standard")
+
+            if not from_preset:
+                return web.json_response({"error": "from_preset required"}, status=400)
+
+            config = await self.load_raw_config()
+            glozones = config.get("glozones", {})
+            reassigned = 0
+
+            for zone_config in glozones.values():
+                for area in zone_config.get("areas", []):
+                    if not isinstance(area, dict):
+                        continue
+                    light_filters = area.get("light_filters", {})
+                    entities_to_update = [
+                        eid for eid, preset in light_filters.items()
+                        if preset == from_preset
+                    ]
+                    for eid in entities_to_update:
+                        if to_preset == "Standard":
+                            del light_filters[eid]
+                        else:
+                            light_filters[eid] = to_preset
+                        reassigned += 1
+                    if not light_filters and "light_filters" in area:
+                        del area["light_filters"]
+
+            await self.save_config_to_file(config)
+            glozone.set_config(config)
+
+            if reassigned > 0:
+                _, ws_url, token = self._get_ha_api_config()
+                if ws_url and token:
+                    await self._fire_event_via_websocket(ws_url, token, 'circadian_light_refresh', {})
+
+            return web.json_response({"status": "ok", "reassigned": reassigned})
+        except Exception as e:
+            logger.error(f"Error reassigning preset: {e}")
             return web.json_response({"error": str(e)}, status=500)
 
     async def suggest_light_filters(self, request: Request) -> Response:

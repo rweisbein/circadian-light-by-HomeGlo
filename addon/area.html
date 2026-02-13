@@ -747,6 +747,13 @@
       Enable
     </button>
     </div>
+
+    <!-- Filter Factors (debug) -->
+    <div id="filter-factors" style="display:none; margin: 16px; padding: 16px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; font-size: 13px;">
+      <h3 style="margin-bottom: 12px; color: var(--accent); font-size: 14px;">Filter Factors</h3>
+      <div id="filter-factors-area" style="margin-bottom: 16px;"></div>
+      <div id="filter-factors-lights"></div>
+    </div>
   </main>
 
   <script>
@@ -1588,6 +1595,7 @@
         renderMiniChartForArea(areaId);
         updateAllSliders();
       }, 50);
+      loadFilterFactors();
     }
 
     function setupZonePage(zoneName) {
@@ -2250,6 +2258,114 @@
         }
       } catch (err) {
         console.error('Error executing set_position:', err);
+      }
+    }
+    async function loadFilterFactors() {
+      if (!selectedArea) return;
+      const container = document.getElementById('filter-factors');
+      const areaDiv = document.getElementById('filter-factors-area');
+      const lightsDiv = document.getElementById('filter-factors-lights');
+      container.style.display = 'block';
+
+      try {
+        const [filtersRes, configRes] = await Promise.all([
+          fetch(basePath + '/api/light-filters'),
+          fetch(basePath + '/api/config')
+        ]);
+        if (!filtersRes.ok || !configRes.ok) { areaDiv.textContent = 'Failed to load data'; return; }
+        const filtersData = await filtersRes.json();
+        const config = await configRes.json();
+
+        const areaId = selectedArea.area_id;
+        const status = areaStatus[areaId] || {};
+        const baseBri = status.brightness || 50;
+        const kelvin = status.kelvin || 4000;
+
+        // Find area in zones
+        let areaInfo = null;
+        for (const zone of Object.values(filtersData.zones || {})) {
+          const found = (zone.areas || []).find(a => a.id === areaId);
+          if (found) { areaInfo = found; break; }
+        }
+
+        const areaFactor = areaInfo ? (areaInfo.brightness_factor || 1.0) : 1.0;
+        const naturalExposure = areaInfo ? (areaInfo.natural_light_exposure || 0) : 0;
+
+        // CT compensation factor
+        const ctEnabled = config.ct_comp_enabled || false;
+        let ctFactor = 1.0;
+        if (ctEnabled && kelvin != null) {
+          const ctBegin = config.ct_comp_begin || 1650;
+          const ctEnd = config.ct_comp_end || 2250;
+          const ctMax = config.ct_comp_factor || 1.4;
+          if (kelvin <= ctBegin) ctFactor = ctMax;
+          else if (kelvin < ctEnd) ctFactor = 1.0 + ((ctEnd - kelvin) / (ctEnd - ctBegin)) * (ctMax - 1.0);
+        }
+
+        // Get rhythm min/max for filter multiplier calc
+        const rhythmName = selectedArea.preset_name;
+        const rhythm = (rhythmName && cachedRhythms[rhythmName]) || {};
+        const minBri = rhythm.min_brightness || (cachedConfig && cachedConfig.min_brightness) || 1;
+        const maxBri = rhythm.max_brightness || (cachedConfig && cachedConfig.max_brightness) || 100;
+
+        // Area-level summary
+        let html = '<table style="width:100%; border-collapse:collapse;">';
+        html += '<tr><td style="color:var(--muted);padding:2px 8px 2px 0;">Base brightness (curve)</td><td>' + baseBri + '%</td></tr>';
+        html += '<tr><td style="color:var(--muted);padding:2px 8px 2px 0;">Area intensity factor</td><td>' + areaFactor.toFixed(2) + '</td></tr>';
+        html += '<tr><td style="color:var(--muted);padding:2px 8px 2px 0;">Natural light exposure</td><td>' + naturalExposure.toFixed(2) + (naturalExposure > 0 ? ' (sun-dependent at runtime)' : '') + '</td></tr>';
+        html += '<tr><td style="color:var(--muted);padding:2px 8px 2px 0;">CT compensation</td><td>' + (ctEnabled ? ctFactor.toFixed(3) + ' @ ' + kelvin + 'K' : 'disabled') + '</td></tr>';
+        html += '<tr><td style="color:var(--muted);padding:2px 8px 2px 0;">Rhythm bounds</td><td>' + minBri + '% &ndash; ' + maxBri + '%</td></tr>';
+        html += '</table>';
+        areaDiv.innerHTML = html;
+
+        // Per-light breakdown
+        const lightFilters = (areaInfo && areaInfo.light_filters) || {};
+        const areaLights = (filtersData.area_lights || {})[areaId] || [];
+        const presets = filtersData.presets || {};
+
+        if (areaLights.length === 0) {
+          lightsDiv.innerHTML = '<div style="color:var(--muted);margin-top:8px;">No lights in area</div>';
+          return;
+        }
+
+        // Curve position for filter multiplier
+        const briRange = maxBri - minBri;
+        const curvePos = briRange > 0 ? Math.max(0, Math.min(1, (baseBri - minBri) / briRange)) : 0;
+
+        let lhtml = '<table style="width:100%; border-collapse:collapse; margin-top:8px;">';
+        lhtml += '<tr style="border-bottom:1px solid var(--line);">'
+          + '<th style="text-align:left;padding:4px 8px 4px 0;color:var(--muted);font-weight:500;">Light</th>'
+          + '<th style="text-align:left;padding:4px 8px;color:var(--muted);font-weight:500;">Preset</th>'
+          + '<th style="text-align:right;padding:4px 8px;color:var(--muted);font-weight:500;">Filter</th>'
+          + '<th style="text-align:right;padding:4px 8px;color:var(--muted);font-weight:500;">After area</th>'
+          + '<th style="text-align:right;padding:4px 0 4px 8px;color:var(--muted);font-weight:500;">Final+CT</th>'
+          + '</tr>';
+
+        for (const light of areaLights) {
+          const filterName = lightFilters[light.entity_id] || 'Standard';
+          const preset = presets[filterName] || { at_bright: 100, at_dim: 100 };
+          const atDim = preset.at_dim ?? 100;
+          const atBright = preset.at_bright ?? 100;
+          const filterMult = (atDim + (atBright - atDim) * curvePos) / 100;
+          const afterArea = baseBri * areaFactor * filterMult;
+          const offThresh = preset.off_threshold ?? filtersData.off_threshold ?? 3;
+          const isOff = afterArea < offThresh;
+          const final = isOff ? 0 : Math.min(100, Math.round(afterArea));
+          const withCT = isOff ? 0 : Math.min(100, Math.round(final * ctFactor));
+
+          lhtml += '<tr style="border-bottom:1px solid rgba(51,65,81,0.3);">'
+            + '<td style="padding:4px 8px 4px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px;" title="' + light.entity_id + '">' + light.name + '</td>'
+            + '<td style="padding:4px 8px;color:' + (filterName === 'Standard' ? 'var(--muted)' : 'var(--accent)') + ';">' + filterName + '</td>'
+            + '<td style="text-align:right;padding:4px 8px;">' + (filterMult * 100).toFixed(0) + '%</td>'
+            + '<td style="text-align:right;padding:4px 8px;">' + (isOff ? '<span style="color:var(--danger);">OFF</span>' : final + '%') + '</td>'
+            + '<td style="text-align:right;padding:4px 0 4px 8px;font-weight:600;">' + (isOff ? '<span style="color:var(--danger);">OFF</span>' : withCT + '%') + '</td>'
+            + '</tr>';
+        }
+        lhtml += '</table>';
+        lightsDiv.innerHTML = lhtml;
+      } catch (err) {
+        areaDiv.textContent = 'Error: ' + err.message;
+        console.error('Filter factors error:', err);
       }
     }
   </script>

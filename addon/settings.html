@@ -470,7 +470,6 @@
     </a>
     <div class="nav-links">
       <a href="./switches" class="nav-link">Control</a>
-      <a href="./lights" class="nav-link">Light</a>
       <a href="./rhythm" class="nav-link">Rhythm</a>
       <a href="./moments" class="nav-link">Magic</a>
       <a href="./tuning" class="nav-link">Tuning</a>
@@ -1120,8 +1119,54 @@
       saveFilterPresets();
     }
 
-    function deletePreset(name) {
+    async function deletePreset(name) {
       if (name === 'Standard') return;
+
+      // Check if any lights are assigned to this preset
+      let usageLines = [];
+      try {
+        const resp = await fetch('./api/light-filters');
+        if (resp.ok) {
+          const data = await resp.json();
+          const areaLights = data.area_lights || {};
+          for (const [zoneName, zone] of Object.entries(data.zones || {})) {
+            for (const area of zone.areas || []) {
+              const filters = area.light_filters || {};
+              const matching = Object.entries(filters)
+                .filter(([eid, preset]) => preset === name)
+                .map(([eid]) => {
+                  const lights = areaLights[area.id] || [];
+                  const found = lights.find(l => l.entity_id === eid);
+                  return found ? found.name : eid;
+                });
+              if (matching.length > 0) {
+                usageLines.push(`- ${area.name}: ${matching.join(', ')}`);
+              }
+            }
+          }
+        }
+      } catch (e) {
+        // If fetch fails, proceed with simple confirm
+      }
+
+      if (usageLines.length > 0) {
+        const count = usageLines.reduce((n, line) => n + (line.match(/,/g) || []).length + 1, 0);
+        const msg = `"${name}" is assigned to ${count} light${count !== 1 ? 's' : ''}:\n${usageLines.join('\n')}\n\nDelete and reassign these lights to Standard?`;
+        if (!confirm(msg)) return;
+        try {
+          await fetch('./api/light-filters/reassign-preset', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({from_preset: name, to_preset: 'Standard'})
+          });
+        } catch (e) {
+          alert('Failed to reassign lights: ' + e.message);
+          return;
+        }
+      } else {
+        if (!confirm(`Delete "${name}"?`)) return;
+      }
+
       delete filterPresets[name];
       renderFilterPresets();
       saveFilterPresets();
