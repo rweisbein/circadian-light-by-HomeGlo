@@ -2243,7 +2243,9 @@ class HomeAssistantWebSocketClient:
         natural_exposure = glozone.get_area_natural_light_exposure(area_id)
         if natural_exposure > 0.0 and brightness is not None:
             sun_elev = self.sun_data.get("elevation", 0.0) if self.sun_data else 0.0
-            nl_factor = calculate_natural_light_factor(natural_exposure, sun_elev)
+            raw_cfg = glozone.load_config_from_files()
+            daylight_sat = raw_cfg.get("daylight_saturation_deg", 8)
+            nl_factor = calculate_natural_light_factor(natural_exposure, sun_elev, daylight_sat)
             if nl_factor < 1.0:
                 original_bri = brightness
                 brightness = max(1, int(round(brightness * nl_factor)))

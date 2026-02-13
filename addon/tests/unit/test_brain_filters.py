@@ -98,7 +98,11 @@ class TestCalculateFilterMultiplier:
 
 
 class TestCalculateNaturalLightFactor:
-    """Tests for calculate_natural_light_factor()."""
+    """Tests for calculate_natural_light_factor().
+
+    Uses a fast-saturating linear ramp (default threshold 8°) instead of sin().
+    Daylight overwhelms artificial light once the sun clears a few degrees.
+    """
 
     def test_no_exposure_returns_one(self):
         """Zero exposure = no reduction regardless of sun."""
@@ -109,50 +113,59 @@ class TestCalculateNaturalLightFactor:
         assert calculate_natural_light_factor(1.0, -5.0) == 1.0
         assert calculate_natural_light_factor(0.8, 0.0) == 1.0
 
-    def test_sun_at_zenith_full_exposure(self):
-        """Sun at 90° + exposure 1.0 → maximum reduction (factor 0.0)."""
-        factor = calculate_natural_light_factor(1.0, 90.0)
+    def test_sun_above_threshold_full_exposure(self):
+        """Sun well above threshold (8°) + exposure 1.0 → full reduction (factor 0.0)."""
+        factor = calculate_natural_light_factor(1.0, 30.0)
         assert factor == pytest.approx(0.0, abs=0.01)
 
-    def test_sun_at_zenith_half_exposure(self):
-        """Sun at 90° + exposure 0.5 → factor 0.5."""
-        factor = calculate_natural_light_factor(0.5, 90.0)
+    def test_sun_above_threshold_half_exposure(self):
+        """Sun above threshold + exposure 0.5 → factor 0.5."""
+        factor = calculate_natural_light_factor(0.5, 30.0)
         assert factor == pytest.approx(0.5, abs=0.01)
 
-    def test_sun_at_30_degrees(self):
-        """Sun at 30° → sin(30°) = 0.5, exposure 1.0 → factor 0.5."""
-        factor = calculate_natural_light_factor(1.0, 30.0)
+    def test_sun_at_half_threshold(self):
+        """Sun at 4° (half of 8° threshold) + exposure 1.0 → factor 0.5."""
+        factor = calculate_natural_light_factor(1.0, 4.0)
         assert factor == pytest.approx(0.5, abs=0.01)
 
-    def test_sun_at_45_degrees(self):
-        """Sun at 45° → sin(45°) ≈ 0.707."""
-        factor = calculate_natural_light_factor(1.0, 45.0)
-        expected = 1.0 - math.sin(math.radians(45.0))
-        assert factor == pytest.approx(expected, abs=0.01)
+    def test_sun_at_threshold(self):
+        """Sun at exactly threshold (8°) → saturated, factor 0.0 with full exposure."""
+        factor = calculate_natural_light_factor(1.0, 8.0)
+        assert factor == pytest.approx(0.0, abs=0.01)
 
-    def test_low_sun_small_reduction(self):
-        """Sun at 10° → sin(10°) ≈ 0.174, exposure 0.7 → small reduction."""
-        factor = calculate_natural_light_factor(0.7, 10.0)
-        expected = 1.0 - 0.7 * math.sin(math.radians(10.0))
-        assert factor == pytest.approx(expected, abs=0.01)
-        assert factor > 0.85  # small reduction
+    def test_low_sun_significant_reduction(self):
+        """Sun at 6° (75% of 8° threshold) + exposure 0.7 → noticeable reduction."""
+        factor = calculate_natural_light_factor(0.7, 6.0)
+        # intensity = 6/8 = 0.75, factor = 1 - 0.7 * 0.75 = 0.475
+        assert factor == pytest.approx(0.475, abs=0.01)
+        assert factor < 0.5
 
     def test_result_never_negative(self):
         """Factor should never go below 0.0."""
         factor = calculate_natural_light_factor(1.0, 90.0)
         assert factor >= 0.0
 
-    def test_sun_above_90_clamped(self):
-        """Elevation > 90° is clamped to 90° (edge case)."""
+    def test_sun_above_threshold_clamped(self):
+        """Elevation far above threshold still gives factor 0.0."""
         factor = calculate_natural_light_factor(1.0, 100.0)
         assert factor == pytest.approx(0.0, abs=0.01)
 
     def test_typical_room_midday(self):
-        """Typical room: exposure 0.4, sun at 60° → moderate reduction."""
+        """Typical room: exposure 0.4, sun at 60° (well above threshold) → 60% reduction."""
         factor = calculate_natural_light_factor(0.4, 60.0)
-        expected = 1.0 - 0.4 * math.sin(math.radians(60.0))
-        assert factor == pytest.approx(expected, abs=0.01)
-        assert 0.6 < factor < 0.7  # ~35% reduction
+        # intensity = 1.0 (saturated), factor = 1.0 - 0.4 * 1.0 = 0.6
+        assert factor == pytest.approx(0.6, abs=0.01)
+
+    def test_custom_threshold(self):
+        """Custom threshold changes saturation point."""
+        # With threshold=15, sun at 7.5° = half intensity
+        factor = calculate_natural_light_factor(1.0, 7.5, daylight_saturation_deg=15.0)
+        assert factor == pytest.approx(0.5, abs=0.01)
+
+    def test_custom_threshold_saturated(self):
+        """Sun above custom threshold is fully saturated."""
+        factor = calculate_natural_light_factor(1.0, 20.0, daylight_saturation_deg=15.0)
+        assert factor == pytest.approx(0.0, abs=0.01)
 
 
 class TestApplyLightFilterPipeline:

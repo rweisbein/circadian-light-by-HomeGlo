@@ -1514,6 +1514,7 @@ class LightDesignerServer:
         "limit_bounce_min_percent",  # Percentage of range to flash when hitting min limit (default 10)
         "reach_dip_percent",  # Percentage of current brightness to dip for reach feedback (default 50)
         "boost_default",  # Default boost percentage (10-100, default 30)
+        "daylight_saturation_deg",  # Sun elevation (degrees) at which daylight fully saturates (default 8)
         "reach_learn_mode",  # Reach feedback uses single indicator light (default true)
         "long_press_repeat_interval",  # Long-press repeat interval in tenths of seconds (default 3 = 300ms)
         "controls_ui",  # Controls page UI preferences (sort, filter)
@@ -1691,6 +1692,9 @@ class LightDesignerServer:
             "circadian_refresh": 30,  # seconds
             "log_periodic": False,  # log periodic update details
             "home_refresh_interval": 10,  # seconds (home page card refresh)
+
+            # Natural light settings
+            "daylight_saturation_deg": 8,  # sun elevation (degrees) at which daylight fully saturates
 
             # Motion warning settings
             "motion_warning_time": 0,  # seconds (0 = disabled)

@@ -724,6 +724,16 @@
             <span class="form-hint">%</span>
           </div>
         </div>
+        <div class="form-row">
+          <label class="form-label">
+            Daylight saturation
+            <span class="info-icon">i<span class="info-tooltip">Sun elevation (in degrees) at which daylight is considered fully effective for natural light reduction. Lower values mean lights turn off earlier in the morning and later in the evening for rooms with natural light exposure. Default 8° works well for most homes.</span></span>
+          </label>
+          <div class="form-control">
+            <input type="number" class="form-input" id="daylight-saturation-deg" min="2" max="30" step="1" value="8" style="width: 80px;">
+            <span class="form-hint">°</span>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -865,6 +875,7 @@
           document.getElementById('limit-bounce-min-percent').value = config.limit_bounce_min_percent ?? 10;
           document.getElementById('reach-dip-percent').value = config.reach_dip_percent ?? 50;
           document.getElementById('boost-default').value = config.boost_default ?? 30;
+          document.getElementById('daylight-saturation-deg').value = config.daylight_saturation_deg ?? 8;
           document.getElementById('ct-comp-enabled').checked = config.ct_comp_enabled ?? false;
           document.getElementById('ct-comp-begin').value = config.ct_comp_begin ?? 1650;
           document.getElementById('ct-comp-end').value = config.ct_comp_end ?? 2250;
@@ -899,6 +910,7 @@
         limit_bounce_min_percent: parseInt(document.getElementById('limit-bounce-min-percent').value) || 10,
         reach_dip_percent: parseInt(document.getElementById('reach-dip-percent').value) || 50,
         boost_default: parseInt(document.getElementById('boost-default').value) || 30,
+        daylight_saturation_deg: parseInt(document.getElementById('daylight-saturation-deg').value) || 8,
         ct_comp_enabled: document.getElementById('ct-comp-enabled').checked,
         ct_comp_begin: parseInt(document.getElementById('ct-comp-begin').value) || 1650,
         ct_comp_end: parseInt(document.getElementById('ct-comp-end').value) || 2250,
@@ -1000,6 +1012,7 @@
     document.getElementById('limit-bounce-min-percent').addEventListener('blur', saveSettings);
     document.getElementById('reach-dip-percent').addEventListener('blur', saveSettings);
     document.getElementById('boost-default').addEventListener('blur', saveSettings);
+    document.getElementById('daylight-saturation-deg').addEventListener('blur', saveSettings);
     document.getElementById('ct-comp-enabled').addEventListener('change', () => {
       updateCtCompState();
       saveSettings();

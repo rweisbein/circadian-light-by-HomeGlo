@@ -233,15 +233,25 @@ class StepResult:
 # Light filter functions
 # ---------------------------------------------------------------------------
 
-def calculate_natural_light_factor(exposure: float, sun_elevation_deg: float) -> float:
+DEFAULT_DAYLIGHT_SATURATION_DEG = 8.0
+
+
+def calculate_natural_light_factor(
+    exposure: float,
+    sun_elevation_deg: float,
+    daylight_saturation_deg: float = DEFAULT_DAYLIGHT_SATURATION_DEG,
+) -> float:
     """Calculate the natural light reduction factor based on area exposure and sun position.
 
     When the sun is up, areas with natural light exposure need less artificial light.
-    Uses sin(elevation) to model that most natural light comes when the sun is high.
+    Uses a fast-saturating linear ramp: daylight overwhelms artificial light once
+    the sun clears a few degrees above the horizon.
 
     Args:
         exposure: Area's natural light exposure 0.0 (cave) to 1.0 (sunroom)
         sun_elevation_deg: Sun elevation in degrees (negative = below horizon)
+        daylight_saturation_deg: Sun elevation at which daylight is fully effective.
+            Default 8°. Lower = lights turn off earlier in morning / later in evening.
 
     Returns:
         Multiplier 0.0–1.0 to apply to artificial brightness.
@@ -249,9 +259,8 @@ def calculate_natural_light_factor(exposure: float, sun_elevation_deg: float) ->
     """
     if exposure <= 0.0 or sun_elevation_deg <= 0.0:
         return 1.0
-    # Normalize elevation: sin(0°)=0, sin(90°)=1
-    elev_rad = math.radians(min(sun_elevation_deg, 90.0))
-    sun_intensity = math.sin(elev_rad)
+    threshold = max(1.0, daylight_saturation_deg)
+    sun_intensity = min(1.0, sun_elevation_deg / threshold)
     return max(0.0, 1.0 - exposure * sun_intensity)
 
 

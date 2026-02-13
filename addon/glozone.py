@@ -609,6 +609,7 @@ RHYTHM_SETTINGS = {
 GLOBAL_SETTINGS = {
     "latitude", "longitude", "timezone", "use_ha_location", "month",
     "light_filters",
+    "daylight_saturation_deg",
 }
 
 
