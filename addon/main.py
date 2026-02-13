@@ -3906,6 +3906,10 @@ class HomeAssistantWebSocketClient:
                         self.area_name_to_id[normalized_name] = area_id
                         self.area_name_to_id[area_name.lower()] = area_id
 
+                # Ensure glozone config is loaded in this process
+                # (main.py and webserver.py are separate processes with separate module state)
+                glozone.load_config_from_files()
+
                 # Build filter config from glozone data
                 filter_config = {}
                 try:
