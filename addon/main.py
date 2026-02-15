@@ -1608,22 +1608,26 @@ class HomeAssistantWebSocketClient:
         blink_threshold = self._get_motion_warning_blink_threshold()
         reach_dip_percent = self.primitives._get_reach_dip_percent() / 100.0
 
-        # Pre-calculate restore values for each area BEFORE fading
+        # Read actual light brightness from cached states for Phase 1 dip
+        # (not recalculated from curve, which would miss natural light / area adjustments)
         restore_data = {}
         for area in areas:
             was_on = state.is_circadian(area) and state.get_is_on(area)
 
-            if was_on and state.is_circadian(area):
-                area_state = AreaState.from_dict(state.get_area(area))
-                config_dict = glozone.get_effective_config_for_area(area)
-                config = Config.from_dict(config_dict)
-                hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
-                result = CircadianLight.calculate_lighting(hour, config, area_state)
-                brightness = int(result.brightness * 2.55)
+            if was_on:
+                # Get the max actual brightness across lights in this area
+                area_lights = self.area_lights.get(area, [])
+                max_brightness = 0
+                for entity_id in area_lights:
+                    ls = self.cached_states.get(entity_id, {})
+                    if ls.get("state") == "on":
+                        bri = ls.get("attributes", {}).get("brightness", 0)
+                        if bri > max_brightness:
+                            max_brightness = bri
+                brightness = max_brightness or blink_threshold
                 restore_data[area] = {
                     "was_on": True,
                     "brightness": brightness,
-                    "xy": result.xy,
                     "dip_to_off": brightness <= blink_threshold,
                 }
             else:
@@ -1681,21 +1685,41 @@ class HomeAssistantWebSocketClient:
         await asyncio.sleep(max(turn_off_transition, turn_on_transition) + 0.1)
 
         # Phase 2: Restore all lights
+        # Use turn_on_lights_circadian for ON areas so natural light reduction,
+        # area brightness factors, filters, and CT compensation are all applied.
         phase2_tasks = []
         for area, data in restore_data.items():
-            targets = area_targets[area]
-            for target in targets:
-                if data.get("was_on"):
-                    service_data = {"transition": turn_on_transition}
-                    if data.get("xy"):
-                        service_data["xy_color"] = data["xy"]
-                        service_data["brightness"] = data["brightness"]
-                    phase2_tasks.append(self.call_service(
-                        "light", "turn_on",
-                        service_data,
-                        target=target
-                    ))
-                else:
+            if data.get("was_on"):
+                # Fresh circadian calculation through the canonical pipeline
+                area_st = AreaState.from_dict(state.get_area(area))
+                cfg_dict = glozone.get_effective_config_for_area(area)
+                cfg = Config.from_dict(cfg_dict)
+                hour = area_st.frozen_at if area_st.frozen_at is not None else get_current_hour()
+                sun_times = self._get_sun_times()
+                result = CircadianLight.calculate_lighting(hour, cfg, area_st, sun_times=sun_times)
+
+                # Apply boost if active (same as periodic updater)
+                brightness = result.brightness
+                if state.is_boosted(area):
+                    boost_state = state.get_boost_state(area)
+                    boost_amount = boost_state.get('boost_brightness') or 0
+                    brightness = min(100, brightness + boost_amount)
+
+                lighting_values = {
+                    'brightness': brightness,
+                    'kelvin': result.color_temp,
+                    'rgb': result.rgb,
+                    'xy': result.xy,
+                }
+                phase2_tasks.append(
+                    self.turn_on_lights_circadian(
+                        area, lighting_values,
+                        transition=turn_on_transition, log_periodic=False,
+                    )
+                )
+            else:
+                targets = area_targets[area]
+                for target in targets:
                     phase2_tasks.append(self.call_service(
                         "light", "turn_off",
                         {"transition": turn_off_transition},
