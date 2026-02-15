@@ -573,6 +573,7 @@
           areaFilter = prefs.area_filter || 'all';
           activeOnly = prefs.active_only || false;
           fourthField = prefs.fourth_field || 'lastAction';
+          searchFilter = prefs.search_filter || '';
         }
       } catch (err) {
         console.error('Error loading preferences:', err);
@@ -591,7 +592,8 @@
               category_filter: categoryFilter,
               area_filter: areaFilter,
               active_only: activeOnly,
-              fourth_field: fourthField
+              fourth_field: fourthField,
+              search_filter: searchFilter
             }
           })
         });
@@ -985,11 +987,13 @@
     function handleSearch(value) {
       searchFilter = value;
       renderControls();
+      savePreferences();
     }
 
     function clearSearch() {
       searchFilter = '';
       renderControls();
+      savePreferences();
     }
 
     async function toggleInactive(controlId, category, inactive) {
