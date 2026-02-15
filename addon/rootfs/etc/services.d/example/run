@@ -267,6 +267,9 @@ manage_circadian_integration() {
         return
     fi
 
+    # Track whether this is a first-time install (HA needs restart to discover)
+    local first_install="false"
+
     if bashio::fs.directory_exists "${CIRCADIAN_DEST}"; then
         if [ -f "${CIRCADIAN_MARKER}" ]; then
             bashio::log.info "Updating existing Circadian Light integration managed by the add-on..."
@@ -276,6 +279,7 @@ manage_circadian_integration() {
         rm -rf "${CIRCADIAN_DEST}"
     else
         bashio::log.info "Installing Circadian Light custom integration..."
+        first_install="true"
     fi
 
     # Use expected_source to determine deployment method
@@ -328,6 +332,16 @@ manage_circadian_integration() {
             bashio::log.info "Supervisor discovery payload sent successfully."
         else
             bashio::log.warning "Failed to send supervisor discovery payload."
+        fi
+
+        # First-time install: HA must restart to discover the new custom component
+        if [ "${first_install}" = "true" ]; then
+            bashio::log.info "First-time integration install detected — restarting Home Assistant so it can discover the Circadian Light integration..."
+            curl -sS -X POST "http://supervisor/core/api/services/homeassistant/restart" \
+                -H "Authorization: Bearer ${SUPERVISOR_TOKEN}" \
+                -H "Content-Type: application/json" \
+                -d '{}' >/dev/null || \
+                bashio::log.warning "Failed to trigger Home Assistant restart. Please restart manually."
         fi
     fi
 }
