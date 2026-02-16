@@ -4644,8 +4644,17 @@ class LightDesignerServer:
                 if msg.get('type') != 'auth_ok':
                     return web.json_response({"sensors": []})
 
+                # Get entity registry to filter out diagnostic entities
+                await ws.send(json.dumps({'id': 1, 'type': 'config/entity_registry/list'}))
+                registry_msg = json.loads(await ws.recv())
+                diagnostic_entities = set()
+                if registry_msg.get('success') and registry_msg.get('result'):
+                    for ent in registry_msg['result']:
+                        if ent.get('entity_category'):
+                            diagnostic_entities.add(ent.get('entity_id'))
+
                 # Get states
-                await ws.send(json.dumps({'id': 1, 'type': 'get_states'}))
+                await ws.send(json.dumps({'id': 2, 'type': 'get_states'}))
                 states_msg = json.loads(await ws.recv())
 
                 sensors = []
@@ -4653,6 +4662,9 @@ class LightDesignerServer:
                     for state in states_msg['result']:
                         entity_id = state.get('entity_id', '')
                         if not entity_id.startswith('sensor.'):
+                            continue
+                        # Skip diagnostic/config entities
+                        if entity_id in diagnostic_entities:
                             continue
                         attrs = state.get('attributes', {})
                         dc = attrs.get('device_class', '')
@@ -4816,16 +4828,19 @@ class LightDesignerServer:
                         continue
                     mean_val = float(mean_val)
 
-                    start_str = entry.get('start')
-                    if not start_str:
+                    start_val = entry.get('start')
+                    if not start_val:
                         continue
                     try:
-                        dt = datetime.fromisoformat(start_str)
-                        if dt.tzinfo is None:
-                            dt = dt.replace(tzinfo=local_tz)
+                        if isinstance(start_val, (int, float)):
+                            dt = datetime.fromtimestamp(start_val, tz=local_tz)
                         else:
-                            dt = dt.astimezone(local_tz)
-                    except (ValueError, TypeError):
+                            dt = datetime.fromisoformat(start_val)
+                            if dt.tzinfo is None:
+                                dt = dt.replace(tzinfo=local_tz)
+                            else:
+                                dt = dt.astimezone(local_tz)
+                    except (ValueError, TypeError, OSError):
                         continue
 
                     if solar_elev_fn is not None:

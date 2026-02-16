@@ -450,17 +450,20 @@ async def learn_baseline(ws_client) -> bool:
                 continue
             mean_val = float(mean_val)
 
-            start_str = entry.get("start")
-            if not start_str:
+            start_val = entry.get("start")
+            if not start_val:
                 continue
 
             try:
-                dt = datetime.fromisoformat(start_str)
-                if dt.tzinfo is None:
-                    dt = dt.replace(tzinfo=local_tz)
+                if isinstance(start_val, (int, float)):
+                    dt = datetime.fromtimestamp(start_val, tz=local_tz)
                 else:
-                    dt = dt.astimezone(local_tz)
-            except (ValueError, TypeError):
+                    dt = datetime.fromisoformat(start_val)
+                    if dt.tzinfo is None:
+                        dt = dt.replace(tzinfo=local_tz)
+                    else:
+                        dt = dt.astimezone(local_tz)
+            except (ValueError, TypeError, OSError):
                 continue
 
             # Filter by sun elevation if astral is available
