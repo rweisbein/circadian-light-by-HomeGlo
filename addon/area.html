@@ -888,6 +888,30 @@
 
     function rad(d) { return d * Math.PI / 180; }
 
+    function solarDeclination(doy) {
+      return (23.44 * Math.PI / 180) * Math.sin(2 * Math.PI * (284 + doy) / 365);
+    }
+
+    function getSunElevationAtHour(hour, lat, lon) {
+      const date = new Date();
+      const doy = Math.floor((date - new Date(date.getFullYear(), 0, 0)) / 86400000);
+      const decl = solarDeclination(doy);
+      const latRad = lat * Math.PI / 180;
+      const tz = -date.getTimezoneOffset() / 60;
+      const solarNoon = 12 + tz - (lon / 15);
+      const hourAngle = (hour - solarNoon) * 15 * Math.PI / 180;
+      const sinElev = Math.sin(latRad) * Math.sin(decl) + Math.cos(latRad) * Math.cos(decl) * Math.cos(hourAngle);
+      return Math.max(0, Math.asin(sinElev) * 180 / Math.PI);
+    }
+
+    function elevationToOutdoorNorm(elevDeg) {
+      if (elevDeg <= 0) return 0;
+      const FULL_SUN_INTENSITY = 8.4;
+      const clearSkyLux = 120000 * Math.sin(elevDeg * Math.PI / 180);
+      if (clearSkyLux <= 300) return 0;
+      return Math.min(1.0, Math.log2(clearSkyLux / 300) / FULL_SUN_INTENSITY);
+    }
+
     function getSunTimes(lat, lon) {
       const date = new Date();
       const n = Math.floor((date - new Date(date.getFullYear(), 0, 0)) / 86400000);
@@ -960,8 +984,12 @@
         }
       }
 
-      // Daylight color blend (replaces cool_day)
-      const outdoorNorm = sunTimes.outdoorNormalized || 0;
+      // Daylight color blend — per-hour elevation scaled by current conditions
+      const lat = cachedConfig ? cachedConfig.latitude || 35.0 : 35.0;
+      const lon = cachedConfig ? cachedConfig.longitude || -78.6 : -78.6;
+      const clearSkyAtHour = elevationToOutdoorNorm(getSunElevationAtHour(hour, lat, lon));
+      const condMult = sunTimes.conditionMultiplier ?? 1.0;
+      const outdoorNorm = clearSkyAtHour * condMult;
       const daylightCct = cfg.daylight_cct || 0;
       const colorGain = cfg.color_gain || 5.0;
       if (daylightCct > 0 && outdoorNorm > 0) {
@@ -1581,11 +1609,19 @@
           fetch(basePath + '/api/circadian-rhythms')
         ]);
         if (statusRes.ok) areaStatus = await statusRes.json();
-        // Enrich cachedSunTimes with outdoor_normalized from server
-        if (cachedSunTimes) {
+        // Compute condition multiplier: ratio of actual outdoor reading to clear-sky model
+        if (cachedSunTimes && cachedConfig) {
           const firstStatus = Object.values(areaStatus)[0];
           if (firstStatus) {
-            cachedSunTimes.outdoorNormalized = firstStatus.outdoor_normalized ?? firstStatus.sun_factor ?? 0;
+            const actualNorm = firstStatus.outdoor_normalized ?? firstStatus.sun_factor ?? 0;
+            cachedSunTimes.outdoorNormalized = actualNorm;
+            // Derive condition multiplier from current reading vs clear-sky at current hour
+            const now = new Date();
+            const currentHour = now.getHours() + now.getMinutes() / 60;
+            const lat = cachedConfig.latitude || 35.0;
+            const lon = cachedConfig.longitude || -78.6;
+            const clearSkyNow = elevationToOutdoorNorm(getSunElevationAtHour(currentHour, lat, lon));
+            cachedSunTimes.conditionMultiplier = clearSkyNow > 0.01 ? Math.min(1.0, actualNorm / clearSkyNow) : 1.0;
           }
         }
         if (zsRes.ok) {
@@ -1691,10 +1727,17 @@
               const singleStatus = await res.json();
               Object.assign(areaStatus, singleStatus);
 
-              // Update cachedSunTimes with outdoor_normalized from server
+              // Update cachedSunTimes with outdoor_normalized and condition multiplier
               const ls0 = singleStatus[selectedArea.area_id] || {};
-              if (cachedSunTimes) {
-                cachedSunTimes.outdoorNormalized = ls0.outdoor_normalized ?? ls0.sun_factor ?? 0;
+              if (cachedSunTimes && cachedConfig) {
+                const actualNorm = ls0.outdoor_normalized ?? ls0.sun_factor ?? 0;
+                cachedSunTimes.outdoorNormalized = actualNorm;
+                const now = new Date();
+                const currentHour = now.getHours() + now.getMinutes() / 60;
+                const lat = cachedConfig.latitude || 35.0;
+                const lon = cachedConfig.longitude || -78.6;
+                const clearSkyNow = elevationToOutdoorNorm(getSunElevationAtHour(currentHour, lat, lon));
+                cachedSunTimes.conditionMultiplier = clearSkyNow > 0.01 ? Math.min(1.0, actualNorm / clearSkyNow) : 1.0;
               }
 
               // Update tuneState with fresh server data
