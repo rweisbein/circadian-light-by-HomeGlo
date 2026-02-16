@@ -543,6 +543,8 @@ class LightDesignerServer:
         self.app.router.add_route('DELETE', '/{path:.*}/api/outdoor-override', self.clear_outdoor_override)
         self.app.router.add_get('/api/outdoor-status', self.get_outdoor_status)
         self.app.router.add_route('GET', '/{path:.*}/api/outdoor-status', self.get_outdoor_status)
+        self.app.router.add_post('/api/learn-baselines', self.learn_baselines)
+        self.app.router.add_route('POST', '/{path:.*}/api/learn-baselines', self.learn_baselines)
 
         # Tuning page
         self.app.router.add_route('GET', '/{path:.*}/tuning', self.serve_tuning)
@@ -4656,6 +4658,11 @@ class LightDesignerServer:
                         dc = attrs.get('device_class', '')
                         if device_class_filter and dc != device_class_filter:
                             continue
+                        # Only include sensors with state_class (HA records
+                        # long-term statistics for these — needed for baseline
+                        # learning and filters out diagnostic duplicates)
+                        if not attrs.get('state_class'):
+                            continue
                         name = attrs.get('friendly_name', entity_id)
                         sensors.append({
                             'entity_id': entity_id,
@@ -4701,6 +4708,154 @@ class LightDesignerServer:
             "weather_cloud_cover": lux_tracker._cloud_cover,
             "lux_smoothed": lux_tracker._ema_lux,
         })
+
+    async def learn_baselines(self, request: Request) -> Response:
+        """Trigger baseline learning for the outdoor lux sensor.
+
+        Queries HA recorder for 90 days of hourly stats, filters to daytime,
+        and computes ceiling/floor percentiles. Saves to config on success.
+        """
+        try:
+            rest_url, ws_url, token = self._get_ha_api_config()
+            if not token or not ws_url:
+                return web.json_response({"error": "No HA connection"}, status=500)
+
+            config = await self.load_config()
+            lux_tracker.init(config)
+            sensor_entity = lux_tracker.get_sensor_entity()
+            if not sensor_entity:
+                return web.json_response({"error": "No lux sensor configured"}, status=400)
+
+            # Get HA location config
+            async with websockets.connect(ws_url) as ws:
+                msg = json.loads(await ws.recv())
+                if msg.get('type') != 'auth_required':
+                    return web.json_response({"error": "WS auth failed"}, status=500)
+                await ws.send(json.dumps({'type': 'auth', 'access_token': token}))
+                msg = json.loads(await ws.recv())
+                if msg.get('type') != 'auth_ok':
+                    return web.json_response({"error": "WS auth failed"}, status=500)
+
+                # Get HA config for location
+                await ws.send(json.dumps({'id': 1, 'type': 'get_config'}))
+                config_msg = json.loads(await ws.recv())
+                if not config_msg.get('success'):
+                    return web.json_response({"error": "Could not get HA config"}, status=500)
+
+                ha_config = config_msg.get('result', {})
+                lat = ha_config.get('latitude')
+                lon = ha_config.get('longitude')
+                tz_name = ha_config.get('time_zone')
+                if not lat or not lon or not tz_name:
+                    return web.json_response({"error": "No location data in HA"}, status=500)
+
+                # Query recorder statistics (90 days of hourly means)
+                from datetime import datetime, timedelta
+                from zoneinfo import ZoneInfo
+
+                local_tz = ZoneInfo(tz_name)
+                now = datetime.now(local_tz)
+                start = now - timedelta(days=90)
+
+                await ws.send(json.dumps({
+                    'id': 2,
+                    'type': 'recorder/statistics_during_period',
+                    'start_time': start.isoformat(),
+                    'end_time': now.isoformat(),
+                    'statistic_ids': [sensor_entity],
+                    'period': 'hour',
+                    'types': ['mean'],
+                }))
+                stats_msg = json.loads(await ws.recv())
+
+                if not stats_msg.get('success'):
+                    return web.json_response({
+                        "error": f"Recorder returned no data for {sensor_entity}. "
+                                 "Ensure the sensor has state_class: measurement."
+                    }, status=404)
+
+                result = stats_msg.get('result', {})
+                if sensor_entity not in result:
+                    return web.json_response({
+                        "error": f"No statistics found for {sensor_entity}. "
+                                 "The sensor may not have state_class: measurement."
+                    }, status=404)
+
+                stats = result[sensor_entity]
+
+                # Filter to daytime hours (elevation > 10°)
+                try:
+                    from astral import LocationInfo
+                    from astral.sun import elevation as solar_elev_fn
+                except ImportError:
+                    solar_elev_fn = None
+
+                daytime_means = []
+                for entry in stats:
+                    mean_val = entry.get('mean')
+                    if mean_val is None:
+                        continue
+                    mean_val = float(mean_val)
+
+                    start_str = entry.get('start')
+                    if not start_str:
+                        continue
+                    try:
+                        dt = datetime.fromisoformat(start_str)
+                        if dt.tzinfo is None:
+                            dt = dt.replace(tzinfo=local_tz)
+                        else:
+                            dt = dt.astimezone(local_tz)
+                    except (ValueError, TypeError):
+                        continue
+
+                    if solar_elev_fn is not None:
+                        try:
+                            loc = LocationInfo(latitude=lat, longitude=lon, timezone=tz_name)
+                            elev = solar_elev_fn(loc.observer, dt)
+                            if elev <= 10:
+                                continue
+                        except Exception:
+                            continue
+
+                    daytime_means.append(mean_val)
+
+                if len(daytime_means) < 10:
+                    return web.json_response({
+                        "error": f"Only {len(daytime_means)} daytime samples found (need 10+). "
+                                 "The sensor may not have enough history yet."
+                    }, status=404)
+
+                # Compute percentiles
+                daytime_means.sort()
+                n = len(daytime_means)
+                floor_val = daytime_means[max(0, int(n * 0.05))]
+                ceiling_val = daytime_means[min(n - 1, int(n * 0.85))]
+
+                if ceiling_val <= floor_val or ceiling_val <= 0:
+                    return web.json_response({
+                        "error": f"Bad percentiles (floor={floor_val}, ceiling={ceiling_val})"
+                    }, status=500)
+
+                # Save to config
+                config = glozone.load_config_from_files()
+                config['lux_learned_ceiling'] = ceiling_val
+                config['lux_learned_floor'] = floor_val
+                glozone.save_config(config)
+
+                logger.info(
+                    f"Baselines learned from {len(daytime_means)} samples: "
+                    f"ceiling={ceiling_val:.0f}, floor={floor_val:.0f}"
+                )
+                return web.json_response({
+                    "ceiling": ceiling_val,
+                    "floor": floor_val,
+                    "samples": len(daytime_means),
+                })
+
+        except Exception as e:
+            logger.error(f"Learn baselines failed: {e}", exc_info=True)
+            return web.json_response({"error": str(e)}, status=500)
 
     async def get_controls(self, request: Request) -> Response:
         """Get all controls from HA, merged with our configuration.

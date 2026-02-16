@@ -803,6 +803,13 @@
               <span class="form-hint">lux</span>
             </div>
           </div>
+          <div class="form-row">
+            <label class="form-label"></label>
+            <div class="form-control" style="display: flex; gap: 8px; align-items: center;">
+              <button type="button" class="btn btn-sm" id="learn-baselines-btn" style="font-size: 0.8rem;">Learn from history</button>
+              <span id="learn-baselines-status" class="form-hint"></span>
+            </div>
+          </div>
         </div>
         <div class="form-row" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line);">
           <label class="form-label">
@@ -1228,6 +1235,31 @@
     document.getElementById('lux-smoothing-interval').addEventListener('blur', saveSettings);
     document.getElementById('lux-learned-ceiling').addEventListener('blur', saveSettings);
     document.getElementById('lux-learned-floor').addEventListener('blur', saveSettings);
+    document.getElementById('learn-baselines-btn').addEventListener('click', async function() {
+      const btn = this;
+      const status = document.getElementById('learn-baselines-status');
+      btn.disabled = true;
+      btn.textContent = 'Learning...';
+      status.textContent = '';
+      try {
+        const res = await fetch('./api/learn-baselines', { method: 'POST' });
+        const data = await res.json();
+        if (res.ok) {
+          document.getElementById('lux-learned-ceiling').value = Math.round(data.ceiling);
+          document.getElementById('lux-learned-floor').value = Math.round(data.floor);
+          status.textContent = `Learned from ${data.samples} samples`;
+          status.style.color = 'var(--success)';
+        } else {
+          status.textContent = data.error || 'Failed';
+          status.style.color = 'var(--danger)';
+        }
+      } catch (e) {
+        status.textContent = 'Connection error';
+        status.style.color = 'var(--danger)';
+      }
+      btn.disabled = false;
+      btn.textContent = 'Learn from history';
+    });
     document.getElementById('ct-comp-enabled').addEventListener('change', () => {
       updateCtCompState();
       saveSettings();
