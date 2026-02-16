@@ -693,6 +693,104 @@ class CircadianLight:
         return kelvin
 
     @staticmethod
+    def get_solar_rule_breakdown(
+        base_kelvin: float,
+        hour: float,
+        config: Config,
+        state: AreaState,
+        sun_times: Optional[SunTimes] = None
+    ) -> Dict[str, Any]:
+        """Return breakdown of warm_night and cool_day effects.
+
+        Same logic as _apply_solar_rules but returns individual strengths
+        and shifts instead of the final kelvin.
+
+        Args:
+            base_kelvin: Color temperature from curve (before solar rules)
+            hour: Current hour
+            config: Global configuration
+            state: Area runtime state
+            sun_times: Sun position times (if None, uses defaults)
+
+        Returns:
+            Dict with night_strength, day_strength, night_shift, day_shift,
+            warm_night_target, cool_day_target.
+        """
+        if sun_times is None:
+            sun_times = SunTimes()
+
+        sunrise = sun_times.sunrise
+        sunset = sun_times.sunset
+        solar_noon = sun_times.solar_noon
+        solar_mid = sun_times.solar_mid
+        wrap24 = CircadianLight._wrap24
+
+        # Compute night_strength from warm_night window
+        night_strength = 0.0
+        if config.warm_night_enabled:
+            fade_hrs = config.warm_night_fade / 60.0
+            start_offset_hrs = config.warm_night_start / 60.0
+            end_offset_hrs = config.warm_night_end / 60.0
+            mode = config.warm_night_mode
+
+            if mode == "sunrise":
+                ws, we = wrap24(solar_mid), wrap24(sunrise + end_offset_hrs)
+            elif mode == "sunset":
+                ws, we = wrap24(sunset + start_offset_hrs), wrap24(solar_mid)
+            else:  # "all"
+                ws, we = wrap24(sunset + start_offset_hrs), wrap24(sunrise + end_offset_hrs)
+
+            in_window, weight = CircadianLight._get_window_weight(hour, ws, we, fade_hrs)
+            if in_window:
+                night_strength = weight
+
+        # Compute day_strength from cool_day window
+        day_strength = 0.0
+        if config.cool_day_enabled:
+            fade_hrs = config.cool_day_fade / 60.0
+            start_offset_hrs = config.cool_day_start / 60.0
+            end_offset_hrs = config.cool_day_end / 60.0
+            mode = config.cool_day_mode
+
+            if mode == "sunrise":
+                ws, we = wrap24(sunrise + start_offset_hrs), wrap24(solar_noon)
+            elif mode == "sunset":
+                ws, we = wrap24(solar_noon), wrap24(sunset + end_offset_hrs)
+            else:  # "all"
+                ws, we = wrap24(sunrise + start_offset_hrs), wrap24(sunset + end_offset_hrs)
+
+            in_window, weight = CircadianLight._get_window_weight(hour, ws, we, fade_hrs)
+            if in_window:
+                day_strength = weight * sun_times.sun_factor
+
+        # Apply color_override to targets
+        warm_target = config.warm_night_target
+        if state.color_override and state.color_override > 0:
+            warm_target += state.color_override
+
+        cool_target = config.cool_day_target
+        if state.color_override and state.color_override < 0:
+            cool_target += state.color_override
+
+        # Crossfade: each effect only acts in one direction
+        night_effect = max(0, base_kelvin - warm_target) if night_strength > 0 else 0
+        day_effect = max(0, cool_target - base_kelvin) if day_strength > 0 else 0
+
+        night_shift = night_effect * night_strength
+        day_shift = day_effect * day_strength
+
+        return {
+            'night_strength': night_strength,
+            'day_strength': day_strength,
+            'night_shift': round(night_shift),
+            'day_shift': round(day_shift),
+            'warm_night_target': warm_target,
+            'cool_day_target': cool_target,
+            'warm_night_enabled': config.warm_night_enabled,
+            'cool_day_enabled': config.cool_day_enabled,
+        }
+
+    @staticmethod
     def calculate_lighting(
         hour: float,
         config: Config,

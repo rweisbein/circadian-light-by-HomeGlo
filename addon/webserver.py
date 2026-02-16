@@ -22,6 +22,7 @@ import state
 import switches
 import glozone
 import glozone_state
+import lux_tracker
 from brain import (
     CircadianLight,
     Config,
@@ -2610,6 +2611,7 @@ class LightDesignerServer:
                     sunset=iso_to_hour(sun_dict.get("sunset"), 18.0),
                     solar_noon=iso_to_hour(sun_dict.get("noon"), 12.0),
                     solar_mid=(iso_to_hour(sun_dict.get("noon"), 12.0) + 12.0) % 24.0,
+                    sun_factor=lux_tracker.get_sun_factor(),
                 )
             except Exception as e:
                 logger.debug(f"[AreaStatus] Error calculating sun times: {e}")
@@ -2676,6 +2678,30 @@ class LightDesignerServer:
                     area_nl_exposure = glozone.get_area_natural_light_exposure(area_id)
                     nl_factor = calculate_natural_light_factor(area_nl_exposure, sun_elev, daylight_sat_deg)
 
+                    # Compute modulated nl_factor (sun_factor attenuates the reduction)
+                    sf = sun_times.sun_factor
+                    nl_factor_modulated = 1.0 - (1.0 - nl_factor) * sf
+
+                    # Base kelvin (before solar rules) and solar rule breakdown
+                    base_kelvin = 4000
+                    solar_breakdown = None
+                    try:
+                        base_kelvin = CircadianLight.calculate_color_at_hour(
+                            calc_hour, area_config, area_state,
+                            apply_solar_rules=False, sun_times=sun_times
+                        )
+                        solar_breakdown = CircadianLight.get_solar_rule_breakdown(
+                            base_kelvin, calc_hour, area_config, area_state, sun_times
+                        )
+                    except Exception as e:
+                        logger.debug(f"[AreaStatus] Error computing solar breakdown for {area_id}: {e}")
+
+                    # Lux tracker data
+                    lux_sensor = lux_tracker.get_sensor_entity()
+                    lux_smoothed = lux_tracker._ema_lux if lux_sensor else None
+                    lux_ceiling = lux_tracker._learned_ceiling if lux_sensor else None
+                    lux_floor = lux_tracker._learned_floor if lux_sensor else None
+
                     area_status[area_id] = {
                         'is_circadian': area_state.is_circadian,
                         'is_on': area_state.is_on,
@@ -2705,6 +2731,13 @@ class LightDesignerServer:
                         'sun_elevation': round(sun_elev, 1),
                         'natural_light_exposure': area_nl_exposure,
                         'nl_factor': round(nl_factor, 3),
+                        'sun_factor': round(sf, 3),
+                        'nl_factor_modulated': round(nl_factor_modulated, 3),
+                        'lux_smoothed': round(lux_smoothed, 1) if lux_smoothed is not None else None,
+                        'lux_ceiling': round(lux_ceiling, 1) if lux_ceiling is not None else None,
+                        'lux_floor': round(lux_floor, 1) if lux_floor is not None else None,
+                        'base_kelvin': base_kelvin,
+                        'solar_breakdown': solar_breakdown,
                     }
 
             return web.json_response(area_status)
