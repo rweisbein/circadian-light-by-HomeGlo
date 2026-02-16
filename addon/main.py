@@ -4846,7 +4846,9 @@ class HomeAssistantWebSocketClient:
                 lux_tracker.init()
                 await lux_tracker.learn_baseline(self)
 
-                # Seed sun elevation into lux_tracker
+                # Seed sun data from cached states (sun_data is empty until first state_changed)
+                if not self.sun_data and "sun.sun" in self.cached_states:
+                    self.sun_data = self.cached_states["sun.sun"].get("attributes", {})
                 if self.sun_data:
                     lux_tracker.update_sun_elevation(self.sun_data.get("elevation", 0.0))
 
