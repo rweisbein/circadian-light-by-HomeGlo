@@ -1992,7 +1992,8 @@ class LightDesignerServer:
                 return
 
             config = await self.load_config()
-            sensor_entity = config.get("outdoor_lux_sensor")
+            lux_tracker.init(config)
+            sensor_entity = lux_tracker.get_sensor_entity()
 
             async with websockets.connect(ws_url) as ws:
                 msg = json.loads(await ws.recv())
