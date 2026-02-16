@@ -1344,47 +1344,30 @@ input[type=range]::-moz-range-thumb {
       <div class="color-rule-stack" data-color-row="daylight">
         <div class="color-rule-stack-label">
           <div class="color-rule-label-left">
-            <div class="color-rule-toggle"><input type="checkbox" id="cool-day-enabled"></div>
-            <label class="color-rule-label">Cool day<span class="info-icon" data-tooltip="cool-day-info">i<span class="info-tooltip" id="cool-day-info">Lifts color temperature when the sun is up; if your curve is warm (low K) between sunrise and sunset, this cools it.</span></span></label>
+            <label class="color-rule-label">Daylight blend<span class="info-icon" data-tooltip="daylight-info">i<span class="info-tooltip" id="daylight-info">Pushes color toward a target based on outdoor brightness. Set to 0 K to disable. Higher color gain = stronger push.</span></span></label>
           </div>
           <div class="color-rule-controls">
-            <select id="cool-day-mode">
-              <option value="all">all day</option>
-              <option value="sunrise">after sunrise</option>
-              <option value="sunset">before sunset</option>
-            </select>
             <div class="color-controls-wrap">
-              <button type="button" class="color-value-chip" id="cool-day-target-chip">6500 K</button>
-              <div class="color-slider-popup" id="cool-day-popup">
+              <button type="button" class="color-value-chip" id="daylight-cct-chip">5500 K</button>
+              <div class="color-slider-popup" id="daylight-cct-popup">
                 <div class="dual-range">
-                  <div class="dual-track color-track" id="cool-day-track"></div>
-                  <input type="range" id="cool-day-target" class="range-min" min="500" max="6500" step="100" value="6500">
+                  <div class="dual-track color-track" id="daylight-cct-track"></div>
+                  <input type="range" id="daylight-cct" class="range-min" min="0" max="6500" step="100" value="5500">
                 </div>
               </div>
             </div>
           </div>
         </div>
-        <div class="color-rule-stack-body" id="cool-day-body">
-          <div class="color-rule-slider-row" data-rule-window="sunrise">
-            <div class="param-row">
-              <label>Start</label>
-              <input type="range" id="cool-day-start" min="-180" max="180" step="30" value="0">
-              <span class="offset-text" id="cool-day-start-text">at sunrise</span>
-            </div>
+        <div class="color-rule-stack-body" id="daylight-body">
+          <div class="param-row">
+            <label>Color gain</label>
+            <input type="range" id="color-gain" min="1" max="10" step="0.5" value="5.0">
+            <span class="offset-text" id="color-gain-text">5.0</span>
           </div>
-          <div class="color-rule-slider-row" data-rule-window="sunset">
-            <div class="param-row">
-              <label>End</label>
-              <input type="range" id="cool-day-end" min="-180" max="180" step="30" value="0">
-              <span class="offset-text" id="cool-day-end-text">at sunset</span>
-            </div>
-          </div>
-          <div class="color-rule-slider-row" data-rule-window="any">
-            <div class="param-row">
-              <label>Fade</label>
-              <input type="range" id="cool-day-fade" min="0" max="300" step="30" value="60">
-              <span class="offset-text" id="cool-day-fade-text">1 hr</span>
-            </div>
+          <div class="param-row">
+            <label>Brightness gain</label>
+            <input type="range" id="brightness-gain" min="1" max="10" step="0.5" value="5.0">
+            <span class="offset-text" id="brightness-gain-text">5.0</span>
           </div>
         </div>
       </div>
@@ -1419,15 +1402,15 @@ const DESCEND_COLORS = {
 };
 
 // Activity Presets
-// warm_night_enabled: true for young, adult, nightowl (per llm_access)
-// cool_day_enabled: false for all (per llm_access)
+// warm_night_enabled: true for young, adult, nightowl
+// daylight_cct: 5500 for all (intensity-based daylight blend)
 const ACTIVITY_PRESETS = {
-  young: { wake_time: 6.0, bed_time: 18.0, ascend_start: 0.0, descend_start: 12.0, warm_night_enabled: true, cool_day_enabled: false },
-  adult: { wake_time: 7.0, bed_time: 21.0, ascend_start: 3.0, descend_start: 12.0, warm_night_enabled: true, cool_day_enabled: false },
-  nightowl: { wake_time: 10.0, bed_time: 2.0, ascend_start: 8.0, descend_start: 16.0, warm_night_enabled: true, cool_day_enabled: false },
-  duskbat: { wake_time: 14.0, bed_time: 6.0, ascend_start: 12.0, descend_start: 20.0, warm_night_enabled: false, cool_day_enabled: false },
-  shiftearly: { wake_time: 18.0, bed_time: 10.0, ascend_start: 16.0, descend_start: 0.0, warm_night_enabled: false, cool_day_enabled: false },
-  shiftlate: { wake_time: 22.0, bed_time: 14.0, ascend_start: 20.0, descend_start: 4.0, warm_night_enabled: false, cool_day_enabled: false }
+  young: { wake_time: 6.0, bed_time: 18.0, ascend_start: 0.0, descend_start: 12.0, warm_night_enabled: true, daylight_cct: 5500 },
+  adult: { wake_time: 7.0, bed_time: 21.0, ascend_start: 3.0, descend_start: 12.0, warm_night_enabled: true, daylight_cct: 5500 },
+  nightowl: { wake_time: 10.0, bed_time: 2.0, ascend_start: 8.0, descend_start: 16.0, warm_night_enabled: true, daylight_cct: 5500 },
+  duskbat: { wake_time: 14.0, bed_time: 6.0, ascend_start: 12.0, descend_start: 20.0, warm_night_enabled: false, daylight_cct: 5500 },
+  shiftearly: { wake_time: 18.0, bed_time: 10.0, ascend_start: 16.0, descend_start: 0.0, warm_night_enabled: false, daylight_cct: 5500 },
+  shiftlate: { wake_time: 22.0, bed_time: 14.0, ascend_start: 20.0, descend_start: 4.0, warm_night_enabled: false, daylight_cct: 5500 }
 };
 
 // Simple mode - hides advanced chart elements
@@ -1455,12 +1438,9 @@ let config = {
   warm_night_start: -60,  // minutes offset from sunset (negative = before)
   warm_night_end: 60,     // minutes offset from sunrise (positive = after)
   warm_night_fade: 60,    // fade duration in minutes
-  cool_day_enabled: false,
-  cool_day_mode: 'all',
-  cool_day_target: 6500,
-  cool_day_start: 0,      // minutes offset from sunrise
-  cool_day_end: 0,        // minutes offset from sunset
-  cool_day_fade: 60,      // fade duration in minutes
+  daylight_cct: 5500,
+  color_gain: 5.0,
+  brightness_gain: 5.0,
   activity_preset: 'adult',
   use_ha_location: true,
   latitude: 35.0,
@@ -1540,31 +1520,6 @@ function getWarmNightWindow() {
   return { windowStart, windowEnd };
 }
 
-// Get cool_day window boundaries based on current config and sun times
-function getCoolDayWindow() {
-  if (!config || !sunTimes || !config.cool_day_enabled) return null;
-
-  const { sunrise, sunset } = sunTimes;
-  const solarNoon = wrap24(sunTimes.solarNoon);
-  const startOffsetHrs = config.cool_day_start / 60;
-  const endOffsetHrs = config.cool_day_end / 60;
-  const mode = config.cool_day_mode;
-
-  let windowStart, windowEnd;
-  if (mode === 'sunrise') {
-    windowStart = wrap24(sunrise + startOffsetHrs);
-    windowEnd = solarNoon;
-  } else if (mode === 'sunset') {
-    windowStart = solarNoon;
-    windowEnd = wrap24(sunset + endOffsetHrs);
-  } else {
-    windowStart = wrap24(sunrise + startOffsetHrs);
-    windowEnd = wrap24(sunset + endOffsetHrs);
-  }
-
-  return { windowStart, windowEnd };
-}
-
 // ============================================================
 // Single-Point Value Calculation (source of truth)
 // ============================================================
@@ -1613,79 +1568,61 @@ function getWindowWeight(hour, windowStart, windowEnd, fadeHrs) {
 }
 
 /**
- * Apply warm_night and cool_day solar rules to a single CCT value at a given hour.
- * Uses crossfade model: each rule computes independent strength, effects combine additively.
+ * Apply warm_night and daylight blend solar rules to a single CCT value at a given hour.
  */
 function applySolarRuleAtHour(baseCCT, hour) {
   if (!sunTimes) return baseCCT;
 
   let cct = baseCCT;
-  const { sunrise, sunset, solarNoon, solarMid } = sunTimes;
+  const { sunrise, sunset, solarMid } = sunTimes;
 
-  // Compute night_strength from warm_night window
-  let nightStrength = 0;
+  // Warm night — ceiling
   if (config.warm_night_enabled) {
-    const fadeHrs = config.warm_night_fade / 60;
-    const startOffsetHrs = config.warm_night_start / 60;
-    const endOffsetHrs = config.warm_night_end / 60;
-    const mode = config.warm_night_mode;
-
-    let ws, we;
-    if (mode === 'sunrise') {
-      ws = wrap24(solarMid);
-      we = wrap24(sunrise + endOffsetHrs);
-    } else if (mode === 'sunset') {
-      ws = wrap24(sunset + startOffsetHrs);
-      we = wrap24(solarMid);
-    } else {
-      ws = wrap24(sunset + startOffsetHrs);
-      we = wrap24(sunrise + endOffsetHrs);
+    let warmTarget = config.warm_night_target;
+    if (runtimeState.color_override && runtimeState.color_override > 0) {
+      warmTarget += runtimeState.color_override;
     }
 
-    const { inWindow, weight } = getWindowWeight(hour, ws, we, fadeHrs);
-    if (inWindow) nightStrength = weight;
-  }
+    if (cct > warmTarget) {
+      const fadeHrs = config.warm_night_fade / 60;
+      const startOffsetHrs = config.warm_night_start / 60;
+      const endOffsetHrs = config.warm_night_end / 60;
+      const mode = config.warm_night_mode;
 
-  // Compute day_strength from cool_day window
-  let dayStrength = 0;
-  if (config.cool_day_enabled) {
-    const fadeHrs = config.cool_day_fade / 60;
-    const startOffsetHrs = config.cool_day_start / 60;
-    const endOffsetHrs = config.cool_day_end / 60;
-    const mode = config.cool_day_mode;
+      let ws, we;
+      if (mode === 'sunrise') {
+        ws = wrap24(solarMid);
+        we = wrap24(sunrise + endOffsetHrs);
+      } else if (mode === 'sunset') {
+        ws = wrap24(sunset + startOffsetHrs);
+        we = wrap24(solarMid);
+      } else {
+        ws = wrap24(sunset + startOffsetHrs);
+        we = wrap24(sunrise + endOffsetHrs);
+      }
 
-    let ws, we;
-    if (mode === 'sunrise') {
-      ws = wrap24(sunrise + startOffsetHrs);
-      we = wrap24(solarNoon);
-    } else if (mode === 'sunset') {
-      ws = wrap24(solarNoon);
-      we = wrap24(sunset + endOffsetHrs);
-    } else {
-      ws = wrap24(sunrise + startOffsetHrs);
-      we = wrap24(sunset + endOffsetHrs);
+      const { inWindow, weight } = getWindowWeight(hour, ws, we, fadeHrs);
+      if (inWindow && weight > 0) {
+        cct = cct + (warmTarget - cct) * weight;
+      }
     }
-
-    const { inWindow, weight } = getWindowWeight(hour, ws, we, fadeHrs);
-    if (inWindow) dayStrength = weight;
   }
 
-  // Apply color_override to targets
-  let warmTarget = config.warm_night_target;
-  if (runtimeState.color_override && runtimeState.color_override > 0) {
-    warmTarget += runtimeState.color_override;
+  // Daylight color blend (intensity-based, replaces cool_day)
+  const FULL_SUN_INTENSITY = 8.4;
+  const outdoorNorm = 1.0;  // Preview assumes full sun
+  const daylightCct = config.daylight_cct || 0;
+  const colorGain = config.color_gain || 5.0;
+  if (daylightCct > 0 && outdoorNorm > 0) {
+    const blend = Math.min(1.0, outdoorNorm * FULL_SUN_INTENSITY / Math.max(0.1, colorGain));
+    let daylightTarget = daylightCct;
+    if (runtimeState.color_override && runtimeState.color_override < 0) {
+      daylightTarget += runtimeState.color_override;
+    }
+    if (daylightTarget > cct) {
+      cct += (daylightTarget - cct) * blend;
+    }
   }
-
-  let coolTarget = config.cool_day_target;
-  if (runtimeState.color_override && runtimeState.color_override < 0) {
-    coolTarget += runtimeState.color_override;
-  }
-
-  // Crossfade: each effect only acts in one direction
-  const nightEffect = nightStrength > 0 ? Math.max(0, cct - warmTarget) : 0;
-  const dayEffect = dayStrength > 0 ? Math.max(0, coolTarget - cct) : 0;
-
-  cct = cct - nightEffect * nightStrength + dayEffect * dayStrength;
 
   return cct;
 }
@@ -2040,18 +1977,18 @@ function updateColorGradients() {
     warmTrack.style.background = `linear-gradient(90deg, ${stops.join(',')})`;
   }
 
-  // Cool day track - gradient matches slider's dynamic bounds
-  const coolTrack = document.getElementById('cool-day-track');
-  const coolSlider = document.getElementById('cool-day-target');
-  if (coolTrack && coolSlider) {
-    const coolMin = parseInt(coolSlider.min) || minK;
-    const coolMax = parseInt(coolSlider.max) || maxK;
+  // Daylight CCT track - gradient matches slider's dynamic bounds
+  const daylightTrack = document.getElementById('daylight-cct-track');
+  const daylightSlider = document.getElementById('daylight-cct');
+  if (daylightTrack && daylightSlider) {
+    const daylightMin = parseInt(daylightSlider.min) || minK;
+    const daylightMax = parseInt(daylightSlider.max) || maxK;
     const stops = [];
     for (let i = 0; i <= steps; i++) {
-      const k = coolMin + ((coolMax - coolMin) * i / steps);
-      stops.push(`${cctToRGB(k)} ${(i / steps) * 100}%`);
+      const k = daylightMin + ((daylightMax - daylightMin) * i / steps);
+      stops.push(`${cctToRGB(Math.max(500, k))} ${(i / steps) * 100}%`);
     }
-    coolTrack.style.background = `linear-gradient(90deg, ${stops.join(',')})`;
+    daylightTrack.style.background = `linear-gradient(90deg, ${stops.join(',')})`;
   }
 
   // Update target chips
@@ -2067,19 +2004,19 @@ function updateColorChips() {
     warmChip.style.color = readableTextColor(cctToRGB(k));
   }
 
-  const coolChip = document.getElementById('cool-day-target-chip');
-  if (coolChip) {
-    const k = config.cool_day_target;
-    coolChip.textContent = `${k} K`;
-    coolChip.style.background = cctToRGB(k);
-    coolChip.style.color = readableTextColor(cctToRGB(k));
+  const daylightChip = document.getElementById('daylight-cct-chip');
+  if (daylightChip) {
+    const k = config.daylight_cct;
+    daylightChip.textContent = k > 0 ? `${k} K` : 'Off';
+    daylightChip.style.background = k > 0 ? cctToRGB(k) : '#666';
+    daylightChip.style.color = k > 0 ? readableTextColor(cctToRGB(k)) : '#fff';
   }
 
 }
 
 // Apply solar color rules to CCT curve (batch version for chart rendering)
 function adjustCCTForSolarRules(cctArray, hoursArray, sunrise, sunset) {
-  if (!config.warm_night_enabled && !config.cool_day_enabled) return;
+  if (!config.warm_night_enabled && !config.daylight_cct) return;
   for (let i = 0; i < cctArray.length; i++) {
     cctArray[i] = applySolarRuleAtHour(cctArray[i], hoursArray[i]);
   }
@@ -3178,12 +3115,9 @@ function syncConfigFromUI() {
   config.warm_night_end = parseInt(document.getElementById('warm-night-end')?.value || 60);
   config.warm_night_fade = parseInt(document.getElementById('warm-night-fade')?.value || 60);
 
-  config.cool_day_enabled = document.getElementById('cool-day-enabled').checked;
-  config.cool_day_mode = document.getElementById('cool-day-mode').value;
-  config.cool_day_target = parseInt(document.getElementById('cool-day-target').value);
-  config.cool_day_start = parseInt(document.getElementById('cool-day-start')?.value || 0);
-  config.cool_day_end = parseInt(document.getElementById('cool-day-end')?.value || 0);
-  config.cool_day_fade = parseInt(document.getElementById('cool-day-fade')?.value || 60);
+  config.daylight_cct = parseInt(document.getElementById('daylight-cct').value);
+  config.color_gain = parseFloat(document.getElementById('color-gain').value);
+  config.brightness_gain = parseFloat(document.getElementById('brightness-gain').value);
 
   resetRuntimeState();
   updateColorGradients();
@@ -3227,8 +3161,7 @@ function syncUIFromConfig() {
   document.getElementById('brightness-increments').value = masterInc;
   document.getElementById('color-increments').value = masterInc;
 
-  // Set warm/cool slider values FROM CONFIG BEFORE calling updateSolarTargetSliderConstraints
-  // (that function reads slider values, so they must be set first to avoid overwriting config)
+  // Set warm night slider values FROM CONFIG BEFORE calling updateSolarTargetSliderConstraints
   document.getElementById('warm-night-enabled').checked = config.warm_night_enabled;
   document.getElementById('warm-night-mode').value = config.warm_night_mode;
   document.getElementById('warm-night-target').value = config.warm_night_target;
@@ -3239,17 +3172,11 @@ function syncUIFromConfig() {
   if (warmEnd) warmEnd.value = config.warm_night_end;
   if (warmFade) warmFade.value = config.warm_night_fade;
 
-  document.getElementById('cool-day-enabled').checked = config.cool_day_enabled;
-  document.getElementById('cool-day-mode').value = config.cool_day_mode;
-  document.getElementById('cool-day-target').value = config.cool_day_target;
-  const coolStart = document.getElementById('cool-day-start');
-  const coolEnd = document.getElementById('cool-day-end');
-  const coolFade = document.getElementById('cool-day-fade');
-  if (coolStart) coolStart.value = config.cool_day_start;
-  if (coolEnd) coolEnd.value = config.cool_day_end;
-  if (coolFade) coolFade.value = config.cool_day_fade;
+  document.getElementById('daylight-cct').value = config.daylight_cct;
+  document.getElementById('color-gain').value = config.color_gain;
+  document.getElementById('brightness-gain').value = config.brightness_gain;
 
-  // Now update constraints (reads slider values, enforces warm >= cool)
+  // Now update constraints (reads slider values, clamps to color range)
   updateSolarTargetSliderConstraints();
 
   document.getElementById('activity-preset').value = config.activity_preset || 'adult';
@@ -3294,15 +3221,13 @@ function updateOffsetDisplays() {
   updateDisplay('warm-night-start-text', formatOffset(config.warm_night_start, 'sunset'));
   updateDisplay('warm-night-end-text', formatOffset(config.warm_night_end, 'sunrise'));
   updateDisplay('warm-night-fade-text', fmtHrs(config.warm_night_fade));
-  updateDisplay('cool-day-start-text', formatOffset(config.cool_day_start, 'sunrise'));
-  updateDisplay('cool-day-end-text', formatOffset(config.cool_day_end, 'sunset'));
-  updateDisplay('cool-day-fade-text', fmtHrs(config.cool_day_fade));
+  updateDisplay('color-gain-text', (config.color_gain || 5.0).toFixed(1));
+  updateDisplay('brightness-gain-text', (config.brightness_gain || 5.0).toFixed(1));
 }
 
 // Sync color rule rows - toggle is-disabled based on checkbox + mode state
 function syncColorRuleRows() {
   const warmEnabled = config.warm_night_enabled;
-  const coolEnabled = config.cool_day_enabled;
 
   // Warm night body
   const warmBody = document.getElementById('warm-night-body');
@@ -3310,15 +3235,6 @@ function syncColorRuleRows() {
     warmBody.classList.toggle('is-disabled', !warmEnabled);
     warmBody.querySelectorAll('select, input[type="range"]').forEach(el => {
       el.disabled = !warmEnabled;
-    });
-  }
-
-  // Cool day body
-  const coolBody = document.getElementById('cool-day-body');
-  if (coolBody) {
-    coolBody.classList.toggle('is-disabled', !coolEnabled);
-    coolBody.querySelectorAll('select, input[type="range"]').forEach(el => {
-      el.disabled = !coolEnabled;
     });
   }
 
@@ -3331,16 +3247,6 @@ function syncColorRuleRows() {
     const locked = (mode === 'sunrise' && win === 'sunset') || (mode === 'sunset' && win === 'sunrise');
     row.classList.toggle('is-disabled', locked);
     row.querySelectorAll('input[type="range"]').forEach(el => el.disabled = !warmEnabled || locked);
-  });
-
-  // Cool day: "sunrise" → lock End (sunset side unused), "sunset" → lock Start (sunrise side unused)
-  document.querySelectorAll('[data-color-row="daylight"] .color-rule-slider-row').forEach(row => {
-    const win = row.dataset.ruleWindow;
-    if (win === 'any') return;
-    const mode = config.cool_day_mode;
-    const locked = (mode === 'sunrise' && win === 'sunset') || (mode === 'sunset' && win === 'sunrise');
-    row.classList.toggle('is-disabled', locked);
-    row.querySelectorAll('input[type="range"]').forEach(el => el.disabled = !coolEnabled || locked);
   });
 }
 
@@ -3364,31 +3270,20 @@ function updateWakeBedSliderConstraints() {
   bedSlider.max = config.descend_start + 24 - (descendStart - ascendStart);
 }
 
-// Constrain warm_night_target and cool_day_target sliders to color range
-// and enforce warm_night_target >= cool_day_target (ceiling >= floor)
-// by setting dynamic slider bounds - you can't push one past the other
+// Constrain warm_night_target slider to color range
 function updateSolarTargetSliderConstraints() {
   const warmSlider = document.getElementById('warm-night-target');
-  const coolSlider = document.getElementById('cool-day-target');
-  if (!warmSlider || !coolSlider) return;
+  if (!warmSlider) return;
 
   const minTemp = config.min_color_temp;
   const maxTemp = config.max_color_temp;
 
-  // Both sliders use full color range (no cross-constraint)
   warmSlider.min = minTemp;
   warmSlider.max = maxTemp;
-  coolSlider.min = minTemp;
-  coolSlider.max = maxTemp;
 
-  // Clamp values to color range
   let warmVal = Math.max(minTemp, Math.min(maxTemp, parseInt(warmSlider.value)));
-  let coolVal = Math.max(minTemp, Math.min(maxTemp, parseInt(coolSlider.value)));
-
   warmSlider.value = warmVal;
-  coolSlider.value = coolVal;
   config.warm_night_target = warmVal;
-  config.cool_day_target = coolVal;
 
   // Update track gradients to match new bounds
   updateColorGradients();
@@ -3497,22 +3392,20 @@ function setupEventListeners() {
     config.color_increments = null;
   });
 
-  // Warm/cool target sliders (inside popups)
-  // Call updateSolarTargetSliderConstraints to update dynamic bounds
-  // (warm can't go below cool, cool can't go above warm)
+  // Warm night target slider (inside popup)
   document.getElementById('warm-night-target')?.addEventListener('input', () => {
     config.warm_night_target = parseInt(document.getElementById('warm-night-target').value);
     updateSolarTargetSliderConstraints();
     renderChart();
   });
-  document.getElementById('cool-day-target')?.addEventListener('input', () => {
-    config.cool_day_target = parseInt(document.getElementById('cool-day-target').value);
-    updateSolarTargetSliderConstraints();
+  document.getElementById('daylight-cct')?.addEventListener('input', () => {
+    config.daylight_cct = parseInt(document.getElementById('daylight-cct').value);
+    updateColorGradients();
     renderChart();
   });
 
-  // Offset sliders
-  ['warm-night-start', 'warm-night-end', 'warm-night-fade', 'cool-day-start', 'cool-day-end', 'cool-day-fade'].forEach(id => {
+  // Daylight gain sliders
+  ['color-gain', 'brightness-gain'].forEach(id => {
     const el = document.getElementById(id);
     if (el) {
       el.addEventListener('input', () => {
@@ -3523,14 +3416,23 @@ function setupEventListeners() {
     }
   });
 
-  ['warm-night-enabled', 'cool-day-enabled', 'warm-night-mode', 'cool-day-mode'].forEach(id => {
+  // Warm night offset sliders
+  ['warm-night-start', 'warm-night-end', 'warm-night-fade'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('input', () => {
+        syncConfigFromUI();
+        updateOffsetDisplays();
+        renderChart();
+      });
+    }
+  });
+
+  ['warm-night-enabled', 'warm-night-mode'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('change', () => {
-      // Update only the specific solar rule config without resetting runtime state
       config.warm_night_enabled = document.getElementById('warm-night-enabled').checked;
       config.warm_night_mode = document.getElementById('warm-night-mode').value;
-      config.cool_day_enabled = document.getElementById('cool-day-enabled').checked;
-      config.cool_day_mode = document.getElementById('cool-day-mode').value;
       syncColorRuleRows();
       renderChart();
     });
@@ -3540,13 +3442,13 @@ function setupEventListeners() {
   document.getElementById('warm-night-target-chip')?.addEventListener('click', (e) => {
     e.stopPropagation();
     const popup = document.getElementById('warm-night-popup');
-    const other = document.getElementById('cool-day-popup');
+    const other = document.getElementById('daylight-cct-popup');
     if (other) other.classList.remove('is-open');
     popup?.classList.toggle('is-open');
   });
-  document.getElementById('cool-day-target-chip')?.addEventListener('click', (e) => {
+  document.getElementById('daylight-cct-chip')?.addEventListener('click', (e) => {
     e.stopPropagation();
-    const popup = document.getElementById('cool-day-popup');
+    const popup = document.getElementById('daylight-cct-popup');
     const other = document.getElementById('warm-night-popup');
     if (other) other.classList.remove('is-open');
     popup?.classList.toggle('is-open');
@@ -3584,7 +3486,7 @@ function setupEventListeners() {
       config.wake_time = preset.wake_time;
       config.bed_time = preset.bed_time;
       config.warm_night_enabled = preset.warm_night_enabled;
-      config.cool_day_enabled = preset.cool_day_enabled;
+      config.daylight_cct = preset.daylight_cct;
 
       // Get current sun times for solar-based presets
       const { solarNoon, solarMid } = getSunTimes(config.latitude, config.longitude, getSelectedDateISO());
@@ -3892,8 +3794,7 @@ async function saveConfig() {
       'wake_speed', 'bed_speed',
       'warm_night_enabled', 'warm_night_mode', 'warm_night_target',
       'warm_night_start', 'warm_night_end', 'warm_night_fade',
-      'cool_day_enabled', 'cool_day_mode', 'cool_day_target',
-      'cool_day_start', 'cool_day_end', 'cool_day_fade',
+      'daylight_cct', 'color_gain', 'brightness_gain',
       'activity_preset', 'max_dim_steps',
     ]);
     const rhythmSettings = {};
@@ -4904,12 +4805,9 @@ async function saveRhythmSettings() {
     warm_night_start: config.warm_night_start,
     warm_night_end: config.warm_night_end,
     warm_night_fade: config.warm_night_fade,
-    cool_day_enabled: config.cool_day_enabled,
-    cool_day_mode: config.cool_day_mode,
-    cool_day_target: config.cool_day_target,
-    cool_day_start: config.cool_day_start,
-    cool_day_end: config.cool_day_end,
-    cool_day_fade: config.cool_day_fade,
+    daylight_cct: config.daylight_cct,
+    color_gain: config.color_gain,
+    brightness_gain: config.brightness_gain,
     activity_preset: config.activity_preset,
     max_dim_steps: config.max_dim_steps,
   };

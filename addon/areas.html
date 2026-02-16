@@ -1144,35 +1144,18 @@
         }
       }
 
-      // Cool day — floor
-      if (cfg.cool_day_enabled) {
-        let coolTarget = cfg.cool_day_target;
+      // Daylight color blend (intensity-based)
+      const FULL_SUN_INTENSITY = 8.4;
+      const daylightCct = cfg.daylight_cct || 0;
+      const colorGain = cfg.color_gain || 5.0;
+      if (daylightCct > 0) {
+        const blend = Math.min(1.0, 1.0 * FULL_SUN_INTENSITY / Math.max(0.1, colorGain));
+        let daylightTarget = daylightCct;
         if (colorOverride && colorOverride < 0) {
-          coolTarget += colorOverride;
+          daylightTarget += colorOverride;
         }
-
-        if (cct < coolTarget) {
-          const fadeHrs = cfg.cool_day_fade / 60;
-          const startOffsetHrs = cfg.cool_day_start / 60;
-          const endOffsetHrs = cfg.cool_day_end / 60;
-          const mode = cfg.cool_day_mode;
-
-          let windowStart, windowEnd;
-          if (mode === 'sunrise') {
-            windowStart = wrap24(sunrise + startOffsetHrs);
-            windowEnd = wrap24(solarNoon);
-          } else if (mode === 'sunset') {
-            windowStart = wrap24(solarNoon);
-            windowEnd = wrap24(sunset + endOffsetHrs);
-          } else {
-            windowStart = wrap24(sunrise + startOffsetHrs);
-            windowEnd = wrap24(sunset + endOffsetHrs);
-          }
-
-          const { inWindow, weight } = getWindowWeight(hour, windowStart, windowEnd, fadeHrs);
-          if (inWindow && weight > 0) {
-            cct = cct + (coolTarget - cct) * weight;
-          }
+        if (daylightTarget > cct) {
+          cct += (daylightTarget - cct) * blend;
         }
       }
 

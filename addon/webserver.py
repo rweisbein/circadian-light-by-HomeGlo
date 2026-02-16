@@ -1287,7 +1287,7 @@ class LightDesignerServer:
         Returns brightness and kelvin for each zone, accounting for:
         - The zone's Glo preset configuration
         - The zone's runtime state (brightness_mid, color_mid, frozen_at from GloUp/GloDown)
-        - Solar rules (warm_night, cool_day) based on actual sun times
+        - Solar rules (warm_night, daylight blend) based on actual sun times
 
         This is per-zone, not per-preset, because two zones can share the same
         Glo but have different runtime states.
@@ -1414,13 +1414,12 @@ class LightDesignerServer:
             'latitude', 'longitude',
             'warm_night_target', 'warm_night_fade',
             'warm_night_start', 'warm_night_end',
-            'cool_day_target', 'cool_day_fade',
-            'cool_day_start', 'cool_day_end',
+            'brightness_gain', 'color_gain',
         ]
 
         # Integer parameters
         int_params = [
-            'month', 'wake_speed', 'bed_speed', 'max_dim_steps'
+            'month', 'wake_speed', 'bed_speed', 'max_dim_steps', 'daylight_cct'
         ]
 
         for param_name in float_params:
@@ -1441,7 +1440,7 @@ class LightDesignerServer:
 
         # Boolean parameters
         bool_params = [
-            'warm_night_enabled', 'cool_day_enabled', 'use_ha_location'
+            'warm_night_enabled', 'use_ha_location'
         ]
         for param_name in bool_params:
             if param_name in query:
@@ -1449,7 +1448,7 @@ class LightDesignerServer:
 
         # String parameters
         string_params = [
-            'activity_preset', 'warm_night_mode', 'cool_day_mode', 'timezone'
+            'activity_preset', 'warm_night_mode', 'timezone'
         ]
         for param_name in string_params:
             if param_name in query:
@@ -1509,8 +1508,7 @@ class LightDesignerServer:
         "wake_speed", "bed_speed",
         "warm_night_enabled", "warm_night_mode", "warm_night_target",
         "warm_night_start", "warm_night_end", "warm_night_fade",
-        "cool_day_enabled", "cool_day_mode", "cool_day_target",
-        "cool_day_start", "cool_day_end", "cool_day_fade",
+        "daylight_cct", "color_gain", "brightness_gain",
         "activity_preset", "max_dim_steps",
     }
 
@@ -1682,13 +1680,10 @@ class LightDesignerServer:
             "warm_night_end": 60,     # minutes offset from sunrise (positive = after)
             "warm_night_fade": 60,    # fade duration in minutes
 
-            # Cool during day rule
-            "cool_day_enabled": False,
-            "cool_day_mode": "all",
-            "cool_day_target": 6500,
-            "cool_day_start": 0,
-            "cool_day_end": 0,
-            "cool_day_fade": 60,
+            # Daylight blend
+            "daylight_cct": 5500,
+            "color_gain": 5.0,
+            "brightness_gain": 5.0,
 
             # Activity preset
             "activity_preset": "adult",
@@ -3119,12 +3114,9 @@ class LightDesignerServer:
                 "warm_night_start": -60,
                 "warm_night_end": 60,
                 "warm_night_fade": 60,
-                "cool_day_enabled": False,
-                "cool_day_mode": "all",
-                "cool_day_target": 6500,
-                "cool_day_start": 0,
-                "cool_day_end": 0,
-                "cool_day_fade": 60,
+                "daylight_cct": 5500,
+                "color_gain": 5.0,
+                "brightness_gain": 5.0,
             }
             config.setdefault("circadian_rhythms", {})[name] = {**defaults, **settings}
 
