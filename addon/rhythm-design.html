@@ -184,11 +184,23 @@ input[type=range]::-moz-range-thumb {
 .chart-date-control input[type=range] {
   flex: 1;
 }
+.modeled-conditions {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+}
+.modeled-conditions select {
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--panel2);
+  color: var(--text);
+  font-size: 0.75rem;
+}
 .time-nav-group {
   display: flex;
   gap: 4px;
   align-items: center;
-  margin-left: auto;
 }
 .time-nav-btn {
   --btn-bg: rgba(255,255,255,0.06);
@@ -1204,6 +1216,15 @@ input[type=range]::-moz-range-thumb {
         <span class="chart-date-display" id="chart-date-display">Today</span>
         <input type="range" id="chart-date-slider" min="0" max="364" value="0">
       </div>
+      <div class="modeled-conditions">
+        <select id="modeled-conditions" title="Preview how weather affects the color curve">
+          <option value="1.0">Clear sun</option>
+          <option value="0.6">Partly cloudy</option>
+          <option value="0.3">Overcast</option>
+          <option value="0.15">Heavy overcast</option>
+          <option value="0">Dark / indoor</option>
+        </select>
+      </div>
       <div class="time-nav-group">
         <button class="time-nav-btn" id="cursor-time-minus" title="-5 minutes">-5 min</button>
         <button class="time-nav-btn" id="cursor-time-now" title="Jump to current time">Now</button>
@@ -1609,8 +1630,12 @@ function applySolarRuleAtHour(baseCCT, hour) {
   }
 
   // Daylight color blend (intensity-based, replaces cool_day)
+  // Condition multiplier from dropdown modulates clear-sky lux at this hour's sun elevation
   const FULL_SUN_INTENSITY = 8.4;
-  const outdoorNorm = 1.0;  // Preview assumes full sun
+  const conditionMult = parseFloat(document.getElementById('modeled-conditions')?.value ?? '1.0');
+  const dateStr = getSelectedDateISO();
+  const elev = getSunElevationAtHour(hour, config.latitude, config.longitude, dateStr);
+  const outdoorNorm = elevationToOutdoorNorm(elev, conditionMult);
   const daylightCct = config.daylight_cct || 0;
   const colorGain = config.color_gain || 5.0;
   if (daylightCct > 0 && outdoorNorm > 0) {
@@ -1920,6 +1945,35 @@ function getSunTimes(lat, lon, dateStr) {
   const tz = -date.getTimezoneOffset() / 60;
   const sn = 12 + tz - (lon / 15);
   return { sunrise: sn - dl / 2, sunset: sn + dl / 2, solarNoon: sn, solarMid: (sn + 12) % 24 };
+}
+
+/**
+ * Estimate sun elevation (degrees) at a given hour, using lat/lon and date.
+ * Returns 0 for below-horizon.
+ */
+function getSunElevationAtHour(hour, lat, lon, dateStr) {
+  const date = new Date(dateStr || new Date().toISOString());
+  const doy = Math.floor((date - new Date(date.getFullYear(), 0, 0)) / 86400000);
+  const decl = solarDeclination(doy);
+  const latRad = lat * Math.PI / 180;
+  const tz = -date.getTimezoneOffset() / 60;
+  const solarNoon = 12 + tz - (lon / 15);
+  const hourAngle = (hour - solarNoon) * 15 * Math.PI / 180;
+  const sinElev = Math.sin(latRad) * Math.sin(decl) + Math.cos(latRad) * Math.cos(decl) * Math.cos(hourAngle);
+  return Math.max(0, Math.asin(sinElev) * 180 / Math.PI);
+}
+
+/**
+ * Convert sun elevation to outdoor_normalized (0-1) with condition multiplier.
+ * Models: clear_sky_lux = 120000 * sin(elev), then log-scale to 0-1.
+ */
+function elevationToOutdoorNorm(elevDeg, conditionMultiplier) {
+  if (elevDeg <= 0 || conditionMultiplier <= 0) return 0;
+  const FULL_SUN_INTENSITY = 8.4;
+  const clearSkyLux = 120000 * Math.sin(elevDeg * Math.PI / 180);
+  const estimatedLux = clearSkyLux * conditionMultiplier;
+  if (estimatedLux <= 300) return 0;
+  return Math.min(1.0, Math.log2(estimatedLux / 300) / FULL_SUN_INTENSITY);
 }
 
 function getSelectedDateISO() {
@@ -3513,6 +3567,10 @@ function setupEventListeners() {
   });
 
   document.getElementById('chart-date-slider').addEventListener('input', () => {
+    renderChart();
+  });
+
+  document.getElementById('modeled-conditions').addEventListener('change', () => {
     renderChart();
   });
 
