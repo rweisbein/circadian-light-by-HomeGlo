@@ -44,7 +44,12 @@ _last_update_time: Optional[float] = None  # monotonic timestamp of last update
 _cached_sun_factor: float = 1.0  # always ready to read
 
 # ---------------------------------------------------------------------------
-# Module state — weather entity
+# Module state — preferred source
+# ---------------------------------------------------------------------------
+_preferred_source: str = "weather"  # "lux", "weather", or "angle"
+
+# ---------------------------------------------------------------------------
+# Module state — weather entity (auto-detected at runtime)
 # ---------------------------------------------------------------------------
 _weather_entity: Optional[str] = None
 _cloud_cover: Optional[float] = None  # 0-100 from weather entity
@@ -72,7 +77,7 @@ def init(config: Optional[dict] = None):
     """
     global _sensor_entity, _smoothing_interval, _learned_ceiling, _learned_floor
     global _ema_lux, _last_update_time, _cached_sun_factor
-    global _weather_entity, _cloud_cover
+    global _preferred_source, _cloud_cover
     global _override_condition, _override_expires_at
     global _sun_elevation
 
@@ -83,7 +88,17 @@ def init(config: Optional[dict] = None):
     _smoothing_interval = float(config.get("lux_smoothing_interval", 300))
     _learned_ceiling = config.get("lux_learned_ceiling")
     _learned_floor = config.get("lux_learned_floor")
-    _weather_entity = config.get("weather_entity") or None
+
+    # Determine preferred source (backward compat with legacy configs)
+    if "outdoor_brightness_source" in config:
+        _preferred_source = config["outdoor_brightness_source"]
+    elif _sensor_entity:
+        _preferred_source = "lux"
+    else:
+        _preferred_source = "weather"
+
+    # Weather entity is auto-detected at runtime via set_weather_entity()
+    # (don't reset _weather_entity here — it may already be set by main.py)
 
     # Convert to float if present (may be stored as string from UI)
     if _learned_ceiling is not None:
@@ -106,19 +121,12 @@ def init(config: Optional[dict] = None):
     _override_expires_at = None
     _sun_elevation = 0.0
 
-    sources = []
-    if _sensor_entity:
-        sources.append(f"lux={_sensor_entity}")
-    if _weather_entity:
-        sources.append(f"weather={_weather_entity}")
-    if sources:
-        logger.info(
-            f"Lux tracker initialised: {', '.join(sources)}, "
-            f"smoothing={_smoothing_interval}s, "
-            f"ceiling={_learned_ceiling}, floor={_learned_floor}"
-        )
-    else:
-        logger.info("Lux tracker: no outdoor sensor or weather entity configured (angle fallback)")
+    logger.info(
+        f"Lux tracker initialised: source={_preferred_source}, "
+        f"sensor={_sensor_entity}, "
+        f"smoothing={_smoothing_interval}s, "
+        f"ceiling={_learned_ceiling}, floor={_learned_floor}"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -136,38 +144,67 @@ def get_sun_factor() -> float:
 def get_outdoor_normalized() -> Optional[float]:
     """Return outdoor normalized intensity (0.0–1.0) using fallback chain.
 
-    Priority: Override > Lux sensor > Weather entity > Sun angle estimate.
+    The chain respects _preferred_source:
+      - "lux":     override → lux → weather → angle
+      - "weather": override → weather → angle
+      - "angle":   override → angle
+
     Always returns a float (the fallback chain guarantees a value).
     """
-    # 1. Override (highest priority)
+    # 1. Override always wins
     info = get_override_info()  # auto-clears expired
     if info:
         mult = CONDITION_MULTIPLIERS.get(_override_condition, 1.0)
         return _compute_angle_outdoor_norm() * mult
 
-    # 2. Lux sensor
-    if _sensor_entity and _learned_ceiling and _learned_floor and _ema_lux is not None:
-        return _cached_sun_factor
+    # 2. Source-dependent chain
+    if _preferred_source == "lux":
+        if _sensor_entity and _learned_ceiling and _learned_floor and _ema_lux is not None:
+            return _cached_sun_factor
+        # fallthrough to weather, then angle
+        weather_norm = _compute_weather_outdoor_norm()
+        if weather_norm is not None:
+            return weather_norm
+        return _compute_angle_outdoor_norm()
 
-    # 3. Weather entity
-    weather_norm = _compute_weather_outdoor_norm()
-    if weather_norm is not None:
-        return weather_norm
+    if _preferred_source == "weather":
+        weather_norm = _compute_weather_outdoor_norm()
+        if weather_norm is not None:
+            return weather_norm
+        return _compute_angle_outdoor_norm()
 
-    # 4. Angle fallback (always available)
+    # "angle"
     return _compute_angle_outdoor_norm()
 
 
 def get_outdoor_source() -> str:
-    """Return which source is currently active in the fallback chain."""
+    """Return which source is currently active in the fallback chain.
+
+    Respects _preferred_source — e.g. if source is "weather", lux data
+    is ignored even when available.
+    """
     info = get_override_info()
     if info:
         return "override"
-    if _sensor_entity and _learned_ceiling and _learned_floor and _ema_lux is not None:
-        return "lux"
-    if _weather_entity and _cloud_cover is not None:
-        return "weather"
+
+    if _preferred_source == "lux":
+        if _sensor_entity and _learned_ceiling and _learned_floor and _ema_lux is not None:
+            return "lux"
+        if _weather_entity and _cloud_cover is not None:
+            return "weather"
+        return "angle"
+
+    if _preferred_source == "weather":
+        if _weather_entity and _cloud_cover is not None:
+            return "weather"
+        return "angle"
+
     return "angle"
+
+
+def get_preferred_source() -> str:
+    """Return the user-selected preferred source."""
+    return _preferred_source
 
 
 def get_sensor_entity() -> Optional[str]:
@@ -176,8 +213,14 @@ def get_sensor_entity() -> Optional[str]:
 
 
 def get_weather_entity() -> Optional[str]:
-    """Return configured weather entity_id, or None."""
+    """Return auto-detected weather entity_id, or None."""
     return _weather_entity
+
+
+def set_weather_entity(entity_id: str):
+    """Set the auto-detected weather entity (called by main.py at startup)."""
+    global _weather_entity
+    _weather_entity = entity_id
 
 
 # ---------------------------------------------------------------------------

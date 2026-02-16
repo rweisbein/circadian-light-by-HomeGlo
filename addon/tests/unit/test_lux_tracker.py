@@ -111,21 +111,26 @@ class TestEmaSmoothing:
         assert lux_tracker.get_sun_factor() == 0.0
 
 
+def _reset_all():
+    """Helper to reset all lux_tracker module state."""
+    lux_tracker._sensor_entity = None
+    lux_tracker._learned_ceiling = None
+    lux_tracker._learned_floor = None
+    lux_tracker._ema_lux = None
+    lux_tracker._cached_sun_factor = 1.0
+    lux_tracker._preferred_source = "weather"
+    lux_tracker._weather_entity = None
+    lux_tracker._cloud_cover = None
+    lux_tracker._override_condition = None
+    lux_tracker._override_expires_at = None
+    lux_tracker._sun_elevation = 0.0
+
+
 class TestGetOutdoorNormalized:
     """Test get_outdoor_normalized() with fallback chain."""
 
     def setup_method(self):
-        """Reset all module state before each test."""
-        lux_tracker._sensor_entity = None
-        lux_tracker._learned_ceiling = None
-        lux_tracker._learned_floor = None
-        lux_tracker._ema_lux = None
-        lux_tracker._cached_sun_factor = 1.0
-        lux_tracker._weather_entity = None
-        lux_tracker._cloud_cover = None
-        lux_tracker._override_condition = None
-        lux_tracker._override_expires_at = None
-        lux_tracker._sun_elevation = 0.0
+        _reset_all()
 
     def test_no_sources_returns_angle_fallback(self):
         """When nothing configured, falls through to angle (0.0 at night)."""
@@ -142,6 +147,7 @@ class TestGetOutdoorNormalized:
 
     def test_active_sensor_returns_float(self):
         """When sensor + baselines + data are all present, returns sun_factor."""
+        lux_tracker._preferred_source = "lux"
         lux_tracker._sensor_entity = "sensor.test"
         lux_tracker._learned_ceiling = 50000
         lux_tracker._learned_floor = 100
@@ -154,6 +160,7 @@ class TestGetOutdoorNormalized:
 
     def test_dark_returns_zero_not_none(self):
         """Dark outdoor (0.0) should be distinguishable from None."""
+        lux_tracker._preferred_source = "lux"
         lux_tracker._sensor_entity = "sensor.test"
         lux_tracker._learned_ceiling = 50000
         lux_tracker._learned_floor = 100
@@ -219,13 +226,8 @@ class TestFallback:
         assert lux_tracker._learned_ceiling == 50000.0
         assert lux_tracker._learned_floor == 100.0
 
-    def test_init_with_weather_entity(self):
-        """init() with weather_entity config should set it."""
-        lux_tracker.init(config={"weather_entity": "weather.home"})
-        assert lux_tracker.get_weather_entity() == "weather.home"
-
     def test_init_resets_weather_and_override(self):
-        """init() should reset weather and override state."""
+        """init() should reset weather cloud cover and override state."""
         lux_tracker._cloud_cover = 50.0
         lux_tracker._override_condition = "cloudy"
         lux_tracker._override_expires_at = 9999.0
@@ -241,16 +243,7 @@ class TestWeatherEstimation:
     """Test weather entity based outdoor estimation."""
 
     def setup_method(self):
-        lux_tracker._sensor_entity = None
-        lux_tracker._learned_ceiling = None
-        lux_tracker._learned_floor = None
-        lux_tracker._ema_lux = None
-        lux_tracker._cached_sun_factor = 1.0
-        lux_tracker._weather_entity = None
-        lux_tracker._cloud_cover = None
-        lux_tracker._override_condition = None
-        lux_tracker._override_expires_at = None
-        lux_tracker._sun_elevation = 0.0
+        _reset_all()
 
     def test_update_weather_stores_cloud_cover(self):
         """update_weather() should store cloud cover value."""
@@ -309,15 +302,7 @@ class TestOverride:
     """Test manual override functionality."""
 
     def setup_method(self):
-        lux_tracker._sensor_entity = None
-        lux_tracker._learned_ceiling = None
-        lux_tracker._learned_floor = None
-        lux_tracker._ema_lux = None
-        lux_tracker._cached_sun_factor = 1.0
-        lux_tracker._weather_entity = None
-        lux_tracker._cloud_cover = None
-        lux_tracker._override_condition = None
-        lux_tracker._override_expires_at = None
+        _reset_all()
         lux_tracker._sun_elevation = 45.0  # daytime
 
     def test_set_override_stores_condition(self):
@@ -369,22 +354,15 @@ class TestOverride:
 
 
 class TestFallbackChain:
-    """Test the priority-based fallback chain."""
+    """Test the priority-based fallback chain with source awareness."""
 
     def setup_method(self):
-        lux_tracker._sensor_entity = None
-        lux_tracker._learned_ceiling = None
-        lux_tracker._learned_floor = None
-        lux_tracker._ema_lux = None
-        lux_tracker._cached_sun_factor = 1.0
-        lux_tracker._weather_entity = None
-        lux_tracker._cloud_cover = None
-        lux_tracker._override_condition = None
-        lux_tracker._override_expires_at = None
+        _reset_all()
         lux_tracker._sun_elevation = 45.0
 
     def test_override_beats_lux(self):
         """Override should take priority over lux sensor."""
+        lux_tracker._preferred_source = "lux"
         lux_tracker._sensor_entity = "sensor.test"
         lux_tracker._learned_ceiling = 50000
         lux_tracker._learned_floor = 100
@@ -394,8 +372,9 @@ class TestFallbackChain:
         source = lux_tracker.get_outdoor_source()
         assert source == "override"
 
-    def test_lux_beats_weather(self):
-        """Lux sensor should take priority over weather entity."""
+    def test_lux_source_uses_lux(self):
+        """With source=lux and data available, lux is used."""
+        lux_tracker._preferred_source = "lux"
         lux_tracker._sensor_entity = "sensor.test"
         lux_tracker._learned_ceiling = 50000
         lux_tracker._learned_floor = 100
@@ -406,12 +385,74 @@ class TestFallbackChain:
         source = lux_tracker.get_outdoor_source()
         assert source == "lux"
 
+    def test_weather_source_skips_lux(self):
+        """With source=weather, lux data is ignored even when available."""
+        lux_tracker._preferred_source = "weather"
+        lux_tracker._sensor_entity = "sensor.test"
+        lux_tracker._learned_ceiling = 50000
+        lux_tracker._learned_floor = 100
+        lux_tracker._ema_lux = 5000
+        lux_tracker._cached_sun_factor = 0.65
+        lux_tracker._weather_entity = "weather.home"
+        lux_tracker._cloud_cover = 80.0
+        assert lux_tracker.get_outdoor_source() == "weather"
+        # Value should come from weather, not lux
+        result = lux_tracker.get_outdoor_normalized()
+        assert result != 0.65  # not the lux cached_sun_factor
+
+    def test_angle_source_skips_both(self):
+        """With source=angle, both lux and weather are ignored."""
+        lux_tracker._preferred_source = "angle"
+        lux_tracker._sensor_entity = "sensor.test"
+        lux_tracker._learned_ceiling = 50000
+        lux_tracker._learned_floor = 100
+        lux_tracker._ema_lux = 5000
+        lux_tracker._cached_sun_factor = 0.65
+        lux_tracker._weather_entity = "weather.home"
+        lux_tracker._cloud_cover = 80.0
+        assert lux_tracker.get_outdoor_source() == "angle"
+        result = lux_tracker.get_outdoor_normalized()
+        expected_angle = lux_tracker._compute_angle_outdoor_norm()
+        assert result == expected_angle
+
+    def test_lux_source_falls_to_weather(self):
+        """Lux selected but no data, weather used as fallback."""
+        lux_tracker._preferred_source = "lux"
+        lux_tracker._sensor_entity = "sensor.test"
+        lux_tracker._learned_ceiling = 50000
+        lux_tracker._learned_floor = 100
+        lux_tracker._ema_lux = None  # no data yet
+        lux_tracker._weather_entity = "weather.home"
+        lux_tracker._cloud_cover = 50.0
+        assert lux_tracker.get_outdoor_source() == "weather"
+        result = lux_tracker.get_outdoor_normalized()
+        weather_result = lux_tracker._compute_weather_outdoor_norm()
+        assert result == weather_result
+
+    def test_lux_source_falls_to_angle(self):
+        """Lux selected, no data and no weather, angle used."""
+        lux_tracker._preferred_source = "lux"
+        lux_tracker._sensor_entity = "sensor.test"
+        lux_tracker._learned_ceiling = 50000
+        lux_tracker._learned_floor = 100
+        lux_tracker._ema_lux = None
+        assert lux_tracker.get_outdoor_source() == "angle"
+        result = lux_tracker.get_outdoor_normalized()
+        expected = lux_tracker._compute_angle_outdoor_norm()
+        assert result == expected
+
     def test_weather_beats_angle(self):
-        """Weather entity should take priority over angle fallback."""
+        """Weather source with data should use weather, not angle."""
+        lux_tracker._preferred_source = "weather"
         lux_tracker._weather_entity = "weather.home"
         lux_tracker._cloud_cover = 50.0
         source = lux_tracker.get_outdoor_source()
         assert source == "weather"
+
+    def test_weather_source_falls_to_angle(self):
+        """Weather selected but no weather entity, falls to angle."""
+        lux_tracker._preferred_source = "weather"
+        assert lux_tracker.get_outdoor_source() == "angle"
 
     def test_angle_is_default(self):
         """With nothing configured, source should be angle."""
@@ -420,6 +461,7 @@ class TestFallbackChain:
 
     def test_full_chain_priority(self):
         """With all sources active, override should win."""
+        lux_tracker._preferred_source = "lux"
         lux_tracker._sensor_entity = "sensor.test"
         lux_tracker._learned_ceiling = 50000
         lux_tracker._learned_floor = 100
@@ -432,6 +474,7 @@ class TestFallbackChain:
 
     def test_weather_value_differs_from_angle(self):
         """Weather source should produce different value than angle for cloudy days."""
+        lux_tracker._preferred_source = "weather"
         lux_tracker._sun_elevation = 45.0
         angle_val = lux_tracker._compute_angle_outdoor_norm()
 
@@ -445,26 +488,20 @@ class TestGetOutdoorSource:
     """Test get_outdoor_source() matches fallback chain."""
 
     def setup_method(self):
-        lux_tracker._sensor_entity = None
-        lux_tracker._learned_ceiling = None
-        lux_tracker._learned_floor = None
-        lux_tracker._ema_lux = None
-        lux_tracker._cached_sun_factor = 1.0
-        lux_tracker._weather_entity = None
-        lux_tracker._cloud_cover = None
-        lux_tracker._override_condition = None
-        lux_tracker._override_expires_at = None
+        _reset_all()
         lux_tracker._sun_elevation = 30.0
 
     def test_source_angle_when_nothing_configured(self):
         assert lux_tracker.get_outdoor_source() == "angle"
 
     def test_source_weather_when_configured(self):
+        lux_tracker._preferred_source = "weather"
         lux_tracker._weather_entity = "weather.home"
         lux_tracker._cloud_cover = 30.0
         assert lux_tracker.get_outdoor_source() == "weather"
 
     def test_source_lux_when_sensor_active(self):
+        lux_tracker._preferred_source = "lux"
         lux_tracker._sensor_entity = "sensor.test"
         lux_tracker._learned_ceiling = 50000
         lux_tracker._learned_floor = 100
@@ -477,6 +514,7 @@ class TestGetOutdoorSource:
 
     def test_source_falls_to_weather_when_lux_incomplete(self):
         """Lux sensor configured but no data yet should fall to weather."""
+        lux_tracker._preferred_source = "lux"
         lux_tracker._sensor_entity = "sensor.test"
         lux_tracker._learned_ceiling = 50000
         lux_tracker._learned_floor = 100
@@ -499,3 +537,63 @@ class TestSunElevationCache:
     def test_negative_elevation(self):
         lux_tracker.update_sun_elevation(-10.0)
         assert lux_tracker._sun_elevation == -10.0
+
+
+class TestSetWeatherEntity:
+    """Test auto-detection path for weather entity."""
+
+    def setup_method(self):
+        _reset_all()
+
+    def test_set_weather_entity(self):
+        """set_weather_entity() should store the entity_id."""
+        lux_tracker.set_weather_entity("weather.home")
+        assert lux_tracker.get_weather_entity() == "weather.home"
+
+    def test_set_weather_entity_replaces(self):
+        """Calling set_weather_entity() again should overwrite."""
+        lux_tracker.set_weather_entity("weather.old")
+        lux_tracker.set_weather_entity("weather.new")
+        assert lux_tracker.get_weather_entity() == "weather.new"
+
+    def test_init_does_not_clear_weather_entity(self):
+        """init() should not clear an already-set weather entity."""
+        lux_tracker.set_weather_entity("weather.home")
+        lux_tracker.init(config={})
+        # Weather entity should be preserved (set at runtime, not from config)
+        assert lux_tracker.get_weather_entity() == "weather.home"
+
+
+class TestPreferredSource:
+    """Test _preferred_source init and get_preferred_source()."""
+
+    def test_init_preferred_source_from_config(self):
+        """outdoor_brightness_source in config should set preferred source."""
+        lux_tracker.init(config={"outdoor_brightness_source": "angle"})
+        assert lux_tracker.get_preferred_source() == "angle"
+
+    def test_init_preferred_source_weather(self):
+        lux_tracker.init(config={"outdoor_brightness_source": "weather"})
+        assert lux_tracker.get_preferred_source() == "weather"
+
+    def test_init_preferred_source_lux(self):
+        lux_tracker.init(config={"outdoor_brightness_source": "lux"})
+        assert lux_tracker.get_preferred_source() == "lux"
+
+    def test_backward_compat_no_source_key_with_sensor(self):
+        """Legacy config with outdoor_lux_sensor but no source key defaults to lux."""
+        lux_tracker.init(config={"outdoor_lux_sensor": "sensor.lux"})
+        assert lux_tracker.get_preferred_source() == "lux"
+
+    def test_backward_compat_no_source_key_no_sensor(self):
+        """Legacy config without outdoor_lux_sensor defaults to weather."""
+        lux_tracker.init(config={})
+        assert lux_tracker.get_preferred_source() == "weather"
+
+    def test_explicit_source_overrides_sensor_presence(self):
+        """Explicit outdoor_brightness_source=angle wins even with lux sensor configured."""
+        lux_tracker.init(config={
+            "outdoor_brightness_source": "angle",
+            "outdoor_lux_sensor": "sensor.lux",
+        })
+        assert lux_tracker.get_preferred_source() == "angle"

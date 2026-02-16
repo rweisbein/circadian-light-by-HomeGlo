@@ -537,8 +537,6 @@ class LightDesignerServer:
         self.app.router.add_route('GET', '/{path:.*}/api/sensors', self.get_sensors)
 
         # Outdoor brightness API routes
-        self.app.router.add_get('/api/weather-entities', self.get_weather_entities)
-        self.app.router.add_route('GET', '/{path:.*}/api/weather-entities', self.get_weather_entities)
         self.app.router.add_post('/api/outdoor-override', self.set_outdoor_override)
         self.app.router.add_route('POST', '/{path:.*}/api/outdoor-override', self.set_outdoor_override)
         self.app.router.add_delete('/api/outdoor-override', self.clear_outdoor_override)
@@ -1549,7 +1547,7 @@ class LightDesignerServer:
         "lux_smoothing_interval",  # EMA smoothing time constant in seconds (default 300)
         "lux_learned_ceiling",  # Learned bright-day lux baseline (85th percentile)
         "lux_learned_floor",  # Learned dark-day lux baseline (5th percentile)
-        "weather_entity",  # Weather entity for cloud coverage based outdoor brightness
+        "outdoor_brightness_source",  # Preferred outdoor brightness source: "lux", "weather", or "angle"
     }
 
     def _migrate_to_glozone_format(self, config: dict) -> dict:
@@ -4586,46 +4584,6 @@ class LightDesignerServer:
         except Exception as e:
             logger.error(f"Error fetching sensors: {e}", exc_info=True)
             return web.json_response({"sensors": []})
-
-    async def get_weather_entities(self, request: Request) -> Response:
-        """Get weather entities from HA for outdoor brightness estimation."""
-        try:
-            rest_url, ws_url, token = self._get_ha_api_config()
-            if not token or not ws_url:
-                return web.json_response({"entities": []})
-
-            async with websockets.connect(ws_url) as ws:
-                msg = json.loads(await ws.recv())
-                if msg.get('type') != 'auth_required':
-                    return web.json_response({"entities": []})
-                await ws.send(json.dumps({'type': 'auth', 'access_token': token}))
-                msg = json.loads(await ws.recv())
-                if msg.get('type') != 'auth_ok':
-                    return web.json_response({"entities": []})
-
-                await ws.send(json.dumps({'id': 1, 'type': 'get_states'}))
-                states_msg = json.loads(await ws.recv())
-
-                entities = []
-                if states_msg.get('success') and states_msg.get('result'):
-                    for st in states_msg['result']:
-                        entity_id = st.get('entity_id', '')
-                        if not entity_id.startswith('weather.'):
-                            continue
-                        attrs = st.get('attributes', {})
-                        name = attrs.get('friendly_name', entity_id)
-                        entities.append({
-                            'entity_id': entity_id,
-                            'name': name,
-                            'state': st.get('state'),
-                            'cloud_coverage': attrs.get('cloud_coverage'),
-                        })
-
-                entities.sort(key=lambda x: x['name'].lower())
-                return web.json_response({"entities": entities})
-        except Exception as e:
-            logger.error(f"Error fetching weather entities: {e}", exc_info=True)
-            return web.json_response({"entities": []})
 
     async def set_outdoor_override(self, request: Request) -> Response:
         """Set a temporary outdoor brightness override."""

@@ -4852,17 +4852,18 @@ class HomeAssistantWebSocketClient:
                 if self.sun_data:
                     lux_tracker.update_sun_elevation(self.sun_data.get("elevation", 0.0))
 
-                # Seed weather entity state
-                weather_ent = lux_tracker.get_weather_entity()
-                if weather_ent and weather_ent in self.cached_states:
-                    try:
-                        attrs = self.cached_states[weather_ent].get("attributes", {})
-                        cloud_cover = attrs.get("cloud_coverage")
-                        if cloud_cover is not None:
-                            lux_tracker.update_weather(float(cloud_cover))
-                            logger.info(f"Seeded weather: cloud_coverage={cloud_cover}")
-                    except (ValueError, TypeError):
-                        pass
+                # Auto-detect weather entity for cloud coverage fallback
+                for eid, estate in self.cached_states.items():
+                    if eid.startswith("weather."):
+                        attrs = estate.get("attributes", {})
+                        if "cloud_coverage" in attrs:
+                            lux_tracker.set_weather_entity(eid)
+                            try:
+                                lux_tracker.update_weather(float(attrs["cloud_coverage"]))
+                            except (ValueError, TypeError):
+                                pass
+                            logger.info(f"Auto-detected weather entity: {eid}")
+                            break
 
                 # Sync ZHA groups with all areas (includes parity cache refresh)
                 await self.sync_zha_groups()

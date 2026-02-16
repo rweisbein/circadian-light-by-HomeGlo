@@ -746,63 +746,62 @@
         </div>
       </div>
       <div class="section-content">
-        <div class="form-row" id="outdoor-status-row">
-          <label class="form-label">Current status</label>
-          <div class="form-control">
+        <div class="form-row">
+          <label class="form-label">
+            Source
+            <span class="info-icon">i<span class="info-tooltip">Where outdoor brightness comes from. Lux sensor uses a hardware sensor. HA weather uses cloud coverage from an auto-detected weather entity. Sun angle uses a clear-sky estimate only.</span></span>
+          </label>
+          <div class="form-control" style="display: flex; gap: 12px; align-items: center;">
+            <select class="form-input" id="outdoor-brightness-source" style="width: 180px;">
+              <option value="lux">Lux sensor</option>
+              <option value="weather">HA weather</option>
+              <option value="angle">Sun angle</option>
+            </select>
             <span id="outdoor-status-badge" style="display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 0.82rem; font-weight: 500; background: rgba(255,255,255,0.08); color: var(--muted);">---</span>
-            <span id="outdoor-status-detail" class="form-hint" style="margin-left: 8px;"></span>
+            <span id="outdoor-status-detail" class="form-hint"></span>
           </div>
         </div>
-        <div class="form-row">
-          <label class="form-label">
-            Lux sensor
-            <span class="info-icon">i<span class="info-tooltip">An outdoor illuminance sensor (e.g. sensor.outdoor_illuminance). Highest accuracy source. Leave empty to use weather or angle fallback.</span></span>
-          </label>
-          <div class="form-control">
-            <select class="form-input" id="outdoor-lux-sensor" style="width: 280px;">
-              <option value="">None (disabled)</option>
-            </select>
+        <div id="lux-settings-group">
+          <div class="form-row">
+            <label class="form-label">
+              Sensor entity
+              <span class="info-icon">i<span class="info-tooltip">An outdoor illuminance sensor (e.g. sensor.outdoor_illuminance). Falls back to weather then angle if unavailable.</span></span>
+            </label>
+            <div class="form-control">
+              <select class="form-input" id="outdoor-lux-sensor" style="width: 280px;">
+                <option value="">None (disabled)</option>
+              </select>
+            </div>
           </div>
-        </div>
-        <div class="form-row">
-          <label class="form-label">
-            Smoothing interval
-            <span class="info-icon">i<span class="info-tooltip">EMA (exponential moving average) time constant in seconds. Higher values smooth out rapid lux changes (clouds passing). Set to 0 for no smoothing (raw values).</span></span>
-          </label>
-          <div class="form-control">
-            <input type="number" class="form-input" id="lux-smoothing-interval" min="0" max="3600" step="30" value="300" style="width: 80px;">
-            <span class="form-hint">s</span>
+          <div class="form-row">
+            <label class="form-label">
+              Smoothing interval
+              <span class="info-icon">i<span class="info-tooltip">EMA (exponential moving average) time constant in seconds. Higher values smooth out rapid lux changes (clouds passing). Set to 0 for no smoothing (raw values).</span></span>
+            </label>
+            <div class="form-control">
+              <input type="number" class="form-input" id="lux-smoothing-interval" min="0" max="3600" step="30" value="300" style="width: 80px;">
+              <span class="form-hint">s</span>
+            </div>
           </div>
-        </div>
-        <div class="form-row">
-          <label class="form-label">
-            Learned ceiling
-            <span class="info-icon">i<span class="info-tooltip">Bright-day lux baseline (85th percentile of daytime readings). Learned automatically from 90 days of sensor history. You can override with a manual value.</span></span>
-          </label>
-          <div class="form-control">
-            <input type="number" class="form-input" id="lux-learned-ceiling" min="1" max="200000" step="100" placeholder="auto" style="width: 100px;">
-            <span class="form-hint">lux</span>
+          <div class="form-row">
+            <label class="form-label">
+              Learned ceiling
+              <span class="info-icon">i<span class="info-tooltip">Bright-day lux baseline (85th percentile of daytime readings). Learned automatically from 90 days of sensor history. You can override with a manual value.</span></span>
+            </label>
+            <div class="form-control">
+              <input type="number" class="form-input" id="lux-learned-ceiling" min="1" max="200000" step="100" placeholder="auto" style="width: 100px;">
+              <span class="form-hint">lux</span>
+            </div>
           </div>
-        </div>
-        <div class="form-row">
-          <label class="form-label">
-            Learned floor
-            <span class="info-icon">i<span class="info-tooltip">Dark-day lux baseline (5th percentile of daytime readings). Learned automatically from 90 days of sensor history. You can override with a manual value.</span></span>
-          </label>
-          <div class="form-control">
-            <input type="number" class="form-input" id="lux-learned-floor" min="1" max="200000" step="10" placeholder="auto" style="width: 100px;">
-            <span class="form-hint">lux</span>
-          </div>
-        </div>
-        <div class="form-row" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line);">
-          <label class="form-label">
-            Weather entity
-            <span class="info-icon">i<span class="info-tooltip">A Home Assistant weather entity (e.g. weather.home) provides cloud coverage data for weather-adjusted brightness estimation. Used when no lux sensor is available.</span></span>
-          </label>
-          <div class="form-control">
-            <select class="form-input" id="weather-entity" style="width: 280px;">
-              <option value="">None (disabled)</option>
-            </select>
+          <div class="form-row">
+            <label class="form-label">
+              Learned floor
+              <span class="info-icon">i<span class="info-tooltip">Dark-day lux baseline (5th percentile of daytime readings). Learned automatically from 90 days of sensor history. You can override with a manual value.</span></span>
+            </label>
+            <div class="form-control">
+              <input type="number" class="form-input" id="lux-learned-floor" min="1" max="200000" step="10" placeholder="auto" style="width: 100px;">
+              <span class="form-hint">lux</span>
+            </div>
           </div>
         </div>
         <div class="form-row" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line);">
@@ -970,6 +969,10 @@
           document.getElementById('reach-dip-percent').value = config.reach_dip_percent ?? 50;
           document.getElementById('boost-default').value = config.boost_default ?? 30;
           document.getElementById('daylight-saturation-deg').value = config.daylight_saturation_deg ?? 8;
+          // Outdoor brightness source selector
+          const sourceSelect = document.getElementById('outdoor-brightness-source');
+          const savedSource = config.outdoor_brightness_source ?? (config.outdoor_lux_sensor ? 'lux' : 'weather');
+          sourceSelect.value = savedSource;
           // Populate lux sensor dropdown
           const luxSelect = document.getElementById('outdoor-lux-sensor');
           const savedSensor = config.outdoor_lux_sensor ?? '';
@@ -977,7 +980,6 @@
             const sensorsRes = await fetch('./api/sensors?device_class=illuminance');
             if (sensorsRes.ok) {
               const sensorsData = await sensorsRes.json();
-              // Clear existing options except "None"
               luxSelect.innerHTML = '<option value="">None (disabled)</option>';
               for (const s of sensorsData.sensors || []) {
                 const opt = document.createElement('option');
@@ -987,7 +989,6 @@
               }
             }
           } catch (e) { console.warn('Could not load illuminance sensors:', e); }
-          // If saved value isn't in list (e.g. sensor removed), add it so selection is preserved
           if (savedSensor && !luxSelect.querySelector('option[value="' + CSS.escape(savedSensor) + '"]')) {
             const opt = document.createElement('option');
             opt.value = savedSensor;
@@ -998,29 +999,7 @@
           document.getElementById('lux-smoothing-interval').value = config.lux_smoothing_interval ?? 300;
           document.getElementById('lux-learned-ceiling').value = config.lux_learned_ceiling ?? '';
           document.getElementById('lux-learned-floor').value = config.lux_learned_floor ?? '';
-          // Populate weather entity dropdown
-          const weatherSelect = document.getElementById('weather-entity');
-          const savedWeather = config.weather_entity ?? '';
-          try {
-            const weatherRes = await fetch('./api/weather-entities');
-            if (weatherRes.ok) {
-              const weatherData = await weatherRes.json();
-              weatherSelect.innerHTML = '<option value="">None (disabled)</option>';
-              for (const w of weatherData.entities || []) {
-                const opt = document.createElement('option');
-                opt.value = w.entity_id;
-                opt.textContent = w.name + (w.state ? ' (' + w.state + ')' : '') + (w.cloud_coverage != null ? ' ' + w.cloud_coverage + '% cloud' : '');
-                weatherSelect.appendChild(opt);
-              }
-            }
-          } catch (e) { console.warn('Could not load weather entities:', e); }
-          if (savedWeather && !weatherSelect.querySelector('option[value="' + CSS.escape(savedWeather) + '"]')) {
-            const opt = document.createElement('option');
-            opt.value = savedWeather;
-            opt.textContent = savedWeather + ' (not found)';
-            weatherSelect.appendChild(opt);
-          }
-          weatherSelect.value = savedWeather;
+          updateOutdoorSourceState();
           // Load outdoor status
           refreshOutdoorStatus();
           document.getElementById('ct-comp-enabled').checked = config.ct_comp_enabled ?? false;
@@ -1058,11 +1037,11 @@
         reach_dip_percent: parseInt(document.getElementById('reach-dip-percent').value) || 50,
         boost_default: parseInt(document.getElementById('boost-default').value) || 30,
         daylight_saturation_deg: parseInt(document.getElementById('daylight-saturation-deg').value) || 8,
+        outdoor_brightness_source: document.getElementById('outdoor-brightness-source').value,
         outdoor_lux_sensor: document.getElementById('outdoor-lux-sensor').value.trim() || null,
         lux_smoothing_interval: parseInt(document.getElementById('lux-smoothing-interval').value) || 300,
         lux_learned_ceiling: parseFloat(document.getElementById('lux-learned-ceiling').value) || null,
         lux_learned_floor: parseFloat(document.getElementById('lux-learned-floor').value) || null,
-        weather_entity: document.getElementById('weather-entity').value.trim() || null,
         ct_comp_enabled: document.getElementById('ct-comp-enabled').checked,
         ct_comp_begin: parseInt(document.getElementById('ct-comp-begin').value) || 1650,
         ct_comp_end: parseInt(document.getElementById('ct-comp-end').value) || 2250,
@@ -1139,6 +1118,12 @@
       const status = document.getElementById('save-status');
       status.classList.add('visible');
       setTimeout(() => status.classList.remove('visible'), 2000);
+    }
+
+    // Outdoor brightness source visibility
+    function updateOutdoorSourceState() {
+      const source = document.getElementById('outdoor-brightness-source').value;
+      document.getElementById('lux-settings-group').style.display = source === 'lux' ? '' : 'none';
     }
 
     // Outdoor brightness override + status
@@ -1235,11 +1220,14 @@
     document.getElementById('reach-dip-percent').addEventListener('blur', saveSettings);
     document.getElementById('boost-default').addEventListener('blur', saveSettings);
     document.getElementById('daylight-saturation-deg').addEventListener('blur', saveSettings);
+    document.getElementById('outdoor-brightness-source').addEventListener('change', () => {
+      updateOutdoorSourceState();
+      saveSettings();
+    });
     document.getElementById('outdoor-lux-sensor').addEventListener('change', saveSettings);
     document.getElementById('lux-smoothing-interval').addEventListener('blur', saveSettings);
     document.getElementById('lux-learned-ceiling').addEventListener('blur', saveSettings);
     document.getElementById('lux-learned-floor').addEventListener('blur', saveSettings);
-    document.getElementById('weather-entity').addEventListener('change', saveSettings);
     document.getElementById('ct-comp-enabled').addEventListener('change', () => {
       updateCtCompState();
       saveSettings();
