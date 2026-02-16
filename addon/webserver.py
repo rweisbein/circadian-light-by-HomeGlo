@@ -4822,14 +4822,22 @@ class LightDesignerServer:
                     solar_elev_fn = None
 
                 daytime_means = []
+                diag = {"total": len(stats), "no_mean": 0, "no_start": 0,
+                        "parse_fail": 0, "nighttime": 0, "elev_error": 0,
+                        "sample_entry": None}
                 for entry in stats:
+                    if diag["sample_entry"] is None:
+                        diag["sample_entry"] = {k: str(type(v).__name__) + ":" + repr(v)
+                                                for k, v in list(entry.items())[:5]}
                     mean_val = entry.get('mean')
                     if mean_val is None:
+                        diag["no_mean"] += 1
                         continue
                     mean_val = float(mean_val)
 
                     start_val = entry.get('start')
                     if not start_val:
+                        diag["no_start"] += 1
                         continue
                     try:
                         if isinstance(start_val, (int, float)):
@@ -4841,6 +4849,7 @@ class LightDesignerServer:
                             else:
                                 dt = dt.astimezone(local_tz)
                     except (ValueError, TypeError, OSError):
+                        diag["parse_fail"] += 1
                         continue
 
                     if solar_elev_fn is not None:
@@ -4848,8 +4857,12 @@ class LightDesignerServer:
                             loc = LocationInfo(latitude=lat, longitude=lon, timezone=tz_name)
                             elev = solar_elev_fn(loc.observer, dt)
                             if elev <= 10:
+                                diag["nighttime"] += 1
                                 continue
-                        except Exception:
+                        except Exception as ex:
+                            diag["elev_error"] += 1
+                            if "elev_err_msg" not in diag:
+                                diag["elev_err_msg"] = str(ex)
                             continue
 
                     daytime_means.append(mean_val)
@@ -4857,7 +4870,8 @@ class LightDesignerServer:
                 if len(daytime_means) < 10:
                     return web.json_response({
                         "error": f"Only {len(daytime_means)} daytime samples found (need 10+). "
-                                 "The sensor may not have enough history yet."
+                                 "The sensor may not have enough history yet.",
+                        "diagnostics": diag,
                     }, status=404)
 
                 # Compute percentiles

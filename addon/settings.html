@@ -1274,7 +1274,14 @@
           status.textContent = `Learned from ${data.samples} samples`;
           status.style.color = 'var(--success)';
         } else {
-          status.textContent = data.error || 'Failed';
+          let msg = data.error || 'Failed';
+          if (data.diagnostics) {
+            const d = data.diagnostics;
+            msg += ` [total=${d.total}, no_mean=${d.no_mean}, no_start=${d.no_start}, parse_fail=${d.parse_fail}, night=${d.nighttime}, elev_err=${d.elev_error}]`;
+            if (d.sample_entry) msg += ' sample: ' + JSON.stringify(d.sample_entry);
+            if (d.elev_err_msg) msg += ' err: ' + d.elev_err_msg;
+          }
+          status.textContent = msg;
           status.style.color = 'var(--danger)';
         }
       } catch (e) {
