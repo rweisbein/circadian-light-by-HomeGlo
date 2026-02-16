@@ -1980,6 +1980,57 @@ class LightDesignerServer:
         except Exception:
             pass  # leave at whatever it was
 
+    async def _seed_outdoor_from_ha(self):
+        """Fetch live lux sensor and weather entity data from HA.
+
+        Seeds lux_tracker with current values so get_outdoor_normalized()
+        returns accurate data in the webserver process.
+        """
+        try:
+            rest_url, ws_url, token = self._get_ha_api_config()
+            if not token or not ws_url:
+                return
+
+            config = await self.load_config()
+            sensor_entity = config.get("outdoor_lux_sensor")
+
+            async with websockets.connect(ws_url) as ws:
+                msg = json.loads(await ws.recv())
+                if msg.get('type') != 'auth_required':
+                    return
+                await ws.send(json.dumps({'type': 'auth', 'access_token': token}))
+                msg = json.loads(await ws.recv())
+                if msg.get('type') != 'auth_ok':
+                    return
+
+                await ws.send(json.dumps({'id': 1, 'type': 'get_states'}))
+                states_msg = json.loads(await ws.recv())
+                if not states_msg.get('success') or not states_msg.get('result'):
+                    return
+
+                for st in states_msg['result']:
+                    eid = st.get('entity_id', '')
+                    attrs = st.get('attributes', {})
+
+                    # Seed lux sensor reading
+                    if sensor_entity and eid == sensor_entity:
+                        try:
+                            lux_tracker.update(float(st.get('state', 0)))
+                        except (ValueError, TypeError):
+                            pass
+
+                    # Auto-detect weather entity and seed cloud coverage
+                    if eid.startswith('weather.') and 'cloud_coverage' in attrs:
+                        if not lux_tracker.get_weather_entity():
+                            lux_tracker.set_weather_entity(eid)
+                        if eid == lux_tracker.get_weather_entity():
+                            try:
+                                lux_tracker.update_weather(float(attrs['cloud_coverage']))
+                            except (ValueError, TypeError):
+                                pass
+        except Exception as e:
+            logger.debug(f"Could not seed outdoor data from HA: {e}")
+
     def _get_ha_api_config(self) -> tuple:
         """Get Home Assistant API URL and token from environment.
 
@@ -2645,8 +2696,9 @@ class LightDesignerServer:
             except Exception as e:
                 logger.debug(f"[AreaStatus] Error calculating sun times: {e}")
 
-            # Seed sun elevation for lux_tracker (webserver is a separate process)
+            # Seed lux_tracker from HA (webserver is a separate process)
             self._seed_sun_elevation()
+            await self._seed_outdoor_from_ha()
 
             # Resolve outdoor_normalized via lux_tracker fallback chain
             outdoor_norm = lux_tracker.get_outdoor_normalized()
@@ -4629,6 +4681,7 @@ class LightDesignerServer:
     async def get_outdoor_status(self, request: Request) -> Response:
         """Get current outdoor brightness state for settings page."""
         self._seed_sun_elevation()
+        await self._seed_outdoor_from_ha()
         outdoor_norm = lux_tracker.get_outdoor_normalized()
         return web.json_response({
             "outdoor_normalized": round(outdoor_norm if outdoor_norm is not None else 0, 3),
