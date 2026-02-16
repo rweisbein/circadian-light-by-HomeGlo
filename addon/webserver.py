@@ -536,6 +536,16 @@ class LightDesignerServer:
         self.app.router.add_get('/api/sensors', self.get_sensors)
         self.app.router.add_route('GET', '/{path:.*}/api/sensors', self.get_sensors)
 
+        # Outdoor brightness API routes
+        self.app.router.add_get('/api/weather-entities', self.get_weather_entities)
+        self.app.router.add_route('GET', '/{path:.*}/api/weather-entities', self.get_weather_entities)
+        self.app.router.add_post('/api/outdoor-override', self.set_outdoor_override)
+        self.app.router.add_route('POST', '/{path:.*}/api/outdoor-override', self.set_outdoor_override)
+        self.app.router.add_delete('/api/outdoor-override', self.clear_outdoor_override)
+        self.app.router.add_route('DELETE', '/{path:.*}/api/outdoor-override', self.clear_outdoor_override)
+        self.app.router.add_get('/api/outdoor-status', self.get_outdoor_status)
+        self.app.router.add_route('GET', '/{path:.*}/api/outdoor-status', self.get_outdoor_status)
+
         # Tuning page
         self.app.router.add_route('GET', '/{path:.*}/tuning', self.serve_tuning)
         self.app.router.add_get('/tuning', self.serve_tuning)
@@ -1294,7 +1304,7 @@ class LightDesignerServer:
         """
         try:
             from zoneinfo import ZoneInfo
-            from brain import CircadianLight, Config, AreaState, SunTimes, calculate_sun_times, angle_to_estimated_lux, FULL_SUN_INTENSITY
+            from brain import CircadianLight, Config, AreaState, SunTimes, calculate_sun_times
 
             # Get location from environment
             latitude = float(os.getenv("HASS_LATITUDE", "35.0"))
@@ -1334,21 +1344,14 @@ class LightDesignerServer:
                     solar_mid=(iso_to_hour(sun_dict.get("noon"), 12.0) + 12.0) % 24.0,
                 )
 
-                # Resolve outdoor_normalized
+                # Resolve outdoor_normalized via lux_tracker fallback chain
                 outdoor_norm = lux_tracker.get_outdoor_normalized()
-                if outdoor_norm is not None:
-                    sun_times.outdoor_normalized = outdoor_norm
-                    sun_times.outdoor_source = "lux"
-                else:
-                    try:
-                        from astral.sun import elevation as _sun_elev_func
-                        _loc = LocationInfo(latitude=latitude, longitude=longitude)
-                        _elev = _sun_elev_func(_loc.observer, now)
-                        _est_lux = angle_to_estimated_lux(_elev)
-                        sun_times.outdoor_normalized = min(1.0, math.log2(max(1, _est_lux) / 300) / FULL_SUN_INTENSITY) if _est_lux > 0 else 0.0
-                        sun_times.outdoor_source = "angle"
-                    except Exception:
-                        pass
+                outdoor_source = lux_tracker.get_outdoor_source()
+                if outdoor_norm is None:
+                    outdoor_norm = 0.0
+                    outdoor_source = "none"
+                sun_times.outdoor_normalized = outdoor_norm
+                sun_times.outdoor_source = outdoor_source
             except Exception as e:
                 logger.debug(f"[ZoneStates] Error calculating sun times: {e}")
 
@@ -1546,6 +1549,7 @@ class LightDesignerServer:
         "lux_smoothing_interval",  # EMA smoothing time constant in seconds (default 300)
         "lux_learned_ceiling",  # Learned bright-day lux baseline (85th percentile)
         "lux_learned_floor",  # Learned dark-day lux baseline (5th percentile)
+        "weather_entity",  # Weather entity for cloud coverage based outdoor brightness
     }
 
     def _migrate_to_glozone_format(self, config: dict) -> dict:
@@ -2575,7 +2579,7 @@ class LightDesignerServer:
         }
         """
         try:
-            from brain import SunTimes, calculate_sun_times, calculate_natural_light_factor, angle_to_estimated_lux, FULL_SUN_INTENSITY
+            from brain import SunTimes, calculate_sun_times, calculate_natural_light_factor
 
             # Load config to get glozone mappings and rhythms
             config = await self.load_config()
@@ -2615,10 +2619,6 @@ class LightDesignerServer:
                     except:
                         return default
 
-                # Compute outdoor_normalized from lux sensor or angle fallback
-                outdoor_norm = lux_tracker.get_outdoor_normalized()
-                outdoor_source = "none"
-
                 sun_times = SunTimes(
                     sunrise=iso_to_hour(sun_dict.get("sunrise"), 6.0),
                     sunset=iso_to_hour(sun_dict.get("sunset"), 18.0),
@@ -2627,25 +2627,13 @@ class LightDesignerServer:
                 )
             except Exception as e:
                 logger.debug(f"[AreaStatus] Error calculating sun times: {e}")
-                outdoor_norm = lux_tracker.get_outdoor_normalized()
+
+            # Resolve outdoor_normalized via lux_tracker fallback chain
+            outdoor_norm = lux_tracker.get_outdoor_normalized()
+            outdoor_source = lux_tracker.get_outdoor_source()
+            if outdoor_norm is None:
+                outdoor_norm = 0.0
                 outdoor_source = "none"
-
-            # Compute sun elevation (once, same for all areas)
-            sun_elev = 0.0
-            try:
-                from astral.sun import elevation as sun_elevation_func
-                loc = LocationInfo(latitude=latitude, longitude=longitude)
-                sun_elev = sun_elevation_func(loc.observer, now)
-            except Exception as e:
-                logger.debug(f"[AreaStatus] Error computing sun elevation: {e}")
-
-            # Resolve outdoor_normalized: lux sensor or angle fallback
-            if outdoor_norm is not None:
-                outdoor_source = "lux"
-            else:
-                est_lux = angle_to_estimated_lux(sun_elev)
-                outdoor_norm = min(1.0, math.log2(max(1, est_lux) / 300) / FULL_SUN_INTENSITY) if est_lux > 0 else 0.0
-                outdoor_source = "angle"
 
             sun_times.outdoor_normalized = outdoor_norm
             sun_times.outdoor_source = outdoor_source
@@ -4598,6 +4586,76 @@ class LightDesignerServer:
         except Exception as e:
             logger.error(f"Error fetching sensors: {e}", exc_info=True)
             return web.json_response({"sensors": []})
+
+    async def get_weather_entities(self, request: Request) -> Response:
+        """Get weather entities from HA for outdoor brightness estimation."""
+        try:
+            rest_url, ws_url, token = self._get_ha_api_config()
+            if not token or not ws_url:
+                return web.json_response({"entities": []})
+
+            async with websockets.connect(ws_url) as ws:
+                msg = json.loads(await ws.recv())
+                if msg.get('type') != 'auth_required':
+                    return web.json_response({"entities": []})
+                await ws.send(json.dumps({'type': 'auth', 'access_token': token}))
+                msg = json.loads(await ws.recv())
+                if msg.get('type') != 'auth_ok':
+                    return web.json_response({"entities": []})
+
+                await ws.send(json.dumps({'id': 1, 'type': 'get_states'}))
+                states_msg = json.loads(await ws.recv())
+
+                entities = []
+                if states_msg.get('success') and states_msg.get('result'):
+                    for st in states_msg['result']:
+                        entity_id = st.get('entity_id', '')
+                        if not entity_id.startswith('weather.'):
+                            continue
+                        attrs = st.get('attributes', {})
+                        name = attrs.get('friendly_name', entity_id)
+                        entities.append({
+                            'entity_id': entity_id,
+                            'name': name,
+                            'state': st.get('state'),
+                            'cloud_coverage': attrs.get('cloud_coverage'),
+                        })
+
+                entities.sort(key=lambda x: x['name'].lower())
+                return web.json_response({"entities": entities})
+        except Exception as e:
+            logger.error(f"Error fetching weather entities: {e}", exc_info=True)
+            return web.json_response({"entities": []})
+
+    async def set_outdoor_override(self, request: Request) -> Response:
+        """Set a temporary outdoor brightness override."""
+        try:
+            data = await request.json()
+            condition = data.get("condition")
+            duration = data.get("duration_minutes", 60)
+            if not condition:
+                return web.json_response({"error": "condition required"}, status=400)
+            lux_tracker.set_override(condition, int(duration))
+            return web.json_response({"status": "ok"})
+        except Exception as e:
+            logger.error(f"Error setting outdoor override: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def clear_outdoor_override(self, request: Request) -> Response:
+        """Clear the outdoor brightness override."""
+        lux_tracker.clear_override()
+        return web.json_response({"status": "ok"})
+
+    async def get_outdoor_status(self, request: Request) -> Response:
+        """Get current outdoor brightness state for settings page."""
+        outdoor_norm = lux_tracker.get_outdoor_normalized()
+        return web.json_response({
+            "outdoor_normalized": round(outdoor_norm if outdoor_norm is not None else 0, 3),
+            "source": lux_tracker.get_outdoor_source(),
+            "override": lux_tracker.get_override_info(),
+            "weather_cloud_cover": lux_tracker._cloud_cover,
+            "lux_smoothed": lux_tracker._ema_lux,
+        })
 
     async def get_controls(self, request: Request) -> Response:
         """Get all controls from HA, merged with our configuration.

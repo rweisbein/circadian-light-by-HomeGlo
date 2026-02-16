@@ -2272,10 +2272,7 @@ class HomeAssistantWebSocketClient:
         if natural_exposure > 0.0 and brightness is not None:
             outdoor_norm = lux_tracker.get_outdoor_normalized()
             if outdoor_norm is None:
-                # Fallback: estimate from sun angle
-                sun_elev = self.sun_data.get("elevation", 0.0) if self.sun_data else 0.0
-                est_lux = angle_to_estimated_lux(sun_elev)
-                outdoor_norm = min(1.0, math.log2(max(1, est_lux) / 300) / FULL_SUN_INTENSITY) if est_lux > 0 else 0.0
+                outdoor_norm = 0.0
 
             rhythm_cfg = glozone.get_rhythm_config_for_area(area_id)
             brightness_gain = rhythm_cfg.get("brightness_gain", 5.0)
@@ -3510,16 +3507,12 @@ class HomeAssistantWebSocketClient:
                 solar_noon = iso_to_hour(sun_dict.get("noon"), 12.0)
                 solar_mid = (solar_noon + 12.0) % 24.0  # Opposite of noon
 
-                # Compute outdoor_normalized from lux sensor or angle fallback
+                # Resolve outdoor_normalized via lux_tracker fallback chain
                 outdoor_norm = lux_tracker.get_outdoor_normalized()
-                outdoor_source = "none"
-                if outdoor_norm is not None:
-                    outdoor_source = "lux"
-                else:
-                    sun_elev = self.sun_data.get("elevation", 0.0) if self.sun_data else 0.0
-                    est_lux = angle_to_estimated_lux(sun_elev)
-                    outdoor_norm = min(1.0, math.log2(max(1, est_lux) / 300) / FULL_SUN_INTENSITY) if est_lux > 0 else 0.0
-                    outdoor_source = "angle"
+                outdoor_source = lux_tracker.get_outdoor_source()
+                if outdoor_norm is None:
+                    outdoor_norm = 0.0
+                    outdoor_source = "none"
 
                 return SunTimes(
                     sunrise=sunrise,
@@ -4488,7 +4481,9 @@ class HomeAssistantWebSocketClient:
                 # Update sun data if it's the sun entity
                 if entity_id == "sun.sun" and isinstance(new_state, dict):
                     self.sun_data = new_state.get("attributes", {})
-                    logger.info(f"Updated sun data: elevation={self.sun_data.get('elevation')}")
+                    elev = self.sun_data.get("elevation", 0.0)
+                    lux_tracker.update_sun_elevation(elev)
+                    logger.info(f"Updated sun data: elevation={elev}")
 
                 # Update outdoor lux tracker
                 if entity_id and entity_id == lux_tracker.get_sensor_entity() and isinstance(new_state, dict):
@@ -4499,6 +4494,18 @@ class HomeAssistantWebSocketClient:
                         logger.debug(f"Lux update: raw={raw_lux:.0f}, smoothed={smoothed:.0f}, sun_factor={sf:.2f}")
                     except (ValueError, TypeError):
                         pass  # non-numeric state (e.g. "unavailable")
+
+                # Update weather entity cloud coverage
+                weather_ent = lux_tracker.get_weather_entity()
+                if entity_id and entity_id == weather_ent and isinstance(new_state, dict):
+                    try:
+                        attrs = new_state.get("attributes", {})
+                        cloud_cover = attrs.get("cloud_coverage")
+                        if cloud_cover is not None:
+                            lux_tracker.update_weather(float(cloud_cover))
+                            logger.debug(f"Weather update: cloud_coverage={cloud_cover}")
+                    except (ValueError, TypeError):
+                        pass
 
                 # Handle motion sensor state changes
                 if entity_id and entity_id in self.motion_sensor_ids:
@@ -4838,6 +4845,22 @@ class HomeAssistantWebSocketClient:
                 # Initialise outdoor lux tracker (uses config from glozone)
                 lux_tracker.init()
                 await lux_tracker.learn_baseline(self)
+
+                # Seed sun elevation into lux_tracker
+                if self.sun_data:
+                    lux_tracker.update_sun_elevation(self.sun_data.get("elevation", 0.0))
+
+                # Seed weather entity state
+                weather_ent = lux_tracker.get_weather_entity()
+                if weather_ent and weather_ent in self.cached_states:
+                    try:
+                        attrs = self.cached_states[weather_ent].get("attributes", {})
+                        cloud_cover = attrs.get("cloud_coverage")
+                        if cloud_cover is not None:
+                            lux_tracker.update_weather(float(cloud_cover))
+                            logger.info(f"Seeded weather: cloud_coverage={cloud_cover}")
+                    except (ValueError, TypeError):
+                        pass
 
                 # Sync ZHA groups with all areas (includes parity cache refresh)
                 await self.sync_zha_groups()

@@ -737,19 +737,26 @@
       </div>
     </div>
 
-    <!-- Outdoor Lux Sensor Section -->
+    <!-- Outdoor Brightness Section -->
     <div class="settings-section">
       <div class="section-header">
         <div class="section-header-left">
-          Outdoor Lux Sensor
-          <span class="info-icon">i<span class="info-tooltip">An outdoor illuminance sensor provides a "reality check" for sun-dependent features. On cloudy/stormy days the system reduces natural light dimming and cool day color shifting so lights stay bright and warm when it's dark outside. Without a sensor, sun_factor is always 1.0 (current behavior).</span></span>
+          Outdoor Brightness
+          <span class="info-icon">i<span class="info-tooltip">Controls how the system estimates outdoor light levels. Uses the highest-priority source available: manual override, lux sensor, weather entity, or sun angle estimate.</span></span>
         </div>
       </div>
       <div class="section-content">
+        <div class="form-row" id="outdoor-status-row">
+          <label class="form-label">Current status</label>
+          <div class="form-control">
+            <span id="outdoor-status-badge" style="display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 0.82rem; font-weight: 500; background: rgba(255,255,255,0.08); color: var(--muted);">---</span>
+            <span id="outdoor-status-detail" class="form-hint" style="margin-left: 8px;"></span>
+          </div>
+        </div>
         <div class="form-row">
           <label class="form-label">
-            Sensor entity
-            <span class="info-icon">i<span class="info-tooltip">The entity_id of an outdoor illuminance sensor in Home Assistant (e.g. sensor.outdoor_illuminance). Leave empty to disable lux-based modulation.</span></span>
+            Lux sensor
+            <span class="info-icon">i<span class="info-tooltip">An outdoor illuminance sensor (e.g. sensor.outdoor_illuminance). Highest accuracy source. Leave empty to use weather or angle fallback.</span></span>
           </label>
           <div class="form-control">
             <select class="form-input" id="outdoor-lux-sensor" style="width: 280px;">
@@ -785,6 +792,40 @@
           <div class="form-control">
             <input type="number" class="form-input" id="lux-learned-floor" min="1" max="200000" step="10" placeholder="auto" style="width: 100px;">
             <span class="form-hint">lux</span>
+          </div>
+        </div>
+        <div class="form-row" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line);">
+          <label class="form-label">
+            Weather entity
+            <span class="info-icon">i<span class="info-tooltip">A Home Assistant weather entity (e.g. weather.home) provides cloud coverage data for weather-adjusted brightness estimation. Used when no lux sensor is available.</span></span>
+          </label>
+          <div class="form-control">
+            <select class="form-input" id="weather-entity" style="width: 280px;">
+              <option value="">None (disabled)</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line);">
+          <label class="form-label">
+            Manual override
+            <span class="info-icon">i<span class="info-tooltip">Temporarily override outdoor brightness estimation. Auto-reverts after the selected duration.</span></span>
+          </label>
+          <div class="form-control" style="display: flex; gap: 8px; align-items: center;">
+            <select class="form-input" id="override-condition" style="width: 160px;">
+              <option value="">Off</option>
+              <option value="sunny">Sunny</option>
+              <option value="partly_cloudy">Partly cloudy</option>
+              <option value="cloudy">Cloudy</option>
+              <option value="heavy_overcast">Heavy overcast</option>
+            </select>
+            <select class="form-input" id="override-duration" style="width: 100px;">
+              <option value="30">30 min</option>
+              <option value="60" selected>1 hour</option>
+              <option value="120">2 hours</option>
+              <option value="240">4 hours</option>
+            </select>
+            <button type="button" class="btn btn-sm" id="override-apply" style="display: none;">Apply</button>
+            <button type="button" class="btn btn-sm" id="override-clear" style="display: none; background: var(--danger); color: #fff;">Clear</button>
           </div>
         </div>
       </div>
@@ -957,6 +998,31 @@
           document.getElementById('lux-smoothing-interval').value = config.lux_smoothing_interval ?? 300;
           document.getElementById('lux-learned-ceiling').value = config.lux_learned_ceiling ?? '';
           document.getElementById('lux-learned-floor').value = config.lux_learned_floor ?? '';
+          // Populate weather entity dropdown
+          const weatherSelect = document.getElementById('weather-entity');
+          const savedWeather = config.weather_entity ?? '';
+          try {
+            const weatherRes = await fetch('./api/weather-entities');
+            if (weatherRes.ok) {
+              const weatherData = await weatherRes.json();
+              weatherSelect.innerHTML = '<option value="">None (disabled)</option>';
+              for (const w of weatherData.entities || []) {
+                const opt = document.createElement('option');
+                opt.value = w.entity_id;
+                opt.textContent = w.name + (w.state ? ' (' + w.state + ')' : '') + (w.cloud_coverage != null ? ' ' + w.cloud_coverage + '% cloud' : '');
+                weatherSelect.appendChild(opt);
+              }
+            }
+          } catch (e) { console.warn('Could not load weather entities:', e); }
+          if (savedWeather && !weatherSelect.querySelector('option[value="' + CSS.escape(savedWeather) + '"]')) {
+            const opt = document.createElement('option');
+            opt.value = savedWeather;
+            opt.textContent = savedWeather + ' (not found)';
+            weatherSelect.appendChild(opt);
+          }
+          weatherSelect.value = savedWeather;
+          // Load outdoor status
+          refreshOutdoorStatus();
           document.getElementById('ct-comp-enabled').checked = config.ct_comp_enabled ?? false;
           document.getElementById('ct-comp-begin').value = config.ct_comp_begin ?? 1650;
           document.getElementById('ct-comp-end').value = config.ct_comp_end ?? 2250;
@@ -996,6 +1062,7 @@
         lux_smoothing_interval: parseInt(document.getElementById('lux-smoothing-interval').value) || 300,
         lux_learned_ceiling: parseFloat(document.getElementById('lux-learned-ceiling').value) || null,
         lux_learned_floor: parseFloat(document.getElementById('lux-learned-floor').value) || null,
+        weather_entity: document.getElementById('weather-entity').value.trim() || null,
         ct_comp_enabled: document.getElementById('ct-comp-enabled').checked,
         ct_comp_begin: parseInt(document.getElementById('ct-comp-begin').value) || 1650,
         ct_comp_end: parseInt(document.getElementById('ct-comp-end').value) || 2250,
@@ -1074,6 +1141,76 @@
       setTimeout(() => status.classList.remove('visible'), 2000);
     }
 
+    // Outdoor brightness override + status
+    async function refreshOutdoorStatus() {
+      try {
+        const res = await fetch('./api/outdoor-status');
+        if (!res.ok) return;
+        const data = await res.json();
+        const badge = document.getElementById('outdoor-status-badge');
+        const detail = document.getElementById('outdoor-status-detail');
+        const pct = Math.round((data.outdoor_normalized ?? 0) * 100);
+        const sourceLabels = { override: 'Override', lux: 'Lux sensor', weather: 'Weather', angle: 'Sun angle', none: 'None' };
+        const sourceColors = { override: 'var(--warning)', lux: 'var(--success)', weather: '#60a5fa', angle: 'var(--muted)', none: 'var(--danger)' };
+        const src = data.source || 'none';
+        badge.textContent = (sourceLabels[src] || src) + ': ' + pct + '%';
+        badge.style.background = sourceColors[src] || 'rgba(255,255,255,0.08)';
+        badge.style.color = '#000';
+        let detailText = '';
+        if (data.override) {
+          const cond = data.override.condition.replace('_', ' ');
+          detailText = cond.charAt(0).toUpperCase() + cond.slice(1) + ' (' + data.override.expires_in_minutes + ' min left)';
+        } else if (src === 'weather' && data.weather_cloud_cover != null) {
+          detailText = 'Cloud cover: ' + Math.round(data.weather_cloud_cover) + '%';
+        } else if (src === 'lux' && data.lux_smoothed != null) {
+          detailText = 'Smoothed: ' + Math.round(data.lux_smoothed) + ' lux';
+        }
+        detail.textContent = detailText;
+
+        // Show/hide override buttons
+        const applyBtn = document.getElementById('override-apply');
+        const clearBtn = document.getElementById('override-clear');
+        const condSelect = document.getElementById('override-condition');
+        if (data.override) {
+          condSelect.value = data.override.condition;
+          applyBtn.style.display = 'none';
+          clearBtn.style.display = '';
+        } else {
+          clearBtn.style.display = 'none';
+          applyBtn.style.display = condSelect.value ? '' : 'none';
+        }
+      } catch (e) { console.warn('Could not load outdoor status:', e); }
+    }
+
+    document.getElementById('override-condition').addEventListener('change', function() {
+      const applyBtn = document.getElementById('override-apply');
+      const clearBtn = document.getElementById('override-clear');
+      applyBtn.style.display = this.value ? '' : 'none';
+      clearBtn.style.display = 'none';
+    });
+
+    document.getElementById('override-apply').addEventListener('click', async function() {
+      const condition = document.getElementById('override-condition').value;
+      const duration = parseInt(document.getElementById('override-duration').value) || 60;
+      if (!condition) return;
+      try {
+        await fetch('./api/outdoor-override', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ condition, duration_minutes: duration })
+        });
+        refreshOutdoorStatus();
+      } catch (e) { console.error('Error applying override:', e); }
+    });
+
+    document.getElementById('override-clear').addEventListener('click', async function() {
+      try {
+        await fetch('./api/outdoor-override', { method: 'DELETE' });
+        document.getElementById('override-condition').value = '';
+        refreshOutdoorStatus();
+      } catch (e) { console.error('Error clearing override:', e); }
+    });
+
     // Auto-save on blur for number inputs (avoids decrement bug on focus)
     document.getElementById('home-name').addEventListener('blur', saveSettings);
     document.getElementById('turn-on-transition').addEventListener('blur', saveSettings);
@@ -1102,6 +1239,7 @@
     document.getElementById('lux-smoothing-interval').addEventListener('blur', saveSettings);
     document.getElementById('lux-learned-ceiling').addEventListener('blur', saveSettings);
     document.getElementById('lux-learned-floor').addEventListener('blur', saveSettings);
+    document.getElementById('weather-entity').addEventListener('change', saveSettings);
     document.getElementById('ct-comp-enabled').addEventListener('change', () => {
       updateCtCompState();
       saveSettings();

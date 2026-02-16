@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""Outdoor lux sensor tracking for sun factor modulation.
+"""Outdoor brightness tracking with multi-source fallback chain.
 
-Module-level singleton (same pattern as glozone.py). Encapsulates all lux
-state and provides a cached sun_factor that modulates both natural light
-brightness reduction and cool day color shifting.
+Module-level singleton (same pattern as glozone.py). Encapsulates all outdoor
+brightness state and provides get_outdoor_normalized() with a priority-based
+fallback chain:
 
-When no outdoor lux sensor is configured, get_sun_factor() returns 1.0
-(current behaviour preserved).
+    Override > Lux sensor > Weather entity > Sun angle estimate
+
+When no source is available, falls back to sun-angle-based estimation.
 """
 
 import logging
@@ -19,7 +20,19 @@ import glozone
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Module state
+# Constants
+# ---------------------------------------------------------------------------
+FULL_SUN_INTENSITY = 8.4  # log2(100000 / 300) — matches brain.py
+
+CONDITION_MULTIPLIERS = {
+    "sunny": 1.0,
+    "partly_cloudy": 0.6,
+    "cloudy": 0.3,
+    "heavy_overcast": 0.15,
+}
+
+# ---------------------------------------------------------------------------
+# Module state — lux sensor
 # ---------------------------------------------------------------------------
 _sensor_entity: Optional[str] = None
 _smoothing_interval: float = 300.0  # seconds (EMA time constant)
@@ -29,6 +42,23 @@ _learned_floor: Optional[float] = None
 _ema_lux: Optional[float] = None  # smoothed lux value
 _last_update_time: Optional[float] = None  # monotonic timestamp of last update
 _cached_sun_factor: float = 1.0  # always ready to read
+
+# ---------------------------------------------------------------------------
+# Module state — weather entity
+# ---------------------------------------------------------------------------
+_weather_entity: Optional[str] = None
+_cloud_cover: Optional[float] = None  # 0-100 from weather entity
+
+# ---------------------------------------------------------------------------
+# Module state — manual override
+# ---------------------------------------------------------------------------
+_override_condition: Optional[str] = None  # "sunny", "partly_cloudy", etc.
+_override_expires_at: Optional[float] = None  # monotonic timestamp
+
+# ---------------------------------------------------------------------------
+# Module state — sun elevation cache
+# ---------------------------------------------------------------------------
+_sun_elevation: float = 0.0
 
 
 # ---------------------------------------------------------------------------
@@ -42,6 +72,9 @@ def init(config: Optional[dict] = None):
     """
     global _sensor_entity, _smoothing_interval, _learned_ceiling, _learned_floor
     global _ema_lux, _last_update_time, _cached_sun_factor
+    global _weather_entity, _cloud_cover
+    global _override_condition, _override_expires_at
+    global _sun_elevation
 
     if config is None:
         config = glozone.load_config_from_files()
@@ -50,6 +83,7 @@ def init(config: Optional[dict] = None):
     _smoothing_interval = float(config.get("lux_smoothing_interval", 300))
     _learned_ceiling = config.get("lux_learned_ceiling")
     _learned_floor = config.get("lux_learned_floor")
+    _weather_entity = config.get("weather_entity") or None
 
     # Convert to float if present (may be stored as string from UI)
     if _learned_ceiling is not None:
@@ -67,15 +101,24 @@ def init(config: Optional[dict] = None):
     _ema_lux = None
     _last_update_time = None
     _cached_sun_factor = 1.0
+    _cloud_cover = None
+    _override_condition = None
+    _override_expires_at = None
+    _sun_elevation = 0.0
 
+    sources = []
     if _sensor_entity:
+        sources.append(f"lux={_sensor_entity}")
+    if _weather_entity:
+        sources.append(f"weather={_weather_entity}")
+    if sources:
         logger.info(
-            f"Lux tracker initialised: sensor={_sensor_entity}, "
+            f"Lux tracker initialised: {', '.join(sources)}, "
             f"smoothing={_smoothing_interval}s, "
             f"ceiling={_learned_ceiling}, floor={_learned_floor}"
         )
     else:
-        logger.info("Lux tracker: no outdoor sensor configured (sun_factor=1.0)")
+        logger.info("Lux tracker: no outdoor sensor or weather entity configured (angle fallback)")
 
 
 # ---------------------------------------------------------------------------
@@ -91,24 +134,126 @@ def get_sun_factor() -> float:
 
 
 def get_outdoor_normalized() -> Optional[float]:
-    """Return outdoor normalized intensity (0.0–1.0), or None.
+    """Return outdoor normalized intensity (0.0–1.0) using fallback chain.
 
-    Returns None when no sensor is configured or no data has been
-    received yet.  This distinguishes 'no data' (None → caller should
-    use angle fallback) from 'dark outside' (0.0).
+    Priority: Override > Lux sensor > Weather entity > Sun angle estimate.
+    Always returns a float (the fallback chain guarantees a value).
     """
-    if not _sensor_entity:
-        return None
-    if _learned_ceiling is None or _learned_floor is None:
-        return None
-    if _ema_lux is None:
-        return None
-    return _cached_sun_factor
+    # 1. Override (highest priority)
+    info = get_override_info()  # auto-clears expired
+    if info:
+        mult = CONDITION_MULTIPLIERS.get(_override_condition, 1.0)
+        return _compute_angle_outdoor_norm() * mult
+
+    # 2. Lux sensor
+    if _sensor_entity and _learned_ceiling and _learned_floor and _ema_lux is not None:
+        return _cached_sun_factor
+
+    # 3. Weather entity
+    weather_norm = _compute_weather_outdoor_norm()
+    if weather_norm is not None:
+        return weather_norm
+
+    # 4. Angle fallback (always available)
+    return _compute_angle_outdoor_norm()
+
+
+def get_outdoor_source() -> str:
+    """Return which source is currently active in the fallback chain."""
+    info = get_override_info()
+    if info:
+        return "override"
+    if _sensor_entity and _learned_ceiling and _learned_floor and _ema_lux is not None:
+        return "lux"
+    if _weather_entity and _cloud_cover is not None:
+        return "weather"
+    return "angle"
 
 
 def get_sensor_entity() -> Optional[str]:
     """Return configured outdoor lux sensor entity_id, or None."""
     return _sensor_entity
+
+
+def get_weather_entity() -> Optional[str]:
+    """Return configured weather entity_id, or None."""
+    return _weather_entity
+
+
+# ---------------------------------------------------------------------------
+# Weather entity
+# ---------------------------------------------------------------------------
+def update_weather(cloud_cover: float):
+    """Store cloud coverage from HA weather entity (0-100)."""
+    global _cloud_cover
+    _cloud_cover = max(0.0, min(100.0, cloud_cover))
+
+
+def update_sun_elevation(elevation: float):
+    """Cache sun elevation (degrees) for angle-based fallback."""
+    global _sun_elevation
+    _sun_elevation = elevation
+
+
+# ---------------------------------------------------------------------------
+# Manual override
+# ---------------------------------------------------------------------------
+def set_override(condition: str, duration_minutes: int = 60):
+    """Set a temporary outdoor condition override."""
+    global _override_condition, _override_expires_at
+    if condition not in CONDITION_MULTIPLIERS:
+        return
+    _override_condition = condition
+    _override_expires_at = time.monotonic() + duration_minutes * 60
+
+
+def clear_override():
+    """Clear the manual override."""
+    global _override_condition, _override_expires_at
+    _override_condition = None
+    _override_expires_at = None
+
+
+def get_override_info() -> Optional[dict]:
+    """Return active override info, or None if expired/inactive."""
+    global _override_condition, _override_expires_at
+    if _override_condition is None or _override_expires_at is None:
+        return None
+    remaining = _override_expires_at - time.monotonic()
+    if remaining <= 0:
+        _override_condition = None
+        _override_expires_at = None
+        return None
+    return {
+        "condition": _override_condition,
+        "expires_in_minutes": round(remaining / 60, 1),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Internal computation helpers
+# ---------------------------------------------------------------------------
+def _compute_weather_outdoor_norm() -> Optional[float]:
+    """Compute outdoor normalized from weather entity cloud coverage."""
+    if _weather_entity is None or _cloud_cover is None:
+        return None
+    cloud_fraction = _cloud_cover / 100.0
+    condition_mult = 1.0 - cloud_fraction * 0.85  # 0% → 1.0, 100% → 0.15
+    elev = _sun_elevation
+    clear_sky_lux = 120000.0 * max(0.0, math.sin(math.radians(elev)))
+    estimated_lux = clear_sky_lux * condition_mult
+    if estimated_lux <= 0:
+        return 0.0
+    return min(1.0, math.log2(max(1, estimated_lux) / 300) / FULL_SUN_INTENSITY)
+
+
+def _compute_angle_outdoor_norm() -> float:
+    """Compute outdoor normalized from sun elevation (clear-sky model)."""
+    elev = _sun_elevation
+    est_lux = 120000.0 * max(0.0, math.sin(math.radians(elev)))
+    if est_lux <= 0:
+        return 0.0
+    return min(1.0, math.log2(max(1, est_lux) / 300) / FULL_SUN_INTENSITY)
 
 
 def update(raw_lux: float) -> float:
