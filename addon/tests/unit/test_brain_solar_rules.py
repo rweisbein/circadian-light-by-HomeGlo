@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Test solar rules (warm night / cool day) in brain.py."""
+"""Test solar rules (warm night / daylight blend) in brain.py."""
 
 import pytest
 from brain import CircadianLight, Config, AreaState, SunTimes
@@ -83,11 +83,6 @@ class TestWarmNightRule:
         config.warm_night_end = 60  # 60 min after sunset = 7pm
         state = AreaState()
 
-        # At 4pm (before window), should NOT be clamped
-        color_before = CircadianLight.calculate_color_at_hour(
-            16.0, config, state, apply_solar_rules=True, sun_times=sun_times
-        )
-
         # At noon, definitely not in window
         color_noon = CircadianLight.calculate_color_at_hour(
             12.0, config, state, apply_solar_rules=True, sun_times=sun_times
@@ -112,12 +107,13 @@ class TestWarmNightRule:
         # Inside window (past fade), should be clamped
         assert color_inside <= config.warm_night_target
 
-class TestCoolDayRule:
-    """Test cool_day solar rule."""
+
+class TestDaylightColorBlend:
+    """Test intensity-based daylight color blend (replaces TestCoolDayRule)."""
 
     @pytest.fixture
     def config(self):
-        """Config with cool day enabled."""
+        """Config with daylight_cct set."""
         return Config(
             ascend_start=6.0,
             descend_start=18.0,
@@ -125,165 +121,56 @@ class TestCoolDayRule:
             bed_time=22.0,
             min_color_temp=2700,
             max_color_temp=6500,
-            cool_day_enabled=True,
-            cool_day_target=5000,
-            cool_day_mode="all",
-            cool_day_start=0,
-            cool_day_end=0,
-            cool_day_fade=30
+            daylight_cct=5500,
+            color_gain=5.0,
         )
 
-    @pytest.fixture
-    def sun_times(self):
-        """Standard sun times."""
-        return SunTimes(sunrise=6.0, sunset=18.0, solar_noon=12.0, solar_mid=0.0)
-
-    def test_cool_day_disabled_no_effect(self, sun_times):
-        """Test cool day has no effect when disabled."""
-        config = Config(
-            cool_day_enabled=False,
-            min_color_temp=2700,
-            max_color_temp=6500
-        )
+    def test_no_outdoor_light_no_blend(self, config):
+        """outdoor_normalized=0 → no daylight color shift."""
         state = AreaState()
-
-        # At 8am (in ascend), without cool day the color should follow curve
-        color = CircadianLight.calculate_color_at_hour(
-            8.0, config, state, apply_solar_rules=True, sun_times=sun_times
+        sun_no_outdoor = SunTimes(
+            sunrise=6.0, sunset=18.0, solar_noon=12.0,
+            outdoor_normalized=0.0,
         )
-
-        # Color can be anything on the curve
-        assert config.min_color_temp <= color <= config.max_color_temp
-
-    def test_cool_day_all_mode_clamps_in_ascend(self, config, sun_times):
-        """Test cool day 'all' mode clamps color during ascend."""
-        config.cool_day_mode = "all"
-        state = AreaState()
-
-        # At 8am (ascend phase), cool day should set floor at target
-        color = CircadianLight.calculate_color_at_hour(
-            8.0, config, state, apply_solar_rules=True, sun_times=sun_times
-        )
-
-        # If base curve would be below target, it should be raised
-        assert color >= config.cool_day_target
-
-    def test_cool_day_window_mode_inside_window(self, config, sun_times):
-        """Test cool day 'window' mode clamps inside window."""
-        config.cool_day_mode = "window"
-        config.cool_day_start = 60  # 60 min after sunrise = 7am
-        config.cool_day_end = 300  # 300 min after sunrise = 11am
-        state = AreaState()
-
-        # At 9am (inside window), should have floor applied
-        color = CircadianLight.calculate_color_at_hour(
-            9.0, config, state, apply_solar_rules=True, sun_times=sun_times
-        )
-
-        assert color >= config.cool_day_target
-
-
-
-class TestSolarRuleInteraction:
-    """Test interaction between warm night and cool day."""
-
-    def test_only_one_rule_active_per_phase(self):
-        """Test that only one solar rule applies per phase."""
-        config = Config(
-            ascend_start=6.0,
-            descend_start=18.0,
-            warm_night_enabled=True,
-            warm_night_target=2700,
-            warm_night_mode="all",
-            cool_day_enabled=True,
-            cool_day_target=5000,
-            cool_day_mode="all",
-            min_color_temp=2700,
-            max_color_temp=6500
-        )
-        state = AreaState()
-        sun_times = SunTimes(sunrise=6.0, sunset=18.0)
-
-        # In ascend (8am), cool_day should be active (floor)
-        color_morning = CircadianLight.calculate_color_at_hour(
-            8.0, config, state, apply_solar_rules=True, sun_times=sun_times
-        )
-
-        # In descend (8pm), warm_night should be active (ceiling)
-        color_evening = CircadianLight.calculate_color_at_hour(
-            20.0, config, state, apply_solar_rules=True, sun_times=sun_times
-        )
-
-        # Morning should be at or above cool_day target
-        assert color_morning >= config.cool_day_target
-
-        # Evening should be at or below warm_night target
-        assert color_evening <= config.warm_night_target
-
-
-class TestSunFactorModulation:
-    """Test sun_factor modulation of cool day via _apply_solar_rules."""
-
-    @pytest.fixture
-    def config(self):
-        """Config with cool day enabled, target above max_color_temp."""
-        return Config(
-            ascend_start=6.0,
-            descend_start=18.0,
-            wake_time=8.0,
-            bed_time=22.0,
-            min_color_temp=2700,
-            max_color_temp=6500,
-            cool_day_enabled=True,
-            cool_day_target=5000,
-            cool_day_mode="all",
-            cool_day_start=0,
-            cool_day_end=0,
-            cool_day_fade=0,
-        )
-
-    def test_sun_factor_one_same_as_before(self, config):
-        """sun_factor=1.0 should give same result as default (no modulation)."""
-        state = AreaState()
-        sun_full = SunTimes(sunrise=6.0, sunset=18.0, solar_noon=12.0, sun_factor=1.0)
         sun_default = SunTimes(sunrise=6.0, sunset=18.0, solar_noon=12.0)
 
-        color_full = CircadianLight.calculate_color_at_hour(
-            10.0, config, state, apply_solar_rules=True, sun_times=sun_full
+        color_no = CircadianLight.calculate_color_at_hour(
+            10.0, config, state, apply_solar_rules=True, sun_times=sun_no_outdoor
         )
         color_default = CircadianLight.calculate_color_at_hour(
             10.0, config, state, apply_solar_rules=True, sun_times=sun_default
         )
-        assert color_full == color_default
+        # Both should be the same (outdoor_normalized=0 by default)
+        assert color_no == color_default
 
-    def test_sun_factor_zero_cancels_cool_day(self, config):
-        """sun_factor=0.0 should cancel cool day push entirely."""
+    def test_full_outdoor_pushes_toward_daylight_cct(self, config):
+        """Full outdoor intensity should push color toward daylight_cct."""
         state = AreaState()
-        sun_dark = SunTimes(sunrise=6.0, sunset=18.0, solar_noon=12.0, sun_factor=0.0)
-        sun_none = SunTimes(sunrise=6.0, sunset=18.0, solar_noon=12.0)
-
-        # With sun_factor=0, cool day has no effect — should match no-cool-day curve
-        config_no_cool = Config(
-            ascend_start=6.0, descend_start=18.0,
-            wake_time=8.0, bed_time=22.0,
-            min_color_temp=2700, max_color_temp=6500,
-            cool_day_enabled=False,
+        sun_full = SunTimes(
+            sunrise=6.0, sunset=18.0, solar_noon=12.0,
+            outdoor_normalized=1.0,
+        )
+        sun_none = SunTimes(
+            sunrise=6.0, sunset=18.0, solar_noon=12.0,
+            outdoor_normalized=0.0,
         )
 
-        color_dark = CircadianLight.calculate_color_at_hour(
-            10.0, config, state, apply_solar_rules=True, sun_times=sun_dark
+        color_full = CircadianLight.calculate_color_at_hour(
+            10.0, config, state, apply_solar_rules=True, sun_times=sun_full
         )
-        color_no_cool = CircadianLight.calculate_color_at_hour(
-            10.0, config_no_cool, state, apply_solar_rules=True, sun_times=sun_none
+        color_none = CircadianLight.calculate_color_at_hour(
+            10.0, config, state, apply_solar_rules=True, sun_times=sun_none
         )
-        assert color_dark == color_no_cool
 
-    def test_sun_factor_half_gives_partial_effect(self, config):
-        """sun_factor=0.5 should give roughly half the cool day push."""
+        # Full outdoor should push color higher (closer to daylight_cct=5500)
+        assert color_full >= color_none
+
+    def test_half_outdoor_partial_blend(self, config):
+        """Half outdoor intensity gives partial blend."""
         state = AreaState()
-        sun_full = SunTimes(sunrise=6.0, sunset=18.0, solar_noon=12.0, sun_factor=1.0)
-        sun_half = SunTimes(sunrise=6.0, sunset=18.0, solar_noon=12.0, sun_factor=0.5)
-        sun_zero = SunTimes(sunrise=6.0, sunset=18.0, solar_noon=12.0, sun_factor=0.0)
+        sun_full = SunTimes(sunrise=6.0, sunset=18.0, outdoor_normalized=1.0)
+        sun_half = SunTimes(sunrise=6.0, sunset=18.0, outdoor_normalized=0.5)
+        sun_zero = SunTimes(sunrise=6.0, sunset=18.0, outdoor_normalized=0.0)
 
         color_full = CircadianLight.calculate_color_at_hour(
             10.0, config, state, apply_solar_rules=True, sun_times=sun_full
@@ -298,8 +185,127 @@ class TestSunFactorModulation:
         # Half should be between zero and full
         assert color_zero <= color_half <= color_full
 
-    def test_warm_night_not_affected_by_sun_factor(self):
-        """Warm night should NOT be modulated by sun_factor."""
+    def test_daylight_cct_zero_disables_blend(self, config):
+        """daylight_cct=0 disables the blend entirely."""
+        config.daylight_cct = 0
+        state = AreaState()
+        sun_full = SunTimes(sunrise=6.0, sunset=18.0, outdoor_normalized=1.0)
+
+        color_base = CircadianLight.calculate_color_at_hour(
+            10.0, config, state, apply_solar_rules=False
+        )
+        color_with = CircadianLight.calculate_color_at_hour(
+            10.0, config, state, apply_solar_rules=True, sun_times=sun_full
+        )
+
+        # No daylight blend should be applied
+        assert color_base == color_with
+
+    def test_no_push_when_base_above_daylight_cct(self, config):
+        """When base color is already above daylight_cct, no push occurs."""
+        # Set daylight_cct below min_color_temp so base is always above
+        config.daylight_cct = 2000
+        state = AreaState()
+        sun_full = SunTimes(sunrise=6.0, sunset=18.0, outdoor_normalized=1.0)
+
+        color_base = CircadianLight.calculate_color_at_hour(
+            12.0, config, state, apply_solar_rules=False
+        )
+        color_with = CircadianLight.calculate_color_at_hour(
+            12.0, config, state, apply_solar_rules=True, sun_times=sun_full
+        )
+
+        # Base kelvin at noon should be above 2000, so no daylight shift
+        assert color_base == color_with
+
+    def test_low_outdoor_at_sunrise_preserves_warm(self, config):
+        """Low outdoor_normalized at sunrise → minimal color shift (warm morning preserved)."""
+        state = AreaState()
+        sun_low = SunTimes(
+            sunrise=6.0, sunset=18.0, solar_noon=12.0,
+            outdoor_normalized=0.1,
+        )
+
+        color = CircadianLight.calculate_color_at_hour(
+            7.0, config, state, apply_solar_rules=True, sun_times=sun_low
+        )
+        color_base = CircadianLight.calculate_color_at_hour(
+            7.0, config, state, apply_solar_rules=False
+        )
+
+        # Shift should be small — under 500K (blend ≈ 0.168 × 2620K gap = ~440K)
+        assert abs(color - color_base) < 500
+
+
+class TestSolarRuleInteraction:
+    """Test interaction between warm night and daylight blend."""
+
+    def test_warm_night_and_daylight_coexist(self):
+        """Both warm night and daylight blend can apply (at different times)."""
+        config = Config(
+            ascend_start=6.0,
+            descend_start=18.0,
+            warm_night_enabled=True,
+            warm_night_target=2700,
+            warm_night_mode="all",
+            daylight_cct=5500,
+            color_gain=5.0,
+            min_color_temp=2700,
+            max_color_temp=6500
+        )
+        state = AreaState()
+        sun_times = SunTimes(
+            sunrise=6.0, sunset=18.0,
+            outdoor_normalized=1.0,
+        )
+
+        # In ascend (10am), daylight blend should be active (push up)
+        color_morning = CircadianLight.calculate_color_at_hour(
+            10.0, config, state, apply_solar_rules=True, sun_times=sun_times
+        )
+
+        # In descend (8pm), warm_night should be active (ceiling)
+        color_evening = CircadianLight.calculate_color_at_hour(
+            20.0, config, state, apply_solar_rules=True, sun_times=sun_times
+        )
+
+        # Evening should be clamped by warm night
+        assert color_evening <= config.warm_night_target
+
+
+class TestSunFactorModulation:
+    """Test outdoor_normalized on SunTimes drives daylight color blend."""
+
+    @pytest.fixture
+    def config(self):
+        """Config with daylight_cct set."""
+        return Config(
+            ascend_start=6.0,
+            descend_start=18.0,
+            wake_time=8.0,
+            bed_time=22.0,
+            min_color_temp=2700,
+            max_color_temp=6500,
+            daylight_cct=5500,
+            color_gain=5.0,
+        )
+
+    def test_outdoor_zero_cancels_daylight_blend(self, config):
+        """outdoor_normalized=0.0 should cancel daylight color blend entirely."""
+        state = AreaState()
+        sun_dark = SunTimes(sunrise=6.0, sunset=18.0, solar_noon=12.0, outdoor_normalized=0.0)
+
+        # With outdoor_normalized=0, daylight blend has no effect
+        color_dark = CircadianLight.calculate_color_at_hour(
+            10.0, config, state, apply_solar_rules=True, sun_times=sun_dark
+        )
+        color_no_rules = CircadianLight.calculate_color_at_hour(
+            10.0, config, state, apply_solar_rules=False
+        )
+        assert color_dark == color_no_rules
+
+    def test_warm_night_not_affected_by_outdoor_normalized(self):
+        """Warm night should NOT be modulated by outdoor_normalized."""
         config = Config(
             ascend_start=6.0, descend_start=18.0,
             wake_time=8.0, bed_time=22.0,
@@ -307,11 +313,11 @@ class TestSunFactorModulation:
             warm_night_enabled=True, warm_night_target=2700,
             warm_night_mode="all", warm_night_start=-60,
             warm_night_end=120, warm_night_fade=0,
-            cool_day_enabled=False,
+            daylight_cct=0,  # disable daylight blend
         )
         state = AreaState()
-        sun_full = SunTimes(sunrise=6.0, sunset=18.0, sun_factor=1.0)
-        sun_zero = SunTimes(sunrise=6.0, sunset=18.0, sun_factor=0.0)
+        sun_full = SunTimes(sunrise=6.0, sunset=18.0, outdoor_normalized=1.0)
+        sun_zero = SunTimes(sunrise=6.0, sunset=18.0, outdoor_normalized=0.0)
 
         color_full = CircadianLight.calculate_color_at_hour(
             20.0, config, state, apply_solar_rules=True, sun_times=sun_full
@@ -320,8 +326,50 @@ class TestSunFactorModulation:
             20.0, config, state, apply_solar_rules=True, sun_times=sun_zero
         )
 
-        # Warm night should be identical regardless of sun_factor
+        # Warm night should be identical regardless of outdoor_normalized
         assert color_full == color_zero
+
+
+class TestSolarRuleBreakdown:
+    """Test get_solar_rule_breakdown returns correct new fields."""
+
+    def test_breakdown_has_daylight_keys(self):
+        """Breakdown should include daylight_blend, daylight_shift, daylight_cct."""
+        config = Config(
+            ascend_start=6.0, descend_start=18.0,
+            daylight_cct=5500, color_gain=5.0,
+            min_color_temp=2700, max_color_temp=6500,
+        )
+        state = AreaState()
+        sun_times = SunTimes(sunrise=6.0, sunset=18.0, outdoor_normalized=0.8)
+
+        breakdown = CircadianLight.get_solar_rule_breakdown(
+            4000, 10.0, config, state, sun_times
+        )
+
+        assert 'daylight_blend' in breakdown
+        assert 'daylight_shift' in breakdown
+        assert 'daylight_cct' in breakdown
+        assert 'outdoor_normalized' in breakdown
+        assert 'warm_night_enabled' in breakdown
+        assert breakdown['outdoor_normalized'] == 0.8
+
+    def test_breakdown_no_cool_day_keys(self):
+        """Breakdown should NOT include old cool_day keys."""
+        config = Config(
+            ascend_start=6.0, descend_start=18.0,
+            min_color_temp=2700, max_color_temp=6500,
+        )
+        state = AreaState()
+        sun_times = SunTimes(sunrise=6.0, sunset=18.0)
+
+        breakdown = CircadianLight.get_solar_rule_breakdown(
+            4000, 10.0, config, state, sun_times
+        )
+
+        assert 'cool_day_enabled' not in breakdown
+        assert 'cool_day_target' not in breakdown
+        assert 'day_strength' not in breakdown
 
 
 class TestSolarRuleHelpers:
@@ -329,21 +377,19 @@ class TestSolarRuleHelpers:
 
     def test_get_window_weight_inside_window(self):
         """Test _get_window_weight returns 1.0 inside window."""
-        # Test the calculation logic implicitly through calculate_color_at_hour
         config = Config(
             warm_night_enabled=True,
             warm_night_target=2700,
             warm_night_mode="window",
-            warm_night_start=-60,  # 1hr before sunset
-            warm_night_end=60,  # 1hr after sunset
-            warm_night_fade=0,  # No fade
+            warm_night_start=-60,
+            warm_night_end=60,
+            warm_night_fade=0,
             min_color_temp=2700,
             max_color_temp=6500
         )
         state = AreaState()
         sun_times = SunTimes(sunset=18.0)
 
-        # At sunset (middle of window, no fade), should be fully clamped
         color = CircadianLight.calculate_color_at_hour(
             18.0, config, state, apply_solar_rules=True, sun_times=sun_times
         )
@@ -352,14 +398,12 @@ class TestSolarRuleHelpers:
 
     def test_wrap24_handles_negative(self):
         """Test _wrap24 handles negative hours correctly."""
-        # This is tested implicitly - windows with negative start times
-        # should work correctly
         config = Config(
             warm_night_enabled=True,
             warm_night_target=2700,
             warm_night_mode="window",
-            warm_night_start=-120,  # 2hrs before sunset (4pm for 6pm sunset)
-            warm_night_end=0,  # At sunset
+            warm_night_start=-120,
+            warm_night_end=0,
             warm_night_fade=0,
             min_color_temp=2700,
             max_color_temp=6500
@@ -367,7 +411,6 @@ class TestSolarRuleHelpers:
         state = AreaState()
         sun_times = SunTimes(sunset=18.0)
 
-        # At 5pm (inside window), should be clamped
         color = CircadianLight.calculate_color_at_hour(
             17.0, config, state, apply_solar_rules=True, sun_times=sun_times
         )
@@ -385,10 +428,8 @@ class TestSolarRuleHelpers:
         )
         state = AreaState()
 
-        # Call without sun_times - should use defaults
         color = CircadianLight.calculate_color_at_hour(
             20.0, config, state, apply_solar_rules=True
         )
 
-        # Should still clamp with default sunset (18.0)
         assert color <= config.warm_night_target

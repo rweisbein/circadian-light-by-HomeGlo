@@ -63,6 +63,12 @@ DEFAULT_BED_SPEED = 6
 # Speed-to-slope mapping (index 0-10, where 0 is unused)
 SPEED_TO_SLOPE = [0.0, 0.4, 0.6, 0.8, 1.0, 1.3, 1.7, 2.3, 3.0, 4.0, 5.5]
 
+# Natural light / outdoor intensity constants
+FULL_SUN_INTENSITY = 8.4  # log2(100000 / 300) — log2 ratio of direct sun to indoor reference
+DEFAULT_BRIGHTNESS_GAIN = 5.0
+DEFAULT_COLOR_GAIN = 5.0
+DEFAULT_DAYLIGHT_CCT = 5500
+
 
 # ---------------------------------------------------------------------------
 # Data classes for inputs/outputs
@@ -99,13 +105,10 @@ class Config:
     warm_night_end: int = 60      # minutes offset from sunrise (positive = after)
     warm_night_fade: int = 60     # fade duration in minutes
 
-    # Solar rules - cool during day
-    cool_day_enabled: bool = False
-    cool_day_mode: str = "all"    # "all", "sunrise", or "sunset"
-    cool_day_target: int = 6500
-    cool_day_start: int = 0       # minutes offset from sunrise
-    cool_day_end: int = 0         # minutes offset from sunset
-    cool_day_fade: int = 60       # fade duration in minutes
+    # Natural light / daylight color
+    brightness_gain: float = DEFAULT_BRIGHTNESS_GAIN
+    color_gain: float = DEFAULT_COLOR_GAIN
+    daylight_cct: int = DEFAULT_DAYLIGHT_CCT
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "Config":
@@ -132,13 +135,10 @@ class Config:
             warm_night_start=d.get("warm_night_start", -60),
             warm_night_end=d.get("warm_night_end", 60),
             warm_night_fade=d.get("warm_night_fade", 60),
-            # Cool during day
-            cool_day_enabled=d.get("cool_day_enabled", False),
-            cool_day_mode=d.get("cool_day_mode", "all"),
-            cool_day_target=d.get("cool_day_target", 6500),
-            cool_day_start=d.get("cool_day_start", 0),
-            cool_day_end=d.get("cool_day_end", 0),
-            cool_day_fade=d.get("cool_day_fade", 60),
+            # Natural light / daylight color
+            brightness_gain=d.get("brightness_gain", DEFAULT_BRIGHTNESS_GAIN),
+            color_gain=d.get("color_gain", DEFAULT_COLOR_GAIN),
+            daylight_cct=d.get("daylight_cct", DEFAULT_DAYLIGHT_CCT),
         )
 
 
@@ -149,17 +149,26 @@ class SunTimes:
     sunset: float = 18.0      # Hour (0-24)
     solar_noon: float = 12.0  # Hour (0-24)
     solar_mid: float = 0.0    # Hour (0-24), midnight opposite of noon
-    sun_factor: float = 1.0   # Outdoor lux modulation (0=dark/storm, 1=bright sun)
+    outdoor_normalized: float = 0.0  # 0-1 from lux sensor or angle estimate
+    outdoor_source: str = "none"     # Diagnostics: "lux", "weather", "angle", "none"
+
+    @property
+    def sun_factor(self) -> float:
+        """Backward-compat alias for outdoor_normalized."""
+        return self.outdoor_normalized
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "SunTimes":
         """Create SunTimes from a dictionary."""
+        # Support both new outdoor_normalized and legacy sun_factor
+        outdoor = d.get("outdoor_normalized", d.get("sun_factor", 0.0))
         return cls(
             sunrise=d.get("sunrise", 6.0),
             sunset=d.get("sunset", 18.0),
             solar_noon=d.get("solar_noon", 12.0),
             solar_mid=d.get("solar_mid", 0.0),
-            sun_factor=d.get("sun_factor", 1.0),
+            outdoor_normalized=outdoor,
+            outdoor_source=d.get("outdoor_source", "none"),
         )
 
 
@@ -235,35 +244,44 @@ class StepResult:
 # Light filter functions
 # ---------------------------------------------------------------------------
 
-DEFAULT_DAYLIGHT_SATURATION_DEG = 8.0
+def angle_to_estimated_lux(elevation_deg: float) -> float:
+    """Estimate outdoor lux from sun elevation (clear-sky model).
+
+    Args:
+        elevation_deg: Sun elevation in degrees (negative = below horizon)
+
+    Returns:
+        Estimated lux (0 when sun is at or below horizon, up to ~120000 at zenith).
+    """
+    if elevation_deg <= 0:
+        return 0.0
+    return max(0.0, 120000.0 * math.sin(math.radians(elevation_deg)))
 
 
 def calculate_natural_light_factor(
     exposure: float,
-    sun_elevation_deg: float,
-    daylight_saturation_deg: float = DEFAULT_DAYLIGHT_SATURATION_DEG,
+    outdoor_normalized: float,
+    brightness_gain: float = DEFAULT_BRIGHTNESS_GAIN,
 ) -> float:
-    """Calculate the natural light reduction factor based on area exposure and sun position.
+    """Calculate the natural light reduction factor.
 
-    When the sun is up, areas with natural light exposure need less artificial light.
-    Uses a fast-saturating linear ramp: daylight overwhelms artificial light once
-    the sun clears a few degrees above the horizon.
+    Uses log-scaled outdoor intensity and per-rhythm brightness_gain to determine
+    how much to reduce artificial brightness for areas with natural light.
 
     Args:
         exposure: Area's natural light exposure 0.0 (cave) to 1.0 (sunroom)
-        sun_elevation_deg: Sun elevation in degrees (negative = below horizon)
-        daylight_saturation_deg: Sun elevation at which daylight is fully effective.
-            Default 8°. Lower = lights turn off earlier in morning / later in evening.
+        outdoor_normalized: Outdoor intensity 0.0 (dark) to 1.0 (bright sun),
+            from lux sensor or angle estimate.
+        brightness_gain: How aggressively to reduce brightness (default 5.0).
+            Higher = more aggressive reduction.
 
     Returns:
         Multiplier 0.0–1.0 to apply to artificial brightness.
-        1.0 = no reduction (night or no exposure), lower = more natural light available.
+        1.0 = no reduction, 0.0 = full reduction (lights off).
     """
-    if exposure <= 0.0 or sun_elevation_deg <= 0.0:
+    if exposure <= 0.0 or outdoor_normalized <= 0.0:
         return 1.0
-    threshold = max(1.0, daylight_saturation_deg)
-    sun_intensity = min(1.0, sun_elevation_deg / threshold)
-    return max(0.0, 1.0 - exposure * sun_intensity)
+    return max(0.0, 1.0 - exposure * outdoor_normalized * brightness_gain)
 
 
 def calculate_curve_position(brightness: int, min_brightness: int, max_brightness: int) -> float:
@@ -611,12 +629,11 @@ class CircadianLight:
         state: AreaState,
         sun_times: Optional[SunTimes] = None
     ) -> float:
-        """Apply warm night and cool day solar rules with crossfade.
+        """Apply warm night and daylight color blend solar rules.
 
-        Both rules compute an independent strength (0-1) from their time
-        window. Warm night acts as a ceiling (pulls K down), cool day as
-        a floor (pulls K up). In overlap zones the strengths crossfade
-        naturally.
+        Warm night pulls color down toward a warm target during nighttime.
+        Daylight blend pushes color up toward daylight_cct based on outdoor
+        intensity (replaces the old time-window cool_day system).
 
         Args:
             kelvin: Base color temperature from curve
@@ -633,7 +650,6 @@ class CircadianLight:
 
         sunrise = sun_times.sunrise
         sunset = sun_times.sunset
-        solar_noon = sun_times.solar_noon
         solar_mid = sun_times.solar_mid
         wrap24 = CircadianLight._wrap24
 
@@ -656,39 +672,25 @@ class CircadianLight:
             if in_window:
                 night_strength = weight
 
-        # Compute day_strength from cool_day window
-        day_strength = 0.0
-        if config.cool_day_enabled:
-            fade_hrs = config.cool_day_fade / 60.0
-            start_offset_hrs = config.cool_day_start / 60.0
-            end_offset_hrs = config.cool_day_end / 60.0
-            mode = config.cool_day_mode
-
-            if mode == "sunrise":
-                ws, we = wrap24(sunrise + start_offset_hrs), wrap24(solar_noon)
-            elif mode == "sunset":
-                ws, we = wrap24(solar_noon), wrap24(sunset + end_offset_hrs)
-            else:  # "all"
-                ws, we = wrap24(sunrise + start_offset_hrs), wrap24(sunset + end_offset_hrs)
-
-            in_window, weight = CircadianLight._get_window_weight(hour, ws, we, fade_hrs)
-            if in_window:
-                day_strength = weight * sun_times.sun_factor
-
-        # Apply color_override to targets
+        # Apply color_override to warm target
         warm_target = config.warm_night_target
         if state.color_override and state.color_override > 0:
             warm_target += state.color_override
 
-        cool_target = config.cool_day_target
-        if state.color_override and state.color_override < 0:
-            cool_target += state.color_override
-
-        # Crossfade: each effect only acts in one direction
         night_effect = max(0, kelvin - warm_target) if night_strength > 0 else 0
-        day_effect = max(0, cool_target - kelvin) if day_strength > 0 else 0
 
-        kelvin = kelvin - night_effect * night_strength + day_effect * day_strength
+        # Daylight color blend (replaces cool_day)
+        day_shift = 0
+        if config.daylight_cct > 0 and sun_times.outdoor_normalized > 0:
+            outdoor_norm = sun_times.outdoor_normalized
+            blend = min(1.0, outdoor_norm * FULL_SUN_INTENSITY / max(0.1, config.color_gain))
+            daylight_target = config.daylight_cct
+            if state.color_override and state.color_override < 0:
+                daylight_target += state.color_override
+            if daylight_target > kelvin:
+                day_shift = (daylight_target - kelvin) * blend
+
+        kelvin = kelvin - night_effect * night_strength + day_shift
 
         return kelvin
 
@@ -700,7 +702,7 @@ class CircadianLight:
         state: AreaState,
         sun_times: Optional[SunTimes] = None
     ) -> Dict[str, Any]:
-        """Return breakdown of warm_night and cool_day effects.
+        """Return breakdown of warm_night and daylight blend effects.
 
         Same logic as _apply_solar_rules but returns individual strengths
         and shifts instead of the final kelvin.
@@ -713,15 +715,14 @@ class CircadianLight:
             sun_times: Sun position times (if None, uses defaults)
 
         Returns:
-            Dict with night_strength, day_strength, night_shift, day_shift,
-            warm_night_target, cool_day_target.
+            Dict with night_strength, night_shift, warm_night_target,
+            daylight_blend, daylight_shift, daylight_cct, outdoor_normalized.
         """
         if sun_times is None:
             sun_times = SunTimes()
 
         sunrise = sun_times.sunrise
         sunset = sun_times.sunset
-        solar_noon = sun_times.solar_noon
         solar_mid = sun_times.solar_mid
         wrap24 = CircadianLight._wrap24
 
@@ -744,50 +745,35 @@ class CircadianLight:
             if in_window:
                 night_strength = weight
 
-        # Compute day_strength from cool_day window
-        day_strength = 0.0
-        if config.cool_day_enabled:
-            fade_hrs = config.cool_day_fade / 60.0
-            start_offset_hrs = config.cool_day_start / 60.0
-            end_offset_hrs = config.cool_day_end / 60.0
-            mode = config.cool_day_mode
-
-            if mode == "sunrise":
-                ws, we = wrap24(sunrise + start_offset_hrs), wrap24(solar_noon)
-            elif mode == "sunset":
-                ws, we = wrap24(solar_noon), wrap24(sunset + end_offset_hrs)
-            else:  # "all"
-                ws, we = wrap24(sunrise + start_offset_hrs), wrap24(sunset + end_offset_hrs)
-
-            in_window, weight = CircadianLight._get_window_weight(hour, ws, we, fade_hrs)
-            if in_window:
-                day_strength = weight * sun_times.sun_factor
-
-        # Apply color_override to targets
+        # Apply color_override to warm target
         warm_target = config.warm_night_target
         if state.color_override and state.color_override > 0:
             warm_target += state.color_override
 
-        cool_target = config.cool_day_target
-        if state.color_override and state.color_override < 0:
-            cool_target += state.color_override
-
-        # Crossfade: each effect only acts in one direction
         night_effect = max(0, base_kelvin - warm_target) if night_strength > 0 else 0
-        day_effect = max(0, cool_target - base_kelvin) if day_strength > 0 else 0
-
         night_shift = night_effect * night_strength
-        day_shift = day_effect * day_strength
+
+        # Daylight color blend
+        blend = 0.0
+        day_shift = 0
+        daylight_target = config.daylight_cct
+        if config.daylight_cct > 0 and sun_times.outdoor_normalized > 0:
+            outdoor_norm = sun_times.outdoor_normalized
+            blend = min(1.0, outdoor_norm * FULL_SUN_INTENSITY / max(0.1, config.color_gain))
+            if state.color_override and state.color_override < 0:
+                daylight_target += state.color_override
+            if daylight_target > base_kelvin:
+                day_shift = (daylight_target - base_kelvin) * blend
 
         return {
             'night_strength': night_strength,
-            'day_strength': day_strength,
             'night_shift': round(night_shift),
-            'day_shift': round(day_shift),
             'warm_night_target': warm_target,
-            'cool_day_target': cool_target,
             'warm_night_enabled': config.warm_night_enabled,
-            'cool_day_enabled': config.cool_day_enabled,
+            'daylight_blend': round(blend, 3),
+            'daylight_shift': round(day_shift),
+            'daylight_cct': daylight_target,
+            'outdoor_normalized': sun_times.outdoor_normalized,
         }
 
     @staticmethod

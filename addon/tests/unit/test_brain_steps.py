@@ -383,11 +383,12 @@ class TestColorStepWithSolarRules:
             warm_night_start=-60,
             warm_night_end=60,
             warm_night_fade=60,
+            daylight_cct=0,  # Disable daylight blend to isolate warm_night
         )
 
     @pytest.fixture
-    def cool_day_config(self):
-        """Config with CoolDay active (pushes CCT up during day)."""
+    def daylight_config(self):
+        """Config with daylight blend active (pushes CCT up during day)."""
         return Config(
             ascend_start=6.0,
             descend_start=18.0,
@@ -398,18 +399,14 @@ class TestColorStepWithSolarRules:
             min_color_temp=2700,
             max_color_temp=6500,
             max_dim_steps=10,
-            cool_day_enabled=True,
-            cool_day_mode="all",
-            cool_day_target=5500,
-            cool_day_start=0,
-            cool_day_end=0,
-            cool_day_fade=60,
+            daylight_cct=5500,
+            color_gain=5.0,
         )
 
     @pytest.fixture
     def sun_times(self):
-        """Default sun times."""
-        return SunTimes()
+        """Default sun times with outdoor light for daylight blend."""
+        return SunTimes(outdoor_normalized=1.0)
 
     def test_step_up_succeeds_during_warm_night(self, warm_night_config, sun_times):
         """Step up (cooler) should succeed when WarmNight is clamping CCT down."""
@@ -431,25 +428,25 @@ class TestColorStepWithSolarRules:
         assert "color_override" in result.state_updates
         assert result.state_updates["color_override"] > 0  # Positive = raises warm ceiling
 
-    def test_step_down_succeeds_during_cool_day(self, cool_day_config, sun_times):
-        """Step down (warmer) should succeed when CoolDay is pushing CCT up."""
+    def test_step_down_succeeds_during_daylight_blend(self, daylight_config, sun_times):
+        """Step down (warmer) should succeed when daylight blend is pushing CCT up."""
         state = AreaState()
-        hour = 7.5  # Early morning, natural < cool_day_target, full strength
+        hour = 7.5  # Early morning, natural < daylight_cct, outdoor bright
 
         rendered_before = CircadianLight.calculate_color_at_hour(
-            hour, cool_day_config, state, apply_solar_rules=True, sun_times=sun_times
+            hour, daylight_config, state, apply_solar_rules=True, sun_times=sun_times
         )
 
         result = CircadianLight.calculate_color_step(
-            hour, "down", cool_day_config, state, sun_times=sun_times
+            hour, "down", daylight_config, state, sun_times=sun_times
         )
 
         assert result is not None, (
-            f"Step down returned None during CoolDay (rendered={rendered_before}K)"
+            f"Step down returned None during daylight blend (rendered={rendered_before}K)"
         )
         assert result.color_temp < rendered_before
         assert "color_override" in result.state_updates
-        assert result.state_updates["color_override"] < 0  # Negative = lowers cool floor
+        assert result.state_updates["color_override"] < 0  # Negative = lowers daylight push
 
     def test_multiple_steps_up_increase_override(self, warm_night_config, sun_times):
         """Multiple step-ups through WarmNight should increase override."""
@@ -581,11 +578,12 @@ class TestSetPositionWithSolarRules:
             warm_night_start=-60,
             warm_night_end=60,
             warm_night_fade=60,
+            daylight_cct=0,  # Disable daylight blend to isolate warm_night
         )
 
     @pytest.fixture
-    def cool_day_config(self):
-        """Config with CoolDay active."""
+    def daylight_config(self):
+        """Config with daylight blend active."""
         return Config(
             ascend_start=6.0,
             descend_start=18.0,
@@ -596,17 +594,13 @@ class TestSetPositionWithSolarRules:
             min_color_temp=2700,
             max_color_temp=6500,
             max_dim_steps=10,
-            cool_day_enabled=True,
-            cool_day_mode="all",
-            cool_day_target=5500,
-            cool_day_start=0,
-            cool_day_end=0,
-            cool_day_fade=60,
+            daylight_cct=5500,
+            color_gain=5.0,
         )
 
     @pytest.fixture
     def sun_times(self):
-        return SunTimes()
+        return SunTimes(outdoor_normalized=1.0)
 
     def test_color_slider_achieves_target_through_warm_night(self, warm_night_config, sun_times):
         """Color slider should reach target CCT even when WarmNight is active."""
@@ -627,22 +621,22 @@ class TestSetPositionWithSolarRules:
         assert result.state_updates.get("color_override") is not None
         assert result.state_updates["color_override"] > 0
 
-    def test_color_slider_achieves_target_through_cool_day(self, cool_day_config, sun_times):
-        """Color slider should reach target CCT even when CoolDay is active."""
+    def test_color_slider_achieves_target_through_daylight_blend(self, daylight_config, sun_times):
+        """Color slider should reach target CCT even when daylight blend is active."""
         state = AreaState()
-        hour = 7.5  # Cool day active, natural is low
+        hour = 7.5  # Daylight blend active, natural is low
 
-        # Set slider to 25% (should be ~3650K, below cool_day_target of 5500)
+        # Set slider to 25% (should be ~3650K, below daylight_cct of 5500)
         target_cct = 2700 + (6500 - 2700) * 0.25  # 3650K
         result = CircadianLight.calculate_set_position(
-            hour, 25, "color", cool_day_config, state, sun_times=sun_times
+            hour, 25, "color", daylight_config, state, sun_times=sun_times
         )
 
         # Should achieve close to the target through deficit override
         assert abs(result.color_temp - target_cct) < 100, (
             f"Slider target={target_cct:.0f}K but got {result.color_temp}K"
         )
-        # Override should be set (negative to lower cool floor)
+        # Override should be set (negative to lower daylight push)
         assert result.state_updates.get("color_override") is not None
         assert result.state_updates["color_override"] < 0
 

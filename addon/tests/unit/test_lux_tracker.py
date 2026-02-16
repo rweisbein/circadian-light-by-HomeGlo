@@ -111,6 +111,54 @@ class TestEmaSmoothing:
         assert lux_tracker.get_sun_factor() == 0.0
 
 
+class TestGetOutdoorNormalized:
+    """Test get_outdoor_normalized() accessor."""
+
+    def test_no_sensor_returns_none(self):
+        """When no sensor configured, returns None."""
+        lux_tracker._sensor_entity = None
+        assert lux_tracker.get_outdoor_normalized() is None
+
+    def test_no_baselines_returns_none(self):
+        """When baselines not set, returns None."""
+        lux_tracker._sensor_entity = "sensor.test"
+        lux_tracker._learned_ceiling = None
+        lux_tracker._learned_floor = None
+        lux_tracker._ema_lux = 5000
+        assert lux_tracker.get_outdoor_normalized() is None
+
+    def test_no_data_returns_none(self):
+        """When no data received yet, returns None."""
+        lux_tracker._sensor_entity = "sensor.test"
+        lux_tracker._learned_ceiling = 50000
+        lux_tracker._learned_floor = 100
+        lux_tracker._ema_lux = None
+        assert lux_tracker.get_outdoor_normalized() is None
+
+    def test_active_sensor_returns_float(self):
+        """When sensor + baselines + data are all present, returns float."""
+        lux_tracker._sensor_entity = "sensor.test"
+        lux_tracker._learned_ceiling = 50000
+        lux_tracker._learned_floor = 100
+        lux_tracker._ema_lux = 5000
+        lux_tracker._cached_sun_factor = 0.65
+        result = lux_tracker.get_outdoor_normalized()
+        assert result is not None
+        assert isinstance(result, float)
+        assert result == 0.65
+
+    def test_dark_returns_zero_not_none(self):
+        """Dark outdoor (0.0) should be distinguishable from None."""
+        lux_tracker._sensor_entity = "sensor.test"
+        lux_tracker._learned_ceiling = 50000
+        lux_tracker._learned_floor = 100
+        lux_tracker._ema_lux = 50  # below floor
+        lux_tracker._cached_sun_factor = 0.0
+        result = lux_tracker.get_outdoor_normalized()
+        assert result is not None
+        assert result == 0.0
+
+
 class TestFallback:
     """Test fallback behaviour when no sensor configured."""
 

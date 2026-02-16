@@ -26,7 +26,7 @@ class TestDataclasses:
 
         # Solar rule defaults
         assert config.warm_night_enabled is False
-        assert config.cool_day_enabled is False
+        assert config.daylight_cct == 5500
 
     def test_config_custom_values(self):
         """Test Config accepts custom values."""

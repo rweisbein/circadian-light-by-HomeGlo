@@ -381,12 +381,9 @@ def get_rhythm_config(rhythm_name: str) -> Dict[str, Any]:
         "warm_night_start": -60,
         "warm_night_end": 60,
         "warm_night_fade": 60,
-        "cool_day_enabled": False,
-        "cool_day_mode": "all",
-        "cool_day_target": 6500,
-        "cool_day_start": 0,
-        "cool_day_end": 0,
-        "cool_day_fade": 60,
+        "brightness_gain": 5.0,
+        "color_gain": 5.0,
+        "daylight_cct": 5500,
         "activity_preset": "adult",
         "max_dim_steps": 10,
     }
@@ -600,8 +597,7 @@ RHYTHM_SETTINGS = {
     "wake_speed", "bed_speed",
     "warm_night_enabled", "warm_night_mode", "warm_night_target",
     "warm_night_start", "warm_night_end", "warm_night_fade",
-    "cool_day_enabled", "cool_day_mode", "cool_day_target",
-    "cool_day_start", "cool_day_end", "cool_day_fade",
+    "brightness_gain", "color_gain", "daylight_cct",
     "activity_preset", "max_dim_steps",
 }
 
@@ -609,7 +605,7 @@ RHYTHM_SETTINGS = {
 GLOBAL_SETTINGS = {
     "latitude", "longitude", "timezone", "use_ha_location", "month",
     "light_filters",
-    "daylight_saturation_deg",
+    "weather_entity",
     "outdoor_lux_sensor", "lux_smoothing_interval",
     "lux_learned_ceiling", "lux_learned_floor",
 }
@@ -629,6 +625,40 @@ def _get_data_directory() -> str:
         data_dir = os.path.join(os.path.dirname(__file__), ".data")
         os.makedirs(data_dir, exist_ok=True)
         return data_dir
+
+
+def _migrate_cool_day_to_natural_light(config: Dict[str, Any]) -> None:
+    """Migrate cool_day_* rhythm keys to new brightness_gain/color_gain/daylight_cct.
+
+    Mutates config in place. Safe to call multiple times (no-op if already migrated).
+    """
+    cool_day_keys = {
+        "cool_day_enabled", "cool_day_mode", "cool_day_target",
+        "cool_day_start", "cool_day_end", "cool_day_fade",
+    }
+
+    for rhythm in config.get("circadian_rhythms", {}).values():
+        has_cool_day = any(k in rhythm for k in cool_day_keys)
+        if not has_cool_day:
+            continue
+
+        # Extract cool_day_target as daylight_cct if present
+        if "cool_day_target" in rhythm and "daylight_cct" not in rhythm:
+            rhythm["daylight_cct"] = rhythm["cool_day_target"]
+
+        # Set defaults for new keys if not present
+        rhythm.setdefault("brightness_gain", 5.0)
+        rhythm.setdefault("color_gain", 5.0)
+
+        # Remove all cool_day keys
+        for k in cool_day_keys:
+            rhythm.pop(k, None)
+
+        logger.info(f"Migrated cool_day settings to natural light model")
+
+    # Also clean up top-level cool_day keys (from pre-GloZone flat config)
+    for k in list(cool_day_keys):
+        config.pop(k, None)
 
 
 def _migrate_config(config: Dict[str, Any]) -> Dict[str, Any]:
@@ -651,6 +681,12 @@ def _migrate_config(config: Dict[str, Any]) -> Dict[str, Any]:
     for zone in config.get("glozones", {}).values():
         if "preset" in zone and "rhythm" not in zone:
             zone["rhythm"] = zone.pop("preset")
+
+    # Migrate cool_day → daylight_cct / brightness_gain / color_gain
+    _migrate_cool_day_to_natural_light(config)
+
+    # Remove deprecated global setting
+    config.pop("daylight_saturation_deg", None)
 
     # Check if already migrated
     if "circadian_rhythms" in config and "glozones" in config:

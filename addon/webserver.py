@@ -1294,7 +1294,7 @@ class LightDesignerServer:
         """
         try:
             from zoneinfo import ZoneInfo
-            from brain import CircadianLight, Config, AreaState, SunTimes, calculate_sun_times
+            from brain import CircadianLight, Config, AreaState, SunTimes, calculate_sun_times, angle_to_estimated_lux, FULL_SUN_INTENSITY
 
             # Get location from environment
             latitude = float(os.getenv("HASS_LATITUDE", "35.0"))
@@ -1333,6 +1333,22 @@ class LightDesignerServer:
                     solar_noon=iso_to_hour(sun_dict.get("noon"), 12.0),
                     solar_mid=(iso_to_hour(sun_dict.get("noon"), 12.0) + 12.0) % 24.0,
                 )
+
+                # Resolve outdoor_normalized
+                outdoor_norm = lux_tracker.get_outdoor_normalized()
+                if outdoor_norm is not None:
+                    sun_times.outdoor_normalized = outdoor_norm
+                    sun_times.outdoor_source = "lux"
+                else:
+                    try:
+                        from astral.sun import elevation as _sun_elev_func
+                        _loc = LocationInfo(latitude=latitude, longitude=longitude)
+                        _elev = _sun_elev_func(_loc.observer, now)
+                        _est_lux = angle_to_estimated_lux(_elev)
+                        sun_times.outdoor_normalized = min(1.0, math.log2(max(1, _est_lux) / 300) / FULL_SUN_INTENSITY) if _est_lux > 0 else 0.0
+                        sun_times.outdoor_source = "angle"
+                    except Exception:
+                        pass
             except Exception as e:
                 logger.debug(f"[ZoneStates] Error calculating sun times: {e}")
 
@@ -1517,7 +1533,6 @@ class LightDesignerServer:
         "limit_bounce_min_percent",  # Percentage of range to flash when hitting min limit (default 10)
         "reach_dip_percent",  # Percentage of current brightness to dip for reach feedback (default 50)
         "boost_default",  # Default boost percentage (10-100, default 30)
-        "daylight_saturation_deg",  # Sun elevation (degrees) at which daylight fully saturates (default 8)
         "reach_learn_mode",  # Reach feedback uses single indicator light (default true)
         "long_press_repeat_interval",  # Long-press repeat interval in tenths of seconds (default 3 = 300ms)
         "controls_ui",  # Controls page UI preferences (sort, filter)
@@ -1699,9 +1714,6 @@ class LightDesignerServer:
             "circadian_refresh": 30,  # seconds
             "log_periodic": False,  # log periodic update details
             "home_refresh_interval": 10,  # seconds (home page card refresh)
-
-            # Natural light settings
-            "daylight_saturation_deg": 8,  # sun elevation (degrees) at which daylight fully saturates
 
             # Motion warning settings
             "motion_warning_time": 0,  # seconds (0 = disabled)
@@ -2568,7 +2580,7 @@ class LightDesignerServer:
         }
         """
         try:
-            from brain import SunTimes, calculate_sun_times, calculate_natural_light_factor
+            from brain import SunTimes, calculate_sun_times, calculate_natural_light_factor, angle_to_estimated_lux, FULL_SUN_INTENSITY
 
             # Load config to get glozone mappings and rhythms
             config = await self.load_config()
@@ -2608,15 +2620,20 @@ class LightDesignerServer:
                     except:
                         return default
 
+                # Compute outdoor_normalized from lux sensor or angle fallback
+                outdoor_norm = lux_tracker.get_outdoor_normalized()
+                outdoor_source = "none"
+
                 sun_times = SunTimes(
                     sunrise=iso_to_hour(sun_dict.get("sunrise"), 6.0),
                     sunset=iso_to_hour(sun_dict.get("sunset"), 18.0),
                     solar_noon=iso_to_hour(sun_dict.get("noon"), 12.0),
                     solar_mid=(iso_to_hour(sun_dict.get("noon"), 12.0) + 12.0) % 24.0,
-                    sun_factor=lux_tracker.get_sun_factor(),
                 )
             except Exception as e:
                 logger.debug(f"[AreaStatus] Error calculating sun times: {e}")
+                outdoor_norm = lux_tracker.get_outdoor_normalized()
+                outdoor_source = "none"
 
             # Compute sun elevation (once, same for all areas)
             sun_elev = 0.0
@@ -2627,7 +2644,16 @@ class LightDesignerServer:
             except Exception as e:
                 logger.debug(f"[AreaStatus] Error computing sun elevation: {e}")
 
-            daylight_sat_deg = config.get('daylight_saturation_deg', 8)
+            # Resolve outdoor_normalized: lux sensor or angle fallback
+            if outdoor_norm is not None:
+                outdoor_source = "lux"
+            else:
+                est_lux = angle_to_estimated_lux(sun_elev)
+                outdoor_norm = min(1.0, math.log2(max(1, est_lux) / 300) / FULL_SUN_INTENSITY) if est_lux > 0 else 0.0
+                outdoor_source = "angle"
+
+            sun_times.outdoor_normalized = outdoor_norm
+            sun_times.outdoor_source = outdoor_source
 
             # Optional single-area filter
             filter_area_id = request.query.get('area_id')
@@ -2678,11 +2704,9 @@ class LightDesignerServer:
 
                     # Natural light factor for this area
                     area_nl_exposure = glozone.get_area_natural_light_exposure(area_id)
-                    nl_factor = calculate_natural_light_factor(area_nl_exposure, sun_elev, daylight_sat_deg)
-
-                    # Compute modulated nl_factor (sun_factor attenuates the reduction)
-                    sf = sun_times.sun_factor
-                    nl_factor_modulated = 1.0 - (1.0 - nl_factor) * sf
+                    rhythm_cfg = glozone.get_rhythm_config_for_area(area_id)
+                    area_brightness_gain = rhythm_cfg.get("brightness_gain", 5.0)
+                    nl_factor = calculate_natural_light_factor(area_nl_exposure, outdoor_norm, area_brightness_gain)
 
                     # Base kelvin (before solar rules) and solar rule breakdown
                     base_kelvin = 4000
@@ -2733,8 +2757,10 @@ class LightDesignerServer:
                         'sun_elevation': round(sun_elev, 1),
                         'natural_light_exposure': area_nl_exposure,
                         'nl_factor': round(nl_factor, 3),
-                        'sun_factor': round(sf, 3),
-                        'nl_factor_modulated': round(nl_factor_modulated, 3),
+                        'outdoor_normalized': round(outdoor_norm, 3),
+                        'outdoor_source': outdoor_source,
+                        'sun_factor': round(outdoor_norm, 3),  # backward compat alias
+                        'brightness_gain': area_brightness_gain,
                         'lux_smoothed': round(lux_smoothed, 1) if lux_smoothed is not None else None,
                         'lux_ceiling': round(lux_ceiling, 1) if lux_ceiling is not None else None,
                         'lux_floor': round(lux_floor, 1) if lux_floor is not None else None,

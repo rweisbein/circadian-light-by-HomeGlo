@@ -925,8 +925,8 @@
       let cct = baseCCT;
       const sunrise = sunTimes.sunrise;
       const sunset = sunTimes.sunset;
-      const solarNoon = sunTimes.solarNoon;
       const solarMid = sunTimes.solarMid;
+      const FULL_SUN_INTENSITY = 8.4;
 
       // Warm night — ceiling
       if (cfg.warm_night_enabled) {
@@ -960,35 +960,18 @@
         }
       }
 
-      // Cool day — floor
-      if (cfg.cool_day_enabled) {
-        let coolTarget = cfg.cool_day_target;
+      // Daylight color blend (replaces cool_day)
+      const outdoorNorm = sunTimes.outdoorNormalized || 0;
+      const daylightCct = cfg.daylight_cct || 0;
+      const colorGain = cfg.color_gain || 5.0;
+      if (daylightCct > 0 && outdoorNorm > 0) {
+        const blend = Math.min(1.0, outdoorNorm * FULL_SUN_INTENSITY / Math.max(0.1, colorGain));
+        let daylightTarget = daylightCct;
         if (colorOverride && colorOverride < 0) {
-          coolTarget += colorOverride;
+          daylightTarget += colorOverride;
         }
-
-        if (cct < coolTarget) {
-          const fadeHrs = cfg.cool_day_fade / 60;
-          const startOffsetHrs = cfg.cool_day_start / 60;
-          const endOffsetHrs = cfg.cool_day_end / 60;
-          const mode = cfg.cool_day_mode;
-
-          let windowStart, windowEnd;
-          if (mode === 'sunrise') {
-            windowStart = wrap24(sunrise + startOffsetHrs);
-            windowEnd = wrap24(solarNoon);
-          } else if (mode === 'sunset') {
-            windowStart = wrap24(solarNoon);
-            windowEnd = wrap24(sunset + endOffsetHrs);
-          } else {
-            windowStart = wrap24(sunrise + startOffsetHrs);
-            windowEnd = wrap24(sunset + endOffsetHrs);
-          }
-
-          const { inWindow, weight } = getWindowWeight(hour, windowStart, windowEnd, fadeHrs);
-          if (inWindow && weight > 0) {
-            cct = cct + (coolTarget - cct) * weight;
-          }
+        if (daylightTarget > cct) {
+          cct += (daylightTarget - cct) * blend;
         }
       }
 
@@ -1598,6 +1581,13 @@
           fetch(basePath + '/api/circadian-rhythms')
         ]);
         if (statusRes.ok) areaStatus = await statusRes.json();
+        // Enrich cachedSunTimes with outdoor_normalized from server
+        if (cachedSunTimes) {
+          const firstStatus = Object.values(areaStatus)[0];
+          if (firstStatus) {
+            cachedSunTimes.outdoorNormalized = firstStatus.outdoor_normalized ?? firstStatus.sun_factor ?? 0;
+          }
+        }
         if (zsRes.ok) {
           const zs = await zsRes.json();
           zoneStates = zs.zone_states || {};
@@ -1701,13 +1691,20 @@
               const singleStatus = await res.json();
               Object.assign(areaStatus, singleStatus);
 
+              // Update cachedSunTimes with outdoor_normalized from server
+              const ls0 = singleStatus[selectedArea.area_id] || {};
+              if (cachedSunTimes) {
+                cachedSunTimes.outdoorNormalized = ls0.outdoor_normalized ?? ls0.sun_factor ?? 0;
+              }
+
               // Update tuneState with fresh server data
               if (tuneState.initialized) {
-                const ls = singleStatus[selectedArea.area_id] || {};
+                const ls = ls0;
                 tuneState.baseBri = (areaStatus[selectedArea.area_id] || {}).brightness || 50;
                 tuneState.baseKelvin = ls.base_kelvin ?? ((areaStatus[selectedArea.area_id] || {}).kelvin || 4000);
                 tuneState.sunElev = ls.sun_elevation ?? 0;
-                tuneState.sunFactor = ls.sun_factor ?? 1.0;
+                tuneState.outdoorNormalized = ls.outdoor_normalized ?? ls.sun_factor ?? 0.0;
+                tuneState.brightnessGain = ls.brightness_gain ?? 5.0;
                 tuneState.luxSmoothed = ls.lux_smoothed ?? null;
                 tuneState.luxCeiling = ls.lux_ceiling ?? null;
                 tuneState.luxFloor = ls.lux_floor ?? null;
@@ -2353,10 +2350,10 @@
     let tuneState = {
       initialized: false,
       baseBri: 50, baseKelvin: 4000,
-      sunElev: 0, sunFactor: 1.0,
+      sunElev: 0, outdoorNormalized: 0.0,
       luxSmoothed: null, luxCeiling: null, luxFloor: null,
       ctEnabled: false, ctBegin: 1650, ctEnd: 2250, ctMax: 1.4,
-      daylightSatDeg: 8,
+      brightnessGain: 5.0,
       solarBreakdown: null,
       areaFactor: 1.0,
       sunDisplay: 100,
@@ -2438,17 +2435,14 @@
       // Solar: client-side NL factor (mirrors brain.py:calculate_natural_light_factor)
       const exposure = 1.0 - (ts.sunDisplay / 100);
       let nlFactor = 1.0;
-      if (exposure > 0 && ts.sunElev > 0) {
-        const threshold = Math.max(1.0, ts.daylightSatDeg);
-        const sunIntensity = Math.min(1.0, ts.sunElev / threshold);
-        nlFactor = Math.max(0.0, 1.0 - exposure * sunIntensity);
+      if (exposure > 0 && ts.outdoorNormalized > 0) {
+        nlFactor = Math.max(0.0, 1.0 - exposure * ts.outdoorNormalized * ts.brightnessGain);
       }
-      const nlFactorMod = 1.0 - (1.0 - nlFactor) * ts.sunFactor;
-      running *= nlFactorMod;
+      running *= nlFactor;
       const solarTotal = Math.round(running * 100);
       const elSolarFactor = document.getElementById('tune-bk-solar-factor');
       const elSolarTotal = document.getElementById('tune-bk-solar-total');
-      if (elSolarFactor) elSolarFactor.innerHTML = '&times;' + nlFactorMod.toFixed(2);
+      if (elSolarFactor) elSolarFactor.innerHTML = '&times;' + nlFactor.toFixed(2);
       if (elSolarTotal) elSolarTotal.textContent = solarTotal + '%';
 
       // CT comp
@@ -2508,21 +2502,19 @@
           + '<span class="tune-bk-total">' + ts.baseKelvin + 'K</span></div>';
 
         if (sb) {
-          // Cool day
-          if (sb.cool_day_enabled) {
-            const dayShift = sb.day_shift || 0;
+          // Daylight blend
+          const dayShift = sb.daylight_shift || 0;
+          if (dayShift > 0 || sb.outdoor_normalized > 0) {
             resultK += dayShift;
-            const sfVal = ts.sunFactor.toFixed(2);
-            const wtVal = (sb.day_strength / (ts.sunFactor || 1)).toFixed(2);
-            const dayStrLabel = 'sf ' + sfVal + ' &times; wt ' + wtVal + ' = ' + sb.day_strength.toFixed(2);
+            const blendLabel = 'blend ' + (sb.daylight_blend || 0).toFixed(2) + ' &middot; ' + sb.daylight_cct + 'K';
             chtml += '<div class="tune-bk-row">'
-              + '<span class="tune-bk-label">Cool day (' + dayStrLabel + ')</span>'
+              + '<span class="tune-bk-label">Daylight (' + blendLabel + ')</span>'
               + '<span class="tune-bk-factor">+' + dayShift + 'K</span>'
               + '<span class="tune-bk-total">' + Math.round(resultK) + 'K</span></div>';
           } else {
             chtml += '<div class="tune-bk-row">'
-              + '<span class="tune-bk-label">Cool day</span>'
-              + '<span class="tune-bk-factor"><span style="color:var(--muted);">disabled</span></span>'
+              + '<span class="tune-bk-label">Daylight</span>'
+              + '<span class="tune-bk-factor"><span style="color:var(--muted);">none</span></span>'
               + '<span class="tune-bk-total">' + Math.round(resultK) + 'K</span></div>';
           }
 
@@ -2594,7 +2586,7 @@
         baseBri: baseBri,
         baseKelvin: liveStatus.base_kelvin ?? kelvin,
         sunElev: liveStatus.sun_elevation ?? 0,
-        sunFactor: liveStatus.sun_factor ?? 1.0,
+        outdoorNormalized: liveStatus.outdoor_normalized ?? liveStatus.sun_factor ?? 0.0,
         luxSmoothed: liveStatus.lux_smoothed ?? null,
         luxCeiling: liveStatus.lux_ceiling ?? null,
         luxFloor: liveStatus.lux_floor ?? null,
@@ -2602,7 +2594,7 @@
         ctBegin: config.ct_comp_begin || 1650,
         ctEnd: config.ct_comp_end || 2250,
         ctMax: config.ct_comp_factor || 1.4,
-        daylightSatDeg: config.daylight_saturation_deg ?? 8,
+        brightnessGain: liveStatus.brightness_gain ?? 5.0,
         solarBreakdown: liveStatus.solar_breakdown ?? null,
         areaFactor: factor,
         sunDisplay: sunDisplay,
@@ -2794,7 +2786,7 @@
       let meta = '';
       if (ts.sunElev > 0) meta += '&#9788; ';
       meta += ts.sunElev.toFixed(0) + '&deg;';
-      meta += ' &middot; sf ' + ts.sunFactor.toFixed(2);
+      meta += ' &middot; out ' + ts.outdoorNormalized.toFixed(2);
       if (ts.luxSmoothed != null) {
         meta += ' &middot; lux: ' + Math.round(ts.luxFloor) + ' / ' + Math.round(ts.luxSmoothed) + ' / ' + Math.round(ts.luxCeiling);
       }

@@ -90,6 +90,22 @@ def get_sun_factor() -> float:
     return _cached_sun_factor
 
 
+def get_outdoor_normalized() -> Optional[float]:
+    """Return outdoor normalized intensity (0.0–1.0), or None.
+
+    Returns None when no sensor is configured or no data has been
+    received yet.  This distinguishes 'no data' (None → caller should
+    use angle fallback) from 'dark outside' (0.0).
+    """
+    if not _sensor_entity:
+        return None
+    if _learned_ceiling is None or _learned_floor is None:
+        return None
+    if _ema_lux is None:
+        return None
+    return _cached_sun_factor
+
+
 def get_sensor_entity() -> Optional[str]:
     """Return configured outdoor lux sensor entity_id, or None."""
     return _sensor_entity

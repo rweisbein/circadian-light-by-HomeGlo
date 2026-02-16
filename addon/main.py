@@ -4,6 +4,7 @@
 import asyncio
 import json
 import logging
+import math
 import os
 import sys
 import time
@@ -29,6 +30,8 @@ from brain import (
     calculate_sun_times,
     apply_light_filter_pipeline,
     calculate_natural_light_factor,
+    angle_to_estimated_lux,
+    FULL_SUN_INTENSITY,
     DEFAULT_MAX_DIM_STEPS,
     DEFAULT_MIN_BRIGHTNESS,
     DEFAULT_MAX_BRIGHTNESS,
@@ -2264,22 +2267,24 @@ class HomeAssistantWebSocketClient:
         if xy is None and kelvin is not None and include_color:
             xy = CircadianLight.color_temperature_to_xy(kelvin)
 
-        # Apply natural light reduction (sun-dependent, per-area exposure)
-        # Modulated by outdoor lux sun_factor: storm=0 → no reduction, bright=1 → full reduction
+        # Apply natural light reduction (outdoor intensity, per-area exposure)
         natural_exposure = glozone.get_area_natural_light_exposure(area_id)
         if natural_exposure > 0.0 and brightness is not None:
-            sun_elev = self.sun_data.get("elevation", 0.0) if self.sun_data else 0.0
-            raw_cfg = glozone.load_config_from_files()
-            daylight_sat = raw_cfg.get("daylight_saturation_deg", 8)
-            nl_factor = calculate_natural_light_factor(natural_exposure, sun_elev, daylight_sat)
-            # Modulate by sun_factor: nl_factor_modulated = 1 - (1 - nl_factor) * sun_factor
-            sun_factor = lux_tracker.get_sun_factor()
-            nl_factor = 1.0 - (1.0 - nl_factor) * sun_factor
+            outdoor_norm = lux_tracker.get_outdoor_normalized()
+            if outdoor_norm is None:
+                # Fallback: estimate from sun angle
+                sun_elev = self.sun_data.get("elevation", 0.0) if self.sun_data else 0.0
+                est_lux = angle_to_estimated_lux(sun_elev)
+                outdoor_norm = min(1.0, math.log2(max(1, est_lux) / 300) / FULL_SUN_INTENSITY) if est_lux > 0 else 0.0
+
+            rhythm_cfg = glozone.get_rhythm_config_for_area(area_id)
+            brightness_gain = rhythm_cfg.get("brightness_gain", 5.0)
+            nl_factor = calculate_natural_light_factor(natural_exposure, outdoor_norm, brightness_gain)
             if nl_factor < 1.0:
                 original_bri = brightness
                 brightness = max(1, int(round(brightness * nl_factor)))
                 if log_periodic and brightness != original_bri:
-                    logger.info(f"Natural light: {original_bri}% -> {brightness}% (exposure={natural_exposure}, sun_elev={sun_elev:.1f}, sun_factor={sun_factor:.2f})")
+                    logger.info(f"Natural light: {original_bri}% -> {brightness}% (exposure={natural_exposure}, outdoor_norm={outdoor_norm:.3f}, gain={brightness_gain})")
 
         # Check if light filters are active for this area
         area_filters = glozone.get_area_light_filters(area_id)
@@ -3505,18 +3510,31 @@ class HomeAssistantWebSocketClient:
                 solar_noon = iso_to_hour(sun_dict.get("noon"), 12.0)
                 solar_mid = (solar_noon + 12.0) % 24.0  # Opposite of noon
 
+                # Compute outdoor_normalized from lux sensor or angle fallback
+                outdoor_norm = lux_tracker.get_outdoor_normalized()
+                outdoor_source = "none"
+                if outdoor_norm is not None:
+                    outdoor_source = "lux"
+                else:
+                    sun_elev = self.sun_data.get("elevation", 0.0) if self.sun_data else 0.0
+                    est_lux = angle_to_estimated_lux(sun_elev)
+                    outdoor_norm = min(1.0, math.log2(max(1, est_lux) / 300) / FULL_SUN_INTENSITY) if est_lux > 0 else 0.0
+                    outdoor_source = "angle"
+
                 return SunTimes(
                     sunrise=sunrise,
                     sunset=sunset,
                     solar_noon=solar_noon,
                     solar_mid=solar_mid,
-                    sun_factor=lux_tracker.get_sun_factor(),
+                    outdoor_normalized=outdoor_norm,
+                    outdoor_source=outdoor_source,
                 )
         except Exception as e:
             logger.debug(f"Error calculating sun times: {e}")
 
         # Return defaults if calculation fails
-        return SunTimes(sun_factor=lux_tracker.get_sun_factor())
+        outdoor_norm = lux_tracker.get_outdoor_normalized()
+        return SunTimes(outdoor_normalized=outdoor_norm if outdoor_norm is not None else 0.0)
 
     async def update_lights_in_circadian_mode(self, area_id: str, log_periodic: bool = False):
         """Update lights in an area with circadian lighting if Circadian Light is enabled.
