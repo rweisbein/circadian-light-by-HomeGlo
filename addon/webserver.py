@@ -1342,6 +1342,10 @@ class LightDesignerServer:
                     solar_mid=(iso_to_hour(sun_dict.get("noon"), 12.0) + 12.0) % 24.0,
                 )
 
+                # Seed lux_tracker from HA (webserver is a separate process)
+                await self._seed_outdoor_from_ha()
+                self._seed_sun_elevation()
+
                 # Resolve outdoor_normalized via lux_tracker fallback chain
                 outdoor_norm = lux_tracker.get_outdoor_normalized()
                 outdoor_source = lux_tracker.get_outdoor_source()
@@ -2698,8 +2702,10 @@ class LightDesignerServer:
                 logger.debug(f"[AreaStatus] Error calculating sun times: {e}")
 
             # Seed lux_tracker from HA (webserver is a separate process)
-            self._seed_sun_elevation()
+            # Note: _seed_outdoor_from_ha calls init() which resets state,
+            # so sun elevation must be seeded AFTER
             await self._seed_outdoor_from_ha()
+            self._seed_sun_elevation()
 
             # Resolve outdoor_normalized via lux_tracker fallback chain
             outdoor_norm = lux_tracker.get_outdoor_normalized()
@@ -4681,8 +4687,8 @@ class LightDesignerServer:
 
     async def get_outdoor_status(self, request: Request) -> Response:
         """Get current outdoor brightness state for settings page."""
-        self._seed_sun_elevation()
         await self._seed_outdoor_from_ha()
+        self._seed_sun_elevation()
         outdoor_norm = lux_tracker.get_outdoor_normalized()
         return web.json_response({
             "outdoor_normalized": round(outdoor_norm if outdoor_norm is not None else 0, 3),
