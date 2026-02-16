@@ -2735,7 +2735,7 @@ class LightDesignerServer:
                         'color_override': area_state.color_override,
                         'frozen_at': area_state.frozen_at,
                         # Solar / natural light
-                        'sun_elevation': round(sun_elev, 1),
+                        'sun_elevation': round(lux_tracker._sun_elevation, 1),
                         'natural_light_exposure': area_nl_exposure,
                         'nl_factor': round(nl_factor, 3),
                         'outdoor_normalized': round(outdoor_norm, 3),
