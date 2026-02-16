@@ -752,7 +752,9 @@
             <span class="info-icon">i<span class="info-tooltip">The entity_id of an outdoor illuminance sensor in Home Assistant (e.g. sensor.outdoor_illuminance). Leave empty to disable lux-based modulation.</span></span>
           </label>
           <div class="form-control">
-            <input type="text" class="form-input" id="outdoor-lux-sensor" placeholder="sensor.outdoor_illuminance" style="width: 260px;">
+            <select class="form-input" id="outdoor-lux-sensor" style="width: 280px;">
+              <option value="">None (disabled)</option>
+            </select>
           </div>
         </div>
         <div class="form-row">
@@ -927,7 +929,31 @@
           document.getElementById('reach-dip-percent').value = config.reach_dip_percent ?? 50;
           document.getElementById('boost-default').value = config.boost_default ?? 30;
           document.getElementById('daylight-saturation-deg').value = config.daylight_saturation_deg ?? 8;
-          document.getElementById('outdoor-lux-sensor').value = config.outdoor_lux_sensor ?? '';
+          // Populate lux sensor dropdown
+          const luxSelect = document.getElementById('outdoor-lux-sensor');
+          const savedSensor = config.outdoor_lux_sensor ?? '';
+          try {
+            const sensorsRes = await fetch('./api/sensors?device_class=illuminance');
+            if (sensorsRes.ok) {
+              const sensorsData = await sensorsRes.json();
+              // Clear existing options except "None"
+              luxSelect.innerHTML = '<option value="">None (disabled)</option>';
+              for (const s of sensorsData.sensors || []) {
+                const opt = document.createElement('option');
+                opt.value = s.entity_id;
+                opt.textContent = s.name + (s.state ? ' (' + s.state + ' ' + (s.unit || '') + ')' : '');
+                luxSelect.appendChild(opt);
+              }
+            }
+          } catch (e) { console.warn('Could not load illuminance sensors:', e); }
+          // If saved value isn't in list (e.g. sensor removed), add it so selection is preserved
+          if (savedSensor && !luxSelect.querySelector('option[value="' + CSS.escape(savedSensor) + '"]')) {
+            const opt = document.createElement('option');
+            opt.value = savedSensor;
+            opt.textContent = savedSensor + ' (not found)';
+            luxSelect.appendChild(opt);
+          }
+          luxSelect.value = savedSensor;
           document.getElementById('lux-smoothing-interval').value = config.lux_smoothing_interval ?? 300;
           document.getElementById('lux-learned-ceiling').value = config.lux_learned_ceiling ?? '';
           document.getElementById('lux-learned-floor').value = config.lux_learned_floor ?? '';
@@ -1072,7 +1098,7 @@
     document.getElementById('reach-dip-percent').addEventListener('blur', saveSettings);
     document.getElementById('boost-default').addEventListener('blur', saveSettings);
     document.getElementById('daylight-saturation-deg').addEventListener('blur', saveSettings);
-    document.getElementById('outdoor-lux-sensor').addEventListener('blur', saveSettings);
+    document.getElementById('outdoor-lux-sensor').addEventListener('change', saveSettings);
     document.getElementById('lux-smoothing-interval').addEventListener('blur', saveSettings);
     document.getElementById('lux-learned-ceiling').addEventListener('blur', saveSettings);
     document.getElementById('lux-learned-floor').addEventListener('blur', saveSettings);

@@ -533,6 +533,8 @@ class LightDesignerServer:
         self.app.router.add_post('/api/light-filters/light-filter', self.save_light_filter)
         self.app.router.add_post('/api/light-filters/reassign-preset', self.reassign_preset)
         self.app.router.add_post('/api/light-filters/suggest', self.suggest_light_filters)
+        self.app.router.add_get('/api/sensors', self.get_sensors)
+        self.app.router.add_route('GET', '/{path:.*}/api/sensors', self.get_sensors)
 
         # Tuning page
         self.app.router.add_route('GET', '/{path:.*}/tuning', self.serve_tuning)
@@ -4525,6 +4527,59 @@ class LightDesignerServer:
         except Exception as e:
             logger.error(f"Error fetching area lights: {e}", exc_info=True)
             return web.json_response({"lights": []})
+
+    async def get_sensors(self, request: Request) -> Response:
+        """Get sensor entities from HA, optionally filtered by device_class.
+
+        Query params:
+        - device_class: Filter to specific device class (e.g. 'illuminance')
+
+        Returns list of {entity_id, name, state, unit} sorted by name.
+        """
+        device_class_filter = request.query.get("device_class")
+
+        try:
+            rest_url, ws_url, token = self._get_ha_api_config()
+            if not token or not ws_url:
+                return web.json_response({"sensors": []})
+
+            async with websockets.connect(ws_url) as ws:
+                # Auth
+                msg = json.loads(await ws.recv())
+                if msg.get('type') != 'auth_required':
+                    return web.json_response({"sensors": []})
+                await ws.send(json.dumps({'type': 'auth', 'access_token': token}))
+                msg = json.loads(await ws.recv())
+                if msg.get('type') != 'auth_ok':
+                    return web.json_response({"sensors": []})
+
+                # Get states
+                await ws.send(json.dumps({'id': 1, 'type': 'get_states'}))
+                states_msg = json.loads(await ws.recv())
+
+                sensors = []
+                if states_msg.get('success') and states_msg.get('result'):
+                    for state in states_msg['result']:
+                        entity_id = state.get('entity_id', '')
+                        if not entity_id.startswith('sensor.'):
+                            continue
+                        attrs = state.get('attributes', {})
+                        dc = attrs.get('device_class', '')
+                        if device_class_filter and dc != device_class_filter:
+                            continue
+                        name = attrs.get('friendly_name', entity_id)
+                        sensors.append({
+                            'entity_id': entity_id,
+                            'name': name,
+                            'state': state.get('state'),
+                            'unit': attrs.get('unit_of_measurement', ''),
+                        })
+
+                sensors.sort(key=lambda x: x['name'].lower())
+                return web.json_response({"sensors": sensors})
+        except Exception as e:
+            logger.error(f"Error fetching sensors: {e}", exc_info=True)
+            return web.json_response({"sensors": []})
 
     async def get_controls(self, request: Request) -> Response:
         """Get all controls from HA, merged with our configuration.
