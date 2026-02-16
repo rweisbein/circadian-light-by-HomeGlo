@@ -737,6 +737,57 @@
       </div>
     </div>
 
+    <!-- Outdoor Lux Sensor Section -->
+    <div class="settings-section">
+      <div class="section-header">
+        <div class="section-header-left">
+          Outdoor Lux Sensor
+          <span class="info-icon">i<span class="info-tooltip">An outdoor illuminance sensor provides a "reality check" for sun-dependent features. On cloudy/stormy days the system reduces natural light dimming and cool day color shifting so lights stay bright and warm when it's dark outside. Without a sensor, sun_factor is always 1.0 (current behavior).</span></span>
+        </div>
+      </div>
+      <div class="section-content">
+        <div class="form-row">
+          <label class="form-label">
+            Sensor entity
+            <span class="info-icon">i<span class="info-tooltip">The entity_id of an outdoor illuminance sensor in Home Assistant (e.g. sensor.outdoor_illuminance). Leave empty to disable lux-based modulation.</span></span>
+          </label>
+          <div class="form-control">
+            <input type="text" class="form-input" id="outdoor-lux-sensor" placeholder="sensor.outdoor_illuminance" style="width: 260px;">
+          </div>
+        </div>
+        <div class="form-row">
+          <label class="form-label">
+            Smoothing interval
+            <span class="info-icon">i<span class="info-tooltip">EMA (exponential moving average) time constant in seconds. Higher values smooth out rapid lux changes (clouds passing). Set to 0 for no smoothing (raw values).</span></span>
+          </label>
+          <div class="form-control">
+            <input type="number" class="form-input" id="lux-smoothing-interval" min="0" max="3600" step="30" value="300" style="width: 80px;">
+            <span class="form-hint">s</span>
+          </div>
+        </div>
+        <div class="form-row">
+          <label class="form-label">
+            Learned ceiling
+            <span class="info-icon">i<span class="info-tooltip">Bright-day lux baseline (85th percentile of daytime readings). Learned automatically from 90 days of sensor history. You can override with a manual value.</span></span>
+          </label>
+          <div class="form-control">
+            <input type="number" class="form-input" id="lux-learned-ceiling" min="1" max="200000" step="100" placeholder="auto" style="width: 100px;">
+            <span class="form-hint">lux</span>
+          </div>
+        </div>
+        <div class="form-row">
+          <label class="form-label">
+            Learned floor
+            <span class="info-icon">i<span class="info-tooltip">Dark-day lux baseline (5th percentile of daytime readings). Learned automatically from 90 days of sensor history. You can override with a manual value.</span></span>
+          </label>
+          <div class="form-control">
+            <input type="number" class="form-input" id="lux-learned-floor" min="1" max="200000" step="10" placeholder="auto" style="width: 100px;">
+            <span class="form-hint">lux</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- CT Brightness Compensation Section -->
     <div class="settings-section">
       <div class="section-header">
@@ -876,6 +927,10 @@
           document.getElementById('reach-dip-percent').value = config.reach_dip_percent ?? 50;
           document.getElementById('boost-default').value = config.boost_default ?? 30;
           document.getElementById('daylight-saturation-deg').value = config.daylight_saturation_deg ?? 8;
+          document.getElementById('outdoor-lux-sensor').value = config.outdoor_lux_sensor ?? '';
+          document.getElementById('lux-smoothing-interval').value = config.lux_smoothing_interval ?? 300;
+          document.getElementById('lux-learned-ceiling').value = config.lux_learned_ceiling ?? '';
+          document.getElementById('lux-learned-floor').value = config.lux_learned_floor ?? '';
           document.getElementById('ct-comp-enabled').checked = config.ct_comp_enabled ?? false;
           document.getElementById('ct-comp-begin').value = config.ct_comp_begin ?? 1650;
           document.getElementById('ct-comp-end').value = config.ct_comp_end ?? 2250;
@@ -911,6 +966,10 @@
         reach_dip_percent: parseInt(document.getElementById('reach-dip-percent').value) || 50,
         boost_default: parseInt(document.getElementById('boost-default').value) || 30,
         daylight_saturation_deg: parseInt(document.getElementById('daylight-saturation-deg').value) || 8,
+        outdoor_lux_sensor: document.getElementById('outdoor-lux-sensor').value.trim() || null,
+        lux_smoothing_interval: parseInt(document.getElementById('lux-smoothing-interval').value) || 300,
+        lux_learned_ceiling: parseFloat(document.getElementById('lux-learned-ceiling').value) || null,
+        lux_learned_floor: parseFloat(document.getElementById('lux-learned-floor').value) || null,
         ct_comp_enabled: document.getElementById('ct-comp-enabled').checked,
         ct_comp_begin: parseInt(document.getElementById('ct-comp-begin').value) || 1650,
         ct_comp_end: parseInt(document.getElementById('ct-comp-end').value) || 2250,
@@ -1013,6 +1072,10 @@
     document.getElementById('reach-dip-percent').addEventListener('blur', saveSettings);
     document.getElementById('boost-default').addEventListener('blur', saveSettings);
     document.getElementById('daylight-saturation-deg').addEventListener('blur', saveSettings);
+    document.getElementById('outdoor-lux-sensor').addEventListener('blur', saveSettings);
+    document.getElementById('lux-smoothing-interval').addEventListener('blur', saveSettings);
+    document.getElementById('lux-learned-ceiling').addEventListener('blur', saveSettings);
+    document.getElementById('lux-learned-floor').addEventListener('blur', saveSettings);
     document.getElementById('ct-comp-enabled').addEventListener('change', () => {
       updateCtCompState();
       saveSettings();

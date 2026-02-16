@@ -16,6 +16,7 @@ from websockets.client import WebSocketClientProtocol
 import state
 import switches
 import glozone
+import lux_tracker
 from primitives import CircadianLightPrimitives
 from brain import (
     CircadianLight,
@@ -2264,17 +2265,21 @@ class HomeAssistantWebSocketClient:
             xy = CircadianLight.color_temperature_to_xy(kelvin)
 
         # Apply natural light reduction (sun-dependent, per-area exposure)
+        # Modulated by outdoor lux sun_factor: storm=0 → no reduction, bright=1 → full reduction
         natural_exposure = glozone.get_area_natural_light_exposure(area_id)
         if natural_exposure > 0.0 and brightness is not None:
             sun_elev = self.sun_data.get("elevation", 0.0) if self.sun_data else 0.0
             raw_cfg = glozone.load_config_from_files()
             daylight_sat = raw_cfg.get("daylight_saturation_deg", 8)
             nl_factor = calculate_natural_light_factor(natural_exposure, sun_elev, daylight_sat)
+            # Modulate by sun_factor: nl_factor_modulated = 1 - (1 - nl_factor) * sun_factor
+            sun_factor = lux_tracker.get_sun_factor()
+            nl_factor = 1.0 - (1.0 - nl_factor) * sun_factor
             if nl_factor < 1.0:
                 original_bri = brightness
                 brightness = max(1, int(round(brightness * nl_factor)))
                 if log_periodic and brightness != original_bri:
-                    logger.info(f"Natural light: {original_bri}% -> {brightness}% (exposure={natural_exposure}, sun_elev={sun_elev:.1f})")
+                    logger.info(f"Natural light: {original_bri}% -> {brightness}% (exposure={natural_exposure}, sun_elev={sun_elev:.1f}, sun_factor={sun_factor:.2f})")
 
         # Check if light filters are active for this area
         area_filters = glozone.get_area_light_filters(area_id)
@@ -3505,12 +3510,13 @@ class HomeAssistantWebSocketClient:
                     sunset=sunset,
                     solar_noon=solar_noon,
                     solar_mid=solar_mid,
+                    sun_factor=lux_tracker.get_sun_factor(),
                 )
         except Exception as e:
             logger.debug(f"Error calculating sun times: {e}")
 
         # Return defaults if calculation fails
-        return SunTimes()
+        return SunTimes(sun_factor=lux_tracker.get_sun_factor())
 
     async def update_lights_in_circadian_mode(self, area_id: str, log_periodic: bool = False):
         """Update lights in an area with circadian lighting if Circadian Light is enabled.
@@ -4466,6 +4472,16 @@ class HomeAssistantWebSocketClient:
                     self.sun_data = new_state.get("attributes", {})
                     logger.info(f"Updated sun data: elevation={self.sun_data.get('elevation')}")
 
+                # Update outdoor lux tracker
+                if entity_id and entity_id == lux_tracker.get_sensor_entity() and isinstance(new_state, dict):
+                    try:
+                        raw_lux = float(new_state.get("state", 0))
+                        smoothed = lux_tracker.update(raw_lux)
+                        sf = lux_tracker.get_sun_factor()
+                        logger.debug(f"Lux update: raw={raw_lux:.0f}, smoothed={smoothed:.0f}, sun_factor={sf:.2f}")
+                    except (ValueError, TypeError):
+                        pass  # non-numeric state (e.g. "unavailable")
+
                 # Handle motion sensor state changes
                 if entity_id and entity_id in self.motion_sensor_ids:
                     new_state_val = new_state.get("state") if isinstance(new_state, dict) else None
@@ -4800,7 +4816,11 @@ class HomeAssistantWebSocketClient:
                 config_loaded = await self.get_config()
                 if not config_loaded:
                     logger.warning("⚠ Failed to load Home Assistant configuration - circadian lighting may not work correctly")
-                
+
+                # Initialise outdoor lux tracker (uses config from glozone)
+                lux_tracker.init()
+                await lux_tracker.learn_baseline(self)
+
                 # Sync ZHA groups with all areas (includes parity cache refresh)
                 await self.sync_zha_groups()
 

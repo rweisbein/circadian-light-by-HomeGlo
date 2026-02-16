@@ -610,6 +610,8 @@ GLOBAL_SETTINGS = {
     "latitude", "longitude", "timezone", "use_ha_location", "month",
     "light_filters",
     "daylight_saturation_deg",
+    "outdoor_lux_sensor", "lux_smoothing_interval",
+    "lux_learned_ceiling", "lux_learned_floor",
 }
 
 

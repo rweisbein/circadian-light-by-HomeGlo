@@ -149,6 +149,7 @@ class SunTimes:
     sunset: float = 18.0      # Hour (0-24)
     solar_noon: float = 12.0  # Hour (0-24)
     solar_mid: float = 0.0    # Hour (0-24), midnight opposite of noon
+    sun_factor: float = 1.0   # Outdoor lux modulation (0=dark/storm, 1=bright sun)
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "SunTimes":
@@ -158,6 +159,7 @@ class SunTimes:
             sunset=d.get("sunset", 18.0),
             solar_noon=d.get("solar_noon", 12.0),
             solar_mid=d.get("solar_mid", 0.0),
+            sun_factor=d.get("sun_factor", 1.0),
         )
 
 
@@ -671,7 +673,7 @@ class CircadianLight:
 
             in_window, weight = CircadianLight._get_window_weight(hour, ws, we, fade_hrs)
             if in_window:
-                day_strength = weight
+                day_strength = weight * sun_times.sun_factor
 
         # Apply color_override to targets
         warm_target = config.warm_night_target
