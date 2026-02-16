@@ -2770,6 +2770,10 @@ class LightDesignerServer:
                     area_brightness_gain = rhythm_cfg.get("brightness_gain", 5.0)
                     nl_factor = calculate_natural_light_factor(area_nl_exposure, outdoor_norm, area_brightness_gain)
 
+                    # Apply natural light reduction to brightness (matches main.py)
+                    if nl_factor < 1.0:
+                        brightness = max(1, int(round(brightness * nl_factor)))
+
                     # Base kelvin (before solar rules) and solar rule breakdown
                     base_kelvin = 4000
                     solar_breakdown = None
