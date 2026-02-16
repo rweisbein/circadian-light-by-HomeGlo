@@ -807,6 +807,7 @@
             <label class="form-label"></label>
             <div class="form-control" style="display: flex; gap: 8px; align-items: center;">
               <button type="button" class="btn btn-sm" id="learn-baselines-btn" style="font-size: 0.8rem;">Learn from history</button>
+              <button type="button" class="btn btn-sm" id="clear-baselines-btn" style="font-size: 0.8rem; opacity: 0.7;">Clear</button>
               <span id="learn-baselines-status" class="form-hint"></span>
             </div>
           </div>
@@ -1231,12 +1232,22 @@
       updateOutdoorSourceState();
       saveSettings();
     });
-    document.getElementById('outdoor-lux-sensor').addEventListener('change', saveSettings);
+    document.getElementById('outdoor-lux-sensor').addEventListener('change', async function() {
+      // Clear old baselines (they belong to the previous sensor)
+      document.getElementById('lux-learned-ceiling').value = '';
+      document.getElementById('lux-learned-floor').value = '';
+      await saveSettings();
+      // Auto-learn for the new sensor (if one is selected)
+      if (this.value) {
+        triggerLearnBaselines();
+      }
+    });
     document.getElementById('lux-smoothing-interval').addEventListener('blur', saveSettings);
     document.getElementById('lux-learned-ceiling').addEventListener('blur', saveSettings);
     document.getElementById('lux-learned-floor').addEventListener('blur', saveSettings);
-    document.getElementById('learn-baselines-btn').addEventListener('click', async function() {
-      const btn = this;
+
+    async function triggerLearnBaselines() {
+      const btn = document.getElementById('learn-baselines-btn');
       const status = document.getElementById('learn-baselines-status');
       btn.disabled = true;
       btn.textContent = 'Learning...';
@@ -1259,6 +1270,15 @@
       }
       btn.disabled = false;
       btn.textContent = 'Learn from history';
+    }
+
+    document.getElementById('learn-baselines-btn').addEventListener('click', triggerLearnBaselines);
+    document.getElementById('clear-baselines-btn').addEventListener('click', async function() {
+      document.getElementById('lux-learned-ceiling').value = '';
+      document.getElementById('lux-learned-floor').value = '';
+      document.getElementById('learn-baselines-status').textContent = 'Baselines cleared';
+      document.getElementById('learn-baselines-status').style.color = 'var(--muted)';
+      await saveSettings();
     });
     document.getElementById('ct-comp-enabled').addEventListener('change', () => {
       updateCtCompState();
