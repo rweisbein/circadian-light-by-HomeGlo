@@ -804,9 +804,13 @@
             </div>
           </div>
           <div class="form-row">
-            <label class="form-label"></label>
-            <div class="form-control" style="display: flex; gap: 8px; align-items: center;">
-              <button type="button" class="btn btn-sm" id="learn-baselines-btn" style="font-size: 0.8rem;">Learn from history</button>
+            <label class="form-label">
+              Learn from
+              <span class="info-icon">i<span class="info-tooltip">Start date for baseline learning. Defaults to 90 days ago. Set to when the sensor was installed or moved to exclude old data.</span></span>
+            </label>
+            <div class="form-control" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+              <input type="datetime-local" class="form-input" id="learn-baselines-since" style="width: 200px; font-size: 0.82rem;">
+              <button type="button" class="btn btn-sm" id="learn-baselines-btn" style="font-size: 0.8rem;">Learn</button>
               <button type="button" class="btn btn-sm" id="clear-baselines-btn" style="font-size: 0.8rem; opacity: 0.7;">Clear</button>
               <span id="learn-baselines-status" class="form-hint"></span>
             </div>
@@ -1007,6 +1011,9 @@
           document.getElementById('lux-smoothing-interval').value = config.lux_smoothing_interval ?? 300;
           document.getElementById('lux-learned-ceiling').value = config.lux_learned_ceiling ?? '';
           document.getElementById('lux-learned-floor').value = config.lux_learned_floor ?? '';
+          // Default learn-since to 90 days ago
+          const d90 = new Date(Date.now() - 90 * 86400000);
+          document.getElementById('learn-baselines-since').value = d90.toISOString().slice(0, 16);
           updateOutdoorSourceState();
           // Load outdoor status
           refreshOutdoorStatus();
@@ -1253,7 +1260,13 @@
       btn.textContent = 'Learning...';
       status.textContent = '';
       try {
-        const res = await fetch('./api/learn-baselines', { method: 'POST' });
+        const since = document.getElementById('learn-baselines-since').value;
+        const body = since ? JSON.stringify({ since }) : '{}';
+        const res = await fetch('./api/learn-baselines', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body,
+        });
         const data = await res.json();
         if (res.ok) {
           document.getElementById('lux-learned-ceiling').value = Math.round(data.ceiling);

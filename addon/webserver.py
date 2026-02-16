@@ -4712,10 +4712,21 @@ class LightDesignerServer:
     async def learn_baselines(self, request: Request) -> Response:
         """Trigger baseline learning for the outdoor lux sensor.
 
-        Queries HA recorder for 90 days of hourly stats, filters to daytime,
+        Queries HA recorder for hourly stats, filters to daytime,
         and computes ceiling/floor percentiles. Saves to config on success.
+
+        Accepts optional JSON body: {"since": "2025-01-15T00:00"}
+        Defaults to 90 days ago if not provided.
         """
         try:
+            # Parse optional start date from request body
+            since_str = None
+            try:
+                body = await request.json()
+                since_str = body.get('since')
+            except Exception:
+                pass
+
             rest_url, ws_url, token = self._get_ha_api_config()
             if not token or not ws_url:
                 return web.json_response({"error": "No HA connection"}, status=500)
@@ -4749,13 +4760,21 @@ class LightDesignerServer:
                 if not lat or not lon or not tz_name:
                     return web.json_response({"error": "No location data in HA"}, status=500)
 
-                # Query recorder statistics (90 days of hourly means)
+                # Query recorder statistics (hourly means from start date)
                 from datetime import datetime, timedelta
                 from zoneinfo import ZoneInfo
 
                 local_tz = ZoneInfo(tz_name)
                 now = datetime.now(local_tz)
-                start = now - timedelta(days=90)
+                if since_str:
+                    try:
+                        start = datetime.fromisoformat(since_str)
+                        if start.tzinfo is None:
+                            start = start.replace(tzinfo=local_tz)
+                    except (ValueError, TypeError):
+                        start = now - timedelta(days=90)
+                else:
+                    start = now - timedelta(days=90)
 
                 await ws.send(json.dumps({
                     'id': 2,
