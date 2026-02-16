@@ -16,7 +16,7 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from astral import LocationInfo
-from astral.sun import sun
+from astral.sun import sun, elevation as solar_elevation
 
 import state
 import switches
@@ -1961,6 +1961,25 @@ class LightDesignerServer:
     # Live Design API endpoints
     # -------------------------------------------------------------------------
 
+    @staticmethod
+    def _seed_sun_elevation():
+        """Compute current sun elevation and seed lux_tracker.
+
+        The webserver runs in a separate process from main.py, so
+        lux_tracker._sun_elevation is never updated by state_changed
+        events. This seeds it on-demand before outdoor brightness calls.
+        """
+        try:
+            lat = float(os.getenv("HASS_LATITUDE", "35.0"))
+            lon = float(os.getenv("HASS_LONGITUDE", "-78.6"))
+            tz_name = os.getenv("HASS_TIME_ZONE", "US/Eastern")
+            loc = LocationInfo(latitude=lat, longitude=lon, timezone=tz_name)
+            now = datetime.now(ZoneInfo(tz_name))
+            elev = solar_elevation(loc.observer, now)
+            lux_tracker.update_sun_elevation(elev)
+        except Exception:
+            pass  # leave at whatever it was
+
     def _get_ha_api_config(self) -> tuple:
         """Get Home Assistant API URL and token from environment.
 
@@ -2625,6 +2644,9 @@ class LightDesignerServer:
                 )
             except Exception as e:
                 logger.debug(f"[AreaStatus] Error calculating sun times: {e}")
+
+            # Seed sun elevation for lux_tracker (webserver is a separate process)
+            self._seed_sun_elevation()
 
             # Resolve outdoor_normalized via lux_tracker fallback chain
             outdoor_norm = lux_tracker.get_outdoor_normalized()
@@ -4606,6 +4628,7 @@ class LightDesignerServer:
 
     async def get_outdoor_status(self, request: Request) -> Response:
         """Get current outdoor brightness state for settings page."""
+        self._seed_sun_elevation()
         outdoor_norm = lux_tracker.get_outdoor_normalized()
         return web.json_response({
             "outdoor_normalized": round(outdoor_norm if outdoor_norm is not None else 0, 3),
