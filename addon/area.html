@@ -566,16 +566,18 @@
     .tune-group { border-top: 1px solid var(--line); }
     .tune-group:first-child { border-top: none; }
     .tune-section-header { padding: 10px 16px 6px; font-size: 0.75rem; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
-    .tune-col-headers { display: grid; grid-template-columns: 1fr auto auto; padding: 0 16px 2px; gap: 0 12px; }
-    .tune-col-headers--interactive { grid-template-columns: auto 1fr auto auto; }
+    .tune-sub-header { padding: 8px 16px 4px 24px; font-size: 0.7rem; font-weight: 500; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.5px; }
+    .tune-col-headers { display: grid; grid-template-columns: 1fr auto auto auto; padding: 0 16px 2px; gap: 0 12px; }
     .tune-col-header { font-size: 11px; color: var(--muted2); text-align: right; white-space: nowrap; }
-    .tune-bk-row { display: grid; grid-template-columns: 1fr auto auto; align-items: baseline; padding: 5px 16px; gap: 0 12px; }
+    .tune-bk-row { display: grid; grid-template-columns: 1fr auto auto auto; align-items: baseline; padding: 5px 16px; gap: 0 12px; }
     .tune-bk-row .tune-bk-label { color: var(--muted); font-size: 13px; }
     .tune-bk-row .tune-bk-factor { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .tune-bk-row .tune-bk-impact { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--muted); }
     .tune-bk-row .tune-bk-total { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
     .tune-bk-row .tune-bk-total.final { font-weight: 600; }
-    .tune-bk-row--interactive { display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; padding: 5px 16px 5px; gap: 0 12px; }
-    .tune-bk-row--interactive .tune-bk-label { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+    .tune-slider-row { display: grid; grid-template-columns: auto 1fr auto; align-items: center; padding: 3px 16px 5px; gap: 0 10px; }
+    .tune-slider-row .tune-slider-label { font-size: 12px; color: var(--muted2); white-space: nowrap; }
+    .tune-slider-row .tune-slider-value { font-size: 12px; color: var(--muted); text-align: right; white-space: nowrap; min-width: 3em; }
     .tune-inline-slider { -webkit-appearance: none; appearance: none; width: 100%; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.12); outline: none; cursor: pointer; min-width: 80px; }
     .tune-inline-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; cursor: pointer; border: 2px solid rgba(255,255,255,0.3); }
     .tune-inline-slider::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; cursor: pointer; border: 2px solid rgba(255,255,255,0.3); }
@@ -586,21 +588,20 @@
     .tune-inline-slider--sun::-webkit-slider-thumb { background: #fbbf24; }
     .tune-inline-slider--sun::-moz-range-thumb { background: #fbbf24; }
     .tune-bk-reset { font-size: 0.7rem; color: var(--muted2); cursor: pointer; opacity: 0; transition: opacity 0.15s; text-transform: uppercase; letter-spacing: 0.03em; }
-    .tune-bk-row--interactive:hover .tune-bk-reset { opacity: 1; }
+    .tune-bk-row:hover .tune-bk-reset { opacity: 1; }
     .tune-bk-reset:hover { color: var(--accent); }
     .tune-bk-sub-line { font-size: 11px; color: var(--muted2); padding: 2px 16px 6px; text-align: center; }
     .tune-area-total { padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.06); margin-top: 4px; }
     .tune-area-total .tune-bk-label { font-weight: 600; color: var(--text) !important; }
     .tune-lights-body { padding: 0 16px 8px; }
-    .tune-light-row { display: grid; grid-template-columns: 1fr auto auto auto; align-items: center; padding: 8px 0; gap: 0 10px; border-bottom: 1px solid rgba(255,255,255,0.04); }
-    .tune-light-row:last-child { border-bottom: none; }
+    .tune-light-row { display: grid; grid-template-columns: 1fr auto auto auto; align-items: center; padding: 4px 0 0; gap: 0 10px; }
     .tune-light-name { font-size: 0.85rem; color: var(--muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .tune-light-meta { font-size: 0.7rem; color: var(--muted2); white-space: nowrap; }
+    .tune-light-preset-row { display: flex; align-items: center; gap: 8px; padding: 2px 0 6px; border-bottom: 1px solid rgba(255,255,255,0.04); }
     .tune-light-select { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 2px 6px; font-size: 0.75rem; cursor: pointer; outline: none; }
     .tune-light-select:focus { border-color: var(--accent); }
-    .tune-light-numbers { font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; color: var(--muted); display: flex; gap: 8px; }
-    .tune-light-numbers .tune-ln-final { font-weight: 600; color: var(--text); }
-    .tune-light-numbers .tune-ln-off { font-weight: 600; color: var(--danger); }
+    .tune-ln-final { font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; font-weight: 600; color: var(--text); }
+    .tune-ln-off { font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; font-weight: 600; color: var(--danger); }
     .tune-save-status { position: fixed; bottom: 24px; right: 24px; padding: 12px 20px; background: var(--success); color: white; border-radius: 8px; font-size: 0.9rem; opacity: 0; transform: translateY(10px); transition: all 0.3s; z-index: 50; }
     .tune-save-status.visible { opacity: 1; transform: translateY(0); }
   </style>
@@ -799,9 +800,7 @@
         <div class="tune-group">
           <div class="tune-section-header">Brightness</div>
           <div id="tune-brightness-breakdown"></div>
-        </div>
-        <div class="tune-group">
-          <div class="tune-section-header">Lights</div>
+          <div class="tune-sub-header">Lights</div>
           <div id="tune-lights-body" class="tune-lights-body"></div>
         </div>
         <div class="tune-group">
@@ -1758,9 +1757,7 @@
                 // Update base row display (skip column header row)
                 const baseRow = document.querySelector('#tune-brightness-breakdown .tune-bk-row');
                 if (baseRow) {
-                  const factor = baseRow.querySelector('.tune-bk-factor');
                   const total = baseRow.querySelector('.tune-bk-total');
-                  if (factor) factor.textContent = tuneState.baseBri + '%';
                   if (total) total.textContent = tuneState.baseBri + '%';
                 }
 
@@ -2386,6 +2383,25 @@
     // ---- Unified Tune Section ----
     let tuneDebounceTimers = {};
 
+    const LUMEN_STEPS = [
+      { label: "Severely underlit",  intensity: 0.50 },
+      { label: "Very underlit",      intensity: 0.60 },
+      { label: "Underlit",           intensity: 0.75 },
+      { label: "Slightly underlit",  intensity: 0.90 },
+      { label: "Properly lit",       intensity: 1.00 },
+      { label: "Slightly overlit",   intensity: 1.15 },
+      { label: "Overlit",            intensity: 1.35 },
+      { label: "Very overlit",       intensity: 1.60 },
+      { label: "Brightly overlit",   intensity: 1.80 },
+      { label: "Severely overlit",   intensity: 2.00 },
+    ];
+
+    function formatImpact(val) {
+      if (val > 0) return '+' + val;
+      if (val < 0) return '' + val;
+      return '0';
+    }
+
     let tuneState = {
       initialized: false,
       baseBri: 50, baseKelvin: 4000,
@@ -2397,7 +2413,7 @@
       solarBreakdown: null,
       areaFactor: 1.0,
       sunDisplay: 0,
-      lumenDisplay: 100,
+      lumenStep: 4,
       lights: [],
       presets: {},
       globalOffThreshold: 3,
@@ -2414,8 +2430,8 @@
       const atDim = preset.at_dim ?? 100;
       const offThresh = preset.off_threshold ?? 0;
       let parts = [];
-      parts.push('at dim ' + atDim + '%');
-      parts.push('at bright ' + atBright + '%');
+      parts.push('dim ' + atDim + '%');
+      parts.push('bright ' + atBright + '%');
       if (offThresh > 0) parts.push('off &lt;' + offThresh);
       return parts.join(' &middot; ');
     }
@@ -2462,16 +2478,26 @@
       const ts = tuneState;
 
       // -- Brightness cascade --
-      let running = ts.baseBri / 100;
+      const baseBriPct = ts.baseBri;
+      let running = baseBriPct / 100;
 
-      // Lumen adjustment: factor = 100 / lumenDisplay
-      ts.areaFactor = 100 / ts.lumenDisplay;
+      // Lumen adjustment
+      ts.areaFactor = 1 / LUMEN_STEPS[ts.lumenStep].intensity;
+      const areaFactorPct = Math.round(ts.areaFactor * 100);
       running *= ts.areaFactor;
-      const areaTotal = Math.round(running * 100);
+      const lumenImpact = areaFactorPct - 100;
+      const lumenTotal = Math.round(running * 100);
+
       const elAreaFactor = document.getElementById('tune-bk-area-factor');
+      const elAreaImpact = document.getElementById('tune-bk-area-impact');
       const elAreaTotal = document.getElementById('tune-bk-area-total');
-      if (elAreaFactor) elAreaFactor.innerHTML = '&times;' + ts.areaFactor.toFixed(2);
-      if (elAreaTotal) elAreaTotal.textContent = areaTotal + '%';
+      if (elAreaFactor) elAreaFactor.textContent = areaFactorPct + '%';
+      if (elAreaImpact) elAreaImpact.textContent = formatImpact(lumenImpact) + '%';
+      if (elAreaTotal) elAreaTotal.textContent = lumenTotal + '%';
+
+      // Update lumen slider value display
+      const elLumenValue = document.getElementById('tune-lumen-value');
+      if (elLumenValue) elLumenValue.textContent = LUMEN_STEPS[ts.lumenStep].label;
 
       // Solar: client-side NL factor (mirrors brain.py:calculate_natural_light_factor)
       const exposure = ts.sunDisplay / 100;
@@ -2479,20 +2505,28 @@
       if (exposure > 0 && ts.outdoorNormalized > 0) {
         nlFactor = Math.max(0.0, 1.0 - exposure * ts.outdoorNormalized * ts.brightnessGain);
       }
+      const nlFactorPct = Math.round(nlFactor * 100);
       running *= nlFactor;
+      const solarImpact = nlFactorPct - 100;
       const solarTotal = Math.round(running * 100);
+
       const elSolarFactor = document.getElementById('tune-bk-solar-factor');
+      const elSolarImpact = document.getElementById('tune-bk-solar-impact');
       const elSolarTotal = document.getElementById('tune-bk-solar-total');
-      if (elSolarFactor) elSolarFactor.innerHTML = '&times;' + nlFactor.toFixed(2);
+      if (elSolarFactor) elSolarFactor.textContent = nlFactorPct + '%';
+      if (elSolarImpact) elSolarImpact.textContent = formatImpact(solarImpact) + '%';
       if (elSolarTotal) elSolarTotal.textContent = solarTotal + '%';
+
+      // Update sun slider value display
+      const elSunValue = document.getElementById('tune-sun-value');
+      if (elSunValue) elSunValue.textContent = ts.sunDisplay + '%';
 
       // Solar sub-line
       const solarSub = document.getElementById('tune-solar-sub');
       if (solarSub) {
         const sunIntPct = Math.round(ts.outdoorNormalized * 100);
         const srcLabel = ts.outdoorSource !== 'none' ? ts.outdoorSource : 'none';
-        solarSub.innerHTML = ts.areaName + ' sun exposure: ' + ts.sunDisplay + '%'
-          + ' &middot; Source: ' + srcLabel
+        solarSub.innerHTML = 'Source: ' + srcLabel
           + ' &middot; Sun intensity: ' + sunIntPct + '%'
           + ' &middot; Sensitivity: &times;' + ts.brightnessGain.toFixed(1);
       }
@@ -2503,18 +2537,35 @@
         if (ts.baseKelvin <= ts.ctBegin) ctFactor = ts.ctMax;
         else if (ts.baseKelvin < ts.ctEnd) ctFactor = 1.0 + ((ts.ctEnd - ts.baseKelvin) / (ts.ctEnd - ts.ctBegin)) * (ts.ctMax - 1.0);
       }
+      const ctFactorPct = Math.round(ctFactor * 100);
       running *= ctFactor;
+      const ctImpact = ctFactorPct - 100;
       const ctTotal = Math.round(running * 100);
+
       const elCtFactor = document.getElementById('tune-bk-ct-factor');
+      const elCtImpact = document.getElementById('tune-bk-ct-impact');
       const elCtTotal = document.getElementById('tune-bk-ct-total');
       if (elCtFactor) {
-        elCtFactor.innerHTML = ts.ctEnabled ? '&times;' + ctFactor.toFixed(2) : '<span style="color:var(--muted);">disabled</span>';
+        elCtFactor.textContent = ts.ctEnabled ? ctFactorPct + '%' : 'disabled';
+        elCtFactor.style.color = ts.ctEnabled ? '' : 'var(--muted)';
+      }
+      if (elCtImpact) {
+        elCtImpact.textContent = ts.ctEnabled ? formatImpact(ctImpact) + '%' : '';
       }
       if (elCtTotal) elCtTotal.textContent = ctTotal + '%';
 
-      // Area total
-      const elAreaFinalTotal = document.getElementById('tune-bk-area-final');
-      if (elAreaFinalTotal) elAreaFinalTotal.textContent = ctTotal + '%';
+      // Adjusted brightness (combined)
+      const combined = ts.areaFactor * nlFactor * ctFactor;
+      const combinedPct = Math.round(combined * 100);
+      const combinedImpact = combinedPct - 100;
+      const adjustedTotal = Math.round(baseBriPct / 100 * combined * 100);
+
+      const elFinalFactor = document.getElementById('tune-bk-final-factor');
+      const elFinalImpact = document.getElementById('tune-bk-final-impact');
+      const elFinalTotal = document.getElementById('tune-bk-area-final');
+      if (elFinalFactor) elFinalFactor.textContent = combinedPct + '%';
+      if (elFinalImpact) elFinalImpact.textContent = formatImpact(combinedImpact) + '%';
+      if (elFinalTotal) elFinalTotal.textContent = adjustedTotal + '%';
 
       // -- Per-light cascade --
       const briRange = ts.maxBri - ts.minBri;
@@ -2526,13 +2577,17 @@
         const atBright = preset.at_bright ?? 100;
         const offThresh = preset.off_threshold ?? ts.globalOffThreshold;
         const filterMult = (atDim + (atBright - atDim) * curvePos) / 100;
+        const filterPct = Math.round(filterMult * 100);
+        const filterImpact = filterPct - 100;
         const finalBri = running * 100 * filterMult;
         const isOff = finalBri < offThresh;
         const finalVal = isOff ? 0 : Math.min(100, Math.round(finalBri));
 
         const elFactor = document.getElementById('tune-ln-factor-' + light.idx);
+        const elImpact = document.getElementById('tune-ln-impact-' + light.idx);
         const elFinal = document.getElementById('tune-ln-final-' + light.idx);
-        if (elFactor) elFactor.innerHTML = '&times;' + filterMult.toFixed(2);
+        if (elFactor) elFactor.textContent = filterPct + '%';
+        if (elImpact) elImpact.textContent = formatImpact(filterImpact) + '%';
         if (elFinal) {
           if (isOff) {
             elFinal.className = 'tune-ln-off';
@@ -2555,30 +2610,32 @@
         chtml += '<div class="tune-col-headers">'
           + '<span></span>'
           + '<span class="tune-col-header">Factor</span>'
+          + '<span class="tune-col-header">Impact</span>'
           + '<span class="tune-col-header">Total</span></div>';
 
         // Circadian base
         chtml += '<div class="tune-bk-row">'
           + '<span class="tune-bk-label">Circadian base</span>'
-          + '<span class="tune-bk-factor">&mdash;</span>'
+          + '<span class="tune-bk-factor"></span>'
+          + '<span class="tune-bk-impact"></span>'
           + '<span class="tune-bk-total">' + ts.baseKelvin + 'K</span></div>';
 
         if (sb) {
           // Solar adjustment
           const dayShift = sb.daylight_shift || 0;
+          const blendPct = Math.round((sb.daylight_blend || 0) * 100);
           if (dayShift > 0 || sb.outdoor_normalized > 0) {
             resultK += dayShift;
-            const blendPct = Math.round((sb.daylight_blend || 0) * 100);
             chtml += '<div class="tune-bk-row">'
-              + '<span class="tune-bk-label">Solar adjustment (target ' + sb.daylight_cct + 'K, blend ' + blendPct + '%)</span>'
-              + '<span class="tune-bk-factor">+' + dayShift + 'K</span>'
+              + '<span class="tune-bk-label">Solar adjustment (target ' + sb.daylight_cct + 'K)</span>'
+              + '<span class="tune-bk-factor">' + blendPct + '%</span>'
+              + '<span class="tune-bk-impact">+' + dayShift + 'K</span>'
               + '<span class="tune-bk-total">' + Math.round(resultK) + 'K</span></div>';
-            const sunIntPct = Math.round((sb.outdoor_normalized || 0) * 100);
-            chtml += '<div class="tune-bk-sub-line">Sun intensity: ' + sunIntPct + '% &middot; Sensitivity: &times;' + ts.brightnessGain.toFixed(1) + '</div>';
           } else {
             chtml += '<div class="tune-bk-row">'
               + '<span class="tune-bk-label">Solar adjustment</span>'
               + '<span class="tune-bk-factor"><span style="color:var(--muted);">none</span></span>'
+              + '<span class="tune-bk-impact"></span>'
               + '<span class="tune-bk-total">' + Math.round(resultK) + 'K</span></div>';
           }
 
@@ -2588,20 +2645,23 @@
             resultK -= nightShift;
             const nightWtPct = Math.round((sb.night_strength || 0) * 100);
             chtml += '<div class="tune-bk-row">'
-              + '<span class="tune-bk-label">Warm night adjustment (target ' + sb.warm_night_target + 'K, wt ' + nightWtPct + '%)</span>'
-              + '<span class="tune-bk-factor">' + (nightShift > 0 ? '&minus;' + nightShift + 'K' : '0K') + '</span>'
+              + '<span class="tune-bk-label">Warm night (target ' + sb.warm_night_target + 'K)</span>'
+              + '<span class="tune-bk-factor">' + nightWtPct + '%</span>'
+              + '<span class="tune-bk-impact">' + (nightShift > 0 ? '&minus;' + nightShift + 'K' : '0K') + '</span>'
               + '<span class="tune-bk-total">' + Math.round(resultK) + 'K</span></div>';
           } else {
             chtml += '<div class="tune-bk-row">'
-              + '<span class="tune-bk-label">Warm night adjustment</span>'
+              + '<span class="tune-bk-label">Warm night</span>'
               + '<span class="tune-bk-factor"><span style="color:var(--muted);">disabled</span></span>'
+              + '<span class="tune-bk-impact"></span>'
               + '<span class="tune-bk-total">' + Math.round(resultK) + 'K</span></div>';
           }
 
           // Final
-          chtml += '<div class="tune-bk-row">'
-            + '<span class="tune-bk-label" style="font-weight:600;color:var(--text);">Final</span>'
+          chtml += '<div class="tune-bk-row tune-area-total">'
+            + '<span class="tune-bk-label">Final</span>'
             + '<span class="tune-bk-factor">&mdash;</span>'
+            + '<span class="tune-bk-impact">&mdash;</span>'
             + '<span class="tune-bk-total final">' + Math.round(resultK) + 'K</span></div>';
         }
         colorDiv.innerHTML = chtml;
@@ -2630,7 +2690,18 @@
       const factor = areaInfo.brightness_factor ?? 1.0;
       const exposure = areaInfo.natural_light_exposure ?? 0.0;
       const sunDisplay = Math.round(exposure * 100);
-      const lumenDisplay = Math.round(100 / factor);
+
+      // Find closest lumen step from stored factor
+      const currentIntensity = 1 / factor;
+      let lumenStep = 4;
+      let closestDist = Infinity;
+      for (let i = 0; i < LUMEN_STEPS.length; i++) {
+        const dist = Math.abs(LUMEN_STEPS[i].intensity - currentIntensity);
+        if (dist < closestDist) {
+          closestDist = dist;
+          lumenStep = i;
+        }
+      }
 
       const status = areaStatus[areaId] || {};
       const liveStatus = statusData[areaId] || {};
@@ -2669,9 +2740,9 @@
         ctMax: config.ct_comp_factor || 1.4,
         brightnessGain: liveStatus.brightness_gain ?? 5.0,
         solarBreakdown: liveStatus.solar_breakdown ?? null,
-        areaFactor: factor,
+        areaFactor: 1 / LUMEN_STEPS[lumenStep].intensity,
         sunDisplay: sunDisplay,
-        lumenDisplay: lumenDisplay,
+        lumenStep: lumenStep,
         lights: lightsArr,
         presets: presets,
         globalOffThreshold: filtersData.off_threshold ?? 3,
@@ -2684,64 +2755,77 @@
 
       // ── Brightness breakdown ──
       const briDiv = document.getElementById('tune-brightness-breakdown');
-      const areaName = tuneState.areaName;
       let bhtml = '';
 
-      // Column headers (4-col to match interactive rows)
-      bhtml += '<div class="tune-col-headers tune-col-headers--interactive">'
-        + '<span></span><span></span>'
+      // Column headers
+      bhtml += '<div class="tune-col-headers">'
+        + '<span></span>'
         + '<span class="tune-col-header">Factor</span>'
+        + '<span class="tune-col-header">Impact</span>'
         + '<span class="tune-col-header">Total</span></div>';
 
-      // Circadian base - static row (4-col with empty slider slot)
-      bhtml += '<div class="tune-bk-row tune-bk-row--interactive">'
+      // Circadian base
+      bhtml += '<div class="tune-bk-row">'
         + '<span class="tune-bk-label">Circadian base</span>'
-        + '<span></span>'
-        + '<span class="tune-bk-factor">' + baseBri + '%</span>'
+        + '<span class="tune-bk-factor"></span>'
+        + '<span class="tune-bk-impact"></span>'
         + '<span class="tune-bk-total">' + baseBri + '%</span></div>';
 
-      // Lumen adjustment - interactive row: [label] [slider] [factor] [total]
-      bhtml += '<div class="tune-bk-row tune-bk-row--interactive">'
+      // Lumen adjustment - data row
+      bhtml += '<div class="tune-bk-row">'
         + '<span class="tune-bk-label">Lumen adjustment <span class="tune-bk-reset" id="tune-reset-light">reset</span></span>'
-        + '<input type="range" class="tune-inline-slider tune-inline-slider--light" id="tune-slider-light" min="50" max="200" step="5" value="' + lumenDisplay + '">'
-        + '<span class="tune-bk-factor" id="tune-bk-area-factor">&times;' + factor.toFixed(2) + '</span>'
-        + '<span class="tune-bk-total" id="tune-bk-area-total"></span>'
+        + '<span class="tune-bk-factor" id="tune-bk-area-factor"></span>'
+        + '<span class="tune-bk-impact" id="tune-bk-area-impact"></span>'
+        + '<span class="tune-bk-total" id="tune-bk-area-total"></span></div>';
+
+      // Lumen adjustment - slider row
+      bhtml += '<div class="tune-slider-row">'
+        + '<span class="tune-slider-label">Lumen intensity</span>'
+        + '<input type="range" class="tune-inline-slider tune-inline-slider--light" id="tune-slider-light" min="0" max="9" step="1" value="' + lumenStep + '">'
+        + '<span class="tune-slider-value" id="tune-lumen-value">' + LUMEN_STEPS[lumenStep].label + '</span>'
         + '</div>';
 
-      // Solar adjustment - interactive row: [label] [slider] [factor] [total]
-      bhtml += '<div class="tune-bk-row tune-bk-row--interactive">'
+      // Solar adjustment - data row
+      bhtml += '<div class="tune-bk-row">'
         + '<span class="tune-bk-label">Solar adjustment <span class="tune-bk-reset" id="tune-reset-sun">reset</span></span>'
-        + '<input type="range" class="tune-inline-slider tune-inline-slider--sun" id="tune-slider-sun" min="0" max="100" step="5" value="' + sunDisplay + '">'
         + '<span class="tune-bk-factor" id="tune-bk-solar-factor"></span>'
-        + '<span class="tune-bk-total" id="tune-bk-solar-total"></span>'
+        + '<span class="tune-bk-impact" id="tune-bk-solar-impact"></span>'
+        + '<span class="tune-bk-total" id="tune-bk-solar-total"></span></div>';
+
+      // Solar adjustment - slider row
+      bhtml += '<div class="tune-slider-row">'
+        + '<span class="tune-slider-label">Solar exposure</span>'
+        + '<input type="range" class="tune-inline-slider tune-inline-slider--sun" id="tune-slider-sun" min="0" max="100" step="5" value="' + sunDisplay + '">'
+        + '<span class="tune-slider-value" id="tune-sun-value">' + sunDisplay + '%</span>'
         + '</div>';
+
+      // Solar info row
       const sunIntPct = Math.round(tuneState.outdoorNormalized * 100);
       const srcLabel = tuneState.outdoorSource !== 'none' ? tuneState.outdoorSource : 'none';
       bhtml += '<div class="tune-bk-sub-line" id="tune-solar-sub">'
-        + areaName + ' sun exposure: ' + sunDisplay + '%'
-        + ' &middot; Source: ' + srcLabel
+        + 'Source: ' + srcLabel
         + ' &middot; Sun intensity: ' + sunIntPct + '%'
         + ' &middot; Sensitivity: &times;' + tuneState.brightnessGain.toFixed(1)
         + '</div>';
 
-      // Color temp adjustment - static row (4-col with empty slider slot)
+      // Color temp adjustment - data row
       const ctLabel = tuneState.ctEnabled ? 'Color temp adjustment (@ ' + kelvin + 'K)' : 'Color temp adjustment';
-      bhtml += '<div class="tune-bk-row tune-bk-row--interactive">'
+      bhtml += '<div class="tune-bk-row">'
         + '<span class="tune-bk-label">' + ctLabel + '</span>'
-        + '<span></span>'
         + '<span class="tune-bk-factor" id="tune-bk-ct-factor"></span>'
+        + '<span class="tune-bk-impact" id="tune-bk-ct-impact"></span>'
         + '<span class="tune-bk-total" id="tune-bk-ct-total"></span></div>';
 
-      // Area total summary row (4-col with empty slider slot)
-      bhtml += '<div class="tune-bk-row tune-bk-row--interactive tune-area-total">'
-        + '<span class="tune-bk-label">' + areaName + ' brightness w/tuning</span>'
-        + '<span></span>'
-        + '<span class="tune-bk-factor">&mdash;</span>'
+      // Adjusted brightness - summary row
+      bhtml += '<div class="tune-bk-row tune-area-total">'
+        + '<span class="tune-bk-label">Adjusted brightness</span>'
+        + '<span class="tune-bk-factor" id="tune-bk-final-factor"></span>'
+        + '<span class="tune-bk-impact" id="tune-bk-final-impact"></span>'
         + '<span class="tune-bk-total final" id="tune-bk-area-final"></span></div>';
 
       briDiv.innerHTML = bhtml;
 
-      // ── Lights section (always visible) ──
+      // ── Lights section ──
       const lightsBody = document.getElementById('tune-lights-body');
 
       if (sortedLights.length === 0) {
@@ -2756,11 +2840,18 @@
           }
           selectHtml += '</select>';
 
+          // Row 1: data row
           lhtml += '<div class="tune-light-row">'
             + '<span class="tune-light-name" title="' + light.entity_id + '">' + light.name + '</span>'
+            + '<span class="tune-bk-factor" id="tune-ln-factor-' + light.idx + '"></span>'
+            + '<span class="tune-bk-impact" id="tune-ln-impact-' + light.idx + '"></span>'
+            + '<span id="tune-ln-final-' + light.idx + '"></span>'
+            + '</div>';
+
+          // Row 2: preset row
+          lhtml += '<div class="tune-light-preset-row">'
             + selectHtml
             + '<span class="tune-light-meta" id="tune-meta-' + light.idx + '">' + meta + '</span>'
-            + '<span class="tune-light-numbers"><span id="tune-ln-factor-' + light.idx + '"></span> <span id="tune-ln-final-' + light.idx + '"></span></span>'
             + '</div>';
         }
         lightsBody.innerHTML = lhtml;
@@ -2802,7 +2893,7 @@
       if (lightSlider) {
         lightSlider.addEventListener('input', () => {
           sliderInteracting = true;
-          tuneState.lumenDisplay = parseInt(lightSlider.value);
+          tuneState.lumenStep = parseInt(lightSlider.value);
           recalcTune();
         });
         lightSlider.addEventListener('change', () => {
@@ -2829,9 +2920,9 @@
       if (resetLight) {
         resetLight.onclick = (e) => {
           e.stopPropagation();
-          if (lightSlider) lightSlider.value = 100;
-          tuneState.lumenDisplay = 100;
+          tuneState.lumenStep = 4;
           tuneState.areaFactor = 1.0;
+          if (lightSlider) lightSlider.value = 4;
           saveTuneAreaBrightness(areaId, { brightness_factor: 1.0 });
           recalcTune();
         };
