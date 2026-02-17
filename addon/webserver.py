@@ -2831,6 +2831,11 @@ class LightDesignerServer:
                         'nl_factor': round(nl_factor, 3),
                         'outdoor_normalized': round(outdoor_norm, 3),
                         'outdoor_source': outdoor_source,
+                        'outdoor_source_entity': (
+                            lux_tracker.get_sensor_entity() if outdoor_source == 'lux'
+                            else lux_tracker.get_weather_entity() if outdoor_source == 'weather'
+                            else None
+                        ),
                         'sun_factor': round(outdoor_norm, 3),  # backward compat alias
                         'brightness_gain': area_brightness_gain,
                         'lux_smoothed': round(lux_smoothed, 1) if lux_smoothed is not None else None,

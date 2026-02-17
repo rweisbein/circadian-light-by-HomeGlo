@@ -581,7 +581,6 @@
     .tune-control-reset:hover { color: var(--accent); }
     .tune-slider-row { display: grid; grid-template-columns: 1fr auto; align-items: center; padding: 2px 16px 8px; gap: 0 12px; }
     .tune-slider-word { font-size: 0.8rem; color: var(--text); text-align: right; white-space: nowrap; min-width: 8em; }
-    .tune-source-info { font-size: 11px; color: var(--muted2); text-align: center; padding: 2px 16px 10px; }
     .tune-inline-slider { -webkit-appearance: none; appearance: none; width: 100%; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.12); outline: none; cursor: pointer; min-width: 80px; }
     .tune-inline-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; cursor: pointer; border: 2px solid rgba(255,255,255,0.3); }
     .tune-inline-slider::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; cursor: pointer; border: 2px solid rgba(255,255,255,0.3); }
@@ -611,6 +610,7 @@
     .tune-details-chevron { color: var(--muted2); font-size: 0.8rem; transition: transform 0.2s; }
     .tune-details-chevron.open { transform: rotate(90deg); }
     .tune-details-body { padding: 0 0 8px; }
+    .tune-source-info { font-size: 11px; color: var(--muted2); text-align: center; padding: 6px 16px 2px; }
     .tune-col-headers { display: grid; grid-template-columns: 1fr auto auto auto; padding: 0 16px 2px; gap: 0 12px; }
     .tune-col-header { font-size: 11px; color: var(--muted2); text-align: right; white-space: nowrap; }
     .tune-bk-row { display: grid; grid-template-columns: 1fr auto auto auto; align-items: baseline; padding: 5px 16px; gap: 0 12px; }
@@ -1756,6 +1756,7 @@
                 tuneState.sunElev = ls.sun_elevation ?? 0;
                 tuneState.outdoorNormalized = ls.outdoor_normalized ?? ls.sun_factor ?? 0.0;
                 tuneState.outdoorSource = ls.outdoor_source ?? 'none';
+                tuneState.outdoorSourceEntity = ls.outdoor_source_entity ?? null;
                 tuneState.brightnessGain = ls.brightness_gain ?? 5.0;
                 tuneState.luxSmoothed = ls.lux_smoothed ?? null;
                 tuneState.luxCeiling = ls.lux_ceiling ?? null;
@@ -2425,6 +2426,7 @@
       baseBri: 50, baseKelvin: 4000,
       sunElev: 0, outdoorNormalized: 0.0,
       outdoorSource: 'none',
+      outdoorSourceEntity: null,
       luxSmoothed: null, luxCeiling: null, luxFloor: null,
       ctEnabled: false, ctBegin: 1650, ctEnd: 2250, ctMax: 1.4,
       brightnessGain: 5.0,
@@ -2442,15 +2444,16 @@
       expandedLightIdx: null,
     };
 
-    function tunePresetMeta(presets, filterName) {
+    function tunePresetMeta(presets, filterName, nowPct) {
       const preset = presets[filterName];
       if (!preset) return '';
       const atBright = preset.at_bright ?? 100;
       const atDim = preset.at_dim ?? 100;
       const offThresh = preset.off_threshold ?? 0;
       let parts = [];
-      parts.push('dim ' + atDim + '%');
-      parts.push('bright ' + atBright + '%');
+      if (nowPct !== undefined) parts.push('now ' + nowPct + '%');
+      parts.push('at dim ' + atDim + '%');
+      parts.push('at bright ' + atBright + '%');
       if (offThresh > 0) parts.push('off &lt;' + offThresh);
       return parts.join(' &middot; ');
     }
@@ -2565,15 +2568,6 @@
       const elSolarWord = document.getElementById('tune-solar-word');
       if (elSolarWord) elSolarWord.textContent = SOLAR_STEPS[ts.solarStep].label;
 
-      const sourceInfo = document.getElementById('tune-source-info');
-      if (sourceInfo) {
-        const sunIntPct = Math.round(ts.outdoorNormalized * 100);
-        const srcLabel = ts.outdoorSource !== 'none' ? ts.outdoorSource : 'none';
-        sourceInfo.innerHTML = 'Source: ' + srcLabel
-          + ' &middot; Sun intensity: ' + sunIntPct + '%'
-          + ' &middot; Sensitivity: &times;' + ts.brightnessGain.toFixed(1);
-      }
-
       // -- Card 3: Lights --
       const briRange = ts.maxBri - ts.minBri;
       const curvePos = briRange > 0 ? Math.max(0, Math.min(1, (ts.baseBri - ts.minBri) / briRange)) : 0;
@@ -2584,6 +2578,7 @@
         const atBright = preset.at_bright ?? 100;
         const offThresh = preset.off_threshold ?? ts.globalOffThreshold;
         const filterMult = (atDim + (atBright - atDim) * curvePos) / 100;
+        const nowPct = Math.round(filterMult * 100);
         const finalBri = running * 100 * filterMult;
         const isOff = finalBri < offThresh;
         const finalVal = isOff ? 0 : Math.min(100, Math.round(finalBri));
@@ -2598,6 +2593,8 @@
             elBri.textContent = finalVal + '%';
           }
         }
+        const elMeta = document.getElementById('tune-meta-' + light.idx);
+        if (elMeta) elMeta.innerHTML = tunePresetMeta(ts.presets, light.filterName, nowPct);
       }
 
       // -- Card 4: Details (brightness cascade) --
@@ -2636,6 +2633,17 @@
       if (elFinalFactor) elFinalFactor.textContent = combinedPct + '%';
       if (elFinalImpact) elFinalImpact.textContent = formatImpact(netImpact) + '%';
       if (elFinalTotal) elFinalTotal.textContent = adjustedBri + '%';
+
+      // -- Card 4: Details (source info) --
+      const sourceInfo = document.getElementById('tune-source-info');
+      if (sourceInfo) {
+        const sunIntPct = Math.round(ts.outdoorNormalized * 100);
+        let srcName = ts.outdoorSource;
+        if (ts.outdoorSourceEntity) srcName = ts.outdoorSourceEntity;
+        else if (srcName === 'angle') srcName = 'Sun angle estimate';
+        sourceInfo.innerHTML = 'Sun intensity: ' + sunIntPct + '%'
+          + ' &middot; Source: ' + srcName;
+      }
 
       // -- Card 4: Details (color cascade) --
       const colorDiv = document.getElementById('tune-detail-color');
@@ -2763,6 +2771,7 @@
         sunElev: liveStatus.sun_elevation ?? 0,
         outdoorNormalized: liveStatus.outdoor_normalized ?? liveStatus.sun_factor ?? 0.0,
         outdoorSource: liveStatus.outdoor_source ?? 'none',
+        outdoorSourceEntity: liveStatus.outdoor_source_entity ?? null,
         luxSmoothed: liveStatus.lux_smoothed ?? null,
         luxCeiling: liveStatus.lux_ceiling ?? null,
         luxFloor: liveStatus.lux_floor ?? null,
@@ -2809,13 +2818,6 @@
       rhtml += '<div class="tune-slider-row">'
         + '<input type="range" class="tune-inline-slider tune-inline-slider--sun" id="tune-slider-solar" min="0" max="9" step="1" value="' + solarStep + '">'
         + '<span class="tune-slider-word" id="tune-solar-word">' + SOLAR_STEPS[solarStep].label + '</span></div>';
-      // Source info
-      const sunIntPct = Math.round(tuneState.outdoorNormalized * 100);
-      const srcLabel = tuneState.outdoorSource !== 'none' ? tuneState.outdoorSource : 'none';
-      rhtml += '<div class="tune-source-info" id="tune-source-info">'
-        + 'Source: ' + srcLabel
-        + ' &middot; Sun intensity: ' + sunIntPct + '%'
-        + ' &middot; Sensitivity: &times;' + tuneState.brightnessGain.toFixed(1) + '</div>';
       roomCard.innerHTML = rhtml;
 
       // ── Card 3: Lights ──
@@ -2884,6 +2886,8 @@
         + '<span class="tune-bk-impact" id="tune-det-final-impact"></span>'
         + '<span class="tune-bk-total final" id="tune-det-final-total"></span></div>';
       dhtml += '</div>';
+      // Sun intensity source info
+      dhtml += '<div class="tune-source-info" id="tune-source-info"></div>';
       // Color cascade
       dhtml += '<div class="tune-section-header">Color</div>';
       dhtml += '<div id="tune-detail-color"></div>';
