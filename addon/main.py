@@ -4852,6 +4852,16 @@ class HomeAssistantWebSocketClient:
                 if self.sun_data:
                     lux_tracker.update_sun_elevation(self.sun_data.get("elevation", 0.0))
 
+                # Seed lux sensor from cached states so source activates immediately
+                lux_entity = lux_tracker.get_sensor_entity()
+                if lux_entity and lux_entity in self.cached_states:
+                    try:
+                        raw_lux = float(self.cached_states[lux_entity].get("state", 0))
+                        lux_tracker.update(raw_lux)
+                        logger.info(f"Seeded lux sensor from initial state: {raw_lux:.0f}")
+                    except (ValueError, TypeError):
+                        pass
+
                 # Auto-detect weather entity for cloud coverage fallback
                 for eid, estate in self.cached_states.items():
                     if eid.startswith("weather."):
