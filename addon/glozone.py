@@ -384,6 +384,7 @@ def get_rhythm_config(rhythm_name: str) -> Dict[str, Any]:
         "brightness_sensitivity": 5.0,
         "color_sensitivity": 1.50,
         "daylight_cct": 5500,
+        "daylight_fade": 60,
         "activity_preset": "adult",
         "max_dim_steps": 10,
     }
@@ -597,7 +598,7 @@ RHYTHM_SETTINGS = {
     "wake_speed", "bed_speed",
     "warm_night_enabled", "warm_night_mode", "warm_night_target",
     "warm_night_start", "warm_night_end", "warm_night_fade",
-    "brightness_sensitivity", "color_sensitivity", "daylight_cct",
+    "brightness_sensitivity", "color_sensitivity", "daylight_cct", "daylight_fade",
     "activity_preset", "max_dim_steps",
 }
 

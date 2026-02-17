@@ -1423,7 +1423,7 @@ class LightDesignerServer:
             'latitude', 'longitude',
             'warm_night_target', 'warm_night_fade',
             'warm_night_start', 'warm_night_end',
-            'brightness_sensitivity', 'color_sensitivity',
+            'brightness_sensitivity', 'color_sensitivity', 'daylight_fade',
         ]
 
         # Integer parameters
@@ -1517,7 +1517,7 @@ class LightDesignerServer:
         "wake_speed", "bed_speed",
         "warm_night_enabled", "warm_night_mode", "warm_night_target",
         "warm_night_start", "warm_night_end", "warm_night_fade",
-        "daylight_cct", "color_sensitivity", "brightness_sensitivity",
+        "daylight_cct", "daylight_fade", "color_sensitivity", "brightness_sensitivity",
         "activity_preset", "max_dim_steps",
     }
 
@@ -1692,6 +1692,7 @@ class LightDesignerServer:
 
             # Daylight blend
             "daylight_cct": 5500,
+            "daylight_fade": 60,
             "color_sensitivity": 1.50,
             "brightness_sensitivity": 5.0,
 
@@ -3234,6 +3235,7 @@ class LightDesignerServer:
                 "warm_night_end": 60,
                 "warm_night_fade": 60,
                 "daylight_cct": 5500,
+                "daylight_fade": 60,
                 "color_sensitivity": 1.50,
                 "brightness_sensitivity": 5.0,
             }

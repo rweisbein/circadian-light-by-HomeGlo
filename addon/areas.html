@@ -1148,7 +1148,20 @@
       const daylightCct = cfg.daylight_cct || 0;
       const colorSensitivity = cfg.color_sensitivity ?? 1.50;
       if (daylightCct > 0) {
-        const blend = Math.min(1.0, 1.0 * colorSensitivity);
+        let blend = Math.min(1.0, 1.0 * colorSensitivity);
+        // Apply daylight fade
+        const daylightFade = cfg.daylight_fade ?? 60;
+        if (daylightFade > 0 && sunTimes) {
+          const fadeHrs = daylightFade / 60;
+          const h = ((hour % 24) + 24) % 24;
+          const sr = sunTimes.sunrise, ss = sunTimes.sunset;
+          const distSunrise = ((h - sr) % 24 + 24) % 24;
+          const distSunset = ((ss - h) % 24 + 24) % 24;
+          let tw = 1.0;
+          if (distSunrise < fadeHrs) tw = Math.min(tw, distSunrise / fadeHrs);
+          if (distSunset < fadeHrs) tw = Math.min(tw, distSunset / fadeHrs);
+          blend *= tw;
+        }
         let daylightTarget = daylightCct;
         if (colorOverride && colorOverride < 0) {
           daylightTarget += colorOverride;
