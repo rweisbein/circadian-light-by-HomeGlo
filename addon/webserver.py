@@ -4891,11 +4891,12 @@ class LightDesignerServer:
                         "error": f"Bad percentiles (floor={floor_val}, ceiling={ceiling_val})"
                     }, status=500)
 
-                # Save to config
+                # Save to config and update in-memory baselines
                 config = glozone.load_config_from_files()
                 config['lux_learned_ceiling'] = ceiling_val
                 config['lux_learned_floor'] = floor_val
                 glozone.save_config()
+                lux_tracker.set_learned_baselines(ceiling_val, floor_val)
 
                 logger.info(
                     f"Baselines learned from {len(daytime_means)} samples: "

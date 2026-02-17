@@ -132,6 +132,13 @@ def init(config: Optional[dict] = None):
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+def set_learned_baselines(ceiling: float, floor: float) -> None:
+    """Update in-memory learned baselines (call after saving to config)."""
+    global _learned_ceiling, _learned_floor
+    _learned_ceiling = ceiling
+    _learned_floor = floor
+
+
 def get_sun_factor() -> float:
     """Return cached sun factor (0.0 = dark/storm, 1.0 = bright sun).
 
