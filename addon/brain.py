@@ -564,6 +564,13 @@ class CircadianLight:
         # Apply solar rules if enabled
         if apply_solar_rules:
             kelvin = CircadianLight._apply_solar_rules(kelvin, hour, config, state, sun_times)
+            # Solar rules intentionally push kelvin outside the curve range:
+            # warm night pulls down toward warm_night_target,
+            # daylight blend pushes up toward daylight_cct.
+            # Expand clamp bounds so these adjustments aren't silently reverted.
+            lower = min(c_min, config.warm_night_target) if config.warm_night_enabled else c_min
+            upper = max(c_max, config.daylight_cct) if config.daylight_cct > 0 else c_max
+            return int(max(lower, min(upper, round(kelvin))))
 
         return int(max(c_min, min(c_max, round(kelvin))))
 
