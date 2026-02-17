@@ -2657,7 +2657,7 @@ class LightDesignerServer:
         }
         """
         try:
-            from brain import SunTimes, calculate_sun_times, calculate_natural_light_factor
+            from brain import SunTimes, calculate_sun_times, calculate_natural_light_factor, compute_daylight_fade_weight, DEFAULT_DAYLIGHT_FADE
 
             # Load config to get glozone mappings and rhythms
             config = await self.load_config()
@@ -2773,7 +2773,10 @@ class LightDesignerServer:
                     area_nl_exposure = glozone.get_area_natural_light_exposure(area_id)
                     rhythm_cfg = glozone.get_rhythm_config_for_area(area_id)
                     area_brightness_sensitivity = rhythm_cfg.get("brightness_sensitivity", 5.0)
-                    nl_factor = calculate_natural_light_factor(area_nl_exposure, outdoor_norm, area_brightness_sensitivity)
+                    # Apply daylight fade to brightness: ramp outdoor_norm over fade period
+                    area_daylight_fade = rhythm_cfg.get("daylight_fade", DEFAULT_DAYLIGHT_FADE)
+                    faded_outdoor_norm = outdoor_norm * compute_daylight_fade_weight(calc_hour, sun_times.sunrise, sun_times.sunset, area_daylight_fade)
+                    nl_factor = calculate_natural_light_factor(area_nl_exposure, faded_outdoor_norm, area_brightness_sensitivity)
 
                     # Keep curve brightness before NL reduction
                     curve_brightness = brightness

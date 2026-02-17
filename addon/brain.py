@@ -294,6 +294,39 @@ def calculate_natural_light_factor(
     return max(0.0, 1.0 - exposure * outdoor_normalized * brightness_sensitivity)
 
 
+def compute_daylight_fade_weight(
+    hour: float,
+    sunrise: float,
+    sunset: float,
+    daylight_fade: int,
+) -> float:
+    """Compute daylight fade time-weight (0→1) based on proximity to sunrise/sunset.
+
+    Ramps linearly from 0 at sunrise/sunset to 1.0 after daylight_fade minutes.
+
+    Args:
+        hour: Current hour (0-24)
+        sunrise: Sunrise hour
+        sunset: Sunset hour
+        daylight_fade: Fade duration in minutes (0 = no fade, instant full effect)
+
+    Returns:
+        Weight 0.0–1.0 to multiply into daylight-dependent effects.
+    """
+    if daylight_fade <= 0:
+        return 1.0
+    fade_hrs = daylight_fade / 60.0
+    h = hour % 24
+    dist_after_sunrise = (h - sunrise) % 24
+    dist_before_sunset = (sunset - h) % 24
+    weight = 1.0
+    if dist_after_sunrise < fade_hrs:
+        weight = min(weight, dist_after_sunrise / fade_hrs)
+    if dist_before_sunset < fade_hrs:
+        weight = min(weight, dist_before_sunset / fade_hrs)
+    return weight
+
+
 def calculate_curve_position(brightness: int, min_brightness: int, max_brightness: int) -> float:
     """Calculate the curve position (0.0–1.0) from the current brightness.
 
@@ -702,17 +735,7 @@ class CircadianLight:
             outdoor_norm = sun_times.outdoor_normalized
             blend = min(1.0, outdoor_norm * config.color_sensitivity)
             # Apply daylight fade: ramp blend over daylight_fade minutes after sunrise / before sunset
-            if config.daylight_fade > 0:
-                fade_hrs = config.daylight_fade / 60.0
-                h = hour % 24
-                dist_after_sunrise = (h - sunrise) % 24
-                dist_before_sunset = (sunset - h) % 24
-                time_weight = 1.0
-                if dist_after_sunrise < fade_hrs:
-                    time_weight = min(time_weight, dist_after_sunrise / fade_hrs)
-                if dist_before_sunset < fade_hrs:
-                    time_weight = min(time_weight, dist_before_sunset / fade_hrs)
-                blend *= time_weight
+            blend *= compute_daylight_fade_weight(hour, sunrise, sunset, config.daylight_fade)
             daylight_target = config.daylight_cct
             if state.color_override and state.color_override < 0:
                 daylight_target += state.color_override
@@ -791,17 +814,8 @@ class CircadianLight:
             outdoor_norm = sun_times.outdoor_normalized
             blend = min(1.0, outdoor_norm * config.color_sensitivity)
             # Apply daylight fade
-            if config.daylight_fade > 0:
-                fade_hrs = config.daylight_fade / 60.0
-                h = hour % 24
-                dist_after_sunrise = (h - sunrise) % 24
-                dist_before_sunset = (sunset - h) % 24
-                daylight_fade_weight = 1.0
-                if dist_after_sunrise < fade_hrs:
-                    daylight_fade_weight = min(daylight_fade_weight, dist_after_sunrise / fade_hrs)
-                if dist_before_sunset < fade_hrs:
-                    daylight_fade_weight = min(daylight_fade_weight, dist_before_sunset / fade_hrs)
-                blend *= daylight_fade_weight
+            daylight_fade_weight = compute_daylight_fade_weight(hour, sunrise, sunset, config.daylight_fade)
+            blend *= daylight_fade_weight
             if state.color_override and state.color_override < 0:
                 daylight_target += state.color_override
             if daylight_target > base_kelvin:
