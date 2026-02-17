@@ -611,6 +611,8 @@
     .tune-details-chevron.open { transform: rotate(90deg); }
     .tune-details-body { padding: 0 0 8px; }
     .tune-source-info { font-size: 11px; color: var(--muted2); text-align: center; padding: 6px 16px 2px; }
+    .tune-refresh-btn { background: none; border: 1px solid var(--line); color: var(--muted2); font-size: 10px; padding: 1px 6px; border-radius: 4px; cursor: pointer; margin-left: 6px; }
+    .tune-refresh-btn:hover { color: var(--text); border-color: var(--muted); }
     .tune-col-headers { display: grid; grid-template-columns: 1fr auto auto auto; padding: 0 16px 2px; gap: 0 12px; }
     .tune-col-header { font-size: 11px; color: var(--muted2); text-align: right; white-space: nowrap; }
     .tune-bk-row { display: grid; grid-template-columns: 1fr auto auto auto; align-items: baseline; padding: 5px 16px; gap: 0 12px; }
@@ -1757,6 +1759,7 @@
                 tuneState.outdoorNormalized = ls.outdoor_normalized ?? ls.sun_factor ?? 0.0;
                 tuneState.outdoorSource = ls.outdoor_source ?? 'none';
                 tuneState.outdoorSourceEntity = ls.outdoor_source_entity ?? null;
+                tuneState.outdoorLastUpdate = ls.outdoor_last_update ?? null;
                 tuneState.brightnessGain = ls.brightness_gain ?? 5.0;
                 tuneState.luxSmoothed = ls.lux_smoothed ?? null;
                 tuneState.luxCeiling = ls.lux_ceiling ?? null;
@@ -2426,7 +2429,7 @@
       baseBri: 50, baseKelvin: 4000,
       sunElev: 0, outdoorNormalized: 0.0,
       outdoorSource: 'none',
-      outdoorSourceEntity: null,
+      outdoorSourceEntity: null, outdoorLastUpdate: null,
       luxSmoothed: null, luxCeiling: null, luxFloor: null,
       ctEnabled: false, ctBegin: 1650, ctEnd: 2250, ctMax: 1.4,
       brightnessGain: 5.0,
@@ -2634,15 +2637,35 @@
       if (elFinalImpact) elFinalImpact.textContent = formatImpact(netImpact) + '%';
       if (elFinalTotal) elFinalTotal.textContent = adjustedBri + '%';
 
-      // -- Card 4: Details (source info) --
+      // -- Card 4: Details (source info + refresh) --
       const sourceInfo = document.getElementById('tune-source-info');
       if (sourceInfo) {
         const sunIntPct = Math.round(ts.outdoorNormalized * 100);
         let srcName = ts.outdoorSource;
         if (ts.outdoorSourceEntity) srcName = ts.outdoorSourceEntity;
         else if (srcName === 'angle') srcName = 'Sun angle estimate';
-        sourceInfo.innerHTML = 'Sun intensity: ' + sunIntPct + '%'
-          + ' &middot; Source: ' + srcName;
+        let timeStr = '';
+        if (ts.outdoorLastUpdate) {
+          const d = new Date(ts.outdoorLastUpdate * 1000);
+          let h = d.getHours(), m = d.getMinutes();
+          const ampm = h >= 12 ? 'p' : 'a';
+          h = h % 12 || 12;
+          timeStr = ' @ ' + h + ':' + (m < 10 ? '0' : '') + m + ampm;
+        }
+        sourceInfo.innerHTML = 'Sun intensity' + timeStr + ': ' + sunIntPct + '%'
+          + ' &middot; Source: ' + srcName
+          + '<button class="tune-refresh-btn" id="tune-refresh-outdoor">refresh</button>';
+        const refreshBtn = document.getElementById('tune-refresh-outdoor');
+        if (refreshBtn && !refreshBtn._bound) {
+          refreshBtn._bound = true;
+          refreshBtn.addEventListener('click', async () => {
+            refreshBtn.textContent = '...';
+            try {
+              await fetch('./api/refresh-outdoor', { method: 'POST' });
+            } catch (e) {}
+            setTimeout(() => { refreshBtn.textContent = 'refresh'; }, 1500);
+          });
+        }
       }
 
       // -- Card 4: Details (color cascade) --
@@ -2772,6 +2795,7 @@
         outdoorNormalized: liveStatus.outdoor_normalized ?? liveStatus.sun_factor ?? 0.0,
         outdoorSource: liveStatus.outdoor_source ?? 'none',
         outdoorSourceEntity: liveStatus.outdoor_source_entity ?? null,
+        outdoorLastUpdate: liveStatus.outdoor_last_update ?? null,
         luxSmoothed: liveStatus.lux_smoothed ?? null,
         luxCeiling: liveStatus.lux_ceiling ?? null,
         luxFloor: liveStatus.lux_floor ?? null,

@@ -415,6 +415,8 @@ class LightDesignerServer:
         self.app.router.add_get('/api/areas', self.get_areas)
         self.app.router.add_route('GET', '/{path:.*}/api/area-status', self.get_area_status)
         self.app.router.add_get('/api/area-status', self.get_area_status)
+        self.app.router.add_route('POST', '/{path:.*}/api/refresh-outdoor', self.refresh_outdoor)
+        self.app.router.add_post('/api/refresh-outdoor', self.refresh_outdoor)
         self.app.router.add_route('GET', '/{path:.*}/api/area-settings/{area_id}', self.get_area_settings)
         self.app.router.add_route('POST', '/{path:.*}/api/area-settings/{area_id}', self.save_area_settings)
         self.app.router.add_get('/api/area-settings/{area_id}', self.get_area_settings)
@@ -2836,6 +2838,7 @@ class LightDesignerServer:
                             else lux_tracker.get_weather_entity() if outdoor_source == 'weather'
                             else None
                         ),
+                        'outdoor_last_update': lux_tracker.get_last_outdoor_update(),
                         'sun_factor': round(outdoor_norm, 3),  # backward compat alias
                         'brightness_gain': area_brightness_gain,
                         'lux_smoothed': round(lux_smoothed, 1) if lux_smoothed is not None else None,
@@ -2849,6 +2852,40 @@ class LightDesignerServer:
 
         except Exception as e:
             logger.error(f"[Area Status] Error: {e}", exc_info=True)
+            return web.json_response({'error': str(e)}, status=500)
+
+    async def refresh_outdoor(self, request: Request) -> Response:
+        """Force HA to re-poll the outdoor brightness source entity."""
+        try:
+            import lux_tracker
+            source = lux_tracker.get_outdoor_source()
+            entity = None
+            if source == 'lux':
+                entity = lux_tracker.get_sensor_entity()
+            elif source == 'weather':
+                entity = lux_tracker.get_weather_entity()
+
+            if not entity:
+                return web.json_response({'status': 'no_entity', 'source': source})
+
+            rest_url, _, token = self._get_ha_api_config()
+            if not rest_url or not token:
+                return web.json_response({'error': 'No HA API config'}, status=500)
+
+            import aiohttp
+            url = f"{rest_url}/services/homeassistant/update_entity"
+            headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+            async with aiohttp.ClientSession() as session:
+                async with session.post(url, json={"entity_id": entity}, headers=headers) as resp:
+                    if resp.status < 300:
+                        logger.info(f"[RefreshOutdoor] Triggered update_entity for {entity}")
+                        return web.json_response({'status': 'ok', 'entity': entity})
+                    else:
+                        body = await resp.text()
+                        logger.warning(f"[RefreshOutdoor] update_entity failed: {resp.status} {body}")
+                        return web.json_response({'error': f'HA returned {resp.status}'}, status=502)
+        except Exception as e:
+            logger.error(f"[RefreshOutdoor] Error: {e}", exc_info=True)
             return web.json_response({'error': str(e)}, status=500)
 
     async def get_area_settings(self, request: Request) -> Response:

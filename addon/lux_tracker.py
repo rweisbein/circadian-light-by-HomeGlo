@@ -65,6 +65,11 @@ _override_expires_at: Optional[float] = None  # monotonic timestamp
 # ---------------------------------------------------------------------------
 _sun_elevation: float = 0.0
 
+# ---------------------------------------------------------------------------
+# Module state — last outdoor data update (wall-clock)
+# ---------------------------------------------------------------------------
+_last_outdoor_update: Optional[float] = None  # time.time() timestamp
+
 
 # ---------------------------------------------------------------------------
 # Initialisation
@@ -79,7 +84,7 @@ def init(config: Optional[dict] = None):
     global _ema_lux, _last_update_time, _cached_sun_factor
     global _preferred_source, _cloud_cover
     global _override_condition, _override_expires_at
-    global _sun_elevation
+    global _sun_elevation, _last_outdoor_update
 
     if config is None:
         config = glozone.load_config_from_files()
@@ -120,6 +125,7 @@ def init(config: Optional[dict] = None):
     _override_condition = None
     _override_expires_at = None
     _sun_elevation = 0.0
+    _last_outdoor_update = None
 
     logger.info(
         f"Lux tracker initialised: source={_preferred_source}, "
@@ -230,19 +236,26 @@ def set_weather_entity(entity_id: str):
     _weather_entity = entity_id
 
 
+def get_last_outdoor_update() -> Optional[float]:
+    """Return wall-clock timestamp of last outdoor data update, or None."""
+    return _last_outdoor_update
+
+
 # ---------------------------------------------------------------------------
 # Weather entity
 # ---------------------------------------------------------------------------
 def update_weather(cloud_cover: float):
     """Store cloud coverage from HA weather entity (0-100)."""
-    global _cloud_cover
+    global _cloud_cover, _last_outdoor_update
     _cloud_cover = max(0.0, min(100.0, cloud_cover))
+    _last_outdoor_update = time.time()
 
 
 def update_sun_elevation(elevation: float):
     """Cache sun elevation (degrees) for angle-based fallback."""
-    global _sun_elevation
+    global _sun_elevation, _last_outdoor_update
     _sun_elevation = elevation
+    _last_outdoor_update = time.time()
 
 
 # ---------------------------------------------------------------------------
@@ -314,7 +327,7 @@ def update(raw_lux: float) -> float:
     Returns:
         The new smoothed lux value.
     """
-    global _ema_lux, _last_update_time, _cached_sun_factor
+    global _ema_lux, _last_update_time, _cached_sun_factor, _last_outdoor_update
 
     now = time.monotonic()
 
@@ -331,6 +344,7 @@ def update(raw_lux: float) -> float:
             _ema_lux = _ema_lux + alpha * (raw_lux - _ema_lux)
 
     _last_update_time = now
+    _last_outdoor_update = time.time()
 
     # Recompute sun_factor
     if _learned_ceiling is not None and _learned_floor is not None:

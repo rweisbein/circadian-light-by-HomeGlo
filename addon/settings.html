@@ -1054,7 +1054,7 @@
         daylight_saturation_deg: parseInt(document.getElementById('daylight-saturation-deg').value) || 8,
         outdoor_brightness_source: document.getElementById('outdoor-brightness-source').value,
         outdoor_lux_sensor: document.getElementById('outdoor-lux-sensor').value.trim() || null,
-        lux_smoothing_interval: parseInt(document.getElementById('lux-smoothing-interval').value) || 300,
+        lux_smoothing_interval: parseInt(document.getElementById('lux-smoothing-interval').value || '300'),
         lux_learned_ceiling: parseFloat(document.getElementById('lux-learned-ceiling').value) || null,
         lux_learned_floor: parseFloat(document.getElementById('lux-learned-floor').value) || null,
         ct_comp_enabled: document.getElementById('ct-comp-enabled').checked,
