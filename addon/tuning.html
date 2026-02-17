@@ -55,13 +55,8 @@
     .filter-select { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; font-size: 0.85rem; cursor: pointer; appearance: auto; }
     .filter-select:focus { outline: 1px solid var(--accent); border-color: var(--accent); }
 
-    /* Paint toolbar */
-    .paint-toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; align-items: center; }
-    .paint-btn { padding: 6px 14px; border-radius: 20px; border: 2px solid var(--line); background: var(--panel); color: var(--muted); font-size: 0.85rem; cursor: pointer; transition: all 0.2s; }
-    .paint-btn:hover { color: var(--text); border-color: var(--muted); }
-    .paint-btn.active { color: #000; background: var(--accent); border-color: var(--accent); }
-    .suggest-btn { padding: 6px 14px; border-radius: 20px; border: 1px solid var(--line); background: none; color: var(--muted); font-size: 0.85rem; cursor: pointer; margin-left: auto; }
-    .suggest-btn:hover { color: var(--text); border-color: var(--muted); }
+    /* Slider word labels */
+    .slider-word { min-width: 8em; text-align: right; font-size: 0.8rem; color: var(--text); white-space: nowrap; }
 
     /* View links (sort) */
     .view-links { display: flex; align-items: center; gap: 6px; font-size: 0.7rem; }
@@ -81,36 +76,17 @@
     .area-sliders { display: flex; align-items: center; gap: 14px; margin-left: auto; flex-shrink: 0; }
     .slider-group { display: flex; align-items: center; gap: 6px; }
     .slider-label { font-size: 0.7rem; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.3px; cursor: pointer; }
-    .brightness-slider { width: 100px; accent-color: var(--accent); }
-    .sun-slider { width: 80px; accent-color: #fbbf24; }
-    .slider-val { min-width: 36px; text-align: right; font-size: 0.82rem; font-variant-numeric: tabular-nums; }
-    .slider-val.below-1 { color: #60a5fa; }
-    .slider-val.above-1 { color: var(--accent); }
-    .slider-val.sun-active { color: #fbbf24; }
+    .lumen-slider { width: 100px; accent-color: var(--accent); }
+    .solar-slider { width: 80px; accent-color: #fbbf24; }
 
     /* Light list inside area card */
     .area-lights { padding: 0 16px 8px; padding-left: 24px; }
     .light-meta { font-size: 0.7rem; color: var(--muted2); white-space: nowrap; }
     .area-lights.collapsed { display: none; }
-    .light-row { display: flex; align-items: center; padding: 8px 0; gap: 12px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.04); }
+    .light-row { display: flex; align-items: center; padding: 8px 0; gap: 12px; border-bottom: 1px solid rgba(255,255,255,0.04); }
     .light-row:last-child { border-bottom: none; }
-    .light-row:hover { opacity: 0.85; }
     .light-name { flex: 1; font-size: 0.88rem; color: var(--muted); }
-    .filter-pill { padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 500; }
-    .pill-Standard { background: var(--panel); color: var(--muted); border: 1px solid var(--line); }
-    .pill-assigned { background: rgba(255,255,255,0.06); color: var(--text); border: 1px solid var(--line); }
-
-    /* Suggestion overlay */
-    .suggest-results { background: var(--card); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 16px; overflow: hidden; }
-    .suggest-header { padding: 12px 16px; font-size: 0.9rem; font-weight: 500; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; }
-    .suggest-row { display: flex; align-items: center; padding: 10px 16px; gap: 12px; border-bottom: 1px solid rgba(255,255,255,0.04); }
-    .suggest-row:last-child { border-bottom: none; }
-    .suggest-light-name { flex: 1; font-size: 0.88rem; }
-    .suggest-change { font-size: 0.8rem; color: var(--muted2); }
-    .suggest-accept { background: none; border: 1px solid var(--success); color: var(--success); padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; cursor: pointer; }
-    .suggest-accept:hover { background: rgba(34,197,94,0.15); }
-    .suggest-reject { background: none; border: 1px solid var(--line); color: var(--muted); padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; cursor: pointer; }
-    .suggest-reject:hover { background: rgba(255,255,255,0.05); }
+    .light-filter-select { font-size: 0.75rem; padding: 2px 6px; background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; cursor: pointer; appearance: auto; }
 
     /* Save status */
     .save-status { position: fixed; bottom: 24px; right: 24px; padding: 12px 20px; background: var(--success); color: white; border-radius: 8px; font-size: 0.9rem; opacity: 0; transform: translateY(10px); transition: all 0.3s; z-index: 50; }
@@ -120,9 +96,10 @@
 
     @media (max-width: 600px) {
       .area-sliders { gap: 8px; }
-      .brightness-slider { width: 70px; }
-      .sun-slider { width: 60px; }
+      .lumen-slider { width: 70px; }
+      .solar-slider { width: 60px; }
       .slider-label { display: none; }
+      .slider-word { min-width: 5em; font-size: 0.7rem; }
     }
   </style>
 </head>
@@ -157,12 +134,6 @@
     <!-- Filters row -->
     <div class="filter-row" id="filter-row"></div>
 
-    <!-- Paint toolbar -->
-    <div class="paint-toolbar" id="paint-toolbar"></div>
-
-    <!-- Suggest container -->
-    <div id="suggest-container"></div>
-
     <!-- Area cards -->
     <div id="unified-content"></div>
 
@@ -173,11 +144,35 @@
   <script>
     let filtersData = null;
     let sortOrder = 'custom';
-    let selectedPaint = 'Standard';
     let selectedZone = 'All';
     let selectedAreaFilter = 'All';
     let expandedAreas = {};
     let debounceTimers = {};
+
+    const LUMEN_STEPS = [
+      { label: "Severely underlit",  intensity: 0.50 },
+      { label: "Very underlit",      intensity: 0.60 },
+      { label: "Underlit",           intensity: 0.75 },
+      { label: "Slightly underlit",  intensity: 0.90 },
+      { label: "Properly lit",       intensity: 1.00 },
+      { label: "Slightly overlit",   intensity: 1.15 },
+      { label: "Overlit",            intensity: 1.35 },
+      { label: "Very overlit",       intensity: 1.60 },
+      { label: "Brightly overlit",   intensity: 1.80 },
+      { label: "Severely overlit",   intensity: 2.00 },
+    ];
+    const SOLAR_STEPS = [
+      { label: "None",           exposure: 0.00 },
+      { label: "Minimal",        exposure: 0.10 },
+      { label: "Low",            exposure: 0.20 },
+      { label: "Slight",         exposure: 0.35 },
+      { label: "Moderate",       exposure: 0.50 },
+      { label: "Significant",    exposure: 0.65 },
+      { label: "High",           exposure: 0.80 },
+      { label: "Very high",      exposure: 0.90 },
+      { label: "Maximum",        exposure: 0.95 },
+      { label: "Full",           exposure: 1.00 },
+    ];
 
     // ---- Data loading ----
     async function loadFiltersData() {
@@ -204,12 +199,7 @@
     function render() {
       if (!filtersData) return;
       renderFilters();
-      renderPaintToolbar();
       renderUnified();
-    }
-
-    function getPillClass(filterName) {
-      return filterName === 'Standard' ? 'pill-Standard' : 'pill-assigned';
     }
 
     // ---- Filters row (GloZone + Area) ----
@@ -311,30 +301,6 @@
       return areas;
     }
 
-    // ---- Paint toolbar ----
-    function renderPaintToolbar() {
-      if (!filtersData) return;
-      const toolbar = document.getElementById('paint-toolbar');
-      toolbar.innerHTML = '';
-      for (const name of Object.keys(filtersData.presets)) {
-        const btn = document.createElement('button');
-        btn.className = 'paint-btn' + (name === selectedPaint ? ' active' : '');
-        btn.textContent = name;
-        btn.onclick = () => {
-          selectedPaint = name;
-          toolbar.querySelectorAll('.paint-btn').forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
-        };
-        toolbar.appendChild(btn);
-      }
-      // Suggest button
-      const suggestBtn = document.createElement('button');
-      suggestBtn.className = 'suggest-btn';
-      suggestBtn.textContent = 'Suggest';
-      suggestBtn.onclick = runSuggestions;
-      toolbar.appendChild(suggestBtn);
-    }
-
     // ---- Unified rendering ----
     function renderUnified() {
       if (!filtersData) return;
@@ -378,9 +344,11 @@
       const atBright = preset.at_bright ?? 100;
       const atDim = preset.at_dim ?? 100;
       const offThresh = preset.off_threshold ?? 0;
-      let meta = atBright + '&#8593; ' + atDim + '&#8595;';
-      if (offThresh > 0) meta += ' off&lt;' + offThresh;
-      return meta;
+      let parts = [];
+      parts.push('at dim ' + atDim + '%');
+      parts.push('at bright ' + atBright + '%');
+      if (offThresh > 0) parts.push('off &lt;' + offThresh);
+      return parts.join(' &middot; ');
     }
 
     function createAreaCard(area) {
@@ -388,10 +356,26 @@
       card.className = 'area-card';
 
       const factor = area.brightness_factor ?? 1.0;
-      const exposure = area.natural_light_exposure ?? 0.0;
-      const sunDisplay = Math.round((1.0 - exposure) * 100);
+      const storedExposure = area.natural_light_exposure ?? 0.0;
       const isExpanded = expandedAreas[area.id] === true;
       const lights = (filtersData.area_lights || {})[area.id] || [];
+
+      // Find closest lumen step
+      const currentIntensity = 1 / factor;
+      let lumenStep = 4;
+      let closestDist = Infinity;
+      for (let i = 0; i < LUMEN_STEPS.length; i++) {
+        const dist = Math.abs(LUMEN_STEPS[i].intensity - currentIntensity);
+        if (dist < closestDist) { closestDist = dist; lumenStep = i; }
+      }
+
+      // Find closest solar step
+      let solarStep = 0;
+      closestDist = Infinity;
+      for (let i = 0; i < SOLAR_STEPS.length; i++) {
+        const dist = Math.abs(SOLAR_STEPS[i].exposure - storedExposure);
+        if (dist < closestDist) { closestDist = dist; solarStep = i; }
+      }
 
       // Header
       const header = document.createElement('div');
@@ -403,55 +387,51 @@
         </div>
         <div class="area-sliders">
           <div class="slider-group">
-            <span class="slider-label" data-reset="light">Light</span>
-            <input type="range" class="brightness-slider" min="50" max="200" step="5" value="${Math.round(factor * 100)}">
-            <span class="slider-val ${factor < 1 ? 'below-1' : factor > 1 ? 'above-1' : ''}">${factor.toFixed(2)}</span>
+            <span class="slider-label" data-reset="lumen">Lumen</span>
+            <input type="range" class="lumen-slider" min="0" max="9" step="1" value="${lumenStep}">
+            <span class="slider-word">${LUMEN_STEPS[lumenStep].label}</span>
           </div>
           <div class="slider-group">
-            <span class="slider-label" data-reset="sun">Sun</span>
-            <input type="range" class="sun-slider" min="0" max="100" step="5" value="${sunDisplay}">
-            <span class="slider-val ${sunDisplay < 100 ? 'sun-active' : ''}">${sunDisplay}%</span>
+            <span class="slider-label" data-reset="solar">Solar</span>
+            <input type="range" class="solar-slider" min="0" max="9" step="1" value="${solarStep}">
+            <span class="slider-word">${SOLAR_STEPS[solarStep].label}</span>
           </div>
         </div>
       `;
 
       // Slider event handlers
-      const briSlider = header.querySelector('.brightness-slider');
-      const briVal = header.querySelector('.slider-val');
-      briSlider.addEventListener('input', () => {
-        const val = parseInt(briSlider.value) / 100;
-        briVal.textContent = val.toFixed(2);
-        briVal.className = 'slider-val' + (val < 1 ? ' below-1' : val > 1 ? ' above-1' : '');
+      const lumenSlider = header.querySelector('.lumen-slider');
+      const lumenWord = header.querySelector('.slider-word');
+      lumenSlider.addEventListener('input', () => {
+        const step = parseInt(lumenSlider.value);
+        lumenWord.textContent = LUMEN_STEPS[step].label;
       });
-      briSlider.addEventListener('change', () => {
-        const val = parseInt(briSlider.value) / 100;
-        saveAreaBrightness(area.id, { brightness_factor: val });
+      lumenSlider.addEventListener('change', () => {
+        const step = parseInt(lumenSlider.value);
+        const newFactor = 1 / LUMEN_STEPS[step].intensity;
+        saveAreaBrightness(area.id, { brightness_factor: newFactor });
       });
 
-      const sunSlider = header.querySelector('.sun-slider');
-      const sunVal = header.querySelectorAll('.slider-val')[1];
-      sunSlider.addEventListener('input', () => {
-        const display = parseInt(sunSlider.value);
-        sunVal.textContent = display + '%';
-        sunVal.className = 'slider-val' + (display < 100 ? ' sun-active' : '');
+      const solarSlider = header.querySelector('.solar-slider');
+      const solarWord = header.querySelectorAll('.slider-word')[1];
+      solarSlider.addEventListener('input', () => {
+        const step = parseInt(solarSlider.value);
+        solarWord.textContent = SOLAR_STEPS[step].label;
       });
-      sunSlider.addEventListener('change', () => {
-        const display = parseInt(sunSlider.value);
-        const exp = 1.0 - (display / 100);
-        saveAreaBrightness(area.id, { natural_light_exposure: exp });
+      solarSlider.addEventListener('change', () => {
+        const step = parseInt(solarSlider.value);
+        saveAreaBrightness(area.id, { natural_light_exposure: SOLAR_STEPS[step].exposure });
       });
 
       // Label click resets to default
-      header.querySelector('[data-reset="light"]').addEventListener('click', () => {
-        briSlider.value = 100;
-        briVal.textContent = '1.00';
-        briVal.className = 'slider-val';
+      header.querySelector('[data-reset="lumen"]').addEventListener('click', () => {
+        lumenSlider.value = 4;
+        lumenWord.textContent = LUMEN_STEPS[4].label;
         saveAreaBrightness(area.id, { brightness_factor: 1.0 });
       });
-      header.querySelector('[data-reset="sun"]').addEventListener('click', () => {
-        sunSlider.value = 100;
-        sunVal.textContent = '100%';
-        sunVal.className = 'slider-val';
+      header.querySelector('[data-reset="solar"]').addEventListener('click', () => {
+        solarSlider.value = 0;
+        solarWord.textContent = SOLAR_STEPS[0].label;
         saveAreaBrightness(area.id, { natural_light_exposure: 0.0 });
       });
 
@@ -467,6 +447,7 @@
       });
 
       // Lights list (sorted alphabetically)
+      const presetNames = filtersData ? Object.keys(filtersData.presets) : ['Standard'];
       const sortedLights = [...lights].sort((a, b) => a.name.localeCompare(b.name));
       if (sortedLights.length === 0) {
         lightsContainer.innerHTML = '<div style="padding:8px 0;color:var(--muted2);font-size:0.85rem;">No lights found</div>';
@@ -475,24 +456,31 @@
           const currentFilter = (area.light_filters || {})[light.entity_id] || 'Standard';
           const lightRow = document.createElement('div');
           lightRow.className = 'light-row';
+
+          let selectHtml = '<select class="light-filter-select" data-entity="' + light.entity_id + '">';
+          for (const pName of presetNames) {
+            selectHtml += '<option value="' + pName + '"' + (pName === currentFilter ? ' selected' : '') + '>' + pName + '</option>';
+          }
+          selectHtml += '</select>';
+
           lightRow.innerHTML = `
             <span class="light-name">${light.name}</span>
             <span class="light-meta">${getPresetMeta(currentFilter)}</span>
-            <span class="filter-pill ${getPillClass(currentFilter)}">${currentFilter}</span>
+            ${selectHtml}
           `;
-          lightRow.onclick = () => {
-            saveLightFilter(area.id, light.entity_id, selectedPaint);
+
+          const select = lightRow.querySelector('.light-filter-select');
+          select.addEventListener('change', () => {
+            const newFilter = select.value;
+            saveLightFilter(area.id, light.entity_id, newFilter);
             if (!area.light_filters) area.light_filters = {};
-            if (selectedPaint === 'Standard') {
+            if (newFilter === 'Standard') {
               delete area.light_filters[light.entity_id];
             } else {
-              area.light_filters[light.entity_id] = selectedPaint;
+              area.light_filters[light.entity_id] = newFilter;
             }
-            const pill = lightRow.querySelector('.filter-pill');
-            pill.textContent = selectedPaint;
-            pill.className = 'filter-pill ' + getPillClass(selectedPaint);
-            lightRow.querySelector('.light-meta').innerHTML = getPresetMeta(selectedPaint);
-          };
+            lightRow.querySelector('.light-meta').innerHTML = getPresetMeta(newFilter);
+          });
           lightsContainer.appendChild(lightRow);
         }
       }
@@ -500,65 +488,6 @@
       card.appendChild(header);
       card.appendChild(lightsContainer);
       return card;
-    }
-
-    // ---- Suggestions ----
-    async function runSuggestions() {
-      const container = document.getElementById('suggest-container');
-      container.innerHTML = '<div style="padding:12px;color:var(--muted);">Scanning light names...</div>';
-      try {
-        const resp = await fetch('./api/light-filters/suggest', { method: 'POST' });
-        if (!resp.ok) { container.innerHTML = ''; return; }
-        const data = await resp.json();
-        const suggestions = data.suggestions || [];
-        if (suggestions.length === 0) {
-          container.innerHTML = '<div class="suggest-results"><div class="suggest-header">No suggestions</div></div>';
-          setTimeout(() => container.innerHTML = '', 3000);
-          return;
-        }
-        const el = document.createElement('div');
-        el.className = 'suggest-results';
-        el.innerHTML = `
-          <div class="suggest-header">
-            <span>${suggestions.length} suggestion${suggestions.length > 1 ? 's' : ''}</span>
-            <button class="suggest-reject" onclick="this.closest('.suggest-results').remove()">Dismiss all</button>
-          </div>
-        `;
-        for (const s of suggestions) {
-          const row = document.createElement('div');
-          row.className = 'suggest-row';
-          row.innerHTML = `
-            <span class="suggest-light-name">${s.name}</span>
-            <span class="suggest-change">${s.current_filter} &rarr; <strong>${s.suggested_filter}</strong></span>
-            <button class="suggest-accept">Accept</button>
-            <button class="suggest-reject">Skip</button>
-          `;
-          row.querySelector('.suggest-accept').onclick = async () => {
-            await saveLightFilter(s.area_id, s.entity_id, s.suggested_filter);
-            row.remove();
-            const zone = Object.values(filtersData.zones).find(z => z.areas.some(a => a.id === s.area_id));
-            if (zone) {
-              const area = zone.areas.find(a => a.id === s.area_id);
-              if (area) {
-                if (!area.light_filters) area.light_filters = {};
-                area.light_filters[s.entity_id] = s.suggested_filter;
-              }
-            }
-            renderUnified();
-            if (el.querySelectorAll('.suggest-row').length === 0) el.remove();
-          };
-          row.querySelector('.suggest-reject').onclick = () => {
-            row.remove();
-            if (el.querySelectorAll('.suggest-row').length === 0) el.remove();
-          };
-          el.appendChild(row);
-        }
-        container.innerHTML = '';
-        container.appendChild(el);
-      } catch (err) {
-        console.error('Error fetching suggestions:', err);
-        container.innerHTML = '';
-      }
     }
 
     // ---- API calls ----
