@@ -456,7 +456,9 @@ async def learn_baseline(ws_client) -> bool:
 
             try:
                 if isinstance(start_val, (int, float)):
-                    dt = datetime.fromtimestamp(start_val, tz=local_tz)
+                    # HA may return ms or s — normalize to seconds
+                    ts = start_val / 1000 if start_val > 1e12 else start_val
+                    dt = datetime.fromtimestamp(ts, tz=local_tz)
                 else:
                     dt = datetime.fromisoformat(start_val)
                     if dt.tzinfo is None:
