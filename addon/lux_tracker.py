@@ -509,7 +509,7 @@ async def learn_baseline(ws_client) -> bool:
         config = glozone.load_config_from_files()
         config["lux_learned_ceiling"] = _learned_ceiling
         config["lux_learned_floor"] = _learned_floor
-        glozone.save_config(config)
+        glozone.save_config()
 
         logger.info(
             f"Lux baselines learned from {len(daytime_means)} samples: "

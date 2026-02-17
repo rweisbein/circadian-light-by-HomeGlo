@@ -4895,7 +4895,7 @@ class LightDesignerServer:
                 config = glozone.load_config_from_files()
                 config['lux_learned_ceiling'] = ceiling_val
                 config['lux_learned_floor'] = floor_val
-                glozone.save_config(config)
+                glozone.save_config()
 
                 logger.info(
                     f"Baselines learned from {len(daytime_means)} samples: "
