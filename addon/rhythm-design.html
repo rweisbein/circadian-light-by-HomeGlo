@@ -1658,7 +1658,7 @@ function applySolarRuleAtHour(baseCCT, hour) {
   const elev = getSunElevationAtHour(hour, config.latitude, config.longitude, dateStr);
   const outdoorNorm = elevationToOutdoorNorm(elev, conditionMult);
   const daylightCct = config.daylight_cct || 0;
-  const colorSensitivity = config.color_sensitivity || 1.50;
+  const colorSensitivity = config.color_sensitivity ?? 1.50;
   if (daylightCct > 0 && outdoorNorm > 0) {
     const blend = Math.min(1.0, outdoorNorm * colorSensitivity);
     let daylightTarget = daylightCct;

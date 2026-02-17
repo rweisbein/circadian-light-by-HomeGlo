@@ -998,7 +998,7 @@
       const condMult = sunTimes.conditionMultiplier ?? 1.0;
       const outdoorNorm = clearSkyAtHour * condMult;
       const daylightCct = cfg.daylight_cct || 0;
-      const colorSensitivity = cfg.color_sensitivity || 1.50;
+      const colorSensitivity = cfg.color_sensitivity ?? 1.50;
       if (daylightCct > 0 && outdoorNorm > 0) {
         const blend = Math.min(1.0, outdoorNorm * colorSensitivity);
         let daylightTarget = daylightCct;
