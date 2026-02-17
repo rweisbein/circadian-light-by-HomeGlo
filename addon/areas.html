@@ -2013,7 +2013,7 @@
         return {
           ...area,
           is_on: status.is_on || false,
-          brightness: status.brightness || 0,
+          brightness: status.curve_brightness || status.brightness || 0,
           kelvin: status.kelvin || 4000,
           frozen: status.frozen || false,
           boosted: status.boosted || false,
