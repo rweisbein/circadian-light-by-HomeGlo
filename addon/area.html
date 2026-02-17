@@ -1651,7 +1651,7 @@
         ...area,
         area_id: areaId,
         is_on: status.is_on || false,
-        brightness: status.brightness || 0,
+        brightness: status.curve_brightness || status.brightness || 0,
         kelvin: status.kelvin || 4000,
         frozen: status.frozen || false,
         boosted: status.boosted || false,
@@ -1743,7 +1743,8 @@
               // Update tuneState with fresh server data
               if (tuneState.initialized) {
                 const ls = ls0;
-                tuneState.baseBri = (areaStatus[selectedArea.area_id] || {}).brightness || 50;
+                const _as = areaStatus[selectedArea.area_id] || {};
+                tuneState.baseBri = _as.curve_brightness || _as.brightness || 50;
                 tuneState.baseKelvin = ls.base_kelvin ?? ((areaStatus[selectedArea.area_id] || {}).kelvin || 4000);
                 tuneState.sunElev = ls.sun_elevation ?? 0;
                 tuneState.outdoorNormalized = ls.outdoor_normalized ?? ls.sun_factor ?? 0.0;
@@ -1801,7 +1802,7 @@
 
       Object.assign(selectedArea, {
         is_on: status.is_on || false,
-        brightness: status.brightness || 0,
+        brightness: status.curve_brightness || status.brightness || 0,
         kelvin: status.kelvin || 4000,
         frozen: status.frozen || false,
         boosted: status.boosted || false,
@@ -2605,7 +2606,7 @@
 
       const status = areaStatus[areaId] || {};
       const liveStatus = statusData[areaId] || {};
-      const baseBri = status.brightness || 50;
+      const baseBri = status.curve_brightness || status.brightness || 50;
       const kelvin = status.kelvin || 4000;
 
       // Rhythm min/max

@@ -2772,6 +2772,9 @@ class LightDesignerServer:
                     area_brightness_gain = rhythm_cfg.get("brightness_gain", 5.0)
                     nl_factor = calculate_natural_light_factor(area_nl_exposure, outdoor_norm, area_brightness_gain)
 
+                    # Keep curve brightness before NL reduction
+                    curve_brightness = brightness
+
                     # Apply natural light reduction to brightness (matches main.py)
                     if nl_factor < 1.0:
                         brightness = max(1, int(round(brightness * nl_factor)))
@@ -2800,6 +2803,7 @@ class LightDesignerServer:
                         'is_circadian': area_state.is_circadian,
                         'is_on': area_state.is_on,
                         'brightness': brightness,
+                        'curve_brightness': curve_brightness,
                         'kelvin': kelvin,
                         'frozen': area_state.frozen_at is not None,
                         'boosted': is_boosted,
