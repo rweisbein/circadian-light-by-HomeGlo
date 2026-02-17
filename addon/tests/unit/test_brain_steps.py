@@ -400,7 +400,7 @@ class TestColorStepWithSolarRules:
             max_color_temp=6500,
             max_dim_steps=10,
             daylight_cct=5500,
-            color_gain=5.0,
+            color_sensitivity=1.68,
         )
 
     @pytest.fixture
@@ -595,7 +595,7 @@ class TestSetPositionWithSolarRules:
             max_color_temp=6500,
             max_dim_steps=10,
             daylight_cct=5500,
-            color_gain=5.0,
+            color_sensitivity=1.68,
         )
 
     @pytest.fixture

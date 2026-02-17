@@ -64,9 +64,9 @@ DEFAULT_BED_SPEED = 6
 SPEED_TO_SLOPE = [0.0, 0.4, 0.6, 0.8, 1.0, 1.3, 1.7, 2.3, 3.0, 4.0, 5.5]
 
 # Natural light / outdoor intensity constants
-FULL_SUN_INTENSITY = 8.4  # log2(100000 / 300) — log2 ratio of direct sun to indoor reference
-DEFAULT_BRIGHTNESS_GAIN = 5.0
-DEFAULT_COLOR_GAIN = 5.0
+FULL_SUN_INTENSITY = 8.4  # log2(100000 / 300) — used for lux normalization
+DEFAULT_BRIGHTNESS_SENSITIVITY = 5.0
+DEFAULT_COLOR_SENSITIVITY = 1.50
 DEFAULT_DAYLIGHT_CCT = 5500
 
 
@@ -106,8 +106,8 @@ class Config:
     warm_night_fade: int = 60     # fade duration in minutes
 
     # Natural light / daylight color
-    brightness_gain: float = DEFAULT_BRIGHTNESS_GAIN
-    color_gain: float = DEFAULT_COLOR_GAIN
+    brightness_sensitivity: float = DEFAULT_BRIGHTNESS_SENSITIVITY
+    color_sensitivity: float = DEFAULT_COLOR_SENSITIVITY
     daylight_cct: int = DEFAULT_DAYLIGHT_CCT
 
     @classmethod
@@ -135,9 +135,16 @@ class Config:
             warm_night_start=d.get("warm_night_start", -60),
             warm_night_end=d.get("warm_night_end", 60),
             warm_night_fade=d.get("warm_night_fade", 60),
-            # Natural light / daylight color
-            brightness_gain=d.get("brightness_gain", DEFAULT_BRIGHTNESS_GAIN),
-            color_gain=d.get("color_gain", DEFAULT_COLOR_GAIN),
+            # Natural light / daylight color (with migration from old gain keys)
+            brightness_sensitivity=(
+                d["brightness_sensitivity"] if "brightness_sensitivity" in d
+                else d.get("brightness_gain", DEFAULT_BRIGHTNESS_SENSITIVITY)
+            ),
+            color_sensitivity=(
+                d["color_sensitivity"] if "color_sensitivity" in d
+                else FULL_SUN_INTENSITY / max(0.1, d["color_gain"]) if "color_gain" in d
+                else DEFAULT_COLOR_SENSITIVITY
+            ),
             daylight_cct=d.get("daylight_cct", DEFAULT_DAYLIGHT_CCT),
         )
 
@@ -261,18 +268,18 @@ def angle_to_estimated_lux(elevation_deg: float) -> float:
 def calculate_natural_light_factor(
     exposure: float,
     outdoor_normalized: float,
-    brightness_gain: float = DEFAULT_BRIGHTNESS_GAIN,
+    brightness_sensitivity: float = DEFAULT_BRIGHTNESS_SENSITIVITY,
 ) -> float:
     """Calculate the natural light reduction factor.
 
-    Uses log-scaled outdoor intensity and per-rhythm brightness_gain to determine
-    how much to reduce artificial brightness for areas with natural light.
+    Uses log-scaled outdoor intensity and per-rhythm brightness_sensitivity to
+    determine how much to reduce artificial brightness for areas with natural light.
 
     Args:
         exposure: Area's natural light exposure 0.0 (cave) to 1.0 (sunroom)
         outdoor_normalized: Outdoor intensity 0.0 (dark) to 1.0 (bright sun),
             from lux sensor or angle estimate.
-        brightness_gain: How aggressively to reduce brightness (default 5.0).
+        brightness_sensitivity: How aggressively to reduce brightness (default 5.0).
             Higher = more aggressive reduction.
 
     Returns:
@@ -281,7 +288,7 @@ def calculate_natural_light_factor(
     """
     if exposure <= 0.0 or outdoor_normalized <= 0.0:
         return 1.0
-    return max(0.0, 1.0 - exposure * outdoor_normalized * brightness_gain)
+    return max(0.0, 1.0 - exposure * outdoor_normalized * brightness_sensitivity)
 
 
 def calculate_curve_position(brightness: int, min_brightness: int, max_brightness: int) -> float:
@@ -686,11 +693,11 @@ class CircadianLight:
 
         night_effect = max(0, kelvin - warm_target) if night_strength > 0 else 0
 
-        # Daylight color blend (replaces cool_day)
+        # Daylight color blend (intensity-based)
         day_shift = 0
         if config.daylight_cct > 0 and sun_times.outdoor_normalized > 0:
             outdoor_norm = sun_times.outdoor_normalized
-            blend = min(1.0, outdoor_norm * FULL_SUN_INTENSITY / max(0.1, config.color_gain))
+            blend = min(1.0, outdoor_norm * config.color_sensitivity)
             daylight_target = config.daylight_cct
             if state.color_override and state.color_override < 0:
                 daylight_target += state.color_override
@@ -766,7 +773,7 @@ class CircadianLight:
         daylight_target = config.daylight_cct
         if config.daylight_cct > 0 and sun_times.outdoor_normalized > 0:
             outdoor_norm = sun_times.outdoor_normalized
-            blend = min(1.0, outdoor_norm * FULL_SUN_INTENSITY / max(0.1, config.color_gain))
+            blend = min(1.0, outdoor_norm * config.color_sensitivity)
             if state.color_override and state.color_override < 0:
                 daylight_target += state.color_override
             if daylight_target > base_kelvin:

@@ -1423,7 +1423,7 @@ class LightDesignerServer:
             'latitude', 'longitude',
             'warm_night_target', 'warm_night_fade',
             'warm_night_start', 'warm_night_end',
-            'brightness_gain', 'color_gain',
+            'brightness_sensitivity', 'color_sensitivity',
         ]
 
         # Integer parameters
@@ -1517,7 +1517,7 @@ class LightDesignerServer:
         "wake_speed", "bed_speed",
         "warm_night_enabled", "warm_night_mode", "warm_night_target",
         "warm_night_start", "warm_night_end", "warm_night_fade",
-        "daylight_cct", "color_gain", "brightness_gain",
+        "daylight_cct", "color_sensitivity", "brightness_sensitivity",
         "activity_preset", "max_dim_steps",
     }
 
@@ -1692,8 +1692,8 @@ class LightDesignerServer:
 
             # Daylight blend
             "daylight_cct": 5500,
-            "color_gain": 5.0,
-            "brightness_gain": 5.0,
+            "color_sensitivity": 1.50,
+            "brightness_sensitivity": 5.0,
 
             # Activity preset
             "activity_preset": "adult",
@@ -2771,8 +2771,8 @@ class LightDesignerServer:
                     # Natural light factor for this area
                     area_nl_exposure = glozone.get_area_natural_light_exposure(area_id)
                     rhythm_cfg = glozone.get_rhythm_config_for_area(area_id)
-                    area_brightness_gain = rhythm_cfg.get("brightness_gain", 5.0)
-                    nl_factor = calculate_natural_light_factor(area_nl_exposure, outdoor_norm, area_brightness_gain)
+                    area_brightness_sensitivity = rhythm_cfg.get("brightness_sensitivity", 5.0)
+                    nl_factor = calculate_natural_light_factor(area_nl_exposure, outdoor_norm, area_brightness_sensitivity)
 
                     # Keep curve brightness before NL reduction
                     curve_brightness = brightness
@@ -2840,7 +2840,7 @@ class LightDesignerServer:
                         ),
                         'outdoor_last_update': lux_tracker.get_last_outdoor_update(),
                         'sun_factor': round(outdoor_norm, 3),  # backward compat alias
-                        'brightness_gain': area_brightness_gain,
+                        'brightness_sensitivity': area_brightness_sensitivity,
                         'lux_smoothed': round(lux_smoothed, 1) if lux_smoothed is not None else None,
                         'lux_ceiling': round(lux_ceiling, 1) if lux_ceiling is not None else None,
                         'lux_floor': round(lux_floor, 1) if lux_floor is not None else None,
@@ -3234,8 +3234,8 @@ class LightDesignerServer:
                 "warm_night_end": 60,
                 "warm_night_fade": 60,
                 "daylight_cct": 5500,
-                "color_gain": 5.0,
-                "brightness_gain": 5.0,
+                "color_sensitivity": 1.50,
+                "brightness_sensitivity": 5.0,
             }
             config.setdefault("circadian_rhythms", {})[name] = {**defaults, **settings}
 

@@ -123,8 +123,8 @@ class TestAngleToEstimatedLux:
 class TestCalculateNaturalLightFactor:
     """Tests for calculate_natural_light_factor().
 
-    New signature: (exposure, outdoor_normalized, brightness_gain).
-    nl_factor = max(0, 1 - exposure * outdoor_normalized * brightness_gain)
+    Signature: (exposure, outdoor_normalized, brightness_sensitivity).
+    nl_factor = max(0, 1 - exposure * outdoor_normalized * brightness_sensitivity)
     """
 
     def test_no_exposure_returns_one(self):

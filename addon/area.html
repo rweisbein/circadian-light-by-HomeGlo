@@ -959,8 +959,6 @@
       const sunrise = sunTimes.sunrise;
       const sunset = sunTimes.sunset;
       const solarMid = sunTimes.solarMid;
-      const FULL_SUN_INTENSITY = 8.4;
-
       // Warm night — ceiling
       if (cfg.warm_night_enabled) {
         let warmTarget = cfg.warm_night_target;
@@ -1000,9 +998,9 @@
       const condMult = sunTimes.conditionMultiplier ?? 1.0;
       const outdoorNorm = clearSkyAtHour * condMult;
       const daylightCct = cfg.daylight_cct || 0;
-      const colorGain = cfg.color_gain || 5.0;
+      const colorSensitivity = cfg.color_sensitivity || 1.50;
       if (daylightCct > 0 && outdoorNorm > 0) {
-        const blend = Math.min(1.0, outdoorNorm * FULL_SUN_INTENSITY / Math.max(0.1, colorGain));
+        const blend = Math.min(1.0, outdoorNorm * colorSensitivity);
         let daylightTarget = daylightCct;
         if (colorOverride && colorOverride < 0) {
           daylightTarget += colorOverride;
@@ -1760,7 +1758,7 @@
                 tuneState.outdoorSource = ls.outdoor_source ?? 'none';
                 tuneState.outdoorSourceEntity = ls.outdoor_source_entity ?? null;
                 tuneState.outdoorLastUpdate = ls.outdoor_last_update ?? null;
-                tuneState.brightnessGain = ls.brightness_gain ?? 5.0;
+                tuneState.brightnessSensitivity = ls.brightness_sensitivity ?? 5.0;
                 tuneState.luxSmoothed = ls.lux_smoothed ?? null;
                 tuneState.luxCeiling = ls.lux_ceiling ?? null;
                 tuneState.luxFloor = ls.lux_floor ?? null;
@@ -2432,7 +2430,7 @@
       outdoorSourceEntity: null, outdoorLastUpdate: null,
       luxSmoothed: null, luxCeiling: null, luxFloor: null,
       ctEnabled: false, ctBegin: 1650, ctEnd: 2250, ctMax: 1.4,
-      brightnessGain: 5.0,
+      brightnessSensitivity: 5.0,
       solarBreakdown: null,
       areaFactor: 1.0,
       lumenStep: 4,
@@ -2518,7 +2516,7 @@
       const exposure = SOLAR_STEPS[ts.solarStep].exposure;
       let nlFactor = 1.0;
       if (exposure > 0 && ts.outdoorNormalized > 0) {
-        nlFactor = Math.max(0.0, 1.0 - exposure * ts.outdoorNormalized * ts.brightnessGain);
+        nlFactor = Math.max(0.0, 1.0 - exposure * ts.outdoorNormalized * ts.brightnessSensitivity);
       }
       const nlFactorPct = Math.round(nlFactor * 100);
       const beforeSolar = Math.round(running * 100);
@@ -2803,7 +2801,7 @@
         ctBegin: config.ct_comp_begin || 1650,
         ctEnd: config.ct_comp_end || 2250,
         ctMax: config.ct_comp_factor || 1.4,
-        brightnessGain: liveStatus.brightness_gain ?? 5.0,
+        brightnessSensitivity: liveStatus.brightness_sensitivity ?? 5.0,
         solarBreakdown: liveStatus.solar_breakdown ?? null,
         areaFactor: 1 / LUMEN_STEPS[lumenStep].intensity,
         lumenStep: lumenStep,

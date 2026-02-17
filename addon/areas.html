@@ -1145,11 +1145,10 @@
       }
 
       // Daylight color blend (intensity-based)
-      const FULL_SUN_INTENSITY = 8.4;
       const daylightCct = cfg.daylight_cct || 0;
-      const colorGain = cfg.color_gain || 5.0;
+      const colorSensitivity = cfg.color_sensitivity || 1.50;
       if (daylightCct > 0) {
-        const blend = Math.min(1.0, 1.0 * FULL_SUN_INTENSITY / Math.max(0.1, colorGain));
+        const blend = Math.min(1.0, 1.0 * colorSensitivity);
         let daylightTarget = daylightCct;
         if (colorOverride && colorOverride < 0) {
           daylightTarget += colorOverride;

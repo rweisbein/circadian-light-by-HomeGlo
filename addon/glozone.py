@@ -381,8 +381,8 @@ def get_rhythm_config(rhythm_name: str) -> Dict[str, Any]:
         "warm_night_start": -60,
         "warm_night_end": 60,
         "warm_night_fade": 60,
-        "brightness_gain": 5.0,
-        "color_gain": 5.0,
+        "brightness_sensitivity": 5.0,
+        "color_sensitivity": 1.50,
         "daylight_cct": 5500,
         "activity_preset": "adult",
         "max_dim_steps": 10,
@@ -597,7 +597,7 @@ RHYTHM_SETTINGS = {
     "wake_speed", "bed_speed",
     "warm_night_enabled", "warm_night_mode", "warm_night_target",
     "warm_night_start", "warm_night_end", "warm_night_fade",
-    "brightness_gain", "color_gain", "daylight_cct",
+    "brightness_sensitivity", "color_sensitivity", "daylight_cct",
     "activity_preset", "max_dim_steps",
 }
 
@@ -647,8 +647,8 @@ def _migrate_cool_day_to_natural_light(config: Dict[str, Any]) -> None:
             rhythm["daylight_cct"] = rhythm["cool_day_target"]
 
         # Set defaults for new keys if not present
-        rhythm.setdefault("brightness_gain", 5.0)
-        rhythm.setdefault("color_gain", 5.0)
+        rhythm.setdefault("brightness_sensitivity", 5.0)
+        rhythm.setdefault("color_sensitivity", 1.50)
 
         # Remove all cool_day keys
         for k in cool_day_keys:
@@ -658,6 +658,34 @@ def _migrate_cool_day_to_natural_light(config: Dict[str, Any]) -> None:
 
     # Also clean up top-level cool_day keys (from pre-GloZone flat config)
     for k in list(cool_day_keys):
+        config.pop(k, None)
+
+
+def _migrate_gain_to_sensitivity(config: Dict[str, Any]) -> None:
+    """Migrate brightness_gain/color_gain to brightness_sensitivity/color_sensitivity.
+
+    brightness_gain was already a direct multiplier, so the value transfers as-is.
+    color_gain used an inverted-divisor formula (higher = less effect), so the
+    conversion is: color_sensitivity = 8.4 / color_gain (8.4 = FULL_SUN_INTENSITY).
+
+    Mutates config in place. Safe to call multiple times (no-op if already migrated).
+    """
+    for rhythm in config.get("circadian_rhythms", {}).values():
+        # brightness_gain → brightness_sensitivity (same value, just rename)
+        if "brightness_gain" in rhythm and "brightness_sensitivity" not in rhythm:
+            rhythm["brightness_sensitivity"] = rhythm.pop("brightness_gain")
+        elif "brightness_gain" in rhythm:
+            rhythm.pop("brightness_gain")
+
+        # color_gain → color_sensitivity (invert formula: 8.4 / gain)
+        if "color_gain" in rhythm and "color_sensitivity" not in rhythm:
+            old_gain = max(0.1, rhythm.pop("color_gain"))
+            rhythm["color_sensitivity"] = round(8.4 / old_gain, 2)
+        elif "color_gain" in rhythm:
+            rhythm.pop("color_gain")
+
+    # Also clean up top-level gain keys (from pre-GloZone flat config)
+    for k in ("brightness_gain", "color_gain"):
         config.pop(k, None)
 
 
@@ -682,8 +710,11 @@ def _migrate_config(config: Dict[str, Any]) -> Dict[str, Any]:
         if "preset" in zone and "rhythm" not in zone:
             zone["rhythm"] = zone.pop("preset")
 
-    # Migrate cool_day → daylight_cct / brightness_gain / color_gain
+    # Migrate cool_day → daylight_cct / brightness_sensitivity / color_sensitivity
     _migrate_cool_day_to_natural_light(config)
+
+    # Migrate brightness_gain/color_gain → brightness_sensitivity/color_sensitivity
+    _migrate_gain_to_sensitivity(config)
 
     # Remove deprecated global setting
     config.pop("daylight_saturation_deg", None)

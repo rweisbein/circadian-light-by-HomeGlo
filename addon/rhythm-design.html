@@ -1381,14 +1381,14 @@ input[type=range]::-moz-range-thumb {
         </div>
         <div class="color-rule-stack-body" id="daylight-body">
           <div class="param-row">
-            <label>Color gain</label>
-            <input type="range" id="color-gain" min="1" max="10" step="0.5" value="5.0">
-            <span class="offset-text" id="color-gain-text">5.0</span>
+            <label>Color sensitivity</label>
+            <input type="range" id="color-sensitivity" min="0" max="9" step="1" value="6">
+            <span class="offset-text" id="color-sensitivity-text">Strong</span>
           </div>
           <div class="param-row">
-            <label>Brightness gain</label>
-            <input type="range" id="brightness-gain" min="1" max="10" step="0.5" value="5.0">
-            <span class="offset-text" id="brightness-gain-text">5.0</span>
+            <label>Brightness sensitivity</label>
+            <input type="range" id="brightness-sensitivity" min="0" max="9" step="1" value="9">
+            <span class="offset-text" id="brightness-sensitivity-text">Maximum</span>
           </div>
         </div>
       </div>
@@ -1434,6 +1434,28 @@ const ACTIVITY_PRESETS = {
   shiftlate: { wake_time: 22.0, bed_time: 14.0, ascend_start: 20.0, descend_start: 4.0, warm_night_enabled: false, daylight_cct: 5500 }
 };
 
+const SENSITIVITY_STEPS = [
+  { label: "None",        multiplier: 0.00 },
+  { label: "Minimal",     multiplier: 0.15 },
+  { label: "Low",         multiplier: 0.35 },
+  { label: "Slight",      multiplier: 0.55 },
+  { label: "Moderate",    multiplier: 0.80 },
+  { label: "Noticeable",  multiplier: 1.10 },
+  { label: "Strong",      multiplier: 1.50 },
+  { label: "High",        multiplier: 2.00 },
+  { label: "Very high",   multiplier: 3.00 },
+  { label: "Maximum",     multiplier: 5.00 },
+];
+
+function findClosestSensitivityStep(value) {
+  let closest = 0, minDist = Infinity;
+  for (let i = 0; i < SENSITIVITY_STEPS.length; i++) {
+    const dist = Math.abs(SENSITIVITY_STEPS[i].multiplier - value);
+    if (dist < minDist) { minDist = dist; closest = i; }
+  }
+  return closest;
+}
+
 // Simple mode - hides advanced chart elements
 let simpleMode = true;
 
@@ -1460,8 +1482,8 @@ let config = {
   warm_night_end: 60,     // minutes offset from sunrise (positive = after)
   warm_night_fade: 60,    // fade duration in minutes
   daylight_cct: 5500,
-  color_gain: 5.0,
-  brightness_gain: 5.0,
+  color_sensitivity: 1.50,
+  brightness_sensitivity: 5.0,
   activity_preset: 'adult',
   use_ha_location: true,
   latitude: 35.0,
@@ -1629,17 +1651,16 @@ function applySolarRuleAtHour(baseCCT, hour) {
     }
   }
 
-  // Daylight color blend (intensity-based, replaces cool_day)
+  // Daylight color blend (intensity-based)
   // Condition multiplier from dropdown modulates clear-sky lux at this hour's sun elevation
-  const FULL_SUN_INTENSITY = 8.4;
   const conditionMult = parseFloat(document.getElementById('modeled-conditions')?.value ?? '1.0');
   const dateStr = getSelectedDateISO();
   const elev = getSunElevationAtHour(hour, config.latitude, config.longitude, dateStr);
   const outdoorNorm = elevationToOutdoorNorm(elev, conditionMult);
   const daylightCct = config.daylight_cct || 0;
-  const colorGain = config.color_gain || 5.0;
+  const colorSensitivity = config.color_sensitivity || 1.50;
   if (daylightCct > 0 && outdoorNorm > 0) {
-    const blend = Math.min(1.0, outdoorNorm * FULL_SUN_INTENSITY / Math.max(0.1, colorGain));
+    const blend = Math.min(1.0, outdoorNorm * colorSensitivity);
     let daylightTarget = daylightCct;
     if (runtimeState.color_override && runtimeState.color_override < 0) {
       daylightTarget += runtimeState.color_override;
@@ -3170,8 +3191,8 @@ function syncConfigFromUI() {
   config.warm_night_fade = parseInt(document.getElementById('warm-night-fade')?.value || 60);
 
   config.daylight_cct = parseInt(document.getElementById('daylight-cct').value);
-  config.color_gain = parseFloat(document.getElementById('color-gain').value);
-  config.brightness_gain = parseFloat(document.getElementById('brightness-gain').value);
+  config.color_sensitivity = SENSITIVITY_STEPS[parseInt(document.getElementById('color-sensitivity').value)].multiplier;
+  config.brightness_sensitivity = SENSITIVITY_STEPS[parseInt(document.getElementById('brightness-sensitivity').value)].multiplier;
 
   resetRuntimeState();
   updateColorGradients();
@@ -3227,8 +3248,8 @@ function syncUIFromConfig() {
   if (warmFade) warmFade.value = config.warm_night_fade;
 
   document.getElementById('daylight-cct').value = config.daylight_cct;
-  document.getElementById('color-gain').value = config.color_gain;
-  document.getElementById('brightness-gain').value = config.brightness_gain;
+  document.getElementById('color-sensitivity').value = findClosestSensitivityStep(config.color_sensitivity);
+  document.getElementById('brightness-sensitivity').value = findClosestSensitivityStep(config.brightness_sensitivity);
 
   // Now update constraints (reads slider values, clamps to color range)
   updateSolarTargetSliderConstraints();
@@ -3275,8 +3296,8 @@ function updateOffsetDisplays() {
   updateDisplay('warm-night-start-text', formatOffset(config.warm_night_start, 'sunset'));
   updateDisplay('warm-night-end-text', formatOffset(config.warm_night_end, 'sunrise'));
   updateDisplay('warm-night-fade-text', fmtHrs(config.warm_night_fade));
-  updateDisplay('color-gain-text', (config.color_gain || 5.0).toFixed(1));
-  updateDisplay('brightness-gain-text', (config.brightness_gain || 5.0).toFixed(1));
+  updateDisplay('color-sensitivity-text', SENSITIVITY_STEPS[findClosestSensitivityStep(config.color_sensitivity)].label);
+  updateDisplay('brightness-sensitivity-text', SENSITIVITY_STEPS[findClosestSensitivityStep(config.brightness_sensitivity)].label);
 }
 
 // Sync color rule rows - toggle is-disabled based on checkbox + mode state
@@ -3458,8 +3479,8 @@ function setupEventListeners() {
     renderChart();
   });
 
-  // Daylight gain sliders
-  ['color-gain', 'brightness-gain'].forEach(id => {
+  // Daylight sensitivity sliders
+  ['color-sensitivity', 'brightness-sensitivity'].forEach(id => {
     const el = document.getElementById(id);
     if (el) {
       el.addEventListener('input', () => {
@@ -3852,7 +3873,7 @@ async function saveConfig() {
       'wake_speed', 'bed_speed',
       'warm_night_enabled', 'warm_night_mode', 'warm_night_target',
       'warm_night_start', 'warm_night_end', 'warm_night_fade',
-      'daylight_cct', 'color_gain', 'brightness_gain',
+      'daylight_cct', 'color_sensitivity', 'brightness_sensitivity',
       'activity_preset', 'max_dim_steps',
     ]);
     const rhythmSettings = {};
@@ -4864,8 +4885,8 @@ async function saveRhythmSettings() {
     warm_night_end: config.warm_night_end,
     warm_night_fade: config.warm_night_fade,
     daylight_cct: config.daylight_cct,
-    color_gain: config.color_gain,
-    brightness_gain: config.brightness_gain,
+    color_sensitivity: config.color_sensitivity,
+    brightness_sensitivity: config.brightness_sensitivity,
     activity_preset: config.activity_preset,
     max_dim_steps: config.max_dim_steps,
   };

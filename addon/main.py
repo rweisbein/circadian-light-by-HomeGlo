@@ -31,7 +31,6 @@ from brain import (
     apply_light_filter_pipeline,
     calculate_natural_light_factor,
     angle_to_estimated_lux,
-    FULL_SUN_INTENSITY,
     DEFAULT_MAX_DIM_STEPS,
     DEFAULT_MIN_BRIGHTNESS,
     DEFAULT_MAX_BRIGHTNESS,
@@ -2275,13 +2274,13 @@ class HomeAssistantWebSocketClient:
                 outdoor_norm = 0.0
 
             rhythm_cfg = glozone.get_rhythm_config_for_area(area_id)
-            brightness_gain = rhythm_cfg.get("brightness_gain", 5.0)
-            nl_factor = calculate_natural_light_factor(natural_exposure, outdoor_norm, brightness_gain)
+            brightness_sensitivity = rhythm_cfg.get("brightness_sensitivity", 5.0)
+            nl_factor = calculate_natural_light_factor(natural_exposure, outdoor_norm, brightness_sensitivity)
             if nl_factor < 1.0:
                 original_bri = brightness
                 brightness = max(1, int(round(brightness * nl_factor)))
                 if log_periodic and brightness != original_bri:
-                    logger.info(f"Natural light: {original_bri}% -> {brightness}% (exposure={natural_exposure}, outdoor_norm={outdoor_norm:.3f}, gain={brightness_gain})")
+                    logger.info(f"Natural light: {original_bri}% -> {brightness}% (exposure={natural_exposure}, outdoor_norm={outdoor_norm:.3f}, sensitivity={brightness_sensitivity})")
 
         # Check if light filters are active for this area
         area_filters = glozone.get_area_light_filters(area_id)

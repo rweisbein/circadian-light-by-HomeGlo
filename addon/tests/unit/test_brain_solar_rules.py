@@ -122,7 +122,7 @@ class TestDaylightColorBlend:
             min_color_temp=2700,
             max_color_temp=6500,
             daylight_cct=5500,
-            color_gain=5.0,
+            color_sensitivity=1.68,
         )
 
     def test_no_outdoor_light_no_blend(self, config):
@@ -249,7 +249,7 @@ class TestSolarRuleInteraction:
             warm_night_target=2700,
             warm_night_mode="all",
             daylight_cct=5500,
-            color_gain=5.0,
+            color_sensitivity=1.68,
             min_color_temp=2700,
             max_color_temp=6500
         )
@@ -287,7 +287,7 @@ class TestSunFactorModulation:
             min_color_temp=2700,
             max_color_temp=6500,
             daylight_cct=5500,
-            color_gain=5.0,
+            color_sensitivity=1.68,
         )
 
     def test_outdoor_zero_cancels_daylight_blend(self, config):
@@ -337,7 +337,7 @@ class TestSolarRuleBreakdown:
         """Breakdown should include daylight_blend, daylight_shift, daylight_cct."""
         config = Config(
             ascend_start=6.0, descend_start=18.0,
-            daylight_cct=5500, color_gain=5.0,
+            daylight_cct=5500, color_sensitivity=1.68,
             min_color_temp=2700, max_color_temp=6500,
         )
         state = AreaState()
