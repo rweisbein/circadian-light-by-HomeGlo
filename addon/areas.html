@@ -1095,11 +1095,11 @@
     }
     .tune-zone-ctrl { display: flex; align-items: center; gap: 6px; }
     .tune-zone-ctrl-label { font-size: 0.7rem; color: var(--muted2); text-transform: uppercase; white-space: nowrap; }
-    .tune-zone-ctrl-word { font-size: 0.8rem; color: var(--text); min-width: 5em; }
+    .tune-zone-ctrl-word { font-size: 0.8rem; color: var(--text); }
     .tune-zone-ctrl-val { font-size: 0.75rem; color: var(--text); }
     .tune-sensitivity-slider { width: 80px; accent-color: var(--accent); }
     .tune-fade-slider { width: 70px; accent-color: var(--accent); }
-    .tune-zone-rhythm-bri { margin-left: auto; font-size: 0.75rem; color: var(--muted2); white-space: nowrap; }
+    .tune-zone-base-bri { margin-left: auto; font-size: 0.85rem; color: var(--text); font-weight: 600; white-space: nowrap; }
 
     .tune-bri-preview {
       margin-left: auto;
@@ -1117,10 +1117,15 @@
 
     .tune-row-bottom {
       display: flex;
-      align-items: center;
+      flex-direction: column;
       padding: 2px 16px 8px;
-      gap: 12px;
-      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    .tune-slider-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
 
     .tune-slider-group {
@@ -1129,6 +1134,17 @@
       gap: 6px;
       flex: 1;
       min-width: 0;
+    }
+
+    .tune-zone-footer {
+      display: flex;
+      gap: 24px;
+      padding: 4px 16px 6px;
+      font-size: 0.65rem;
+      color: var(--muted2);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-top: 1px solid var(--line);
     }
 
     .tune-lumen-slider {
@@ -1191,7 +1207,7 @@
       .tune-sensitivity-slider { width: 60px; }
       .tune-fade-slider { width: 50px; }
       .tune-zone-ctrl-label { font-size: 0.6rem; }
-      .tune-zone-ctrl-word { font-size: 0.7rem; min-width: 4em; }
+      .tune-zone-ctrl-word { font-size: 0.7rem; }
       .tune-zone-ctrl-val { font-size: 0.65rem; }
       .tune-slider-val { font-size: 0.65rem; }
     }
@@ -2067,7 +2083,7 @@
     }
 
     function formatFactorMeta(factor) {
-      if (Math.abs(factor - 1.0) < 0.005) return '';
+      if (Math.abs(factor - 1.0) < 0.005) return '0%';
       const pct = Math.round(Math.abs(factor - 1.0) * 100);
       return factor > 1.0 ? ('\u2191' + pct + '%') : ('\u2193' + pct + '%');
     }
@@ -2297,7 +2313,14 @@
       const nowEl = tuneAreaEl.querySelector('.tune-bri-now');
       if (nowEl) nowEl.textContent = nowBri + '%';
       const peakEl = tuneAreaEl.querySelector('.tune-bri-peak');
-      if (peakEl) peakEl.textContent = exposure > 0 ? ('pk ' + peakBri + '%') : '';
+      if (peakEl) {
+        if (exposure > 0 && peakBri !== nowBri) {
+          peakEl.textContent = 'pk ' + peakBri + '%';
+          peakEl.style.display = '';
+        } else {
+          peakEl.style.display = 'none';
+        }
+      }
       // Update sun meta
       const sunMeta = tuneAreaEl.querySelector('.tune-sun-meta');
       if (sunMeta) sunMeta.textContent = formatSunMeta(exposure, sensitivity, outdoorNorm, daylightFade);
@@ -2828,23 +2851,27 @@
                   <a href="./area/${encodeURIComponent(area.area_id)}?from=tune" class="tune-area-name">${area.name}</a>
                   <span class="tune-bri-preview">
                     <span class="tune-bri-now">${nowBri}%</span>
-                    <span class="tune-bri-peak">${peakVisible ? 'pk ' + peakBri + '%' : ''}</span>
                   </span>
                 </div>
+                <div class="tune-bri-peak" style="text-align: right; padding: 0 16px; font-size: 0.75rem; color: var(--muted2);${peakVisible && peakBri !== nowBri ? '' : ' display: none;'}">${peakVisible && peakBri !== nowBri ? 'pk ' + peakBri + '%' : ''}</div>
                 <div class="tune-row-bottom">
-                  <div class="tune-slider-group">
-                    <input type="range" class="tune-lumen-slider" min="0" max="9" step="1" value="${lumenStep}" data-area-id="${area.area_id}">
-                    <span class="tune-slider-word tune-lumen-word">${LUMEN_STEPS[lumenStep].label}</span>
-                    <span class="tune-slider-val tune-lumen-val">${fmtVal(factor)}</span>
+                  <div class="tune-slider-row">
+                    <div class="tune-slider-group">
+                      <input type="range" class="tune-lumen-slider" min="0" max="9" step="1" value="${lumenStep}" data-area-id="${area.area_id}">
+                      <span class="tune-slider-word tune-lumen-word">${LUMEN_STEPS[lumenStep].label}</span>
+                      <span class="tune-slider-val tune-lumen-val">${fmtVal(factor)}</span>
+                    </div>
                     <span class="tune-slider-meta tune-factor-meta">${factorStr}</span>
                   </div>
-                  <div class="tune-slider-group">
-                    <input type="range" class="tune-solar-slider" min="0" max="9" step="1" value="${solarStep}" data-area-id="${area.area_id}">
-                    <span class="tune-slider-word tune-solar-word">${SOLAR_STEPS[solarStep].label}</span>
-                    <span class="tune-slider-val tune-solar-val">${fmtVal(exposure)}</span>
+                  <div class="tune-slider-row">
+                    <div class="tune-slider-group">
+                      <input type="range" class="tune-solar-slider" min="0" max="9" step="1" value="${solarStep}" data-area-id="${area.area_id}">
+                      <span class="tune-slider-word tune-solar-word">${SOLAR_STEPS[solarStep].label}</span>
+                      <span class="tune-slider-val tune-solar-val">${fmtVal(exposure)}</span>
+                    </div>
                     <span class="tune-slider-meta tune-sun-meta">${sunText}</span>
+                    ${filterBadge}
                   </div>
-                  ${filterBadge}
                 </div>
               </div>
             `;
@@ -2863,7 +2890,7 @@
                 <input type="range" class="tune-fade-slider" min="0" max="180" step="15" value="${daylightFade}">
                 <span class="tune-zone-ctrl-word tune-fade-word">${fmtFadeMinutes(daylightFade)}</span>
               </div>
-              <span class="tune-zone-rhythm-bri">Rhythm: ${rhythmBri}%</span>
+              <span class="tune-zone-base-bri">${rhythmBri}%</span>
             </div>
           `;
 
@@ -2878,6 +2905,7 @@
               <div class="zone-content ${isCollapsed ? 'hidden' : ''}" data-zone-table="${zoneName}">
                 ${areaRows}
               </div>
+              ${isCollapsed ? '' : '<div class="tune-zone-footer"><span>Fixture density</span><span>Sun exposure</span></div>'}
             </div>
           `;
         }
@@ -3474,23 +3502,23 @@
 
         if (e.target.classList.contains('tune-lumen-slider')) {
           const step = parseInt(e.target.value);
-          const group = e.target.closest('.tune-slider-group');
-          const word = group.querySelector('.tune-lumen-word');
+          const row = e.target.closest('.tune-slider-row');
+          const word = row.querySelector('.tune-lumen-word');
           if (word) word.textContent = LUMEN_STEPS[step].label;
           const newFactor = 1 / LUMEN_STEPS[step].intensity;
-          const valEl = group.querySelector('.tune-lumen-val');
+          const valEl = row.querySelector('.tune-lumen-val');
           if (valEl) valEl.textContent = fmtVal(newFactor);
-          const factorMeta = group.querySelector('.tune-factor-meta');
+          const factorMeta = row.querySelector('.tune-factor-meta');
           if (factorMeta) factorMeta.textContent = formatFactorMeta(newFactor);
           updateTuneNowPreview(tuneArea, { factor: newFactor });
         }
         if (e.target.classList.contains('tune-solar-slider')) {
           const step = parseInt(e.target.value);
-          const group = e.target.closest('.tune-slider-group');
-          const word = group.querySelector('.tune-solar-word');
+          const row = e.target.closest('.tune-slider-row');
+          const word = row.querySelector('.tune-solar-word');
           if (word) word.textContent = SOLAR_STEPS[step].label;
           const newExposure = SOLAR_STEPS[step].exposure;
-          const valEl = group.querySelector('.tune-solar-val');
+          const valEl = row.querySelector('.tune-solar-val');
           if (valEl) valEl.textContent = fmtVal(newExposure);
           updateTuneNowPreview(tuneArea, { exposure: newExposure });
         }
