@@ -977,12 +977,8 @@
       gap: 12px;
     }
 
-    .tune-headings-spacer {
+    .tune-heading-col {
       flex: 1;
-      min-width: 0;
-    }
-
-    .tune-heading-label {
       font-size: 0.7rem;
       text-transform: uppercase;
       letter-spacing: 0.3px;
@@ -990,29 +986,27 @@
       white-space: nowrap;
     }
 
-    .tune-heading-solar {
-      margin-left: 8px;
-    }
-
     .tune-zone-header {
       background: var(--panel);
     }
 
-    .tune-row {
-      display: flex;
-      align-items: center;
-      padding: 8px 16px;
-      gap: 12px;
+    .tune-area {
       background: var(--card);
       border-bottom: 1px solid var(--line);
     }
 
-    .tune-row:last-child {
+    .tune-area:last-child {
       border-bottom: none;
     }
 
+    .tune-row-top {
+      display: flex;
+      align-items: center;
+      padding: 8px 16px 2px;
+      gap: 8px;
+    }
+
     .tune-area-name {
-      flex: 1;
       font-size: 0.9rem;
       color: var(--text);
       text-decoration: none;
@@ -1026,32 +1020,53 @@
       color: var(--accent);
     }
 
+    .tune-bri-preview {
+      margin-left: auto;
+      font-size: 0.8rem;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .tune-bri-arrow { color: var(--muted2); margin: 0 2px; }
+    .tune-bri-now { color: var(--text); font-weight: 600; }
+
+    .tune-row-bottom {
+      display: flex;
+      align-items: center;
+      padding: 2px 16px 8px;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
     .tune-slider-group {
       display: flex;
       align-items: center;
       gap: 6px;
-      flex-shrink: 0;
-    }
-
-    .tune-slider-group + .tune-slider-group {
-      margin-left: 8px;
+      flex: 1;
+      min-width: 0;
     }
 
     .tune-lumen-slider {
       width: 100px;
       accent-color: var(--accent);
+      flex-shrink: 0;
     }
 
     .tune-solar-slider {
       width: 80px;
       accent-color: #fbbf24;
+      flex-shrink: 0;
     }
 
     .tune-slider-word {
-      min-width: 8em;
-      text-align: left;
       font-size: 0.8rem;
       color: var(--text);
+      white-space: nowrap;
+    }
+
+    .tune-slider-meta {
+      font-size: 0.7rem;
+      color: var(--muted2);
       white-space: nowrap;
     }
 
@@ -1079,8 +1094,9 @@
     @media (max-width: 600px) {
       .tune-lumen-slider { width: 70px; }
       .tune-solar-slider { width: 60px; }
-      .tune-slider-word { min-width: 5em; font-size: 0.7rem; }
-      .tune-heading-label { font-size: 0.6rem; }
+      .tune-slider-word { font-size: 0.7rem; }
+      .tune-heading-col { font-size: 0.6rem; }
+      .tune-slider-meta { font-size: 0.65rem; }
     }
   </style>
   <script src="./shared.js"></script>
@@ -1919,6 +1935,48 @@
       return null;
     }
 
+    function getTuneZoneConfig(zoneName) {
+      return tuneData?.zones?.[zoneName] || {};
+    }
+
+    function computeDaylightFadeWeight(hour, sunrise, sunset, daylightFade) {
+      if (daylightFade <= 0) return 1.0;
+      const fadeHrs = daylightFade / 60;
+      const h = hour % 24;
+      const distAfterSunrise = ((h - sunrise) % 24 + 24) % 24;
+      const distBeforeSunset = ((sunset - h) % 24 + 24) % 24;
+      let weight = 1.0;
+      if (distAfterSunrise < fadeHrs) weight = Math.min(weight, distAfterSunrise / fadeHrs);
+      if (distBeforeSunset < fadeHrs) weight = Math.min(weight, distBeforeSunset / fadeHrs);
+      return weight;
+    }
+
+    function computeNowBrightness(rhythmBri, factor, exposure, outdoorNorm, sensitivity, daylightFade) {
+      let adjustedOutdoor = outdoorNorm;
+      if (daylightFade > 0 && adjustedOutdoor > 0 && cachedSunTimes) {
+        const now = new Date();
+        const h = now.getHours() + now.getMinutes() / 60;
+        adjustedOutdoor *= computeDaylightFadeWeight(h, cachedSunTimes.sunrise, cachedSunTimes.sunset, daylightFade);
+      }
+      const nlFactor = (exposure <= 0 || adjustedOutdoor <= 0) ? 1.0 : Math.max(0, 1 - exposure * adjustedOutdoor * sensitivity);
+      return Math.min(100, Math.round(rhythmBri * nlFactor * factor));
+    }
+
+    function updateTuneNowPreview(tuneAreaEl, overrides) {
+      const rhythmBri = parseFloat(tuneAreaEl.dataset.rhythmBri) || 50;
+      const sensitivity = parseFloat(tuneAreaEl.dataset.sensitivity) || 5.0;
+      const daylightFade = parseFloat(tuneAreaEl.dataset.daylightFade) || 60;
+      const outdoorNorm = parseFloat(tuneAreaEl.dataset.outdoorNorm) || 0.0;
+      // Read current slider values
+      const lumenSlider = tuneAreaEl.querySelector('.tune-lumen-slider');
+      const solarSlider = tuneAreaEl.querySelector('.tune-solar-slider');
+      const factor = overrides?.factor ?? (1 / LUMEN_STEPS[parseInt(lumenSlider.value)].intensity);
+      const exposure = overrides?.exposure ?? SOLAR_STEPS[parseInt(solarSlider.value)].exposure;
+      const nowBri = computeNowBrightness(rhythmBri, factor, exposure, outdoorNorm, sensitivity, daylightFade);
+      const nowEl = tuneAreaEl.querySelector('.tune-bri-now');
+      if (nowEl) nowEl.textContent = nowBri + '%';
+    }
+
     async function moveZone(zoneName, direction) {
       if (!cachedGlozones || !cachedGlozones.zones) return;
       const zoneNames = Object.keys(cachedGlozones.zones);
@@ -2364,15 +2422,8 @@
             </div>
           </div>
           <div class="tune-headings">
-            <span class="tune-headings-spacer"></span>
-            <div class="tune-slider-group">
-              <span class="tune-heading-label" style="width: 100px;">Lumen intensity</span>
-              <span class="tune-slider-word" style="visibility: hidden;"></span>
-            </div>
-            <div class="tune-slider-group">
-              <span class="tune-heading-label" style="width: 80px;">Solar exposure</span>
-              <span class="tune-slider-word" style="visibility: hidden;"></span>
-            </div>
+            <div class="tune-heading-col">Fixture density</div>
+            <div class="tune-heading-col">Sun exposure</div>
           </div>
         `;
       } else {
@@ -2405,23 +2456,46 @@
         const escapedZoneName = zoneName.replace(/'/g, "\\'");
 
         if (currentMode === 'tune') {
-          // Tune mode: simplified zone header + slider rows
+          // Tune mode: 2-row layout with brightness previews
+          const zoneConfig = getTuneZoneConfig(zoneName);
+          const rhythmName = zoneConfig.rhythm;
+          const sensitivity = zoneConfig.brightness_sensitivity ?? 5.0;
+          const daylightFade = zoneConfig.daylight_fade ?? 60;
+          const outdoorNorm = tuneData?.outdoor_normalized ?? 0.0;
+          const rhythmValues = getPureRhythmValues(rhythmName);
+          const rhythmBri = Math.round(rhythmValues?.brightness ?? 50);
+
           const areaRows = sorted.map(area => {
             const tuneArea = getTuneArea(area.area_id);
             const factor = tuneArea?.brightness_factor ?? 1.0;
             const exposure = tuneArea?.natural_light_exposure ?? 0.0;
             const lumenStep = findClosestStep(LUMEN_STEPS, 'intensity', 1 / factor);
             const solarStep = findClosestStep(SOLAR_STEPS, 'exposure', exposure);
+            const nowBri = computeNowBrightness(rhythmBri, factor, exposure, outdoorNorm, sensitivity, daylightFade);
+            const factorStr = '\u00d7' + factor.toFixed(2);
+            const peakReduction = Math.min(100, Math.round(exposure * sensitivity * 100));
+            const peakText = exposure > 0 ? ('peak \u2212' + peakReduction + '%') : '';
             return `
-              <div class="tune-row" data-area-id="${area.area_id}">
-                <a href="./area/${encodeURIComponent(area.area_id)}?from=tune" class="tune-area-name">${area.name}</a>
-                <div class="tune-slider-group">
-                  <input type="range" class="tune-lumen-slider" min="0" max="9" step="1" value="${lumenStep}" data-area-id="${area.area_id}">
-                  <span class="tune-slider-word tune-lumen-word">${LUMEN_STEPS[lumenStep].label}</span>
+              <div class="tune-area" data-area-id="${area.area_id}" data-rhythm-bri="${rhythmBri}" data-sensitivity="${sensitivity}" data-daylight-fade="${daylightFade}" data-outdoor-norm="${outdoorNorm}">
+                <div class="tune-row-top">
+                  <a href="./area/${encodeURIComponent(area.area_id)}?from=tune" class="tune-area-name">${area.name}</a>
+                  <span class="tune-bri-preview">
+                    <span class="tune-bri-rhythm">${rhythmBri}%</span>
+                    <span class="tune-bri-arrow">\u2192</span>
+                    <span class="tune-bri-now">${nowBri}%</span>
+                  </span>
                 </div>
-                <div class="tune-slider-group">
-                  <input type="range" class="tune-solar-slider" min="0" max="9" step="1" value="${solarStep}" data-area-id="${area.area_id}">
-                  <span class="tune-slider-word tune-solar-word">${SOLAR_STEPS[solarStep].label}</span>
+                <div class="tune-row-bottom">
+                  <div class="tune-slider-group">
+                    <input type="range" class="tune-lumen-slider" min="0" max="9" step="1" value="${lumenStep}" data-area-id="${area.area_id}">
+                    <span class="tune-slider-word tune-lumen-word">${LUMEN_STEPS[lumenStep].label}</span>
+                    <span class="tune-slider-meta tune-factor-meta">${factorStr}</span>
+                  </div>
+                  <div class="tune-slider-group">
+                    <input type="range" class="tune-solar-slider" min="0" max="9" step="1" value="${solarStep}" data-area-id="${area.area_id}">
+                    <span class="tune-slider-word tune-solar-word">${SOLAR_STEPS[solarStep].label}</span>
+                    <span class="tune-slider-meta tune-peak-meta">${peakText}</span>
+                  </div>
                 </div>
               </div>
             `;
@@ -2912,15 +2986,32 @@
 
       // Tune mode slider events (delegated)
       document.getElementById('areas-container').addEventListener('input', (e) => {
+        const tuneArea = e.target.closest('.tune-area');
+        if (!tuneArea) return;
+
         if (e.target.classList.contains('tune-lumen-slider')) {
           const step = parseInt(e.target.value);
           const word = e.target.closest('.tune-slider-group').querySelector('.tune-lumen-word');
           if (word) word.textContent = LUMEN_STEPS[step].label;
+          const newFactor = 1 / LUMEN_STEPS[step].intensity;
+          const factorMeta = e.target.closest('.tune-slider-group').querySelector('.tune-factor-meta');
+          if (factorMeta) factorMeta.textContent = '\u00d7' + newFactor.toFixed(2);
+          // Update Now brightness
+          updateTuneNowPreview(tuneArea, { factor: newFactor });
         }
         if (e.target.classList.contains('tune-solar-slider')) {
           const step = parseInt(e.target.value);
           const word = e.target.closest('.tune-slider-group').querySelector('.tune-solar-word');
           if (word) word.textContent = SOLAR_STEPS[step].label;
+          const newExposure = SOLAR_STEPS[step].exposure;
+          const sensitivity = parseFloat(tuneArea.dataset.sensitivity) || 5.0;
+          const peakMeta = tuneArea.querySelector('.tune-peak-meta');
+          if (peakMeta) {
+            const peakReduction = Math.min(100, Math.round(newExposure * sensitivity * 100));
+            peakMeta.textContent = newExposure > 0 ? ('peak \u2212' + peakReduction + '%') : '';
+          }
+          // Update Now brightness
+          updateTuneNowPreview(tuneArea, { exposure: newExposure });
         }
       });
       document.getElementById('areas-container').addEventListener('change', (e) => {

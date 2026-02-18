@@ -706,8 +706,12 @@ class LightDesignerServer:
                         "natural_light_exposure": glozone.get_area_natural_light_exposure(area_id),
                         "light_filters": glozone.get_area_light_filters(area_id),
                     })
+                rhythm_name = zone_config.get("rhythm")
+                rhythm_cfg = glozone.get_rhythm_config(rhythm_name) if rhythm_name else {}
                 zones[zone_name] = {
-                    "rhythm": zone_config.get("rhythm"),
+                    "rhythm": rhythm_name,
+                    "brightness_sensitivity": rhythm_cfg.get("brightness_sensitivity", 5.0),
+                    "daylight_fade": rhythm_cfg.get("daylight_fade", 60),
                     "areas": zone_areas,
                 }
 
@@ -782,6 +786,7 @@ class LightDesignerServer:
                         logger.warning(f"Could not fetch lights for filters page: {e}")
 
             return web.json_response({
+                "outdoor_normalized": lux_tracker.get_outdoor_normalized() or 0.0,
                 "zones": zones,
                 "presets": presets,
                 "off_threshold": off_threshold,
