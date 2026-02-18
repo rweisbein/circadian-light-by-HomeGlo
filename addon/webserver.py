@@ -3732,15 +3732,21 @@ class LightDesignerServer:
                 aid = area.get("id") if isinstance(area, dict) else area
                 area_lookup[aid] = area
 
-            # Validate all IDs exist in this zone
-            if set(area_ids) != set(area_lookup.keys()):
+            # Validate submitted IDs exist in this zone
+            unknown = set(area_ids) - set(area_lookup.keys())
+            if unknown:
                 return web.json_response(
-                    {"error": "area_ids must contain exactly the areas in this zone"},
+                    {"error": f"Unknown area IDs: {unknown}"},
                     status=400
                 )
 
-            # Rebuild areas list in new order
-            zones[name]["areas"] = [area_lookup[aid] for aid in area_ids]
+            # Rebuild areas list in new order, keeping orphan areas at end
+            submitted = set(area_ids)
+            orphans = [area_lookup[aid] for aid in area_lookup if aid not in submitted]
+            if orphans:
+                orphan_ids = [a.get("id") if isinstance(a, dict) else a for a in orphans]
+                logger.info(f"Zone '{name}' has {len(orphans)} areas not in HA, keeping at end: {orphan_ids}")
+            zones[name]["areas"] = [area_lookup[aid] for aid in area_ids] + orphans
 
             await self.save_config_to_file(config)
             glozone.set_config(config)

@@ -1014,11 +1014,11 @@
 
     .tune-zone-header .tune-zone-controls {
       width: 100%;
-      padding: 4px 0 0 26px;
+      padding: 4px 16px 0;
       background: none;
       border-bottom: none;
       flex-direction: column;
-      align-items: flex-start;
+      align-items: flex-end;
       gap: 4px;
     }
 
@@ -1118,7 +1118,7 @@
       flex: 1; display: flex; align-items: center; gap: 4px; min-width: 0;
     }
     .tune-fixture-col input[type="range"], .tune-sun-col input[type="range"] {
-      flex: 1; min-width: 40px; accent-color: var(--accent);
+      flex: 1; min-width: 40px; max-width: 120px; accent-color: var(--accent);
     }
     .tune-sun-col input[type="range"] { accent-color: #fbbf24; }
     .tune-bri-col {
@@ -1976,6 +1976,15 @@
       return h12 + ':' + String(m).padStart(2, '0') + ampm;
     }
 
+    function fmtFadeRange(sunrise, sunset, fadeMinutes) {
+      if (fadeMinutes <= 0) {
+        return fmtSunTime(sunrise) + '\u2191 ' + fmtSunTime(sunset) + '\u2193';
+      }
+      const fadeHrs = fadeMinutes / 60;
+      return fmtSunTime(sunrise) + '\u2013' + fmtSunTime(sunrise + fadeHrs) + '\u2191 '
+        + fmtSunTime(sunset - fadeHrs) + '\u2013' + fmtSunTime(sunset) + '\u2193';
+    }
+
     function findClosestSensitivityStep(value) {
       return findClosestStep(SENSITIVITY_STEPS, 'multiplier', value);
     }
@@ -2068,18 +2077,15 @@
     }
 
     function formatSunMeta(exposure, sensitivity, outdoorNorm, daylightFade) {
-      if (exposure <= 0) return { now: '', peak: '' };
       let adjustedOutdoor = outdoorNorm;
       if (daylightFade > 0 && adjustedOutdoor > 0 && cachedSunTimes) {
         const now = new Date();
         const h = now.getHours() + now.getMinutes() / 60;
         adjustedOutdoor *= computeDaylightFadeWeight(h, cachedSunTimes.sunrise, cachedSunTimes.sunset, daylightFade);
       }
-      const currentPct = (adjustedOutdoor > 0) ? Math.min(100, Math.round(exposure * adjustedOutdoor * sensitivity * 100)) : 0;
+      const currentPct = Math.min(100, Math.round(exposure * adjustedOutdoor * sensitivity * 100));
       const peakPct = Math.min(100, Math.round(exposure * sensitivity * 100));
-      const nowStr = currentPct > 0 ? '\u2193' + currentPct + '%' : '';
-      const peakStr = peakPct > currentPct ? 'pk\u2193' + peakPct + '%' : '';
-      return { now: nowStr, peak: peakStr };
+      return { now: '\u2193' + currentPct + '%', peak: 'pk\u2193' + peakPct + '%' };
     }
 
     function computeAreaFilterMult(areaId, zoneName) {
@@ -2119,9 +2125,6 @@
           detail = 'override \u00b7 ' + d.override.condition.replace(/_/g, ' ') + ' \u00b7 ' + Math.round(d.override.expires_in_minutes) + 'min';
         } else if (d.source === 'lux' && d.lux_smoothed != null) {
           detail = 'lux \u00b7 ' + Math.round(d.lux_smoothed).toLocaleString() + ' lx';
-          if (d.lux_learned_floor != null && d.lux_learned_ceiling != null) {
-            detail += ' \u00b7 range ' + Math.round(d.lux_learned_floor).toLocaleString() + '\u2013' + Math.round(d.lux_learned_ceiling).toLocaleString();
-          }
         } else if (d.source === 'weather') {
           const cond = d.weather_condition ? d.weather_condition.replace(/-/g, ' ') : '';
           if (cond) {
@@ -2205,14 +2208,20 @@
 
       return '<div class="tune-outdoor-wrapper">'
         + '<span class="tune-outdoor-info" id="tune-outdoor-toggle">' + infoHtml
-        + ' <button class="tune-outdoor-refresh" id="tune-refresh-outdoor">refresh</button></span>'
+        + ' <button class="tune-outdoor-refresh" id="tune-refresh-outdoor" title="Refresh outdoor data">&#x21bb;</button></span>'
         + panelHtml + '</div>';
     }
 
     async function refreshOutdoorAndRender() {
       try {
         const resp = await fetch('./api/outdoor-status');
-        if (resp.ok) tuneOutdoorData = await resp.json();
+        if (resp.ok) {
+          tuneOutdoorData = await resp.json();
+          // Sync outdoor_normalized into tuneData so tune calculations use fresh value
+          if (tuneData && tuneOutdoorData.outdoor_normalized != null) {
+            tuneData.outdoor_normalized = tuneOutdoorData.outdoor_normalized;
+          }
+        }
       } catch (err) {}
       renderAreas();
     }
@@ -2253,8 +2262,8 @@
       const zonePeakReduction = Math.min(100, Math.round(sensitivity * 100));
       const nowEl = controls.querySelector('.tune-zone-sun-now');
       const peakEl = controls.querySelector('.tune-zone-sun-peak');
-      if (nowEl) nowEl.textContent = zoneReduction > 0 ? '\u2193' + zoneReduction + '%' : '';
-      if (peakEl) peakEl.textContent = zonePeakReduction > zoneReduction ? 'pk\u2193' + zonePeakReduction + '%' : '';
+      if (nowEl) nowEl.textContent = '\u2193' + zoneReduction + '%';
+      if (peakEl) peakEl.textContent = 'pk\u2193' + zonePeakReduction + '%';
     }
 
     function updateZoneSensitivity(zoneGroup, newSensitivity) {
@@ -2313,7 +2322,7 @@
       const nowEl = tuneAreaEl.querySelector('.tune-bri-now');
       if (nowEl) nowEl.textContent = nowBri + '%';
       const peakEl = tuneAreaEl.querySelector('.tune-bri-peak');
-      if (peakEl) peakEl.textContent = (exposure > 0 && peakBri !== nowBri) ? 'pk ' + peakBri + '%' : '';
+      if (peakEl) peakEl.textContent = 'pk ' + peakBri + '%';
       // Update sun meta (now split into current + peak)
       const sunMeta = formatSunMeta(exposure, sensitivity, outdoorNorm, daylightFade);
       const sunNowEl = tuneAreaEl.querySelector('.tune-sun-now');
@@ -2757,7 +2766,10 @@
 
         html = `
           <div class="edit-toolbar">
-            <span style="font-size: 1rem; font-weight: 600; color: var(--text);">Tune${homeName ? ': ' + homeName : ''}</span>
+            <span style="font-size: 1rem; font-weight: 600; color: var(--text);">Tune brightness${homeName ? ': ' + homeName : ''}</span>
+            <select class="tune-filter-select" id="tune-filter-zone" style="margin-left: 8px;">
+              ${zoneOptions}
+            </select>
             <span style="flex: 1;"></span>
             ${buildOutdoorSection()}
             <a href="#" class="edit-toolbar-link" onclick="event.preventDefault(); exitMode()" style="color: var(--accent); font-weight: 600; margin-left: 12px;">Done</a>
@@ -2772,11 +2784,6 @@
               <span class="view-sep">&middot;</span>
               <button class="view-link ${tuneSortOrder === 'sun' ? 'active' : ''}" data-tune-sort="sun">sun</button>
             </div>
-          </div>
-          <div class="tune-filters">
-            <select class="tune-filter-select" id="tune-filter-zone">
-              ${zoneOptions}
-            </select>
           </div>
         `;
       } else {
@@ -2833,7 +2840,7 @@
             const peakBri = Math.min(100, Math.round(peakRaw * filterMult));
             const factorStr = formatFactorMeta(factor);
             const sunMeta = formatSunMeta(exposure, sensitivity, outdoorNorm, daylightFade);
-            const peakVisible = exposure > 0 && peakBri !== nowBri;
+            const peakVisible = true;
             const filterPct = Math.round((1 - filterMult) * 100);
             const filterBadge = filterPct > 1 ? `<span class="tune-filter-badge">Filter \u2193${filterPct}%</span>` : '';
             return `
@@ -2875,11 +2882,11 @@
           }
           const zoneReduction = Math.min(100, Math.round(zoneOutdoor * sensitivity * 100));
           const zonePeakReduction = Math.min(100, Math.round(sensitivity * 100));
-          const zoneSunNow = zoneReduction > 0 ? '\u2193' + zoneReduction + '%' : '';
-          const zoneSunPeak = zonePeakReduction > zoneReduction ? 'pk\u2193' + zonePeakReduction + '%' : '';
+          const zoneSunNow = '\u2193' + zoneReduction + '%';
+          const zoneSunPeak = 'pk\u2193' + zonePeakReduction + '%';
 
           const sunTimesStr = cachedSunTimes
-            ? fmtSunTime(cachedSunTimes.sunrise) + '\u2013' + fmtSunTime(cachedSunTimes.sunset)
+            ? fmtFadeRange(cachedSunTimes.sunrise, cachedSunTimes.sunset, daylightFade)
             : '';
           const zoneControlsHtml = `
             <div class="tune-zone-controls" data-zone="${zoneName}" data-rhythm="${rhythmName || ''}" onclick="event.stopPropagation()">
@@ -2908,16 +2915,15 @@
 
           return `
             <div class="zone-group">
-              <div class="zone-header tune-zone-header ${isCollapsed ? 'collapsed' : ''}" data-zone="${zoneName}" onclick="toggleZone('${escapedZoneName}', this)">
-                <span class="zone-chevron-tap" onclick="event.stopPropagation(); toggleZone('${escapedZoneName}', this)">${chevronIcon}</span>
+              <div class="zone-header tune-zone-header" data-zone="${zoneName}">
                 <span style="font-size: 0.65rem; opacity: 0.5;">Glo Zone</span>
                 <span class="zone-name">${zoneName}</span>
                 <span class="tune-zone-bri-group">
                   <span class="tune-zone-base-bri">${rhythmBri}%</span>
                 </span>
-                ${isCollapsed ? '' : zoneControlsHtml}
+                ${zoneControlsHtml}
               </div>
-              <div class="zone-content ${isCollapsed ? 'hidden' : ''}" data-zone-table="${zoneName}">
+              <div class="zone-content" data-zone-table="${zoneName}">
                 ${areaRows}
               </div>
             </div>
@@ -3383,14 +3389,14 @@
         if (e.target.id === 'tune-refresh-outdoor') {
           e.stopPropagation();
           const btn = e.target;
-          btn.textContent = '...';
+          btn.textContent = '\u22ef';
           fetch('./api/refresh-outdoor', { method: 'POST' }).catch(() => {});
           setTimeout(async () => {
             try {
               const resp = await fetch('./api/outdoor-status');
               if (resp.ok) tuneOutdoorData = await resp.json();
             } catch (err) {}
-            btn.textContent = 'refresh';
+            btn.textContent = '\u21bb';
             renderAreas();
           }, 1500);
         }
@@ -3506,6 +3512,8 @@
           const controls = e.target.closest('.tune-zone-controls');
           const word = controls.querySelector('.tune-fade-word');
           if (word) word.textContent = fmtFadeMinutes(val);
+          const timesEl = controls.querySelector('.tune-zone-sun-times');
+          if (timesEl && cachedSunTimes) timesEl.textContent = fmtFadeRange(cachedSunTimes.sunrise, cachedSunTimes.sunset, val);
           const zoneGroup = e.target.closest('.zone-group');
           if (zoneGroup) updateZoneDaylightFade(zoneGroup, val);
           return;
