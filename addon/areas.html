@@ -991,8 +991,6 @@
       display: flex;
       padding: 6px 16px 4px;
       gap: 6px;
-      background: var(--panel);
-      border-bottom: 1px solid var(--line);
     }
 
     .tune-col-header {
@@ -1019,7 +1017,19 @@
       padding: 4px 0 0 26px;
       background: none;
       border-bottom: none;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
     }
+
+    .tune-zone-header .tune-col-headers {
+      width: 100%;
+      padding: 6px 16px 0;
+      background: none;
+      border-bottom: none;
+    }
+
+    .tune-zone-sun-meta { font-size: 0.75rem; color: var(--muted2); white-space: nowrap; }
 
     .tune-area {
       background: var(--card);
@@ -1085,7 +1095,11 @@
     .tune-zone-ctrl-val { font-size: 0.75rem; color: var(--text); }
     .tune-sensitivity-slider { width: 80px; accent-color: var(--accent); }
     .tune-fade-slider { width: 70px; accent-color: var(--accent); }
-    .tune-zone-base-bri { margin-left: auto; font-size: 0.85rem; color: var(--text); font-weight: 600; white-space: nowrap; }
+    .tune-zone-bri-group {
+      display: flex; align-items: baseline; gap: 6px;
+      margin-left: auto; white-space: nowrap;
+    }
+    .tune-zone-base-bri { font-size: 0.85rem; color: var(--text); font-weight: 600; }
 
     /* Tune area 2-row layout */
     .tune-area-row {
@@ -2805,7 +2819,6 @@
                   <span class="tune-name-col">${filterBadge}</span>
                   <div class="tune-fixture-col">
                     <span class="tune-slider-word tune-lumen-word">${LUMEN_STEPS[lumenStep].label}</span>
-                    <span class="tune-slider-val tune-lumen-val">${fmtVal(factor)}</span>
                   </div>
                   <div class="tune-sun-col">
                     <span class="tune-slider-word tune-solar-word">${SOLAR_STEPS[solarStep].label}</span>
@@ -2818,25 +2831,33 @@
             `;
           }).join('');
 
+          // Zone-level sun impact (assuming full exposure = 1.0)
+          let zoneOutdoor = outdoorNorm;
+          if (daylightFade > 0 && zoneOutdoor > 0 && cachedSunTimes) {
+            const now = new Date();
+            const h = now.getHours() + now.getMinutes() / 60;
+            zoneOutdoor *= computeDaylightFadeWeight(h, cachedSunTimes.sunrise, cachedSunTimes.sunset, daylightFade);
+          }
+          const zoneReduction = Math.min(100, Math.round(zoneOutdoor * sensitivity * 100));
+          const zonePeakReduction = Math.min(100, Math.round(sensitivity * 100));
+          const zoneSunNow = zoneReduction > 0 ? '\u2193' + zoneReduction + '%' : '';
+          const zoneSunPeak = zonePeakReduction > zoneReduction ? 'pk\u2193' + zonePeakReduction + '%' : '';
+
           const zoneControlsHtml = `
             <div class="tune-zone-controls" data-zone="${zoneName}" data-rhythm="${rhythmName || ''}" onclick="event.stopPropagation()">
               <div class="tune-zone-ctrl">
-                <span class="tune-zone-ctrl-label">Sensitivity</span>
+                <span class="tune-zone-ctrl-label">Sun sensitivity</span>
                 <input type="range" class="tune-sensitivity-slider" min="0" max="9" step="1" value="${sensitivityStep}">
                 <span class="tune-zone-ctrl-word tune-sensitivity-word">${SENSITIVITY_STEPS[sensitivityStep].label}</span>
                 <span class="tune-zone-ctrl-val tune-sensitivity-val">${fmtVal(sensitivity)}</span>
               </div>
               <div class="tune-zone-ctrl">
-                <span class="tune-zone-ctrl-label">Fade</span>
+                <span class="tune-zone-ctrl-label">Sunrise/set fade</span>
                 <input type="range" class="tune-fade-slider" min="0" max="180" step="15" value="${daylightFade}">
                 <span class="tune-zone-ctrl-word tune-fade-word">${fmtFadeMinutes(daylightFade)}</span>
               </div>
-              <span class="tune-zone-base-bri">${rhythmBri}%</span>
             </div>
-          `;
-
-          const colHeadersHtml = `
-            <div class="tune-area-row tune-col-headers">
+            <div class="tune-area-row tune-col-headers" onclick="event.stopPropagation()">
               <span class="tune-name-col"></span>
               <span class="tune-fixture-col tune-col-header">Fixture density</span>
               <span class="tune-sun-col tune-col-header">Sun exposure</span>
@@ -2850,9 +2871,13 @@
                 <span class="zone-chevron-tap" onclick="event.stopPropagation(); toggleZone('${escapedZoneName}', this)">${chevronIcon}</span>
                 <span style="font-size: 0.65rem; opacity: 0.5;">Glo Zone</span>
                 <span class="zone-name">${zoneName}</span>
+                <span class="tune-zone-bri-group">
+                  <span class="tune-zone-sun-meta">${zoneSunNow}</span>
+                  <span class="tune-zone-sun-meta">${zoneSunPeak}</span>
+                  <span class="tune-zone-base-bri">${rhythmBri}%</span>
+                </span>
                 ${isCollapsed ? '' : zoneControlsHtml}
               </div>
-              ${isCollapsed ? '' : colHeadersHtml}
               <div class="zone-content ${isCollapsed ? 'hidden' : ''}" data-zone-table="${zoneName}">
                 ${areaRows}
               </div>
@@ -3456,8 +3481,6 @@
           const word = tuneArea.querySelector('.tune-lumen-word');
           if (word) word.textContent = LUMEN_STEPS[step].label;
           const newFactor = 1 / LUMEN_STEPS[step].intensity;
-          const valEl = tuneArea.querySelector('.tune-lumen-val');
-          if (valEl) valEl.textContent = fmtVal(newFactor);
           const factorMeta = tuneArea.querySelector('.tune-factor-meta');
           if (factorMeta) factorMeta.textContent = formatFactorMeta(newFactor);
           updateTuneNowPreview(tuneArea, { factor: newFactor });
