@@ -548,10 +548,6 @@ class LightDesignerServer:
         self.app.router.add_post('/api/learn-baselines', self.learn_baselines)
         self.app.router.add_route('POST', '/{path:.*}/api/learn-baselines', self.learn_baselines)
 
-        # Tuning page
-        self.app.router.add_route('GET', '/{path:.*}/tuning', self.serve_tuning)
-        self.app.router.add_get('/tuning', self.serve_tuning)
-
         # With ingress path prefix
         self.app.router.add_route('GET', '/{path:.*}/switchmap', self.serve_switchmap)
         self.app.router.add_route('GET', '/{path:.*}/control/{control_id}', self.serve_control_detail)
@@ -678,10 +674,6 @@ class LightDesignerServer:
     async def serve_settings(self, request: Request) -> Response:
         """Serve the Settings page."""
         return await self.serve_page("settings")
-
-    async def serve_tuning(self, request: Request) -> Response:
-        """Serve the Tuning page."""
-        return await self.serve_page("tuning")
 
     async def get_light_filters(self, request: Request) -> Response:
         """Get all data for the Filters page.

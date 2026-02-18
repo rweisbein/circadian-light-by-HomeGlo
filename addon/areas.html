@@ -957,6 +957,131 @@
       margin: 0 16px;
       pointer-events: none;
     }
+
+    /* Tune mode styles */
+    .tune-toolbar-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .tune-headings {
+      display: flex;
+      align-items: center;
+      padding: 4px 16px;
+      background: var(--bg);
+      position: sticky;
+      top: 56px;
+      z-index: 10;
+      border-bottom: 1px solid var(--line);
+      gap: 12px;
+    }
+
+    .tune-headings-spacer {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .tune-heading-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      color: var(--muted2);
+      white-space: nowrap;
+    }
+
+    .tune-heading-solar {
+      margin-left: 8px;
+    }
+
+    .tune-zone-header {
+      background: var(--panel);
+    }
+
+    .tune-row {
+      display: flex;
+      align-items: center;
+      padding: 8px 16px;
+      gap: 12px;
+      background: var(--card);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .tune-row:last-child {
+      border-bottom: none;
+    }
+
+    .tune-area-name {
+      flex: 1;
+      font-size: 0.9rem;
+      color: var(--text);
+      text-decoration: none;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .tune-area-name:hover {
+      color: var(--accent);
+    }
+
+    .tune-slider-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .tune-slider-group + .tune-slider-group {
+      margin-left: 8px;
+    }
+
+    .tune-lumen-slider {
+      width: 100px;
+      accent-color: var(--accent);
+    }
+
+    .tune-solar-slider {
+      width: 80px;
+      accent-color: #fbbf24;
+    }
+
+    .tune-slider-word {
+      min-width: 8em;
+      text-align: left;
+      font-size: 0.8rem;
+      color: var(--text);
+      white-space: nowrap;
+    }
+
+    .save-status {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      padding: 12px 20px;
+      background: var(--success);
+      color: white;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.3s;
+      z-index: 50;
+      pointer-events: none;
+    }
+
+    .save-status.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    @media (max-width: 600px) {
+      .tune-lumen-slider { width: 70px; }
+      .tune-solar-slider { width: 60px; }
+      .tune-slider-word { min-width: 5em; font-size: 0.7rem; }
+      .tune-heading-label { font-size: 0.6rem; }
+    }
   </style>
   <script src="./shared.js"></script>
 </head>
@@ -979,7 +1104,6 @@
       <a href="./switches" class="nav-link">Control</a>
       <a href="./rhythm" class="nav-link">Rhythm</a>
       <a href="./moments" class="nav-link">Magic</a>
-      <a href="./tuning" class="nav-link">Tune</a>
       <a href="./settings" class="nav-link">Settings</a>
     </div>
     <button class="nav-more" aria-label="More pages">&middot;&middot;&middot;</button>
@@ -994,6 +1118,8 @@
     </div>
   </main>
 
+  <div class="save-status" id="save-status">Saved</div>
+
 
   <script>
     // State
@@ -1004,7 +1130,7 @@
     let viewMode = 'custom'; // 'custom', 'alpha', 'onoff'
     let cachedConfig = null;
     let cachedSunTimes = null; // { sunrise, sunset, solarNoon, solarMid } in local hours
-    let editMode = false;
+    let currentMode = 'view'; // 'view' | 'organize' | 'tune'
     let cachedGlozones = null; // raw glozone data for edit mode ordering
     let homeRefreshTimer = null;     // Home page card refresh timer
     let homeTickTimer = null;        // 1s home page timer countdown tick
@@ -1282,7 +1408,15 @@
     // Initialize
     document.addEventListener('DOMContentLoaded', async () => {
       await loadPreferences();
-      loadData();
+      const urlParams = new URLSearchParams(window.location.search);
+      const requestedMode = urlParams.get('mode');
+      if (requestedMode === 'tune') {
+        history.replaceState(null, '', window.location.pathname);
+        await loadData();
+        enterTuneMode();
+      } else {
+        loadData();
+      }
       setupEventListeners();
     });
 
@@ -1672,19 +1806,117 @@
     }
 
     // ============================================================
-    // Edit Mode Functions
+    // Mode Functions (Organize / Tune)
     // ============================================================
 
-    function enterEditMode() {
-      editMode = true;
+    function enterOrganizeMode() {
+      currentMode = 'organize';
       stopHomeRefresh();
       renderAreas();
     }
 
-    function exitEditMode() {
-      editMode = false;
+    function exitMode() {
+      currentMode = 'view';
+      tuneData = null;
       loadData();
       startHomeRefresh();
+    }
+
+    // ============================================================
+    // Tune Mode
+    // ============================================================
+
+    let tuneData = null;
+    let tuneSortOrder = 'custom';
+    let tuneDebounceTimers = {};
+
+    const LUMEN_STEPS = [
+      { label: "Severely underlit",  intensity: 0.50 },
+      { label: "Very underlit",      intensity: 0.60 },
+      { label: "Underlit",           intensity: 0.75 },
+      { label: "Slightly underlit",  intensity: 0.90 },
+      { label: "Properly lit",       intensity: 1.00 },
+      { label: "Slightly overlit",   intensity: 1.15 },
+      { label: "Overlit",            intensity: 1.35 },
+      { label: "Very overlit",       intensity: 1.60 },
+      { label: "Brightly overlit",   intensity: 1.80 },
+      { label: "Severely overlit",   intensity: 2.00 },
+    ];
+
+    const SOLAR_STEPS = [
+      { label: "None",           exposure: 0.00 },
+      { label: "Minimal",        exposure: 0.15 },
+      { label: "Low",            exposure: 0.30 },
+      { label: "Moderate",       exposure: 0.50 },
+      { label: "Significant",    exposure: 0.70 },
+      { label: "High",           exposure: 0.90 },
+      { label: "Full",           exposure: 1.10 },
+      { label: "Amplified",      exposure: 1.35 },
+      { label: "Very amplified", exposure: 1.65 },
+      { label: "Sun room",       exposure: 2.00 },
+    ];
+
+    async function enterTuneMode() {
+      currentMode = 'tune';
+      stopHomeRefresh();
+      const container = document.getElementById('areas-container');
+      container.innerHTML = '<div class="loading">Loading tune data...</div>';
+      try {
+        const resp = await fetch('./api/light-filters');
+        if (resp.ok) {
+          tuneData = await resp.json();
+        }
+      } catch (err) {
+        console.error('Error loading tune data:', err);
+      }
+      renderAreas();
+    }
+
+    async function saveTuneValue(areaId, fields) {
+      const key = areaId + JSON.stringify(fields);
+      clearTimeout(tuneDebounceTimers[key]);
+      tuneDebounceTimers[key] = setTimeout(async () => {
+        try {
+          const resp = await fetch('./api/light-filters/area-brightness', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ area_id: areaId, ...fields })
+          });
+          if (resp.ok) showTuneSaved();
+        } catch (err) {
+          console.error('Error saving tune value:', err);
+        }
+      }, 300);
+    }
+
+    function showTuneSaved() {
+      const el = document.getElementById('save-status');
+      if (!el) return;
+      el.classList.add('visible');
+      setTimeout(() => el.classList.remove('visible'), 2000);
+    }
+
+    function findClosestStep(steps, key, value) {
+      let best = 0, bestDist = Infinity;
+      for (let i = 0; i < steps.length; i++) {
+        const dist = Math.abs(steps[i][key] - value);
+        if (dist < bestDist) { bestDist = dist; best = i; }
+      }
+      return best;
+    }
+
+    function setTuneSort(sort) {
+      tuneSortOrder = sort;
+      renderAreas();
+    }
+
+    function getTuneArea(areaId) {
+      if (!tuneData?.zones) return null;
+      for (const zone of Object.values(tuneData.zones)) {
+        const found = (zone.areas || []).find(a => a.id === areaId);
+        if (found) return found;
+      }
+      return null;
     }
 
     async function moveZone(zoneName, direction) {
@@ -2105,12 +2337,42 @@
       // Build toolbar HTML
       const homeName = cachedConfig?.home_name || 'Your home';
       let html;
-      if (editMode) {
+      if (currentMode === 'organize') {
         html = `
           <div class="edit-toolbar">
             <span style="font-size: 1rem; font-weight: 600; color: var(--text);">Organize${homeName ? ': ' + homeName : ''}</span>
             <span style="flex: 1;"></span>
-            <a href="#" class="edit-toolbar-link" onclick="event.preventDefault(); exitEditMode()" style="color: var(--accent); font-weight: 600;">Done</a>
+            <a href="#" class="edit-toolbar-link" onclick="event.preventDefault(); exitMode()" style="color: var(--accent); font-weight: 600;">Done</a>
+          </div>
+        `;
+      } else if (currentMode === 'tune') {
+        html = `
+          <div class="edit-toolbar">
+            <span style="font-size: 1rem; font-weight: 600; color: var(--text);">Tune${homeName ? ': ' + homeName : ''}</span>
+            <span style="flex: 1;"></span>
+            <a href="#" class="edit-toolbar-link" onclick="event.preventDefault(); exitMode()" style="color: var(--accent); font-weight: 600;">Done</a>
+          </div>
+          <div class="tune-toolbar-row">
+            <div class="view-links">
+              <button class="view-link ${tuneSortOrder === 'custom' ? 'active' : ''}" data-tune-sort="custom">your order</button>
+              <span class="view-sep">&middot;</span>
+              <button class="view-link ${tuneSortOrder === 'az' ? 'active' : ''}" data-tune-sort="az">a&ndash;z</button>
+              <span class="view-sep">&middot;</span>
+              <button class="view-link ${tuneSortOrder === 'light' ? 'active' : ''}" data-tune-sort="light">light</button>
+              <span class="view-sep">&middot;</span>
+              <button class="view-link ${tuneSortOrder === 'sun' ? 'active' : ''}" data-tune-sort="sun">sun</button>
+            </div>
+          </div>
+          <div class="tune-headings">
+            <span class="tune-headings-spacer"></span>
+            <div class="tune-slider-group">
+              <span class="tune-heading-label" style="width: 100px;">Lumen intensity</span>
+              <span class="tune-slider-word" style="visibility: hidden;"></span>
+            </div>
+            <div class="tune-slider-group">
+              <span class="tune-heading-label" style="width: 80px;">Solar exposure</span>
+              <span class="tune-slider-word" style="visibility: hidden;"></span>
+            </div>
           </div>
         `;
       } else {
@@ -2129,6 +2391,7 @@
               <button class="toolbar-menu-btn" onclick="toggleToolbarMenu(event)">⋮</button>
               <div class="toolbar-menu-dropdown" id="toolbar-menu-dropdown">
                 <a href="#" class="toolbar-menu-item" id="organize-link">Organize</a>
+                <a href="#" class="toolbar-menu-item" id="tune-link">Tune</a>
                 <a href="#" class="toolbar-menu-item" id="refresh-link">Refresh</a>
               </div>
             </div>
@@ -2138,10 +2401,47 @@
 
       const renderZoneGroup = (zoneName, areasInZone, zoneIndex, totalZones, { allOff = false } = {}) => {
         const isCollapsed = collapsedState[zoneName] || false;
-        const sorted = editMode ? areasInZone : sortAreas(areasInZone);
+        const sorted = (currentMode === 'organize' || currentMode === 'tune') ? areasInZone : sortAreas(areasInZone);
         const escapedZoneName = zoneName.replace(/'/g, "\\'");
 
-        if (editMode) {
+        if (currentMode === 'tune') {
+          // Tune mode: simplified zone header + slider rows
+          const areaRows = sorted.map(area => {
+            const tuneArea = getTuneArea(area.area_id);
+            const factor = tuneArea?.brightness_factor ?? 1.0;
+            const exposure = tuneArea?.natural_light_exposure ?? 0.0;
+            const lumenStep = findClosestStep(LUMEN_STEPS, 'intensity', 1 / factor);
+            const solarStep = findClosestStep(SOLAR_STEPS, 'exposure', exposure);
+            return `
+              <div class="tune-row" data-area-id="${area.area_id}">
+                <a href="./area/${encodeURIComponent(area.area_id)}?from=tune" class="tune-area-name">${area.name}</a>
+                <div class="tune-slider-group">
+                  <input type="range" class="tune-lumen-slider" min="0" max="9" step="1" value="${lumenStep}" data-area-id="${area.area_id}">
+                  <span class="tune-slider-word tune-lumen-word">${LUMEN_STEPS[lumenStep].label}</span>
+                </div>
+                <div class="tune-slider-group">
+                  <input type="range" class="tune-solar-slider" min="0" max="9" step="1" value="${solarStep}" data-area-id="${area.area_id}">
+                  <span class="tune-slider-word tune-solar-word">${SOLAR_STEPS[solarStep].label}</span>
+                </div>
+              </div>
+            `;
+          }).join('');
+
+          return `
+            <div class="zone-group">
+              <div class="zone-header tune-zone-header ${isCollapsed ? 'collapsed' : ''}" data-zone="${zoneName}" onclick="toggleZone('${escapedZoneName}', this)">
+                <span class="zone-chevron-tap" onclick="event.stopPropagation(); toggleZone('${escapedZoneName}', this)">${chevronIcon}</span>
+                <span style="font-size: 0.65rem; opacity: 0.5;">Glo Zone</span>
+                <span class="zone-name">${zoneName}</span>
+              </div>
+              <div class="zone-content ${isCollapsed ? 'hidden' : ''}" data-zone-table="${zoneName}">
+                ${areaRows}
+              </div>
+            </div>
+          `;
+        }
+
+        if (currentMode === 'organize') {
           // Edit mode: simplified header with arrows, rename, delete
           const upDisabled = zoneIndex === 0 ? 'disabled' : '';
           const downDisabled = zoneIndex === totalZones - 1 ? 'disabled' : '';
@@ -2250,8 +2550,8 @@
         `;
       };
 
-      if (editMode) {
-        // Edit mode: use glozone API order (preserves user ordering)
+      if (currentMode === 'organize') {
+        // Organize mode: use glozone API order (preserves user ordering)
         const gzZonesObj = cachedGlozones?.zones || {};
         const gzZoneNames = Object.keys(gzZonesObj);
         const totalZones = gzZoneNames.length;
@@ -2274,6 +2574,71 @@
         html += `<div style="text-align: center; padding: 16px 0;">
           <a href="#" onclick="event.preventDefault(); createZoneFromEdit()" style="font-size: 0.85rem; color: var(--accent); text-decoration: none;">+ New Zone</a>
         </div>`;
+      } else if (currentMode === 'tune') {
+        // Tune mode: use glozone order, apply tune sort
+        const gzZonesObj = cachedGlozones?.zones || {};
+        const gzZoneNames = Object.keys(gzZonesObj);
+
+        // Collect all areas for sorting
+        let allTuneAreas = [];
+        for (const zoneName of gzZoneNames) {
+          const gzData = gzZonesObj[zoneName];
+          const zoneAreaIds = (gzData.areas || []).map(a => typeof a === 'object' ? a.id : a);
+          const areasInZone = zoneAreaIds.map(id => mergedAreas.find(a => a.area_id === id)).filter(Boolean);
+          areasInZone.forEach(a => { a._tunezone = zoneName; });
+          allTuneAreas.push(...areasInZone);
+        }
+        if (unassigned.length > 0) {
+          unassigned.forEach(a => { a._tunezone = 'Unassigned'; });
+          allTuneAreas.push(...unassigned);
+        }
+
+        // Apply tune sort
+        if (tuneSortOrder === 'az') {
+          allTuneAreas.sort((a, b) => a.name.localeCompare(b.name));
+        } else if (tuneSortOrder === 'light') {
+          allTuneAreas.sort((a, b) => {
+            const fa = getTuneArea(a.area_id)?.brightness_factor ?? 1.0;
+            const fb = getTuneArea(b.area_id)?.brightness_factor ?? 1.0;
+            return fa - fb;
+          });
+        } else if (tuneSortOrder === 'sun') {
+          allTuneAreas.sort((a, b) => {
+            const ea = getTuneArea(a.area_id)?.natural_light_exposure ?? 0.0;
+            const eb = getTuneArea(b.area_id)?.natural_light_exposure ?? 0.0;
+            return eb - ea;
+          });
+        }
+
+        // Re-group by zone after sort
+        if (tuneSortOrder === 'custom') {
+          // Preserve zone grouping
+          for (const zoneName of gzZoneNames) {
+            const gzData = gzZonesObj[zoneName];
+            const zoneAreaIds = (gzData.areas || []).map(a => typeof a === 'object' ? a.id : a);
+            const areasInZone = zoneAreaIds.map(id => mergedAreas.find(a => a.area_id === id)).filter(Boolean);
+            html += renderZoneGroup(zoneName, areasInZone);
+          }
+          if (unassigned.length > 0) {
+            html += renderZoneGroup('Unassigned', unassigned);
+          }
+        } else {
+          // Sorted: re-group
+          const tuneGroups = {};
+          for (const area of allTuneAreas) {
+            const zn = area._tunezone || 'Unassigned';
+            if (!tuneGroups[zn]) tuneGroups[zn] = [];
+            tuneGroups[zn].push(area);
+          }
+          // Render in order of first appearance (preserves sort within groups)
+          const rendered = new Set();
+          for (const area of allTuneAreas) {
+            const zn = area._tunezone || 'Unassigned';
+            if (rendered.has(zn)) continue;
+            rendered.add(zn);
+            html += renderZoneGroup(zn, tuneGroups[zn]);
+          }
+        }
       } else if (viewMode === 'onoff') {
         // Group by on/off first, then by zone within each
         const onAreas = filtered.filter(a => a.is_on);
@@ -2527,16 +2892,48 @@
       });
       document.getElementById('areas-container').addEventListener('click', (e) => {
         if (e.target.id === 'refresh-link') { e.preventDefault(); loadData(); }
-        if (e.target.id === 'organize-link') { e.preventDefault(); enterEditMode(); }
+        if (e.target.id === 'organize-link') { e.preventDefault(); enterOrganizeMode(); }
+        if (e.target.id === 'tune-link') { e.preventDefault(); enterTuneMode(); }
         if (e.target.id === 'add-zone-link') { e.preventDefault(); createZoneFromEdit(); }
       });
 
       // View mode pill clicks
       document.getElementById('areas-container').addEventListener('click', (e) => {
         if (e.target.classList.contains('view-link') && !e.target.classList.contains('active')) {
-          viewMode = e.target.dataset.view;
-          savePreferences();
-          renderAreas();
+          if (e.target.dataset.tuneSort) {
+            setTuneSort(e.target.dataset.tuneSort);
+          } else if (e.target.dataset.view) {
+            viewMode = e.target.dataset.view;
+            savePreferences();
+            renderAreas();
+          }
+        }
+      });
+
+      // Tune mode slider events (delegated)
+      document.getElementById('areas-container').addEventListener('input', (e) => {
+        if (e.target.classList.contains('tune-lumen-slider')) {
+          const step = parseInt(e.target.value);
+          const word = e.target.closest('.tune-slider-group').querySelector('.tune-lumen-word');
+          if (word) word.textContent = LUMEN_STEPS[step].label;
+        }
+        if (e.target.classList.contains('tune-solar-slider')) {
+          const step = parseInt(e.target.value);
+          const word = e.target.closest('.tune-slider-group').querySelector('.tune-solar-word');
+          if (word) word.textContent = SOLAR_STEPS[step].label;
+        }
+      });
+      document.getElementById('areas-container').addEventListener('change', (e) => {
+        if (e.target.classList.contains('tune-lumen-slider')) {
+          const step = parseInt(e.target.value);
+          const areaId = e.target.dataset.areaId;
+          const newFactor = 1 / LUMEN_STEPS[step].intensity;
+          saveTuneValue(areaId, { brightness_factor: newFactor });
+        }
+        if (e.target.classList.contains('tune-solar-slider')) {
+          const step = parseInt(e.target.value);
+          const areaId = e.target.dataset.areaId;
+          saveTuneValue(areaId, { natural_light_exposure: SOLAR_STEPS[step].exposure });
         }
       });
 
