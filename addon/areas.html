@@ -1010,6 +1010,19 @@
 
     .tune-zone-header {
       background: var(--panel);
+      flex-wrap: wrap;
+      padding-bottom: 8px;
+    }
+
+    .tune-zone-header.collapsed {
+      padding-bottom: 6px;
+    }
+
+    .tune-zone-header .tune-zone-controls {
+      width: 100%;
+      padding: 4px 0 0 26px;
+      background: none;
+      border-bottom: none;
     }
 
     .tune-area {
@@ -1083,6 +1096,7 @@
     .tune-zone-ctrl { display: flex; align-items: center; gap: 6px; }
     .tune-zone-ctrl-label { font-size: 0.7rem; color: var(--muted2); text-transform: uppercase; white-space: nowrap; }
     .tune-zone-ctrl-word { font-size: 0.8rem; color: var(--text); min-width: 5em; }
+    .tune-zone-ctrl-val { font-size: 0.75rem; color: var(--text); }
     .tune-sensitivity-slider { width: 80px; accent-color: var(--accent); }
     .tune-fade-slider { width: 70px; accent-color: var(--accent); }
     .tune-zone-rhythm-bri { margin-left: auto; font-size: 0.75rem; color: var(--muted2); white-space: nowrap; }
@@ -1135,6 +1149,12 @@
       white-space: nowrap;
     }
 
+    .tune-slider-val {
+      font-size: 0.75rem;
+      color: var(--text);
+      white-space: nowrap;
+    }
+
     .tune-slider-meta {
       font-size: 0.7rem;
       color: var(--muted2);
@@ -1172,6 +1192,8 @@
       .tune-fade-slider { width: 50px; }
       .tune-zone-ctrl-label { font-size: 0.6rem; }
       .tune-zone-ctrl-word { font-size: 0.7rem; min-width: 4em; }
+      .tune-zone-ctrl-val { font-size: 0.65rem; }
+      .tune-slider-val { font-size: 0.65rem; }
     }
   </style>
   <script src="./shared.js"></script>
@@ -2050,6 +2072,10 @@
       return factor > 1.0 ? ('\u2191' + pct + '%') : ('\u2193' + pct + '%');
     }
 
+    function fmtVal(v) {
+      return v === 0 ? '0' : v % 1 === 0 ? v.toFixed(1) : parseFloat(v.toFixed(2)).toString();
+    }
+
     function formatSunMeta(exposure, sensitivity, outdoorNorm, daylightFade) {
       if (exposure <= 0) return '';
       let adjustedOutdoor = outdoorNorm;
@@ -2754,8 +2780,8 @@
             <div class="toolbar-menu" style="padding-left: 8px;">
               <button class="toolbar-menu-btn" onclick="toggleToolbarMenu(event)">⋮</button>
               <div class="toolbar-menu-dropdown" id="toolbar-menu-dropdown">
+                <a href="#" class="toolbar-menu-item" id="tune-link">Tune brightness</a>
                 <a href="#" class="toolbar-menu-item" id="organize-link">Organize</a>
-                <a href="#" class="toolbar-menu-item" id="tune-link">Tune</a>
                 <a href="#" class="toolbar-menu-item" id="refresh-link">Refresh</a>
               </div>
             </div>
@@ -2809,11 +2835,13 @@
                   <div class="tune-slider-group">
                     <input type="range" class="tune-lumen-slider" min="0" max="9" step="1" value="${lumenStep}" data-area-id="${area.area_id}">
                     <span class="tune-slider-word tune-lumen-word">${LUMEN_STEPS[lumenStep].label}</span>
+                    <span class="tune-slider-val tune-lumen-val">${fmtVal(factor)}</span>
                     <span class="tune-slider-meta tune-factor-meta">${factorStr}</span>
                   </div>
                   <div class="tune-slider-group">
                     <input type="range" class="tune-solar-slider" min="0" max="9" step="1" value="${solarStep}" data-area-id="${area.area_id}">
                     <span class="tune-slider-word tune-solar-word">${SOLAR_STEPS[solarStep].label}</span>
+                    <span class="tune-slider-val tune-solar-val">${fmtVal(exposure)}</span>
                     <span class="tune-slider-meta tune-sun-meta">${sunText}</span>
                   </div>
                   ${filterBadge}
@@ -2823,11 +2851,12 @@
           }).join('');
 
           const zoneControlsHtml = `
-            <div class="tune-zone-controls" data-zone="${zoneName}" data-rhythm="${rhythmName || ''}">
+            <div class="tune-zone-controls" data-zone="${zoneName}" data-rhythm="${rhythmName || ''}" onclick="event.stopPropagation()">
               <div class="tune-zone-ctrl">
                 <span class="tune-zone-ctrl-label">Sensitivity</span>
                 <input type="range" class="tune-sensitivity-slider" min="0" max="9" step="1" value="${sensitivityStep}">
                 <span class="tune-zone-ctrl-word tune-sensitivity-word">${SENSITIVITY_STEPS[sensitivityStep].label}</span>
+                <span class="tune-zone-ctrl-val tune-sensitivity-val">${fmtVal(sensitivity)}</span>
               </div>
               <div class="tune-zone-ctrl">
                 <span class="tune-zone-ctrl-label">Fade</span>
@@ -2844,8 +2873,8 @@
                 <span class="zone-chevron-tap" onclick="event.stopPropagation(); toggleZone('${escapedZoneName}', this)">${chevronIcon}</span>
                 <span style="font-size: 0.65rem; opacity: 0.5;">Glo Zone</span>
                 <span class="zone-name">${zoneName}</span>
+                ${isCollapsed ? '' : zoneControlsHtml}
               </div>
-              ${isCollapsed ? '' : zoneControlsHtml}
               <div class="zone-content ${isCollapsed ? 'hidden' : ''}" data-zone-table="${zoneName}">
                 ${areaRows}
               </div>
@@ -3422,6 +3451,8 @@
           const controls = e.target.closest('.tune-zone-controls');
           const word = controls.querySelector('.tune-sensitivity-word');
           if (word) word.textContent = SENSITIVITY_STEPS[step].label;
+          const valEl = controls.querySelector('.tune-sensitivity-val');
+          if (valEl) valEl.textContent = fmtVal(SENSITIVITY_STEPS[step].multiplier);
           const newSensitivity = SENSITIVITY_STEPS[step].multiplier;
           const zoneGroup = e.target.closest('.zone-group');
           if (zoneGroup) updateZoneSensitivity(zoneGroup, newSensitivity);
@@ -3443,18 +3474,24 @@
 
         if (e.target.classList.contains('tune-lumen-slider')) {
           const step = parseInt(e.target.value);
-          const word = e.target.closest('.tune-slider-group').querySelector('.tune-lumen-word');
+          const group = e.target.closest('.tune-slider-group');
+          const word = group.querySelector('.tune-lumen-word');
           if (word) word.textContent = LUMEN_STEPS[step].label;
           const newFactor = 1 / LUMEN_STEPS[step].intensity;
-          const factorMeta = e.target.closest('.tune-slider-group').querySelector('.tune-factor-meta');
+          const valEl = group.querySelector('.tune-lumen-val');
+          if (valEl) valEl.textContent = fmtVal(newFactor);
+          const factorMeta = group.querySelector('.tune-factor-meta');
           if (factorMeta) factorMeta.textContent = formatFactorMeta(newFactor);
           updateTuneNowPreview(tuneArea, { factor: newFactor });
         }
         if (e.target.classList.contains('tune-solar-slider')) {
           const step = parseInt(e.target.value);
-          const word = e.target.closest('.tune-slider-group').querySelector('.tune-solar-word');
+          const group = e.target.closest('.tune-slider-group');
+          const word = group.querySelector('.tune-solar-word');
           if (word) word.textContent = SOLAR_STEPS[step].label;
           const newExposure = SOLAR_STEPS[step].exposure;
+          const valEl = group.querySelector('.tune-solar-val');
+          if (valEl) valEl.textContent = fmtVal(newExposure);
           updateTuneNowPreview(tuneArea, { exposure: newExposure });
         }
       });
