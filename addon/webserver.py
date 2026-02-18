@@ -1993,7 +1993,9 @@ class LightDesignerServer:
 
         Seeds lux_tracker with current values so get_outdoor_normalized()
         returns accurate data in the webserver process.
+        Also collects illuminance sensor entity IDs for the settings UI.
         """
+        self._illuminance_sensors = []
         try:
             rest_url, ws_url, token = self._get_ha_api_config()
             if not token or not ws_url:
@@ -2017,9 +2019,15 @@ class LightDesignerServer:
                 if not states_msg.get('success') or not states_msg.get('result'):
                     return
 
+                illuminance_sensors = []
                 for st in states_msg['result']:
                     eid = st.get('entity_id', '')
                     attrs = st.get('attributes', {})
+
+                    # Collect illuminance sensors for settings UI
+                    if eid.startswith('sensor.') and attrs.get('device_class') == 'illuminance':
+                        name = attrs.get('friendly_name', eid)
+                        illuminance_sensors.append({"entity_id": eid, "name": name})
 
                     # Seed lux sensor reading
                     if sensor_entity and eid == sensor_entity:
@@ -2038,6 +2046,7 @@ class LightDesignerServer:
                                 lux_tracker.update_weather(float(attrs['cloud_coverage']), condition)
                             except (ValueError, TypeError):
                                 pass
+                self._illuminance_sensors = illuminance_sensors
         except Exception as e:
             logger.debug(f"Could not seed outdoor data from HA: {e}")
 
@@ -4776,6 +4785,7 @@ class LightDesignerServer:
             "lux_learned_floor": lux_tracker._learned_floor,
             "sun_elevation": round(lux_tracker._sun_elevation, 1),
             "sensor_entity": lux_tracker.get_sensor_entity(),
+            "illuminance_sensors": getattr(self, '_illuminance_sensors', []),
         })
 
     async def learn_baselines(self, request: Request) -> Response:

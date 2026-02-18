@@ -101,7 +101,6 @@ def init(config: Optional[dict] = None):
     global _sensor_entity, _smoothing_interval, _learned_ceiling, _learned_floor
     global _ema_lux, _last_update_time, _cached_sun_factor
     global _preferred_source, _cloud_cover, _weather_condition
-    global _override_condition, _override_expires_at
     global _sun_elevation, _last_outdoor_update
 
     if config is None:
@@ -135,14 +134,13 @@ def init(config: Optional[dict] = None):
         except (ValueError, TypeError):
             _learned_floor = None
 
-    # Reset runtime state
+    # Reset runtime state (re-seeded by _seed_outdoor_from_ha)
+    # Note: override is NOT reset — it's user-initiated and time-limited
     _ema_lux = None
     _last_update_time = None
     _cached_sun_factor = 1.0
     _cloud_cover = None
     _weather_condition = None
-    _override_condition = None
-    _override_expires_at = None
     _sun_elevation = 0.0
     _last_outdoor_update = None
 

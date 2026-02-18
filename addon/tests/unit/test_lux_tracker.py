@@ -226,17 +226,18 @@ class TestFallback:
         assert lux_tracker._learned_ceiling == 50000.0
         assert lux_tracker._learned_floor == 100.0
 
-    def test_init_resets_weather_and_override(self):
-        """init() should reset weather cloud cover and override state."""
+    def test_init_resets_weather_but_preserves_override(self):
+        """init() should reset weather cloud cover but preserve override state."""
         lux_tracker._cloud_cover = 50.0
         lux_tracker._override_condition = "cloudy"
         lux_tracker._override_expires_at = 9999.0
         lux_tracker._sun_elevation = 30.0
         lux_tracker.init(config={})
         assert lux_tracker._cloud_cover is None
-        assert lux_tracker._override_condition is None
-        assert lux_tracker._override_expires_at is None
         assert lux_tracker._sun_elevation == 0.0
+        # Override is user-initiated and time-limited; must survive init()
+        assert lux_tracker._override_condition == "cloudy"
+        assert lux_tracker._override_expires_at == 9999.0
 
 
 class TestWeatherEstimation:
