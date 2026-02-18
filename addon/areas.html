@@ -1042,15 +1042,40 @@
       color: var(--accent);
     }
 
+    .tune-outdoor-bar {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 16px; margin-bottom: 8px;
+      background: var(--card); border-radius: 8px; border: 1px solid var(--line);
+      font-size: 0.8rem; color: var(--muted); flex-wrap: wrap;
+    }
+    .tune-outdoor-pct { color: var(--text); font-weight: 600; white-space: nowrap; }
+    .tune-outdoor-detail { color: var(--muted2); font-size: 0.75rem; }
+
+    .tune-zone-controls {
+      display: flex; align-items: center; gap: 12px;
+      padding: 6px 16px; background: var(--panel);
+      border-bottom: 1px solid var(--line); flex-wrap: wrap;
+    }
+    .tune-zone-ctrl { display: flex; align-items: center; gap: 6px; }
+    .tune-zone-ctrl-label { font-size: 0.7rem; color: var(--muted2); text-transform: uppercase; white-space: nowrap; }
+    .tune-zone-ctrl-word { font-size: 0.8rem; color: var(--text); min-width: 5em; }
+    .tune-sensitivity-slider { width: 80px; accent-color: var(--accent); }
+    .tune-fade-slider { width: 70px; accent-color: var(--accent); }
+    .tune-zone-rhythm-bri { margin-left: auto; font-size: 0.75rem; color: var(--muted2); white-space: nowrap; }
+
     .tune-bri-preview {
       margin-left: auto;
-      font-size: 0.8rem;
-      color: var(--muted);
       white-space: nowrap;
+      display: flex; align-items: baseline; gap: 6px;
     }
+    .tune-bri-now { color: var(--text); font-weight: 600; font-size: 0.85rem; }
+    .tune-bri-peak { color: var(--muted2); font-size: 0.75rem; }
 
-    .tune-bri-arrow { color: var(--muted2); margin: 0 2px; }
-    .tune-bri-now { color: var(--text); font-weight: 600; }
+    .tune-filter-badge {
+      font-size: 0.7rem; color: var(--muted2);
+      padding: 1px 6px; background: rgba(255,255,255,0.04);
+      border-radius: 4px; white-space: nowrap; flex-shrink: 0;
+    }
 
     .tune-row-bottom {
       display: flex;
@@ -1119,6 +1144,10 @@
       .tune-slider-word { font-size: 0.7rem; }
       .tune-heading-col { font-size: 0.6rem; }
       .tune-slider-meta { font-size: 0.65rem; }
+      .tune-sensitivity-slider { width: 60px; }
+      .tune-fade-slider { width: 50px; }
+      .tune-zone-ctrl-label { font-size: 0.6rem; }
+      .tune-zone-ctrl-word { font-size: 0.7rem; min-width: 4em; }
     }
   </style>
   <script src="./shared.js"></script>
@@ -1865,10 +1894,10 @@
     // ============================================================
 
     let tuneData = null;
+    let tuneOutdoorData = null;
     let tuneSortOrder = 'custom';
     let tuneDebounceTimers = {};
     let tuneFilterZone = '';    // '' = all zones
-    let tuneFilterPreset = '';  // '' = all presets
 
     const LUMEN_STEPS = [
       { label: "Severely underlit",  intensity: 0.50 },
@@ -1896,18 +1925,44 @@
       { label: "Sun room",       exposure: 2.00 },
     ];
 
+    const SENSITIVITY_STEPS = [
+      { label: "None",       multiplier: 0.00 },
+      { label: "Minimal",    multiplier: 0.15 },
+      { label: "Low",        multiplier: 0.35 },
+      { label: "Slight",     multiplier: 0.55 },
+      { label: "Moderate",   multiplier: 0.80 },
+      { label: "Noticeable", multiplier: 1.10 },
+      { label: "Strong",     multiplier: 1.50 },
+      { label: "High",       multiplier: 2.00 },
+      { label: "Very high",  multiplier: 3.00 },
+      { label: "Maximum",    multiplier: 5.00 },
+    ];
+
+    function fmtFadeMinutes(m) {
+      if (m === 0) return 'instant';
+      if (m < 60) return m + 'min';
+      const h = Math.floor(m / 60);
+      const rem = m % 60;
+      return rem ? h + 'h ' + rem + 'm' : h + 'h';
+    }
+
+    function findClosestSensitivityStep(value) {
+      return findClosestStep(SENSITIVITY_STEPS, 'multiplier', value);
+    }
+
     async function enterTuneMode() {
       currentMode = 'tune';
       tuneFilterZone = '';
-      tuneFilterPreset = '';
       stopHomeRefresh();
       const container = document.getElementById('areas-container');
       container.innerHTML = '<div class="loading">Loading tune data...</div>';
       try {
-        const resp = await fetch('./api/light-filters');
-        if (resp.ok) {
-          tuneData = await resp.json();
-        }
+        const [filtersResp, outdoorResp] = await Promise.all([
+          fetch('./api/light-filters'),
+          fetch('./api/outdoor-status'),
+        ]);
+        if (filtersResp.ok) tuneData = await filtersResp.json();
+        if (outdoorResp.ok) tuneOutdoorData = await outdoorResp.json();
       } catch (err) {
         console.error('Error loading tune data:', err);
       }
@@ -1971,17 +2026,94 @@
       return factor > 1.0 ? ('\u2191' + pct + '%') : ('\u2193' + pct + '%');
     }
 
-    function formatPeakMeta(exposure, sensitivity) {
+    function formatSunMeta(exposure, sensitivity, outdoorNorm, daylightFade) {
       if (exposure <= 0) return '';
-      const pct = Math.min(100, Math.round(exposure * sensitivity * 100));
-      return 'peak \u2193' + pct + '%';
+      let adjustedOutdoor = outdoorNorm;
+      if (daylightFade > 0 && adjustedOutdoor > 0 && cachedSunTimes) {
+        const now = new Date();
+        const h = now.getHours() + now.getMinutes() / 60;
+        adjustedOutdoor *= computeDaylightFadeWeight(h, cachedSunTimes.sunrise, cachedSunTimes.sunset, daylightFade);
+      }
+      const currentPct = (adjustedOutdoor > 0) ? Math.min(100, Math.round(exposure * adjustedOutdoor * sensitivity * 100)) : 0;
+      const peakPct = Math.min(100, Math.round(exposure * sensitivity * 100));
+      if (currentPct === 0) return 'pk\u2193' + peakPct + '%';
+      if (currentPct === peakPct) return '\u2193' + currentPct + '%';
+      return '\u2193' + currentPct + '% pk\u2193' + peakPct + '%';
     }
 
-    function getTuneAreaPresets(areaId) {
-      // Returns set of preset names assigned to lights in this area
+    function computeAreaFilterMult(areaId, zoneName) {
+      const zoneConfig = getTuneZoneConfig(zoneName);
+      const minBri = zoneConfig.min_brightness ?? 1;
+      const maxBri = zoneConfig.max_brightness ?? 100;
+      const rhythmValues = getPureRhythmValues(zoneConfig.rhythm);
+      const baseBri = rhythmValues?.brightness ?? 50;
+      const range = maxBri - minBri;
+      const curvePos = range > 0 ? Math.max(0, Math.min(1, (baseBri - minBri) / range)) : 0;
+      const areaLights = tuneData?.area_lights?.[areaId] || [];
       const tuneArea = getTuneArea(areaId);
-      const filters = tuneArea?.light_filters || {};
-      return new Set(Object.values(filters));
+      const lightFilters = tuneArea?.light_filters || {};
+      const presets = tuneData?.presets || {};
+      if (areaLights.length === 0) return 1.0;
+      let totalMult = 0;
+      for (const light of areaLights) {
+        const presetName = lightFilters[light.entity_id] || 'Standard';
+        const preset = presets[presetName] || { at_bright: 100, at_dim: 100 };
+        const mult = (preset.at_dim + (preset.at_bright - preset.at_dim) * curvePos) / 100;
+        totalMult += mult;
+      }
+      return totalMult / areaLights.length;
+    }
+
+    function buildOutdoorBar() {
+      const d = tuneOutdoorData;
+      if (!d) return '<div class="tune-outdoor-bar"><span class="tune-outdoor-pct">\u2600 --</span><span class="tune-outdoor-detail">no outdoor data</span></div>';
+      const pct = Math.round((d.outdoor_normalized || 0) * 100);
+      const icon = (d.source === 'weather' && (d.weather_cloud_cover ?? 0) > 50) ? '\u2601' : '\u2600';
+      let detail = '';
+      if (d.override) {
+        detail = 'override \u00b7 ' + d.override.condition.replace(/_/g, ' ') + ' \u00b7 expires ' + Math.round(d.override.expires_in_minutes) + 'min';
+      } else if (d.source === 'lux' && d.lux_smoothed != null) {
+        detail = 'lux sensor \u00b7 ' + Math.round(d.lux_smoothed).toLocaleString() + ' lx';
+        if (d.lux_learned_floor != null && d.lux_learned_ceiling != null) {
+          detail += ' \u00b7 range ' + Math.round(d.lux_learned_floor).toLocaleString() + ' \u2013 ' + Math.round(d.lux_learned_ceiling).toLocaleString();
+        }
+      } else if (d.source === 'weather') {
+        detail = 'weather \u00b7 cloud cover ' + Math.round(d.weather_cloud_cover ?? 0) + '%';
+      } else {
+        detail = 'sun angle estimate \u00b7 elevation ' + (d.sun_elevation ?? 0) + '\u00b0';
+      }
+      return '<div class="tune-outdoor-bar"><span class="tune-outdoor-pct">' + icon + ' ' + pct + '%</span><span class="tune-outdoor-detail">' + detail + '</span></div>';
+    }
+
+    async function saveTuneZoneSetting(rhythmName, field, value) {
+      const key = 'zone_' + rhythmName + '_' + field;
+      clearTimeout(tuneDebounceTimers[key]);
+      tuneDebounceTimers[key] = setTimeout(async () => {
+        try {
+          const resp = await fetch('./api/circadian-rhythms/' + encodeURIComponent(rhythmName), {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ [field]: value })
+          });
+          if (resp.ok) showTuneSaved();
+        } catch (err) {
+          console.error('Error saving zone setting:', err);
+        }
+      }, 400);
+    }
+
+    function updateZoneSensitivity(zoneGroup, newSensitivity) {
+      zoneGroup.querySelectorAll('.tune-area').forEach(el => {
+        el.dataset.sensitivity = newSensitivity;
+        updateTuneNowPreview(el);
+      });
+    }
+
+    function updateZoneDaylightFade(zoneGroup, newFade) {
+      zoneGroup.querySelectorAll('.tune-area').forEach(el => {
+        el.dataset.daylightFade = newFade;
+        updateTuneNowPreview(el);
+      });
     }
 
     function computeDaylightFadeWeight(hour, sunrise, sunset, daylightFade) {
@@ -2012,14 +2144,22 @@
       const sensitivity = parseFloat(tuneAreaEl.dataset.sensitivity) || 5.0;
       const daylightFade = parseFloat(tuneAreaEl.dataset.daylightFade) || 60;
       const outdoorNorm = parseFloat(tuneAreaEl.dataset.outdoorNorm) || 0.0;
-      // Read current slider values
+      const filterMult = parseFloat(tuneAreaEl.dataset.filterMult) || 1.0;
       const lumenSlider = tuneAreaEl.querySelector('.tune-lumen-slider');
       const solarSlider = tuneAreaEl.querySelector('.tune-solar-slider');
       const factor = overrides?.factor ?? (1 / LUMEN_STEPS[parseInt(lumenSlider.value)].intensity);
       const exposure = overrides?.exposure ?? SOLAR_STEPS[parseInt(solarSlider.value)].exposure;
-      const nowBri = computeNowBrightness(rhythmBri, factor, exposure, outdoorNorm, sensitivity, daylightFade);
+      const nowRaw = computeNowBrightness(rhythmBri, factor, exposure, outdoorNorm, sensitivity, daylightFade);
+      const nowBri = Math.min(100, Math.round(nowRaw * filterMult));
+      const peakRaw = computeNowBrightness(rhythmBri, factor, exposure, 1.0, sensitivity, 0);
+      const peakBri = Math.min(100, Math.round(peakRaw * filterMult));
       const nowEl = tuneAreaEl.querySelector('.tune-bri-now');
       if (nowEl) nowEl.textContent = nowBri + '%';
+      const peakEl = tuneAreaEl.querySelector('.tune-bri-peak');
+      if (peakEl) peakEl.textContent = exposure > 0 ? ('pk ' + peakBri + '%') : '';
+      // Update sun meta
+      const sunMeta = tuneAreaEl.querySelector('.tune-sun-meta');
+      if (sunMeta) sunMeta.textContent = formatSunMeta(exposure, sensitivity, outdoorNorm, daylightFade);
     }
 
     async function moveZone(zoneName, direction) {
@@ -2455,12 +2595,6 @@
           `<option value="${z}" ${tuneFilterZone === z ? 'selected' : ''}>${z}</option>`
         ).join('');
 
-        // Build preset filter options
-        const presetNames = Object.keys(tuneData?.presets || {}).sort();
-        const presetOptions = presetNames.map(p =>
-          `<option value="${p}" ${tuneFilterPreset === p ? 'selected' : ''}>${p}</option>`
-        ).join('');
-
         html = `
           <div class="edit-toolbar">
             <span style="font-size: 1rem; font-weight: 600; color: var(--text);">Tune${homeName ? ': ' + homeName : ''}</span>
@@ -2478,14 +2612,11 @@
               <button class="view-link ${tuneSortOrder === 'sun' ? 'active' : ''}" data-tune-sort="sun">sun</button>
             </div>
           </div>
+          ${buildOutdoorBar()}
           <div class="tune-filters">
             <select class="tune-filter-select" id="tune-filter-zone">
               <option value="">All zones</option>
               ${zoneOptions}
-            </select>
-            <select class="tune-filter-select" id="tune-filter-preset">
-              <option value="">All presets</option>
-              ${presetOptions}
             </select>
           </div>
           <div class="tune-headings">
@@ -2523,7 +2654,7 @@
         const escapedZoneName = zoneName.replace(/'/g, "\\'");
 
         if (currentMode === 'tune') {
-          // Tune mode: 2-row layout with brightness previews
+          // Tune mode: 2-row layout with brightness previews + zone controls
           const zoneConfig = getTuneZoneConfig(zoneName);
           const rhythmName = zoneConfig.rhythm;
           const sensitivity = zoneConfig.brightness_sensitivity ?? 5.0;
@@ -2531,6 +2662,8 @@
           const outdoorNorm = tuneData?.outdoor_normalized ?? 0.0;
           const rhythmValues = getPureRhythmValues(rhythmName);
           const rhythmBri = Math.round(rhythmValues?.brightness ?? 50);
+          const sensitivityStep = findClosestSensitivityStep(sensitivity);
+          const escapedRhythm = (rhythmName || '').replace(/'/g, "\\'");
 
           const areaRows = sorted.map(area => {
             const tuneArea = getTuneArea(area.area_id);
@@ -2538,17 +2671,23 @@
             const exposure = tuneArea?.natural_light_exposure ?? 0.0;
             const lumenStep = findClosestStep(LUMEN_STEPS, 'intensity', 1 / factor);
             const solarStep = findClosestStep(SOLAR_STEPS, 'exposure', exposure);
-            const nowBri = computeNowBrightness(rhythmBri, factor, exposure, outdoorNorm, sensitivity, daylightFade);
+            const filterMult = computeAreaFilterMult(area.area_id, zoneName);
+            const nowRaw = computeNowBrightness(rhythmBri, factor, exposure, outdoorNorm, sensitivity, daylightFade);
+            const nowBri = Math.min(100, Math.round(nowRaw * filterMult));
+            const peakRaw = computeNowBrightness(rhythmBri, factor, exposure, 1.0, sensitivity, 0);
+            const peakBri = Math.min(100, Math.round(peakRaw * filterMult));
             const factorStr = formatFactorMeta(factor);
-            const peakText = formatPeakMeta(exposure, sensitivity);
+            const sunText = formatSunMeta(exposure, sensitivity, outdoorNorm, daylightFade);
+            const peakVisible = exposure > 0;
+            const filterPct = Math.round((1 - filterMult) * 100);
+            const filterBadge = filterPct > 1 ? `<span class="tune-filter-badge">Filter \u2193${filterPct}%</span>` : '';
             return `
-              <div class="tune-area" data-area-id="${area.area_id}" data-rhythm-bri="${rhythmBri}" data-sensitivity="${sensitivity}" data-daylight-fade="${daylightFade}" data-outdoor-norm="${outdoorNorm}">
+              <div class="tune-area" data-area-id="${area.area_id}" data-rhythm-bri="${rhythmBri}" data-sensitivity="${sensitivity}" data-daylight-fade="${daylightFade}" data-outdoor-norm="${outdoorNorm}" data-filter-mult="${filterMult.toFixed(3)}">
                 <div class="tune-row-top">
                   <a href="./area/${encodeURIComponent(area.area_id)}?from=tune" class="tune-area-name">${area.name}</a>
                   <span class="tune-bri-preview">
-                    <span class="tune-bri-rhythm">${rhythmBri}%</span>
-                    <span class="tune-bri-arrow">\u2192</span>
                     <span class="tune-bri-now">${nowBri}%</span>
+                    <span class="tune-bri-peak">${peakVisible ? 'pk ' + peakBri + '%' : ''}</span>
                   </span>
                 </div>
                 <div class="tune-row-bottom">
@@ -2560,12 +2699,29 @@
                   <div class="tune-slider-group">
                     <input type="range" class="tune-solar-slider" min="0" max="9" step="1" value="${solarStep}" data-area-id="${area.area_id}">
                     <span class="tune-slider-word tune-solar-word">${SOLAR_STEPS[solarStep].label}</span>
-                    <span class="tune-slider-meta tune-peak-meta">${peakText}</span>
+                    <span class="tune-slider-meta tune-sun-meta">${sunText}</span>
                   </div>
+                  ${filterBadge}
                 </div>
               </div>
             `;
           }).join('');
+
+          const zoneControlsHtml = `
+            <div class="tune-zone-controls" data-zone="${zoneName}" data-rhythm="${rhythmName || ''}">
+              <div class="tune-zone-ctrl">
+                <span class="tune-zone-ctrl-label">Sensitivity</span>
+                <input type="range" class="tune-sensitivity-slider" min="0" max="9" step="1" value="${sensitivityStep}">
+                <span class="tune-zone-ctrl-word tune-sensitivity-word">${SENSITIVITY_STEPS[sensitivityStep].label}</span>
+              </div>
+              <div class="tune-zone-ctrl">
+                <span class="tune-zone-ctrl-label">Fade</span>
+                <input type="range" class="tune-fade-slider" min="0" max="180" step="15" value="${daylightFade}">
+                <span class="tune-zone-ctrl-word tune-fade-word">${fmtFadeMinutes(daylightFade)}</span>
+              </div>
+              <span class="tune-zone-rhythm-bri">Rhythm: ${rhythmBri}%</span>
+            </div>
+          `;
 
           return `
             <div class="zone-group">
@@ -2574,6 +2730,7 @@
                 <span style="font-size: 0.65rem; opacity: 0.5;">Glo Zone</span>
                 <span class="zone-name">${zoneName}</span>
               </div>
+              ${isCollapsed ? '' : zoneControlsHtml}
               <div class="zone-content ${isCollapsed ? 'hidden' : ''}" data-zone-table="${zoneName}">
                 ${areaRows}
               </div>
@@ -2719,27 +2876,19 @@
         const gzZonesObj = cachedGlozones?.zones || {};
         const gzZoneNames = Object.keys(gzZonesObj);
 
-        // Preset filter helper
-        const matchesPresetFilter = (areaId) => {
-          if (!tuneFilterPreset) return true;
-          return getTuneAreaPresets(areaId).has(tuneFilterPreset);
-        };
-
         // Collect all areas for sorting
         let allTuneAreas = [];
         for (const zoneName of gzZoneNames) {
           if (tuneFilterZone && tuneFilterZone !== zoneName) continue;
           const gzData = gzZonesObj[zoneName];
           const zoneAreaIds = (gzData.areas || []).map(a => typeof a === 'object' ? a.id : a);
-          const areasInZone = zoneAreaIds.map(id => mergedAreas.find(a => a.area_id === id)).filter(Boolean)
-            .filter(a => matchesPresetFilter(a.area_id));
+          const areasInZone = zoneAreaIds.map(id => mergedAreas.find(a => a.area_id === id)).filter(Boolean);
           areasInZone.forEach(a => { a._tunezone = zoneName; });
           allTuneAreas.push(...areasInZone);
         }
         if (!tuneFilterZone && unassigned.length > 0) {
-          const filteredUnassigned = unassigned.filter(a => matchesPresetFilter(a.area_id));
-          filteredUnassigned.forEach(a => { a._tunezone = 'Unassigned'; });
-          allTuneAreas.push(...filteredUnassigned);
+          unassigned.forEach(a => { a._tunezone = 'Unassigned'; });
+          allTuneAreas.push(...unassigned);
         }
 
         // Apply tune sort
@@ -2766,13 +2915,11 @@
             if (tuneFilterZone && tuneFilterZone !== zoneName) continue;
             const gzData = gzZonesObj[zoneName];
             const zoneAreaIds = (gzData.areas || []).map(a => typeof a === 'object' ? a.id : a);
-            const areasInZone = zoneAreaIds.map(id => mergedAreas.find(a => a.area_id === id)).filter(Boolean)
-              .filter(a => matchesPresetFilter(a.area_id));
+            const areasInZone = zoneAreaIds.map(id => mergedAreas.find(a => a.area_id === id)).filter(Boolean);
             if (areasInZone.length > 0) html += renderZoneGroup(zoneName, areasInZone);
           }
           if (!tuneFilterZone && unassigned.length > 0) {
-            const filteredUnassigned = unassigned.filter(a => matchesPresetFilter(a.area_id));
-            if (filteredUnassigned.length > 0) html += renderZoneGroup('Unassigned', filteredUnassigned);
+            html += renderZoneGroup('Unassigned', unassigned);
           }
         } else {
           // Sorted: re-group
@@ -3055,10 +3202,6 @@
           tuneFilterZone = e.target.value;
           renderAreas();
         }
-        if (e.target.id === 'tune-filter-preset') {
-          tuneFilterPreset = e.target.value;
-          renderAreas();
-        }
       });
 
       // View mode pill clicks
@@ -3076,6 +3219,28 @@
 
       // Tune mode slider events (delegated)
       document.getElementById('areas-container').addEventListener('input', (e) => {
+        // Zone-level controls (sensitivity, fade)
+        if (e.target.classList.contains('tune-sensitivity-slider')) {
+          const step = parseInt(e.target.value);
+          const controls = e.target.closest('.tune-zone-controls');
+          const word = controls.querySelector('.tune-sensitivity-word');
+          if (word) word.textContent = SENSITIVITY_STEPS[step].label;
+          const newSensitivity = SENSITIVITY_STEPS[step].multiplier;
+          const zoneGroup = e.target.closest('.zone-group');
+          if (zoneGroup) updateZoneSensitivity(zoneGroup, newSensitivity);
+          return;
+        }
+        if (e.target.classList.contains('tune-fade-slider')) {
+          const val = parseInt(e.target.value);
+          const controls = e.target.closest('.tune-zone-controls');
+          const word = controls.querySelector('.tune-fade-word');
+          if (word) word.textContent = fmtFadeMinutes(val);
+          const zoneGroup = e.target.closest('.zone-group');
+          if (zoneGroup) updateZoneDaylightFade(zoneGroup, val);
+          return;
+        }
+
+        // Per-area controls (lumen, solar)
         const tuneArea = e.target.closest('.tune-area');
         if (!tuneArea) return;
 
@@ -3086,7 +3251,6 @@
           const newFactor = 1 / LUMEN_STEPS[step].intensity;
           const factorMeta = e.target.closest('.tune-slider-group').querySelector('.tune-factor-meta');
           if (factorMeta) factorMeta.textContent = formatFactorMeta(newFactor);
-          // Update Now brightness
           updateTuneNowPreview(tuneArea, { factor: newFactor });
         }
         if (e.target.classList.contains('tune-solar-slider')) {
@@ -3094,14 +3258,21 @@
           const word = e.target.closest('.tune-slider-group').querySelector('.tune-solar-word');
           if (word) word.textContent = SOLAR_STEPS[step].label;
           const newExposure = SOLAR_STEPS[step].exposure;
-          const sensitivity = parseFloat(tuneArea.dataset.sensitivity) || 5.0;
-          const peakMeta = tuneArea.querySelector('.tune-peak-meta');
-          if (peakMeta) peakMeta.textContent = formatPeakMeta(newExposure, sensitivity);
-          // Update Now brightness
           updateTuneNowPreview(tuneArea, { exposure: newExposure });
         }
       });
       document.getElementById('areas-container').addEventListener('change', (e) => {
+        // Zone-level saves
+        if (e.target.classList.contains('tune-sensitivity-slider')) {
+          const rhythmName = e.target.closest('.tune-zone-controls').dataset.rhythm;
+          const step = parseInt(e.target.value);
+          saveTuneZoneSetting(rhythmName, 'brightness_sensitivity', SENSITIVITY_STEPS[step].multiplier);
+        }
+        if (e.target.classList.contains('tune-fade-slider')) {
+          const rhythmName = e.target.closest('.tune-zone-controls').dataset.rhythm;
+          saveTuneZoneSetting(rhythmName, 'daylight_fade', parseInt(e.target.value));
+        }
+        // Per-area saves
         if (e.target.classList.contains('tune-lumen-slider')) {
           const step = parseInt(e.target.value);
           const areaId = e.target.dataset.areaId;

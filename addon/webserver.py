@@ -712,6 +712,8 @@ class LightDesignerServer:
                     "rhythm": rhythm_name,
                     "brightness_sensitivity": rhythm_cfg.get("brightness_sensitivity", 5.0),
                     "daylight_fade": rhythm_cfg.get("daylight_fade", 60),
+                    "min_brightness": rhythm_cfg.get("min_brightness", 1),
+                    "max_brightness": rhythm_cfg.get("max_brightness", 100),
                     "areas": zone_areas,
                 }
 
@@ -4767,6 +4769,9 @@ class LightDesignerServer:
             "override": lux_tracker.get_override_info(),
             "weather_cloud_cover": lux_tracker._cloud_cover,
             "lux_smoothed": lux_tracker._ema_lux,
+            "lux_learned_ceiling": lux_tracker._learned_ceiling,
+            "lux_learned_floor": lux_tracker._learned_floor,
+            "sun_elevation": round(lux_tracker._sun_elevation, 1),
         })
 
     async def learn_baselines(self, request: Request) -> Response:
