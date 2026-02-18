@@ -1042,14 +1042,39 @@
       color: var(--accent);
     }
 
+    .tune-outdoor-wrapper { position: relative; display: inline-flex; align-items: center; }
     .tune-outdoor-info {
       display: inline-flex; align-items: center; gap: 6px;
-      font-size: 0.8rem; color: var(--muted); flex-wrap: wrap;
+      font-size: 0.8rem; color: var(--muted); flex-wrap: wrap; cursor: pointer;
     }
+    .tune-outdoor-info:hover { color: var(--text); }
     .tune-outdoor-pct { color: var(--text); font-weight: 600; white-space: nowrap; }
     .tune-outdoor-detail { color: var(--muted2); font-size: 0.75rem; }
+    .tune-outdoor-warn { color: var(--warning); font-size: 0.7rem; }
     .tune-outdoor-refresh { background: none; border: 1px solid var(--line); color: var(--muted2); font-size: 10px; padding: 1px 6px; border-radius: 4px; cursor: pointer; }
     .tune-outdoor-refresh:hover { color: var(--text); border-color: var(--muted); }
+    .tune-outdoor-panel {
+      position: absolute; top: 100%; right: 0; margin-top: 4px;
+      min-width: 300px; background: var(--panel);
+      border: 1px solid var(--line); border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      z-index: 150; padding: 12px 16px; display: none;
+    }
+    .tune-outdoor-panel.visible { display: block; }
+    .tune-outdoor-panel-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 0.82rem; }
+    .tune-outdoor-panel-row:last-child { margin-bottom: 0; }
+    .tune-outdoor-panel-label { color: var(--muted2); font-size: 0.75rem; min-width: 55px; flex-shrink: 0; }
+    .tune-outdoor-panel-divider { border: none; border-top: 1px solid var(--line); margin: 8px 0; }
+    .tune-outdoor-panel select, .tune-outdoor-panel input[type="text"] {
+      background: var(--card); color: var(--text); border: 1px solid var(--line);
+      border-radius: 4px; padding: 4px 8px; font-size: 0.8rem; flex: 1; min-width: 0;
+    }
+    .tune-outdoor-panel select:focus, .tune-outdoor-panel input[type="text"]:focus { border-color: var(--accent); outline: none; }
+    .tune-outdoor-panel-btn { background: none; border: 1px solid var(--line); color: var(--muted); font-size: 0.75rem; padding: 3px 8px; border-radius: 4px; cursor: pointer; white-space: nowrap; }
+    .tune-outdoor-panel-btn:hover { color: var(--text); border-color: var(--muted); }
+    .tune-outdoor-panel-btn.danger { color: var(--danger); }
+    .tune-outdoor-panel-btn.danger:hover { border-color: var(--danger); }
+    .tune-outdoor-panel-status { font-size: 0.75rem; color: var(--muted2); }
 
     .tune-zone-controls {
       display: flex; align-items: center; gap: 12px;
@@ -2064,26 +2089,102 @@
       return totalMult / areaLights.length;
     }
 
-    function buildOutdoorInfo() {
+    function buildOutdoorSection() {
       const d = tuneOutdoorData;
-      if (!d) return '<span class="tune-outdoor-info"><span class="tune-outdoor-pct">\u2600 --</span><span class="tune-outdoor-detail">no outdoor data</span></span>';
-      const pct = Math.round((d.outdoor_normalized || 0) * 100);
-      const icon = (d.source === 'weather' && (d.weather_cloud_cover ?? 0) > 50) ? '\u2601' : '\u2600';
-      let detail = '';
-      if (d.override) {
-        detail = 'override \u00b7 ' + d.override.condition.replace(/_/g, ' ') + ' \u00b7 expires ' + Math.round(d.override.expires_in_minutes) + 'min';
-      } else if (d.source === 'lux' && d.lux_smoothed != null) {
-        detail = 'lux sensor \u00b7 ' + Math.round(d.lux_smoothed).toLocaleString() + ' lx';
-        if (d.lux_learned_floor != null && d.lux_learned_ceiling != null) {
-          detail += ' \u00b7 range ' + Math.round(d.lux_learned_floor).toLocaleString() + ' \u2013 ' + Math.round(d.lux_learned_ceiling).toLocaleString();
-        }
-      } else if (d.source === 'weather') {
-        const cc = Math.round(d.weather_cloud_cover ?? 0);
-        detail = cc + '% cloud cover \u00b7 via weather';
+      let infoHtml = '';
+      if (!d) {
+        infoHtml = '<span class="tune-outdoor-pct">\u2600 --</span><span class="tune-outdoor-detail">no outdoor data</span>';
       } else {
-        detail = 'sun angle \u00b7 elevation ' + (d.sun_elevation ?? 0) + '\u00b0';
+        const pct = Math.round((d.outdoor_normalized || 0) * 100);
+        const icon = (d.source === 'weather' && (d.weather_cloud_cover ?? 0) > 50) ? '\u2601' : '\u2600';
+        let detail = '';
+        if (d.override) {
+          detail = 'override \u00b7 ' + d.override.condition.replace(/_/g, ' ') + ' \u00b7 ' + Math.round(d.override.expires_in_minutes) + 'min';
+        } else if (d.source === 'lux' && d.lux_smoothed != null) {
+          detail = 'lux \u00b7 ' + Math.round(d.lux_smoothed).toLocaleString() + ' lx';
+          if (d.lux_learned_floor != null && d.lux_learned_ceiling != null) {
+            detail += ' \u00b7 range ' + Math.round(d.lux_learned_floor).toLocaleString() + '\u2013' + Math.round(d.lux_learned_ceiling).toLocaleString();
+          }
+        } else if (d.source === 'weather') {
+          const cc = Math.round(d.weather_cloud_cover ?? 0);
+          const cond = d.weather_condition ? d.weather_condition.replace(/-/g, ' ') : '';
+          detail = cond ? cond + ' \u00b7 ' + cc + '% cloud' : cc + '% cloud cover';
+        } else {
+          detail = 'sun angle \u00b7 ' + (d.sun_elevation ?? 0) + '\u00b0';
+        }
+        let warn = '';
+        if (d.preferred_source === 'lux' && d.source !== 'lux') {
+          warn = ' <span class="tune-outdoor-warn">(lux unavailable)</span>';
+        }
+        infoHtml = '<span class="tune-outdoor-pct">' + icon + ' ' + pct + '%</span><span class="tune-outdoor-detail">' + detail + '</span>' + warn;
       }
-      return '<span class="tune-outdoor-info"><span class="tune-outdoor-pct">' + icon + ' ' + pct + '%</span><span class="tune-outdoor-detail">' + detail + '</span><button class="tune-outdoor-refresh" id="tune-refresh-outdoor">refresh</button></span>';
+
+      // Build settings panel
+      const src = d?.preferred_source || 'weather';
+      const sensor = d?.sensor_entity || '';
+      const ceiling = d?.lux_learned_ceiling;
+      const floor = d?.lux_learned_floor;
+      const rangeStr = (ceiling != null && floor != null) ? Math.round(floor).toLocaleString() + ' \u2013 ' + Math.round(ceiling).toLocaleString() : 'not learned';
+      const showLux = src === 'lux';
+      const hasOverride = !!d?.override;
+
+      let panelHtml = '<div class="tune-outdoor-panel" id="tune-outdoor-panel">';
+      panelHtml += '<div class="tune-outdoor-panel-row">';
+      panelHtml += '<span class="tune-outdoor-panel-label">Source</span>';
+      panelHtml += '<select id="tune-outdoor-source">';
+      panelHtml += '<option value="lux"' + (src === 'lux' ? ' selected' : '') + '>Lux sensor</option>';
+      panelHtml += '<option value="weather"' + (src === 'weather' ? ' selected' : '') + '>HA weather</option>';
+      panelHtml += '<option value="angle"' + (src === 'angle' ? ' selected' : '') + '>Sun angle</option>';
+      panelHtml += '</select></div>';
+
+      if (showLux) {
+        panelHtml += '<div class="tune-outdoor-panel-row">';
+        panelHtml += '<span class="tune-outdoor-panel-label">Sensor</span>';
+        panelHtml += '<input type="text" id="tune-outdoor-sensor" value="' + (sensor || '') + '" placeholder="sensor.outdoor_illuminance">';
+        panelHtml += '</div>';
+        panelHtml += '<div class="tune-outdoor-panel-row">';
+        panelHtml += '<span class="tune-outdoor-panel-label">Range</span>';
+        panelHtml += '<span class="tune-outdoor-panel-status">' + rangeStr + '</span>';
+        panelHtml += '<button class="tune-outdoor-panel-btn" id="tune-outdoor-learn">Learn</button>';
+        panelHtml += '<button class="tune-outdoor-panel-btn danger" id="tune-outdoor-clear-baselines">Clear</button>';
+        panelHtml += '<span class="tune-outdoor-panel-status" id="tune-outdoor-learn-status"></span>';
+        panelHtml += '</div>';
+      }
+
+      panelHtml += '<hr class="tune-outdoor-panel-divider">';
+      panelHtml += '<div class="tune-outdoor-panel-row">';
+      panelHtml += '<span class="tune-outdoor-panel-label">Override</span>';
+      panelHtml += '<select id="tune-outdoor-override-cond">';
+      panelHtml += '<option value="">Off</option>';
+      panelHtml += '<option value="sunny"' + (d?.override?.condition === 'sunny' ? ' selected' : '') + '>Sunny</option>';
+      panelHtml += '<option value="partly_cloudy"' + (d?.override?.condition === 'partly_cloudy' ? ' selected' : '') + '>Partly cloudy</option>';
+      panelHtml += '<option value="cloudy"' + (d?.override?.condition === 'cloudy' ? ' selected' : '') + '>Cloudy</option>';
+      panelHtml += '<option value="heavy_overcast"' + (d?.override?.condition === 'heavy_overcast' ? ' selected' : '') + '>Heavy overcast</option>';
+      panelHtml += '</select>';
+      panelHtml += '<select id="tune-outdoor-override-dur">';
+      panelHtml += '<option value="30">30m</option><option value="60" selected>1h</option><option value="120">2h</option><option value="240">4h</option>';
+      panelHtml += '</select>';
+      if (hasOverride) {
+        panelHtml += '<button class="tune-outdoor-panel-btn danger" id="tune-outdoor-clear-override">Clear</button>';
+      } else {
+        panelHtml += '<button class="tune-outdoor-panel-btn" id="tune-outdoor-apply-override">Apply</button>';
+      }
+      panelHtml += '</div>';
+
+      panelHtml += '</div>';
+
+      return '<div class="tune-outdoor-wrapper">'
+        + '<span class="tune-outdoor-info" id="tune-outdoor-toggle">' + infoHtml
+        + ' <button class="tune-outdoor-refresh" id="tune-refresh-outdoor">refresh</button></span>'
+        + panelHtml + '</div>';
+    }
+
+    async function refreshOutdoorAndRender() {
+      try {
+        const resp = await fetch('./api/outdoor-status');
+        if (resp.ok) tuneOutdoorData = await resp.json();
+      } catch (err) {}
+      renderAreas();
     }
 
     async function saveTuneZoneSetting(rhythmName, field, value) {
@@ -2600,7 +2701,7 @@
           <div class="edit-toolbar">
             <span style="font-size: 1rem; font-weight: 600; color: var(--text);">Tune${homeName ? ': ' + homeName : ''}</span>
             <span style="flex: 1;"></span>
-            ${buildOutdoorInfo()}
+            ${buildOutdoorSection()}
             <a href="#" class="edit-toolbar-link" onclick="event.preventDefault(); exitMode()" style="color: var(--accent); font-weight: 600; margin-left: 12px;">Done</a>
           </div>
           <div class="tune-toolbar-row">
@@ -3196,6 +3297,7 @@
         if (e.target.id === 'tune-link') { e.preventDefault(); enterTuneMode(); }
         if (e.target.id === 'add-zone-link') { e.preventDefault(); createZoneFromEdit(); }
         if (e.target.id === 'tune-refresh-outdoor') {
+          e.stopPropagation();
           const btn = e.target;
           btn.textContent = '...';
           fetch('./api/refresh-outdoor', { method: 'POST' }).catch(() => {});
@@ -3208,13 +3310,70 @@
             renderAreas();
           }, 1500);
         }
+        // Toggle outdoor settings panel
+        if (e.target.closest('#tune-outdoor-toggle') && !e.target.classList.contains('tune-outdoor-refresh')) {
+          e.stopPropagation();
+          const panel = document.getElementById('tune-outdoor-panel');
+          if (panel) panel.classList.toggle('visible');
+        }
+        // Outdoor panel buttons
+        if (e.target.id === 'tune-outdoor-apply-override') {
+          e.stopPropagation();
+          const cond = document.getElementById('tune-outdoor-override-cond')?.value;
+          const dur = document.getElementById('tune-outdoor-override-dur')?.value || '60';
+          if (cond) {
+            fetch('./api/outdoor-override', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ condition: cond, duration_minutes: parseInt(dur) }) })
+              .then(() => refreshOutdoorAndRender());
+          }
+        }
+        if (e.target.id === 'tune-outdoor-clear-override') {
+          e.stopPropagation();
+          fetch('./api/outdoor-override', { method: 'DELETE' }).then(() => refreshOutdoorAndRender());
+        }
+        if (e.target.id === 'tune-outdoor-learn') {
+          e.stopPropagation();
+          const status = document.getElementById('tune-outdoor-learn-status');
+          if (status) status.textContent = 'Learning...';
+          fetch('./api/learn-baselines', { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
+              if (data.error) { if (status) status.textContent = data.error; }
+              else { if (status) status.textContent = 'Learned from ' + data.samples + ' samples'; refreshOutdoorAndRender(); }
+            })
+            .catch(() => { if (status) status.textContent = 'Error'; });
+        }
+        if (e.target.id === 'tune-outdoor-clear-baselines') {
+          e.stopPropagation();
+          fetch('./api/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lux_learned_ceiling: null, lux_learned_floor: null }) })
+            .then(() => refreshOutdoorAndRender());
+        }
       });
 
-      // Tune filter dropdowns (delegated)
+      // Close outdoor panel when clicking outside
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('.tune-outdoor-wrapper')) {
+          const panel = document.getElementById('tune-outdoor-panel');
+          if (panel) panel.classList.remove('visible');
+        }
+      });
+
+      // Tune filter and outdoor panel dropdowns (delegated)
       document.getElementById('areas-container').addEventListener('change', (e) => {
         if (e.target.id === 'tune-filter-zone') {
           tuneFilterZone = e.target.value;
           renderAreas();
+        }
+        if (e.target.id === 'tune-outdoor-source') {
+          e.stopPropagation();
+          const val = e.target.value;
+          fetch('./api/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ outdoor_brightness_source: val }) })
+            .then(() => refreshOutdoorAndRender());
+        }
+        if (e.target.id === 'tune-outdoor-sensor') {
+          e.stopPropagation();
+          const val = e.target.value.trim() || null;
+          fetch('./api/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ outdoor_lux_sensor: val }) })
+            .then(() => refreshOutdoorAndRender());
         }
       });
 

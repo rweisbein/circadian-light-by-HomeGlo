@@ -4508,9 +4508,10 @@ class HomeAssistantWebSocketClient:
                     try:
                         attrs = new_state.get("attributes", {})
                         cloud_cover = attrs.get("cloud_coverage")
+                        condition = new_state.get("state")
                         if cloud_cover is not None:
-                            lux_tracker.update_weather(float(cloud_cover))
-                            logger.debug(f"Weather update: cloud_coverage={cloud_cover}")
+                            lux_tracker.update_weather(float(cloud_cover), condition)
+                            logger.debug(f"Weather update: cloud_coverage={cloud_cover}, condition={condition}")
                     except (ValueError, TypeError):
                         pass
 
@@ -4876,7 +4877,8 @@ class HomeAssistantWebSocketClient:
                         if "cloud_coverage" in attrs:
                             lux_tracker.set_weather_entity(eid)
                             try:
-                                lux_tracker.update_weather(float(attrs["cloud_coverage"]))
+                                condition = estate.get("state")
+                                lux_tracker.update_weather(float(attrs["cloud_coverage"]), condition)
                             except (ValueError, TypeError):
                                 pass
                             logger.info(f"Auto-detected weather entity: {eid}")

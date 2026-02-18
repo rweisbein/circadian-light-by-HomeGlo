@@ -2028,13 +2028,14 @@ class LightDesignerServer:
                         except (ValueError, TypeError):
                             pass
 
-                    # Auto-detect weather entity and seed cloud coverage
+                    # Auto-detect weather entity and seed cloud coverage + condition
                     if eid.startswith('weather.') and 'cloud_coverage' in attrs:
                         if not lux_tracker.get_weather_entity():
                             lux_tracker.set_weather_entity(eid)
                         if eid == lux_tracker.get_weather_entity():
                             try:
-                                lux_tracker.update_weather(float(attrs['cloud_coverage']))
+                                condition = st.get('state')
+                                lux_tracker.update_weather(float(attrs['cloud_coverage']), condition)
                             except (ValueError, TypeError):
                                 pass
         except Exception as e:
@@ -4766,12 +4767,15 @@ class LightDesignerServer:
         return web.json_response({
             "outdoor_normalized": round(outdoor_norm if outdoor_norm is not None else 0, 3),
             "source": lux_tracker.get_outdoor_source(),
+            "preferred_source": lux_tracker.get_preferred_source(),
             "override": lux_tracker.get_override_info(),
             "weather_cloud_cover": lux_tracker._cloud_cover,
+            "weather_condition": lux_tracker._weather_condition,
             "lux_smoothed": lux_tracker._ema_lux,
             "lux_learned_ceiling": lux_tracker._learned_ceiling,
             "lux_learned_floor": lux_tracker._learned_floor,
             "sun_elevation": round(lux_tracker._sun_elevation, 1),
+            "sensor_entity": lux_tracker.get_sensor_entity(),
         })
 
     async def learn_baselines(self, request: Request) -> Response:

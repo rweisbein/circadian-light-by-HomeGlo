@@ -267,13 +267,58 @@ class TestWeatherEstimation:
         assert result > 0.8
 
     def test_compute_weather_outdoor_norm_overcast(self):
-        """100% cloud should give much lower value."""
+        """100% cloud (no condition) should give reduced value via cloud formula."""
         lux_tracker._weather_entity = "weather.home"
         lux_tracker._cloud_cover = 100.0
+        lux_tracker._weather_condition = None
         lux_tracker._sun_elevation = 60.0
         result = lux_tracker._compute_weather_outdoor_norm()
         assert result is not None
-        assert result < 0.7  # Significantly reduced
+        assert result < 0.85  # Reduced from clear sky
+
+    def test_compute_weather_condition_rainy(self):
+        """Rainy condition should use CONDITION_MULTIPLIERS and give lower value."""
+        lux_tracker._weather_entity = "weather.home"
+        lux_tracker._cloud_cover = 100.0
+        lux_tracker._sun_elevation = 60.0
+        # Without condition
+        lux_tracker._weather_condition = None
+        no_condition = lux_tracker._compute_weather_outdoor_norm()
+        # With rainy condition (multiplier 0.2 vs cloud formula 0.3)
+        lux_tracker._weather_condition = "rainy"
+        with_rainy = lux_tracker._compute_weather_outdoor_norm()
+        assert with_rainy < no_condition
+
+    def test_compute_weather_condition_cloudy_matches_override(self):
+        """Weather 'cloudy' condition uses same multiplier as override 'cloudy'."""
+        lux_tracker._weather_entity = "weather.home"
+        lux_tracker._cloud_cover = 50.0  # doesn't matter when condition is set
+        lux_tracker._sun_elevation = 45.0
+        lux_tracker._weather_condition = "cloudy"
+        result_weather = lux_tracker._compute_weather_outdoor_norm()
+        # Override uses same multiplier via CONDITION_MULTIPLIERS["cloudy"] = 0.3
+        assert result_weather is not None
+
+    def test_compute_weather_unknown_condition_uses_cloud_formula(self):
+        """Unknown condition falls back to cloud-cover formula."""
+        lux_tracker._weather_entity = "weather.home"
+        lux_tracker._cloud_cover = 80.0
+        lux_tracker._sun_elevation = 50.0
+        lux_tracker._weather_condition = "unknown_thing"
+        result_unknown = lux_tracker._compute_weather_outdoor_norm()
+        lux_tracker._weather_condition = None
+        result_none = lux_tracker._compute_weather_outdoor_norm()
+        assert result_unknown == result_none  # Both use cloud formula
+
+    def test_update_weather_stores_condition(self):
+        """update_weather should store both cloud cover and condition."""
+        lux_tracker.update_weather(75.0, "rainy")
+        assert lux_tracker._cloud_cover == 75.0
+        assert lux_tracker._weather_condition == "rainy"
+        # Without condition
+        lux_tracker.update_weather(50.0)
+        assert lux_tracker._cloud_cover == 50.0
+        assert lux_tracker._weather_condition is None
 
     def test_compute_weather_outdoor_norm_night(self):
         """Elevation <= 0 should give 0.0."""

@@ -25,10 +25,27 @@ logger = logging.getLogger(__name__)
 FULL_SUN_INTENSITY = 8.4  # log2(100000 / 300) — matches brain.py
 
 CONDITION_MULTIPLIERS = {
+    # Clear / light
     "sunny": 1.0,
-    "partly_cloudy": 0.6,
+    "clear-night": 1.0,
+    "windy": 1.0,
+    "windy-variant": 1.0,
+    # Partly cloudy
+    "partlycloudy": 0.6,
+    "partly_cloudy": 0.6,   # override compat
+    # Cloudy
     "cloudy": 0.3,
-    "heavy_overcast": 0.15,
+    # Precipitation / dark
+    "rainy": 0.2,
+    "snowy": 0.2,
+    "exceptional": 0.2,
+    "fog": 0.15,
+    "snowy-rainy": 0.15,
+    "heavy_overcast": 0.15,  # override compat
+    "hail": 0.1,
+    "pouring": 0.1,
+    "lightning": 0.08,
+    "lightning-rainy": 0.08,
 }
 
 # ---------------------------------------------------------------------------
@@ -53,6 +70,7 @@ _preferred_source: str = "weather"  # "lux", "weather", or "angle"
 # ---------------------------------------------------------------------------
 _weather_entity: Optional[str] = None
 _cloud_cover: Optional[float] = None  # 0-100 from weather entity
+_weather_condition: Optional[str] = None  # HA weather state e.g. "cloudy", "rainy"
 
 # ---------------------------------------------------------------------------
 # Module state — manual override
@@ -82,7 +100,7 @@ def init(config: Optional[dict] = None):
     """
     global _sensor_entity, _smoothing_interval, _learned_ceiling, _learned_floor
     global _ema_lux, _last_update_time, _cached_sun_factor
-    global _preferred_source, _cloud_cover
+    global _preferred_source, _cloud_cover, _weather_condition
     global _override_condition, _override_expires_at
     global _sun_elevation, _last_outdoor_update
 
@@ -122,6 +140,7 @@ def init(config: Optional[dict] = None):
     _last_update_time = None
     _cached_sun_factor = 1.0
     _cloud_cover = None
+    _weather_condition = None
     _override_condition = None
     _override_expires_at = None
     _sun_elevation = 0.0
@@ -236,6 +255,11 @@ def set_weather_entity(entity_id: str):
     _weather_entity = entity_id
 
 
+def get_weather_condition() -> Optional[str]:
+    """Return current HA weather condition string, or None."""
+    return _weather_condition
+
+
 def get_last_outdoor_update() -> Optional[float]:
     """Return wall-clock timestamp of last outdoor data update, or None."""
     return _last_outdoor_update
@@ -244,10 +268,11 @@ def get_last_outdoor_update() -> Optional[float]:
 # ---------------------------------------------------------------------------
 # Weather entity
 # ---------------------------------------------------------------------------
-def update_weather(cloud_cover: float):
-    """Store cloud coverage from HA weather entity (0-100)."""
-    global _cloud_cover, _last_outdoor_update
+def update_weather(cloud_cover: float, condition: Optional[str] = None):
+    """Store cloud coverage and condition from HA weather entity."""
+    global _cloud_cover, _weather_condition, _last_outdoor_update
     _cloud_cover = max(0.0, min(100.0, cloud_cover))
+    _weather_condition = condition
     _last_outdoor_update = time.time()
 
 
@@ -297,11 +322,16 @@ def get_override_info() -> Optional[dict]:
 # Internal computation helpers
 # ---------------------------------------------------------------------------
 def _compute_weather_outdoor_norm() -> Optional[float]:
-    """Compute outdoor normalized from weather entity cloud coverage."""
+    """Compute outdoor normalized from weather entity cloud coverage + condition."""
     if _weather_entity is None or _cloud_cover is None:
         return None
-    cloud_fraction = _cloud_cover / 100.0
-    condition_mult = 1.0 - cloud_fraction * 0.85  # 0% → 1.0, 100% → 0.15
+    # Prefer condition-based multiplier when available
+    if _weather_condition and _weather_condition in CONDITION_MULTIPLIERS:
+        condition_mult = CONDITION_MULTIPLIERS[_weather_condition]
+    else:
+        # Cloud cover alone: 100% → 0.3 (= "cloudy", can't distinguish darker)
+        cloud_fraction = _cloud_cover / 100.0
+        condition_mult = 1.0 - cloud_fraction * 0.7
     elev = _sun_elevation
     clear_sky_lux = 120000.0 * max(0.0, math.sin(math.radians(elev)))
     estimated_lux = clear_sky_lux * condition_mult
