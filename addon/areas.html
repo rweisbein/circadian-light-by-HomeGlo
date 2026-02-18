@@ -986,6 +986,11 @@
     .tune-filter-select:focus {
       border-color: var(--accent-hover);
     }
+    .tune-filter-small {
+      font-size: 0.75rem;
+      padding: 3px 6px;
+      margin-left: auto;
+    }
 
     .tune-col-headers {
       display: flex;
@@ -1094,6 +1099,7 @@
       border-bottom: 1px solid var(--line); flex-wrap: wrap;
     }
     .tune-zone-ctrl { display: flex; align-items: center; gap: 6px; margin-right: 0; }
+    .tune-zone-label-col { justify-content: flex-end; margin-right: 0; }
     .tune-zone-ctrl-label { font-size: 0.7rem; color: var(--muted2); text-transform: uppercase; white-space: nowrap; }
     .tune-zone-ctrl-word { font-size: 0.8rem; color: var(--text); }
     .tune-zone-ctrl-val { font-size: 0.75rem; color: var(--text); }
@@ -2771,9 +2777,6 @@
         html = `
           <div class="edit-toolbar">
             <span style="font-size: 1rem; font-weight: 600; color: var(--text);">Tune brightness${homeName ? ': ' + homeName : ''}</span>
-            <select class="tune-filter-select" id="tune-filter-zone" style="margin-left: 8px;">
-              ${zoneOptions}
-            </select>
             <span style="flex: 1;"></span>
             ${buildOutdoorSection()}
             <a href="#" class="edit-toolbar-link" onclick="event.preventDefault(); exitMode()" style="color: var(--accent); font-weight: 600; margin-left: 12px;">Done</a>
@@ -2784,10 +2787,13 @@
               <span class="view-sep">&middot;</span>
               <button class="view-link ${tuneSortOrder === 'az' ? 'active' : ''}" data-tune-sort="az">a&ndash;z</button>
               <span class="view-sep">&middot;</span>
-              <button class="view-link ${tuneSortOrder === 'light' ? 'active' : ''}" data-tune-sort="light">light</button>
+              <button class="view-link ${tuneSortOrder === 'light' ? 'active' : ''}" data-tune-sort="light">fixture</button>
               <span class="view-sep">&middot;</span>
-              <button class="view-link ${tuneSortOrder === 'sun' ? 'active' : ''}" data-tune-sort="sun">sun</button>
+              <button class="view-link ${tuneSortOrder === 'sun' ? 'active' : ''}" data-tune-sort="sun">exposure</button>
             </div>
+            <select class="tune-filter-select tune-filter-small" id="tune-filter-zone">
+              ${zoneOptions}
+            </select>
           </div>
         `;
       } else {
@@ -2893,12 +2899,19 @@
             ? fmtFadeRange(cachedSunTimes.sunrise, cachedSunTimes.sunset, daylightFade)
             : '';
           const zoneControlsHtml = `
+            <div class="tune-area-row tune-col-headers" onclick="event.stopPropagation()">
+              <span class="tune-name-col"></span>
+              <span class="tune-fixture-col tune-col-header">Fixture density</span>
+              <span class="tune-sun-col tune-col-header">Sun exposure</span>
+              <span class="tune-bri-col"></span>
+            </div>
             <div class="tune-zone-controls" data-zone="${zoneName}" data-rhythm="${rhythmName || ''}" onclick="event.stopPropagation()">
               <div class="tune-area-row">
                 <span class="tune-name-col"></span>
-                <div class="tune-fixture-col"></div>
+                <div class="tune-fixture-col tune-zone-label-col">
+                  <span class="tune-zone-ctrl-label">Sensitivity</span>
+                </div>
                 <div class="tune-sun-col tune-zone-ctrl">
-                  <span class="tune-zone-ctrl-label">Sun sensitivity</span>
                   <input type="range" class="tune-sensitivity-slider" min="0" max="9" step="1" value="${sensitivityStep}">
                   <span class="tune-zone-ctrl-word tune-sensitivity-word">${SENSITIVITY_STEPS[sensitivityStep].label}</span>
                   <span class="tune-zone-ctrl-val tune-sensitivity-val">${fmtVal(sensitivity)}</span>
@@ -2909,21 +2922,16 @@
               </div>
               <div class="tune-area-row">
                 <span class="tune-name-col"></span>
-                <div class="tune-fixture-col"></div>
+                <div class="tune-fixture-col tune-zone-label-col">
+                  <span class="tune-zone-ctrl-label">Rise/set fade</span>
+                </div>
                 <div class="tune-sun-col tune-zone-ctrl">
-                  <span class="tune-zone-ctrl-label">Sunrise/set fade</span>
                   <input type="range" class="tune-fade-slider" min="0" max="180" step="15" value="${daylightFade}">
                   <span class="tune-zone-ctrl-word tune-fade-word">${fmtFadeMinutes(daylightFade)}</span>
                   <span class="tune-zone-sun-times">${sunTimesStr}</span>
                 </div>
                 <span class="tune-bri-col"></span>
               </div>
-            </div>
-            <div class="tune-area-row tune-col-headers" onclick="event.stopPropagation()">
-              <span class="tune-name-col"></span>
-              <span class="tune-fixture-col tune-col-header">Fixture density</span>
-              <span class="tune-sun-col tune-col-header">Sun exposure</span>
-              <span class="tune-bri-col"></span>
             </div>
           `;
 
