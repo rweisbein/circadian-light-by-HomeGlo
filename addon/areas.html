@@ -3246,6 +3246,13 @@
 
       container.innerHTML = html;
       initRowSliders();
+      // Direct change listener on sensor dropdown (diagnostic + delegation fallback)
+      const sensorSel = document.getElementById('tune-outdoor-sensor');
+      if (sensorSel) {
+        sensorSel.addEventListener('change', function() {
+          console.log('[OutdoorSensor] DIRECT listener fired, value:', this.value);
+        });
+      }
     }
 
     function renderAreaRow(area) {
@@ -3514,24 +3521,36 @@
         if (e.target.id === 'tune-outdoor-sensor') {
           e.stopPropagation();
           const val = e.target.value.trim() || null;
+          console.log('[OutdoorSensor] change handler fired, new value:', val);
+          // Show immediate visible feedback
+          const statusEl = document.getElementById('tune-outdoor-learn-status');
+          if (statusEl) statusEl.textContent = 'Saving sensor...';
           // Optimistic update so re-renders keep the new sensor
           if (tuneOutdoorData) tuneOutdoorData.sensor_entity = val;
           // Save sensor, clear old baselines, refresh data without closing panel
           pendingSensorSave = fetch('./api/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ outdoor_lux_sensor: val, lux_learned_ceiling: null, lux_learned_floor: null }) })
-            .then(r => { if (!r.ok) console.error('Sensor save failed:', r.status); return r; })
+            .then(r => {
+              console.log('[OutdoorSensor] save response:', r.status);
+              if (!r.ok) console.error('Sensor save failed:', r.status);
+              return r;
+            })
             .then(() => fetch('./api/outdoor-status'))
             .then(r => r.ok ? r.json() : null)
             .then(data => {
               if (data) {
+                console.log('[OutdoorSensor] outdoor-status returned sensor_entity:', data.sensor_entity);
                 tuneOutdoorData = data;
                 if (tuneData) tuneData.outdoor_normalized = data.outdoor_normalized ?? 0;
                 const rangeEl = document.getElementById('tune-outdoor-range');
                 if (rangeEl) rangeEl.textContent = (data.lux_learned_ceiling != null && data.lux_learned_floor != null)
                   ? Math.round(data.lux_learned_floor).toLocaleString() + ' \u2013 ' + Math.round(data.lux_learned_ceiling).toLocaleString()
                   : 'not learned';
-                const statusEl = document.getElementById('tune-outdoor-learn-status');
-                if (statusEl) statusEl.textContent = 'Baselines cleared (new sensor)';
+                if (statusEl) statusEl.textContent = 'Sensor saved';
               }
+            })
+            .catch(err => {
+              console.error('[OutdoorSensor] save error:', err);
+              if (statusEl) statusEl.textContent = 'Save failed!';
             });
         }
       });

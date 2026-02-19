@@ -1408,18 +1408,20 @@ class LightDesignerServer:
                     f"[SaveConfig] outdoor_lux_sensor = {global_updates['outdoor_lux_sensor']!r}"
                 )
 
-            # Log what we're about to save
-            logger.info(
-                f"[SaveConfig] Final glozones to save: {list(config.get('glozones', {}).keys())}"
-            )
-            for zn, zc in config.get("glozones", {}).items():
-                areas = zc.get("areas", [])
-                logger.info(
-                    f"[SaveConfig]   Zone '{zn}': {len(areas)} areas, rhythm={zc.get('rhythm')}"
-                )
-
             # Save the raw config (GloZone format)
             await self.save_config_to_file(config)
+
+            # Readback verification for outdoor sensor saves
+            if "outdoor_lux_sensor" in global_updates:
+                try:
+                    async with aiofiles.open(self.designer_file, "r") as f:
+                        verify = json.loads(await f.read())
+                    saved_sensor = verify.get("outdoor_lux_sensor")
+                    logger.info(
+                        f"[SaveConfig] VERIFY readback outdoor_lux_sensor={saved_sensor!r}"
+                    )
+                except Exception as ve:
+                    logger.error(f"[SaveConfig] Readback verification failed: {ve}")
 
             # Update glozone module with new config
             glozone.set_config(config)
@@ -5779,11 +5781,18 @@ class LightDesignerServer:
                     )
 
                 # Save to config and update in-memory baselines
-                config = glozone.load_config_from_files()
-                config["lux_learned_ceiling"] = ceiling_val
-                config["lux_learned_floor"] = floor_val
-                glozone.save_config()
+                # Use load_raw_config + save_config_to_file (same path as /api/save)
+                # to avoid glozone's sync file reads potentially missing recent writes
+                save_cfg = await self.load_raw_config()
+                save_cfg["lux_learned_ceiling"] = ceiling_val
+                save_cfg["lux_learned_floor"] = floor_val
+                await self.save_config_to_file(save_cfg)
+                glozone.set_config(save_cfg)
                 lux_tracker.set_learned_baselines(ceiling_val, floor_val)
+                logger.info(
+                    f"[LearnBaselines] saved ceiling={ceiling_val:.0f}, "
+                    f"floor={floor_val:.0f}, sensor in config={save_cfg.get('outdoor_lux_sensor')!r}"
+                )
 
                 logger.info(
                     f"Baselines learned from {len(daytime_means)} samples "
