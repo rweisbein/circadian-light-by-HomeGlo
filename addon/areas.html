@@ -397,13 +397,15 @@
 
     .area-row-name {
       min-width: 0;
-      font-size: 0.95rem;
-      line-height: 1.3;
+      font-size: 1.25rem;
+      line-height: 1.1;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
       cursor: pointer;
     }
+
+    .row-timer { font-size: 0.65rem; color: var(--muted); margin-left: auto; white-space: nowrap; }
 
     /* Row middle: stacked name + slider column */
     .row-middle {
@@ -3058,8 +3060,8 @@
               ${zoneMismatchDot}
               <span style="flex: 1;"></span>
               <div class="row-controls">
-                <button class="row-btn" onclick="event.stopPropagation(); glozoneReset('${escapedZoneName}')" title="Reset GloZone">${glozoneResetIcon}</button>
                 <button class="row-btn" onclick="event.stopPropagation(); glozoneDown('${escapedZoneName}')" title="GloZone Down: send to all areas">${glozoneDownIcon}</button>
+                <button class="row-btn" onclick="event.stopPropagation(); glozoneReset('${escapedZoneName}')" title="Reset GloZone">${glozoneResetIcon}</button>
               </div>
             </div>
             <div class="zone-content ${isCollapsed ? 'hidden' : ''}" data-zone-table="${zoneName}">
@@ -3272,6 +3274,7 @@
             <div class="row-middle-top">
               <span class="area-row-name" onclick="openAreaModal('${area.area_id}')">${area.name}</span>
               ${statusSymbols}
+              <span class="row-timer" data-area-timer="${area.area_id}"></span>
             </div>
             <div class="row-slider-track" data-area-id="${area.area_id}" data-bmin="${area.min_brightness ?? 1}" data-bmax="${area.max_brightness ?? 100}" data-cmin="${area.min_color_temp ?? 2200}" data-cmax="${area.max_color_temp ?? 6500}">
               <div class="row-slider-fill"></div>
