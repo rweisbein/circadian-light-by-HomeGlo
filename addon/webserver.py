@@ -1402,6 +1402,12 @@ class LightDesignerServer:
             # Apply global updates to top level
             config.update(global_updates)
 
+            # Log outdoor sensor changes for diagnostics
+            if "outdoor_lux_sensor" in global_updates:
+                logger.info(
+                    f"[SaveConfig] outdoor_lux_sensor = {global_updates['outdoor_lux_sensor']!r}"
+                )
+
             # Log what we're about to save
             logger.info(
                 f"[SaveConfig] Final glozones to save: {list(config.get('glozones', {}).keys())}"
@@ -1652,6 +1658,8 @@ class LightDesignerServer:
                 )
 
                 # Seed lux_tracker from HA (webserver is a separate process)
+                zone_config = await self.load_config()
+                lux_tracker.init(zone_config)
                 await self._seed_outdoor_from_ha()
                 self._seed_sun_elevation()
 
@@ -2357,6 +2365,8 @@ class LightDesignerServer:
         Seeds lux_tracker with current values so get_outdoor_normalized()
         returns accurate data in the webserver process.
         Also collects illuminance sensor entity IDs for the settings UI.
+
+        Assumes lux_tracker.init(config) was already called by the caller.
         """
         self._illuminance_sensors = []
         try:
@@ -2364,8 +2374,6 @@ class LightDesignerServer:
             if not token or not ws_url:
                 return
 
-            config = await self.load_config()
-            lux_tracker.init(config)
             sensor_entity = lux_tracker.get_sensor_entity()
 
             async with websockets.connect(ws_url) as ws:
@@ -3140,8 +3148,7 @@ class LightDesignerServer:
                 logger.debug(f"[AreaStatus] Error calculating sun times: {e}")
 
             # Seed lux_tracker from HA (webserver is a separate process)
-            # Note: _seed_outdoor_from_ha calls init() which resets state,
-            # so sun elevation must be seeded AFTER
+            lux_tracker.init(config)
             await self._seed_outdoor_from_ha()
             self._seed_sun_elevation()
 
@@ -5532,6 +5539,9 @@ class LightDesignerServer:
     async def get_outdoor_status(self, request: Request) -> Response:
         """Get current outdoor brightness state for settings page."""
         config = await self.load_config()
+        logger.info(
+            f"[OutdoorStatus] config outdoor_lux_sensor={config.get('outdoor_lux_sensor')!r}"
+        )
         lux_tracker.init(config)
         await self._seed_outdoor_from_ha()
         self._seed_sun_elevation()
@@ -5578,12 +5588,16 @@ class LightDesignerServer:
                 return web.json_response({"error": "No HA connection"}, status=500)
 
             config = await self.load_config()
+            logger.info(
+                f"[LearnBaselines] config outdoor_lux_sensor={config.get('outdoor_lux_sensor')!r}"
+            )
             lux_tracker.init(config)
             sensor_entity = lux_tracker.get_sensor_entity()
             if not sensor_entity:
                 return web.json_response(
                     {"error": "No lux sensor configured"}, status=400
                 )
+            logger.info(f"[LearnBaselines] using sensor: {sensor_entity}")
 
             # Get HA location config
             async with websockets.connect(ws_url) as ws:
