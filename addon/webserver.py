@@ -4776,6 +4776,8 @@ class LightDesignerServer:
 
     async def get_outdoor_status(self, request: Request) -> Response:
         """Get current outdoor brightness state for settings page."""
+        config = await self.load_config()
+        lux_tracker.init(config)
         await self._seed_outdoor_from_ha()
         self._seed_sun_elevation()
         outdoor_norm = lux_tracker.get_outdoor_normalized()
@@ -4949,9 +4951,20 @@ class LightDesignerServer:
                         "diagnostics": diag,
                     }, status=404)
 
-                # Compute percentiles
+                # Remove outlier spikes (e.g. direct sun hitting sensor)
+                # using IQR fence: values above Q3 + 3*IQR are excluded
                 daytime_means.sort()
                 n = len(daytime_means)
+                q1 = daytime_means[int(n * 0.25)]
+                q3 = daytime_means[int(n * 0.75)]
+                iqr = q3 - q1
+                upper_fence = q3 + 3.0 * iqr
+                trimmed = [v for v in daytime_means if v <= upper_fence]
+                if len(trimmed) >= 10:
+                    daytime_means = trimmed
+                    n = len(daytime_means)
+
+                # Compute percentiles
                 floor_val = daytime_means[max(0, int(n * 0.05))]
                 ceiling_val = daytime_means[min(n - 1, int(n * 0.85))]
 

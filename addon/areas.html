@@ -3510,8 +3510,22 @@
         if (e.target.id === 'tune-outdoor-sensor') {
           e.stopPropagation();
           const val = e.target.value.trim() || null;
-          fetch('./api/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ outdoor_lux_sensor: val }) })
-            .then(() => refreshOutdoorAndRender());
+          // Save sensor, clear old baselines, refresh data without closing panel
+          fetch('./api/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ outdoor_lux_sensor: val, lux_learned_ceiling: null, lux_learned_floor: null }) })
+            .then(() => fetch('./api/outdoor-status'))
+            .then(r => r.ok ? r.json() : null)
+            .then(data => {
+              if (data) {
+                tuneOutdoorData = data;
+                if (tuneData) tuneData.outdoor_normalized = data.outdoor_normalized ?? 0;
+                const rangeEl = document.getElementById('tune-outdoor-range');
+                if (rangeEl) rangeEl.textContent = (data.lux_learned_ceiling != null && data.lux_learned_floor != null)
+                  ? Math.round(data.lux_learned_floor).toLocaleString() + ' \u2013 ' + Math.round(data.lux_learned_ceiling).toLocaleString()
+                  : 'not learned';
+                const statusEl = document.getElementById('tune-outdoor-learn-status');
+                if (statusEl) statusEl.textContent = 'Baselines cleared (new sensor)';
+              }
+            });
         }
       });
 
