@@ -2690,8 +2690,7 @@
         return {
           ...area,
           is_on: status.is_on || false,
-          brightness: status.brightness || 0,
-          curve_brightness: status.curve_brightness || status.brightness || 0,
+          brightness: status.curve_brightness || status.brightness || 0,
           kelvin: status.kelvin || 4000,
           frozen: status.frozen || false,
           boosted: status.boosted || false,
@@ -3267,7 +3266,7 @@
       const style = getRowStyle(area);
       const statusSymbols = getStatusSymbols(area);
       const { leftControls, rightControls } = getRowControls(area);
-      const sliderPct = getSliderPct(area.curve_brightness || area.brightness || 0, area);
+      const sliderPct = getSliderPct(area.brightness || 0, area);
 
       return `
         <div class="area-row" style="--row-bg: ${style.bg}; --row-text: ${style.textColor}; --row-fill: ${style.fill.toFixed(3)};">
