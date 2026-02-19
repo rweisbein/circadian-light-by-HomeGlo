@@ -40,7 +40,9 @@ from brain import (
 logger = logging.getLogger(__name__)
 
 
-def calculate_step_sequence(current_hour: float, action: str, max_steps: int, config: dict) -> list:
+def calculate_step_sequence(
+    current_hour: float, action: str, max_steps: int, config: dict
+) -> list:
     """Calculate a sequence of step positions for visualization.
 
     Args:
@@ -55,9 +57,9 @@ def calculate_step_sequence(current_hour: float, action: str, max_steps: int, co
     steps = []
 
     # Get location from config
-    latitude = config.get('latitude')
-    longitude = config.get('longitude')
-    timezone = config.get('timezone')
+    latitude = config.get("latitude")
+    longitude = config.get("longitude")
+    timezone = config.get("timezone")
 
     if not latitude or not longitude or not timezone:
         logger.error("Missing location data in config")
@@ -67,7 +69,7 @@ def calculate_step_sequence(current_hour: float, action: str, max_steps: int, co
     try:
         tzinfo = ZoneInfo(timezone)
     except:
-        tzinfo = ZoneInfo('UTC')
+        tzinfo = ZoneInfo("UTC")
 
     today = datetime.now(tzinfo).date()
     loc = LocationInfo(latitude=latitude, longitude=longitude, timezone=tzinfo)
@@ -85,50 +87,54 @@ def calculate_step_sequence(current_hour: float, action: str, max_steps: int, co
             if step_num == 0:
                 # First "step" is the current position
                 lighting_values = get_circadian_lighting(
-                    latitude=config.get('latitude'),
-                    longitude=config.get('longitude'),
-                    timezone=config.get('timezone'),
+                    latitude=config.get("latitude"),
+                    longitude=config.get("longitude"),
+                    timezone=config.get("timezone"),
                     current_time=adjusted_time,
-                    config=config
+                    config=config,
                 )
-                steps.append({
-                    'hour': current_hour,
-                    'brightness': lighting_values['brightness'],
-                    'kelvin': lighting_values['kelvin'],
-                    'rgb': lighting_values.get('rgb', [255, 255, 255])
-                })
+                steps.append(
+                    {
+                        "hour": current_hour,
+                        "brightness": lighting_values["brightness"],
+                        "kelvin": lighting_values["kelvin"],
+                        "rgb": lighting_values.get("rgb", [255, 255, 255]),
+                    }
+                )
             else:
                 # Calculate the next step
                 result = calculate_dimming_step(
                     current_time=adjusted_time,
                     action=action,
-                    latitude=config.get('latitude'),
-                    longitude=config.get('longitude'),
-                    timezone=config.get('timezone'),
+                    latitude=config.get("latitude"),
+                    longitude=config.get("longitude"),
+                    timezone=config.get("timezone"),
                     max_steps=max_steps,
-                    min_color_temp=config.get('min_color_temp', 500),
-                    max_color_temp=config.get('max_color_temp', 6500),
-                    min_brightness=config.get('min_brightness', 1),
-                    max_brightness=config.get('max_brightness', 100),
-                    config=config
+                    min_color_temp=config.get("min_color_temp", 500),
+                    max_color_temp=config.get("max_color_temp", 6500),
+                    min_brightness=config.get("min_brightness", 1),
+                    max_brightness=config.get("max_brightness", 100),
+                    config=config,
                 )
 
                 # Check if we've reached a boundary (no change)
-                if abs(result['time_offset_minutes']) < 0.1:
+                if abs(result["time_offset_minutes"]) < 0.1:
                     break
 
                 # Apply the time offset
-                adjusted_time += timedelta(minutes=result['time_offset_minutes'])
+                adjusted_time += timedelta(minutes=result["time_offset_minutes"])
 
                 # Convert back to clock hour (0-24 scale)
                 new_hour = adjusted_time.hour + adjusted_time.minute / 60.0
 
-                steps.append({
-                    'hour': new_hour,
-                    'brightness': result['brightness'],
-                    'kelvin': result['kelvin'],
-                    'rgb': result.get('rgb', [255, 255, 255])
-                })
+                steps.append(
+                    {
+                        "hour": new_hour,
+                        "brightness": result["brightness"],
+                        "kelvin": result["kelvin"],
+                        "rgb": result.get("rgb", [255, 255, 255]),
+                    }
+                )
 
                 # Update for next iteration
                 current_hour = new_hour
@@ -136,24 +142,28 @@ def calculate_step_sequence(current_hour: float, action: str, max_steps: int, co
     except Exception as e:
         logger.error(f"Error calculating step sequence: {e}")
         logger.error(f"Config: {config}")
-        logger.error(f"Current hour: {current_hour}, action: {action}, max_steps: {max_steps}")
+        logger.error(
+            f"Current hour: {current_hour}, action: {action}, max_steps: {max_steps}"
+        )
         # Return at least the first step if possible
         if not steps:
             try:
                 # Try to get just the current position without stepping
                 lighting_values = get_circadian_lighting(
-                    latitude=config.get('latitude'),
-                    longitude=config.get('longitude'),
-                    timezone=config.get('timezone'),
+                    latitude=config.get("latitude"),
+                    longitude=config.get("longitude"),
+                    timezone=config.get("timezone"),
                     current_time=adjusted_time,
-                    config=config
+                    config=config,
                 )
-                steps.append({
-                    'hour': current_hour,
-                    'brightness': lighting_values['brightness'],
-                    'kelvin': lighting_values['kelvin'],
-                    'rgb': lighting_values.get('rgb', [255, 255, 255])
-                })
+                steps.append(
+                    {
+                        "hour": current_hour,
+                        "brightness": lighting_values["brightness"],
+                        "kelvin": lighting_values["kelvin"],
+                        "rgb": lighting_values.get("rgb", [255, 255, 255]),
+                    }
+                )
             except Exception as e2:
                 logger.error(f"Error getting current position: {e2}")
 
@@ -171,19 +181,21 @@ def generate_curve_data(config: dict) -> dict:
     """
     try:
         # Get location from config
-        latitude = config.get('latitude', 35.0)
-        longitude = config.get('longitude', -78.6)
-        timezone = config.get('timezone', 'US/Eastern')
-        month = config.get('month', 6)  # Test month for UI
+        latitude = config.get("latitude", 35.0)
+        longitude = config.get("longitude", -78.6)
+        timezone = config.get("timezone", "US/Eastern")
+        month = config.get("month", 6)  # Test month for UI
 
         # Create timezone info
         try:
             tzinfo = ZoneInfo(timezone)
         except:
-            tzinfo = ZoneInfo('UTC')
+            tzinfo = ZoneInfo("UTC")
 
         # Use current date but for the specified test month
-        today = datetime.now(tzinfo).replace(month=month, day=15)  # Mid-month for consistency
+        today = datetime.now(tzinfo).replace(
+            month=month, day=15
+        )  # Mid-month for consistency
         loc = LocationInfo(latitude=latitude, longitude=longitude, timezone=tzinfo)
         solar_events = sun(loc.observer, date=today.date(), tzinfo=tzinfo)
 
@@ -213,7 +225,9 @@ def generate_curve_data(config: dict) -> dict:
 
         # Sample the full 24-hour curve using actual clock time
         # Start from midnight of today and sample every 0.1 hours
-        base_time = datetime.now(tzinfo).replace(hour=0, minute=0, second=0, microsecond=0)
+        base_time = datetime.now(tzinfo).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
 
         for i in range(int(24 / sample_step)):
             current_time = base_time + timedelta(hours=i * sample_step)
@@ -227,16 +241,16 @@ def generate_curve_data(config: dict) -> dict:
                 longitude=longitude,
                 timezone=timezone,
                 current_time=current_time,
-                min_color_temp=config.get('min_color_temp', 500),
-                max_color_temp=config.get('max_color_temp', 6500),
-                min_brightness=config.get('min_brightness', 1),
-                max_brightness=config.get('max_brightness', 100),
-                config=config
+                min_color_temp=config.get("min_color_temp", 500),
+                max_color_temp=config.get("max_color_temp", 6500),
+                min_brightness=config.get("min_brightness", 1),
+                max_brightness=config.get("max_brightness", 100),
+                config=config,
             )
 
-            brightness = lighting_values['brightness']
-            cct = lighting_values['kelvin']
-            rgb = lighting_values.get('rgb', [255, 255, 255])
+            brightness = lighting_values["brightness"]
+            cct = lighting_values["kelvin"]
+            rgb = lighting_values.get("rgb", [255, 255, 255])
 
             # Calculate sun power (simple approximation based on time)
             # This is just for visualization - using a simple sine wave approximation
@@ -276,54 +290,58 @@ def generate_curve_data(config: dict) -> dict:
         sunrise_hour = None
         sunset_hour = None
         try:
-            if 'sunrise' in solar_events and solar_events['sunrise']:
-                sunrise_hour = solar_events['sunrise'].hour + solar_events['sunrise'].minute / 60.0
+            if "sunrise" in solar_events and solar_events["sunrise"]:
+                sunrise_hour = (
+                    solar_events["sunrise"].hour + solar_events["sunrise"].minute / 60.0
+                )
 
-            if 'sunset' in solar_events and solar_events['sunset']:
-                sunset_hour = solar_events['sunset'].hour + solar_events['sunset'].minute / 60.0
+            if "sunset" in solar_events and solar_events["sunset"]:
+                sunset_hour = (
+                    solar_events["sunset"].hour + solar_events["sunset"].minute / 60.0
+                )
         except:
             pass
 
         return {
-            'hours': hours,
-            'bris': brightness_values,
-            'ccts': cct_values,
-            'sunPower': sun_power_values,
-            'morn': {
-                'hours': morning_hours,
-                'bris': morning_brightness,
-                'ccts': morning_cct
+            "hours": hours,
+            "bris": brightness_values,
+            "ccts": cct_values,
+            "sunPower": sun_power_values,
+            "morn": {
+                "hours": morning_hours,
+                "bris": morning_brightness,
+                "ccts": morning_cct,
             },
-            'eve': {
-                'hours': evening_hours,
-                'bris': evening_brightness,
-                'ccts': evening_cct
+            "eve": {
+                "hours": evening_hours,
+                "bris": evening_brightness,
+                "ccts": evening_cct,
             },
-            'solar': {
-                'sunrise': sunrise_hour,
-                'sunset': sunset_hour,
-                'solarNoon': solar_noon_hour,
-                'solarMidnight': solar_midnight_hour
-            }
+            "solar": {
+                "sunrise": sunrise_hour,
+                "sunset": sunset_hour,
+                "solarNoon": solar_noon_hour,
+                "solarMidnight": solar_midnight_hour,
+            },
         }
 
     except Exception as e:
         logger.error(f"Error generating curve data: {e}")
         # Return minimal valid structure on error
         return {
-            'hours': [0, 12, 24],
-            'bris': [1, 100, 1],
-            'ccts': [500, 6500, 500],
-            'sunPower': [0, 300, 0],
-            'morn': {'hours': [0, 12], 'bris': [1, 100], 'ccts': [500, 6500]},
-            'eve': {'hours': [12, 24], 'bris': [100, 1], 'ccts': [6500, 500]},
-            'solar': {'sunrise': 6, 'sunset': 18, 'solarNoon': 12, 'solarMidnight': 0}
+            "hours": [0, 12, 24],
+            "bris": [1, 100, 1],
+            "ccts": [500, 6500, 500],
+            "sunPower": [0, 300, 0],
+            "morn": {"hours": [0, 12], "bris": [1, 100], "ccts": [500, 6500]},
+            "eve": {"hours": [12, 24], "bris": [100, 1], "ccts": [6500, 500]},
+            "solar": {"sunrise": 6, "sunset": 18, "solarNoon": 12, "solarMidnight": 0},
         }
 
 
 class LightDesignerServer:
     """Web server for the Light Designer ingress interface."""
-    
+
     def __init__(self, port: int = 8099):
         self.port = port
         self.app = web.Application()
@@ -345,7 +363,9 @@ class LightDesignerServer:
             # Running in development - use local .data directory
             self.data_dir = os.path.join(os.path.dirname(__file__), ".data")
             os.makedirs(self.data_dir, exist_ok=True)
-            logger.info(f"Development mode: using {self.data_dir} for configuration storage")
+            logger.info(
+                f"Development mode: using {self.data_dir} for configuration storage"
+            )
 
         # Set file paths based on data directory
         self.options_file = os.path.join(self.data_dir, "options.json")
@@ -356,10 +376,14 @@ class LightDesignerServer:
         self.live_design_area: str = None  # Currently active Live Design area
         self.live_design_color_lights: list = []  # Color-capable lights in area
         self.live_design_ct_lights: list = []  # CT-only lights in area
-        self.live_design_saved_states: dict = {}  # Saved light states to restore when ending
+        self.live_design_saved_states: dict = (
+            {}
+        )  # Saved light states to restore when ending
 
         # Areas cache - populated once on first request, refreshed by sync-devices
-        self.cached_areas_list: list = None  # List of {area_id, name} for areas with lights
+        self.cached_areas_list: list = (
+            None  # List of {area_id, name} for areas with lights
+        )
 
         # Initialize switches module (loads from switches_config.json)
         switches.init()
@@ -379,207 +403,362 @@ class LightDesignerServer:
             if os.path.exists(old_path) and not os.path.exists(new_path):
                 try:
                     import shutil
+
                     shutil.copy2(old_path, new_path)
-                    logger.info(f"Migrated {filename} from {old_data_dir} to {self.data_dir}")
+                    logger.info(
+                        f"Migrated {filename} from {old_data_dir} to {self.data_dir}"
+                    )
                 except Exception as e:
                     logger.warning(f"Failed to migrate {filename}: {e}")
 
     def setup_routes(self):
         """Set up web routes."""
         # API routes - must handle all ingress prefixes
-        self.app.router.add_route('GET', '/{path:.*}/api/config', self.get_config)
-        self.app.router.add_route('POST', '/{path:.*}/api/config', self.save_config)
-        self.app.router.add_route('GET', '/{path:.*}/api/steps', self.get_step_sequences)
-        self.app.router.add_route('GET', '/{path:.*}/api/curve', self.get_curve_data)
-        self.app.router.add_route('GET', '/{path:.*}/api/time', self.get_time)
-        self.app.router.add_route('GET', '/{path:.*}/api/zone-states', self.get_zone_states)
-        self.app.router.add_route('GET', '/{path:.*}/api/presets', self.get_presets)
-        self.app.router.add_route('GET', '/{path:.*}/api/sun_times', self.get_sun_times)
-        self.app.router.add_route('GET', '/{path:.*}/health', self.health_check)
-        self.app.router.add_route('GET', '/{path:.*}/api/areas', self.get_areas)
-        self.app.router.add_route('POST', '/{path:.*}/api/apply-light', self.apply_light)
-        self.app.router.add_route('POST', '/{path:.*}/api/circadian-mode', self.set_circadian_mode)
+        self.app.router.add_route("GET", "/{path:.*}/api/config", self.get_config)
+        self.app.router.add_route("POST", "/{path:.*}/api/config", self.save_config)
+        self.app.router.add_route(
+            "GET", "/{path:.*}/api/steps", self.get_step_sequences
+        )
+        self.app.router.add_route("GET", "/{path:.*}/api/curve", self.get_curve_data)
+        self.app.router.add_route("GET", "/{path:.*}/api/time", self.get_time)
+        self.app.router.add_route(
+            "GET", "/{path:.*}/api/zone-states", self.get_zone_states
+        )
+        self.app.router.add_route("GET", "/{path:.*}/api/presets", self.get_presets)
+        self.app.router.add_route("GET", "/{path:.*}/api/sun_times", self.get_sun_times)
+        self.app.router.add_route("GET", "/{path:.*}/health", self.health_check)
+        self.app.router.add_route("GET", "/{path:.*}/api/areas", self.get_areas)
+        self.app.router.add_route(
+            "POST", "/{path:.*}/api/apply-light", self.apply_light
+        )
+        self.app.router.add_route(
+            "POST", "/{path:.*}/api/circadian-mode", self.set_circadian_mode
+        )
 
         # Direct API routes (for non-ingress access)
-        self.app.router.add_get('/api/config', self.get_config)
-        self.app.router.add_post('/api/config', self.save_config)
-        self.app.router.add_get('/api/steps', self.get_step_sequences)
-        self.app.router.add_get('/api/curve', self.get_curve_data)
-        self.app.router.add_get('/api/time', self.get_time)
-        self.app.router.add_get('/api/zone-states', self.get_zone_states)
-        self.app.router.add_get('/api/presets', self.get_presets)
-        self.app.router.add_get('/api/sun_times', self.get_sun_times)
-        self.app.router.add_get('/health', self.health_check)
+        self.app.router.add_get("/api/config", self.get_config)
+        self.app.router.add_post("/api/config", self.save_config)
+        self.app.router.add_get("/api/steps", self.get_step_sequences)
+        self.app.router.add_get("/api/curve", self.get_curve_data)
+        self.app.router.add_get("/api/time", self.get_time)
+        self.app.router.add_get("/api/zone-states", self.get_zone_states)
+        self.app.router.add_get("/api/presets", self.get_presets)
+        self.app.router.add_get("/api/sun_times", self.get_sun_times)
+        self.app.router.add_get("/health", self.health_check)
 
         # Live Design API routes
-        self.app.router.add_get('/api/areas', self.get_areas)
-        self.app.router.add_route('GET', '/{path:.*}/api/area-status', self.get_area_status)
-        self.app.router.add_get('/api/area-status', self.get_area_status)
-        self.app.router.add_route('POST', '/{path:.*}/api/refresh-outdoor', self.refresh_outdoor)
-        self.app.router.add_post('/api/refresh-outdoor', self.refresh_outdoor)
-        self.app.router.add_route('GET', '/{path:.*}/api/area-settings/{area_id}', self.get_area_settings)
-        self.app.router.add_route('POST', '/{path:.*}/api/area-settings/{area_id}', self.save_area_settings)
-        self.app.router.add_get('/api/area-settings/{area_id}', self.get_area_settings)
-        self.app.router.add_post('/api/area-settings/{area_id}', self.save_area_settings)
-        self.app.router.add_post('/api/apply-light', self.apply_light)
-        self.app.router.add_post('/api/circadian-mode', self.set_circadian_mode)
+        self.app.router.add_get("/api/areas", self.get_areas)
+        self.app.router.add_route(
+            "GET", "/{path:.*}/api/area-status", self.get_area_status
+        )
+        self.app.router.add_get("/api/area-status", self.get_area_status)
+        self.app.router.add_route(
+            "POST", "/{path:.*}/api/refresh-outdoor", self.refresh_outdoor
+        )
+        self.app.router.add_post("/api/refresh-outdoor", self.refresh_outdoor)
+        self.app.router.add_route(
+            "GET", "/{path:.*}/api/area-settings/{area_id}", self.get_area_settings
+        )
+        self.app.router.add_route(
+            "POST", "/{path:.*}/api/area-settings/{area_id}", self.save_area_settings
+        )
+        self.app.router.add_get("/api/area-settings/{area_id}", self.get_area_settings)
+        self.app.router.add_post(
+            "/api/area-settings/{area_id}", self.save_area_settings
+        )
+        self.app.router.add_post("/api/apply-light", self.apply_light)
+        self.app.router.add_post("/api/circadian-mode", self.set_circadian_mode)
 
         # GloZone API routes - Circadian Rhythms CRUD
-        self.app.router.add_route('GET', '/{path:.*}/api/circadian-rhythms', self.get_circadian_rhythms)
-        self.app.router.add_route('POST', '/{path:.*}/api/circadian-rhythms', self.create_circadian_rhythm)
-        self.app.router.add_route('PUT', '/{path:.*}/api/circadian-rhythms/{name}', self.update_circadian_rhythm)
-        self.app.router.add_route('DELETE', '/{path:.*}/api/circadian-rhythms/{name}', self.delete_circadian_rhythm)
-        self.app.router.add_get('/api/circadian-rhythms', self.get_circadian_rhythms)
-        self.app.router.add_post('/api/circadian-rhythms', self.create_circadian_rhythm)
-        self.app.router.add_put('/api/circadian-rhythms/{name}', self.update_circadian_rhythm)
-        self.app.router.add_delete('/api/circadian-rhythms/{name}', self.delete_circadian_rhythm)
+        self.app.router.add_route(
+            "GET", "/{path:.*}/api/circadian-rhythms", self.get_circadian_rhythms
+        )
+        self.app.router.add_route(
+            "POST", "/{path:.*}/api/circadian-rhythms", self.create_circadian_rhythm
+        )
+        self.app.router.add_route(
+            "PUT",
+            "/{path:.*}/api/circadian-rhythms/{name}",
+            self.update_circadian_rhythm,
+        )
+        self.app.router.add_route(
+            "DELETE",
+            "/{path:.*}/api/circadian-rhythms/{name}",
+            self.delete_circadian_rhythm,
+        )
+        self.app.router.add_get("/api/circadian-rhythms", self.get_circadian_rhythms)
+        self.app.router.add_post("/api/circadian-rhythms", self.create_circadian_rhythm)
+        self.app.router.add_put(
+            "/api/circadian-rhythms/{name}", self.update_circadian_rhythm
+        )
+        self.app.router.add_delete(
+            "/api/circadian-rhythms/{name}", self.delete_circadian_rhythm
+        )
 
         # GloZone API routes - Zones CRUD
         # Reorder routes MUST be registered before {name} wildcard routes
-        self.app.router.add_route('PUT', '/{path:.*}/api/glozones/reorder', self.reorder_glozones)
-        self.app.router.add_put('/api/glozones/reorder', self.reorder_glozones)
-        self.app.router.add_route('GET', '/{path:.*}/api/glozones', self.get_glozones)
-        self.app.router.add_route('POST', '/{path:.*}/api/glozones', self.create_glozone)
-        self.app.router.add_route('PUT', '/{path:.*}/api/glozones/{name}/reorder-areas', self.reorder_zone_areas)
-        self.app.router.add_route('PUT', '/{path:.*}/api/glozones/{name}', self.update_glozone)
-        self.app.router.add_route('DELETE', '/{path:.*}/api/glozones/{name}', self.delete_glozone)
-        self.app.router.add_route('POST', '/{path:.*}/api/glozones/{name}/areas', self.add_area_to_zone)
-        self.app.router.add_route('DELETE', '/{path:.*}/api/glozones/{name}/areas/{area_id}', self.remove_area_from_zone)
-        self.app.router.add_get('/api/glozones', self.get_glozones)
-        self.app.router.add_post('/api/glozones', self.create_glozone)
-        self.app.router.add_put('/api/glozones/{name}/reorder-areas', self.reorder_zone_areas)
-        self.app.router.add_put('/api/glozones/{name}', self.update_glozone)
-        self.app.router.add_delete('/api/glozones/{name}', self.delete_glozone)
-        self.app.router.add_post('/api/glozones/{name}/areas', self.add_area_to_zone)
-        self.app.router.add_delete('/api/glozones/{name}/areas/{area_id}', self.remove_area_from_zone)
+        self.app.router.add_route(
+            "PUT", "/{path:.*}/api/glozones/reorder", self.reorder_glozones
+        )
+        self.app.router.add_put("/api/glozones/reorder", self.reorder_glozones)
+        self.app.router.add_route("GET", "/{path:.*}/api/glozones", self.get_glozones)
+        self.app.router.add_route(
+            "POST", "/{path:.*}/api/glozones", self.create_glozone
+        )
+        self.app.router.add_route(
+            "PUT",
+            "/{path:.*}/api/glozones/{name}/reorder-areas",
+            self.reorder_zone_areas,
+        )
+        self.app.router.add_route(
+            "PUT", "/{path:.*}/api/glozones/{name}", self.update_glozone
+        )
+        self.app.router.add_route(
+            "DELETE", "/{path:.*}/api/glozones/{name}", self.delete_glozone
+        )
+        self.app.router.add_route(
+            "POST", "/{path:.*}/api/glozones/{name}/areas", self.add_area_to_zone
+        )
+        self.app.router.add_route(
+            "DELETE",
+            "/{path:.*}/api/glozones/{name}/areas/{area_id}",
+            self.remove_area_from_zone,
+        )
+        self.app.router.add_get("/api/glozones", self.get_glozones)
+        self.app.router.add_post("/api/glozones", self.create_glozone)
+        self.app.router.add_put(
+            "/api/glozones/{name}/reorder-areas", self.reorder_zone_areas
+        )
+        self.app.router.add_put("/api/glozones/{name}", self.update_glozone)
+        self.app.router.add_delete("/api/glozones/{name}", self.delete_glozone)
+        self.app.router.add_post("/api/glozones/{name}/areas", self.add_area_to_zone)
+        self.app.router.add_delete(
+            "/api/glozones/{name}/areas/{area_id}", self.remove_area_from_zone
+        )
 
         # Moments API routes
-        self.app.router.add_route('GET', '/{path:.*}/api/moments', self.get_moments)
-        self.app.router.add_route('POST', '/{path:.*}/api/moments', self.create_moment)
-        self.app.router.add_route('GET', '/{path:.*}/api/moments/{moment_id}', self.get_moment)
-        self.app.router.add_route('PUT', '/{path:.*}/api/moments/{moment_id}', self.update_moment)
-        self.app.router.add_route('DELETE', '/{path:.*}/api/moments/{moment_id}', self.delete_moment)
-        self.app.router.add_get('/api/moments', self.get_moments)
-        self.app.router.add_post('/api/moments', self.create_moment)
-        self.app.router.add_get('/api/moments/{moment_id}', self.get_moment)
-        self.app.router.add_put('/api/moments/{moment_id}', self.update_moment)
-        self.app.router.add_delete('/api/moments/{moment_id}', self.delete_moment)
+        self.app.router.add_route("GET", "/{path:.*}/api/moments", self.get_moments)
+        self.app.router.add_route("POST", "/{path:.*}/api/moments", self.create_moment)
+        self.app.router.add_route(
+            "GET", "/{path:.*}/api/moments/{moment_id}", self.get_moment
+        )
+        self.app.router.add_route(
+            "PUT", "/{path:.*}/api/moments/{moment_id}", self.update_moment
+        )
+        self.app.router.add_route(
+            "DELETE", "/{path:.*}/api/moments/{moment_id}", self.delete_moment
+        )
+        self.app.router.add_get("/api/moments", self.get_moments)
+        self.app.router.add_post("/api/moments", self.create_moment)
+        self.app.router.add_get("/api/moments/{moment_id}", self.get_moment)
+        self.app.router.add_put("/api/moments/{moment_id}", self.update_moment)
+        self.app.router.add_delete("/api/moments/{moment_id}", self.delete_moment)
 
         # GloZone API routes - Actions
-        self.app.router.add_route('POST', '/{path:.*}/api/glozone/glo-up', self.handle_glo_up)
-        self.app.router.add_route('POST', '/{path:.*}/api/glozone/glo-down', self.handle_glo_down)
-        self.app.router.add_route('POST', '/{path:.*}/api/glozone/glo-reset', self.handle_glo_reset)
-        self.app.router.add_post('/api/glozone/glo-up', self.handle_glo_up)
-        self.app.router.add_post('/api/glozone/glo-down', self.handle_glo_down)
-        self.app.router.add_post('/api/glozone/glo-reset', self.handle_glo_reset)
+        self.app.router.add_route(
+            "POST", "/{path:.*}/api/glozone/glo-up", self.handle_glo_up
+        )
+        self.app.router.add_route(
+            "POST", "/{path:.*}/api/glozone/glo-down", self.handle_glo_down
+        )
+        self.app.router.add_route(
+            "POST", "/{path:.*}/api/glozone/glo-reset", self.handle_glo_reset
+        )
+        self.app.router.add_post("/api/glozone/glo-up", self.handle_glo_up)
+        self.app.router.add_post("/api/glozone/glo-down", self.handle_glo_down)
+        self.app.router.add_post("/api/glozone/glo-reset", self.handle_glo_reset)
 
         # Area action API route
-        self.app.router.add_route('POST', '/{path:.*}/api/area/action', self.handle_area_action)
-        self.app.router.add_post('/api/area/action', self.handle_area_action)
+        self.app.router.add_route(
+            "POST", "/{path:.*}/api/area/action", self.handle_area_action
+        )
+        self.app.router.add_post("/api/area/action", self.handle_area_action)
 
         # Zone action API route
-        self.app.router.add_route('POST', '/{path:.*}/api/zone/action', self.handle_zone_action)
-        self.app.router.add_post('/api/zone/action', self.handle_zone_action)
+        self.app.router.add_route(
+            "POST", "/{path:.*}/api/zone/action", self.handle_zone_action
+        )
+        self.app.router.add_post("/api/zone/action", self.handle_zone_action)
 
         # Manual sync endpoint
-        self.app.router.add_route('POST', '/{path:.*}/api/sync-devices', self.handle_sync_devices)
-        self.app.router.add_post('/api/sync-devices', self.handle_sync_devices)
+        self.app.router.add_route(
+            "POST", "/{path:.*}/api/sync-devices", self.handle_sync_devices
+        )
+        self.app.router.add_post("/api/sync-devices", self.handle_sync_devices)
 
         # Controls API routes (new unified endpoint)
-        self.app.router.add_route('GET', '/{path:.*}/api/controls', self.get_controls)
-        self.app.router.add_route('POST', '/{path:.*}/api/controls/{control_id}/configure', self.configure_control)
-        self.app.router.add_route('DELETE', '/{path:.*}/api/controls/{control_id}/configure', self.remove_control_config)
-        self.app.router.add_route('GET', '/{path:.*}/api/area-lights', self.get_area_lights)
-        self.app.router.add_get('/api/controls', self.get_controls)
-        self.app.router.add_post('/api/controls/{control_id}/configure', self.configure_control)
-        self.app.router.add_delete('/api/controls/{control_id}/configure', self.remove_control_config)
-        self.app.router.add_get('/api/area-lights', self.get_area_lights)
-        self.app.router.add_route('POST', '/{path:.*}/api/flash-light', self.flash_light)
-        self.app.router.add_post('/api/flash-light', self.flash_light)
+        self.app.router.add_route("GET", "/{path:.*}/api/controls", self.get_controls)
+        self.app.router.add_route(
+            "POST",
+            "/{path:.*}/api/controls/{control_id}/configure",
+            self.configure_control,
+        )
+        self.app.router.add_route(
+            "DELETE",
+            "/{path:.*}/api/controls/{control_id}/configure",
+            self.remove_control_config,
+        )
+        self.app.router.add_route(
+            "GET", "/{path:.*}/api/area-lights", self.get_area_lights
+        )
+        self.app.router.add_get("/api/controls", self.get_controls)
+        self.app.router.add_post(
+            "/api/controls/{control_id}/configure", self.configure_control
+        )
+        self.app.router.add_delete(
+            "/api/controls/{control_id}/configure", self.remove_control_config
+        )
+        self.app.router.add_get("/api/area-lights", self.get_area_lights)
+        self.app.router.add_route(
+            "POST", "/{path:.*}/api/flash-light", self.flash_light
+        )
+        self.app.router.add_post("/api/flash-light", self.flash_light)
 
         # ZHA motion sensor settings API routes
-        self.app.router.add_route('GET', '/{path:.*}/api/controls/{device_id}/zha-settings', self.get_zha_motion_settings)
-        self.app.router.add_route('POST', '/{path:.*}/api/controls/{device_id}/zha-settings', self.set_zha_motion_settings)
-        self.app.router.add_get('/api/controls/{device_id}/zha-settings', self.get_zha_motion_settings)
-        self.app.router.add_post('/api/controls/{device_id}/zha-settings', self.set_zha_motion_settings)
+        self.app.router.add_route(
+            "GET",
+            "/{path:.*}/api/controls/{device_id}/zha-settings",
+            self.get_zha_motion_settings,
+        )
+        self.app.router.add_route(
+            "POST",
+            "/{path:.*}/api/controls/{device_id}/zha-settings",
+            self.set_zha_motion_settings,
+        )
+        self.app.router.add_get(
+            "/api/controls/{device_id}/zha-settings", self.get_zha_motion_settings
+        )
+        self.app.router.add_post(
+            "/api/controls/{device_id}/zha-settings", self.set_zha_motion_settings
+        )
 
         # Legacy switches API routes (keeping for backwards compat)
-        self.app.router.add_route('GET', '/{path:.*}/api/switches', self.get_switches)
-        self.app.router.add_route('POST', '/{path:.*}/api/switches', self.create_switch)
-        self.app.router.add_route('PUT', '/{path:.*}/api/switches/{switch_id}', self.update_switch)
-        self.app.router.add_route('DELETE', '/{path:.*}/api/switches/{switch_id}', self.delete_switch)
-        self.app.router.add_route('GET', '/{path:.*}/api/switch-types', self.get_switch_types)
-        self.app.router.add_get('/api/switches', self.get_switches)
-        self.app.router.add_post('/api/switches', self.create_switch)
-        self.app.router.add_put('/api/switches/{switch_id}', self.update_switch)
-        self.app.router.add_delete('/api/switches/{switch_id}', self.delete_switch)
-        self.app.router.add_get('/api/switch-types', self.get_switch_types)
+        self.app.router.add_route("GET", "/{path:.*}/api/switches", self.get_switches)
+        self.app.router.add_route("POST", "/{path:.*}/api/switches", self.create_switch)
+        self.app.router.add_route(
+            "PUT", "/{path:.*}/api/switches/{switch_id}", self.update_switch
+        )
+        self.app.router.add_route(
+            "DELETE", "/{path:.*}/api/switches/{switch_id}", self.delete_switch
+        )
+        self.app.router.add_route(
+            "GET", "/{path:.*}/api/switch-types", self.get_switch_types
+        )
+        self.app.router.add_get("/api/switches", self.get_switches)
+        self.app.router.add_post("/api/switches", self.create_switch)
+        self.app.router.add_put("/api/switches/{switch_id}", self.update_switch)
+        self.app.router.add_delete("/api/switches/{switch_id}", self.delete_switch)
+        self.app.router.add_get("/api/switch-types", self.get_switch_types)
 
         # Switchmap API routes
-        self.app.router.add_route('GET', '/{path:.*}/api/switchmap', self.get_switchmap)
-        self.app.router.add_route('POST', '/{path:.*}/api/switchmap', self.save_switchmap)
-        self.app.router.add_route('GET', '/{path:.*}/api/switchmap/actions', self.get_switchmap_actions)
-        self.app.router.add_get('/api/switchmap', self.get_switchmap)
-        self.app.router.add_post('/api/switchmap', self.save_switchmap)
-        self.app.router.add_get('/api/switchmap/actions', self.get_switchmap_actions)
+        self.app.router.add_route("GET", "/{path:.*}/api/switchmap", self.get_switchmap)
+        self.app.router.add_route(
+            "POST", "/{path:.*}/api/switchmap", self.save_switchmap
+        )
+        self.app.router.add_route(
+            "GET", "/{path:.*}/api/switchmap/actions", self.get_switchmap_actions
+        )
+        self.app.router.add_get("/api/switchmap", self.get_switchmap)
+        self.app.router.add_post("/api/switchmap", self.save_switchmap)
+        self.app.router.add_get("/api/switchmap/actions", self.get_switchmap_actions)
 
         # Page routes - specific pages first, then catch-all
         # Light filters API
-        self.app.router.add_route('GET', '/{path:.*}/api/light-filters', self.get_light_filters)
-        self.app.router.add_route('POST', '/{path:.*}/api/light-filters/area-brightness', self.save_area_brightness)
-        self.app.router.add_route('POST', '/{path:.*}/api/light-filters/light-filter', self.save_light_filter)
-        self.app.router.add_route('POST', '/{path:.*}/api/light-filters/reassign-preset', self.reassign_preset)
-        self.app.router.add_route('POST', '/{path:.*}/api/light-filters/suggest', self.suggest_light_filters)
-        self.app.router.add_get('/api/light-filters', self.get_light_filters)
-        self.app.router.add_post('/api/light-filters/area-brightness', self.save_area_brightness)
-        self.app.router.add_post('/api/light-filters/light-filter', self.save_light_filter)
-        self.app.router.add_post('/api/light-filters/reassign-preset', self.reassign_preset)
-        self.app.router.add_post('/api/light-filters/suggest', self.suggest_light_filters)
-        self.app.router.add_get('/api/sensors', self.get_sensors)
-        self.app.router.add_route('GET', '/{path:.*}/api/sensors', self.get_sensors)
+        self.app.router.add_route(
+            "GET", "/{path:.*}/api/light-filters", self.get_light_filters
+        )
+        self.app.router.add_route(
+            "POST",
+            "/{path:.*}/api/light-filters/area-brightness",
+            self.save_area_brightness,
+        )
+        self.app.router.add_route(
+            "POST", "/{path:.*}/api/light-filters/light-filter", self.save_light_filter
+        )
+        self.app.router.add_route(
+            "POST", "/{path:.*}/api/light-filters/reassign-preset", self.reassign_preset
+        )
+        self.app.router.add_route(
+            "POST", "/{path:.*}/api/light-filters/suggest", self.suggest_light_filters
+        )
+        self.app.router.add_get("/api/light-filters", self.get_light_filters)
+        self.app.router.add_post(
+            "/api/light-filters/area-brightness", self.save_area_brightness
+        )
+        self.app.router.add_post(
+            "/api/light-filters/light-filter", self.save_light_filter
+        )
+        self.app.router.add_post(
+            "/api/light-filters/reassign-preset", self.reassign_preset
+        )
+        self.app.router.add_post(
+            "/api/light-filters/suggest", self.suggest_light_filters
+        )
+        self.app.router.add_get("/api/sensors", self.get_sensors)
+        self.app.router.add_route("GET", "/{path:.*}/api/sensors", self.get_sensors)
 
         # Outdoor brightness API routes
-        self.app.router.add_post('/api/outdoor-override', self.set_outdoor_override)
-        self.app.router.add_route('POST', '/{path:.*}/api/outdoor-override', self.set_outdoor_override)
-        self.app.router.add_delete('/api/outdoor-override', self.clear_outdoor_override)
-        self.app.router.add_route('DELETE', '/{path:.*}/api/outdoor-override', self.clear_outdoor_override)
-        self.app.router.add_get('/api/outdoor-status', self.get_outdoor_status)
-        self.app.router.add_route('GET', '/{path:.*}/api/outdoor-status', self.get_outdoor_status)
-        self.app.router.add_post('/api/learn-baselines', self.learn_baselines)
-        self.app.router.add_route('POST', '/{path:.*}/api/learn-baselines', self.learn_baselines)
+        self.app.router.add_post("/api/outdoor-override", self.set_outdoor_override)
+        self.app.router.add_route(
+            "POST", "/{path:.*}/api/outdoor-override", self.set_outdoor_override
+        )
+        self.app.router.add_delete("/api/outdoor-override", self.clear_outdoor_override)
+        self.app.router.add_route(
+            "DELETE", "/{path:.*}/api/outdoor-override", self.clear_outdoor_override
+        )
+        self.app.router.add_get("/api/outdoor-status", self.get_outdoor_status)
+        self.app.router.add_route(
+            "GET", "/{path:.*}/api/outdoor-status", self.get_outdoor_status
+        )
+        self.app.router.add_post("/api/learn-baselines", self.learn_baselines)
+        self.app.router.add_route(
+            "POST", "/{path:.*}/api/learn-baselines", self.learn_baselines
+        )
 
         # With ingress path prefix
-        self.app.router.add_route('GET', '/{path:.*}/switchmap', self.serve_switchmap)
-        self.app.router.add_route('GET', '/{path:.*}/control/{control_id}', self.serve_control_detail)
-        self.app.router.add_route('GET', '/{path:.*}/switches', self.serve_switches)
-        self.app.router.add_route('GET', '/{path:.*}/rhythm/{rhythm_name}', self.serve_rhythm_design)
-        self.app.router.add_route('GET', '/{path:.*}/rhythm', self.serve_rhythm_list)
-        self.app.router.add_route('GET', '/{path:.*}/glo/{glo_name}', self.redirect_glo_to_rhythm)
-        self.app.router.add_route('GET', '/{path:.*}/glo', self.redirect_glo_to_rhythm)
-        self.app.router.add_route('GET', '/{path:.*}/area/{area_id}', self.serve_area_detail)
-        self.app.router.add_route('GET', '/{path:.*}/zone/{zone_name}', self.serve_zone_detail)
-        self.app.router.add_route('GET', '/{path:.*}/settings', self.serve_settings)
-        self.app.router.add_route('GET', '/{path:.*}/moment/{moment_id}', self.serve_moment_detail)
-        self.app.router.add_route('GET', '/{path:.*}/moments', self.serve_moments)
-        self.app.router.add_route('GET', '/{path:.*}/', self.serve_home)
+        self.app.router.add_route("GET", "/{path:.*}/switchmap", self.serve_switchmap)
+        self.app.router.add_route(
+            "GET", "/{path:.*}/control/{control_id}", self.serve_control_detail
+        )
+        self.app.router.add_route("GET", "/{path:.*}/switches", self.serve_switches)
+        self.app.router.add_route(
+            "GET", "/{path:.*}/rhythm/{rhythm_name}", self.serve_rhythm_design
+        )
+        self.app.router.add_route("GET", "/{path:.*}/rhythm", self.serve_rhythm_list)
+        self.app.router.add_route(
+            "GET", "/{path:.*}/glo/{glo_name}", self.redirect_glo_to_rhythm
+        )
+        self.app.router.add_route("GET", "/{path:.*}/glo", self.redirect_glo_to_rhythm)
+        self.app.router.add_route(
+            "GET", "/{path:.*}/area/{area_id}", self.serve_area_detail
+        )
+        self.app.router.add_route(
+            "GET", "/{path:.*}/zone/{zone_name}", self.serve_zone_detail
+        )
+        self.app.router.add_route("GET", "/{path:.*}/settings", self.serve_settings)
+        self.app.router.add_route(
+            "GET", "/{path:.*}/moment/{moment_id}", self.serve_moment_detail
+        )
+        self.app.router.add_route("GET", "/{path:.*}/moments", self.serve_moments)
+        self.app.router.add_route("GET", "/{path:.*}/", self.serve_home)
         # Without ingress path prefix
-        self.app.router.add_get('/control/{control_id}', self.serve_control_detail)
-        self.app.router.add_get('/switches', self.serve_switches)
-        self.app.router.add_get('/switchmap', self.serve_switchmap)
-        self.app.router.add_get('/rhythm/{rhythm_name}', self.serve_rhythm_design)
-        self.app.router.add_get('/rhythm', self.serve_rhythm_list)
-        self.app.router.add_get('/glo/{glo_name}', self.redirect_glo_to_rhythm)
-        self.app.router.add_get('/glo', self.redirect_glo_to_rhythm)
-        self.app.router.add_get('/area/{area_id}', self.serve_area_detail)
-        self.app.router.add_get('/zone/{zone_name}', self.serve_zone_detail)
-        self.app.router.add_get('/settings', self.serve_settings)
-        self.app.router.add_get('/moment/{moment_id}', self.serve_moment_detail)
-        self.app.router.add_get('/moments', self.serve_moments)
-        self.app.router.add_get('/', self.serve_home)
+        self.app.router.add_get("/control/{control_id}", self.serve_control_detail)
+        self.app.router.add_get("/switches", self.serve_switches)
+        self.app.router.add_get("/switchmap", self.serve_switchmap)
+        self.app.router.add_get("/rhythm/{rhythm_name}", self.serve_rhythm_design)
+        self.app.router.add_get("/rhythm", self.serve_rhythm_list)
+        self.app.router.add_get("/glo/{glo_name}", self.redirect_glo_to_rhythm)
+        self.app.router.add_get("/glo", self.redirect_glo_to_rhythm)
+        self.app.router.add_get("/area/{area_id}", self.serve_area_detail)
+        self.app.router.add_get("/zone/{zone_name}", self.serve_zone_detail)
+        self.app.router.add_get("/settings", self.serve_settings)
+        self.app.router.add_get("/moment/{moment_id}", self.serve_moment_detail)
+        self.app.router.add_get("/moments", self.serve_moments)
+        self.app.router.add_get("/", self.serve_home)
         # Legacy routes
-        self.app.router.add_get('/designer', self.serve_home)
-        self.app.router.add_get('/areas', self.serve_home)
-        self.app.router.add_route('GET', '/{path:.*}/areas', self.serve_home)
+        self.app.router.add_get("/designer", self.serve_home)
+        self.app.router.add_get("/areas", self.serve_home)
+        self.app.router.add_route("GET", "/{path:.*}/areas", self.serve_home)
 
     async def serve_page(self, page_name: str, extra_data: dict = None) -> Response:
         """Generic page serving function."""
@@ -591,22 +770,24 @@ class LightDesignerServer:
                 logger.error(f"Page not found: {page_name}.html")
                 return web.Response(text=f"Page not found: {page_name}", status=404)
 
-            async with aiofiles.open(html_path, 'r') as f:
+            async with aiofiles.open(html_path, "r") as f:
                 html_content = await f.read()
 
             # Inline shared.js content (avoids routing issues with ingress paths)
             shared_js_path = Path(__file__).parent / "shared.js"
             if shared_js_path.exists():
-                async with aiofiles.open(shared_js_path, 'r') as f:
+                async with aiofiles.open(shared_js_path, "r") as f:
                     shared_js_content = await f.read()
                 # Replace external script reference with inline script (simple string replace)
-                inline_script = f'<script>\n{shared_js_content}\n</script>'
+                inline_script = f"<script>\n{shared_js_content}\n</script>"
                 original_len = len(html_content)
                 # Try multiple possible formats
-                for pattern in ['<script src="./shared.js"></script>',
-                               '<script src="shared.js"></script>',
-                               "<script src='./shared.js'></script>",
-                               "<script src='shared.js'></script>"]:
+                for pattern in [
+                    '<script src="./shared.js"></script>',
+                    '<script src="shared.js"></script>',
+                    "<script src='./shared.js'></script>",
+                    "<script src='shared.js'></script>",
+                ]:
                     if pattern in html_content:
                         html_content = html_content.replace(pattern, inline_script)
                         break
@@ -622,16 +803,16 @@ class LightDesignerServer:
             </script>
             """
 
-            html_content = html_content.replace('</body>', f'{config_script}</body>')
+            html_content = html_content.replace("</body>", f"{config_script}</body>")
 
             return web.Response(
                 text=html_content,
-                content_type='text/html',
+                content_type="text/html",
                 headers={
-                    'Cache-Control': 'no-cache, no-store, must-revalidate',
-                    'Pragma': 'no-cache',
-                    'Expires': '0'
-                }
+                    "Cache-Control": "no-cache, no-store, must-revalidate",
+                    "Pragma": "no-cache",
+                    "Expires": "0",
+                },
             )
         except Exception as e:
             logger.error(f"Error serving {page_name} page: {e}")
@@ -699,18 +880,28 @@ class LightDesignerServer:
                         area_name = area
                     if not area_id:
                         continue
-                    zone_areas.append({
-                        "id": area_id,
-                        "name": area_name,
-                        "brightness_factor": glozone.get_area_brightness_factor(area_id),
-                        "natural_light_exposure": glozone.get_area_natural_light_exposure(area_id),
-                        "light_filters": glozone.get_area_light_filters(area_id),
-                    })
+                    zone_areas.append(
+                        {
+                            "id": area_id,
+                            "name": area_name,
+                            "brightness_factor": glozone.get_area_brightness_factor(
+                                area_id
+                            ),
+                            "natural_light_exposure": glozone.get_area_natural_light_exposure(
+                                area_id
+                            ),
+                            "light_filters": glozone.get_area_light_filters(area_id),
+                        }
+                    )
                 rhythm_name = zone_config.get("rhythm")
-                rhythm_cfg = glozone.get_rhythm_config(rhythm_name) if rhythm_name else {}
+                rhythm_cfg = (
+                    glozone.get_rhythm_config(rhythm_name) if rhythm_name else {}
+                )
                 zones[zone_name] = {
                     "rhythm": rhythm_name,
-                    "brightness_sensitivity": rhythm_cfg.get("brightness_sensitivity", 5.0),
+                    "brightness_sensitivity": rhythm_cfg.get(
+                        "brightness_sensitivity", 5.0
+                    ),
                     "daylight_fade": rhythm_cfg.get("daylight_fade", 60),
                     "min_brightness": rhythm_cfg.get("min_brightness", 1),
                     "max_brightness": rhythm_cfg.get("max_brightness", 100),
@@ -727,73 +918,113 @@ class LightDesignerServer:
                     try:
                         async with websockets.connect(ws_url) as ws:
                             msg = json.loads(await ws.recv())
-                            if msg.get('type') == 'auth_required':
-                                await ws.send(json.dumps({'type': 'auth', 'access_token': token}))
+                            if msg.get("type") == "auth_required":
+                                await ws.send(
+                                    json.dumps({"type": "auth", "access_token": token})
+                                )
                                 msg = json.loads(await ws.recv())
-                                if msg.get('type') == 'auth_ok':
+                                if msg.get("type") == "auth_ok":
                                     # Get device registry for area lookup
-                                    await ws.send(json.dumps({'id': 1, 'type': 'config/device_registry/list'}))
+                                    await ws.send(
+                                        json.dumps(
+                                            {
+                                                "id": 1,
+                                                "type": "config/device_registry/list",
+                                            }
+                                        )
+                                    )
                                     device_msg = json.loads(await ws.recv())
                                     device_areas = {}
-                                    if device_msg.get('success') and device_msg.get('result'):
-                                        for device in device_msg['result']:
-                                            if device.get('id') and device.get('area_id'):
-                                                device_areas[device['id']] = device['area_id']
+                                    if device_msg.get("success") and device_msg.get(
+                                        "result"
+                                    ):
+                                        for device in device_msg["result"]:
+                                            if device.get("id") and device.get(
+                                                "area_id"
+                                            ):
+                                                device_areas[device["id"]] = device[
+                                                    "area_id"
+                                                ]
 
                                     # Get entity registry
-                                    await ws.send(json.dumps({'id': 2, 'type': 'config/entity_registry/list'}))
+                                    await ws.send(
+                                        json.dumps(
+                                            {
+                                                "id": 2,
+                                                "type": "config/entity_registry/list",
+                                            }
+                                        )
+                                    )
                                     entity_msg = json.loads(await ws.recv())
 
                                     # Get states for friendly names
-                                    await ws.send(json.dumps({'id': 3, 'type': 'get_states'}))
+                                    await ws.send(
+                                        json.dumps({"id": 3, "type": "get_states"})
+                                    )
                                     states_msg = json.loads(await ws.recv())
                                     friendly_names = {}
                                     light_groups = set()
-                                    if states_msg.get('success') and states_msg.get('result'):
-                                        for s in states_msg['result']:
-                                            eid = s.get('entity_id', '')
-                                            if eid.startswith('light.'):
-                                                attrs = s.get('attributes', {})
-                                                friendly_names[eid] = attrs.get('friendly_name', eid)
-                                                if attrs.get('entity_id') or attrs.get('is_group') or attrs.get('is_hue_group'):
+                                    if states_msg.get("success") and states_msg.get(
+                                        "result"
+                                    ):
+                                        for s in states_msg["result"]:
+                                            eid = s.get("entity_id", "")
+                                            if eid.startswith("light."):
+                                                attrs = s.get("attributes", {})
+                                                friendly_names[eid] = attrs.get(
+                                                    "friendly_name", eid
+                                                )
+                                                if (
+                                                    attrs.get("entity_id")
+                                                    or attrs.get("is_group")
+                                                    or attrs.get("is_hue_group")
+                                                ):
                                                     light_groups.add(eid)
 
-                                    if entity_msg.get('success') and entity_msg.get('result'):
-                                        for entity in entity_msg['result']:
-                                            eid = entity.get('entity_id', '')
-                                            if not eid.startswith('light.'):
+                                    if entity_msg.get("success") and entity_msg.get(
+                                        "result"
+                                    ):
+                                        for entity in entity_msg["result"]:
+                                            eid = entity.get("entity_id", "")
+                                            if not eid.startswith("light."):
                                                 continue
                                             # Skip disabled entities
-                                            if entity.get('disabled_by'):
+                                            if entity.get("disabled_by"):
                                                 continue
                                             # Skip group entities (Circadian groups and area-level groups)
-                                            if 'circadian_' in eid.lower():
+                                            if "circadian_" in eid.lower():
                                                 continue
                                             if eid in light_groups:
                                                 continue
                                             # Determine area
-                                            a_id = entity.get('area_id')
+                                            a_id = entity.get("area_id")
                                             if not a_id:
-                                                dev_id = entity.get('device_id')
+                                                dev_id = entity.get("device_id")
                                                 if dev_id:
                                                     a_id = device_areas.get(dev_id)
                                             if a_id:
                                                 if a_id not in area_lights:
                                                     area_lights[a_id] = []
-                                                area_lights[a_id].append({
-                                                    "entity_id": eid,
-                                                    "name": friendly_names.get(eid, eid),
-                                                })
+                                                area_lights[a_id].append(
+                                                    {
+                                                        "entity_id": eid,
+                                                        "name": friendly_names.get(
+                                                            eid, eid
+                                                        ),
+                                                    }
+                                                )
                     except Exception as e:
                         logger.warning(f"Could not fetch lights for filters page: {e}")
 
-            return web.json_response({
-                "outdoor_normalized": lux_tracker.get_outdoor_normalized() or 0.0,
-                "zones": zones,
-                "presets": presets,
-                "off_threshold": off_threshold,
-                "area_lights": area_lights,
-            })
+            return web.json_response(
+                {
+                    "outdoor_normalized": lux_tracker.get_outdoor_normalized() or 0.0,
+                    "zones": zones,
+                    "presets": presets,
+                    "off_threshold": off_threshold,
+                    "area_lights": area_lights,
+                }
+            )
         except Exception as e:
             logger.error(f"Error getting light filters: {e}")
             return web.json_response({"error": str(e)}, status=500)
@@ -815,16 +1046,22 @@ class LightDesignerServer:
                 for area in zone_config.get("areas", []):
                     if isinstance(area, dict) and area.get("id") == area_id:
                         if "brightness_factor" in data:
-                            area["brightness_factor"] = round(float(data["brightness_factor"]), 2)
+                            area["brightness_factor"] = round(
+                                float(data["brightness_factor"]), 2
+                            )
                         if "natural_light_exposure" in data:
-                            area["natural_light_exposure"] = round(float(data["natural_light_exposure"]), 2)
+                            area["natural_light_exposure"] = round(
+                                float(data["natural_light_exposure"]), 2
+                            )
                         found = True
                         break
                 if found:
                     break
 
             if not found:
-                return web.json_response({"error": f"Area {area_id} not found"}, status=404)
+                return web.json_response(
+                    {"error": f"Area {area_id} not found"}, status=404
+                )
 
             await self.save_config_to_file(config)
             glozone.set_config(config)
@@ -832,7 +1069,9 @@ class LightDesignerServer:
             # Fire refresh event
             _, ws_url, token = self._get_ha_api_config()
             if ws_url and token:
-                await self._fire_event_via_websocket(ws_url, token, 'circadian_light_refresh', {})
+                await self._fire_event_via_websocket(
+                    ws_url, token, "circadian_light_refresh", {}
+                )
 
             return web.json_response({"status": "ok"})
         except Exception as e:
@@ -848,7 +1087,9 @@ class LightDesignerServer:
             filter_name = data.get("filter", "Standard")
 
             if not area_id or not entity_id:
-                return web.json_response({"error": "area_id and entity_id required"}, status=400)
+                return web.json_response(
+                    {"error": "area_id and entity_id required"}, status=400
+                )
 
             config = await self.load_raw_config()
             glozones = config.get("glozones", {})
@@ -871,7 +1112,9 @@ class LightDesignerServer:
                     break
 
             if not found:
-                return web.json_response({"error": f"Area {area_id} not found"}, status=404)
+                return web.json_response(
+                    {"error": f"Area {area_id} not found"}, status=404
+                )
 
             await self.save_config_to_file(config)
             glozone.set_config(config)
@@ -879,7 +1122,9 @@ class LightDesignerServer:
             # Fire refresh event
             _, ws_url, token = self._get_ha_api_config()
             if ws_url and token:
-                await self._fire_event_via_websocket(ws_url, token, 'circadian_light_refresh', {})
+                await self._fire_event_via_websocket(
+                    ws_url, token, "circadian_light_refresh", {}
+                )
 
             return web.json_response({"status": "ok"})
         except Exception as e:
@@ -906,7 +1151,8 @@ class LightDesignerServer:
                         continue
                     light_filters = area.get("light_filters", {})
                     entities_to_update = [
-                        eid for eid, preset in light_filters.items()
+                        eid
+                        for eid, preset in light_filters.items()
                         if preset == from_preset
                     ]
                     for eid in entities_to_update:
@@ -924,7 +1170,9 @@ class LightDesignerServer:
             if reassigned > 0:
                 _, ws_url, token = self._get_ha_api_config()
                 if ws_url and token:
-                    await self._fire_event_via_websocket(ws_url, token, 'circadian_light_refresh', {})
+                    await self._fire_event_via_websocket(
+                        ws_url, token, "circadian_light_refresh", {}
+                    )
 
             return web.json_response({"status": "ok", "reassigned": reassigned})
         except Exception as e:
@@ -967,40 +1215,64 @@ class LightDesignerServer:
                 try:
                     async with websockets.connect(ws_url) as ws:
                         msg = json.loads(await ws.recv())
-                        if msg.get('type') == 'auth_required':
-                            await ws.send(json.dumps({'type': 'auth', 'access_token': token}))
+                        if msg.get("type") == "auth_required":
+                            await ws.send(
+                                json.dumps({"type": "auth", "access_token": token})
+                            )
                             msg = json.loads(await ws.recv())
-                            if msg.get('type') == 'auth_ok':
-                                await ws.send(json.dumps({'id': 1, 'type': 'config/device_registry/list'}))
+                            if msg.get("type") == "auth_ok":
+                                await ws.send(
+                                    json.dumps(
+                                        {"id": 1, "type": "config/device_registry/list"}
+                                    )
+                                )
                                 device_msg = json.loads(await ws.recv())
                                 device_areas = {}
-                                if device_msg.get('success') and device_msg.get('result'):
-                                    for device in device_msg['result']:
-                                        if device.get('id') and device.get('area_id'):
-                                            device_areas[device['id']] = device['area_id']
+                                if device_msg.get("success") and device_msg.get(
+                                    "result"
+                                ):
+                                    for device in device_msg["result"]:
+                                        if device.get("id") and device.get("area_id"):
+                                            device_areas[device["id"]] = device[
+                                                "area_id"
+                                            ]
 
-                                await ws.send(json.dumps({'id': 2, 'type': 'config/entity_registry/list'}))
+                                await ws.send(
+                                    json.dumps(
+                                        {"id": 2, "type": "config/entity_registry/list"}
+                                    )
+                                )
                                 entity_msg = json.loads(await ws.recv())
 
-                                await ws.send(json.dumps({'id': 3, 'type': 'get_states'}))
+                                await ws.send(
+                                    json.dumps({"id": 3, "type": "get_states"})
+                                )
                                 states_msg = json.loads(await ws.recv())
                                 friendly_names = {}
-                                if states_msg.get('success') and states_msg.get('result'):
-                                    for s in states_msg['result']:
-                                        eid = s.get('entity_id', '')
-                                        if eid.startswith('light.'):
-                                            friendly_names[eid] = s.get('attributes', {}).get('friendly_name', eid)
+                                if states_msg.get("success") and states_msg.get(
+                                    "result"
+                                ):
+                                    for s in states_msg["result"]:
+                                        eid = s.get("entity_id", "")
+                                        if eid.startswith("light."):
+                                            friendly_names[eid] = s.get(
+                                                "attributes", {}
+                                            ).get("friendly_name", eid)
 
-                                if entity_msg.get('success') and entity_msg.get('result'):
-                                    for entity in entity_msg['result']:
-                                        eid = entity.get('entity_id', '')
-                                        if not eid.startswith('light.') or entity.get('disabled_by'):
+                                if entity_msg.get("success") and entity_msg.get(
+                                    "result"
+                                ):
+                                    for entity in entity_msg["result"]:
+                                        eid = entity.get("entity_id", "")
+                                        if not eid.startswith("light.") or entity.get(
+                                            "disabled_by"
+                                        ):
                                             continue
-                                        if 'circadian_' in eid.lower():
+                                        if "circadian_" in eid.lower():
                                             continue
-                                        a_id = entity.get('area_id')
+                                        a_id = entity.get("area_id")
                                         if not a_id:
-                                            dev_id = entity.get('device_id')
+                                            dev_id = entity.get("device_id")
                                             if dev_id:
                                                 a_id = device_areas.get(dev_id)
                                         if not a_id:
@@ -1011,7 +1283,9 @@ class LightDesignerServer:
 
                                         # Get current filter
                                         current = "Standard"
-                                        area_filters = glozone.get_area_light_filters(a_id)
+                                        area_filters = glozone.get_area_light_filters(
+                                            a_id
+                                        )
                                         if eid in area_filters:
                                             current = area_filters[eid]
 
@@ -1024,13 +1298,15 @@ class LightDesignerServer:
                                                     break
 
                                         if suggested:
-                                            suggestions.append({
-                                                "entity_id": eid,
-                                                "name": name,
-                                                "area_id": a_id,
-                                                "current_filter": current,
-                                                "suggested_filter": suggested,
-                                            })
+                                            suggestions.append(
+                                                {
+                                                    "entity_id": eid,
+                                                    "name": name,
+                                                    "area_id": a_id,
+                                                    "current_filter": current,
+                                                    "suggested_filter": suggested,
+                                                }
+                                            )
                 except Exception as e:
                     logger.warning(f"Error during filter suggestion: {e}")
 
@@ -1065,7 +1341,7 @@ class LightDesignerServer:
         except Exception as e:
             logger.error(f"Error getting config: {e}")
             return web.json_response({"error": str(e)}, status=500)
-    
+
     async def save_config(self, request: Request) -> Response:
         """Save curve configuration.
 
@@ -1077,23 +1353,31 @@ class LightDesignerServer:
         try:
             data = await request.json()
             logger.info(f"[SaveConfig] Incoming data keys: {list(data.keys())}")
-            logger.info(f"[SaveConfig] Incoming glozones: {data.get('glozones', 'NOT PRESENT')}")
+            logger.info(
+                f"[SaveConfig] Incoming glozones: {data.get('glozones', 'NOT PRESENT')}"
+            )
 
             # Load existing raw config (GloZone format)
             config = await self.load_raw_config()
-            logger.info(f"[SaveConfig] Loaded raw config glozones: {list(config.get('glozones', {}).keys())}")
+            logger.info(
+                f"[SaveConfig] Loaded raw config glozones: {list(config.get('glozones', {}).keys())}"
+            )
 
             # Separate incoming data into categories
             incoming_rhythms = data.pop("circadian_rhythms", None)
             incoming_glozones = data.pop("glozones", None)
-            logger.info(f"[SaveConfig] After pop - incoming_glozones: {incoming_glozones}")
+            logger.info(
+                f"[SaveConfig] After pop - incoming_glozones: {incoming_glozones}"
+            )
 
             # Handle incoming preset and glozone structures
             if incoming_rhythms:
                 config["circadian_rhythms"].update(incoming_rhythms)
 
             if incoming_glozones:
-                logger.info(f"[SaveConfig] Updating glozones with: {list(incoming_glozones.keys())}")
+                logger.info(
+                    f"[SaveConfig] Updating glozones with: {list(incoming_glozones.keys())}"
+                )
                 config["glozones"].update(incoming_glozones)
 
             # Remaining data could be flat preset settings or global settings
@@ -1111,16 +1395,22 @@ class LightDesignerServer:
             if rhythm_updates and config.get("circadian_rhythms"):
                 first_rhythm_name = list(config["circadian_rhythms"].keys())[0]
                 config["circadian_rhythms"][first_rhythm_name].update(rhythm_updates)
-                logger.debug(f"Updated rhythm '{first_rhythm_name}' with: {list(rhythm_updates.keys())}")
+                logger.debug(
+                    f"Updated rhythm '{first_rhythm_name}' with: {list(rhythm_updates.keys())}"
+                )
 
             # Apply global updates to top level
             config.update(global_updates)
 
             # Log what we're about to save
-            logger.info(f"[SaveConfig] Final glozones to save: {list(config.get('glozones', {}).keys())}")
-            for zn, zc in config.get('glozones', {}).items():
-                areas = zc.get('areas', [])
-                logger.info(f"[SaveConfig]   Zone '{zn}': {len(areas)} areas, rhythm={zc.get('rhythm')}")
+            logger.info(
+                f"[SaveConfig] Final glozones to save: {list(config.get('glozones', {}).keys())}"
+            )
+            for zn, zc in config.get("glozones", {}).items():
+                areas = zc.get("areas", [])
+                logger.info(
+                    f"[SaveConfig]   Zone '{zn}': {len(areas)} areas, rhythm={zc.get('rhythm')}"
+                )
 
             # Save the raw config (GloZone format)
             await self.save_config_to_file(config)
@@ -1134,7 +1424,7 @@ class LightDesignerServer:
             _, ws_url, token = self._get_ha_api_config()
             if ws_url and token:
                 refreshed = await self._fire_event_via_websocket(
-                    ws_url, token, 'circadian_light_refresh', {}
+                    ws_url, token, "circadian_light_refresh", {}
                 )
                 if refreshed:
                     logger.info("Fired circadian_light_refresh event after config save")
@@ -1143,11 +1433,17 @@ class LightDesignerServer:
 
             # Return effective config for backward compatibility
             effective_config = self._get_effective_config(config)
-            return web.json_response({"status": "success", "config": effective_config, "refreshed": refreshed})
+            return web.json_response(
+                {
+                    "status": "success",
+                    "config": effective_config,
+                    "refreshed": refreshed,
+                }
+            )
         except Exception as e:
             logger.error(f"Error saving config: {e}")
             return web.json_response({"error": str(e)}, status=500)
-    
+
     async def health_check(self, request: Request) -> Response:
         """Health check endpoint."""
         return web.json_response({"status": "healthy"})
@@ -1164,10 +1460,7 @@ class LightDesignerServer:
                     "ascend_start": preset.get("ascend_start", 3.0),
                     "descend_start": preset.get("descend_start", 12.0),
                 }
-            return web.json_response({
-                "presets": presets,
-                "names": get_preset_names()
-            })
+            return web.json_response({"presets": presets, "names": get_preset_names()})
         except Exception as e:
             logger.error(f"Error getting presets: {e}")
             return web.json_response({"error": str(e)}, status=500)
@@ -1178,9 +1471,13 @@ class LightDesignerServer:
             from zoneinfo import ZoneInfo
 
             # Get parameters from query, falling back to HA environment vars
-            date_str = request.query.get('date')
-            lat = float(request.query.get('latitude', os.getenv("HASS_LATITUDE", "35.0")))
-            lon = float(request.query.get('longitude', os.getenv("HASS_LONGITUDE", "-78.6")))
+            date_str = request.query.get("date")
+            lat = float(
+                request.query.get("latitude", os.getenv("HASS_LATITUDE", "35.0"))
+            )
+            lon = float(
+                request.query.get("longitude", os.getenv("HASS_LONGITUDE", "-78.6"))
+            )
             timezone = os.getenv("HASS_TIME_ZONE", "US/Eastern")
 
             try:
@@ -1191,7 +1488,7 @@ class LightDesignerServer:
             if not date_str:
                 # Default to today in local timezone
                 now = datetime.now(tzinfo) if tzinfo else datetime.now()
-                date_str = now.strftime('%Y-%m-%d')
+                date_str = now.strftime("%Y-%m-%d")
 
             # Calculate sun times using brain.py function
             sun_times = calculate_sun_times(lat, lon, date_str)
@@ -1214,21 +1511,23 @@ class LightDesignerServer:
             noon_hour = iso_to_hour(sun_times.get("noon"), 12.0)
             midnight_hour = (noon_hour + 12.0) % 24.0
 
-            return web.json_response({
-                "date": date_str,
-                "latitude": lat,
-                "longitude": lon,
-                # ISO strings for display
-                "sunrise": sun_times.get("sunrise"),
-                "sunset": sun_times.get("sunset"),
-                "solar_noon": sun_times.get("noon"),
-                "solar_midnight": None,
-                # Hour values for calculations
-                "sunrise_hour": sunrise_hour,
-                "sunset_hour": sunset_hour,
-                "noon_hour": noon_hour,
-                "midnight_hour": midnight_hour,
-            })
+            return web.json_response(
+                {
+                    "date": date_str,
+                    "latitude": lat,
+                    "longitude": lon,
+                    # ISO strings for display
+                    "sunrise": sun_times.get("sunrise"),
+                    "sunset": sun_times.get("sunset"),
+                    "solar_noon": sun_times.get("noon"),
+                    "solar_midnight": None,
+                    # Hour values for calculations
+                    "sunrise_hour": sunrise_hour,
+                    "sunset_hour": sunset_hour,
+                    "noon_hour": noon_hour,
+                    "midnight_hour": midnight_hour,
+                }
+            )
         except Exception as e:
             logger.error(f"Error getting sun times: {e}")
             return web.json_response({"error": str(e)}, status=500)
@@ -1265,31 +1564,32 @@ class LightDesignerServer:
                 longitude=longitude,
                 timezone=timezone,
                 current_time=now,
-                min_color_temp=config.get('min_color_temp', 500),
-                max_color_temp=config.get('max_color_temp', 6500),
-                min_brightness=config.get('min_brightness', 1),
-                max_brightness=config.get('max_brightness', 100),
-                config=config
+                min_color_temp=config.get("min_color_temp", 500),
+                max_color_temp=config.get("max_color_temp", 6500),
+                min_brightness=config.get("min_brightness", 1),
+                max_brightness=config.get("max_brightness", 100),
+                config=config,
             )
 
-            return web.json_response({
-                "current_time": now.isoformat(),
-                "current_hour": current_hour,
-                "timezone": timezone,
-                "latitude": latitude,
-                "longitude": longitude,
-                "lighting": {
-                    "brightness": lighting_values.get('brightness', 0),
-                    "kelvin": lighting_values.get('kelvin', 0),
-                    "solar_position": lighting_values.get('solar_position', 0)
+            return web.json_response(
+                {
+                    "current_time": now.isoformat(),
+                    "current_hour": current_hour,
+                    "timezone": timezone,
+                    "latitude": latitude,
+                    "longitude": longitude,
+                    "lighting": {
+                        "brightness": lighting_values.get("brightness", 0),
+                        "kelvin": lighting_values.get("kelvin", 0),
+                        "solar_position": lighting_values.get("solar_position", 0),
+                    },
                 }
-            })
+            )
 
         except Exception as e:
             logger.error(f"Error getting time info: {e}")
             return web.json_response(
-                {"error": f"Failed to get time info: {e}"},
-                status=500
+                {"error": f"Failed to get time info: {e}"}, status=500
             )
 
     async def get_zone_states(self, request: Request) -> Response:
@@ -1305,7 +1605,13 @@ class LightDesignerServer:
         """
         try:
             from zoneinfo import ZoneInfo
-            from brain import CircadianLight, Config, AreaState, SunTimes, calculate_sun_times
+            from brain import (
+                CircadianLight,
+                Config,
+                AreaState,
+                SunTimes,
+                calculate_sun_times,
+            )
 
             # Get location from environment
             latitude = float(os.getenv("HASS_LATITUDE", "35.0"))
@@ -1323,7 +1629,7 @@ class LightDesignerServer:
             # Calculate sun times for solar rules
             sun_times = SunTimes()  # defaults
             try:
-                date_str = now.strftime('%Y-%m-%d')
+                date_str = now.strftime("%Y-%m-%d")
                 sun_dict = calculate_sun_times(latitude, longitude, date_str)
 
                 def iso_to_hour(iso_str, default):
@@ -1370,31 +1676,45 @@ class LightDesignerServer:
                 # Get the rhythm for this zone using glozone module
                 rhythm_name = zone_config.get("rhythm", glozone.DEFAULT_RHYTHM)
                 preset_config = glozone.get_rhythm_config(rhythm_name)
-                logger.debug(f"[ZoneStates] Zone '{zone_name}' rhythm_config keys: {list(preset_config.keys())}")
-                logger.debug(f"[ZoneStates] Zone '{zone_name}' rhythm min/max bri: {preset_config.get('min_brightness')}/{preset_config.get('max_brightness')}")
+                logger.debug(
+                    f"[ZoneStates] Zone '{zone_name}' rhythm_config keys: {list(preset_config.keys())}"
+                )
+                logger.debug(
+                    f"[ZoneStates] Zone '{zone_name}' rhythm min/max bri: {preset_config.get('min_brightness')}/{preset_config.get('max_brightness')}"
+                )
 
                 # Get zone runtime state (from GloUp/GloDown adjustments)
                 runtime_state = glozone_state.get_zone_state(zone_name)
-                logger.debug(f"[ZoneStates] Zone '{zone_name}' runtime_state: {runtime_state}")
+                logger.debug(
+                    f"[ZoneStates] Zone '{zone_name}' runtime_state: {runtime_state}"
+                )
 
                 # Build Config from preset using from_dict (handles all fields with defaults)
                 brain_config = Config.from_dict(preset_config)
-                logger.debug(f"[ZoneStates] Zone '{zone_name}' brain_config: wake={brain_config.wake_time}, bed={brain_config.bed_time}, min_bri={brain_config.min_brightness}, max_bri={brain_config.max_brightness}, warm_night={brain_config.warm_night_enabled}")
+                logger.debug(
+                    f"[ZoneStates] Zone '{zone_name}' brain_config: wake={brain_config.wake_time}, bed={brain_config.bed_time}, min_bri={brain_config.min_brightness}, max_bri={brain_config.max_brightness}, warm_night={brain_config.warm_night_enabled}"
+                )
 
                 # Build AreaState from zone runtime state
                 area_state = AreaState(
                     is_circadian=True,
                     is_on=True,
-                    brightness_mid=runtime_state.get('brightness_mid'),
-                    color_mid=runtime_state.get('color_mid'),
-                    frozen_at=runtime_state.get('frozen_at'),
-                    color_override=runtime_state.get('color_override'),
+                    brightness_mid=runtime_state.get("brightness_mid"),
+                    color_mid=runtime_state.get("color_mid"),
+                    frozen_at=runtime_state.get("frozen_at"),
+                    color_override=runtime_state.get("color_override"),
                 )
-                logger.debug(f"[ZoneStates] Zone '{zone_name}' area_state: brightness_mid={area_state.brightness_mid}, color_mid={area_state.color_mid}, frozen_at={area_state.frozen_at}")
+                logger.debug(
+                    f"[ZoneStates] Zone '{zone_name}' area_state: brightness_mid={area_state.brightness_mid}, color_mid={area_state.color_mid}, frozen_at={area_state.frozen_at}"
+                )
 
                 # Calculate lighting values - use frozen_at if set, otherwise current time
-                calc_hour = area_state.frozen_at if area_state.frozen_at is not None else hour
-                result = CircadianLight.calculate_lighting(calc_hour, brain_config, area_state, sun_times=sun_times)
+                calc_hour = (
+                    area_state.frozen_at if area_state.frozen_at is not None else hour
+                )
+                result = CircadianLight.calculate_lighting(
+                    calc_hour, brain_config, area_state, sun_times=sun_times
+                )
 
                 zone_states[zone_name] = {
                     "brightness": result.brightness,
@@ -1402,7 +1722,9 @@ class LightDesignerServer:
                     "rhythm": rhythm_name,
                     "runtime_state": runtime_state,
                 }
-                logger.debug(f"[ZoneStates] Zone '{zone_name}': {result.brightness}% {result.color_temp}K at hour {calc_hour:.2f} (rhythm: {rhythm_name}, sun_times: sunrise={sun_times.sunrise:.2f}, sunset={sun_times.sunset:.2f})")
+                logger.debug(
+                    f"[ZoneStates] Zone '{zone_name}': {result.brightness}% {result.color_temp}K at hour {calc_hour:.2f} (rhythm: {rhythm_name}, sun_times: sunrise={sun_times.sunrise:.2f}, sunset={sun_times.sunset:.2f})"
+                )
 
             logger.debug(f"[ZoneStates] Returning {len(zone_states)} zone states")
             return web.json_response({"zone_states": zone_states})
@@ -1415,19 +1737,32 @@ class LightDesignerServer:
         """Apply UI query parameters to a config dict for live previews."""
         # Float parameters (ascend/descend model)
         float_params = [
-            'min_color_temp', 'max_color_temp',
-            'min_brightness', 'max_brightness',
-            'ascend_start', 'descend_start',
-            'wake_time', 'bed_time',
-            'latitude', 'longitude',
-            'warm_night_target', 'warm_night_fade',
-            'warm_night_start', 'warm_night_end',
-            'brightness_sensitivity', 'color_sensitivity', 'daylight_fade',
+            "min_color_temp",
+            "max_color_temp",
+            "min_brightness",
+            "max_brightness",
+            "ascend_start",
+            "descend_start",
+            "wake_time",
+            "bed_time",
+            "latitude",
+            "longitude",
+            "warm_night_target",
+            "warm_night_fade",
+            "warm_night_start",
+            "warm_night_end",
+            "brightness_sensitivity",
+            "color_sensitivity",
+            "daylight_fade",
         ]
 
         # Integer parameters
         int_params = [
-            'month', 'wake_speed', 'bed_speed', 'max_dim_steps', 'daylight_cct'
+            "month",
+            "wake_speed",
+            "bed_speed",
+            "max_dim_steps",
+            "daylight_cct",
         ]
 
         for param_name in float_params:
@@ -1447,17 +1782,18 @@ class LightDesignerServer:
                     logger.warning(f"Invalid value for {param_name}: {raw_value}")
 
         # Boolean parameters
-        bool_params = [
-            'warm_night_enabled', 'use_ha_location'
-        ]
+        bool_params = ["warm_night_enabled", "use_ha_location"]
         for param_name in bool_params:
             if param_name in query:
-                config[param_name] = query[param_name].lower() in ('true', '1', 'yes', 'on')
+                config[param_name] = query[param_name].lower() in (
+                    "true",
+                    "1",
+                    "yes",
+                    "on",
+                )
 
         # String parameters
-        string_params = [
-            'activity_preset', 'warm_night_mode', 'timezone'
-        ]
+        string_params = ["activity_preset", "warm_night_mode", "timezone"]
         for param_name in string_params:
             if param_name in query:
                 config[param_name] = query[param_name]
@@ -1468,8 +1804,8 @@ class LightDesignerServer:
         """Calculate step sequences for visualization."""
         try:
             # Get parameters from query string
-            current_hour = float(request.query.get('hour', 12.0))
-            max_steps = int(request.query.get('max_steps', 10))
+            current_hour = float(request.query.get("hour", 12.0))
+            max_steps = int(request.query.get("max_steps", 10))
 
             # Load current configuration
             config = await self.load_config()
@@ -1478,13 +1814,19 @@ class LightDesignerServer:
             config = self.apply_query_overrides(config, request.query)
 
             # Calculate step sequences in both directions
-            step_up_sequence = calculate_step_sequence(current_hour, 'brighten', max_steps, config)
-            step_down_sequence = calculate_step_sequence(current_hour, 'dim', max_steps, config)
+            step_up_sequence = calculate_step_sequence(
+                current_hour, "brighten", max_steps, config
+            )
+            step_down_sequence = calculate_step_sequence(
+                current_hour, "dim", max_steps, config
+            )
 
-            return web.json_response({
-                "step_up": {"steps": step_up_sequence},
-                "step_down": {"steps": step_down_sequence}
-            })
+            return web.json_response(
+                {
+                    "step_up": {"steps": step_up_sequence},
+                    "step_down": {"steps": step_down_sequence},
+                }
+            )
 
         except Exception as e:
             logger.error(f"Error calculating step sequences: {e}")
@@ -1510,19 +1852,38 @@ class LightDesignerServer:
 
     # Settings that are per-rhythm (not global)
     RHYTHM_SETTINGS = {
-        "color_mode", "min_color_temp", "max_color_temp",
-        "min_brightness", "max_brightness",
-        "ascend_start", "descend_start", "wake_time", "bed_time",
-        "wake_speed", "bed_speed",
-        "warm_night_enabled", "warm_night_mode", "warm_night_target",
-        "warm_night_start", "warm_night_end", "warm_night_fade",
-        "daylight_cct", "daylight_fade", "color_sensitivity", "brightness_sensitivity",
-        "activity_preset", "max_dim_steps",
+        "color_mode",
+        "min_color_temp",
+        "max_color_temp",
+        "min_brightness",
+        "max_brightness",
+        "ascend_start",
+        "descend_start",
+        "wake_time",
+        "bed_time",
+        "wake_speed",
+        "bed_speed",
+        "warm_night_enabled",
+        "warm_night_mode",
+        "warm_night_target",
+        "warm_night_start",
+        "warm_night_end",
+        "warm_night_fade",
+        "daylight_cct",
+        "daylight_fade",
+        "color_sensitivity",
+        "brightness_sensitivity",
+        "activity_preset",
+        "max_dim_steps",
     }
 
     # Settings that are global (not per-rhythm)
     GLOBAL_SETTINGS = {
-        "latitude", "longitude", "timezone", "use_ha_location", "month",
+        "latitude",
+        "longitude",
+        "timezone",
+        "use_ha_location",
+        "month",
         "turn_on_transition",  # Transition time in tenths of seconds for turn-on operations
         "turn_off_transition",  # Transition time in tenths of seconds for turn-off operations
         "two_step_delay",  # Delay between two-step phases in tenths of seconds (default 3 = 300ms)
@@ -1599,14 +1960,12 @@ class LightDesignerServer:
 
         # Build new config structure
         new_config = {
-            "circadian_rhythms": {
-                glozone.DEFAULT_RHYTHM: rhythm_config
-            },
+            "circadian_rhythms": {glozone.DEFAULT_RHYTHM: rhythm_config},
             "glozones": {
                 glozone.INITIAL_ZONE_NAME: {
                     "rhythm": glozone.DEFAULT_RHYTHM,
                     "areas": [],
-                    "is_default": True
+                    "is_default": True,
                 }
             },
         }
@@ -1614,8 +1973,10 @@ class LightDesignerServer:
         # Add global settings
         new_config.update(global_config)
 
-        logger.info(f"Migration complete: created rhythm '{glozone.DEFAULT_RHYTHM}' "
-                    f"and zone '{glozone.INITIAL_ZONE_NAME}' (default)")
+        logger.info(
+            f"Migration complete: created rhythm '{glozone.DEFAULT_RHYTHM}' "
+            f"and zone '{glozone.INITIAL_ZONE_NAME}' (default)"
+        )
 
         return new_config
 
@@ -1666,50 +2027,40 @@ class LightDesignerServer:
             "color_mode": "kelvin",
             "min_color_temp": 500,
             "max_color_temp": 6500,
-
             # Brightness range
             "min_brightness": 1,
             "max_brightness": 100,
-
             # Ascend/Descend timing (hours 0-24)
             "ascend_start": 3.0,
             "descend_start": 12.0,
             "wake_time": 6.0,
             "bed_time": 22.0,
-
             # Speed (1-10 scale)
             "wake_speed": 8,
             "bed_speed": 6,
-
             # Warm at night rule
             "warm_night_enabled": False,
             "warm_night_mode": "all",  # "all", "sunrise", "sunset"
             "warm_night_target": 2700,
             "warm_night_start": -60,  # minutes offset from sunset (negative = before)
-            "warm_night_end": 60,     # minutes offset from sunrise (positive = after)
-            "warm_night_fade": 60,    # fade duration in minutes
-
+            "warm_night_end": 60,  # minutes offset from sunrise (positive = after)
+            "warm_night_fade": 60,  # fade duration in minutes
             # Daylight blend
             "daylight_cct": 5500,
             "daylight_fade": 60,
             "color_sensitivity": 1.50,
             "brightness_sensitivity": 5.0,
-
             # Activity preset
             "activity_preset": "adult",
-
             # Location (default to HA, allow override)
             "latitude": 35.0,
             "longitude": -78.6,
             "timezone": "US/Eastern",
             "use_ha_location": True,
-
             # Dimming steps
             "max_dim_steps": DEFAULT_MAX_DIM_STEPS,
-
             # UI preview settings
             "month": 6,
-
             # Advanced timing settings (tenths of seconds unless noted)
             "turn_on_transition": 3,
             "turn_off_transition": 3,
@@ -1719,18 +2070,15 @@ class LightDesignerServer:
             "circadian_refresh": 30,  # seconds
             "log_periodic": False,  # log periodic update details
             "home_refresh_interval": 10,  # seconds (home page card refresh)
-
             # Motion warning settings
             "motion_warning_time": 0,  # seconds (0 = disabled)
             "motion_warning_blink_threshold": 15,  # percent brightness
-
             # Visual feedback settings
             "freeze_off_rise": 10,  # tenths of seconds (1.0s)
             "limit_warning_speed": 3,  # tenths of seconds (0.3s)
             "limit_bounce_max_percent": 30,  # % of range (hitting max)
             "limit_bounce_min_percent": 10,  # % of range (hitting min)
             "reach_dip_percent": 50,  # % of current brightness
-
             # Reach feedback
             "reach_learn_mode": True,  # Use single indicator light for reach feedback
         }
@@ -1738,7 +2086,7 @@ class LightDesignerServer:
         # Merge supervisor-managed options.json (if present)
         try:
             if os.path.exists(self.options_file):
-                async with aiofiles.open(self.options_file, 'r') as f:
+                async with aiofiles.open(self.options_file, "r") as f:
                     content = await f.read()
                     opts = json.loads(content)
                     if isinstance(opts, dict):
@@ -1749,7 +2097,7 @@ class LightDesignerServer:
         # Merge user-saved designer config (persists across restarts)
         try:
             if os.path.exists(self.designer_file):
-                async with aiofiles.open(self.designer_file, 'r') as f:
+                async with aiofiles.open(self.designer_file, "r") as f:
                     content = await f.read()
                     overrides = json.loads(content)
                     if isinstance(overrides, dict):
@@ -1821,7 +2169,7 @@ class LightDesignerServer:
         # Merge options.json
         try:
             if os.path.exists(self.options_file):
-                async with aiofiles.open(self.options_file, 'r') as f:
+                async with aiofiles.open(self.options_file, "r") as f:
                     content = await f.read()
                     opts = json.loads(content)
                     if isinstance(opts, dict):
@@ -1833,7 +2181,7 @@ class LightDesignerServer:
         designer_loaded = False
         try:
             if os.path.exists(self.designer_file):
-                async with aiofiles.open(self.designer_file, 'r') as f:
+                async with aiofiles.open(self.designer_file, "r") as f:
                     content = await f.read()
                     overrides = json.loads(content)
                     if isinstance(overrides, dict):
@@ -1852,7 +2200,9 @@ class LightDesignerServer:
                     if repaired and isinstance(repaired, dict):
                         config.update(repaired)
                         designer_loaded = True
-                        logger.info("Successfully repaired and loaded designer_config.json")
+                        logger.info(
+                            "Successfully repaired and loaded designer_config.json"
+                        )
                 except Exception as repair_err:
                     logger.error(f"Failed to repair {self.designer_file}: {repair_err}")
         except Exception as e:
@@ -1863,7 +2213,9 @@ class LightDesignerServer:
         # Track load status to prevent saving incomplete data
         config["_designer_loaded"] = designer_loaded
         if not designer_loaded:
-            logger.error("Designer config load failed - saves will be blocked to prevent data loss")
+            logger.error(
+                "Designer config load failed - saves will be blocked to prevent data loss"
+            )
 
         # Migrate to GloZone format if needed
         config = self._migrate_to_glozone_format(config)
@@ -1880,7 +2232,9 @@ class LightDesignerServer:
                 if key in self.RHYTHM_SETTINGS:
                     if key not in first_rhythm:
                         first_rhythm[key] = config[key]
-                        logger.debug(f"Migrated top-level key '{key}' into rhythm '{first_rhythm_name}'")
+                        logger.debug(
+                            f"Migrated top-level key '{key}' into rhythm '{first_rhythm_name}'"
+                        )
                     del config[key]
 
         return config
@@ -1899,7 +2253,7 @@ class LightDesignerServer:
             The repaired dict, or None if repair failed
         """
         try:
-            async with aiofiles.open(filepath, 'r') as f:
+            async with aiofiles.open(filepath, "r") as f:
                 content = await f.read()
 
             # Use JSONDecoder to extract just the first valid JSON object
@@ -1909,14 +2263,16 @@ class LightDesignerServer:
             if isinstance(repaired_data, dict):
                 # Backup the corrupted file
                 backup_path = filepath + ".corrupted"
-                async with aiofiles.open(backup_path, 'w') as f:
+                async with aiofiles.open(backup_path, "w") as f:
                     await f.write(content)
                 logger.info(f"Backed up corrupted file to {backup_path}")
 
                 # Write the repaired JSON
-                async with aiofiles.open(filepath, 'w') as f:
+                async with aiofiles.open(filepath, "w") as f:
                     await f.write(json.dumps(repaired_data, indent=2))
-                logger.info(f"Repaired {filepath} (extracted {end_idx} of {len(content)} chars)")
+                logger.info(
+                    f"Repaired {filepath} (extracted {end_idx} of {len(content)} chars)"
+                )
 
                 return repaired_data
             else:
@@ -1934,8 +2290,12 @@ class LightDesignerServer:
         """
         # Safety check: don't save if we failed to load the config properly
         if not config.get("_designer_loaded", True):
-            logger.error("REFUSING TO SAVE: config was not loaded successfully - would cause data loss")
-            raise RuntimeError("Cannot save config: original file was not loaded successfully")
+            logger.error(
+                "REFUSING TO SAVE: config was not loaded successfully - would cause data loss"
+            )
+            raise RuntimeError(
+                "Cannot save config: original file was not loaded successfully"
+            )
 
         try:
             # Remove internal tracking flags and top-level RHYTHM_SETTINGS before saving.
@@ -1943,14 +2303,17 @@ class LightDesignerServer:
             # If left at the top level, they poison load_config_from_files() on next
             # startup (e.g., warm_night_enabled=false overrides rhythm's true).
             save_config = {
-                k: v for k, v in config.items()
+                k: v
+                for k, v in config.items()
                 if not k.startswith("_") and k not in self.RHYTHM_SETTINGS
             }
             # Use a unique temp file to prevent concurrent write collisions
             dir_path = os.path.dirname(self.designer_file)
-            fd, tmp_path = tempfile.mkstemp(dir=dir_path, suffix=".tmp", prefix=".designer_")
+            fd, tmp_path = tempfile.mkstemp(
+                dir=dir_path, suffix=".tmp", prefix=".designer_"
+            )
             try:
-                with os.fdopen(fd, 'w') as f:
+                with os.fdopen(fd, "w") as f:
                     json.dump(save_config, f, indent=2)
                 os.replace(tmp_path, self.designer_file)
             except BaseException:
@@ -2007,43 +2370,48 @@ class LightDesignerServer:
 
             async with websockets.connect(ws_url) as ws:
                 msg = json.loads(await ws.recv())
-                if msg.get('type') != 'auth_required':
+                if msg.get("type") != "auth_required":
                     return
-                await ws.send(json.dumps({'type': 'auth', 'access_token': token}))
+                await ws.send(json.dumps({"type": "auth", "access_token": token}))
                 msg = json.loads(await ws.recv())
-                if msg.get('type') != 'auth_ok':
+                if msg.get("type") != "auth_ok":
                     return
 
-                await ws.send(json.dumps({'id': 1, 'type': 'get_states'}))
+                await ws.send(json.dumps({"id": 1, "type": "get_states"}))
                 states_msg = json.loads(await ws.recv())
-                if not states_msg.get('success') or not states_msg.get('result'):
+                if not states_msg.get("success") or not states_msg.get("result"):
                     return
 
                 illuminance_sensors = []
-                for st in states_msg['result']:
-                    eid = st.get('entity_id', '')
-                    attrs = st.get('attributes', {})
+                for st in states_msg["result"]:
+                    eid = st.get("entity_id", "")
+                    attrs = st.get("attributes", {})
 
                     # Collect illuminance sensors for settings UI
-                    if eid.startswith('sensor.') and attrs.get('device_class') == 'illuminance':
-                        name = attrs.get('friendly_name', eid)
+                    if (
+                        eid.startswith("sensor.")
+                        and attrs.get("device_class") == "illuminance"
+                    ):
+                        name = attrs.get("friendly_name", eid)
                         illuminance_sensors.append({"entity_id": eid, "name": name})
 
                     # Seed lux sensor reading
                     if sensor_entity and eid == sensor_entity:
                         try:
-                            lux_tracker.update(float(st.get('state', 0)))
+                            lux_tracker.update(float(st.get("state", 0)))
                         except (ValueError, TypeError):
                             pass
 
                     # Auto-detect weather entity and seed cloud coverage + condition
-                    if eid.startswith('weather.') and 'cloud_coverage' in attrs:
+                    if eid.startswith("weather.") and "cloud_coverage" in attrs:
                         if not lux_tracker.get_weather_entity():
                             lux_tracker.set_weather_entity(eid)
                         if eid == lux_tracker.get_weather_entity():
                             try:
-                                condition = st.get('state')
-                                lux_tracker.update_weather(float(attrs['cloud_coverage']), condition)
+                                condition = st.get("state")
+                                lux_tracker.update_weather(
+                                    float(attrs["cloud_coverage"]), condition
+                                )
                             except (ValueError, TypeError):
                                 pass
                 self._illuminance_sensors = illuminance_sensors
@@ -2056,32 +2424,34 @@ class LightDesignerServer:
         Returns:
             Tuple of (rest_url, ws_url, token) or (None, None, None) if not available.
         """
-        token = os.environ.get('HA_TOKEN')
+        token = os.environ.get("HA_TOKEN")
         if not token:
             return None, None, None
 
         # Check for explicit URLs first (set by run script in addon mode)
-        rest_url = os.environ.get('HA_REST_URL')
-        ws_url = os.environ.get('HA_WEBSOCKET_URL')
+        rest_url = os.environ.get("HA_REST_URL")
+        ws_url = os.environ.get("HA_WEBSOCKET_URL")
 
         if rest_url and ws_url:
             return rest_url, ws_url, token
 
         # Fall back to constructing URLs from host/port
-        host = os.environ.get('HA_HOST')
-        port = os.environ.get('HA_PORT', '8123')
-        use_ssl = os.environ.get('HA_USE_SSL', 'false').lower() == 'true'
+        host = os.environ.get("HA_HOST")
+        port = os.environ.get("HA_PORT", "8123")
+        use_ssl = os.environ.get("HA_USE_SSL", "false").lower() == "true"
 
         if host:
-            http_protocol = 'https' if use_ssl else 'http'
-            ws_protocol = 'wss' if use_ssl else 'ws'
+            http_protocol = "https" if use_ssl else "http"
+            ws_protocol = "wss" if use_ssl else "ws"
             rest_url = f"{http_protocol}://{host}:{port}/api"
             ws_url = f"{ws_protocol}://{host}:{port}/api/websocket"
             return rest_url, ws_url, token
 
         return None, None, None
 
-    async def _fetch_area_light_capabilities(self, ws_url: str, token: str, area_id: str) -> tuple:
+    async def _fetch_area_light_capabilities(
+        self, ws_url: str, token: str, area_id: str
+    ) -> tuple:
         """Fetch light capabilities for an area via WebSocket.
 
         Queries HA for lights in the specified area and determines which support
@@ -2102,45 +2472,49 @@ class LightDesignerServer:
             async with websockets.connect(ws_url) as ws:
                 # Authenticate
                 msg = json.loads(await ws.recv())
-                if msg.get('type') != 'auth_required':
+                if msg.get("type") != "auth_required":
                     logger.error(f"[Live Design] Unexpected WS message: {msg}")
                     return [], []
 
-                await ws.send(json.dumps({'type': 'auth', 'access_token': token}))
+                await ws.send(json.dumps({"type": "auth", "access_token": token}))
                 msg = json.loads(await ws.recv())
-                if msg.get('type') != 'auth_ok':
+                if msg.get("type") != "auth_ok":
                     logger.error(f"[Live Design] WS auth failed: {msg}")
                     return [], []
 
                 # Fetch device registry (for device -> area mapping)
-                await ws.send(json.dumps({'id': 1, 'type': 'config/device_registry/list'}))
+                await ws.send(
+                    json.dumps({"id": 1, "type": "config/device_registry/list"})
+                )
                 device_msg = json.loads(await ws.recv())
                 device_areas = {}
-                if device_msg.get('success') and device_msg.get('result'):
-                    for device in device_msg['result']:
-                        device_id = device.get('id')
-                        dev_area = device.get('area_id')
+                if device_msg.get("success") and device_msg.get("result"):
+                    for device in device_msg["result"]:
+                        device_id = device.get("id")
+                        dev_area = device.get("area_id")
                         if device_id and dev_area:
                             device_areas[device_id] = dev_area
 
                 # Fetch entity registry (for entity -> area/device mapping)
-                await ws.send(json.dumps({'id': 2, 'type': 'config/entity_registry/list'}))
+                await ws.send(
+                    json.dumps({"id": 2, "type": "config/entity_registry/list"})
+                )
                 entity_msg = json.loads(await ws.recv())
-                if not entity_msg.get('success') or not entity_msg.get('result'):
+                if not entity_msg.get("success") or not entity_msg.get("result"):
                     logger.error(f"[Live Design] Failed to get entities: {entity_msg}")
                     return [], []
 
                 # Find light entities in this area
                 area_light_entities = []
-                for entity in entity_msg['result']:
-                    entity_id = entity.get('entity_id', '')
-                    if not entity_id.startswith('light.'):
+                for entity in entity_msg["result"]:
+                    entity_id = entity.get("entity_id", "")
+                    if not entity_id.startswith("light."):
                         continue
 
                     # Check if entity is in our area (directly or via device)
-                    entity_area = entity.get('area_id')
+                    entity_area = entity.get("area_id")
                     if not entity_area:
-                        device_id = entity.get('device_id')
+                        device_id = entity.get("device_id")
                         if device_id:
                             entity_area = device_areas.get(device_id)
 
@@ -2152,35 +2526,46 @@ class LightDesignerServer:
                     return [], []
 
                 # Fetch states to get supported_color_modes
-                await ws.send(json.dumps({'id': 3, 'type': 'get_states'}))
+                await ws.send(json.dumps({"id": 3, "type": "get_states"}))
                 states_msg = json.loads(await ws.recv())
-                if not states_msg.get('success') or not states_msg.get('result'):
+                if not states_msg.get("success") or not states_msg.get("result"):
                     logger.error(f"[Live Design] Failed to get states: {states_msg}")
                     return [], []
 
                 # Build lookup of entity_id -> state
-                state_lookup = {s.get('entity_id'): s for s in states_msg['result']}
+                state_lookup = {s.get("entity_id"): s for s in states_msg["result"]}
 
                 # Classify lights by color capability
                 for entity_id in area_light_entities:
                     state = state_lookup.get(entity_id, {})
-                    attrs = state.get('attributes', {})
-                    modes = set(attrs.get('supported_color_modes', []))
+                    attrs = state.get("attributes", {})
+                    modes = set(attrs.get("supported_color_modes", []))
 
                     # Check if light supports any color mode (xy, rgb, hs)
-                    if 'xy' in modes or 'rgb' in modes or 'hs' in modes:
+                    if "xy" in modes or "rgb" in modes or "hs" in modes:
                         color_lights.append(entity_id)
                     else:
                         ct_lights.append(entity_id)
 
-                logger.info(f"[Live Design] Area {area_id}: {len(color_lights)} color lights, {len(ct_lights)} CT-only lights")
+                logger.info(
+                    f"[Live Design] Area {area_id}: {len(color_lights)} color lights, {len(ct_lights)} CT-only lights"
+                )
                 return color_lights, ct_lights
 
         except Exception as e:
-            logger.error(f"[Live Design] Error fetching light capabilities: {e}", exc_info=True)
+            logger.error(
+                f"[Live Design] Error fetching light capabilities: {e}", exc_info=True
+            )
             return [], []
 
-    async def _call_service_via_websocket(self, ws_url: str, token: str, domain: str, service: str, service_data: dict = None) -> bool:
+    async def _call_service_via_websocket(
+        self,
+        ws_url: str,
+        token: str,
+        domain: str,
+        service: str,
+        service_data: dict = None,
+    ) -> bool:
         """Call a Home Assistant service via WebSocket API.
 
         Args:
@@ -2197,31 +2582,28 @@ class LightDesignerServer:
             async with websockets.connect(ws_url) as ws:
                 # Wait for auth_required message
                 msg = json.loads(await ws.recv())
-                if msg.get('type') != 'auth_required':
+                if msg.get("type") != "auth_required":
                     logger.error(f"[WS Service] Unexpected message: {msg}")
                     return False
 
                 # Send auth
-                await ws.send(json.dumps({
-                    'type': 'auth',
-                    'access_token': token
-                }))
+                await ws.send(json.dumps({"type": "auth", "access_token": token}))
 
                 # Wait for auth response
                 msg = json.loads(await ws.recv())
-                if msg.get('type') != 'auth_ok':
+                if msg.get("type") != "auth_ok":
                     logger.error(f"[WS Service] Auth failed: {msg}")
                     return False
 
                 # Call the service
                 call_msg = {
-                    'id': 1,
-                    'type': 'call_service',
-                    'domain': domain,
-                    'service': service,
+                    "id": 1,
+                    "type": "call_service",
+                    "domain": domain,
+                    "service": service,
                 }
                 if service_data:
-                    call_msg['service_data'] = service_data
+                    call_msg["service_data"] = service_data
 
                 await ws.send(json.dumps(call_msg))
 
@@ -2231,18 +2613,24 @@ class LightDesignerServer:
                     result_msg = json.loads(result)
                     # The result may just acknowledge the call was received
                     # For circadian.refresh, main.py handles it via event subscription
-                    logger.info(f"[WS Service] {domain}.{service} call result: {result_msg.get('type')}")
+                    logger.info(
+                        f"[WS Service] {domain}.{service} call result: {result_msg.get('type')}"
+                    )
                     return True
                 except asyncio.TimeoutError:
                     # Service call was sent, assume it worked
-                    logger.info(f"[WS Service] {domain}.{service} call sent (no response)")
+                    logger.info(
+                        f"[WS Service] {domain}.{service} call sent (no response)"
+                    )
                     return True
 
         except Exception as e:
             logger.warning(f"[WS Service] Error calling {domain}.{service}: {e}")
             return False
 
-    async def _fire_event_via_websocket(self, ws_url: str, token: str, event_type: str, event_data: dict = None) -> bool:
+    async def _fire_event_via_websocket(
+        self, ws_url: str, token: str, event_type: str, event_data: dict = None
+    ) -> bool:
         """Fire a Home Assistant event via WebSocket API.
 
         Args:
@@ -2258,30 +2646,27 @@ class LightDesignerServer:
             async with websockets.connect(ws_url) as ws:
                 # Wait for auth_required message
                 msg = json.loads(await ws.recv())
-                if msg.get('type') != 'auth_required':
+                if msg.get("type") != "auth_required":
                     logger.error(f"[WS Event] Unexpected message: {msg}")
                     return False
 
                 # Send auth
-                await ws.send(json.dumps({
-                    'type': 'auth',
-                    'access_token': token
-                }))
+                await ws.send(json.dumps({"type": "auth", "access_token": token}))
 
                 # Wait for auth response
                 msg = json.loads(await ws.recv())
-                if msg.get('type') != 'auth_ok':
+                if msg.get("type") != "auth_ok":
                     logger.error(f"[WS Event] Auth failed: {msg}")
                     return False
 
                 # Fire the event
                 fire_msg = {
-                    'id': 1,
-                    'type': 'fire_event',
-                    'event_type': event_type,
+                    "id": 1,
+                    "type": "fire_event",
+                    "event_type": event_type,
                 }
                 if event_data:
-                    fire_msg['event_data'] = event_data
+                    fire_msg["event_data"] = event_data
 
                 await ws.send(json.dumps(fire_msg))
 
@@ -2289,8 +2674,12 @@ class LightDesignerServer:
                 try:
                     result = await asyncio.wait_for(ws.recv(), timeout=5.0)
                     result_msg = json.loads(result)
-                    logger.info(f"[WS Event] {event_type} fire result: {result_msg.get('type')}")
-                    return result_msg.get('type') == 'result' and result_msg.get('success', False)
+                    logger.info(
+                        f"[WS Event] {event_type} fire result: {result_msg.get('type')}"
+                    )
+                    return result_msg.get("type") == "result" and result_msg.get(
+                        "success", False
+                    )
                 except asyncio.TimeoutError:
                     # Event was sent, assume it worked
                     logger.info(f"[WS Event] {event_type} event sent (no response)")
@@ -2309,7 +2698,7 @@ class LightDesignerServer:
         _, ws_url, token = self._get_ha_api_config()
         if ws_url and token:
             return await self._fire_event_via_websocket(
-                ws_url, token, 'circadian_light_sync_reach_groups', {}
+                ws_url, token, "circadian_light_sync_reach_groups", {}
             )
         return False
 
@@ -2332,7 +2721,9 @@ class LightDesignerServer:
             return await self._trigger_reach_group_sync()
         return False
 
-    async def _fetch_light_states(self, ws_url: str, token: str, entity_ids: list) -> dict:
+    async def _fetch_light_states(
+        self, ws_url: str, token: str, entity_ids: list
+    ) -> dict:
         """Fetch current states of lights for later restoration.
 
         Args:
@@ -2351,41 +2742,45 @@ class LightDesignerServer:
             async with websockets.connect(ws_url) as ws:
                 # Auth
                 msg = json.loads(await ws.recv())
-                if msg.get('type') != 'auth_required':
+                if msg.get("type") != "auth_required":
                     return {}
-                await ws.send(json.dumps({'type': 'auth', 'access_token': token}))
+                await ws.send(json.dumps({"type": "auth", "access_token": token}))
                 msg = json.loads(await ws.recv())
-                if msg.get('type') != 'auth_ok':
+                if msg.get("type") != "auth_ok":
                     return {}
 
                 # Get states
-                await ws.send(json.dumps({'id': 1, 'type': 'get_states'}))
+                await ws.send(json.dumps({"id": 1, "type": "get_states"}))
                 result = json.loads(await ws.recv())
 
-                if result.get('type') == 'result' and result.get('success'):
-                    states = result.get('result', [])
+                if result.get("type") == "result" and result.get("success"):
+                    states = result.get("result", [])
                     for state_obj in states:
-                        entity_id = state_obj.get('entity_id')
+                        entity_id = state_obj.get("entity_id")
                         if entity_id in entity_ids:
-                            attrs = state_obj.get('attributes', {})
+                            attrs = state_obj.get("attributes", {})
                             saved_states[entity_id] = {
-                                'state': state_obj.get('state'),
-                                'brightness': attrs.get('brightness'),
-                                'color_temp_kelvin': attrs.get('color_temp_kelvin'),
-                                'color_temp': attrs.get('color_temp'),  # Mireds
-                                'xy_color': attrs.get('xy_color'),
-                                'rgb_color': attrs.get('rgb_color'),
-                                'color_mode': attrs.get('color_mode'),
+                                "state": state_obj.get("state"),
+                                "brightness": attrs.get("brightness"),
+                                "color_temp_kelvin": attrs.get("color_temp_kelvin"),
+                                "color_temp": attrs.get("color_temp"),  # Mireds
+                                "xy_color": attrs.get("xy_color"),
+                                "rgb_color": attrs.get("rgb_color"),
+                                "color_mode": attrs.get("color_mode"),
                             }
 
-                logger.info(f"[Live Design] Saved states for {len(saved_states)} lights")
+                logger.info(
+                    f"[Live Design] Saved states for {len(saved_states)} lights"
+                )
                 return saved_states
 
         except Exception as e:
             logger.error(f"[Live Design] Error fetching light states: {e}")
             return {}
 
-    async def _turn_off_lights(self, ws_url: str, token: str, entity_ids: list, transition: float = 2) -> bool:
+    async def _turn_off_lights(
+        self, ws_url: str, token: str, entity_ids: list, transition: float = 2
+    ) -> bool:
         """Turn off lights with a transition.
 
         Args:
@@ -2404,32 +2799,43 @@ class LightDesignerServer:
             async with websockets.connect(ws_url) as ws:
                 # Auth
                 msg = json.loads(await ws.recv())
-                if msg.get('type') != 'auth_required':
+                if msg.get("type") != "auth_required":
                     return False
-                await ws.send(json.dumps({'type': 'auth', 'access_token': token}))
+                await ws.send(json.dumps({"type": "auth", "access_token": token}))
                 msg = json.loads(await ws.recv())
-                if msg.get('type') != 'auth_ok':
+                if msg.get("type") != "auth_ok":
                     return False
 
                 # Turn off all lights with transition
-                await ws.send(json.dumps({
-                    'id': 1,
-                    'type': 'call_service',
-                    'domain': 'light',
-                    'service': 'turn_off',
-                    'service_data': {'entity_id': entity_ids, 'transition': transition}
-                }))
+                await ws.send(
+                    json.dumps(
+                        {
+                            "id": 1,
+                            "type": "call_service",
+                            "domain": "light",
+                            "service": "turn_off",
+                            "service_data": {
+                                "entity_id": entity_ids,
+                                "transition": transition,
+                            },
+                        }
+                    )
+                )
 
                 # Wait for transition to complete
                 await asyncio.sleep(transition + 0.5)
-                logger.info(f"[Live Design] Turned off {len(entity_ids)} lights with {transition}s transition")
+                logger.info(
+                    f"[Live Design] Turned off {len(entity_ids)} lights with {transition}s transition"
+                )
                 return True
 
         except Exception as e:
             logger.error(f"[Live Design] Error turning off lights: {e}")
             return False
 
-    async def _restore_light_states(self, ws_url: str, token: str, saved_states: dict, transition: float = 2) -> bool:
+    async def _restore_light_states(
+        self, ws_url: str, token: str, saved_states: dict, transition: float = 2
+    ) -> bool:
         """Restore previously saved light states.
 
         Args:
@@ -2448,54 +2854,76 @@ class LightDesignerServer:
             async with websockets.connect(ws_url) as ws:
                 # Auth
                 msg = json.loads(await ws.recv())
-                if msg.get('type') != 'auth_required':
+                if msg.get("type") != "auth_required":
                     return False
-                await ws.send(json.dumps({'type': 'auth', 'access_token': token}))
+                await ws.send(json.dumps({"type": "auth", "access_token": token}))
                 msg = json.loads(await ws.recv())
-                if msg.get('type') != 'auth_ok':
+                if msg.get("type") != "auth_ok":
                     return False
 
                 msg_id = 1
                 for entity_id, state_data in saved_states.items():
-                    if state_data.get('state') == 'off':
+                    if state_data.get("state") == "off":
                         # Light was off - turn it off with transition
                         msg_id += 1
-                        await ws.send(json.dumps({
-                            'id': msg_id,
-                            'type': 'call_service',
-                            'domain': 'light',
-                            'service': 'turn_off',
-                            'service_data': {'entity_id': entity_id, 'transition': transition}
-                        }))
+                        await ws.send(
+                            json.dumps(
+                                {
+                                    "id": msg_id,
+                                    "type": "call_service",
+                                    "domain": "light",
+                                    "service": "turn_off",
+                                    "service_data": {
+                                        "entity_id": entity_id,
+                                        "transition": transition,
+                                    },
+                                }
+                            )
+                        )
                     else:
                         # Light was on - restore its settings
-                        service_data = {'entity_id': entity_id, 'transition': transition}
+                        service_data = {
+                            "entity_id": entity_id,
+                            "transition": transition,
+                        }
 
-                        brightness = state_data.get('brightness')
+                        brightness = state_data.get("brightness")
                         if brightness is not None:
-                            service_data['brightness'] = brightness
+                            service_data["brightness"] = brightness
 
                         # Restore color based on what mode it was in
-                        color_mode = state_data.get('color_mode')
-                        if color_mode == 'xy' and state_data.get('xy_color'):
-                            service_data['xy_color'] = state_data['xy_color']
-                        elif color_mode == 'color_temp' and state_data.get('color_temp_kelvin'):
-                            service_data['color_temp_kelvin'] = state_data['color_temp_kelvin']
-                        elif state_data.get('color_temp_kelvin'):
-                            service_data['color_temp_kelvin'] = state_data['color_temp_kelvin']
+                        color_mode = state_data.get("color_mode")
+                        if color_mode == "xy" and state_data.get("xy_color"):
+                            service_data["xy_color"] = state_data["xy_color"]
+                        elif color_mode == "color_temp" and state_data.get(
+                            "color_temp_kelvin"
+                        ):
+                            service_data["color_temp_kelvin"] = state_data[
+                                "color_temp_kelvin"
+                            ]
+                        elif state_data.get("color_temp_kelvin"):
+                            service_data["color_temp_kelvin"] = state_data[
+                                "color_temp_kelvin"
+                            ]
 
                         msg_id += 1
-                        await ws.send(json.dumps({
-                            'id': msg_id,
-                            'type': 'call_service',
-                            'domain': 'light',
-                            'service': 'turn_on',
-                            'service_data': service_data
-                        }))
+                        await ws.send(
+                            json.dumps(
+                                {
+                                    "id": msg_id,
+                                    "type": "call_service",
+                                    "domain": "light",
+                                    "service": "turn_on",
+                                    "service_data": service_data,
+                                }
+                            )
+                        )
 
                 # Wait for transition to complete
                 await asyncio.sleep(transition + 0.5)
-                logger.info(f"[Live Design] Restored {len(saved_states)} light states with {transition}s transition")
+                logger.info(
+                    f"[Live Design] Restored {len(saved_states)} light states with {transition}s transition"
+                )
                 return True
 
         except Exception as e:
@@ -2517,91 +2945,85 @@ class LightDesignerServer:
             async with websockets.connect(ws_url) as ws:
                 # Wait for auth_required message
                 msg = json.loads(await ws.recv())
-                if msg.get('type') != 'auth_required':
+                if msg.get("type") != "auth_required":
                     logger.error(f"Unexpected WS message during areas fetch: {msg}")
                     return []
 
                 # Send auth
-                await ws.send(json.dumps({
-                    'type': 'auth',
-                    'access_token': token
-                }))
+                await ws.send(json.dumps({"type": "auth", "access_token": token}))
 
                 # Wait for auth response
                 msg = json.loads(await ws.recv())
-                if msg.get('type') != 'auth_ok':
+                if msg.get("type") != "auth_ok":
                     logger.error(f"WS auth failed during areas fetch: {msg}")
                     return []
 
                 # Request area registry
-                await ws.send(json.dumps({
-                    'id': 1,
-                    'type': 'config/area_registry/list'
-                }))
+                await ws.send(
+                    json.dumps({"id": 1, "type": "config/area_registry/list"})
+                )
 
                 # Get area response
                 area_msg = json.loads(await ws.recv())
-                if not area_msg.get('success') or not area_msg.get('result'):
+                if not area_msg.get("success") or not area_msg.get("result"):
                     logger.error(f"Failed to get areas: {area_msg}")
                     return []
 
-                all_areas = {a['area_id']: a['name'] for a in area_msg['result']}
+                all_areas = {a["area_id"]: a["name"] for a in area_msg["result"]}
 
                 # Request device registry (lights often get area from device)
-                await ws.send(json.dumps({
-                    'id': 2,
-                    'type': 'config/device_registry/list'
-                }))
+                await ws.send(
+                    json.dumps({"id": 2, "type": "config/device_registry/list"})
+                )
 
                 # Get device response
                 device_msg = json.loads(await ws.recv())
                 device_areas = {}
-                if device_msg.get('success') and device_msg.get('result'):
-                    for device in device_msg['result']:
-                        device_id = device.get('id')
-                        area_id = device.get('area_id')
+                if device_msg.get("success") and device_msg.get("result"):
+                    for device in device_msg["result"]:
+                        device_id = device.get("id")
+                        area_id = device.get("area_id")
                         if device_id and area_id:
                             device_areas[device_id] = area_id
 
                 # Request entity registry to find light entities
-                await ws.send(json.dumps({
-                    'id': 3,
-                    'type': 'config/entity_registry/list'
-                }))
+                await ws.send(
+                    json.dumps({"id": 3, "type": "config/entity_registry/list"})
+                )
 
                 # Get entity response
                 entity_msg = json.loads(await ws.recv())
-                if not entity_msg.get('success') or not entity_msg.get('result'):
+                if not entity_msg.get("success") or not entity_msg.get("result"):
                     logger.error(f"Failed to get entities: {entity_msg}")
                     # Fall back to returning all areas
-                    areas = [{'area_id': k, 'name': v} for k, v in all_areas.items()]
-                    areas.sort(key=lambda x: x['name'].lower())
+                    areas = [{"area_id": k, "name": v} for k, v in all_areas.items()]
+                    areas.sort(key=lambda x: x["name"].lower())
                     return areas
 
                 # Find area_ids that have at least one light entity
                 # Check both direct entity area and area via device
                 areas_with_lights = set()
-                for entity in entity_msg['result']:
-                    entity_id = entity.get('entity_id', '')
-                    if not entity_id.startswith('light.'):
+                for entity in entity_msg["result"]:
+                    entity_id = entity.get("entity_id", "")
+                    if not entity_id.startswith("light."):
                         continue
                     # Check direct area assignment
-                    area_id = entity.get('area_id')
+                    area_id = entity.get("area_id")
                     if area_id:
                         areas_with_lights.add(area_id)
                     # Check area via device
-                    device_id = entity.get('device_id')
+                    device_id = entity.get("device_id")
                     if device_id and device_id in device_areas:
                         areas_with_lights.add(device_areas[device_id])
 
                 # Return only areas that have lights (exclude internal groups area)
                 areas = [
-                    {'area_id': area_id, 'name': all_areas[area_id]}
+                    {"area_id": area_id, "name": all_areas[area_id]}
                     for area_id in areas_with_lights
                     if area_id in all_areas
-                    and all_areas[area_id] != 'Circadian_Zigbee_Groups'
+                    and all_areas[area_id] != "Circadian_Zigbee_Groups"
                 ]
-                areas.sort(key=lambda x: x['name'].lower())
+                areas.sort(key=lambda x: x["name"].lower())
                 logger.info(f"Fetched {len(areas)} areas with lights from HA")
                 return areas
 
@@ -2622,15 +3044,13 @@ class LightDesignerServer:
         if not token:
             logger.warning("No HA token configured for areas fetch")
             return web.json_response(
-                {'error': 'Home Assistant API not configured'},
-                status=503
+                {"error": "Home Assistant API not configured"}, status=503
             )
 
         if not ws_url:
             logger.warning("No WebSocket URL configured for areas fetch")
             return web.json_response(
-                {'error': 'WebSocket URL not configured'},
-                status=503
+                {"error": "WebSocket URL not configured"}, status=503
             )
 
         try:
@@ -2640,10 +3060,7 @@ class LightDesignerServer:
             return web.json_response(areas)
         except Exception as e:
             logger.error(f"Error fetching areas: {e}")
-            return web.json_response(
-                {'error': str(e)},
-                status=500
-            )
+            return web.json_response({"error": str(e)}, status=500)
 
     async def get_area_status(self, request: Request) -> Response:
         """Get status for areas using Circadian Light state (no HA polling).
@@ -2666,12 +3083,18 @@ class LightDesignerServer:
         }
         """
         try:
-            from brain import SunTimes, calculate_sun_times, calculate_natural_light_factor, compute_daylight_fade_weight, DEFAULT_DAYLIGHT_FADE
+            from brain import (
+                SunTimes,
+                calculate_sun_times,
+                calculate_natural_light_factor,
+                compute_daylight_fade_weight,
+                DEFAULT_DAYLIGHT_FADE,
+            )
 
             # Load config to get glozone mappings and rhythms
             config = await self.load_config()
-            glozones = config.get('glozones', {})
-            rhythms = config.get('circadian_rhythms', {})
+            glozones = config.get("glozones", {})
+            rhythms = config.get("circadian_rhythms", {})
 
             # Reload state from disk (main.py runs in separate process and writes state there)
             state.init()
@@ -2685,13 +3108,14 @@ class LightDesignerServer:
             sun_times = SunTimes()  # defaults
             try:
                 from zoneinfo import ZoneInfo
+
                 timezone = os.getenv("HASS_TIME_ZONE", "US/Eastern")
                 try:
                     tzinfo = ZoneInfo(timezone)
                 except:
                     tzinfo = None
                 now = datetime.now(tzinfo)
-                date_str = now.strftime('%Y-%m-%d')
+                date_str = now.strftime("%Y-%m-%d")
                 sun_dict = calculate_sun_times(latitude, longitude, date_str)
 
                 def iso_to_hour(iso_str, default):
@@ -2732,15 +3156,15 @@ class LightDesignerServer:
             sun_times.outdoor_source = outdoor_source
 
             # Optional single-area filter
-            filter_area_id = request.query.get('area_id')
+            filter_area_id = request.query.get("area_id")
 
             # Build response for each area in zones (including Unassigned)
             area_status = {}
             for zone_name, zone_data in glozones.items():
                 # Add status for each area in this zone
-                for area in zone_data.get('areas', []):
+                for area in zone_data.get("areas", []):
                     # Areas can be stored as {id, name} or just string
-                    area_id = area.get('id') if isinstance(area, dict) else area
+                    area_id = area.get("id") if isinstance(area, dict) else area
 
                     # Skip if filtering for a specific area
                     if filter_area_id and area_id != filter_area_id:
@@ -2755,23 +3179,31 @@ class LightDesignerServer:
                     area_config = Config.from_dict(config_dict)
 
                     # Use area's frozen_at if set, otherwise current time
-                    calc_hour = area_state.frozen_at if area_state.frozen_at is not None else current_hour
+                    calc_hour = (
+                        area_state.frozen_at
+                        if area_state.frozen_at is not None
+                        else current_hour
+                    )
 
                     # Calculate using area's actual state (which has brightness_mid, color_mid)
                     brightness = 50
                     kelvin = 4000
                     try:
-                        result = CircadianLight.calculate_lighting(calc_hour, area_config, area_state, sun_times=sun_times)
+                        result = CircadianLight.calculate_lighting(
+                            calc_hour, area_config, area_state, sun_times=sun_times
+                        )
                         brightness = result.brightness
                         kelvin = result.color_temp
                     except Exception as e:
-                        logger.warning(f"Error calculating lighting for area {area_id}: {e}")
+                        logger.warning(
+                            f"Error calculating lighting for area {area_id}: {e}"
+                        )
 
                     # Check if area is boosted and add boost brightness
                     is_boosted = state.is_boosted(area_id)
                     boost_state = state.get_boost_state(area_id) if is_boosted else {}
                     if is_boosted:
-                        boost_amount = boost_state.get('boost_brightness') or 0
+                        boost_amount = boost_state.get("boost_brightness") or 0
                         brightness = min(100, brightness + boost_amount)
 
                     # Get motion timer state
@@ -2781,11 +3213,24 @@ class LightDesignerServer:
                     # Natural light factor for this area
                     area_nl_exposure = glozone.get_area_natural_light_exposure(area_id)
                     rhythm_cfg = glozone.get_rhythm_config_for_area(area_id)
-                    area_brightness_sensitivity = rhythm_cfg.get("brightness_sensitivity", 5.0)
+                    area_brightness_sensitivity = rhythm_cfg.get(
+                        "brightness_sensitivity", 5.0
+                    )
                     # Apply daylight fade to brightness: ramp outdoor_norm over fade period
-                    area_daylight_fade = rhythm_cfg.get("daylight_fade", DEFAULT_DAYLIGHT_FADE)
-                    faded_outdoor_norm = outdoor_norm * compute_daylight_fade_weight(calc_hour, sun_times.sunrise, sun_times.sunset, area_daylight_fade)
-                    nl_factor = calculate_natural_light_factor(area_nl_exposure, faded_outdoor_norm, area_brightness_sensitivity)
+                    area_daylight_fade = rhythm_cfg.get(
+                        "daylight_fade", DEFAULT_DAYLIGHT_FADE
+                    )
+                    faded_outdoor_norm = outdoor_norm * compute_daylight_fade_weight(
+                        calc_hour,
+                        sun_times.sunrise,
+                        sun_times.sunset,
+                        area_daylight_fade,
+                    )
+                    nl_factor = calculate_natural_light_factor(
+                        area_nl_exposure,
+                        faded_outdoor_norm,
+                        area_brightness_sensitivity,
+                    )
 
                     # Keep curve brightness before NL reduction
                     curve_brightness = brightness
@@ -2799,14 +3244,19 @@ class LightDesignerServer:
                     solar_breakdown = None
                     try:
                         base_kelvin = CircadianLight.calculate_color_at_hour(
-                            calc_hour, area_config, area_state,
-                            apply_solar_rules=False, sun_times=sun_times
+                            calc_hour,
+                            area_config,
+                            area_state,
+                            apply_solar_rules=False,
+                            sun_times=sun_times,
                         )
                         solar_breakdown = CircadianLight.get_solar_rule_breakdown(
                             base_kelvin, calc_hour, area_config, area_state, sun_times
                         )
                     except Exception as e:
-                        logger.debug(f"[AreaStatus] Error computing solar breakdown for {area_id}: {e}")
+                        logger.debug(
+                            f"[AreaStatus] Error computing solar breakdown for {area_id}: {e}"
+                        )
 
                     # Lux tracker data
                     lux_sensor = lux_tracker.get_sensor_entity()
@@ -2815,162 +3265,210 @@ class LightDesignerServer:
                     lux_floor = lux_tracker._learned_floor if lux_sensor else None
 
                     area_status[area_id] = {
-                        'is_circadian': area_state.is_circadian,
-                        'is_on': area_state.is_on,
-                        'brightness': brightness,
-                        'curve_brightness': curve_brightness,
-                        'kelvin': kelvin,
-                        'frozen': area_state.frozen_at is not None,
-                        'boosted': is_boosted,
-                        'boost_brightness': boost_state.get('boost_brightness') if is_boosted else None,
-                        'boost_expires_at': boost_state.get('boost_expires_at') if is_boosted else None,
-                        'boost_started_from_off': boost_state.get('boost_started_from_off', False) if is_boosted else None,
-                        'is_motion_coupled': boost_state.get('is_motion_coupled', False) if is_boosted else False,
-                        'motion_expires_at': motion_expires_at,
-                        'motion_warning_active': motion_warning_active,
-                        'zone_name': zone_name if zone_name != 'Unassigned' else None,
-                        'preset_name': zone_data.get('rhythm', glozone.DEFAULT_RHYTHM),
-                        # Effective brightness/CCT range for this area's rhythm
-                        'min_brightness': area_config.min_brightness,
-                        'max_brightness': area_config.max_brightness,
-                        'min_color_temp': area_config.min_color_temp,
-                        'max_color_temp': area_config.max_color_temp,
-                        # Raw state model
-                        'brightness_mid': area_state.brightness_mid,
-                        'color_mid': area_state.color_mid,
-                        'color_override': area_state.color_override,
-                        'frozen_at': area_state.frozen_at,
-                        # Solar / natural light
-                        'sun_elevation': round(lux_tracker._sun_elevation, 1),
-                        'natural_light_exposure': area_nl_exposure,
-                        'nl_factor': round(nl_factor, 3),
-                        'outdoor_normalized': round(outdoor_norm, 3),
-                        'outdoor_source': outdoor_source,
-                        'outdoor_source_entity': (
-                            lux_tracker.get_sensor_entity() if outdoor_source == 'lux'
-                            else lux_tracker.get_weather_entity() if outdoor_source == 'weather'
+                        "is_circadian": area_state.is_circadian,
+                        "is_on": area_state.is_on,
+                        "brightness": brightness,
+                        "curve_brightness": curve_brightness,
+                        "kelvin": kelvin,
+                        "frozen": area_state.frozen_at is not None,
+                        "boosted": is_boosted,
+                        "boost_brightness": (
+                            boost_state.get("boost_brightness") if is_boosted else None
+                        ),
+                        "boost_expires_at": (
+                            boost_state.get("boost_expires_at") if is_boosted else None
+                        ),
+                        "boost_started_from_off": (
+                            boost_state.get("boost_started_from_off", False)
+                            if is_boosted
                             else None
                         ),
-                        'outdoor_last_update': lux_tracker.get_last_outdoor_update(),
-                        'sun_factor': round(outdoor_norm, 3),  # backward compat alias
-                        'brightness_sensitivity': area_brightness_sensitivity,
-                        'lux_smoothed': round(lux_smoothed, 1) if lux_smoothed is not None else None,
-                        'lux_ceiling': round(lux_ceiling, 1) if lux_ceiling is not None else None,
-                        'lux_floor': round(lux_floor, 1) if lux_floor is not None else None,
-                        'base_kelvin': base_kelvin,
-                        'solar_breakdown': solar_breakdown,
+                        "is_motion_coupled": (
+                            boost_state.get("is_motion_coupled", False)
+                            if is_boosted
+                            else False
+                        ),
+                        "motion_expires_at": motion_expires_at,
+                        "motion_warning_active": motion_warning_active,
+                        "zone_name": zone_name if zone_name != "Unassigned" else None,
+                        "preset_name": zone_data.get("rhythm", glozone.DEFAULT_RHYTHM),
+                        # Effective brightness/CCT range for this area's rhythm
+                        "min_brightness": area_config.min_brightness,
+                        "max_brightness": area_config.max_brightness,
+                        "min_color_temp": area_config.min_color_temp,
+                        "max_color_temp": area_config.max_color_temp,
+                        # Raw state model
+                        "brightness_mid": area_state.brightness_mid,
+                        "color_mid": area_state.color_mid,
+                        "color_override": area_state.color_override,
+                        "frozen_at": area_state.frozen_at,
+                        # Solar / natural light
+                        "sun_elevation": round(lux_tracker._sun_elevation, 1),
+                        "natural_light_exposure": area_nl_exposure,
+                        "nl_factor": round(nl_factor, 3),
+                        "outdoor_normalized": round(outdoor_norm, 3),
+                        "outdoor_source": outdoor_source,
+                        "outdoor_source_entity": (
+                            lux_tracker.get_sensor_entity()
+                            if outdoor_source == "lux"
+                            else (
+                                lux_tracker.get_weather_entity()
+                                if outdoor_source == "weather"
+                                else None
+                            )
+                        ),
+                        "outdoor_last_update": lux_tracker.get_last_outdoor_update(),
+                        "sun_factor": round(outdoor_norm, 3),  # backward compat alias
+                        "brightness_sensitivity": area_brightness_sensitivity,
+                        "lux_smoothed": (
+                            round(lux_smoothed, 1) if lux_smoothed is not None else None
+                        ),
+                        "lux_ceiling": (
+                            round(lux_ceiling, 1) if lux_ceiling is not None else None
+                        ),
+                        "lux_floor": (
+                            round(lux_floor, 1) if lux_floor is not None else None
+                        ),
+                        "base_kelvin": base_kelvin,
+                        "solar_breakdown": solar_breakdown,
                     }
 
             return web.json_response(area_status)
 
         except Exception as e:
             logger.error(f"[Area Status] Error: {e}", exc_info=True)
-            return web.json_response({'error': str(e)}, status=500)
+            return web.json_response({"error": str(e)}, status=500)
 
     async def refresh_outdoor(self, request: Request) -> Response:
         """Force HA to re-poll the outdoor brightness source entity."""
         try:
             import lux_tracker
+
             source = lux_tracker.get_outdoor_source()
             entity = None
-            if source == 'lux':
+            if source == "lux":
                 entity = lux_tracker.get_sensor_entity()
-            elif source == 'weather':
+            elif source == "weather":
                 entity = lux_tracker.get_weather_entity()
 
             if not entity:
-                return web.json_response({'status': 'no_entity', 'source': source})
+                return web.json_response({"status": "no_entity", "source": source})
 
             rest_url, _, token = self._get_ha_api_config()
             if not rest_url or not token:
-                return web.json_response({'error': 'No HA API config'}, status=500)
+                return web.json_response({"error": "No HA API config"}, status=500)
 
             import aiohttp
+
             url = f"{rest_url}/services/homeassistant/update_entity"
-            headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+            headers = {
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+            }
             async with aiohttp.ClientSession() as session:
-                async with session.post(url, json={"entity_id": entity}, headers=headers) as resp:
+                async with session.post(
+                    url, json={"entity_id": entity}, headers=headers
+                ) as resp:
                     if resp.status < 300:
-                        logger.info(f"[RefreshOutdoor] Triggered update_entity for {entity}")
-                        return web.json_response({'status': 'ok', 'entity': entity})
+                        logger.info(
+                            f"[RefreshOutdoor] Triggered update_entity for {entity}"
+                        )
+                        return web.json_response({"status": "ok", "entity": entity})
                     else:
                         body = await resp.text()
-                        logger.warning(f"[RefreshOutdoor] update_entity failed: {resp.status} {body}")
-                        return web.json_response({'error': f'HA returned {resp.status}'}, status=502)
+                        logger.warning(
+                            f"[RefreshOutdoor] update_entity failed: {resp.status} {body}"
+                        )
+                        return web.json_response(
+                            {"error": f"HA returned {resp.status}"}, status=502
+                        )
         except Exception as e:
             logger.error(f"[RefreshOutdoor] Error: {e}", exc_info=True)
-            return web.json_response({'error': str(e)}, status=500)
+            return web.json_response({"error": str(e)}, status=500)
 
     async def get_area_settings(self, request: Request) -> Response:
         """Get settings for a specific area.
 
         Returns motion_function, motion_duration for the area.
         """
-        area_id = request.match_info.get('area_id')
+        area_id = request.match_info.get("area_id")
         if not area_id:
-            return web.json_response({'error': 'area_id required'}, status=400)
+            return web.json_response({"error": "area_id required"}, status=400)
 
         try:
             config = await self.load_config()
-            area_settings = config.get('area_settings', {})
-            settings = area_settings.get(area_id, {
-                'motion_function': 'disabled',
-                'motion_duration': 60
-            })
+            area_settings = config.get("area_settings", {})
+            settings = area_settings.get(
+                area_id, {"motion_function": "disabled", "motion_duration": 60}
+            )
             return web.json_response(settings)
 
         except Exception as e:
             logger.error(f"[Area Settings] Error getting settings for {area_id}: {e}")
-            return web.json_response({'error': str(e)}, status=500)
+            return web.json_response({"error": str(e)}, status=500)
 
     async def save_area_settings(self, request: Request) -> Response:
         """Save settings for a specific area.
 
         Expects JSON body with motion_function and/or motion_duration.
         """
-        area_id = request.match_info.get('area_id')
+        area_id = request.match_info.get("area_id")
         if not area_id:
-            return web.json_response({'error': 'area_id required'}, status=400)
+            return web.json_response({"error": "area_id required"}, status=400)
 
         try:
             data = await request.json()
 
             # Validate motion_function if provided
-            valid_functions = ['disabled', 'boost', 'on_off', 'on_only']
-            if 'motion_function' in data and data['motion_function'] not in valid_functions:
-                return web.json_response({
-                    'error': f"Invalid motion_function. Must be one of: {valid_functions}"
-                }, status=400)
+            valid_functions = ["disabled", "boost", "on_off", "on_only"]
+            if (
+                "motion_function" in data
+                and data["motion_function"] not in valid_functions
+            ):
+                return web.json_response(
+                    {
+                        "error": f"Invalid motion_function. Must be one of: {valid_functions}"
+                    },
+                    status=400,
+                )
 
             # Load current config
             config = await self.load_config()
 
             # Initialize area_settings if not present
-            if 'area_settings' not in config:
-                config['area_settings'] = {}
+            if "area_settings" not in config:
+                config["area_settings"] = {}
 
             # Initialize this area's settings if not present
-            if area_id not in config['area_settings']:
-                config['area_settings'][area_id] = {
-                    'motion_function': 'disabled',
-                    'motion_duration': 60
+            if area_id not in config["area_settings"]:
+                config["area_settings"][area_id] = {
+                    "motion_function": "disabled",
+                    "motion_duration": 60,
                 }
 
             # Update with provided values
-            if 'motion_function' in data:
-                config['area_settings'][area_id]['motion_function'] = data['motion_function']
-            if 'motion_duration' in data:
-                config['area_settings'][area_id]['motion_duration'] = int(data['motion_duration'])
+            if "motion_function" in data:
+                config["area_settings"][area_id]["motion_function"] = data[
+                    "motion_function"
+                ]
+            if "motion_duration" in data:
+                config["area_settings"][area_id]["motion_duration"] = int(
+                    data["motion_duration"]
+                )
 
             # Save config
             await self.save_config_to_file(config)
 
-            logger.info(f"[Area Settings] Saved settings for {area_id}: {config['area_settings'][area_id]}")
-            return web.json_response({'success': True, 'settings': config['area_settings'][area_id]})
+            logger.info(
+                f"[Area Settings] Saved settings for {area_id}: {config['area_settings'][area_id]}"
+            )
+            return web.json_response(
+                {"success": True, "settings": config["area_settings"][area_id]}
+            )
 
         except Exception as e:
             logger.error(f"[Area Settings] Error saving settings for {area_id}: {e}")
-            return web.json_response({'error': str(e)}, status=500)
+            return web.json_response({"error": str(e)}, status=500)
 
     async def apply_light(self, request: Request) -> Response:
         """Apply brightness and color temperature to lights in an area.
@@ -2984,30 +3482,28 @@ class LightDesignerServer:
         if not rest_url or not token:
             logger.warning("Home Assistant API not configured for Live Design")
             return web.json_response(
-                {'error': 'Home Assistant API not configured'},
-                status=503
+                {"error": "Home Assistant API not configured"}, status=503
             )
 
         try:
             data = await request.json()
-            area_id = data.get('area_id')
-            brightness = data.get('brightness')
-            color_temp = data.get('color_temp')
-            transition = data.get('transition', 0.3)  # Default 0.3s for smooth updates
+            area_id = data.get("area_id")
+            brightness = data.get("brightness")
+            color_temp = data.get("color_temp")
+            transition = data.get("transition", 0.3)  # Default 0.3s for smooth updates
 
             if not area_id:
-                return web.json_response(
-                    {'error': 'area_id is required'},
-                    status=400
-                )
+                return web.json_response({"error": "area_id is required"}, status=400)
 
             headers = {
-                'Authorization': f'Bearer {token}',
-                'Content-Type': 'application/json',
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
             }
 
             # Check if we have cached capabilities for this area
-            if self.live_design_area == area_id and (self.live_design_color_lights or self.live_design_ct_lights):
+            if self.live_design_area == area_id and (
+                self.live_design_color_lights or self.live_design_ct_lights
+            ):
                 # Use capability-based splitting
                 async with ClientSession() as session:
                     tasks = []
@@ -3015,37 +3511,41 @@ class LightDesignerServer:
                     # Color-capable lights: use xy_color
                     if self.live_design_color_lights:
                         color_data = {
-                            'entity_id': self.live_design_color_lights,
-                            'transition': transition,
+                            "entity_id": self.live_design_color_lights,
+                            "transition": transition,
                         }
                         if brightness is not None:
-                            color_data['brightness_pct'] = int(brightness)
+                            color_data["brightness_pct"] = int(brightness)
                         if color_temp is not None:
                             xy = CircadianLight.color_temperature_to_xy(int(color_temp))
-                            color_data['xy_color'] = list(xy)
+                            color_data["xy_color"] = list(xy)
 
-                        tasks.append(session.post(
-                            f'{rest_url}/services/light/turn_on',
-                            headers=headers,
-                            json=color_data
-                        ))
+                        tasks.append(
+                            session.post(
+                                f"{rest_url}/services/light/turn_on",
+                                headers=headers,
+                                json=color_data,
+                            )
+                        )
 
                     # CT-only lights: use color_temp_kelvin
                     if self.live_design_ct_lights:
                         ct_data = {
-                            'entity_id': self.live_design_ct_lights,
-                            'transition': transition,
+                            "entity_id": self.live_design_ct_lights,
+                            "transition": transition,
                         }
                         if brightness is not None:
-                            ct_data['brightness_pct'] = int(brightness)
+                            ct_data["brightness_pct"] = int(brightness)
                         if color_temp is not None:
-                            ct_data['color_temp_kelvin'] = max(2000, int(color_temp))
+                            ct_data["color_temp_kelvin"] = max(2000, int(color_temp))
 
-                        tasks.append(session.post(
-                            f'{rest_url}/services/light/turn_on',
-                            headers=headers,
-                            json=ct_data
-                        ))
+                        tasks.append(
+                            session.post(
+                                f"{rest_url}/services/light/turn_on",
+                                headers=headers,
+                                json=ct_data,
+                            )
+                        )
 
                     # Execute all requests concurrently
                     if tasks:
@@ -3058,50 +3558,44 @@ class LightDesignerServer:
                     f"Live Design: Applied {brightness}% / {color_temp}K to area {area_id} "
                     f"({len(self.live_design_color_lights)} color, {len(self.live_design_ct_lights)} CT)"
                 )
-                return web.json_response({'status': 'ok'})
+                return web.json_response({"status": "ok"})
 
             else:
                 # Fallback: no cached capabilities, use area-based with XY
                 service_data = {
-                    'area_id': area_id,
-                    'transition': transition,
+                    "area_id": area_id,
+                    "transition": transition,
                 }
 
                 if brightness is not None:
-                    service_data['brightness_pct'] = int(brightness)
+                    service_data["brightness_pct"] = int(brightness)
 
                 if color_temp is not None:
                     xy = CircadianLight.color_temperature_to_xy(int(color_temp))
-                    service_data['xy_color'] = list(xy)
+                    service_data["xy_color"] = list(xy)
 
                 async with ClientSession() as session:
                     async with session.post(
-                        f'{rest_url}/services/light/turn_on',
+                        f"{rest_url}/services/light/turn_on",
                         headers=headers,
-                        json=service_data
+                        json=service_data,
                     ) as resp:
                         if resp.status not in (200, 201):
                             logger.error(f"Failed to apply light: {resp.status}")
                             return web.json_response(
-                                {'error': f'HA API returned {resp.status}'},
-                                status=resp.status
+                                {"error": f"HA API returned {resp.status}"},
+                                status=resp.status,
                             )
 
                 logger.info(
                     f"Live Design (fallback): Applied {brightness}% / {color_temp}K to area {area_id}"
                 )
-                return web.json_response({'status': 'ok'})
+                return web.json_response({"status": "ok"})
         except json.JSONDecodeError:
-            return web.json_response(
-                {'error': 'Invalid JSON'},
-                status=400
-            )
+            return web.json_response({"error": "Invalid JSON"}, status=400)
         except Exception as e:
             logger.error(f"Error applying light: {e}")
-            return web.json_response(
-                {'error': str(e)},
-                status=500
-            )
+            return web.json_response({"error": str(e)}, status=500)
 
     async def set_circadian_mode(self, request: Request) -> Response:
         """Enable or disable Circadian mode for an area.
@@ -3113,15 +3607,12 @@ class LightDesignerServer:
         """
         try:
             data = await request.json()
-            area_id = data.get('area_id')
+            area_id = data.get("area_id")
             # Support both 'is_circadian' (new) and 'enabled' (legacy) field names
-            is_circadian = data.get('is_circadian', data.get('enabled', True))
+            is_circadian = data.get("is_circadian", data.get("enabled", True))
 
             if not area_id:
-                return web.json_response(
-                    {'error': 'area_id is required'},
-                    status=400
-                )
+                return web.json_response({"error": "area_id is required"}, status=400)
 
             state.set_is_circadian(area_id, is_circadian)
 
@@ -3130,26 +3621,36 @@ class LightDesignerServer:
             if not is_circadian:
                 # Live Design is starting - fetch light capabilities for this area
                 if ws_url and token:
-                    color_lights, ct_lights = await self._fetch_area_light_capabilities(ws_url, token, area_id)
+                    color_lights, ct_lights = await self._fetch_area_light_capabilities(
+                        ws_url, token, area_id
+                    )
                     self.live_design_area = area_id
                     self.live_design_color_lights = color_lights
                     self.live_design_ct_lights = ct_lights
 
                     # Save current light states for restoration later
                     all_lights = color_lights + ct_lights
-                    self.live_design_saved_states = await self._fetch_light_states(ws_url, token, all_lights)
-                    logger.info(f"[Live Design] Started for area {area_id}: {len(color_lights)} color, {len(ct_lights)} CT-only, saved {len(self.live_design_saved_states)} states")
+                    self.live_design_saved_states = await self._fetch_light_states(
+                        ws_url, token, all_lights
+                    )
+                    logger.info(
+                        f"[Live Design] Started for area {area_id}: {len(color_lights)} color, {len(ct_lights)} CT-only, saved {len(self.live_design_saved_states)} states"
+                    )
 
                     # Visual feedback: fade to off over 2 seconds
                     await self._turn_off_lights(ws_url, token, all_lights, transition=2)
 
                     # Notify main.py to skip this area in periodic updates
                     await self._fire_event_via_websocket(
-                        ws_url, token, 'circadian_light_live_design',
-                        {'area_id': area_id, 'active': True}
+                        ws_url,
+                        token,
+                        "circadian_light_live_design",
+                        {"area_id": area_id, "active": True},
                     )
                 else:
-                    logger.warning("[Live Design] Cannot fetch capabilities - no HA API config")
+                    logger.warning(
+                        "[Live Design] Cannot fetch capabilities - no HA API config"
+                    )
                     self.live_design_area = area_id
                     self.live_design_color_lights = []
                     self.live_design_ct_lights = []
@@ -3159,22 +3660,32 @@ class LightDesignerServer:
                 if self.live_design_area == area_id:
                     logger.info(f"[Live Design] Ended for area {area_id}")
 
-                    all_lights = self.live_design_color_lights + self.live_design_ct_lights
+                    all_lights = (
+                        self.live_design_color_lights + self.live_design_ct_lights
+                    )
 
                     # Visual feedback: fade to off over 2 seconds, then restore with 2s transition
                     if all_lights and ws_url and token:
-                        await self._turn_off_lights(ws_url, token, all_lights, transition=2)
+                        await self._turn_off_lights(
+                            ws_url, token, all_lights, transition=2
+                        )
 
                     # Restore saved light states with 2s transition
                     if self.live_design_saved_states and ws_url and token:
-                        await self._restore_light_states(ws_url, token, self.live_design_saved_states, transition=2)
-                        logger.info(f"[Live Design] Restored {len(self.live_design_saved_states)} light states")
+                        await self._restore_light_states(
+                            ws_url, token, self.live_design_saved_states, transition=2
+                        )
+                        logger.info(
+                            f"[Live Design] Restored {len(self.live_design_saved_states)} light states"
+                        )
 
                     # Notify main.py that Live Design ended
                     if ws_url and token:
                         await self._fire_event_via_websocket(
-                            ws_url, token, 'circadian_light_live_design',
-                            {'area_id': area_id, 'active': False}
+                            ws_url,
+                            token,
+                            "circadian_light_live_design",
+                            {"area_id": area_id, "active": False},
                         )
 
                     self.live_design_area = None
@@ -3182,20 +3693,16 @@ class LightDesignerServer:
                     self.live_design_ct_lights = []
                     self.live_design_saved_states = {}
 
-            logger.info(f"[Live Design] Circadian mode {'enabled' if is_circadian else 'disabled'} for area {area_id}")
-
-            return web.json_response({'status': 'ok', 'is_circadian': is_circadian})
-        except json.JSONDecodeError:
-            return web.json_response(
-                {'error': 'Invalid JSON'},
-                status=400
+            logger.info(
+                f"[Live Design] Circadian mode {'enabled' if is_circadian else 'disabled'} for area {area_id}"
             )
+
+            return web.json_response({"status": "ok", "is_circadian": is_circadian})
+        except json.JSONDecodeError:
+            return web.json_response({"error": "Invalid JSON"}, status=400)
         except Exception as e:
             logger.error(f"Error setting circadian mode: {e}")
-            return web.json_response(
-                {'error': str(e)},
-                status=500
-            )
+            return web.json_response({"error": str(e)}, status=500)
 
     # -------------------------------------------------------------------------
     # GloZone API - Circadian Rhythms CRUD
@@ -3224,7 +3731,9 @@ class LightDesignerServer:
             config = await self.load_raw_config()
 
             if name in config.get("circadian_rhythms", {}):
-                return web.json_response({"error": f"Rhythm '{name}' already exists"}, status=409)
+                return web.json_response(
+                    {"error": f"Rhythm '{name}' already exists"}, status=409
+                )
 
             # Create the rhythm with defaults, then overlay any provided settings
             defaults = {
@@ -3273,18 +3782,21 @@ class LightDesignerServer:
             config = await self.load_raw_config()
 
             if name not in config.get("circadian_rhythms", {}):
-                return web.json_response({"error": f"Rhythm '{name}' not found"}, status=404)
+                return web.json_response(
+                    {"error": f"Rhythm '{name}' not found"}, status=404
+                )
 
             # Handle rename if "name" field is provided
             new_name = data.pop("name", None)
             if new_name and new_name != name:
                 if new_name in config.get("circadian_rhythms", {}):
                     return web.json_response(
-                        {"error": f"Rhythm '{new_name}' already exists"},
-                        status=400
+                        {"error": f"Rhythm '{new_name}' already exists"}, status=400
                     )
                 # Rename the rhythm
-                config["circadian_rhythms"][new_name] = config["circadian_rhythms"].pop(name)
+                config["circadian_rhythms"][new_name] = config["circadian_rhythms"].pop(
+                    name
+                )
                 # Update all zones using this rhythm
                 for zone_name, zone_data in config.get("glozones", {}).items():
                     if zone_data.get("rhythm") == name:
@@ -3302,7 +3814,9 @@ class LightDesignerServer:
             # Fire refresh event to notify main.py to reload config
             _, ws_url, token = self._get_ha_api_config()
             if ws_url and token:
-                await self._fire_event_via_websocket(ws_url, token, 'circadian_light_refresh', {})
+                await self._fire_event_via_websocket(
+                    ws_url, token, "circadian_light_refresh", {}
+                )
                 logger.info("Fired circadian_light_refresh event after rhythm update")
 
             logger.info(f"Updated circadian rhythm: {name}")
@@ -3322,25 +3836,29 @@ class LightDesignerServer:
             rhythms = config.get("circadian_rhythms", {})
 
             if name not in rhythms:
-                return web.json_response({"error": f"Rhythm '{name}' not found"}, status=404)
+                return web.json_response(
+                    {"error": f"Rhythm '{name}' not found"}, status=404
+                )
 
             # Cannot delete the last rhythm
             if len(rhythms) <= 1:
                 return web.json_response(
-                    {"error": "Cannot delete the last rhythm"},
-                    status=400
+                    {"error": "Cannot delete the last rhythm"}, status=400
                 )
 
             # Cannot delete a rhythm that's in use by a zone
             zones_using = [
-                zn for zn, zc in config.get("glozones", {}).items()
+                zn
+                for zn, zc in config.get("glozones", {}).items()
                 if zc.get("rhythm") == name
             ]
             if zones_using:
                 zone_list = ", ".join(zones_using)
                 return web.json_response(
-                    {"error": f"Cannot delete rhythm '{name}' — it is used by zone(s): {zone_list}. Reassign them first."},
-                    status=400
+                    {
+                        "error": f"Cannot delete rhythm '{name}' — it is used by zone(s): {zone_list}. Reassign them first."
+                    },
+                    status=400,
                 )
 
             del config["circadian_rhythms"][name]
@@ -3372,7 +3890,9 @@ class LightDesignerServer:
             needs_name_enrichment = False
             for zone_config in zones.values():
                 for area in zone_config.get("areas", []):
-                    if isinstance(area, str) or (isinstance(area, dict) and not area.get("name")):
+                    if isinstance(area, str) or (
+                        isinstance(area, dict) and not area.get("name")
+                    ):
                         needs_name_enrichment = True
                         break
                 if needs_name_enrichment:
@@ -3385,7 +3905,10 @@ class LightDesignerServer:
                     _, ws_url, token = self._get_ha_api_config()
                     if ws_url and token:
                         ha_areas = await self._fetch_areas_via_websocket(ws_url, token)
-                        ha_area_names = {a['area_id']: a.get('name', a['area_id']) for a in (ha_areas or [])}
+                        ha_area_names = {
+                            a["area_id"]: a.get("name", a["area_id"])
+                            for a in (ha_areas or [])
+                        }
                 except Exception as e:
                     logger.debug(f"Could not fetch HA area names: {e}")
 
@@ -3405,7 +3928,9 @@ class LightDesignerServer:
                     else:
                         # Legacy: area stored as just a string ID
                         area_id = area
-                        areas.append({"id": area_id, "name": ha_area_names.get(area_id, area_id)})
+                        areas.append(
+                            {"id": area_id, "name": ha_area_names.get(area_id, area_id)}
+                        )
 
                 result[zone_name] = {
                     "rhythm": zone_config.get("rhythm"),
@@ -3460,7 +3985,9 @@ class LightDesignerServer:
             # Safety: if zones already have areas, this isn't a fresh install.
             # Set the flag and skip — the migration is only for first-time setup.
             if assigned_area_ids:
-                logger.info(f"Zones already have {len(assigned_area_ids)} assigned areas - marking migration complete")
+                logger.info(
+                    f"Zones already have {len(assigned_area_ids)} assigned areas - marking migration complete"
+                )
                 config["areas_migrated_v1"] = True
                 await self.save_config_to_file(config)
                 glozone.set_config(config)
@@ -3469,22 +3996,28 @@ class LightDesignerServer:
             # Find the default zone
             default_zone_name = next(
                 (name for name, zc in zones.items() if zc.get("is_default")),
-                next(iter(zones.keys()), None)
+                next(iter(zones.keys()), None),
             )
             if not default_zone_name:
                 logger.warning("No default zone found - skipping migration")
                 return
 
             # Add unassigned areas to default zone
-            unassigned = [a for a in ha_areas if a.get("area_id") not in assigned_area_ids]
+            unassigned = [
+                a for a in ha_areas if a.get("area_id") not in assigned_area_ids
+            ]
 
             if unassigned:
-                logger.info(f"Migrating {len(unassigned)} unassigned areas to default zone '{default_zone_name}'")
+                logger.info(
+                    f"Migrating {len(unassigned)} unassigned areas to default zone '{default_zone_name}'"
+                )
                 for area in unassigned:
-                    zones[default_zone_name].setdefault("areas", []).append({
-                        "id": area["area_id"],
-                        "name": area.get("name", area["area_id"])
-                    })
+                    zones[default_zone_name].setdefault("areas", []).append(
+                        {
+                            "id": area["area_id"],
+                            "name": area.get("name", area["area_id"]),
+                        }
+                    )
 
             # Mark migration as complete (even if no areas to migrate)
             config["areas_migrated_v1"] = True
@@ -3510,7 +4043,9 @@ class LightDesignerServer:
             config = await self.load_raw_config()
 
             if name in config.get("glozones", {}):
-                return web.json_response({"error": f"Zone '{name}' already exists"}, status=409)
+                return web.json_response(
+                    {"error": f"Zone '{name}' already exists"}, status=409
+                )
 
             rhythms = config.setdefault("circadian_rhythms", {})
 
@@ -3525,10 +4060,7 @@ class LightDesignerServer:
                     logger.info(f"Auto-created rhythm '{rhythm}' for new zone")
 
             # Create the zone
-            config.setdefault("glozones", {})[name] = {
-                "rhythm": rhythm,
-                "areas": []
-            }
+            config.setdefault("glozones", {})[name] = {"rhythm": rhythm, "areas": []}
 
             await self.save_config_to_file(config)
             glozone.set_config(config)
@@ -3536,7 +4068,9 @@ class LightDesignerServer:
             # Fire refresh event to notify main.py to reload config
             _, ws_url, token = self._get_ha_api_config()
             if ws_url and token:
-                await self._fire_event_via_websocket(ws_url, token, 'circadian_light_refresh', {})
+                await self._fire_event_via_websocket(
+                    ws_url, token, "circadian_light_refresh", {}
+                )
                 logger.info("Fired circadian_light_refresh event after zone create")
 
             logger.info(f"Created GloZone: {name} with rhythm {rhythm}")
@@ -3556,7 +4090,9 @@ class LightDesignerServer:
             config = await self.load_raw_config()
 
             if name not in config.get("glozones", {}):
-                return web.json_response({"error": f"Glo Zone '{name}' not found"}, status=404)
+                return web.json_response(
+                    {"error": f"Glo Zone '{name}' not found"}, status=404
+                )
 
             # Track whether lighting-relevant fields changed
             needs_refresh = False
@@ -3566,8 +4102,7 @@ class LightDesignerServer:
             if new_name and new_name != name:
                 if new_name in config.get("glozones", {}):
                     return web.json_response(
-                        {"error": f"Glo Zone '{new_name}' already exists"},
-                        status=400
+                        {"error": f"Glo Zone '{new_name}' already exists"}, status=400
                     )
                 # Rename the zone (preserve is_default status)
                 config["glozones"][new_name] = config["glozones"].pop(name)
@@ -3579,8 +4114,7 @@ class LightDesignerServer:
                 rhythm = data["rhythm"]
                 if rhythm not in config.get("circadian_rhythms", {}):
                     return web.json_response(
-                        {"error": f"Rhythm '{rhythm}' not found"},
-                        status=400
+                        {"error": f"Rhythm '{rhythm}' not found"}, status=400
                     )
                 config["glozones"][name]["rhythm"] = rhythm
                 needs_refresh = True
@@ -3594,7 +4128,7 @@ class LightDesignerServer:
             if data.get("is_default"):
                 # Clear is_default from all zones, set on this one
                 for zn, zc in config["glozones"].items():
-                    zc["is_default"] = (zn == name)
+                    zc["is_default"] = zn == name
                 logger.info(f"Set '{name}' as default zone")
                 needs_refresh = True
 
@@ -3605,7 +4139,9 @@ class LightDesignerServer:
             if needs_refresh:
                 _, ws_url, token = self._get_ha_api_config()
                 if ws_url and token:
-                    await self._fire_event_via_websocket(ws_url, token, 'circadian_light_refresh', {})
+                    await self._fire_event_via_websocket(
+                        ws_url, token, "circadian_light_refresh", {}
+                    )
                     logger.info("Fired circadian_light_refresh event after zone update")
 
             logger.info(f"Updated GloZone: {name}")
@@ -3625,13 +4161,14 @@ class LightDesignerServer:
             zones = config.get("glozones", {})
 
             if name not in zones:
-                return web.json_response({"error": f"Zone '{name}' not found"}, status=404)
+                return web.json_response(
+                    {"error": f"Zone '{name}' not found"}, status=404
+                )
 
             # Cannot delete the last zone
             if len(zones) <= 1:
                 return web.json_response(
-                    {"error": "Cannot delete the last zone"},
-                    status=400
+                    {"error": "Cannot delete the last zone"}, status=400
                 )
 
             # If deleting the default zone, make another zone the default first
@@ -3646,7 +4183,7 @@ class LightDesignerServer:
             # Find the new default zone to move areas to
             default_zone = next(
                 (zn for zn, zc in zones.items() if zc.get("is_default") and zn != name),
-                next((zn for zn in zones.keys() if zn != name), None)
+                next((zn for zn in zones.keys() if zn != name), None),
             )
 
             # Move areas to default zone
@@ -3666,7 +4203,9 @@ class LightDesignerServer:
             # Fire refresh event to notify main.py to reload config
             _, ws_url, token = self._get_ha_api_config()
             if ws_url and token:
-                await self._fire_event_via_websocket(ws_url, token, 'circadian_light_refresh', {})
+                await self._fire_event_via_websocket(
+                    ws_url, token, "circadian_light_refresh", {}
+                )
                 logger.info("Fired circadian_light_refresh event after zone delete")
 
             logger.info(f"Deleted GloZone: {name}")
@@ -3682,7 +4221,9 @@ class LightDesignerServer:
             order = data.get("order")
 
             if not order or not isinstance(order, list):
-                return web.json_response({"error": "order must be a list of zone names"}, status=400)
+                return web.json_response(
+                    {"error": "order must be a list of zone names"}, status=400
+                )
 
             config = await self.load_raw_config()
             zones = config.get("glozones", {})
@@ -3691,7 +4232,7 @@ class LightDesignerServer:
             if set(order) != set(zones.keys()):
                 return web.json_response(
                     {"error": "order must contain exactly the existing zone names"},
-                    status=400
+                    status=400,
                 )
 
             # Rebuild dict in new order
@@ -3716,13 +4257,17 @@ class LightDesignerServer:
             area_ids = data.get("area_ids")
 
             if not area_ids or not isinstance(area_ids, list):
-                return web.json_response({"error": "area_ids must be a list"}, status=400)
+                return web.json_response(
+                    {"error": "area_ids must be a list"}, status=400
+                )
 
             config = await self.load_raw_config()
             zones = config.get("glozones", {})
 
             if name not in zones:
-                return web.json_response({"error": f"Zone '{name}' not found"}, status=404)
+                return web.json_response(
+                    {"error": f"Zone '{name}' not found"}, status=404
+                )
 
             zone_areas = zones[name].get("areas", [])
 
@@ -3736,16 +4281,19 @@ class LightDesignerServer:
             unknown = set(area_ids) - set(area_lookup.keys())
             if unknown:
                 return web.json_response(
-                    {"error": f"Unknown area IDs: {unknown}"},
-                    status=400
+                    {"error": f"Unknown area IDs: {unknown}"}, status=400
                 )
 
             # Rebuild areas list in new order, keeping orphan areas at end
             submitted = set(area_ids)
             orphans = [area_lookup[aid] for aid in area_lookup if aid not in submitted]
             if orphans:
-                orphan_ids = [a.get("id") if isinstance(a, dict) else a for a in orphans]
-                logger.info(f"Zone '{name}' has {len(orphans)} areas not in HA, keeping at end: {orphan_ids}")
+                orphan_ids = [
+                    a.get("id") if isinstance(a, dict) else a for a in orphans
+                ]
+                logger.info(
+                    f"Zone '{name}' has {len(orphans)} areas not in HA, keeping at end: {orphan_ids}"
+                )
             zones[name]["areas"] = [area_lookup[aid] for aid in area_ids] + orphans
 
             await self.save_config_to_file(config)
@@ -3773,7 +4321,9 @@ class LightDesignerServer:
             config = await self.load_raw_config()
 
             if zone_name not in config.get("glozones", {}):
-                return web.json_response({"error": f"Zone '{zone_name}' not found"}, status=404)
+                return web.json_response(
+                    {"error": f"Zone '{zone_name}' not found"}, status=404
+                )
 
             # Find current zone for this area (if any)
             current_zone = None
@@ -3787,31 +4337,38 @@ class LightDesignerServer:
             # Remove area from any existing zone
             for zn, zc in config.get("glozones", {}).items():
                 zc["areas"] = [
-                    a for a in zc.get("areas", [])
-                    if (isinstance(a, dict) and a.get("id") != area_id) or
-                       (isinstance(a, str) and a != area_id)
+                    a
+                    for a in zc.get("areas", [])
+                    if (isinstance(a, dict) and a.get("id") != area_id)
+                    or (isinstance(a, str) and a != area_id)
                 ]
 
             # Add to target zone
-            config["glozones"][zone_name]["areas"].append({
-                "id": area_id,
-                "name": area_name
-            })
+            config["glozones"][zone_name]["areas"].append(
+                {"id": area_id, "name": area_name}
+            )
 
             await self.save_config_to_file(config)
             glozone.set_config(config)
 
             # Reset area state if moving to a different zone (new Glo config)
             if current_zone and current_zone != zone_name:
-                state.update_area(area_id, {
-                    "frozen_at": None,
-                    "brightness_mid": None,
-                    "color_mid": None,
-                })
-                logger.info(f"Reset state for area {area_id} (moved from {current_zone} to {zone_name})")
+                state.update_area(
+                    area_id,
+                    {
+                        "frozen_at": None,
+                        "brightness_mid": None,
+                        "color_mid": None,
+                    },
+                )
+                logger.info(
+                    f"Reset state for area {area_id} (moved from {current_zone} to {zone_name})"
+                )
 
             logger.info(f"Added area {area_id} to zone {zone_name}")
-            return web.json_response({"status": "added", "area_id": area_id, "zone": zone_name})
+            return web.json_response(
+                {"status": "added", "area_id": area_id, "zone": zone_name}
+            )
         except json.JSONDecodeError:
             return web.json_response({"error": "Invalid JSON"}, status=400)
         except Exception as e:
@@ -3828,19 +4385,23 @@ class LightDesignerServer:
             zones = config.get("glozones", {})
 
             if zone_name not in zones:
-                return web.json_response({"error": f"Zone '{zone_name}' not found"}, status=404)
+                return web.json_response(
+                    {"error": f"Zone '{zone_name}' not found"}, status=404
+                )
 
             # Find the default zone
             default_zone = next(
                 (zn for zn, zc in zones.items() if zc.get("is_default")),
-                next(iter(zones.keys()), None)
+                next(iter(zones.keys()), None),
             )
 
             # Can't remove from default zone (areas must always be in a zone)
             if zone_name == default_zone:
                 return web.json_response(
-                    {"error": "Cannot remove area from default zone. Move it to another zone instead."},
-                    status=400
+                    {
+                        "error": "Cannot remove area from default zone. Move it to another zone instead."
+                    },
+                    status=400,
                 )
 
             # Find and remove the area
@@ -3848,7 +4409,9 @@ class LightDesignerServer:
             area_entry = None
             new_areas = []
             for a in areas:
-                if (isinstance(a, dict) and a.get("id") == area_id) or (isinstance(a, str) and a == area_id):
+                if (isinstance(a, dict) and a.get("id") == area_id) or (
+                    isinstance(a, str) and a == area_id
+                ):
                     area_entry = a
                 else:
                     new_areas.append(a)
@@ -3856,7 +4419,7 @@ class LightDesignerServer:
             if area_entry is None:
                 return web.json_response(
                     {"error": f"Area '{area_id}' not found in zone '{zone_name}'"},
-                    status=404
+                    status=404,
                 )
 
             config["glozones"][zone_name]["areas"] = new_areas
@@ -3868,7 +4431,9 @@ class LightDesignerServer:
             await self.save_config_to_file(config)
             glozone.set_config(config)
 
-            logger.info(f"Removed area {area_id} from zone {zone_name}, moved to {default_zone}")
+            logger.info(
+                f"Removed area {area_id} from zone {zone_name}, moved to {default_zone}"
+            )
             return web.json_response({"status": "removed", "area_id": area_id})
         except Exception as e:
             logger.error(f"Error removing area from zone: {e}")
@@ -3881,7 +4446,9 @@ class LightDesignerServer:
     # Reserved preset names that cannot be used for moments
     RESERVED_PRESET_NAMES = {"wake", "bed", "nitelite", "britelite"}
 
-    def _slugify_moment_name(self, name: str, existing_ids: set, exclude_id: str = None) -> str:
+    def _slugify_moment_name(
+        self, name: str, existing_ids: set, exclude_id: str = None
+    ) -> str:
         """Convert moment name to a URL-safe slug, handling duplicates.
 
         Args:
@@ -3893,15 +4460,16 @@ class LightDesignerServer:
             Unique slug like 'sleep' or 'sleep_2' if duplicate
         """
         import re
+
         # Lowercase, replace spaces/dashes with underscores, remove other special chars
         slug = name.lower().strip()
-        slug = re.sub(r'[\s\-]+', '_', slug)  # spaces/dashes to underscores
-        slug = re.sub(r'[^a-z0-9_]', '', slug)  # remove non-alphanumeric
-        slug = re.sub(r'_+', '_', slug)  # collapse multiple underscores
-        slug = slug.strip('_')  # remove leading/trailing underscores
+        slug = re.sub(r"[\s\-]+", "_", slug)  # spaces/dashes to underscores
+        slug = re.sub(r"[^a-z0-9_]", "", slug)  # remove non-alphanumeric
+        slug = re.sub(r"_+", "_", slug)  # collapse multiple underscores
+        slug = slug.strip("_")  # remove leading/trailing underscores
 
         if not slug:
-            slug = 'moment'
+            slug = "moment"
 
         # Check for duplicates and append number if needed
         base_slug = slug
@@ -3931,7 +4499,9 @@ class LightDesignerServer:
             moments = config.get("moments", {})
 
             if moment_id not in moments:
-                return web.json_response({"error": f"Moment '{moment_id}' not found"}, status=404)
+                return web.json_response(
+                    {"error": f"Moment '{moment_id}' not found"}, status=404
+                )
 
             return web.json_response({"moment": moments[moment_id], "id": moment_id})
         except Exception as e:
@@ -3945,7 +4515,9 @@ class LightDesignerServer:
             name = data.get("name", "").strip()
 
             if not name:
-                return web.json_response({"error": "Moment name is required"}, status=400)
+                return web.json_response(
+                    {"error": "Moment name is required"}, status=400
+                )
 
             config = await self.load_raw_config()
             moments = config.setdefault("moments", {})
@@ -3965,14 +4537,18 @@ class LightDesignerServer:
 
             # Add fun moment fields if applicable
             if data.get("category") == "fun":
-                moments[moment_id]["default_participation"] = data.get("default_participation", "if_on")
+                moments[moment_id]["default_participation"] = data.get(
+                    "default_participation", "if_on"
+                )
                 if "effect" in data:
                     moments[moment_id]["effect"] = data["effect"]
 
             await self.save_config_to_file(config)
 
             logger.info(f"Created moment: {name} (id: {moment_id})")
-            return web.json_response({"status": "created", "id": moment_id, "moment": moments[moment_id]})
+            return web.json_response(
+                {"status": "created", "id": moment_id, "moment": moments[moment_id]}
+            )
         except json.JSONDecodeError:
             return web.json_response({"error": "Invalid JSON"}, status=400)
         except Exception as e:
@@ -3989,14 +4565,18 @@ class LightDesignerServer:
             moments = config.get("moments", {})
 
             if moment_id not in moments:
-                return web.json_response({"error": f"Moment '{moment_id}' not found"}, status=404)
+                return web.json_response(
+                    {"error": f"Moment '{moment_id}' not found"}, status=404
+                )
 
             moment = moments[moment_id]
 
             # Handle rename if name changed
             new_name = data.get("name")
             if new_name and new_name != moment.get("name"):
-                new_id = self._slugify_moment_name(new_name, set(moments.keys()), exclude_id=moment_id)
+                new_id = self._slugify_moment_name(
+                    new_name, set(moments.keys()), exclude_id=moment_id
+                )
                 # Rename: create new key, delete old
                 if new_id != moment_id:
                     moments[new_id] = moment
@@ -4005,15 +4585,25 @@ class LightDesignerServer:
                     moment = moments[moment_id]
 
             # Update fields
-            for field in ["name", "icon", "category", "trigger", "default_action",
-                          "exceptions", "default_participation", "effect"]:
+            for field in [
+                "name",
+                "icon",
+                "category",
+                "trigger",
+                "default_action",
+                "exceptions",
+                "default_participation",
+                "effect",
+            ]:
                 if field in data:
                     moment[field] = data[field]
 
             await self.save_config_to_file(config)
 
             logger.info(f"Updated moment: {moment_id}")
-            return web.json_response({"status": "updated", "id": moment_id, "moment": moment})
+            return web.json_response(
+                {"status": "updated", "id": moment_id, "moment": moment}
+            )
         except json.JSONDecodeError:
             return web.json_response({"error": "Invalid JSON"}, status=400)
         except Exception as e:
@@ -4029,7 +4619,9 @@ class LightDesignerServer:
             moments = config.get("moments", {})
 
             if moment_id not in moments:
-                return web.json_response({"error": f"Moment '{moment_id}' not found"}, status=404)
+                return web.json_response(
+                    {"error": f"Moment '{moment_id}' not found"}, status=404
+                )
 
             del moments[moment_id]
             await self.save_config_to_file(config)
@@ -4038,13 +4630,17 @@ class LightDesignerServer:
             action_ref = f"set_{moment_id}"
             cleaned = 0
             for sw in switches.get_all_switches().values():
-                orphaned_keys = [k for k, v in sw.magic_buttons.items() if v == action_ref]
+                orphaned_keys = [
+                    k for k, v in sw.magic_buttons.items() if v == action_ref
+                ]
                 for k in orphaned_keys:
                     del sw.magic_buttons[k]
                     cleaned += 1
             if cleaned:
                 switches._save()
-                logger.info(f"Removed {cleaned} magic button reference(s) to deleted moment '{moment_id}'")
+                logger.info(
+                    f"Removed {cleaned} magic button reference(s) to deleted moment '{moment_id}'"
+                )
 
             logger.info(f"Deleted moment: {moment_id}")
             return web.json_response({"status": "deleted", "id": moment_id})
@@ -4072,14 +4668,20 @@ class LightDesignerServer:
             _, ws_url, token = self._get_ha_api_config()
             if ws_url and token:
                 success = await self._fire_event_via_websocket(
-                    ws_url, token, 'circadian_light_service_event',
-                    {'service': 'glo_up', 'area_id': area_id}
+                    ws_url,
+                    token,
+                    "circadian_light_service_event",
+                    {"service": "glo_up", "area_id": area_id},
                 )
                 if success:
                     logger.info(f"Fired glo_up event for area {area_id}")
-                    return web.json_response({"status": "ok", "action": "glo_up", "area_id": area_id})
+                    return web.json_response(
+                        {"status": "ok", "action": "glo_up", "area_id": area_id}
+                    )
                 else:
-                    return web.json_response({"error": "Failed to fire event"}, status=500)
+                    return web.json_response(
+                        {"error": "Failed to fire event"}, status=500
+                    )
             else:
                 return web.json_response({"error": "HA API not configured"}, status=503)
 
@@ -4105,14 +4707,20 @@ class LightDesignerServer:
             _, ws_url, token = self._get_ha_api_config()
             if ws_url and token:
                 success = await self._fire_event_via_websocket(
-                    ws_url, token, 'circadian_light_service_event',
-                    {'service': 'glo_down', 'area_id': area_id}
+                    ws_url,
+                    token,
+                    "circadian_light_service_event",
+                    {"service": "glo_down", "area_id": area_id},
                 )
                 if success:
                     logger.info(f"Fired glo_down event for area {area_id}")
-                    return web.json_response({"status": "ok", "action": "glo_down", "area_id": area_id})
+                    return web.json_response(
+                        {"status": "ok", "action": "glo_down", "area_id": area_id}
+                    )
                 else:
-                    return web.json_response({"error": "Failed to fire event"}, status=500)
+                    return web.json_response(
+                        {"error": "Failed to fire event"}, status=500
+                    )
             else:
                 return web.json_response({"error": "HA API not configured"}, status=503)
 
@@ -4138,14 +4746,20 @@ class LightDesignerServer:
             _, ws_url, token = self._get_ha_api_config()
             if ws_url and token:
                 success = await self._fire_event_via_websocket(
-                    ws_url, token, 'circadian_light_service_event',
-                    {'service': 'glo_reset', 'area_id': area_id}
+                    ws_url,
+                    token,
+                    "circadian_light_service_event",
+                    {"service": "glo_reset", "area_id": area_id},
                 )
                 if success:
                     logger.info(f"Fired glo_reset event for area {area_id}")
-                    return web.json_response({"status": "ok", "action": "glo_reset", "area_id": area_id})
+                    return web.json_response(
+                        {"status": "ok", "action": "glo_reset", "area_id": area_id}
+                    )
                 else:
-                    return web.json_response({"error": "Failed to fire event"}, status=500)
+                    return web.json_response(
+                        {"error": "Failed to fire event"}, status=500
+                    )
             else:
                 return web.json_response({"error": "HA API not configured"}, status=503)
 
@@ -4172,16 +4786,26 @@ class LightDesignerServer:
         - glo_up, glo_down, glo_reset
         """
         VALID_ACTIONS = {
-            'lights_on', 'lights_off', 'lights_toggle',
-            'circadian_on', 'circadian_off',
-            'step_up', 'step_down',
-            'bright_up', 'bright_down',
-            'color_up', 'color_down',
-            'freeze_toggle',
-            'glo_up', 'glo_down', 'glo_reset',
-            'boost', 'full_send',
-            'set_nitelite', 'set_britelite',
-            'set_position',
+            "lights_on",
+            "lights_off",
+            "lights_toggle",
+            "circadian_on",
+            "circadian_off",
+            "step_up",
+            "step_down",
+            "bright_up",
+            "bright_down",
+            "color_up",
+            "color_down",
+            "freeze_toggle",
+            "glo_up",
+            "glo_down",
+            "glo_reset",
+            "boost",
+            "full_send",
+            "set_nitelite",
+            "set_britelite",
+            "set_position",
         }
 
         try:
@@ -4194,55 +4818,78 @@ class LightDesignerServer:
             if not action:
                 return web.json_response({"error": "action is required"}, status=400)
             if action not in VALID_ACTIONS:
-                return web.json_response({"error": f"Invalid action: {action}. Valid actions: {sorted(VALID_ACTIONS)}"}, status=400)
+                return web.json_response(
+                    {
+                        "error": f"Invalid action: {action}. Valid actions: {sorted(VALID_ACTIONS)}"
+                    },
+                    status=400,
+                )
 
             # For boost, set state directly in webserver process for immediate UI feedback,
             # then fire event so main.py applies the actual lighting change
-            if action == 'boost':
+            if action == "boost":
                 # Reload state from disk (main.py may have updated it)
                 state.init()
                 if state.is_boosted(area_id):
                     # End boost: clear state, fire event for main.py to restore lighting
                     state.clear_boost(area_id)
-                    logger.info(f"[boost] Cleared boost state for area {area_id}, firing event for lighting restore")
-                    action = 'boost_off'
+                    logger.info(
+                        f"[boost] Cleared boost state for area {area_id}, firing event for lighting restore"
+                    )
+                    action = "boost_off"
                 else:
                     # Start boost: set state, fire event for main.py to apply lighting
                     raw_config = glozone.load_config_from_files()
                     boost_amount = raw_config.get("boost_default", 30)
                     is_on = state.is_circadian(area_id) and state.get_is_on(area_id)
-                    state.set_boost(area_id, started_from_off=not is_on, expires_at="forever", brightness=boost_amount)
+                    state.set_boost(
+                        area_id,
+                        started_from_off=not is_on,
+                        expires_at="forever",
+                        brightness=boost_amount,
+                    )
                     if not glozone.is_area_in_any_zone(area_id):
                         glozone.add_area_to_default_zone(area_id)
                     state.enable_circadian_and_set_on(area_id, True)
-                    logger.info(f"[boost] Set boost state for area {area_id} (amount={boost_amount}%), firing event for lighting")
-                    action = 'boost_on'
+                    logger.info(
+                        f"[boost] Set boost state for area {area_id} (amount={boost_amount}%), firing event for lighting"
+                    )
+                    action = "boost_on"
 
             # Build event data
-            event_data = {'service': action, 'area_id': area_id}
-            if action == 'set_position':
+            event_data = {"service": action, "area_id": area_id}
+            if action == "set_position":
                 value = data.get("value")
                 if value is None:
-                    return web.json_response({"error": "value required for set_position"}, status=400)
-                event_data['value'] = float(value)
-                event_data['mode'] = data.get("mode", "step")
+                    return web.json_response(
+                        {"error": "value required for set_position"}, status=400
+                    )
+                event_data["value"] = float(value)
+                event_data["mode"] = data.get("mode", "step")
 
             # Fire event for main.py to handle
             _, ws_url, token = self._get_ha_api_config()
             if ws_url and token:
                 success = await self._fire_event_via_websocket(
-                    ws_url, token, 'circadian_light_service_event',
-                    event_data
+                    ws_url, token, "circadian_light_service_event", event_data
                 )
                 if success:
                     logger.info(f"Fired {action} event for area {area_id}")
-                    return web.json_response({"status": "ok", "action": action, "area_id": area_id})
+                    return web.json_response(
+                        {"status": "ok", "action": action, "area_id": area_id}
+                    )
                 else:
                     # Event failed but state was already set for boost - return ok for UI
-                    if action in ('boost_on', 'boost_off'):
-                        logger.warning(f"Event fire failed for {action}, but state was set directly")
-                        return web.json_response({"status": "ok", "action": action, "area_id": area_id})
-                    return web.json_response({"error": "Failed to fire event"}, status=500)
+                    if action in ("boost_on", "boost_off"):
+                        logger.warning(
+                            f"Event fire failed for {action}, but state was set directly"
+                        )
+                        return web.json_response(
+                            {"status": "ok", "action": action, "area_id": area_id}
+                        )
+                    return web.json_response(
+                        {"error": "Failed to fire event"}, status=500
+                    )
             else:
                 return web.json_response({"error": "HA API not configured"}, status=503)
 
@@ -4259,11 +4906,15 @@ class LightDesignerServer:
         Valid actions: step_up, step_down, bright_up, bright_down, color_up, color_down
         """
         VALID_ZONE_ACTIONS = {
-            'step_up', 'step_down',
-            'bright_up', 'bright_down',
-            'color_up', 'color_down',
-            'glozone_reset', 'glozone_down',
-            'set_position',
+            "step_up",
+            "step_down",
+            "bright_up",
+            "bright_down",
+            "color_up",
+            "color_down",
+            "glozone_reset",
+            "glozone_down",
+            "set_position",
         }
 
         try:
@@ -4276,29 +4927,39 @@ class LightDesignerServer:
             if not action:
                 return web.json_response({"error": "action is required"}, status=400)
             if action not in VALID_ZONE_ACTIONS:
-                return web.json_response({"error": f"Invalid zone action: {action}. Valid: {sorted(VALID_ZONE_ACTIONS)}"}, status=400)
+                return web.json_response(
+                    {
+                        "error": f"Invalid zone action: {action}. Valid: {sorted(VALID_ZONE_ACTIONS)}"
+                    },
+                    status=400,
+                )
 
             # Build event data
-            zone_event_data = {'service': action, 'zone_name': zone_name}
-            if action == 'set_position':
+            zone_event_data = {"service": action, "zone_name": zone_name}
+            if action == "set_position":
                 value = data.get("value")
                 if value is None:
-                    return web.json_response({"error": "value required for set_position"}, status=400)
-                zone_event_data['value'] = float(value)
-                zone_event_data['mode'] = data.get("mode", "step")
+                    return web.json_response(
+                        {"error": "value required for set_position"}, status=400
+                    )
+                zone_event_data["value"] = float(value)
+                zone_event_data["mode"] = data.get("mode", "step")
 
             # Fire event for main.py to handle
             _, ws_url, token = self._get_ha_api_config()
             if ws_url and token:
                 success = await self._fire_event_via_websocket(
-                    ws_url, token, 'circadian_light_zone_action',
-                    zone_event_data
+                    ws_url, token, "circadian_light_zone_action", zone_event_data
                 )
                 if success:
                     logger.info(f"Fired zone {action} event for zone '{zone_name}'")
-                    return web.json_response({"status": "ok", "action": action, "zone_name": zone_name})
+                    return web.json_response(
+                        {"status": "ok", "action": action, "zone_name": zone_name}
+                    )
                 else:
-                    return web.json_response({"error": "Failed to fire event"}, status=500)
+                    return web.json_response(
+                        {"error": "Failed to fire event"}, status=500
+                    )
             else:
                 return web.json_response({"error": "HA API not configured"}, status=503)
 
@@ -4327,15 +4988,21 @@ class LightDesignerServer:
             _, ws_url, token = self._get_ha_api_config()
             if ws_url and token:
                 fired = await self._fire_event_via_websocket(
-                    ws_url, token, 'circadian_light_sync_devices', {}
+                    ws_url, token, "circadian_light_sync_devices", {}
                 )
                 if fired:
                     logger.info("Fired circadian_light_sync_devices event")
-                    return web.json_response({"success": True, "message": "Device sync triggered"})
+                    return web.json_response(
+                        {"success": True, "message": "Device sync triggered"}
+                    )
                 else:
-                    return web.json_response({"error": "Failed to fire sync event"}, status=500)
+                    return web.json_response(
+                        {"error": "Failed to fire sync event"}, status=500
+                    )
             else:
-                return web.json_response({"error": "WebSocket not configured"}, status=503)
+                return web.json_response(
+                    {"error": "WebSocket not configured"}, status=503
+                )
         except Exception as e:
             logger.error(f"Error triggering device sync: {e}")
             return web.json_response({"error": str(e)}, status=500)
@@ -4382,10 +5049,12 @@ class LightDesignerServer:
                     "has_custom": switch_type in custom,
                 }
 
-            return web.json_response({
-                "mappings": mappings,
-                "custom_mappings": custom,
-            })
+            return web.json_response(
+                {
+                    "mappings": mappings,
+                    "custom_mappings": custom,
+                }
+            )
         except Exception as e:
             logger.error(f"Error getting switchmap: {e}")
             return web.json_response({"error": str(e)}, status=500)
@@ -4400,13 +5069,17 @@ class LightDesignerServer:
 
             # Validate the data structure
             if not isinstance(data, dict):
-                return web.json_response({"error": "Expected object with switch_type keys"}, status=400)
+                return web.json_response(
+                    {"error": "Expected object with switch_type keys"}, status=400
+                )
 
             # Save the mappings
             if switches.save_custom_mappings(data):
                 return web.json_response({"status": "success"})
             else:
-                return web.json_response({"error": "Failed to save mappings"}, status=500)
+                return web.json_response(
+                    {"error": "Failed to save mappings"}, status=500
+                )
 
         except json.JSONDecodeError:
             return web.json_response({"error": "Invalid JSON"}, status=400)
@@ -4420,10 +5093,12 @@ class LightDesignerServer:
             categories = switches.get_categorized_actions()
             when_off_options = switches.get_when_off_options()
 
-            return web.json_response({
-                "categories": categories,
-                "when_off_options": when_off_options,
-            })
+            return web.json_response(
+                {
+                    "categories": categories,
+                    "when_off_options": when_off_options,
+                }
+            )
         except Exception as e:
             logger.error(f"Error getting switchmap actions: {e}")
             return web.json_response({"error": str(e)}, status=500)
@@ -4458,28 +5133,32 @@ class LightDesignerServer:
             async with websockets.connect(ws_url) as ws:
                 # Auth
                 msg = json.loads(await ws.recv())
-                if msg.get('type') != 'auth_required':
+                if msg.get("type") != "auth_required":
                     return {}
-                await ws.send(json.dumps({'type': 'auth', 'access_token': token}))
+                await ws.send(json.dumps({"type": "auth", "access_token": token}))
                 msg = json.loads(await ws.recv())
-                if msg.get('type') != 'auth_ok':
+                if msg.get("type") != "auth_ok":
                     return {}
 
                 # Get area registry
-                await ws.send(json.dumps({'id': 1, 'type': 'config/area_registry/list'}))
+                await ws.send(
+                    json.dumps({"id": 1, "type": "config/area_registry/list"})
+                )
                 area_msg = json.loads(await ws.recv())
                 area_names = {}
-                if area_msg.get('success') and area_msg.get('result'):
-                    area_names = {a['area_id']: a['name'] for a in area_msg['result']}
+                if area_msg.get("success") and area_msg.get("result"):
+                    area_names = {a["area_id"]: a["name"] for a in area_msg["result"]}
 
                 # Get device registry
-                await ws.send(json.dumps({'id': 2, 'type': 'config/device_registry/list'}))
+                await ws.send(
+                    json.dumps({"id": 2, "type": "config/device_registry/list"})
+                )
                 device_msg = json.loads(await ws.recv())
                 device_areas = {}
-                if device_msg.get('success') and device_msg.get('result'):
-                    for device in device_msg['result']:
-                        device_id = device.get('id')
-                        area_id = device.get('area_id')
+                if device_msg.get("success") and device_msg.get("result"):
+                    for device in device_msg["result"]:
+                        device_id = device.get("id")
+                        area_id = device.get("area_id")
                         if device_id and area_id and area_id in area_names:
                             device_areas[device_id] = area_names[area_id]
 
@@ -4497,7 +5176,9 @@ class LightDesignerServer:
             data = await request.json()
             entity_id = data.get("entity_id")
             if not entity_id or not entity_id.startswith("light."):
-                return web.json_response({"error": "Valid light entity_id required"}, status=400)
+                return web.json_response(
+                    {"error": "Valid light entity_id required"}, status=400
+                )
 
             rest_url, ws_url, token = self._get_ha_api_config()
             if not token or not ws_url:
@@ -4506,37 +5187,41 @@ class LightDesignerServer:
             async with websockets.connect(ws_url) as ws:
                 # Auth
                 msg = json.loads(await ws.recv())
-                if msg.get('type') != 'auth_required':
+                if msg.get("type") != "auth_required":
                     return web.json_response({"error": "Auth failed"}, status=500)
-                await ws.send(json.dumps({'type': 'auth', 'access_token': token}))
+                await ws.send(json.dumps({"type": "auth", "access_token": token}))
                 msg = json.loads(await ws.recv())
-                if msg.get('type') != 'auth_ok':
+                if msg.get("type") != "auth_ok":
                     return web.json_response({"error": "Auth failed"}, status=500)
 
                 # Get current state
-                await ws.send(json.dumps({
-                    'id': 1, 'type': 'get_states'
-                }))
+                await ws.send(json.dumps({"id": 1, "type": "get_states"}))
                 states_msg = json.loads(await ws.recv())
                 current_state = None
-                if states_msg.get('success') and states_msg.get('result'):
-                    for s in states_msg['result']:
-                        if s.get('entity_id') == entity_id:
+                if states_msg.get("success") and states_msg.get("result"):
+                    for s in states_msg["result"]:
+                        if s.get("entity_id") == entity_id:
                             current_state = s
                             break
 
-                was_on = current_state and current_state.get('state') == 'on'
-                attrs = current_state.get('attributes', {}) if was_on else {}
-                orig_brightness = attrs.get('brightness', 128)
+                was_on = current_state and current_state.get("state") == "on"
+                attrs = current_state.get("attributes", {}) if was_on else {}
+                orig_brightness = attrs.get("brightness", 128)
 
                 # Flash: turn on bright
                 msg_id = 2
-                await ws.send(json.dumps({
-                    'id': msg_id, 'type': 'call_service',
-                    'domain': 'light', 'service': 'turn_on',
-                    'service_data': {'brightness': 255, 'transition': 0},
-                    'target': {'entity_id': entity_id}
-                }))
+                await ws.send(
+                    json.dumps(
+                        {
+                            "id": msg_id,
+                            "type": "call_service",
+                            "domain": "light",
+                            "service": "turn_on",
+                            "service_data": {"brightness": 255, "transition": 0},
+                            "target": {"entity_id": entity_id},
+                        }
+                    )
+                )
                 await ws.recv()
 
                 await asyncio.sleep(0.5)
@@ -4544,26 +5229,38 @@ class LightDesignerServer:
                 # Restore
                 msg_id += 1
                 if not was_on:
-                    await ws.send(json.dumps({
-                        'id': msg_id, 'type': 'call_service',
-                        'domain': 'light', 'service': 'turn_off',
-                        'service_data': {'transition': 0},
-                        'target': {'entity_id': entity_id}
-                    }))
+                    await ws.send(
+                        json.dumps(
+                            {
+                                "id": msg_id,
+                                "type": "call_service",
+                                "domain": "light",
+                                "service": "turn_off",
+                                "service_data": {"transition": 0},
+                                "target": {"entity_id": entity_id},
+                            }
+                        )
+                    )
                 else:
-                    restore_data = {'brightness': orig_brightness, 'transition': 0}
-                    xy = attrs.get('xy_color')
-                    ct = attrs.get('color_temp')
+                    restore_data = {"brightness": orig_brightness, "transition": 0}
+                    xy = attrs.get("xy_color")
+                    ct = attrs.get("color_temp")
                     if xy:
-                        restore_data['xy_color'] = xy
+                        restore_data["xy_color"] = xy
                     elif ct:
-                        restore_data['color_temp'] = ct
-                    await ws.send(json.dumps({
-                        'id': msg_id, 'type': 'call_service',
-                        'domain': 'light', 'service': 'turn_on',
-                        'service_data': restore_data,
-                        'target': {'entity_id': entity_id}
-                    }))
+                        restore_data["color_temp"] = ct
+                    await ws.send(
+                        json.dumps(
+                            {
+                                "id": msg_id,
+                                "type": "call_service",
+                                "domain": "light",
+                                "service": "turn_on",
+                                "service_data": restore_data,
+                                "target": {"entity_id": entity_id},
+                            }
+                        )
+                    )
                 await ws.recv()
 
             return web.json_response({"status": "ok"})
@@ -4594,90 +5291,144 @@ class LightDesignerServer:
             async with websockets.connect(ws_url) as ws:
                 # Auth
                 msg = json.loads(await ws.recv())
-                if msg.get('type') != 'auth_required':
+                if msg.get("type") != "auth_required":
                     return web.json_response({"lights": []})
-                await ws.send(json.dumps({'type': 'auth', 'access_token': token}))
+                await ws.send(json.dumps({"type": "auth", "access_token": token}))
                 msg = json.loads(await ws.recv())
-                if msg.get('type') != 'auth_ok':
+                if msg.get("type") != "auth_ok":
                     return web.json_response({"lights": []})
 
                 # Get area registry for area names
-                await ws.send(json.dumps({'id': 1, 'type': 'config/area_registry/list'}))
+                await ws.send(
+                    json.dumps({"id": 1, "type": "config/area_registry/list"})
+                )
                 area_msg = json.loads(await ws.recv())
                 area_names = {}
-                if area_msg.get('success') and area_msg.get('result'):
-                    area_names = {a['area_id']: a['name'] for a in area_msg['result']}
+                if area_msg.get("success") and area_msg.get("result"):
+                    area_names = {a["area_id"]: a["name"] for a in area_msg["result"]}
 
                 # Get device registry to find devices and their areas
-                await ws.send(json.dumps({'id': 2, 'type': 'config/device_registry/list'}))
+                await ws.send(
+                    json.dumps({"id": 2, "type": "config/device_registry/list"})
+                )
                 device_msg = json.loads(await ws.recv())
                 device_areas = {}  # device_id -> area_id
                 area_device_ids = set()  # devices in target area (for filtered mode)
-                if device_msg.get('success') and device_msg.get('result'):
-                    for device in device_msg['result']:
-                        device_areas[device.get('id')] = device.get('area_id')
-                        if device.get('area_id') == area_id:
-                            area_device_ids.add(device.get('id'))
+                if device_msg.get("success") and device_msg.get("result"):
+                    for device in device_msg["result"]:
+                        device_areas[device.get("id")] = device.get("area_id")
+                        if device.get("area_id") == area_id:
+                            area_device_ids.add(device.get("id"))
 
                 # Get states for friendly names and detect groups
-                await ws.send(json.dumps({'id': 3, 'type': 'get_states'}))
+                await ws.send(json.dumps({"id": 3, "type": "get_states"}))
                 states_msg = json.loads(await ws.recv())
                 friendly_names = {}
                 light_groups = set()  # entity_ids that are groups (have child entities)
-                if states_msg.get('success') and states_msg.get('result'):
-                    for state in states_msg['result']:
-                        entity_id = state.get('entity_id', '')
-                        if entity_id.startswith('light.'):
-                            attrs = state.get('attributes', {})
-                            friendly_names[entity_id] = attrs.get('friendly_name', '')
+                if states_msg.get("success") and states_msg.get("result"):
+                    for state in states_msg["result"]:
+                        entity_id = state.get("entity_id", "")
+                        if entity_id.startswith("light."):
+                            attrs = state.get("attributes", {})
+                            friendly_names[entity_id] = attrs.get("friendly_name", "")
                             # Detect if this is a group (has entity_id list or is_group attribute)
-                            if attrs.get('entity_id') or attrs.get('is_group') or attrs.get('is_hue_group'):
+                            if (
+                                attrs.get("entity_id")
+                                or attrs.get("is_group")
+                                or attrs.get("is_hue_group")
+                            ):
                                 light_groups.add(entity_id)
 
                 # Get entity registry to find light entities
-                await ws.send(json.dumps({'id': 4, 'type': 'config/entity_registry/list'}))
+                await ws.send(
+                    json.dumps({"id": 4, "type": "config/entity_registry/list"})
+                )
                 entity_msg = json.loads(await ws.recv())
                 lights = []
                 entire_area_lights = []  # Groups go at top
-                if entity_msg.get('success') and entity_msg.get('result'):
-                    for entity in entity_msg['result']:
-                        entity_id = entity.get('entity_id', '')
-                        if not entity_id.startswith('light.'):
+                if entity_msg.get("success") and entity_msg.get("result"):
+                    for entity in entity_msg["result"]:
+                        entity_id = entity.get("entity_id", "")
+                        if not entity_id.startswith("light."):
                             continue
 
                         # Determine entity's area (direct or via device)
-                        entity_area = entity.get('area_id') or device_areas.get(entity.get('device_id'))
+                        entity_area = entity.get("area_id") or device_areas.get(
+                            entity.get("device_id")
+                        )
                         is_group = entity_id in light_groups
 
                         # Skip lights in Circadian_Zigbee_Groups area (internal use only)
-                        area_name_check = area_names.get(entity_area, '')
-                        if area_name_check == 'Circadian_Zigbee_Groups':
+                        area_name_check = area_names.get(entity_area, "")
+                        if area_name_check == "Circadian_Zigbee_Groups":
                             continue
 
                         if show_all:
                             # Include all lights, prefix with area name
-                            area_name = area_names.get(entity_area, 'Unknown')
+                            area_name = area_names.get(entity_area, "Unknown")
                             if is_group:
                                 name = f"Entire area: {area_name}"
-                                entire_area_lights.append({"entity_id": entity_id, "name": name, "area_id": entity_area, "is_group": True})
+                                entire_area_lights.append(
+                                    {
+                                        "entity_id": entity_id,
+                                        "name": name,
+                                        "area_id": entity_area,
+                                        "is_group": True,
+                                    }
+                                )
                             else:
-                                base_name = friendly_names.get(entity_id) or entity.get('name') or entity.get('original_name') or entity_id.replace('light.', '').replace('_', ' ').title()
+                                base_name = (
+                                    friendly_names.get(entity_id)
+                                    or entity.get("name")
+                                    or entity.get("original_name")
+                                    or entity_id.replace("light.", "")
+                                    .replace("_", " ")
+                                    .title()
+                                )
                                 name = f"{area_name}: {base_name}"
-                                lights.append({"entity_id": entity_id, "name": name, "area_id": entity_area})
+                                lights.append(
+                                    {
+                                        "entity_id": entity_id,
+                                        "name": name,
+                                        "area_id": entity_area,
+                                    }
+                                )
                         else:
                             # Filter to target area
-                            if entity.get('area_id') == area_id or entity.get('device_id') in area_device_ids:
-                                area_name = area_names.get(entity_area, '')
+                            if (
+                                entity.get("area_id") == area_id
+                                or entity.get("device_id") in area_device_ids
+                            ):
+                                area_name = area_names.get(entity_area, "")
                                 if is_group:
-                                    name = f"Entire area: {area_name}" if area_name else "Entire area"
-                                    entire_area_lights.append({"entity_id": entity_id, "name": name, "is_group": True})
+                                    name = (
+                                        f"Entire area: {area_name}"
+                                        if area_name
+                                        else "Entire area"
+                                    )
+                                    entire_area_lights.append(
+                                        {
+                                            "entity_id": entity_id,
+                                            "name": name,
+                                            "is_group": True,
+                                        }
+                                    )
                                 else:
-                                    name = friendly_names.get(entity_id) or entity.get('name') or entity.get('original_name') or entity_id.replace('light.', '').replace('_', ' ').title()
-                                    lights.append({"entity_id": entity_id, "name": name})
+                                    name = (
+                                        friendly_names.get(entity_id)
+                                        or entity.get("name")
+                                        or entity.get("original_name")
+                                        or entity_id.replace("light.", "")
+                                        .replace("_", " ")
+                                        .title()
+                                    )
+                                    lights.append(
+                                        {"entity_id": entity_id, "name": name}
+                                    )
 
                 # Sort: entire area lights first, then others alphabetically
-                entire_area_lights.sort(key=lambda x: x['name'].lower())
-                lights.sort(key=lambda x: x['name'].lower())
+                entire_area_lights.sort(key=lambda x: x["name"].lower())
+                lights.sort(key=lambda x: x["name"].lower())
                 lights = entire_area_lights + lights
 
                 return web.json_response({"lights": lights})
@@ -4703,53 +5454,57 @@ class LightDesignerServer:
             async with websockets.connect(ws_url) as ws:
                 # Auth
                 msg = json.loads(await ws.recv())
-                if msg.get('type') != 'auth_required':
+                if msg.get("type") != "auth_required":
                     return web.json_response({"sensors": []})
-                await ws.send(json.dumps({'type': 'auth', 'access_token': token}))
+                await ws.send(json.dumps({"type": "auth", "access_token": token}))
                 msg = json.loads(await ws.recv())
-                if msg.get('type') != 'auth_ok':
+                if msg.get("type") != "auth_ok":
                     return web.json_response({"sensors": []})
 
                 # Get entity registry to filter out diagnostic entities
-                await ws.send(json.dumps({'id': 1, 'type': 'config/entity_registry/list'}))
+                await ws.send(
+                    json.dumps({"id": 1, "type": "config/entity_registry/list"})
+                )
                 registry_msg = json.loads(await ws.recv())
                 diagnostic_entities = set()
-                if registry_msg.get('success') and registry_msg.get('result'):
-                    for ent in registry_msg['result']:
-                        if ent.get('entity_category'):
-                            diagnostic_entities.add(ent.get('entity_id'))
+                if registry_msg.get("success") and registry_msg.get("result"):
+                    for ent in registry_msg["result"]:
+                        if ent.get("entity_category"):
+                            diagnostic_entities.add(ent.get("entity_id"))
 
                 # Get states
-                await ws.send(json.dumps({'id': 2, 'type': 'get_states'}))
+                await ws.send(json.dumps({"id": 2, "type": "get_states"}))
                 states_msg = json.loads(await ws.recv())
 
                 sensors = []
-                if states_msg.get('success') and states_msg.get('result'):
-                    for state in states_msg['result']:
-                        entity_id = state.get('entity_id', '')
-                        if not entity_id.startswith('sensor.'):
+                if states_msg.get("success") and states_msg.get("result"):
+                    for state in states_msg["result"]:
+                        entity_id = state.get("entity_id", "")
+                        if not entity_id.startswith("sensor."):
                             continue
                         # Skip diagnostic/config entities
                         if entity_id in diagnostic_entities:
                             continue
-                        attrs = state.get('attributes', {})
-                        dc = attrs.get('device_class', '')
+                        attrs = state.get("attributes", {})
+                        dc = attrs.get("device_class", "")
                         if device_class_filter and dc != device_class_filter:
                             continue
                         # Only include sensors with state_class (HA records
                         # long-term statistics for these — needed for baseline
                         # learning and filters out diagnostic duplicates)
-                        if not attrs.get('state_class'):
+                        if not attrs.get("state_class"):
                             continue
-                        name = attrs.get('friendly_name', entity_id)
-                        sensors.append({
-                            'entity_id': entity_id,
-                            'name': name,
-                            'state': state.get('state'),
-                            'unit': attrs.get('unit_of_measurement', ''),
-                        })
+                        name = attrs.get("friendly_name", entity_id)
+                        sensors.append(
+                            {
+                                "entity_id": entity_id,
+                                "name": name,
+                                "state": state.get("state"),
+                                "unit": attrs.get("unit_of_measurement", ""),
+                            }
+                        )
 
-                sensors.sort(key=lambda x: x['name'].lower())
+                sensors.sort(key=lambda x: x["name"].lower())
                 return web.json_response({"sensors": sensors})
         except Exception as e:
             logger.error(f"Error fetching sensors: {e}", exc_info=True)
@@ -4781,20 +5536,24 @@ class LightDesignerServer:
         await self._seed_outdoor_from_ha()
         self._seed_sun_elevation()
         outdoor_norm = lux_tracker.get_outdoor_normalized()
-        return web.json_response({
-            "outdoor_normalized": round(outdoor_norm if outdoor_norm is not None else 0, 3),
-            "source": lux_tracker.get_outdoor_source(),
-            "preferred_source": lux_tracker.get_preferred_source(),
-            "override": lux_tracker.get_override_info(),
-            "weather_cloud_cover": lux_tracker._cloud_cover,
-            "weather_condition": lux_tracker._weather_condition,
-            "lux_smoothed": lux_tracker._ema_lux,
-            "lux_learned_ceiling": lux_tracker._learned_ceiling,
-            "lux_learned_floor": lux_tracker._learned_floor,
-            "sun_elevation": round(lux_tracker._sun_elevation, 1),
-            "sensor_entity": lux_tracker.get_sensor_entity(),
-            "illuminance_sensors": getattr(self, '_illuminance_sensors', []),
-        })
+        return web.json_response(
+            {
+                "outdoor_normalized": round(
+                    outdoor_norm if outdoor_norm is not None else 0, 3
+                ),
+                "source": lux_tracker.get_outdoor_source(),
+                "preferred_source": lux_tracker.get_preferred_source(),
+                "override": lux_tracker.get_override_info(),
+                "weather_cloud_cover": lux_tracker._cloud_cover,
+                "weather_condition": lux_tracker._weather_condition,
+                "lux_smoothed": lux_tracker._ema_lux,
+                "lux_learned_ceiling": lux_tracker._learned_ceiling,
+                "lux_learned_floor": lux_tracker._learned_floor,
+                "sun_elevation": round(lux_tracker._sun_elevation, 1),
+                "sensor_entity": lux_tracker.get_sensor_entity(),
+                "illuminance_sensors": getattr(self, "_illuminance_sensors", []),
+            }
+        )
 
     async def learn_baselines(self, request: Request) -> Response:
         """Trigger baseline learning for the outdoor lux sensor.
@@ -4810,7 +5569,7 @@ class LightDesignerServer:
             since_str = None
             try:
                 body = await request.json()
-                since_str = body.get('since')
+                since_str = body.get("since")
             except Exception:
                 pass
 
@@ -4822,30 +5581,36 @@ class LightDesignerServer:
             lux_tracker.init(config)
             sensor_entity = lux_tracker.get_sensor_entity()
             if not sensor_entity:
-                return web.json_response({"error": "No lux sensor configured"}, status=400)
+                return web.json_response(
+                    {"error": "No lux sensor configured"}, status=400
+                )
 
             # Get HA location config
             async with websockets.connect(ws_url) as ws:
                 msg = json.loads(await ws.recv())
-                if msg.get('type') != 'auth_required':
+                if msg.get("type") != "auth_required":
                     return web.json_response({"error": "WS auth failed"}, status=500)
-                await ws.send(json.dumps({'type': 'auth', 'access_token': token}))
+                await ws.send(json.dumps({"type": "auth", "access_token": token}))
                 msg = json.loads(await ws.recv())
-                if msg.get('type') != 'auth_ok':
+                if msg.get("type") != "auth_ok":
                     return web.json_response({"error": "WS auth failed"}, status=500)
 
                 # Get HA config for location
-                await ws.send(json.dumps({'id': 1, 'type': 'get_config'}))
+                await ws.send(json.dumps({"id": 1, "type": "get_config"}))
                 config_msg = json.loads(await ws.recv())
-                if not config_msg.get('success'):
-                    return web.json_response({"error": "Could not get HA config"}, status=500)
+                if not config_msg.get("success"):
+                    return web.json_response(
+                        {"error": "Could not get HA config"}, status=500
+                    )
 
-                ha_config = config_msg.get('result', {})
-                lat = ha_config.get('latitude')
-                lon = ha_config.get('longitude')
-                tz_name = ha_config.get('time_zone')
+                ha_config = config_msg.get("result", {})
+                lat = ha_config.get("latitude")
+                lon = ha_config.get("longitude")
+                tz_name = ha_config.get("time_zone")
                 if not lat or not lon or not tz_name:
-                    return web.json_response({"error": "No location data in HA"}, status=500)
+                    return web.json_response(
+                        {"error": "No location data in HA"}, status=500
+                    )
 
                 # Query recorder statistics (hourly means from start date)
                 from datetime import datetime, timedelta
@@ -4863,29 +5628,39 @@ class LightDesignerServer:
                 else:
                     start = now - timedelta(days=90)
 
-                await ws.send(json.dumps({
-                    'id': 2,
-                    'type': 'recorder/statistics_during_period',
-                    'start_time': start.isoformat(),
-                    'end_time': now.isoformat(),
-                    'statistic_ids': [sensor_entity],
-                    'period': 'hour',
-                    'types': ['mean'],
-                }))
+                await ws.send(
+                    json.dumps(
+                        {
+                            "id": 2,
+                            "type": "recorder/statistics_during_period",
+                            "start_time": start.isoformat(),
+                            "end_time": now.isoformat(),
+                            "statistic_ids": [sensor_entity],
+                            "period": "hour",
+                            "types": ["mean"],
+                        }
+                    )
+                )
                 stats_msg = json.loads(await ws.recv())
 
-                if not stats_msg.get('success'):
-                    return web.json_response({
-                        "error": f"Recorder returned no data for {sensor_entity}. "
-                                 "Ensure the sensor has state_class: measurement."
-                    }, status=404)
+                if not stats_msg.get("success"):
+                    return web.json_response(
+                        {
+                            "error": f"Recorder returned no data for {sensor_entity}. "
+                            "Ensure the sensor has state_class: measurement."
+                        },
+                        status=404,
+                    )
 
-                result = stats_msg.get('result', {})
+                result = stats_msg.get("result", {})
                 if sensor_entity not in result:
-                    return web.json_response({
-                        "error": f"No statistics found for {sensor_entity}. "
-                                 "The sensor may not have state_class: measurement."
-                    }, status=404)
+                    return web.json_response(
+                        {
+                            "error": f"No statistics found for {sensor_entity}. "
+                            "The sensor may not have state_class: measurement."
+                        },
+                        status=404,
+                    )
 
                 stats = result[sensor_entity]
 
@@ -4897,20 +5672,28 @@ class LightDesignerServer:
                     solar_elev_fn = None
 
                 daytime_means = []
-                diag = {"total": len(stats), "no_mean": 0, "no_start": 0,
-                        "parse_fail": 0, "nighttime": 0, "elev_error": 0,
-                        "sample_entry": None}
+                diag = {
+                    "total": len(stats),
+                    "no_mean": 0,
+                    "no_start": 0,
+                    "parse_fail": 0,
+                    "nighttime": 0,
+                    "elev_error": 0,
+                    "sample_entry": None,
+                }
                 for entry in stats:
                     if diag["sample_entry"] is None:
-                        diag["sample_entry"] = {k: str(type(v).__name__) + ":" + repr(v)
-                                                for k, v in list(entry.items())[:5]}
-                    mean_val = entry.get('mean')
+                        diag["sample_entry"] = {
+                            k: str(type(v).__name__) + ":" + repr(v)
+                            for k, v in list(entry.items())[:5]
+                        }
+                    mean_val = entry.get("mean")
                     if mean_val is None:
                         diag["no_mean"] += 1
                         continue
                     mean_val = float(mean_val)
 
-                    start_val = entry.get('start')
+                    start_val = entry.get("start")
                     if not start_val:
                         diag["no_start"] += 1
                         continue
@@ -4931,7 +5714,9 @@ class LightDesignerServer:
 
                     if solar_elev_fn is not None:
                         try:
-                            loc = LocationInfo(latitude=lat, longitude=lon, timezone=tz_name)
+                            loc = LocationInfo(
+                                latitude=lat, longitude=lon, timezone=tz_name
+                            )
                             elev = solar_elev_fn(loc.observer, dt)
                             if elev <= 10:
                                 diag["nighttime"] += 1
@@ -4945,11 +5730,14 @@ class LightDesignerServer:
                     daytime_means.append(mean_val)
 
                 if len(daytime_means) < 10:
-                    return web.json_response({
-                        "error": f"Only {len(daytime_means)} daytime samples found (need 10+). "
-                                 "The sensor may not have enough history yet.",
-                        "diagnostics": diag,
-                    }, status=404)
+                    return web.json_response(
+                        {
+                            "error": f"Only {len(daytime_means)} daytime samples found (need 10+). "
+                            "The sensor may not have enough history yet.",
+                            "diagnostics": diag,
+                        },
+                        status=404,
+                    )
 
                 # Remove outlier spikes (e.g. direct sun hitting sensor)
                 # using IQR fence: values above Q3 + 3*IQR are excluded
@@ -4969,26 +5757,33 @@ class LightDesignerServer:
                 ceiling_val = daytime_means[min(n - 1, int(n * 0.85))]
 
                 if ceiling_val <= floor_val or ceiling_val <= 0:
-                    return web.json_response({
-                        "error": f"Bad percentiles (floor={floor_val}, ceiling={ceiling_val})"
-                    }, status=500)
+                    return web.json_response(
+                        {
+                            "error": f"Bad percentiles (floor={floor_val}, ceiling={ceiling_val})"
+                        },
+                        status=500,
+                    )
 
                 # Save to config and update in-memory baselines
                 config = glozone.load_config_from_files()
-                config['lux_learned_ceiling'] = ceiling_val
-                config['lux_learned_floor'] = floor_val
+                config["lux_learned_ceiling"] = ceiling_val
+                config["lux_learned_floor"] = floor_val
                 glozone.save_config()
                 lux_tracker.set_learned_baselines(ceiling_val, floor_val)
 
                 logger.info(
-                    f"Baselines learned from {len(daytime_means)} samples: "
+                    f"Baselines learned from {len(daytime_means)} samples "
+                    f"(sensor={sensor_entity}): "
                     f"ceiling={ceiling_val:.0f}, floor={floor_val:.0f}"
                 )
-                return web.json_response({
-                    "ceiling": ceiling_val,
-                    "floor": floor_val,
-                    "samples": len(daytime_means),
-                })
+                return web.json_response(
+                    {
+                        "ceiling": ceiling_val,
+                        "floor": floor_val,
+                        "samples": len(daytime_means),
+                        "sensor": sensor_entity,
+                    }
+                )
 
         except Exception as e:
             logger.error(f"Learn baselines failed: {e}", exc_info=True)
@@ -5005,7 +5800,9 @@ class LightDesignerServer:
             ha_controls = await self._fetch_ha_controls()
 
             # Get our configured switches and motion sensors
-            configured_switches = {sw["id"]: sw for sw in switches.get_switches_summary()}
+            configured_switches = {
+                sw["id"]: sw for sw in switches.get_switches_summary()
+            }
             configured_motion = switches.get_all_motion_sensors()
 
             # Pre-load last actions once (avoids N file reads in the loop)
@@ -5021,13 +5818,21 @@ class LightDesignerServer:
                 # Get config based on category
                 if category == "motion_sensor":
                     # Look up by device_id for motion sensors
-                    motion_config = switches.get_motion_sensor_by_device_id(device_id) if device_id else None
+                    motion_config = (
+                        switches.get_motion_sensor_by_device_id(device_id)
+                        if device_id
+                        else None
+                    )
                     config = motion_config.to_dict() if motion_config else {}
                     config_areas = config.get("areas", [])
                     is_configured = bool(config_areas)
                 elif category == "contact_sensor":
                     # Look up by device_id for contact sensors
-                    contact_config = switches.get_contact_sensor_by_device_id(device_id) if device_id else None
+                    contact_config = (
+                        switches.get_contact_sensor_by_device_id(device_id)
+                        if device_id
+                        else None
+                    )
                     config = contact_config.to_dict() if contact_config else {}
                     config_areas = config.get("areas", [])
                     is_configured = bool(config_areas)
@@ -5035,8 +5840,16 @@ class LightDesignerServer:
                     # Look up by ieee for switches
                     config = configured_switches.get(ieee, {})
                     # A switch is configured if it has scopes with areas OR has magic buttons assigned
-                    has_areas = config and config.get("scopes") and any(s.get("areas") for s in config.get("scopes", []))
-                    has_magic = config and config.get("magic_buttons") and any(v for v in config.get("magic_buttons", {}).values())
+                    has_areas = (
+                        config
+                        and config.get("scopes")
+                        and any(s.get("areas") for s in config.get("scopes", []))
+                    )
+                    has_magic = (
+                        config
+                        and config.get("magic_buttons")
+                        and any(v for v in config.get("magic_buttons", {}).values())
+                    )
                     is_configured = has_areas or has_magic
 
                 # Determine status
@@ -5106,128 +5919,157 @@ class LightDesignerServer:
             async with websockets.connect(ws_url) as ws:
                 # Auth
                 msg = json.loads(await ws.recv())
-                if msg.get('type') != 'auth_required':
+                if msg.get("type") != "auth_required":
                     return []
-                await ws.send(json.dumps({'type': 'auth', 'access_token': token}))
+                await ws.send(json.dumps({"type": "auth", "access_token": token}))
                 msg = json.loads(await ws.recv())
-                if msg.get('type') != 'auth_ok':
+                if msg.get("type") != "auth_ok":
                     return []
 
                 # Get area registry
-                await ws.send(json.dumps({'id': 1, 'type': 'config/area_registry/list'}))
+                await ws.send(
+                    json.dumps({"id": 1, "type": "config/area_registry/list"})
+                )
                 area_msg = json.loads(await ws.recv())
                 area_names = {}
-                if area_msg.get('success') and area_msg.get('result'):
-                    area_names = {a['area_id']: a['name'] for a in area_msg['result']}
+                if area_msg.get("success") and area_msg.get("result"):
+                    area_names = {a["area_id"]: a["name"] for a in area_msg["result"]}
 
                 # Get device registry
-                await ws.send(json.dumps({'id': 2, 'type': 'config/device_registry/list'}))
+                await ws.send(
+                    json.dumps({"id": 2, "type": "config/device_registry/list"})
+                )
                 device_msg = json.loads(await ws.recv())
                 devices = {}
-                if device_msg.get('success') and device_msg.get('result'):
-                    for device in device_msg['result']:
-                        device_id = device.get('id')
+                if device_msg.get("success") and device_msg.get("result"):
+                    for device in device_msg["result"]:
+                        device_id = device.get("id")
                         if device_id:
                             # Extract unique ID from identifiers (ZHA, Hue, or Matter)
                             unique_id = None
                             integration = None
-                            for identifier in device.get('identifiers', []):
-                                if isinstance(identifier, list) and len(identifier) >= 2:
-                                    if identifier[0] == 'zha':
+                            for identifier in device.get("identifiers", []):
+                                if (
+                                    isinstance(identifier, list)
+                                    and len(identifier) >= 2
+                                ):
+                                    if identifier[0] == "zha":
                                         unique_id = identifier[1]  # IEEE address
-                                        integration = 'zha'
+                                        integration = "zha"
                                         break
-                                    elif identifier[0] == 'hue':
+                                    elif identifier[0] == "hue":
                                         unique_id = identifier[1]  # Hue device ID
-                                        integration = 'hue'
+                                        integration = "hue"
                                         break
-                                    elif identifier[0] == 'matter':
+                                    elif identifier[0] == "matter":
                                         unique_id = identifier[1]  # Matter device ID
-                                        integration = 'matter'
+                                        integration = "matter"
                                         break
                             if unique_id:
-                                logger.debug(f"[Controls] HA device {device.get('name')}: id={unique_id} ({integration})")
+                                logger.debug(
+                                    f"[Controls] HA device {device.get('name')}: id={unique_id} ({integration})"
+                                )
                                 # Use model_id if available (more specific), otherwise model
-                                model = device.get('model_id') or device.get('model')
+                                model = device.get("model_id") or device.get("model")
                                 devices[device_id] = {
-                                    'device_id': device_id,
-                                    'ieee': unique_id,  # Keep 'ieee' key for compatibility
-                                    'integration': integration,
-                                    'name': device.get('name_by_user') or device.get('name'),
-                                    'manufacturer': device.get('manufacturer'),
-                                    'model': model,
-                                    'area_id': device.get('area_id'),
-                                    'area_name': area_names.get(device.get('area_id')),
+                                    "device_id": device_id,
+                                    "ieee": unique_id,  # Keep 'ieee' key for compatibility
+                                    "integration": integration,
+                                    "name": device.get("name_by_user")
+                                    or device.get("name"),
+                                    "manufacturer": device.get("manufacturer"),
+                                    "model": model,
+                                    "area_id": device.get("area_id"),
+                                    "area_name": area_names.get(device.get("area_id")),
                                 }
 
                 # Get entity registry to identify control types
-                await ws.send(json.dumps({'id': 3, 'type': 'config/entity_registry/list'}))
+                await ws.send(
+                    json.dumps({"id": 3, "type": "config/entity_registry/list"})
+                )
                 entity_msg = json.loads(await ws.recv())
 
                 # Track entity types per device
                 device_entities: Dict[str, Dict[str, Any]] = {}
-                if entity_msg.get('success') and entity_msg.get('result'):
-                    for entity in entity_msg['result']:
-                        device_id = entity.get('device_id')
+                if entity_msg.get("success") and entity_msg.get("result"):
+                    for entity in entity_msg["result"]:
+                        device_id = entity.get("device_id")
                         if not device_id or device_id not in devices:
                             continue
 
-                        entity_id = entity.get('entity_id', '')
+                        entity_id = entity.get("entity_id", "")
                         if device_id not in device_entities:
                             device_entities[device_id] = {
-                                'has_light': False,
-                                'has_motion': False,
-                                'has_occupancy': False,
-                                'has_presence': False,
-                                'has_contact': False,
-                                'has_button': False,
-                                'has_battery': False,
-                                'illuminance_entity': None,
-                                'sensitivity_entity': None,
+                                "has_light": False,
+                                "has_motion": False,
+                                "has_occupancy": False,
+                                "has_presence": False,
+                                "has_contact": False,
+                                "has_button": False,
+                                "has_battery": False,
+                                "illuminance_entity": None,
+                                "sensitivity_entity": None,
                             }
 
-                        if entity_id.startswith('light.'):
-                            device_entities[device_id]['has_light'] = True
-                        elif entity_id.startswith('button.'):
+                        if entity_id.startswith("light."):
+                            device_entities[device_id]["has_light"] = True
+                        elif entity_id.startswith("button."):
                             # Ignore identify buttons (most lights have these)
-                            if '_identify' not in entity_id and not entity_id.endswith('_identify'):
-                                device_entities[device_id]['has_button'] = True
-                        elif entity_id.startswith('binary_sensor.'):
-                            if '_motion' in entity_id:
-                                device_entities[device_id]['has_motion'] = True
-                                logger.info(f"[Controls] Found motion entity: {entity_id} for device {device_id}")
-                            elif '_occupancy' in entity_id:
-                                device_entities[device_id]['has_occupancy'] = True
-                                logger.info(f"[Controls] Found occupancy entity: {entity_id} for device {device_id}")
-                            elif '_presence' in entity_id:
-                                device_entities[device_id]['has_presence'] = True
-                                logger.info(f"[Controls] Found presence entity: {entity_id} for device {device_id}")
-                            elif '_contact' in entity_id or '_opening' in entity_id:
-                                device_entities[device_id]['has_contact'] = True
-                        elif entity_id.startswith('sensor.') and '_battery' in entity_id:
-                            device_entities[device_id]['has_battery'] = True
-                        elif entity_id.startswith('sensor.') and ('illuminance' in entity_id or '_lux' in entity_id):
-                            device_entities[device_id]['illuminance_entity'] = entity_id
+                            if "_identify" not in entity_id and not entity_id.endswith(
+                                "_identify"
+                            ):
+                                device_entities[device_id]["has_button"] = True
+                        elif entity_id.startswith("binary_sensor."):
+                            if "_motion" in entity_id:
+                                device_entities[device_id]["has_motion"] = True
+                                logger.info(
+                                    f"[Controls] Found motion entity: {entity_id} for device {device_id}"
+                                )
+                            elif "_occupancy" in entity_id:
+                                device_entities[device_id]["has_occupancy"] = True
+                                logger.info(
+                                    f"[Controls] Found occupancy entity: {entity_id} for device {device_id}"
+                                )
+                            elif "_presence" in entity_id:
+                                device_entities[device_id]["has_presence"] = True
+                                logger.info(
+                                    f"[Controls] Found presence entity: {entity_id} for device {device_id}"
+                                )
+                            elif "_contact" in entity_id or "_opening" in entity_id:
+                                device_entities[device_id]["has_contact"] = True
+                        elif (
+                            entity_id.startswith("sensor.") and "_battery" in entity_id
+                        ):
+                            device_entities[device_id]["has_battery"] = True
+                        elif entity_id.startswith("sensor.") and (
+                            "illuminance" in entity_id or "_lux" in entity_id
+                        ):
+                            device_entities[device_id]["illuminance_entity"] = entity_id
                         # Detect sensitivity entities (select or number) for motion sensors
-                        elif (entity_id.startswith('select.') or entity_id.startswith('number.')) and 'sensitivity' in entity_id.lower():
-                            device_entities[device_id]['sensitivity_entity'] = entity_id
-                            logger.debug(f"[Controls] Found sensitivity entity: {entity_id} for device {device_id}")
+                        elif (
+                            entity_id.startswith("select.")
+                            or entity_id.startswith("number.")
+                        ) and "sensitivity" in entity_id.lower():
+                            device_entities[device_id]["sensitivity_entity"] = entity_id
+                            logger.debug(
+                                f"[Controls] Found sensitivity entity: {entity_id} for device {device_id}"
+                            )
 
                 # Fetch current entity states for illuminance readings
                 entity_states = {}
                 illuminance_entities = {
-                    de['illuminance_entity']
+                    de["illuminance_entity"]
                     for de in device_entities.values()
-                    if de.get('illuminance_entity')
+                    if de.get("illuminance_entity")
                 }
                 if illuminance_entities:
-                    await ws.send(json.dumps({'id': 4, 'type': 'get_states'}))
+                    await ws.send(json.dumps({"id": 4, "type": "get_states"}))
                     states_msg = json.loads(await ws.recv())
-                    if states_msg.get('success') and states_msg.get('result'):
-                        for state in states_msg['result']:
-                            eid = state.get('entity_id', '')
+                    if states_msg.get("success") and states_msg.get("result"):
+                        for state in states_msg["result"]:
+                            eid = state.get("entity_id", "")
                             if eid in illuminance_entities:
-                                entity_states[eid] = state.get('state')
+                                entity_states[eid] = state.get("state")
 
                 # Filter to potential controls
                 controls = []
@@ -5235,66 +6077,87 @@ class LightDesignerServer:
                     entities = device_entities.get(device_id, {})
 
                     # Skip if it's primarily a light
-                    if entities.get('has_light') and not any([
-                        entities.get('has_motion'),
-                        entities.get('has_occupancy'),
-                        entities.get('has_presence'),
-                        entities.get('has_contact'),
-                        entities.get('has_button'),
-                    ]):
+                    if entities.get("has_light") and not any(
+                        [
+                            entities.get("has_motion"),
+                            entities.get("has_occupancy"),
+                            entities.get("has_presence"),
+                            entities.get("has_contact"),
+                            entities.get("has_button"),
+                        ]
+                    ):
                         continue
 
                     # Include if it has control-like entities
-                    is_control = any([
-                        entities.get('has_motion'),
-                        entities.get('has_occupancy'),
-                        entities.get('has_presence'),
-                        entities.get('has_contact'),
-                        entities.get('has_button'),
-                        # Remote: has battery but no lights
-                        (entities.get('has_battery') and not entities.get('has_light')),
-                    ])
+                    is_control = any(
+                        [
+                            entities.get("has_motion"),
+                            entities.get("has_occupancy"),
+                            entities.get("has_presence"),
+                            entities.get("has_contact"),
+                            entities.get("has_button"),
+                            # Remote: has battery but no lights
+                            (
+                                entities.get("has_battery")
+                                and not entities.get("has_light")
+                            ),
+                        ]
+                    )
 
                     if not is_control:
                         continue
 
                     # Filter out Hue "Room" virtual devices (not physical controls)
                     # Hue creates these to represent rooms but they're not actual hardware
-                    model = device.get('model', '')
-                    if model and model.lower() == 'room':
-                        logger.debug(f"[Controls] Skipping Hue Room device: {device.get('name')}")
+                    model = device.get("model", "")
+                    if model and model.lower() == "room":
+                        logger.debug(
+                            f"[Controls] Skipping Hue Room device: {device.get('name')}"
+                        )
                         continue
 
                     # Determine category based on entity types
-                    if entities.get('has_motion') or entities.get('has_occupancy') or entities.get('has_presence'):
-                        category = 'motion_sensor'
-                        logger.info(f"[Controls] Identified motion sensor: {device.get('name')} (device_id={device_id})")
-                    elif entities.get('has_contact'):
-                        category = 'contact_sensor'
-                    elif entities.get('has_button') or (entities.get('has_battery') and not entities.get('has_light')):
-                        category = 'switch'
+                    if (
+                        entities.get("has_motion")
+                        or entities.get("has_occupancy")
+                        or entities.get("has_presence")
+                    ):
+                        category = "motion_sensor"
+                        logger.info(
+                            f"[Controls] Identified motion sensor: {device.get('name')} (device_id={device_id})"
+                        )
+                    elif entities.get("has_contact"):
+                        category = "contact_sensor"
+                    elif entities.get("has_button") or (
+                        entities.get("has_battery") and not entities.get("has_light")
+                    ):
+                        category = "switch"
                     else:
-                        category = 'unknown'
+                        category = "unknown"
 
                     # Check if it's a known/supported type (only for switches for now)
                     detected_type = None
-                    if category == 'switch':
+                    if category == "switch":
                         detected_type = switches.detect_switch_type(
-                            device.get('manufacturer'),
-                            device.get('model')
+                            device.get("manufacturer"), device.get("model")
                         )
                         if not detected_type:
-                            logger.info(f"[Controls] Unrecognized switch: manufacturer='{device.get('manufacturer')}' model='{device.get('model')}' name='{device.get('name')}'")
+                            logger.info(
+                                f"[Controls] Unrecognized switch: manufacturer='{device.get('manufacturer')}' model='{device.get('model')}' name='{device.get('name')}'"
+                            )
 
-                    type_info = switches.SWITCH_TYPES.get(detected_type, {}) if detected_type else {}
+                    type_info = (
+                        switches.SWITCH_TYPES.get(detected_type, {})
+                        if detected_type
+                        else {}
+                    )
 
                     # Get display name based on category
                     if detected_type:
-                        type_name = type_info.get('name')
-                    elif category in ('motion_sensor', 'contact_sensor'):
+                        type_name = type_info.get("name")
+                    elif category in ("motion_sensor", "contact_sensor"):
                         type_name = switches.get_sensor_name(
-                            device.get('manufacturer'),
-                            device.get('model')
+                            device.get("manufacturer"), device.get("model")
                         )
                     else:
                         type_name = None
@@ -5303,39 +6166,51 @@ class LightDesignerServer:
                     # - Switches: need a recognized type
                     # - Motion/contact sensors: always supported (configured via area settings)
                     is_supported = (
-                        category in ('motion_sensor', 'contact_sensor') or
-                        detected_type is not None
+                        category in ("motion_sensor", "contact_sensor")
+                        or detected_type is not None
                     )
 
                     # Attach illuminance entity info if present
-                    illum_entity = entities.get('illuminance_entity')
+                    illum_entity = entities.get("illuminance_entity")
                     illum_info = None
                     if illum_entity:
                         raw_val = entity_states.get(illum_entity)
                         try:
-                            illum_val = round(float(raw_val)) if raw_val not in (None, 'unavailable', 'unknown') else None
+                            illum_val = (
+                                round(float(raw_val))
+                                if raw_val not in (None, "unavailable", "unknown")
+                                else None
+                            )
                         except (ValueError, TypeError):
                             illum_val = None
                         illum_info = {
-                            'entity_id': illum_entity,
-                            'value': illum_val,
-                            'unit': 'lx',
+                            "entity_id": illum_entity,
+                            "value": illum_val,
+                            "unit": "lx",
                         }
 
                     # Include sensitivity entity for motion sensors (ZHA only)
-                    sensitivity_entity = entities.get('sensitivity_entity') if category == 'motion_sensor' else None
+                    sensitivity_entity = (
+                        entities.get("sensitivity_entity")
+                        if category == "motion_sensor"
+                        else None
+                    )
 
-                    controls.append({
-                        **device,
-                        'category': category,
-                        'type': detected_type,
-                        'type_name': type_name,
-                        'supported': is_supported,
-                        'illuminance': illum_info,
-                        'sensitivity_entity': sensitivity_entity,
-                    })
+                    controls.append(
+                        {
+                            **device,
+                            "category": category,
+                            "type": detected_type,
+                            "type_name": type_name,
+                            "supported": is_supported,
+                            "illuminance": illum_info,
+                            "sensitivity_entity": sensitivity_entity,
+                        }
+                    )
 
-                logger.info(f"[Controls] Returning {len(controls)} controls: {[(c.get('name'), c.get('category')) for c in controls]}")
+                logger.info(
+                    f"[Controls] Returning {len(controls)} controls: {[(c.get('name'), c.get('category')) for c in controls]}"
+                )
                 return controls
         except Exception as e:
             logger.error(f"Error fetching HA controls: {e}", exc_info=True)
@@ -5346,7 +6221,9 @@ class LightDesignerServer:
         try:
             control_id = request.match_info.get("control_id")
             if not control_id:
-                return web.json_response({"error": "Control ID is required"}, status=400)
+                return web.json_response(
+                    {"error": "Control ID is required"}, status=400
+                )
 
             data = await request.json()
             category = data.get("category", "switch")
@@ -5373,15 +6250,17 @@ class LightDesignerServer:
                         active_offset = scope.get("active_offset", 0)
 
                         for area_id in scope_areas:
-                            areas.append(switches.MotionAreaConfig(
-                                area_id=area_id,
-                                mode=mode,
-                                duration=duration,
-                                boost_enabled=boost_enabled,
-                                boost_brightness=boost_brightness,
-                                active_when=active_when,
-                                active_offset=active_offset,
-                            ))
+                            areas.append(
+                                switches.MotionAreaConfig(
+                                    area_id=area_id,
+                                    mode=mode,
+                                    duration=duration,
+                                    boost_enabled=boost_enabled,
+                                    boost_brightness=boost_brightness,
+                                    active_when=active_when,
+                                    active_offset=active_offset,
+                                )
+                            )
                 else:
                     # Old format: areas with area_id per entry
                     for area_data in areas_data:
@@ -5414,13 +6293,15 @@ class LightDesignerServer:
                         boost_brightness = scope.get("boost_brightness", 50)
 
                         for area_id in scope_areas:
-                            areas.append(switches.ContactAreaConfig(
-                                area_id=area_id,
-                                mode=mode,
-                                duration=duration,
-                                boost_enabled=boost_enabled,
-                                boost_brightness=boost_brightness,
-                            ))
+                            areas.append(
+                                switches.ContactAreaConfig(
+                                    area_id=area_id,
+                                    mode=mode,
+                                    duration=duration,
+                                    boost_enabled=boost_enabled,
+                                    boost_brightness=boost_brightness,
+                                )
+                            )
                 else:
                     # Old format: areas with area_id per entry
                     for area_data in areas_data:
@@ -5474,7 +6355,9 @@ class LightDesignerServer:
         try:
             control_id = request.match_info.get("control_id")
             if not control_id:
-                return web.json_response({"error": "Control ID is required"}, status=400)
+                return web.json_response(
+                    {"error": "Control ID is required"}, status=400
+                )
 
             # Try to delete from both switch and motion sensor configs
             removed = switches.remove_switch(control_id)
@@ -5496,7 +6379,7 @@ class LightDesignerServer:
             - timeout: occupancy timeout in seconds (from ZHA cluster attribute)
             - is_zha: whether this is a ZHA device
         """
-        device_id = request.match_info.get('device_id')
+        device_id = request.match_info.get("device_id")
         if not device_id:
             return web.json_response({"error": "Device ID is required"}, status=400)
 
@@ -5508,73 +6391,89 @@ class LightDesignerServer:
             async with websockets.connect(ws_url) as ws:
                 # Auth
                 msg = json.loads(await ws.recv())
-                if msg.get('type') != 'auth_required':
+                if msg.get("type") != "auth_required":
                     return web.json_response({"error": "Auth failed"}, status=500)
-                await ws.send(json.dumps({'type': 'auth', 'access_token': token}))
+                await ws.send(json.dumps({"type": "auth", "access_token": token}))
                 msg = json.loads(await ws.recv())
-                if msg.get('type') != 'auth_ok':
+                if msg.get("type") != "auth_ok":
                     return web.json_response({"error": "Auth failed"}, status=500)
 
                 msg_id = 1
 
                 # Get device info to find IEEE address
-                await ws.send(json.dumps({'id': msg_id, 'type': 'config/device_registry/list'}))
+                await ws.send(
+                    json.dumps({"id": msg_id, "type": "config/device_registry/list"})
+                )
                 msg_id += 1
                 device_msg = json.loads(await ws.recv())
 
                 device_ieee = None
                 is_zha = False
-                if device_msg.get('success') and device_msg.get('result'):
-                    for device in device_msg['result']:
-                        if device.get('id') == device_id:
-                            for identifier in device.get('identifiers', []):
-                                if isinstance(identifier, list) and len(identifier) >= 2:
-                                    if identifier[0] == 'zha':
+                if device_msg.get("success") and device_msg.get("result"):
+                    for device in device_msg["result"]:
+                        if device.get("id") == device_id:
+                            for identifier in device.get("identifiers", []):
+                                if (
+                                    isinstance(identifier, list)
+                                    and len(identifier) >= 2
+                                ):
+                                    if identifier[0] == "zha":
                                         device_ieee = identifier[1]
                                         is_zha = True
                                         break
                             break
 
                 if not is_zha:
-                    return web.json_response({
-                        "is_zha": False,
-                        "sensitivity": None,
-                        "timeout": None,
-                    })
+                    return web.json_response(
+                        {
+                            "is_zha": False,
+                            "sensitivity": None,
+                            "timeout": None,
+                        }
+                    )
 
                 # Get entity registry to find sensitivity entity
-                await ws.send(json.dumps({'id': msg_id, 'type': 'config/entity_registry/list'}))
+                await ws.send(
+                    json.dumps({"id": msg_id, "type": "config/entity_registry/list"})
+                )
                 msg_id += 1
                 entity_msg = json.loads(await ws.recv())
 
                 sensitivity_entity = None
-                if entity_msg.get('success') and entity_msg.get('result'):
-                    for entity in entity_msg['result']:
-                        if entity.get('device_id') == device_id:
-                            entity_id = entity.get('entity_id', '')
-                            if 'sensitivity' in entity_id.lower() and (
-                                entity_id.startswith('select.') or entity_id.startswith('number.')
+                if entity_msg.get("success") and entity_msg.get("result"):
+                    for entity in entity_msg["result"]:
+                        if entity.get("device_id") == device_id:
+                            entity_id = entity.get("entity_id", "")
+                            if "sensitivity" in entity_id.lower() and (
+                                entity_id.startswith("select.")
+                                or entity_id.startswith("number.")
                             ):
                                 sensitivity_entity = entity_id
                                 break
 
                 # Get current states
-                await ws.send(json.dumps({'id': msg_id, 'type': 'get_states'}))
+                await ws.send(json.dumps({"id": msg_id, "type": "get_states"}))
                 msg_id += 1
                 states_msg = json.loads(await ws.recv())
 
                 sensitivity_info = None
-                if sensitivity_entity and states_msg.get('success') and states_msg.get('result'):
-                    for state in states_msg['result']:
-                        if state.get('entity_id') == sensitivity_entity:
-                            attrs = state.get('attributes', {})
+                if (
+                    sensitivity_entity
+                    and states_msg.get("success")
+                    and states_msg.get("result")
+                ):
+                    for state in states_msg["result"]:
+                        if state.get("entity_id") == sensitivity_entity:
+                            attrs = state.get("attributes", {})
                             sensitivity_info = {
-                                'entity_id': sensitivity_entity,
-                                'value': state.get('state'),
-                                'options': attrs.get('options', []),  # For select entities
-                                'min': attrs.get('min'),  # For number entities
-                                'max': attrs.get('max'),
-                                'step': attrs.get('step'),
+                                "entity_id": sensitivity_entity,
+                                "value": state.get("state"),
+                                "options": attrs.get(
+                                    "options", []
+                                ),  # For select entities
+                                "min": attrs.get("min"),  # For number entities
+                                "max": attrs.get("max"),
+                                "step": attrs.get("step"),
                             }
                             break
 
@@ -5582,28 +6481,39 @@ class LightDesignerServer:
                 # Cluster 0x0406 (1030), attribute 0x0010 (16), endpoint 2
                 timeout_value = None
                 try:
-                    await ws.send(json.dumps({
-                        'id': msg_id,
-                        'type': 'zha/devices/clusters/attributes/value',
-                        'ieee': device_ieee,
-                        'endpoint_id': 2,
-                        'cluster_id': 1030,  # 0x0406
-                        'cluster_type': 'in',
-                        'attribute': 16,  # 0x0010
-                    }))
+                    await ws.send(
+                        json.dumps(
+                            {
+                                "id": msg_id,
+                                "type": "zha/devices/clusters/attributes/value",
+                                "ieee": device_ieee,
+                                "endpoint_id": 2,
+                                "cluster_id": 1030,  # 0x0406
+                                "cluster_type": "in",
+                                "attribute": 16,  # 0x0010
+                            }
+                        )
+                    )
                     msg_id += 1
                     timeout_msg = json.loads(await ws.recv())
-                    if timeout_msg.get('success') and timeout_msg.get('result') is not None:
-                        timeout_value = timeout_msg['result']
+                    if (
+                        timeout_msg.get("success")
+                        and timeout_msg.get("result") is not None
+                    ):
+                        timeout_value = timeout_msg["result"]
                 except Exception as e:
-                    logger.warning(f"[ZHA Settings] Could not read timeout for {device_ieee}: {e}")
+                    logger.warning(
+                        f"[ZHA Settings] Could not read timeout for {device_ieee}: {e}"
+                    )
 
-                return web.json_response({
-                    "is_zha": True,
-                    "ieee": device_ieee,
-                    "sensitivity": sensitivity_info,
-                    "timeout": timeout_value,
-                })
+                return web.json_response(
+                    {
+                        "is_zha": True,
+                        "ieee": device_ieee,
+                        "sensitivity": sensitivity_info,
+                        "timeout": timeout_value,
+                    }
+                )
 
         except Exception as e:
             logger.error(f"Error getting ZHA motion settings: {e}", exc_info=True)
@@ -5616,7 +6526,7 @@ class LightDesignerServer:
             - sensitivity: new sensitivity value (string for select, number for number entity)
             - timeout: new occupancy timeout in seconds
         """
-        device_id = request.match_info.get('device_id')
+        device_id = request.match_info.get("device_id")
         if not device_id:
             return web.json_response({"error": "Device ID is required"}, status=400)
 
@@ -5625,8 +6535,8 @@ class LightDesignerServer:
         except Exception:
             return web.json_response({"error": "Invalid JSON"}, status=400)
 
-        new_sensitivity = data.get('sensitivity')
-        new_timeout = data.get('timeout')
+        new_sensitivity = data.get("sensitivity")
+        new_timeout = data.get("timeout")
 
         if new_sensitivity is None and new_timeout is None:
             return web.json_response({"error": "No settings provided"}, status=400)
@@ -5639,26 +6549,28 @@ class LightDesignerServer:
             async with websockets.connect(ws_url) as ws:
                 # Auth
                 msg = json.loads(await ws.recv())
-                if msg.get('type') != 'auth_required':
+                if msg.get("type") != "auth_required":
                     return web.json_response({"error": "Auth failed"}, status=500)
-                await ws.send(json.dumps({'type': 'auth', 'access_token': token}))
+                await ws.send(json.dumps({"type": "auth", "access_token": token}))
                 msg = json.loads(await ws.recv())
-                if msg.get('type') != 'auth_ok':
+                if msg.get("type") != "auth_ok":
                     return web.json_response({"error": "Auth failed"}, status=500)
 
                 msg_id = 1
 
                 # Get device info to find IEEE address
-                await ws.send(json.dumps({'id': msg_id, 'type': 'config/device_registry/list'}))
+                await ws.send(
+                    json.dumps({"id": msg_id, "type": "config/device_registry/list"})
+                )
                 msg_id += 1
                 device_msg = json.loads(await ws.recv())
 
                 device_ieee = None
-                for device in device_msg.get('result', []):
-                    if device.get('id') == device_id:
-                        for identifier in device.get('identifiers', []):
+                for device in device_msg.get("result", []):
+                    if device.get("id") == device_id:
+                        for identifier in device.get("identifiers", []):
                             if isinstance(identifier, list) and len(identifier) >= 2:
-                                if identifier[0] == 'zha':
+                                if identifier[0] == "zha":
                                     device_ieee = identifier[1]
                                     break
                         break
@@ -5671,74 +6583,87 @@ class LightDesignerServer:
                 # Set sensitivity via HA service call
                 if new_sensitivity is not None:
                     # Find sensitivity entity
-                    await ws.send(json.dumps({'id': msg_id, 'type': 'config/entity_registry/list'}))
+                    await ws.send(
+                        json.dumps(
+                            {"id": msg_id, "type": "config/entity_registry/list"}
+                        )
+                    )
                     msg_id += 1
                     entity_msg = json.loads(await ws.recv())
 
                     sensitivity_entity = None
-                    for entity in entity_msg.get('result', []):
-                        if entity.get('device_id') == device_id:
-                            entity_id = entity.get('entity_id', '')
-                            if 'sensitivity' in entity_id.lower() and (
-                                entity_id.startswith('select.') or entity_id.startswith('number.')
+                    for entity in entity_msg.get("result", []):
+                        if entity.get("device_id") == device_id:
+                            entity_id = entity.get("entity_id", "")
+                            if "sensitivity" in entity_id.lower() and (
+                                entity_id.startswith("select.")
+                                or entity_id.startswith("number.")
                             ):
                                 sensitivity_entity = entity_id
                                 break
 
                     if sensitivity_entity:
                         # Determine service based on entity type
-                        if sensitivity_entity.startswith('select.'):
+                        if sensitivity_entity.startswith("select."):
                             service_call = {
-                                'id': msg_id,
-                                'type': 'call_service',
-                                'domain': 'select',
-                                'service': 'select_option',
-                                'service_data': {'option': new_sensitivity},
-                                'target': {'entity_id': sensitivity_entity},
+                                "id": msg_id,
+                                "type": "call_service",
+                                "domain": "select",
+                                "service": "select_option",
+                                "service_data": {"option": new_sensitivity},
+                                "target": {"entity_id": sensitivity_entity},
                             }
                         else:  # number entity
                             service_call = {
-                                'id': msg_id,
-                                'type': 'call_service',
-                                'domain': 'number',
-                                'service': 'set_value',
-                                'service_data': {'value': new_sensitivity},
-                                'target': {'entity_id': sensitivity_entity},
+                                "id": msg_id,
+                                "type": "call_service",
+                                "domain": "number",
+                                "service": "set_value",
+                                "service_data": {"value": new_sensitivity},
+                                "target": {"entity_id": sensitivity_entity},
                             }
                         await ws.send(json.dumps(service_call))
                         msg_id += 1
                         result = json.loads(await ws.recv())
-                        results['sensitivity'] = result.get('success', False)
-                        logger.info(f"[ZHA Settings] Set sensitivity for {device_id}: {new_sensitivity} -> {results['sensitivity']}")
+                        results["sensitivity"] = result.get("success", False)
+                        logger.info(
+                            f"[ZHA Settings] Set sensitivity for {device_id}: {new_sensitivity} -> {results['sensitivity']}"
+                        )
                     else:
-                        results['sensitivity'] = False
-                        results['sensitivity_error'] = 'No sensitivity entity found'
+                        results["sensitivity"] = False
+                        results["sensitivity_error"] = "No sensitivity entity found"
 
                 # Set timeout via ZHA cluster attribute
                 if new_timeout is not None:
                     try:
                         timeout_int = int(new_timeout)
-                        await ws.send(json.dumps({
-                            'id': msg_id,
-                            'type': 'call_service',
-                            'domain': 'zha',
-                            'service': 'set_zigbee_cluster_attribute',
-                            'service_data': {
-                                'ieee': device_ieee,
-                                'endpoint_id': 2,
-                                'cluster_id': 1030,  # 0x0406
-                                'cluster_type': 'in',
-                                'attribute': 16,  # 0x0010
-                                'value': timeout_int,
-                            },
-                        }))
+                        await ws.send(
+                            json.dumps(
+                                {
+                                    "id": msg_id,
+                                    "type": "call_service",
+                                    "domain": "zha",
+                                    "service": "set_zigbee_cluster_attribute",
+                                    "service_data": {
+                                        "ieee": device_ieee,
+                                        "endpoint_id": 2,
+                                        "cluster_id": 1030,  # 0x0406
+                                        "cluster_type": "in",
+                                        "attribute": 16,  # 0x0010
+                                        "value": timeout_int,
+                                    },
+                                }
+                            )
+                        )
                         msg_id += 1
                         result = json.loads(await ws.recv())
-                        results['timeout'] = result.get('success', False)
-                        logger.info(f"[ZHA Settings] Set timeout for {device_ieee}: {timeout_int}s -> {results['timeout']}")
+                        results["timeout"] = result.get("success", False)
+                        logger.info(
+                            f"[ZHA Settings] Set timeout for {device_ieee}: {timeout_int}s -> {results['timeout']}"
+                        )
                     except (ValueError, TypeError) as e:
-                        results['timeout'] = False
-                        results['timeout_error'] = f'Invalid timeout value: {e}'
+                        results["timeout"] = False
+                        results["timeout_error"] = f"Invalid timeout value: {e}"
 
                 return web.json_response({"status": "ok", "results": results})
 
@@ -5761,8 +6686,7 @@ class LightDesignerServer:
             # Validate switch type
             if switch_type not in switches.SWITCH_TYPES:
                 return web.json_response(
-                    {"error": f"Invalid switch type: {switch_type}"},
-                    status=400
+                    {"error": f"Invalid switch type: {switch_type}"}, status=400
                 )
 
             # Build scopes from data
@@ -5791,10 +6715,9 @@ class LightDesignerServer:
             # Trigger reach group sync if any scope has multiple areas
             await self._trigger_reach_group_sync_if_needed(switch_config.scopes)
 
-            return web.json_response({
-                "status": "ok",
-                "switch": switch_config.to_dict()
-            })
+            return web.json_response(
+                {"status": "ok", "switch": switch_config.to_dict()}
+            )
 
         except json.JSONDecodeError:
             return web.json_response({"error": "Invalid JSON"}, status=400)
@@ -5822,8 +6745,7 @@ class LightDesignerServer:
             # Validate switch type
             if switch_type not in switches.SWITCH_TYPES:
                 return web.json_response(
-                    {"error": f"Invalid switch type: {switch_type}"},
-                    status=400
+                    {"error": f"Invalid switch type: {switch_type}"}, status=400
                 )
 
             # Update scopes if provided
@@ -5861,10 +6783,9 @@ class LightDesignerServer:
             if "scopes" in data:
                 await self._trigger_reach_group_sync_if_needed(scopes)
 
-            return web.json_response({
-                "status": "ok",
-                "switch": switch_config.to_dict()
-            })
+            return web.json_response(
+                {"status": "ok", "switch": switch_config.to_dict()}
+            )
 
         except json.JSONDecodeError:
             return web.json_response({"error": "Invalid JSON"}, status=400)
@@ -5914,10 +6835,10 @@ class LightDesignerServer:
         """Start the web server."""
         runner = web.AppRunner(self.app)
         await runner.setup()
-        site = web.TCPSite(runner, '0.0.0.0', self.port)
+        site = web.TCPSite(runner, "0.0.0.0", self.port)
         await site.start()
         logger.info(f"Light Designer server started on port {self.port}")
-        
+
         # Keep the server running
         try:
             await asyncio.Event().wait()
@@ -5926,16 +6847,18 @@ class LightDesignerServer:
         finally:
             await runner.cleanup()
 
+
 async def main():
     """Main entry point."""
     logging.basicConfig(
         level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
 
     port = int(os.getenv("INGRESS_PORT", "8099"))
     server = LightDesignerServer(port)
     await server.start()
+
 
 if __name__ == "__main__":
     asyncio.run(main())

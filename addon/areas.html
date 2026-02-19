@@ -1929,6 +1929,7 @@
 
     let tuneData = null;
     let tuneOutdoorData = null;
+    let pendingSensorSave = Promise.resolve();  // tracks in-flight sensor config save
     let tuneSortOrder = 'custom';
     let tuneDebounceTimers = {};
     let tuneFilterZone = '';    // '' = all zones
@@ -2689,7 +2690,8 @@
         return {
           ...area,
           is_on: status.is_on || false,
-          brightness: status.curve_brightness || status.brightness || 0,
+          brightness: status.brightness || 0,
+          curve_brightness: status.curve_brightness || status.brightness || 0,
           kelvin: status.kelvin || 4000,
           frozen: status.frozen || false,
           boosted: status.boosted || false,
@@ -3265,7 +3267,7 @@
       const style = getRowStyle(area);
       const statusSymbols = getStatusSymbols(area);
       const { leftControls, rightControls } = getRowControls(area);
-      const sliderPct = getSliderPct(area.brightness || 0, area);
+      const sliderPct = getSliderPct(area.curve_brightness || area.brightness || 0, area);
 
       return `
         <div class="area-row" style="--row-bg: ${style.bg}; --row-text: ${style.textColor}; --row-fill: ${style.fill.toFixed(3)};">
@@ -3460,12 +3462,15 @@
           const sinceInput = document.getElementById('tune-outdoor-learn-since');
           const sinceVal = sinceInput ? sinceInput.value : '';
           const body = sinceVal ? JSON.stringify({ since: sinceVal }) : '{}';
-          fetch('./api/learn-baselines', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body })
+          // Wait for any in-flight sensor save to complete before learning
+          pendingSensorSave
+            .then(() => fetch('./api/learn-baselines', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body }))
             .then(r => r.json())
             .then(async data => {
               if (data.error) { if (status) status.textContent = data.error; }
               else {
-                if (status) status.textContent = 'Learned from ' + data.samples + ' samples';
+                const sensorName = (data.sensor || '').replace(/^sensor\./, '').replace(/_/g, ' ');
+                if (status) status.textContent = 'Learned from ' + data.samples + ' samples' + (sensorName ? ' (' + sensorName + ')' : '');
                 // Update data without re-rendering (keeps panel open)
                 try {
                   const resp = await fetch('./api/outdoor-status');
@@ -3510,8 +3515,11 @@
         if (e.target.id === 'tune-outdoor-sensor') {
           e.stopPropagation();
           const val = e.target.value.trim() || null;
+          // Optimistic update so re-renders keep the new sensor
+          if (tuneOutdoorData) tuneOutdoorData.sensor_entity = val;
           // Save sensor, clear old baselines, refresh data without closing panel
-          fetch('./api/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ outdoor_lux_sensor: val, lux_learned_ceiling: null, lux_learned_floor: null }) })
+          pendingSensorSave = fetch('./api/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ outdoor_lux_sensor: val, lux_learned_ceiling: null, lux_learned_floor: null }) })
+            .then(r => { if (!r.ok) console.error('Sensor save failed:', r.status); return r; })
             .then(() => fetch('./api/outdoor-status'))
             .then(r => r.ok ? r.json() : null)
             .then(data => {

@@ -1671,7 +1671,8 @@
         ...area,
         area_id: areaId,
         is_on: status.is_on || false,
-        brightness: status.curve_brightness || status.brightness || 0,
+        brightness: status.brightness || 0,
+        curve_brightness: status.curve_brightness || status.brightness || 0,
         kelvin: status.kelvin || 4000,
         frozen: status.frozen || false,
         boosted: status.boosted || false,
@@ -1822,7 +1823,8 @@
 
       Object.assign(selectedArea, {
         is_on: status.is_on || false,
-        brightness: status.curve_brightness || status.brightness || 0,
+        brightness: status.brightness || 0,
+        curve_brightness: status.curve_brightness || status.brightness || 0,
         kelvin: status.kelvin || 4000,
         frozen: status.frozen || false,
         boosted: status.boosted || false,
