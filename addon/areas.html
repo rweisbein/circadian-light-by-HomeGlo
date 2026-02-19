@@ -1010,7 +1010,7 @@
     .tune-zone-header {
       background: var(--panel);
       flex-wrap: wrap;
-      padding-bottom: 8px;
+      padding-bottom: 2px;
     }
 
     .tune-zone-header.collapsed {
@@ -1032,7 +1032,7 @@
 
     .tune-zone-header .tune-col-headers {
       width: 100%;
-      padding: 10px 16px 2px;
+      padding: 4px 16px 2px;
       background: none;
       border-bottom: none;
     }
@@ -1988,12 +1988,13 @@
     }
 
     function fmtFadeRange(sunrise, sunset, fadeMinutes) {
+      const nw = (s) => '<span style="white-space:nowrap">' + s + '</span>';
       if (fadeMinutes <= 0) {
-        return fmtSunTime(sunrise) + '\u2191<br>' + fmtSunTime(sunset) + '\u2193';
+        return nw(fmtSunTime(sunrise) + '\u2191') + '<br>' + nw(fmtSunTime(sunset) + '\u2193');
       }
       const fadeHrs = fadeMinutes / 60;
-      return fmtSunTime(sunrise) + '\u2013' + fmtSunTime(sunrise + fadeHrs) + '\u2191<br>'
-        + fmtSunTime(sunset - fadeHrs) + '\u2013' + fmtSunTime(sunset) + '\u2193';
+      return nw(fmtSunTime(sunrise) + '\u2013' + fmtSunTime(sunrise + fadeHrs) + '\u2191') + '<br>'
+        + nw(fmtSunTime(sunset - fadeHrs) + '\u2013' + fmtSunTime(sunset) + '\u2193');
     }
 
     function findClosestSensitivityStep(value) {
