@@ -500,44 +500,11 @@
       </div>
     </div>
 
-    <!-- Timing Section -->
+    <!-- Controls Section -->
     <div class="settings-section">
-      <div class="section-header">Timing</div>
+      <div class="section-header">Controls</div>
       <div class="section-content">
         <div class="form-row">
-          <label class="form-label">
-            Turn on lights speed
-            <span class="info-icon">i<span class="info-tooltip">When Circadian Light turns on lights, they'll smoothly turn on over this amount of time.</span></span>
-          </label>
-          <div class="form-control">
-            <input type="number" class="form-input" id="turn-on-transition" min="0" max="100" step="0.1" value="3" style="width: 80px;">
-            <span class="form-hint">tenths of a second</span>
-          </div>
-        </div>
-
-        <div class="form-row">
-          <label class="form-label">
-            Turn off lights speed
-            <span class="info-icon">i<span class="info-tooltip">When Circadian Light turns off lights, they'll smoothly turn off over this amount of time.</span></span>
-          </label>
-          <div class="form-control">
-            <input type="number" class="form-input" id="turn-off-transition" min="0" max="100" step="0.1" value="3" style="width: 80px;">
-            <span class="form-hint">tenths of a second</span>
-          </div>
-        </div>
-
-        <div class="form-row">
-          <label class="form-label">
-            Two-step delay
-            <span class="info-icon">i<span class="info-tooltip">When turning on lights, a two-step process sets color at 1% then transitions to target brightness. This delay between steps prevents some ZigBee lights from dropping the second command. Increase if lights stay dim after turn-on.</span></span>
-          </label>
-          <div class="form-control">
-            <input type="number" class="form-input" id="two-step-delay" min="0" max="20" step="0.1" value="3" style="width: 80px;">
-            <span class="form-hint">tenths of a second</span>
-          </div>
-        </div>
-
-        <div class="form-row" style="margin-top: 20px;">
           <label class="form-label">
             Multi-click
             <span class="info-icon">i<span class="info-tooltip">For switches controlled by a hub that doesn't support double-clicks, triple-clicks, etc. (e.g. the Philips Hue Hub), enabling turns on Circadian Light detection of multi-clicks. Single-click actions will be delayed by the multi-click speed while waiting for additional clicks.</span></span>
@@ -554,7 +521,7 @@
           </div>
         </div>
 
-        <div class="form-row" style="margin-top: 20px;">
+        <div class="form-row">
           <label class="form-label">
             Long-press repeat interval
             <span class="info-icon">i<span class="info-tooltip">How fast brightness changes when holding up/down buttons on a switch. Lower values = faster ramping.</span></span>
@@ -564,8 +531,39 @@
             <span class="form-hint">tenths of a second</span>
           </div>
         </div>
+      </div>
+    </div>
 
-        <div class="form-row" style="margin-top: 20px;">
+    <!-- Feedback Cues Section -->
+    <div class="settings-section">
+      <div class="section-header">Feedback Cues</div>
+      <div class="section-content">
+        <div class="form-row">
+          <label class="form-label">
+            Power speed
+            <span class="info-icon">i<span class="info-tooltip">How fast lights smoothly turn on or off when Circadian Light controls them.</span></span>
+          </label>
+          <div class="form-control">
+            <span class="form-hint" style="margin-left: 0;">on</span>
+            <input type="number" class="form-input" id="turn-on-transition" min="0" max="100" step="0.1" value="3" style="width: 60px;">
+            <span class="form-hint">off</span>
+            <input type="number" class="form-input" id="turn-off-transition" min="0" max="100" step="0.1" value="3" style="width: 60px;">
+            <span class="form-hint">tenths of a second</span>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">
+            Two-step delay
+            <span class="info-icon">i<span class="info-tooltip">When turning on lights, a two-step process sets color at 1% then transitions to target brightness. This delay between steps prevents some ZigBee lights from dropping the second command. Increase if lights stay dim after turn-on.</span></span>
+          </label>
+          <div class="form-control">
+            <input type="number" class="form-input" id="two-step-delay" min="0" max="20" step="0.1" value="3" style="width: 80px;">
+            <span class="form-hint">tenths of a second</span>
+          </div>
+        </div>
+
+        <div class="form-row">
           <label class="form-label">
             Reach adjustment learn mode
             <span class="info-icon">i<span class="info-tooltip">When enabled, all lights in the reach areas fade out and back so you can see which areas are included. When disabled, only a single indicator light flashes (1x/2x/3x for each reach level). Configure the indicator light per-switch in the Controls page.</span></span>
@@ -579,58 +577,6 @@
         </div>
 
         <div class="form-row" style="margin-top: 20px;">
-          <label class="form-label">
-            Circadian refresh
-            <span class="info-icon">i<span class="info-tooltip">How often Circadian Light updates lights to match the current sun position. Timers (motion, boost) are checked every second regardless of this setting. Lower values give smoother light transitions but increase Home Assistant API calls.</span></span>
-          </label>
-          <div class="form-control">
-            <input type="number" class="form-input" id="circadian-refresh" min="5" max="120" step="5" value="30" style="width: 80px;">
-            <span class="form-hint">seconds (5-120)</span>
-          </div>
-        </div>
-
-        <div class="form-row">
-          <label class="form-label">
-            Home page refresh
-            <span class="info-icon">i<span class="info-tooltip">How often the home page area cards refresh to show current brightness, color temperature, and on/off state. Lower values show changes faster but increase browser network activity. The area modal always refreshes every 1 second regardless of this setting.</span></span>
-          </label>
-          <div class="form-control">
-            <input type="number" class="form-input" id="home-refresh-interval" min="2" max="60" step="1" value="10" style="width: 80px;">
-            <span class="form-hint">seconds (2-60)</span>
-          </div>
-        </div>
-
-        <div class="form-row">
-          <label class="form-label">
-            Log periodic updates
-            <span class="info-icon">i<span class="info-tooltip">When enabled, logs detailed info about every periodic light update cycle (per-area brightness/color values, group breakdowns, off enforcement). When disabled, only errors, warnings, and user-triggered actions are logged. Useful for debugging but very verbose.</span></span>
-          </label>
-          <div class="form-control">
-            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-              <input type="checkbox" id="log-periodic" style="width: 18px; height: 18px;">
-              <span class="form-hint">Enable verbose periodic logging</span>
-            </label>
-          </div>
-        </div>
-
-        <div class="form-row" style="margin-top: 10px;">
-          <label class="form-label">
-            Sync devices
-            <span class="info-icon">i<span class="info-tooltip">Re-scans Home Assistant for new or moved lights, areas, and ZHA devices. Only needed after adding or moving hardware. This does not run automatically.</span></span>
-          </label>
-          <div class="form-control">
-            <button type="button" class="btn" id="sync-devices-btn" onclick="syncDevices()" style="padding: 6px 16px; cursor: pointer;">Sync now</button>
-            <span class="form-hint" id="sync-status"></span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Visual Feedback Section -->
-    <div class="settings-section">
-      <div class="section-header">Visual Feedback</div>
-      <div class="section-content">
-        <div class="form-row">
           <label class="form-label">
             Motion warning time
             <span class="info-icon">i<span class="info-tooltip">How long before the motion timer expires to trigger a warning dim. Set to 0 to disable motion warnings. The warning dims lights to alert you before they turn off.</span></span>
@@ -709,32 +655,6 @@
       </div>
     </div>
 
-    <!-- Light Properties Section -->
-    <div class="settings-section">
-      <div class="section-header">Light Properties</div>
-      <div class="section-content">
-        <div class="form-row">
-          <label class="form-label">
-            Boost default
-            <span class="info-icon">i<span class="info-tooltip">When using the Boost action, lights will temporarily increase to maximum brightness plus this percentage offset from their current position. The boost will expire and return to normal circadian values.</span></span>
-          </label>
-          <div class="form-control">
-            <input type="number" class="form-input" id="boost-default" min="10" max="100" step="5" value="30" style="width: 80px;">
-            <span class="form-hint">%</span>
-          </div>
-        </div>
-        <div class="form-row">
-          <label class="form-label">
-            Daylight saturation
-            <span class="info-icon">i<span class="info-tooltip">Sun elevation (in degrees) at which daylight is considered fully effective for natural light reduction. Lower values mean lights turn off earlier in the morning and later in the evening for rooms with natural light exposure. Default 8° works well for most homes.</span></span>
-          </label>
-          <div class="form-control">
-            <input type="number" class="form-input" id="daylight-saturation-deg" min="2" max="30" step="1" value="8" style="width: 80px;">
-            <span class="form-hint">°</span>
-          </div>
-        </div>
-      </div>
-    </div>
 
     <!-- Outdoor Brightness Section -->
     <div class="settings-section">
@@ -800,18 +720,6 @@
             <div class="form-control">
               <input type="number" class="form-input" id="lux-learned-floor" min="1" max="200000" step="10" placeholder="auto" style="width: 100px;">
               <span class="form-hint">lux</span>
-            </div>
-          </div>
-          <div class="form-row">
-            <label class="form-label">
-              Learn from
-              <span class="info-icon">i<span class="info-tooltip">Start date for baseline learning. Defaults to 90 days ago. Set to when the sensor was installed or moved to exclude old data.</span></span>
-            </label>
-            <div class="form-control" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-              <input type="datetime-local" class="form-input" id="learn-baselines-since" style="width: 200px; font-size: 0.82rem;">
-              <button type="button" class="btn btn-sm" id="learn-baselines-btn" style="font-size: 0.8rem;">Learn</button>
-              <button type="button" class="btn btn-sm" id="clear-baselines-btn" style="font-size: 0.8rem; opacity: 0.7;">Clear</button>
-              <span id="learn-baselines-status" class="form-hint"></span>
             </div>
           </div>
         </div>
@@ -949,6 +857,58 @@
       </div>
     </div>
 
+    <!-- Refresh Section -->
+    <div class="settings-section">
+      <div class="section-header">Refresh</div>
+      <div class="section-content">
+        <div class="form-row">
+          <label class="form-label">
+            Circadian refresh
+            <span class="info-icon">i<span class="info-tooltip">How often Circadian Light updates lights to match the current sun position. Timers (motion, boost) are checked every second regardless of this setting. Lower values give smoother light transitions but increase Home Assistant API calls.</span></span>
+          </label>
+          <div class="form-control">
+            <input type="number" class="form-input" id="circadian-refresh" min="5" max="120" step="5" value="30" style="width: 80px;">
+            <span class="form-hint">seconds (5-120)</span>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">
+            Home page refresh
+            <span class="info-icon">i<span class="info-tooltip">How often the home page area cards refresh to show current brightness, color temperature, and on/off state. Lower values show changes faster but increase browser network activity. The area modal always refreshes every 1 second regardless of this setting.</span></span>
+          </label>
+          <div class="form-control">
+            <input type="number" class="form-input" id="home-refresh-interval" min="2" max="60" step="1" value="10" style="width: 80px;">
+            <span class="form-hint">seconds (2-60)</span>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">
+            Log periodic updates
+            <span class="info-icon">i<span class="info-tooltip">When enabled, logs detailed info about every periodic light update cycle (per-area brightness/color values, group breakdowns, off enforcement). When disabled, only errors, warnings, and user-triggered actions are logged. Useful for debugging but very verbose.</span></span>
+          </label>
+          <div class="form-control">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+              <input type="checkbox" id="log-periodic" style="width: 18px; height: 18px;">
+              <span class="form-hint">Enable verbose periodic logging</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="form-row" style="margin-top: 10px;">
+          <label class="form-label">
+            Sync devices
+            <span class="info-icon">i<span class="info-tooltip">Re-scans Home Assistant for new or moved lights, areas, and ZHA devices. Only needed after adding or moving hardware. This does not run automatically.</span></span>
+          </label>
+          <div class="form-control">
+            <button type="button" class="btn" id="sync-devices-btn" onclick="syncDevices()" style="padding: 6px 16px; cursor: pointer;">Sync now</button>
+            <span class="form-hint" id="sync-status"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="save-status" id="save-status">Settings saved</div>
   </main>
 
@@ -978,8 +938,6 @@
           document.getElementById('limit-bounce-max-percent').value = config.limit_bounce_max_percent ?? 30;
           document.getElementById('limit-bounce-min-percent').value = config.limit_bounce_min_percent ?? 10;
           document.getElementById('reach-dip-percent').value = config.reach_dip_percent ?? 50;
-          document.getElementById('boost-default').value = config.boost_default ?? 30;
-          document.getElementById('daylight-saturation-deg').value = config.daylight_saturation_deg ?? 8;
           // Outdoor brightness source selector
           const sourceSelect = document.getElementById('outdoor-brightness-source');
           const savedSource = config.outdoor_brightness_source ?? (config.outdoor_lux_sensor ? 'lux' : 'weather');
@@ -1010,9 +968,6 @@
           document.getElementById('lux-smoothing-interval').value = config.lux_smoothing_interval ?? 300;
           document.getElementById('lux-learned-ceiling').value = config.lux_learned_ceiling ?? '';
           document.getElementById('lux-learned-floor').value = config.lux_learned_floor ?? '';
-          // Default learn-since to 90 days ago
-          const d90 = new Date(Date.now() - 90 * 86400000);
-          document.getElementById('learn-baselines-since').value = d90.toISOString().slice(0, 16);
           updateOutdoorSourceState();
           // Load outdoor status
           refreshOutdoorStatus();
@@ -1049,8 +1004,6 @@
         limit_bounce_max_percent: parseInt(document.getElementById('limit-bounce-max-percent').value) || 30,
         limit_bounce_min_percent: parseInt(document.getElementById('limit-bounce-min-percent').value) || 10,
         reach_dip_percent: parseInt(document.getElementById('reach-dip-percent').value) || 50,
-        boost_default: parseInt(document.getElementById('boost-default').value) || 30,
-        daylight_saturation_deg: parseInt(document.getElementById('daylight-saturation-deg').value) || 8,
         outdoor_brightness_source: document.getElementById('outdoor-brightness-source').value,
         outdoor_lux_sensor: document.getElementById('outdoor-lux-sensor').value.trim() || null,
         lux_smoothing_interval: parseInt(document.getElementById('lux-smoothing-interval').value || '300'),
@@ -1232,8 +1185,6 @@
     document.getElementById('limit-bounce-max-percent').addEventListener('blur', saveSettings);
     document.getElementById('limit-bounce-min-percent').addEventListener('blur', saveSettings);
     document.getElementById('reach-dip-percent').addEventListener('blur', saveSettings);
-    document.getElementById('boost-default').addEventListener('blur', saveSettings);
-    document.getElementById('daylight-saturation-deg').addEventListener('blur', saveSettings);
     document.getElementById('outdoor-brightness-source').addEventListener('change', () => {
       updateOutdoorSourceState();
       saveSettings();
@@ -1243,62 +1194,10 @@
       document.getElementById('lux-learned-ceiling').value = '';
       document.getElementById('lux-learned-floor').value = '';
       await saveSettings();
-      // Auto-learn for the new sensor (if one is selected)
-      if (this.value) {
-        triggerLearnBaselines();
-      }
     });
     document.getElementById('lux-smoothing-interval').addEventListener('blur', saveSettings);
     document.getElementById('lux-learned-ceiling').addEventListener('blur', saveSettings);
     document.getElementById('lux-learned-floor').addEventListener('blur', saveSettings);
-
-    async function triggerLearnBaselines() {
-      const btn = document.getElementById('learn-baselines-btn');
-      const status = document.getElementById('learn-baselines-status');
-      btn.disabled = true;
-      btn.textContent = 'Learning...';
-      status.textContent = '';
-      try {
-        const since = document.getElementById('learn-baselines-since').value;
-        const body = since ? JSON.stringify({ since }) : '{}';
-        const res = await fetch('./api/learn-baselines', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body,
-        });
-        const data = await res.json();
-        if (res.ok) {
-          document.getElementById('lux-learned-ceiling').value = Math.round(data.ceiling);
-          document.getElementById('lux-learned-floor').value = Math.round(data.floor);
-          status.textContent = `Learned from ${data.samples} samples`;
-          status.style.color = 'var(--success)';
-        } else {
-          let msg = data.error || 'Failed';
-          if (data.diagnostics) {
-            const d = data.diagnostics;
-            msg += ` [total=${d.total}, no_mean=${d.no_mean}, no_start=${d.no_start}, parse_fail=${d.parse_fail}, night=${d.nighttime}, elev_err=${d.elev_error}]`;
-            if (d.sample_entry) msg += ' sample: ' + JSON.stringify(d.sample_entry);
-            if (d.elev_err_msg) msg += ' err: ' + d.elev_err_msg;
-          }
-          status.textContent = msg;
-          status.style.color = 'var(--danger)';
-        }
-      } catch (e) {
-        status.textContent = 'Connection error';
-        status.style.color = 'var(--danger)';
-      }
-      btn.disabled = false;
-      btn.textContent = 'Learn from history';
-    }
-
-    document.getElementById('learn-baselines-btn').addEventListener('click', triggerLearnBaselines);
-    document.getElementById('clear-baselines-btn').addEventListener('click', async function() {
-      document.getElementById('lux-learned-ceiling').value = '';
-      document.getElementById('lux-learned-floor').value = '';
-      document.getElementById('learn-baselines-status').textContent = 'Baselines cleared';
-      document.getElementById('learn-baselines-status').style.color = 'var(--muted)';
-      await saveSettings();
-    });
     document.getElementById('ct-comp-enabled').addEventListener('change', () => {
       updateCtCompState();
       saveSettings();

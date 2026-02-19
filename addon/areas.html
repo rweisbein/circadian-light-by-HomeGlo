@@ -1038,7 +1038,7 @@
     }
 
     .tune-zone-sun-meta { font-size: 0.75rem; color: var(--muted2); white-space: nowrap; }
-    .tune-zone-sun-times { font-size: 0.7rem; color: var(--muted2); white-space: nowrap; margin-left: 2px; }
+    .tune-zone-sun-times { font-size: 0.7rem; color: var(--muted2); margin-left: 2px; line-height: 1.4; }
 
     .tune-area {
       background: var(--card);
@@ -1989,10 +1989,10 @@
 
     function fmtFadeRange(sunrise, sunset, fadeMinutes) {
       if (fadeMinutes <= 0) {
-        return fmtSunTime(sunrise) + '\u2191 ' + fmtSunTime(sunset) + '\u2193';
+        return fmtSunTime(sunrise) + '\u2191<br>' + fmtSunTime(sunset) + '\u2193';
       }
       const fadeHrs = fadeMinutes / 60;
-      return fmtSunTime(sunrise) + '\u2013' + fmtSunTime(sunrise + fadeHrs) + '\u2191 '
+      return fmtSunTime(sunrise) + '\u2013' + fmtSunTime(sunrise + fadeHrs) + '\u2191<br>'
         + fmtSunTime(sunset - fadeHrs) + '\u2013' + fmtSunTime(sunset) + '\u2193';
     }
 
@@ -2189,6 +2189,12 @@
         panelHtml += '<div class="tune-outdoor-panel-row">';
         panelHtml += '<span class="tune-outdoor-panel-label">Range</span>';
         panelHtml += '<span class="tune-outdoor-panel-status" id="tune-outdoor-range">' + rangeStr + '</span>';
+        panelHtml += '</div>';
+        const d90 = new Date(Date.now() - 90 * 86400000);
+        const defaultSince = d90.toISOString().slice(0, 16);
+        panelHtml += '<div class="tune-outdoor-panel-row">';
+        panelHtml += '<span class="tune-outdoor-panel-label">Learn from</span>';
+        panelHtml += '<input type="datetime-local" id="tune-outdoor-learn-since" value="' + defaultSince + '" style="background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:4px;padding:3px 6px;font-size:0.75rem;flex:1;min-width:0;">';
         panelHtml += '<button class="tune-outdoor-panel-btn" id="tune-outdoor-learn">Learn</button>';
         panelHtml += '<button class="tune-outdoor-panel-btn danger" id="tune-outdoor-clear-baselines">Clear</button>';
         panelHtml += '</div>';
@@ -3447,7 +3453,10 @@
           e.stopPropagation();
           const status = document.getElementById('tune-outdoor-learn-status');
           if (status) status.textContent = 'Learning...';
-          fetch('./api/learn-baselines', { method: 'POST' })
+          const sinceInput = document.getElementById('tune-outdoor-learn-since');
+          const sinceVal = sinceInput ? sinceInput.value : '';
+          const body = sinceVal ? JSON.stringify({ since: sinceVal }) : '{}';
+          fetch('./api/learn-baselines', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body })
             .then(r => r.json())
             .then(async data => {
               if (data.error) { if (status) status.textContent = data.error; }
@@ -3536,7 +3545,7 @@
           const word = controls.querySelector('.tune-fade-word');
           if (word) word.textContent = fmtFadeMinutes(val);
           const timesEl = controls.querySelector('.tune-zone-sun-times');
-          if (timesEl && cachedSunTimes) timesEl.textContent = fmtFadeRange(cachedSunTimes.sunrise, cachedSunTimes.sunset, val);
+          if (timesEl && cachedSunTimes) timesEl.innerHTML = fmtFadeRange(cachedSunTimes.sunrise, cachedSunTimes.sunset, val);
           const zoneGroup = e.target.closest('.zone-group');
           if (zoneGroup) updateZoneDaylightFade(zoneGroup, val);
           return;
