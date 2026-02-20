@@ -3740,13 +3740,23 @@ function updateWakeBedSliderConstraints() {
   let descendStart = config.descend_start;
   if (descendStart <= ascendStart) descendStart += 24;
 
-  // Wake slider: ascend_start to descend_start
-  wakeSlider.min = ascendStart;
-  wakeSlider.max = descendStart;
+  // Wake sliders: ascend_start to descend_start
+  const wakeMin = ascendStart;
+  const wakeMax = descendStart;
+  wakeSlider.min = wakeMin;
+  wakeSlider.max = wakeMax;
 
-  // Bed slider: descend_start to (descend_start + descend phase length)
-  bedSlider.min = config.descend_start;
-  bedSlider.max = config.descend_start + 24 - (descendStart - ascendStart);
+  // Bed sliders: descend_start to (descend_start + descend phase length)
+  const bedMin = config.descend_start;
+  const bedMax = config.descend_start + 24 - (descendStart - ascendStart);
+  bedSlider.min = bedMin;
+  bedSlider.max = bedMax;
+
+  // Alt sliders get the same bounds
+  const wakeAltSlider = document.getElementById('wake-alt-time');
+  const bedAltSlider = document.getElementById('bed-alt-time');
+  if (wakeAltSlider) { wakeAltSlider.min = wakeMin; wakeAltSlider.max = wakeMax; }
+  if (bedAltSlider) { bedAltSlider.min = bedMin; bedAltSlider.max = bedMax; }
 }
 
 // Constrain warm_night_target slider to color range

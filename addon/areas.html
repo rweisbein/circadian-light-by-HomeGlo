@@ -676,10 +676,15 @@
       color: var(--text);
       font-size: 0.85rem;
     }
+    .schedule-popover-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
     .schedule-popover-title {
       font-weight: 700;
       font-size: 0.9rem;
-      margin-bottom: 8px;
     }
     /* Grid: radio | wake-col | bed-col */
     .spo-grid {
@@ -691,13 +696,11 @@
     .spo-col-header {
       font-size: 0.7rem;
       opacity: 0.45;
-      text-align: center;
+      text-align: left;
       padding-bottom: 4px;
     }
     .spo-rhythm-link {
-      grid-column: 1 / -1;
       font-size: 0.72rem;
-      padding: 2px 0 6px 20px;
     }
     .spo-rhythm-link a {
       color: var(--accent);
@@ -715,10 +718,16 @@
       cursor: pointer;
     }
     .spo-time-cell {
-      text-align: center;
+      text-align: left;
       padding: 6px 0;
       font-size: 0.88rem;
       cursor: pointer;
+    }
+    .spo-days {
+      display: block;
+      font-size: 0.65rem;
+      opacity: 0.4;
+      margin-top: 1px;
     }
     .spo-divider {
       grid-column: 1 / -1;
@@ -729,8 +738,8 @@
     .spo-slider-cell {
       display: flex;
       flex-direction: column;
-      align-items: center;
-      padding: 4px 0;
+      align-items: stretch;
+      padding: 6px 0;
     }
     .spo-slider-cell input[type="range"] {
       width: 100%;
@@ -740,7 +749,7 @@
     .spo-slider-cell .spo-slider-val {
       font-size: 0.75rem;
       opacity: 0.6;
-      margin-top: 2px;
+      margin-top: 4px;
     }
     .schedule-popover-until {
       display: flex;
@@ -2171,6 +2180,28 @@
       return m === 0 ? h12 + ampm : h12 + ':' + String(m).padStart(2, '0') + ampm;
     }
 
+    function fmtDayList(days) {
+      if (!days || days.length === 0 || days.length === 7) return 'Daily';
+      const names = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+      const sorted = [...days].sort((a, b) => a - b);
+      // Check for common patterns
+      if (sorted.length === 5 && sorted[0] === 0 && sorted[4] === 4) return 'Mon\u2013Fri';
+      if (sorted.length === 2 && sorted[0] === 5 && sorted[1] === 6) return 'Sat\u2013Sun';
+      // Check if consecutive
+      let consecutive = true;
+      for (let i = 1; i < sorted.length; i++) {
+        if (sorted[i] !== sorted[i-1] + 1) { consecutive = false; break; }
+      }
+      if (consecutive && sorted.length >= 3) return names[sorted[0]] + '\u2013' + names[sorted[sorted.length-1]];
+      return sorted.map(d => names[d]).join(', ');
+    }
+
+    function complementDays(altDays) {
+      if (!altDays || altDays.length === 0) return null;
+      const all = [0,1,2,3,4,5,6];
+      return all.filter(d => !altDays.includes(d));
+    }
+
     // Build the next-times HTML for a zone header
     // Shows chronological order: next event first (bed tonight → wake tomorrow)
     function buildNextTimesHtml(zoneName, zoneTextColor) {
@@ -2215,6 +2246,14 @@
       const altBed = rhythm.bed_alt_time;
       const hasAlt = altWake != null || altBed != null;
 
+      // Day-of-week indicators
+      const wakeAltDays = rhythm.wake_alt_days || [];
+      const bedAltDays = rhythm.bed_alt_days || [];
+      const mainWakeDaysLabel = wakeAltDays.length > 0 ? fmtDayList(complementDays(wakeAltDays)) : '';
+      const mainBedDaysLabel = bedAltDays.length > 0 ? fmtDayList(complementDays(bedAltDays)) : '';
+      const altWakeDaysLabel = wakeAltDays.length > 0 ? fmtDayList(wakeAltDays) : '';
+      const altBedDaysLabel = bedAltDays.length > 0 ? fmtDayList(bedAltDays) : '';
+
       // Slider bounds from rhythm's ascend/descend phases
       const ascendStart = rhythm.ascend_start ?? 3;
       let descendStart = rhythm.descend_start ?? 12;
@@ -2245,7 +2284,10 @@
       const rhythmHref = rhythmName ? `./rhythm/${encodeURIComponent(rhythmName)}` : '';
 
       popover.innerHTML = `
-        <div class="schedule-popover-title">Bed / Wake Override</div>
+        <div class="schedule-popover-header">
+          <div class="schedule-popover-title">Bed / Wake Override</div>
+          ${rhythmHref ? `<span class="spo-rhythm-link"><a href="${rhythmHref}">${rhythmName}</a></span>` : ''}
+        </div>
         <div class="spo-grid">
           <div></div>
           <div class="spo-col-header">wake</div>
@@ -2253,17 +2295,15 @@
 
           <div class="spo-radio-row" onclick="document.getElementById('spo-main').checked=true">
             <input type="radio" id="spo-main" name="spo-mode" value="main" ${currentMode === 'main' ? 'checked' : ''}>
-            <div class="spo-time-cell">${fmtCompactTime(mainWake)}</div>
-            <div class="spo-time-cell">${fmtCompactTime(mainBed)}</div>
+            <div class="spo-time-cell">${fmtCompactTime(mainWake)}${mainWakeDaysLabel ? `<span class="spo-days">${mainWakeDaysLabel}</span>` : ''}</div>
+            <div class="spo-time-cell">${fmtCompactTime(mainBed)}${mainBedDaysLabel ? `<span class="spo-days">${mainBedDaysLabel}</span>` : ''}</div>
           </div>
           ${hasAlt ? `
           <div class="spo-radio-row" onclick="document.getElementById('spo-alt').checked=true">
             <input type="radio" id="spo-alt" name="spo-mode" value="alt" ${currentMode === 'alt' ? 'checked' : ''}>
-            <div class="spo-time-cell">${fmtCompactTime(altWake ?? mainWake)}</div>
-            <div class="spo-time-cell">${fmtCompactTime(altBed ?? mainBed)}</div>
+            <div class="spo-time-cell">${fmtCompactTime(altWake ?? mainWake)}${altWakeDaysLabel ? `<span class="spo-days">${altWakeDaysLabel}</span>` : ''}</div>
+            <div class="spo-time-cell">${fmtCompactTime(altBed ?? mainBed)}${altBedDaysLabel ? `<span class="spo-days">${altBedDaysLabel}</span>` : ''}</div>
           </div>` : ''}
-
-          ${rhythmHref ? `<div class="spo-rhythm-link"><a href="${rhythmHref}">${rhythmName}</a></div>` : ''}
 
           <div class="spo-divider"></div>
 
