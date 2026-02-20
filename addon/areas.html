@@ -1304,11 +1304,6 @@
     .tune-slider-val { font-size: 0.75rem; color: var(--text); white-space: nowrap; }
     .tune-slider-meta { font-size: 0.7rem; color: var(--muted2); white-space: nowrap; }
 
-    .tune-filter-badge {
-      font-size: 0.65rem; color: var(--muted2);
-      white-space: nowrap;
-    }
-
     .save-status {
       position: fixed;
       bottom: 24px;
@@ -2534,29 +2529,6 @@
       return { now: '\u2193' + currentPct + '%', peak: 'pk\u2193' + peakPct + '%' };
     }
 
-    function computeAreaFilterMult(areaId, zoneName) {
-      const zoneConfig = getTuneZoneConfig(zoneName);
-      const minBri = zoneConfig.min_brightness ?? 1;
-      const maxBri = zoneConfig.max_brightness ?? 100;
-      const rhythmValues = getPureRhythmValues(zoneConfig.rhythm);
-      const baseBri = rhythmValues?.brightness ?? 50;
-      const range = maxBri - minBri;
-      const curvePos = range > 0 ? Math.max(0, Math.min(1, (baseBri - minBri) / range)) : 0;
-      const areaLights = tuneData?.area_lights?.[areaId] || [];
-      const tuneArea = getTuneArea(areaId);
-      const lightFilters = tuneArea?.light_filters || {};
-      const presets = tuneData?.presets || {};
-      if (areaLights.length === 0) return 1.0;
-      let totalMult = 0;
-      for (const light of areaLights) {
-        const presetName = lightFilters[light.entity_id] || 'Standard';
-        const preset = presets[presetName] || { at_bright: 100, at_dim: 100 };
-        const mult = (preset.at_dim + (preset.at_bright - preset.at_dim) * curvePos) / 100;
-        totalMult += mult;
-      }
-      return totalMult / areaLights.length;
-    }
-
     function buildOutdoorSection() {
       const d = tuneOutdoorData;
       let infoHtml = '';
@@ -2794,15 +2766,14 @@
       const sensitivity = parseFloat(tuneAreaEl.dataset.sensitivity) || 5.0;
       const daylightFade = parseFloat(tuneAreaEl.dataset.daylightFade) || 60;
       const outdoorNorm = parseFloat(tuneAreaEl.dataset.outdoorNorm) || 0.0;
-      const filterMult = parseFloat(tuneAreaEl.dataset.filterMult) || 1.0;
       const lumenSlider = tuneAreaEl.querySelector('.tune-lumen-slider');
       const solarSlider = tuneAreaEl.querySelector('.tune-solar-slider');
       const factor = overrides?.factor ?? (1 / LUMEN_STEPS[parseInt(lumenSlider.value)].intensity);
       const exposure = overrides?.exposure ?? SOLAR_STEPS[parseInt(solarSlider.value)].exposure;
       const nowRaw = computeNowBrightness(rhythmBri, factor, exposure, outdoorNorm, sensitivity, daylightFade);
-      const nowBri = Math.min(100, Math.round(nowRaw * filterMult));
+      const nowBri = Math.min(100, Math.round(nowRaw));
       const peakRaw = computeNowBrightness(rhythmBri, factor, exposure, 1.0, sensitivity, 0);
-      const peakBri = Math.min(100, Math.round(peakRaw * filterMult));
+      const peakBri = Math.min(100, Math.round(peakRaw));
       const nowEl = tuneAreaEl.querySelector('.tune-bri-now');
       if (nowEl) nowEl.textContent = nowBri + '%';
       const peakEl = tuneAreaEl.querySelector('.tune-bri-peak');
@@ -3317,18 +3288,15 @@
             const exposure = tuneArea?.natural_light_exposure ?? 0.0;
             const lumenStep = findClosestStep(LUMEN_STEPS, 'intensity', 1 / factor);
             const solarStep = findClosestStep(SOLAR_STEPS, 'exposure', exposure);
-            const filterMult = computeAreaFilterMult(area.area_id, zoneName);
             const nowRaw = computeNowBrightness(rhythmBri, factor, exposure, outdoorNorm, sensitivity, daylightFade);
-            const nowBri = Math.min(100, Math.round(nowRaw * filterMult));
+            const nowBri = Math.min(100, Math.round(nowRaw));
             const peakRaw = computeNowBrightness(rhythmBri, factor, exposure, 1.0, sensitivity, 0);
-            const peakBri = Math.min(100, Math.round(peakRaw * filterMult));
+            const peakBri = Math.min(100, Math.round(peakRaw));
             const factorStr = formatFactorMeta(factor);
             const sunMeta = formatSunMeta(exposure, sensitivity, outdoorNorm, daylightFade);
             const peakVisible = true;
-            const filterPct = Math.round((1 - filterMult) * 100);
-            const filterBadge = filterPct > 1 ? `<span class="tune-filter-badge">Filter \u2193${filterPct}%</span>` : '';
             return `
-              <div class="tune-area" data-area-id="${area.area_id}" data-rhythm-bri="${rhythmBri}" data-sensitivity="${sensitivity}" data-daylight-fade="${daylightFade}" data-outdoor-norm="${outdoorNorm}" data-filter-mult="${filterMult.toFixed(3)}">
+              <div class="tune-area" data-area-id="${area.area_id}" data-rhythm-bri="${rhythmBri}" data-sensitivity="${sensitivity}" data-daylight-fade="${daylightFade}" data-outdoor-norm="${outdoorNorm}">
                 <div class="tune-area-row">
                   <a href="./area/${encodeURIComponent(area.area_id)}?from=tune" class="tune-name-col tune-area-name">${area.name}</a>
                   <div class="tune-fixture-col">
@@ -3342,7 +3310,7 @@
                   <span class="tune-bri-col tune-bri-now">${nowBri}%</span>
                 </div>
                 <div class="tune-area-row tune-area-row2">
-                  <span class="tune-name-col">${filterBadge}</span>
+                  <span class="tune-name-col"></span>
                   <div class="tune-fixture-col">
                     <span class="tune-slider-word tune-lumen-word">${LUMEN_STEPS[lumenStep].label}</span>
                   </div>
