@@ -701,25 +701,32 @@
       opacity: 0.7;
     }
     .schedule-popover-custom-inputs {
-      display: flex;
-      align-items: center;
-      gap: 6px;
       margin-left: 24px;
       margin-top: 4px;
       margin-bottom: 4px;
     }
-    .schedule-popover-custom-inputs .spo-input-label {
+    .spo-slider-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 4px;
+    }
+    .spo-slider-row .spo-input-label {
       font-size: 0.72rem;
       opacity: 0.5;
+      width: 28px;
+      flex-shrink: 0;
     }
-    .schedule-popover-custom-inputs input[type="time"] {
-      background: var(--bg);
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      color: var(--text);
-      padding: 4px 6px;
-      font-size: 0.8rem;
-      width: 100px;
+    .spo-slider-row input[type="range"] {
+      flex: 1;
+      height: 4px;
+      accent-color: var(--accent);
+    }
+    .spo-slider-row .spo-slider-val {
+      font-size: 0.78rem;
+      min-width: 42px;
+      text-align: right;
+      opacity: 0.7;
     }
     .schedule-popover-until {
       display: flex;
@@ -2150,21 +2157,6 @@
       return m === 0 ? h12 + ampm : h12 + ':' + String(m).padStart(2, '0') + ampm;
     }
 
-    // Convert decimal hour to HH:MM string for time input
-    function decimalToTimeInput(decimalHour) {
-      if (decimalHour == null) return '';
-      const h = Math.floor(decimalHour);
-      const m = Math.round((decimalHour - h) * 60);
-      return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
-    }
-
-    // Convert HH:MM time input to decimal hours
-    function timeInputToDecimal(timeStr) {
-      if (!timeStr) return null;
-      const [h, m] = timeStr.split(':').map(Number);
-      return h + m / 60;
-    }
-
     // Build the next-times HTML for a zone header
     // Shows chronological order: next event first (bed tonight → wake tomorrow)
     function buildNextTimesHtml(zoneName, zoneTextColor) {
@@ -2209,6 +2201,12 @@
       const altBed = rhythm.bed_alt_time;
       const hasAlt = altWake != null || altBed != null;
 
+      // Slider bounds from rhythm's ascend/descend phases
+      const ascendStart = rhythm.ascend_start ?? 3;
+      let descendStart = rhythm.descend_start ?? 12;
+      if (descendStart <= ascendStart) descendStart += 24;
+      const bedMax = ascendStart + 24;  // descend phase wraps to next ascend
+
       const override = zoneData.schedule_override;
       const currentMode = override?.mode || '';
 
@@ -2228,6 +2226,9 @@
 
       let customWake = override?.custom_wake ?? mainWake;
       let customBed = override?.custom_bed ?? mainBed;
+      // Lift bed into slider range if needed (bed slider uses descend_start..bedMax range)
+      let customBedSlider = customBed;
+      if (customBedSlider < descendStart) customBedSlider += 24;
 
       // Rhythm link
       const rhythmHref = rhythmName ? `./rhythm/${encodeURIComponent(rhythmName)}` : '';
@@ -2248,10 +2249,16 @@
           <label for="spo-custom">Custom</label>
         </div>
         <div class="schedule-popover-custom-inputs">
-          <span class="spo-input-label">wake</span>
-          <input type="time" id="spo-custom-wake" value="${decimalToTimeInput(customWake)}">
-          <span class="spo-input-label">bed</span>
-          <input type="time" id="spo-custom-bed" value="${decimalToTimeInput(customBed)}">
+          <div class="spo-slider-row">
+            <span class="spo-input-label">wake</span>
+            <input type="range" id="spo-custom-wake" min="${ascendStart}" max="${descendStart}" step="0.25" value="${customWake}">
+            <span class="spo-slider-val" id="spo-wake-display">${fmtCompactTime(customWake)}</span>
+          </div>
+          <div class="spo-slider-row">
+            <span class="spo-input-label">bed</span>
+            <input type="range" id="spo-custom-bed" min="${descendStart}" max="${bedMax}" step="0.25" value="${customBedSlider}">
+            <span class="spo-slider-val" id="spo-bed-display">${fmtCompactTime(customBed)}</span>
+          </div>
         </div>
         <div class="schedule-popover-until">
           <label>Until</label>
@@ -2284,11 +2291,19 @@
       popover.style.left = left + 'px';
       popover.style.top = top + 'px';
 
-      // Auto-select custom radio when custom inputs are focused
+      // Auto-select custom radio and update display when sliders are used
       const customWakeInput = document.getElementById('spo-custom-wake');
       const customBedInput = document.getElementById('spo-custom-bed');
-      customWakeInput.addEventListener('focus', () => { document.getElementById('spo-custom').checked = true; });
-      customBedInput.addEventListener('focus', () => { document.getElementById('spo-custom').checked = true; });
+      const wakeDisplay = document.getElementById('spo-wake-display');
+      const bedDisplay = document.getElementById('spo-bed-display');
+      customWakeInput.addEventListener('input', () => {
+        document.getElementById('spo-custom').checked = true;
+        wakeDisplay.textContent = fmtCompactTime(parseFloat(customWakeInput.value));
+      });
+      customBedInput.addEventListener('input', () => {
+        document.getElementById('spo-custom').checked = true;
+        bedDisplay.textContent = fmtCompactTime(parseFloat(customBedInput.value) % 24);
+      });
     }
 
     function closeSchedulePopover() {
@@ -2311,8 +2326,8 @@
       };
 
       if (mode === 'custom') {
-        body.custom_wake = timeInputToDecimal(document.getElementById('spo-custom-wake').value);
-        body.custom_bed = timeInputToDecimal(document.getElementById('spo-custom-bed').value);
+        body.custom_wake = parseFloat(document.getElementById('spo-custom-wake').value);
+        body.custom_bed = parseFloat(document.getElementById('spo-custom-bed').value) % 24;
       }
 
       try {
