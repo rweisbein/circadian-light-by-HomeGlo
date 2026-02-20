@@ -1911,9 +1911,27 @@ function getValuesAtTime(hour) {
   }
   const brightness = brightnessNorm * 100;
 
-  // Color midpoint — uses resolved timing but NO brightness target shift
-  const colorWakeMid = inAscend ? (runtimeState.color_mid ?? timing.wake) : timing.wake;
-  const colorBedMid = !inAscend ? (runtimeState.color_mid ?? timing.bed) : timing.bed;
+  // Color midpoint — same brightness target shift (circadian: color follows brightness)
+  let colorWakeMid = inAscend ? (runtimeState.color_mid ?? timing.wake) : timing.wake;
+  let colorBedMid = !inAscend ? (runtimeState.color_mid ?? timing.bed) : timing.bed;
+
+  if (runtimeState.color_mid == null) {
+    const cSlope = inAscend ? kAscend : -kDescend;
+    const cBrightPct = inAscend ? (config.wake_brightness || 50) : (config.bed_brightness || 50);
+    if (cBrightPct !== 50) {
+      if (inAscend) {
+        let cMid48 = colorWakeMid;
+        while (cMid48 < tAscend) cMid48 += 24;
+        while (cMid48 > tDescend) cMid48 -= 24;
+        colorWakeMid = computeShiftedMidpoint(cMid48, cBrightPct, cSlope, bMin, bMax) % 24;
+      } else {
+        let cMid48 = colorBedMid;
+        while (cMid48 < tDescend) cMid48 += 24;
+        while (cMid48 > tDescend + 24) cMid48 -= 24;
+        colorBedMid = computeShiftedMidpoint(cMid48, cBrightPct, cSlope, bMin, bMax) % 24;
+      }
+    }
+  }
 
   let colorWakeMid48 = colorWakeMid;
   while (colorWakeMid48 < tAscend) colorWakeMid48 += 24;
@@ -2432,8 +2450,8 @@ function calculateColorAtHour(hour, applySolar = true) {
   const timing = resolveEffectiveTiming(hour, weekday);
 
   // runtimeState midpoints apply to current phase only
-  const colorWakeMid = cursorInAscend ? (runtimeState.color_mid ?? timing.wake) : timing.wake;
-  const colorBedMid = !cursorInAscend ? (runtimeState.color_mid ?? timing.bed) : timing.bed;
+  let colorWakeMid = cursorInAscend ? (runtimeState.color_mid ?? timing.wake) : timing.wake;
+  let colorBedMid = !cursorInAscend ? (runtimeState.color_mid ?? timing.bed) : timing.bed;
 
   // Clamp speed to valid range 1-10 (matches brain.py)
   const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, config.wake_speed))];
@@ -2447,8 +2465,31 @@ function calculateColorAtHour(hour, applySolar = true) {
   const h48 = hour < tAscend ? hour + 24 : hour;
   const inAscend = h48 >= tAscend && h48 < tDescend;
 
+  // Apply brightness target shift — color follows brightness on the circadian curve
+  if (runtimeState.color_mid == null) {
+    const bMin = config.min_brightness / 100;
+    const bMax = config.max_brightness / 100;
+    const slope = inAscend ? kAscend : -kDescend;
+    const brightPct = inAscend ? (config.wake_brightness || 50) : (config.bed_brightness || 50);
+    if (brightPct !== 50) {
+      if (inAscend) {
+        let rawMid48 = colorWakeMid;
+        while (rawMid48 < tAscend) rawMid48 += 24;
+        while (rawMid48 > tDescend) rawMid48 -= 24;
+        rawMid48 = Math.max(tAscend + 0.01, Math.min(tDescend - 0.01, rawMid48));
+        colorWakeMid = computeShiftedMidpoint(rawMid48, brightPct, slope, bMin, bMax) % 24;
+      } else {
+        const phaseEnd = tDescend + 24;
+        let rawMid48 = colorBedMid;
+        while (rawMid48 < tDescend) rawMid48 += 24;
+        while (rawMid48 > phaseEnd) rawMid48 -= 24;
+        rawMid48 = Math.max(tDescend + 0.01, Math.min(phaseEnd - 0.01, rawMid48));
+        colorBedMid = computeShiftedMidpoint(rawMid48, brightPct, slope, bMin, bMax) % 24;
+      }
+    }
+  }
+
   // Lift midpoint to 48h space and clamp to phase boundaries
-  // This prevents wrap-around issues when midpoint is near/past phase boundary
   let mid48;
   if (inAscend) {
     mid48 = colorWakeMid;

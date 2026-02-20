@@ -346,8 +346,8 @@ class TestBrightnessTargetIntegration:
         )
         assert bri_stepped == bri_default
 
-    def test_color_not_affected_by_brightness_target(self):
-        """Color calculation ignores wake_brightness/bed_brightness."""
+    def test_color_follows_brightness_target(self):
+        """Color shifts with brightness target (circadian: both curves move together)."""
         config_normal = self._make_config(wake_brightness=50)
         config_shifted = self._make_config(wake_brightness=30)
         state = AreaState()
@@ -359,8 +359,8 @@ class TestBrightnessTargetIntegration:
             7.0, config_shifted, state, apply_solar_rules=False, weekday=0
         )
         assert (
-            cct_normal == cct_shifted
-        ), f"Color should be unaffected: {cct_normal} vs {cct_shifted}"
+            cct_shifted < cct_normal
+        ), f"Color should be cooler with wake_brightness=30: {cct_shifted} < {cct_normal}"
 
 
 class TestAltTimingIntegration:

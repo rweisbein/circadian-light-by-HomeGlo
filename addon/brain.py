@@ -813,7 +813,7 @@ class CircadianLight:
             hour, config
         )
 
-        # Resolve effective timing (alt days, override) — no brightness target shift for color
+        # Resolve effective timing (alt days, override)
         eff_wake, eff_bed = resolve_effective_timing(config, hour, weekday)
 
         # Config bounds (only use these, no runtime overrides)
@@ -822,7 +822,33 @@ class CircadianLight:
 
         # Get midpoint for current phase (state.color_mid applies to current phase only)
         default_mid = eff_wake if in_ascend else eff_bed
-        mid = state.color_mid if state.color_mid is not None else default_mid
+        if state.color_mid is not None:
+            # Stepping override wins — no brightness target shift
+            mid = state.color_mid
+        else:
+            mid = default_mid
+            # Apply brightness target shift — color follows brightness
+            # on the circadian curve (both shift by the same amount)
+            brightness_pct = (
+                config.wake_brightness if in_ascend else config.bed_brightness
+            )
+            if brightness_pct != 50:
+                b_min_norm = config.min_brightness / 100.0
+                b_max_norm = config.max_brightness / 100.0
+                if in_ascend:
+                    mid48_raw = CircadianLight.lift_midpoint_to_phase(
+                        mid, t_ascend, t_descend
+                    )
+                else:
+                    descend_end = t_ascend + 24
+                    mid48_raw = CircadianLight.lift_midpoint_to_phase(
+                        mid, t_descend, descend_end
+                    )
+                shifted = compute_shifted_midpoint(
+                    mid48_raw, brightness_pct, slope, b_min_norm, b_max_norm
+                )
+                mid = shifted % 24
+
         if in_ascend:
             mid48 = CircadianLight.lift_midpoint_to_phase(mid, t_ascend, t_descend)
         else:
