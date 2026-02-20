@@ -5570,15 +5570,13 @@ class LightDesignerServer:
                 "until_date": data.get("until_date"),
                 "until_event": data.get("until_event", "wake"),
             }
-            config = await self.load_config()
-            glozones = config.get("glozones", {})
+            glozones = glozone.get_glozones()
             if name not in glozones:
                 return web.json_response(
                     {"error": f"Zone '{name}' not found"}, status=404
                 )
             glozones[name]["schedule_override"] = override
             glozone.save_config()
-            self.refresh_event.set()
             return web.json_response({"status": "ok", "override": override})
         except Exception as e:
             logger.error(f"Error setting schedule override: {e}")
@@ -5588,15 +5586,13 @@ class LightDesignerServer:
         """Clear a zone's schedule override."""
         try:
             name = request.match_info.get("name", "")
-            config = await self.load_config()
-            glozones = config.get("glozones", {})
+            glozones = glozone.get_glozones()
             if name not in glozones:
                 return web.json_response(
                     {"error": f"Zone '{name}' not found"}, status=404
                 )
             glozones[name]["schedule_override"] = None
             glozone.save_config()
-            self.refresh_event.set()
             return web.json_response({"status": "ok"})
         except Exception as e:
             logger.error(f"Error clearing schedule override: {e}")

@@ -3479,9 +3479,20 @@ function initDayBubbles(containerId, altTimeRowId) {
       btn.classList.toggle('active');
       const row = document.getElementById(altTimeRowId);
       const activeCount = container.querySelectorAll('.day-bubble.active').length;
+      const shouldShow = activeCount > 0 && activeCount < 7;
       // Show alt time only when some (not all/none) days are selected
       if (row) {
-        row.classList.toggle('collapsed', activeCount === 0 || activeCount === 7);
+        const wasCollapsed = row.classList.contains('collapsed');
+        row.classList.toggle('collapsed', !shouldShow);
+        // Default alt slider to primary time when first revealed
+        if (shouldShow && wasCollapsed) {
+          const altSlider = row.querySelector('input[type="range"]');
+          if (altSlider && containerId === 'wake-days') {
+            altSlider.value = document.getElementById('wake-time').value;
+          } else if (altSlider && containerId === 'bed-days') {
+            altSlider.value = document.getElementById('bed-time').value;
+          }
+        }
       }
       syncConfigFromUI();
       renderChart();
@@ -5355,6 +5366,12 @@ async function saveRhythmSettings() {
     min_color_temp: config.min_color_temp,
     max_color_temp: config.max_color_temp,
     color_mode: config.color_mode,
+    wake_alt_time: config.wake_alt_time,
+    wake_alt_days: config.wake_alt_days,
+    bed_alt_time: config.bed_alt_time,
+    bed_alt_days: config.bed_alt_days,
+    wake_brightness: config.wake_brightness,
+    bed_brightness: config.bed_brightness,
     warm_night_enabled: config.warm_night_enabled,
     warm_night_mode: config.warm_night_mode,
     warm_night_target: config.warm_night_target,

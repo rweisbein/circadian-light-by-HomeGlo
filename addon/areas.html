@@ -2208,8 +2208,6 @@
       const altWake = rhythm.wake_alt_time;
       const altBed = rhythm.bed_alt_time;
       const hasAlt = altWake != null || altBed != null;
-      const ascendStart = rhythm.ascend_start ?? 3;
-      const descendStart = rhythm.descend_start ?? 12;
 
       const override = zoneData.schedule_override;
       const currentMode = override?.mode || '';
@@ -2251,11 +2249,9 @@
         </div>
         <div class="schedule-popover-custom-inputs">
           <span class="spo-input-label">wake</span>
-          <input type="time" id="spo-custom-wake" value="${decimalToTimeInput(customWake)}"
-            min="${decimalToTimeInput(ascendStart)}" max="${decimalToTimeInput(descendStart)}">
+          <input type="time" id="spo-custom-wake" value="${decimalToTimeInput(customWake)}">
           <span class="spo-input-label">bed</span>
-          <input type="time" id="spo-custom-bed" value="${decimalToTimeInput(customBed)}"
-            min="${decimalToTimeInput(descendStart)}" max="${decimalToTimeInput(ascendStart)}">
+          <input type="time" id="spo-custom-bed" value="${decimalToTimeInput(customBed)}">
         </div>
         <div class="schedule-popover-until">
           <label>Until</label>
@@ -2265,10 +2261,10 @@
             <option value="bed" ${untilEvent === 'bed' ? 'selected' : ''}>bed</option>
           </select>
         </div>
+        ${rhythmHref ? `<div style="margin-top:8px;"><a href="${rhythmHref}" style="font-size:0.8rem; color:var(--accent); opacity:0.7; text-decoration:none;">Edit rhythm settings</a></div>` : ''}
         <div class="schedule-popover-actions">
-          ${override ? '<button class="danger" onclick="clearScheduleOverride()">Clear</button>' : ''}
+          ${override ? '<button class="danger" onclick="clearScheduleOverride()" title="Remove override, resume normal schedule">Clear override</button>' : ''}
           <span style="flex:1;"></span>
-          ${rhythmHref ? `<a href="${rhythmHref}" style="font-size:0.75rem; color:var(--muted); text-decoration:none; align-self:center;" title="Edit rhythm">Edit rhythm &rarr;</a>` : ''}
           <button class="primary" onclick="applyScheduleOverride()">Apply</button>
         </div>
       `;
