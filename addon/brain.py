@@ -18,7 +18,7 @@ Key concepts:
 from __future__ import annotations
 
 import math
-import time
+
 import logging
 from dataclasses import dataclass, field
 from enum import Enum
@@ -488,65 +488,6 @@ def inverse_midpoint(
 
 
 # ---------------------------------------------------------------------------
-# Timing override (in-memory, lost on restart)
-# ---------------------------------------------------------------------------
-
-_timing_override_wake: Optional[float] = None
-_timing_override_bed: Optional[float] = None
-_timing_override_expires: Optional[float] = None  # time.monotonic()
-
-
-def set_timing_override(
-    wake: Optional[float], bed: Optional[float], duration_minutes: Optional[int] = None
-):
-    """Set a temporary timing override for wake/bed times.
-
-    Args:
-        wake: Override wake time (hours 0-24), or None to keep current
-        bed: Override bed time (hours 0-24), or None to keep current
-        duration_minutes: Auto-expire after N minutes, or None for indefinite
-    """
-    global _timing_override_wake, _timing_override_bed, _timing_override_expires
-    _timing_override_wake = wake
-    _timing_override_bed = bed
-    _timing_override_expires = (
-        time.monotonic() + duration_minutes * 60 if duration_minutes else None
-    )
-
-
-def get_timing_override() -> Optional[dict]:
-    """Return active timing override info, or None if expired/inactive."""
-    global _timing_override_wake, _timing_override_bed, _timing_override_expires
-    if _timing_override_wake is None and _timing_override_bed is None:
-        return None
-    if _timing_override_expires is not None:
-        remaining = _timing_override_expires - time.monotonic()
-        if remaining <= 0:
-            _timing_override_wake = None
-            _timing_override_bed = None
-            _timing_override_expires = None
-            return None
-        return {
-            "wake_time": _timing_override_wake,
-            "bed_time": _timing_override_bed,
-            "remaining_minutes": round(remaining / 60, 1),
-        }
-    return {
-        "wake_time": _timing_override_wake,
-        "bed_time": _timing_override_bed,
-        "remaining_minutes": None,
-    }
-
-
-def clear_timing_override():
-    """Clear the timing override."""
-    global _timing_override_wake, _timing_override_bed, _timing_override_expires
-    _timing_override_wake = None
-    _timing_override_bed = None
-    _timing_override_expires = None
-
-
-# ---------------------------------------------------------------------------
 # Alt timing resolution
 # ---------------------------------------------------------------------------
 
@@ -556,7 +497,9 @@ def resolve_effective_timing(
 ) -> Tuple[float, float]:
     """Resolve the effective wake and bed times for a given hour and weekday.
 
-    Priority: timing override > alt time (if weekday matches) > primary time.
+    Priority: alt time (if weekday matches) > primary time.
+    Zone-level schedule overrides are applied upstream in glozone.py
+    before the Config is created.
 
     Post-midnight correction: when hour < ascend_start, the bed time that's
     still "active" belongs to the previous day, so we check yesterday's weekday
@@ -586,14 +529,6 @@ def resolve_effective_timing(
 
     if config.bed_alt_time is not None and bed_weekday in config.bed_alt_days:
         bed = config.bed_alt_time
-
-    # Timing override wins over everything
-    override = get_timing_override()
-    if override:
-        if override["wake_time"] is not None:
-            wake = override["wake_time"]
-        if override["bed_time"] is not None:
-            bed = override["bed_time"]
 
     return (wake, bed)
 

@@ -35,9 +35,6 @@ from brain import (
     apply_activity_preset,
     get_preset_names,
     calculate_sun_times,
-    set_timing_override as brain_set_timing_override,
-    get_timing_override as brain_get_timing_override,
-    clear_timing_override as brain_clear_timing_override,
 )
 
 logger = logging.getLogger(__name__)
@@ -714,18 +711,42 @@ class LightDesignerServer:
             "GET", "/{path:.*}/api/outdoor-status", self.get_outdoor_status
         )
 
-        # Timing override API routes
-        self.app.router.add_post("/api/timing-override", self.set_timing_override)
-        self.app.router.add_route(
-            "POST", "/{path:.*}/api/timing-override", self.set_timing_override
+        # Per-zone schedule override API routes
+        self.app.router.add_put(
+            "/api/glozones/{name}/schedule-override",
+            self.set_schedule_override,
         )
-        self.app.router.add_delete("/api/timing-override", self.clear_timing_override)
         self.app.router.add_route(
-            "DELETE", "/{path:.*}/api/timing-override", self.clear_timing_override
+            "PUT",
+            "/{path:.*}/api/glozones/{name}/schedule-override",
+            self.set_schedule_override,
         )
-        self.app.router.add_get("/api/timing-override", self.get_timing_override)
+        self.app.router.add_delete(
+            "/api/glozones/{name}/schedule-override",
+            self.clear_schedule_override,
+        )
         self.app.router.add_route(
-            "GET", "/{path:.*}/api/timing-override", self.get_timing_override
+            "DELETE",
+            "/{path:.*}/api/glozones/{name}/schedule-override",
+            self.clear_schedule_override,
+        )
+        self.app.router.add_get(
+            "/api/glozones/{name}/schedule-override",
+            self.get_schedule_override,
+        )
+        self.app.router.add_route(
+            "GET",
+            "/{path:.*}/api/glozones/{name}/schedule-override",
+            self.get_schedule_override,
+        )
+        self.app.router.add_get(
+            "/api/glozones/{name}/next-times",
+            self.get_zone_next_times,
+        )
+        self.app.router.add_route(
+            "GET",
+            "/{path:.*}/api/glozones/{name}/next-times",
+            self.get_zone_next_times,
         )
         self.app.router.add_post("/api/learn-baselines", self.learn_baselines)
         self.app.router.add_route(
@@ -3938,6 +3959,8 @@ class LightDesignerServer:
                     "areas": areas,
                     "runtime": runtime,
                     "is_default": zone_config.get("is_default", False),
+                    "schedule_override": zone_config.get("schedule_override"),
+                    "next_times": glozone.get_next_active_times(zone_name),
                 }
 
             return web.json_response({"zones": result})
@@ -5530,36 +5553,85 @@ class LightDesignerServer:
         lux_tracker.clear_override()
         return web.json_response({"status": "ok"})
 
-    async def set_timing_override(self, request: Request) -> Response:
-        """Set a temporary wake/bed timing override."""
+    async def set_schedule_override(self, request: Request) -> Response:
+        """Set a per-zone schedule override."""
         try:
+            name = request.match_info.get("name", "")
             data = await request.json()
-            wake = data.get("wake_time")
-            bed = data.get("bed_time")
-            duration = data.get("duration_minutes")
-            if wake is None and bed is None:
+            mode = data.get("mode")
+            if mode not in ("main", "alt", "custom"):
                 return web.json_response(
-                    {"error": "wake_time or bed_time required"}, status=400
+                    {"error": "mode must be main, alt, or custom"}, status=400
                 )
-            brain_set_timing_override(
-                wake=float(wake) if wake is not None else None,
-                bed=float(bed) if bed is not None else None,
-                duration_minutes=int(duration) if duration is not None else None,
-            )
-            return web.json_response({"status": "ok"})
+            override = {
+                "mode": mode,
+                "custom_wake": data.get("custom_wake"),
+                "custom_bed": data.get("custom_bed"),
+                "until_date": data.get("until_date"),
+                "until_event": data.get("until_event", "wake"),
+            }
+            config = await self.load_config()
+            glozones = config.get("glozones", {})
+            if name not in glozones:
+                return web.json_response(
+                    {"error": f"Zone '{name}' not found"}, status=404
+                )
+            glozones[name]["schedule_override"] = override
+            glozone.save_config()
+            self.refresh_event.set()
+            return web.json_response({"status": "ok", "override": override})
         except Exception as e:
-            logger.error(f"Error setting timing override: {e}")
+            logger.error(f"Error setting schedule override: {e}")
             return web.json_response({"error": str(e)}, status=500)
 
-    async def clear_timing_override(self, request: Request) -> Response:
-        """Clear the timing override."""
-        brain_clear_timing_override()
-        return web.json_response({"status": "ok"})
+    async def clear_schedule_override(self, request: Request) -> Response:
+        """Clear a zone's schedule override."""
+        try:
+            name = request.match_info.get("name", "")
+            config = await self.load_config()
+            glozones = config.get("glozones", {})
+            if name not in glozones:
+                return web.json_response(
+                    {"error": f"Zone '{name}' not found"}, status=404
+                )
+            glozones[name]["schedule_override"] = None
+            glozone.save_config()
+            self.refresh_event.set()
+            return web.json_response({"status": "ok"})
+        except Exception as e:
+            logger.error(f"Error clearing schedule override: {e}")
+            return web.json_response({"error": str(e)}, status=500)
 
-    async def get_timing_override(self, request: Request) -> Response:
-        """Get current timing override status."""
-        info = brain_get_timing_override()
-        return web.json_response({"override": info})
+    async def get_schedule_override(self, request: Request) -> Response:
+        """Get a zone's current schedule override and resolved times."""
+        try:
+            name = request.match_info.get("name", "")
+            config = await self.load_config()
+            glozones = config.get("glozones", {})
+            if name not in glozones:
+                return web.json_response(
+                    {"error": f"Zone '{name}' not found"}, status=404
+                )
+            override = glozones[name].get("schedule_override")
+            next_times = glozone.get_next_active_times(name)
+            return web.json_response({"override": override, "next_times": next_times})
+        except Exception as e:
+            logger.error(f"Error getting schedule override: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def get_zone_next_times(self, request: Request) -> Response:
+        """Get next effective wake/bed times for a zone."""
+        try:
+            name = request.match_info.get("name", "")
+            next_times = glozone.get_next_active_times(name)
+            if next_times is None:
+                return web.json_response(
+                    {"error": f"Zone '{name}' not found"}, status=404
+                )
+            return web.json_response(next_times)
+        except Exception as e:
+            logger.error(f"Error getting next times: {e}")
+            return web.json_response({"error": str(e)}, status=500)
 
     async def get_outdoor_status(self, request: Request) -> Response:
         """Get current outdoor brightness state for settings page."""

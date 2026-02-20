@@ -643,6 +643,131 @@
       display: none;
     }
 
+    /* Next-times display in zone header */
+    .zone-next-times {
+      font-size: 0.7rem;
+      opacity: 0.65;
+      cursor: pointer;
+      white-space: nowrap;
+      padding: 2px 6px;
+      border-radius: 4px;
+      transition: opacity 0.15s;
+    }
+    .zone-next-times:hover {
+      opacity: 1;
+    }
+    .zone-next-times.has-override {
+      opacity: 0.85;
+      border: 1px solid currentColor;
+      border-style: dashed;
+    }
+
+    /* Schedule override popover */
+    .schedule-popover {
+      position: fixed;
+      z-index: 200;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      padding: 14px 16px;
+      min-width: 260px;
+      max-width: 320px;
+      color: var(--text);
+      font-size: 0.85rem;
+    }
+    .schedule-popover-title {
+      font-weight: 700;
+      font-size: 0.9rem;
+      margin-bottom: 10px;
+    }
+    .schedule-popover-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 0;
+      cursor: pointer;
+    }
+    .schedule-popover-option input[type="radio"] {
+      accent-color: var(--accent);
+      margin: 0;
+    }
+    .schedule-popover-option label {
+      cursor: pointer;
+      flex: 1;
+    }
+    .schedule-popover-option .spo-times {
+      font-size: 0.8rem;
+      opacity: 0.7;
+    }
+    .schedule-popover-custom-inputs {
+      display: flex;
+      gap: 8px;
+      margin-left: 24px;
+      margin-top: 4px;
+      margin-bottom: 4px;
+    }
+    .schedule-popover-custom-inputs input[type="time"] {
+      background: var(--bg);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      color: var(--text);
+      padding: 4px 6px;
+      font-size: 0.8rem;
+      width: 100px;
+    }
+    .schedule-popover-until {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--line);
+      font-size: 0.8rem;
+    }
+    .schedule-popover-until label {
+      opacity: 0.7;
+    }
+    .schedule-popover-until input[type="date"],
+    .schedule-popover-until select {
+      background: var(--bg);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      color: var(--text);
+      padding: 4px 6px;
+      font-size: 0.8rem;
+    }
+    .schedule-popover-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .schedule-popover-actions button {
+      padding: 6px 14px;
+      border-radius: 6px;
+      border: 1px solid var(--line);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+    .schedule-popover-actions button:hover {
+      background: rgba(255,255,255,0.08);
+    }
+    .schedule-popover-actions button.primary {
+      background: var(--accent);
+      color: #000;
+      border-color: var(--accent);
+    }
+    .schedule-popover-actions button.primary:hover {
+      opacity: 0.9;
+    }
+    .schedule-popover-actions button.danger {
+      color: #ef4444;
+      border-color: #ef4444;
+    }
+
     /* Zone rhythm dropdown in header */
     .zone-rhythm-display {
       position: relative;
@@ -2000,6 +2125,197 @@
         + nw(fmtSunTime(sunset - fadeHrs) + '\u2013' + fmtSunTime(sunset) + '\u2193');
     }
 
+    // Compact time format: 7a, 10p, 12:30a — no minutes if :00
+    function fmtCompactTime(decimalHour) {
+      if (decimalHour == null) return '?';
+      const h24 = ((Math.round(decimalHour * 60) / 60) % 24 + 24) % 24;
+      const h = Math.floor(h24);
+      const m = Math.round((h24 - h) * 60);
+      const h12 = h % 12 || 12;
+      const ampm = h < 12 ? 'a' : 'p';
+      return m === 0 ? h12 + ampm : h12 + ':' + String(m).padStart(2, '0') + ampm;
+    }
+
+    // Convert decimal hour to HH:MM string for time input
+    function decimalToTimeInput(decimalHour) {
+      if (decimalHour == null) return '';
+      const h = Math.floor(decimalHour);
+      const m = Math.round((decimalHour - h) * 60);
+      return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+    }
+
+    // Convert HH:MM time input to decimal hours
+    function timeInputToDecimal(timeStr) {
+      if (!timeStr) return null;
+      const [h, m] = timeStr.split(':').map(Number);
+      return h + m / 60;
+    }
+
+    // Build the next-times HTML for a zone header
+    function buildNextTimesHtml(zoneName, zoneTextColor) {
+      const zoneData = cachedGlozones?.zones?.[zoneName];
+      if (!zoneData?.next_times) return '';
+      const nt = zoneData.next_times;
+      const hasOverride = !!zoneData.schedule_override;
+      const overrideClass = hasOverride ? ' has-override' : '';
+      const escapedName = zoneName.replace(/'/g, "\\'");
+      return `<span class="zone-next-times${overrideClass}" style="color: ${zoneTextColor};" onclick="event.stopPropagation(); openSchedulePopover('${escapedName}', this)" title="${hasOverride ? 'Schedule override active — click to edit' : 'Click to set schedule override'}">${nt.wake_day_name} ${fmtCompactTime(nt.wake_time)} · ${nt.bed_day_name} ${fmtCompactTime(nt.bed_time)}</span>`;
+    }
+
+    // Schedule override popover
+    let activePopoverZone = null;
+
+    function openSchedulePopover(zoneName, anchorEl) {
+      closeSchedulePopover();
+      activePopoverZone = zoneName;
+
+      const zoneData = cachedGlozones?.zones?.[zoneName];
+      if (!zoneData) return;
+
+      const rhythmName = zoneData.rhythm;
+      const rhythm = rhythmName && cachedRhythms[rhythmName] ? cachedRhythms[rhythmName] : {};
+      const mainWake = rhythm.wake_time ?? 7;
+      const mainBed = rhythm.bed_time ?? 22;
+      const altWake = rhythm.wake_alt_time;
+      const altBed = rhythm.bed_alt_time;
+      const hasAlt = altWake != null || altBed != null;
+
+      const override = zoneData.schedule_override;
+      const currentMode = override?.mode || '';
+
+      // Default until: tomorrow
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const untilDate = override?.until_date || tomorrow.toISOString().split('T')[0];
+      const untilEvent = override?.until_event || 'wake';
+
+      const popover = document.createElement('div');
+      popover.className = 'schedule-popover';
+      popover.id = 'schedule-popover';
+      popover.onclick = (e) => e.stopPropagation();
+
+      const mainLabel = fmtCompactTime(mainWake) + ' / ' + fmtCompactTime(mainBed);
+      const altLabel = hasAlt ? fmtCompactTime(altWake ?? mainWake) + ' / ' + fmtCompactTime(altBed ?? mainBed) : '';
+
+      let customWake = override?.custom_wake ?? mainWake;
+      let customBed = override?.custom_bed ?? mainBed;
+
+      popover.innerHTML = `
+        <div class="schedule-popover-title">Schedule Override</div>
+        <div class="schedule-popover-option" onclick="document.getElementById('spo-main').checked=true">
+          <input type="radio" id="spo-main" name="spo-mode" value="main" ${currentMode === 'main' ? 'checked' : ''}>
+          <label for="spo-main">${mainLabel}</label>
+        </div>
+        ${hasAlt ? `
+        <div class="schedule-popover-option" onclick="document.getElementById('spo-alt').checked=true">
+          <input type="radio" id="spo-alt" name="spo-mode" value="alt" ${currentMode === 'alt' ? 'checked' : ''}>
+          <label for="spo-alt">${altLabel}</label>
+        </div>` : ''}
+        <div class="schedule-popover-option" onclick="document.getElementById('spo-custom').checked=true">
+          <input type="radio" id="spo-custom" name="spo-mode" value="custom" ${currentMode === 'custom' ? 'checked' : ''}>
+          <label for="spo-custom">Custom</label>
+        </div>
+        <div class="schedule-popover-custom-inputs">
+          <input type="time" id="spo-custom-wake" value="${decimalToTimeInput(customWake)}" title="Wake time">
+          <input type="time" id="spo-custom-bed" value="${decimalToTimeInput(customBed)}" title="Bed time">
+        </div>
+        <div class="schedule-popover-until">
+          <label>Until</label>
+          <input type="date" id="spo-until-date" value="${untilDate}">
+          <select id="spo-until-event">
+            <option value="wake" ${untilEvent === 'wake' ? 'selected' : ''}>wake</option>
+            <option value="bed" ${untilEvent === 'bed' ? 'selected' : ''}>bed</option>
+          </select>
+        </div>
+        <div class="schedule-popover-actions">
+          ${override ? '<button class="danger" onclick="clearScheduleOverride()">Clear</button>' : ''}
+          <button class="primary" onclick="applyScheduleOverride()">Apply</button>
+        </div>
+      `;
+
+      document.body.appendChild(popover);
+
+      // Position relative to anchor
+      const rect = anchorEl.getBoundingClientRect();
+      const popW = popover.offsetWidth;
+      const popH = popover.offsetHeight;
+      let left = rect.left + rect.width / 2 - popW / 2;
+      let top = rect.bottom + 6;
+      // Keep in viewport
+      if (left < 8) left = 8;
+      if (left + popW > window.innerWidth - 8) left = window.innerWidth - popW - 8;
+      if (top + popH > window.innerHeight - 8) top = rect.top - popH - 6;
+      popover.style.left = left + 'px';
+      popover.style.top = top + 'px';
+
+      // Auto-select custom radio when custom inputs are focused
+      const customWakeInput = document.getElementById('spo-custom-wake');
+      const customBedInput = document.getElementById('spo-custom-bed');
+      customWakeInput.addEventListener('focus', () => { document.getElementById('spo-custom').checked = true; });
+      customBedInput.addEventListener('focus', () => { document.getElementById('spo-custom').checked = true; });
+    }
+
+    function closeSchedulePopover() {
+      const existing = document.getElementById('schedule-popover');
+      if (existing) existing.remove();
+      activePopoverZone = null;
+    }
+
+    async function applyScheduleOverride() {
+      const zoneName = activePopoverZone;
+      if (!zoneName) return;
+
+      const mode = document.querySelector('input[name="spo-mode"]:checked')?.value;
+      if (!mode) return;
+
+      const body = {
+        mode: mode,
+        until_date: document.getElementById('spo-until-date').value,
+        until_event: document.getElementById('spo-until-event').value,
+      };
+
+      if (mode === 'custom') {
+        body.custom_wake = timeInputToDecimal(document.getElementById('spo-custom-wake').value);
+        body.custom_bed = timeInputToDecimal(document.getElementById('spo-custom-bed').value);
+      }
+
+      try {
+        const res = await fetch('./api/glozones/' + encodeURIComponent(zoneName) + '/schedule-override', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (res.ok) {
+          closeSchedulePopover();
+          // Refresh glozone data
+          const gzRes = await fetch('./api/glozones');
+          if (gzRes.ok) cachedGlozones = await gzRes.json();
+          renderAreas();
+        }
+      } catch (err) {
+        console.error('Error applying schedule override:', err);
+      }
+    }
+
+    async function clearScheduleOverride() {
+      const zoneName = activePopoverZone;
+      if (!zoneName) return;
+
+      try {
+        const res = await fetch('./api/glozones/' + encodeURIComponent(zoneName) + '/schedule-override', {
+          method: 'DELETE',
+        });
+        if (res.ok) {
+          closeSchedulePopover();
+          const gzRes = await fetch('./api/glozones');
+          if (gzRes.ok) cachedGlozones = await gzRes.json();
+          renderAreas();
+        }
+      } catch (err) {
+        console.error('Error clearing schedule override:', err);
+      }
+    }
+
     function findClosestSensitivityStep(value) {
       return findClosestStep(SENSITIVITY_STEPS, 'multiplier', value);
     }
@@ -3092,6 +3408,7 @@
               ${zoneFrozenIndicator}
               ${zoneMismatchDot}
               <span style="flex: 1;"></span>
+              ${buildNextTimesHtml(zoneName, zoneTextColor)}
               <div class="row-controls">
                 <button class="row-btn" onclick="event.stopPropagation(); glozoneDown('${escapedZoneName}')" title="GloZone Down: send to all areas">${glozoneDownIcon}</button>
                 <button class="row-btn" onclick="event.stopPropagation(); glozoneReset('${escapedZoneName}')" title="Reset GloZone">${glozoneResetIcon}</button>
@@ -3634,12 +3951,15 @@
         }
       });
 
-      // Close rhythm dropdowns when clicking outside
+      // Close rhythm dropdowns and schedule popover when clicking outside
       document.addEventListener('click', (e) => {
         if (!e.target.closest('.zone-rhythm-display')) {
           document.querySelectorAll('.zone-rhythm-dropdown.visible').forEach(d => {
             d.classList.remove('visible');
           });
+        }
+        if (!e.target.closest('.schedule-popover') && !e.target.closest('.zone-next-times')) {
+          closeSchedulePopover();
         }
       });
     }

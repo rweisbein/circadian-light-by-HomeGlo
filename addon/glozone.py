@@ -941,6 +941,174 @@ def load_config_from_files(data_dir: Optional[str] = None) -> Dict[str, Any]:
     return config
 
 
+def apply_schedule_override(zone_name: str, config_dict: Dict[str, Any]) -> None:
+    """Apply a zone's schedule override to a rhythm config dict (in-place).
+
+    When a zone has an active schedule override, this modifies the config so that
+    resolve_effective_timing() in brain.py sees a config with no alt times — the
+    override has already been applied.
+
+    Args:
+        zone_name: The zone name
+        config_dict: Rhythm config dict to modify in-place
+    """
+    glozones = get_glozones()
+    zone_config = glozones.get(zone_name, {})
+    override = zone_config.get("schedule_override")
+    if not override:
+        return
+
+    mode = override.get("mode")
+    if mode == "main":
+        # Force primary schedule — disable alt times
+        config_dict["wake_alt_time"] = None
+        config_dict["bed_alt_time"] = None
+    elif mode == "alt":
+        # Force alt schedule — swap alt into primary, disable alt
+        alt_wake = config_dict.get("wake_alt_time")
+        alt_bed = config_dict.get("bed_alt_time")
+        if alt_wake is not None:
+            config_dict["wake_time"] = alt_wake
+        if alt_bed is not None:
+            config_dict["bed_time"] = alt_bed
+        config_dict["wake_alt_time"] = None
+        config_dict["bed_alt_time"] = None
+    elif mode == "custom":
+        custom_wake = override.get("custom_wake")
+        custom_bed = override.get("custom_bed")
+        if custom_wake is not None:
+            config_dict["wake_time"] = custom_wake
+        if custom_bed is not None:
+            config_dict["bed_time"] = custom_bed
+        config_dict["wake_alt_time"] = None
+        config_dict["bed_alt_time"] = None
+
+
+def get_next_active_times(zone_name: str) -> Optional[Dict[str, Any]]:
+    """Get the next effective wake and bed times for a zone.
+
+    Considers the zone's schedule override and the rhythm's day-of-week alt
+    schedule to determine what the next wake and bed times will be.
+
+    Args:
+        zone_name: The zone name
+
+    Returns:
+        Dict with wake_day (0=Mon..6=Sun), wake_time (hours), bed_day, bed_time,
+        or None if zone/rhythm not found.
+    """
+    from datetime import datetime, timedelta
+
+    rhythm_name = get_rhythm_for_zone(zone_name)
+    if not rhythm_name:
+        return None
+
+    rhythm_config = get_rhythm_config(rhythm_name)
+    if not rhythm_config:
+        return None
+
+    now = datetime.now()
+    current_hour = now.hour + now.minute / 60.0
+    today_weekday = now.weekday()  # 0=Mon..6=Sun
+
+    # Apply zone override to a copy of the config
+    config = dict(rhythm_config)
+    apply_schedule_override(zone_name, config)
+
+    wake_time = config.get("wake_time", 7.0)
+    bed_time = config.get("bed_time", 22.0)
+    wake_alt_time = config.get("wake_alt_time")
+    wake_alt_days = config.get("wake_alt_days", [])
+    bed_alt_time = config.get("bed_alt_time")
+    bed_alt_days = config.get("bed_alt_days", [])
+
+    # Find next wake: today if not yet past wake time, else tomorrow
+    def get_wake_for_day(weekday):
+        if wake_alt_time is not None and weekday in wake_alt_days:
+            return wake_alt_time
+        return wake_time
+
+    def get_bed_for_day(weekday):
+        if bed_alt_time is not None and weekday in bed_alt_days:
+            return bed_alt_time
+        return bed_time
+
+    # Next wake
+    if current_hour < wake_time or (
+        wake_alt_time is not None
+        and today_weekday in wake_alt_days
+        and current_hour < wake_alt_time
+    ):
+        # Today's wake hasn't passed yet
+        wake_day = today_weekday
+    else:
+        # Tomorrow's wake
+        wake_day = (today_weekday + 1) % 7
+
+    next_wake_time = get_wake_for_day(wake_day)
+
+    # Next bed: today if not yet past bed time, else tomorrow
+    today_bed = get_bed_for_day(today_weekday)
+    if current_hour < today_bed:
+        bed_day = today_weekday
+        next_bed_time = today_bed
+    else:
+        bed_day = (today_weekday + 1) % 7
+        next_bed_time = get_bed_for_day(bed_day)
+
+    DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+    return {
+        "wake_day": wake_day,
+        "wake_day_name": DAY_NAMES[wake_day],
+        "wake_time": next_wake_time,
+        "bed_day": bed_day,
+        "bed_day_name": DAY_NAMES[bed_day],
+        "bed_time": next_bed_time,
+    }
+
+
+def clear_expired_overrides(phase: str) -> None:
+    """Clear expired schedule overrides at phase transitions.
+
+    Called at ascend_start (phase="ascend") and descend_start (phase="descend").
+
+    Args:
+        phase: "ascend" or "descend"
+    """
+    from datetime import date
+
+    if _config is None:
+        return
+
+    glozones = get_glozones()
+    today = date.today().isoformat()
+    cleared = []
+
+    for zone_name, zone_config in glozones.items():
+        override = zone_config.get("schedule_override")
+        if not override:
+            continue
+
+        until_date = override.get("until_date")
+        until_event = override.get("until_event")
+        if not until_date or not until_event:
+            continue
+
+        # Check if this override should expire at this phase transition
+        if phase == "ascend" and until_event == "wake" and today >= until_date:
+            zone_config["schedule_override"] = None
+            cleared.append(zone_name)
+        elif phase == "descend" and until_event == "bed" and today >= until_date:
+            zone_config["schedule_override"] = None
+            cleared.append(zone_name)
+
+    if cleared:
+        save_config()
+        for name in cleared:
+            logger.info(f"Cleared expired schedule override for zone '{name}'")
+
+
 def get_effective_config_for_area(
     area_id: str, include_global: bool = True
 ) -> Dict[str, Any]:
@@ -965,6 +1133,10 @@ def get_effective_config_for_area(
     # Get rhythm config for this area
     rhythm_config = get_rhythm_config_for_area(area_id)
     result.update(rhythm_config)
+
+    # Apply zone schedule override (modifies wake/bed times in-place)
+    zone_name = get_zone_for_area(area_id)
+    apply_schedule_override(zone_name, result)
 
     # Add global settings if requested
     if include_global and _config:
@@ -998,6 +1170,9 @@ def get_effective_config_for_zone(
     if rhythm_name:
         rhythm_config = get_rhythm_config(rhythm_name)
         result.update(rhythm_config)
+
+    # Apply zone schedule override (modifies wake/bed times in-place)
+    apply_schedule_override(zone_name, result)
 
     if include_global and _config:
         for key in GLOBAL_SETTINGS:

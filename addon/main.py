@@ -3713,6 +3713,9 @@ class HomeAssistantWebSocketClient:
             phase = "ascend" if crossed_ascend else "descend"
             logger.info(f"Phase change to {phase} - resetting all zone and area runtime state")
 
+            # Clear expired per-zone schedule overrides
+            glozone.clear_expired_overrides(phase)
+
             # Reset all GloZone runtime state (preserves frozen zones)
             glozone_state.reset_all_zones()
 

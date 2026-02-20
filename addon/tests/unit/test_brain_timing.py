@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
-"""Test alt timing resolution, brightness targets, and timing override."""
+"""Test alt timing resolution and brightness targets."""
 
-import time
 import pytest
 from brain import (
     CircadianLight,
@@ -9,19 +8,8 @@ from brain import (
     AreaState,
     resolve_effective_timing,
     compute_shifted_midpoint,
-    set_timing_override,
-    get_timing_override,
-    clear_timing_override,
     SPEED_TO_SLOPE,
 )
-
-
-@pytest.fixture(autouse=True)
-def clean_override():
-    """Ensure timing override is cleared between tests."""
-    clear_timing_override()
-    yield
-    clear_timing_override()
 
 
 class TestResolveEffectiveTiming:
@@ -99,35 +87,6 @@ class TestResolveEffectiveTiming:
         wake, bed = resolve_effective_timing(config, hour=2.0, weekday=2)
         assert bed == 22.0  # Primary bed
 
-    def test_override_beats_alt(self):
-        """Timing override takes priority over alt times."""
-        config = Config(
-            wake_time=7.0,
-            bed_time=22.0,
-            wake_alt_time=9.0,
-            wake_alt_days=[5, 6],
-            bed_alt_time=23.5,
-            bed_alt_days=[5, 6],
-        )
-        set_timing_override(wake=10.0, bed=0.5)
-        # Saturday → would normally use alt, but override wins
-        wake, bed = resolve_effective_timing(config, hour=12.0, weekday=5)
-        assert wake == 10.0
-        assert bed == 0.5
-
-    def test_override_partial_wake_only(self):
-        """Override with only wake set preserves alt bed."""
-        config = Config(
-            wake_time=7.0,
-            bed_time=22.0,
-            bed_alt_time=23.5,
-            bed_alt_days=[5],
-        )
-        set_timing_override(wake=10.0, bed=None)
-        wake, bed = resolve_effective_timing(config, hour=12.0, weekday=5)
-        assert wake == 10.0
-        assert bed == 23.5  # Alt bed still applies
-
     def test_both_alt_times_different_days(self):
         """Different alt days for wake and bed."""
         config = Config(
@@ -142,47 +101,6 @@ class TestResolveEffectiveTiming:
         wake, bed = resolve_effective_timing(config, hour=20.0, weekday=4)
         assert wake == 7.0
         assert bed == 23.5
-
-
-class TestTimingOverride:
-    """Test timing override state management."""
-
-    def test_set_and_get(self):
-        """Set override and read it back."""
-        set_timing_override(wake=8.0, bed=23.0)
-        info = get_timing_override()
-        assert info is not None
-        assert info["wake_time"] == 8.0
-        assert info["bed_time"] == 23.0
-        assert info["remaining_minutes"] is None  # Indefinite
-
-    def test_set_with_duration(self):
-        """Override with duration has remaining_minutes."""
-        set_timing_override(wake=8.0, bed=23.0, duration_minutes=120)
-        info = get_timing_override()
-        assert info is not None
-        assert info["remaining_minutes"] is not None
-        assert info["remaining_minutes"] > 119  # Just set, should be ~120
-
-    def test_clear(self):
-        """Clear removes the override."""
-        set_timing_override(wake=8.0, bed=23.0)
-        clear_timing_override()
-        assert get_timing_override() is None
-
-    def test_expired_auto_clears(self):
-        """Expired override returns None and clears state."""
-        import brain
-
-        # Directly set expired state
-        brain._timing_override_wake = 8.0
-        brain._timing_override_bed = 23.0
-        brain._timing_override_expires = time.monotonic() - 1  # Already expired
-        assert get_timing_override() is None
-
-    def test_no_override_returns_none(self):
-        """No override set returns None."""
-        assert get_timing_override() is None
 
 
 class TestComputeShiftedMidpoint:
