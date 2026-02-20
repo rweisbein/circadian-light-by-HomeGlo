@@ -2239,7 +2239,7 @@
       const statusEl = document.getElementById('tune-outdoor-learn-status');
       if (statusEl) statusEl.textContent = 'Saving sensor...';
       if (tuneOutdoorData) tuneOutdoorData.sensor_entity = val;
-      pendingSensorSave = fetch('./api/save', {
+      pendingSensorSave = fetch('./api/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ outdoor_lux_sensor: val, lux_learned_ceiling: null, lux_learned_floor: null })
@@ -3521,7 +3521,7 @@
         }
         if (e.target.id === 'tune-outdoor-clear-baselines') {
           e.stopPropagation();
-          fetch('./api/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lux_learned_ceiling: null, lux_learned_floor: null }) })
+          fetch('./api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lux_learned_ceiling: null, lux_learned_floor: null }) })
             .then(() => refreshOutdoorAndRender());
         }
       });
@@ -3544,7 +3544,7 @@
         if (e.target.id === 'tune-outdoor-source') {
           e.stopPropagation();
           const val = e.target.value;
-          fetch('./api/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ outdoor_brightness_source: val }) })
+          fetch('./api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ outdoor_brightness_source: val }) })
             .then(() => refreshOutdoorAndRender());
         }
         // tune-outdoor-sensor handled by inline onchange → handleSensorChange()
