@@ -984,7 +984,7 @@ def apply_schedule_override(zone_name: str, config_dict: Dict[str, Any]) -> None
         config_dict["bed_alt_time"] = None
 
 
-def get_next_active_times(zone_name: str) -> Optional[Dict[str, Any]]:
+def get_next_active_times(zone_name: str, _now=None) -> Optional[Dict[str, Any]]:
     """Get the next effective wake and bed times for a zone.
 
     Considers the zone's schedule override and the rhythm's day-of-week alt
@@ -992,6 +992,7 @@ def get_next_active_times(zone_name: str) -> Optional[Dict[str, Any]]:
 
     Args:
         zone_name: The zone name
+        _now: Optional datetime for testing (defaults to datetime.now())
 
     Returns:
         Dict with wake_day (0=Mon..6=Sun), wake_time (hours), bed_day, bed_time,
@@ -1007,54 +1008,86 @@ def get_next_active_times(zone_name: str) -> Optional[Dict[str, Any]]:
     if not rhythm_config:
         return None
 
-    now = datetime.now()
+    from datetime import date as date_cls
+
+    now = _now or datetime.now()
     current_hour = now.hour + now.minute / 60.0
     today_weekday = now.weekday()  # 0=Mon..6=Sun
+    today_date = now.date()
 
-    # Apply zone override to a copy of the config
-    config = dict(rhythm_config)
-    apply_schedule_override(zone_name, config)
+    # Check override and its expiry
+    glozones = get_glozones()
+    zone_config = glozones.get(zone_name, {})
+    override = zone_config.get("schedule_override")
 
-    wake_time = config.get("wake_time", 7.0)
-    bed_time = config.get("bed_time", 22.0)
-    wake_alt_time = config.get("wake_alt_time")
-    wake_alt_days = config.get("wake_alt_days", [])
-    bed_alt_time = config.get("bed_alt_time")
-    bed_alt_days = config.get("bed_alt_days", [])
+    # Determine if override expires before each event.
+    # until_event="bed" means override clears at next bed → wake after that uses normal schedule.
+    # until_event="wake" means override clears at next wake → bed after that uses normal schedule.
+    override_expires_at_bed = False
+    override_expires_at_wake = False
+    if override:
+        until_date_str = override.get("until_date")
+        until_event = override.get("until_event")
+        if until_date_str:
+            try:
+                until_date = date_cls.fromisoformat(until_date_str)
+                if today_date >= until_date:
+                    if until_event == "bed":
+                        override_expires_at_bed = True
+                    elif until_event == "wake":
+                        override_expires_at_wake = True
+            except ValueError:
+                pass
 
-    # Find next wake: today if not yet past wake time, else tomorrow
-    def get_wake_for_day(weekday):
-        if wake_alt_time is not None and weekday in wake_alt_days:
-            return wake_alt_time
-        return wake_time
+    # Build overridden config (for events covered by the override)
+    overridden = dict(rhythm_config)
+    apply_schedule_override(zone_name, overridden)
 
-    def get_bed_for_day(weekday):
-        if bed_alt_time is not None and weekday in bed_alt_days:
-            return bed_alt_time
-        return bed_time
+    # Original rhythm config (for events after override expires)
+    original = dict(rhythm_config)
 
-    # Next wake
-    if current_hour < wake_time or (
-        wake_alt_time is not None
-        and today_weekday in wake_alt_days
-        and current_hour < wake_alt_time
-    ):
-        # Today's wake hasn't passed yet
-        wake_day = today_weekday
-    else:
-        # Tomorrow's wake
-        wake_day = (today_weekday + 1) % 7
+    def get_wake_for_day(weekday, use_override):
+        cfg = overridden if use_override else original
+        wt = cfg.get("wake_time", 7.0)
+        wat = cfg.get("wake_alt_time")
+        wad = cfg.get("wake_alt_days", [])
+        if wat is not None and weekday in wad:
+            return wat
+        return wt
 
-    next_wake_time = get_wake_for_day(wake_day)
+    def get_bed_for_day(weekday, use_override):
+        cfg = overridden if use_override else original
+        bt = cfg.get("bed_time", 22.0)
+        bat = cfg.get("bed_alt_time")
+        bad = cfg.get("bed_alt_days", [])
+        if bat is not None and weekday in bad:
+            return bat
+        return bt
 
     # Next bed: today if not yet past bed time, else tomorrow
-    today_bed = get_bed_for_day(today_weekday)
-    if current_hour < today_bed:
+    # Bed always uses override (it hasn't expired yet at bed time,
+    # unless override expires at wake — then bed after that wake is unoverridden)
+    bed_uses_override = bool(override) and not override_expires_at_wake
+    ov_bed_time = get_bed_for_day(today_weekday, bed_uses_override)
+    if current_hour < ov_bed_time:
         bed_day = today_weekday
-        next_bed_time = today_bed
+        next_bed_time = ov_bed_time
     else:
         bed_day = (today_weekday + 1) % 7
-        next_bed_time = get_bed_for_day(bed_day)
+        # Tomorrow's bed: if override expires at bed (tonight), tomorrow is unoverridden
+        tomorrow_bed_override = bool(override) and not override_expires_at_wake and not override_expires_at_bed
+        next_bed_time = get_bed_for_day(bed_day, tomorrow_bed_override)
+
+    # Next wake: today if not yet past, else tomorrow
+    # If override expires at bed (tonight), tomorrow's wake is unoverridden
+    wake_uses_override = bool(override) and not override_expires_at_bed
+    ov_wake_time = get_wake_for_day(today_weekday, bool(override) and not override_expires_at_wake)
+    if current_hour < ov_wake_time:
+        wake_day = today_weekday
+        next_wake_time = get_wake_for_day(wake_day, bool(override) and not override_expires_at_wake)
+    else:
+        wake_day = (today_weekday + 1) % 7
+        next_wake_time = get_wake_for_day(wake_day, wake_uses_override)
 
     DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 

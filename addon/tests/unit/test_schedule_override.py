@@ -270,3 +270,44 @@ class TestGetNextActiveTimes:
         # Primary times: wake=7.0, bed=22.0 — alt is disabled
         assert result["wake_time"] == 7.0
         assert result["bed_time"] == 22.0
+
+    def test_override_expiry_at_bed_reverts_next_wake(self):
+        """Override expiring at bed tonight → next wake uses normal alt schedule."""
+        from datetime import datetime
+
+        # Friday 2:20pm (weekday=4), override expires at bed today
+        fake_now = datetime(2026, 2, 20, 14, 20)
+
+        glozone._config["glozones"]["Living Room"]["schedule_override"] = {
+            "mode": "main",
+            "until_date": "2026-02-20",
+            "until_event": "bed",
+        }
+        # Alt wake on Sat(5), Sun(6) = 9.0
+        result = glozone.get_next_active_times("Living Room", _now=fake_now)
+        assert result is not None
+        # Bed tonight still uses override (main): 22.0
+        assert result["bed_time"] == 22.0
+        # Next wake is Saturday — override expired at bed, so alt applies
+        # Saturday (weekday=5) is in wake_alt_days=[5,6] → wake_alt_time=9.0
+        assert result["wake_time"] == 9.0
+
+    def test_override_expiry_at_wake_reverts_next_bed(self):
+        """Override expiring at wake tomorrow → next bed uses normal schedule."""
+        from datetime import datetime
+
+        # Friday 2:20pm, override expires at next wake (tomorrow)
+        fake_now = datetime(2026, 2, 20, 14, 20)
+
+        glozone._config["glozones"]["Living Room"]["schedule_override"] = {
+            "mode": "alt",
+            "until_date": "2026-02-20",
+            "until_event": "wake",
+        }
+        # Alt bed on Fri(4), Sat(5) = 23.5
+        # Today is Friday (weekday=4), bed_alt_days=[4,5] → alt bed applies tonight
+        # But override mode="alt" forces alt into primary, and override expires at
+        # next wake. So tonight's bed is still overridden (alt=23.5 forced as primary).
+        result = glozone.get_next_active_times("Living Room", _now=fake_now)
+        assert result is not None
+        assert result["bed_time"] == 23.5
