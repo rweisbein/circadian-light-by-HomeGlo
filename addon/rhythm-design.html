@@ -845,7 +845,17 @@ input[type=range]::-moz-range-thumb {
 
 /* Responsive */
 @media (max-width: 640px) {
-  .param-row { grid-template-columns: 1fr; gap: 4px; }
+  .param-row {
+    grid-template-columns: auto 1fr;
+    gap: 2px 8px;
+  }
+  .param-row label { text-align: left; }
+  .param-row input[type="range"],
+  .param-row .dual-range,
+  .param-row .day-bubbles { grid-column: 1 / -1; }
+  .param-row .value,
+  .param-row .dual-chip,
+  .param-row .offset-text { text-align: right; }
   .cursor-controls { flex-wrap: wrap; gap: 24px; }
   .solar-rule { grid-template-columns: 1fr; }
 }
@@ -1238,8 +1248,8 @@ input[type=range]::-moz-range-thumb {
       <span class="dual-chip right" id="wake-time-display">7:00a</span>
     </div>
     <div class="param-row">
-      <label>Alt days</label>
-      <div class="day-bubbles" id="wake-alt-days">
+      <label>Days</label>
+      <div class="day-bubbles" id="wake-days">
         <button class="day-bubble" data-day="0">Mo</button>
         <button class="day-bubble" data-day="1">Tu</button>
         <button class="day-bubble" data-day="2">We</button>
@@ -1255,7 +1265,7 @@ input[type=range]::-moz-range-thumb {
       <span class="dual-chip right" id="wake-alt-time-display">9:00a</span>
     </div>
     <div class="param-row">
-      <label>At wake</label>
+      <label>Brightness</label>
       <input type="range" id="wake-brightness" min="10" max="90" step="5" value="50">
       <span class="dual-chip right" id="wake-brightness-display">50%</span>
     </div>
@@ -1271,8 +1281,8 @@ input[type=range]::-moz-range-thumb {
       <span class="dual-chip right" id="bed-time-display">9:00p</span>
     </div>
     <div class="param-row">
-      <label>Alt days</label>
-      <div class="day-bubbles" id="bed-alt-days">
+      <label>Days</label>
+      <div class="day-bubbles" id="bed-days">
         <button class="day-bubble" data-day="0">Mo</button>
         <button class="day-bubble" data-day="1">Tu</button>
         <button class="day-bubble" data-day="2">We</button>
@@ -1288,7 +1298,7 @@ input[type=range]::-moz-range-thumb {
       <span class="dual-chip right" id="bed-alt-time-display">11:00p</span>
     </div>
     <div class="param-row">
-      <label>At bed</label>
+      <label>Brightness</label>
       <input type="range" id="bed-brightness" min="10" max="90" step="5" value="50">
       <span class="dual-chip right" id="bed-brightness-display">50%</span>
     </div>
@@ -3440,9 +3450,10 @@ function initDayBubbles(containerId, altTimeRowId) {
     btn.addEventListener('click', () => {
       btn.classList.toggle('active');
       const row = document.getElementById(altTimeRowId);
-      const anyActive = container.querySelector('.day-bubble.active');
+      const activeCount = container.querySelectorAll('.day-bubble.active').length;
+      // Show alt time only when some (not all/none) days are selected
       if (row) {
-        row.classList.toggle('collapsed', !anyActive);
+        row.classList.toggle('collapsed', activeCount === 0 || activeCount === 7);
       }
       syncConfigFromUI();
       renderChart();
@@ -3458,15 +3469,24 @@ function syncConfigFromUI() {
   config.wake_speed = parseInt(document.getElementById('wake-speed').value);
   config.bed_speed = parseInt(document.getElementById('bed-speed').value);
 
-  // Alt timing
-  config.wake_alt_days = getSelectedDays('wake-alt-days');
-  config.wake_alt_time = config.wake_alt_days.length > 0
-    ? parseFloat(document.getElementById('wake-alt-time').value) % 24
-    : null;
-  config.bed_alt_days = getSelectedDays('bed-alt-days');
-  config.bed_alt_time = config.bed_alt_days.length > 0
-    ? parseFloat(document.getElementById('bed-alt-time').value) % 24
-    : null;
+  // Alt timing — selected "Days" = primary days, unselected = alt days
+  const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6];
+  const wakePrimaryDays = getSelectedDays('wake-days');
+  if (wakePrimaryDays.length === 0 || wakePrimaryDays.length === 7) {
+    config.wake_alt_days = [];
+    config.wake_alt_time = null;
+  } else {
+    config.wake_alt_days = ALL_DAYS.filter(d => !wakePrimaryDays.includes(d));
+    config.wake_alt_time = parseFloat(document.getElementById('wake-alt-time').value) % 24;
+  }
+  const bedPrimaryDays = getSelectedDays('bed-days');
+  if (bedPrimaryDays.length === 0 || bedPrimaryDays.length === 7) {
+    config.bed_alt_days = [];
+    config.bed_alt_time = null;
+  } else {
+    config.bed_alt_days = ALL_DAYS.filter(d => !bedPrimaryDays.includes(d));
+    config.bed_alt_time = parseFloat(document.getElementById('bed-alt-time').value) % 24;
+  }
   config.wake_brightness = parseInt(document.getElementById('wake-brightness').value);
   config.bed_brightness = parseInt(document.getElementById('bed-brightness').value);
 
@@ -3529,9 +3549,13 @@ function syncUIFromConfig() {
   document.getElementById('wake-speed').value = config.wake_speed;
   document.getElementById('bed-speed').value = config.bed_speed;
 
-  // Alt timing
-  setSelectedDays('wake-alt-days', config.wake_alt_days || []);
+  // Alt timing — show primary days (complement of alt_days) as selected
+  const ALL_DAYS_UI = [0, 1, 2, 3, 4, 5, 6];
   const wakeAltDays = config.wake_alt_days || [];
+  const wakePrimary = wakeAltDays.length > 0
+    ? ALL_DAYS_UI.filter(d => !wakeAltDays.includes(d))
+    : [];  // none selected = all primary (no alt)
+  setSelectedDays('wake-days', wakePrimary);
   if (wakeAltDays.length > 0 && config.wake_alt_time != null) {
     let wakeAltSlider = config.wake_alt_time;
     if (config.wake_alt_time < config.ascend_start) wakeAltSlider += 24;
@@ -3540,8 +3564,11 @@ function syncUIFromConfig() {
   } else {
     document.getElementById('wake-alt-time-row').classList.add('collapsed');
   }
-  setSelectedDays('bed-alt-days', config.bed_alt_days || []);
   const bedAltDays = config.bed_alt_days || [];
+  const bedPrimary = bedAltDays.length > 0
+    ? ALL_DAYS_UI.filter(d => !bedAltDays.includes(d))
+    : [];  // none selected = all primary (no alt)
+  setSelectedDays('bed-days', bedPrimary);
   if (bedAltDays.length > 0 && config.bed_alt_time != null) {
     let bedAltSlider = config.bed_alt_time;
     if (config.bed_alt_time < config.descend_start) bedAltSlider += 24;
@@ -3792,8 +3819,8 @@ function setupEventListeners() {
   updateSliderValue('bed-brightness', 'bed-brightness-display', v => v == 50 ? '50% (default)' : v + '%');
 
   // Day bubble toggles
-  initDayBubbles('wake-alt-days', 'wake-alt-time-row');
-  initDayBubbles('bed-alt-days', 'bed-alt-time-row');
+  initDayBubbles('wake-days', 'wake-alt-time-row');
+  initDayBubbles('bed-days', 'bed-alt-time-row');
 
   // Dual-range sliders update combined display
   ['color-min', 'color-max'].forEach(id => {
