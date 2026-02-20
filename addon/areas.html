@@ -2235,7 +2235,6 @@
 
     function handleSensorChange(rawVal) {
       const val = (rawVal || '').trim() || null;
-      console.log('[OutdoorSensor] handleSensorChange called, value:', val);
       const statusEl = document.getElementById('tune-outdoor-learn-status');
       if (statusEl) statusEl.textContent = 'Saving sensor...';
       if (tuneOutdoorData) tuneOutdoorData.sensor_entity = val;
@@ -2245,7 +2244,6 @@
         body: JSON.stringify({ outdoor_lux_sensor: val, lux_learned_ceiling: null, lux_learned_floor: null })
       })
         .then(r => {
-          console.log('[OutdoorSensor] save response:', r.status);
           if (!r.ok) { if (statusEl) statusEl.textContent = 'Save failed (' + r.status + ')'; }
           return r;
         })
@@ -2253,7 +2251,6 @@
         .then(r => r.ok ? r.json() : null)
         .then(data => {
           if (data) {
-            console.log('[OutdoorSensor] outdoor-status sensor_entity:', data.sensor_entity);
             tuneOutdoorData = data;
             if (tuneData) tuneData.outdoor_normalized = data.outdoor_normalized ?? 0;
             const rangeEl = document.getElementById('tune-outdoor-range');
@@ -2263,8 +2260,7 @@
             if (statusEl) statusEl.textContent = 'Sensor saved';
           }
         })
-        .catch(err => {
-          console.error('[OutdoorSensor] error:', err);
+        .catch(() => {
           if (statusEl) statusEl.textContent = 'Save error!';
         });
     }

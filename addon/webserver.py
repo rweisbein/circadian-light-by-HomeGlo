@@ -1352,32 +1352,19 @@ class LightDesignerServer:
         """
         try:
             data = await request.json()
-            logger.info(f"[SaveConfig] Incoming data keys: {list(data.keys())}")
-            logger.info(
-                f"[SaveConfig] Incoming glozones: {data.get('glozones', 'NOT PRESENT')}"
-            )
 
             # Load existing raw config (GloZone format)
             config = await self.load_raw_config()
-            logger.info(
-                f"[SaveConfig] Loaded raw config glozones: {list(config.get('glozones', {}).keys())}"
-            )
 
             # Separate incoming data into categories
             incoming_rhythms = data.pop("circadian_rhythms", None)
             incoming_glozones = data.pop("glozones", None)
-            logger.info(
-                f"[SaveConfig] After pop - incoming_glozones: {incoming_glozones}"
-            )
 
             # Handle incoming preset and glozone structures
             if incoming_rhythms:
                 config["circadian_rhythms"].update(incoming_rhythms)
 
             if incoming_glozones:
-                logger.info(
-                    f"[SaveConfig] Updating glozones with: {list(incoming_glozones.keys())}"
-                )
                 config["glozones"].update(incoming_glozones)
 
             # Remaining data could be flat preset settings or global settings
@@ -1402,26 +1389,8 @@ class LightDesignerServer:
             # Apply global updates to top level
             config.update(global_updates)
 
-            # Log outdoor sensor changes for diagnostics
-            if "outdoor_lux_sensor" in global_updates:
-                logger.info(
-                    f"[SaveConfig] outdoor_lux_sensor = {global_updates['outdoor_lux_sensor']!r}"
-                )
-
             # Save the raw config (GloZone format)
             await self.save_config_to_file(config)
-
-            # Readback verification for outdoor sensor saves
-            if "outdoor_lux_sensor" in global_updates:
-                try:
-                    async with aiofiles.open(self.designer_file, "r") as f:
-                        verify = json.loads(await f.read())
-                    saved_sensor = verify.get("outdoor_lux_sensor")
-                    logger.info(
-                        f"[SaveConfig] VERIFY readback outdoor_lux_sensor={saved_sensor!r}"
-                    )
-                except Exception as ve:
-                    logger.error(f"[SaveConfig] Readback verification failed: {ve}")
 
             # Update glozone module with new config
             glozone.set_config(config)
@@ -5541,9 +5510,6 @@ class LightDesignerServer:
     async def get_outdoor_status(self, request: Request) -> Response:
         """Get current outdoor brightness state for settings page."""
         config = await self.load_config()
-        logger.info(
-            f"[OutdoorStatus] config outdoor_lux_sensor={config.get('outdoor_lux_sensor')!r}"
-        )
         lux_tracker.init(config)
         await self._seed_outdoor_from_ha()
         self._seed_sun_elevation()
@@ -5590,16 +5556,12 @@ class LightDesignerServer:
                 return web.json_response({"error": "No HA connection"}, status=500)
 
             config = await self.load_config()
-            logger.info(
-                f"[LearnBaselines] config outdoor_lux_sensor={config.get('outdoor_lux_sensor')!r}"
-            )
             lux_tracker.init(config)
             sensor_entity = lux_tracker.get_sensor_entity()
             if not sensor_entity:
                 return web.json_response(
                     {"error": "No lux sensor configured"}, status=400
                 )
-            logger.info(f"[LearnBaselines] using sensor: {sensor_entity}")
 
             # Get HA location config
             async with websockets.connect(ws_url) as ws:
@@ -5789,10 +5751,6 @@ class LightDesignerServer:
                 await self.save_config_to_file(save_cfg)
                 glozone.set_config(save_cfg)
                 lux_tracker.set_learned_baselines(ceiling_val, floor_val)
-                logger.info(
-                    f"[LearnBaselines] saved ceiling={ceiling_val:.0f}, "
-                    f"floor={floor_val:.0f}, sensor in config={save_cfg.get('outdoor_lux_sensor')!r}"
-                )
 
                 logger.info(
                     f"Baselines learned from {len(daytime_means)} samples "
