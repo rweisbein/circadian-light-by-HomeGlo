@@ -702,10 +702,15 @@
     }
     .schedule-popover-custom-inputs {
       display: flex;
-      gap: 8px;
+      align-items: center;
+      gap: 6px;
       margin-left: 24px;
       margin-top: 4px;
       margin-bottom: 4px;
+    }
+    .schedule-popover-custom-inputs .spo-input-label {
+      font-size: 0.72rem;
+      opacity: 0.5;
     }
     .schedule-popover-custom-inputs input[type="time"] {
       background: var(--bg);
@@ -739,7 +744,7 @@
     }
     .schedule-popover-actions {
       display: flex;
-      justify-content: flex-end;
+      align-items: center;
       gap: 8px;
       margin-top: 12px;
     }
@@ -1733,9 +1738,11 @@
       const interval = getHomeRefreshInterval() * 1000;
       homeRefreshTimer = setInterval(async () => {
         try {
-          const [res, zsRes] = await Promise.all([
+          const [res, zsRes, rhythmsRes, gzRes] = await Promise.all([
             fetch('./api/area-status'),
-            fetch('./api/zone-states')
+            fetch('./api/zone-states'),
+            fetch('./api/circadian-rhythms'),
+            fetch('./api/glozones'),
           ]);
           if (res.ok) {
             areaStatus = await res.json();
@@ -1743,6 +1750,13 @@
           if (zsRes.ok) {
             const zs = await zsRes.json();
             zoneStates = zs.zone_states || {};
+          }
+          if (rhythmsRes.ok) {
+            const p = await rhythmsRes.json();
+            cachedRhythms = p.rhythms || {};
+          }
+          if (gzRes.ok) {
+            cachedGlozones = await gzRes.json();
           }
           renderAreas();
         } catch (err) {
@@ -2152,6 +2166,7 @@
     }
 
     // Build the next-times HTML for a zone header
+    // Shows chronological order: next event first (bed tonight → wake tomorrow)
     function buildNextTimesHtml(zoneName, zoneTextColor) {
       const zoneData = cachedGlozones?.zones?.[zoneName];
       if (!zoneData?.next_times) return '';
@@ -2159,7 +2174,21 @@
       const hasOverride = !!zoneData.schedule_override;
       const overrideClass = hasOverride ? ' has-override' : '';
       const escapedName = zoneName.replace(/'/g, "\\'");
-      return `<span class="zone-next-times${overrideClass}" style="color: ${zoneTextColor};" onclick="event.stopPropagation(); openSchedulePopover('${escapedName}', this)" title="${hasOverride ? 'Schedule override active — click to edit' : 'Click to set schedule override'}">${nt.wake_day_name} ${fmtCompactTime(nt.wake_time)} · ${nt.bed_day_name} ${fmtCompactTime(nt.bed_time)}</span>`;
+
+      // Determine which event comes next chronologically
+      const now = new Date();
+      const nowDay = now.getDay() === 0 ? 6 : now.getDay() - 1; // JS Sun=0 → Mon=0..Sun=6
+      const nowH = now.getHours() + now.getMinutes() / 60;
+      // Compute hours-from-now for each event
+      const wakeHoursAway = ((nt.wake_day - nowDay) * 24 + nt.wake_time - nowH + 168) % 168;
+      const bedHoursAway = ((nt.bed_day - nowDay) * 24 + nt.bed_time - nowH + 168) % 168;
+      const bedFirst = bedHoursAway <= wakeHoursAway;
+
+      const bedStr = `bed ${nt.bed_day_name} ${fmtCompactTime(nt.bed_time)}`;
+      const wakeStr = `wake ${nt.wake_day_name} ${fmtCompactTime(nt.wake_time)}`;
+      const timesStr = bedFirst ? `${bedStr} · ${wakeStr}` : `${wakeStr} · ${bedStr}`;
+
+      return `<span class="zone-next-times${overrideClass}" style="color: ${zoneTextColor};" onclick="event.stopPropagation(); openSchedulePopover('${escapedName}', this)" title="${hasOverride ? 'Schedule override active — click to edit' : 'Click to set schedule override'}">${timesStr}</span>`;
     }
 
     // Schedule override popover
@@ -2179,6 +2208,8 @@
       const altWake = rhythm.wake_alt_time;
       const altBed = rhythm.bed_alt_time;
       const hasAlt = altWake != null || altBed != null;
+      const ascendStart = rhythm.ascend_start ?? 3;
+      const descendStart = rhythm.descend_start ?? 12;
 
       const override = zoneData.schedule_override;
       const currentMode = override?.mode || '';
@@ -2194,11 +2225,14 @@
       popover.id = 'schedule-popover';
       popover.onclick = (e) => e.stopPropagation();
 
-      const mainLabel = fmtCompactTime(mainWake) + ' / ' + fmtCompactTime(mainBed);
-      const altLabel = hasAlt ? fmtCompactTime(altWake ?? mainWake) + ' / ' + fmtCompactTime(altBed ?? mainBed) : '';
+      const mainLabel = `wake ${fmtCompactTime(mainWake)} / bed ${fmtCompactTime(mainBed)}`;
+      const altLabel = hasAlt ? `wake ${fmtCompactTime(altWake ?? mainWake)} / bed ${fmtCompactTime(altBed ?? mainBed)}` : '';
 
       let customWake = override?.custom_wake ?? mainWake;
       let customBed = override?.custom_bed ?? mainBed;
+
+      // Rhythm link
+      const rhythmHref = rhythmName ? `./rhythm/${encodeURIComponent(rhythmName)}` : '';
 
       popover.innerHTML = `
         <div class="schedule-popover-title">Schedule Override</div>
@@ -2216,8 +2250,12 @@
           <label for="spo-custom">Custom</label>
         </div>
         <div class="schedule-popover-custom-inputs">
-          <input type="time" id="spo-custom-wake" value="${decimalToTimeInput(customWake)}" title="Wake time">
-          <input type="time" id="spo-custom-bed" value="${decimalToTimeInput(customBed)}" title="Bed time">
+          <span class="spo-input-label">wake</span>
+          <input type="time" id="spo-custom-wake" value="${decimalToTimeInput(customWake)}"
+            min="${decimalToTimeInput(ascendStart)}" max="${decimalToTimeInput(descendStart)}">
+          <span class="spo-input-label">bed</span>
+          <input type="time" id="spo-custom-bed" value="${decimalToTimeInput(customBed)}"
+            min="${decimalToTimeInput(descendStart)}" max="${decimalToTimeInput(ascendStart)}">
         </div>
         <div class="schedule-popover-until">
           <label>Until</label>
@@ -2229,6 +2267,8 @@
         </div>
         <div class="schedule-popover-actions">
           ${override ? '<button class="danger" onclick="clearScheduleOverride()">Clear</button>' : ''}
+          <span style="flex:1;"></span>
+          ${rhythmHref ? `<a href="${rhythmHref}" style="font-size:0.75rem; color:var(--muted); text-decoration:none; align-self:center;" title="Edit rhythm">Edit rhythm &rarr;</a>` : ''}
           <button class="primary" onclick="applyScheduleOverride()">Apply</button>
         </div>
       `;
