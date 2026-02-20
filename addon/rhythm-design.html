@@ -2342,9 +2342,13 @@ function calculateBrightnessAtHour(hour) {
   const cursorH48 = cursorHour !== null ? (cursorHour < tAscend ? cursorHour + 24 : cursorHour) : tAscend;
   const cursorInAscend = cursorH48 >= tAscend && cursorH48 < tDescend;
 
+  // Resolve effective timing for chart weekday
+  const weekday = getChartWeekday();
+  const timing = resolveEffectiveTiming(hour, weekday);
+
   // runtimeState midpoints apply to current phase only
-  const wakeMid = cursorInAscend ? (runtimeState.brightness_mid ?? config.wake_time) : config.wake_time;
-  const bedMid = !cursorInAscend ? (runtimeState.brightness_mid ?? config.bed_time) : config.bed_time;
+  let wakeMid = cursorInAscend ? (runtimeState.brightness_mid ?? timing.wake) : timing.wake;
+  let bedMid = !cursorInAscend ? (runtimeState.brightness_mid ?? timing.bed) : timing.bed;
 
   // Clamp speed to valid range 1-10 (matches brain.py)
   const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, config.wake_speed))];
@@ -2358,23 +2362,40 @@ function calculateBrightnessAtHour(hour) {
   const h48 = hour < tAscend ? hour + 24 : hour;
   const inAscend = h48 >= tAscend && h48 < tDescend;
 
+  // Apply brightness target shift when not stepping
+  if (runtimeState.brightness_mid == null) {
+    const slope = inAscend ? kAscend : -kDescend;
+    const brightPct = inAscend ? (config.wake_brightness || 50) : (config.bed_brightness || 50);
+    if (brightPct !== 50) {
+      if (inAscend) {
+        let rawMid48 = wakeMid;
+        while (rawMid48 < tAscend) rawMid48 += 24;
+        while (rawMid48 > tDescend) rawMid48 -= 24;
+        rawMid48 = Math.max(tAscend + 0.01, Math.min(tDescend - 0.01, rawMid48));
+        wakeMid = computeShiftedMidpoint(rawMid48, brightPct, slope, bMin, bMax) % 24;
+      } else {
+        const phaseEnd = tDescend + 24;
+        let rawMid48 = bedMid;
+        while (rawMid48 < tDescend) rawMid48 += 24;
+        while (rawMid48 > phaseEnd) rawMid48 -= 24;
+        rawMid48 = Math.max(tDescend + 0.01, Math.min(phaseEnd - 0.01, rawMid48));
+        bedMid = computeShiftedMidpoint(rawMid48, brightPct, slope, bMin, bMax) % 24;
+      }
+    }
+  }
+
   // Lift midpoint to 48h space and clamp to phase boundaries
-  // This prevents wrap-around issues when midpoint is near/past phase boundary
   let mid48;
   if (inAscend) {
     mid48 = wakeMid;
-    // Lift into valid range first
     while (mid48 < tAscend - 12) mid48 += 24;
     while (mid48 > tDescend + 12) mid48 -= 24;
-    // Clamp to phase boundaries (with small margin for numerical stability)
     mid48 = Math.max(tAscend + 0.01, Math.min(tDescend - 0.01, mid48));
   } else {
     mid48 = bedMid;
     const phaseEnd = tDescend + 24;
-    // Lift into valid range first
     while (mid48 < tDescend - 12) mid48 += 24;
     while (mid48 > phaseEnd + 12) mid48 -= 24;
-    // Clamp to phase boundaries (with small margin for numerical stability)
     mid48 = Math.max(tDescend + 0.01, Math.min(phaseEnd - 0.01, mid48));
   }
 
@@ -2406,9 +2427,13 @@ function calculateColorAtHour(hour, applySolar = true) {
   const cursorH48 = cursorHour !== null ? (cursorHour < tAscend ? cursorHour + 24 : cursorHour) : tAscend;
   const cursorInAscend = cursorH48 >= tAscend && cursorH48 < tDescend;
 
+  // Resolve effective timing for chart weekday (alt times)
+  const weekday = getChartWeekday();
+  const timing = resolveEffectiveTiming(hour, weekday);
+
   // runtimeState midpoints apply to current phase only
-  const colorWakeMid = cursorInAscend ? (runtimeState.color_mid ?? config.wake_time) : config.wake_time;
-  const colorBedMid = !cursorInAscend ? (runtimeState.color_mid ?? config.bed_time) : config.bed_time;
+  const colorWakeMid = cursorInAscend ? (runtimeState.color_mid ?? timing.wake) : timing.wake;
+  const colorBedMid = !cursorInAscend ? (runtimeState.color_mid ?? timing.bed) : timing.bed;
 
   // Clamp speed to valid range 1-10 (matches brain.py)
   const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, config.wake_speed))];
