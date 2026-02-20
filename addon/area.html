@@ -833,6 +833,7 @@
     let cachedConfig = null;
     let cachedSunTimes = null;
     let cachedRhythms = {};
+    let cachedGlozones = {};
     let areas = [];
     let refreshInterval = null;
     let tickInterval = null;
@@ -1024,6 +1025,74 @@
       }
 
       return cct;
+    }
+
+    // Resolve effective wake/bed times considering schedule override and alt days.
+    // Uses phase-aware logic: the graph needs the wake/bed for the current phase
+    // and the next phase, which may fall on different weekdays.
+    function resolveEffectiveCfg(cfg, zoneName) {
+      const resolved = { ...cfg };
+
+      // 1. Schedule override takes priority (forces specific times for all days)
+      const zoneData = cachedGlozones?.zones?.[zoneName];
+      const override = zoneData?.schedule_override;
+      if (override) {
+        if (override.mode === 'main') {
+          // Force primary times, disable alt
+          resolved.wake_alt_time = null;
+          resolved.bed_alt_time = null;
+          return resolved;
+        } else if (override.mode === 'alt') {
+          if (resolved.wake_alt_time != null) resolved.wake_time = resolved.wake_alt_time;
+          if (resolved.bed_alt_time != null) resolved.bed_time = resolved.bed_alt_time;
+          resolved.wake_alt_time = null;
+          resolved.bed_alt_time = null;
+          return resolved;
+        } else if (override.mode === 'custom') {
+          if (override.custom_wake != null) resolved.wake_time = override.custom_wake;
+          if (override.custom_bed != null) resolved.bed_time = override.custom_bed;
+          resolved.wake_alt_time = null;
+          resolved.bed_alt_time = null;
+          return resolved;
+        }
+      }
+
+      // 2. Phase-aware alt day resolution
+      const now = new Date();
+      const weekday = now.getDay() === 0 ? 6 : now.getDay() - 1; // JS Sun=0 → Mon=0..Sun=6
+      const hour = now.getHours() + now.getMinutes() / 60;
+      const ascendStart = resolved.ascend_start ?? 3;
+      let descendStart = resolved.descend_start ?? 12;
+      if (descendStart <= ascendStart) descendStart += 24;
+      const h48 = hour < ascendStart ? hour + 24 : hour;
+      const inAscend = h48 >= ascendStart && h48 < descendStart;
+
+      if (inAscend) {
+        // Currently ascending: wake = today, bed = today
+        const wakeWeekday = weekday;
+        const bedWeekday = weekday;
+        if (resolved.wake_alt_time != null && resolved.wake_alt_days?.includes(wakeWeekday)) {
+          resolved.wake_time = resolved.wake_alt_time;
+        }
+        if (resolved.bed_alt_time != null && resolved.bed_alt_days?.includes(bedWeekday)) {
+          resolved.bed_time = resolved.bed_alt_time;
+        }
+      } else {
+        // Currently descending: bed = today (or yesterday if post-midnight),
+        // wake = tomorrow (next ascend phase)
+        let bedWeekday = weekday;
+        if (hour < ascendStart) {
+          bedWeekday = (weekday - 1 + 7) % 7;
+        }
+        const wakeWeekday = hour < ascendStart ? weekday : (weekday + 1) % 7;
+        if (resolved.bed_alt_time != null && resolved.bed_alt_days?.includes(bedWeekday)) {
+          resolved.bed_time = resolved.bed_alt_time;
+        }
+        if (resolved.wake_alt_time != null && resolved.wake_alt_days?.includes(wakeWeekday)) {
+          resolved.wake_time = resolved.wake_alt_time;
+        }
+      }
+      return resolved;
     }
 
     function calcMiniBrightness(hour, cfg, state, currentHour) {
@@ -1367,9 +1436,10 @@
         const zs = zoneStates[selectedZoneName] || {};
         if (!cachedConfig || !cachedSunTimes) return null;
         const rhythmName = zs.rhythm;
-        const cfg = (rhythmName && cachedRhythms[rhythmName])
+        let cfg = (rhythmName && cachedRhythms[rhythmName])
           ? { ...cachedConfig, ...cachedRhythms[rhythmName] }
-          : cachedConfig;
+          : { ...cachedConfig };
+        cfg = resolveEffectiveCfg(cfg, selectedZoneName);
         const rs = zs.runtime_state || {};
         const areaState = {
           brightness_mid: rs.brightness_mid ?? null,
@@ -1391,9 +1461,10 @@
         const zoneName = status.zone_name;
         const zs = zoneName ? (zoneStates[zoneName] || {}) : {};
         const rhythmName = zs.rhythm || status.preset_name;
-        const cfg = (rhythmName && cachedRhythms[rhythmName])
+        let cfg = (rhythmName && cachedRhythms[rhythmName])
           ? { ...cachedConfig, ...cachedRhythms[rhythmName] }
-          : cachedConfig;
+          : { ...cachedConfig };
+        cfg = resolveEffectiveCfg(cfg, zoneName);
         const areaState = {
           brightness_mid: status.brightness_mid ?? null,
           color_mid: status.color_mid ?? null,
@@ -1622,12 +1693,14 @@
 
     async function loadInitialData() {
       try {
-        const [statusRes, zsRes, areasRes, rhythmsRes] = await Promise.all([
+        const [statusRes, zsRes, areasRes, rhythmsRes, gzRes] = await Promise.all([
           fetch(basePath + '/api/area-status'),
           fetch(basePath + '/api/zone-states'),
           fetch(basePath + '/api/areas'),
-          fetch(basePath + '/api/circadian-rhythms')
+          fetch(basePath + '/api/circadian-rhythms'),
+          fetch(basePath + '/api/glozones')
         ]);
+        if (gzRes.ok) cachedGlozones = await gzRes.json();
         if (statusRes.ok) areaStatus = await statusRes.json();
         // Compute condition multiplier: ratio of actual outdoor reading to clear-sky model
         if (cachedSunTimes && cachedConfig) {
@@ -2096,8 +2169,9 @@
       if (rhythmName && cachedRhythms[rhythmName]) {
         cfg = { ...cachedConfig, ...cachedRhythms[rhythmName] };
       } else {
-        cfg = cachedConfig;
+        cfg = { ...cachedConfig };
       }
+      cfg = resolveEffectiveCfg(cfg, zoneName);
 
       const areaState = {
         brightness_mid: status.brightness_mid ?? null,
@@ -2127,8 +2201,9 @@
       if (rhythmName && cachedRhythms[rhythmName]) {
         cfg = { ...cachedConfig, ...cachedRhythms[rhythmName] };
       } else {
-        cfg = cachedConfig;
+        cfg = { ...cachedConfig };
       }
+      cfg = resolveEffectiveCfg(cfg, zoneName);
 
       const rs = zs.runtime_state || {};
       const zoneState = {
