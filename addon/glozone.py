@@ -83,8 +83,23 @@ def get_glozones() -> Dict[str, Dict[str, Any]]:
         Dict of zone_name -> zone config (rhythm, areas, is_default)
     """
     if not _config:
-        return {INITIAL_ZONE_NAME: {"rhythm": DEFAULT_RHYTHM, "areas": [], "is_default": True}}
-    return _config.get("glozones", {INITIAL_ZONE_NAME: {"rhythm": DEFAULT_RHYTHM, "areas": [], "is_default": True}})
+        return {
+            INITIAL_ZONE_NAME: {
+                "rhythm": DEFAULT_RHYTHM,
+                "areas": [],
+                "is_default": True,
+            }
+        }
+    return _config.get(
+        "glozones",
+        {
+            INITIAL_ZONE_NAME: {
+                "rhythm": DEFAULT_RHYTHM,
+                "areas": [],
+                "is_default": True,
+            }
+        },
+    )
 
 
 def get_rhythms() -> Dict[str, Dict[str, Any]]:
@@ -146,7 +161,7 @@ def set_default_zone(zone_name: str, save: bool = True) -> bool:
 
     # Clear is_default from all zones, set on target
     for zn, zone_config in glozones.items():
-        zone_config["is_default"] = (zn == zone_name)
+        zone_config["is_default"] = zn == zone_name
 
     logger.info(f"Set default zone to '{zone_name}'")
 
@@ -156,7 +171,9 @@ def set_default_zone(zone_name: str, save: bool = True) -> bool:
     return True
 
 
-def add_area_to_zone(area_id: str, zone_name: str, area_name: Optional[str] = None) -> bool:
+def add_area_to_zone(
+    area_id: str, zone_name: str, area_name: Optional[str] = None
+) -> bool:
     """Add an area to a zone.
 
     If the area is already in another zone, it will be moved.
@@ -182,10 +199,11 @@ def add_area_to_zone(area_id: str, zone_name: str, area_name: Optional[str] = No
     for zn, zone_config in glozones.items():
         areas = zone_config.get("areas", [])
         zone_config["areas"] = [
-            a for a in areas
+            a
+            for a in areas
             if not (
-                (isinstance(a, dict) and a.get("id") == area_id) or
-                (isinstance(a, str) and a == area_id)
+                (isinstance(a, dict) and a.get("id") == area_id)
+                or (isinstance(a, str) and a == area_id)
             )
         ]
 
@@ -229,9 +247,11 @@ def save_config() -> bool:
 
     try:
         # Use unique temp file to prevent concurrent write collisions
-        fd, tmp_path = tempfile.mkstemp(dir=data_dir, suffix=".tmp", prefix=".designer_")
+        fd, tmp_path = tempfile.mkstemp(
+            dir=data_dir, suffix=".tmp", prefix=".designer_"
+        )
         try:
-            with os.fdopen(fd, 'w') as f:
+            with os.fdopen(fd, "w") as f:
                 json.dump(_config, f, indent=2)
             os.replace(tmp_path, designer_path)
         except BaseException:
@@ -381,6 +401,12 @@ def get_rhythm_config(rhythm_name: str) -> Dict[str, Any]:
         "warm_night_start": -60,
         "warm_night_end": 60,
         "warm_night_fade": 60,
+        "wake_alt_time": None,
+        "wake_alt_days": [],
+        "bed_alt_time": None,
+        "bed_alt_days": [],
+        "wake_brightness": 50,
+        "bed_brightness": 50,
         "brightness_sensitivity": 5.0,
         "color_sensitivity": 1.50,
         "daylight_cct": 5500,
@@ -389,10 +415,12 @@ def get_rhythm_config(rhythm_name: str) -> Dict[str, Any]:
         "max_dim_steps": 10,
     }
     result = {**defaults, **rhythm}
-    logger.debug(f"[get_rhythm_config] rhythm_name={rhythm_name}, "
-                 f"raw rhythm keys={list(rhythm.keys())}, "
-                 f"warm_night_enabled={result.get('warm_night_enabled')}, "
-                 f"max_brightness={result.get('max_brightness')}")
+    logger.debug(
+        f"[get_rhythm_config] rhythm_name={rhythm_name}, "
+        f"raw rhythm keys={list(rhythm.keys())}, "
+        f"warm_night_enabled={result.get('warm_night_enabled')}, "
+        f"max_brightness={result.get('max_brightness')}"
+    )
     return result
 
 
@@ -436,7 +464,7 @@ def ensure_default_zone_exists() -> None:
         glozones[INITIAL_ZONE_NAME] = {
             "rhythm": DEFAULT_RHYTHM,
             "areas": [],
-            "is_default": True
+            "is_default": True,
         }
         logger.info(f"Created initial zone '{INITIAL_ZONE_NAME}'")
         return
@@ -592,23 +620,50 @@ def get_area_light_filters(area_id: str) -> Dict[str, str]:
 
 # Settings that are per-rhythm (not global)
 RHYTHM_SETTINGS = {
-    "color_mode", "min_color_temp", "max_color_temp",
-    "min_brightness", "max_brightness",
-    "ascend_start", "descend_start", "wake_time", "bed_time",
-    "wake_speed", "bed_speed",
-    "warm_night_enabled", "warm_night_mode", "warm_night_target",
-    "warm_night_start", "warm_night_end", "warm_night_fade",
-    "brightness_sensitivity", "color_sensitivity", "daylight_cct", "daylight_fade",
-    "activity_preset", "max_dim_steps",
+    "color_mode",
+    "min_color_temp",
+    "max_color_temp",
+    "min_brightness",
+    "max_brightness",
+    "ascend_start",
+    "descend_start",
+    "wake_time",
+    "bed_time",
+    "wake_speed",
+    "bed_speed",
+    "wake_alt_time",
+    "wake_alt_days",
+    "bed_alt_time",
+    "bed_alt_days",
+    "wake_brightness",
+    "bed_brightness",
+    "warm_night_enabled",
+    "warm_night_mode",
+    "warm_night_target",
+    "warm_night_start",
+    "warm_night_end",
+    "warm_night_fade",
+    "brightness_sensitivity",
+    "color_sensitivity",
+    "daylight_cct",
+    "daylight_fade",
+    "activity_preset",
+    "max_dim_steps",
 }
 
 # Settings that are global (not per-rhythm)
 GLOBAL_SETTINGS = {
-    "latitude", "longitude", "timezone", "use_ha_location", "month",
+    "latitude",
+    "longitude",
+    "timezone",
+    "use_ha_location",
+    "month",
     "light_filters",
     "weather_entity",
-    "outdoor_lux_sensor", "lux_smoothing_interval",
-    "lux_learned_ceiling", "lux_learned_floor",
+    "outdoor_lux_sensor",
+    "lux_smoothing_interval",
+    "lux_learned_ceiling",
+    "lux_learned_floor",
 }
 
 
@@ -634,8 +689,12 @@ def _migrate_cool_day_to_natural_light(config: Dict[str, Any]) -> None:
     Mutates config in place. Safe to call multiple times (no-op if already migrated).
     """
     cool_day_keys = {
-        "cool_day_enabled", "cool_day_mode", "cool_day_target",
-        "cool_day_start", "cool_day_end", "cool_day_fade",
+        "cool_day_enabled",
+        "cool_day_mode",
+        "cool_day_target",
+        "cool_day_start",
+        "cool_day_end",
+        "cool_day_fade",
     }
 
     for rhythm in config.get("circadian_rhythms", {}).values():
@@ -740,14 +799,12 @@ def _migrate_config(config: Dict[str, Any]) -> Dict[str, Any]:
 
     # Build new config structure
     new_config = {
-        "circadian_rhythms": {
-            DEFAULT_RHYTHM: rhythm_config
-        },
+        "circadian_rhythms": {DEFAULT_RHYTHM: rhythm_config},
         "glozones": {
             INITIAL_ZONE_NAME: {
                 "rhythm": DEFAULT_RHYTHM,
                 "areas": [],
-                "is_default": True
+                "is_default": True,
             }
         },
     }
@@ -755,8 +812,10 @@ def _migrate_config(config: Dict[str, Any]) -> Dict[str, Any]:
     # Add global settings
     new_config.update(global_config)
 
-    logger.info(f"Migration complete: created rhythm '{DEFAULT_RHYTHM}' "
-                f"and zone '{INITIAL_ZONE_NAME}' (default)")
+    logger.info(
+        f"Migration complete: created rhythm '{DEFAULT_RHYTHM}' "
+        f"and zone '{INITIAL_ZONE_NAME}' (default)"
+    )
 
     return new_config
 
@@ -796,7 +855,7 @@ def load_config_from_files(data_dir: Optional[str] = None) -> Dict[str, Any]:
         path = os.path.join(data_dir, filename)
         if os.path.exists(path):
             try:
-                with open(path, 'r') as f:
+                with open(path, "r") as f:
                     part = json.load(f)
                     if isinstance(part, dict):
                         config.update(part)
@@ -805,9 +864,9 @@ def load_config_from_files(data_dir: Optional[str] = None) -> Dict[str, Any]:
                 # Backup for diagnostics but don't attempt repair —
                 # with atomic writes this indicates a serious issue
                 try:
-                    with open(path, 'r') as f:
+                    with open(path, "r") as f:
                         content = f.read()
-                    with open(path + ".corrupted", 'w') as f:
+                    with open(path + ".corrupted", "w") as f:
                         f.write(content)
                     logger.warning(f"Backed up corrupted file to {path}.corrupted")
                 except Exception:
@@ -834,22 +893,25 @@ def load_config_from_files(data_dir: Optional[str] = None) -> Dict[str, Any]:
 
     # Log what ended up in the rhythms after loading + merging
     for rname, rdata in config.get("circadian_rhythms", {}).items():
-        logger.debug(f"[load_config] Rhythm '{rname}': "
-                     f"warm_night_enabled={rdata.get('warm_night_enabled', 'MISSING')}, "
-                     f"max_brightness={rdata.get('max_brightness', 'MISSING')}, "
-                     f"keys={list(rdata.keys())}")
+        logger.debug(
+            f"[load_config] Rhythm '{rname}': "
+            f"warm_night_enabled={rdata.get('warm_night_enabled', 'MISSING')}, "
+            f"max_brightness={rdata.get('max_brightness', 'MISSING')}, "
+            f"keys={list(rdata.keys())}"
+        )
     # Log any remaining top-level RHYTHM_SETTINGS (should be none)
     leftover = [k for k in config.keys() if k in RHYTHM_SETTINGS]
     if leftover:
-        logger.warning(f"[load_config] Top-level RHYTHM_SETTINGS still present: {leftover}")
+        logger.warning(
+            f"[load_config] Top-level RHYTHM_SETTINGS still present: {leftover}"
+        )
 
     # Cache the config first so ensure_default_zone_exists can use it
     _config = config
 
     # Ensure at least one zone has is_default=True (handles existing configs)
     had_default = any(
-        zc.get("is_default", False)
-        for zc in config.get("glozones", {}).values()
+        zc.get("is_default", False) for zc in config.get("glozones", {}).values()
     )
     ensure_default_zone_exists()
     needs_save = needs_migration or not had_default
@@ -859,9 +921,11 @@ def load_config_from_files(data_dir: Optional[str] = None) -> Dict[str, Any]:
         designer_path = os.path.join(data_dir, "designer_config.json")
         try:
             # Use unique temp file to prevent concurrent write collisions
-            fd, tmp_path = tempfile.mkstemp(dir=data_dir, suffix=".tmp", prefix=".designer_")
+            fd, tmp_path = tempfile.mkstemp(
+                dir=data_dir, suffix=".tmp", prefix=".designer_"
+            )
             try:
-                with os.fdopen(fd, 'w') as f:
+                with os.fdopen(fd, "w") as f:
                     json.dump(config, f, indent=2)
                 os.replace(tmp_path, designer_path)
             except BaseException:
@@ -877,7 +941,9 @@ def load_config_from_files(data_dir: Optional[str] = None) -> Dict[str, Any]:
     return config
 
 
-def get_effective_config_for_area(area_id: str, include_global: bool = True) -> Dict[str, Any]:
+def get_effective_config_for_area(
+    area_id: str, include_global: bool = True
+) -> Dict[str, Any]:
     """Get the effective configuration for an area.
 
     Combines the rhythm settings for the area's zone with global settings.
@@ -909,7 +975,9 @@ def get_effective_config_for_area(area_id: str, include_global: bool = True) -> 
     return result
 
 
-def get_effective_config_for_zone(zone_name: str, include_global: bool = True) -> Dict[str, Any]:
+def get_effective_config_for_zone(
+    zone_name: str, include_global: bool = True
+) -> Dict[str, Any]:
     """Get the effective configuration for a zone.
 
     Combines the rhythm settings for the zone with global settings.

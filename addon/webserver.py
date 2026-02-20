@@ -35,6 +35,9 @@ from brain import (
     apply_activity_preset,
     get_preset_names,
     calculate_sun_times,
+    set_timing_override as brain_set_timing_override,
+    get_timing_override as brain_get_timing_override,
+    clear_timing_override as brain_clear_timing_override,
 )
 
 logger = logging.getLogger(__name__)
@@ -709,6 +712,20 @@ class LightDesignerServer:
         self.app.router.add_get("/api/outdoor-status", self.get_outdoor_status)
         self.app.router.add_route(
             "GET", "/{path:.*}/api/outdoor-status", self.get_outdoor_status
+        )
+
+        # Timing override API routes
+        self.app.router.add_post("/api/timing-override", self.set_timing_override)
+        self.app.router.add_route(
+            "POST", "/{path:.*}/api/timing-override", self.set_timing_override
+        )
+        self.app.router.add_delete("/api/timing-override", self.clear_timing_override)
+        self.app.router.add_route(
+            "DELETE", "/{path:.*}/api/timing-override", self.clear_timing_override
+        )
+        self.app.router.add_get("/api/timing-override", self.get_timing_override)
+        self.app.router.add_route(
+            "GET", "/{path:.*}/api/timing-override", self.get_timing_override
         )
         self.app.router.add_post("/api/learn-baselines", self.learn_baselines)
         self.app.router.add_route(
@@ -1842,6 +1859,12 @@ class LightDesignerServer:
         "bed_time",
         "wake_speed",
         "bed_speed",
+        "wake_alt_time",
+        "wake_alt_days",
+        "bed_alt_time",
+        "bed_alt_days",
+        "wake_brightness",
+        "bed_brightness",
         "warm_night_enabled",
         "warm_night_mode",
         "warm_night_target",
@@ -5506,6 +5529,37 @@ class LightDesignerServer:
         """Clear the outdoor brightness override."""
         lux_tracker.clear_override()
         return web.json_response({"status": "ok"})
+
+    async def set_timing_override(self, request: Request) -> Response:
+        """Set a temporary wake/bed timing override."""
+        try:
+            data = await request.json()
+            wake = data.get("wake_time")
+            bed = data.get("bed_time")
+            duration = data.get("duration_minutes")
+            if wake is None and bed is None:
+                return web.json_response(
+                    {"error": "wake_time or bed_time required"}, status=400
+                )
+            brain_set_timing_override(
+                wake=float(wake) if wake is not None else None,
+                bed=float(bed) if bed is not None else None,
+                duration_minutes=int(duration) if duration is not None else None,
+            )
+            return web.json_response({"status": "ok"})
+        except Exception as e:
+            logger.error(f"Error setting timing override: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def clear_timing_override(self, request: Request) -> Response:
+        """Clear the timing override."""
+        brain_clear_timing_override()
+        return web.json_response({"status": "ok"})
+
+    async def get_timing_override(self, request: Request) -> Response:
+        """Get current timing override status."""
+        info = brain_get_timing_override()
+        return web.json_response({"override": info})
 
     async def get_outdoor_status(self, request: Request) -> Response:
         """Get current outdoor brightness state for settings page."""

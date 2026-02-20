@@ -79,6 +79,55 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
   margin-top: 12px;
 }
 
+/* Alt time day bubbles */
+.day-bubbles {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.day-bubble {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.65rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  padding: 0;
+  line-height: 1;
+}
+.day-bubble:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+.day-bubble.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #000;
+}
+
+/* Alt time row collapse */
+.alt-time-row {
+  transition: opacity 0.2s, max-height 0.2s;
+  overflow: hidden;
+}
+.alt-time-row.collapsed {
+  max-height: 0;
+  opacity: 0;
+  margin: 0;
+  padding: 0;
+}
+.alt-time-row:not(.collapsed) {
+  max-height: 60px;
+  opacity: 1;
+}
+
 /* Section Blocks (cards) */
 .section-block {
   background: var(--card);
@@ -1189,6 +1238,28 @@ input[type=range]::-moz-range-thumb {
       <span class="dual-chip right" id="wake-time-display">7:00a</span>
     </div>
     <div class="param-row">
+      <label>Alt days</label>
+      <div class="day-bubbles" id="wake-alt-days">
+        <button class="day-bubble" data-day="0">Mo</button>
+        <button class="day-bubble" data-day="1">Tu</button>
+        <button class="day-bubble" data-day="2">We</button>
+        <button class="day-bubble" data-day="3">Th</button>
+        <button class="day-bubble" data-day="4">Fr</button>
+        <button class="day-bubble" data-day="5">Sa</button>
+        <button class="day-bubble" data-day="6">Su</button>
+      </div>
+    </div>
+    <div class="param-row alt-time-row collapsed" id="wake-alt-time-row">
+      <label>Alt time</label>
+      <input type="range" id="wake-alt-time" min="0" max="24" step="0.25" value="9">
+      <span class="dual-chip right" id="wake-alt-time-display">9:00a</span>
+    </div>
+    <div class="param-row">
+      <label>At wake</label>
+      <input type="range" id="wake-brightness" min="10" max="90" step="5" value="50">
+      <span class="dual-chip right" id="wake-brightness-display">50%</span>
+    </div>
+    <div class="param-row">
       <label>Speed</label>
       <input type="range" id="wake-speed" min="1" max="10" step="1" value="6">
       <span class="dual-chip right" id="wake-speed-display">Crisp (6)</span>
@@ -1198,6 +1269,28 @@ input[type=range]::-moz-range-thumb {
       <label>Time</label>
       <input type="range" id="bed-time" min="0" max="36" step="0.25" value="21">
       <span class="dual-chip right" id="bed-time-display">9:00p</span>
+    </div>
+    <div class="param-row">
+      <label>Alt days</label>
+      <div class="day-bubbles" id="bed-alt-days">
+        <button class="day-bubble" data-day="0">Mo</button>
+        <button class="day-bubble" data-day="1">Tu</button>
+        <button class="day-bubble" data-day="2">We</button>
+        <button class="day-bubble" data-day="3">Th</button>
+        <button class="day-bubble" data-day="4">Fr</button>
+        <button class="day-bubble" data-day="5">Sa</button>
+        <button class="day-bubble" data-day="6">Su</button>
+      </div>
+    </div>
+    <div class="param-row alt-time-row collapsed" id="bed-alt-time-row">
+      <label>Alt time</label>
+      <input type="range" id="bed-alt-time" min="0" max="36" step="0.25" value="23">
+      <span class="dual-chip right" id="bed-alt-time-display">11:00p</span>
+    </div>
+    <div class="param-row">
+      <label>At bed</label>
+      <input type="range" id="bed-brightness" min="10" max="90" step="5" value="50">
+      <span class="dual-chip right" id="bed-brightness-display">50%</span>
     </div>
     <div class="param-row">
       <label>Speed</label>
@@ -1691,6 +1784,63 @@ function applySolarRuleAtHour(baseCCT, hour) {
 }
 
 /**
+ * Get Python weekday (0=Mon..6=Sun) for the chart date slider.
+ */
+function getChartWeekday() {
+  const slider = document.getElementById('chart-date-slider');
+  const dayOffset = slider ? parseInt(slider.value) : 0;
+  const target = new Date(new Date().getFullYear(), 0, 1 + dayOffset);
+  return (target.getDay() + 6) % 7;  // JS getDay (0=Sun) → Python weekday (0=Mon)
+}
+
+/**
+ * Resolve effective wake/bed times based on alt days and overrides (JS mirror of brain.py).
+ */
+function resolveEffectiveTiming(hour, weekday) {
+  let wake = config.wake_time;
+  let bed = config.bed_time;
+
+  // Alt wake
+  if (config.wake_alt_time != null && (config.wake_alt_days || []).includes(weekday)) {
+    wake = config.wake_alt_time;
+  }
+
+  // Alt bed: post-midnight pre-ascend uses yesterday's weekday
+  let bedWeekday = weekday;
+  if (hour < config.ascend_start) {
+    bedWeekday = (weekday + 6) % 7;  // yesterday
+  }
+  if (config.bed_alt_time != null && (config.bed_alt_days || []).includes(bedWeekday)) {
+    bed = config.bed_alt_time;
+  }
+
+  return { wake, bed };
+}
+
+/**
+ * JS mirror of brain.py inverse_midpoint.
+ */
+function inverseMidpoint(x, targetValue, slope, y0, y1) {
+  const epsilon = 0.001;
+  const clamped = Math.max(y0 + epsilon, Math.min(y1 - epsilon, targetValue));
+  const ratio = (clamped - y0) / (y1 - y0);
+  try {
+    return x + Math.log((1 - ratio) / ratio) / slope;
+  } catch (e) {
+    return x;
+  }
+}
+
+/**
+ * JS mirror of brain.py compute_shifted_midpoint.
+ */
+function computeShiftedMidpoint(targetTimeH48, brightnessPct, slope, bMinNorm, bMaxNorm) {
+  if (brightnessPct === 50) return targetTimeH48;
+  const targetNorm = bMinNorm + (bMaxNorm - bMinNorm) * (brightnessPct / 100);
+  return inverseMidpoint(targetTimeH48, targetNorm, slope, bMinNorm, bMaxNorm);
+}
+
+/**
  * Calculate brightness, CCT, and phase at a specific hour.
  * Single source of truth for curve + solar rule calculations.
  */
@@ -1714,9 +1864,34 @@ function getValuesAtTime(hour) {
   const cLow = config.min_color_temp;
   const cHigh = config.max_color_temp;
 
+  // Resolve effective timing for chart weekday
+  const weekday = getChartWeekday();
+  const timing = resolveEffectiveTiming(hour, weekday);
+
   // Brightness midpoint (runtimeState applies to current phase only)
-  const wakeMid = inAscend ? (runtimeState.brightness_mid ?? config.wake_time) : config.wake_time;
-  const bedMid = !inAscend ? (runtimeState.brightness_mid ?? config.bed_time) : config.bed_time;
+  let wakeMid = inAscend ? (runtimeState.brightness_mid ?? timing.wake) : timing.wake;
+  let bedMid = !inAscend ? (runtimeState.brightness_mid ?? timing.bed) : timing.bed;
+
+  // Apply brightness target shift when not stepping (no runtimeState.brightness_mid)
+  if (runtimeState.brightness_mid == null) {
+    const slope = inAscend ? kAscend : -kDescend;
+    const brightPct = inAscend ? (config.wake_brightness || 50) : (config.bed_brightness || 50);
+    if (brightPct !== 50) {
+      if (inAscend) {
+        let mid48 = wakeMid;
+        while (mid48 < tAscend) mid48 += 24;
+        while (mid48 > tDescend) mid48 -= 24;
+        const shifted = computeShiftedMidpoint(mid48, brightPct, slope, bMin, bMax);
+        wakeMid = shifted % 24;
+      } else {
+        let mid48 = bedMid;
+        while (mid48 < tDescend) mid48 += 24;
+        while (mid48 > tDescend + 24) mid48 -= 24;
+        const shifted = computeShiftedMidpoint(mid48, brightPct, slope, bMin, bMax);
+        bedMid = shifted % 24;
+      }
+    }
+  }
 
   let wakeMid48 = wakeMid;
   while (wakeMid48 < tAscend) wakeMid48 += 24;
@@ -1736,9 +1911,9 @@ function getValuesAtTime(hour) {
   }
   const brightness = brightnessNorm * 100;
 
-  // Color midpoint (runtimeState applies to current phase only)
-  const colorWakeMid = inAscend ? (runtimeState.color_mid ?? config.wake_time) : config.wake_time;
-  const colorBedMid = !inAscend ? (runtimeState.color_mid ?? config.bed_time) : config.bed_time;
+  // Color midpoint — uses resolved timing but NO brightness target shift
+  const colorWakeMid = inAscend ? (runtimeState.color_mid ?? timing.wake) : timing.wake;
+  const colorBedMid = !inAscend ? (runtimeState.color_mid ?? timing.bed) : timing.bed;
 
   let colorWakeMid48 = colorWakeMid;
   while (colorWakeMid48 < tAscend) colorWakeMid48 += 24;
@@ -3175,6 +3350,40 @@ function updateSliderValue(sliderId, displayId, formatter) {
   });
 }
 
+// Day bubble helpers
+function getSelectedDays(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return [];
+  return Array.from(container.querySelectorAll('.day-bubble.active'))
+    .map(btn => parseInt(btn.dataset.day));
+}
+
+function setSelectedDays(containerId, days) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.querySelectorAll('.day-bubble').forEach(btn => {
+    const day = parseInt(btn.dataset.day);
+    btn.classList.toggle('active', days.includes(day));
+  });
+}
+
+function initDayBubbles(containerId, altTimeRowId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.querySelectorAll('.day-bubble').forEach(btn => {
+    btn.addEventListener('click', () => {
+      btn.classList.toggle('active');
+      const row = document.getElementById(altTimeRowId);
+      const anyActive = container.querySelector('.day-bubble.active');
+      if (row) {
+        row.classList.toggle('collapsed', !anyActive);
+      }
+      syncConfigFromUI();
+      renderChart();
+    });
+  });
+}
+
 function syncConfigFromUI() {
   config.ascend_start = parseFloat(document.getElementById('ascend-start').value);
   config.descend_start = parseFloat(document.getElementById('descend-start').value) % 24;
@@ -3182,6 +3391,18 @@ function syncConfigFromUI() {
   config.bed_time = parseFloat(document.getElementById('bed-time').value) % 24;
   config.wake_speed = parseInt(document.getElementById('wake-speed').value);
   config.bed_speed = parseInt(document.getElementById('bed-speed').value);
+
+  // Alt timing
+  config.wake_alt_days = getSelectedDays('wake-alt-days');
+  config.wake_alt_time = config.wake_alt_days.length > 0
+    ? parseFloat(document.getElementById('wake-alt-time').value) % 24
+    : null;
+  config.bed_alt_days = getSelectedDays('bed-alt-days');
+  config.bed_alt_time = config.bed_alt_days.length > 0
+    ? parseFloat(document.getElementById('bed-alt-time').value) % 24
+    : null;
+  config.wake_brightness = parseInt(document.getElementById('wake-brightness').value);
+  config.bed_brightness = parseInt(document.getElementById('bed-brightness').value);
 
   config.min_color_temp = parseInt(document.getElementById('color-min').value);
   config.max_color_temp = parseInt(document.getElementById('color-max').value);
@@ -3242,6 +3463,30 @@ function syncUIFromConfig() {
   document.getElementById('wake-speed').value = config.wake_speed;
   document.getElementById('bed-speed').value = config.bed_speed;
 
+  // Alt timing
+  setSelectedDays('wake-alt-days', config.wake_alt_days || []);
+  const wakeAltDays = config.wake_alt_days || [];
+  if (wakeAltDays.length > 0 && config.wake_alt_time != null) {
+    let wakeAltSlider = config.wake_alt_time;
+    if (config.wake_alt_time < config.ascend_start) wakeAltSlider += 24;
+    document.getElementById('wake-alt-time').value = wakeAltSlider;
+    document.getElementById('wake-alt-time-row').classList.remove('collapsed');
+  } else {
+    document.getElementById('wake-alt-time-row').classList.add('collapsed');
+  }
+  setSelectedDays('bed-alt-days', config.bed_alt_days || []);
+  const bedAltDays = config.bed_alt_days || [];
+  if (bedAltDays.length > 0 && config.bed_alt_time != null) {
+    let bedAltSlider = config.bed_alt_time;
+    if (config.bed_alt_time < config.descend_start) bedAltSlider += 24;
+    document.getElementById('bed-alt-time').value = bedAltSlider;
+    document.getElementById('bed-alt-time-row').classList.remove('collapsed');
+  } else {
+    document.getElementById('bed-alt-time-row').classList.add('collapsed');
+  }
+  document.getElementById('wake-brightness').value = config.wake_brightness || 50;
+  document.getElementById('bed-brightness').value = config.bed_brightness || 50;
+
   document.getElementById('color-min').value = config.min_color_temp;
   document.getElementById('color-max').value = config.max_color_temp;
   document.getElementById('brightness-min').value = config.min_brightness;
@@ -3283,6 +3528,12 @@ function syncUIFromConfig() {
   positionTimelineBadges();
   updateDisplay('wake-time-display', formatHour(config.wake_time));
   updateDisplay('bed-time-display', formatHour(config.bed_time));
+  updateDisplay('wake-alt-time-display', config.wake_alt_time != null ? formatHour(config.wake_alt_time) : '--');
+  updateDisplay('bed-alt-time-display', config.bed_alt_time != null ? formatHour(config.bed_alt_time) : '--');
+  const wb = config.wake_brightness || 50;
+  updateDisplay('wake-brightness-display', wb === 50 ? '50% (default)' : wb + '%');
+  const bb = config.bed_brightness || 50;
+  updateDisplay('bed-brightness-display', bb === 50 ? '50% (default)' : bb + '%');
   updateDisplay('wake-speed-display', `${SPEED_LABELS[config.wake_speed]} (${config.wake_speed})`);
   updateDisplay('bed-speed-display', `${SPEED_LABELS[config.bed_speed]} (${config.bed_speed})`);
   updateRangeDisplays();
@@ -3465,6 +3716,18 @@ function setupEventListeners() {
   updateSliderValue('bed-time', 'bed-time-display', formatHour);
   updateSliderValue('wake-speed', 'wake-speed-display', v => `${SPEED_LABELS[v]} (${v})`);
   updateSliderValue('bed-speed', 'bed-speed-display', v => `${SPEED_LABELS[v]} (${v})`);
+
+  // Alt time sliders
+  updateSliderValue('wake-alt-time', 'wake-alt-time-display', formatHour);
+  updateSliderValue('bed-alt-time', 'bed-alt-time-display', formatHour);
+
+  // Brightness target sliders
+  updateSliderValue('wake-brightness', 'wake-brightness-display', v => v == 50 ? '50% (default)' : v + '%');
+  updateSliderValue('bed-brightness', 'bed-brightness-display', v => v == 50 ? '50% (default)' : v + '%');
+
+  // Day bubble toggles
+  initDayBubbles('wake-alt-days', 'wake-alt-time-row');
+  initDayBubbles('bed-alt-days', 'bed-alt-time-row');
 
   // Dual-range sliders update combined display
   ['color-min', 'color-max'].forEach(id => {

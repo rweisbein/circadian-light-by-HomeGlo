@@ -18,16 +18,18 @@ Key concepts:
 from __future__ import annotations
 
 import math
+import time
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
 
 class ColorMode(Enum):
     """Color modes for light control."""
+
     KELVIN = "kelvin"
     RGB = "rgb"
     XY = "xy"
@@ -75,9 +77,11 @@ DEFAULT_DAYLIGHT_FADE = 60  # minutes after sunrise / before sunset
 # Data classes for inputs/outputs
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class Config:
     """Global configuration (from designer/config file)."""
+
     # Timing
     ascend_start: float = DEFAULT_ASCEND_START
     descend_start: float = DEFAULT_DESCEND_START
@@ -102,9 +106,19 @@ class Config:
     warm_night_enabled: bool = False
     warm_night_mode: str = "all"  # "all", "sunrise", or "sunset"
     warm_night_target: int = 2700
-    warm_night_start: int = -60   # minutes offset from sunset (negative = before)
-    warm_night_end: int = 60      # minutes offset from sunrise (positive = after)
-    warm_night_fade: int = 60     # fade duration in minutes
+    warm_night_start: int = -60  # minutes offset from sunset (negative = before)
+    warm_night_end: int = 60  # minutes offset from sunrise (positive = after)
+    warm_night_fade: int = 60  # fade duration in minutes
+
+    # Alt timing (day-of-week overrides, 0=Mon..6=Sun)
+    wake_alt_time: Optional[float] = None
+    wake_alt_days: List[int] = field(default_factory=list)
+    bed_alt_time: Optional[float] = None
+    bed_alt_days: List[int] = field(default_factory=list)
+
+    # Brightness targets at wake/bed (% of range, 50 = default midpoint)
+    wake_brightness: int = 50
+    bed_brightness: int = 50
 
     # Natural light / daylight color
     brightness_sensitivity: float = DEFAULT_BRIGHTNESS_SENSITIVITY
@@ -139,28 +153,41 @@ class Config:
             warm_night_fade=d.get("warm_night_fade", 60),
             # Natural light / daylight color (with migration from old gain keys)
             brightness_sensitivity=(
-                d["brightness_sensitivity"] if "brightness_sensitivity" in d
+                d["brightness_sensitivity"]
+                if "brightness_sensitivity" in d
                 else d.get("brightness_gain", DEFAULT_BRIGHTNESS_SENSITIVITY)
             ),
             color_sensitivity=(
-                d["color_sensitivity"] if "color_sensitivity" in d
-                else FULL_SUN_INTENSITY / max(0.1, d["color_gain"]) if "color_gain" in d
-                else DEFAULT_COLOR_SENSITIVITY
+                d["color_sensitivity"]
+                if "color_sensitivity" in d
+                else (
+                    FULL_SUN_INTENSITY / max(0.1, d["color_gain"])
+                    if "color_gain" in d
+                    else DEFAULT_COLOR_SENSITIVITY
+                )
             ),
             daylight_cct=d.get("daylight_cct", DEFAULT_DAYLIGHT_CCT),
             daylight_fade=d.get("daylight_fade", DEFAULT_DAYLIGHT_FADE),
+            # Alt timing
+            wake_alt_time=d.get("wake_alt_time"),
+            wake_alt_days=d.get("wake_alt_days", []),
+            bed_alt_time=d.get("bed_alt_time"),
+            bed_alt_days=d.get("bed_alt_days", []),
+            wake_brightness=d.get("wake_brightness", 50),
+            bed_brightness=d.get("bed_brightness", 50),
         )
 
 
 @dataclass
 class SunTimes:
     """Sun position times for a day."""
-    sunrise: float = 6.0      # Hour (0-24)
-    sunset: float = 18.0      # Hour (0-24)
+
+    sunrise: float = 6.0  # Hour (0-24)
+    sunset: float = 18.0  # Hour (0-24)
     solar_noon: float = 12.0  # Hour (0-24)
-    solar_mid: float = 0.0    # Hour (0-24), midnight opposite of noon
+    solar_mid: float = 0.0  # Hour (0-24), midnight opposite of noon
     outdoor_normalized: float = 0.0  # 0-1 from lux sensor or angle estimate
-    outdoor_source: str = "none"     # Diagnostics: "lux", "weather", "angle", "none"
+    outdoor_source: str = "none"  # Diagnostics: "lux", "weather", "angle", "none"
 
     @property
     def sun_factor(self) -> float:
@@ -189,8 +216,9 @@ class AreaState:
     Only one phase (Ascend/Descend) is active at a time, so we only need
     one midpoint per axis rather than separate wake/bed values.
     """
-    is_circadian: bool = False         # Whether Circadian Light controls this area
-    is_on: bool = False                # Target light power state
+
+    is_circadian: bool = False  # Whether Circadian Light controls this area
+    is_on: bool = False  # Target light power state
     frozen_at: Optional[float] = None  # Hour (0-24) to freeze at, None = unfrozen
 
     # Midpoints (None = use config wake_time/bed_time based on phase)
@@ -233,6 +261,7 @@ class AreaState:
 @dataclass
 class LightingResult:
     """Result of a lighting calculation."""
+
     brightness: int  # 0-100
     color_temp: int  # Kelvin
     rgb: Tuple[int, int, int]
@@ -243,6 +272,7 @@ class LightingResult:
 @dataclass
 class StepResult:
     """Result of a step calculation, including state updates."""
+
     brightness: int
     color_temp: int
     rgb: Tuple[int, int, int]
@@ -253,6 +283,7 @@ class StepResult:
 # ---------------------------------------------------------------------------
 # Light filter functions
 # ---------------------------------------------------------------------------
+
 
 def angle_to_estimated_lux(elevation_deg: float) -> float:
     """Estimate outdoor lux from sun elevation (clear-sky model).
@@ -327,7 +358,9 @@ def compute_daylight_fade_weight(
     return weight
 
 
-def calculate_curve_position(brightness: int, min_brightness: int, max_brightness: int) -> float:
+def calculate_curve_position(
+    brightness: int, min_brightness: int, max_brightness: int
+) -> float:
     """Calculate the curve position (0.0–1.0) from the current brightness.
 
     0.0 = min brightness (dimmest), 1.0 = max brightness (brightest).
@@ -346,7 +379,9 @@ def calculate_curve_position(brightness: int, min_brightness: int, max_brightnes
     return max(0.0, min(1.0, (brightness - min_brightness) / bri_range))
 
 
-def calculate_filter_multiplier(curve_position: float, at_dim: float, at_bright: float) -> float:
+def calculate_filter_multiplier(
+    curve_position: float, at_dim: float, at_bright: float
+) -> float:
     """Linearly interpolate between at_dim and at_bright based on curve position.
 
     Args:
@@ -404,6 +439,7 @@ def apply_light_filter_pipeline(
 # Core math functions
 # ---------------------------------------------------------------------------
 
+
 def logistic(x: float, midpoint: float, slope: float, y0: float, y1: float) -> float:
     """Standard logistic function.
 
@@ -423,7 +459,9 @@ def logistic(x: float, midpoint: float, slope: float, y0: float, y1: float) -> f
         return y1 if slope * (x - midpoint) > 0 else y0
 
 
-def inverse_midpoint(x: float, target_value: float, slope: float, y0: float, y1: float) -> float:
+def inverse_midpoint(
+    x: float, target_value: float, slope: float, y0: float, y1: float
+) -> float:
     """Solve for the midpoint that produces target_value at position x.
 
     Given the logistic equation, solve for midpoint:
@@ -450,8 +488,150 @@ def inverse_midpoint(x: float, target_value: float, slope: float, y0: float, y1:
 
 
 # ---------------------------------------------------------------------------
+# Timing override (in-memory, lost on restart)
+# ---------------------------------------------------------------------------
+
+_timing_override_wake: Optional[float] = None
+_timing_override_bed: Optional[float] = None
+_timing_override_expires: Optional[float] = None  # time.monotonic()
+
+
+def set_timing_override(
+    wake: Optional[float], bed: Optional[float], duration_minutes: Optional[int] = None
+):
+    """Set a temporary timing override for wake/bed times.
+
+    Args:
+        wake: Override wake time (hours 0-24), or None to keep current
+        bed: Override bed time (hours 0-24), or None to keep current
+        duration_minutes: Auto-expire after N minutes, or None for indefinite
+    """
+    global _timing_override_wake, _timing_override_bed, _timing_override_expires
+    _timing_override_wake = wake
+    _timing_override_bed = bed
+    _timing_override_expires = (
+        time.monotonic() + duration_minutes * 60 if duration_minutes else None
+    )
+
+
+def get_timing_override() -> Optional[dict]:
+    """Return active timing override info, or None if expired/inactive."""
+    global _timing_override_wake, _timing_override_bed, _timing_override_expires
+    if _timing_override_wake is None and _timing_override_bed is None:
+        return None
+    if _timing_override_expires is not None:
+        remaining = _timing_override_expires - time.monotonic()
+        if remaining <= 0:
+            _timing_override_wake = None
+            _timing_override_bed = None
+            _timing_override_expires = None
+            return None
+        return {
+            "wake_time": _timing_override_wake,
+            "bed_time": _timing_override_bed,
+            "remaining_minutes": round(remaining / 60, 1),
+        }
+    return {
+        "wake_time": _timing_override_wake,
+        "bed_time": _timing_override_bed,
+        "remaining_minutes": None,
+    }
+
+
+def clear_timing_override():
+    """Clear the timing override."""
+    global _timing_override_wake, _timing_override_bed, _timing_override_expires
+    _timing_override_wake = None
+    _timing_override_bed = None
+    _timing_override_expires = None
+
+
+# ---------------------------------------------------------------------------
+# Alt timing resolution
+# ---------------------------------------------------------------------------
+
+
+def resolve_effective_timing(
+    config: Config, hour: float, weekday: int
+) -> Tuple[float, float]:
+    """Resolve the effective wake and bed times for a given hour and weekday.
+
+    Priority: timing override > alt time (if weekday matches) > primary time.
+
+    Post-midnight correction: when hour < ascend_start, the bed time that's
+    still "active" belongs to the previous day, so we check yesterday's weekday
+    for bed alt days.
+
+    Args:
+        config: Global configuration with primary and alt times
+        hour: Current hour (0-24)
+        weekday: Python weekday (0=Mon..6=Sun)
+
+    Returns:
+        (effective_wake, effective_bed)
+    """
+    # Start with primary times
+    wake = config.wake_time
+    bed = config.bed_time
+
+    # Check alt times based on weekday
+    if config.wake_alt_time is not None and weekday in config.wake_alt_days:
+        wake = config.wake_alt_time
+
+    # For bed: if we're in the post-midnight pre-ascend window, the bed time
+    # that governs us belongs to yesterday
+    bed_weekday = weekday
+    if hour < config.ascend_start:
+        bed_weekday = (weekday - 1) % 7
+
+    if config.bed_alt_time is not None and bed_weekday in config.bed_alt_days:
+        bed = config.bed_alt_time
+
+    # Timing override wins over everything
+    override = get_timing_override()
+    if override:
+        if override["wake_time"] is not None:
+            wake = override["wake_time"]
+        if override["bed_time"] is not None:
+            bed = override["bed_time"]
+
+    return (wake, bed)
+
+
+def compute_shifted_midpoint(
+    target_time_h48: float,
+    brightness_pct: int,
+    slope: float,
+    b_min_norm: float,
+    b_max_norm: float,
+) -> float:
+    """Compute a shifted sigmoid midpoint so that brightness at target_time equals brightness_pct.
+
+    When brightness_pct=50, returns target_time unchanged (no shift).
+    Only affects brightness curve, not color.
+
+    Args:
+        target_time_h48: The wake/bed time in 48h space
+        brightness_pct: Desired brightness percentage at target time (10-90)
+        slope: Sigmoid slope for this phase
+        b_min_norm: Normalized min brightness (0-1)
+        b_max_norm: Normalized max brightness (0-1)
+
+    Returns:
+        Shifted midpoint in 48h space
+    """
+    if brightness_pct == 50:
+        return target_time_h48
+
+    # Target brightness as normalized value
+    target_norm = b_min_norm + (b_max_norm - b_min_norm) * (brightness_pct / 100.0)
+    return inverse_midpoint(target_time_h48, target_norm, slope, b_min_norm, b_max_norm)
+
+
+# ---------------------------------------------------------------------------
 # CircadianLight Calculator
 # ---------------------------------------------------------------------------
+
 
 class CircadianLight:
     """Stateless calculator for circadian lighting values.
@@ -461,7 +641,9 @@ class CircadianLight:
     """
 
     @staticmethod
-    def get_phase_info(hour: float, config: Config) -> Tuple[bool, float, float, float, float]:
+    def get_phase_info(
+        hour: float, config: Config
+    ) -> Tuple[bool, float, float, float, float]:
         """Get phase information for a given hour.
 
         Args:
@@ -490,7 +672,9 @@ class CircadianLight:
         return in_ascend, h48, t_ascend, t_descend, slope
 
     @staticmethod
-    def lift_midpoint_to_phase(midpoint: float, phase_start: float, phase_end: float) -> float:
+    def lift_midpoint_to_phase(
+        midpoint: float, phase_start: float, phase_end: float
+    ) -> float:
         """Lift a midpoint into the correct 48-hour phase window and clamp to boundaries.
 
         This prevents wrap-around issues when the midpoint is near or past a phase boundary.
@@ -521,7 +705,8 @@ class CircadianLight:
     def calculate_brightness_at_hour(
         hour: float,
         config: Config,
-        state: AreaState
+        state: AreaState,
+        weekday: Optional[int] = None,
     ) -> int:
         """Calculate brightness at a specific hour.
 
@@ -529,19 +714,56 @@ class CircadianLight:
             hour: Hour (0-24)
             config: Global configuration
             state: Area runtime state
+            weekday: Python weekday (0=Mon..6=Sun), None = today
 
         Returns:
             Brightness percentage (0-100)
         """
-        in_ascend, h48, t_ascend, t_descend, slope = CircadianLight.get_phase_info(hour, config)
+        if weekday is None:
+            from datetime import datetime
+
+            weekday = datetime.now().weekday()
+
+        in_ascend, h48, t_ascend, t_descend, slope = CircadianLight.get_phase_info(
+            hour, config
+        )
+
+        # Resolve effective timing (alt days, override)
+        eff_wake, eff_bed = resolve_effective_timing(config, hour, weekday)
 
         # Config bounds (only use these, no runtime overrides)
         b_min = config.min_brightness
         b_max = config.max_brightness
 
         # Get midpoint for current phase (state.brightness_mid applies to current phase only)
-        default_mid = config.wake_time if in_ascend else config.bed_time
-        mid = state.brightness_mid if state.brightness_mid is not None else default_mid
+        default_mid = eff_wake if in_ascend else eff_bed
+        if state.brightness_mid is not None:
+            # Stepping override wins — no brightness target shift
+            mid = state.brightness_mid
+        else:
+            mid = default_mid
+            # Apply brightness target shift when not stepping
+            brightness_pct = (
+                config.wake_brightness if in_ascend else config.bed_brightness
+            )
+            if brightness_pct != 50:
+                b_min_norm = b_min / 100.0
+                b_max_norm = b_max / 100.0
+                if in_ascend:
+                    mid48_raw = CircadianLight.lift_midpoint_to_phase(
+                        mid, t_ascend, t_descend
+                    )
+                else:
+                    descend_end = t_ascend + 24
+                    mid48_raw = CircadianLight.lift_midpoint_to_phase(
+                        mid, t_descend, descend_end
+                    )
+                shifted = compute_shifted_midpoint(
+                    mid48_raw, brightness_pct, slope, b_min_norm, b_max_norm
+                )
+                # Store back as 0-24 for lift_midpoint_to_phase below
+                mid = shifted % 24
+
         if in_ascend:
             mid48 = CircadianLight.lift_midpoint_to_phase(mid, t_ascend, t_descend)
         else:
@@ -566,7 +788,8 @@ class CircadianLight:
         config: Config,
         state: AreaState,
         apply_solar_rules: bool = True,
-        sun_times: Optional[SunTimes] = None
+        sun_times: Optional[SunTimes] = None,
+        weekday: Optional[int] = None,
     ) -> int:
         """Calculate color temperature at a specific hour.
 
@@ -576,18 +799,29 @@ class CircadianLight:
             state: Area runtime state
             apply_solar_rules: Whether to apply warm night/cool day rules
             sun_times: Sun position times for solar rules (if None, uses defaults)
+            weekday: Python weekday (0=Mon..6=Sun), None = today
 
         Returns:
             Color temperature in Kelvin
         """
-        in_ascend, h48, t_ascend, t_descend, slope = CircadianLight.get_phase_info(hour, config)
+        if weekday is None:
+            from datetime import datetime
+
+            weekday = datetime.now().weekday()
+
+        in_ascend, h48, t_ascend, t_descend, slope = CircadianLight.get_phase_info(
+            hour, config
+        )
+
+        # Resolve effective timing (alt days, override) — no brightness target shift for color
+        eff_wake, eff_bed = resolve_effective_timing(config, hour, weekday)
 
         # Config bounds (only use these, no runtime overrides)
         c_min = config.min_color_temp
         c_max = config.max_color_temp
 
         # Get midpoint for current phase (state.color_mid applies to current phase only)
-        default_mid = config.wake_time if in_ascend else config.bed_time
+        default_mid = eff_wake if in_ascend else eff_bed
         mid = state.color_mid if state.color_mid is not None else default_mid
         if in_ascend:
             mid48 = CircadianLight.lift_midpoint_to_phase(mid, t_ascend, t_descend)
@@ -606,13 +840,21 @@ class CircadianLight:
 
         # Apply solar rules if enabled
         if apply_solar_rules:
-            kelvin = CircadianLight._apply_solar_rules(kelvin, hour, config, state, sun_times)
+            kelvin = CircadianLight._apply_solar_rules(
+                kelvin, hour, config, state, sun_times
+            )
             # Solar rules intentionally push kelvin outside the curve range:
             # warm night pulls down toward warm_night_target,
             # daylight blend pushes up toward daylight_cct.
             # Expand clamp bounds so these adjustments aren't silently reverted.
-            lower = min(c_min, config.warm_night_target) if config.warm_night_enabled else c_min
-            upper = max(c_max, config.daylight_cct) if config.daylight_cct > 0 else c_max
+            lower = (
+                min(c_min, config.warm_night_target)
+                if config.warm_night_enabled
+                else c_min
+            )
+            upper = (
+                max(c_max, config.daylight_cct) if config.daylight_cct > 0 else c_max
+            )
             return int(max(lower, min(upper, round(kelvin))))
 
         return int(max(c_min, min(c_max, round(kelvin))))
@@ -624,10 +866,7 @@ class CircadianLight:
 
     @staticmethod
     def _get_window_weight(
-        hour: float,
-        window_start: float,
-        window_end: float,
-        fade_hrs: float
+        hour: float, window_start: float, window_end: float, fade_hrs: float
     ) -> Tuple[bool, float]:
         """Calculate if hour is in window and the fade weight.
 
@@ -649,8 +888,12 @@ class CircadianLight:
             # Wraps around midnight
             in_window = h >= window_start or h <= window_end
             if in_window:
-                dist_from_start = (h - window_start) if h >= window_start else (h + 24 - window_start)
-                dist_to_end = (window_end - h) if h <= window_end else (window_end + 24 - h)
+                dist_from_start = (
+                    (h - window_start) if h >= window_start else (h + 24 - window_start)
+                )
+                dist_to_end = (
+                    (window_end - h) if h <= window_end else (window_end + 24 - h)
+                )
         else:
             # Normal range
             in_window = h >= window_start and h <= window_end
@@ -677,7 +920,7 @@ class CircadianLight:
         hour: float,
         config: Config,
         state: AreaState,
-        sun_times: Optional[SunTimes] = None
+        sun_times: Optional[SunTimes] = None,
     ) -> float:
         """Apply warm night and daylight color blend solar rules.
 
@@ -716,9 +959,13 @@ class CircadianLight:
             elif mode == "sunset":
                 ws, we = wrap24(sunset + start_offset_hrs), wrap24(solar_mid)
             else:  # "all"
-                ws, we = wrap24(sunset + start_offset_hrs), wrap24(sunrise + end_offset_hrs)
+                ws, we = wrap24(sunset + start_offset_hrs), wrap24(
+                    sunrise + end_offset_hrs
+                )
 
-            in_window, weight = CircadianLight._get_window_weight(hour, ws, we, fade_hrs)
+            in_window, weight = CircadianLight._get_window_weight(
+                hour, ws, we, fade_hrs
+            )
             if in_window:
                 night_strength = weight
 
@@ -735,7 +982,9 @@ class CircadianLight:
             outdoor_norm = sun_times.outdoor_normalized
             blend = min(1.0, outdoor_norm * config.color_sensitivity)
             # Apply daylight fade: ramp blend over daylight_fade minutes after sunrise / before sunset
-            blend *= compute_daylight_fade_weight(hour, sunrise, sunset, config.daylight_fade)
+            blend *= compute_daylight_fade_weight(
+                hour, sunrise, sunset, config.daylight_fade
+            )
             daylight_target = config.daylight_cct
             if state.color_override and state.color_override < 0:
                 daylight_target += state.color_override
@@ -752,7 +1001,7 @@ class CircadianLight:
         hour: float,
         config: Config,
         state: AreaState,
-        sun_times: Optional[SunTimes] = None
+        sun_times: Optional[SunTimes] = None,
     ) -> Dict[str, Any]:
         """Return breakdown of warm_night and daylight blend effects.
 
@@ -791,9 +1040,13 @@ class CircadianLight:
             elif mode == "sunset":
                 ws, we = wrap24(sunset + start_offset_hrs), wrap24(solar_mid)
             else:  # "all"
-                ws, we = wrap24(sunset + start_offset_hrs), wrap24(sunrise + end_offset_hrs)
+                ws, we = wrap24(sunset + start_offset_hrs), wrap24(
+                    sunrise + end_offset_hrs
+                )
 
-            in_window, weight = CircadianLight._get_window_weight(hour, ws, we, fade_hrs)
+            in_window, weight = CircadianLight._get_window_weight(
+                hour, ws, we, fade_hrs
+            )
             if in_window:
                 night_strength = weight
 
@@ -814,7 +1067,9 @@ class CircadianLight:
             outdoor_norm = sun_times.outdoor_normalized
             blend = min(1.0, outdoor_norm * config.color_sensitivity)
             # Apply daylight fade
-            daylight_fade_weight = compute_daylight_fade_weight(hour, sunrise, sunset, config.daylight_fade)
+            daylight_fade_weight = compute_daylight_fade_weight(
+                hour, sunrise, sunset, config.daylight_fade
+            )
             blend *= daylight_fade_weight
             if state.color_override and state.color_override < 0:
                 daylight_target += state.color_override
@@ -822,15 +1077,15 @@ class CircadianLight:
                 day_shift = (daylight_target - base_kelvin) * blend
 
         return {
-            'night_strength': night_strength,
-            'night_shift': round(night_shift),
-            'warm_night_target': warm_target,
-            'warm_night_enabled': config.warm_night_enabled,
-            'daylight_blend': round(blend, 3),
-            'daylight_fade_weight': round(daylight_fade_weight, 3),
-            'daylight_shift': round(day_shift),
-            'daylight_cct': daylight_target,
-            'outdoor_normalized': sun_times.outdoor_normalized,
+            "night_strength": night_strength,
+            "night_shift": round(night_shift),
+            "warm_night_target": warm_target,
+            "warm_night_enabled": config.warm_night_enabled,
+            "daylight_blend": round(blend, 3),
+            "daylight_fade_weight": round(daylight_fade_weight, 3),
+            "daylight_shift": round(day_shift),
+            "daylight_cct": daylight_target,
+            "outdoor_normalized": sun_times.outdoor_normalized,
         }
 
     @staticmethod
@@ -838,7 +1093,8 @@ class CircadianLight:
         hour: float,
         config: Config,
         state: AreaState,
-        sun_times: Optional[SunTimes] = None
+        sun_times: Optional[SunTimes] = None,
+        weekday: Optional[int] = None,
     ) -> LightingResult:
         """Calculate full lighting values at a specific hour.
 
@@ -847,14 +1103,19 @@ class CircadianLight:
             config: Global configuration
             state: Area runtime state
             sun_times: Sun position times for solar rules (if None, uses defaults)
+            weekday: Python weekday (0=Mon..6=Sun), None = today
 
         Returns:
             LightingResult with brightness, color_temp, rgb, xy, phase
         """
         in_ascend, _, _, _, _ = CircadianLight.get_phase_info(hour, config)
 
-        brightness = CircadianLight.calculate_brightness_at_hour(hour, config, state)
-        color_temp = CircadianLight.calculate_color_at_hour(hour, config, state, sun_times=sun_times)
+        brightness = CircadianLight.calculate_brightness_at_hour(
+            hour, config, state, weekday=weekday
+        )
+        color_temp = CircadianLight.calculate_color_at_hour(
+            hour, config, state, sun_times=sun_times, weekday=weekday
+        )
         rgb = CircadianLight.color_temperature_to_rgb(color_temp)
         xy = CircadianLight.color_temperature_to_xy(color_temp)
 
@@ -863,7 +1124,7 @@ class CircadianLight:
             color_temp=color_temp,
             rgb=rgb,
             xy=xy,
-            phase="ascend" if in_ascend else "descend"
+            phase="ascend" if in_ascend else "descend",
         )
 
     # ---------------------------------------------------------------------------
@@ -877,6 +1138,7 @@ class CircadianLight:
         config: Config,
         state: AreaState,
         sun_times: Optional[SunTimes] = None,
+        weekday: Optional[int] = None,
     ) -> Optional[StepResult]:
         """Calculate step up/down using brightness-primary algorithm.
 
@@ -889,11 +1151,14 @@ class CircadianLight:
             config: Global configuration
             state: Area runtime state
             sun_times: Sun position times for solar rules (if None, uses defaults)
+            weekday: Python weekday (0=Mon..6=Sun), None = today
 
         Returns:
             StepResult with new values and state updates, or None if at limit
         """
-        in_ascend, h48, t_ascend, t_descend, slope = CircadianLight.get_phase_info(hour, config)
+        in_ascend, h48, t_ascend, t_descend, slope = CircadianLight.get_phase_info(
+            hour, config
+        )
         sign = 1 if direction == "up" else -1
         steps = config.step_increments or config.max_dim_steps or 10
 
@@ -908,22 +1173,35 @@ class CircadianLight:
         cct_step = (c_max - c_min) / steps
 
         # Current values
-        current_bri = CircadianLight.calculate_brightness_at_hour(hour, config, state)
+        current_bri = CircadianLight.calculate_brightness_at_hour(
+            hour, config, state, weekday=weekday
+        )
         # Get the NATURAL curve color (without solar rules) for stepping
         # Solar rules will be applied at render time
-        natural_cct = CircadianLight.calculate_color_at_hour(hour, config, state, apply_solar_rules=False)
+        natural_cct = CircadianLight.calculate_color_at_hour(
+            hour, config, state, apply_solar_rules=False, weekday=weekday
+        )
         # Also get the rendered color for limit checking (with actual sun times)
-        current_cct = CircadianLight.calculate_color_at_hour(hour, config, state, apply_solar_rules=True, sun_times=sun_times)
+        current_cct = CircadianLight.calculate_color_at_hour(
+            hour,
+            config,
+            state,
+            apply_solar_rules=True,
+            sun_times=sun_times,
+            weekday=weekday,
+        )
 
         # Safe margin to avoid asymptote issues in midpoint calculation
         safe_margin_bri = max(1.0, (b_max - b_min) * 0.01)
         safe_margin_cct = max(10, (c_max - c_min) * 0.01)
 
         # Check if each dimension is at its config bound (within safe margin)
-        bri_at_limit = (direction == "up" and current_bri >= b_max - safe_margin_bri) or \
-                       (direction == "down" and current_bri <= b_min + safe_margin_bri)
-        cct_at_limit = (direction == "up" and natural_cct >= c_max - safe_margin_cct) or \
-                       (direction == "down" and natural_cct <= c_min + safe_margin_cct)
+        bri_at_limit = (
+            direction == "up" and current_bri >= b_max - safe_margin_bri
+        ) or (direction == "down" and current_bri <= b_min + safe_margin_bri)
+        cct_at_limit = (
+            direction == "up" and natural_cct >= c_max - safe_margin_cct
+        ) or (direction == "down" and natural_cct <= c_min + safe_margin_cct)
 
         if bri_at_limit and cct_at_limit:
             return None  # Both dimensions at limit, can't go further
@@ -942,8 +1220,12 @@ class CircadianLight:
             target_natural_cct = natural_cct + sign * cct_step
 
         # Clamp to safe bounds
-        target_bri = max(b_min + safe_margin_bri, min(b_max - safe_margin_bri, target_bri))
-        target_natural_cct = max(c_min + safe_margin_cct, min(c_max - safe_margin_cct, target_natural_cct))
+        target_bri = max(
+            b_min + safe_margin_bri, min(b_max - safe_margin_bri, target_bri)
+        )
+        target_natural_cct = max(
+            c_min + safe_margin_cct, min(c_max - safe_margin_cct, target_natural_cct)
+        )
 
         # If clamped targets are effectively unchanged for BOTH dimensions, treat as at-limit
         bri_unchanged = abs(target_bri - current_bri) < safe_margin_bri
@@ -954,24 +1236,48 @@ class CircadianLight:
         # Calculate new midpoints that produce these target values at current time
         b_min_norm = b_min / 100.0
         b_max_norm = b_max / 100.0
-        target_bri_norm = max(b_min_norm + 0.001, min(b_max_norm - 0.001, target_bri / 100.0))
-        target_cct_norm = max(0.001, min(0.999, (target_natural_cct - c_min) / (c_max - c_min)))
+        target_bri_norm = max(
+            b_min_norm + 0.001, min(b_max_norm - 0.001, target_bri / 100.0)
+        )
+        target_cct_norm = max(
+            0.001, min(0.999, (target_natural_cct - c_min) / (c_max - c_min))
+        )
 
         calc_time = h48
         if not in_ascend and h48 < t_descend:
             calc_time = h48 + 24
 
-        new_bri_mid = inverse_midpoint(calc_time, target_bri_norm, slope, b_min_norm, b_max_norm)
+        new_bri_mid = inverse_midpoint(
+            calc_time, target_bri_norm, slope, b_min_norm, b_max_norm
+        )
         new_color_mid = inverse_midpoint(calc_time, target_cct_norm, slope, 0, 1)
 
         # Clamp midpoints to phase boundaries, then store in 0-24 range
         if in_ascend:
-            new_bri_mid = CircadianLight.lift_midpoint_to_phase(new_bri_mid, t_ascend, t_descend) % 24
-            new_color_mid = CircadianLight.lift_midpoint_to_phase(new_color_mid, t_ascend, t_descend) % 24
+            new_bri_mid = (
+                CircadianLight.lift_midpoint_to_phase(new_bri_mid, t_ascend, t_descend)
+                % 24
+            )
+            new_color_mid = (
+                CircadianLight.lift_midpoint_to_phase(
+                    new_color_mid, t_ascend, t_descend
+                )
+                % 24
+            )
         else:
             descend_end = t_ascend + 24
-            new_bri_mid = CircadianLight.lift_midpoint_to_phase(new_bri_mid, t_descend, descend_end) % 24
-            new_color_mid = CircadianLight.lift_midpoint_to_phase(new_color_mid, t_descend, descend_end) % 24
+            new_bri_mid = (
+                CircadianLight.lift_midpoint_to_phase(
+                    new_bri_mid, t_descend, descend_end
+                )
+                % 24
+            )
+            new_color_mid = (
+                CircadianLight.lift_midpoint_to_phase(
+                    new_color_mid, t_descend, descend_end
+                )
+                % 24
+            )
 
         # Recalculate what the curve actually produces with the new midpoints
         # This catches curve saturation where the midpoint can't push the output higher
@@ -983,8 +1289,17 @@ class CircadianLight:
             color_mid=new_color_mid if not cct_at_limit else state.color_mid,
             color_override=state.color_override,
         )
-        actual_bri = CircadianLight.calculate_brightness_at_hour(hour, config, new_state)
-        actual_cct = CircadianLight.calculate_color_at_hour(hour, config, new_state, apply_solar_rules=True, sun_times=sun_times)
+        actual_bri = CircadianLight.calculate_brightness_at_hour(
+            hour, config, new_state, weekday=weekday
+        )
+        actual_cct = CircadianLight.calculate_color_at_hour(
+            hour,
+            config,
+            new_state,
+            apply_solar_rules=True,
+            sun_times=sun_times,
+            weekday=weekday,
+        )
 
         # If actual output didn't change meaningfully, treat as at-limit
         # Uses 0.5% for brightness, 10K for color to match frontend (glo-designer.html)
@@ -1011,7 +1326,12 @@ class CircadianLight:
                 color_override=None,
             )
             base_cct = CircadianLight.calculate_color_at_hour(
-                hour, config, base_state, apply_solar_rules=True, sun_times=sun_times
+                hour,
+                config,
+                base_state,
+                apply_solar_rules=True,
+                sun_times=sun_times,
+                weekday=weekday,
             )
             if abs(base_cct - actual_cct) < 10:
                 state_updates["color_override"] = None
@@ -1026,7 +1346,7 @@ class CircadianLight:
             color_temp=actual_cct,
             rgb=rgb,
             xy=xy,
-            state_updates=state_updates
+            state_updates=state_updates,
         )
 
     @staticmethod
@@ -1036,6 +1356,7 @@ class CircadianLight:
         config: Config,
         state: AreaState,
         sun_times: Optional[SunTimes] = None,
+        weekday: Optional[int] = None,
     ) -> Optional[StepResult]:
         """Calculate brightness-only step.
 
@@ -1048,11 +1369,14 @@ class CircadianLight:
             config: Global configuration
             state: Area runtime state
             sun_times: Sun position times for solar rules (if None, uses defaults)
+            weekday: Python weekday (0=Mon..6=Sun), None = today
 
         Returns:
             StepResult with new values and state updates, or None if at limit
         """
-        in_ascend, h48, t_ascend, t_descend, slope = CircadianLight.get_phase_info(hour, config)
+        in_ascend, h48, t_ascend, t_descend, slope = CircadianLight.get_phase_info(
+            hour, config
+        )
         sign = 1 if direction == "up" else -1
         steps = config.brightness_increments or config.max_dim_steps or 10
 
@@ -1061,7 +1385,9 @@ class CircadianLight:
         b_max = config.max_brightness
         bri_step = (b_max - b_min) / steps
 
-        current_bri = CircadianLight.calculate_brightness_at_hour(hour, config, state)
+        current_bri = CircadianLight.calculate_brightness_at_hour(
+            hour, config, state, weekday=weekday
+        )
 
         # Safe margin to avoid asymptote issues in midpoint calculation
         safe_margin = max(1.0, (b_max - b_min) * 0.01)
@@ -1091,11 +1417,18 @@ class CircadianLight:
         if not in_ascend and h48 < t_descend:
             calc_time = h48 + 24
 
-        new_mid = inverse_midpoint(calc_time, target_norm, slope, b_min_norm, b_max_norm)
+        new_mid = inverse_midpoint(
+            calc_time, target_norm, slope, b_min_norm, b_max_norm
+        )
         if in_ascend:
-            new_mid = CircadianLight.lift_midpoint_to_phase(new_mid, t_ascend, t_descend) % 24
+            new_mid = (
+                CircadianLight.lift_midpoint_to_phase(new_mid, t_ascend, t_descend) % 24
+            )
         else:
-            new_mid = CircadianLight.lift_midpoint_to_phase(new_mid, t_descend, t_ascend + 24) % 24
+            new_mid = (
+                CircadianLight.lift_midpoint_to_phase(new_mid, t_descend, t_ascend + 24)
+                % 24
+            )
 
         # Recalculate what the curve actually produces with the new midpoint
         new_state = AreaState(
@@ -1105,14 +1438,23 @@ class CircadianLight:
             brightness_mid=new_mid,
             color_mid=state.color_mid,
         )
-        actual_bri = CircadianLight.calculate_brightness_at_hour(hour, config, new_state)
+        actual_bri = CircadianLight.calculate_brightness_at_hour(
+            hour, config, new_state, weekday=weekday
+        )
 
         # If actual output didn't change meaningfully, treat as at-limit
         if abs(actual_bri - current_bri) < 0.5:
             return None
 
         # Color stays unchanged - recalculate at current hour (with solar rules)
-        color_temp = CircadianLight.calculate_color_at_hour(hour, config, state, apply_solar_rules=True, sun_times=sun_times)
+        color_temp = CircadianLight.calculate_color_at_hour(
+            hour,
+            config,
+            state,
+            apply_solar_rules=True,
+            sun_times=sun_times,
+            weekday=weekday,
+        )
         rgb = CircadianLight.color_temperature_to_rgb(color_temp)
         xy = CircadianLight.color_temperature_to_xy(color_temp)
 
@@ -1123,7 +1465,7 @@ class CircadianLight:
             color_temp=color_temp,
             rgb=rgb,
             xy=xy,
-            state_updates=state_updates
+            state_updates=state_updates,
         )
 
     @staticmethod
@@ -1133,6 +1475,7 @@ class CircadianLight:
         config: Config,
         state: AreaState,
         sun_times: Optional[SunTimes] = None,
+        weekday: Optional[int] = None,
     ) -> Optional[StepResult]:
         """Calculate color-only step using rendered CCT.
 
@@ -1147,11 +1490,14 @@ class CircadianLight:
             config: Global configuration
             state: Area runtime state
             sun_times: Sun position times for solar rules (if None, uses defaults)
+            weekday: Python weekday (0=Mon..6=Sun), None = today
 
         Returns:
             StepResult with new values and state updates, or None if at limit
         """
-        in_ascend, h48, t_ascend, t_descend, slope = CircadianLight.get_phase_info(hour, config)
+        in_ascend, h48, t_ascend, t_descend, slope = CircadianLight.get_phase_info(
+            hour, config
+        )
         sign = 1 if direction == "up" else -1
         steps = config.color_increments or config.max_dim_steps or 10
 
@@ -1163,7 +1509,12 @@ class CircadianLight:
 
         # 1. Current rendered CCT (with solar rules)
         rendered = CircadianLight.calculate_color_at_hour(
-            hour, config, state, apply_solar_rules=True, sun_times=sun_times
+            hour,
+            config,
+            state,
+            apply_solar_rules=True,
+            sun_times=sun_times,
+            weekday=weekday,
         )
 
         # 2. Target = rendered + step, clamped to config bounds
@@ -1186,9 +1537,14 @@ class CircadianLight:
 
         new_mid = inverse_midpoint(calc_time, target_norm, slope, 0, 1)
         if in_ascend:
-            new_mid = CircadianLight.lift_midpoint_to_phase(new_mid, t_ascend, t_descend) % 24
+            new_mid = (
+                CircadianLight.lift_midpoint_to_phase(new_mid, t_ascend, t_descend) % 24
+            )
         else:
-            new_mid = CircadianLight.lift_midpoint_to_phase(new_mid, t_descend, t_ascend + 24) % 24
+            new_mid = (
+                CircadianLight.lift_midpoint_to_phase(new_mid, t_descend, t_ascend + 24)
+                % 24
+            )
 
         # 5. Test-render with new midpoint + NO override (fresh recalibration)
         test_state = AreaState(
@@ -1200,7 +1556,12 @@ class CircadianLight:
             color_override=None,
         )
         base_rendered = CircadianLight.calculate_color_at_hour(
-            hour, config, test_state, apply_solar_rules=True, sun_times=sun_times
+            hour,
+            config,
+            test_state,
+            apply_solar_rules=True,
+            sun_times=sun_times,
+            weekday=weekday,
         )
 
         # 6-7. Recalibrate override to minimum needed to reach target
@@ -1220,7 +1581,12 @@ class CircadianLight:
             color_override=new_override,
         )
         actual_cct = CircadianLight.calculate_color_at_hour(
-            hour, config, final_state, apply_solar_rules=True, sun_times=sun_times
+            hour,
+            config,
+            final_state,
+            apply_solar_rules=True,
+            sun_times=sun_times,
+            weekday=weekday,
         )
 
         if abs(actual_cct - rendered) < 10:
@@ -1231,7 +1597,9 @@ class CircadianLight:
             return None
 
         # 9. Build result (brightness stays unchanged)
-        brightness = CircadianLight.calculate_brightness_at_hour(hour, config, state)
+        brightness = CircadianLight.calculate_brightness_at_hour(
+            hour, config, state, weekday=weekday
+        )
         rgb = CircadianLight.color_temperature_to_rgb(actual_cct)
         xy = CircadianLight.color_temperature_to_xy(actual_cct)
 
@@ -1249,7 +1617,7 @@ class CircadianLight:
             color_temp=actual_cct,
             rgb=rgb,
             xy=xy,
-            state_updates=state_updates
+            state_updates=state_updates,
         )
 
     # ---------------------------------------------------------------------------
@@ -1259,11 +1627,12 @@ class CircadianLight:
     @staticmethod
     def calculate_set_position(
         hour: float,
-        position: float,       # 0-100
-        dimension: str,        # "step", "brightness", "color"
+        position: float,  # 0-100
+        dimension: str,  # "step", "brightness", "color"
         config: Config,
         state: AreaState,
         sun_times: Optional[SunTimes] = None,
+        weekday: Optional[int] = None,
     ) -> StepResult:
         """Set position along the circadian curve (0=min, 100=max).
 
@@ -1279,11 +1648,14 @@ class CircadianLight:
             config: Global configuration
             state: Area runtime state
             sun_times: Sun position times for solar rules
+            weekday: Python weekday (0=Mon..6=Sun), None = today
 
         Returns:
             StepResult with new values and state updates
         """
-        in_ascend, h48, t_ascend, t_descend, slope = CircadianLight.get_phase_info(hour, config)
+        in_ascend, h48, t_ascend, t_descend, slope = CircadianLight.get_phase_info(
+            hour, config
+        )
 
         b_min = config.min_brightness
         b_max = config.max_brightness
@@ -1301,14 +1673,22 @@ class CircadianLight:
         target_natural_cct = c_min + (c_max - c_min) * position / 100
 
         # Clamp to safe bounds (avoid asymptote issues)
-        target_bri = max(b_min + safe_margin_bri, min(b_max - safe_margin_bri, target_bri))
-        target_natural_cct = max(c_min + safe_margin_cct, min(c_max - safe_margin_cct, target_natural_cct))
+        target_bri = max(
+            b_min + safe_margin_bri, min(b_max - safe_margin_bri, target_bri)
+        )
+        target_natural_cct = max(
+            c_min + safe_margin_cct, min(c_max - safe_margin_cct, target_natural_cct)
+        )
 
         # Normalize for inverse_midpoint
         b_min_norm = b_min / 100.0
         b_max_norm = b_max / 100.0
-        target_bri_norm = max(b_min_norm + 0.001, min(b_max_norm - 0.001, target_bri / 100.0))
-        target_cct_norm = max(0.001, min(0.999, (target_natural_cct - c_min) / (c_max - c_min)))
+        target_bri_norm = max(
+            b_min_norm + 0.001, min(b_max_norm - 0.001, target_bri / 100.0)
+        )
+        target_cct_norm = max(
+            0.001, min(0.999, (target_natural_cct - c_min) / (c_max - c_min))
+        )
 
         calc_time = h48
         if not in_ascend and h48 < t_descend:
@@ -1320,33 +1700,67 @@ class CircadianLight:
         if dimension == "step":
             # Brightness-primary: compute midpoint from brightness target,
             # then share it with color so color follows the curve naturally
-            new_bri_mid = inverse_midpoint(calc_time, target_bri_norm, slope, b_min_norm, b_max_norm)
+            new_bri_mid = inverse_midpoint(
+                calc_time, target_bri_norm, slope, b_min_norm, b_max_norm
+            )
             if in_ascend:
-                new_bri_mid = CircadianLight.lift_midpoint_to_phase(new_bri_mid, t_ascend, t_descend) % 24
+                new_bri_mid = (
+                    CircadianLight.lift_midpoint_to_phase(
+                        new_bri_mid, t_ascend, t_descend
+                    )
+                    % 24
+                )
             else:
                 descend_end = t_ascend + 24
-                new_bri_mid = CircadianLight.lift_midpoint_to_phase(new_bri_mid, t_descend, descend_end) % 24
+                new_bri_mid = (
+                    CircadianLight.lift_midpoint_to_phase(
+                        new_bri_mid, t_descend, descend_end
+                    )
+                    % 24
+                )
             state_updates["brightness_mid"] = new_bri_mid
             state_updates["color_mid"] = new_bri_mid  # shared midpoint
             # Recalibrate override (don't clear blindly — preserve what's needed)
             # Override is recalibrated after the verification render below
 
         elif dimension == "brightness":
-            new_bri_mid = inverse_midpoint(calc_time, target_bri_norm, slope, b_min_norm, b_max_norm)
+            new_bri_mid = inverse_midpoint(
+                calc_time, target_bri_norm, slope, b_min_norm, b_max_norm
+            )
             if in_ascend:
-                new_bri_mid = CircadianLight.lift_midpoint_to_phase(new_bri_mid, t_ascend, t_descend) % 24
+                new_bri_mid = (
+                    CircadianLight.lift_midpoint_to_phase(
+                        new_bri_mid, t_ascend, t_descend
+                    )
+                    % 24
+                )
             else:
                 descend_end = t_ascend + 24
-                new_bri_mid = CircadianLight.lift_midpoint_to_phase(new_bri_mid, t_descend, descend_end) % 24
+                new_bri_mid = (
+                    CircadianLight.lift_midpoint_to_phase(
+                        new_bri_mid, t_descend, descend_end
+                    )
+                    % 24
+                )
             state_updates["brightness_mid"] = new_bri_mid
 
         elif dimension == "color":
             new_color_mid = inverse_midpoint(calc_time, target_cct_norm, slope, 0, 1)
             if in_ascend:
-                new_color_mid = CircadianLight.lift_midpoint_to_phase(new_color_mid, t_ascend, t_descend) % 24
+                new_color_mid = (
+                    CircadianLight.lift_midpoint_to_phase(
+                        new_color_mid, t_ascend, t_descend
+                    )
+                    % 24
+                )
             else:
                 descend_end = t_ascend + 24
-                new_color_mid = CircadianLight.lift_midpoint_to_phase(new_color_mid, t_descend, descend_end) % 24
+                new_color_mid = (
+                    CircadianLight.lift_midpoint_to_phase(
+                        new_color_mid, t_descend, descend_end
+                    )
+                    % 24
+                )
             state_updates["color_mid"] = new_color_mid
 
             # Test-render with new midpoint and no override (start fresh)
@@ -1359,7 +1773,12 @@ class CircadianLight:
                 color_override=None,
             )
             test_rendered = CircadianLight.calculate_color_at_hour(
-                hour, config, test_state, apply_solar_rules=True, sun_times=sun_times
+                hour,
+                config,
+                test_state,
+                apply_solar_rules=True,
+                sun_times=sun_times,
+                weekday=weekday,
             )
 
             # If solar rule prevents target, set exact deficit override
@@ -1379,9 +1798,16 @@ class CircadianLight:
             color_mid=state_updates.get("color_mid", state.color_mid),
             color_override=state_updates.get("color_override", state.color_override),
         )
-        actual_bri = CircadianLight.calculate_brightness_at_hour(hour, config, new_state)
+        actual_bri = CircadianLight.calculate_brightness_at_hour(
+            hour, config, new_state, weekday=weekday
+        )
         actual_cct = CircadianLight.calculate_color_at_hour(
-            hour, config, new_state, apply_solar_rules=True, sun_times=sun_times
+            hour,
+            config,
+            new_state,
+            apply_solar_rules=True,
+            sun_times=sun_times,
+            weekday=weekday,
         )
 
         # Recalibrate color_override for "step" dimension (deferred from above)
@@ -1395,7 +1821,12 @@ class CircadianLight:
                 color_override=None,
             )
             base_cct = CircadianLight.calculate_color_at_hour(
-                hour, config, base_state, apply_solar_rules=True, sun_times=sun_times
+                hour,
+                config,
+                base_state,
+                apply_solar_rules=True,
+                sun_times=sun_times,
+                weekday=weekday,
             )
             if abs(base_cct - actual_cct) < 10:
                 state_updates["color_override"] = None
@@ -1410,7 +1841,7 @@ class CircadianLight:
             color_temp=actual_cct,
             rgb=rgb,
             xy=xy,
-            state_updates=state_updates
+            state_updates=state_updates,
         )
 
     @staticmethod
@@ -1419,6 +1850,7 @@ class CircadianLight:
         config: Config,
         state: AreaState,
         sun_times: Optional[SunTimes] = None,
+        weekday: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Calculate the achievable brightness/color range at the current hour.
 
@@ -1430,11 +1862,14 @@ class CircadianLight:
             config: Global configuration
             state: Area runtime state
             sun_times: Sun position times for solar rules
+            weekday: Python weekday (0=Mon..6=Sun), None = today
 
         Returns:
             Dict with bri_min, bri_max, cct_min, cct_max, current_bri, current_cct
         """
-        in_ascend, h48, t_ascend, t_descend, slope = CircadianLight.get_phase_info(hour, config)
+        in_ascend, h48, t_ascend, t_descend, slope = CircadianLight.get_phase_info(
+            hour, config
+        )
         margin = 0.01
 
         if in_ascend:
@@ -1449,22 +1884,41 @@ class CircadianLight:
         high_mid = (phase_end - margin) % 24
 
         state_low = AreaState(
-            is_circadian=True, is_on=True,
-            brightness_mid=low_mid, color_mid=low_mid,
+            is_circadian=True,
+            is_on=True,
+            brightness_mid=low_mid,
+            color_mid=low_mid,
         )
         state_high = AreaState(
-            is_circadian=True, is_on=True,
-            brightness_mid=high_mid, color_mid=high_mid,
+            is_circadian=True,
+            is_on=True,
+            brightness_mid=high_mid,
+            color_mid=high_mid,
         )
 
-        bri_a = CircadianLight.calculate_brightness_at_hour(hour, config, state_low)
-        bri_b = CircadianLight.calculate_brightness_at_hour(hour, config, state_high)
-        cct_a = CircadianLight.calculate_color_at_hour(hour, config, state_low, apply_solar_rules=False)
-        cct_b = CircadianLight.calculate_color_at_hour(hour, config, state_high, apply_solar_rules=False)
+        bri_a = CircadianLight.calculate_brightness_at_hour(
+            hour, config, state_low, weekday=weekday
+        )
+        bri_b = CircadianLight.calculate_brightness_at_hour(
+            hour, config, state_high, weekday=weekday
+        )
+        cct_a = CircadianLight.calculate_color_at_hour(
+            hour, config, state_low, apply_solar_rules=False, weekday=weekday
+        )
+        cct_b = CircadianLight.calculate_color_at_hour(
+            hour, config, state_high, apply_solar_rules=False, weekday=weekday
+        )
 
-        current_bri = CircadianLight.calculate_brightness_at_hour(hour, config, state)
+        current_bri = CircadianLight.calculate_brightness_at_hour(
+            hour, config, state, weekday=weekday
+        )
         current_cct = CircadianLight.calculate_color_at_hour(
-            hour, config, state, apply_solar_rules=True, sun_times=sun_times
+            hour,
+            config,
+            state,
+            apply_solar_rules=True,
+            sun_times=sun_times,
+            weekday=weekday,
         )
 
         return {
@@ -1504,7 +1958,7 @@ class CircadianLight:
             b /= max_val
 
         def linear_to_srgb(c):
-            return 12.92 * c if c <= 0.0031308 else 1.055 * (c ** (1/2.4)) - 0.055
+            return 12.92 * c if c <= 0.0031308 else 1.055 * (c ** (1 / 2.4)) - 0.055
 
         r = linear_to_srgb(r)
         g = linear_to_srgb(g)
@@ -1542,7 +1996,7 @@ class CircadianLight:
     # -------------------------------------------------------------------------
 
     PLANCKIAN_WARM_LIMIT = 1200  # Below this, Planckian locus starts cooling
-    EXTENDED_RED_LIMIT = 500     # Our minimum "temperature" for deepest red
+    EXTENDED_RED_LIMIT = 500  # Our minimum "temperature" for deepest red
 
     # Warmest point on Planckian locus (calculated at 1200K)
     PLANCKIAN_WARM_XY = (0.5946, 0.3881)
@@ -1600,32 +2054,17 @@ class CircadianLight:
 
         # Calculate x coordinate using McCamy's approximation
         if T <= 4000:
-            x = (-0.2661239 * invT**3
-                 - 0.2343589 * invT**2
-                 + 0.8776956 * invT
-                 + 0.179910)
+            x = -0.2661239 * invT**3 - 0.2343589 * invT**2 + 0.8776956 * invT + 0.179910
         else:
-            x = (-3.0258469 * invT**3
-                 + 2.1070379 * invT**2
-                 + 0.2226347 * invT
-                 + 0.240390)
+            x = -3.0258469 * invT**3 + 2.1070379 * invT**2 + 0.2226347 * invT + 0.240390
 
         # Calculate y coordinate based on temperature range
         if T <= 2222:
-            y = (-1.1063814 * x**3
-                 - 1.34811020 * x**2
-                 + 2.18555832 * x
-                 - 0.20219683)
+            y = -1.1063814 * x**3 - 1.34811020 * x**2 + 2.18555832 * x - 0.20219683
         elif T <= 4000:
-            y = (-0.9549476 * x**3
-                 - 1.37418593 * x**2
-                 + 2.09137015 * x
-                 - 0.16748867)
+            y = -0.9549476 * x**3 - 1.37418593 * x**2 + 2.09137015 * x - 0.16748867
         else:
-            y = (3.0817580 * x**3
-                 - 5.87338670 * x**2
-                 + 3.75112997 * x
-                 - 0.37001483)
+            y = 3.0817580 * x**3 - 5.87338670 * x**2 + 3.75112997 * x - 0.37001483
 
         return (x, y)
 
@@ -1634,9 +2073,11 @@ class CircadianLight:
 # Convenience function for current time calculations
 # ---------------------------------------------------------------------------
 
+
 def get_current_hour() -> float:
     """Get current hour as decimal (0-24)."""
     from datetime import datetime
+
     now = datetime.now()
     return now.hour + now.minute / 60 + now.second / 3600
 
@@ -1672,10 +2113,7 @@ def apply_activity_preset(preset_name: str, config: dict) -> dict:
     return config
 
 
-def get_circadian_lighting(
-    current_time=None,
-    **kwargs
-) -> Dict[str, Any]:
+def get_circadian_lighting(current_time=None, **kwargs) -> Dict[str, Any]:
     """Get circadian lighting values for a given time.
 
     Returns dict with brightness, kelvin, rgb, xy keys.
@@ -1711,7 +2149,7 @@ def calculate_dimming_step(
     current_time=None,
     action: str = "brighten",
     max_steps: int = DEFAULT_MAX_DIM_STEPS,
-    **kwargs
+    **kwargs,
 ) -> Dict[str, Any]:
     """Backwards compatibility wrapper for step calculations."""
     from datetime import datetime
