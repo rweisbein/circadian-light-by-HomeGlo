@@ -679,54 +679,68 @@
     .schedule-popover-title {
       font-weight: 700;
       font-size: 0.9rem;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
     }
-    .schedule-popover-option {
-      display: flex;
+    /* Grid: radio | wake-col | bed-col */
+    .spo-grid {
+      display: grid;
+      grid-template-columns: 20px 1fr 1fr;
+      gap: 0 12px;
       align-items: center;
-      gap: 8px;
-      padding: 7px 0;
+    }
+    .spo-col-header {
+      font-size: 0.7rem;
+      opacity: 0.45;
+      text-align: center;
+      padding-bottom: 4px;
+    }
+    .spo-rhythm-link {
+      grid-column: 1 / -1;
+      font-size: 0.72rem;
+      padding: 2px 0 6px 20px;
+    }
+    .spo-rhythm-link a {
+      color: var(--accent);
+      opacity: 0.6;
+      text-decoration: none;
+    }
+    .spo-rhythm-link a:hover { opacity: 1; }
+    .spo-radio-row {
+      display: contents;
       cursor: pointer;
     }
-    .schedule-popover-option input[type="radio"] {
+    .spo-radio-row input[type="radio"] {
       accent-color: var(--accent);
       margin: 0;
-    }
-    .schedule-popover-option label {
       cursor: pointer;
-      flex: 1;
     }
-    .schedule-popover-option .spo-times {
-      font-size: 0.8rem;
-      opacity: 0.7;
+    .spo-time-cell {
+      text-align: center;
+      padding: 6px 0;
+      font-size: 0.88rem;
+      cursor: pointer;
     }
-    .schedule-popover-custom-inputs {
-      margin-left: 24px;
-      margin-top: 4px;
-      margin-bottom: 4px;
+    .spo-divider {
+      grid-column: 1 / -1;
+      border-top: 1px solid var(--line);
+      margin: 4px 0;
     }
-    .spo-slider-row {
+    /* Custom slider row */
+    .spo-slider-cell {
       display: flex;
+      flex-direction: column;
       align-items: center;
-      gap: 6px;
-      margin-bottom: 4px;
+      padding: 4px 0;
     }
-    .spo-slider-row .spo-input-label {
-      font-size: 0.72rem;
-      opacity: 0.5;
-      width: 28px;
-      flex-shrink: 0;
-    }
-    .spo-slider-row input[type="range"] {
-      flex: 1;
+    .spo-slider-cell input[type="range"] {
+      width: 100%;
       height: 4px;
       accent-color: var(--accent);
     }
-    .spo-slider-row .spo-slider-val {
-      font-size: 0.78rem;
-      min-width: 42px;
-      text-align: right;
-      opacity: 0.7;
+    .spo-slider-cell .spo-slider-val {
+      font-size: 0.75rem;
+      opacity: 0.6;
+      margin-top: 2px;
     }
     .schedule-popover-until {
       display: flex;
@@ -2221,9 +2235,6 @@
       popover.id = 'schedule-popover';
       popover.onclick = (e) => e.stopPropagation();
 
-      const mainLabel = `wake ${fmtCompactTime(mainWake)} / bed ${fmtCompactTime(mainBed)}`;
-      const altLabel = hasAlt ? `wake ${fmtCompactTime(altWake ?? mainWake)} / bed ${fmtCompactTime(altBed ?? mainBed)}` : '';
-
       let customWake = override?.custom_wake ?? mainWake;
       let customBed = override?.custom_bed ?? mainBed;
       // Lift bed into slider range if needed (bed slider uses descend_start..bedMax range)
@@ -2234,30 +2245,38 @@
       const rhythmHref = rhythmName ? `./rhythm/${encodeURIComponent(rhythmName)}` : '';
 
       popover.innerHTML = `
-        <div class="schedule-popover-title">Schedule Override</div>
-        <div class="schedule-popover-option" onclick="document.getElementById('spo-main').checked=true">
-          <input type="radio" id="spo-main" name="spo-mode" value="main" ${currentMode === 'main' ? 'checked' : ''}>
-          <label for="spo-main">${mainLabel}</label>
-        </div>
-        ${hasAlt ? `
-        <div class="schedule-popover-option" onclick="document.getElementById('spo-alt').checked=true">
-          <input type="radio" id="spo-alt" name="spo-mode" value="alt" ${currentMode === 'alt' ? 'checked' : ''}>
-          <label for="spo-alt">${altLabel}</label>
-        </div>` : ''}
-        <div class="schedule-popover-option" onclick="document.getElementById('spo-custom').checked=true">
-          <input type="radio" id="spo-custom" name="spo-mode" value="custom" ${currentMode === 'custom' ? 'checked' : ''}>
-          <label for="spo-custom">Custom</label>
-        </div>
-        <div class="schedule-popover-custom-inputs">
-          <div class="spo-slider-row">
-            <span class="spo-input-label">wake</span>
-            <input type="range" id="spo-custom-wake" min="${ascendStart}" max="${descendStart}" step="0.25" value="${customWake}">
-            <span class="spo-slider-val" id="spo-wake-display">${fmtCompactTime(customWake)}</span>
+        <div class="schedule-popover-title">Bed / Wake Override</div>
+        <div class="spo-grid">
+          <div></div>
+          <div class="spo-col-header">wake</div>
+          <div class="spo-col-header">bed</div>
+
+          <div class="spo-radio-row" onclick="document.getElementById('spo-main').checked=true">
+            <input type="radio" id="spo-main" name="spo-mode" value="main" ${currentMode === 'main' ? 'checked' : ''}>
+            <div class="spo-time-cell">${fmtCompactTime(mainWake)}</div>
+            <div class="spo-time-cell">${fmtCompactTime(mainBed)}</div>
           </div>
-          <div class="spo-slider-row">
-            <span class="spo-input-label">bed</span>
-            <input type="range" id="spo-custom-bed" min="${descendStart}" max="${bedMax}" step="0.25" value="${customBedSlider}">
-            <span class="spo-slider-val" id="spo-bed-display">${fmtCompactTime(customBed)}</span>
+          ${hasAlt ? `
+          <div class="spo-radio-row" onclick="document.getElementById('spo-alt').checked=true">
+            <input type="radio" id="spo-alt" name="spo-mode" value="alt" ${currentMode === 'alt' ? 'checked' : ''}>
+            <div class="spo-time-cell">${fmtCompactTime(altWake ?? mainWake)}</div>
+            <div class="spo-time-cell">${fmtCompactTime(altBed ?? mainBed)}</div>
+          </div>` : ''}
+
+          ${rhythmHref ? `<div class="spo-rhythm-link"><a href="${rhythmHref}">${rhythmName}</a></div>` : ''}
+
+          <div class="spo-divider"></div>
+
+          <div class="spo-radio-row" onclick="document.getElementById('spo-custom').checked=true">
+            <input type="radio" id="spo-custom" name="spo-mode" value="custom" ${currentMode === 'custom' ? 'checked' : ''}>
+            <div class="spo-slider-cell">
+              <input type="range" id="spo-custom-wake" min="${ascendStart}" max="${descendStart}" step="0.25" value="${customWake}">
+              <span class="spo-slider-val" id="spo-wake-display">${fmtCompactTime(customWake)}</span>
+            </div>
+            <div class="spo-slider-cell">
+              <input type="range" id="spo-custom-bed" min="${descendStart}" max="${bedMax}" step="0.25" value="${customBedSlider}">
+              <span class="spo-slider-val" id="spo-bed-display">${fmtCompactTime(customBed)}</span>
+            </div>
           </div>
         </div>
         <div class="schedule-popover-until">
@@ -2268,7 +2287,6 @@
             <option value="bed" ${untilEvent === 'bed' ? 'selected' : ''}>bed</option>
           </select>
         </div>
-        ${rhythmHref ? `<div style="margin-top:8px;"><a href="${rhythmHref}" style="font-size:0.8rem; color:var(--accent); opacity:0.7; text-decoration:none;">Edit rhythm settings</a></div>` : ''}
         <div class="schedule-popover-actions">
           ${override ? '<button class="danger" onclick="clearScheduleOverride()" title="Remove override, resume normal schedule">Clear override</button>' : ''}
           <span style="flex:1;"></span>
@@ -2296,14 +2314,20 @@
       const customBedInput = document.getElementById('spo-custom-bed');
       const wakeDisplay = document.getElementById('spo-wake-display');
       const bedDisplay = document.getElementById('spo-bed-display');
+      const selectCustom = () => { document.getElementById('spo-custom').checked = true; };
       customWakeInput.addEventListener('input', () => {
-        document.getElementById('spo-custom').checked = true;
+        selectCustom();
         wakeDisplay.textContent = fmtCompactTime(parseFloat(customWakeInput.value));
       });
       customBedInput.addEventListener('input', () => {
-        document.getElementById('spo-custom').checked = true;
+        selectCustom();
         bedDisplay.textContent = fmtCompactTime(parseFloat(customBedInput.value) % 24);
       });
+      // Prevent slider drag from toggling radio via parent onclick
+      customWakeInput.addEventListener('mousedown', (e) => e.stopPropagation());
+      customBedInput.addEventListener('mousedown', (e) => e.stopPropagation());
+      customWakeInput.addEventListener('pointerdown', (e) => { e.stopPropagation(); selectCustom(); });
+      customBedInput.addEventListener('pointerdown', (e) => { e.stopPropagation(); selectCustom(); });
     }
 
     function closeSchedulePopover() {
