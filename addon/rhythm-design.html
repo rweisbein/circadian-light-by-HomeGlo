@@ -3478,13 +3478,19 @@ function initDayBubbles(containerId, altTimeRowId) {
       if (row) {
         const wasCollapsed = row.classList.contains('collapsed');
         row.classList.toggle('collapsed', !shouldShow);
-        // Default alt slider to primary time when first revealed
+        // Restore alt slider to last-used time (or primary time as fallback) when revealed
         if (shouldShow && wasCollapsed) {
           const altSlider = row.querySelector('input[type="range"]');
           if (altSlider && containerId === 'wake-days') {
-            altSlider.value = document.getElementById('wake-time').value;
+            const restored = config._wake_alt_time_last ?? config.wake_time;
+            let val = restored;
+            if (val < config.ascend_start) val += 24;
+            altSlider.value = val;
           } else if (altSlider && containerId === 'bed-days') {
-            altSlider.value = document.getElementById('bed-time').value;
+            const restored = config._bed_alt_time_last ?? config.bed_time;
+            let val = restored;
+            if (val < config.descend_start) val += 24;
+            altSlider.value = val;
           }
         }
       }
@@ -3507,18 +3513,22 @@ function syncConfigFromUI() {
   const wakePrimaryDays = getSelectedDays('wake-days');
   if (wakePrimaryDays.length === 0 || wakePrimaryDays.length === 7) {
     config.wake_alt_days = [];
+    config._wake_alt_time_last = parseFloat(document.getElementById('wake-alt-time').value) % 24;
     config.wake_alt_time = null;
   } else {
     config.wake_alt_days = ALL_DAYS.filter(d => !wakePrimaryDays.includes(d));
     config.wake_alt_time = parseFloat(document.getElementById('wake-alt-time').value) % 24;
+    config._wake_alt_time_last = config.wake_alt_time;
   }
   const bedPrimaryDays = getSelectedDays('bed-days');
   if (bedPrimaryDays.length === 0 || bedPrimaryDays.length === 7) {
     config.bed_alt_days = [];
+    config._bed_alt_time_last = parseFloat(document.getElementById('bed-alt-time').value) % 24;
     config.bed_alt_time = null;
   } else {
     config.bed_alt_days = ALL_DAYS.filter(d => !bedPrimaryDays.includes(d));
     config.bed_alt_time = parseFloat(document.getElementById('bed-alt-time').value) % 24;
+    config._bed_alt_time_last = config.bed_alt_time;
   }
   config.wake_brightness = parseInt(document.getElementById('wake-brightness').value);
   config.bed_brightness = parseInt(document.getElementById('bed-brightness').value);
@@ -3594,6 +3604,11 @@ function syncUIFromConfig() {
     document.getElementById('wake-alt-time').value = wakeAltSlider;
     document.getElementById('wake-alt-time-row').classList.remove('collapsed');
   } else {
+    // Pre-load slider with last-used alt time so it's ready if days are re-added
+    const wakeLastAlt = config._wake_alt_time_last ?? config.wake_time;
+    let wakeAltPreload = wakeLastAlt;
+    if (wakeLastAlt < config.ascend_start) wakeAltPreload += 24;
+    document.getElementById('wake-alt-time').value = wakeAltPreload;
     document.getElementById('wake-alt-time-row').classList.add('collapsed');
   }
   const bedAltDays = config.bed_alt_days || [];
@@ -3607,6 +3622,11 @@ function syncUIFromConfig() {
     document.getElementById('bed-alt-time').value = bedAltSlider;
     document.getElementById('bed-alt-time-row').classList.remove('collapsed');
   } else {
+    // Pre-load slider with last-used alt time so it's ready if days are re-added
+    const bedLastAlt = config._bed_alt_time_last ?? config.bed_time;
+    let bedAltPreload = bedLastAlt;
+    if (bedLastAlt < config.descend_start) bedAltPreload += 24;
+    document.getElementById('bed-alt-time').value = bedAltPreload;
     document.getElementById('bed-alt-time-row').classList.add('collapsed');
   }
   document.getElementById('wake-brightness').value = config.wake_brightness || 50;
@@ -3652,8 +3672,8 @@ function syncUIFromConfig() {
   positionTimelineBadges();
   updateDisplay('wake-time-display', formatHour(config.wake_time));
   updateDisplay('bed-time-display', formatHour(config.bed_time));
-  updateDisplay('wake-alt-time-display', config.wake_alt_time != null ? formatHour(config.wake_alt_time) : '--');
-  updateDisplay('bed-alt-time-display', config.bed_alt_time != null ? formatHour(config.bed_alt_time) : '--');
+  updateDisplay('wake-alt-time-display', formatHour(config.wake_alt_time ?? config._wake_alt_time_last ?? config.wake_time));
+  updateDisplay('bed-alt-time-display', formatHour(config.bed_alt_time ?? config._bed_alt_time_last ?? config.bed_time));
   const wb = config.wake_brightness || 50;
   updateDisplay('wake-brightness-display', wb === 50 ? '50% (default)' : wb + '%');
   const bb = config.bed_brightness || 50;
@@ -5371,6 +5391,8 @@ async function saveRhythmSettings() {
     wake_alt_days: config.wake_alt_days,
     bed_alt_time: config.bed_alt_time,
     bed_alt_days: config.bed_alt_days,
+    _wake_alt_time_last: config._wake_alt_time_last,
+    _bed_alt_time_last: config._bed_alt_time_last,
     wake_brightness: config.wake_brightness,
     bed_brightness: config.bed_brightness,
     warm_night_enabled: config.warm_night_enabled,

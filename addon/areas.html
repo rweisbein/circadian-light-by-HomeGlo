@@ -1277,7 +1277,7 @@
     .tune-outdoor-pct { color: var(--text); font-weight: 600; white-space: nowrap; }
     .tune-outdoor-detail { color: var(--muted2); font-size: 0.75rem; }
     .tune-outdoor-panel {
-      position: absolute; top: 100%; left: 0; margin-top: 4px;
+      position: absolute; top: 100%; right: 0; margin-top: 4px;
       min-width: 300px; background: var(--panel);
       border: 1px solid var(--line); border-radius: 8px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.4);
@@ -2759,6 +2759,34 @@
       }
     }
 
+    async function refreshTuneBrightness() {
+      try {
+        const [zsResp] = await Promise.all([
+          fetch('./api/zone-states'),
+          refreshOutdoorInPlace(),
+        ]);
+        if (zsResp.ok) {
+          const zs = await zsResp.json();
+          zoneStates = zs.zone_states || {};
+          document.querySelectorAll('.tune-area').forEach(el => {
+            const zoneName = el.closest('.zone-group')?.querySelector('[data-zone]')?.dataset.zone;
+            const zoneBri = zoneStates?.[zoneName]?.brightness;
+            if (zoneBri != null) {
+              el.dataset.rhythmBri = Math.round(zoneBri);
+              updateTuneNowPreview(el, {});
+            }
+          });
+          document.querySelectorAll('.tune-zone-base-bri').forEach(el => {
+            const zoneName = el.closest('[data-zone]')?.dataset.zone;
+            const zoneBri = zoneStates?.[zoneName]?.brightness;
+            if (zoneBri != null) el.textContent = Math.round(zoneBri) + '%';
+          });
+        }
+      } catch (err) {
+        console.error('refreshTuneBrightness error:', err);
+      }
+    }
+
     function saveGlobalSetting(field, value) {
       clearTimeout(tuneDebounceTimers['global_' + field]);
       tuneDebounceTimers['global_' + field] = setTimeout(async () => {
@@ -3265,6 +3293,9 @@
             </button>
             <span style="font-size: 1rem; font-weight: 600; color: var(--text);">Tune brightness</span>
             <span style="flex: 1;"></span>
+            <button class="tune-back-btn" onclick="refreshTuneBrightness()" title="Refresh" style="opacity: 0.5;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+            </button>
           </div>
           <div class="tune-toolbar-row">
             <div class="view-links">
@@ -3373,15 +3404,17 @@
 
           return `
             <div class="zone-group">
-              <div class="zone-header tune-zone-header" data-zone="${zoneName}">
+              <div class="zone-header tune-zone-header ${isCollapsed ? 'collapsed' : ''}" data-zone="${zoneName}">
+                <span class="zone-chevron-tap" onclick="event.stopPropagation(); toggleZone('${escapedZoneName}', this)">${chevronIcon}</span>
                 <span style="font-size: 0.65rem; opacity: 0.5;">Glo Zone</span>
                 <span class="zone-name">${zoneName}</span>
+                <a class="zone-rhythm-link" href="./rhythm/${encodeURIComponent(rhythmName)}?back=home" onclick="event.stopPropagation()">${rhythmName || ''}</a>
                 <span class="tune-zone-bri-group">
                   <span class="tune-zone-base-bri">${rhythmBri}%</span>
                 </span>
                 ${zoneControlsHtml}
               </div>
-              <div class="zone-content" data-zone-table="${zoneName}">
+              <div class="zone-content ${isCollapsed ? 'hidden' : ''}" data-zone-table="${zoneName}">
                 ${areaRows}
               </div>
             </div>
