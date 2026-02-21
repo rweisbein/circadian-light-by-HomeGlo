@@ -3088,7 +3088,9 @@ class LightDesignerServer:
     def _compute_next_wake_alarm(area_id, area_settings, rhythm_cfg):
         """Compute next upcoming wake alarm for an area.
 
-        Returns {"time": "8:15a", "day": "Sunday"} or None.
+        Returns {"time": "8:15a", "day": "Wed"} or {"time": "8:15a", "day": ""}
+        day is only set when the next chronological occurrence of the alarm time
+        would be skipped (not in schedule), showing which day it actually fires.
         """
         settings = area_settings.get(area_id, {})
         if not settings.get("wake_alarm"):
@@ -3110,42 +3112,22 @@ class LightDesignerServer:
         except Exception:
             tzinfo = None
         now = datetime.now(tzinfo)
-        js_today = now.weekday()  # Python weekday: Mon=0..Sun=6 (matches our day format)
+        today_wd = now.weekday()  # Mon=0..Sun=6
         now_decimal = now.hour + now.minute / 60.0
 
-        day_names = [
-            "Monday",
-            "Tuesday",
-            "Wednesday",
-            "Thursday",
-            "Friday",
-            "Saturday",
-            "Sunday",
-        ]
+        day_abbrs = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
-        for i in range(7):
-            py_day = (js_today + i) % 7
-            if py_day not in days:
-                continue
-
+        def get_alarm_time_for_day(py_day):
             if mode == "custom":
-                if custom_time is None:
-                    continue
-                alarm_time = custom_time
-            else:
-                # Rhythm mode
-                wake_time = rhythm_cfg.get("wake_time", 7.0)
-                alt_time = rhythm_cfg.get("wake_alt_time")
-                alt_days = rhythm_cfg.get("wake_alt_days", [])
-                if alt_time is not None and py_day in alt_days:
-                    wake_time = alt_time
-                alarm_time = wake_time + offset / 60.0
+                return custom_time
+            wake_time = rhythm_cfg.get("wake_time", 7.0)
+            alt_time = rhythm_cfg.get("wake_alt_time")
+            alt_days = rhythm_cfg.get("wake_alt_days", [])
+            if alt_time is not None and py_day in alt_days:
+                wake_time = alt_time
+            return wake_time + offset / 60.0
 
-            # If today and time already passed, skip
-            if i == 0 and now_decimal >= alarm_time:
-                continue
-
-            # Format time as "8:15a"
+        def fmt_time(alarm_time):
             h_raw = int(alarm_time % 24)
             m_raw = round((alarm_time - int(alarm_time)) * 60)
             suffix = "a" if h_raw < 12 else "p"
@@ -3154,18 +3136,52 @@ class LightDesignerServer:
                 h_display = 12
             elif h_display > 12:
                 h_display -= 12
-            time_str = f"{h_display}:{m_raw:02d}{suffix}"
+            return f"{h_display}:{m_raw:02d}{suffix}"
 
-            if i == 0:
-                day_label = "Today"
-            elif i == 1:
-                day_label = "Tomorrow"
+        # Find next alarm day
+        fire_offset = None  # days from today
+        fire_day = None
+        fire_time = None
+        for i in range(7):
+            py_day = (today_wd + i) % 7
+            if py_day not in days:
+                continue
+            at = get_alarm_time_for_day(py_day)
+            if at is None:
+                continue
+            if i == 0 and now_decimal >= at:
+                continue  # today but already passed
+            fire_offset = i
+            fire_day = py_day
+            fire_time = at
+            break
+
+        if fire_time is None:
+            return None
+
+        time_str = fmt_time(fire_time)
+
+        # Determine if the next chronological occurrence of the alarm time is
+        # being skipped.  The "next chronological" occurrence is:
+        #   - today, if the time hasn't passed yet
+        #   - tomorrow, if the time already passed today
+        # If the alarm actually fires on that day → no day label needed.
+        # Otherwise show the abbreviated day name so the user sees it's deferred.
+        if fire_offset == 0:
+            # Fires today (time hasn't passed) — this IS the next occurrence
+            day_label = ""
+        else:
+            # Time already passed today, or today isn't scheduled.
+            # The next chronological occurrence is tomorrow.
+            time_passed_today = now_decimal >= (get_alarm_time_for_day(today_wd) or 0)
+            if time_passed_today and fire_offset == 1:
+                # Tomorrow is the next occurrence and alarm fires tomorrow
+                day_label = ""
             else:
-                day_label = day_names[py_day]
+                # The immediate next occurrence is being skipped
+                day_label = day_abbrs[fire_day]
 
-            return {"time": time_str, "day": day_label}
-
-        return None
+        return {"time": time_str, "day": day_label}
 
     async def get_area_status(self, request: Request) -> Response:
         """Get status for areas using Circadian Light state (no HA polling).

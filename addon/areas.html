@@ -299,7 +299,6 @@
     .timer-boost {
       color: #e2e8f0;
       opacity: 0.9;
-      margin-left: auto;
     }
 
     .timer-frozen {
@@ -405,8 +404,9 @@
       cursor: pointer;
     }
 
-    .row-timer { font-size: 0.65rem; color: var(--muted); margin-left: auto; white-space: nowrap; }
-    .row-wake-alarm { font-size: 0.6rem; color: var(--muted2); }
+    .row-timer { font-size: 0.6rem; color: #e2e8f0; white-space: nowrap; background: rgba(0,0,0,0.3); border-radius: 3px; padding: 0 4px; display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; }
+    .row-timer:empty { display: none; }
+    .row-timer .timer-sep { opacity: 0.3; }
 
     /* Row middle: stacked name + slider column */
     .row-middle {
@@ -1762,8 +1762,16 @@
       return 10;
     }
 
+    function formatNextWakeAlarm(nwa) {
+      if (!nwa) return '';
+      // day is empty when the alarm fires at the next chronological occurrence,
+      // or an abbreviated day name (e.g. "Wed") when days are being skipped
+      if (nwa.day) return nwa.time + ' ' + nwa.day;
+      return nwa.time;
+    }
+
     function updateHomeTimers() {
-      // Update all timer spans in-place without re-rendering (no API calls)
+      // Update all timer badge spans in-place without re-rendering (no API calls)
       document.querySelectorAll('[data-area-timer]').forEach(el => {
         const areaId = el.getAttribute('data-area-timer');
         const status = areaStatus[areaId] || {};
@@ -1772,35 +1780,38 @@
         const isMotionCoupled = status.is_motion_coupled || false;
         const warnClass = status.motion_warning_active ? ' timer-warning' : '';
 
-        if (hasMotion && isBoosted && isMotionCoupled) {
-          const remaining = formatCountdown(status.motion_expires_at);
-          const frozenPart = status.frozen ? ` <span class="timer-frozen">❄</span>` : '';
-          el.innerHTML = remaining
-            ? `<span class="timer-motion${warnClass}">M+${status.boost_brightness}% ${remaining}</span>${frozenPart}`
-            : '';
-          return;
+        const parts = [];
+
+        // Alarm
+        if (status.next_wake_alarm) {
+          parts.push(formatNextWakeAlarm(status.next_wake_alarm));
         }
 
-        const parts = [];
-        if (status.next_wake_alarm) {
-          parts.push(`<span class="row-wake-alarm">${status.next_wake_alarm.time} ${status.next_wake_alarm.day}</span>`);
-        }
-        if (hasMotion) {
+        // Motion + boost (combined or separate)
+        if (hasMotion && isBoosted && isMotionCoupled) {
           const remaining = formatCountdown(status.motion_expires_at);
-          if (remaining) parts.push(`<span class="timer-motion${warnClass}">M ${remaining}</span>`);
-        }
-        if (isBoosted && status.boost_brightness && !isMotionCoupled) {
-          let text = `B+${status.boost_brightness}%`;
-          if (status.boost_expires_at !== 'forever' && status.boost_expires_at) {
-            const remaining = formatCountdown(status.boost_expires_at);
-            if (remaining) text += ` ${remaining}`;
+          if (remaining) parts.push(`<span class="timer-motion${warnClass}">M+${status.boost_brightness}% ${remaining}</span>`);
+        } else {
+          if (hasMotion) {
+            const remaining = formatCountdown(status.motion_expires_at);
+            if (remaining) parts.push(`<span class="timer-motion${warnClass}">M ${remaining}</span>`);
           }
-          parts.push(`<span class="timer-boost">${text}</span>`);
+          if (isBoosted && status.boost_brightness && !isMotionCoupled) {
+            let text = `B+${status.boost_brightness}%`;
+            if (status.boost_expires_at !== 'forever' && status.boost_expires_at) {
+              const remaining = formatCountdown(status.boost_expires_at);
+              if (remaining) text += ` ${remaining}`;
+            }
+            parts.push(`<span class="timer-boost">${text}</span>`);
+          }
         }
+
+        // Frozen
         if (status.frozen) {
           parts.push(`<span class="timer-frozen">❄</span>`);
         }
-        el.innerHTML = parts.join(' ');
+
+        el.innerHTML = parts.join('<span class="timer-sep">|</span>');
       });
     }
 
@@ -3726,6 +3737,7 @@
 
       container.innerHTML = html;
       initRowSliders();
+      updateHomeTimers();
     }
 
     function renderAreaRow(area) {
@@ -3744,9 +3756,9 @@
       }
 
       const style = getRowStyle(area);
-      const statusSymbols = getStatusSymbols(area);
       const { leftControls, rightControls } = getRowControls(area);
       const sliderPct = getSliderPct(area.brightness || 0, area);
+      const mismatchDot = getMismatchDot(area);
 
       return `
         <div class="area-row" style="--row-bg: ${style.bg}; --row-text: ${style.textColor}; --row-fill: ${style.fill.toFixed(3)};">
@@ -3754,8 +3766,8 @@
           <div class="row-middle">
             <div class="row-middle-top">
               <span class="area-row-name" onclick="openAreaModal('${area.area_id}')">${area.name}</span>
-              ${statusSymbols}
               <span class="row-timer" data-area-timer="${area.area_id}"></span>
+              ${mismatchDot}
             </div>
             <div class="row-slider-track" data-area-id="${area.area_id}" data-bmin="${area.min_brightness ?? 1}" data-bmax="${area.max_brightness ?? 100}" data-cmin="${area.min_color_temp ?? 2200}" data-cmax="${area.max_color_temp ?? 6500}">
               <div class="row-slider-fill"></div>
@@ -3777,32 +3789,7 @@
       return '<span class="status-badge status-on">On</span>';
     }
 
-    function getStatusSymbols(area) {
-      const status = areaStatus[area.area_id] || {};
-      const parts = [];
-
-      // Motion active
-      const hasMotion = status.motion_expires_at && status.motion_expires_at !== 'forever';
-      if (hasMotion) {
-        const warnClass = status.motion_warning_active ? ' timer-warning' : '';
-        parts.push(`<span class="row-status-sym${warnClass}">M</span>`);
-      }
-
-      // Boosted
-      const isBoosted = status.boosted || false;
-      const isMotionCoupled = status.is_motion_coupled || false;
-      if (isBoosted && !isMotionCoupled) {
-        parts.push(`<span class="row-status-sym">B</span>`);
-      } else if (isBoosted && isMotionCoupled && hasMotion) {
-        // Combined motion+boost: just show M (already shown)
-      }
-
-      // Frozen
-      if (area.frozen) {
-        parts.push(`<span class="row-status-sym timer-frozen">❄</span>`);
-      }
-
-      // Mismatch dot
+    function getMismatchDot(area) {
       if (area.zone_name && zoneStates[area.zone_name]) {
         const rs = zoneStates[area.zone_name].runtime_state || {};
         const tol = 0.1;
@@ -3815,11 +3802,10 @@
             differs(area.color_mid, rs.color_mid) ||
             differs(area.frozen_at, rs.frozen_at) ||
             area.color_override != null) {
-          parts.push(`<span class="mismatch-dot-area"></span>`);
+          return '<span class="mismatch-dot-area"></span>';
         }
       }
-
-      return parts.join('');
+      return '';
     }
 
     function getSliderPct(brightness, area) {

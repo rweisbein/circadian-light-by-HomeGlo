@@ -3417,7 +3417,7 @@
       const nextEl = document.getElementById('wake-next-alarm');
       if (!nextEl) return;
 
-      const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+      const dayAbbrs = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
       const now = new Date();
       const jsToday = now.getDay(); // JS: Sun=0
       const pyToday = jsToday === 0 ? 6 : jsToday - 1; // Python: Mon=0
@@ -3429,8 +3429,20 @@
         const t = getResolvedWakeTimeForDay(pyDay);
         if (t == null) continue;
         if (i === 0 && nowDecimal >= t) continue; // today but already passed
-        const dayLabel = i === 0 ? 'Today' : (i === 1 ? 'Tomorrow' : dayNames[pyDay]);
-        nextEl.textContent = 'Next alarm: ' + formatAlarmTime(t) + ' ' + dayLabel;
+        // Show day only when next chronological occurrence is being skipped
+        let dayLabel = '';
+        if (i === 0) {
+          dayLabel = ''; // fires today
+        } else {
+          const todayAlarmTime = getResolvedWakeTimeForDay(pyToday);
+          const timePassed = todayAlarmTime != null && nowDecimal >= todayAlarmTime;
+          if (timePassed && i === 1) {
+            dayLabel = ''; // tomorrow is the next natural occurrence
+          } else {
+            dayLabel = dayAbbrs[pyDay];
+          }
+        }
+        nextEl.textContent = 'Next: ' + formatAlarmTime(t) + (dayLabel ? ' ' + dayLabel : '');
         return;
       }
       nextEl.textContent = '';
