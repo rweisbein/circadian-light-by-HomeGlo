@@ -52,6 +52,7 @@ class CircadianLightPrimitives:
         """
         self.client = websocket_client
         self._config_loader = config_loader
+        self._wake_alarm_fired: dict = {}  # area_id -> "YYYY-MM-DD"
 
     def _get_config(self, area_id: Optional[str] = None) -> Config:
         """Load config, optionally zone-aware for a specific area.
@@ -291,6 +292,8 @@ class CircadianLightPrimitives:
             elif action == "circadian_off":
                 # Release circadian control (lights unchanged)
                 tasks.append(self.circadian_off(area_id, source))
+            elif action == "reset":
+                tasks.append(self.glo_reset(area_id, source))
 
         if tasks:
             await asyncio.gather(*tasks)
@@ -1521,6 +1524,88 @@ class CircadianLightPrimitives:
             # Clear any warning state before turning off
             state.clear_motion_warning(area_id)
             await self.end_motion_on_off(area_id, source="timer_expired")
+
+    # -------------------------------------------------------------------------
+    # Wake Alarm
+    # -------------------------------------------------------------------------
+
+    async def check_wake_alarms(self):
+        """Check for and fire any due wake alarms.
+
+        Called every second from the fast tick loop. For each area with
+        wake_alarm enabled, fires glo_reset + lights_on once per day at
+        the configured time.
+        """
+        try:
+            raw_config = glozone.load_config_from_files()
+        except Exception:
+            return
+
+        area_settings = raw_config.get("area_settings", {})
+        now = datetime.now()
+        today_str = now.strftime("%Y-%m-%d")
+        current_weekday = now.weekday()  # 0=Mon..6=Sun
+        current_hour = now.hour + now.minute / 60.0
+
+        for area_id, settings in area_settings.items():
+            if not settings.get("wake_alarm"):
+                continue
+
+            # Skip if not an active day
+            active_days = settings.get("wake_alarm_days", [0, 1, 2, 3, 4])
+            if current_weekday not in active_days:
+                continue
+
+            # Skip if already fired today
+            if self._wake_alarm_fired.get(area_id) == today_str:
+                continue
+
+            # Resolve alarm time
+            mode = settings.get("wake_alarm_mode", "rhythm")
+            alarm_time = None
+
+            if mode == "custom":
+                alarm_time = settings.get("wake_alarm_time")
+            else:
+                # Rhythm mode: look up zone's rhythm wake time
+                try:
+                    zone_name = glozone.get_zone_for_area(area_id)
+                    zone_cfg = glozone.get_effective_config_for_zone(zone_name)
+                    # Check alt days for today
+                    wake_time = zone_cfg.get("wake_time", 7.0)
+                    wake_alt_time = zone_cfg.get("wake_alt_time")
+                    wake_alt_days = zone_cfg.get("wake_alt_days", [])
+                    if wake_alt_time is not None and current_weekday in wake_alt_days:
+                        wake_time = wake_alt_time
+                    offset = settings.get("wake_alarm_offset", 0)
+                    alarm_time = wake_time + offset / 60.0
+                except Exception as e:
+                    logger.warning(
+                        f"[wake_alarm] Failed to resolve rhythm wake time "
+                        f"for {area_id}: {e}"
+                    )
+                    continue
+
+            if alarm_time is None:
+                continue
+
+            if current_hour >= alarm_time:
+                self._wake_alarm_fired[area_id] = today_str
+                logger.info(
+                    f"[wake_alarm] Firing wake alarm for area {area_id} "
+                    f"(time={alarm_time:.2f}, now={current_hour:.2f})"
+                )
+                await self.glo_reset(area_id, source="wake_alarm")
+                await self.lights_on(area_id, source="wake_alarm")
+
+    def clear_wake_alarm_fired(self):
+        """Clear wake alarm fired tracking, arming alarms for the next day."""
+        if self._wake_alarm_fired:
+            logger.info(
+                f"[wake_alarm] Clearing fired state for "
+                f"{len(self._wake_alarm_fired)} area(s)"
+            )
+            self._wake_alarm_fired.clear()
 
     # -------------------------------------------------------------------------
     # Motion Warning

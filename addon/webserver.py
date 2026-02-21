@@ -3419,9 +3419,16 @@ class LightDesignerServer:
         try:
             config = await self.load_config()
             area_settings = config.get("area_settings", {})
-            settings = area_settings.get(
-                area_id, {"motion_function": "disabled", "motion_duration": 60}
-            )
+            defaults = {
+                "motion_function": "disabled",
+                "motion_duration": 60,
+                "wake_alarm": False,
+                "wake_alarm_mode": "rhythm",
+                "wake_alarm_offset": 0,
+                "wake_alarm_time": None,
+                "wake_alarm_days": [0, 1, 2, 3, 4],
+            }
+            settings = {**defaults, **area_settings.get(area_id, {})}
             return web.json_response(settings)
 
         except Exception as e:
@@ -3465,6 +3472,11 @@ class LightDesignerServer:
                 config["area_settings"][area_id] = {
                     "motion_function": "disabled",
                     "motion_duration": 60,
+                    "wake_alarm": False,
+                    "wake_alarm_mode": "rhythm",
+                    "wake_alarm_offset": 0,
+                    "wake_alarm_time": None,
+                    "wake_alarm_days": [0, 1, 2, 3, 4],
                 }
 
             # Update with provided values
@@ -3475,6 +3487,27 @@ class LightDesignerServer:
             if "motion_duration" in data:
                 config["area_settings"][area_id]["motion_duration"] = int(
                     data["motion_duration"]
+                )
+            if "wake_alarm" in data:
+                config["area_settings"][area_id]["wake_alarm"] = bool(
+                    data["wake_alarm"]
+                )
+            if "wake_alarm_mode" in data:
+                config["area_settings"][area_id]["wake_alarm_mode"] = data[
+                    "wake_alarm_mode"
+                ]
+            if "wake_alarm_offset" in data:
+                config["area_settings"][area_id]["wake_alarm_offset"] = int(
+                    data["wake_alarm_offset"]
+                )
+            if "wake_alarm_time" in data:
+                val = data["wake_alarm_time"]
+                config["area_settings"][area_id]["wake_alarm_time"] = (
+                    float(val) if val is not None else None
+                )
+            if "wake_alarm_days" in data:
+                config["area_settings"][area_id]["wake_alarm_days"] = list(
+                    data["wake_alarm_days"]
                 )
 
             # Save config

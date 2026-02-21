@@ -4367,6 +4367,10 @@ class HomeAssistantWebSocketClient:
             # Clear expired per-zone schedule overrides
             glozone.clear_expired_overrides(phase)
 
+            # Clear wake alarm fired state at descend (well after any wake time)
+            if crossed_descend:
+                self.primitives.clear_wake_alarm_fired()
+
             # Reset all GloZone runtime state (preserves frozen zones)
             glozone_state.reset_all_zones()
 
@@ -4428,6 +4432,9 @@ class HomeAssistantWebSocketClient:
                 # Check for expired boosts and motion timers
                 await self.primitives.check_expired_boosts(log_periodic=log_periodic)
                 await self.primitives.check_expired_motion(log_periodic=log_periodic)
+
+                # Check for wake alarms
+                await self.primitives.check_wake_alarms()
 
             except asyncio.CancelledError:
                 raise
