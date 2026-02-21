@@ -292,6 +292,8 @@ class CircadianLightPrimitives:
             elif action == "circadian_off":
                 # Release circadian control (lights unchanged)
                 tasks.append(self.circadian_off(area_id, source))
+            elif action == "wake_or_bed":
+                tasks.append(self.set(area_id, source, preset="wake_or_bed", is_on=True))
             elif action == "reset":
                 tasks.append(self.glo_reset(area_id, source))
 
@@ -1761,10 +1763,8 @@ class CircadianLightPrimitives:
         """Configure area state with presets, frozen_at, or copy settings.
 
         Presets:
-            - wake: Freeze at wake_time with rhythm brightness shift
-            - bed: Freeze at bed_time with rhythm brightness shift
-            - reset_moment: Auto-picks wake or bed based on current phase
-              (ascend → wake, descend → bed)
+            - wake_or_bed: Set midpoints to match designed wake/bed brightness.
+              Ascend phase → wake settings, descend phase → bed settings.
             - nitelite: Freeze at ascend_start (minimum values)
             - britelite: Freeze at descend_start (maximum values)
 
@@ -1842,7 +1842,7 @@ class CircadianLightPrimitives:
             # Reset state first (clears midpoints, bounds, frozen_at; preserves enabled)
             state.reset_area(area_id)
 
-            if preset in ("wake", "bed", "reset_moment"):
+            if preset == "wake_or_bed":
                 # Set midpoints so the curve output NOW matches what the rhythm
                 # produces at wake_time/bed_time (including brightness shift).
                 # Lights stay unfrozen so the curve continues from there.
@@ -1851,10 +1851,7 @@ class CircadianLightPrimitives:
                 in_ascend_now, h48_now, t_ascend, t_descend, slope = (
                     CircadianLight.get_phase_info(current_hour, config)
                 )
-                if preset == "reset_moment":
-                    use_wake = in_ascend_now
-                else:
-                    use_wake = preset == "wake"
+                use_wake = in_ascend_now
 
                 weekday = datetime.now().weekday()
                 eff_wake, eff_bed = resolve_effective_timing(config, current_hour, weekday)
