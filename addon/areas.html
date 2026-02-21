@@ -673,11 +673,6 @@
       border: 1px solid currentColor;
       border-style: dashed;
     }
-    .zone-next-label {
-      font-size: 0.6rem;
-      opacity: 0.6;
-      white-space: nowrap;
-    }
     .zone-next-stack {
       display: flex;
       flex-direction: column;
@@ -1015,6 +1010,13 @@
     .edit-toolbar { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
     .edit-toolbar-link { font-size: 0.85rem; color: var(--muted); text-decoration: none; cursor: pointer; }
     .edit-toolbar-link:hover { text-decoration: underline; color: var(--text); }
+    .tune-back-btn {
+      display: flex; align-items: center; justify-content: center;
+      width: 32px; height: 32px; border-radius: 8px;
+      border: 1px solid var(--line); background: var(--card);
+      color: var(--text); cursor: pointer; transition: all 0.2s; flex-shrink: 0;
+    }
+    .tune-back-btn:hover { background: var(--panel); border-color: var(--muted2); }
 
     .edit-zone-header {
       display: flex;
@@ -1269,7 +1271,7 @@
     .tune-outdoor-pct { color: var(--text); font-weight: 600; white-space: nowrap; }
     .tune-outdoor-detail { color: var(--muted2); font-size: 0.75rem; }
     .tune-outdoor-panel {
-      position: absolute; top: 100%; right: 0; margin-top: 4px;
+      position: absolute; top: 100%; left: 0; margin-top: 4px;
       min-width: 300px; background: var(--panel);
       border: 1px solid var(--line); border-radius: 8px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.4);
@@ -2256,7 +2258,7 @@
       const firstStr = bedFirst ? bedStr : wakeStr;
       const secondStr = bedFirst ? wakeStr : bedStr;
 
-      return `<span class="zone-next-times${overrideClass}" style="color: ${zoneTextColor};" onclick="event.stopPropagation(); openSchedulePopover('${escapedName}', this)" title="${hasOverride ? 'Schedule override active — click to edit' : 'Click to set schedule override'}"><span class="zone-next-label">next</span><span class="zone-next-stack"><span>${firstStr}</span><span>${secondStr}</span></span></span>`;
+      return `<span class="zone-next-times${overrideClass}" style="color: ${zoneTextColor};" onclick="event.stopPropagation(); openSchedulePopover('${escapedName}', this)" title="${hasOverride ? 'Schedule override active — click to edit' : 'Click to set schedule override'}"><span class="zone-next-stack"><span>${firstStr}</span><span>${secondStr}</span></span></span>`;
     }
 
     // Schedule override popover
@@ -3281,10 +3283,11 @@
       } else if (currentMode === 'tune') {
         html = `
           <div class="edit-toolbar">
-            <span style="font-size: 1rem; font-weight: 600; color: var(--text);">Tune brightness${homeName ? ': ' + homeName : ''}</span>
+            <button class="tune-back-btn" onclick="exitMode()" title="Back">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <span style="font-size: 1rem; font-weight: 600; color: var(--text);">Tune brightness</span>
             <span style="flex: 1;"></span>
-            ${buildOutdoorSection()}
-            <a href="#" class="edit-toolbar-link" onclick="event.preventDefault(); exitMode()" style="color: var(--accent); font-weight: 600; margin-left: 12px;">Done</a>
           </div>
           <div class="tune-toolbar-row">
             <div class="view-links">
@@ -3568,6 +3571,7 @@
         const tuneSensPeak = Math.min(100, Math.round(tuneSensitivity * 100));
         html += `
           <div class="tune-sensitivity-standalone" onclick="event.stopPropagation()">
+            ${buildOutdoorSection()}
             <span class="tune-zone-ctrl-label" style="white-space:nowrap;">Sun sensitivity</span>
             <input type="range" class="tune-sensitivity-slider" id="tune-global-sensitivity" min="0" max="9" step="1" value="${tuneSensStep}">
             <span class="tune-zone-ctrl-word tune-sensitivity-word" id="tune-global-sensitivity-word">${SENSITIVITY_STEPS[tuneSensStep].label}</span>
