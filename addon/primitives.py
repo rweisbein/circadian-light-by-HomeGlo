@@ -1761,8 +1761,10 @@ class CircadianLightPrimitives:
         """Configure area state with presets, frozen_at, or copy settings.
 
         Presets:
-            - wake: Set midpoint to current time (50% values), NOT frozen
-            - bed: Same as wake - set midpoint to current time, NOT frozen
+            - wake: Freeze at wake_time with rhythm brightness shift
+            - bed: Freeze at bed_time with rhythm brightness shift
+            - reset_moment: Auto-picks wake or bed based on current phase
+              (ascend → wake, descend → bed)
             - nitelite: Freeze at ascend_start (minimum values)
             - britelite: Freeze at descend_start (maximum values)
 
@@ -1840,17 +1842,72 @@ class CircadianLightPrimitives:
             # Reset state first (clears midpoints, bounds, frozen_at; preserves enabled)
             state.reset_area(area_id)
 
-            if preset in ("wake", "bed"):
-                # Set midpoint to current time (produces ~50% values), stays unfrozen
-                # get_phase_info returns: (in_ascend, h48, t_ascend, t_descend, slope)
-                in_ascend, h48, t_ascend, t_descend, slope = CircadianLight.get_phase_info(
-                    current_hour, config
+            if preset in ("wake", "bed", "reset_moment"):
+                # Set midpoints so the curve output NOW matches what the rhythm
+                # produces at wake_time/bed_time (including brightness shift).
+                # Lights stay unfrozen so the curve continues from there.
+                from brain import compute_shifted_midpoint, resolve_effective_timing, SPEED_TO_SLOPE
+
+                in_ascend_now, h48_now, t_ascend, t_descend, slope = (
+                    CircadianLight.get_phase_info(current_hour, config)
                 )
+                if preset == "reset_moment":
+                    use_wake = in_ascend_now
+                else:
+                    use_wake = preset == "wake"
+
+                weekday = datetime.now().weekday()
+                eff_wake, eff_bed = resolve_effective_timing(config, current_hour, weekday)
+                target_time = eff_wake if use_wake else eff_bed
+                bri_pct = config.wake_brightness if use_wake else config.bed_brightness
+
+                # Compute h48 at the target time
+                _, h48_target, _, _, _ = CircadianLight.get_phase_info(target_time, config)
+
+                # Compute the shifted midpoint the brain would use at target_time
+                # (this is the mid48 that produces the designed brightness there)
+                default_mid = target_time
+                if bri_pct != 50:
+                    b_min_norm = config.min_brightness / 100.0
+                    b_max_norm = config.max_brightness / 100.0
+                    if use_wake:
+                        target_slope = SPEED_TO_SLOPE[max(1, min(10, config.wake_speed))]
+                        mid48_raw = CircadianLight.lift_midpoint_to_phase(
+                            default_mid, t_ascend, t_descend
+                        )
+                    else:
+                        target_slope = -SPEED_TO_SLOPE[max(1, min(10, config.bed_speed))]
+                        descend_end = t_ascend + 24
+                        mid48_raw = CircadianLight.lift_midpoint_to_phase(
+                            default_mid, t_descend, descend_end
+                        )
+                    shifted_mid48 = compute_shifted_midpoint(
+                        mid48_raw, bri_pct, target_slope, b_min_norm, b_max_norm
+                    )
+                else:
+                    if use_wake:
+                        shifted_mid48 = CircadianLight.lift_midpoint_to_phase(
+                            default_mid, t_ascend, t_descend
+                        )
+                    else:
+                        descend_end = t_ascend + 24
+                        shifted_mid48 = CircadianLight.lift_midpoint_to_phase(
+                            default_mid, t_descend, descend_end
+                        )
+
+                # Offset: shift so current time produces the target-time output
+                new_mid48 = h48_now - h48_target + shifted_mid48
+                new_mid = new_mid48 % 24
+
                 state.update_area(area_id, {
-                    "brightness_mid": h48,
-                    "color_mid": h48,
+                    "brightness_mid": new_mid,
+                    "color_mid": new_mid,
                 })
-                logger.info(f"[{source}] Set {area_id} to {preset} preset (midpoint={h48:.2f})")
+                phase_name = "wake" if use_wake else "bed"
+                logger.info(
+                    f"[{source}] Set {area_id} to {preset} preset "
+                    f"({phase_name}, mid={new_mid:.2f}, target={target_time:.2f})"
+                )
 
             elif preset == "nitelite":
                 # Freeze at ascend_start (minimum values)
