@@ -52,7 +52,7 @@ class CircadianLightPrimitives:
         """
         self.client = websocket_client
         self._config_loader = config_loader
-        self._wake_alarm_fired: dict = {}  # area_id -> "YYYY-MM-DD"
+        self._wake_alarm_fired: dict = {}  # area_id -> {"date": "YYYY-MM-DD", "time": float}
 
     def _get_config(self, area_id: Optional[str] = None) -> Config:
         """Load config, optionally zone-aware for a specific area.
@@ -1552,12 +1552,8 @@ class CircadianLightPrimitives:
                 continue
 
             # Skip if not an active day
-            active_days = settings.get("wake_alarm_days", [0, 1, 2, 3, 4])
+            active_days = settings.get("wake_alarm_days", [0, 1, 2, 3, 4, 5, 6])
             if current_weekday not in active_days:
-                continue
-
-            # Skip if already fired today
-            if self._wake_alarm_fired.get(area_id) == today_str:
                 continue
 
             # Resolve alarm time
@@ -1589,8 +1585,14 @@ class CircadianLightPrimitives:
             if alarm_time is None:
                 continue
 
+            # Skip if already fired today for this exact alarm time
+            # (re-arms if user changes alarm time after it fired)
+            fired = self._wake_alarm_fired.get(area_id)
+            if fired and fired["date"] == today_str and fired["time"] == alarm_time:
+                continue
+
             if current_hour >= alarm_time:
-                self._wake_alarm_fired[area_id] = today_str
+                self._wake_alarm_fired[area_id] = {"date": today_str, "time": alarm_time}
                 logger.info(
                     f"[wake_alarm] Firing wake alarm for area {area_id} "
                     f"(time={alarm_time:.2f}, now={current_hour:.2f})"
