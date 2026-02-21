@@ -406,6 +406,7 @@
     }
 
     .row-timer { font-size: 0.65rem; color: var(--muted); margin-left: auto; white-space: nowrap; }
+    .row-wake-alarm { font-size: 0.6rem; color: var(--muted2); }
 
     /* Row middle: stacked name + slider column */
     .row-middle {
@@ -1781,6 +1782,9 @@
         }
 
         const parts = [];
+        if (status.next_wake_alarm) {
+          parts.push(`<span class="row-wake-alarm">${status.next_wake_alarm.time} ${status.next_wake_alarm.day}</span>`);
+        }
         if (hasMotion) {
           const remaining = formatCountdown(status.motion_expires_at);
           if (remaining) parts.push(`<span class="timer-motion${warnClass}">M ${remaining}</span>`);

@@ -572,22 +572,23 @@
     .wake-alarm-toggle input:checked + .slider { background: var(--accent); }
     .wake-alarm-toggle input:checked + .slider::before { transform: translateX(18px); background: #000; }
     .wake-alarm-body { margin-top: 12px; }
-    .wake-alarm-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-    .wake-alarm-label { font-size: 0.8rem; color: var(--muted); }
-    .wake-day-bubbles { display: flex; gap: 4px; align-items: center; }
-    .wake-day-bubble { width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--line); background: transparent; color: var(--muted); font-size: 0.65rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; line-height: 1; transition: all 0.15s; }
-    .wake-day-bubble:hover { border-color: var(--accent); color: var(--text); }
-    .wake-day-bubble.active { background: var(--accent); border-color: var(--accent); color: #000; }
+    .wake-alarm-row { display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
     .wake-mode-btns { display: flex; gap: 4px; }
     .wake-mode-btn { padding: 4px 10px; border-radius: 6px; border: 1px solid var(--line); background: transparent; color: var(--muted); font-size: 0.75rem; cursor: pointer; transition: all 0.15s; }
     .wake-mode-btn.active { background: var(--accent); border-color: var(--accent); color: #000; }
+    .wake-day-bubbles { display: flex; gap: 6px; justify-content: center; margin-bottom: 10px; }
+    .wake-day-col { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+    .wake-day-bubble { width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--line); background: transparent; color: var(--muted); font-size: 0.65rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; line-height: 1; transition: all 0.15s; }
+    .wake-day-bubble:hover { border-color: var(--accent); color: var(--text); }
+    .wake-day-bubble.active { background: var(--accent); border-color: var(--accent); color: #000; }
+    .wake-day-time { font-size: 0.6rem; color: var(--muted2); height: 0.75rem; line-height: 0.75rem; font-variant-numeric: tabular-nums; }
     .wake-time-input { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; font-size: 0.85rem; outline: none; }
     .wake-time-input:focus { border-color: var(--accent); }
     .wake-offset-control { display: flex; align-items: center; gap: 6px; }
     .wake-offset-btn { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line); background: transparent; color: var(--text); font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
     .wake-offset-btn:hover { border-color: var(--accent); color: var(--accent); }
     .wake-offset-value { font-size: 0.85rem; color: var(--text); min-width: 3em; text-align: center; font-variant-numeric: tabular-nums; }
-    .wake-resolved-time { font-size: 0.8rem; color: var(--muted2); margin-top: 4px; }
+    .wake-next-alarm { font-size: 0.75rem; color: var(--muted2); text-align: center; margin-top: 4px; }
 
     /* Tune section — shared */
     .tune-card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 8px; overflow: hidden; font-size: 13px; }
@@ -853,41 +854,35 @@
         </div>
         <div class="wake-alarm-body" id="wake-alarm-body" style="display:none;">
           <div class="wake-alarm-row">
-            <span class="wake-alarm-label">Days</span>
-            <div class="wake-day-bubbles" id="wake-alarm-days">
-              <button class="wake-day-bubble" data-day="0" onclick="toggleWakeDay(this)">Mo</button>
-              <button class="wake-day-bubble" data-day="1" onclick="toggleWakeDay(this)">Tu</button>
-              <button class="wake-day-bubble" data-day="2" onclick="toggleWakeDay(this)">We</button>
-              <button class="wake-day-bubble" data-day="3" onclick="toggleWakeDay(this)">Th</button>
-              <button class="wake-day-bubble" data-day="4" onclick="toggleWakeDay(this)">Fr</button>
-              <button class="wake-day-bubble" data-day="5" onclick="toggleWakeDay(this)">Sa</button>
-              <button class="wake-day-bubble" data-day="6" onclick="toggleWakeDay(this)">Su</button>
-            </div>
-          </div>
-          <div class="wake-alarm-row">
-            <span class="wake-alarm-label">Time</span>
             <div class="wake-mode-btns">
               <button class="wake-mode-btn active" id="wake-mode-rhythm" onclick="setWakeAlarmMode('rhythm')">Rhythm</button>
               <button class="wake-mode-btn" id="wake-mode-custom" onclick="setWakeAlarmMode('custom')">Custom</button>
             </div>
           </div>
+          <div class="wake-day-bubbles" id="wake-alarm-days">
+            <div class="wake-day-col"><button class="wake-day-bubble" data-day="0" onclick="toggleWakeDay(this)">Mo</button><span class="wake-day-time" data-daytime="0"></span></div>
+            <div class="wake-day-col"><button class="wake-day-bubble" data-day="1" onclick="toggleWakeDay(this)">Tu</button><span class="wake-day-time" data-daytime="1"></span></div>
+            <div class="wake-day-col"><button class="wake-day-bubble" data-day="2" onclick="toggleWakeDay(this)">We</button><span class="wake-day-time" data-daytime="2"></span></div>
+            <div class="wake-day-col"><button class="wake-day-bubble" data-day="3" onclick="toggleWakeDay(this)">Th</button><span class="wake-day-time" data-daytime="3"></span></div>
+            <div class="wake-day-col"><button class="wake-day-bubble" data-day="4" onclick="toggleWakeDay(this)">Fr</button><span class="wake-day-time" data-daytime="4"></span></div>
+            <div class="wake-day-col"><button class="wake-day-bubble" data-day="5" onclick="toggleWakeDay(this)">Sa</button><span class="wake-day-time" data-daytime="5"></span></div>
+            <div class="wake-day-col"><button class="wake-day-bubble" data-day="6" onclick="toggleWakeDay(this)">Su</button><span class="wake-day-time" data-daytime="6"></span></div>
+          </div>
           <div id="wake-rhythm-controls">
             <div class="wake-alarm-row">
-              <span class="wake-alarm-label">Offset</span>
               <div class="wake-offset-control">
                 <button class="wake-offset-btn" onclick="adjustWakeOffset(-5)">-</button>
                 <span class="wake-offset-value" id="wake-offset-value">0 min</span>
                 <button class="wake-offset-btn" onclick="adjustWakeOffset(5)">+</button>
               </div>
             </div>
-            <div class="wake-resolved-time" id="wake-resolved-time"></div>
           </div>
           <div id="wake-custom-controls" style="display:none;">
             <div class="wake-alarm-row">
-              <span class="wake-alarm-label">Time</span>
               <input type="time" class="wake-time-input" id="wake-custom-time" value="07:00" onchange="saveWakeAlarmSettings()">
             </div>
           </div>
+          <div class="wake-next-alarm" id="wake-next-alarm"></div>
         </div>
       </div>
     </div>
@@ -3266,7 +3261,7 @@
         document.getElementById('wake-alarm-body').style.display = enabled ? 'block' : 'none';
 
         // Days
-        const days = settings.wake_alarm_days || [0, 1, 2, 3, 4];
+        const days = settings.wake_alarm_days || [0, 1, 2, 3, 4, 5, 6];
         document.querySelectorAll('#wake-alarm-days .wake-day-bubble').forEach(btn => {
           const d = parseInt(btn.dataset.day);
           btn.classList.toggle('active', days.includes(d));
@@ -3365,30 +3360,80 @@
       return (minutes > 0 ? '+' : '') + minutes + ' min';
     }
 
-    function showResolvedWakeTime() {
-      const el = document.getElementById('wake-resolved-time');
-      if (!el || wakeAlarmMode !== 'rhythm') { if (el) el.textContent = ''; return; }
+    function formatAlarmTime(decimalHours) {
+      // Format decimal hours to "8:15a" style — no leading zero, lowercase a/p, no space
+      let h = Math.floor(((decimalHours % 24) + 24) % 24);
+      const m = Math.round((decimalHours - Math.floor(decimalHours)) * 60);
+      const suffix = h < 12 ? 'a' : 'p';
+      if (h === 0) h = 12;
+      else if (h > 12) h -= 12;
+      return h + ':' + String(m).padStart(2, '0') + suffix;
+    }
 
+    function getResolvedWakeTimeForDay(pyDay) {
+      // Returns resolved alarm time (decimal hours) for a given Python-weekday (Mon=0..Sun=6)
+      if (wakeAlarmMode === 'custom') {
+        const val = document.getElementById('wake-custom-time').value;
+        if (val) {
+          const [h, m] = val.split(':').map(Number);
+          return h + m / 60.0;
+        }
+        return null;
+      }
+      // Rhythm mode
       const rhythmName = selectedArea && selectedArea.preset_name;
       const rhythm = rhythmName && cachedRhythms[rhythmName];
-      if (!rhythm) { el.textContent = ''; return; }
+      if (!rhythm) return null;
 
       let wakeTime = rhythm.wake_time || 7.0;
-      // Check if today is an alt day
       const altTime = rhythm.wake_alt_time;
       const altDays = rhythm.wake_alt_days || [];
-      const today = new Date().getDay();
-      // JS Sunday=0, convert to Python Monday=0
-      const pyDay = today === 0 ? 6 : today - 1;
       if (altTime != null && altDays.includes(pyDay)) {
         wakeTime = altTime;
       }
+      return wakeTime + wakeAlarmOffset / 60.0;
+    }
 
-      const resolved = wakeTime + wakeAlarmOffset / 60.0;
-      const h = Math.floor(resolved);
-      const m = Math.round((resolved - h) * 60);
-      const timeStr = String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
-      el.textContent = 'Alarm at ' + timeStr + ' (rhythm ' + formatDecimalHour(wakeTime) + (wakeAlarmOffset !== 0 ? ' ' + formatOffset(wakeAlarmOffset) : '') + ')';
+    function showResolvedWakeTime() {
+      // Get active days
+      const activeDays = [];
+      document.querySelectorAll('#wake-alarm-days .wake-day-bubble.active').forEach(btn => {
+        activeDays.push(parseInt(btn.dataset.day));
+      });
+
+      // Update per-day time labels
+      for (let d = 0; d < 7; d++) {
+        const span = document.querySelector(`.wake-day-time[data-daytime="${d}"]`);
+        if (!span) continue;
+        if (activeDays.includes(d)) {
+          const t = getResolvedWakeTimeForDay(d);
+          span.textContent = t != null ? formatAlarmTime(t) : '';
+        } else {
+          span.textContent = '';
+        }
+      }
+
+      // Compute next alarm
+      const nextEl = document.getElementById('wake-next-alarm');
+      if (!nextEl) return;
+
+      const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+      const now = new Date();
+      const jsToday = now.getDay(); // JS: Sun=0
+      const pyToday = jsToday === 0 ? 6 : jsToday - 1; // Python: Mon=0
+      const nowDecimal = now.getHours() + now.getMinutes() / 60.0;
+
+      for (let i = 0; i < 7; i++) {
+        const pyDay = (pyToday + i) % 7;
+        if (!activeDays.includes(pyDay)) continue;
+        const t = getResolvedWakeTimeForDay(pyDay);
+        if (t == null) continue;
+        if (i === 0 && nowDecimal >= t) continue; // today but already passed
+        const dayLabel = i === 0 ? 'Today' : (i === 1 ? 'Tomorrow' : dayNames[pyDay]);
+        nextEl.textContent = 'Next alarm: ' + formatAlarmTime(t) + ' ' + dayLabel;
+        return;
+      }
+      nextEl.textContent = '';
     }
 
     function formatDecimalHour(h) {

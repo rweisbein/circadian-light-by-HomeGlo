@@ -3084,6 +3084,89 @@ class LightDesignerServer:
             logger.error(f"Error fetching areas: {e}")
             return web.json_response({"error": str(e)}, status=500)
 
+    @staticmethod
+    def _compute_next_wake_alarm(area_id, area_settings, rhythm_cfg):
+        """Compute next upcoming wake alarm for an area.
+
+        Returns {"time": "8:15a", "day": "Sunday"} or None.
+        """
+        settings = area_settings.get(area_id, {})
+        if not settings.get("wake_alarm"):
+            return None
+
+        days = settings.get("wake_alarm_days", [0, 1, 2, 3, 4, 5, 6])
+        if not days:
+            return None
+
+        mode = settings.get("wake_alarm_mode", "rhythm")
+        offset = settings.get("wake_alarm_offset", 0)
+        custom_time = settings.get("wake_alarm_time")
+
+        from zoneinfo import ZoneInfo
+
+        timezone = os.getenv("HASS_TIME_ZONE", "US/Eastern")
+        try:
+            tzinfo = ZoneInfo(timezone)
+        except Exception:
+            tzinfo = None
+        now = datetime.now(tzinfo)
+        js_today = now.weekday()  # Python weekday: Mon=0..Sun=6 (matches our day format)
+        now_decimal = now.hour + now.minute / 60.0
+
+        day_names = [
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday",
+            "Saturday",
+            "Sunday",
+        ]
+
+        for i in range(7):
+            py_day = (js_today + i) % 7
+            if py_day not in days:
+                continue
+
+            if mode == "custom":
+                if custom_time is None:
+                    continue
+                alarm_time = custom_time
+            else:
+                # Rhythm mode
+                wake_time = rhythm_cfg.get("wake_time", 7.0)
+                alt_time = rhythm_cfg.get("wake_alt_time")
+                alt_days = rhythm_cfg.get("wake_alt_days", [])
+                if alt_time is not None and py_day in alt_days:
+                    wake_time = alt_time
+                alarm_time = wake_time + offset / 60.0
+
+            # If today and time already passed, skip
+            if i == 0 and now_decimal >= alarm_time:
+                continue
+
+            # Format time as "8:15a"
+            h_raw = int(alarm_time % 24)
+            m_raw = round((alarm_time - int(alarm_time)) * 60)
+            suffix = "a" if h_raw < 12 else "p"
+            h_display = h_raw
+            if h_display == 0:
+                h_display = 12
+            elif h_display > 12:
+                h_display -= 12
+            time_str = f"{h_display}:{m_raw:02d}{suffix}"
+
+            if i == 0:
+                day_label = "Today"
+            elif i == 1:
+                day_label = "Tomorrow"
+            else:
+                day_label = day_names[py_day]
+
+            return {"time": time_str, "day": day_label}
+
+        return None
+
     async def get_area_status(self, request: Request) -> Response:
         """Get status for areas using Circadian Light state (no HA polling).
 
@@ -3352,6 +3435,11 @@ class LightDesignerServer:
                         ),
                         "base_kelvin": base_kelvin,
                         "solar_breakdown": solar_breakdown,
+                        "next_wake_alarm": self._compute_next_wake_alarm(
+                            area_id,
+                            config.get("area_settings", {}),
+                            rhythm_cfg,
+                        ),
                     }
 
             return web.json_response(area_status)
@@ -3426,7 +3514,7 @@ class LightDesignerServer:
                 "wake_alarm_mode": "rhythm",
                 "wake_alarm_offset": 0,
                 "wake_alarm_time": None,
-                "wake_alarm_days": [0, 1, 2, 3, 4],
+                "wake_alarm_days": [0, 1, 2, 3, 4, 5, 6],
             }
             settings = {**defaults, **area_settings.get(area_id, {})}
             return web.json_response(settings)
@@ -3476,7 +3564,7 @@ class LightDesignerServer:
                     "wake_alarm_mode": "rhythm",
                     "wake_alarm_offset": 0,
                     "wake_alarm_time": None,
-                    "wake_alarm_days": [0, 1, 2, 3, 4],
+                    "wake_alarm_days": [0, 1, 2, 3, 4, 5, 6],
                 }
 
             # Update with provided values
