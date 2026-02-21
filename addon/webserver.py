@@ -3564,8 +3564,8 @@ class LightDesignerServer:
                     status=400,
                 )
 
-            # Load current config
-            config = await self.load_config()
+            # Load raw config to preserve all keys (moments, switch_configs, etc.)
+            config = await self.load_raw_config()
 
             # Initialize area_settings if not present
             if "area_settings" not in config:
