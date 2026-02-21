@@ -937,9 +937,6 @@ class LightDesignerServer:
                 )
                 zones[zone_name] = {
                     "rhythm": rhythm_name,
-                    "brightness_sensitivity": rhythm_cfg.get(
-                        "brightness_sensitivity", 5.0
-                    ),
                     "daylight_fade": rhythm_cfg.get("daylight_fade", 60),
                     "min_brightness": rhythm_cfg.get("min_brightness", 1),
                     "max_brightness": rhythm_cfg.get("max_brightness", 100),
@@ -1057,6 +1054,9 @@ class LightDesignerServer:
             return web.json_response(
                 {
                     "outdoor_normalized": lux_tracker.get_outdoor_normalized() or 0.0,
+                    "brightness_sensitivity": glozone.get_config().get(
+                        "brightness_sensitivity", 5.0
+                    ),
                     "zones": zones,
                     "presets": presets,
                     "off_threshold": off_threshold,
@@ -1895,7 +1895,6 @@ class LightDesignerServer:
         "daylight_cct",
         "daylight_fade",
         "color_sensitivity",
-        "brightness_sensitivity",
         "activity_preset",
         "max_dim_steps",
     }
@@ -1907,6 +1906,7 @@ class LightDesignerServer:
         "timezone",
         "use_ha_location",
         "month",
+        "brightness_sensitivity",
         "turn_on_transition",  # Transition time in tenths of seconds for turn-on operations
         "turn_off_transition",  # Transition time in tenths of seconds for turn-off operations
         "two_step_delay",  # Delay between two-step phases in tenths of seconds (default 3 = 300ms)
@@ -2072,7 +2072,6 @@ class LightDesignerServer:
             "daylight_cct": 5500,
             "daylight_fade": 60,
             "color_sensitivity": 1.50,
-            "brightness_sensitivity": 5.0,
             # Activity preset
             "activity_preset": "adult",
             # Location (default to HA, allow override)
@@ -3235,7 +3234,7 @@ class LightDesignerServer:
                     # Natural light factor for this area
                     area_nl_exposure = glozone.get_area_natural_light_exposure(area_id)
                     rhythm_cfg = glozone.get_rhythm_config_for_area(area_id)
-                    area_brightness_sensitivity = rhythm_cfg.get(
+                    area_brightness_sensitivity = glozone.get_config().get(
                         "brightness_sensitivity", 5.0
                     )
                     # Apply daylight fade to brightness: ramp outdoor_norm over fade period
@@ -3780,7 +3779,6 @@ class LightDesignerServer:
                 "daylight_cct": 5500,
                 "daylight_fade": 60,
                 "color_sensitivity": 1.50,
-                "brightness_sensitivity": 5.0,
             }
             config.setdefault("circadian_rhythms", {})[name] = {**defaults, **settings}
 

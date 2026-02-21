@@ -407,7 +407,6 @@ def get_rhythm_config(rhythm_name: str) -> Dict[str, Any]:
         "bed_alt_days": [],
         "wake_brightness": 50,
         "bed_brightness": 50,
-        "brightness_sensitivity": 5.0,
         "color_sensitivity": 1.50,
         "daylight_cct": 5500,
         "daylight_fade": 60,
@@ -643,7 +642,6 @@ RHYTHM_SETTINGS = {
     "warm_night_start",
     "warm_night_end",
     "warm_night_fade",
-    "brightness_sensitivity",
     "color_sensitivity",
     "daylight_cct",
     "daylight_fade",
@@ -664,6 +662,7 @@ GLOBAL_SETTINGS = {
     "lux_smoothing_interval",
     "lux_learned_ceiling",
     "lux_learned_floor",
+    "brightness_sensitivity",
 }
 
 
@@ -707,7 +706,6 @@ def _migrate_cool_day_to_natural_light(config: Dict[str, Any]) -> None:
             rhythm["daylight_cct"] = rhythm["cool_day_target"]
 
         # Set defaults for new keys if not present
-        rhythm.setdefault("brightness_sensitivity", 5.0)
         rhythm.setdefault("color_sensitivity", 1.50)
 
         # Remove all cool_day keys
@@ -890,6 +888,16 @@ def load_config_from_files(data_dir: Optional[str] = None) -> Dict[str, Any]:
                 if key not in first_rhythm:
                     first_rhythm[key] = config[key]
                 del config[key]
+
+    # Migrate brightness_sensitivity from per-rhythm to global
+    if "brightness_sensitivity" not in config:
+        best_val = 5.0
+        for rdata in config.get("circadian_rhythms", {}).values():
+            if "brightness_sensitivity" in rdata:
+                best_val = max(best_val, rdata["brightness_sensitivity"])
+        config["brightness_sensitivity"] = best_val
+    for rdata in config.get("circadian_rhythms", {}).values():
+        rdata.pop("brightness_sensitivity", None)
 
     # Log what ended up in the rhythms after loading + merging
     for rname, rdata in config.get("circadian_rhythms", {}).items():
@@ -1075,16 +1083,24 @@ def get_next_active_times(zone_name: str, _now=None) -> Optional[Dict[str, Any]]
     else:
         bed_day = (today_weekday + 1) % 7
         # Tomorrow's bed: if override expires at bed (tonight), tomorrow is unoverridden
-        tomorrow_bed_override = bool(override) and not override_expires_at_wake and not override_expires_at_bed
+        tomorrow_bed_override = (
+            bool(override)
+            and not override_expires_at_wake
+            and not override_expires_at_bed
+        )
         next_bed_time = get_bed_for_day(bed_day, tomorrow_bed_override)
 
     # Next wake: today if not yet past, else tomorrow
     # If override expires at bed (tonight), tomorrow's wake is unoverridden
     wake_uses_override = bool(override) and not override_expires_at_bed
-    ov_wake_time = get_wake_for_day(today_weekday, bool(override) and not override_expires_at_wake)
+    ov_wake_time = get_wake_for_day(
+        today_weekday, bool(override) and not override_expires_at_wake
+    )
     if current_hour < ov_wake_time:
         wake_day = today_weekday
-        next_wake_time = get_wake_for_day(wake_day, bool(override) and not override_expires_at_wake)
+        next_wake_time = get_wake_for_day(
+            wake_day, bool(override) and not override_expires_at_wake
+        )
     else:
         wake_day = (today_weekday + 1) % 7
         next_wake_time = get_wake_for_day(wake_day, wake_uses_override)
