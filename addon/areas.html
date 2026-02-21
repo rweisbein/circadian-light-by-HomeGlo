@@ -329,7 +329,7 @@
       --row-fill: 0;
       display: flex;
       align-items: center;
-      padding: 2px 8px 2px 8px;
+      padding: 2px 8px 2px 14px;
       gap: 8px;
       background: var(--row-bg);
       color: var(--row-text);
@@ -549,6 +549,7 @@
       background: var(--panel);
       cursor: pointer;
       border: 1px solid var(--line);
+      border-left: 3px solid var(--accent);
       border-radius: 8px 8px 0 0;
       user-select: none;
       transition: background 0.15s;
@@ -573,6 +574,15 @@
 
     .zone-header:hover {
       background: rgba(255,255,255,0.05);
+    }
+    .zone-rhythm-link {
+      font-size: 0.65rem;
+      opacity: 0.4;
+      text-decoration: none;
+      transition: opacity 0.15s;
+    }
+    .zone-rhythm-link:hover {
+      opacity: 0.8;
     }
 
     .zone-header.collapsed {
@@ -674,6 +684,13 @@
       align-items: flex-start;
       line-height: 1.3;
       white-space: nowrap;
+    }
+    .zone-next-stack .next-event-label {
+      opacity: 0.6;
+      font-size: 0.6rem;
+    }
+    .zone-next-stack .next-event-time {
+      font-weight: 600;
     }
 
     /* Schedule override popover */
@@ -1707,7 +1724,7 @@
           body: JSON.stringify({
             areas_ui: {
               view_mode: viewMode,
-              tune_zone: tuneFilterZone
+              tune_zone: ''
             }
           })
         });
@@ -2101,7 +2118,6 @@
     let pendingSensorSave = Promise.resolve();  // tracks in-flight sensor config save
     let tuneSortOrder = 'custom';
     let tuneDebounceTimers = {};
-    let tuneFilterZone = '';    // '' = all zones
 
     const LUMEN_STEPS = [
       { label: "Severely underlit",  intensity: 0.50 },
@@ -2221,8 +2237,8 @@
       const bedHoursAway = ((nt.bed_day - nowDay) * 24 + nt.bed_time - nowH + 168) % 168;
       const bedFirst = bedHoursAway <= wakeHoursAway;
 
-      const bedStr = `bed ${nt.bed_day_name} ${fmtCompactTime(nt.bed_time)}`;
-      const wakeStr = `wake ${nt.wake_day_name} ${fmtCompactTime(nt.wake_time)}`;
+      const bedStr = `<span class="next-event-label">bed</span> <span class="next-event-time">${nt.bed_day_name} ${fmtCompactTime(nt.bed_time)}</span>`;
+      const wakeStr = `<span class="next-event-label">wake</span> <span class="next-event-time">${nt.wake_day_name} ${fmtCompactTime(nt.wake_time)}</span>`;
       const firstStr = bedFirst ? bedStr : wakeStr;
       const secondStr = bedFirst ? wakeStr : bedStr;
 
@@ -2233,6 +2249,11 @@
     let activePopoverZone = null;
 
     function openSchedulePopover(zoneName, anchorEl) {
+      // Toggle: close if already open for this zone
+      if (activePopoverZone === zoneName) {
+        closeSchedulePopover();
+        return;
+      }
       closeSchedulePopover();
       activePopoverZone = zoneName;
 
@@ -2441,14 +2462,6 @@
       } catch (err) {
         console.error('Error loading tune data:', err);
       }
-      // Default to saved zone or first zone (no "All zones")
-      const zoneNames = Object.keys(tuneData?.zones || {});
-      const savedZone = cachedConfig?.areas_ui?.tune_zone;
-      if (savedZone && zoneNames.includes(savedZone)) {
-        tuneFilterZone = savedZone;
-      } else {
-        tuneFilterZone = zoneNames[0] || '';
-      }
       renderAreas();
     }
 
@@ -2589,9 +2602,13 @@
         }
         panelHtml += '</select>';
         panelHtml += '</div>';
+        // Reading + refresh + range
+        const luxVal = d.lux_smoothed != null ? Math.round(d.lux_smoothed).toLocaleString() + ' lx' : '--';
         panelHtml += '<div class="tune-outdoor-panel-row">';
-        panelHtml += '<span class="tune-outdoor-panel-label">Range</span>';
-        panelHtml += '<span class="tune-outdoor-panel-status" id="tune-outdoor-range">' + rangeStr + '</span>';
+        panelHtml += '<span class="tune-outdoor-panel-label">Reading</span>';
+        panelHtml += '<span class="tune-outdoor-panel-status">' + luxVal + '</span>';
+        panelHtml += '<button class="tune-outdoor-panel-btn" onclick="refreshOutdoorAndRender()" title="Refresh">&#x21bb;</button>';
+        panelHtml += '<span class="tune-outdoor-panel-status" id="tune-outdoor-range" style="opacity:0.5;">' + rangeStr + '</span>';
         panelHtml += '</div>';
         const d90 = new Date(Date.now() - 90 * 86400000);
         const defaultSince = d90.toISOString().slice(0, 16);
@@ -3209,12 +3226,6 @@
           </div>
         `;
       } else if (currentMode === 'tune') {
-        // Build zone filter options
-        const tuneZoneNames = Object.keys(tuneData?.zones || {});
-        const zoneOptions = tuneZoneNames.map(z =>
-          `<option value="${z}" ${tuneFilterZone === z ? 'selected' : ''}>${z}</option>`
-        ).join('');
-
         html = `
           <div class="edit-toolbar">
             <span style="font-size: 1rem; font-weight: 600; color: var(--text);">Tune brightness${homeName ? ': ' + homeName : ''}</span>
@@ -3232,9 +3243,6 @@
               <span class="view-sep">&middot;</span>
               <button class="view-link ${tuneSortOrder === 'sun' ? 'active' : ''}" data-tune-sort="sun">exposure</button>
             </div>
-            <select class="tune-filter-select tune-filter-small" id="tune-filter-zone">
-              ${zoneOptions}
-            </select>
           </div>
         `;
       } else {
@@ -3484,6 +3492,7 @@
               ${zonePowerBtn}
               <span style="font-size: 0.65rem; opacity: 0.5; color: ${zoneTextColor};">Glo Zone</span>
               <span class="zone-name" style="font-size: 1.05rem; color: ${zoneTextColor};">${zoneName}</span>
+              ${zs?.rhythm ? `<a class="zone-rhythm-link" href="./rhythm/${encodeURIComponent(zs.rhythm)}" style="color: ${zoneTextColor};" onclick="event.stopPropagation()">${zs.rhythm}</a>` : ''}
               ${zoneFrozenIndicator}
               ${zoneMismatchDot}
               <span style="flex: 1;"></span>
@@ -3529,17 +3538,16 @@
         const gzZonesObj = cachedGlozones?.zones || {};
         const gzZoneNames = Object.keys(gzZonesObj);
 
-        // Collect all areas for sorting
+        // Collect all areas for sorting (all zones shown)
         let allTuneAreas = [];
         for (const zoneName of gzZoneNames) {
-          if (tuneFilterZone && tuneFilterZone !== zoneName) continue;
           const gzData = gzZonesObj[zoneName];
           const zoneAreaIds = (gzData.areas || []).map(a => typeof a === 'object' ? a.id : a);
           const areasInZone = zoneAreaIds.map(id => mergedAreas.find(a => a.area_id === id)).filter(Boolean);
           areasInZone.forEach(a => { a._tunezone = zoneName; });
           allTuneAreas.push(...areasInZone);
         }
-        if (!tuneFilterZone && unassigned.length > 0) {
+        if (unassigned.length > 0) {
           unassigned.forEach(a => { a._tunezone = 'Unassigned'; });
           allTuneAreas.push(...unassigned);
         }
@@ -3565,13 +3573,12 @@
         if (tuneSortOrder === 'custom') {
           // Preserve zone grouping
           for (const zoneName of gzZoneNames) {
-            if (tuneFilterZone && tuneFilterZone !== zoneName) continue;
             const gzData = gzZonesObj[zoneName];
             const zoneAreaIds = (gzData.areas || []).map(a => typeof a === 'object' ? a.id : a);
             const areasInZone = zoneAreaIds.map(id => mergedAreas.find(a => a.area_id === id)).filter(Boolean);
             if (areasInZone.length > 0) html += renderZoneGroup(zoneName, areasInZone);
           }
-          if (!tuneFilterZone && unassigned.length > 0) {
+          if (unassigned.length > 0) {
             html += renderZoneGroup('Unassigned', unassigned);
           }
         } else {
@@ -3926,13 +3933,8 @@
         }
       });
 
-      // Tune filter and outdoor panel dropdowns (delegated)
+      // Outdoor panel dropdowns (delegated)
       document.getElementById('areas-container').addEventListener('change', (e) => {
-        if (e.target.id === 'tune-filter-zone') {
-          tuneFilterZone = e.target.value;
-          savePreferences();
-          renderAreas();
-        }
         if (e.target.id === 'tune-outdoor-source') {
           e.stopPropagation();
           const val = e.target.value;
