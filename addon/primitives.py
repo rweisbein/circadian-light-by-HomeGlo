@@ -293,7 +293,7 @@ class CircadianLightPrimitives:
                 # Release circadian control (lights unchanged)
                 tasks.append(self.circadian_off(area_id, source))
             elif action == "wake_or_bed":
-                tasks.append(self.set(area_id, source, preset="wake_or_bed", is_on=True))
+                tasks.append(self.set(area_id, source, preset="wake_or_bed"))
             elif action == "reset":
                 tasks.append(self.glo_reset(area_id, source))
 
