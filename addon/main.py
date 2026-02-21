@@ -30,12 +30,10 @@ from brain import (
     calculate_sun_times,
     apply_light_filter_pipeline,
     calculate_natural_light_factor,
-    compute_daylight_fade_weight,
     angle_to_estimated_lux,
     DEFAULT_MAX_DIM_STEPS,
     DEFAULT_MIN_BRIGHTNESS,
     DEFAULT_MAX_BRIGHTNESS,
-    DEFAULT_DAYLIGHT_FADE,
 )
 from light_controller import (
     LightControllerFactory,
@@ -2573,15 +2571,6 @@ class HomeAssistantWebSocketClient:
             brightness_sensitivity = glozone.get_config().get(
                 "brightness_sensitivity", 5.0
             )
-            rhythm_cfg = glozone.get_rhythm_config_for_area(area_id)
-            # Apply daylight fade to brightness: ramp outdoor_norm over fade period
-            daylight_fade = rhythm_cfg.get("daylight_fade", DEFAULT_DAYLIGHT_FADE)
-            if daylight_fade > 0 and outdoor_norm > 0:
-                sun_times = self._get_sun_times()
-                hour = get_current_hour()
-                outdoor_norm *= compute_daylight_fade_weight(
-                    hour, sun_times.sunrise, sun_times.sunset, daylight_fade
-                )
             nl_factor = calculate_natural_light_factor(
                 natural_exposure, outdoor_norm, brightness_sensitivity
             )
@@ -4155,7 +4144,7 @@ class HomeAssistantWebSocketClient:
         )
 
     async def update_lights_in_circadian_mode(
-        self, area_id: str, log_periodic: bool = False
+        self, area_id: str, log_periodic: bool = False, periodic_transition: float = 0.5
     ):
         """Update lights in an area with circadian lighting if Circadian Light is enabled.
 
@@ -4302,7 +4291,10 @@ class HomeAssistantWebSocketClient:
 
             # Use the centralized light control function
             await self.turn_on_lights_circadian(
-                area_id, lighting_values, transition=0.5, log_periodic=log_periodic
+                area_id,
+                lighting_values,
+                transition=periodic_transition,
+                log_periodic=log_periodic,
             )
 
         except Exception as e:
@@ -4501,7 +4493,9 @@ class HomeAssistantWebSocketClient:
                                 f"Updating lights in Circadian area: {area_id}"
                             )
                             await self.update_lights_in_circadian_mode(
-                                area_id, log_periodic=log_periodic
+                                area_id,
+                                log_periodic=log_periodic,
+                                periodic_transition=refresh_interval - 1,
                             )
                     else:
                         logger.debug(

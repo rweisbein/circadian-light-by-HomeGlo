@@ -1213,6 +1213,10 @@
       background: var(--panel);
       flex-wrap: wrap;
       padding-bottom: 2px;
+      cursor: default;
+    }
+    .tune-zone-header:hover {
+      background: var(--panel);
     }
 
     .tune-zone-header.collapsed {
@@ -1266,8 +1270,10 @@
     .tune-outdoor-info {
       display: inline-flex; align-items: center; gap: 6px;
       font-size: 0.8rem; color: var(--muted); flex-wrap: wrap; cursor: pointer;
+      padding: 2px 8px; border-radius: 4px; border: 1px solid transparent;
+      transition: all 0.15s;
     }
-    .tune-outdoor-info:hover { color: var(--text); }
+    .tune-outdoor-info:hover { color: var(--text); border-color: var(--line); background: rgba(255,255,255,0.04); }
     .tune-outdoor-pct { color: var(--text); font-weight: 600; white-space: nowrap; }
     .tune-outdoor-detail { color: var(--muted2); font-size: 0.75rem; }
     .tune-outdoor-panel {
@@ -1304,7 +1310,6 @@
     .tune-zone-ctrl-word { font-size: 0.8rem; color: var(--text); white-space: nowrap; }
     .tune-zone-ctrl-val { font-size: 0.75rem; color: var(--text); white-space: nowrap; }
     .tune-sensitivity-slider { width: 80px; accent-color: var(--accent); }
-    .tune-fade-slider { width: 80px; accent-color: var(--accent); }
     .tune-zone-controls .tune-area-row { padding-top: 3px; padding-bottom: 3px; }
     .tune-zone-bri-group {
       display: flex; align-items: baseline; gap: 6px;
@@ -1368,7 +1373,6 @@
       .tune-col-header { font-size: 0.55rem; }
       .tune-slider-meta { font-size: 0.65rem; }
       .tune-sensitivity-slider { width: 60px; }
-      .tune-fade-slider { width: 50px; }
       .tune-zone-ctrl-label { font-size: 0.6rem; }
       .tune-zone-ctrl-word { font-size: 0.7rem; }
       .tune-zone-ctrl-val { font-size: 0.65rem; }
@@ -2542,14 +2546,8 @@
       return v === 0 ? '0' : v % 1 === 0 ? v.toFixed(1) : parseFloat(v.toFixed(2)).toString();
     }
 
-    function formatSunMeta(exposure, sensitivity, outdoorNorm, daylightFade) {
-      let adjustedOutdoor = outdoorNorm;
-      if (daylightFade > 0 && adjustedOutdoor > 0 && cachedSunTimes) {
-        const now = new Date();
-        const h = now.getHours() + now.getMinutes() / 60;
-        adjustedOutdoor *= computeDaylightFadeWeight(h, cachedSunTimes.sunrise, cachedSunTimes.sunset, daylightFade);
-      }
-      const currentPct = Math.min(100, Math.round(exposure * adjustedOutdoor * sensitivity * 100));
+    function formatSunMeta(exposure, sensitivity, outdoorNorm) {
+      const currentPct = Math.min(100, Math.round(exposure * outdoorNorm * sensitivity * 100));
       const peakPct = Math.min(100, Math.round(exposure * sensitivity * 100));
       return { now: '\u2193' + currentPct + '%', peak: 'pk\u2193' + peakPct + '%' };
     }
@@ -2799,55 +2797,29 @@
       if (peakEl) peakEl.textContent = 'pk\u2193' + Math.min(100, Math.round(sensitivity * 100)) + '%';
     }
 
-    function updateZoneDaylightFade(zoneGroup, newFade) {
-      zoneGroup.querySelectorAll('.tune-area').forEach(el => {
-        el.dataset.daylightFade = newFade;
-        updateTuneNowPreview(el);
-      });
-    }
-
-    function computeDaylightFadeWeight(hour, sunrise, sunset, daylightFade) {
-      if (daylightFade <= 0) return 1.0;
-      const fadeHrs = daylightFade / 60;
-      const h = hour % 24;
-      const distAfterSunrise = ((h - sunrise) % 24 + 24) % 24;
-      const distBeforeSunset = ((sunset - h) % 24 + 24) % 24;
-      let weight = 1.0;
-      if (distAfterSunrise < fadeHrs) weight = Math.min(weight, distAfterSunrise / fadeHrs);
-      if (distBeforeSunset < fadeHrs) weight = Math.min(weight, distBeforeSunset / fadeHrs);
-      return weight;
-    }
-
-    function computeNowBrightness(rhythmBri, factor, exposure, outdoorNorm, sensitivity, daylightFade) {
-      let adjustedOutdoor = outdoorNorm;
-      if (daylightFade > 0 && adjustedOutdoor > 0 && cachedSunTimes) {
-        const now = new Date();
-        const h = now.getHours() + now.getMinutes() / 60;
-        adjustedOutdoor *= computeDaylightFadeWeight(h, cachedSunTimes.sunrise, cachedSunTimes.sunset, daylightFade);
-      }
-      const nlFactor = (exposure <= 0 || adjustedOutdoor <= 0) ? 1.0 : Math.max(0, 1 - exposure * adjustedOutdoor * sensitivity);
+    function computeNowBrightness(rhythmBri, factor, exposure, outdoorNorm, sensitivity) {
+      const nlFactor = (exposure <= 0 || outdoorNorm <= 0) ? 1.0 : Math.max(0, 1 - exposure * outdoorNorm * sensitivity);
       return Math.min(100, Math.round(rhythmBri * nlFactor * factor));
     }
 
     function updateTuneNowPreview(tuneAreaEl, overrides) {
       const rhythmBri = parseFloat(tuneAreaEl.dataset.rhythmBri) || 50;
       const sensitivity = parseFloat(tuneAreaEl.dataset.sensitivity) || 5.0;
-      const daylightFade = parseFloat(tuneAreaEl.dataset.daylightFade) || 60;
       const outdoorNorm = parseFloat(tuneAreaEl.dataset.outdoorNorm) || 0.0;
       const lumenSlider = tuneAreaEl.querySelector('.tune-lumen-slider');
       const solarSlider = tuneAreaEl.querySelector('.tune-solar-slider');
       const factor = overrides?.factor ?? (1 / LUMEN_STEPS[parseInt(lumenSlider.value)].intensity);
       const exposure = overrides?.exposure ?? SOLAR_STEPS[parseInt(solarSlider.value)].exposure;
-      const nowRaw = computeNowBrightness(rhythmBri, factor, exposure, outdoorNorm, sensitivity, daylightFade);
+      const nowRaw = computeNowBrightness(rhythmBri, factor, exposure, outdoorNorm, sensitivity);
       const nowBri = Math.min(100, Math.round(nowRaw));
-      const peakRaw = computeNowBrightness(rhythmBri, factor, exposure, 1.0, sensitivity, 0);
+      const peakRaw = computeNowBrightness(rhythmBri, factor, exposure, 1.0, sensitivity);
       const peakBri = Math.min(100, Math.round(peakRaw));
       const nowEl = tuneAreaEl.querySelector('.tune-bri-now');
       if (nowEl) nowEl.textContent = nowBri + '%';
       const peakEl = tuneAreaEl.querySelector('.tune-bri-peak');
       if (peakEl) peakEl.textContent = 'pk ' + peakBri + '%';
       // Update sun meta (now split into current + peak)
-      const sunMeta = formatSunMeta(exposure, sensitivity, outdoorNorm, daylightFade);
+      const sunMeta = formatSunMeta(exposure, sensitivity, outdoorNorm);
       const sunNowEl = tuneAreaEl.querySelector('.tune-sun-now');
       if (sunNowEl) sunNowEl.textContent = sunMeta.now;
       const sunPeakEl = tuneAreaEl.querySelector('.tune-sun-peak');
@@ -3335,7 +3307,6 @@
           const zoneConfig = getTuneZoneConfig(zoneName);
           const rhythmName = zoneConfig.rhythm;
           const sensitivity = tuneData?.brightness_sensitivity ?? 5.0;
-          const daylightFade = zoneConfig.daylight_fade ?? 60;
           const outdoorNorm = tuneData?.outdoor_normalized ?? 0.0;
           const rhythmValues = getPureRhythmValues(rhythmName);
           const rhythmBri = Math.round(rhythmValues?.brightness ?? 50);
@@ -3347,15 +3318,15 @@
             const exposure = tuneArea?.natural_light_exposure ?? 0.0;
             const lumenStep = findClosestStep(LUMEN_STEPS, 'intensity', 1 / factor);
             const solarStep = findClosestStep(SOLAR_STEPS, 'exposure', exposure);
-            const nowRaw = computeNowBrightness(rhythmBri, factor, exposure, outdoorNorm, sensitivity, daylightFade);
+            const nowRaw = computeNowBrightness(rhythmBri, factor, exposure, outdoorNorm, sensitivity);
             const nowBri = Math.min(100, Math.round(nowRaw));
-            const peakRaw = computeNowBrightness(rhythmBri, factor, exposure, 1.0, sensitivity, 0);
+            const peakRaw = computeNowBrightness(rhythmBri, factor, exposure, 1.0, sensitivity);
             const peakBri = Math.min(100, Math.round(peakRaw));
             const factorStr = formatFactorMeta(factor);
-            const sunMeta = formatSunMeta(exposure, sensitivity, outdoorNorm, daylightFade);
+            const sunMeta = formatSunMeta(exposure, sensitivity, outdoorNorm);
             const peakVisible = true;
             return `
-              <div class="tune-area" data-area-id="${area.area_id}" data-rhythm-bri="${rhythmBri}" data-sensitivity="${sensitivity}" data-daylight-fade="${daylightFade}" data-outdoor-norm="${outdoorNorm}">
+              <div class="tune-area" data-area-id="${area.area_id}" data-rhythm-bri="${rhythmBri}" data-sensitivity="${sensitivity}" data-outdoor-norm="${outdoorNorm}">
                 <div class="tune-area-row">
                   <a href="./area/${encodeURIComponent(area.area_id)}?from=tune" class="tune-name-col tune-area-name">${area.name}</a>
                   <div class="tune-fixture-col">
@@ -3384,29 +3355,14 @@
             `;
           }).join('');
 
-          const sunTimesStr = cachedSunTimes
-            ? fmtFadeRange(cachedSunTimes.sunrise, cachedSunTimes.sunset, daylightFade)
-            : '';
           const zoneControlsHtml = `
             <div class="tune-zone-controls" data-zone="${zoneName}" data-rhythm="${rhythmName || ''}" onclick="event.stopPropagation()">
-              <div class="tune-area-row">
+              <div class="tune-area-row tune-col-headers">
                 <span class="tune-name-col"></span>
-                <div class="tune-fixture-col tune-zone-label-col">
-                  <span class="tune-zone-ctrl-label">Sunrise/set fade</span>
-                </div>
-                <div class="tune-sun-col tune-zone-ctrl">
-                  <input type="range" class="tune-fade-slider" min="0" max="180" step="15" value="${daylightFade}">
-                  <span class="tune-zone-ctrl-word tune-fade-word">${fmtFadeMinutes(daylightFade)}</span>
-                  <span class="tune-zone-sun-times">${sunTimesStr}</span>
-                </div>
+                <span class="tune-fixture-col tune-col-header">Fixture density</span>
+                <span class="tune-sun-col tune-col-header">Sun exposure</span>
                 <span class="tune-bri-col"></span>
               </div>
-            </div>
-            <div class="tune-area-row tune-col-headers" onclick="event.stopPropagation()">
-              <span class="tune-name-col"></span>
-              <span class="tune-fixture-col tune-col-header">Fixture density</span>
-              <span class="tune-sun-col tune-col-header">Sun exposure</span>
-              <span class="tune-bri-col"></span>
             </div>
           `;
 
@@ -3570,14 +3526,15 @@
         const tuneSensReduction = Math.min(100, Math.round(tuneOutdoorNorm * tuneSensitivity * 100));
         const tuneSensPeak = Math.min(100, Math.round(tuneSensitivity * 100));
         html += `
-          <div class="tune-sensitivity-standalone" onclick="event.stopPropagation()">
-            ${buildOutdoorSection()}
+          <div class="tune-sensitivity-standalone">
             <span class="tune-zone-ctrl-label" style="white-space:nowrap;">Sun sensitivity</span>
-            <input type="range" class="tune-sensitivity-slider" id="tune-global-sensitivity" min="0" max="9" step="1" value="${tuneSensStep}">
+            <input type="range" class="tune-sensitivity-slider" id="tune-global-sensitivity" min="0" max="9" step="1" value="${tuneSensStep}" onclick="event.stopPropagation()">
             <span class="tune-zone-ctrl-word tune-sensitivity-word" id="tune-global-sensitivity-word">${SENSITIVITY_STEPS[tuneSensStep].label}</span>
             <span class="tune-zone-ctrl-val tune-sensitivity-val" id="tune-global-sensitivity-val">${fmtVal(tuneSensitivity)}</span>
             <span class="tune-zone-sun-meta tune-zone-sun-now" id="tune-global-sun-now">\u2193${tuneSensReduction}%</span>
             <span class="tune-zone-sun-meta tune-zone-sun-peak" id="tune-global-sun-peak">pk\u2193${tuneSensPeak}%</span>
+            <span style="flex:1;"></span>
+            ${buildOutdoorSection()}
           </div>
         `;
         // Tune mode: use glozone order, apply filters + tune sort
@@ -4013,18 +3970,6 @@
           });
           return;
         }
-        if (e.target.classList.contains('tune-fade-slider')) {
-          const val = parseInt(e.target.value);
-          const controls = e.target.closest('.tune-zone-controls');
-          const word = controls.querySelector('.tune-fade-word');
-          if (word) word.textContent = fmtFadeMinutes(val);
-          const timesEl = controls.querySelector('.tune-zone-sun-times');
-          if (timesEl && cachedSunTimes) timesEl.innerHTML = fmtFadeRange(cachedSunTimes.sunrise, cachedSunTimes.sunset, val);
-          const zoneGroup = e.target.closest('.zone-group');
-          if (zoneGroup) updateZoneDaylightFade(zoneGroup, val);
-          return;
-        }
-
         // Per-area controls (lumen, solar)
         const tuneArea = e.target.closest('.tune-area');
         if (!tuneArea) return;
@@ -4053,11 +3998,6 @@
         if (e.target.id === 'tune-global-sensitivity') {
           const step = parseInt(e.target.value);
           saveGlobalSetting('brightness_sensitivity', SENSITIVITY_STEPS[step].multiplier);
-        }
-        // Zone-level saves
-        if (e.target.classList.contains('tune-fade-slider')) {
-          const rhythmName = e.target.closest('.tune-zone-controls').dataset.rhythm;
-          saveTuneZoneSetting(rhythmName, 'daylight_fade', parseInt(e.target.value));
         }
         // Per-area saves
         if (e.target.classList.contains('tune-lumen-slider')) {

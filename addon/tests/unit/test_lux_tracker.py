@@ -133,8 +133,8 @@ class TestGetOutdoorNormalized:
         _reset_all()
 
     def test_no_sources_returns_angle_fallback(self):
-        """When nothing configured, falls through to angle (0.0 at night)."""
-        lux_tracker._sun_elevation = 0.0
+        """When nothing configured, falls through to angle (0.0 at deep night)."""
+        lux_tracker._sun_elevation = -10.0
         result = lux_tracker.get_outdoor_normalized()
         assert result == 0.0
 
@@ -322,12 +322,22 @@ class TestWeatherEstimation:
         assert lux_tracker._weather_condition is None
 
     def test_compute_weather_outdoor_norm_night(self):
-        """Elevation <= 0 should give 0.0."""
+        """Elevation well below civil twilight should give 0.0."""
         lux_tracker._weather_entity = "weather.home"
         lux_tracker._cloud_cover = 0.0
-        lux_tracker._sun_elevation = -5.0
+        lux_tracker._sun_elevation = -10.0
         result = lux_tracker._compute_weather_outdoor_norm()
         assert result == 0.0
+
+    def test_compute_weather_outdoor_norm_twilight(self):
+        """Elevation near horizon should give small positive value."""
+        lux_tracker._weather_entity = "weather.home"
+        lux_tracker._cloud_cover = 0.0
+        lux_tracker._sun_elevation = 0.0
+        result = lux_tracker._compute_weather_outdoor_norm()
+        assert result is not None
+        assert result > 0.0
+        assert result < 0.1  # small but non-zero
 
     def test_no_weather_entity_returns_none(self):
         """No weather entity should return None."""
@@ -373,6 +383,7 @@ class TestOverride:
     def test_get_override_info_expired(self):
         """Expired override should auto-clear and return None."""
         import time
+
         lux_tracker._override_condition = "cloudy"
         lux_tracker._override_expires_at = time.monotonic() - 1  # already expired
         info = lux_tracker.get_override_info()
@@ -638,8 +649,80 @@ class TestPreferredSource:
 
     def test_explicit_source_overrides_sensor_presence(self):
         """Explicit outdoor_brightness_source=angle wins even with lux sensor configured."""
-        lux_tracker.init(config={
-            "outdoor_brightness_source": "angle",
-            "outdoor_lux_sensor": "sensor.lux",
-        })
+        lux_tracker.init(
+            config={
+                "outdoor_brightness_source": "angle",
+                "outdoor_lux_sensor": "sensor.lux",
+            }
+        )
         assert lux_tracker.get_preferred_source() == "angle"
+
+
+class TestTwilightModel:
+    """Test twilight-aware solar model (_estimate_clear_sky_lux)."""
+
+    def setup_method(self):
+        _reset_all()
+
+    def test_deep_night_returns_zero(self):
+        """Below -6° (astronomical night) should return 0 lux."""
+        assert lux_tracker._estimate_clear_sky_lux(-10.0) == 0.0
+        assert lux_tracker._estimate_clear_sky_lux(-6.0) == 0.0
+
+    def test_civil_twilight_boundary(self):
+        """At -6° boundary: 0 lux. Just above: small positive."""
+        assert lux_tracker._estimate_clear_sky_lux(-6.0) == 0.0
+        result = lux_tracker._estimate_clear_sky_lux(-5.9)
+        assert result > 0.0
+        assert result < 10.0
+
+    def test_civil_twilight_midpoint(self):
+        """At -3° should return intermediate value between 3 and 400."""
+        result = lux_tracker._estimate_clear_sky_lux(-3.0)
+        assert 3.0 < result < 400.0
+
+    def test_horizon_returns_about_400(self):
+        """At 0° should return ~400 lux."""
+        result = lux_tracker._estimate_clear_sky_lux(0.0)
+        assert abs(result - 400.0) < 1.0
+
+    def test_above_horizon_standard_model(self):
+        """Above 0° should use 120000 * sin(elev) model."""
+        import math
+
+        result = lux_tracker._estimate_clear_sky_lux(30.0)
+        expected = 120000.0 * math.sin(math.radians(30.0))
+        assert abs(result - expected) < 0.01
+
+    def test_monotonic_increase(self):
+        """Lux should monotonically increase from -6° through +30°."""
+        elevations = [-6, -5, -4, -3, -2, -1, 0, 1, 2, 5, 10, 20, 30]
+        values = [lux_tracker._estimate_clear_sky_lux(e) for e in elevations]
+        for i in range(1, len(values)):
+            assert (
+                values[i] >= values[i - 1]
+            ), f"Not monotonic: {elevations[i-1]}°={values[i-1]} > {elevations[i]}°={values[i]}"
+
+    def test_angle_norm_at_minus6_is_zero(self):
+        """outdoor_norm at -6° should be 0.0."""
+        lux_tracker._sun_elevation = -6.0
+        assert lux_tracker._compute_angle_outdoor_norm() == 0.0
+
+    def test_angle_norm_at_minus3_zero(self):
+        """outdoor_norm at -3° is 0.0 (lux below 300 normalization floor)."""
+        lux_tracker._sun_elevation = -3.0
+        result = lux_tracker._compute_angle_outdoor_norm()
+        assert result == 0.0
+
+    def test_angle_norm_at_horizon_small(self):
+        """outdoor_norm at 0° should be small positive (400 lux > 300 floor)."""
+        lux_tracker._sun_elevation = 0.0
+        result = lux_tracker._compute_angle_outdoor_norm()
+        assert result > 0.0
+        assert result < 0.15
+
+    def test_angle_norm_at_2deg(self):
+        """outdoor_norm at 2° should be moderate."""
+        lux_tracker._sun_elevation = 2.0
+        result = lux_tracker._compute_angle_outdoor_norm()
+        assert result > 0.1

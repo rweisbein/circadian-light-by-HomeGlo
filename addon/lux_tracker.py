@@ -32,7 +32,7 @@ CONDITION_MULTIPLIERS = {
     "windy-variant": 1.0,
     # Partly cloudy
     "partlycloudy": 0.6,
-    "partly_cloudy": 0.6,   # override compat
+    "partly_cloudy": 0.6,  # override compat
     # Cloudy
     "cloudy": 0.3,
     # Precipitation / dark
@@ -189,7 +189,12 @@ def get_outdoor_normalized() -> Optional[float]:
 
     # 2. Source-dependent chain
     if _preferred_source == "lux":
-        if _sensor_entity and _learned_ceiling and _learned_floor and _ema_lux is not None:
+        if (
+            _sensor_entity
+            and _learned_ceiling
+            and _learned_floor
+            and _ema_lux is not None
+        ):
             return _cached_sun_factor
         # fallthrough to weather, then angle
         weather_norm = _compute_weather_outdoor_norm()
@@ -218,7 +223,12 @@ def get_outdoor_source() -> str:
         return "override"
 
     if _preferred_source == "lux":
-        if _sensor_entity and _learned_ceiling and _learned_floor and _ema_lux is not None:
+        if (
+            _sensor_entity
+            and _learned_ceiling
+            and _learned_floor
+            and _ema_lux is not None
+        ):
             return "lux"
         if _weather_entity and _cloud_cover is not None:
             return "weather"
@@ -319,6 +329,24 @@ def get_override_info() -> Optional[dict]:
 # ---------------------------------------------------------------------------
 # Internal computation helpers
 # ---------------------------------------------------------------------------
+def _estimate_clear_sky_lux(elevation_deg: float) -> float:
+    """Estimate clear-sky illuminance including civil twilight.
+
+    Uses a piecewise model:
+    - Below -6°: 0 lux (astronomical night)
+    - -6° to 0° (civil twilight): exponential ramp ~3 to ~400 lux
+    - Above 0°: standard 120000 * sin(elev) model
+    """
+    if elevation_deg <= -6.0:
+        return 0.0
+    if elevation_deg <= 0.0:
+        # Exponential interpolation through civil twilight
+        # At -6°: ~3 lux, at 0°: ~400 lux
+        t = (elevation_deg + 6.0) / 6.0  # 0 at -6°, 1 at 0°
+        return 3.0 * (400.0 / 3.0) ** t
+    return 120000.0 * math.sin(math.radians(elevation_deg))
+
+
 def _compute_weather_outdoor_norm() -> Optional[float]:
     """Compute outdoor normalized from weather entity cloud coverage + condition."""
     if _weather_entity is None or _cloud_cover is None:
@@ -331,20 +359,22 @@ def _compute_weather_outdoor_norm() -> Optional[float]:
         cloud_fraction = _cloud_cover / 100.0
         condition_mult = 1.0 - cloud_fraction * 0.7
     elev = _sun_elevation
-    clear_sky_lux = 120000.0 * max(0.0, math.sin(math.radians(elev)))
+    clear_sky_lux = _estimate_clear_sky_lux(elev)
     estimated_lux = clear_sky_lux * condition_mult
     if estimated_lux <= 0:
         return 0.0
-    return min(1.0, math.log2(max(1, estimated_lux) / 300) / FULL_SUN_INTENSITY)
+    return max(
+        0.0, min(1.0, math.log2(max(1, estimated_lux) / 300) / FULL_SUN_INTENSITY)
+    )
 
 
 def _compute_angle_outdoor_norm() -> float:
     """Compute outdoor normalized from sun elevation (clear-sky model)."""
     elev = _sun_elevation
-    est_lux = 120000.0 * max(0.0, math.sin(math.radians(elev)))
+    est_lux = _estimate_clear_sky_lux(elev)
     if est_lux <= 0:
         return 0.0
-    return min(1.0, math.log2(max(1, est_lux) / 300) / FULL_SUN_INTENSITY)
+    return max(0.0, min(1.0, math.log2(max(1, est_lux) / 300) / FULL_SUN_INTENSITY))
 
 
 def update(raw_lux: float) -> float:
@@ -522,7 +552,7 @@ async def learn_baseline(ws_client) -> bool:
                 try:
                     loc = LocationInfo(latitude=lat, longitude=lon, timezone=tz_name)
                     elev = solar_elevation(loc.observer, dt)
-                    if elev <= 10:
+                    if elev <= -3:
                         continue
                 except Exception:
                     continue
