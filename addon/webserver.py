@@ -1692,7 +1692,7 @@ class LightDesignerServer:
             for zone_name, zone_config in zones.items():
                 # Get the rhythm for this zone using glozone module
                 rhythm_name = zone_config.get("rhythm", glozone.DEFAULT_RHYTHM)
-                preset_config = glozone.get_rhythm_config(rhythm_name)
+                preset_config = glozone.get_effective_config_for_zone(zone_name)
                 logger.debug(
                     f"[ZoneStates] Zone '{zone_name}' rhythm_config keys: {list(preset_config.keys())}"
                 )

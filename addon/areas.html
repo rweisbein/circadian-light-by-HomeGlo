@@ -2473,12 +2473,17 @@
       const container = document.getElementById('areas-container');
       container.innerHTML = '<div class="loading">Loading tune data...</div>';
       try {
-        const [filtersResp, outdoorResp] = await Promise.all([
+        const [filtersResp, outdoorResp, zoneStatesResp] = await Promise.all([
           fetch('./api/light-filters'),
           fetch('./api/outdoor-status'),
+          fetch('./api/zone-states'),
         ]);
         if (filtersResp.ok) tuneData = await filtersResp.json();
         if (outdoorResp.ok) tuneOutdoorData = await outdoorResp.json();
+        if (zoneStatesResp.ok) {
+          const zs = await zoneStatesResp.json();
+          zoneStates = zs.zone_states || {};
+        }
       } catch (err) {
         console.error('Error loading tune data:', err);
       }
@@ -3308,8 +3313,8 @@
           const rhythmName = zoneConfig.rhythm;
           const sensitivity = tuneData?.brightness_sensitivity ?? 5.0;
           const outdoorNorm = tuneData?.outdoor_normalized ?? 0.0;
-          const rhythmValues = getPureRhythmValues(rhythmName);
-          const rhythmBri = Math.round(rhythmValues?.brightness ?? 50);
+          const zoneBri = zoneStates?.[zoneName]?.brightness;
+          const rhythmBri = zoneBri != null ? Math.round(zoneBri) : Math.round(getPureRhythmValues(rhythmName)?.brightness ?? 50);
           const escapedRhythm = (rhythmName || '').replace(/'/g, "\\'");
 
           const areaRows = sorted.map(area => {
