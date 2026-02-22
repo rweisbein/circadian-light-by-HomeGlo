@@ -1478,7 +1478,7 @@ class HomeAssistantWebSocketClient:
             main_action
             and main_action.startswith("set_")
             and main_action
-            not in ("set_britelite", "set_nitelite", "set_wake", "set_bed")
+            not in ("set_britelite", "set_nitelite", "set_wake_or_bed", "set_wake", "set_bed")
         )
 
         # Get areas for current scope
@@ -1666,10 +1666,9 @@ class HomeAssistantWebSocketClient:
             for area in areas:
                 await self.primitives.set(area, "switch", preset="nitelite", is_on=True)
 
-        elif main_action == "toggle_wake_bed":
-            # Set midpoint to current time (~50% values), stays unfrozen
+        elif main_action in ("toggle_wake_bed", "set_wake_or_bed", "set_wake", "set_bed"):
             for area in areas:
-                await self.primitives.set(area, "switch", preset="wake")
+                await self.primitives.set(area, "switch", preset="wake_or_bed")
 
         elif main_action and main_action.startswith("set_"):
             # Check if it's a moment action (set_sleep, set_exit, etc.)

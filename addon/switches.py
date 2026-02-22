@@ -211,7 +211,8 @@ AVAILABLE_ACTIONS = [
     "cycle_scope",       # Cycle through scopes
     "set_britelite",     # 100% brightness, cool white (6500K)
     "set_nitelite",      # 5% brightness, warm (2200K)
-    "toggle_wake_bed",   # Set midpoint to current time
+    "toggle_wake_bed",   # Legacy alias for set_wake_or_bed
+    "set_wake_or_bed",   # Wake (ascend) or Bed (descend) midpoint
     None,                # Unmapped / do nothing
 ]
 
@@ -253,7 +254,7 @@ ADJUSTMENT_ACTIONS = [
 WHEN_OFF_ACTIONS = [
     "circadian_on", "circadian_toggle",
     "set_nitelite", "set_britelite",
-    "set_wake", "set_bed",
+    "set_wake_or_bed",
     None,  # No alternate action
 ]
 
@@ -277,7 +278,7 @@ def get_categorized_actions() -> Dict[str, List[Dict[str, Any]]]:
             {"id": "color_down", "label": "Color Down", "supports_when_off": True},
             {"id": "set_britelite", "label": "BriteLite"},
             {"id": "set_nitelite", "label": "NiteLite"},
-            {"id": "set_wake", "label": "Wake / Bed"},
+            {"id": "set_wake_or_bed", "label": "Wake / Bed"},
             {"id": "freeze_toggle", "label": "Freeze"},
             {"id": "glo_reset", "label": "Reset to Daily Rhythm"},
             {"id": "glo_down", "label": "Reset to Glo Zone"},
@@ -333,8 +334,7 @@ def get_when_off_options() -> List[Dict[str, Any]]:
         {"id": "circadian_toggle", "label": "Toggle"},
         {"id": "set_nitelite", "label": "NiteLite"},
         {"id": "set_britelite", "label": "BriteLite"},
-        {"id": "set_wake", "label": "Wake"},
-        {"id": "set_bed", "label": "Bed"},
+        {"id": "set_wake_or_bed", "label": "Wake / Bed"},
     ]
 
 
