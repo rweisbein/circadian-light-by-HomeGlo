@@ -3238,7 +3238,6 @@
               <div class="zone-header tune-zone-header ${isCollapsed ? 'collapsed' : ''}" data-zone="${zoneName}">
                 <span class="zone-chevron-tap" onclick="event.stopPropagation(); toggleZone('${escapedZoneName}', this)">${chevronIcon}</span>
                 <span style="font-size: 0.65rem; opacity: 0.5;">Rhythm Zone</span>
-                <span class="zone-name">${zoneName}</span>
                 <a class="zone-rhythm-link" href="./zone-design/${encodeURIComponent(zoneName)}?back=home" onclick="event.stopPropagation()">${zoneName}</a>
                 <span class="tune-zone-bri-group">
                   <span class="tune-zone-base-bri">${rhythmBri}%</span>
@@ -3345,7 +3344,6 @@
               <span class="zone-chevron-tap" onclick="event.stopPropagation(); toggleZone('${escapedZoneName}', this)">${chevronIcon}</span>
               ${zonePowerBtn}
               <span style="font-size: 0.65rem; opacity: 0.5; color: ${zoneTextColor};">Rhythm Zone</span>
-              <span class="zone-name" style="font-size: 1.05rem; color: ${zoneTextColor};">${zoneName}</span>
               <a class="zone-rhythm-link" href="./zone-design/${encodeURIComponent(zoneName)}?back=home" style="color: ${zoneTextColor};" onclick="event.stopPropagation()">${zoneName}</a>
               ${zoneFrozenIndicator}
               ${zoneMismatchDot}
