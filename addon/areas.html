@@ -534,10 +534,6 @@
       z-index: 1;
     }
 
-    .zone-group:has(.zone-rhythm-dropdown.visible) {
-      z-index: 10;
-    }
-
     .zone-group:last-child {
       margin-bottom: 0;
     }
@@ -821,106 +817,6 @@
       opacity: 1;
     }
 
-    /* Zone rhythm dropdown in header */
-    .zone-rhythm-display {
-      position: relative;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      align-self: center;
-      box-shadow: 0 0 0 1.5px rgba(255,255,255,0.15), 0 1px 4px rgba(0,0,0,0.3);
-      border-radius: 6px;
-    }
-
-    .zone-rhythm-pill-tinted::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: rgba(255,255,255,0.12);
-      opacity: var(--pill-fill, 0);
-      pointer-events: none;
-      border-radius: 6px;
-    }
-
-    .zone-rhythm-pill-tinted > * {
-      position: relative;
-      z-index: 1;
-    }
-
-    .zone-rhythm-label {
-      font-size: 0.8rem;
-      opacity: 0.6;
-    }
-
-    .zone-rhythm-btn {
-      background: transparent;
-      border: none;
-      padding: 0;
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: inherit;
-      cursor: pointer;
-      transition: opacity 0.2s;
-    }
-
-    .zone-rhythm-btn::after {
-      content: ' ▾';
-      font-size: 0.7rem;
-      opacity: 0.6;
-    }
-
-    .zone-rhythm-btn:hover {
-      opacity: 0.8;
-    }
-
-    .zone-rhythm-dropdown {
-      position: absolute;
-      top: 100%;
-      left: 0;
-      min-width: 160px;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-      z-index: 100;
-      display: none;
-      margin-top: 4px;
-    }
-
-    .zone-rhythm-display:has(.zone-rhythm-dropdown.visible) {
-      z-index: 50;
-    }
-
-    .zone-rhythm-dropdown.visible {
-      display: block;
-    }
-
-    .zone-rhythm-dropdown-item {
-      padding: 8px 14px;
-      font-size: 0.85rem;
-      cursor: pointer;
-      border-bottom: 1px solid var(--line);
-      color: var(--text);
-    }
-
-    .zone-rhythm-dropdown-item:last-child {
-      border-bottom: none;
-    }
-
-    .zone-rhythm-dropdown-item:hover {
-      background: rgba(255, 255, 255, 0.05);
-    }
-
-    .zone-rhythm-dropdown-item.selected {
-      color: var(--accent);
-    }
-
-    a.zone-rhythm-dropdown-item {
-      display: block;
-      text-decoration: none;
-      color: var(--text);
-    }
-
     /* Red dot: area doesn't match zone (inline after power button) */
     .mismatch-dot-area {
       width: 5px;
@@ -938,7 +834,7 @@
       flex-shrink: 0;
     }
 
-    /* Red dot: zone doesn't match rhythm */
+    /* Red dot: zone has been stepped or frozen */
     .mismatch-dot-zone {
       width: 5px;
       height: 5px;
@@ -1400,7 +1296,6 @@
     </a>
     <div class="nav-links">
       <a href="./switches" class="nav-link">Control</a>
-      <a href="./rhythm" class="nav-link">Rhythm</a>
       <a href="./moments" class="nav-link">Magic</a>
       <a href="./settings" class="nav-link">Settings</a>
     </div>
@@ -1424,7 +1319,6 @@
     let areas = [];
     let areaStatus = {};
     let zoneStates = {};
-    let cachedRhythms = {};
     let viewMode = 'custom'; // 'custom', 'alpha', 'onoff'
     let cachedConfig = null;
     let cachedSunTimes = null; // { sunrise, sunset, solarNoon, solarMid } in local hours
@@ -1820,10 +1714,9 @@
       const interval = getHomeRefreshInterval() * 1000;
       homeRefreshTimer = setInterval(async () => {
         try {
-          const [res, zsRes, rhythmsRes, gzRes] = await Promise.all([
+          const [res, zsRes, gzRes] = await Promise.all([
             fetch('./api/area-status'),
             fetch('./api/zone-states'),
-            fetch('./api/circadian-rhythms'),
             fetch('./api/glozones'),
           ]);
           if (res.ok) {
@@ -1832,10 +1725,6 @@
           if (zsRes.ok) {
             const zs = await zsRes.json();
             zoneStates = zs.zone_states || {};
-          }
-          if (rhythmsRes.ok) {
-            const p = await rhythmsRes.json();
-            cachedRhythms = p.rhythms || {};
           }
           if (gzRes.ok) {
             cachedGlozones = await gzRes.json();
@@ -1859,11 +1748,10 @@
       container.innerHTML = '<div class="loading">Loading areas...</div>';
 
       try {
-        const [areasRes, statusRes, zoneStatesRes, rhythmsRes, glozonesRes] = await Promise.all([
+        const [areasRes, statusRes, zoneStatesRes, glozonesRes] = await Promise.all([
           fetch('./api/areas'),
           fetch('./api/area-status'),
           fetch('./api/zone-states'),
-          fetch('./api/circadian-rhythms'),
           fetch('./api/glozones')
         ]);
 
@@ -1878,11 +1766,6 @@
         if (zoneStatesRes.ok) {
           const zs = await zoneStatesRes.json();
           zoneStates = zs.zone_states || {};
-        }
-
-        if (rhythmsRes.ok) {
-          const p = await rhythmsRes.json();
-          cachedRhythms = p.rhythms || {};
         }
 
         if (glozonesRes.ok) {
@@ -2036,83 +1919,20 @@
       rowAction(areaId, 'full_send');
     }
 
-    function toggleRhythmDropdown(el) {
-      const display = el.closest('.zone-rhythm-display');
-      if (!display) return;
-      const dropdown = display.querySelector('.zone-rhythm-dropdown');
-      // Close other rhythm dropdowns
-      document.querySelectorAll('.zone-rhythm-dropdown.visible').forEach(d => {
-        if (d !== dropdown) d.classList.remove('visible');
-      });
-      dropdown.classList.toggle('visible');
-    }
-
-    function selectRhythm(item) {
-      event.stopPropagation();
-      const zoneName = item.dataset.zone;
-      const rhythm = item.dataset.rhythm;
-      item.closest('.zone-rhythm-dropdown').classList.remove('visible');
-
-      if (rhythm === '__new__') {
-        const newName = prompt('New rhythm name:');
-        if (newName && newName.trim()) {
-          createAndAssignRhythm(zoneName, newName.trim());
-        }
-      } else {
-        changeZoneRhythm(zoneName, rhythm);
-      }
-    }
-
-    async function changeZoneRhythm(zoneName, rhythmName) {
-      try {
-        await fetch(`./api/glozones/${encodeURIComponent(zoneName)}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ rhythm: rhythmName })
-        });
-        await loadData();
-      } catch (err) {
-        console.error('Error changing rhythm:', err);
-      }
-    }
-
-    async function createAndAssignRhythm(zoneName, rhythmName) {
-      try {
-        // Create new rhythm (copy from current zone's rhythm as base)
-        const zs = zoneStates[zoneName];
-        const sourceRhythm = zs?.rhythm;
-        const baseConfig = sourceRhythm && cachedRhythms[sourceRhythm]
-          ? { ...cachedRhythms[sourceRhythm] }
-          : {};
-
-        await fetch('./api/circadian-rhythms', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: rhythmName, settings: baseConfig })
-        });
-
-        // Assign it to the zone
-        await changeZoneRhythm(zoneName, rhythmName);
-      } catch (err) {
-        console.error('Error creating rhythm:', err);
-      }
-    }
-
     /**
-     * Compute pure rhythm brightness/kelvin at current hour for a specific rhythm.
-     * Uses the rhythm's own curve config (from cachedRhythms) merged with global settings.
+     * Compute pure rhythm brightness/kelvin at current hour for a specific zone.
+     * Uses the zone's own rhythm settings (inline in cachedGlozones) merged with global settings.
      * Returns { brightness, kelvin } or null if config not available.
      */
-    function getPureRhythmValues(rhythmName) {
+    function getZoneRhythmValues(zoneName) {
       if (!cachedSunTimes) return null;
 
-      // Build config: start with cachedConfig (which has the effective first rhythm's
-      // settings flattened by /api/config), then overlay the specific rhythm's settings.
-      // Once the server-side glozone.py fix propagates complete rhythm configs via
-      // /api/circadian-rhythms, the overlay will contain all keys directly.
+      // Build config: start with cachedConfig (global), then overlay the zone's
+      // inline rhythm settings (wake_time, bed_time, etc.).
+      const zoneData = cachedGlozones?.zones?.[zoneName];
       let cfg;
-      if (rhythmName && cachedRhythms[rhythmName]) {
-        cfg = { ...cachedConfig, ...cachedRhythms[rhythmName] };
+      if (zoneData) {
+        cfg = { ...cachedConfig, ...zoneData };
       } else if (cachedConfig) {
         cfg = cachedConfig;
       } else {
@@ -2295,25 +2115,23 @@
       const zoneData = cachedGlozones?.zones?.[zoneName];
       if (!zoneData) return;
 
-      const rhythmName = zoneData.rhythm;
-      const rhythm = rhythmName && cachedRhythms[rhythmName] ? cachedRhythms[rhythmName] : {};
-      const mainWake = rhythm.wake_time ?? 7;
-      const mainBed = rhythm.bed_time ?? 22;
-      const altWake = rhythm.wake_alt_time;
-      const altBed = rhythm.bed_alt_time;
+      const mainWake = zoneData.wake_time ?? 7;
+      const mainBed = zoneData.bed_time ?? 22;
+      const altWake = zoneData.wake_alt_time;
+      const altBed = zoneData.bed_alt_time;
       const hasAlt = altWake != null || altBed != null;
 
       // Day-of-week indicators
-      const wakeAltDays = rhythm.wake_alt_days || [];
-      const bedAltDays = rhythm.bed_alt_days || [];
+      const wakeAltDays = zoneData.wake_alt_days || [];
+      const bedAltDays = zoneData.bed_alt_days || [];
       const mainWakeDaysLabel = wakeAltDays.length > 0 ? fmtDayList(complementDays(wakeAltDays)) : '';
       const mainBedDaysLabel = bedAltDays.length > 0 ? fmtDayList(complementDays(bedAltDays)) : '';
       const altWakeDaysLabel = wakeAltDays.length > 0 ? fmtDayList(wakeAltDays) : '';
       const altBedDaysLabel = bedAltDays.length > 0 ? fmtDayList(bedAltDays) : '';
 
-      // Slider bounds from rhythm's ascend/descend phases
-      const ascendStart = rhythm.ascend_start ?? 3;
-      let descendStart = rhythm.descend_start ?? 12;
+      // Slider bounds from zone's ascend/descend phases
+      const ascendStart = zoneData.ascend_start ?? 3;
+      let descendStart = zoneData.descend_start ?? 12;
       if (descendStart <= ascendStart) descendStart += 24;
       const bedMax = ascendStart + 24;  // descend phase wraps to next ascend
 
@@ -2818,12 +2636,12 @@
       }, 400);
     }
 
-    async function saveTuneZoneSetting(rhythmName, field, value) {
-      const key = 'zone_' + rhythmName + '_' + field;
+    async function saveTuneZoneSetting(zoneName, field, value) {
+      const key = 'zone_' + zoneName + '_' + field;
       clearTimeout(tuneDebounceTimers[key]);
       tuneDebounceTimers[key] = setTimeout(async () => {
         try {
-          const resp = await fetch('./api/circadian-rhythms/' + encodeURIComponent(rhythmName), {
+          const resp = await fetch('./api/glozones/' + encodeURIComponent(zoneName) + '/settings', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ [field]: value })
@@ -3283,10 +3101,10 @@
       // Power icon (shared for zone header)
       const powerIconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0M12 2v10"/></svg>`;
 
-      // GloZone Reset icon: rewind arrow
+      // Rhythm Zone Reset icon: rewind arrow
       const glozoneResetIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>`;
 
-      // GloZone Down icon: double-down chevron
+      // Rhythm Zone Down icon: double-down chevron
       const glozoneDownIcon = `<svg viewBox="0 0 16 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:14px;"><polyline points="3 5 8 10 13 5"/><polyline points="3 11 8 16 13 11"/></svg>`;
 
       // Build toolbar HTML
@@ -3356,12 +3174,10 @@
         if (currentMode === 'tune') {
           // Tune mode: 2-row layout with brightness previews + zone controls
           const zoneConfig = getTuneZoneConfig(zoneName);
-          const rhythmName = zoneConfig.rhythm;
           const sensitivity = tuneData?.brightness_sensitivity ?? 5.0;
           const outdoorNorm = tuneData?.outdoor_normalized ?? 0.0;
           const zoneBri = zoneStates?.[zoneName]?.brightness;
-          const rhythmBri = zoneBri != null ? Math.round(zoneBri) : Math.round(getPureRhythmValues(rhythmName)?.brightness ?? 50);
-          const escapedRhythm = (rhythmName || '').replace(/'/g, "\\'");
+          const rhythmBri = zoneBri != null ? Math.round(zoneBri) : Math.round(getZoneRhythmValues(zoneName)?.brightness ?? 50);
 
           const areaRows = sorted.map(area => {
             const tuneArea = getTuneArea(area.area_id);
@@ -3407,7 +3223,7 @@
           }).join('');
 
           const zoneControlsHtml = `
-            <div class="tune-zone-controls" data-zone="${zoneName}" data-rhythm="${rhythmName || ''}" onclick="event.stopPropagation()">
+            <div class="tune-zone-controls" data-zone="${zoneName}" onclick="event.stopPropagation()">
               <div class="tune-area-row tune-col-headers">
                 <span class="tune-name-col"></span>
                 <span class="tune-fixture-col tune-col-header">Fixture density</span>
@@ -3421,9 +3237,9 @@
             <div class="zone-group">
               <div class="zone-header tune-zone-header ${isCollapsed ? 'collapsed' : ''}" data-zone="${zoneName}">
                 <span class="zone-chevron-tap" onclick="event.stopPropagation(); toggleZone('${escapedZoneName}', this)">${chevronIcon}</span>
-                <span style="font-size: 0.65rem; opacity: 0.5;">Glo Zone</span>
+                <span style="font-size: 0.65rem; opacity: 0.5;">Rhythm Zone</span>
                 <span class="zone-name">${zoneName}</span>
-                <a class="zone-rhythm-link" href="./rhythm/${encodeURIComponent(rhythmName)}?back=home" onclick="event.stopPropagation()">${rhythmName || ''}</a>
+                <a class="zone-rhythm-link" href="./zone-design/${encodeURIComponent(zoneName)}?back=home" onclick="event.stopPropagation()">${zoneName}</a>
                 <span class="tune-zone-bri-group">
                   <span class="tune-zone-base-bri">${rhythmBri}%</span>
                 </span>
@@ -3528,16 +3344,16 @@
             <div class="zone-header ${isCollapsed ? 'collapsed' : ''} ${allOff ? 'no-tint' : ''}" data-zone="${zoneName}" style="${zoneHeaderStyle}" onclick="openZoneModal('${escapedZoneName}')">
               <span class="zone-chevron-tap" onclick="event.stopPropagation(); toggleZone('${escapedZoneName}', this)">${chevronIcon}</span>
               ${zonePowerBtn}
-              <span style="font-size: 0.65rem; opacity: 0.5; color: ${zoneTextColor};">Glo Zone</span>
+              <span style="font-size: 0.65rem; opacity: 0.5; color: ${zoneTextColor};">Rhythm Zone</span>
               <span class="zone-name" style="font-size: 1.05rem; color: ${zoneTextColor};">${zoneName}</span>
-              ${zs?.rhythm ? `<a class="zone-rhythm-link" href="./rhythm/${encodeURIComponent(zs.rhythm)}?back=home" style="color: ${zoneTextColor};" onclick="event.stopPropagation()">${zs.rhythm}</a>` : ''}
+              <a class="zone-rhythm-link" href="./zone-design/${encodeURIComponent(zoneName)}?back=home" style="color: ${zoneTextColor};" onclick="event.stopPropagation()">${zoneName}</a>
               ${zoneFrozenIndicator}
               ${zoneMismatchDot}
               <span style="flex: 1;"></span>
               ${buildNextTimesHtml(zoneName, zoneTextColor)}
               <div class="row-controls">
-                <button class="row-btn" onclick="event.stopPropagation(); glozoneDown('${escapedZoneName}')" title="GloZone Down: send to all areas">${glozoneDownIcon}</button>
-                <button class="row-btn" onclick="event.stopPropagation(); glozoneReset('${escapedZoneName}')" title="Reset GloZone">${glozoneResetIcon}</button>
+                <button class="row-btn" onclick="event.stopPropagation(); glozoneDown('${escapedZoneName}')" title="Rhythm Zone Down: send to all areas">${glozoneDownIcon}</button>
+                <button class="row-btn" onclick="event.stopPropagation(); glozoneReset('${escapedZoneName}')" title="Reset Rhythm Zone">${glozoneResetIcon}</button>
               </div>
             </div>
             <div class="zone-content ${isCollapsed ? 'hidden' : ''}" data-zone-table="${zoneName}">
@@ -3860,8 +3676,8 @@
 
       const rightControls = `
         <div class="row-controls">
-          <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'glo_up')" title="GloUp: send to '${area.zone_name || 'Glo Zone'}'">${gloUpSvg}</button>
-          <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'glo_down')" title="GloDown: pull from '${area.zone_name || 'Glo Zone'}'">${gloDownSvg}</button>
+          <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'glo_up')" title="GloUp: send to '${area.zone_name || 'Rhythm Zone'}'">${gloUpSvg}</button>
+          <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'glo_down')" title="GloDown: pull from '${area.zone_name || 'Rhythm Zone'}'">${gloDownSvg}</button>
           <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'glo_reset')" title="Reset: return to rhythm">${resetSvg}</button>
         </div>
       `;
@@ -4041,13 +3857,8 @@
         }
       });
 
-      // Close rhythm dropdowns and schedule popover when clicking outside
+      // Close schedule popover when clicking outside
       document.addEventListener('click', (e) => {
-        if (!e.target.closest('.zone-rhythm-display')) {
-          document.querySelectorAll('.zone-rhythm-dropdown.visible').forEach(d => {
-            d.classList.remove('visible');
-          });
-        }
         if (!e.target.closest('.schedule-popover') && !e.target.closest('.zone-next-times')) {
           closeSchedulePopover();
         }

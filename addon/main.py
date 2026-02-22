@@ -1478,7 +1478,13 @@ class HomeAssistantWebSocketClient:
             main_action
             and main_action.startswith("set_")
             and main_action
-            not in ("set_britelite", "set_nitelite", "set_wake_or_bed", "set_wake", "set_bed")
+            not in (
+                "set_britelite",
+                "set_nitelite",
+                "set_wake_or_bed",
+                "set_wake",
+                "set_bed",
+            )
         )
 
         # Get areas for current scope
@@ -1666,7 +1672,12 @@ class HomeAssistantWebSocketClient:
             for area in areas:
                 await self.primitives.set(area, "switch", preset="nitelite", is_on=True)
 
-        elif main_action in ("toggle_wake_bed", "set_wake_or_bed", "set_wake", "set_bed"):
+        elif main_action in (
+            "toggle_wake_bed",
+            "set_wake_or_bed",
+            "set_wake",
+            "set_bed",
+        ):
             for area in areas:
                 await self.primitives.set(area, "switch", preset="wake_or_bed")
 
@@ -2820,9 +2831,9 @@ class HomeAssistantWebSocketClient:
         off_threshold = glozone.get_off_threshold()
 
         # Get rhythm bounds for curve position calculation
-        rhythm_config = glozone.get_rhythm_config_for_area(area_id)
-        min_bri = rhythm_config.get("min_brightness", 1)
-        max_bri = rhythm_config.get("max_brightness", 100)
+        zone_cfg = glozone.get_zone_config_for_area(area_id)
+        min_bri = zone_cfg.get("min_brightness", 1)
+        max_bri = zone_cfg.get("max_brightness", 100)
 
         # Get all lights by capability
         color_lights, ct_lights, brightness_lights, onoff_lights = (
@@ -4327,17 +4338,18 @@ class HomeAssistantWebSocketClient:
         if last_check is None:
             return now
 
-        # Load config (uses first rhythm for phase times)
+        # Load config (uses first zone for phase times)
         # Future: could check per-zone phase times
         raw_config = glozone.load_config_from_files()
-        rhythms = raw_config.get("circadian_rhythms", {})
+        zones = raw_config.get("glozones", {})
 
-        if not rhythms:
+        if not zones:
             return now
 
-        # Use first rhythm's phase times for global check
-        first_rhythm = list(rhythms.values())[0]
-        config = Config.from_dict(first_rhythm)
+        # Use first zone's settings for global phase check
+        first_zone_name = list(zones.keys())[0]
+        zone_cfg = glozone.get_zone_config(first_zone_name)
+        config = Config.from_dict(zone_cfg)
 
         # Convert hours to today's datetime
         ascend_dt = now.replace(

@@ -469,32 +469,6 @@ class LightDesignerServer:
         self.app.router.add_post("/api/apply-light", self.apply_light)
         self.app.router.add_post("/api/circadian-mode", self.set_circadian_mode)
 
-        # GloZone API routes - Circadian Rhythms CRUD
-        self.app.router.add_route(
-            "GET", "/{path:.*}/api/circadian-rhythms", self.get_circadian_rhythms
-        )
-        self.app.router.add_route(
-            "POST", "/{path:.*}/api/circadian-rhythms", self.create_circadian_rhythm
-        )
-        self.app.router.add_route(
-            "PUT",
-            "/{path:.*}/api/circadian-rhythms/{name}",
-            self.update_circadian_rhythm,
-        )
-        self.app.router.add_route(
-            "DELETE",
-            "/{path:.*}/api/circadian-rhythms/{name}",
-            self.delete_circadian_rhythm,
-        )
-        self.app.router.add_get("/api/circadian-rhythms", self.get_circadian_rhythms)
-        self.app.router.add_post("/api/circadian-rhythms", self.create_circadian_rhythm)
-        self.app.router.add_put(
-            "/api/circadian-rhythms/{name}", self.update_circadian_rhythm
-        )
-        self.app.router.add_delete(
-            "/api/circadian-rhythms/{name}", self.delete_circadian_rhythm
-        )
-
         # GloZone API routes - Zones CRUD
         # Reorder routes MUST be registered before {name} wildcard routes
         self.app.router.add_route(
@@ -509,6 +483,11 @@ class LightDesignerServer:
             "PUT",
             "/{path:.*}/api/glozones/{name}/reorder-areas",
             self.reorder_zone_areas,
+        )
+        self.app.router.add_route(
+            "PUT",
+            "/{path:.*}/api/glozones/{name}/settings",
+            self.update_glozone_settings,
         )
         self.app.router.add_route(
             "PUT", "/{path:.*}/api/glozones/{name}", self.update_glozone
@@ -528,6 +507,9 @@ class LightDesignerServer:
         self.app.router.add_post("/api/glozones", self.create_glozone)
         self.app.router.add_put(
             "/api/glozones/{name}/reorder-areas", self.reorder_zone_areas
+        )
+        self.app.router.add_put(
+            "/api/glozones/{name}/settings", self.update_glozone_settings
         )
         self.app.router.add_put("/api/glozones/{name}", self.update_glozone)
         self.app.router.add_delete("/api/glozones/{name}", self.delete_glozone)
@@ -760,13 +742,20 @@ class LightDesignerServer:
         )
         self.app.router.add_route("GET", "/{path:.*}/switches", self.serve_switches)
         self.app.router.add_route(
-            "GET", "/{path:.*}/rhythm/{rhythm_name}", self.serve_rhythm_design
+            "GET", "/{path:.*}/zone-design/{zone_name}", self.serve_zone_design
         )
-        self.app.router.add_route("GET", "/{path:.*}/rhythm", self.serve_rhythm_list)
         self.app.router.add_route(
-            "GET", "/{path:.*}/glo/{glo_name}", self.redirect_glo_to_rhythm
+            "GET",
+            "/{path:.*}/rhythm/{rhythm_name}",
+            self.redirect_rhythm_to_zone_design,
         )
-        self.app.router.add_route("GET", "/{path:.*}/glo", self.redirect_glo_to_rhythm)
+        self.app.router.add_route(
+            "GET", "/{path:.*}/rhythm", self.redirect_rhythm_to_home
+        )
+        self.app.router.add_route(
+            "GET", "/{path:.*}/glo/{glo_name}", self.redirect_rhythm_to_zone_design
+        )
+        self.app.router.add_route("GET", "/{path:.*}/glo", self.redirect_rhythm_to_home)
         self.app.router.add_route(
             "GET", "/{path:.*}/area/{area_id}", self.serve_area_detail
         )
@@ -783,10 +772,13 @@ class LightDesignerServer:
         self.app.router.add_get("/control/{control_id}", self.serve_control_detail)
         self.app.router.add_get("/switches", self.serve_switches)
         self.app.router.add_get("/switchmap", self.serve_switchmap)
-        self.app.router.add_get("/rhythm/{rhythm_name}", self.serve_rhythm_design)
-        self.app.router.add_get("/rhythm", self.serve_rhythm_list)
-        self.app.router.add_get("/glo/{glo_name}", self.redirect_glo_to_rhythm)
-        self.app.router.add_get("/glo", self.redirect_glo_to_rhythm)
+        self.app.router.add_get("/zone-design/{zone_name}", self.serve_zone_design)
+        self.app.router.add_get(
+            "/rhythm/{rhythm_name}", self.redirect_rhythm_to_zone_design
+        )
+        self.app.router.add_get("/rhythm", self.redirect_rhythm_to_home)
+        self.app.router.add_get("/glo/{glo_name}", self.redirect_rhythm_to_zone_design)
+        self.app.router.add_get("/glo", self.redirect_rhythm_to_home)
         self.app.router.add_get("/area/{area_id}", self.serve_area_detail)
         self.app.router.add_get("/zone/{zone_name}", self.serve_zone_detail)
         self.app.router.add_get("/settings", self.serve_settings)
@@ -860,14 +852,32 @@ class LightDesignerServer:
         """Serve the Home page (areas)."""
         return await self.serve_page("areas")
 
-    async def serve_rhythm_list(self, request: Request) -> Response:
-        """Serve the Rhythm list page."""
-        return await self.serve_page("rhythm")
+    async def serve_zone_design(self, request: Request) -> Response:
+        """Serve the Zone Design page (rhythm settings for a zone)."""
+        zone_name = request.match_info.get("zone_name")
+        return await self.serve_page("rhythm-design", {"selectedZoneName": zone_name})
 
-    async def serve_rhythm_design(self, request: Request) -> Response:
-        """Serve the Rhythm Design page."""
-        rhythm_name = request.match_info.get("rhythm_name")
-        return await self.serve_page("rhythm-design", {"selectedRhythm": rhythm_name})
+    async def redirect_rhythm_to_zone_design(self, request: Request) -> Response:
+        """Legacy redirect: /rhythm/{name} or /glo/{name} → /zone-design/{name}."""
+        name = request.match_info.get("rhythm_name") or request.match_info.get(
+            "glo_name", ""
+        )
+        path = request.path
+        # Replace the old path segment with zone-design
+        for old_prefix in [f"/rhythm/{name}", f"/glo/{name}"]:
+            if old_prefix in path:
+                new_path = path.replace(old_prefix, f"/zone-design/{name}")
+                raise web.HTTPFound(new_path)
+        raise web.HTTPFound("/")
+
+    async def redirect_rhythm_to_home(self, request: Request) -> Response:
+        """Legacy redirect: /rhythm or /glo → home page."""
+        path = request.path
+        for old in ["/rhythm", "/glo"]:
+            if old in path:
+                new_path = path.replace(old, "/")
+                raise web.HTTPFound(new_path)
+        raise web.HTTPFound("/")
 
     async def serve_area_detail(self, request: Request) -> Response:
         """Serve the Area detail page."""
@@ -878,17 +888,6 @@ class LightDesignerServer:
         """Serve the Zone detail page."""
         zone_name = request.match_info.get("zone_name")
         return await self.serve_page("area", {"selectedZoneName": zone_name})
-
-    async def redirect_glo_to_rhythm(self, request: Request) -> Response:
-        """Legacy redirect: /glo → /rhythm."""
-        glo_name = request.match_info.get("glo_name", "")
-        # Build the new path preserving any ingress prefix
-        path = request.path
-        if glo_name:
-            new_path = path.replace(f"/glo/{glo_name}", f"/rhythm/{glo_name}")
-        else:
-            new_path = path.replace("/glo", "/rhythm")
-        raise web.HTTPFound(new_path)
 
     async def serve_settings(self, request: Request) -> Response:
         """Serve the Settings page."""
@@ -931,15 +930,11 @@ class LightDesignerServer:
                             "light_filters": glozone.get_area_light_filters(area_id),
                         }
                     )
-                rhythm_name = zone_config.get("rhythm")
-                rhythm_cfg = (
-                    glozone.get_rhythm_config(rhythm_name) if rhythm_name else {}
-                )
+                zone_cfg = glozone.get_zone_config(zone_name)
                 zones[zone_name] = {
-                    "rhythm": rhythm_name,
-                    "daylight_fade": rhythm_cfg.get("daylight_fade", 60),
-                    "min_brightness": rhythm_cfg.get("min_brightness", 1),
-                    "max_brightness": rhythm_cfg.get("max_brightness", 100),
+                    "daylight_fade": zone_cfg.get("daylight_fade", 60),
+                    "min_brightness": zone_cfg.get("min_brightness", 1),
+                    "max_brightness": zone_cfg.get("max_brightness", 100),
                     "areas": zone_areas,
                 }
 
@@ -1383,9 +1378,9 @@ class LightDesignerServer:
     async def save_config(self, request: Request) -> Response:
         """Save curve configuration.
 
-        Handles both legacy flat config and new GloZone format.
-        - Flat rhythm settings are merged into the active rhythm
-        - circadian_rhythms and glozones are merged at their level
+        Handles both legacy flat config and Rhythm Zone format.
+        - Flat rhythm settings are merged into the first zone
+        - glozones are merged at their level
         - Global settings are merged at top level
         """
         try:
@@ -1395,33 +1390,30 @@ class LightDesignerServer:
             config = await self.load_raw_config()
 
             # Separate incoming data into categories
-            incoming_rhythms = data.pop("circadian_rhythms", None)
             incoming_glozones = data.pop("glozones", None)
-
-            # Handle incoming preset and glozone structures
-            if incoming_rhythms:
-                config["circadian_rhythms"].update(incoming_rhythms)
+            # Legacy: accept circadian_rhythms but ignore it
+            data.pop("circadian_rhythms", None)
 
             if incoming_glozones:
                 config["glozones"].update(incoming_glozones)
 
-            # Remaining data could be flat preset settings or global settings
-            rhythm_updates = {}
+            # Remaining data could be flat rhythm settings or global settings
+            zone_updates = {}
             global_updates = {}
 
             for key, value in data.items():
                 if key in self.RHYTHM_SETTINGS:
-                    rhythm_updates[key] = value
+                    zone_updates[key] = value
                 elif key in self.GLOBAL_SETTINGS:
                     global_updates[key] = value
                 # Ignore unknown keys
 
-            # Apply rhythm updates to the first rhythm (active rhythm)
-            if rhythm_updates and config.get("circadian_rhythms"):
-                first_rhythm_name = list(config["circadian_rhythms"].keys())[0]
-                config["circadian_rhythms"][first_rhythm_name].update(rhythm_updates)
+            # Apply rhythm updates to the first zone
+            if zone_updates and config.get("glozones"):
+                first_zone_name = list(config["glozones"].keys())[0]
+                config["glozones"][first_zone_name].update(zone_updates)
                 logger.debug(
-                    f"Updated rhythm '{first_rhythm_name}' with: {list(rhythm_updates.keys())}"
+                    f"Updated zone '{first_zone_name}' with: {list(zone_updates.keys())}"
                 )
 
             # Apply global updates to top level
@@ -1690,14 +1682,12 @@ class LightDesignerServer:
 
             zone_states = {}
             for zone_name, zone_config in zones.items():
-                # Get the rhythm for this zone using glozone module
-                rhythm_name = zone_config.get("rhythm", glozone.DEFAULT_RHYTHM)
                 preset_config = glozone.get_effective_config_for_zone(zone_name)
                 logger.debug(
-                    f"[ZoneStates] Zone '{zone_name}' rhythm_config keys: {list(preset_config.keys())}"
+                    f"[ZoneStates] Zone '{zone_name}' config keys: {list(preset_config.keys())}"
                 )
                 logger.debug(
-                    f"[ZoneStates] Zone '{zone_name}' rhythm min/max bri: {preset_config.get('min_brightness')}/{preset_config.get('max_brightness')}"
+                    f"[ZoneStates] Zone '{zone_name}' min/max bri: {preset_config.get('min_brightness')}/{preset_config.get('max_brightness')}"
                 )
 
                 # Get zone runtime state (from GloUp/GloDown adjustments)
@@ -1736,11 +1726,10 @@ class LightDesignerServer:
                 zone_states[zone_name] = {
                     "brightness": result.brightness,
                     "kelvin": result.color_temp,
-                    "rhythm": rhythm_name,
                     "runtime_state": runtime_state,
                 }
                 logger.debug(
-                    f"[ZoneStates] Zone '{zone_name}': {result.brightness}% {result.color_temp}K at hour {calc_hour:.2f} (rhythm: {rhythm_name}, sun_times: sunrise={sun_times.sunrise:.2f}, sunset={sun_times.sunset:.2f})"
+                    f"[ZoneStates] Zone '{zone_name}': {result.brightness}% {result.color_temp}K at hour {calc_hour:.2f} (sun_times: sunrise={sun_times.sunrise:.2f}, sunset={sun_times.sunset:.2f})"
                 )
 
             logger.debug(f"[ZoneStates] Returning {len(zone_states)} zone states")
@@ -1942,10 +1931,13 @@ class LightDesignerServer:
     }
 
     def _migrate_to_glozone_format(self, config: dict) -> dict:
-        """Migrate old flat config to new GloZone format.
+        """Migrate old config formats to Rhythm Zone format.
 
-        Also migrates circadian_presets → circadian_rhythms and
-        zone preset → rhythm field names.
+        Handles:
+        - circadian_presets → circadian_rhythms (legacy step)
+        - zone preset → rhythm field (legacy step)
+        - circadian_rhythms collapse into glozones (Rhythm Zone migration)
+        - Flat config → glozones with inline rhythm settings
 
         Args:
             config: The loaded config dict
@@ -1953,27 +1945,51 @@ class LightDesignerServer:
         Returns:
             Migrated config dict
         """
-        # Migrate circadian_presets → circadian_rhythms
+        # Legacy step: migrate circadian_presets → circadian_rhythms
         if "circadian_presets" in config and "circadian_rhythms" not in config:
             config["circadian_rhythms"] = config.pop("circadian_presets")
 
-        # Migrate zone "preset" → "rhythm" field
+        # Legacy step: migrate zone "preset" → "rhythm" field
         for zone in config.get("glozones", {}).values():
             if "preset" in zone and "rhythm" not in zone:
                 zone["rhythm"] = zone.pop("preset")
 
-        # Check if already migrated
+        # Collapse circadian_rhythms into glozones
         if "circadian_rhythms" in config and "glozones" in config:
-            logger.debug("Config already in GloZone format")
+            first_zone = next(iter(config["glozones"].values()), {})
+            if "wake_time" not in first_zone or "rhythm" in first_zone:
+                rhythms = config["circadian_rhythms"]
+                for zone_name, zone in config["glozones"].items():
+                    rhythm_ref = zone.pop("rhythm", None)
+                    if rhythm_ref and rhythm_ref in rhythms:
+                        rhythm_data = rhythms[rhythm_ref]
+                        for k, v in rhythm_data.items():
+                            if k not in zone:
+                                zone[k] = v
+                    elif rhythms:
+                        first_rhythm = next(iter(rhythms.values()))
+                        for k, v in first_rhythm.items():
+                            if k not in zone:
+                                zone[k] = v
+                del config["circadian_rhythms"]
+                logger.info(
+                    "Collapsed circadian_rhythms into glozones (Rhythm Zone migration)"
+                )
+            else:
+                config.pop("circadian_rhythms", None)
             return config
 
-        logger.info("Migrating config to GloZone format...")
+        # Already migrated (has glozones, no circadian_rhythms)
+        if "glozones" in config:
+            return config
+
+        logger.info("Migrating flat config to Rhythm Zone format...")
 
         # Extract rhythm settings from flat config
-        rhythm_config = {}
+        rhythm_settings = {}
         for key in self.RHYTHM_SETTINGS:
             if key in config:
-                rhythm_config[key] = config[key]
+                rhythm_settings[key] = config[key]
 
         # Extract global settings
         global_config = {}
@@ -1981,12 +1997,11 @@ class LightDesignerServer:
             if key in config:
                 global_config[key] = config[key]
 
-        # Build new config structure
+        # Build new config: inline rhythm settings into zone
         new_config = {
-            "circadian_rhythms": {glozone.DEFAULT_RHYTHM: rhythm_config},
             "glozones": {
                 glozone.INITIAL_ZONE_NAME: {
-                    "rhythm": glozone.DEFAULT_RHYTHM,
+                    **rhythm_settings,
                     "areas": [],
                     "is_default": True,
                 }
@@ -1997,20 +2012,20 @@ class LightDesignerServer:
         new_config.update(global_config)
 
         logger.info(
-            f"Migration complete: created rhythm '{glozone.DEFAULT_RHYTHM}' "
-            f"and zone '{glozone.INITIAL_ZONE_NAME}' (default)"
+            f"Migration complete: created zone '{glozone.INITIAL_ZONE_NAME}' (default) "
+            f"with inline rhythm settings"
         )
 
         return new_config
 
     def _get_effective_config(self, config: dict) -> dict:
-        """Get effective config by merging rhythm settings with global settings.
+        """Get effective config by merging first zone's settings with global settings.
 
         For backward compatibility with code that expects flat config,
-        this merges the first rhythm's settings into the top level.
+        this merges the first zone's rhythm settings into the top level.
 
         Args:
-            config: The GloZone-format config
+            config: The Rhythm Zone format config
 
         Returns:
             Flat config dict with all settings merged
@@ -2022,16 +2037,16 @@ class LightDesignerServer:
             if key in config:
                 result[key] = config[key]
 
-        # Get the first rhythm's settings (or default rhythm)
-        rhythms = config.get("circadian_rhythms", {})
-        if rhythms:
-            # Use first rhythm for backward compatibility
-            first_rhythm_name = list(rhythms.keys())[0]
-            first_rhythm = rhythms[first_rhythm_name]
-            result.update(first_rhythm)
+        # Get the first zone's rhythm settings
+        glozones = config.get("glozones", {})
+        if glozones:
+            first_zone_name = list(glozones.keys())[0]
+            first_zone = glozones[first_zone_name]
+            for key in self.RHYTHM_SETTINGS:
+                if key in first_zone:
+                    result[key] = first_zone[key]
 
-        # Keep the new structure available
-        result["circadian_rhythms"] = config.get("circadian_rhythms", {})
+        # Keep the zone structure available
         result["glozones"] = config.get("glozones", {})
 
         return result
@@ -2130,15 +2145,15 @@ class LightDesignerServer:
         # Migrate to GloZone format if needed
         config = self._migrate_to_glozone_format(config)
 
-        # Ensure top-level rhythm settings are merged INTO the rhythm
-        # This handles cases where config was partially migrated
-        if "circadian_rhythms" in config and config["circadian_rhythms"]:
-            first_rhythm_name = list(config["circadian_rhythms"].keys())[0]
-            first_rhythm = config["circadian_rhythms"][first_rhythm_name]
+        # Ensure top-level rhythm settings are merged INTO the first zone
+        glozones = config.get("glozones", {})
+        if glozones:
+            first_zone_name = list(glozones.keys())[0]
+            first_zone = glozones[first_zone_name]
             for key in list(config.keys()):
                 if key in self.RHYTHM_SETTINGS:
-                    if key not in first_rhythm:
-                        first_rhythm[key] = config[key]
+                    if key not in first_zone:
+                        first_zone[key] = config[key]
                     del config[key]
 
         # Update glozone module with current config
@@ -2150,15 +2165,15 @@ class LightDesignerServer:
     async def load_raw_config(self) -> dict:
         """Load raw configuration without flattening.
 
-        Returns the GloZone-format config with circadian_rhythms and glozones.
+        Returns the Rhythm Zone format config with glozones.
         Used internally for save operations.
         """
         # Start with global-only defaults. RHYTHM_SETTINGS are intentionally NOT
-        # included here — they belong inside rhythm dicts, not at the top level.
+        # included here — they belong inside zone dicts, not at the top level.
         # Having them here caused them to be saved to designer_config.json at the
         # top level, which then poisoned load_config_from_files() on next startup
-        # (top-level false values would override preset's true values).
-        # Missing rhythm keys are handled by get_rhythm_config() and Config.from_dict().
+        # (top-level false values would override correct zone values).
+        # Missing rhythm keys are handled by get_zone_config() and Config.from_dict().
         config: dict = {
             "latitude": 35.0,
             "longitude": -78.6,
@@ -2242,20 +2257,19 @@ class LightDesignerServer:
         # Migrate to GloZone format if needed
         config = self._migrate_to_glozone_format(config)
 
-        # Ensure top-level rhythm settings are merged INTO the rhythm before removing them
-        # This handles cases where config was partially migrated (has circadian_rhythms structure
-        # but settings are still at top level)
-        if "circadian_rhythms" in config and config["circadian_rhythms"]:
-            first_rhythm_name = list(config["circadian_rhythms"].keys())[0]
-            first_rhythm = config["circadian_rhythms"][first_rhythm_name]
+        # Ensure top-level rhythm settings are merged INTO the first zone
+        glozones = config.get("glozones", {})
+        if glozones:
+            first_zone_name = list(glozones.keys())[0]
+            first_zone = glozones[first_zone_name]
 
-            # Copy any top-level rhythm settings into the rhythm (if not already there)
+            # Copy any top-level rhythm settings into the zone (if not already there)
             for key in list(config.keys()):
                 if key in self.RHYTHM_SETTINGS:
-                    if key not in first_rhythm:
-                        first_rhythm[key] = config[key]
+                    if key not in first_zone:
+                        first_zone[key] = config[key]
                         logger.debug(
-                            f"Migrated top-level key '{key}' into rhythm '{first_rhythm_name}'"
+                            f"Migrated top-level key '{key}' into zone '{first_zone_name}'"
                         )
                     del config[key]
 
@@ -3212,10 +3226,9 @@ class LightDesignerServer:
                 DEFAULT_DAYLIGHT_FADE,
             )
 
-            # Load config to get glozone mappings and rhythms
+            # Load config to get glozone mappings
             config = await self.load_config()
             glozones = config.get("glozones", {})
-            rhythms = config.get("circadian_rhythms", {})
 
             # Reload state from disk (main.py runs in separate process and writes state there)
             state.init()
@@ -3332,7 +3345,7 @@ class LightDesignerServer:
 
                     # Natural light factor for this area
                     area_nl_exposure = glozone.get_area_natural_light_exposure(area_id)
-                    rhythm_cfg = glozone.get_rhythm_config_for_area(area_id)
+                    rhythm_cfg = glozone.get_zone_config_for_area(area_id)
                     area_brightness_sensitivity = glozone.get_config().get(
                         "brightness_sensitivity", 5.0
                     )
@@ -3411,7 +3424,7 @@ class LightDesignerServer:
                         "motion_expires_at": motion_expires_at,
                         "motion_warning_active": motion_warning_active,
                         "zone_name": zone_name if zone_name != "Unassigned" else None,
-                        "preset_name": zone_data.get("rhythm", glozone.DEFAULT_RHYTHM),
+                        "preset_name": zone_name,
                         # Effective brightness/CCT range for this area's rhythm
                         "min_brightness": area_config.min_brightness,
                         "max_brightness": area_config.max_brightness,
@@ -3863,173 +3876,6 @@ class LightDesignerServer:
             return web.json_response({"error": str(e)}, status=500)
 
     # -------------------------------------------------------------------------
-    # GloZone API - Circadian Rhythms CRUD
-    # -------------------------------------------------------------------------
-
-    async def get_circadian_rhythms(self, request: Request) -> Response:
-        """Get all circadian rhythms."""
-        try:
-            config = await self.load_raw_config()
-            rhythms = config.get("circadian_rhythms", {})
-            return web.json_response({"rhythms": rhythms})
-        except Exception as e:
-            logger.error(f"Error getting circadian rhythms: {e}")
-            return web.json_response({"error": str(e)}, status=500)
-
-    async def create_circadian_rhythm(self, request: Request) -> Response:
-        """Create a new circadian rhythm."""
-        try:
-            data = await request.json()
-            name = data.get("name")
-            settings = data.get("settings", {})
-
-            if not name:
-                return web.json_response({"error": "name is required"}, status=400)
-
-            config = await self.load_raw_config()
-
-            if name in config.get("circadian_rhythms", {}):
-                return web.json_response(
-                    {"error": f"Rhythm '{name}' already exists"}, status=409
-                )
-
-            # Create the rhythm with defaults, then overlay any provided settings
-            defaults = {
-                "activity_preset": "adult",
-                "wake_time": 7.0,
-                "bed_time": 21.0,
-                "wake_speed": 6,
-                "bed_speed": 4,
-                "ascend_start": 3.0,
-                "descend_start": 12.0,
-                "min_color_temp": 500,
-                "max_color_temp": 6500,
-                "min_brightness": 1,
-                "max_brightness": 100,
-                "max_dim_steps": 10,
-                "warm_night_enabled": True,
-                "warm_night_mode": "all",
-                "warm_night_target": 2700,
-                "warm_night_start": -60,
-                "warm_night_end": 60,
-                "warm_night_fade": 60,
-                "daylight_cct": 5500,
-                "daylight_fade": 60,
-                "color_sensitivity": 1.50,
-            }
-            config.setdefault("circadian_rhythms", {})[name] = {**defaults, **settings}
-
-            await self.save_config_to_file(config)
-            glozone.set_config(config)
-
-            logger.info(f"Created circadian rhythm: {name}")
-            return web.json_response({"status": "created", "name": name})
-        except json.JSONDecodeError:
-            return web.json_response({"error": "Invalid JSON"}, status=400)
-        except Exception as e:
-            logger.error(f"Error creating rhythm: {e}")
-            return web.json_response({"error": str(e)}, status=500)
-
-    async def update_circadian_rhythm(self, request: Request) -> Response:
-        """Update a circadian rhythm (settings or rename)."""
-        try:
-            name = request.match_info.get("name")
-            data = await request.json()
-
-            config = await self.load_raw_config()
-
-            if name not in config.get("circadian_rhythms", {}):
-                return web.json_response(
-                    {"error": f"Rhythm '{name}' not found"}, status=404
-                )
-
-            # Handle rename if "name" field is provided
-            new_name = data.pop("name", None)
-            if new_name and new_name != name:
-                if new_name in config.get("circadian_rhythms", {}):
-                    return web.json_response(
-                        {"error": f"Rhythm '{new_name}' already exists"}, status=400
-                    )
-                # Rename the rhythm
-                config["circadian_rhythms"][new_name] = config["circadian_rhythms"].pop(
-                    name
-                )
-                # Update all zones using this rhythm
-                for zone_name, zone_data in config.get("glozones", {}).items():
-                    if zone_data.get("rhythm") == name:
-                        zone_data["rhythm"] = new_name
-                logger.info(f"Renamed circadian rhythm: {name} -> {new_name}")
-                name = new_name
-
-            # Update the rhythm settings if any remain
-            if data:
-                config["circadian_rhythms"][name].update(data)
-
-            await self.save_config_to_file(config)
-            glozone.set_config(config)
-
-            # Fire refresh event to notify main.py to reload config
-            _, ws_url, token = self._get_ha_api_config()
-            if ws_url and token:
-                await self._fire_event_via_websocket(
-                    ws_url, token, "circadian_light_refresh", {}
-                )
-                logger.info("Fired circadian_light_refresh event after rhythm update")
-
-            logger.info(f"Updated circadian rhythm: {name}")
-            return web.json_response({"status": "updated", "name": name})
-        except json.JSONDecodeError:
-            return web.json_response({"error": "Invalid JSON"}, status=400)
-        except Exception as e:
-            logger.error(f"Error updating rhythm: {e}")
-            return web.json_response({"error": str(e)}, status=500)
-
-    async def delete_circadian_rhythm(self, request: Request) -> Response:
-        """Delete a circadian rhythm."""
-        try:
-            name = request.match_info.get("name")
-
-            config = await self.load_raw_config()
-            rhythms = config.get("circadian_rhythms", {})
-
-            if name not in rhythms:
-                return web.json_response(
-                    {"error": f"Rhythm '{name}' not found"}, status=404
-                )
-
-            # Cannot delete the last rhythm
-            if len(rhythms) <= 1:
-                return web.json_response(
-                    {"error": "Cannot delete the last rhythm"}, status=400
-                )
-
-            # Cannot delete a rhythm that's in use by a zone
-            zones_using = [
-                zn
-                for zn, zc in config.get("glozones", {}).items()
-                if zc.get("rhythm") == name
-            ]
-            if zones_using:
-                zone_list = ", ".join(zones_using)
-                return web.json_response(
-                    {
-                        "error": f"Cannot delete rhythm '{name}' — it is used by zone(s): {zone_list}. Reassign them first."
-                    },
-                    status=400,
-                )
-
-            del config["circadian_rhythms"][name]
-
-            await self.save_config_to_file(config)
-            glozone.set_config(config)
-
-            logger.info(f"Deleted circadian rhythm: {name}")
-            return web.json_response({"status": "deleted", "name": name})
-        except Exception as e:
-            logger.error(f"Error deleting rhythm: {e}")
-            return web.json_response({"error": str(e)}, status=500)
-
-    # -------------------------------------------------------------------------
     # GloZone API - Zones CRUD
     # -------------------------------------------------------------------------
 
@@ -4089,8 +3935,10 @@ class LightDesignerServer:
                             {"id": area_id, "name": ha_area_names.get(area_id, area_id)}
                         )
 
+                # Include rhythm settings from zone
+                zone_cfg = glozone.get_zone_config(zone_name)
                 result[zone_name] = {
-                    "rhythm": zone_config.get("rhythm"),
+                    **zone_cfg,
                     "areas": areas,
                     "runtime": runtime,
                     "is_default": zone_config.get("is_default", False),
@@ -4190,11 +4038,11 @@ class LightDesignerServer:
             logger.warning(f"Could not migrate unassigned areas: {e}")
 
     async def create_glozone(self, request: Request) -> Response:
-        """Create a new GloZone."""
+        """Create a new Rhythm Zone."""
         try:
             data = await request.json()
             name = data.get("name")
-            rhythm = data.get("rhythm")
+            copy_from = data.get("copy_from")
 
             if not name:
                 return web.json_response({"error": "name is required"}, status=400)
@@ -4206,20 +4054,16 @@ class LightDesignerServer:
                     {"error": f"Zone '{name}' already exists"}, status=409
                 )
 
-            rhythms = config.setdefault("circadian_rhythms", {})
-
-            if rhythm and rhythm in rhythms:
-                # Use the explicitly provided rhythm
-                pass
-            else:
-                # Auto-create a rhythm named after the zone with defaults
-                rhythm = name
-                if rhythm not in rhythms:
-                    rhythms[rhythm] = {}
-                    logger.info(f"Auto-created rhythm '{rhythm}' for new zone")
+            # Build zone settings: copy from existing zone or use defaults
+            zone_settings = {"areas": []}
+            if copy_from and copy_from in config.get("glozones", {}):
+                source_zone = config["glozones"][copy_from]
+                for key in glozone.RHYTHM_SETTINGS:
+                    if key in source_zone:
+                        zone_settings[key] = source_zone[key]
 
             # Create the zone
-            config.setdefault("glozones", {})[name] = {"rhythm": rhythm, "areas": []}
+            config.setdefault("glozones", {})[name] = zone_settings
 
             await self.save_config_to_file(config)
             glozone.set_config(config)
@@ -4232,7 +4076,7 @@ class LightDesignerServer:
                 )
                 logger.info("Fired circadian_light_refresh event after zone create")
 
-            logger.info(f"Created GloZone: {name} with rhythm {rhythm}")
+            logger.info(f"Created Rhythm Zone: {name}")
             return web.json_response({"status": "created", "name": name})
         except json.JSONDecodeError:
             return web.json_response({"error": "Invalid JSON"}, status=400)
@@ -4241,7 +4085,7 @@ class LightDesignerServer:
             return web.json_response({"error": str(e)}, status=500)
 
     async def update_glozone(self, request: Request) -> Response:
-        """Update a GloZone (preset, areas, rename, or set as default)."""
+        """Update a Rhythm Zone (areas, rename, or set as default)."""
         try:
             name = request.match_info.get("name")
             data = await request.json()
@@ -4250,7 +4094,7 @@ class LightDesignerServer:
 
             if name not in config.get("glozones", {}):
                 return web.json_response(
-                    {"error": f"Glo Zone '{name}' not found"}, status=404
+                    {"error": f"Rhythm Zone '{name}' not found"}, status=404
                 )
 
             # Track whether lighting-relevant fields changed
@@ -4261,27 +4105,24 @@ class LightDesignerServer:
             if new_name and new_name != name:
                 if new_name in config.get("glozones", {}):
                     return web.json_response(
-                        {"error": f"Glo Zone '{new_name}' already exists"}, status=400
+                        {"error": f"Rhythm Zone '{new_name}' already exists"},
+                        status=400,
                     )
                 # Rename the zone (preserve is_default status)
                 config["glozones"][new_name] = config["glozones"].pop(name)
-                logger.info(f"Renamed GloZone: {name} -> {new_name}")
+                logger.info(f"Renamed Rhythm Zone: {name} -> {new_name}")
                 name = new_name
-
-            # Update rhythm if provided
-            if "rhythm" in data:
-                rhythm = data["rhythm"]
-                if rhythm not in config.get("circadian_rhythms", {}):
-                    return web.json_response(
-                        {"error": f"Rhythm '{rhythm}' not found"}, status=400
-                    )
-                config["glozones"][name]["rhythm"] = rhythm
-                needs_refresh = True
 
             # Update areas if provided (replaces entire list)
             if "areas" in data:
                 config["glozones"][name]["areas"] = data["areas"]
                 needs_refresh = True
+
+            # Accept RHYTHM_SETTINGS keys directly
+            for key in glozone.RHYTHM_SETTINGS:
+                if key in data:
+                    config["glozones"][name][key] = data[key]
+                    needs_refresh = True
 
             # Handle is_default - setting this zone as the default
             if data.get("is_default"):
@@ -4303,12 +4144,66 @@ class LightDesignerServer:
                     )
                     logger.info("Fired circadian_light_refresh event after zone update")
 
-            logger.info(f"Updated GloZone: {name}")
+            logger.info(f"Updated Rhythm Zone: {name}")
             return web.json_response({"status": "updated", "name": name})
         except json.JSONDecodeError:
             return web.json_response({"error": "Invalid JSON"}, status=400)
         except Exception as e:
             logger.error(f"Error updating zone: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def update_glozone_settings(self, request: Request) -> Response:
+        """Update only the rhythm settings of a Rhythm Zone."""
+        try:
+            name = request.match_info.get("name")
+            data = await request.json()
+
+            config = await self.load_raw_config()
+
+            if name not in config.get("glozones", {}):
+                return web.json_response(
+                    {"error": f"Rhythm Zone '{name}' not found"}, status=404
+                )
+
+            # Handle rename via "name" field
+            new_name = data.pop("name", None)
+            if new_name and new_name != name:
+                if new_name in config.get("glozones", {}):
+                    return web.json_response(
+                        {"error": f"Rhythm Zone '{new_name}' already exists"},
+                        status=400,
+                    )
+                config["glozones"][new_name] = config["glozones"].pop(name)
+                logger.info(f"Renamed Rhythm Zone: {name} -> {new_name}")
+                name = new_name
+
+            # Update only RHYTHM_SETTINGS keys
+            updated_keys = []
+            for key, value in data.items():
+                if key in glozone.RHYTHM_SETTINGS:
+                    config["glozones"][name][key] = value
+                    updated_keys.append(key)
+
+            await self.save_config_to_file(config)
+            glozone.set_config(config)
+
+            # Fire refresh event
+            if updated_keys:
+                _, ws_url, token = self._get_ha_api_config()
+                if ws_url and token:
+                    await self._fire_event_via_websocket(
+                        ws_url, token, "circadian_light_refresh", {}
+                    )
+                    logger.info(
+                        f"Fired circadian_light_refresh after zone settings update: {updated_keys}"
+                    )
+
+            logger.info(f"Updated Rhythm Zone settings: {name} ({updated_keys})")
+            return web.json_response({"status": "updated", "name": name})
+        except json.JSONDecodeError:
+            return web.json_response({"error": "Invalid JSON"}, status=400)
+        except Exception as e:
+            logger.error(f"Error updating zone settings: {e}")
             return web.json_response({"error": str(e)}, status=500)
 
     async def delete_glozone(self, request: Request) -> Response:
