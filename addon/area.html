@@ -61,37 +61,6 @@
       flex-shrink: 0;
     }
 
-    .circadian-toggle {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 36px;
-      height: 36px;
-      border-radius: 8px;
-      border: 1px solid var(--line);
-      background: var(--card);
-      color: var(--muted);
-      cursor: pointer;
-      transition: all 0.2s;
-      flex-shrink: 0;
-    }
-
-    .circadian-toggle:hover {
-      background: rgba(255, 255, 255, 0.1);
-      border-color: var(--accent);
-    }
-
-    .circadian-toggle.active {
-      color: var(--accent);
-      border-color: var(--accent);
-      background: rgba(254, 172, 96, 0.1);
-    }
-
-    .circadian-toggle svg {
-      width: 20px;
-      height: 20px;
-    }
-
     .back-btn:hover {
       background: rgba(255, 255, 255, 0.1);
       border-color: var(--accent);
@@ -149,7 +118,7 @@
       --state-fill: 0;
       background: var(--state-bg);
       border-radius: 8px;
-      padding: 10px 16px;
+      padding: 10px 8px;
       margin-bottom: 12px;
       position: relative;
       overflow: hidden;
@@ -168,7 +137,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
+      gap: 8px;
       position: relative;
       z-index: 1;
     }
@@ -193,26 +162,26 @@
 
     .area-state-controls {
       display: flex;
-      gap: 8px;
+      gap: 4px;
       flex-shrink: 0;
       background: rgba(0,0,0,0.5);
-      padding: 6px;
+      padding: 4px;
       border-radius: 10px;
     }
 
     .area-state-controls-left {
       display: flex;
-      gap: 8px;
+      gap: 4px;
       flex-shrink: 0;
       background: rgba(0,0,0,0.5);
-      padding: 6px;
+      padding: 4px;
       border-radius: 10px;
     }
 
     /* Toggle switch styles (from modal) */
     .toggle-btn {
-      width: 40px;
-      height: 40px;
+      width: 36px;
+      height: 36px;
       border-radius: 6px;
       border: 1px solid rgba(255,255,255,0.2);
       background: rgba(30,30,30,0.9);
@@ -464,19 +433,6 @@
 
     /* Mobile adjustments */
     @media (max-width: 480px) {
-      .area-state-row {
-        gap: 8px;
-      }
-      .area-state-controls-left,
-      .area-state-controls,
-      .zone-state-controls {
-        padding: 4px;
-        gap: 4px;
-      }
-      .toggle-btn {
-        width: 36px;
-        height: 36px;
-      }
       .adjust-slider-row {
         gap: 20px;
       }
@@ -492,7 +448,7 @@
     /* Wake alarm section */
     .wake-alarm-section { margin: 16px; }
     .wake-alarm-card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
-    .wake-alarm-header { display: flex; align-items: center; justify-content: space-between; }
+    .wake-alarm-header { display: flex; align-items: center; gap: 8px; cursor: pointer; }
     .wake-alarm-title { font-size: 0.85rem; font-weight: 600; color: var(--text); }
     .wake-alarm-toggle { position: relative; width: 40px; height: 22px; }
     .wake-alarm-toggle input { opacity: 0; width: 0; height: 0; }
@@ -517,7 +473,10 @@
     .wake-offset-btn { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line); background: transparent; color: var(--text); font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
     .wake-offset-btn:hover { border-color: var(--accent); color: var(--accent); }
     .wake-offset-value { font-size: 0.85rem; color: var(--text); min-width: 3em; text-align: center; font-variant-numeric: tabular-nums; }
-    .wake-next-alarm { font-size: 0.75rem; color: var(--muted2); text-align: center; margin-top: 4px; }
+    .wake-next-alarm { font-size: 0.75rem; color: var(--muted2); white-space: nowrap; }
+    .wake-alarm-chevron { color: var(--muted2); font-size: 0.8rem; cursor: pointer; transition: transform 0.2s; flex-shrink: 0; }
+    .wake-alarm-chevron.open { transform: rotate(90deg); }
+    .tune-light-impact { font-size: 0.75rem; color: var(--muted2); white-space: nowrap; }
 
     /* Tune section — shared */
     .tune-card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 8px; overflow: hidden; font-size: 13px; }
@@ -594,19 +553,6 @@
         <polyline points="15 18 9 12 15 6"/>
       </svg>
     </button>
-    <button class="circadian-toggle" id="header-circadian-toggle" onclick="toggleCircadian()" title="Circadian Light: active">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <circle cx="12" cy="12" r="5"/>
-        <line x1="12" y1="1" x2="12" y2="3"/>
-        <line x1="12" y1="21" x2="12" y2="23"/>
-        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-        <line x1="1" y1="12" x2="3" y2="12"/>
-        <line x1="21" y1="12" x2="23" y2="12"/>
-        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-      </svg>
-    </button>
     <h1 class="page-title" id="page-title">Loading...</h1>
     <div class="page-header-meta" id="page-header-meta">
       <span id="header-meta-rhythm"></span>
@@ -619,6 +565,19 @@
     <div class="area-state" id="area-state">
       <div class="area-state-row">
         <div class="area-state-controls-left" id="controls-left">
+          <button class="toggle-btn" id="toggle-circadian" onclick="toggleCircadian()" title="Circadian Light">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="5"/>
+              <line x1="12" y1="1" x2="12" y2="3"/>
+              <line x1="12" y1="21" x2="12" y2="23"/>
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+              <line x1="1" y1="12" x2="3" y2="12"/>
+              <line x1="21" y1="12" x2="23" y2="12"/>
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+            </svg>
+          </button>
           <button class="toggle-btn" id="toggle-power" onclick="executeAction('lights_toggle')" title="Power">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M18.36 6.64a9 9 0 1 1-12.73 0M12 2v10"/>
@@ -672,6 +631,52 @@
       <div class="area-state-status-row">
         <div class="area-state-values" id="state-values"></div>
         <div class="timer-status" id="timer-status"></div>
+      </div>
+    </div>
+
+    <!-- Alarm Section -->
+    <div id="wake-alarm-section" class="wake-alarm-section" style="display:none;">
+      <div class="wake-alarm-card">
+        <div class="wake-alarm-header" onclick="toggleAlarmBody()">
+          <span class="wake-alarm-chevron" id="wake-alarm-chevron">&#9656;</span>
+          <span class="wake-alarm-title">Alarm</span>
+          <label class="wake-alarm-toggle" onclick="event.stopPropagation()">
+            <input type="checkbox" id="wake-alarm-enabled" onchange="saveWakeAlarmSettings()">
+            <span class="slider"></span>
+          </label>
+          <span class="wake-next-alarm" id="wake-next-alarm" style="margin-left:auto;"></span>
+        </div>
+        <div class="wake-alarm-body" id="wake-alarm-body" style="display:none;">
+          <div class="wake-alarm-row">
+            <div class="wake-mode-btns">
+              <button class="wake-mode-btn active" id="wake-mode-rhythm" onclick="setWakeAlarmMode('rhythm')">Rhythm</button>
+              <button class="wake-mode-btn" id="wake-mode-custom" onclick="setWakeAlarmMode('custom')">Custom</button>
+            </div>
+          </div>
+          <div class="wake-day-bubbles" id="wake-alarm-days">
+            <div class="wake-day-col"><button class="wake-day-bubble" data-day="0" onclick="toggleWakeDay(this)">Mo</button><span class="wake-day-time" data-daytime="0"></span></div>
+            <div class="wake-day-col"><button class="wake-day-bubble" data-day="1" onclick="toggleWakeDay(this)">Tu</button><span class="wake-day-time" data-daytime="1"></span></div>
+            <div class="wake-day-col"><button class="wake-day-bubble" data-day="2" onclick="toggleWakeDay(this)">We</button><span class="wake-day-time" data-daytime="2"></span></div>
+            <div class="wake-day-col"><button class="wake-day-bubble" data-day="3" onclick="toggleWakeDay(this)">Th</button><span class="wake-day-time" data-daytime="3"></span></div>
+            <div class="wake-day-col"><button class="wake-day-bubble" data-day="4" onclick="toggleWakeDay(this)">Fr</button><span class="wake-day-time" data-daytime="4"></span></div>
+            <div class="wake-day-col"><button class="wake-day-bubble" data-day="5" onclick="toggleWakeDay(this)">Sa</button><span class="wake-day-time" data-daytime="5"></span></div>
+            <div class="wake-day-col"><button class="wake-day-bubble" data-day="6" onclick="toggleWakeDay(this)">Su</button><span class="wake-day-time" data-daytime="6"></span></div>
+          </div>
+          <div id="wake-rhythm-controls">
+            <div class="wake-alarm-row">
+              <div class="wake-offset-control">
+                <button class="wake-offset-btn" onclick="adjustWakeOffset(-5)">-</button>
+                <span class="wake-offset-value" id="wake-offset-value">0 min</span>
+                <button class="wake-offset-btn" onclick="adjustWakeOffset(5)">+</button>
+              </div>
+            </div>
+          </div>
+          <div id="wake-custom-controls" style="display:none;">
+            <div class="wake-alarm-row">
+              <input type="time" class="wake-time-input" id="wake-custom-time" value="07:00" onchange="saveWakeAlarmSettings()">
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -756,51 +761,6 @@
     </button>
     </div>
 
-    <!-- Wake Alarm Section -->
-    <div id="wake-alarm-section" class="wake-alarm-section" style="display:none;">
-      <div class="wake-alarm-card">
-        <div class="wake-alarm-header">
-          <span class="wake-alarm-title">Wake Alarm</span>
-          <label class="wake-alarm-toggle">
-            <input type="checkbox" id="wake-alarm-enabled" onchange="saveWakeAlarmSettings()">
-            <span class="slider"></span>
-          </label>
-        </div>
-        <div class="wake-alarm-body" id="wake-alarm-body" style="display:none;">
-          <div class="wake-alarm-row">
-            <div class="wake-mode-btns">
-              <button class="wake-mode-btn active" id="wake-mode-rhythm" onclick="setWakeAlarmMode('rhythm')">Rhythm</button>
-              <button class="wake-mode-btn" id="wake-mode-custom" onclick="setWakeAlarmMode('custom')">Custom</button>
-            </div>
-          </div>
-          <div class="wake-day-bubbles" id="wake-alarm-days">
-            <div class="wake-day-col"><button class="wake-day-bubble" data-day="0" onclick="toggleWakeDay(this)">Mo</button><span class="wake-day-time" data-daytime="0"></span></div>
-            <div class="wake-day-col"><button class="wake-day-bubble" data-day="1" onclick="toggleWakeDay(this)">Tu</button><span class="wake-day-time" data-daytime="1"></span></div>
-            <div class="wake-day-col"><button class="wake-day-bubble" data-day="2" onclick="toggleWakeDay(this)">We</button><span class="wake-day-time" data-daytime="2"></span></div>
-            <div class="wake-day-col"><button class="wake-day-bubble" data-day="3" onclick="toggleWakeDay(this)">Th</button><span class="wake-day-time" data-daytime="3"></span></div>
-            <div class="wake-day-col"><button class="wake-day-bubble" data-day="4" onclick="toggleWakeDay(this)">Fr</button><span class="wake-day-time" data-daytime="4"></span></div>
-            <div class="wake-day-col"><button class="wake-day-bubble" data-day="5" onclick="toggleWakeDay(this)">Sa</button><span class="wake-day-time" data-daytime="5"></span></div>
-            <div class="wake-day-col"><button class="wake-day-bubble" data-day="6" onclick="toggleWakeDay(this)">Su</button><span class="wake-day-time" data-daytime="6"></span></div>
-          </div>
-          <div id="wake-rhythm-controls">
-            <div class="wake-alarm-row">
-              <div class="wake-offset-control">
-                <button class="wake-offset-btn" onclick="adjustWakeOffset(-5)">-</button>
-                <span class="wake-offset-value" id="wake-offset-value">0 min</span>
-                <button class="wake-offset-btn" onclick="adjustWakeOffset(5)">+</button>
-              </div>
-            </div>
-          </div>
-          <div id="wake-custom-controls" style="display:none;">
-            <div class="wake-alarm-row">
-              <input type="time" class="wake-time-input" id="wake-custom-time" value="07:00" onchange="saveWakeAlarmSettings()">
-            </div>
-          </div>
-          <div class="wake-next-alarm" id="wake-next-alarm"></div>
-        </div>
-      </div>
-    </div>
-
     <!-- Tune Section -->
     <div id="area-tune-section" style="display:none; margin: 16px;">
       <div class="tune-summary" id="tune-summary"></div>
@@ -844,6 +804,23 @@
 
     function wrap24(x) {
       return ((x % 24) + 24) % 24;
+    }
+
+    function inverseMidpoint(x, targetValue, slope, y0, y1) {
+      const epsilon = 0.001;
+      const clamped = Math.max(y0 + epsilon, Math.min(y1 - epsilon, targetValue));
+      const ratio = (clamped - y0) / (y1 - y0);
+      try {
+        return x + Math.log((1 - ratio) / ratio) / slope;
+      } catch (e) {
+        return x;
+      }
+    }
+
+    function computeShiftedMidpoint(targetTimeH48, brightnessPct, slope, bMinNorm, bMaxNorm) {
+      if (brightnessPct === 50) return targetTimeH48;
+      const targetNorm = bMinNorm + (bMaxNorm - bMinNorm) * (brightnessPct / 100);
+      return inverseMidpoint(targetTimeH48, targetNorm, slope, bMinNorm, bMaxNorm);
     }
 
     function getWindowWeight(hour, windowStart, windowEnd, fadeHrs) {
@@ -1095,8 +1072,27 @@
       const cursorH48 = currentHour < tAscend ? currentHour + 24 : currentHour;
       const cursorInAscend = cursorH48 >= tAscend && cursorH48 < tDescend;
 
-      const wakeMid = cursorInAscend ? (state.brightness_mid ?? cfg.wake_time) : cfg.wake_time;
-      const bedMid = !cursorInAscend ? (state.brightness_mid ?? cfg.bed_time) : cfg.bed_time;
+      let wakeMid = cursorInAscend ? (state.brightness_mid ?? cfg.wake_time) : cfg.wake_time;
+      let bedMid = !cursorInAscend ? (state.brightness_mid ?? cfg.bed_time) : cfg.bed_time;
+
+      // Apply brightness target shift when not stepping
+      if (state.brightness_mid == null) {
+        const slope = cursorInAscend ? kAscend : -kDescend;
+        const brightPct = cursorInAscend ? (cfg.wake_brightness || 50) : (cfg.bed_brightness || 50);
+        if (brightPct !== 50) {
+          if (cursorInAscend) {
+            let mid48 = wakeMid;
+            while (mid48 < tAscend) mid48 += 24;
+            while (mid48 > tDescend) mid48 -= 24;
+            wakeMid = computeShiftedMidpoint(mid48, brightPct, slope, bMin, bMax) % 24;
+          } else {
+            let mid48 = bedMid;
+            while (mid48 < tDescend) mid48 += 24;
+            while (mid48 > tDescend + 24) mid48 -= 24;
+            bedMid = computeShiftedMidpoint(mid48, brightPct, slope, bMin, bMax) % 24;
+          }
+        }
+      }
 
       const h48 = hour < tAscend ? hour + 24 : hour;
       const inAscend = h48 >= tAscend && h48 < tDescend;
@@ -1123,14 +1119,35 @@
 
       const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.wake_speed))];
       const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.bed_speed))];
+      const bMin = cfg.min_brightness / 100;
+      const bMax = cfg.max_brightness / 100;
       const cLow = cfg.min_color_temp;
       const cHigh = cfg.max_color_temp;
 
       const cursorH48 = currentHour < tAscend ? currentHour + 24 : currentHour;
       const cursorInAscend = cursorH48 >= tAscend && cursorH48 < tDescend;
 
-      const colorWakeMid = cursorInAscend ? (state.color_mid ?? cfg.wake_time) : cfg.wake_time;
-      const colorBedMid = !cursorInAscend ? (state.color_mid ?? cfg.bed_time) : cfg.bed_time;
+      let colorWakeMid = cursorInAscend ? (state.color_mid ?? cfg.wake_time) : cfg.wake_time;
+      let colorBedMid = !cursorInAscend ? (state.color_mid ?? cfg.bed_time) : cfg.bed_time;
+
+      // Apply brightness target shift for color (color follows brightness)
+      if (state.color_mid == null) {
+        const cSlope = cursorInAscend ? kAscend : -kDescend;
+        const cBrightPct = cursorInAscend ? (cfg.wake_brightness || 50) : (cfg.bed_brightness || 50);
+        if (cBrightPct !== 50) {
+          if (cursorInAscend) {
+            let cMid48 = colorWakeMid;
+            while (cMid48 < tAscend) cMid48 += 24;
+            while (cMid48 > tDescend) cMid48 -= 24;
+            colorWakeMid = computeShiftedMidpoint(cMid48, cBrightPct, cSlope, bMin, bMax) % 24;
+          } else {
+            let cMid48 = colorBedMid;
+            while (cMid48 < tDescend) cMid48 += 24;
+            while (cMid48 > tDescend + 24) cMid48 -= 24;
+            colorBedMid = computeShiftedMidpoint(cMid48, cBrightPct, cSlope, bMin, bMax) % 24;
+          }
+        }
+      }
 
       const h48 = hour < tAscend ? hour + 24 : hour;
       const inAscend = h48 >= tAscend && h48 < tDescend;
@@ -1899,7 +1916,7 @@
       // Circadian-off overlay + header toggle
       const wrap = document.getElementById('circadian-content-wrap');
       const enableBtn = document.getElementById('enable-circadian-btn');
-      const circToggle = document.getElementById('header-circadian-toggle');
+      const circToggle = document.getElementById('toggle-circadian');
       const rightBtns = document.querySelectorAll('#controls-area .toggle-btn');
       if (wrap && enableBtn) {
         if (selectedArea.is_circadian === false) {
@@ -2327,8 +2344,15 @@
             elBri.textContent = finalVal + '%';
           }
         }
+        const elImpact = document.getElementById('tune-light-impact-' + light.idx);
+        if (elImpact) {
+          const impactPct = Math.round((filterMult - 1) * 100);
+          if (impactPct < 0) elImpact.textContent = '\u2193' + Math.abs(impactPct) + '%';
+          else if (impactPct > 0) elImpact.textContent = '\u2191' + impactPct + '%';
+          else elImpact.textContent = '';
+        }
         const elMeta = document.getElementById('tune-meta-' + light.idx);
-        if (elMeta) elMeta.innerHTML = tunePresetMeta(ts.presets, light.filterName, nowPct);
+        if (elMeta) elMeta.innerHTML = tunePresetMeta(ts.presets, light.filterName);
       }
 
       // -- Card 4: Details (brightness cascade) --
@@ -2594,6 +2618,7 @@
           lhtml += '<div class="tune-light-summary" data-idx="' + light.idx + '">'
             + '<span class="tune-light-name" title="' + light.entity_id + '">' + light.name + '</span>'
             + '<span class="tune-light-preset-label" id="tune-light-preset-label-' + light.idx + '">' + light.filterName + '</span>'
+            + '<span class="tune-light-impact" id="tune-light-impact-' + light.idx + '"></span>'
             + '<span class="tune-light-bri" id="tune-light-bri-' + light.idx + '"></span>'
             + '</div>';
           lhtml += '<div class="tune-light-expanded" id="tune-light-exp-' + light.idx + '" style="display:none;">'
@@ -2805,6 +2830,15 @@
     let wakeAlarmOffset = 0;
     let wakeAlarmMode = 'rhythm';
 
+    function toggleAlarmBody() {
+      const body = document.getElementById('wake-alarm-body');
+      const chevron = document.getElementById('wake-alarm-chevron');
+      const collapsed = body.style.display !== 'none';
+      body.style.display = collapsed ? 'none' : 'block';
+      chevron.classList.toggle('open', !collapsed);
+      localStorage.setItem('wake_alarm_collapsed', collapsed ? 'true' : 'false');
+    }
+
     async function loadWakeAlarmSettings() {
       if (!selectedArea) return;
       const section = document.getElementById('wake-alarm-section');
@@ -2817,7 +2851,17 @@
 
         const enabled = settings.wake_alarm || false;
         document.getElementById('wake-alarm-enabled').checked = enabled;
-        document.getElementById('wake-alarm-body').style.display = enabled ? 'block' : 'none';
+
+        // Respect collapsed state from localStorage (default collapsed)
+        const isCollapsed = localStorage.getItem('wake_alarm_collapsed') !== 'false';
+        const chevron = document.getElementById('wake-alarm-chevron');
+        if (enabled && !isCollapsed) {
+          document.getElementById('wake-alarm-body').style.display = 'block';
+          chevron.classList.add('open');
+        } else {
+          document.getElementById('wake-alarm-body').style.display = 'none';
+          chevron.classList.remove('open');
+        }
 
         // Days
         const days = settings.wake_alarm_days || [0, 1, 2, 3, 4, 5, 6];
@@ -2852,7 +2896,15 @@
       if (!selectedArea) return;
 
       const enabled = document.getElementById('wake-alarm-enabled').checked;
-      document.getElementById('wake-alarm-body').style.display = enabled ? 'block' : 'none';
+      const isCollapsed = localStorage.getItem('wake_alarm_collapsed') !== 'false';
+      const chevron = document.getElementById('wake-alarm-chevron');
+      if (enabled && !isCollapsed) {
+        document.getElementById('wake-alarm-body').style.display = 'block';
+        chevron.classList.add('open');
+      } else if (!enabled) {
+        document.getElementById('wake-alarm-body').style.display = 'none';
+        chevron.classList.remove('open');
+      }
 
       const days = [];
       document.querySelectorAll('#wake-alarm-days .wake-day-bubble.active').forEach(btn => {
@@ -2972,9 +3024,12 @@
         }
       }
 
-      // Compute next alarm
+      // Compute next alarm (only shown when alarm is enabled)
       const nextEl = document.getElementById('wake-next-alarm');
       if (!nextEl) return;
+
+      const alarmEnabled = document.getElementById('wake-alarm-enabled')?.checked;
+      if (!alarmEnabled) { nextEl.textContent = ''; return; }
 
       const dayAbbrs = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
       const now = new Date();
