@@ -1024,26 +1024,41 @@
         }
       }
 
-      // 2. Alt day resolution (mirrors rhythm-design.html resolveEffectiveTiming)
+      // 2. Phase-aware alt day resolution
       const now = new Date();
       const weekday = now.getDay() === 0 ? 6 : now.getDay() - 1; // JS Sun=0 → Mon=0..Sun=6
       const hour = now.getHours() + now.getMinutes() / 60;
-
-      // Alt wake: check today's weekday
-      if (resolved.wake_alt_time != null && resolved.wake_alt_days?.includes(weekday)) {
-        resolved.wake_time = resolved.wake_alt_time;
-      }
-
-      // Alt bed: post-midnight pre-ascend uses yesterday's weekday
-      let bedWeekday = weekday;
       const ascendStart = resolved.ascend_start ?? 3;
-      if (hour < ascendStart) {
-        bedWeekday = (weekday - 1 + 7) % 7;
-      }
-      if (resolved.bed_alt_time != null && resolved.bed_alt_days?.includes(bedWeekday)) {
-        resolved.bed_time = resolved.bed_alt_time;
-      }
+      let descendStart = resolved.descend_start ?? 12;
+      if (descendStart <= ascendStart) descendStart += 24;
+      const h48 = hour < ascendStart ? hour + 24 : hour;
+      const inAscend = h48 >= ascendStart && h48 < descendStart;
 
+      if (inAscend) {
+        // Currently ascending: wake = today, bed = today
+        const wakeWeekday = weekday;
+        const bedWeekday = weekday;
+        if (resolved.wake_alt_time != null && resolved.wake_alt_days?.includes(wakeWeekday)) {
+          resolved.wake_time = resolved.wake_alt_time;
+        }
+        if (resolved.bed_alt_time != null && resolved.bed_alt_days?.includes(bedWeekday)) {
+          resolved.bed_time = resolved.bed_alt_time;
+        }
+      } else {
+        // Currently descending: bed = today (or yesterday if post-midnight),
+        // wake = tomorrow (next ascend phase)
+        let bedWeekday = weekday;
+        if (hour < ascendStart) {
+          bedWeekday = (weekday - 1 + 7) % 7;
+        }
+        const wakeWeekday = hour < ascendStart ? weekday : (weekday + 1) % 7;
+        if (resolved.bed_alt_time != null && resolved.bed_alt_days?.includes(bedWeekday)) {
+          resolved.bed_time = resolved.bed_alt_time;
+        }
+        if (resolved.wake_alt_time != null && resolved.wake_alt_days?.includes(wakeWeekday)) {
+          resolved.wake_time = resolved.wake_alt_time;
+        }
+      }
       return resolved;
     }
 

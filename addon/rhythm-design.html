@@ -2949,12 +2949,14 @@ function renderChart() {
   // 2. Phase labels (ascend starts, wake, descend starts, bed) at y = -0.14
   // 3. Solar labels (sunrise, sunset, etc.) at y = -0.20, muted grey
 
-  // Phase labels with vertical lines
+  // Phase labels with vertical lines — use resolved effective timing for alt days
+  const chartWeekday = getChartWeekday();
+  const chartTiming = resolveEffectiveTiming(0, chartWeekday);
   const allPhaseLabels = [
     { label: 'ascend starts', x: ascendStart, color: ASCEND_COLORS.text, lineColor: ASCEND_COLORS.axis, solid: true, extendUp: true },
-    { label: 'wake', x: wrap24(config.wake_time), color: ASCEND_COLORS.text, lineColor: ASCEND_COLORS.axis, solid: false, extendUp: true },
+    { label: 'wake', x: wrap24(chartTiming.wake), color: ASCEND_COLORS.text, lineColor: ASCEND_COLORS.axis, solid: false, extendUp: true },
     { label: 'descend starts', x: descendStart, color: DESCEND_COLORS.text, lineColor: DESCEND_COLORS.axis, solid: true, extendUp: true },
-    { label: 'bed', x: wrap24(config.bed_time), color: DESCEND_COLORS.text, lineColor: DESCEND_COLORS.axis, solid: false, extendUp: true }
+    { label: 'bed', x: wrap24(chartTiming.bed), color: DESCEND_COLORS.text, lineColor: DESCEND_COLORS.axis, solid: false, extendUp: true }
   ];
   const phaseLabels = simpleMode
     ? allPhaseLabels.filter(m => m.label === 'wake' || m.label === 'bed')
