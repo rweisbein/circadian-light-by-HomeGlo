@@ -200,16 +200,6 @@
       border-radius: 10px;
     }
 
-    .zone-state-controls {
-      display: flex;
-      gap: 8px;
-      flex-shrink: 0;
-      margin-left: auto;
-      background: rgba(0,0,0,0.5);
-      padding: 6px;
-      border-radius: 10px;
-    }
-
     .area-state-controls-left {
       display: flex;
       gap: 8px;
@@ -678,21 +668,6 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
           </button>
         </div>
-        <div class="area-state-controls-left" id="controls-zone-left" style="display:none;">
-          <button class="toggle-btn" id="toggle-zone-power" onclick="confirmZonePowerOff()" title="Turn off lights in zone" style="display:none;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M18.36 6.64a9 9 0 1 1-12.73 0M12 2v10"/>
-            </svg>
-          </button>
-        </div>
-        <div class="zone-state-controls" id="controls-zone" style="display:none;">
-          <button class="toggle-btn" id="toggle-glozone-down" onclick="confirmGlozoneDown()" title="Rhythm Zone Down: push zone settings to all areas">
-            <svg viewBox="0 0 16 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 5 8 10 13 5"/><polyline points="3 11 8 16 13 11"/></svg>
-          </button>
-          <button class="toggle-btn" id="toggle-glozone-reset" onclick="executeAction('glozone_reset')" title="Reset Rhythm Zone">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
-          </button>
-        </div>
       </div>
       <div class="area-state-status-row">
         <div class="area-state-values" id="state-values"></div>
@@ -841,7 +816,6 @@
     // State
     // ============================================================
     let selectedArea = null;
-    let selectedZoneName = null;
     let areaStatus = {};
     let zoneStates = {};
     let cachedConfig = null;
@@ -1445,28 +1419,7 @@
     // ============================================================
 
     function getSliderCfgAndState() {
-      if (selectedZoneName) {
-        const zs = zoneStates[selectedZoneName] || {};
-        if (!cachedConfig || !cachedSunTimes) return null;
-        const zoneData = cachedGlozones?.zones?.[selectedZoneName] || {};
-        let cfg = { ...cachedConfig, ...zoneData };
-        cfg = resolveEffectiveCfg(cfg, selectedZoneName);
-        const rs = zs.runtime_state || {};
-        const areaState = {
-          brightness_mid: rs.brightness_mid ?? null,
-          color_mid: rs.color_mid ?? null,
-          color_override: rs.color_override ?? null,
-          frozen_at: rs.frozen_at ?? null
-        };
-        let currentHour;
-        if (rs.frozen_at != null) {
-          currentHour = rs.frozen_at;
-        } else {
-          const now = new Date();
-          currentHour = now.getHours() + now.getMinutes() / 60;
-        }
-        return { cfg, areaState, currentHour };
-      } else if (selectedArea) {
+      if (selectedArea) {
         const status = areaStatus[selectedArea.area_id] || {};
         if (!cachedConfig || !cachedSunTimes) return null;
         const zoneName = status.zone_name;
@@ -1656,17 +1609,13 @@
       // Compute base path for API calls (handles ingress prefix)
       const path = window.location.pathname;
       const areaMatch = path.match(/^(.*)\/area\/[^/]+\/?$/);
-      const zoneMatch = path.match(/^(.*)\/zone\/[^/]+\/?$/);
       if (areaMatch) {
         basePath = areaMatch[1] || '';
-      } else if (zoneMatch) {
-        basePath = zoneMatch[1] || '';
       }
 
-      // Get selected area/zone from injected data
+      // Get selected area from injected data
       const data = window.circadianData || {};
       const selectedAreaId = data.selectedAreaId;
-      selectedZoneName = data.selectedZoneName;
       cachedConfig = data.config;
 
       // Compute sun times client-side from config lat/lon
@@ -1679,10 +1628,8 @@
       // Fetch initial data
       await loadInitialData();
 
-      // Determine if area or zone page
-      if (selectedZoneName) {
-        setupZonePage(selectedZoneName);
-      } else if (selectedAreaId) {
+      // Determine if area page
+      if (selectedAreaId) {
         setupAreaPage(selectedAreaId);
       } else {
         document.getElementById('page-title').textContent = 'Not Found';
@@ -1759,10 +1706,9 @@
 
       document.getElementById('page-title').textContent = 'Area: ' + area.name;
 
-      // Show area controls, hide zone controls
+      // Show area controls
       document.getElementById('controls-left').style.display = 'flex';
       document.getElementById('controls-area').style.display = 'flex';
-      document.getElementById('controls-zone').style.display = 'none';
 
       updateContent();
       setTimeout(() => {
@@ -1773,23 +1719,6 @@
       loadWakeAlarmSettings();
     }
 
-    function setupZonePage(zoneName) {
-      selectedZoneName = zoneName;
-      document.getElementById('page-title').textContent = 'Rhythm Zone: ' + zoneName;
-
-      // Hide area controls, show zone controls
-      document.getElementById('controls-left').style.display = 'none';
-      document.getElementById('controls-area').style.display = 'none';
-      document.getElementById('controls-zone').style.display = 'flex';
-      document.getElementById('controls-zone-left').style.display = 'flex';
-      document.getElementById('header-circadian-toggle').style.display = 'none';
-
-      updateZoneContent();
-      setTimeout(() => {
-        renderMiniChartForZone(zoneName);
-        updateAllSliders();
-      }, 50);
-    }
 
     function getRefreshInterval() {
       if (cachedConfig) {
@@ -1805,15 +1734,7 @@
       refreshInterval = setInterval(async () => {
         if (sliderInteracting) return;
         try {
-          if (selectedZoneName) {
-            const zsRes = await fetch(basePath + '/api/zone-states');
-            if (zsRes.ok) {
-              const zs = await zsRes.json();
-              zoneStates = zs.zone_states || {};
-            }
-            updateZoneContent();
-            renderMiniChartForZone(selectedZoneName);
-          } else if (selectedArea) {
+          if (selectedArea) {
             const res = await fetch(basePath + `/api/area-status?area_id=${encodeURIComponent(selectedArea.area_id)}`);
             if (res.ok) {
               const singleStatus = await res.json();
@@ -1948,7 +1869,7 @@
       }
       const areaZoneName = selectedArea.zone_name;
       if (areaZoneName) {
-        metaRhythm.innerHTML = `<a href="${basePath}/zone-design/${encodeURIComponent(areaZoneName)}?back=area/${encodeURIComponent(selectedArea.area_id)}">${areaZoneName}</a>`;
+        metaRhythm.innerHTML = `<a href="${basePath}/zone/${encodeURIComponent(areaZoneName)}?back=area/${encodeURIComponent(selectedArea.area_id)}">${areaZoneName}</a>`;
         metaRhythm.style.display = '';
       } else {
         metaRhythm.innerHTML = '';
@@ -2003,85 +1924,17 @@
       updateTimerStatus();
     }
 
-    function updateZoneContent() {
-      if (!selectedZoneName) return;
-      const zs = zoneStates[selectedZoneName] || {};
-      const zoneBri = zs.brightness ?? 0;
-      const zoneKelvin = zs.kelvin ?? 4000;
-
-      // Header shading
-      const stateEl = document.getElementById('area-state');
-      if (zoneBri > 0) {
-        const cctColor = cctToRGB(zoneKelvin);
-        const tintedColor = tintColorByBrightness(cctColor, zoneBri);
-        stateEl.style.setProperty('--state-bg', tintedColor);
-        stateEl.style.setProperty('--state-fill', (zoneBri / 100).toFixed(3));
-      } else {
-        stateEl.style.setProperty('--state-bg', 'var(--panel)');
-        stateEl.style.setProperty('--state-fill', '0');
-      }
-
-      // Values display
-      const valuesEl = document.getElementById('state-values');
-      if (zoneBri > 0) {
-        const cctColor = cctToRGB(zoneKelvin);
-        const tintedColor = tintColorByBrightness(cctColor, zoneBri);
-        valuesEl.style.color = readableTextColor(tintedColor);
-      } else {
-        valuesEl.style.color = 'var(--muted)';
-      }
-      valuesEl.textContent = `${Math.round(zoneBri)}% • ${Math.round(zoneKelvin)}K`;
-
-      // Header meta: zone design link
-      const metaZone = document.getElementById('header-meta-zone');
-      const metaRhythm = document.getElementById('header-meta-rhythm');
-      metaZone.textContent = '';
-      metaZone.style.display = 'none';
-      metaRhythm.innerHTML = `<a href="${basePath}/zone-design/${encodeURIComponent(selectedZoneName)}?back=zone/${encodeURIComponent(selectedZoneName)}">${selectedZoneName}</a>`;
-      metaRhythm.style.display = '';
-
-      // Dynamic tooltips for zone controls
-      const zonePowerBtn = document.getElementById('toggle-zone-power');
-      const zoneDownBtn = document.getElementById('toggle-glozone-down');
-      const zoneResetBtn = document.getElementById('toggle-glozone-reset');
-      if (zonePowerBtn) zonePowerBtn.title = `Turn off all areas in '${selectedZoneName}'`;
-      if (zoneDownBtn) zoneDownBtn.title = 'Rhythm Zone Down: send to all areas';
-      if (zoneResetBtn) zoneResetBtn.title = `Reset Rhythm Zone`;
-
-      // Zone power button: visible only when at least one area is on
-      const zoneLeftControls = document.getElementById('controls-zone-left');
-      if (zonePowerBtn && selectedZoneName) {
-        const onAreas = getZoneOnAreas(selectedZoneName);
-        if (onAreas.length > 0) {
-          zonePowerBtn.style.display = 'flex';
-          zonePowerBtn.classList.add('active');
-          if (zoneLeftControls) zoneLeftControls.style.display = 'flex';
-        } else {
-          zonePowerBtn.style.display = 'none';
-          if (zoneLeftControls) zoneLeftControls.style.display = 'none';
-        }
-      }
-
-      updateTimerStatus();
-    }
-
-    function getZoneOnAreas(zoneName) {
-      return areas.filter(a => {
-        const s = areaStatus[a.area_id] || {};
-        return s.zone_name === zoneName && s.is_on;
-      });
-    }
 
     function updateTimerStatus() {
       const el = document.getElementById('timer-status');
-      if (!selectedArea && !selectedZoneName) {
+      if (!selectedArea) {
         el.innerHTML = '';
         return;
       }
 
       const parts = [];
 
-      if (selectedArea && !selectedZoneName) {
+      if (selectedArea) {
         const hasMotion = selectedArea.motion_expires_at && selectedArea.motion_expires_at !== 'forever';
         const hasBoostedMotion = selectedArea.boosted && selectedArea.is_motion_coupled;
         const warnClass = selectedArea.motion_warning_active ? ' timer-warning' : '';
@@ -2165,33 +2018,6 @@
       renderMiniChart(cfg, areaState, cachedSunTimes, currentHour, isActive);
     }
 
-    function renderMiniChartForZone(zoneName) {
-      const zs = zoneStates[zoneName] || {};
-      if (!cachedConfig || !cachedSunTimes) return;
-
-      const zoneData = cachedGlozones?.zones?.[zoneName] || {};
-      let cfg = { ...cachedConfig, ...zoneData };
-      cfg = resolveEffectiveCfg(cfg, zoneName);
-
-      const rs = zs.runtime_state || {};
-      const zoneState = {
-        brightness_mid: rs.brightness_mid ?? null,
-        color_mid: rs.color_mid ?? null,
-        color_override: rs.color_override ?? null,
-        frozen_at: rs.frozen_at ?? null
-      };
-
-      let currentHour;
-      if (rs.frozen_at != null) {
-        currentHour = rs.frozen_at;
-      } else {
-        const now = new Date();
-        currentHour = now.getHours() + now.getMinutes() / 60;
-      }
-
-      const isActive = true;
-      renderMiniChart(cfg, zoneState, cachedSunTimes, currentHour, isActive);
-    }
 
     // ============================================================
     // Actions
@@ -2222,97 +2048,27 @@
       executeAction('full_send');
     }
 
-    async function confirmGlozoneDown() {
-      if (!selectedZoneName) return;
-      const zs = zoneStates[selectedZoneName] || {};
-      const bri = Math.round(zs.brightness ?? 0);
-      const kelvin = Math.round(zs.kelvin ?? 4000);
-      const affectedAreas = areas.filter(a => {
-        const s = areaStatus[a.area_id] || {};
-        if (s.zone_name !== selectedZoneName || !s.is_on) return false;
-        return Math.round(s.brightness || 0) !== bri || Math.round(s.kelvin || 4000) !== kelvin;
-      });
-      if (affectedAreas.length > 0) {
-        const areaList = affectedAreas.map(a => a.name).join('\n');
-        const msg = `Send ${bri}% / ${kelvin}K to "${selectedZoneName}"? These areas will adjust:\n\n${areaList}`;
-        if (!confirm(msg)) return;
-      }
-      executeAction('glozone_down');
-    }
-
-    async function confirmZonePowerOff() {
-      if (!selectedZoneName) return;
-      const onAreas = getZoneOnAreas(selectedZoneName);
-      if (onAreas.length === 0) return;
-      const areaList = onAreas.map(a => a.name).join('\n');
-      const msg = `Turn off lights in these areas?\n\n${areaList}`;
-      if (!confirm(msg)) return;
-      for (const area of onAreas) {
-        await fetch(basePath + '/api/area/action', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ area_id: area.area_id, action: 'lights_off' })
-        });
-      }
-      // Refresh after a moment
-      setTimeout(async () => {
-        try {
-          const zsRes = await fetch(basePath + '/api/zone-states');
-          if (zsRes.ok) {
-            const zs = await zsRes.json();
-            zoneStates = zs.zone_states || {};
-          }
-          const statusRes = await fetch(basePath + '/api/area-status');
-          if (statusRes.ok) areaStatus = await statusRes.json();
-          updateZoneContent();
-          renderMiniChartForZone(selectedZoneName);
-          updateAllSliders();
-        } catch (err) {
-          console.error('Error refreshing after zone power off:', err);
-        }
-      }, 500);
-    }
-
     async function executeAction(action) {
-      if (!selectedArea && !selectedZoneName) return;
+      if (!selectedArea) return;
 
       try {
-        let response;
-        if (selectedZoneName) {
-          response = await fetch(basePath + '/api/zone/action', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ zone_name: selectedZoneName, action: action })
-          });
-        } else {
-          response = await fetch(basePath + '/api/area/action', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ area_id: selectedArea.area_id, action: action })
-          });
-        }
+        const response = await fetch(basePath + '/api/area/action', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ area_id: selectedArea.area_id, action: action })
+        });
 
         if (response.ok) {
           setTimeout(async () => {
             try {
-              if (selectedZoneName) {
-                const zsRes = await fetch(basePath + '/api/zone-states');
-                if (zsRes.ok) {
-                  const zs = await zsRes.json();
-                  zoneStates = zs.zone_states || {};
-                }
-                updateZoneContent();
-                renderMiniChartForZone(selectedZoneName);
-              } else {
-                const areaId = selectedArea.area_id;
-                const res = await fetch(basePath + `/api/area-status?area_id=${encodeURIComponent(areaId)}`);
-                if (res.ok) {
-                  const singleStatus = await res.json();
-                  Object.assign(areaStatus, singleStatus);
-                }
-                updateContent();
-                renderMiniChartForArea(areaId);
+              const areaId = selectedArea.area_id;
+              const res = await fetch(basePath + `/api/area-status?area_id=${encodeURIComponent(areaId)}`);
+              if (res.ok) {
+                const singleStatus = await res.json();
+                Object.assign(areaStatus, singleStatus);
               }
+              updateContent();
+              renderMiniChartForArea(areaId);
               updateAllSliders();
             } catch (err) {
               console.error('Error refreshing after action:', err);
@@ -2330,15 +2086,12 @@
     }
 
     async function executeSetPosition(value, mode) {
-      if (!selectedArea && !selectedZoneName) return;
+      if (!selectedArea) return;
 
-      const payload = selectedZoneName
-        ? { zone_name: selectedZoneName, action: 'set_position', value: value, mode: mode }
-        : { area_id: selectedArea.area_id, action: 'set_position', value: value, mode: mode };
-      const endpoint = selectedZoneName ? basePath + '/api/zone/action' : basePath + '/api/area/action';
+      const payload = { area_id: selectedArea.area_id, action: 'set_position', value: value, mode: mode };
 
       try {
-        const response = await fetch(endpoint, {
+        const response = await fetch(basePath + '/api/area/action', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
@@ -2346,23 +2099,13 @@
         if (response.ok) {
           setTimeout(async () => {
             try {
-              if (selectedZoneName) {
-                const zsRes = await fetch(basePath + '/api/zone-states');
-                if (zsRes.ok) {
-                  const zs = await zsRes.json();
-                  zoneStates = zs.zone_states || {};
-                }
-                updateZoneContent();
-                renderMiniChartForZone(selectedZoneName);
-              } else if (selectedArea) {
-                const res = await fetch(basePath + `/api/area-status?area_id=${encodeURIComponent(selectedArea.area_id)}`);
-                if (res.ok) {
-                  const singleStatus = await res.json();
-                  Object.assign(areaStatus, singleStatus);
-                }
-                updateContent();
-                renderMiniChartForArea(selectedArea.area_id);
+              const res = await fetch(basePath + `/api/area-status?area_id=${encodeURIComponent(selectedArea.area_id)}`);
+              if (res.ok) {
+                const singleStatus = await res.json();
+                Object.assign(areaStatus, singleStatus);
               }
+              updateContent();
+              renderMiniChartForArea(selectedArea.area_id);
               updateAllSliders();
             } catch (err) {
               console.error('Error refreshing after set_position:', err);

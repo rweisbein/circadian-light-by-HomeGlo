@@ -347,76 +347,126 @@ input[type=range]::-moz-range-thumb {
   z-index: 100;
 }
 
-/* Cursor Controls */
+/* Cursor Controls — vertical sliders */
 .cursor-controls {
   display: flex;
   justify-content: center;
-  gap: 16px;
   margin-top: 4px;
+  -webkit-user-select: none;
+  user-select: none;
 }
-.cursor-controls.hidden { display: none; }
-.cursor-btn-group {
+#cursor-controls .adjust-slider-row {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 36px;
+}
+#cursor-controls .slider-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+#cursor-controls .slider-column {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
 }
-.cursor-btn-group-label {
-  font-size: 0.65rem;
-  color: var(--muted);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-.cursor-btn {
-  --btn-bg: rgba(255,255,255,0.06);
-  --btn-text: #fff;
-  --btn-fill: 0;
-  --btn-fill-opacity: 0;
-  border: 1px solid rgba(255,255,255,0.25);
-  background: var(--btn-bg);
-  color: var(--btn-text);
-  font-size: 0.95rem;
+#cursor-controls .slider-label {
+  font-size: 0.85rem;
   font-weight: 600;
-  padding: 4px 0;
-  border-radius: 999px;
-  width: 72px;
-  cursor: pointer;
-  transition: background 0.15s, border 0.15s, color 0.15s;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+#cursor-controls .slider-track {
   position: relative;
+  width: 24px;
+  height: 160px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 12px;
+  cursor: pointer;
+  touch-action: none;
+  overflow: visible;
+}
+#cursor-controls .slider-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background: rgba(0,0,0,0.55);
+  pointer-events: none;
+  transition: height 0.15s ease;
+  border-radius: 12px 12px 0 0;
   overflow: hidden;
+}
+#cursor-controls .slider-thumb {
+  position: absolute;
+  left: 50%;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid rgba(255,255,255,0.8);
+  box-shadow: 0 1px 6px rgba(0,0,0,0.4);
+  transform: translate(-50%, 50%);
+  pointer-events: none;
+  transition: bottom 0.15s ease, background 0.15s ease;
+  z-index: 2;
+}
+#cursor-controls .slider-track.dragging .slider-fill,
+#cursor-controls .slider-track.dragging .slider-thumb {
+  transition: none;
+}
+#cursor-controls .slider-extreme {
+  font-size: 0.6rem;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 2px 0;
+  letter-spacing: 0.02em;
+}
+#cursor-controls .slider-extreme:hover {
+  color: var(--text);
+}
+/* Top extreme (before track): extra space below for thumb */
+#cursor-controls .slider-column > .slider-extreme:nth-child(2) {
+  padding-bottom: 18px;
+}
+/* Bottom extreme (after track): extra space above for thumb */
+#cursor-controls .slider-track + .slider-extreme {
+  padding-top: 18px;
+}
+#cursor-controls .step-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-self: center;
+}
+#cursor-controls .step-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(30,30,30,0.9);
+  color: var(--muted);
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: all 0.15s;
+  padding: 0;
 }
-.cursor-btn::after {
-  content: '';
-  position: absolute;
-  inset: 2px;
-  border-radius: 999px;
-  background: rgba(255,255,255,0.18);
-  opacity: var(--btn-fill-opacity);
-  transition: opacity 0.2s ease;
-  pointer-events: none;
+#cursor-controls .step-btn:hover {
+  border-color: rgba(255,255,255,0.35);
+  background: rgba(50,50,50,0.9);
+  color: var(--text);
 }
-.cursor-btn .btn-arrow {
-  position: relative;
-  z-index: 1;
-  font-size: 1rem;
-  line-height: 1;
+#cursor-controls .step-btn:active {
+  background: rgba(70,70,70,0.9);
 }
-.cursor-btn:hover {
-  border-color: rgba(255,255,255,0.45);
-}
-.cursor-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-.cursor-btn.at-extreme {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-.cursor-btn.at-extreme .btn-arrow {
-  opacity: 0.4;
+#cursor-controls .step-btn svg {
+  width: 16px;
+  height: 16px;
 }
 
 /* Dual Range Slider - fixed from llm_access for proper left handle grabbing */
@@ -1368,26 +1418,69 @@ input[type=range]::-moz-range-thumb {
       <div class="graph-cursor-callout" id="cursor-callout"></div>
     </div>
 
-    <!-- Cursor Controls -->
-    <div class="cursor-controls hidden" id="cursor-controls">
-      <div class="cursor-btn-group">
-        <span class="cursor-btn-group-label">Step</span>
-        <button class="cursor-btn" id="cursor-step-up" data-mode="combo" title="Step Up"><span class="btn-arrow">↑</span></button>
-        <button class="cursor-btn" id="cursor-step-down" data-mode="combo" title="Step Down"><span class="btn-arrow">↓</span></button>
-      </div>
-      <div class="cursor-btn-group">
-        <span class="cursor-btn-group-label">Bright</span>
-        <button class="cursor-btn" id="cursor-bright-up" data-mode="brightness" title="Brighten"><span class="btn-arrow">↑</span></button>
-        <button class="cursor-btn" id="cursor-bright-down" data-mode="brightness" title="Dim"><span class="btn-arrow">↓</span></button>
-      </div>
-      <div class="cursor-btn-group">
-        <span class="cursor-btn-group-label">Color</span>
-        <button class="cursor-btn" id="cursor-color-up" data-mode="color" title="Cooler"><span class="btn-arrow">↑</span></button>
-        <button class="cursor-btn" id="cursor-color-down" data-mode="color" title="Warmer"><span class="btn-arrow">↓</span></button>
-      </div>
-      <div class="cursor-btn-group">
-        <span class="cursor-btn-group-label">&nbsp;</span>
-        <button class="cursor-btn" id="cursor-reset" title="Reset to curve"><span class="btn-arrow" style="font-size:0.75rem">Reset</span></button>
+    <!-- Cursor Controls — vertical sliders -->
+    <div class="cursor-controls" id="cursor-controls">
+      <div class="adjust-slider-row">
+        <!-- Step/Circadian slider -->
+        <div class="slider-group">
+          <div class="slider-column">
+            <div class="slider-label">Circadian</div>
+            <div class="slider-extreme" id="cursor-set-britelite">BriteLite</div>
+            <div class="slider-track" data-mode="step">
+              <div class="slider-fill"></div>
+              <div class="slider-thumb"></div>
+            </div>
+            <div class="slider-extreme" id="cursor-set-nitelite">NiteLite</div>
+          </div>
+          <div class="step-buttons">
+            <button class="step-btn" id="cursor-step-up" title="Step Up">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 15 12 9 18 15"/></svg>
+            </button>
+            <button class="step-btn" id="cursor-step-down" title="Step Down">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+          </div>
+        </div>
+        <!-- Brightness slider -->
+        <div class="slider-group">
+          <div class="slider-column">
+            <div class="slider-label">Bright</div>
+            <div class="slider-extreme" id="cursor-bright-max">brightest</div>
+            <div class="slider-track" data-mode="brightness">
+              <div class="slider-fill"></div>
+              <div class="slider-thumb"></div>
+            </div>
+            <div class="slider-extreme" id="cursor-bright-min">dimmest</div>
+          </div>
+          <div class="step-buttons">
+            <button class="step-btn" id="cursor-bright-up" title="Brighten">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 15 12 9 18 15"/></svg>
+            </button>
+            <button class="step-btn" id="cursor-bright-down" title="Dim">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+          </div>
+        </div>
+        <!-- Color slider -->
+        <div class="slider-group">
+          <div class="slider-column">
+            <div class="slider-label">Color</div>
+            <div class="slider-extreme" id="cursor-color-max">coolest</div>
+            <div class="slider-track" data-mode="color">
+              <div class="slider-fill"></div>
+              <div class="slider-thumb"></div>
+            </div>
+            <div class="slider-extreme" id="cursor-color-min">warmest</div>
+          </div>
+          <div class="step-buttons">
+            <button class="step-btn" id="cursor-color-up" title="Cooler">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 15 12 9 18 15"/></svg>
+            </button>
+            <button class="step-btn" id="cursor-color-down" title="Warmer">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
     <div style="display:flex;justify-content:flex-end;margin-top:8px;">
@@ -1635,8 +1728,9 @@ let runtimeState = {
   color_override: null,        // Solar rule target offset (Kelvin) from color stepping
 };
 
-// Cursor state
-let cursorHour = null;
+// Cursor state — always present, initialized to current time
+const _nowInit = new Date();
+let cursorHour = _nowInit.getHours() + _nowInit.getMinutes() / 60;
 let graphData = null;
 let lastCursorPhase = null;  // Track phase for reset on transition
 
@@ -3061,12 +3155,6 @@ function initChartInteractivity() {
     applyCursor();
   }, true);  // Use capture phase
 
-  // Double click to clear cursor
-  chart.addEventListener('dblclick', () => {
-    cursorHour = null;
-    applyCursor();
-  }, true);
-
   chart._interactivityInitialized = true;
 }
 
@@ -3080,17 +3168,6 @@ function applyCursor() {
 
   const shapes = window.baseShapes.slice();
   const annotations = window.baseAnnotations ? window.baseAnnotations.slice() : [];
-
-  if (cursorHour === null) {
-    Plotly.relayout(chart, { shapes, annotations });
-    if (traceIdx != null) {
-      Plotly.restyle(chart, { x: [[null]], y: [[null]] }, traceIdx);
-    }
-    cursorControls.classList.add('hidden');
-    cursorCallout.style.opacity = '0';
-    updateCursorButtons(null);
-    return;
-  }
 
   // Get cursor point data using core calculation functions (exact values, no interpolation)
   let cursorPoint = null;
@@ -3198,11 +3275,12 @@ function applyCursor() {
     // Update cursor button styles with NEXT values
     updateCursorButtons(cursorPoint);
 
+    // Update slider positions to match cursor
+    updateCursorSliders(cursorPoint);
+
     // Live Design: update lights when cursor values change
     applyLiveLight();
   }
-
-  cursorControls.classList.remove('hidden');
 }
 
 // Style cursor buttons based on NEXT values (what button WILL DO)
@@ -3412,6 +3490,261 @@ function updateCursorButtons(point) {
       timeNowBtn.title = `Now: ${nowVals.bri}% at ${nowVals.cct}K`;
     }
   }
+}
+
+// ============================================================
+// Cursor Slider Functions
+// ============================================================
+
+let cursorSliderInteracting = false;
+
+function buildCursorTrackGradient(mode) {
+  if (!config) return '';
+  const bMin = config.min_brightness, bMax = config.max_brightness;
+  const cMin = config.min_color_temp, cMax = config.max_color_temp;
+  const currentBri = cursorHour !== null ? calculateBrightnessAtHour(cursorHour) * 100 : 50;
+  const currentCCT = cursorHour !== null ? calculateColorAtHour(cursorHour, true) : (cMin + cMax) / 2;
+  const stops = [];
+  const n = 6;
+  for (let i = 0; i <= n; i++) {
+    const frac = i / n;
+    let color;
+    if (mode === 'color') {
+      const k = cMin + (cMax - cMin) * frac;
+      color = cctToRGB(k);
+    } else if (mode === 'brightness') {
+      const b = bMin + (bMax - bMin) * frac;
+      color = tintColorByBrightness(cctToRGB(currentCCT), b);
+    } else {
+      // Step/circadian slider: combined brightness + color
+      const b = bMin + (bMax - bMin) * frac;
+      const k = cMin + (cMax - cMin) * frac;
+      color = tintColorByBrightness(cctToRGB(k), b);
+    }
+    stops.push(color + ' ' + Math.round(frac * 100) + '%');
+  }
+  return 'linear-gradient(to top, ' + stops.join(', ') + ')';
+}
+
+function applyOneCursorSlider(track, pct, bri, cct, mode) {
+  const fill = track.querySelector('.slider-fill');
+  const thumb = track.querySelector('.slider-thumb');
+  if (!fill || !thumb) return;
+  fill.style.height = (100 - pct) + '%';
+  thumb.style.bottom = pct + '%';
+  const color = cctToRGB(cct);
+  const tinted = mode === 'color' ? color : tintColorByBrightness(color, bri);
+  thumb.style.background = tinted;
+  thumb.style.borderColor = color;
+}
+
+function updateCursorSliders(point) {
+  if (!config) return;
+  const container = document.getElementById('cursor-controls');
+  if (!container) return;
+  const tracks = container.querySelectorAll('.slider-track');
+  if (!tracks.length) return;
+
+  if (!point) {
+    // Reset slider visuals
+    tracks.forEach(track => {
+      track.style.background = '';
+      const fill = track.querySelector('.slider-fill');
+      const thumb = track.querySelector('.slider-thumb');
+      if (fill) fill.style.height = '50%';
+      if (thumb) { thumb.style.bottom = '50%'; thumb.style.background = '#fff'; }
+    });
+    return;
+  }
+
+  const bMin = config.min_brightness, bMax = config.max_brightness;
+  const cMin = config.min_color_temp, cMax = config.max_color_temp;
+  const currentBri = point.y;  // 0-100
+  const currentCCT = point.cct;
+
+  const briFrac = bMax > bMin ? Math.max(0, Math.min(100, (currentBri - bMin) / (bMax - bMin) * 100)) : 50;
+  const cctFrac = cMax > cMin ? Math.max(0, Math.min(100, (currentCCT - cMin) / (cMax - cMin) * 100)) : 50;
+  const gloFrac = briFrac;  // Step slider follows brightness position
+
+  tracks.forEach(track => {
+    if (track.classList.contains('dragging')) return;
+    const mode = track.dataset.mode;
+    track.style.background = buildCursorTrackGradient(mode);
+    const pct = mode === 'step' ? gloFrac : mode === 'brightness' ? briFrac : cctFrac;
+    applyOneCursorSlider(track, pct, currentBri, currentCCT, mode);
+  });
+}
+
+function getCursorSliderPosition(track, e) {
+  const rect = track.getBoundingClientRect();
+  const y = Math.max(0, Math.min(1, (rect.bottom - e.clientY) / rect.height));
+  return y * 100;
+}
+
+function setCursorToPosition(pct) {
+  // Set both brightness and color to a percentage position
+  if (cursorHour === null || !config) return;
+  const bMin = config.min_brightness, bMax = config.max_brightness;
+  const cMin = config.min_color_temp, cMax = config.max_color_temp;
+
+  const targetBri = bMin + (bMax - bMin) * pct / 100;
+  const targetCCT = cMin + (cMax - cMin) * pct / 100;
+
+  // Compute time parameters
+  const tAscend = config.ascend_start;
+  let tDescend = config.descend_start;
+  if (tDescend <= tAscend) tDescend += 24;
+  let h48 = cursorHour < tAscend ? cursorHour + 24 : cursorHour;
+  const inAscend = h48 >= tAscend && h48 < tDescend;
+  const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, config.wake_speed))];
+  const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, config.bed_speed))];
+  const slope = inAscend ? kAscend : -kDescend;
+
+  let calcTime = h48;
+  if (!inAscend && h48 < tDescend) calcTime = h48 + 24;
+
+  const bMinNorm = bMin / 100, bMaxNorm = bMax / 100;
+  const targetBriNorm = Math.max(bMinNorm + 0.001, Math.min(bMaxNorm - 0.001, targetBri / 100));
+  const targetCCTNorm = Math.max(0.001, Math.min(0.999, (targetCCT - cMin) / (cMax - cMin)));
+
+  runtimeState.brightness_mid = inverseMidpoint(calcTime, targetBriNorm, slope, bMinNorm, bMaxNorm);
+  runtimeState.color_mid = inverseMidpoint(calcTime, targetCCTNorm, slope, 0, 1);
+
+  renderChart();
+  applyCursor();
+}
+
+function setCursorBrightness(pct) {
+  if (cursorHour === null || !config) return;
+  const bMin = config.min_brightness, bMax = config.max_brightness;
+  const targetBri = bMin + (bMax - bMin) * pct / 100;
+
+  const tAscend = config.ascend_start;
+  let tDescend = config.descend_start;
+  if (tDescend <= tAscend) tDescend += 24;
+  let h48 = cursorHour < tAscend ? cursorHour + 24 : cursorHour;
+  const inAscend = h48 >= tAscend && h48 < tDescend;
+  const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, config.wake_speed))];
+  const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, config.bed_speed))];
+  const slope = inAscend ? kAscend : -kDescend;
+
+  let calcTime = h48;
+  if (!inAscend && h48 < tDescend) calcTime = h48 + 24;
+
+  const bMinNorm = bMin / 100, bMaxNorm = bMax / 100;
+  const targetNorm = Math.max(bMinNorm + 0.001, Math.min(bMaxNorm - 0.001, targetBri / 100));
+  runtimeState.brightness_mid = inverseMidpoint(calcTime, targetNorm, slope, bMinNorm, bMaxNorm);
+
+  renderChart();
+  applyCursor();
+}
+
+function setCursorColor(pct) {
+  if (cursorHour === null || !config) return;
+  const cMin = config.min_color_temp, cMax = config.max_color_temp;
+  const targetCCT = cMin + (cMax - cMin) * pct / 100;
+
+  const tAscend = config.ascend_start;
+  let tDescend = config.descend_start;
+  if (tDescend <= tAscend) tDescend += 24;
+  let h48 = cursorHour < tAscend ? cursorHour + 24 : cursorHour;
+  const inAscend = h48 >= tAscend && h48 < tDescend;
+  const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, config.wake_speed))];
+  const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, config.bed_speed))];
+  const slope = inAscend ? kAscend : -kDescend;
+
+  let calcTime = h48;
+  if (!inAscend && h48 < tDescend) calcTime = h48 + 24;
+
+  const targetNorm = Math.max(0.001, Math.min(0.999, (targetCCT - cMin) / (cMax - cMin)));
+  runtimeState.color_mid = inverseMidpoint(calcTime, targetNorm, slope, 0, 1);
+
+  renderChart();
+  applyCursor();
+}
+
+function previewCursorSlider(track, position) {
+  if (!config) return;
+  const container = document.getElementById('cursor-controls');
+  if (!container) return;
+  const dragMode = track.dataset.mode;
+
+  const bMin = config.min_brightness, bMax = config.max_brightness;
+  const cMin = config.min_color_temp, cMax = config.max_color_temp;
+  const currentBri = cursorHour !== null ? calculateBrightnessAtHour(cursorHour) * 100 : 50;
+  const currentCCT = cursorHour !== null ? calculateColorAtHour(cursorHour, true) : (cMin + cMax) / 2;
+
+  let previewBri, previewCCT;
+  if (dragMode === 'brightness') {
+    previewBri = bMin + (bMax - bMin) * position / 100;
+    previewCCT = currentCCT;
+  } else if (dragMode === 'color') {
+    previewBri = currentBri;
+    previewCCT = cMin + (cMax - cMin) * position / 100;
+  } else {
+    previewBri = bMin + (bMax - bMin) * position / 100;
+    previewCCT = cMin + (cMax - cMin) * position / 100;
+  }
+
+  const briFrac = bMax > bMin ? Math.max(0, Math.min(100, (previewBri - bMin) / (bMax - bMin) * 100)) : 50;
+  const cctFrac = cMax > cMin ? Math.max(0, Math.min(100, (previewCCT - cMin) / (cMax - cMin) * 100)) : 50;
+  const gloFrac = briFrac;
+
+  container.querySelectorAll('.slider-track').forEach(t => {
+    const m = t.dataset.mode;
+    t.style.background = buildCursorTrackGradient(m);
+    const pct = m === 'step' ? gloFrac : m === 'brightness' ? briFrac : cctFrac;
+    applyOneCursorSlider(t, pct, previewBri, previewCCT, m);
+  });
+}
+
+function initCursorSliderHandlers() {
+  const container = document.getElementById('cursor-controls');
+  if (!container) return;
+
+  container.querySelectorAll('.slider-track').forEach(track => {
+    let lastPos = null;
+    const mode = track.dataset.mode;
+
+    function onDown(e) {
+      e.preventDefault();
+      cursorSliderInteracting = true;
+      track.classList.add('dragging');
+      track.setPointerCapture(e.pointerId);
+      lastPos = getCursorSliderPosition(track, e);
+      previewCursorSlider(track, lastPos);
+    }
+    function onMove(e) {
+      if (!track.classList.contains('dragging')) return;
+      e.preventDefault();
+      lastPos = getCursorSliderPosition(track, e);
+      previewCursorSlider(track, lastPos);
+    }
+    function onUp(e) {
+      if (!track.classList.contains('dragging')) return;
+      e.preventDefault();
+      track.classList.remove('dragging');
+      cursorSliderInteracting = false;
+      if (lastPos !== null) {
+        if (mode === 'step') setCursorToPosition(lastPos);
+        else if (mode === 'brightness') setCursorBrightness(lastPos);
+        else if (mode === 'color') setCursorColor(lastPos);
+      }
+    }
+
+    track.addEventListener('pointerdown', onDown);
+    track.addEventListener('pointermove', onMove);
+    track.addEventListener('pointerup', onUp);
+    track.addEventListener('pointercancel', onUp);
+  });
+
+  // Extreme label clicks
+  document.getElementById('cursor-set-britelite')?.addEventListener('click', () => setCursorToPosition(100));
+  document.getElementById('cursor-set-nitelite')?.addEventListener('click', () => setCursorToPosition(0));
+  document.getElementById('cursor-bright-max')?.addEventListener('click', () => setCursorBrightness(100));
+  document.getElementById('cursor-bright-min')?.addEventListener('click', () => setCursorBrightness(0));
+  document.getElementById('cursor-color-max')?.addEventListener('click', () => setCursorColor(100));
+  document.getElementById('cursor-color-min')?.addEventListener('click', () => setCursorColor(0));
 }
 
 // ============================================================
@@ -4077,6 +4410,9 @@ function setupEventListeners() {
   ['color-min', 'color-max', 'brightness-min', 'brightness-max'].forEach(id => {
     document.getElementById(id)?.addEventListener('input', updateDualFills);
   });
+
+  // Initialize cursor slider drag handlers
+  initCursorSliderHandlers();
 
 }
 
@@ -5102,9 +5438,9 @@ function getZoneNameFromUrl() {
   if (data.selectedZoneName) {
     return data.selectedZoneName;
   }
-  // Fallback: parse from URL
+  // Fallback: parse from URL (match both /zone-design/ and /zone/)
   const path = window.location.pathname;
-  const match = path.match(/\/zone-design\/([^/]+)$/);
+  const match = path.match(/\/(?:zone-design|zone)\/([^/]+)$/);
   if (match) {
     return decodeURIComponent(match[1]);
   }
@@ -5119,7 +5455,7 @@ async function loadZoneFromData() {
   if (!zoneName) {
     // No zone specified - redirect to home
     const path = window.location.pathname;
-    const base = path.replace(/\/zone-design\/[^/]*\/?$/, '').replace(/\/zone-design\/?$/, '');
+    const base = path.replace(/\/(?:zone-design|zone)\/[^/]*\/?$/, '').replace(/\/(?:zone-design|zone)\/?$/, '');
     window.location.href = (base || '.') + '/';
     return;
   }
@@ -5214,8 +5550,10 @@ async function saveZoneSettings() {
       if (newName !== selectedZoneName) {
         // Update URL to reflect new name
         selectedZoneName = newName;
-        const basePath = window.location.pathname.replace(/\/zone-design\/[^/]+\/?$/, '');
-        window.history.replaceState(null, '', basePath + '/zone-design/' + encodeURIComponent(newName) + window.location.search);
+        const basePath = window.location.pathname.replace(/\/(?:zone-design|zone)\/[^/]+\/?$/, '');
+        // Preserve current URL prefix (/zone/ or /zone-design/)
+        const prefix = window.location.pathname.includes('/zone-design/') ? '/zone-design/' : '/zone/';
+        window.history.replaceState(null, '', basePath + prefix + encodeURIComponent(newName) + window.location.search);
       }
       // Brief feedback then navigate back
       if (saveBtn) {
@@ -5239,7 +5577,7 @@ async function saveZoneSettings() {
 /**
  * Navigation
  */
-const _basePath = window.location.pathname.replace(/\/zone-design\/[^/]*\/?$/, '').replace(/\/zone-design\/?$/, '');
+const _basePath = window.location.pathname.replace(/\/(?:zone-design|zone)\/[^/]*\/?$/, '').replace(/\/(?:zone-design|zone)\/?$/, '');
 const _backParam = new URLSearchParams(window.location.search).get('back');
 const _backUrl = _backParam && _backParam !== 'home'
   ? (_basePath || '.') + '/' + _backParam

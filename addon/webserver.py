@@ -885,9 +885,9 @@ class LightDesignerServer:
         return await self.serve_page("area", {"selectedAreaId": area_id})
 
     async def serve_zone_detail(self, request: Request) -> Response:
-        """Serve the Zone detail page."""
+        """Serve the Zone detail page (unified with rhythm-design)."""
         zone_name = request.match_info.get("zone_name")
-        return await self.serve_page("area", {"selectedZoneName": zone_name})
+        return await self.serve_page("rhythm-design", {"selectedZoneName": zone_name})
 
     async def serve_settings(self, request: Request) -> Response:
         """Serve the Settings page."""
