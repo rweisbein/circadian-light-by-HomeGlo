@@ -3700,6 +3700,19 @@ function previewCursorSlider(track, position) {
 }
 
 /**
+ * Show/hide design-mode-only controls based on Live Design state.
+ */
+function updateDesignModeUI() {
+  const inDesign = liveDesignEnabled;
+  // Chart toolbar (date slider, conditions, time nav)
+  const toolbar = document.querySelector('.chart-toolbar');
+  if (toolbar) toolbar.style.display = inDesign ? '' : 'none';
+  // Simple mode checkbox
+  const simpleWrap = document.getElementById('simple-mode')?.closest('div');
+  if (simpleWrap) simpleWrap.style.display = inDesign ? '' : 'none';
+}
+
+/**
  * Snap cursor to current time and re-render.
  */
 function snapCursorToNow() {
@@ -4838,6 +4851,7 @@ function setupLiveDesign() {
 
       liveDesignEnabled = !liveDesignEnabled;
       toggleBtn.textContent = liveDesignEnabled ? 'Pause' : 'Resume';
+      updateDesignModeUI();
 
       // Disable/enable Circadian mode for the area
       if (liveDesignEnabled) {
@@ -4894,6 +4908,7 @@ function setupLiveDesign() {
         liveDesignEnabled = true;
         toggleBtn.style.display = '';
         toggleBtn.textContent = 'Pause';
+        updateDesignModeUI();
         if (statusEl) {
           statusEl.textContent = 'starting Live Design';
           statusEl.classList.remove('live-blink');
@@ -4920,6 +4935,7 @@ function setupLiveDesign() {
           statusEl.textContent = '';
           statusEl.classList.remove('active', 'live-blink');
         }
+        updateDesignModeUI();
         // Snap cursor back to now — exiting design mode
         resetRuntimeState();
         snapCursorToNow();
@@ -5666,6 +5682,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   renderChart();
   applyCursor();
+  updateDesignModeUI();
 
   // Load zone settings from API
   loadZoneFromData();
