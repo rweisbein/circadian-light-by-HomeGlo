@@ -3132,8 +3132,9 @@ function initChartInteractivity() {
     hoverLabel.style.opacity = '0';
   }, true);
 
-  // Click for cursor placement - use capture to get events before Plotly
+  // Click for cursor placement - only in Live Design mode
   chart.addEventListener('click', (ev) => {
+    if (!liveDesignEnabled) return;  // Cursor locked to "now" outside design mode
     const plotArea = getPlotArea();
     if (!plotArea) {
       console.log('No plot area found');
@@ -3699,11 +3700,21 @@ function previewCursorSlider(track, position) {
 }
 
 /**
+ * Snap cursor to current time and re-render.
+ */
+function snapCursorToNow() {
+  const now = new Date();
+  cursorHour = now.getHours() + now.getMinutes() / 60;
+  renderChart();
+  applyCursor();
+}
+
+/**
  * Push a zone action to the server so the zone's runtime state updates.
- * Only fires when we have a selectedZoneName (i.e. on a zone page).
+ * Only fires when we have a selectedZoneName and NOT in Live Design mode.
  */
 function pushZoneAction(action, value, mode) {
-  if (!selectedZoneName) return;
+  if (!selectedZoneName || liveDesignEnabled) return;
   const payload = { zone_name: selectedZoneName, action };
   if (value !== undefined) payload.value = value;
   if (mode !== undefined) payload.mode = mode;
@@ -4406,19 +4417,22 @@ function setupEventListeners() {
     pushZoneAction('glozone_reset');
   });
 
-  // Time navigation buttons
+  // Time navigation buttons — only in Live Design mode
   document.getElementById('cursor-time-now')?.addEventListener('click', () => {
+    if (!liveDesignEnabled) return;
     const now = new Date();
     cursorHour = now.getHours() + now.getMinutes() / 60;
     renderChart();
     applyCursor();
   });
   document.getElementById('cursor-time-plus')?.addEventListener('click', () => {
+    if (!liveDesignEnabled) return;
     cursorHour = (cursorHour + 5/60) % 24;  // +5 minutes, wrap at 24
     renderChart();
     applyCursor();
   });
   document.getElementById('cursor-time-minus')?.addEventListener('click', () => {
+    if (!liveDesignEnabled) return;
     cursorHour = (cursorHour - 5/60 + 24) % 24;  // -5 minutes, wrap at 0
     renderChart();
     applyCursor();
@@ -4853,6 +4867,9 @@ function setupLiveDesign() {
           statusEl.classList.remove('active', 'live-blink');
         }
         await setCircadianMode(liveDesignAreaId, true);
+        // Snap cursor back to now — exiting design mode
+        resetRuntimeState();
+        snapCursorToNow();
       }
     });
   }
@@ -4903,6 +4920,9 @@ function setupLiveDesign() {
           statusEl.textContent = '';
           statusEl.classList.remove('active', 'live-blink');
         }
+        // Snap cursor back to now — exiting design mode
+        resetRuntimeState();
+        snapCursorToNow();
       }
     });
   }
@@ -5649,6 +5669,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Load zone settings from API
   loadZoneFromData();
+
+  // Keep cursor at "now" when not in Live Design mode (tick every 30s)
+  setInterval(() => {
+    if (!liveDesignEnabled) {
+      snapCursorToNow();
+    }
+  }, 30000);
 });
 </script>
 </body>
