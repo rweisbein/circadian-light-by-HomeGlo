@@ -3479,52 +3479,23 @@
           }
         }
       } else if (viewMode === 'onoff') {
-        // Group by on/off first, then by zone within each
-        const onAreas = filtered.filter(a => a.is_on);
-        const offAreas = filtered.filter(a => !a.is_on);
+        // Group by zone (like custom), but sort on-areas first within each zone
+        const gzZonesObj = cachedGlozones?.zones || {};
+        const gzZoneNames = Object.keys(gzZonesObj);
 
-        const renderOnOffSection = (sectionAreas, allOff = false) => {
-          if (sectionAreas.length === 0) return '';
-          // Sub-group by zone
-          const subGroups = {};
-          const subUnassigned = [];
-          for (const area of sectionAreas) {
-            if (area.zone_name) {
-              if (!subGroups[area.zone_name]) subGroups[area.zone_name] = [];
-              subGroups[area.zone_name].push(area);
-            } else {
-              subUnassigned.push(area);
-            }
-          }
-          // Use custom zone order from cachedGlozones, then any remaining
-          const gzZoneNames = Object.keys(cachedGlozones?.zones || {});
-          const subNames = gzZoneNames.filter(zn => subGroups[zn]);
-          // Add any zones not in cachedGlozones (shouldn't happen, but safe)
-          for (const zn of Object.keys(subGroups)) {
-            if (!subNames.includes(zn)) subNames.push(zn);
-          }
-          let sectionHtml = '';
-          for (const zn of subNames) {
-            // Sort areas within zone by custom order
-            const gzData = (cachedGlozones?.zones || {})[zn];
-            const customOrder = gzData ? (gzData.areas || []).map(a => typeof a === 'object' ? a.id : a) : [];
-            const sorted = customOrder.length > 0
-              ? subGroups[zn].sort((a, b) => {
-                  const ai = customOrder.indexOf(a.area_id);
-                  const bi = customOrder.indexOf(b.area_id);
-                  return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
-                })
-              : subGroups[zn];
-            sectionHtml += renderZoneGroup(zn, sorted, undefined, undefined, { allOff });
-          }
-          if (subUnassigned.length > 0) {
-            sectionHtml += renderZoneGroup('Unassigned', subUnassigned, undefined, undefined, { allOff });
-          }
-          return sectionHtml;
-        };
-
-        html += renderOnOffSection(onAreas, false);
-        html += renderOnOffSection(offAreas, true);
+        for (const zoneName of gzZoneNames) {
+          const gzData = gzZonesObj[zoneName];
+          const zoneAreaIds = (gzData.areas || []).map(a => typeof a === 'object' ? a.id : a);
+          const areasInZone = zoneAreaIds.map(id => filtered.find(a => a.area_id === id)).filter(Boolean);
+          // Sort: on areas first, then off
+          areasInZone.sort((a, b) => (b.is_on ? 1 : 0) - (a.is_on ? 1 : 0));
+          const allOff = areasInZone.length > 0 && areasInZone.every(a => !a.is_on);
+          html += renderZoneGroup(zoneName, areasInZone, undefined, undefined, { allOff });
+        }
+        if (unassigned.length > 0) {
+          unassigned.sort((a, b) => (b.is_on ? 1 : 0) - (a.is_on ? 1 : 0));
+          html += renderZoneGroup('Unassigned', unassigned);
+        }
       } else if (viewMode === 'custom') {
         // Custom: use API zone order (preserves user arrangement from edit mode)
         const gzZonesObj = cachedGlozones?.zones || {};
