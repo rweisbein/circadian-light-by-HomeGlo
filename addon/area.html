@@ -1078,22 +1078,22 @@
       let wakeMid = cursorInAscend ? (state.brightness_mid ?? cfg.wake_time) : cfg.wake_time;
       let bedMid = !cursorInAscend ? (state.brightness_mid ?? cfg.bed_time) : cfg.bed_time;
 
-      // Apply brightness target shift when not stepping
+      // Apply brightness target shift — shift both midpoints so the full
+      // 24h chart is correct regardless of which phase we're currently in.
       if (state.brightness_mid == null) {
-        const slope = cursorInAscend ? kAscend : -kDescend;
-        const brightPct = cursorInAscend ? (cfg.wake_brightness || 50) : (cfg.bed_brightness || 50);
-        if (brightPct !== 50) {
-          if (cursorInAscend) {
-            let mid48 = wakeMid;
-            while (mid48 < tAscend) mid48 += 24;
-            while (mid48 > tDescend) mid48 -= 24;
-            wakeMid = computeShiftedMidpoint(mid48, brightPct, slope, bMin, bMax) % 24;
-          } else {
-            let mid48 = bedMid;
-            while (mid48 < tDescend) mid48 += 24;
-            while (mid48 > tDescend + 24) mid48 -= 24;
-            bedMid = computeShiftedMidpoint(mid48, brightPct, slope, bMin, bMax) % 24;
-          }
+        const wakeBrightPct = cfg.wake_brightness || 50;
+        if (wakeBrightPct !== 50) {
+          let mid48 = wakeMid;
+          while (mid48 < tAscend) mid48 += 24;
+          while (mid48 > tDescend) mid48 -= 24;
+          wakeMid = computeShiftedMidpoint(mid48, wakeBrightPct, kAscend, bMin, bMax) % 24;
+        }
+        const bedBrightPct = cfg.bed_brightness || 50;
+        if (bedBrightPct !== 50) {
+          let mid48 = bedMid;
+          while (mid48 < tDescend) mid48 += 24;
+          while (mid48 > tDescend + 24) mid48 -= 24;
+          bedMid = computeShiftedMidpoint(mid48, bedBrightPct, -kDescend, bMin, bMax) % 24;
         }
       }
 
@@ -1133,22 +1133,22 @@
       let colorWakeMid = cursorInAscend ? (state.color_mid ?? cfg.wake_time) : cfg.wake_time;
       let colorBedMid = !cursorInAscend ? (state.color_mid ?? cfg.bed_time) : cfg.bed_time;
 
-      // Apply brightness target shift for color (color follows brightness)
+      // Apply brightness target shift for color — shift both midpoints
+      // so the full 24h chart is correct regardless of current phase.
       if (state.color_mid == null) {
-        const cSlope = cursorInAscend ? kAscend : -kDescend;
-        const cBrightPct = cursorInAscend ? (cfg.wake_brightness || 50) : (cfg.bed_brightness || 50);
-        if (cBrightPct !== 50) {
-          if (cursorInAscend) {
-            let cMid48 = colorWakeMid;
-            while (cMid48 < tAscend) cMid48 += 24;
-            while (cMid48 > tDescend) cMid48 -= 24;
-            colorWakeMid = computeShiftedMidpoint(cMid48, cBrightPct, cSlope, bMin, bMax) % 24;
-          } else {
-            let cMid48 = colorBedMid;
-            while (cMid48 < tDescend) cMid48 += 24;
-            while (cMid48 > tDescend + 24) cMid48 -= 24;
-            colorBedMid = computeShiftedMidpoint(cMid48, cBrightPct, cSlope, bMin, bMax) % 24;
-          }
+        const wakeBrightPct = cfg.wake_brightness || 50;
+        if (wakeBrightPct !== 50) {
+          let cMid48 = colorWakeMid;
+          while (cMid48 < tAscend) cMid48 += 24;
+          while (cMid48 > tDescend) cMid48 -= 24;
+          colorWakeMid = computeShiftedMidpoint(cMid48, wakeBrightPct, kAscend, bMin, bMax) % 24;
+        }
+        const bedBrightPct = cfg.bed_brightness || 50;
+        if (bedBrightPct !== 50) {
+          let cMid48 = colorBedMid;
+          while (cMid48 < tDescend) cMid48 += 24;
+          while (cMid48 > tDescend + 24) cMid48 -= 24;
+          colorBedMid = computeShiftedMidpoint(cMid48, bedBrightPct, -kDescend, bMin, bMax) % 24;
         }
       }
 
