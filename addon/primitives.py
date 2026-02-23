@@ -557,9 +557,7 @@ class CircadianLightPrimitives:
 
         # Apply to lights only if is_on=True
         if area_state.is_on:
-            await self._apply_circadian_lighting(
-                area_id, result.brightness, result.color_temp, include_color=False
-            )
+            await self._apply_circadian_lighting(area_id, result.brightness, result.color_temp)
             logger.info(f"Bright up applied: {result.brightness}%")
         else:
             logger.info(f"Bright up state updated (lights off): {result.brightness}%")
@@ -627,9 +625,7 @@ class CircadianLightPrimitives:
 
         # Apply to lights only if is_on=True
         if area_state.is_on:
-            await self._apply_circadian_lighting(
-                area_id, result.brightness, result.color_temp, include_color=False
-            )
+            await self._apply_circadian_lighting(area_id, result.brightness, result.color_temp)
             logger.info(f"Bright down applied: {result.brightness}%")
         else:
             logger.info(f"Bright down state updated (lights off): {result.brightness}%")
