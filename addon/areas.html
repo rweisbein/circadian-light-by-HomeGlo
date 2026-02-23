@@ -328,7 +328,8 @@
       --row-fill: 0;
       display: flex;
       align-items: center;
-      padding: 2px 8px 2px 24px;
+      padding: 2px 8px 2px 8px;
+      margin-left: 52px;
       gap: 8px;
       background: var(--row-bg);
       color: var(--row-text);
@@ -404,7 +405,7 @@
       cursor: pointer;
     }
 
-    .row-timer { font-size: 0.6rem; color: #e2e8f0; white-space: nowrap; background: rgba(0,0,0,0.3); border-radius: 3px; padding: 0 4px; display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; }
+    .row-timer { font-size: 0.7rem; color: #e2e8f0; white-space: nowrap; background: rgba(0,0,0,0.3); border-radius: 3px; padding: 0 4px; display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; }
     .row-timer:empty { display: none; }
     .row-timer .timer-sep { opacity: 0.3; }
 
@@ -421,6 +422,7 @@
       display: flex;
       align-items: center;
       gap: 4px;
+      margin-top: 2px;
     }
 
     .row-status-sym {
@@ -546,7 +548,6 @@
       background: var(--panel);
       cursor: pointer;
       border: 1px solid var(--line);
-      border-left: 3px solid var(--accent);
       border-radius: 8px 8px 0 0;
       user-select: none;
       transition: background 0.15s;
@@ -572,9 +573,19 @@
     .zone-header:hover {
       background: rgba(255,255,255,0.05);
     }
+    .zone-label-stack {
+      display: flex;
+      flex-direction: column;
+      line-height: 1;
+      font-size: 0.5rem;
+      text-transform: lowercase;
+      letter-spacing: 0.04em;
+      opacity: 0.45;
+      flex-shrink: 0;
+    }
     .zone-rhythm-link {
-      font-size: 0.65rem;
-      opacity: 0.4;
+      font-size: 1.35rem;
+      font-weight: 600;
       text-decoration: none;
       transition: opacity 0.15s;
     }
@@ -600,8 +611,8 @@
 
     .zone-chevron-tap {
       cursor: pointer;
-      padding: 4px;
-      margin: -4px;
+      padding: 4px 12px;
+      margin: -4px 0;
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -1586,8 +1597,7 @@
       const totalSec = Math.floor(diffMs / 1000);
       if (totalSec < 60) return `${totalSec}s`;
       const min = Math.floor(totalSec / 60);
-      const sec = totalSec % 60;
-      if (min < 60) return sec > 0 ? `${min}m ${sec}s` : `${min}m`;
+      if (min < 60) return `${min}m`;
       const hr = Math.floor(min / 60);
       const remMin = min % 60;
       return remMin > 0 ? `${hr}h ${remMin}m` : `${hr}h`;
@@ -3237,7 +3247,7 @@
             <div class="zone-group">
               <div class="zone-header tune-zone-header ${isCollapsed ? 'collapsed' : ''}" data-zone="${zoneName}">
                 <span class="zone-chevron-tap" onclick="event.stopPropagation(); toggleZone('${escapedZoneName}', this)">${chevronIcon}</span>
-                <span style="font-size: 0.65rem; opacity: 0.5;">Rhythm Zone</span>
+                <span class="zone-label-stack"><span>Rhythm</span><span>zone</span></span>
                 <a class="zone-rhythm-link" href="./zone/${encodeURIComponent(zoneName)}?back=home" onclick="event.stopPropagation()">${zoneName}</a>
                 <span class="tune-zone-bri-group">
                   <span class="tune-zone-base-bri">${rhythmBri}%</span>
@@ -3343,7 +3353,7 @@
             <div class="zone-header ${isCollapsed ? 'collapsed' : ''} ${allOff ? 'no-tint' : ''}" data-zone="${zoneName}" style="${zoneHeaderStyle}" onclick="openZoneModal('${escapedZoneName}')">
               <span class="zone-chevron-tap" onclick="event.stopPropagation(); toggleZone('${escapedZoneName}', this)">${chevronIcon}</span>
               ${zonePowerBtn}
-              <span style="font-size: 0.65rem; opacity: 0.5; color: ${zoneTextColor};">Rhythm Zone</span>
+              <span class="zone-label-stack" style="color: ${zoneTextColor};"><span>Rhythm</span><span>zone</span></span>
               <a class="zone-rhythm-link" href="./zone/${encodeURIComponent(zoneName)}?back=home" style="color: ${zoneTextColor};" onclick="event.stopPropagation()">${zoneName}</a>
               ${zoneFrozenIndicator}
               ${zoneMismatchDot}
@@ -3676,7 +3686,6 @@
         <div class="row-controls">
           <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'glo_up')" title="GloUp: send to '${area.zone_name || 'Rhythm Zone'}'">${gloUpSvg}</button>
           <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'glo_down')" title="GloDown: pull from '${area.zone_name || 'Rhythm Zone'}'">${gloDownSvg}</button>
-          <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'glo_reset')" title="Reset: return to rhythm">${resetSvg}</button>
         </div>
       `;
 
