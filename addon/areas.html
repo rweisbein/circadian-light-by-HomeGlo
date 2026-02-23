@@ -547,7 +547,7 @@
       background: var(--panel);
       cursor: pointer;
       border: 1px solid var(--line);
-      border-radius: 8px 8px 0 0;
+      border-radius: 8px 8px 0 8px;
       user-select: none;
       transition: background 0.15s;
       position: relative;
@@ -561,7 +561,7 @@
       background: rgba(255,255,255,0.12);
       opacity: var(--header-fill, 0);
       pointer-events: none;
-      border-radius: 8px 8px 0 0;
+      border-radius: 8px 8px 0 8px;
     }
 
     .zone-header > * {
@@ -572,15 +572,16 @@
     .zone-header:hover {
       background: rgba(255,255,255,0.05);
     }
-    .zone-label-stack {
+    .zone-name-group {
       display: flex;
       flex-direction: column;
       line-height: 1;
+    }
+    .zone-label-sub {
       font-size: 0.5rem;
       text-transform: lowercase;
       letter-spacing: 0.04em;
       opacity: 0.45;
-      flex-shrink: 0;
     }
     .zone-rhythm-link {
       font-size: 1.35rem;
@@ -655,6 +656,7 @@
       border-radius: 8px 0 8px 8px;
       margin-left: 48px;
       margin-top: -1px;
+      overflow: hidden;
     }
 
     .zone-content.hidden {
@@ -3247,8 +3249,10 @@
             <div class="zone-group">
               <div class="zone-header tune-zone-header ${isCollapsed ? 'collapsed' : ''}" data-zone="${zoneName}">
                 <span class="zone-chevron-tap" onclick="event.stopPropagation(); toggleZone('${escapedZoneName}', this)">${chevronIcon}</span>
-                <span class="zone-label-stack"><span>Rhythm</span><span>zone</span></span>
-                <a class="zone-rhythm-link" href="./zone/${encodeURIComponent(zoneName)}?back=home" onclick="event.stopPropagation()">${zoneName}</a>
+                <div class="zone-name-group">
+                  <a class="zone-rhythm-link" href="./zone/${encodeURIComponent(zoneName)}?back=home" onclick="event.stopPropagation()">${zoneName}</a>
+                  <span class="zone-label-sub">rhythm zone</span>
+                </div>
                 <span class="tune-zone-bri-group">
                   <span class="tune-zone-base-bri">${rhythmBri}%</span>
                 </span>
@@ -3353,8 +3357,10 @@
             <div class="zone-header ${isCollapsed ? 'collapsed' : ''} ${allOff ? 'no-tint' : ''}" data-zone="${zoneName}" style="${zoneHeaderStyle}" onclick="openZoneModal('${escapedZoneName}')">
               <span class="zone-chevron-tap" onclick="event.stopPropagation(); toggleZone('${escapedZoneName}', this)">${chevronIcon}</span>
               ${zonePowerBtn}
-              <span class="zone-label-stack" style="color: ${zoneTextColor};"><span>Rhythm</span><span>zone</span></span>
-              <a class="zone-rhythm-link" href="./zone/${encodeURIComponent(zoneName)}?back=home" style="color: ${zoneTextColor};" onclick="event.stopPropagation()">${zoneName}</a>
+              <div class="zone-name-group" style="color: ${zoneTextColor};">
+                <a class="zone-rhythm-link" href="./zone/${encodeURIComponent(zoneName)}?back=home" style="color: ${zoneTextColor};" onclick="event.stopPropagation()">${zoneName}</a>
+                <span class="zone-label-sub">rhythm zone</span>
+              </div>
               ${zoneFrozenIndicator}
               ${zoneMismatchDot}
               <span style="flex: 1;"></span>
@@ -3540,14 +3546,9 @@
           html += renderZoneGroup('Unassigned', unassigned);
         }
       } else {
-        // Alpha: group by zone, sorted alphabetically
-        for (const zoneName of zoneNames) {
-          html += renderZoneGroup(zoneName, zoneGroups[zoneName]);
-        }
-
-        if (unassigned.length > 0) {
-          html += renderZoneGroup('Unassigned', unassigned);
-        }
+        // Alpha: flat list, all areas sorted alphabetically, no zone headers
+        const allSorted = [...filtered].sort((a, b) => a.name.localeCompare(b.name));
+        html += `<div class="zone-content">${allSorted.map(area => renderAreaRow(area)).join('')}</div>`;
       }
 
       // Handle empty state
