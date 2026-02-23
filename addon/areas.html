@@ -328,8 +328,7 @@
       --row-fill: 0;
       display: flex;
       align-items: center;
-      padding: 2px 8px 2px 8px;
-      margin-left: 52px;
+      padding: 4px 8px 0 8px;
       gap: 8px;
       background: var(--row-bg);
       color: var(--row-text);
@@ -611,7 +610,7 @@
 
     .zone-chevron-tap {
       cursor: pointer;
-      padding: 4px 12px;
+      padding: 4px 12px 4px 8px;
       margin: -4px 0;
       display: inline-flex;
       align-items: center;
@@ -653,8 +652,9 @@
     .zone-content {
       background: var(--card);
       border: 1px solid var(--line);
-      border-top: none;
-      border-radius: 0 0 8px 8px;
+      border-radius: 8px 0 8px 8px;
+      margin-left: 48px;
+      margin-top: -1px;
     }
 
     .zone-content.hidden {
