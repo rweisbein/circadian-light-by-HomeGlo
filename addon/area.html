@@ -88,28 +88,32 @@
       padding: 16px;
     }
 
-    /* Header meta (zone + rhythm, right-aligned in page header) */
+    /* Header meta (zone link, right-aligned in page header) */
     .page-header-meta {
       display: flex;
       flex-direction: column;
-      align-items: flex-end;
-      gap: 1px;
-      font-size: 0.95rem;
+      align-items: center;
+      justify-content: center;
       flex-shrink: 0;
-    }
-
-    .page-header-meta span {
-      color: var(--muted);
-      white-space: nowrap;
     }
 
     .page-header-meta a {
       color: var(--accent);
       text-decoration: none;
+      font-size: 0.95rem;
+      white-space: nowrap;
     }
 
     .page-header-meta a:hover {
       text-decoration: underline;
+    }
+
+    .page-header-meta-label {
+      font-size: 0.65rem;
+      color: var(--muted2);
+      white-space: nowrap;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
     }
 
     /* Area state display - with dynamic shading (from modal) */
@@ -474,9 +478,9 @@
     .wake-offset-btn:hover { border-color: var(--accent); color: var(--accent); }
     .wake-offset-value { font-size: 0.85rem; color: var(--text); min-width: 3em; text-align: center; font-variant-numeric: tabular-nums; }
     .wake-next-alarm { font-size: 0.75rem; color: var(--muted2); white-space: nowrap; }
-    .wake-alarm-chevron { color: var(--muted2); font-size: 0.8rem; cursor: pointer; transition: transform 0.2s; flex-shrink: 0; }
+    .wake-alarm-chevron { color: var(--muted2); font-size: 1.1rem; cursor: pointer; transition: transform 0.2s; flex-shrink: 0; }
     .wake-alarm-chevron.open { transform: rotate(90deg); }
-    .tune-light-impact { font-size: 0.75rem; color: var(--muted2); white-space: nowrap; }
+    .tune-light-impact { font-size: 0.75rem; color: var(--muted2); white-space: nowrap; min-width: 2.5em; text-align: right; font-variant-numeric: tabular-nums; }
 
     /* Tune section — shared */
     .tune-card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 8px; overflow: hidden; font-size: 13px; }
@@ -516,7 +520,6 @@
     .tune-light-name { flex: 1; font-size: 0.85rem; color: var(--muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .tune-light-preset-label { font-size: 0.75rem; color: var(--muted2); white-space: nowrap; }
     .tune-light-bri { font-size: 0.85rem; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; min-width: 3em; color: var(--text); }
-    .tune-light-bri.off { color: var(--danger); }
     .tune-light-expanded { display: flex; align-items: center; gap: 8px; padding: 0 0 10px; }
     .tune-light-select { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 2px 6px; font-size: 0.75rem; cursor: pointer; outline: none; }
     .tune-light-select:focus { border-color: var(--accent); }
@@ -556,7 +559,7 @@
     <h1 class="page-title" id="page-title">Loading...</h1>
     <div class="page-header-meta" id="page-header-meta">
       <span id="header-meta-rhythm"></span>
-      <span id="header-meta-zone"></span>
+      <span class="page-header-meta-label" id="header-meta-zone"></span>
     </div>
   </header>
 
@@ -1021,41 +1024,26 @@
         }
       }
 
-      // 2. Phase-aware alt day resolution
+      // 2. Alt day resolution (mirrors rhythm-design.html resolveEffectiveTiming)
       const now = new Date();
       const weekday = now.getDay() === 0 ? 6 : now.getDay() - 1; // JS Sun=0 → Mon=0..Sun=6
       const hour = now.getHours() + now.getMinutes() / 60;
-      const ascendStart = resolved.ascend_start ?? 3;
-      let descendStart = resolved.descend_start ?? 12;
-      if (descendStart <= ascendStart) descendStart += 24;
-      const h48 = hour < ascendStart ? hour + 24 : hour;
-      const inAscend = h48 >= ascendStart && h48 < descendStart;
 
-      if (inAscend) {
-        // Currently ascending: wake = today, bed = today
-        const wakeWeekday = weekday;
-        const bedWeekday = weekday;
-        if (resolved.wake_alt_time != null && resolved.wake_alt_days?.includes(wakeWeekday)) {
-          resolved.wake_time = resolved.wake_alt_time;
-        }
-        if (resolved.bed_alt_time != null && resolved.bed_alt_days?.includes(bedWeekday)) {
-          resolved.bed_time = resolved.bed_alt_time;
-        }
-      } else {
-        // Currently descending: bed = today (or yesterday if post-midnight),
-        // wake = tomorrow (next ascend phase)
-        let bedWeekday = weekday;
-        if (hour < ascendStart) {
-          bedWeekday = (weekday - 1 + 7) % 7;
-        }
-        const wakeWeekday = hour < ascendStart ? weekday : (weekday + 1) % 7;
-        if (resolved.bed_alt_time != null && resolved.bed_alt_days?.includes(bedWeekday)) {
-          resolved.bed_time = resolved.bed_alt_time;
-        }
-        if (resolved.wake_alt_time != null && resolved.wake_alt_days?.includes(wakeWeekday)) {
-          resolved.wake_time = resolved.wake_alt_time;
-        }
+      // Alt wake: check today's weekday
+      if (resolved.wake_alt_time != null && resolved.wake_alt_days?.includes(weekday)) {
+        resolved.wake_time = resolved.wake_alt_time;
       }
+
+      // Alt bed: post-midnight pre-ascend uses yesterday's weekday
+      let bedWeekday = weekday;
+      const ascendStart = resolved.ascend_start ?? 3;
+      if (hour < ascendStart) {
+        bedWeekday = (weekday - 1 + 7) % 7;
+      }
+      if (resolved.bed_alt_time != null && resolved.bed_alt_days?.includes(bedWeekday)) {
+        resolved.bed_time = resolved.bed_alt_time;
+      }
+
       return resolved;
     }
 
@@ -1874,23 +1862,20 @@
       }
       valuesEl.textContent = `${Math.round(selectedArea.brightness)}% • ${Math.round(selectedArea.kelvin)}K`;
 
-      // Header meta: zone + rhythm (top-right in page header)
+      // Header meta: zone link + "Rhythm zone" label
       const metaZone = document.getElementById('header-meta-zone');
       const metaRhythm = document.getElementById('header-meta-rhythm');
-      if (selectedArea.zone_name) {
-        metaZone.textContent = selectedArea.zone_name;
-        metaZone.style.display = '';
-      } else {
-        metaZone.textContent = '';
-        metaZone.style.display = 'none';
-      }
       const areaZoneName = selectedArea.zone_name;
       if (areaZoneName) {
         metaRhythm.innerHTML = `<a href="${basePath}/zone/${encodeURIComponent(areaZoneName)}?back=area/${encodeURIComponent(selectedArea.area_id)}">${areaZoneName}</a>`;
         metaRhythm.style.display = '';
+        metaZone.textContent = 'Rhythm zone';
+        metaZone.style.display = '';
       } else {
         metaRhythm.innerHTML = '';
         metaRhythm.style.display = 'none';
+        metaZone.textContent = '';
+        metaZone.style.display = 'none';
       }
 
       // Update toggle button states
@@ -2336,20 +2321,15 @@
 
         const elBri = document.getElementById('tune-light-bri-' + light.idx);
         if (elBri) {
-          if (isOff) {
-            elBri.className = 'tune-light-bri off';
-            elBri.textContent = 'OFF';
-          } else {
-            elBri.className = 'tune-light-bri';
-            elBri.textContent = finalVal + '%';
-          }
+          elBri.className = 'tune-light-bri';
+          elBri.textContent = finalVal + '%';
         }
         const elImpact = document.getElementById('tune-light-impact-' + light.idx);
         if (elImpact) {
           const impactPct = Math.round((filterMult - 1) * 100);
           if (impactPct < 0) elImpact.textContent = '\u2193' + Math.abs(impactPct) + '%';
           else if (impactPct > 0) elImpact.textContent = '\u2191' + impactPct + '%';
-          else elImpact.textContent = '';
+          else elImpact.textContent = '0%';
         }
         const elMeta = document.getElementById('tune-meta-' + light.idx);
         if (elMeta) elMeta.innerHTML = tunePresetMeta(ts.presets, light.filterName);
@@ -3044,7 +3024,7 @@
         if (t == null) continue;
         if (i === 0 && nowDecimal >= t) continue; // today but already passed
         // Always show the day of week for the next alarm
-        nextEl.textContent = 'Next: ' + formatAlarmTime(t) + ' ' + dayAbbrs[pyDay];
+        nextEl.textContent = formatAlarmTime(t) + ' ' + dayAbbrs[pyDay];
         return;
       }
       nextEl.textContent = '';
