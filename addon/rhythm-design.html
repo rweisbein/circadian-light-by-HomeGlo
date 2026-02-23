@@ -3698,6 +3698,22 @@ function previewCursorSlider(track, position) {
   });
 }
 
+/**
+ * Push a zone action to the server so the zone's runtime state updates.
+ * Only fires when we have a selectedZoneName (i.e. on a zone page).
+ */
+function pushZoneAction(action, value, mode) {
+  if (!selectedZoneName) return;
+  const payload = { zone_name: selectedZoneName, action };
+  if (value !== undefined) payload.value = value;
+  if (mode !== undefined) payload.mode = mode;
+  fetch('./api/zone/action', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  }).catch(err => console.warn('[Zone Action] push failed:', err));
+}
+
 function initCursorSliderHandlers() {
   const container = document.getElementById('cursor-controls');
   if (!container) return;
@@ -3729,6 +3745,7 @@ function initCursorSliderHandlers() {
         if (mode === 'step') setCursorToPosition(lastPos);
         else if (mode === 'brightness') setCursorBrightness(lastPos);
         else if (mode === 'color') setCursorColor(lastPos);
+        pushZoneAction('set_position', Math.round(lastPos), mode);
       }
     }
 
@@ -3739,12 +3756,12 @@ function initCursorSliderHandlers() {
   });
 
   // Extreme label clicks
-  document.getElementById('cursor-set-britelite')?.addEventListener('click', () => setCursorToPosition(100));
-  document.getElementById('cursor-set-nitelite')?.addEventListener('click', () => setCursorToPosition(0));
-  document.getElementById('cursor-bright-max')?.addEventListener('click', () => setCursorBrightness(100));
-  document.getElementById('cursor-bright-min')?.addEventListener('click', () => setCursorBrightness(0));
-  document.getElementById('cursor-color-max')?.addEventListener('click', () => setCursorColor(100));
-  document.getElementById('cursor-color-min')?.addEventListener('click', () => setCursorColor(0));
+  document.getElementById('cursor-set-britelite')?.addEventListener('click', () => { setCursorToPosition(100); pushZoneAction('set_position', 100, 'step'); });
+  document.getElementById('cursor-set-nitelite')?.addEventListener('click', () => { setCursorToPosition(0); pushZoneAction('set_position', 0, 'step'); });
+  document.getElementById('cursor-bright-max')?.addEventListener('click', () => { setCursorBrightness(100); pushZoneAction('set_position', 100, 'brightness'); });
+  document.getElementById('cursor-bright-min')?.addEventListener('click', () => { setCursorBrightness(0); pushZoneAction('set_position', 0, 'brightness'); });
+  document.getElementById('cursor-color-max')?.addEventListener('click', () => { setCursorColor(100); pushZoneAction('set_position', 100, 'color'); });
+  document.getElementById('cursor-color-min')?.addEventListener('click', () => { setCursorColor(0); pushZoneAction('set_position', 0, 'color'); });
 }
 
 // ============================================================
@@ -4376,17 +4393,17 @@ function setupEventListeners() {
   document.querySelector('.chart-date-control').style.display = simpleMode ? 'none' : 'flex';
   document.querySelector('.time-nav-group').style.display = simpleMode ? 'none' : 'flex';
 
-  document.getElementById('cursor-step-up')?.addEventListener('click', () => stepCursor('up', true, true));
-  document.getElementById('cursor-step-down')?.addEventListener('click', () => stepCursor('down', true, true));
-  document.getElementById('cursor-bright-up')?.addEventListener('click', () => stepCursor('up', true, false));
-  document.getElementById('cursor-bright-down')?.addEventListener('click', () => stepCursor('down', true, false));
-  document.getElementById('cursor-color-up')?.addEventListener('click', () => stepCursor('up', false, true));
-  document.getElementById('cursor-color-down')?.addEventListener('click', () => stepCursor('down', false, true));
+  document.getElementById('cursor-step-up')?.addEventListener('click', () => { stepCursor('up', true, true); pushZoneAction('step_up'); });
+  document.getElementById('cursor-step-down')?.addEventListener('click', () => { stepCursor('down', true, true); pushZoneAction('step_down'); });
+  document.getElementById('cursor-bright-up')?.addEventListener('click', () => { stepCursor('up', true, false); pushZoneAction('bright_up'); });
+  document.getElementById('cursor-bright-down')?.addEventListener('click', () => { stepCursor('down', true, false); pushZoneAction('bright_down'); });
+  document.getElementById('cursor-color-up')?.addEventListener('click', () => { stepCursor('up', false, true); pushZoneAction('color_up'); });
+  document.getElementById('cursor-color-down')?.addEventListener('click', () => { stepCursor('down', false, true); pushZoneAction('color_down'); });
   document.getElementById('cursor-reset')?.addEventListener('click', () => {
-    // Reset runtime state but keep cursor position
     resetRuntimeState();
     renderChart();
     applyCursor();
+    pushZoneAction('glozone_reset');
   });
 
   // Time navigation buttons
