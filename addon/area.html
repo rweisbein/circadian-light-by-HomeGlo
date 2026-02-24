@@ -159,7 +159,7 @@
     .row-slider-section { margin-bottom: 4px; padding: 6px 16px; }
     .row-slider-track { height: 10px; position: relative; cursor: pointer; touch-action: none; border-radius: 5px; overflow: visible; }
     .row-slider-fill { display: none; }
-    .row-slider-thumb { position: absolute; top: 50%; transform: translate(-50%, -50%); width: 30px; height: 16px; border-radius: 8px 8px 5px 5px; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.4); pointer-events: none; transition: left 0.15s; }
+    .row-slider-thumb { position: absolute; top: 50%; transform: translate(-50%, -50%); width: 30px; height: 16px; border-radius: 8px 8px 5px 5px; background: rgba(255,255,255,0.9); box-shadow: 0 1px 4px rgba(0,0,0,0.4); pointer-events: none; transition: left 0.15s; }
     .row-slider-track.dragging .row-slider-thumb { transition: none; }
 
     .area-state-values {
@@ -1456,8 +1456,6 @@
       const thumb = banner.querySelector('.row-slider-thumb');
       if (thumb) {
         thumb.style.left = pct + '%';
-        const color = cctToRGB(cct);
-        thumb.style.background = tintColorByBrightness(color, bri);
       }
     }
 
