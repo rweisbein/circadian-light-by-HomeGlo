@@ -156,9 +156,9 @@
       z-index: 1;
     }
 
-    .area-state-slider-row { position: relative; z-index: 1; margin-top: 4px; }
-    .row-slider-track { height: 0; position: relative; cursor: pointer; touch-action: none; padding: 12px 0; margin: 0 8px; }
-    .row-slider-track::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); height: 4px; border-radius: 2px; background: rgba(0,0,0,0.35); box-shadow: 0 0.5px 0 rgba(255,255,255,0.15); pointer-events: none; }
+    .area-state-slider-row { position: relative; z-index: 1; margin-top: 6px; padding: 0 4px; }
+    .row-slider-pill { background: rgba(0,0,0,0.5); border-radius: 10px; padding: 6px 8px; }
+    .row-slider-track { height: 10px; position: relative; cursor: pointer; touch-action: none; border-radius: 5px; overflow: visible; }
     .row-slider-fill { display: none; }
     .row-slider-thumb { position: absolute; top: 50%; transform: translate(-50%, -50%); width: 30px; height: 16px; border-radius: 8px 8px 5px 5px; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.4); pointer-events: none; transition: left 0.15s; }
     .row-slider-track.dragging .row-slider-thumb { transition: none; }
@@ -604,9 +604,11 @@
         <div class="timer-status" id="timer-status"></div>
       </div>
       <div class="area-state-slider-row">
-        <div class="row-slider-track" id="area-banner-slider" data-mode="step">
-          <div class="row-slider-fill"></div>
-          <div class="row-slider-thumb"></div>
+        <div class="row-slider-pill">
+          <div class="row-slider-track" id="area-banner-slider" data-mode="step">
+            <div class="row-slider-fill"></div>
+            <div class="row-slider-thumb"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -1427,12 +1429,32 @@
       });
 
       // Banner slider
-      updateBannerSlider(gloFrac, currentBri, currentCCT);
+      updateBannerSlider(gloFrac, currentBri, currentCCT, cfg, effRange);
     }
 
-    function updateBannerSlider(pct, bri, cct) {
+    function buildHorizontalGradient(cfg, currentBri, currentCCT, effectiveColorRange) {
+      const bMin = cfg.min_brightness, bMax = cfg.max_brightness;
+      const cMin = cfg.min_color_temp, cMax = cfg.max_color_temp;
+      const stops = [];
+      const n = 6;
+      for (let i = 0; i <= n; i++) {
+        const frac = i / n;
+        const b = bMin + (bMax - bMin) * frac;
+        const effMin = effectiveColorRange ? effectiveColorRange.effMin : cMin;
+        const effMax = effectiveColorRange ? effectiveColorRange.effMax : cMax;
+        const k = effMin + (effMax - effMin) * frac;
+        const color = tintColorByBrightness(cctToRGB(k), b);
+        stops.push(color + ' ' + Math.round(frac * 100) + '%');
+      }
+      return 'linear-gradient(to right, ' + stops.join(', ') + ')';
+    }
+
+    function updateBannerSlider(pct, bri, cct, cfg, effRange) {
       const banner = document.getElementById('area-banner-slider');
       if (!banner || banner.classList.contains('dragging')) return;
+      if (cfg && effRange) {
+        banner.style.background = buildHorizontalGradient(cfg, bri, cct, effRange);
+      }
       const thumb = banner.querySelector('.row-slider-thumb');
       if (thumb) {
         thumb.style.left = pct + '%';
@@ -1607,7 +1629,7 @@
       });
 
       // Also update banner slider
-      updateBannerSlider(gloFrac, previewBri, previewCCT);
+      updateBannerSlider(gloFrac, previewBri, previewCCT, cfg, effRange);
     }
 
     // ============================================================
