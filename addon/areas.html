@@ -1308,7 +1308,8 @@
       Home
     </a>
     <div class="nav-links">
-      <a href="./switches" class="nav-link">Control</a>
+      <a href="./switches" class="nav-link">Controls</a>
+      <a href="./tune" class="nav-link">Tune</a>
       <a href="./moments" class="nav-link">Magic</a>
       <a href="./settings" class="nav-link">Settings</a>
     </div>
@@ -1615,12 +1616,10 @@
       const urlParams = new URLSearchParams(window.location.search);
       const requestedMode = urlParams.get('mode');
       if (requestedMode === 'tune') {
-        history.replaceState(null, '', window.location.pathname);
-        await loadData();
-        enterTuneMode();
-      } else {
-        loadData();
+        window.location.href = './tune';
+        return;
       }
+      loadData();
       setupEventListeners();
     });
 
@@ -3169,7 +3168,6 @@
             <div class="toolbar-menu" style="padding-left: 8px;">
               <button class="toolbar-menu-btn" onclick="toggleToolbarMenu(event)">⋮</button>
               <div class="toolbar-menu-dropdown" id="toolbar-menu-dropdown">
-                <a href="#" class="toolbar-menu-item" id="tune-link">Tune brightness</a>
                 <a href="#" class="toolbar-menu-item" id="organize-link">Organize</a>
                 <a href="#" class="toolbar-menu-item" id="refresh-link">Refresh</a>
               </div>
@@ -3708,7 +3706,6 @@
       document.getElementById('areas-container').addEventListener('click', (e) => {
         if (e.target.id === 'refresh-link') { e.preventDefault(); loadData(); }
         if (e.target.id === 'organize-link') { e.preventDefault(); enterOrganizeMode(); }
-        if (e.target.id === 'tune-link') { e.preventDefault(); enterTuneMode(); }
         if (e.target.id === 'add-zone-link') { e.preventDefault(); createZoneFromEdit(); }
         // Toggle outdoor settings panel
         if (e.target.closest('#tune-outdoor-toggle')) {

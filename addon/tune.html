@@ -1,0 +1,1468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Circadian Light - Tune</title>
+  <style>
+    :root {
+      --bg: #000;
+      --panel: #111;
+      --card: #1a1a1a;
+      --accent: #feac60;
+      --accent-hover: #ffc078;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --muted2: #64748b;
+      --line: #334155;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* Navigation */
+    .nav {
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      height: 56px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .nav-brand {
+      font-weight: 600;
+      font-size: 1.1rem;
+      color: var(--text);
+      margin-right: 16px;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .nav-brand.active {
+      color: var(--accent);
+    }
+
+    .nav-logo {
+      width: 24px;
+      height: 24px;
+      flex-shrink: 0;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 8px;
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .nav-link {
+      padding: 8px 10px;
+      color: var(--muted);
+      text-decoration: none;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+
+    .nav-link:hover {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .nav-link.active {
+      color: var(--accent);
+    }
+
+    /* Nav overflow menu */
+    .nav-more { background: none; border: none; color: var(--muted); font-size: 1.2rem; cursor: pointer; padding: 4px 8px; border-radius: 6px; display: none; flex-shrink: 0; letter-spacing: 2px; line-height: 1; }
+    .nav-more:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+    .nav-overflow { display: none; position: absolute; top: 100%; right: 12px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 4px 0; min-width: 140px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); z-index: 200; }
+    .nav-overflow.open { display: block; }
+    .nav-overflow-item { display: block; padding: 10px 16px; color: var(--muted); text-decoration: none; font-size: 0.9rem; white-space: nowrap; }
+    .nav-overflow-item:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+    .nav-overflow-item.active { color: var(--accent); }
+
+    /* Main Content */
+    .main {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 16px 24px;
+    }
+
+    .loading {
+      color: var(--muted);
+      text-align: center;
+      padding: 60px 0;
+    }
+
+    /* View links (sort pills) */
+    .view-links { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+    .view-link { background: none; border: none; color: var(--muted2); font-size: 0.8rem; cursor: pointer; padding: 2px 6px; border-radius: 4px; white-space: nowrap; }
+    .view-link:hover { color: var(--text); }
+    .view-link.active { color: var(--accent); font-weight: 600; }
+    .view-sep { color: var(--muted2); font-size: 0.7rem; }
+
+    /* Zone structure */
+    .zone-group { margin-bottom: 8px; }
+    .zone-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px 8px 0 0;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.2s;
+    }
+    .zone-header:hover { background: rgba(255,255,255,0.05); }
+    .zone-header.collapsed { border-radius: 8px; }
+    .zone-content { border: 1px solid var(--line); border-top: none; border-radius: 0 0 8px 8px; overflow: hidden; }
+    .zone-content.hidden { display: none; }
+    .zone-chevron { width: 16px; height: 16px; transition: transform 0.2s; flex-shrink: 0; }
+    .zone-header.collapsed .zone-chevron { transform: rotate(-90deg); }
+    .zone-chevron-tap { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; cursor: pointer; flex-shrink: 0; }
+    .zone-name-group { display: flex; flex-direction: column; min-width: 0; }
+    .zone-rhythm-link { font-weight: 700; font-size: 1.05rem; color: var(--text); text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .zone-rhythm-link:hover { color: var(--accent); }
+    .zone-label-sub { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted2); }
+
+    /* Tune tabs */
+    .tune-tabs {
+      display: flex;
+      gap: 0;
+      padding: 0;
+      margin-bottom: 12px;
+    }
+    .tune-tab {
+      padding: 8px 20px;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--muted);
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .tune-tab:hover { color: var(--text); }
+    .tune-tab.active {
+      color: var(--text);
+      border-bottom-color: var(--accent);
+    }
+
+    /* Tune toolbar */
+    .tune-toolbar-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    /* Tune sensitivity (global) */
+    .tune-sensitivity-standalone {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      margin-bottom: 4px;
+      background: var(--panel);
+      border-radius: 6px;
+      border: 1px solid var(--line);
+      flex-wrap: wrap;
+    }
+    .tune-sensitivity-standalone input[type="range"] {
+      flex: 1;
+      min-width: 80px;
+      max-width: 200px;
+    }
+
+    /* Tune zone header */
+    .tune-zone-header {
+      background: var(--panel);
+      flex-wrap: wrap;
+      padding-bottom: 2px;
+      cursor: default;
+    }
+    .tune-zone-header:hover {
+      background: var(--panel);
+    }
+    .tune-zone-header.collapsed {
+      padding-bottom: 6px;
+    }
+    .tune-zone-header .tune-zone-controls {
+      width: 100%;
+      padding: 0;
+      background: none;
+      border-bottom: none;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0;
+    }
+    .tune-zone-header .tune-zone-controls input[type="range"] {
+      flex: 0 0 auto;
+    }
+    .tune-zone-header .tune-col-headers {
+      width: 100%;
+      padding: 4px 16px 2px;
+      background: none;
+      border-bottom: none;
+    }
+
+    /* Tune zone controls */
+    .tune-zone-controls {
+      display: flex; align-items: center; gap: 12px;
+      padding: 6px 16px; background: var(--panel);
+      border-bottom: 1px solid var(--line); flex-wrap: wrap;
+    }
+    .tune-zone-ctrl { display: flex; align-items: center; gap: 6px; margin-right: 0; flex-wrap: wrap; }
+    .tune-zone-label-col { justify-content: flex-end; margin-right: 0; }
+    .tune-zone-ctrl-label { font-size: 0.7rem; color: var(--muted2); text-transform: uppercase; white-space: nowrap; }
+    .tune-zone-ctrl-word { font-size: 0.8rem; color: var(--text); white-space: nowrap; }
+    .tune-zone-ctrl-val { font-size: 0.75rem; color: var(--text); white-space: nowrap; }
+    .tune-sensitivity-slider { width: 80px; accent-color: var(--accent); }
+    .tune-zone-controls .tune-area-row { padding-top: 3px; padding-bottom: 3px; }
+    .tune-zone-bri-group {
+      display: flex; align-items: baseline; gap: 6px;
+      margin-left: auto; white-space: nowrap;
+    }
+    .tune-zone-base-bri { font-size: 0.85rem; color: var(--text); font-weight: 600; }
+    .tune-zone-sun-meta { font-size: 0.75rem; color: var(--muted2); white-space: nowrap; }
+    .tune-zone-sun-times { font-size: 0.7rem; color: var(--muted2); margin-left: 2px; line-height: 1.4; }
+
+    /* Column headers */
+    .tune-col-headers {
+      display: flex;
+      padding: 6px 16px 4px;
+      gap: 6px;
+    }
+    .tune-col-header {
+      flex: 1;
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--muted2);
+      white-space: nowrap;
+    }
+
+    /* Tune area */
+    .tune-area {
+      background: var(--card);
+      border-bottom: 1px solid var(--line);
+      padding: 4px 0;
+    }
+    .tune-area:last-child {
+      border-bottom: none;
+    }
+    .tune-area-name {
+      font-size: 0.85rem;
+      color: var(--text);
+      text-decoration: none;
+    }
+    .tune-area-name:hover {
+      color: var(--accent);
+    }
+
+    /* Tune area 2-row layout */
+    .tune-area-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 16px;
+    }
+    .tune-area-row2 { padding-top: 1px; padding-bottom: 4px; }
+    .tune-name-col {
+      width: 18%; min-width: 50px; flex-shrink: 0;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .tune-fixture-col, .tune-sun-col {
+      flex: 1; display: flex; align-items: center; gap: 4px; min-width: 0;
+      margin-right: 12px;
+    }
+    .tune-fixture-col input[type="range"], .tune-sun-col input[type="range"] {
+      flex: 1; min-width: 40px; max-width: 100px; accent-color: var(--accent);
+    }
+    .tune-sun-col input[type="range"] { accent-color: #fbbf24; }
+    .tune-bri-col {
+      min-width: 55px; text-align: right; flex-shrink: 0; white-space: nowrap;
+    }
+    .tune-bri-now { color: var(--text); font-weight: 600; font-size: 0.85rem; }
+    .tune-bri-peak { color: var(--muted2); font-size: 0.75rem; }
+
+    .tune-slider-word { font-size: 0.8rem; color: var(--text); white-space: nowrap; }
+    .tune-slider-val { font-size: 0.75rem; color: var(--text); white-space: nowrap; }
+    .tune-slider-meta { font-size: 0.7rem; color: var(--muted2); white-space: nowrap; }
+
+    /* Outdoor panel */
+    .tune-outdoor-wrapper { position: relative; display: inline-flex; align-items: center; }
+    .tune-outdoor-info {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 0.8rem; color: var(--muted); flex-wrap: wrap; cursor: pointer;
+      padding: 2px 8px; border-radius: 4px; border: 1px solid transparent;
+      transition: all 0.15s;
+    }
+    .tune-outdoor-info:hover { color: var(--text); border-color: var(--line); background: rgba(255,255,255,0.04); }
+    .tune-outdoor-pct { color: var(--text); font-weight: 600; white-space: nowrap; }
+    .tune-outdoor-detail { color: var(--muted2); font-size: 0.75rem; }
+    .tune-outdoor-panel {
+      position: absolute; top: 100%; right: 0; margin-top: 4px;
+      min-width: 300px; background: var(--panel);
+      border: 1px solid var(--line); border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      z-index: 150; padding: 12px 16px; display: none;
+    }
+    .tune-outdoor-panel.visible { display: block; }
+    .tune-outdoor-panel-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 0.82rem; }
+    .tune-outdoor-panel-row:last-child { margin-bottom: 0; }
+    .tune-outdoor-panel-label { color: var(--muted2); font-size: 0.75rem; min-width: 55px; flex-shrink: 0; }
+    .tune-outdoor-panel-divider { border: none; border-top: 1px solid var(--line); margin: 8px 0; }
+    .tune-outdoor-panel select, .tune-outdoor-panel input[type="text"] {
+      background: var(--card); color: var(--text); border: 1px solid var(--line);
+      border-radius: 4px; padding: 4px 8px; font-size: 0.8rem; flex: 1; min-width: 0;
+    }
+    .tune-outdoor-panel select:focus, .tune-outdoor-panel input[type="text"]:focus { border-color: var(--accent); outline: none; }
+    .tune-outdoor-panel-btn { background: none; border: 1px solid var(--line); color: var(--muted); font-size: 0.75rem; padding: 3px 8px; border-radius: 4px; cursor: pointer; white-space: nowrap; }
+    .tune-outdoor-panel-btn:hover { color: var(--text); border-color: var(--muted); }
+    .tune-outdoor-panel-btn.danger { color: var(--danger); }
+    .tune-outdoor-panel-btn.danger:hover { border-color: var(--danger); }
+    .tune-outdoor-panel-status { font-size: 0.75rem; color: var(--muted2); }
+
+    /* Expandable lights per area */
+    .tune-area-lights {
+      background: var(--card);
+      border-top: 1px solid var(--line);
+      padding: 0 16px 0 calc(18% + 16px);
+    }
+    .tune-area-expand-row {
+      cursor: pointer;
+    }
+    .tune-light-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .tune-light-row:last-child { border-bottom: none; }
+    .tune-light-name {
+      flex: 1;
+      font-size: 0.8rem;
+      color: var(--muted);
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .tune-light-select {
+      background: var(--panel);
+      color: var(--text);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 2px 6px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      outline: none;
+    }
+    .tune-light-select:focus { border-color: var(--accent); }
+    .tune-light-impact {
+      font-size: 0.75rem;
+      color: var(--muted2);
+      white-space: nowrap;
+      min-width: 2.5em;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+    .tune-light-bri {
+      font-size: 0.8rem;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      text-align: right;
+      min-width: 3em;
+      color: var(--text);
+    }
+
+    /* Save status toast */
+    .save-status {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      padding: 12px 20px;
+      background: var(--success);
+      color: white;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.3s;
+      z-index: 50;
+      pointer-events: none;
+    }
+    .save-status.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Color tab placeholder */
+    .tune-placeholder {
+      text-align: center;
+      padding: 80px 24px;
+    }
+
+    /* Refresh button */
+    .tune-refresh-btn {
+      display: flex; align-items: center; justify-content: center;
+      width: 32px; height: 32px; border-radius: 8px;
+      border: 1px solid var(--line); background: var(--card);
+      color: var(--muted); cursor: pointer; transition: all 0.2s; flex-shrink: 0;
+      opacity: 0.5;
+    }
+    .tune-refresh-btn:hover { background: var(--panel); border-color: var(--muted2); opacity: 1; }
+
+    @media (max-width: 600px) {
+      .tune-slider-word { font-size: 0.7rem; }
+      .tune-col-header { font-size: 0.55rem; }
+      .tune-slider-meta { font-size: 0.65rem; }
+      .tune-sensitivity-slider { width: 60px; }
+      .tune-zone-ctrl-label { font-size: 0.6rem; }
+      .tune-zone-ctrl-word { font-size: 0.7rem; }
+      .tune-zone-ctrl-val { font-size: 0.65rem; }
+      .tune-slider-val { font-size: 0.65rem; }
+      .tune-name-col { width: 15%; min-width: 40px; }
+      .tune-area-lights { padding-left: calc(15% + 16px); }
+    }
+  </style>
+  <script src="./shared.js"></script>
+</head>
+<body>
+  <!-- Navigation -->
+  <nav class="nav">
+    <a href="./" class="nav-brand">
+      <svg class="nav-logo" viewBox="0 0 40 40" fill="none">
+        <circle cx="20" cy="20" r="19" fill="#555"/>
+        <path d="M20 1 A19 19 0 0 1 20 39 Q20 28 8 20 Q20 12 20 1" fill="#ccc"/>
+        <circle cx="20" cy="12" r="5" fill="#fff"/>
+        <line x1="20" y1="3" x2="20" y2="5" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+        <line x1="27" y1="6" x2="25.5" y2="7.5" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+        <line x1="29" y1="12" x2="27" y2="12" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+        <path d="M16 30 A6 6 0 1 1 24 30 A4.5 4.5 0 1 0 16 30" fill="#fff"/>
+      </svg>
+      Home
+    </a>
+    <div class="nav-links">
+      <a href="./switches" class="nav-link">Controls</a>
+      <a href="./tune" class="nav-link active">Tune</a>
+      <a href="./moments" class="nav-link">Magic</a>
+      <a href="./settings" class="nav-link">Settings</a>
+    </div>
+    <button class="nav-more" aria-label="More pages">&middot;&middot;&middot;</button>
+    <div class="nav-overflow"></div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="main">
+    <div class="tune-tabs">
+      <button class="tune-tab active" data-tab="brightness" onclick="switchTab('brightness')">Brightness</button>
+      <button class="tune-tab" data-tab="color" onclick="switchTab('color')">Color</button>
+    </div>
+
+    <!-- Brightness Tab -->
+    <div id="tune-brightness-tab">
+      <div id="tune-container">
+        <div class="loading">Loading tune data...</div>
+      </div>
+    </div>
+
+    <!-- Color Tab (placeholder) -->
+    <div id="tune-color-tab" style="display:none">
+      <div class="tune-placeholder">
+        <p style="font-size: 1.1rem; color: var(--muted);">Color tuning coming soon</p>
+        <p style="font-size: 0.85rem; color: var(--muted2); margin-top: 8px;">
+          Zone-level color temperature, warm night, and daylight blend controls will appear here.
+        </p>
+      </div>
+    </div>
+  </main>
+
+  <div class="save-status" id="save-status">Saved</div>
+
+  <script>
+    // ============================================================
+    // State
+    // ============================================================
+    let tuneData = null;
+    let tuneOutdoorData = null;
+    let zoneStates = {};
+    let cachedGlozones = null;
+    let tuneSortOrder = localStorage.getItem('tune_sort_order') || 'custom';
+    let tuneDebounceTimers = {};
+    let pendingSensorSave = Promise.resolve();
+    let expandedAreas = {};  // areaId -> true/false
+
+    // ============================================================
+    // Constants
+    // ============================================================
+    const LUMEN_STEPS = [
+      { label: "Severely underlit",  intensity: 0.50 },
+      { label: "Very underlit",      intensity: 0.60 },
+      { label: "Underlit",           intensity: 0.75 },
+      { label: "Slightly underlit",  intensity: 0.90 },
+      { label: "Properly lit",       intensity: 1.00 },
+      { label: "Slightly overlit",   intensity: 1.15 },
+      { label: "Overlit",            intensity: 1.35 },
+      { label: "Very overlit",       intensity: 1.60 },
+      { label: "Brightly overlit",   intensity: 1.80 },
+      { label: "Severely overlit",   intensity: 2.00 },
+    ];
+
+    const SOLAR_STEPS = [
+      { label: "None",           exposure: 0.00 },
+      { label: "Minimal",        exposure: 0.15 },
+      { label: "Low",            exposure: 0.30 },
+      { label: "Moderate",       exposure: 0.50 },
+      { label: "Significant",    exposure: 0.70 },
+      { label: "High",           exposure: 0.85 },
+      { label: "Full",           exposure: 1.00 },
+      { label: "Amplified",      exposure: 1.30 },
+      { label: "Very amplified", exposure: 1.65 },
+      { label: "Sun room",       exposure: 2.00 },
+    ];
+
+    const SENSITIVITY_STEPS = [
+      { label: "None",       multiplier: 0.00 },
+      { label: "Minimal",    multiplier: 0.15 },
+      { label: "Low",        multiplier: 0.35 },
+      { label: "Slight",     multiplier: 0.55 },
+      { label: "Moderate",   multiplier: 0.80 },
+      { label: "Noticeable", multiplier: 1.10 },
+      { label: "Strong",     multiplier: 1.50 },
+      { label: "High",       multiplier: 2.00 },
+      { label: "Very high",  multiplier: 3.00 },
+      { label: "Maximum",    multiplier: 5.00 },
+    ];
+
+    // ============================================================
+    // Tab switching
+    // ============================================================
+    function switchTab(tab) {
+      document.querySelectorAll('.tune-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+      document.getElementById('tune-brightness-tab').style.display = tab === 'brightness' ? '' : 'none';
+      document.getElementById('tune-color-tab').style.display = tab === 'color' ? '' : 'none';
+      localStorage.setItem('tune_active_tab', tab);
+    }
+
+    // ============================================================
+    // Helpers
+    // ============================================================
+    function findClosestStep(steps, key, value) {
+      let best = 0, bestDist = Infinity;
+      for (let i = 0; i < steps.length; i++) {
+        const dist = Math.abs(steps[i][key] - value);
+        if (dist < bestDist) { bestDist = dist; best = i; }
+      }
+      return best;
+    }
+
+    function findClosestSensitivityStep(value) {
+      return findClosestStep(SENSITIVITY_STEPS, 'multiplier', value);
+    }
+
+    function getTuneArea(areaId) {
+      if (!tuneData?.zones) return null;
+      for (const zone of Object.values(tuneData.zones)) {
+        const found = (zone.areas || []).find(a => a.id === areaId);
+        if (found) return found;
+      }
+      return null;
+    }
+
+    function getTuneZoneConfig(zoneName) {
+      return tuneData?.zones?.[zoneName] || {};
+    }
+
+    function formatFactorMeta(factor) {
+      if (Math.abs(factor - 1.0) < 0.005) return '0%';
+      const pct = Math.round(Math.abs(factor - 1.0) * 100);
+      return factor > 1.0 ? ('\u2191' + pct + '%') : ('\u2193' + pct + '%');
+    }
+
+    function fmtVal(v) {
+      return v === 0 ? '0' : v % 1 === 0 ? v.toFixed(1) : parseFloat(v.toFixed(2)).toString();
+    }
+
+    function formatSunMeta(exposure, sensitivity, outdoorNorm) {
+      const currentPct = Math.min(100, Math.round(exposure * outdoorNorm * sensitivity * 100));
+      const peakPct = Math.min(100, Math.round(exposure * sensitivity * 100));
+      return { now: '\u2193' + currentPct + '%', peak: 'pk\u2193' + peakPct + '%' };
+    }
+
+    function computeNowBrightness(rhythmBri, factor, exposure, outdoorNorm, sensitivity) {
+      const nlFactor = (exposure <= 0 || outdoorNorm <= 0) ? 1.0 : Math.max(0, 1 - exposure * outdoorNorm * sensitivity);
+      return Math.min(100, Math.round(rhythmBri * nlFactor * factor));
+    }
+
+    function getFilterMultiplier(presets, filterName) {
+      if (!filterName || filterName === 'Standard') return 1.0;
+      const p = presets?.[filterName];
+      if (!p) return 1.0;
+      return p.brightness_multiplier ?? 1.0;
+    }
+
+    // ============================================================
+    // Outdoor helpers
+    // ============================================================
+    function buildOutdoorDetailText(d) {
+      if (!d) return 'no outdoor data';
+      if (d.override) {
+        return 'override \u00b7 ' + d.override.condition.replace(/_/g, ' ') + ' \u00b7 ' + Math.round(d.override.expires_in_minutes) + 'min';
+      } else if (d.source === 'lux' && d.lux_smoothed != null) {
+        return 'lux \u00b7 ' + Math.round(d.lux_smoothed).toLocaleString() + ' lx';
+      } else if (d.source === 'weather') {
+        const cond = d.weather_condition ? d.weather_condition.replace(/-/g, ' ') : '';
+        return cond || (Math.round(d.weather_cloud_cover ?? 0) + '% cloud cover');
+      } else {
+        return 'sun angle \u00b7 ' + (d.sun_elevation ?? 0) + '\u00b0';
+      }
+    }
+
+    function buildOutdoorIcon(d) {
+      if (!d) return '\u2600';
+      return (d.source === 'weather' && (d.weather_cloud_cover ?? 0) > 50) ? '\u2601'
+        : (d.source === 'override') ? '\u2699' : '\u2600';
+    }
+
+    function buildOutdoorSection() {
+      const d = tuneOutdoorData;
+      const pct = d ? Math.round((d.outdoor_normalized || 0) * 100) : '--';
+      const icon = buildOutdoorIcon(d);
+      const infoHtml = '<span class="tune-outdoor-pct" id="tune-outdoor-pct">' + icon + ' ' + pct + '%</span>';
+
+      const src = d?.preferred_source || 'weather';
+      const sensor = d?.sensor_entity || '';
+      const sensors = d?.illuminance_sensors || [];
+      const ceiling = d?.lux_learned_ceiling;
+      const floor = d?.lux_learned_floor;
+      const rangeStr = (ceiling != null && floor != null) ? Math.round(floor).toLocaleString() + ' \u2013 ' + Math.round(ceiling).toLocaleString() : 'not learned';
+      const showLux = src === 'lux';
+      const hasOverride = !!d?.override;
+      const detail = buildOutdoorDetailText(d);
+      let warn = '';
+      if (d && d.preferred_source === 'lux' && d.source !== 'lux') {
+        warn = ' (sensor NA)';
+      }
+
+      let panelHtml = '<div class="tune-outdoor-panel" id="tune-outdoor-panel">';
+
+      panelHtml += '<div class="tune-outdoor-panel-row">';
+      panelHtml += '<span class="tune-outdoor-panel-label">Status</span>';
+      panelHtml += '<span class="tune-outdoor-panel-status" id="tune-outdoor-status-detail">' + detail + warn + '</span>';
+      panelHtml += '<button class="tune-outdoor-panel-btn" onclick="event.stopPropagation(); refreshOutdoorInPlace()" title="Refresh">&#x21bb;</button>';
+      panelHtml += '</div>';
+
+      panelHtml += '<div class="tune-outdoor-panel-row">';
+      panelHtml += '<span class="tune-outdoor-panel-label">Source</span>';
+      panelHtml += '<select id="tune-outdoor-source">';
+      panelHtml += '<option value="lux"' + (src === 'lux' ? ' selected' : '') + '>Lux sensor</option>';
+      panelHtml += '<option value="weather"' + (src === 'weather' ? ' selected' : '') + '>HA weather</option>';
+      panelHtml += '<option value="angle"' + (src === 'angle' ? ' selected' : '') + '>Sun angle</option>';
+      panelHtml += '</select></div>';
+
+      if (showLux) {
+        panelHtml += '<div class="tune-outdoor-panel-row">';
+        panelHtml += '<span class="tune-outdoor-panel-label">Sensor</span>';
+        panelHtml += '<select id="tune-outdoor-sensor" onchange="handleSensorChange(this.value)">';
+        panelHtml += '<option value="">None</option>';
+        for (const s of sensors) {
+          const sel = s.entity_id === sensor ? ' selected' : '';
+          panelHtml += '<option value="' + s.entity_id + '"' + sel + '>' + s.name + '</option>';
+        }
+        if (sensor && !sensors.find(s => s.entity_id === sensor)) {
+          panelHtml += '<option value="' + sensor + '" selected>' + sensor + '</option>';
+        }
+        panelHtml += '</select>';
+        panelHtml += '</div>';
+        const luxVal = d.lux_smoothed != null ? Math.round(d.lux_smoothed).toLocaleString() + ' lx' : '--';
+        panelHtml += '<div class="tune-outdoor-panel-row">';
+        panelHtml += '<span class="tune-outdoor-panel-label">Reading</span>';
+        panelHtml += '<span class="tune-outdoor-panel-status" id="tune-outdoor-reading">' + luxVal + '</span>';
+        panelHtml += '<span class="tune-outdoor-panel-status" id="tune-outdoor-range" style="opacity:0.5;">' + rangeStr + '</span>';
+        panelHtml += '</div>';
+        const d90 = new Date(Date.now() - 90 * 86400000);
+        const defaultSince = d90.toISOString().slice(0, 16);
+        panelHtml += '<div class="tune-outdoor-panel-row">';
+        panelHtml += '<span class="tune-outdoor-panel-label">Learn from</span>';
+        panelHtml += '<input type="datetime-local" id="tune-outdoor-learn-since" value="' + defaultSince + '" style="background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:4px;padding:3px 6px;font-size:0.75rem;flex:1;min-width:0;">';
+        panelHtml += '<button class="tune-outdoor-panel-btn" id="tune-outdoor-learn">Learn</button>';
+        panelHtml += '<button class="tune-outdoor-panel-btn danger" id="tune-outdoor-clear-baselines">Clear</button>';
+        panelHtml += '</div>';
+        panelHtml += '<div class="tune-outdoor-panel-row"><span class="tune-outdoor-panel-label"></span><span class="tune-outdoor-panel-status" id="tune-outdoor-learn-status"></span></div>';
+      }
+
+      panelHtml += '<hr class="tune-outdoor-panel-divider">';
+      panelHtml += '<div class="tune-outdoor-panel-row">';
+      panelHtml += '<span class="tune-outdoor-panel-label">Override</span>';
+      panelHtml += '<select id="tune-outdoor-override-cond">';
+      panelHtml += '<option value="">Off</option>';
+      panelHtml += '<option value="sunny"' + (d?.override?.condition === 'sunny' ? ' selected' : '') + '>Sunny</option>';
+      panelHtml += '<option value="partly_cloudy"' + (d?.override?.condition === 'partly_cloudy' ? ' selected' : '') + '>Partly cloudy</option>';
+      panelHtml += '<option value="cloudy"' + (d?.override?.condition === 'cloudy' ? ' selected' : '') + '>Cloudy</option>';
+      panelHtml += '<option value="heavy_overcast"' + (d?.override?.condition === 'heavy_overcast' ? ' selected' : '') + '>Heavy overcast</option>';
+      panelHtml += '</select>';
+      panelHtml += '<select id="tune-outdoor-override-dur">';
+      panelHtml += '<option value="30">30m</option><option value="60" selected>1h</option><option value="120">2h</option><option value="240">4h</option>';
+      panelHtml += '</select>';
+      if (hasOverride) {
+        panelHtml += '<button class="tune-outdoor-panel-btn danger" id="tune-outdoor-clear-override">Clear</button>';
+      } else {
+        panelHtml += '<button class="tune-outdoor-panel-btn" id="tune-outdoor-apply-override">Apply</button>';
+      }
+      panelHtml += '</div>';
+      panelHtml += '</div>';
+
+      return '<div class="tune-outdoor-wrapper">'
+        + '<span class="tune-outdoor-info" id="tune-outdoor-toggle">' + infoHtml + '</span>'
+        + panelHtml + '</div>';
+    }
+
+    function handleSensorChange(rawVal) {
+      const val = (rawVal || '').trim() || null;
+      const statusEl = document.getElementById('tune-outdoor-learn-status');
+      if (statusEl) statusEl.textContent = 'Saving sensor...';
+      if (tuneOutdoorData) tuneOutdoorData.sensor_entity = val;
+      pendingSensorSave = fetch('./api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ outdoor_lux_sensor: val, lux_learned_ceiling: null, lux_learned_floor: null })
+      })
+        .then(r => {
+          if (!r.ok) { if (statusEl) statusEl.textContent = 'Save failed (' + r.status + ')'; }
+          return r;
+        })
+        .then(() => fetch('./api/outdoor-status'))
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (data) {
+            tuneOutdoorData = data;
+            if (tuneData) tuneData.outdoor_normalized = data.outdoor_normalized ?? 0;
+            const rangeEl = document.getElementById('tune-outdoor-range');
+            if (rangeEl) rangeEl.textContent = (data.lux_learned_ceiling != null && data.lux_learned_floor != null)
+              ? Math.round(data.lux_learned_floor).toLocaleString() + ' \u2013 ' + Math.round(data.lux_learned_ceiling).toLocaleString()
+              : 'not learned';
+            if (statusEl) statusEl.textContent = 'Sensor saved';
+          }
+        })
+        .catch(() => {
+          if (statusEl) statusEl.textContent = 'Save error!';
+        });
+    }
+
+    // ============================================================
+    // Save functions
+    // ============================================================
+    async function saveTuneValue(areaId, fields) {
+      const key = areaId + JSON.stringify(fields);
+      clearTimeout(tuneDebounceTimers[key]);
+      tuneDebounceTimers[key] = setTimeout(async () => {
+        try {
+          const resp = await fetch('./api/light-filters/area-brightness', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ area_id: areaId, ...fields })
+          });
+          if (resp.ok) showTuneSaved();
+        } catch (err) {
+          console.error('Error saving tune value:', err);
+        }
+      }, 300);
+    }
+
+    function showTuneSaved() {
+      const el = document.getElementById('save-status');
+      if (!el) return;
+      el.classList.add('visible');
+      setTimeout(() => el.classList.remove('visible'), 2000);
+    }
+
+    function saveGlobalSetting(field, value) {
+      clearTimeout(tuneDebounceTimers['global_' + field]);
+      tuneDebounceTimers['global_' + field] = setTimeout(async () => {
+        try {
+          const resp = await fetch('./api/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ [field]: value })
+          });
+          if (resp.ok) showTuneSaved();
+        } catch (err) {
+          console.error('Error saving global setting:', err);
+        }
+      }, 400);
+    }
+
+    async function saveTuneZoneSetting(zoneName, field, value) {
+      const key = 'zone_' + zoneName + '_' + field;
+      clearTimeout(tuneDebounceTimers[key]);
+      tuneDebounceTimers[key] = setTimeout(async () => {
+        try {
+          const resp = await fetch('./api/glozones/' + encodeURIComponent(zoneName) + '/settings', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ [field]: value })
+          });
+          if (resp.ok) showTuneSaved();
+        } catch (err) {
+          console.error('Error saving zone setting:', err);
+        }
+      }, 400);
+    }
+
+    async function saveLightFilter(areaId, entityId, filterName) {
+      try {
+        const resp = await fetch('./api/light-filters/light-filter', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ area_id: areaId, entity_id: entityId, filter: filterName })
+        });
+        if (resp.ok) showTuneSaved();
+      } catch (err) {
+        console.error('Error saving light filter:', err);
+      }
+    }
+
+    // ============================================================
+    // Sort
+    // ============================================================
+    function setTuneSort(sort) {
+      tuneSortOrder = sort;
+      localStorage.setItem('tune_sort_order', sort);
+      renderTune();
+    }
+
+    // ============================================================
+    // Zone collapse
+    // ============================================================
+    function getCollapsedZones() {
+      try {
+        return JSON.parse(localStorage.getItem('tune_collapsed_zones') || '{}');
+      } catch { return {}; }
+    }
+
+    function toggleZone(zoneName, el) {
+      const zoneGroup = el ? el.closest('.zone-group') : null;
+      const header = zoneGroup
+        ? zoneGroup.querySelector(`[data-zone="${zoneName}"]`)
+        : document.querySelector(`[data-zone="${zoneName}"]`);
+      const table = zoneGroup
+        ? zoneGroup.querySelector(`[data-zone-table="${zoneName}"]`)
+        : document.querySelector(`[data-zone-table="${zoneName}"]`);
+
+      if (!header) return;
+      const isCollapsed = header.classList.toggle('collapsed');
+      if (table) table.classList.toggle('hidden', isCollapsed);
+
+      const state = getCollapsedZones();
+      state[zoneName] = isCollapsed;
+      localStorage.setItem('tune_collapsed_zones', JSON.stringify(state));
+    }
+
+    // ============================================================
+    // Brightness preview updates
+    // ============================================================
+    function updateTuneNowPreview(tuneAreaEl, overrides) {
+      const rhythmBri = parseFloat(tuneAreaEl.dataset.rhythmBri) || 50;
+      const sensitivity = parseFloat(tuneAreaEl.dataset.sensitivity) || 5.0;
+      const outdoorNorm = parseFloat(tuneAreaEl.dataset.outdoorNorm) || 0.0;
+      const lumenSlider = tuneAreaEl.querySelector('.tune-lumen-slider');
+      const solarSlider = tuneAreaEl.querySelector('.tune-solar-slider');
+      const factor = overrides?.factor ?? (1 / LUMEN_STEPS[parseInt(lumenSlider.value)].intensity);
+      const exposure = overrides?.exposure ?? SOLAR_STEPS[parseInt(solarSlider.value)].exposure;
+      const nowRaw = computeNowBrightness(rhythmBri, factor, exposure, outdoorNorm, sensitivity);
+      const nowBri = Math.min(100, Math.round(nowRaw));
+      const peakRaw = computeNowBrightness(rhythmBri, factor, exposure, 1.0, sensitivity);
+      const peakBri = Math.min(100, Math.round(peakRaw));
+      const nowEl = tuneAreaEl.querySelector('.tune-bri-now');
+      if (nowEl) nowEl.textContent = nowBri + '%';
+      const peakEl = tuneAreaEl.querySelector('.tune-bri-peak');
+      if (peakEl) peakEl.textContent = 'pk ' + peakBri + '%';
+      const sunMeta = formatSunMeta(exposure, sensitivity, outdoorNorm);
+      const sunNowEl = tuneAreaEl.querySelector('.tune-sun-now');
+      if (sunNowEl) sunNowEl.textContent = sunMeta.now;
+      const sunPeakEl = tuneAreaEl.querySelector('.tune-sun-peak');
+      if (sunPeakEl) sunPeakEl.textContent = sunMeta.peak;
+    }
+
+    function updateAllZoneSunMeta() {
+      const sensitivity = tuneData?.brightness_sensitivity ?? 5.0;
+      const outdoorNorm = tuneData?.outdoor_normalized ?? 0.0;
+      const nowEl = document.getElementById('tune-global-sun-now');
+      if (nowEl) nowEl.textContent = '\u2193' + Math.min(100, Math.round(outdoorNorm * sensitivity * 100)) + '%';
+      const peakEl = document.getElementById('tune-global-sun-peak');
+      if (peakEl) peakEl.textContent = 'pk\u2193' + Math.min(100, Math.round(sensitivity * 100)) + '%';
+    }
+
+    // ============================================================
+    // Outdoor refresh
+    // ============================================================
+    async function refreshOutdoorAndRender() {
+      try {
+        const resp = await fetch('./api/outdoor-status');
+        if (resp.ok) {
+          tuneOutdoorData = await resp.json();
+          if (tuneData && tuneOutdoorData.outdoor_normalized != null) {
+            tuneData.outdoor_normalized = tuneOutdoorData.outdoor_normalized;
+          }
+        }
+      } catch (err) {}
+      renderTune();
+    }
+
+    async function refreshOutdoorInPlace() {
+      try {
+        const resp = await fetch('./api/outdoor-status');
+        if (!resp.ok) return;
+        tuneOutdoorData = await resp.json();
+        if (tuneData) tuneData.outdoor_normalized = tuneOutdoorData.outdoor_normalized ?? 0;
+        const newNorm = tuneOutdoorData.outdoor_normalized ?? 0;
+        const pctEl = document.getElementById('tune-outdoor-pct');
+        if (pctEl) pctEl.textContent = buildOutdoorIcon(tuneOutdoorData) + ' ' + Math.round(newNorm * 100) + '%';
+        const statusEl = document.getElementById('tune-outdoor-status-detail');
+        if (statusEl) {
+          let warn = (tuneOutdoorData.preferred_source === 'lux' && tuneOutdoorData.source !== 'lux') ? ' (sensor NA)' : '';
+          statusEl.textContent = buildOutdoorDetailText(tuneOutdoorData) + warn;
+        }
+        const readingEl = document.getElementById('tune-outdoor-reading');
+        if (readingEl) readingEl.textContent = tuneOutdoorData.lux_smoothed != null
+          ? Math.round(tuneOutdoorData.lux_smoothed).toLocaleString() + ' lx' : '--';
+        const rangeEl = document.getElementById('tune-outdoor-range');
+        if (rangeEl) {
+          const c = tuneOutdoorData.lux_learned_ceiling, f = tuneOutdoorData.lux_learned_floor;
+          rangeEl.textContent = (c != null && f != null) ? Math.round(f).toLocaleString() + ' \u2013 ' + Math.round(c).toLocaleString() : 'not learned';
+        }
+        document.querySelectorAll('.tune-area').forEach(el => {
+          el.dataset.outdoorNorm = newNorm;
+          updateTuneNowPreview(el, {});
+        });
+        updateAllZoneSunMeta();
+      } catch (err) {
+        console.error('refreshOutdoorInPlace error:', err);
+      }
+    }
+
+    async function refreshTuneBrightness() {
+      try {
+        const [zsResp] = await Promise.all([
+          fetch('./api/zone-states'),
+          refreshOutdoorInPlace(),
+        ]);
+        if (zsResp.ok) {
+          const zs = await zsResp.json();
+          zoneStates = zs.zone_states || {};
+          document.querySelectorAll('.tune-area').forEach(el => {
+            const zoneName = el.closest('.zone-group')?.querySelector('[data-zone]')?.dataset.zone;
+            const zoneBri = zoneStates?.[zoneName]?.brightness;
+            if (zoneBri != null) {
+              el.dataset.rhythmBri = Math.round(zoneBri);
+              updateTuneNowPreview(el, {});
+            }
+          });
+          document.querySelectorAll('.tune-zone-base-bri').forEach(el => {
+            const zoneName = el.closest('[data-zone]')?.dataset.zone;
+            const zoneBri = zoneStates?.[zoneName]?.brightness;
+            if (zoneBri != null) el.textContent = Math.round(zoneBri) + '%';
+          });
+        }
+      } catch (err) {
+        console.error('refreshTuneBrightness error:', err);
+      }
+    }
+
+    // ============================================================
+    // Expandable lights per area
+    // ============================================================
+    function toggleAreaLights(areaId) {
+      expandedAreas[areaId] = !expandedAreas[areaId];
+      const el = document.getElementById('tune-lights-' + areaId);
+      if (el) el.style.display = expandedAreas[areaId] ? 'block' : 'none';
+      const chevron = document.getElementById('tune-lights-chevron-' + areaId);
+      if (chevron) chevron.style.transform = expandedAreas[areaId] ? 'rotate(90deg)' : '';
+    }
+
+    function buildLightsSection(areaId, tuneArea) {
+      const lights = tuneArea?.lights || [];
+      const presets = tuneData?.presets || {};
+      const presetNames = Object.keys(presets);
+      if (presetNames.indexOf('Standard') < 0) presetNames.unshift('Standard');
+      const sensitivity = tuneData?.brightness_sensitivity ?? 5.0;
+      const outdoorNorm = tuneData?.outdoor_normalized ?? 0.0;
+      const offThresh = tuneData?.off_threshold ?? 0;
+
+      if (lights.length === 0) return '';
+
+      let html = '';
+      for (let i = 0; i < lights.length; i++) {
+        const light = lights[i];
+        const filterName = light.filter || 'Standard';
+        const filterMult = getFilterMultiplier(presets, filterName);
+        const impactPct = Math.round((filterMult - 1) * 100);
+        let impactStr = '';
+        if (impactPct < 0) impactStr = '\u2193' + Math.abs(impactPct) + '%';
+        else if (impactPct > 0) impactStr = '\u2191' + impactPct + '%';
+
+        let selectHtml = '<select class="tune-light-select" data-area-id="' + areaId + '" data-entity-id="' + light.entity_id + '">';
+        for (const pName of presetNames) {
+          selectHtml += '<option value="' + pName + '"' + (pName === filterName ? ' selected' : '') + '>' + pName + '</option>';
+        }
+        selectHtml += '</select>';
+
+        // Compute per-light brightness
+        const areaFactor = tuneArea?.brightness_factor ?? 1.0;
+        const exposure = tuneArea?.natural_light_exposure ?? 0.0;
+        const zoneName = tuneArea?._zoneName;
+        const zoneBri = zoneStates?.[zoneName]?.brightness ?? 50;
+        const rhythmBri = Math.round(zoneBri);
+        const nlFactor = (exposure <= 0 || outdoorNorm <= 0) ? 1.0 : Math.max(0, 1 - exposure * outdoorNorm * sensitivity);
+        const finalBri = rhythmBri * nlFactor * areaFactor * filterMult;
+        const isOff = finalBri < offThresh;
+        const finalVal = isOff ? 0 : Math.min(100, Math.round(finalBri));
+
+        html += '<div class="tune-light-row">';
+        html += '<span class="tune-light-name" title="' + light.entity_id + '">' + light.name + '</span>';
+        html += selectHtml;
+        html += '<span class="tune-light-impact">' + impactStr + '</span>';
+        html += '<span class="tune-light-bri">' + finalVal + '%</span>';
+        html += '</div>';
+      }
+      return html;
+    }
+
+    // ============================================================
+    // Render
+    // ============================================================
+    function renderTune() {
+      const container = document.getElementById('tune-container');
+      if (!tuneData) {
+        container.innerHTML = '<div class="loading">Loading tune data...</div>';
+        return;
+      }
+
+      const gzZonesObj = cachedGlozones?.zones || {};
+      const gzZoneNames = Object.keys(gzZonesObj);
+      const sensitivity = tuneData?.brightness_sensitivity ?? 5.0;
+      const outdoorNorm = tuneData?.outdoor_normalized ?? 0.0;
+      const collapsedState = getCollapsedZones();
+      const chevronIcon = '<svg class="zone-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>';
+
+      // Build merged area list from glozone data
+      let allAreas = [];
+      for (const zoneName of gzZoneNames) {
+        const gzData = gzZonesObj[zoneName];
+        const zoneAreaIds = (gzData.areas || []).map(a => typeof a === 'object' ? a.id : a);
+        const zoneAreaNames = {};
+        (gzData.areas || []).forEach(a => {
+          if (typeof a === 'object') zoneAreaNames[a.id] = a.name;
+        });
+        for (const areaId of zoneAreaIds) {
+          const tuneArea = getTuneArea(areaId);
+          allAreas.push({
+            area_id: areaId,
+            name: tuneArea?.name || zoneAreaNames[areaId] || areaId,
+            zone_name: zoneName,
+          });
+        }
+      }
+
+      // Apply sort
+      let sortedAreas = [...allAreas];
+      if (tuneSortOrder === 'az') {
+        sortedAreas.sort((a, b) => a.name.localeCompare(b.name));
+      } else if (tuneSortOrder === 'light') {
+        sortedAreas.sort((a, b) => {
+          const fa = getTuneArea(a.area_id)?.brightness_factor ?? 1.0;
+          const fb = getTuneArea(b.area_id)?.brightness_factor ?? 1.0;
+          return fa - fb;
+        });
+      } else if (tuneSortOrder === 'sun') {
+        sortedAreas.sort((a, b) => {
+          const ea = getTuneArea(a.area_id)?.natural_light_exposure ?? 0.0;
+          const eb = getTuneArea(b.area_id)?.natural_light_exposure ?? 0.0;
+          return eb - ea;
+        });
+      }
+
+      // Group by zone
+      let zoneOrderedAreas = {};
+      if (tuneSortOrder === 'custom') {
+        // Preserve zone order
+        for (const zoneName of gzZoneNames) {
+          zoneOrderedAreas[zoneName] = allAreas.filter(a => a.zone_name === zoneName);
+        }
+      } else {
+        // Re-group after sort
+        const rendered = new Set();
+        for (const area of sortedAreas) {
+          const zn = area.zone_name;
+          if (!rendered.has(zn)) {
+            rendered.add(zn);
+            zoneOrderedAreas[zn] = [];
+          }
+          zoneOrderedAreas[zn].push(area);
+        }
+      }
+
+      // Build toolbar
+      let html = '';
+
+      // Sensitivity row
+      const tuneSensStep = findClosestSensitivityStep(sensitivity);
+      const tuneSensReduction = Math.min(100, Math.round(outdoorNorm * sensitivity * 100));
+      const tuneSensPeak = Math.min(100, Math.round(sensitivity * 100));
+      html += `
+        <div class="tune-toolbar-row">
+          <div class="view-links">
+            <button class="view-link ${tuneSortOrder === 'custom' ? 'active' : ''}" data-tune-sort="custom">your order</button>
+            <span class="view-sep">&middot;</span>
+            <button class="view-link ${tuneSortOrder === 'az' ? 'active' : ''}" data-tune-sort="az">a&ndash;z</button>
+            <span class="view-sep">&middot;</span>
+            <button class="view-link ${tuneSortOrder === 'light' ? 'active' : ''}" data-tune-sort="light">fixture</button>
+            <span class="view-sep">&middot;</span>
+            <button class="view-link ${tuneSortOrder === 'sun' ? 'active' : ''}" data-tune-sort="sun">exposure</button>
+          </div>
+          <span style="flex: 1;"></span>
+          <button class="tune-refresh-btn" onclick="refreshTuneBrightness()" title="Refresh">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+          </button>
+        </div>
+        <div class="tune-sensitivity-standalone">
+          <span class="tune-zone-ctrl-label" style="white-space:nowrap;">Sun sensitivity</span>
+          <input type="range" class="tune-sensitivity-slider" id="tune-global-sensitivity" min="0" max="9" step="1" value="${tuneSensStep}" onclick="event.stopPropagation()">
+          <span class="tune-zone-ctrl-word tune-sensitivity-word" id="tune-global-sensitivity-word">${SENSITIVITY_STEPS[tuneSensStep].label}</span>
+          <span class="tune-zone-ctrl-val tune-sensitivity-val" id="tune-global-sensitivity-val">${fmtVal(sensitivity)}</span>
+          <span class="tune-zone-sun-meta tune-zone-sun-now" id="tune-global-sun-now">\u2193${tuneSensReduction}%</span>
+          <span class="tune-zone-sun-meta tune-zone-sun-peak" id="tune-global-sun-peak">pk\u2193${tuneSensPeak}%</span>
+          <span style="flex:1;"></span>
+          ${buildOutdoorSection()}
+        </div>
+      `;
+
+      // Render zone groups
+      for (const [zoneName, areasInZone] of Object.entries(zoneOrderedAreas)) {
+        if (areasInZone.length === 0) continue;
+        const isCollapsed = collapsedState[zoneName] || false;
+        const escapedZoneName = zoneName.replace(/'/g, "\\'");
+        const zoneBri = zoneStates?.[zoneName]?.brightness;
+        const rhythmBri = zoneBri != null ? Math.round(zoneBri) : 50;
+
+        const areaRows = areasInZone.map(area => {
+          const tuneArea = getTuneArea(area.area_id);
+          const factor = tuneArea?.brightness_factor ?? 1.0;
+          const exposure = tuneArea?.natural_light_exposure ?? 0.0;
+          const lumenStep = findClosestStep(LUMEN_STEPS, 'intensity', 1 / factor);
+          const solarStep = findClosestStep(SOLAR_STEPS, 'exposure', exposure);
+          const nowBri = Math.min(100, computeNowBrightness(rhythmBri, factor, exposure, outdoorNorm, sensitivity));
+          const peakBri = Math.min(100, computeNowBrightness(rhythmBri, factor, exposure, 1.0, sensitivity));
+          const factorStr = formatFactorMeta(factor);
+          const sunMeta = formatSunMeta(exposure, sensitivity, outdoorNorm);
+
+          // Annotate tuneArea with zone name for light brightness calc
+          if (tuneArea) tuneArea._zoneName = zoneName;
+
+          const lights = tuneArea?.lights || [];
+          const hasLights = lights.length > 0;
+          const isExpanded = expandedAreas[area.area_id] || false;
+          const expandChevronStyle = isExpanded ? 'transform: rotate(90deg);' : '';
+          const lightsHtml = hasLights ? buildLightsSection(area.area_id, tuneArea) : '';
+
+          return `
+            <div class="tune-area" data-area-id="${area.area_id}" data-rhythm-bri="${rhythmBri}" data-sensitivity="${sensitivity}" data-outdoor-norm="${outdoorNorm}">
+              <div class="tune-area-row tune-area-expand-row" onclick="toggleAreaLights('${area.area_id}')">
+                <span class="tune-name-col">
+                  ${hasLights ? '<span id="tune-lights-chevron-' + area.area_id + '" style="display:inline-block;font-size:0.6rem;margin-right:4px;transition:transform 0.2s;color:var(--muted2);' + expandChevronStyle + '">&#9654;</span>' : '<span style="display:inline-block;width:0.6rem;margin-right:4px;"></span>'}
+                  <a href="./area/${encodeURIComponent(area.area_id)}?from=tune" class="tune-area-name" onclick="event.stopPropagation()">${area.name}</a>
+                </span>
+                <div class="tune-fixture-col" onclick="event.stopPropagation()">
+                  <input type="range" class="tune-lumen-slider" min="0" max="9" step="1" value="${lumenStep}" data-area-id="${area.area_id}">
+                  <span class="tune-slider-meta tune-factor-meta">${factorStr}</span>
+                </div>
+                <div class="tune-sun-col" onclick="event.stopPropagation()">
+                  <input type="range" class="tune-solar-slider" min="0" max="9" step="1" value="${solarStep}" data-area-id="${area.area_id}">
+                  <span class="tune-slider-meta tune-sun-now">${sunMeta.now}</span>
+                </div>
+                <span class="tune-bri-col tune-bri-now">${nowBri}%</span>
+              </div>
+              <div class="tune-area-row tune-area-row2">
+                <span class="tune-name-col"></span>
+                <div class="tune-fixture-col">
+                  <span class="tune-slider-word tune-lumen-word">${LUMEN_STEPS[lumenStep].label}</span>
+                </div>
+                <div class="tune-sun-col">
+                  <span class="tune-slider-word tune-solar-word">${SOLAR_STEPS[solarStep].label}</span>
+                  <span class="tune-slider-val tune-solar-val">${fmtVal(exposure)}</span>
+                  <span class="tune-slider-meta tune-sun-peak">${sunMeta.peak}</span>
+                </div>
+                <span class="tune-bri-col tune-bri-peak">pk ${peakBri}%</span>
+              </div>
+              ${hasLights ? '<div class="tune-area-lights" id="tune-lights-' + area.area_id + '" style="display:' + (isExpanded ? 'block' : 'none') + ';">' + lightsHtml + '</div>' : ''}
+            </div>
+          `;
+        }).join('');
+
+        const zoneControlsHtml = `
+          <div class="tune-zone-controls" data-zone="${zoneName}" onclick="event.stopPropagation()">
+            <div class="tune-area-row tune-col-headers">
+              <span class="tune-name-col"></span>
+              <span class="tune-fixture-col tune-col-header">Fixture density</span>
+              <span class="tune-sun-col tune-col-header">Sun exposure</span>
+              <span class="tune-bri-col"></span>
+            </div>
+          </div>
+        `;
+
+        html += `
+          <div class="zone-group">
+            <div class="zone-header tune-zone-header ${isCollapsed ? 'collapsed' : ''}" data-zone="${zoneName}">
+              <span class="zone-chevron-tap" onclick="event.stopPropagation(); toggleZone('${escapedZoneName}', this)">${chevronIcon}</span>
+              <div class="zone-name-group">
+                <a class="zone-rhythm-link" href="./zone/${encodeURIComponent(zoneName)}?back=tune" onclick="event.stopPropagation()">${zoneName}</a>
+                <span class="zone-label-sub">rhythm zone</span>
+              </div>
+              <span class="tune-zone-bri-group">
+                <span class="tune-zone-base-bri">${rhythmBri}%</span>
+              </span>
+              ${zoneControlsHtml}
+            </div>
+            <div class="zone-content ${isCollapsed ? 'hidden' : ''}" data-zone-table="${zoneName}">
+              ${areaRows}
+            </div>
+          </div>
+        `;
+      }
+
+      container.innerHTML = html;
+    }
+
+    // ============================================================
+    // Data loading
+    // ============================================================
+    async function loadData() {
+      const container = document.getElementById('tune-container');
+      container.innerHTML = '<div class="loading">Loading tune data...</div>';
+      try {
+        const [filtersResp, outdoorResp, zoneStatesResp, glozonesResp] = await Promise.all([
+          fetch('./api/light-filters'),
+          fetch('./api/outdoor-status'),
+          fetch('./api/zone-states'),
+          fetch('./api/glozones'),
+        ]);
+        if (filtersResp.ok) tuneData = await filtersResp.json();
+        if (outdoorResp.ok) tuneOutdoorData = await outdoorResp.json();
+        if (zoneStatesResp.ok) {
+          const zs = await zoneStatesResp.json();
+          zoneStates = zs.zone_states || {};
+        }
+        if (glozonesResp.ok) cachedGlozones = await glozonesResp.json();
+      } catch (err) {
+        console.error('Error loading tune data:', err);
+      }
+      renderTune();
+    }
+
+    // ============================================================
+    // Event listeners
+    // ============================================================
+    function setupEventListeners() {
+      const container = document.getElementById('tune-container');
+
+      // Sort pill clicks
+      container.addEventListener('click', (e) => {
+        if (e.target.classList.contains('view-link') && !e.target.classList.contains('active') && e.target.dataset.tuneSort) {
+          setTuneSort(e.target.dataset.tuneSort);
+        }
+        // Toggle outdoor settings panel
+        if (e.target.closest('#tune-outdoor-toggle')) {
+          e.stopPropagation();
+          const panel = document.getElementById('tune-outdoor-panel');
+          if (panel) panel.classList.toggle('visible');
+        }
+        // Outdoor panel buttons
+        if (e.target.id === 'tune-outdoor-apply-override') {
+          e.stopPropagation();
+          const cond = document.getElementById('tune-outdoor-override-cond')?.value;
+          const dur = document.getElementById('tune-outdoor-override-dur')?.value || '60';
+          if (cond) {
+            fetch('./api/outdoor-override', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ condition: cond, duration_minutes: parseInt(dur) }) })
+              .then(() => refreshOutdoorAndRender());
+          }
+        }
+        if (e.target.id === 'tune-outdoor-clear-override') {
+          e.stopPropagation();
+          fetch('./api/outdoor-override', { method: 'DELETE' }).then(() => refreshOutdoorAndRender());
+        }
+        if (e.target.id === 'tune-outdoor-learn') {
+          e.stopPropagation();
+          const status = document.getElementById('tune-outdoor-learn-status');
+          if (status) status.textContent = 'Learning...';
+          const sinceInput = document.getElementById('tune-outdoor-learn-since');
+          const sinceVal = sinceInput ? sinceInput.value : '';
+          const body = sinceVal ? JSON.stringify({ since: sinceVal }) : '{}';
+          pendingSensorSave
+            .then(() => fetch('./api/learn-baselines', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body }))
+            .then(r => r.json())
+            .then(async data => {
+              if (data.error) { if (status) status.textContent = data.error; }
+              else {
+                const sensorName = (data.sensor || '').replace(/^sensor\./, '').replace(/_/g, ' ');
+                if (status) status.textContent = 'Learned from ' + data.samples + ' samples' + (sensorName ? ' (' + sensorName + ')' : '');
+                try {
+                  const resp = await fetch('./api/outdoor-status');
+                  if (resp.ok) tuneOutdoorData = await resp.json();
+                } catch (err) {}
+                const rangeEl = document.getElementById('tune-outdoor-range');
+                if (rangeEl && tuneOutdoorData?.lux_learned_ceiling != null) {
+                  rangeEl.textContent = Math.round(tuneOutdoorData.lux_learned_floor).toLocaleString() + ' \u2013 ' + Math.round(tuneOutdoorData.lux_learned_ceiling).toLocaleString();
+                }
+              }
+            })
+            .catch(() => { if (status) status.textContent = 'Error'; });
+        }
+        if (e.target.id === 'tune-outdoor-clear-baselines') {
+          e.stopPropagation();
+          fetch('./api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lux_learned_ceiling: null, lux_learned_floor: null }) })
+            .then(() => refreshOutdoorAndRender());
+        }
+      });
+
+      // Close outdoor panel when clicking outside
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('.tune-outdoor-wrapper')) {
+          const panel = document.getElementById('tune-outdoor-panel');
+          if (panel) panel.classList.remove('visible');
+        }
+      });
+
+      // Outdoor source change
+      container.addEventListener('change', (e) => {
+        if (e.target.id === 'tune-outdoor-source') {
+          e.stopPropagation();
+          const val = e.target.value;
+          fetch('./api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ outdoor_brightness_source: val }) })
+            .then(() => refreshOutdoorAndRender());
+        }
+        // Light filter preset change
+        if (e.target.classList.contains('tune-light-select')) {
+          const areaId = e.target.dataset.areaId;
+          const entityId = e.target.dataset.entityId;
+          const newFilter = e.target.value;
+          saveLightFilter(areaId, entityId, newFilter);
+          // Update the tuneData in memory
+          const tuneArea = getTuneArea(areaId);
+          if (tuneArea) {
+            const light = (tuneArea.lights || []).find(l => l.entity_id === entityId);
+            if (light) light.filter = newFilter;
+          }
+          // Re-render this area's lights section
+          const lightsContainer = document.getElementById('tune-lights-' + areaId);
+          if (lightsContainer && tuneArea) {
+            lightsContainer.innerHTML = buildLightsSection(areaId, tuneArea);
+          }
+        }
+      });
+
+      // Slider input events (live feedback)
+      container.addEventListener('input', (e) => {
+        // Global sensitivity slider
+        if (e.target.id === 'tune-global-sensitivity') {
+          const step = parseInt(e.target.value);
+          const newSensitivity = SENSITIVITY_STEPS[step].multiplier;
+          const wordEl = document.getElementById('tune-global-sensitivity-word');
+          if (wordEl) wordEl.textContent = SENSITIVITY_STEPS[step].label;
+          const valEl = document.getElementById('tune-global-sensitivity-val');
+          if (valEl) valEl.textContent = fmtVal(newSensitivity);
+          const outdoorNorm = tuneData?.outdoor_normalized ?? 0.0;
+          const nowEl = document.getElementById('tune-global-sun-now');
+          if (nowEl) nowEl.textContent = '\u2193' + Math.min(100, Math.round(outdoorNorm * newSensitivity * 100)) + '%';
+          const peakEl = document.getElementById('tune-global-sun-peak');
+          if (peakEl) peakEl.textContent = 'pk\u2193' + Math.min(100, Math.round(newSensitivity * 100)) + '%';
+          if (tuneData) tuneData.brightness_sensitivity = newSensitivity;
+          document.querySelectorAll('.tune-area').forEach(el => {
+            el.dataset.sensitivity = newSensitivity;
+            updateTuneNowPreview(el, {});
+          });
+          return;
+        }
+        // Per-area controls
+        const tuneArea = e.target.closest('.tune-area');
+        if (!tuneArea) return;
+
+        if (e.target.classList.contains('tune-lumen-slider')) {
+          const step = parseInt(e.target.value);
+          const word = tuneArea.querySelector('.tune-lumen-word');
+          if (word) word.textContent = LUMEN_STEPS[step].label;
+          const newFactor = 1 / LUMEN_STEPS[step].intensity;
+          const factorMeta = tuneArea.querySelector('.tune-factor-meta');
+          if (factorMeta) factorMeta.textContent = formatFactorMeta(newFactor);
+          updateTuneNowPreview(tuneArea, { factor: newFactor });
+        }
+        if (e.target.classList.contains('tune-solar-slider')) {
+          const step = parseInt(e.target.value);
+          const word = tuneArea.querySelector('.tune-solar-word');
+          if (word) word.textContent = SOLAR_STEPS[step].label;
+          const newExposure = SOLAR_STEPS[step].exposure;
+          const valEl = tuneArea.querySelector('.tune-solar-val');
+          if (valEl) valEl.textContent = fmtVal(newExposure);
+          updateTuneNowPreview(tuneArea, { exposure: newExposure });
+        }
+      });
+
+      // Slider change events (save on release)
+      container.addEventListener('change', (e) => {
+        if (e.target.id === 'tune-global-sensitivity') {
+          const step = parseInt(e.target.value);
+          saveGlobalSetting('brightness_sensitivity', SENSITIVITY_STEPS[step].multiplier);
+        }
+        if (e.target.classList.contains('tune-lumen-slider')) {
+          const step = parseInt(e.target.value);
+          const areaId = e.target.dataset.areaId;
+          const newFactor = 1 / LUMEN_STEPS[step].intensity;
+          saveTuneValue(areaId, { brightness_factor: newFactor });
+        }
+        if (e.target.classList.contains('tune-solar-slider')) {
+          const step = parseInt(e.target.value);
+          const areaId = e.target.dataset.areaId;
+          saveTuneValue(areaId, { natural_light_exposure: SOLAR_STEPS[step].exposure });
+        }
+      });
+    }
+
+    // ============================================================
+    // Init
+    // ============================================================
+    document.addEventListener('DOMContentLoaded', () => {
+      // Restore active tab
+      const savedTab = localStorage.getItem('tune_active_tab');
+      if (savedTab === 'color') switchTab('color');
+
+      setupEventListeners();
+      loadData();
+    });
+  </script>
+</body>
+</html>
