@@ -1426,32 +1426,35 @@
         applyOneSlider(track, pct, currentBri, currentCCT, mode);
       });
 
-      // Banner slider
-      updateBannerSlider(gloFrac, currentBri, currentCCT, cfg, effRange);
+      // Banner slider — compute color delta (actual CCT vs base curve CCT at this position)
+      const baseCCT = effRange.effMin + (effRange.effMax - effRange.effMin) * gloFrac / 100;
+      const colorDelta = currentCCT - baseCCT;
+      updateBannerSlider(gloFrac, cfg, effRange, colorDelta);
     }
 
-    function buildHorizontalGradient(cfg, currentBri, currentCCT, effectiveColorRange) {
+    function buildHorizontalGradient(cfg, effectiveColorRange, colorDelta) {
       const bMin = cfg.min_brightness, bMax = cfg.max_brightness;
       const cMin = cfg.min_color_temp, cMax = cfg.max_color_temp;
+      const effMin = effectiveColorRange ? effectiveColorRange.effMin : cMin;
+      const effMax = effectiveColorRange ? effectiveColorRange.effMax : cMax;
+      const d = colorDelta || 0;
       const stops = [];
       const n = 6;
       for (let i = 0; i <= n; i++) {
         const frac = i / n;
         const b = bMin + (bMax - bMin) * frac;
-        const effMin = effectiveColorRange ? effectiveColorRange.effMin : cMin;
-        const effMax = effectiveColorRange ? effectiveColorRange.effMax : cMax;
-        const k = effMin + (effMax - effMin) * frac;
+        const k = (effMin + d) + ((effMax + d) - (effMin + d)) * frac;
         const color = tintColorByBrightness(cctToRGB(k), b);
         stops.push(color + ' ' + Math.round(frac * 100) + '%');
       }
       return 'linear-gradient(to right, ' + stops.join(', ') + ')';
     }
 
-    function updateBannerSlider(pct, bri, cct, cfg, effRange) {
+    function updateBannerSlider(pct, cfg, effRange, colorDelta) {
       const banner = document.getElementById('area-banner-slider');
       if (!banner || banner.classList.contains('dragging')) return;
       if (cfg && effRange) {
-        banner.style.background = buildHorizontalGradient(cfg, bri, cct, effRange);
+        banner.style.background = buildHorizontalGradient(cfg, effRange, colorDelta);
       }
       const thumb = banner.querySelector('.row-slider-thumb');
       if (thumb) {
@@ -1624,8 +1627,10 @@
         applyOneSlider(t, pct, previewBri, previewCCT, m);
       });
 
-      // Also update banner slider
-      updateBannerSlider(gloFrac, previewBri, previewCCT, cfg, effRange);
+      // Also update banner slider — compute color delta from preview
+      const previewBaseCCT = effRange.effMin + (effRange.effMax - effRange.effMin) * gloFrac / 100;
+      const previewColorDelta = previewCCT - previewBaseCCT;
+      updateBannerSlider(gloFrac, cfg, effRange, previewColorDelta);
     }
 
     // ============================================================
