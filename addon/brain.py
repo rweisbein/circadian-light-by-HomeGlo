@@ -459,6 +459,60 @@ def logistic(x: float, midpoint: float, slope: float, y0: float, y1: float) -> f
         return y1 if slope * (x - midpoint) > 0 else y0
 
 
+def _converge_override(
+    desired: float,
+    base_cct: float,
+    tolerance: float,
+    render_fn,
+) -> Optional[float]:
+    """Find the color_override that makes render_fn produce desired CCT.
+
+    Uses division-based correction: measures the effective attenuation from
+    a first attempt, then divides it out for single-step convergence.
+    Falls back to iterative refinement if the system is non-linear.
+
+    Args:
+        desired: Target rendered CCT
+        base_cct: Rendered CCT with no override (solar rules applied)
+        tolerance: Acceptable error in Kelvin
+        render_fn: Callable(override) -> rendered CCT
+
+    Returns:
+        Override value, or None if no override needed.
+    """
+    if abs(base_cct - desired) <= tolerance:
+        return None
+
+    desired_shift = desired - base_cct
+    override = desired_shift  # Initial estimate
+
+    test_cct = render_fn(override)
+    error = test_cct - desired
+    if abs(error) <= tolerance:
+        return override
+
+    # Division-based correction: compute effective attenuation and divide it out
+    actual_shift = test_cct - base_cct
+    if abs(actual_shift) > 0.1 and abs(override) > 0.1:
+        attenuation = actual_shift / override
+        if 0.01 < abs(attenuation) < 10:
+            corrected = desired_shift / attenuation
+            verify_cct = render_fn(corrected)
+            if abs(verify_cct - desired) < abs(error):
+                override = corrected
+                error = verify_cct - desired
+
+    # If still not converged, iterate a few more times
+    for _ in range(5):
+        if abs(error) <= tolerance:
+            break
+        override -= error
+        test_cct = render_fn(override)
+        error = test_cct - desired
+
+    return override
+
+
 def inverse_midpoint(
     x: float, target_value: float, slope: float, y0: float, y1: float
 ) -> float:
@@ -1302,57 +1356,21 @@ class CircadianLight:
                 apply_solar_rules=True, sun_times=sun_times, weekday=weekday,
             )
 
-            if abs(base_cct - desired_rendered) <= tolerance:
-                # No solar rule blocking — clear override
-                state_updates["color_override"] = None
-            else:
-                # Solar rule preventing desired rendered CCT — override it
-                override = desired_rendered - base_cct
-                # Correct for blend attenuation (override modifies target, not output)
-                test_state = AreaState(
-                    is_circadian=new_state.is_circadian,
-                    is_on=new_state.is_on,
-                    frozen_at=new_state.frozen_at,
-                    brightness_mid=new_state.brightness_mid,
-                    color_mid=new_state.color_mid,
-                    color_override=override,
+            def _render_step(ovr):
+                s = AreaState(
+                    is_circadian=new_state.is_circadian, is_on=new_state.is_on,
+                    frozen_at=new_state.frozen_at, brightness_mid=new_state.brightness_mid,
+                    color_mid=new_state.color_mid, color_override=ovr,
                 )
-                test_cct = CircadianLight.calculate_color_at_hour(
-                    hour, config, test_state,
+                return CircadianLight.calculate_color_at_hour(
+                    hour, config, s,
                     apply_solar_rules=True, sun_times=sun_times, weekday=weekday,
                 )
-                error = test_cct - desired_rendered
-                if abs(error) > tolerance:
-                    corrected = override - error
-                    verify_state = AreaState(
-                        is_circadian=new_state.is_circadian,
-                        is_on=new_state.is_on,
-                        frozen_at=new_state.frozen_at,
-                        brightness_mid=new_state.brightness_mid,
-                        color_mid=new_state.color_mid,
-                        color_override=corrected,
-                    )
-                    verify_cct = CircadianLight.calculate_color_at_hour(
-                        hour, config, verify_state,
-                        apply_solar_rules=True, sun_times=sun_times, weekday=weekday,
-                    )
-                    if abs(verify_cct - desired_rendered) < abs(test_cct - desired_rendered):
-                        override = corrected
-                state_updates["color_override"] = override
 
-            # Re-render with final override for accurate output
-            final_state = AreaState(
-                is_circadian=new_state.is_circadian,
-                is_on=new_state.is_on,
-                frozen_at=new_state.frozen_at,
-                brightness_mid=new_state.brightness_mid,
-                color_mid=new_state.color_mid,
-                color_override=state_updates.get("color_override"),
+            state_updates["color_override"] = _converge_override(
+                desired_rendered, base_cct, tolerance, _render_step,
             )
-            actual_cct = CircadianLight.calculate_color_at_hour(
-                hour, config, final_state,
-                apply_solar_rules=True, sun_times=sun_times, weekday=weekday,
-            )
+            actual_cct = _render_step(state_updates["color_override"])
 
         elif state.color_override is not None:
             # Step-up or cct-at-limit: recalibrate existing override to minimum
@@ -1599,57 +1617,24 @@ class CircadianLight:
             weekday=weekday,
         )
 
-        # 6-7. Recalibrate override to minimum needed to reach target,
-        # with attenuation correction (override modifies target, not output)
+        # 6-7. Recalibrate override to minimum needed to reach target
         tolerance = max(5, safe_margin * 0.5)
-        if abs(base_rendered - target) <= tolerance:
-            new_override = None  # Solar rule not blocking; clear override
-        else:
-            new_override = target - base_rendered  # Initial estimate
-            # Correct for blend attenuation
-            test_state = AreaState(
-                is_circadian=state.is_circadian,
-                is_on=state.is_on,
-                frozen_at=state.frozen_at,
-                brightness_mid=state.brightness_mid,
-                color_mid=new_mid,
-                color_override=new_override,
+
+        def _render_color(ovr):
+            s = AreaState(
+                is_circadian=state.is_circadian, is_on=state.is_on,
+                frozen_at=state.frozen_at, brightness_mid=state.brightness_mid,
+                color_mid=new_mid, color_override=ovr,
             )
-            test_cct = CircadianLight.calculate_color_at_hour(
-                hour, config, test_state,
+            return CircadianLight.calculate_color_at_hour(
+                hour, config, s,
                 apply_solar_rules=True, sun_times=sun_times, weekday=weekday,
             )
-            error = test_cct - target
-            if abs(error) > tolerance:
-                corrected = new_override - error
-                verify_state = AreaState(
-                    is_circadian=state.is_circadian,
-                    is_on=state.is_on,
-                    frozen_at=state.frozen_at,
-                    brightness_mid=state.brightness_mid,
-                    color_mid=new_mid,
-                    color_override=corrected,
-                )
-                verify_cct = CircadianLight.calculate_color_at_hour(
-                    hour, config, verify_state,
-                    apply_solar_rules=True, sun_times=sun_times, weekday=weekday,
-                )
-                if abs(verify_cct - target) < abs(test_cct - target):
-                    new_override = corrected
+
+        new_override = _converge_override(target, base_rendered, tolerance, _render_color)
 
         # 8. Verify final rendered output changed meaningfully
-        final_state = AreaState(
-            is_circadian=state.is_circadian,
-            is_on=state.is_on,
-            frozen_at=state.frozen_at,
-            brightness_mid=state.brightness_mid,
-            color_mid=new_mid,
-            color_override=new_override,
-        )
-        actual_cct = CircadianLight.calculate_color_at_hour(
-            hour, config, final_state,
-            apply_solar_rules=True, sun_times=sun_times, weekday=weekday,
-        )
+        actual_cct = _render_color(new_override)
 
         if abs(actual_cct - rendered) < 10:
             logger.debug(
@@ -1876,43 +1861,23 @@ class CircadianLight:
                 weekday=weekday,
             )
 
-            # If solar rule prevents target, set override with attenuation correction
+            # If solar rule prevents target, set override with convergence
             tolerance = max(5, safe_margin_cct * 0.5)
-            if abs(test_rendered - target_natural_cct) > tolerance:
-                override = target_natural_cct - test_rendered
-                # Correct for blend attenuation
-                corr_state = AreaState(
-                    is_circadian=state.is_circadian,
-                    is_on=state.is_on,
-                    frozen_at=state.frozen_at,
-                    brightness_mid=state.brightness_mid,
-                    color_mid=new_color_mid,
-                    color_override=override,
+
+            def _render_color_pos(ovr):
+                s = AreaState(
+                    is_circadian=state.is_circadian, is_on=state.is_on,
+                    frozen_at=state.frozen_at, brightness_mid=state.brightness_mid,
+                    color_mid=new_color_mid, color_override=ovr,
                 )
-                corr_cct = CircadianLight.calculate_color_at_hour(
-                    hour, config, corr_state,
+                return CircadianLight.calculate_color_at_hour(
+                    hour, config, s,
                     apply_solar_rules=True, sun_times=sun_times, weekday=weekday,
                 )
-                error = corr_cct - target_natural_cct
-                if abs(error) > tolerance:
-                    corrected = override - error
-                    verify_state = AreaState(
-                        is_circadian=state.is_circadian,
-                        is_on=state.is_on,
-                        frozen_at=state.frozen_at,
-                        brightness_mid=state.brightness_mid,
-                        color_mid=new_color_mid,
-                        color_override=corrected,
-                    )
-                    verify_cct = CircadianLight.calculate_color_at_hour(
-                        hour, config, verify_state,
-                        apply_solar_rules=True, sun_times=sun_times, weekday=weekday,
-                    )
-                    if abs(verify_cct - target_natural_cct) < abs(corr_cct - target_natural_cct):
-                        override = corrected
-                state_updates["color_override"] = override
-            else:
-                state_updates["color_override"] = None
+
+            state_updates["color_override"] = _converge_override(
+                target_natural_cct, test_rendered, tolerance, _render_color_pos,
+            )
 
         # Build new state to verify actual output
         new_state = AreaState(
@@ -1954,55 +1919,23 @@ class CircadianLight:
             )
             # target_natural_cct already includes the divergence offset
             tolerance = max(5, safe_margin_cct * 0.5)
-            desired = target_natural_cct
-            if abs(base_cct - desired) > tolerance:
-                override = desired - base_cct
-                # Correct for blend attenuation
-                test_state = AreaState(
-                    is_circadian=new_state.is_circadian,
-                    is_on=new_state.is_on,
-                    frozen_at=new_state.frozen_at,
-                    brightness_mid=new_state.brightness_mid,
-                    color_mid=new_state.color_mid,
-                    color_override=override,
+
+            def _render_step_pos(ovr):
+                s = AreaState(
+                    is_circadian=new_state.is_circadian, is_on=new_state.is_on,
+                    frozen_at=new_state.frozen_at, brightness_mid=new_state.brightness_mid,
+                    color_mid=new_state.color_mid, color_override=ovr,
                 )
-                test_cct = CircadianLight.calculate_color_at_hour(
-                    hour, config, test_state,
+                return CircadianLight.calculate_color_at_hour(
+                    hour, config, s,
                     apply_solar_rules=True, sun_times=sun_times, weekday=weekday,
                 )
-                error = test_cct - desired
-                if abs(error) > tolerance:
-                    corrected = override - error
-                    verify_state = AreaState(
-                        is_circadian=new_state.is_circadian,
-                        is_on=new_state.is_on,
-                        frozen_at=new_state.frozen_at,
-                        brightness_mid=new_state.brightness_mid,
-                        color_mid=new_state.color_mid,
-                        color_override=corrected,
-                    )
-                    verify_cct = CircadianLight.calculate_color_at_hour(
-                        hour, config, verify_state,
-                        apply_solar_rules=True, sun_times=sun_times, weekday=weekday,
-                    )
-                    if abs(verify_cct - desired) < abs(test_cct - desired):
-                        override = corrected
-                state_updates["color_override"] = override
-            else:
-                state_updates["color_override"] = None
+
+            state_updates["color_override"] = _converge_override(
+                target_natural_cct, base_cct, tolerance, _render_step_pos,
+            )
             # Re-render with recalibrated override
-            final_state = AreaState(
-                is_circadian=new_state.is_circadian,
-                is_on=new_state.is_on,
-                frozen_at=new_state.frozen_at,
-                brightness_mid=state_updates.get("brightness_mid", state.brightness_mid),
-                color_mid=state_updates.get("color_mid", state.color_mid),
-                color_override=state_updates.get("color_override"),
-            )
-            actual_cct = CircadianLight.calculate_color_at_hour(
-                hour, config, final_state,
-                apply_solar_rules=True, sun_times=sun_times, weekday=weekday,
-            )
+            actual_cct = _render_step_pos(state_updates.get("color_override"))
 
         rgb = CircadianLight.color_temperature_to_rgb(actual_cct)
         xy = CircadianLight.color_temperature_to_xy(actual_cct)
