@@ -1659,15 +1659,44 @@ class CircadianLight:
 
         # Compute new midpoints based on dimension
         if dimension == "step":
-            # Brightness-primary: compute midpoint from brightness target,
-            # then share it with color so color follows the curve naturally
+            # Compute independent midpoints for brightness and color,
+            # preserving any color divergence (like calculate_step does).
+            # Get current natural CCT to measure divergence from coupled position.
+            current_natural_cct = CircadianLight.calculate_color_at_hour(
+                hour, config, state, apply_solar_rules=False, weekday=weekday
+            )
+            current_bri = CircadianLight.calculate_brightness_at_hour(
+                hour, config, state, weekday=weekday
+            )
+            # Color divergence: difference between actual natural CCT and
+            # what it would be if coupled to brightness
+            coupled_cct_frac = (current_bri - b_min) / (b_max - b_min) if b_max > b_min else 0.5
+            coupled_cct = c_min + (c_max - c_min) * coupled_cct_frac
+            color_divergence = current_natural_cct - coupled_cct
+
+            # Apply same divergence to the new target position
+            target_natural_cct = target_natural_cct + color_divergence
+            target_natural_cct = max(
+                c_min + safe_margin_cct, min(c_max - safe_margin_cct, target_natural_cct)
+            )
+            target_cct_norm = max(
+                0.001, min(0.999, (target_natural_cct - c_min) / (c_max - c_min))
+            )
+
             new_bri_mid = inverse_midpoint(
                 calc_time, target_bri_norm, slope, b_min_norm, b_max_norm
             )
+            new_color_mid = inverse_midpoint(calc_time, target_cct_norm, slope, 0, 1)
             if in_ascend:
                 new_bri_mid = (
                     CircadianLight.lift_midpoint_to_phase(
                         new_bri_mid, t_ascend, t_descend
+                    )
+                    % 24
+                )
+                new_color_mid = (
+                    CircadianLight.lift_midpoint_to_phase(
+                        new_color_mid, t_ascend, t_descend
                     )
                     % 24
                 )
@@ -1679,10 +1708,14 @@ class CircadianLight:
                     )
                     % 24
                 )
+                new_color_mid = (
+                    CircadianLight.lift_midpoint_to_phase(
+                        new_color_mid, t_descend, descend_end
+                    )
+                    % 24
+                )
             state_updates["brightness_mid"] = new_bri_mid
-            state_updates["color_mid"] = new_bri_mid  # shared midpoint
-            # Recalibrate override (don't clear blindly — preserve what's needed)
-            # Override is recalibrated after the verification render below
+            state_updates["color_mid"] = new_color_mid
 
         elif dimension == "brightness":
             new_bri_mid = inverse_midpoint(
@@ -1771,8 +1804,10 @@ class CircadianLight:
             weekday=weekday,
         )
 
-        # Recalibrate color_override for "step" dimension (deferred from above)
-        if dimension == "step" and state.color_override is not None:
+        # Recalibrate color_override for "step" dimension:
+        # With independent color_mid, solar rules may prevent the target CCT.
+        # Test-render without override and set deficit if needed.
+        if dimension == "step":
             base_state = AreaState(
                 is_circadian=new_state.is_circadian,
                 is_on=new_state.is_on,
@@ -1789,10 +1824,25 @@ class CircadianLight:
                 sun_times=sun_times,
                 weekday=weekday,
             )
-            if abs(base_cct - actual_cct) < 10:
-                state_updates["color_override"] = None
+            # target_natural_cct already includes the divergence offset
+            tolerance = max(5, safe_margin_cct * 0.5)
+            if abs(base_cct - target_natural_cct) > tolerance:
+                state_updates["color_override"] = target_natural_cct - base_cct
             else:
-                state_updates["color_override"] = actual_cct - base_cct
+                state_updates["color_override"] = None
+            # Re-render with recalibrated override
+            final_state = AreaState(
+                is_circadian=new_state.is_circadian,
+                is_on=new_state.is_on,
+                frozen_at=new_state.frozen_at,
+                brightness_mid=state_updates.get("brightness_mid", state.brightness_mid),
+                color_mid=state_updates.get("color_mid", state.color_mid),
+                color_override=state_updates.get("color_override"),
+            )
+            actual_cct = CircadianLight.calculate_color_at_hour(
+                hour, config, final_state,
+                apply_solar_rules=True, sun_times=sun_times, weekday=weekday,
+            )
 
         rgb = CircadianLight.color_temperature_to_rgb(actual_cct)
         xy = CircadianLight.color_temperature_to_xy(actual_cct)
