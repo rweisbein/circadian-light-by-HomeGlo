@@ -156,8 +156,7 @@
       z-index: 1;
     }
 
-    .area-state-slider-row { position: relative; z-index: 1; margin-top: 6px; padding: 0 4px; }
-    .row-slider-pill { background: rgba(0,0,0,0.5); border-radius: 10px; padding: 6px 8px; }
+    .row-slider-section { margin-bottom: 4px; padding: 6px 16px; }
     .row-slider-track { height: 10px; position: relative; cursor: pointer; touch-action: none; border-radius: 5px; overflow: visible; }
     .row-slider-fill { display: none; }
     .row-slider-thumb { position: absolute; top: 50%; transform: translate(-50%, -50%); width: 30px; height: 16px; border-radius: 8px 8px 5px 5px; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.4); pointer-events: none; transition: left 0.15s; }
@@ -603,13 +602,12 @@
         <div class="area-state-values" id="state-values"></div>
         <div class="timer-status" id="timer-status"></div>
       </div>
-      <div class="area-state-slider-row">
-        <div class="row-slider-pill">
-          <div class="row-slider-track" id="area-banner-slider" data-mode="step">
-            <div class="row-slider-fill"></div>
-            <div class="row-slider-thumb"></div>
-          </div>
-        </div>
+    </div>
+
+    <div class="row-slider-section">
+      <div class="row-slider-track" id="area-banner-slider" data-mode="step">
+        <div class="row-slider-fill"></div>
+        <div class="row-slider-thumb"></div>
       </div>
     </div>
 
