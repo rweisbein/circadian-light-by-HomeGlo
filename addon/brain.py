@@ -1218,7 +1218,14 @@ class CircadianLight:
             direction == "up" and natural_cct >= c_max - safe_margin_cct
         ) or (direction == "down" and natural_cct <= c_min + safe_margin_cct)
 
-        if bri_at_limit and cct_at_limit:
+        # For step-down: Cool Day can boost rendered color above c_min even
+        # when natural is at its floor — override can still compensate
+        can_grow_override = (
+            direction == "down"
+            and current_cct > c_min + safe_margin_cct
+        )
+
+        if bri_at_limit and cct_at_limit and not can_grow_override:
             return None  # Both dimensions at limit, can't go further
 
         # Step dimensions independently: skip ones already at limit
@@ -1320,7 +1327,7 @@ class CircadianLight:
         # Uses 0.5% for brightness, 10K for color to match frontend (glo-designer.html)
         bri_render_unchanged = abs(actual_bri - current_bri) < 0.5
         cct_render_unchanged = abs(actual_cct - current_cct) < 10
-        if bri_render_unchanged and cct_render_unchanged:
+        if bri_render_unchanged and cct_render_unchanged and not can_grow_override:
             return None
 
         # Only update midpoints for dimensions that actually moved
@@ -1337,7 +1344,7 @@ class CircadianLight:
         # Step-up: only recalibrate existing overrides (respect warm night ceiling).
         tolerance = max(5, safe_margin_cct * 0.5)
 
-        if direction == "down" and not cct_at_limit:
+        if direction == "down" and (not cct_at_limit or can_grow_override):
             # Target full rendered color change (same as without Cool Day)
             desired_rendered = current_cct - cct_step
             desired_rendered = max(c_min, desired_rendered)
