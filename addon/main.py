@@ -4267,6 +4267,45 @@ class HomeAssistantWebSocketClient:
                 hour, config, area_state, sun_times=sun_times
             )
 
+            # Recalibrate color_override: shrink or clear if no longer needed
+            # As the curve naturally warms over time, the override may exceed
+            # what's needed to bridge the solar rule gap.
+            if area_state.color_override is not None:
+                # What does the curve produce without override, with solar rules?
+                base_state = AreaState(
+                    is_circadian=area_state.is_circadian,
+                    is_on=area_state.is_on,
+                    frozen_at=area_state.frozen_at,
+                    brightness_mid=area_state.brightness_mid,
+                    color_mid=area_state.color_mid,
+                    color_override=None,
+                )
+                base_cct = CircadianLight.calculate_color_at_hour(
+                    hour, config, base_state,
+                    apply_solar_rules=True, sun_times=sun_times,
+                )
+                # What does the curve want naturally (no override, no solar rules)?
+                natural_cct = CircadianLight.calculate_color_at_hour(
+                    hour, config, base_state,
+                    apply_solar_rules=False,
+                )
+                # Override should bridge exactly the gap solar rules create
+                needed_override = natural_cct - base_cct
+                if abs(needed_override) < 10:
+                    needed_override = None
+                if needed_override != area_state.color_override:
+                    old_val = area_state.color_override
+                    state.update_area(area_id, {"color_override": needed_override})
+                    area_state = AreaState.from_dict(state.get_area(area_id))
+                    # Re-render with updated override
+                    result = CircadianLight.calculate_lighting(
+                        hour, config, area_state, sun_times=sun_times
+                    )
+                    if log_periodic:
+                        logger.info(
+                            f"[Periodic] Area {area_id}: recalibrated color_override {old_val} -> {needed_override}"
+                        )
+
             # Check if area is boosted - if so, apply boost to brightness
             brightness = result.brightness
             boost_note = ""
