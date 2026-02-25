@@ -3481,8 +3481,14 @@ class HomeAssistantWebSocketClient:
             option = "On" if recovery == "bright" else "PreviousValue"
 
             count = 0
-            for entity_id in list(self.cached_states.keys()):
-                if entity_id.startswith("select.") and entity_id.endswith("_startup_on_off"):
+            select_entities = [
+                eid for eid in self.cached_states.keys()
+                if eid.startswith("select.") and "startup" in eid
+            ]
+            if not select_entities:
+                logger.info(f"Power recovery '{recovery}': no startup select entities found in {sum(1 for e in self.cached_states if e.startswith('select.'))} select entities")
+            else:
+                for entity_id in select_entities:
                     try:
                         await self.call_service("select", "select_option", {
                             "entity_id": entity_id,
@@ -3491,7 +3497,7 @@ class HomeAssistantWebSocketClient:
                         count += 1
                     except Exception as e:
                         logger.warning(f"Failed to set power recovery for {entity_id}: {e}")
-            logger.info(f"Applied power recovery '{recovery}' ({option}) to {count} lights")
+                logger.info(f"Applied power recovery '{recovery}' ({option}) to {count} lights")
         except Exception as e:
             logger.error(f"Error applying power recovery setting: {e}")
 
