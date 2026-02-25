@@ -2679,7 +2679,7 @@ class HomeAssistantWebSocketClient:
                 zha_count = len(color_lights) - len(non_zha_color)
                 if log_periodic:
                     logger.info(
-                        f"Circadian update (color via ZHA group): {zha_color_group} ({zha_count} lights), xy={xy}, brightness={brightness}%"
+                        f"Circadian update (color via ZHA group): {zha_color_group} ({zha_count} lights), xy={xy}, brightness={brightness}%, transition={transition}s"
                     )
                 tasks.append(
                     asyncio.create_task(
@@ -2695,7 +2695,7 @@ class HomeAssistantWebSocketClient:
                 if non_zha_color:
                     if log_periodic:
                         logger.info(
-                            f"Circadian update (color non-ZHA): {len(non_zha_color)} lights, xy={xy}, brightness={brightness}%"
+                            f"Circadian update (color non-ZHA): {len(non_zha_color)} lights, xy={xy}, brightness={brightness}%, transition={transition}s"
                         )
                     tasks.append(
                         asyncio.create_task(
@@ -2710,7 +2710,7 @@ class HomeAssistantWebSocketClient:
             else:
                 if log_periodic:
                     logger.info(
-                        f"Circadian update (color): {len(color_lights)} lights, xy={xy}, brightness={brightness}%"
+                        f"Circadian update (color): {len(color_lights)} lights, xy={xy}, brightness={brightness}%, transition={transition}s"
                     )
                 tasks.append(
                     asyncio.create_task(
@@ -2735,7 +2735,7 @@ class HomeAssistantWebSocketClient:
                 zha_count = len(ct_lights) - len(non_zha_ct)
                 if log_periodic:
                     logger.info(
-                        f"Circadian update (CT via ZHA group): {zha_ct_group} ({zha_count} lights), kelvin={kelvin}, brightness={brightness}%"
+                        f"Circadian update (CT via ZHA group): {zha_ct_group} ({zha_count} lights), kelvin={kelvin}, brightness={brightness}%, transition={transition}s"
                     )
                 tasks.append(
                     asyncio.create_task(
@@ -2748,7 +2748,7 @@ class HomeAssistantWebSocketClient:
                 if non_zha_ct:
                     if log_periodic:
                         logger.info(
-                            f"Circadian update (CT non-ZHA): {len(non_zha_ct)} lights, kelvin={kelvin}, brightness={brightness}%"
+                            f"Circadian update (CT non-ZHA): {len(non_zha_ct)} lights, kelvin={kelvin}, brightness={brightness}%, transition={transition}s"
                         )
                     tasks.append(
                         asyncio.create_task(
@@ -2760,7 +2760,7 @@ class HomeAssistantWebSocketClient:
             else:
                 if log_periodic:
                     logger.info(
-                        f"Circadian update (CT): {len(ct_lights)} lights, kelvin={kelvin}, brightness={brightness}%"
+                        f"Circadian update (CT): {len(ct_lights)} lights, kelvin={kelvin}, brightness={brightness}%, transition={transition}s"
                     )
                 tasks.append(
                     asyncio.create_task(
@@ -2778,7 +2778,7 @@ class HomeAssistantWebSocketClient:
 
             if log_periodic:
                 logger.info(
-                    f"Circadian update (brightness-only): {len(brightness_lights)} lights, brightness={brightness}%"
+                    f"Circadian update (brightness-only): {len(brightness_lights)} lights, brightness={brightness}%, transition={transition}s"
                 )
             tasks.append(
                 asyncio.create_task(
@@ -2991,7 +2991,7 @@ class HomeAssistantWebSocketClient:
                     ]
                     if log_periodic:
                         logger.info(
-                            f"Filter update ({filter_name} color ZHA): {zha_group}, brightness={comp_brightness}%"
+                            f"Filter update ({filter_name} color ZHA): {zha_group}, brightness={comp_brightness}%, transition={transition}s"
                         )
                     tasks.append(
                         asyncio.create_task(
@@ -3014,7 +3014,7 @@ class HomeAssistantWebSocketClient:
                 else:
                     if log_periodic:
                         logger.info(
-                            f"Filter update ({filter_name} color): {len(lights_by_cap['color'])} lights, brightness={comp_brightness}%"
+                            f"Filter update ({filter_name} color): {len(lights_by_cap['color'])} lights, brightness={comp_brightness}%, transition={transition}s"
                         )
                     tasks.append(
                         asyncio.create_task(
@@ -3040,7 +3040,7 @@ class HomeAssistantWebSocketClient:
                     ]
                     if log_periodic:
                         logger.info(
-                            f"Filter update ({filter_name} CT ZHA): {zha_group}, brightness={comp_brightness}%"
+                            f"Filter update ({filter_name} CT ZHA): {zha_group}, brightness={comp_brightness}%, transition={transition}s"
                         )
                     tasks.append(
                         asyncio.create_task(
@@ -3060,7 +3060,7 @@ class HomeAssistantWebSocketClient:
                 else:
                     if log_periodic:
                         logger.info(
-                            f"Filter update ({filter_name} CT): {len(lights_by_cap['ct'])} lights, brightness={comp_brightness}%"
+                            f"Filter update ({filter_name} CT): {len(lights_by_cap['ct'])} lights, brightness={comp_brightness}%, transition={transition}s"
                         )
                     tasks.append(
                         asyncio.create_task(
@@ -3078,7 +3078,7 @@ class HomeAssistantWebSocketClient:
                 bri_data = {"transition": transition, "brightness_pct": comp_brightness}
                 if log_periodic:
                     logger.info(
-                        f"Filter update ({filter_name} brightness): {len(lights_by_cap['brightness'])} lights, brightness={comp_brightness}%"
+                        f"Filter update ({filter_name} brightness): {len(lights_by_cap['brightness'])} lights, brightness={comp_brightness}%, transition={transition}s"
                     )
                 tasks.append(
                     asyncio.create_task(
@@ -4555,9 +4555,9 @@ class HomeAssistantWebSocketClient:
                             log_periodic = False
                     else:
                         log_periodic = False
-                    # Periodic transition speed (day/night)
-                    periodic_transition_day = raw_config.get("periodic_transition_day", 20) / 10.0
-                    periodic_transition_night = raw_config.get("periodic_transition_night", 1) / 10.0
+                    # Periodic transition speed (day/night) — values in seconds
+                    periodic_transition_day = float(raw_config.get("periodic_transition_day", refresh_interval))
+                    periodic_transition_night = float(raw_config.get("periodic_transition_night", 1))
                     sun_elev = self.sun_data.get("elevation", 0) if self.sun_data else 0
                     periodic_transition = periodic_transition_day if sun_elev > 0 else periodic_transition_night
                 except Exception:

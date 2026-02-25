@@ -910,10 +910,10 @@
           </label>
           <div class="form-control">
             <span class="form-hint" style="margin-left: 0;">day</span>
-            <input type="number" class="form-input" id="periodic-transition-day" min="0" max="300" step="1" value="20" style="width: 60px;">
+            <input type="number" class="form-input" id="periodic-transition-day" min="0" max="120" step="1" style="width: 60px;">
             <span class="form-hint">night</span>
-            <input type="number" class="form-input" id="periodic-transition-night" min="0" max="300" step="1" value="1" style="width: 60px;">
-            <span class="form-hint">tenths of a second</span>
+            <input type="number" class="form-input" id="periodic-transition-night" min="0" max="120" step="1" value="1" style="width: 60px;">
+            <span class="form-hint">seconds</span>
           </div>
         </div>
 
@@ -1005,7 +1005,8 @@
           document.getElementById('reach-learn-mode').checked = config.reach_learn_mode ?? true;
           document.getElementById('confirm-zone-pushes').checked = config.confirm_zone_pushes ?? false;
           document.getElementById('circadian-refresh').value = config.circadian_refresh ?? 30;
-          document.getElementById('periodic-transition-day').value = config.periodic_transition_day ?? 20;
+          const refreshDefault = config.circadian_refresh ?? 30;
+          document.getElementById('periodic-transition-day').value = config.periodic_transition_day ?? refreshDefault;
           document.getElementById('periodic-transition-night').value = config.periodic_transition_night ?? 1;
           document.getElementById('home-refresh-interval').value = config.home_refresh_interval ?? 10;
           // Advanced logging
@@ -1095,7 +1096,7 @@
         reach_learn_mode: document.getElementById('reach-learn-mode').checked,
         confirm_zone_pushes: document.getElementById('confirm-zone-pushes').checked,
         circadian_refresh: parseInt(document.getElementById('circadian-refresh').value) || 30,
-        periodic_transition_day: parseInt(document.getElementById('periodic-transition-day').value) || 20,
+        periodic_transition_day: parseInt(document.getElementById('periodic-transition-day').value) || (parseInt(document.getElementById('circadian-refresh').value) || 30),
         periodic_transition_night: parseInt(document.getElementById('periodic-transition-night').value) || 1,
         home_refresh_interval: parseInt(document.getElementById('home-refresh-interval').value) || 10,
         motion_warning_time: parseInt(document.getElementById('motion-warning-time').value) || 0,
