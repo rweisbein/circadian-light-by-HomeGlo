@@ -98,9 +98,6 @@ class Config:
 
     # Steps
     max_dim_steps: int = DEFAULT_MAX_DIM_STEPS
-    step_increments: int = None  # For Step Up/Down (defaults to max_dim_steps)
-    brightness_increments: int = None  # For Brighten/Dim (defaults to max_dim_steps)
-    color_increments: int = None  # For Cooler/Warmer (defaults to max_dim_steps)
 
     # Solar rules - warm at night
     warm_night_enabled: bool = False
@@ -141,9 +138,6 @@ class Config:
             min_color_temp=d.get("min_color_temp", DEFAULT_MIN_COLOR_TEMP),
             max_color_temp=d.get("max_color_temp", DEFAULT_MAX_COLOR_TEMP),
             max_dim_steps=d.get("max_dim_steps", DEFAULT_MAX_DIM_STEPS),
-            step_increments=d.get("step_increments"),
-            brightness_increments=d.get("brightness_increments"),
-            color_increments=d.get("color_increments"),
             # Warm at night
             warm_night_enabled=d.get("warm_night_enabled", False),
             warm_night_mode=d.get("warm_night_mode", "all"),
@@ -1187,7 +1181,7 @@ class CircadianLight:
             hour, config
         )
         sign = 1 if direction == "up" else -1
-        steps = config.step_increments or config.max_dim_steps or 10
+        steps = config.max_dim_steps or 10
 
         # Config bounds (only use these, no runtime overrides)
         b_min = config.min_brightness
@@ -1450,7 +1444,7 @@ class CircadianLight:
             hour, config
         )
         sign = 1 if direction == "up" else -1
-        steps = config.brightness_increments or config.max_dim_steps or 10
+        steps = config.max_dim_steps or 10
 
         # Config bounds (only use these, no runtime overrides)
         b_min = config.min_brightness
@@ -1571,7 +1565,7 @@ class CircadianLight:
             hour, config
         )
         sign = 1 if direction == "up" else -1
-        steps = config.color_increments or config.max_dim_steps or 10
+        steps = config.max_dim_steps or 10
 
         c_min = config.min_color_temp
         c_max = config.max_color_temp

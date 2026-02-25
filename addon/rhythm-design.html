@@ -2372,8 +2372,7 @@ function getStepPreview(cursorPoint) {
   const currentBri = cursorPoint.y;
   const currentCCT = cursorPoint.cct;
 
-  // Step Up/Down uses step_increments
-  const steps = config.step_increments ?? config.max_dim_steps ?? 10;
+  const steps = config.max_dim_steps ?? 10;
 
   // Config bounds (only use these, no runtime overrides)
   const bMin = config.min_brightness;
@@ -2488,7 +2487,7 @@ function getBrightnessPreview() {
 
   const bMin = config.min_brightness;
   const bMax = config.max_brightness;
-  const steps = config.brightness_increments ?? config.max_dim_steps ?? 10;
+  const steps = config.max_dim_steps ?? 10;
   const briStep = (bMax - bMin) / steps;
 
   const atMaxBri = currentBri >= bMax - 0.5;
@@ -2519,7 +2518,7 @@ function getColorPreview() {
 
   const cMin = config.min_color_temp;
   const cMax = config.max_color_temp;
-  const steps = config.color_increments ?? config.max_dim_steps ?? 10;
+  const steps = config.max_dim_steps ?? 10;
   const cctStep = (cMax - cMin) / steps;
 
   // Check config bounds (same as stepCursor)
@@ -4919,9 +4918,9 @@ function stepCursor(direction, adjustBrightness, adjustColor) {
   if (adjustBrightness && adjustColor) {
     steps = config.step_increments ?? config.max_dim_steps ?? 10;
   } else if (adjustBrightness) {
-    steps = config.brightness_increments ?? config.max_dim_steps ?? 10;
+    steps = config.max_dim_steps ?? 10;
   } else {
-    steps = config.color_increments ?? config.max_dim_steps ?? 10;
+    steps = config.max_dim_steps ?? 10;
   }
 
   const tAscend = config.ascend_start;
