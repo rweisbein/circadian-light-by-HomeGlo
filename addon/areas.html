@@ -104,7 +104,7 @@
     .main {
       max-width: 1000px;
       margin: 0 auto;
-      padding: 12px 24px 24px;
+      padding: 12px 12px 24px;
     }
 
     .page-header {
@@ -304,6 +304,13 @@
     .timer-frozen {
       color: #63b3ed;
       opacity: 1;
+    }
+
+    .timer-alarm {
+      color: var(--accent);
+      background: rgba(254, 172, 96, 0.15);
+      padding: 1px 5px;
+      border-radius: 3px;
     }
 
     .timer-arrow {
@@ -547,7 +554,7 @@
       background: var(--panel);
       cursor: pointer;
       border: 1px solid var(--line);
-      border-radius: 8px 8px 0 8px;
+      border-radius: 8px 8px 0 0;
       user-select: none;
       transition: background 0.15s;
       position: relative;
@@ -561,7 +568,7 @@
       background: rgba(255,255,255,0.12);
       opacity: var(--header-fill, 0);
       pointer-events: none;
-      border-radius: 8px 8px 0 8px;
+      border-radius: 8px 8px 0 0;
     }
 
     .zone-header > * {
@@ -611,7 +618,7 @@
 
     .zone-chevron-tap {
       cursor: pointer;
-      padding: 4px 12px 4px 8px;
+      padding: 4px 6px 4px 4px;
       margin: -4px 0;
       display: inline-flex;
       align-items: center;
@@ -653,8 +660,8 @@
     .zone-content {
       background: var(--card);
       border: 1px solid var(--line);
-      border-radius: 8px 0 8px 8px;
-      margin-left: 48px;
+      border-radius: 0 0 8px 8px;
+      margin-left: 32px;
       margin-top: -1px;
       overflow: hidden;
     }
@@ -1671,8 +1678,8 @@
       if (!nwa) return '';
       // day is empty when the alarm fires at the next chronological occurrence,
       // or an abbreviated day name (e.g. "Wed") when days are being skipped
-      if (nwa.day) return nwa.time + ' ' + nwa.day;
-      return nwa.time;
+      const time = nwa.day ? nwa.time + ' ' + nwa.day : nwa.time;
+      return `<span class="timer-alarm">⏰ ${time}</span>`;
     }
 
     function updateHomeTimers() {
