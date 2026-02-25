@@ -4623,6 +4623,10 @@ class HomeAssistantWebSocketClient:
         try:
             logger.info("[sync] Starting area/group sync")
 
+            # 0. Re-fetch all entity states so cached_states is fully up to date
+            #    (state_changed events may have missed new entities or attributes)
+            await self.get_states()
+
             # 1. Refresh group entity mappings from cached_states
             #    (picks up any new Circadian_ or Hue group entities from state_changed events)
             self._refresh_group_entity_mappings()
