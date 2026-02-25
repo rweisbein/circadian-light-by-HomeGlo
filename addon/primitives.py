@@ -1952,11 +1952,16 @@ class CircadianLightPrimitives:
         Re-anchors midpoints so current time produces the same values as
         the frozen position, then clears frozen_at. No sudden jump.
 
+        Also compensates for solar rule differences between frozen hour and
+        current hour by setting a color_override. This prevents a visible
+        jump when e.g. unfreezing from britelite (noon, no warm_night) at
+        evening (warm_night active).
+
         Args:
             area_id: The area ID
             source: Source of the action
         """
-        from brain import inverse_midpoint
+        from brain import inverse_midpoint, _converge_override
 
         frozen_at = state.get_frozen_at(area_id)
         if frozen_at is None:
@@ -1965,6 +1970,7 @@ class CircadianLightPrimitives:
         config = self._get_config(area_id)
         area_state = self._get_area_state(area_id)
         current_hour = get_current_hour()
+        sun_times = self.client._get_sun_times() if hasattr(self.client, '_get_sun_times') else None
 
         # Calculate current frozen values
         # Use brightness as-is, but use NATURAL color (no solar rules) for midpoint re-anchoring
@@ -1972,6 +1978,11 @@ class CircadianLightPrimitives:
         frozen_bri = CircadianLight.calculate_brightness_at_hour(frozen_at, config, area_state)
         frozen_color = CircadianLight.calculate_color_at_hour(
             frozen_at, config, area_state, apply_solar_rules=False
+        )
+
+        # What the user was seeing while frozen (rendered with solar rules at frozen hour)
+        frozen_rendered = CircadianLight.calculate_color_at_hour(
+            frozen_at, config, area_state, apply_solar_rules=True, sun_times=sun_times
         )
 
         # Get phase info for current time to determine slope
@@ -1999,6 +2010,39 @@ class CircadianLightPrimitives:
             "color_mid": new_color_mid,
             "frozen_at": None,
         })
+
+        # Compensate for solar rule differences between frozen hour and current hour.
+        # Without this, unfreezing from britelite (noon, no warm_night) at evening
+        # would cause a sudden drop as warm_night kicks in.
+        new_state = self._get_area_state(area_id)
+        current_rendered = CircadianLight.calculate_color_at_hour(
+            current_hour, config, new_state, apply_solar_rules=True, sun_times=sun_times
+        )
+        safe_margin_cct = max(10, (c_max - c_min) * 0.01)
+        tolerance = max(5, safe_margin_cct * 0.5)
+
+        if abs(frozen_rendered - current_rendered) > tolerance:
+            def _render_unfreeze(ovr):
+                s = AreaState(
+                    is_circadian=new_state.is_circadian, is_on=new_state.is_on,
+                    frozen_at=None, brightness_mid=new_state.brightness_mid,
+                    color_mid=new_state.color_mid, color_override=ovr,
+                )
+                return CircadianLight.calculate_color_at_hour(
+                    current_hour, config, s,
+                    apply_solar_rules=True, sun_times=sun_times,
+                )
+
+            override = _converge_override(
+                frozen_rendered, current_rendered, tolerance, _render_unfreeze,
+            )
+            if override is not None:
+                state.update_area(area_id, {"color_override": override})
+                logger.info(
+                    f"[{source}] Solar rule compensation for {area_id}: "
+                    f"frozen_rendered={frozen_rendered}K, current_rendered={current_rendered}K, "
+                    f"override={override:.1f}"
+                )
 
         logger.info(
             f"[{source}] Unfrozen {area_id}: re-anchored midpoints to "
