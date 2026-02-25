@@ -3478,19 +3478,28 @@ class HomeAssistantWebSocketClient:
         try:
             raw_config = glozone.load_config_from_files()
             recovery = raw_config.get("power_recovery", "last_state")
-            option = "On" if recovery == "bright" else "PreviousValue"
 
             count = 0
             select_entities = [
                 eid for eid in self.cached_states.keys()
-                if eid.startswith("select.") and "startup" in eid
+                if eid.startswith("select.") and "start_up_behavior" in eid
             ]
             if not select_entities:
-                all_selects = [eid for eid in self.cached_states if eid.startswith("select.")]
-                logger.info(f"Power recovery '{recovery}': no startup select entities found. All select entities: {all_selects}")
+                logger.info(f"Power recovery '{recovery}': no start_up_behavior select entities found")
             else:
                 for entity_id in select_entities:
                     try:
+                        # Read available options from the entity's attributes
+                        entity_state = self.cached_states.get(entity_id, {})
+                        options = entity_state.get("attributes", {}).get("options", [])
+                        # Find the right option value (varies by device manufacturer)
+                        if recovery == "bright":
+                            option = next((o for o in options if o.lower() == "on"), None)
+                        else:
+                            option = next((o for o in options if "previous" in o.lower()), None)
+                        if not option:
+                            logger.warning(f"Power recovery: no matching option for '{recovery}' in {entity_id} options: {options}")
+                            continue
                         await self.call_service("select", "select_option", {
                             "entity_id": entity_id,
                             "option": option,
@@ -3498,7 +3507,7 @@ class HomeAssistantWebSocketClient:
                         count += 1
                     except Exception as e:
                         logger.warning(f"Failed to set power recovery for {entity_id}: {e}")
-                logger.info(f"Applied power recovery '{recovery}' ({option}) to {count} lights")
+                logger.info(f"Applied power recovery '{recovery}' to {count} lights")
         except Exception as e:
             logger.error(f"Error applying power recovery setting: {e}")
 
