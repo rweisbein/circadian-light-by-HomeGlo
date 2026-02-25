@@ -544,6 +544,17 @@
             <span class="form-hint">tenths of a second</span>
           </div>
         </div>
+
+        <div class="form-row">
+          <label class="form-label">
+            Step increments
+            <span class="info-icon">i<span class="info-tooltip">Number of steps between minimum and maximum when pressing up/down buttons on a switch. Fewer steps = bigger jumps. Applies to Circadian, Bright, and Color controls across all zones.</span></span>
+          </label>
+          <div class="form-control">
+            <input type="number" class="form-input" id="max-dim-steps" min="1" max="50" step="1" value="10" style="width: 60px;">
+            <span class="form-hint">steps</span>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1002,6 +1013,7 @@
           document.getElementById('multi-click-enabled').checked = config.multi_click_enabled ?? true;
           document.getElementById('multi-click-speed').value = config.multi_click_speed ?? 10;
           document.getElementById('long-press-repeat-interval').value = config.long_press_repeat_interval ?? 3;
+          document.getElementById('max-dim-steps').value = config.max_dim_steps ?? 10;
           document.getElementById('reach-learn-mode').checked = config.reach_learn_mode ?? true;
           document.getElementById('confirm-zone-pushes').checked = config.confirm_zone_pushes ?? false;
           document.getElementById('circadian-refresh').value = config.circadian_refresh ?? 30;
@@ -1093,6 +1105,7 @@
         multi_click_enabled: document.getElementById('multi-click-enabled').checked,
         multi_click_speed: parseFloat(document.getElementById('multi-click-speed').value) || 10,
         long_press_repeat_interval: parseFloat(document.getElementById('long-press-repeat-interval').value) || 3,
+        max_dim_steps: parseInt(document.getElementById('max-dim-steps').value) || 10,
         reach_learn_mode: document.getElementById('reach-learn-mode').checked,
         confirm_zone_pushes: document.getElementById('confirm-zone-pushes').checked,
         circadian_refresh: parseInt(document.getElementById('circadian-refresh').value) || 30,
@@ -1277,6 +1290,7 @@
     });
     document.getElementById('multi-click-speed').addEventListener('blur', saveSettings);
     document.getElementById('long-press-repeat-interval').addEventListener('blur', saveSettings);
+    document.getElementById('max-dim-steps').addEventListener('blur', saveSettings);
     document.getElementById('reach-learn-mode').addEventListener('change', saveSettings);
     document.getElementById('confirm-zone-pushes').addEventListener('change', saveSettings);
     document.getElementById('circadian-refresh').addEventListener('blur', saveSettings);

@@ -178,8 +178,8 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
   flex-shrink: 0;
 }
 .sleep-card-phase.current {
-  background: rgba(254, 172, 96, 0.15);
-  color: var(--accent);
+  background: rgba(148, 163, 184, 0.15);
+  color: var(--muted);
 }
 .sleep-card-phase.next {
   background: rgba(148, 163, 184, 0.1);
@@ -940,10 +940,38 @@ input[type=range]::-moz-range-thumb {
 }
 .color-rule-stack-body {
   display: block;
+  padding-left: 22px;
 }
 .color-rule-stack-body.is-disabled {
   opacity: 0.4;
   pointer-events: none;
+}
+/* Compact solar param: label + slider on one row, value below slider */
+.solar-param {
+  margin-bottom: 6px;
+  max-width: 500px;
+}
+.solar-param-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.solar-param-row label {
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-weight: 600;
+  white-space: nowrap;
+  min-width: 70px;
+  flex-shrink: 0;
+}
+.solar-param-row input[type=range] {
+  flex: 1;
+}
+.solar-param-value {
+  font-size: 0.7rem;
+  color: var(--muted2);
+  margin-top: 1px;
+  padding-left: 80px;
 }
 .color-rule-slider-row {
   max-width: 600px;
@@ -1509,11 +1537,9 @@ input[type=range]::-moz-range-thumb {
   </div>
 
   <div class="section-block">
-    <h2>Sleep</h2>
-    <div id="schedule-override-indicator" style="display: none;"></div>
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:0 2px;">
-      <label style="font-size:0.85rem;color:var(--muted);font-weight:600;">Pattern</label>
-      <select id="activity-preset" style="background:var(--panel2);border:1px solid var(--line);border-radius:6px;color:var(--text);font-size:0.85rem;padding:6px 10px;max-width:180px;">
+    <div style="display:flex;align-items:center;margin-bottom:12px;">
+      <h2 style="margin:0;">Sleep</h2>
+      <select id="activity-preset" style="margin-left:auto;background:var(--panel2);border:1px solid var(--line);border-radius:6px;color:var(--text);font-size:0.8rem;padding:4px 8px;">
         <option value="young">Young Child</option>
         <option value="adult" selected>Adult</option>
         <option value="nightowl">Night Owl</option>
@@ -1522,6 +1548,7 @@ input[type=range]::-moz-range-thumb {
         <option value="shiftlate">Shift Late</option>
       </select>
     </div>
+    <div id="schedule-override-indicator" style="display: none;"></div>
     <!-- Wake Card -->
     <div class="sleep-card" id="wake-card">
       <div class="sleep-card-header" data-target="wake">
@@ -1731,11 +1758,6 @@ input[type=range]::-moz-range-thumb {
         Simple
       </label>
     </div>
-    <!-- Hidden increment inputs (synced from master Increments slider) -->
-    <input type="number" id="step-increments" style="display:none" value="10">
-    <input type="number" id="brightness-increments" style="display:none" value="10">
-    <input type="number" id="color-increments" style="display:none" value="10">
-
   </div>
 
   <!-- Ranges -->
@@ -1768,12 +1790,6 @@ input[type=range]::-moz-range-thumb {
       <span class="dual-chip" id="brightness-range-display">1 – 100%</span>
     </div>
 
-    <div class="param-row">
-      <label>Increments</label>
-      <input type="range" id="step-count" min="1" max="50" step="1" value="10">
-      <span class="dual-chip right" id="step-count-display">10 steps</span>
-    </div>
-
   </div>
 
   <!-- Solar Adjustments -->
@@ -1783,15 +1799,10 @@ input[type=range]::-moz-range-thumb {
       <div class="color-rule-stack" data-color-row="night">
         <div class="color-rule-stack-label">
           <div class="color-rule-label-left">
-            <div class="color-rule-toggle"><input type="checkbox" id="warm-night-enabled"></div>
             <label class="color-rule-label">Warm night<span class="info-icon" data-tooltip="warm-night-info">i<span class="info-tooltip" id="warm-night-info">Caps color temperature when sun isn't up; if your curve is cool (high K) between sunset and sunrise, this warms it.</span></span></label>
+            <div class="color-rule-toggle"><input type="checkbox" id="warm-night-enabled"></div>
           </div>
           <div class="color-rule-controls">
-            <select id="warm-night-mode">
-              <option value="all">all night</option>
-              <option value="sunrise">before sunrise</option>
-              <option value="sunset">after sunset</option>
-            </select>
             <div class="color-controls-wrap">
               <button type="button" class="color-value-chip" id="warm-night-target-chip">2700 K</button>
               <div class="color-slider-popup" id="warm-night-popup">
@@ -1803,27 +1814,28 @@ input[type=range]::-moz-range-thumb {
             </div>
           </div>
         </div>
+        <input type="hidden" id="warm-night-mode" value="all">
         <div class="color-rule-stack-body" id="warm-night-body">
-          <div class="color-rule-slider-row" data-rule-window="sunset">
-            <div class="param-row">
+          <div class="solar-param">
+            <div class="solar-param-row">
               <label>Start</label>
               <input type="range" id="warm-night-start" min="-180" max="180" step="30" value="-60">
-              <span class="offset-text" id="warm-night-start-text">1 hr before sunset</span>
             </div>
+            <div class="solar-param-value" id="warm-night-start-text">1 hr before sunset</div>
           </div>
-          <div class="color-rule-slider-row" data-rule-window="sunrise">
-            <div class="param-row">
+          <div class="solar-param">
+            <div class="solar-param-row">
               <label>End</label>
               <input type="range" id="warm-night-end" min="-180" max="180" step="30" value="60">
-              <span class="offset-text" id="warm-night-end-text">1 hr after sunrise</span>
             </div>
+            <div class="solar-param-value" id="warm-night-end-text">1 hr after sunrise</div>
           </div>
-          <div class="color-rule-slider-row" data-rule-window="any">
-            <div class="param-row">
+          <div class="solar-param">
+            <div class="solar-param-row">
               <label>Fade</label>
               <input type="range" id="warm-night-fade" min="0" max="300" step="30" value="60">
-              <span class="offset-text" id="warm-night-fade-text">1 hr</span>
             </div>
+            <div class="solar-param-value" id="warm-night-fade-text">1 hr</div>
           </div>
         </div>
       </div>
@@ -1831,8 +1843,8 @@ input[type=range]::-moz-range-thumb {
       <div class="color-rule-stack" data-color-row="daylight">
         <div class="color-rule-stack-label">
           <div class="color-rule-label-left">
-            <div class="color-rule-toggle"><input type="checkbox" id="daylight-enabled" checked></div>
             <label class="color-rule-label">Cool day<span class="info-icon" data-tooltip="daylight-info">i<span class="info-tooltip" id="daylight-info">Pushes color toward a cooler target during the day based on outdoor brightness and sun elevation.</span></span></label>
+            <div class="color-rule-toggle"><input type="checkbox" id="daylight-enabled" checked></div>
           </div>
           <div class="color-rule-controls">
             <div class="color-controls-wrap">
@@ -1847,31 +1859,33 @@ input[type=range]::-moz-range-thumb {
           </div>
         </div>
         <div class="color-rule-stack-body" id="daylight-body">
-          <div class="color-rule-slider-row">
-            <div class="param-row">
+          <div class="solar-param">
+            <div class="solar-param-row">
               <label>Start</label>
               <input type="range" id="daylight-start" min="-180" max="180" step="30" value="60">
-              <span class="offset-text" id="daylight-start-text">1 hr after sunrise</span>
             </div>
+            <div class="solar-param-value" id="daylight-start-text">1 hr after sunrise</div>
           </div>
-          <div class="color-rule-slider-row">
-            <div class="param-row">
+          <div class="solar-param">
+            <div class="solar-param-row">
               <label>End</label>
               <input type="range" id="daylight-end" min="-180" max="180" step="30" value="-60">
-              <span class="offset-text" id="daylight-end-text">1 hr before sunset</span>
             </div>
+            <div class="solar-param-value" id="daylight-end-text">1 hr before sunset</div>
           </div>
-          <div class="color-rule-slider-row">
-            <div class="param-row">
+          <div class="solar-param">
+            <div class="solar-param-row">
               <label>Fade</label>
               <input type="range" id="daylight-fade" min="0" max="300" step="30" value="60">
-              <span class="offset-text" id="daylight-fade-text">1 hr</span>
             </div>
+            <div class="solar-param-value" id="daylight-fade-text">1 hr</div>
           </div>
-          <div class="param-row">
-            <label>Sun sensitivity</label>
-            <input type="range" id="color-sensitivity" min="0" max="9" step="1" value="6">
-            <span class="offset-text" id="color-sensitivity-text">Strong</span>
+          <div class="solar-param">
+            <div class="solar-param-row">
+              <label>Sun sensitivity</label>
+              <input type="range" id="color-sensitivity" min="0" max="9" step="1" value="6">
+            </div>
+            <div class="solar-param-value" id="color-sensitivity-text">Strong</div>
           </div>
         </div>
       </div>
@@ -1954,10 +1968,7 @@ let config = {
   max_color_temp: 6500,
   min_brightness: 1,
   max_brightness: 100,
-  max_dim_steps: 10,
-  step_increments: null,        // defaults to max_dim_steps
-  brightness_increments: null,  // defaults to max_dim_steps
-  color_increments: null,       // defaults to max_dim_steps
+  max_dim_steps: 10,  // home-wide setting, read from config
   warm_night_enabled: true,  // default matches adult preset
   warm_night_mode: 'all',
   warm_night_target: 2700,
@@ -4334,16 +4345,6 @@ function syncConfigFromUI() {
   config.max_color_temp = parseInt(document.getElementById('color-max').value);
   config.min_brightness = parseInt(document.getElementById('brightness-min').value);
   config.max_brightness = parseInt(document.getElementById('brightness-max').value);
-  config.max_dim_steps = parseInt(document.getElementById('step-count').value);
-
-  // Read individual increment inputs (null if empty or same as master)
-  const stepInc = document.getElementById('step-increments')?.value;
-  const briInc = document.getElementById('brightness-increments')?.value;
-  const colorInc = document.getElementById('color-increments')?.value;
-  config.step_increments = stepInc ? parseInt(stepInc) : null;
-  config.brightness_increments = briInc ? parseInt(briInc) : null;
-  config.color_increments = colorInc ? parseInt(colorInc) : null;
-
   // Constrain solar target sliders to color range (clamps values if needed)
   updateSolarTargetSliderConstraints();
 
@@ -4437,14 +4438,6 @@ function syncUIFromConfig() {
   document.getElementById('color-max').value = config.max_color_temp;
   document.getElementById('brightness-min').value = config.min_brightness;
   document.getElementById('brightness-max').value = config.max_brightness;
-  document.getElementById('step-count').value = config.max_dim_steps;
-
-  // Sync all increment inputs to the master Increments slider value
-  const masterInc = config.max_dim_steps;
-  document.getElementById('step-increments').value = masterInc;
-  document.getElementById('brightness-increments').value = masterInc;
-  document.getElementById('color-increments').value = masterInc;
-
   // Set warm night slider values FROM CONFIG BEFORE calling updateSolarTargetSliderConstraints
   document.getElementById('warm-night-enabled').checked = config.warm_night_enabled;
   document.getElementById('warm-night-mode').value = config.warm_night_mode;
@@ -4487,7 +4480,7 @@ function syncUIFromConfig() {
   updateDisplay('wake-speed-display', `${SPEED_LABELS[config.wake_speed]} (${config.wake_speed})`);
   updateDisplay('bed-speed-display', `${SPEED_LABELS[config.bed_speed]} (${config.bed_speed})`);
   updateRangeDisplays();
-  updateDisplay('step-count-display', `${config.max_dim_steps} steps`);
+
 
   updateDualFills();
   updateColorGradients();
@@ -4537,16 +4530,7 @@ function syncColorRuleRows() {
     });
   }
 
-  // Mode-based slider disabling
-  // Warm night: "sunrise" → lock Start (sunset side unused), "sunset" → lock End (sunrise side unused)
-  document.querySelectorAll('[data-color-row="night"] .color-rule-slider-row').forEach(row => {
-    const win = row.dataset.ruleWindow;
-    if (win === 'any') return;
-    const mode = config.warm_night_mode;
-    const locked = (mode === 'sunrise' && win === 'sunset') || (mode === 'sunset' && win === 'sunrise');
-    row.classList.toggle('is-disabled', locked);
-    row.querySelectorAll('input[type="range"]').forEach(el => el.disabled = !warmEnabled || locked);
-  });
+  // Warm night mode is now always "all" (dropdown removed)
 
   // Cool day body
   const daylightEnabled = config.daylight_enabled !== false;
@@ -4713,19 +4697,6 @@ function setupEventListeners() {
     const el = document.getElementById(id);
     if (el) el.addEventListener('input', () => { syncConfigFromUI(); updateRangeDisplays(); renderChart(); });
   });
-  updateSliderValue('step-count', 'step-count-display', v => `${v} steps`);
-
-  // Master increments slider syncs all hidden increment inputs
-  document.getElementById('step-count')?.addEventListener('input', () => {
-    const masterVal = parseInt(document.getElementById('step-count').value);
-    document.getElementById('step-increments').value = masterVal;
-    document.getElementById('brightness-increments').value = masterVal;
-    document.getElementById('color-increments').value = masterVal;
-    config.step_increments = null;
-    config.brightness_increments = null;
-    config.color_increments = null;
-  });
-
   // Warm night target slider (inside popup)
   document.getElementById('warm-night-target')?.addEventListener('input', () => {
     config.warm_night_target = parseInt(document.getElementById('warm-night-target').value);
@@ -4769,14 +4740,10 @@ function setupEventListeners() {
     }
   });
 
-  ['warm-night-enabled', 'warm-night-mode'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.addEventListener('change', () => {
-      config.warm_night_enabled = document.getElementById('warm-night-enabled').checked;
-      config.warm_night_mode = document.getElementById('warm-night-mode').value;
-      syncColorRuleRows();
-      renderChart();
-    });
+  document.getElementById('warm-night-enabled')?.addEventListener('change', () => {
+    config.warm_night_enabled = document.getElementById('warm-night-enabled').checked;
+    syncColorRuleRows();
+    renderChart();
   });
 
   // Color chip buttons - toggle popups
@@ -6041,7 +6008,6 @@ async function saveZoneSettings() {
     daylight_fade: config.daylight_fade,
     color_sensitivity: config.color_sensitivity,
     activity_preset: config.activity_preset,
-    max_dim_steps: config.max_dim_steps,
   };
 
   // Include name for rename support
