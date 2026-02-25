@@ -4651,6 +4651,9 @@ class HomeAssistantWebSocketClient:
             #    (sync may have created new ZHA groups that are now in cached_states)
             self._refresh_group_entity_mappings()
 
+            # 5. Apply power recovery setting (picks up newly discovered lights)
+            await self.apply_power_recovery_setting()
+
             logger.info("[sync] Area/group sync complete")
         except Exception as e:
             logger.error(f"[sync] Error during sync: {e}")
