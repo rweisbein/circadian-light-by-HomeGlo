@@ -3469,6 +3469,32 @@ class HomeAssistantWebSocketClient:
 
         return message_id
 
+    async def apply_power_recovery_setting(self):
+        """Apply power recovery setting to all lights with startup_on_off entities.
+
+        Finds all select.*_startup_on_off entities and sets them to the configured
+        recovery mode ("On" for bright, "PreviousValue" for last_state).
+        """
+        try:
+            raw_config = glozone.load_config_from_files()
+            recovery = raw_config.get("power_recovery", "last_state")
+            option = "On" if recovery == "bright" else "PreviousValue"
+
+            count = 0
+            for entity_id in list(self.cached_states.keys()):
+                if entity_id.startswith("select.") and entity_id.endswith("_startup_on_off"):
+                    try:
+                        await self.call_service("select", "select_option", {
+                            "entity_id": entity_id,
+                            "option": option,
+                        })
+                        count += 1
+                    except Exception as e:
+                        logger.warning(f"Failed to set power recovery for {entity_id}: {e}")
+            logger.info(f"Applied power recovery '{recovery}' ({option}) to {count} lights")
+        except Exception as e:
+            logger.error(f"Error applying power recovery setting: {e}")
+
     async def build_light_capability_cache(self) -> None:
         """Build the light capability cache from entity and device registries.
 
@@ -4495,15 +4521,33 @@ class HomeAssistantWebSocketClient:
         """Circadian tick (configurable 5-120s): update all circadian areas with current lighting."""
         while True:
             try:
-                # Get refresh interval and log_periodic from config
+                # Get refresh interval, logging, and transition config
                 try:
                     raw_config = glozone.load_config_from_files()
                     refresh_interval = raw_config.get("circadian_refresh", 30)
                     refresh_interval = max(5, min(120, refresh_interval))
-                    log_periodic = raw_config.get("log_periodic", False)
+                    # Advanced logging with auto-expiry
+                    logging_until = raw_config.get("advanced_logging_until")
+                    if logging_until == "forever":
+                        log_periodic = True
+                    elif logging_until:
+                        try:
+                            from datetime import datetime, timezone
+                            expiry = datetime.fromisoformat(logging_until.replace("Z", "+00:00"))
+                            log_periodic = datetime.now(timezone.utc) < expiry
+                        except (ValueError, TypeError):
+                            log_periodic = False
+                    else:
+                        log_periodic = False
+                    # Periodic transition speed (day/night)
+                    periodic_transition_day = raw_config.get("periodic_transition_day", 20) / 10.0
+                    periodic_transition_night = raw_config.get("periodic_transition_night", 1) / 10.0
+                    sun_elev = self.sun_data.get("elevation", 0) if self.sun_data else 0
+                    periodic_transition = periodic_transition_day if sun_elev > 0 else periodic_transition_night
                 except Exception:
                     refresh_interval = 30
                     log_periodic = False
+                    periodic_transition = 2.0
                 self._log_periodic = log_periodic
 
                 # Wait for configured interval OR until refresh_event is signaled
@@ -4552,7 +4596,7 @@ class HomeAssistantWebSocketClient:
                             await self.update_lights_in_circadian_mode(
                                 area_id,
                                 log_periodic=log_periodic,
-                                periodic_transition=refresh_interval - 1,
+                                periodic_transition=periodic_transition,
                             )
                     else:
                         logger.debug(
@@ -5807,6 +5851,9 @@ class HomeAssistantWebSocketClient:
 
                 # Build light capability cache for color mode detection
                 await self.build_light_capability_cache()
+
+                # Apply power recovery setting to all lights
+                await self.apply_power_recovery_setting()
 
                 # Get Home Assistant configuration (lat/lng/tz)
                 config_loaded = await self.get_config()

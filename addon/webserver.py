@@ -1934,6 +1934,11 @@ class LightDesignerServer:
         "lux_learned_ceiling",  # Learned bright-day lux baseline (85th percentile)
         "lux_learned_floor",  # Learned dark-day lux baseline (5th percentile)
         "outdoor_brightness_source",  # Preferred outdoor brightness source: "lux", "weather", or "angle"
+        "periodic_transition_day",   # Periodic transition speed during day (tenths of seconds, default 20)
+        "periodic_transition_night", # Periodic transition speed at night (tenths of seconds, default 1)
+        "power_recovery",            # Power failure recovery: "bright" or "last_state" (default "last_state")
+        "advanced_logging_until",    # ISO timestamp or "forever" for advanced logging expiry
+        "confirm_zone_pushes",       # Show confirmation dialogs for zone push actions (default false)
     }
 
     def _migrate_to_glozone_format(self, config: dict) -> dict:

@@ -2061,17 +2061,19 @@
       const zoneName = selectedArea.zone_name;
       if (!zoneName) { alert('This area is not in a Rhythm Zone.'); return; }
 
-      const bri = Math.round(selectedArea.brightness);
-      const kelvin = Math.round(selectedArea.kelvin);
-      const affectedAreas = areas.filter(a => {
-        const s = areaStatus[a.area_id] || {};
-        if (s.zone_name !== zoneName || !s.is_on) return false;
-        return Math.round(s.brightness || 0) !== bri || Math.round(s.kelvin || 4000) !== kelvin;
-      });
-      if (affectedAreas.length > 0) {
-        const areaList = affectedAreas.map(a => a.name).join('\n');
-        const msg = `Full Send ${bri}% / ${kelvin}K to "${zoneName}"? These areas will adjust:\n\n${areaList}`;
-        if (!confirm(msg)) return;
+      if (cachedConfig?.confirm_zone_pushes) {
+        const bri = Math.round(selectedArea.brightness);
+        const kelvin = Math.round(selectedArea.kelvin);
+        const affectedAreas = areas.filter(a => {
+          const s = areaStatus[a.area_id] || {};
+          if (s.zone_name !== zoneName || !s.is_on) return false;
+          return Math.round(s.brightness || 0) !== bri || Math.round(s.kelvin || 4000) !== kelvin;
+        });
+        if (affectedAreas.length > 0) {
+          const areaList = affectedAreas.map(a => a.name).join('\n');
+          const msg = `Full Send ${bri}% / ${kelvin}K to "${zoneName}"? These areas will adjust:\n\n${areaList}`;
+          if (!confirm(msg)) return;
+        }
       }
       executeAction('full_send');
     }

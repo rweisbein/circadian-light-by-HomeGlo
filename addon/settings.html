@@ -497,6 +497,19 @@
             <input type="text" class="form-input" id="home-name" placeholder="Your home" style="width: 200px;">
           </div>
         </div>
+
+        <div class="form-row">
+          <label class="form-label">
+            Recover from power failure
+            <span class="info-icon">i<span class="info-tooltip">Controls what lights do after a power outage. 'Bright' turns lights on at full brightness. 'Last state' restores whatever state lights were in before the outage. Applied to all lights at add-on startup.</span></span>
+          </label>
+          <div class="form-control">
+            <select class="form-input" id="power-recovery" style="width: 200px;">
+              <option value="bright">Bright</option>
+              <option value="last_state">Last state</option>
+            </select>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -857,6 +870,24 @@
       </div>
     </div>
 
+    <!-- App Section -->
+    <div class="settings-section">
+      <div class="section-header">App</div>
+      <div class="section-content">
+        <div class="form-row">
+          <label class="form-label">
+            Confirm zone pushes
+            <span class="info-icon">i<span class="info-tooltip">When enabled, shows a confirmation dialog before pushing light settings to an entire Rhythm Zone (Full Send, GloDown, Zone Power Off). When disabled, these actions execute immediately.</span></span>
+          </label>
+          <div class="form-control">
+            <label class="checkbox-label">
+              <input type="checkbox" id="confirm-zone-pushes">
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Refresh Section -->
     <div class="settings-section">
       <div class="section-header">Refresh</div>
@@ -874,6 +905,20 @@
 
         <div class="form-row">
           <label class="form-label">
+            Periodic transition speed
+            <span class="info-icon">i<span class="info-tooltip">How smoothly lights transition during periodic circadian updates. Day speed applies when the sun is up, night speed when the sun is down. Higher values = slower, smoother transitions.</span></span>
+          </label>
+          <div class="form-control">
+            <span class="form-hint" style="margin-left: 0;">day</span>
+            <input type="number" class="form-input" id="periodic-transition-day" min="0" max="300" step="1" value="20" style="width: 60px;">
+            <span class="form-hint">night</span>
+            <input type="number" class="form-input" id="periodic-transition-night" min="0" max="300" step="1" value="1" style="width: 60px;">
+            <span class="form-hint">tenths of a second</span>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">
             Home page refresh
             <span class="info-icon">i<span class="info-tooltip">How often the home page area cards refresh to show current brightness, color temperature, and on/off state. Lower values show changes faster but increase browser network activity. The area modal always refreshes every 1 second regardless of this setting.</span></span>
           </label>
@@ -885,14 +930,20 @@
 
         <div class="form-row">
           <label class="form-label">
-            Log periodic updates
-            <span class="info-icon">i<span class="info-tooltip">When enabled, logs detailed info about every periodic light update cycle (per-area brightness/color values, group breakdowns, off enforcement). When disabled, only errors, warnings, and user-triggered actions are logged. Useful for debugging but very verbose.</span></span>
+            Advanced logging
+            <span class="info-icon">i<span class="info-tooltip">When enabled, logs detailed info about every periodic light update cycle (per-area brightness/color values, group breakdowns, off enforcement). Useful for debugging but very verbose. Auto-disables after the selected duration.</span></span>
           </label>
           <div class="form-control">
-            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-              <input type="checkbox" id="log-periodic" style="width: 18px; height: 18px;">
-              <span class="form-hint">Enable verbose periodic logging</span>
-            </label>
+            <select class="form-input" id="advanced-logging" style="width: 140px;">
+              <option value="">Off</option>
+              <option value="1h">1 hour</option>
+              <option value="4h">4 hours</option>
+              <option value="1d">1 day</option>
+              <option value="1w">1 week</option>
+              <option value="1m">1 month</option>
+              <option value="forever">Forever</option>
+            </select>
+            <span class="form-hint" id="advanced-logging-remaining"></span>
           </div>
         </div>
 
@@ -914,6 +965,29 @@
 
   <script src="./shared.js"></script>
   <script>
+    let advancedLoggingUntil = null;
+
+    function updateLoggingRemaining() {
+      const el = document.getElementById('advanced-logging-remaining');
+      if (!advancedLoggingUntil || advancedLoggingUntil === 'forever') {
+        el.textContent = advancedLoggingUntil === 'forever' ? 'always on' : '';
+        return;
+      }
+      const remaining = new Date(advancedLoggingUntil) - Date.now();
+      if (remaining <= 0) {
+        el.textContent = 'expired';
+        document.getElementById('advanced-logging').value = '';
+        return;
+      }
+      const mins = Math.floor(remaining / 60000);
+      const hours = Math.floor(mins / 60);
+      const days = Math.floor(hours / 24);
+      if (days > 0) el.textContent = days + 'd ' + (hours % 24) + 'h left';
+      else if (hours > 0) el.textContent = hours + 'h ' + (mins % 60) + 'm left';
+      else el.textContent = mins + 'm left';
+    }
+    setInterval(updateLoggingRemaining, 60000);
+
     // Load and save settings
     async function loadSettings() {
       try {
@@ -921,6 +995,7 @@
         if (response.ok) {
           const config = await response.json();
           document.getElementById('home-name').value = config.home_name ?? 'Your home';
+          document.getElementById('power-recovery').value = config.power_recovery ?? 'last_state';
           document.getElementById('turn-on-transition').value = config.turn_on_transition ?? 3;
           document.getElementById('turn-off-transition').value = config.turn_off_transition ?? 3;
           document.getElementById('two-step-delay').value = config.two_step_delay ?? 3;
@@ -928,9 +1003,32 @@
           document.getElementById('multi-click-speed').value = config.multi_click_speed ?? 10;
           document.getElementById('long-press-repeat-interval').value = config.long_press_repeat_interval ?? 3;
           document.getElementById('reach-learn-mode').checked = config.reach_learn_mode ?? true;
+          document.getElementById('confirm-zone-pushes').checked = config.confirm_zone_pushes ?? false;
           document.getElementById('circadian-refresh').value = config.circadian_refresh ?? 30;
+          document.getElementById('periodic-transition-day').value = config.periodic_transition_day ?? 20;
+          document.getElementById('periodic-transition-night').value = config.periodic_transition_night ?? 1;
           document.getElementById('home-refresh-interval').value = config.home_refresh_interval ?? 10;
-          document.getElementById('log-periodic').checked = config.log_periodic ?? false;
+          // Advanced logging
+          advancedLoggingUntil = config.advanced_logging_until || null;
+          const loggingSelect = document.getElementById('advanced-logging');
+          if (!advancedLoggingUntil) {
+            loggingSelect.value = '';
+          } else if (advancedLoggingUntil === 'forever') {
+            loggingSelect.value = 'forever';
+          } else {
+            const remaining = new Date(advancedLoggingUntil) - Date.now();
+            if (remaining <= 0) {
+              loggingSelect.value = '';
+            } else {
+              const hours = remaining / 3600000;
+              if (hours <= 1.5) loggingSelect.value = '1h';
+              else if (hours <= 6) loggingSelect.value = '4h';
+              else if (hours <= 36) loggingSelect.value = '1d';
+              else if (hours <= 10 * 24) loggingSelect.value = '1w';
+              else loggingSelect.value = '1m';
+            }
+          }
+          updateLoggingRemaining();
           document.getElementById('motion-warning-time').value = config.motion_warning_time ?? 0;
           document.getElementById('motion-warning-blink-threshold').value = config.motion_warning_blink_threshold ?? 15;
           document.getElementById('freeze-off-rise').value = config.freeze_off_rise ?? 10;
@@ -987,6 +1085,7 @@
     async function saveSettings() {
       const settings = {
         home_name: document.getElementById('home-name').value.trim(),
+        power_recovery: document.getElementById('power-recovery').value,
         turn_on_transition: parseFloat(document.getElementById('turn-on-transition').value) || 3,
         turn_off_transition: parseFloat(document.getElementById('turn-off-transition').value) || 3,
         two_step_delay: parseFloat(document.getElementById('two-step-delay').value) || 3,
@@ -994,9 +1093,11 @@
         multi_click_speed: parseFloat(document.getElementById('multi-click-speed').value) || 10,
         long_press_repeat_interval: parseFloat(document.getElementById('long-press-repeat-interval').value) || 3,
         reach_learn_mode: document.getElementById('reach-learn-mode').checked,
+        confirm_zone_pushes: document.getElementById('confirm-zone-pushes').checked,
         circadian_refresh: parseInt(document.getElementById('circadian-refresh').value) || 30,
+        periodic_transition_day: parseInt(document.getElementById('periodic-transition-day').value) || 20,
+        periodic_transition_night: parseInt(document.getElementById('periodic-transition-night').value) || 1,
         home_refresh_interval: parseInt(document.getElementById('home-refresh-interval').value) || 10,
-        log_periodic: document.getElementById('log-periodic').checked,
         motion_warning_time: parseInt(document.getElementById('motion-warning-time').value) || 0,
         motion_warning_blink_threshold: parseInt(document.getElementById('motion-warning-blink-threshold').value) || 15,
         freeze_off_rise: parseFloat(document.getElementById('freeze-off-rise').value) || 10,
@@ -1165,6 +1266,7 @@
 
     // Auto-save on blur for number inputs (avoids decrement bug on focus)
     document.getElementById('home-name').addEventListener('blur', saveSettings);
+    document.getElementById('power-recovery').addEventListener('change', saveSettings);
     document.getElementById('turn-on-transition').addEventListener('blur', saveSettings);
     document.getElementById('turn-off-transition').addEventListener('blur', saveSettings);
     document.getElementById('two-step-delay').addEventListener('blur', saveSettings);
@@ -1175,9 +1277,30 @@
     document.getElementById('multi-click-speed').addEventListener('blur', saveSettings);
     document.getElementById('long-press-repeat-interval').addEventListener('blur', saveSettings);
     document.getElementById('reach-learn-mode').addEventListener('change', saveSettings);
+    document.getElementById('confirm-zone-pushes').addEventListener('change', saveSettings);
     document.getElementById('circadian-refresh').addEventListener('blur', saveSettings);
+    document.getElementById('periodic-transition-day').addEventListener('blur', saveSettings);
+    document.getElementById('periodic-transition-night').addEventListener('blur', saveSettings);
     document.getElementById('home-refresh-interval').addEventListener('blur', saveSettings);
-    document.getElementById('log-periodic').addEventListener('change', saveSettings);
+    document.getElementById('advanced-logging').addEventListener('change', async function() {
+      const val = this.value;
+      let until = null;
+      if (val === 'forever') {
+        until = 'forever';
+      } else if (val) {
+        const durations = { '1h': 3600, '4h': 14400, '1d': 86400, '1w': 604800, '1m': 2592000 };
+        const secs = durations[val] || 3600;
+        until = new Date(Date.now() + secs * 1000).toISOString();
+      }
+      advancedLoggingUntil = until;
+      updateLoggingRemaining();
+      await fetch('./api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ advanced_logging_until: until })
+      });
+      showSaveStatus();
+    });
     document.getElementById('motion-warning-time').addEventListener('blur', saveSettings);
     document.getElementById('motion-warning-blink-threshold').addEventListener('blur', saveSettings);
     document.getElementById('freeze-off-rise').addEventListener('blur', saveSettings);

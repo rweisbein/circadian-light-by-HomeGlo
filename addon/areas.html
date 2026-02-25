@@ -1864,9 +1864,11 @@
         return s.zone_name === zoneName && s.is_on;
       });
       if (onAreas.length === 0) return;
-      const areaList = onAreas.map(a => a.name).join('\n');
-      const msg = `Turn off lights in these areas?\n\n${areaList}`;
-      if (!confirm(msg)) return;
+      if (cachedConfig?.confirm_zone_pushes) {
+        const areaList = onAreas.map(a => a.name).join('\n');
+        const msg = `Turn off lights in these areas?\n\n${areaList}`;
+        if (!confirm(msg)) return;
+      }
       for (const area of onAreas) {
         await fetch('./api/area/action', {
           method: 'POST',
@@ -1893,18 +1895,20 @@
     }
 
     function glozoneDown(zoneName) {
-      const zs = zoneStates[zoneName] || {};
-      const bri = Math.round(zs.brightness ?? 0);
-      const kelvin = Math.round(zs.kelvin ?? 4000);
-      const affectedAreas = areas.filter(a => {
-        const s = areaStatus[a.area_id] || {};
-        if ((s.zone_name || a.zone_name) !== zoneName || !s.is_on) return false;
-        return Math.round(s.brightness || 0) !== bri || Math.round(s.kelvin || 4000) !== kelvin;
-      });
-      if (affectedAreas.length > 0) {
-        const areaList = affectedAreas.map(a => a.name).join('\n');
-        const msg = `Send ${bri}% / ${kelvin}K to "${zoneName}"? These areas will adjust:\n\n${areaList}`;
-        if (!confirm(msg)) return;
+      if (cachedConfig?.confirm_zone_pushes) {
+        const zs = zoneStates[zoneName] || {};
+        const bri = Math.round(zs.brightness ?? 0);
+        const kelvin = Math.round(zs.kelvin ?? 4000);
+        const affectedAreas = areas.filter(a => {
+          const s = areaStatus[a.area_id] || {};
+          if ((s.zone_name || a.zone_name) !== zoneName || !s.is_on) return false;
+          return Math.round(s.brightness || 0) !== bri || Math.round(s.kelvin || 4000) !== kelvin;
+        });
+        if (affectedAreas.length > 0) {
+          const areaList = affectedAreas.map(a => a.name).join('\n');
+          const msg = `Send ${bri}% / ${kelvin}K to "${zoneName}"? These areas will adjust:\n\n${areaList}`;
+          if (!confirm(msg)) return;
+        }
       }
       zoneAction(zoneName, 'glozone_down');
     }
@@ -1915,17 +1919,19 @@
       const status = areaStatus[areaId] || {};
       const zoneName = status.zone_name || area.zone_name;
       if (!zoneName) return;
-      const bri = Math.round(status.brightness || 0);
-      const kelvin = Math.round(status.kelvin || 4000);
-      const affectedAreas = areas.filter(a => {
-        const s = areaStatus[a.area_id] || {};
-        if ((s.zone_name || a.zone_name) !== zoneName || !s.is_on) return false;
-        return Math.round(s.brightness || 0) !== bri || Math.round(s.kelvin || 4000) !== kelvin;
-      });
-      if (affectedAreas.length > 0) {
-        const areaList = affectedAreas.map(a => a.name).join('\n');
-        const msg = `Full Send ${bri}% / ${kelvin}K to "${zoneName}"? These areas will adjust:\n\n${areaList}`;
-        if (!confirm(msg)) return;
+      if (cachedConfig?.confirm_zone_pushes) {
+        const bri = Math.round(status.brightness || 0);
+        const kelvin = Math.round(status.kelvin || 4000);
+        const affectedAreas = areas.filter(a => {
+          const s = areaStatus[a.area_id] || {};
+          if ((s.zone_name || a.zone_name) !== zoneName || !s.is_on) return false;
+          return Math.round(s.brightness || 0) !== bri || Math.round(s.kelvin || 4000) !== kelvin;
+        });
+        if (affectedAreas.length > 0) {
+          const areaList = affectedAreas.map(a => a.name).join('\n');
+          const msg = `Full Send ${bri}% / ${kelvin}K to "${zoneName}"? These areas will adjust:\n\n${areaList}`;
+          if (!confirm(msg)) return;
+        }
       }
       rowAction(areaId, 'full_send');
     }
