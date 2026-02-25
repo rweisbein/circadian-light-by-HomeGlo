@@ -191,14 +191,21 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  margin-left: 20px;
+  min-width: 90px;
+}
+.sleep-card-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
 }
 .sleep-card-time {
-  margin-left: auto;
   font-size: 1.1rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--text);
-  flex-shrink: 0;
 }
 .sleep-card-detail {
   max-height: 0;
@@ -1519,9 +1526,8 @@ input[type=range]::-moz-range-thumb {
     <div class="sleep-card" id="wake-card">
       <div class="sleep-card-header" data-target="wake">
         <span class="sleep-card-title">WAKE <span class="sleep-card-chevron">&#x203A;</span></span>
-        <span class="sleep-card-phase next" id="wake-card-phase">next</span>
         <span class="sleep-card-meta-inline" id="wake-card-meta">Crisp &middot; 50%</span>
-        <span class="sleep-card-time" id="wake-card-time">7:00a</span>
+        <span class="sleep-card-right"><span class="sleep-card-phase next" id="wake-card-phase">next</span><span class="sleep-card-time" id="wake-card-time">7:00a</span></span>
       </div>
       <div class="sleep-card-detail" id="wake-detail">
         <div class="sleep-card-detail-inner">
@@ -1573,9 +1579,8 @@ input[type=range]::-moz-range-thumb {
     <div class="sleep-card" id="bed-card">
       <div class="sleep-card-header" data-target="bed">
         <span class="sleep-card-title">BED <span class="sleep-card-chevron">&#x203A;</span></span>
-        <span class="sleep-card-phase next" id="bed-card-phase">next</span>
         <span class="sleep-card-meta-inline" id="bed-card-meta">Smooth &middot; 50%</span>
-        <span class="sleep-card-time" id="bed-card-time">9:00p</span>
+        <span class="sleep-card-right"><span class="sleep-card-phase next" id="bed-card-phase">next</span><span class="sleep-card-time" id="bed-card-time">9:00p</span></span>
       </div>
       <div class="sleep-card-detail" id="bed-detail">
         <div class="sleep-card-detail-inner">
