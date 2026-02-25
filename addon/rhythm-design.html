@@ -143,7 +143,8 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
 .sleep-card-header {
   display: flex;
   align-items: center;
-  padding: 10px 14px 0;
+  gap: 8px;
+  padding: 10px 14px;
   cursor: pointer;
   user-select: none;
 }
@@ -156,6 +157,7 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
   display: flex;
   align-items: center;
   gap: 4px;
+  flex-shrink: 0;
 }
 .sleep-card-chevron {
   display: inline-block;
@@ -166,28 +168,38 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
 .sleep-card.is-open .sleep-card-chevron {
   transform: rotate(90deg);
 }
+.sleep-card-phase {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.sleep-card-phase.current {
+  background: rgba(254, 172, 96, 0.15);
+  color: var(--accent);
+}
+.sleep-card-phase.next {
+  background: rgba(148, 163, 184, 0.1);
+  color: var(--muted2);
+}
 .sleep-card-time {
-  margin-left: auto;
-  font-size: 1.4rem;
+  font-size: 1.1rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--text);
+  flex-shrink: 0;
 }
-.sleep-card-meta {
-  padding: 2px 14px 10px;
+.sleep-card-meta-inline {
   font-size: 0.75rem;
   color: var(--muted);
-  cursor: pointer;
-  user-select: none;
-}
-.sleep-card-alt-line {
-  padding: 0 14px 10px;
-  font-size: 0.7rem;
-  color: var(--muted2);
-  display: none;
-}
-.sleep-card-alt-line.visible {
-  display: block;
+  margin-left: auto;
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .sleep-card-detail {
   max-height: 0;
@@ -202,12 +214,11 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
 .sleep-card-detail-inner {
   padding: 0 14px 14px;
   border-top: 1px solid var(--line);
-  margin-top: 2px;
   padding-top: 12px;
 }
-/* Day bubbles row inside card detail */
+/* Hidden day-bubbles (source of truth, not visible) */
 .sleep-card-detail .day-bubbles {
-  margin-bottom: 10px;
+  display: none;
 }
 /* Side-by-side time blocks */
 .sleep-time-blocks {
@@ -215,20 +226,28 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
   gap: 10px;
   margin-bottom: 10px;
 }
+.sleep-time-blocks-labels {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+.sleep-time-blocks-labels span {
+  flex: 1;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted2);
+  font-weight: 600;
+}
+.sleep-time-blocks.no-alt ~ .sleep-time-blocks-labels {
+  display: none;
+}
 .sleep-time-block {
   flex: 1;
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: 6px;
   padding: 10px;
-}
-.sleep-time-block-label {
-  font-size: 0.65rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--muted2);
-  font-weight: 600;
-  margin-bottom: 6px;
 }
 .sleep-time-block .param-row {
   grid-template-columns: 1fr auto;
@@ -244,17 +263,25 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
   margin-top: 6px;
 }
 .sleep-time-block .day-indicator {
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted2);
   font-size: 0.55rem;
   font-weight: 600;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--muted2);
-  border: 1px solid var(--line);
-  background: transparent;
+  transition: all 0.15s;
+  padding: 0;
+  line-height: 1;
+}
+.sleep-time-block .day-indicator:hover {
+  border-color: var(--accent);
+  color: var(--text);
 }
 .sleep-time-block .day-indicator.active {
   background: var(--accent);
@@ -1476,7 +1503,7 @@ input[type=range]::-moz-range-thumb {
   </div>
 
   <div class="section-block">
-    <h2>Sleep <!-- v2-card --></h2>
+    <h2>Sleep</h2>
     <div id="schedule-override-indicator" style="display: none;"></div>
     <div class="param-row" style="grid-template-columns: 140px 1fr;">
       <label>Pattern</label>
@@ -1493,16 +1520,13 @@ input[type=range]::-moz-range-thumb {
     <div class="sleep-card" id="wake-card">
       <div class="sleep-card-header" data-target="wake">
         <span class="sleep-card-title">WAKE <span class="sleep-card-chevron">&#x203A;</span></span>
+        <span class="sleep-card-phase next" id="wake-card-phase">next</span>
         <span class="sleep-card-time" id="wake-card-time">7:00a</span>
-      </div>
-      <div class="sleep-card-meta" data-target="wake">
-        <span id="wake-card-meta">Every day &middot; Crisp &middot; 50%</span>
-      </div>
-      <div class="sleep-card-alt-line" id="wake-card-alt-line">
-        Alt: <span id="wake-card-alt-summary"></span>
+        <span class="sleep-card-meta-inline" id="wake-card-meta">Crisp &middot; 50%</span>
       </div>
       <div class="sleep-card-detail" id="wake-detail">
         <div class="sleep-card-detail-inner">
+          <!-- Hidden day bubbles (data source for initDayBubbles) -->
           <div class="day-bubbles" id="wake-days">
             <button class="day-bubble" data-day="0">Mo</button>
             <button class="day-bubble" data-day="1">Tu</button>
@@ -1512,9 +1536,12 @@ input[type=range]::-moz-range-thumb {
             <button class="day-bubble" data-day="5">Sa</button>
             <button class="day-bubble" data-day="6">Su</button>
           </div>
+          <div class="sleep-time-blocks-labels" id="wake-time-blocks-labels">
+            <span id="wake-primary-label">Primary</span>
+            <span id="wake-alt-label">Secondary</span>
+          </div>
           <div class="sleep-time-blocks no-alt" id="wake-time-blocks">
             <div class="sleep-time-block primary-block">
-              <div class="sleep-time-block-label" id="wake-primary-label">Primary</div>
               <div class="param-row">
                 <input type="range" id="wake-time" min="0" max="24" step="0.25" value="7">
                 <span class="dual-chip right" id="wake-time-display">7:00a</span>
@@ -1522,7 +1549,6 @@ input[type=range]::-moz-range-thumb {
               <div class="day-indicators" id="wake-primary-days"></div>
             </div>
             <div class="sleep-time-block alt-block" id="wake-alt-time-row">
-              <div class="sleep-time-block-label" id="wake-alt-label">Alt</div>
               <div class="param-row">
                 <input type="range" id="wake-alt-time" min="0" max="24" step="0.25" value="9">
                 <span class="dual-chip right" id="wake-alt-time-display">9:00a</span>
@@ -1548,16 +1574,13 @@ input[type=range]::-moz-range-thumb {
     <div class="sleep-card" id="bed-card">
       <div class="sleep-card-header" data-target="bed">
         <span class="sleep-card-title">BED <span class="sleep-card-chevron">&#x203A;</span></span>
+        <span class="sleep-card-phase next" id="bed-card-phase">next</span>
         <span class="sleep-card-time" id="bed-card-time">9:00p</span>
-      </div>
-      <div class="sleep-card-meta" data-target="bed">
-        <span id="bed-card-meta">Every day &middot; Smooth &middot; 50%</span>
-      </div>
-      <div class="sleep-card-alt-line" id="bed-card-alt-line">
-        Alt: <span id="bed-card-alt-summary"></span>
+        <span class="sleep-card-meta-inline" id="bed-card-meta">Smooth &middot; 50%</span>
       </div>
       <div class="sleep-card-detail" id="bed-detail">
         <div class="sleep-card-detail-inner">
+          <!-- Hidden day bubbles (data source for initDayBubbles) -->
           <div class="day-bubbles" id="bed-days">
             <button class="day-bubble" data-day="0">Mo</button>
             <button class="day-bubble" data-day="1">Tu</button>
@@ -1567,9 +1590,12 @@ input[type=range]::-moz-range-thumb {
             <button class="day-bubble" data-day="5">Sa</button>
             <button class="day-bubble" data-day="6">Su</button>
           </div>
+          <div class="sleep-time-blocks-labels" id="bed-time-blocks-labels">
+            <span id="bed-primary-label">Primary</span>
+            <span id="bed-alt-label">Secondary</span>
+          </div>
           <div class="sleep-time-blocks no-alt" id="bed-time-blocks">
             <div class="sleep-time-block primary-block">
-              <div class="sleep-time-block-label" id="bed-primary-label">Primary</div>
               <div class="param-row">
                 <input type="range" id="bed-time" min="0" max="36" step="0.25" value="21">
                 <span class="dual-chip right" id="bed-time-display">9:00p</span>
@@ -1577,7 +1603,6 @@ input[type=range]::-moz-range-thumb {
               <div class="day-indicators" id="bed-primary-days"></div>
             </div>
             <div class="sleep-time-block alt-block" id="bed-alt-time-row">
-              <div class="sleep-time-block-label" id="bed-alt-label">Alt</div>
               <div class="param-row">
                 <input type="range" id="bed-alt-time" min="0" max="36" step="0.25" value="23">
                 <span class="dual-chip right" id="bed-alt-time-display">11:00p</span>
@@ -3497,6 +3522,21 @@ function applyCursor() {
     // Live Design: update lights when cursor values change
     applyLiveLight();
   }
+
+  // Update sleep card phase badges
+  updateSleepPhaseBadges();
+}
+
+function updateSleepPhaseBadges() {
+  const phase = getSleepPhase();
+  ['wake', 'bed'].forEach(prefix => {
+    const el = document.getElementById(`${prefix}-card-phase`);
+    if (el) {
+      const p = phase[prefix];
+      el.textContent = p;
+      el.className = `sleep-card-phase ${p}`;
+    }
+  });
 }
 
 // Style cursor buttons based on NEXT values (what button WILL DO)
@@ -4066,8 +4106,26 @@ function formatDayList(dayIndices) {
   return sorted.map(d => DAY_ABBR[d]).join(', ');
 }
 
+function getSleepPhase() {
+  // Determine current/next for wake and bed based on cursor time
+  const now = typeof cursorHour !== 'undefined' && cursorHour !== null
+    ? cursorHour : new Date().getHours() + new Date().getMinutes() / 60;
+  const wake = config.wake_time;
+  const bed = config.bed_time;
+  // Between wake and bed → wake is current, bed is next
+  // Otherwise → bed is current, wake is next
+  let inWakePhase;
+  if (wake < bed) {
+    inWakePhase = now >= wake && now < bed;
+  } else {
+    inWakePhase = now >= wake || now < bed;
+  }
+  return { wake: inWakePhase ? 'current' : 'next', bed: inWakePhase ? 'next' : 'current' };
+}
+
 function updateSleepCardSummaries() {
   const ALL = [0, 1, 2, 3, 4, 5, 6];
+  const phase = getSleepPhase();
 
   ['wake', 'bed'].forEach(prefix => {
     const primaryDays = getSelectedDays(`${prefix}-days`);
@@ -4075,64 +4133,107 @@ function updateSleepCardSummaries() {
       ? ALL.filter(d => !primaryDays.includes(d)) : [];
     const hasAlt = altDays.length > 0;
 
-    // Card time
+    // Card time (show the relevant time for today/next)
     const timeVal = prefix === 'wake' ? config.wake_time : config.bed_time;
     const cardTime = document.getElementById(`${prefix}-card-time`);
     if (cardTime) cardTime.textContent = formatHour(timeVal);
 
-    // Meta line: days · speed · brightness
-    const speed = prefix === 'wake' ? config.wake_speed : config.bed_speed;
-    const bri = prefix === 'wake' ? (config.wake_brightness || 50) : (config.bed_brightness || 50);
-    const dayText = hasAlt ? formatDayList(primaryDays) : 'Every day';
-    const meta = document.getElementById(`${prefix}-card-meta`);
-    if (meta) meta.textContent = `${dayText} \u00b7 ${SPEED_LABELS[speed]} \u00b7 ${bri}%`;
-
-    // Alt line
-    const altLine = document.getElementById(`${prefix}-card-alt-line`);
-    const altSummary = document.getElementById(`${prefix}-card-alt-summary`);
-    if (altLine && altSummary) {
-      if (hasAlt) {
-        const altTime = prefix === 'wake'
-          ? (config.wake_alt_time ?? config._wake_alt_time_last ?? config.wake_time)
-          : (config.bed_alt_time ?? config._bed_alt_time_last ?? config.bed_time);
-        altSummary.textContent = `${formatHour(altTime)} ${formatDayList(altDays)}`;
-        altLine.classList.add('visible');
-      } else {
-        altLine.classList.remove('visible');
-      }
+    // Phase badge
+    const phaseEl = document.getElementById(`${prefix}-card-phase`);
+    if (phaseEl) {
+      const p = phase[prefix];
+      phaseEl.textContent = p;
+      phaseEl.className = `sleep-card-phase ${p}`;
     }
 
-    // Time block labels and day indicators
+    // Meta inline: speed · brightness (no days)
+    const speed = prefix === 'wake' ? config.wake_speed : config.bed_speed;
+    const bri = prefix === 'wake' ? (config.wake_brightness || 50) : (config.bed_brightness || 50);
+    const meta = document.getElementById(`${prefix}-card-meta`);
+    if (meta) meta.textContent = `${SPEED_LABELS[speed]} \u00b7 ${bri}%`;
+
+    // Time block labels above the boxes
     const primaryLabel = document.getElementById(`${prefix}-primary-label`);
     const altLabel = document.getElementById(`${prefix}-alt-label`);
+    if (primaryLabel) primaryLabel.textContent = 'Primary';
+    if (altLabel) altLabel.textContent = 'Secondary';
+
+    // Render clickable day indicators inside time blocks
     const primaryDaysEl = document.getElementById(`${prefix}-primary-days`);
     const altDaysEl = document.getElementById(`${prefix}-alt-days`);
-
-    if (primaryLabel) primaryLabel.textContent = hasAlt ? formatDayList(primaryDays) : 'Primary';
-    if (altLabel) altLabel.textContent = hasAlt ? formatDayList(altDays) : 'Alt';
-
-    // Render day indicator dots inside time blocks
     [
-      { el: primaryDaysEl, days: hasAlt ? primaryDays : ALL },
-      { el: altDaysEl, days: altDays }
-    ].forEach(({ el, days }) => {
+      { el: primaryDaysEl, days: hasAlt ? primaryDays : ALL, isPrimary: true },
+      { el: altDaysEl, days: altDays, isPrimary: false }
+    ].forEach(({ el, days, isPrimary }) => {
       if (!el) return;
       el.innerHTML = ALL.map(d =>
-        `<span class="day-indicator${days.includes(d) ? ' active' : ''}">${DAY_SHORT[d]}</span>`
+        `<button class="day-indicator${days.includes(d) ? ' active' : ''}" data-day="${d}" data-block="${isPrimary ? 'primary' : 'secondary'}">${DAY_SHORT[d]}</button>`
       ).join('');
     });
 
     // Toggle no-alt class
     const blocks = document.getElementById(`${prefix}-time-blocks`);
     if (blocks) blocks.classList.toggle('no-alt', !hasAlt);
+
+    // Show/hide labels row
+    const labelsRow = document.getElementById(`${prefix}-time-blocks-labels`);
+    if (labelsRow) labelsRow.style.display = hasAlt ? '' : 'none';
   });
 }
 
 function initSleepCards() {
-  document.querySelectorAll('.sleep-card-header, .sleep-card-meta').forEach(el => {
+  // Expand/collapse on header click
+  document.querySelectorAll('.sleep-card-header').forEach(el => {
     el.addEventListener('click', () => {
       const card = el.closest('.sleep-card');
       if (card) card.classList.toggle('is-open');
+    });
+  });
+
+  // Clickable day indicators inside time blocks
+  // Delegate from the detail-inner so dynamically rendered indicators are caught
+  document.querySelectorAll('.sleep-card-detail-inner').forEach(inner => {
+    inner.addEventListener('click', (e) => {
+      const indicator = e.target.closest('.day-indicator');
+      if (!indicator) return;
+      const card = inner.closest('.sleep-card');
+      const prefix = card.id.replace('-card', ''); // 'wake' or 'bed'
+      const dayIndex = parseInt(indicator.dataset.day);
+      const bubblesContainer = document.getElementById(`${prefix}-days`);
+      if (!bubblesContainer) return;
+
+      // Toggle this day in the hidden day-bubbles (active = primary, inactive = secondary)
+      const bubble = bubblesContainer.querySelector(`.day-bubble[data-day="${dayIndex}"]`);
+      if (!bubble) return;
+      bubble.classList.toggle('active');
+
+      // Update alt block visibility
+      const altBlock = document.getElementById(`${prefix}-alt-time-row`);
+      const blocksContainer = altBlock ? altBlock.parentElement : null;
+      const activeCount = bubblesContainer.querySelectorAll('.day-bubble.active').length;
+      const shouldShow = activeCount > 0 && activeCount < 7;
+      if (blocksContainer) {
+        const wasHidden = blocksContainer.classList.contains('no-alt');
+        blocksContainer.classList.toggle('no-alt', !shouldShow);
+        // Restore alt slider when first revealed
+        if (shouldShow && wasHidden) {
+          const altSlider = altBlock.querySelector('input[type="range"]');
+          if (altSlider && prefix === 'wake') {
+            const restored = config._wake_alt_time_last ?? config.wake_time;
+            let val = restored;
+            if (val < config.ascend_start) val += 24;
+            altSlider.value = val;
+          } else if (altSlider && prefix === 'bed') {
+            const restored = config._bed_alt_time_last ?? config.bed_time;
+            let val = restored;
+            if (val < config.descend_start) val += 24;
+            altSlider.value = val;
+          }
+        }
+      }
+
+      syncConfigFromUI();
+      renderChart();
     });
   });
 }
