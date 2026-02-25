@@ -1664,9 +1664,7 @@ class LightDesignerServer:
                     solar_mid=(iso_to_hour(sun_dict.get("noon"), 12.0) + 12.0) % 24.0,
                 )
 
-                # Seed lux_tracker from HA (webserver is a separate process)
-                zone_config = await self.load_config()
-                lux_tracker.init(zone_config)
+                # Seed lux_tracker from HA (already initialised at boot)
                 await self._seed_outdoor_from_ha()
                 self._seed_sun_elevation()
 
@@ -3284,8 +3282,7 @@ class LightDesignerServer:
             except Exception as e:
                 logger.debug(f"[AreaStatus] Error calculating sun times: {e}")
 
-            # Seed lux_tracker from HA (webserver is a separate process)
-            lux_tracker.init(config)
+            # Seed lux_tracker from HA (already initialised at boot)
             await self._seed_outdoor_from_ha()
             self._seed_sun_elevation()
 
@@ -5673,7 +5670,6 @@ class LightDesignerServer:
     async def get_outdoor_status(self, request: Request) -> Response:
         """Get current outdoor brightness state for settings page."""
         config = await self.load_config()
-        lux_tracker.init(config)
         await self._seed_outdoor_from_ha()
         self._seed_sun_elevation()
         outdoor_norm = lux_tracker.get_outdoor_normalized()
