@@ -185,21 +185,20 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
   background: rgba(148, 163, 184, 0.1);
   color: var(--muted2);
 }
+.sleep-card-meta-inline {
+  font-size: 0.75rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .sleep-card-time {
+  margin-left: auto;
   font-size: 1.1rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--text);
   flex-shrink: 0;
-}
-.sleep-card-meta-inline {
-  font-size: 0.75rem;
-  color: var(--muted);
-  margin-left: auto;
-  text-align: right;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 .sleep-card-detail {
   max-height: 0;
@@ -1505,8 +1504,8 @@ input[type=range]::-moz-range-thumb {
   <div class="section-block">
     <h2>Sleep</h2>
     <div id="schedule-override-indicator" style="display: none;"></div>
-    <div class="param-row" style="grid-template-columns: 140px 1fr;">
-      <label>Pattern</label>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:0 2px;">
+      <label style="font-size:0.85rem;color:var(--muted);font-weight:600;">Pattern</label>
       <select id="activity-preset" style="background:var(--panel2);border:1px solid var(--line);border-radius:6px;color:var(--text);font-size:0.85rem;padding:6px 10px;max-width:180px;">
         <option value="young">Young Child</option>
         <option value="adult" selected>Adult</option>
@@ -1521,8 +1520,8 @@ input[type=range]::-moz-range-thumb {
       <div class="sleep-card-header" data-target="wake">
         <span class="sleep-card-title">WAKE <span class="sleep-card-chevron">&#x203A;</span></span>
         <span class="sleep-card-phase next" id="wake-card-phase">next</span>
-        <span class="sleep-card-time" id="wake-card-time">7:00a</span>
         <span class="sleep-card-meta-inline" id="wake-card-meta">Crisp &middot; 50%</span>
+        <span class="sleep-card-time" id="wake-card-time">7:00a</span>
       </div>
       <div class="sleep-card-detail" id="wake-detail">
         <div class="sleep-card-detail-inner">
@@ -1575,8 +1574,8 @@ input[type=range]::-moz-range-thumb {
       <div class="sleep-card-header" data-target="bed">
         <span class="sleep-card-title">BED <span class="sleep-card-chevron">&#x203A;</span></span>
         <span class="sleep-card-phase next" id="bed-card-phase">next</span>
-        <span class="sleep-card-time" id="bed-card-time">9:00p</span>
         <span class="sleep-card-meta-inline" id="bed-card-meta">Smooth &middot; 50%</span>
+        <span class="sleep-card-time" id="bed-card-time">9:00p</span>
       </div>
       <div class="sleep-card-detail" id="bed-detail">
         <div class="sleep-card-detail-inner">
@@ -1827,7 +1826,8 @@ input[type=range]::-moz-range-thumb {
       <div class="color-rule-stack" data-color-row="daylight">
         <div class="color-rule-stack-label">
           <div class="color-rule-label-left">
-            <label class="color-rule-label">Daylight blend<span class="info-icon" data-tooltip="daylight-info">i<span class="info-tooltip" id="daylight-info">Pushes color toward a target based on outdoor brightness. Set to 0 K to disable. Higher color gain = stronger push.</span></span></label>
+            <div class="color-rule-toggle"><input type="checkbox" id="daylight-enabled" checked></div>
+            <label class="color-rule-label">Cool day<span class="info-icon" data-tooltip="daylight-info">i<span class="info-tooltip" id="daylight-info">Pushes color toward a cooler target during the day based on outdoor brightness and sun elevation.</span></span></label>
           </div>
           <div class="color-rule-controls">
             <div class="color-controls-wrap">
@@ -1842,15 +1842,31 @@ input[type=range]::-moz-range-thumb {
           </div>
         </div>
         <div class="color-rule-stack-body" id="daylight-body">
-          <div class="param-row">
-            <label>Color sensitivity</label>
-            <input type="range" id="color-sensitivity" min="0" max="9" step="1" value="6">
-            <span class="offset-text" id="color-sensitivity-text">Strong</span>
+          <div class="color-rule-slider-row">
+            <div class="param-row">
+              <label>Start</label>
+              <input type="range" id="daylight-start" min="-180" max="180" step="30" value="60">
+              <span class="offset-text" id="daylight-start-text">1 hr after sunrise</span>
+            </div>
+          </div>
+          <div class="color-rule-slider-row">
+            <div class="param-row">
+              <label>End</label>
+              <input type="range" id="daylight-end" min="-180" max="180" step="30" value="-60">
+              <span class="offset-text" id="daylight-end-text">1 hr before sunset</span>
+            </div>
+          </div>
+          <div class="color-rule-slider-row">
+            <div class="param-row">
+              <label>Fade</label>
+              <input type="range" id="daylight-fade" min="0" max="300" step="30" value="60">
+              <span class="offset-text" id="daylight-fade-text">1 hr</span>
+            </div>
           </div>
           <div class="param-row">
-            <label>Daylight fade</label>
-            <input type="range" id="daylight-fade" min="0" max="180" step="15" value="60">
-            <span class="offset-text" id="daylight-fade-text">1 hr</span>
+            <label>Sun sensitivity</label>
+            <input type="range" id="color-sensitivity" min="0" max="9" step="1" value="6">
+            <span class="offset-text" id="color-sensitivity-text">Strong</span>
           </div>
         </div>
       </div>
@@ -1943,7 +1959,10 @@ let config = {
   warm_night_start: -60,  // minutes offset from sunset (negative = before)
   warm_night_end: 60,     // minutes offset from sunrise (positive = after)
   warm_night_fade: 60,    // fade duration in minutes
+  daylight_enabled: true,
   daylight_cct: 5500,
+  daylight_start: 60,    // minutes offset from sunrise (positive = after)
+  daylight_end: -60,     // minutes offset from sunset (negative = before)
   daylight_fade: 60,
   color_sensitivity: 1.50,
   activity_preset: 'adult',
@@ -2114,33 +2133,32 @@ function applySolarRuleAtHour(baseCCT, hour) {
     }
   }
 
-  // Daylight color blend (intensity-based)
+  // Cool day color blend (intensity-based)
   // Condition multiplier from dropdown modulates clear-sky lux at this hour's sun elevation
-  const conditionMult = parseFloat(document.getElementById('modeled-conditions')?.value ?? '1.0');
-  const dateStr = getSelectedDateISO();
-  const elev = getSunElevationAtHour(hour, config.latitude, config.longitude, dateStr);
-  const outdoorNorm = elevationToOutdoorNorm(elev, conditionMult);
-  const daylightCct = config.daylight_cct || 0;
-  const colorSensitivity = config.color_sensitivity ?? 1.50;
-  if (daylightCct > 0 && outdoorNorm > 0) {
-    let blend = Math.min(1.0, outdoorNorm * colorSensitivity);
-    // Apply daylight fade: ramp blend over daylight_fade minutes after sunrise / before sunset
-    if (config.daylight_fade > 0) {
-      const fadeHrs = config.daylight_fade / 60;
-      const h = ((hour % 24) + 24) % 24;
-      const distSunrise = ((h - sunrise) % 24 + 24) % 24;
-      const distSunset = ((sunset - h) % 24 + 24) % 24;
-      let tw = 1.0;
-      if (distSunrise < fadeHrs) tw = Math.min(tw, distSunrise / fadeHrs);
-      if (distSunset < fadeHrs) tw = Math.min(tw, distSunset / fadeHrs);
-      blend *= tw;
-    }
-    let daylightTarget = daylightCct;
-    if (runtimeState.color_override && runtimeState.color_override < 0) {
-      daylightTarget += runtimeState.color_override;
-    }
-    if (daylightTarget > cct) {
-      cct += (daylightTarget - cct) * blend;
+  if (config.daylight_enabled !== false) {
+    const conditionMult = parseFloat(document.getElementById('modeled-conditions')?.value ?? '1.0');
+    const dateStr = getSelectedDateISO();
+    const elev = getSunElevationAtHour(hour, config.latitude, config.longitude, dateStr);
+    const outdoorNorm = elevationToOutdoorNorm(elev, conditionMult);
+    const daylightCct = config.daylight_cct || 0;
+    const colorSensitivity = config.color_sensitivity ?? 1.50;
+    if (daylightCct > 0 && outdoorNorm > 0) {
+      let blend = Math.min(1.0, outdoorNorm * colorSensitivity);
+      // Apply start/end offsets and fade
+      const startOffsetHrs = (config.daylight_start ?? 60) / 60;
+      const endOffsetHrs = (config.daylight_end ?? -60) / 60;
+      const fadeHrs = (config.daylight_fade || 60) / 60;
+      const ds = wrap24(sunrise + startOffsetHrs);
+      const de = wrap24(sunset + endOffsetHrs);
+      const { inWindow, weight } = getWindowWeight(hour, ds, de, fadeHrs);
+      blend *= weight;
+      let daylightTarget = daylightCct;
+      if (runtimeState.color_override && runtimeState.color_override < 0) {
+        daylightTarget += runtimeState.color_override;
+      }
+      if (daylightTarget > cct && blend > 0) {
+        cct += (daylightTarget - cct) * blend;
+      }
     }
   }
 
@@ -4331,7 +4349,10 @@ function syncConfigFromUI() {
   config.warm_night_end = parseInt(document.getElementById('warm-night-end')?.value || 60);
   config.warm_night_fade = parseInt(document.getElementById('warm-night-fade')?.value || 60);
 
+  config.daylight_enabled = document.getElementById('daylight-enabled').checked;
   config.daylight_cct = parseInt(document.getElementById('daylight-cct').value);
+  config.daylight_start = parseInt(document.getElementById('daylight-start')?.value || 60);
+  config.daylight_end = parseInt(document.getElementById('daylight-end')?.value || -60);
   config.daylight_fade = parseInt(document.getElementById('daylight-fade')?.value || '60');
   config.color_sensitivity = SENSITIVITY_STEPS[parseInt(document.getElementById('color-sensitivity').value)].multiplier;
 
@@ -4430,10 +4451,15 @@ function syncUIFromConfig() {
   if (warmEnd) warmEnd.value = config.warm_night_end;
   if (warmFade) warmFade.value = config.warm_night_fade;
 
+  document.getElementById('daylight-enabled').checked = config.daylight_enabled !== false;
   document.getElementById('daylight-cct').value = config.daylight_cct;
-  document.getElementById('color-sensitivity').value = findClosestSensitivityStep(config.color_sensitivity);
+  const daylightStart = document.getElementById('daylight-start');
+  const daylightEnd = document.getElementById('daylight-end');
   const daylightFade = document.getElementById('daylight-fade');
+  if (daylightStart) daylightStart.value = config.daylight_start ?? 60;
+  if (daylightEnd) daylightEnd.value = config.daylight_end ?? -60;
   if (daylightFade) daylightFade.value = config.daylight_fade;
+  document.getElementById('color-sensitivity').value = findClosestSensitivityStep(config.color_sensitivity);
 
   // Now update constraints (reads slider values, clamps to color range)
   updateSolarTargetSliderConstraints();
@@ -4487,8 +4513,10 @@ function updateOffsetDisplays() {
   updateDisplay('warm-night-start-text', formatOffset(config.warm_night_start, 'sunset'));
   updateDisplay('warm-night-end-text', formatOffset(config.warm_night_end, 'sunrise'));
   updateDisplay('warm-night-fade-text', fmtHrs(config.warm_night_fade));
-  updateDisplay('color-sensitivity-text', SENSITIVITY_STEPS[findClosestSensitivityStep(config.color_sensitivity)].label);
+  updateDisplay('daylight-start-text', formatOffset(config.daylight_start ?? 60, 'sunrise'));
+  updateDisplay('daylight-end-text', formatOffset(config.daylight_end ?? -60, 'sunset'));
   updateDisplay('daylight-fade-text', fmtHrs(config.daylight_fade));
+  updateDisplay('color-sensitivity-text', SENSITIVITY_STEPS[findClosestSensitivityStep(config.color_sensitivity)].label);
 }
 
 // Sync color rule rows - toggle is-disabled based on checkbox + mode state
@@ -4514,6 +4542,16 @@ function syncColorRuleRows() {
     row.classList.toggle('is-disabled', locked);
     row.querySelectorAll('input[type="range"]').forEach(el => el.disabled = !warmEnabled || locked);
   });
+
+  // Cool day body
+  const daylightEnabled = config.daylight_enabled !== false;
+  const daylightBody = document.getElementById('daylight-body');
+  if (daylightBody) {
+    daylightBody.classList.toggle('is-disabled', !daylightEnabled);
+    daylightBody.querySelectorAll('input[type="range"]').forEach(el => {
+      el.disabled = !daylightEnabled;
+    });
+  }
 }
 
 // Update wake/bed slider min/max constraints only (no value clamping)
@@ -4695,8 +4733,8 @@ function setupEventListeners() {
     renderChart();
   });
 
-  // Daylight sensitivity sliders + fade
-  ['color-sensitivity', 'daylight-fade'].forEach(id => {
+  // Cool day sliders (sensitivity, start, end, fade)
+  ['color-sensitivity', 'daylight-start', 'daylight-end', 'daylight-fade'].forEach(id => {
     const el = document.getElementById(id);
     if (el) {
       el.addEventListener('input', () => {
@@ -4705,6 +4743,13 @@ function setupEventListeners() {
         renderChart();
       });
     }
+  });
+
+  // Cool day enable checkbox
+  document.getElementById('daylight-enabled')?.addEventListener('change', () => {
+    config.daylight_enabled = document.getElementById('daylight-enabled').checked;
+    syncColorRuleRows();
+    renderChart();
   });
 
   // Warm night offset sliders
@@ -5984,7 +6029,10 @@ async function saveZoneSettings() {
     warm_night_start: config.warm_night_start,
     warm_night_end: config.warm_night_end,
     warm_night_fade: config.warm_night_fade,
+    daylight_enabled: config.daylight_enabled,
     daylight_cct: config.daylight_cct,
+    daylight_start: config.daylight_start,
+    daylight_end: config.daylight_end,
     daylight_fade: config.daylight_fade,
     color_sensitivity: config.color_sensitivity,
     activity_preset: config.activity_preset,
