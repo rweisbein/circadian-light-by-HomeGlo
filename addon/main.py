@@ -3486,7 +3486,8 @@ class HomeAssistantWebSocketClient:
                 if eid.startswith("select.") and "startup" in eid
             ]
             if not select_entities:
-                logger.info(f"Power recovery '{recovery}': no startup select entities found in {sum(1 for e in self.cached_states if e.startswith('select.'))} select entities")
+                all_selects = [eid for eid in self.cached_states if eid.startswith("select.")]
+                logger.info(f"Power recovery '{recovery}': no startup select entities found. All select entities: {all_selects}")
             else:
                 for entity_id in select_entities:
                     try:
