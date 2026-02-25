@@ -666,10 +666,15 @@ class CircadianLight:
     ) -> float:
         """Lift a midpoint into the correct 48-hour phase window and clamp to boundaries.
 
-        This prevents wrap-around issues when the midpoint is near or past a phase boundary.
-        For example, if stepping down near descend_start causes the midpoint to go past
-        the phase end, we clamp it to the phase end rather than wrapping around by -24
-        which would produce invalid negative values.
+        Prefers clamping to the nearest phase boundary over wrapping ±24h.
+        Wrapping can invert the sigmoid when extreme midpoints (from
+        inverse_midpoint at asymptotic values) fall outside the phase:
+        e.g. midpoint 6.91 for descend phase [12, 27] should clamp to 12.01
+        (producing c_min), not wrap to 30.91 (which would produce c_max).
+
+        Only wraps when the midpoint is clearly in a different 24h cycle
+        (e.g. 1 AM stored as 1.0 for a cross-midnight phase [22, 31]
+        should become 25.0).
 
         Args:
             midpoint: The midpoint hour (may be 0-24 stored value or raw 48h value)
@@ -679,16 +684,23 @@ class CircadianLight:
         Returns:
             Midpoint clamped to [phase_start + margin, phase_end - margin]
         """
-        # Find the representation of midpoint closest to the phase center
-        phase_center = (phase_start + phase_end) / 2
-        mid = midpoint
-        while mid < phase_center - 12:
-            mid += 24
-        while mid > phase_center + 12:
-            mid -= 24
-        # Clamp to phase boundaries (with small margin for numerical stability)
         margin = 0.01
-        return max(phase_start + margin, min(phase_end - margin, mid))
+        low = phase_start + margin
+        high = phase_end - margin
+
+        candidates = [midpoint, midpoint + 24, midpoint - 24]
+
+        # Prefer candidates that land inside the phase (no clamping needed)
+        inside = [(c, abs(c - midpoint)) for c in candidates if low <= c <= high]
+        if inside:
+            return min(inside, key=lambda x: x[1])[0]
+
+        # All need clamping — pick the one closest to original midpoint
+        clamped = [
+            (max(low, min(high, c)), abs(max(low, min(high, c)) - midpoint))
+            for c in candidates
+        ]
+        return min(clamped, key=lambda x: x[1])[0]
 
     @staticmethod
     def calculate_brightness_at_hour(
