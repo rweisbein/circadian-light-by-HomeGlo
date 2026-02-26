@@ -554,7 +554,7 @@
       background: var(--panel);
       cursor: pointer;
       border: 1px solid var(--line);
-      border-radius: 8px 8px 0 0;
+      border-radius: 8px 8px 0 8px;
       user-select: none;
       transition: background 0.15s;
       position: relative;
@@ -568,7 +568,7 @@
       background: rgba(255,255,255,0.12);
       opacity: var(--header-fill, 0);
       pointer-events: none;
-      border-radius: 8px 8px 0 0;
+      border-radius: 8px 8px 0 8px;
     }
 
     .zone-header > * {
@@ -908,7 +908,7 @@
       padding: 14px 16px;
       background: var(--panel);
       border: 1px solid var(--line);
-      border-radius: 8px 8px 0 0;
+      border-radius: 8px 8px 0 8px;
       cursor: pointer;
       user-select: none;
     }
@@ -1640,11 +1640,15 @@
       return 10;
     }
 
-    function formatNextWakeAlarm(nwa) {
+    function formatNextWakeAlarm(nwa, zoneName) {
       if (!nwa) return '';
       // day is empty when the alarm fires at the next chronological occurrence,
       // or an abbreviated day name (e.g. "Wed") when days are being skipped
       const time = nwa.day ? nwa.time + ' ' + nwa.day : nwa.time;
+      if (zoneName) {
+        const escapedZone = zoneName.replace(/'/g, "\\'");
+        return `<span class="timer-alarm" style="cursor:pointer;" onclick="event.stopPropagation(); openSchedulePopover('${escapedZone}', this)">⏰ ${time}</span>`;
+      }
       return `<span class="timer-alarm">⏰ ${time}</span>`;
     }
 
@@ -1661,12 +1665,12 @@
         const parts = [];
 
         // Alarm
+        const zoneName = el.getAttribute('data-zone-name');
         if (status.next_wake_alarm) {
-          parts.push(formatNextWakeAlarm(status.next_wake_alarm));
+          parts.push(formatNextWakeAlarm(status.next_wake_alarm, zoneName));
         }
 
         // Temporary alarm (schedule override on zone)
-        const zoneName = el.getAttribute('data-zone-name');
         if (zoneName) {
           const zoneData = cachedGlozones?.zones?.[zoneName];
           if (zoneData?.schedule_override) {
