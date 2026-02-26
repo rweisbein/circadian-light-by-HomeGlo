@@ -5126,7 +5126,42 @@ class HomeAssistantWebSocketClient:
                     "circadian_light_refresh event received - reloading config and signaling periodic updater"
                 )
                 # Reload config from disk since webserver may have updated it
+                # (webserver is a separate process so its module state doesn't reach us)
                 glozone.reload()
+                config = glozone.get_config()
+                lux_tracker.reload_config(config)
+
+                # Re-seed outdoor data from cached_states for the (possibly new) source
+                if self.sun_data:
+                    lux_tracker.update_sun_elevation(
+                        self.sun_data.get("elevation", 0.0)
+                    )
+                lux_entity = lux_tracker.get_sensor_entity()
+                if lux_entity and lux_entity in self.cached_states:
+                    try:
+                        raw_lux = float(
+                            self.cached_states[lux_entity].get("state", 0)
+                        )
+                        lux_tracker.update(raw_lux)
+                        logger.info(
+                            f"Re-seeded lux sensor after config reload: {raw_lux:.0f}"
+                        )
+                    except (ValueError, TypeError):
+                        pass
+                for eid, estate in self.cached_states.items():
+                    if eid.startswith("weather."):
+                        attrs = estate.get("attributes", {})
+                        if "cloud_coverage" in attrs:
+                            lux_tracker.set_weather_entity(eid)
+                            try:
+                                condition = estate.get("state")
+                                lux_tracker.update_weather(
+                                    float(attrs["cloud_coverage"]), condition
+                                )
+                            except (ValueError, TypeError):
+                                pass
+                            break
+
                 if self.refresh_event is not None:
                     self.refresh_event.set()
                 else:
