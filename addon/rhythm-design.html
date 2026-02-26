@@ -348,33 +348,6 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
   margin-bottom: 16px;
 }
 
-/* Schedule override indicator */
-.override-indicator {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  margin-bottom: 10px;
-  background: rgba(234, 179, 8, 0.08);
-  border: 1px dashed rgba(234, 179, 8, 0.3);
-  border-radius: 6px;
-  font-size: 0.8rem;
-  color: var(--text);
-}
-.override-indicator .oi-zone {
-  font-weight: 600;
-}
-.override-indicator .oi-clear {
-  margin-left: auto;
-  color: #ef4444;
-  cursor: pointer;
-  font-size: 0.75rem;
-  text-decoration: underline;
-}
-.override-indicator .oi-clear:hover {
-  opacity: 0.8;
-}
-
 /* Parameter Rows */
 .param-row {
   display: grid;
@@ -398,7 +371,7 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
   font-size: 0.85rem;
   color: var(--muted);
   font-weight: 600;
-  text-align: right;
+  text-align: left;
 }
 .param-row .value {
   font-size: 0.9rem;
@@ -864,9 +837,7 @@ input[type=range]::-moz-range-thumb {
 }
 .color-rule-stack {
   padding: 10px 0 2px;
-  border-top: 1px solid var(--line);
 }
-.color-rule-stack:first-child { border-top: none; padding-top: 0; }
 .color-rule-stack-label {
   display: grid;
   grid-template-columns: 140px 1fr;
@@ -945,7 +916,7 @@ input[type=range]::-moz-range-thumb {
 .color-rule-toggle input[type=checkbox] {
   width: 16px;
   height: 16px;
-  accent-color: #7CFF72;
+  accent-color: white;
 }
 .color-rule-stack-body {
   display: block;
@@ -1166,7 +1137,6 @@ input[type=range]::-moz-range-thumb {
     grid-template-columns: auto 1fr;
     gap: 2px 8px;
   }
-  .param-row label { text-align: left; }
   .param-row input[type="range"],
   .param-row .dual-range,
   .param-row .day-bubbles { grid-column: 1 / -1; }
@@ -1557,7 +1527,6 @@ input[type=range]::-moz-range-thumb {
         <option value="shiftlate">Shift Late</option>
       </select>
     </div>
-    <div id="schedule-override-indicator" style="display: none;"></div>
     <!-- Wake Card -->
     <div class="sleep-card" id="wake-card">
       <div class="sleep-card-header" data-target="wake">
@@ -1598,7 +1567,7 @@ input[type=range]::-moz-range-thumb {
             </div>
           </div>
           <div class="detail-param-row">
-            <label class="resettable" data-target="wake-brightness" data-default="50">Brightness</label>
+            <label class="resettable" data-target="wake-brightness" data-default="25">Brightness</label>
             <input type="range" id="wake-brightness" min="10" max="90" step="5" value="50">
             <span class="value" id="wake-brightness-display">50%</span>
           </div>
@@ -1651,12 +1620,12 @@ input[type=range]::-moz-range-thumb {
             </div>
           </div>
           <div class="detail-param-row">
-            <label class="resettable" data-target="bed-brightness" data-default="50">Brightness</label>
+            <label class="resettable" data-target="bed-brightness" data-default="25">Brightness</label>
             <input type="range" id="bed-brightness" min="10" max="90" step="5" value="50">
             <span class="value" id="bed-brightness-display">50%</span>
           </div>
           <div class="detail-param-row">
-            <label class="resettable" data-target="bed-speed" data-default="4">Speed</label>
+            <label class="resettable" data-target="bed-speed" data-default="6">Speed</label>
             <input type="range" id="bed-speed" min="1" max="10" step="1" value="4">
             <span class="value" id="bed-speed-display">Smooth (4)</span>
           </div>
@@ -5403,7 +5372,6 @@ async function fetchGlozones() {
       const data = await response.json();
       glozonesData = data.zones || {};
       renderZonesList();
-      renderOverrideIndicator();
     }
   } catch (err) {
     console.error('Error fetching glozones:', err);
@@ -5421,59 +5389,6 @@ function fmtCompactHour(decimalHour) {
   const h12 = h % 12 || 12;
   const ampm = h < 12 ? 'a' : 'p';
   return m === 0 ? h12 + ampm : h12 + ':' + String(m).padStart(2, '0') + ampm;
-}
-
-/**
- * Render override indicator in Sleep section for the current zone.
- */
-function renderOverrideIndicator() {
-  const container = document.getElementById('schedule-override-indicator');
-  if (!container) return;
-
-  const zoneData = glozonesData[selectedZoneName];
-  if (!zoneData) {
-    container.style.display = 'none';
-    container.innerHTML = '';
-    return;
-  }
-
-  const ov = zoneData.schedule_override;
-  if (!ov) {
-    container.style.display = 'none';
-    container.innerHTML = '';
-    return;
-  }
-
-  let desc = '';
-  if (ov.mode === 'main') desc = 'Main schedule';
-  else if (ov.mode === 'alt') desc = 'Alt schedule';
-  else if (ov.mode === 'custom') {
-    desc = 'Custom ' + fmtCompactHour(ov.custom_wake) + '/' + fmtCompactHour(ov.custom_bed);
-  }
-  const until = ov.until_date ? ' until ' + ov.until_date + ' ' + ov.until_event : '';
-
-  container.style.display = 'block';
-  container.innerHTML = `<div class="override-indicator">
-      <span class="oi-zone">${selectedZoneName}:</span>
-      <span>${desc}${until}</span>
-      <span class="oi-clear" onclick="clearZoneOverride('${selectedZoneName.replace(/'/g, "\\'")}')">Clear</span>
-    </div>`;
-}
-
-/**
- * Clear a zone's schedule override from the zone design page.
- */
-async function clearZoneOverride(zoneName) {
-  try {
-    const res = await fetch('./api/glozones/' + encodeURIComponent(zoneName) + '/schedule-override', {
-      method: 'DELETE',
-    });
-    if (res.ok) {
-      await fetchGlozones();
-    }
-  } catch (err) {
-    console.error('Error clearing zone override:', err);
-  }
 }
 
 /**
@@ -5967,7 +5882,6 @@ async function loadZoneFromData() {
       resetRuntimeState();
       syncUIFromConfig();
       renderChart();
-      renderOverrideIndicator();
     }
   } catch (err) {
     console.error('Error loading zone:', err);

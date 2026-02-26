@@ -718,12 +718,6 @@
       font-size: 0.88rem;
       cursor: pointer;
     }
-    .spo-days {
-      display: block;
-      font-size: 0.65rem;
-      opacity: 0.4;
-      margin-top: 1px;
-    }
     /* Custom slider row */
     .spo-slider-cell {
       display: flex;
@@ -785,6 +779,12 @@
     }
     .schedule-popover-apply-row button.primary:hover {
       opacity: 0.9;
+    }
+    .spo-info {
+      font-size: 0.9rem;
+      font-weight: 600;
+      padding: 6px 0;
+      text-align: center;
     }
     .schedule-popover-clear {
       margin-top: 8px;
@@ -1664,24 +1664,10 @@
 
         const parts = [];
 
-        // Alarm
+        // Alarm (backend returns effective time, accounting for any schedule override)
         const zoneName = el.getAttribute('data-zone-name');
         if (status.next_wake_alarm) {
           parts.push(formatNextWakeAlarm(status.next_wake_alarm, zoneName));
-        }
-
-        // Temporary alarm (schedule override on zone)
-        if (zoneName) {
-          const zoneData = cachedGlozones?.zones?.[zoneName];
-          if (zoneData?.schedule_override) {
-            const ov = zoneData.schedule_override;
-            let ovTime = '';
-            if (ov.mode === 'main') ovTime = fmtCompactTime(zoneData.wake_time ?? 7);
-            else if (ov.mode === 'alt' && zoneData.wake_alt_time != null) ovTime = fmtCompactTime(zoneData.wake_alt_time);
-            else if (ov.mode === 'custom' && ov.custom_wake != null) ovTime = fmtCompactTime(ov.custom_wake);
-            const escapedZone = zoneName.replace(/'/g, "\\'");
-            parts.push(`<span class="timer-alarm" style="cursor:pointer;" onclick="event.stopPropagation(); openSchedulePopover('${escapedZone}', this)">tmp ${ovTime}</span>`);
-          }
         }
 
         // Motion + boost (combined or separate)
@@ -2060,28 +2046,6 @@
       return m === 0 ? h12 + ampm : h12 + ':' + String(m).padStart(2, '0') + ampm;
     }
 
-    function fmtDayList(days) {
-      if (!days || days.length === 0 || days.length === 7) return 'Daily';
-      const names = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-      const sorted = [...days].sort((a, b) => a - b);
-      // Check for common patterns
-      if (sorted.length === 5 && sorted[0] === 0 && sorted[4] === 4) return 'Mon\u2013Fri';
-      if (sorted.length === 2 && sorted[0] === 5 && sorted[1] === 6) return 'Sat\u2013Sun';
-      // Check if consecutive
-      let consecutive = true;
-      for (let i = 1; i < sorted.length; i++) {
-        if (sorted[i] !== sorted[i-1] + 1) { consecutive = false; break; }
-      }
-      if (consecutive && sorted.length >= 3) return names[sorted[0]] + '\u2013' + names[sorted[sorted.length-1]];
-      return sorted.map(d => names[d]).join(', ');
-    }
-
-    function complementDays(altDays) {
-      if (!altDays || altDays.length === 0) return null;
-      const all = [0,1,2,3,4,5,6];
-      return all.filter(d => !altDays.includes(d));
-    }
-
     // Temporary Alarm popover
     let activePopoverZone = null;
 
@@ -2101,55 +2065,96 @@
       const altWake = zoneData.wake_alt_time;
       const hasAlt = altWake != null;
 
-      // Day-of-week indicators for wake
-      const wakeAltDays = zoneData.wake_alt_days || [];
-      const mainWakeDaysLabel = wakeAltDays.length > 0 ? fmtDayList(complementDays(wakeAltDays)) : '';
-      const altWakeDaysLabel = wakeAltDays.length > 0 ? fmtDayList(wakeAltDays) : '';
-
       const override = zoneData.schedule_override;
-      const currentMode = override?.mode || '';
 
       // Default until: tomorrow
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
-      const untilDate = override?.until_date || tomorrow.toISOString().split('T')[0];
+      const untilDate = tomorrow.toISOString().split('T')[0];
 
       const popover = document.createElement('div');
       popover.className = 'schedule-popover';
       popover.id = 'schedule-popover';
       popover.onclick = (e) => e.stopPropagation();
 
-      let customWake = override?.custom_wake ?? mainWake;
+      if (override) {
+        // --- Override IS active: show info + clear ---
+        let desc = '';
+        if (override.mode === 'main') desc = fmtCompactTime(mainWake);
+        else if (override.mode === 'alt' && altWake != null) desc = fmtCompactTime(altWake);
+        else if (override.mode === 'custom' && override.custom_wake != null) desc = fmtCompactTime(override.custom_wake);
+        else if (override.mode === 'off') desc = 'Cancelled';
 
-      popover.innerHTML = `
-        <div class="schedule-popover-title">Temporary Alarm</div>
-        <div class="spo-grid">
-          <div class="spo-radio-row" onclick="document.getElementById('spo-main').checked=true">
-            <input type="radio" id="spo-main" name="spo-mode" value="main" ${currentMode === 'main' ? 'checked' : ''}>
-            <div class="spo-time-cell">${fmtCompactTime(mainWake)}${mainWakeDaysLabel ? `<span class="spo-days">${mainWakeDaysLabel}</span>` : '<span class="spo-days">primary</span>'}</div>
-          </div>
-          ${hasAlt ? `
-          <div class="spo-radio-row" onclick="document.getElementById('spo-alt').checked=true">
-            <input type="radio" id="spo-alt" name="spo-mode" value="alt" ${currentMode === 'alt' ? 'checked' : ''}>
-            <div class="spo-time-cell">${fmtCompactTime(altWake)}${altWakeDaysLabel ? `<span class="spo-days">${altWakeDaysLabel}</span>` : '<span class="spo-days">secondary</span>'}</div>
-          </div>` : ''}
+        const untilStr = override.until_date ? ' until ' + override.until_date : '';
 
-          <div class="spo-radio-row" onclick="document.getElementById('spo-custom').checked=true">
-            <input type="radio" id="spo-custom" name="spo-mode" value="custom" ${currentMode === 'custom' ? 'checked' : ''}>
-            <div class="spo-slider-cell">
-              <input type="range" id="spo-custom-wake" min="0" max="24" step="0.25" value="${customWake}">
-              <span class="spo-slider-val" id="spo-wake-display">${fmtCompactTime(customWake)}</span>
+        popover.innerHTML = `
+          <div class="schedule-popover-title">Temporary Alarm</div>
+          <div class="spo-info">${desc}${untilStr}</div>
+          <div class="schedule-popover-clear"><button onclick="clearScheduleOverride()" title="Remove temporary alarm">Clear</button></div>
+        `;
+      } else {
+        // --- No override: cancel / other time / custom slider ---
+        // Determine which schedule fires next (to show the OTHER one)
+        const wakeAltDays = zoneData.wake_alt_days || [];
+        let nextIsPrimary = true;
+        if (hasAlt && wakeAltDays.length > 0) {
+          const now = new Date();
+          const currentHour = now.getHours() + now.getMinutes() / 60;
+          let checkDay = now.getDay() === 0 ? 6 : now.getDay() - 1; // convert Sun=0 to Mon=0
+          // If today's alarm has passed, check tomorrow
+          const todayAlarm = wakeAltDays.includes(checkDay) ? altWake : mainWake;
+          if (currentHour >= todayAlarm) {
+            checkDay = (checkDay + 1) % 7;
+          }
+          nextIsPrimary = !wakeAltDays.includes(checkDay);
+        }
+
+        // Build the "other" time option (the schedule NOT firing next)
+        let otherTimeHtml = '';
+        if (hasAlt) {
+          if (nextIsPrimary) {
+            // Next is primary → offer alt
+            otherTimeHtml = `
+            <div class="spo-radio-row" onclick="document.getElementById('spo-alt').checked=true">
+              <input type="radio" id="spo-alt" name="spo-mode" value="alt">
+              <div class="spo-time-cell">${fmtCompactTime(altWake)}</div>
+            </div>`;
+          } else {
+            // Next is alt → offer primary
+            otherTimeHtml = `
+            <div class="spo-radio-row" onclick="document.getElementById('spo-main').checked=true">
+              <input type="radio" id="spo-main" name="spo-mode" value="main">
+              <div class="spo-time-cell">${fmtCompactTime(mainWake)}</div>
+            </div>`;
+          }
+        }
+
+        let customWake = mainWake;
+
+        popover.innerHTML = `
+          <div class="schedule-popover-title">Temporary Alarm</div>
+          <div class="spo-grid">
+            <div class="spo-radio-row" onclick="document.getElementById('spo-off').checked=true">
+              <input type="radio" id="spo-off" name="spo-mode" value="off">
+              <div class="spo-time-cell">Cancel alarm</div>
+            </div>
+            ${otherTimeHtml}
+            <div class="spo-radio-row" onclick="document.getElementById('spo-custom').checked=true">
+              <input type="radio" id="spo-custom" name="spo-mode" value="custom">
+              <div class="spo-slider-cell">
+                <input type="range" id="spo-custom-wake" min="0" max="24" step="0.25" value="${customWake}">
+                <span class="spo-slider-val" id="spo-wake-display">${fmtCompactTime(customWake)}</span>
+              </div>
             </div>
           </div>
-        </div>
-        <div class="schedule-popover-apply-row">
-          <label>End on</label>
-          <input type="date" id="spo-until-date" value="${untilDate}">
-          <span style="flex:1;"></span>
-          <button class="primary" onclick="applyScheduleOverride()">Apply</button>
-        </div>
-        ${override ? '<div class="schedule-popover-clear"><button onclick="clearScheduleOverride()" title="Remove temporary alarm">Clear</button></div>' : ''}
-      `;
+          <div class="schedule-popover-apply-row">
+            <label>End on</label>
+            <input type="date" id="spo-until-date" value="${untilDate}">
+            <span style="flex:1;"></span>
+            <button class="primary" onclick="applyScheduleOverride()">Apply</button>
+          </div>
+        `;
+      }
 
       document.body.appendChild(popover);
 
@@ -2168,15 +2173,17 @@
 
       // Auto-select custom radio and update display when slider is used
       const customWakeInput = document.getElementById('spo-custom-wake');
-      const wakeDisplay = document.getElementById('spo-wake-display');
-      const selectCustom = () => { document.getElementById('spo-custom').checked = true; };
-      customWakeInput.addEventListener('input', () => {
-        selectCustom();
-        wakeDisplay.textContent = fmtCompactTime(parseFloat(customWakeInput.value) % 24);
-      });
-      // Prevent slider drag from toggling radio via parent onclick
-      customWakeInput.addEventListener('mousedown', (e) => e.stopPropagation());
-      customWakeInput.addEventListener('pointerdown', (e) => { e.stopPropagation(); selectCustom(); });
+      if (customWakeInput) {
+        const wakeDisplay = document.getElementById('spo-wake-display');
+        const selectCustom = () => { document.getElementById('spo-custom').checked = true; };
+        customWakeInput.addEventListener('input', () => {
+          selectCustom();
+          wakeDisplay.textContent = fmtCompactTime(parseFloat(customWakeInput.value) % 24);
+        });
+        // Prevent slider drag from toggling radio via parent onclick
+        customWakeInput.addEventListener('mousedown', (e) => e.stopPropagation());
+        customWakeInput.addEventListener('pointerdown', (e) => { e.stopPropagation(); selectCustom(); });
+      }
     }
 
     function closeSchedulePopover() {

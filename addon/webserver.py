@@ -3108,12 +3108,16 @@ class LightDesignerServer:
             return web.json_response({"error": str(e)}, status=500)
 
     @staticmethod
-    def _compute_next_wake_alarm(area_id, area_settings, rhythm_cfg):
+    def _compute_next_wake_alarm(area_id, area_settings, rhythm_cfg, zone_name=None):
         """Compute next upcoming wake alarm for an area.
 
         Returns {"time": "8:15a", "day": "Wed"} or {"time": "8:15a", "day": ""}
         day is only set when the next chronological occurrence of the alarm time
         would be skipped (not in schedule), showing which day it actually fires.
+
+        When a schedule override is active for the zone:
+        - mode main/alt/custom: alarm reflects the overridden wake time
+        - mode off: alarm is suppressed during override; shows next alarm after
         """
         settings = area_settings.get(area_id, {})
         if not settings.get("wake_alarm"):
@@ -3137,15 +3141,37 @@ class LightDesignerServer:
         now = datetime.now(tzinfo)
         today_wd = now.weekday()  # Mon=0..Sun=6
         now_decimal = now.hour + now.minute / 60.0
+        today_date = now.date()
 
         day_abbrs = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
-        def get_alarm_time_for_day(py_day):
+        # Get schedule override for alarm suppression / time adjustment
+        override = None
+        override_until_date = None
+        if zone_name:
+            zone_gz = glozone.get_glozones().get(zone_name, {})
+            override = zone_gz.get("schedule_override")
+            if override:
+                from datetime import date as date_cls
+                until_str = override.get("until_date")
+                if until_str:
+                    try:
+                        override_until_date = date_cls.fromisoformat(until_str)
+                    except ValueError:
+                        pass
+
+        # Build effective rhythm config (with override applied)
+        effective_cfg = dict(rhythm_cfg)
+        if zone_name and override:
+            glozone.apply_schedule_override(zone_name, effective_cfg)
+
+        def get_alarm_time_for_day(py_day, use_override=True):
             if mode == "custom":
                 return custom_time
-            wake_time = rhythm_cfg.get("wake_time", 7.0)
-            alt_time = rhythm_cfg.get("wake_alt_time")
-            alt_days = rhythm_cfg.get("wake_alt_days", [])
+            cfg = effective_cfg if use_override else rhythm_cfg
+            wake_time = cfg.get("wake_time", 7.0)
+            alt_time = cfg.get("wake_alt_time")
+            alt_days = cfg.get("wake_alt_days", [])
             if alt_time is not None and py_day in alt_days:
                 wake_time = alt_time
             return wake_time + offset / 60.0
@@ -3161,15 +3187,35 @@ class LightDesignerServer:
                 h_display -= 12
             return f"{h_display}:{m_raw:02d}{suffix}"
 
+        # For mode="off" override: determine how many days to skip
+        # (alarm is suppressed until the override expires)
+        override_is_off = (
+            override
+            and override.get("mode") == "off"
+            and override_until_date
+            and override_until_date > today_date
+        )
+        if override_is_off:
+            from datetime import timedelta
+
+            skip_days = (override_until_date - today_date).days
+        else:
+            skip_days = 0
+
         # Find next alarm day
         fire_offset = None  # days from today
         fire_day = None
         fire_time = None
-        for i in range(7):
+        scan_range = max(7, skip_days + 7)  # scan past override window
+        for i in range(scan_range):
             py_day = (today_wd + i) % 7
             if py_day not in days:
                 continue
-            at = get_alarm_time_for_day(py_day)
+            # Determine whether this day falls within the override period
+            use_ov = i < skip_days if override_is_off else True
+            if override_is_off and i < skip_days:
+                continue  # alarm suppressed during override
+            at = get_alarm_time_for_day(py_day, use_override=(not override_is_off))
             if at is None:
                 continue
             if i == 0 and now_decimal >= at:
@@ -3476,6 +3522,7 @@ class LightDesignerServer:
                             area_id,
                             config.get("area_settings", {}),
                             rhythm_cfg,
+                            glozone.get_zone_for_area(area_id),
                         ),
                     }
 

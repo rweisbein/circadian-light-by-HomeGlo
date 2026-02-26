@@ -981,6 +981,10 @@ def apply_schedule_override(zone_name: str, config_dict: Dict[str, Any]) -> None
             config_dict["bed_time"] = custom_bed
         config_dict["wake_alt_time"] = None
         config_dict["bed_alt_time"] = None
+    elif mode == "off":
+        # No-op for rhythm config — wake/bed transitions still happen normally.
+        # The "off" mode only suppresses the alarm; handled in alarm computation.
+        pass
 
 
 def get_next_active_times(zone_name: str, _now=None) -> Optional[Dict[str, Any]]:
