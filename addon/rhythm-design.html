@@ -2171,12 +2171,13 @@ function getChartWeekday() {
 /**
  * Resolve effective wake/bed times based on alt days and overrides (JS mirror of brain.py).
  */
-function resolveEffectiveTiming(hour, weekday) {
+function resolveEffectiveTiming(hour, weekday, wakeWeekdayOverride) {
   let wake = config.wake_time;
   let bed = config.bed_time;
 
-  // Alt wake
-  if (config.wake_alt_time != null && (config.wake_alt_days || []).includes(weekday)) {
+  // Alt wake — use wakeWeekdayOverride if provided (phase-aware callers)
+  const wakeWd = wakeWeekdayOverride != null ? wakeWeekdayOverride : weekday;
+  if (config.wake_alt_time != null && (config.wake_alt_days || []).includes(wakeWd)) {
     wake = config.wake_alt_time;
   }
 
@@ -2239,9 +2240,10 @@ function getValuesAtTime(hour) {
   const cLow = config.min_color_temp;
   const cHigh = config.max_color_temp;
 
-  // Resolve effective timing for chart weekday
-  const weekday = getChartWeekday();
-  const timing = resolveEffectiveTiming(hour, weekday);
+  // Resolve effective timing with phase-aware weekday for wake
+  const chartWeekday = getChartWeekday();
+  const wakeWd = !inAscend ? (chartWeekday + 1) % 7 : chartWeekday;
+  const timing = resolveEffectiveTiming(hour, chartWeekday, wakeWd);
 
   // Brightness midpoint (runtimeState applies to current phase only)
   let wakeMid = inAscend ? (runtimeState.brightness_mid ?? timing.wake) : timing.wake;
@@ -2734,9 +2736,13 @@ function calculateBrightnessAtHour(hour) {
   const cursorH48 = cursorHour !== null ? (cursorHour < tAscend ? cursorHour + 24 : cursorHour) : tAscend;
   const cursorInAscend = cursorH48 >= tAscend && cursorH48 < tDescend;
 
-  // Resolve effective timing for chart weekday
-  const weekday = getChartWeekday();
-  const timing = resolveEffectiveTiming(hour, weekday);
+  // Resolve effective timing with phase-aware weekday for wake
+  // During descent, wake is "next wake" = tomorrow's weekday
+  const chartWeekday = getChartWeekday();
+  const h48b = hour < tAscend ? hour + 24 : hour;
+  const hourInDescend = h48b >= tDescend;
+  const wakeWd = hourInDescend ? (chartWeekday + 1) % 7 : chartWeekday;
+  const timing = resolveEffectiveTiming(hour, chartWeekday, wakeWd);
 
   // runtimeState midpoints apply to current phase only
   let wakeMid = cursorInAscend ? (runtimeState.brightness_mid ?? timing.wake) : timing.wake;
@@ -2819,9 +2825,13 @@ function calculateColorAtHour(hour, applySolar = true) {
   const cursorH48 = cursorHour !== null ? (cursorHour < tAscend ? cursorHour + 24 : cursorHour) : tAscend;
   const cursorInAscend = cursorH48 >= tAscend && cursorH48 < tDescend;
 
-  // Resolve effective timing for chart weekday (alt times)
-  const weekday = getChartWeekday();
-  const timing = resolveEffectiveTiming(hour, weekday);
+  // Resolve effective timing with phase-aware weekday for wake
+  // During descent, wake is "next wake" = tomorrow's weekday
+  const chartWeekday = getChartWeekday();
+  const h48c2 = hour < tAscend ? hour + 24 : hour;
+  const hourInDescend = h48c2 >= tDescend;
+  const wakeWd = hourInDescend ? (chartWeekday + 1) % 7 : chartWeekday;
+  const timing = resolveEffectiveTiming(hour, chartWeekday, wakeWd);
 
   // runtimeState midpoints apply to current phase only
   let colorWakeMid = cursorInAscend ? (runtimeState.color_mid ?? timing.wake) : timing.wake;

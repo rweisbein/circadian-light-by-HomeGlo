@@ -436,7 +436,7 @@
     .wake-day-col { display: flex; flex-direction: column; align-items: center; gap: 2px; }
     .wake-day-bubble { width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--line); background: transparent; color: var(--muted); font-size: 0.65rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; line-height: 1; transition: all 0.15s; }
     .wake-day-bubble:hover { border-color: var(--text); color: var(--text); }
-    .wake-day-bubble.active { background: #dfe4ea; border-color: #dfe4ea; color: #000; }
+    .wake-day-bubble.active { background: #eef1f5; border-color: #eef1f5; color: #000; }
     .wake-day-time { font-size: 0.6rem; color: var(--muted2); height: 0.75rem; line-height: 0.75rem; font-variant-numeric: tabular-nums; }
     .wake-time-input { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; font-size: 0.85rem; outline: none; }
     .wake-time-input:focus { border-color: var(--accent); }
@@ -676,7 +676,7 @@
               <span class="wake-next-alarm" id="wake-next-alarm"></span>
             </span>
             <a id="wake-override-clear" href="#" onclick="event.preventDefault(); event.stopPropagation(); clearOverrideFromHeader();" style="display:none; font-size:0.65rem; color:var(--muted2); text-decoration:underline;">clear</a>
-            <a id="alarm-temp-override-link" href="#" onclick="event.preventDefault(); event.stopPropagation(); openAreaTempOverridePopup(this);" style="display:none; font-size:0.7rem; color:var(--muted2); text-decoration:underline;">temp override</a>
+            <a id="alarm-temp-override-link" href="#" onclick="event.preventDefault(); event.stopPropagation(); openAreaTempOverridePopup(this);" style="display:none; font-size:0.7rem; color:var(--muted2); text-decoration:underline;">add temp override</a>
           </span>
         </div>
         <div class="wake-alarm-body" id="wake-alarm-body" style="display:none;">
@@ -1262,7 +1262,7 @@
 
       // Hover trace — CCT-colored tooltips
       const hoverDetails = brightnessPct.map((v, i) =>
-        `${Math.round(v)}% • ${Math.round(cct[i])}K`
+        `${formatHourLabel(hours[i])} • ${Math.round(v)}% • ${Math.round(cct[i])}K`
       );
       const hoverBgColors = cct.map(k => colorWithAlpha(cctToRGB(k), 0.92));
       const hoverTextColors = cct.map(k => readableTextColor(cctToRGB(k)));
@@ -3080,7 +3080,7 @@
         if (i === 0) {
           dayLabel = 'today';
         } else if (i === 1) {
-          dayLabel = 'tomorrow (' + dayAbbrs[pyDay] + ')';
+          dayLabel = 'tom (' + dayAbbrs[pyDay] + ')';
         } else if (i > 5) {
           const alarmDate = new Date(now);
           alarmDate.setDate(alarmDate.getDate() + i);
@@ -3108,7 +3108,7 @@
       const today = new Date(); today.setHours(0,0,0,0);
       const diff = Math.round((target - today) / 86400000);
       if (diff <= 0) return 'today (' + SHORT[target.getDay()] + ')';
-      if (diff === 1) return 'tomorrow (' + SHORT[target.getDay()] + ')';
+      if (diff === 1) return 'tom (' + SHORT[target.getDay()] + ')';
       if (diff <= 5) return DAYS[target.getDay()];
       return DAYS[target.getDay()] + ' (' + MONTHS[target.getMonth()] + ' ' + target.getDate() + ')';
     }
@@ -3119,7 +3119,7 @@
       if (!zoneName) return;
 
       const mode = document.querySelector('input[name="spo-mode"]:checked')?.value;
-      if (!mode) return;
+      if (!mode) { alert('Please select an alarm option.'); return; }
 
       const body = {
         mode: mode,
@@ -3234,9 +3234,9 @@
             <div class="spo-through-radios" style="display:flex; gap:12px;">
               <div style="display:flex; flex-direction:column; gap:6px;">
                 <span style="opacity:0.7;">through:</span>
-                <label style="display:flex; align-items:center; gap:3px; cursor:pointer; padding-left:6px;"><input type="radio" name="spo-through" value="today" onchange="areaPopoverThroughChanged()"> today</label>
-                <label style="display:flex; align-items:center; gap:3px; cursor:pointer; padding-left:6px;"><input type="radio" name="spo-through" value="tomorrow" checked onchange="areaPopoverThroughChanged()"> tomorrow</label>
-                <label style="display:flex; align-items:center; gap:3px; cursor:pointer; padding-left:6px;"><input type="radio" name="spo-through" value="pick" onchange="areaPopoverThroughChanged()"> pick date</label>
+                <label style="display:flex; align-items:center; gap:3px; cursor:pointer; padding-left:20px;"><input type="radio" name="spo-through" value="today" onchange="areaPopoverThroughChanged()"> today</label>
+                <label style="display:flex; align-items:center; gap:3px; cursor:pointer; padding-left:20px;"><input type="radio" name="spo-through" value="tomorrow" checked onchange="areaPopoverThroughChanged()"> tom</label>
+                <label style="display:flex; align-items:center; gap:3px; cursor:pointer; padding-left:20px;"><input type="radio" name="spo-through" value="pick" onchange="areaPopoverThroughChanged()"> pick date</label>
               </div>
               <div style="display:flex; align-items:flex-end;">
                 <input type="date" id="spo-until-date" value="${untilDate}" style="display:none;">

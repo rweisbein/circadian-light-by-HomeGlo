@@ -3246,7 +3246,7 @@ class LightDesignerServer:
         if fire_offset == 0:
             day_label = "today"
         elif fire_offset == 1:
-            day_label = f"tomorrow ({day_abbrs[fire_day]})"
+            day_label = f"tom ({day_abbrs[fire_day]})"
         elif fire_offset > 5:
             from datetime import timedelta
 

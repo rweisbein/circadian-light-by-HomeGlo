@@ -1282,8 +1282,8 @@
       Home
     </a>
     <div class="nav-links">
-      <a href="./switches" class="nav-link">Controls</a>
       <a href="./tune" class="nav-link">Tune</a>
+      <a href="./switches" class="nav-link">Controls</a>
       <a href="./moments" class="nav-link">Magic</a>
       <a href="./settings" class="nav-link">Settings</a>
     </div>
@@ -2056,7 +2056,7 @@
       const today = new Date(); today.setHours(0,0,0,0);
       const diff = Math.round((target - today) / 86400000);
       if (diff <= 0) return 'today (' + SHORT[target.getDay()] + ')';
-      if (diff === 1) return 'tomorrow (' + SHORT[target.getDay()] + ')';
+      if (diff === 1) return 'tom (' + SHORT[target.getDay()] + ')';
       if (diff <= 5) return DAYS[target.getDay()];
       return DAYS[target.getDay()] + ' (' + MONTHS[target.getMonth()] + ' ' + target.getDate() + ')';
     }
@@ -2165,9 +2165,9 @@
             <div class="spo-through-radios" style="display:flex; gap:12px;">
               <div style="display:flex; flex-direction:column; gap:6px;">
                 <span style="opacity:0.7;">through:</span>
-                <label style="display:flex; align-items:center; gap:3px; cursor:pointer; padding-left:6px;"><input type="radio" name="spo-through" value="today" onchange="spoThroughChanged()"> today</label>
-                <label style="display:flex; align-items:center; gap:3px; cursor:pointer; padding-left:6px;"><input type="radio" name="spo-through" value="tomorrow" checked onchange="spoThroughChanged()"> tomorrow</label>
-                <label style="display:flex; align-items:center; gap:3px; cursor:pointer; padding-left:6px;"><input type="radio" name="spo-through" value="pick" onchange="spoThroughChanged()"> pick date</label>
+                <label style="display:flex; align-items:center; gap:3px; cursor:pointer; padding-left:20px;"><input type="radio" name="spo-through" value="today" onchange="spoThroughChanged()"> today</label>
+                <label style="display:flex; align-items:center; gap:3px; cursor:pointer; padding-left:20px;"><input type="radio" name="spo-through" value="tomorrow" checked onchange="spoThroughChanged()"> tom</label>
+                <label style="display:flex; align-items:center; gap:3px; cursor:pointer; padding-left:20px;"><input type="radio" name="spo-through" value="pick" onchange="spoThroughChanged()"> pick date</label>
               </div>
               <div style="display:flex; align-items:flex-end;">
                 <input type="date" id="spo-until-date" value="${untilDate}" style="display:none;">
@@ -2238,7 +2238,7 @@
       if (!zoneName) return;
 
       const mode = document.querySelector('input[name="spo-mode"]:checked')?.value;
-      if (!mode) return;
+      if (!mode) { alert('Please select an alarm option.'); return; }
 
       const body = {
         mode: mode,
