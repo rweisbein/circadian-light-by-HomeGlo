@@ -5167,6 +5167,22 @@ class HomeAssistantWebSocketClient:
                 else:
                     logger.warning("refresh_event not yet initialized, skipping signal")
 
+            # Handle outdoor override set/clear from webserver (separate process)
+            elif event_type == "circadian_light_outdoor_override":
+                event_data = event.get("data", {})
+                condition = event_data.get("condition")
+                if condition:
+                    duration = event_data.get("duration_minutes", 60)
+                    lux_tracker.set_override(condition, int(duration))
+                    logger.info(
+                        f"Outdoor override set from webserver: {condition} for {duration}min"
+                    )
+                else:
+                    lux_tracker.clear_override()
+                    logger.info("Outdoor override cleared from webserver")
+                if self.refresh_event is not None:
+                    self.refresh_event.set()
+
             # Handle circadian_light_sync_devices event (fired by webserver Sync Devices button)
             elif event_type == "circadian_light_sync_devices":
                 logger.info(

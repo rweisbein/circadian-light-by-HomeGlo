@@ -3202,6 +3202,13 @@ class LightDesignerServer:
             and override_until_date
             and override_until_date >= today_date
         )
+        # Non-off override active: alarm fires every day (ignores day restriction)
+        override_active = (
+            override
+            and override.get("mode") != "off"
+            and override_until_date
+            and override_until_date >= today_date
+        )
         if override_is_off:
             from datetime import timedelta
 
@@ -3216,13 +3223,17 @@ class LightDesignerServer:
         scan_range = max(7, skip_days + 7)  # scan past override window
         for i in range(scan_range):
             py_day = (today_wd + i) % 7
-            if py_day not in days:
+            # While a non-off override is active, alarm fires every day
+            # (ignoring normal day restrictions). After override expires,
+            # revert to normal day schedule.
+            from datetime import timedelta as _td
+            day_date = today_date + _td(days=i)
+            day_in_override = override_active and day_date <= override_until_date
+            if not day_in_override and py_day not in days:
                 continue
-            # Determine whether this day falls within the override period
-            use_ov = i < skip_days if override_is_off else True
             if override_is_off and i < skip_days:
                 continue  # alarm suppressed during override
-            at = get_alarm_time_for_day(py_day, use_override=(not override_is_off))
+            at = get_alarm_time_for_day(py_day, use_override=day_in_override)
             if at is None:
                 continue
             if i == 0 and now_decimal >= at:
@@ -5640,6 +5651,15 @@ class LightDesignerServer:
             if not condition:
                 return web.json_response({"error": "condition required"}, status=400)
             lux_tracker.set_override(condition, int(duration))
+
+            # Propagate override to main.py process via HA event
+            _, ws_url, token = self._get_ha_api_config()
+            if ws_url and token:
+                await self._fire_event_via_websocket(
+                    ws_url, token, "circadian_light_outdoor_override",
+                    {"condition": condition, "duration_minutes": int(duration)},
+                )
+
             return web.json_response({"status": "ok"})
         except Exception as e:
             logger.error(f"Error setting outdoor override: {e}")
@@ -5648,6 +5668,15 @@ class LightDesignerServer:
     async def clear_outdoor_override(self, request: Request) -> Response:
         """Clear the outdoor brightness override."""
         lux_tracker.clear_override()
+
+        # Propagate clear to main.py process via HA event
+        _, ws_url, token = self._get_ha_api_config()
+        if ws_url and token:
+            await self._fire_event_via_websocket(
+                ws_url, token, "circadian_light_outdoor_override",
+                {"condition": None},
+            )
+
         return web.json_response({"status": "ok"})
 
     async def set_schedule_override(self, request: Request) -> Response:

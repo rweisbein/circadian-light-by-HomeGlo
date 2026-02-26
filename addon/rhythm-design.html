@@ -2241,8 +2241,12 @@ function getValuesAtTime(hour) {
   const cHigh = config.max_color_temp;
 
   // Resolve effective timing with phase-aware weekday for wake
+  // Use cursor/now phase (not per-hour) — when in descent, entire ascend = tomorrow
   const chartWeekday = getChartWeekday();
-  const wakeWd = !inAscend ? (chartWeekday + 1) % 7 : chartWeekday;
+  const nowH = cursorHour !== null ? cursorHour : new Date().getHours() + new Date().getMinutes() / 60;
+  const nowH48 = nowH < tAscend ? nowH + 24 : nowH;
+  const nowInAscend = nowH48 >= tAscend && nowH48 < tDescend;
+  const wakeWd = !nowInAscend && nowH >= tAscend ? (chartWeekday + 1) % 7 : chartWeekday;
   const timing = resolveEffectiveTiming(hour, chartWeekday, wakeWd);
 
   // Brightness midpoint (runtimeState applies to current phase only)
@@ -2737,11 +2741,11 @@ function calculateBrightnessAtHour(hour) {
   const cursorInAscend = cursorH48 >= tAscend && cursorH48 < tDescend;
 
   // Resolve effective timing with phase-aware weekday for wake
-  // During descent, wake is "next wake" = tomorrow's weekday
+  // Use cursor/now phase (not per-hour phase) because when in descent,
+  // the entire ascend portion of the chart represents tomorrow's morning.
   const chartWeekday = getChartWeekday();
-  const h48b = hour < tAscend ? hour + 24 : hour;
-  const hourInDescend = h48b >= tDescend;
-  const wakeWd = hourInDescend ? (chartWeekday + 1) % 7 : chartWeekday;
+  const nowH = cursorHour !== null ? cursorHour : new Date().getHours() + new Date().getMinutes() / 60;
+  const wakeWd = !cursorInAscend && nowH >= tAscend ? (chartWeekday + 1) % 7 : chartWeekday;
   const timing = resolveEffectiveTiming(hour, chartWeekday, wakeWd);
 
   // runtimeState midpoints apply to current phase only
@@ -2826,11 +2830,11 @@ function calculateColorAtHour(hour, applySolar = true) {
   const cursorInAscend = cursorH48 >= tAscend && cursorH48 < tDescend;
 
   // Resolve effective timing with phase-aware weekday for wake
-  // During descent, wake is "next wake" = tomorrow's weekday
+  // Use cursor/now phase (not per-hour phase) because when in descent,
+  // the entire ascend portion of the chart represents tomorrow's morning.
   const chartWeekday = getChartWeekday();
-  const h48c2 = hour < tAscend ? hour + 24 : hour;
-  const hourInDescend = h48c2 >= tDescend;
-  const wakeWd = hourInDescend ? (chartWeekday + 1) % 7 : chartWeekday;
+  const nowH = cursorHour !== null ? cursorHour : new Date().getHours() + new Date().getMinutes() / 60;
+  const wakeWd = !cursorInAscend && nowH >= tAscend ? (chartWeekday + 1) % 7 : chartWeekday;
   const timing = resolveEffectiveTiming(hour, chartWeekday, wakeWd);
 
   // runtimeState midpoints apply to current phase only
