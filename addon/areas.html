@@ -2055,6 +2055,7 @@
       const target = new Date(isoDateStr + 'T00:00:00');
       const today = new Date(); today.setHours(0,0,0,0);
       const diff = Math.round((target - today) / 86400000);
+      if (diff > 730) return '';  // "forever" override — no through text
       if (diff <= 0) return 'today (' + SHORT[target.getDay()] + ')';
       if (diff === 1) return 'tom (' + SHORT[target.getDay()] + ')';
       if (diff <= 5) return DAYS[target.getDay()];
@@ -2099,7 +2100,8 @@
         else if (override.mode === 'custom' && override.custom_wake != null) desc = fmtCompactTime(override.custom_wake);
         else if (override.mode === 'off') desc = 'paused';
 
-        const untilStr = override.until_date ? ' through ' + fmtRelativeDate(override.until_date) : '';
+        const throughLabel = fmtRelativeDate(override.until_date || '');
+        const untilStr = throughLabel ? ' daily through ' + throughLabel : '';
 
         popover.innerHTML = `
           <div class="schedule-popover-title">Temp alarm override</div>
@@ -2164,11 +2166,12 @@
           <div class="schedule-popover-apply-row" style="flex-direction:column; align-items:stretch;">
             <div class="spo-grid" style="margin-bottom:0;">
               <div></div>
-              <div class="spo-time-cell" style="padding-bottom:2px;">through:</div>
+              <div class="spo-time-cell" style="padding-bottom:2px;">daily through:</div>
               <div></div>
               <div style="display:flex; flex-direction:column; gap:4px; padding:2px 0 6px; padding-left:8px;">
                 <label style="display:flex; align-items:center; gap:4px; cursor:pointer; font-size:0.8rem; opacity:0.7;"><input type="radio" name="spo-through" value="today" onchange="spoThroughChanged()" style="accent-color:var(--muted);"> today</label>
                 <label style="display:flex; align-items:center; gap:4px; cursor:pointer; font-size:0.8rem; opacity:0.7;"><input type="radio" name="spo-through" value="tomorrow" checked onchange="spoThroughChanged()" style="accent-color:var(--muted);"> tomorrow</label>
+                <label style="display:flex; align-items:center; gap:4px; cursor:pointer; font-size:0.8rem; opacity:0.7;"><input type="radio" name="spo-through" value="forever" onchange="spoThroughChanged()" style="accent-color:var(--muted);"> forever</label>
                 <label style="display:flex; align-items:center; gap:4px; cursor:pointer; font-size:0.8rem; opacity:0.7;"><input type="radio" name="spo-through" value="pick" onchange="spoThroughChanged()" style="accent-color:var(--muted);"> pick date</label>
                 <input type="date" id="spo-until-date" value="${untilDate}" style="display:none; margin-top:2px; width:130px;">
               </div>
@@ -2227,6 +2230,9 @@
       } else if (val === 'tomorrow') {
         today.setDate(today.getDate() + 1);
         datePicker.value = today.toISOString().split('T')[0];
+        datePicker.style.display = 'none';
+      } else if (val === 'forever') {
+        datePicker.value = '2099-12-31';
         datePicker.style.display = 'none';
       } else {
         datePicker.style.display = '';

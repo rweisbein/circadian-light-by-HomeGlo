@@ -3225,6 +3225,9 @@ class LightDesignerServer:
             from datetime import timedelta
 
             skip_days = (override_until_date - today_date).days + 1
+            if skip_days > 365:
+                # "Forever" pause — no alarm will fire
+                return {"time": "paused", "day": ""}
         else:
             skip_days = 0
 

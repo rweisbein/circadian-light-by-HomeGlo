@@ -675,8 +675,10 @@
               <span id="wake-override-label" style="display:none; font-size:0.7rem; color:var(--muted); font-weight:400;">override</span>
               <span class="wake-next-alarm" id="wake-next-alarm"></span>
             </span>
-            <a id="wake-override-clear" href="#" onclick="event.preventDefault(); event.stopPropagation(); clearOverrideFromHeader();" style="visibility:hidden; font-size:0.65rem; color:var(--muted2); text-decoration:underline; line-height:1;">clear</a>
-            <a id="alarm-temp-override-link" href="#" onclick="event.preventDefault(); event.stopPropagation(); openAreaTempOverridePopup(this);" style="visibility:hidden; font-size:0.7rem; color:var(--muted2); text-decoration:underline; line-height:1;">create temp override</a>
+            <span style="height:0; overflow:visible; display:flex; flex-direction:column; align-items:flex-end;">
+              <a id="wake-override-clear" href="#" onclick="event.preventDefault(); event.stopPropagation(); clearOverrideFromHeader();" style="display:none; font-size:0.65rem; color:var(--muted2); text-decoration:underline; line-height:1;">clear</a>
+              <a id="alarm-temp-override-link" href="#" onclick="event.preventDefault(); event.stopPropagation(); openAreaTempOverridePopup(this);" style="display:none; font-size:0.7rem; color:var(--muted2); text-decoration:underline; line-height:1;">create temp override</a>
+            </span>
           </span>
         </div>
         <div class="wake-alarm-body" id="wake-alarm-body" style="display:none;">
@@ -2913,9 +2915,9 @@
       const bodyVisible = document.getElementById('wake-alarm-body')?.style.display !== 'none';
       // Override label only visible when expanded AND has override
       if (labelEl) labelEl.style.display = (hasOverride && bodyVisible) ? '' : 'none';
-      // Clear/override links: use visibility to prevent header jump
-      if (clearEl) clearEl.style.visibility = (hasOverride && bodyVisible) ? 'visible' : 'hidden';
-      if (overrideLink) overrideLink.style.visibility = (!hasOverride && bodyVisible) ? 'visible' : 'hidden';
+      // Clear/override links shown when expanded (height:0 wrapper prevents header jump)
+      if (clearEl) clearEl.style.display = (hasOverride && bodyVisible) ? '' : 'none';
+      if (overrideLink) overrideLink.style.display = (!hasOverride && bodyVisible) ? '' : 'none';
     }
 
     async function clearOverrideFromHeader() {
@@ -3107,6 +3109,7 @@
       const target = new Date(isoDateStr + 'T00:00:00');
       const today = new Date(); today.setHours(0,0,0,0);
       const diff = Math.round((target - today) / 86400000);
+      if (diff > 730) return '';  // "forever" override — no through text
       if (diff <= 0) return 'today (' + SHORT[target.getDay()] + ')';
       if (diff === 1) return 'tom (' + SHORT[target.getDay()] + ')';
       if (diff <= 5) return DAYS[target.getDay()];
@@ -3176,7 +3179,8 @@
         else if (override.mode === 'custom' && override.custom_wake != null) desc = formatAlarmTime(override.custom_wake);
         else if (override.mode === 'off') desc = 'paused';
 
-        const untilStr = override.until_date ? ' through ' + fmtRelativeDate(override.until_date) : '';
+        const throughLabel = fmtRelativeDate(override.until_date || '');
+        const untilStr = throughLabel ? ' daily through ' + throughLabel : '';
 
         popover.innerHTML = `
           <div class="schedule-popover-title">Temp alarm override</div>
@@ -3233,11 +3237,12 @@
           <div class="schedule-popover-apply-row" style="flex-direction:column; align-items:stretch;">
             <div class="spo-grid" style="margin-bottom:0;">
               <div></div>
-              <div class="spo-time-cell" style="padding-bottom:2px;">through:</div>
+              <div class="spo-time-cell" style="padding-bottom:2px;">daily through:</div>
               <div></div>
               <div style="display:flex; flex-direction:column; gap:4px; padding:2px 0 6px; padding-left:8px;">
                 <label style="display:flex; align-items:center; gap:4px; cursor:pointer; font-size:0.8rem; opacity:0.7;"><input type="radio" name="spo-through" value="today" onchange="areaPopoverThroughChanged()" style="accent-color:var(--muted);"> today</label>
                 <label style="display:flex; align-items:center; gap:4px; cursor:pointer; font-size:0.8rem; opacity:0.7;"><input type="radio" name="spo-through" value="tomorrow" checked onchange="areaPopoverThroughChanged()" style="accent-color:var(--muted);"> tomorrow</label>
+                <label style="display:flex; align-items:center; gap:4px; cursor:pointer; font-size:0.8rem; opacity:0.7;"><input type="radio" name="spo-through" value="forever" onchange="areaPopoverThroughChanged()" style="accent-color:var(--muted);"> forever</label>
                 <label style="display:flex; align-items:center; gap:4px; cursor:pointer; font-size:0.8rem; opacity:0.7;"><input type="radio" name="spo-through" value="pick" onchange="areaPopoverThroughChanged()" style="accent-color:var(--muted);"> pick date</label>
                 <input type="date" id="spo-until-date" value="${untilDate}" style="display:none; margin-top:2px; width:130px;">
               </div>
@@ -3306,6 +3311,9 @@
       } else if (val === 'tomorrow') {
         today.setDate(today.getDate() + 1);
         datePicker.value = today.toISOString().split('T')[0];
+        datePicker.style.display = 'none';
+      } else if (val === 'forever') {
+        datePicker.value = '2099-12-31';
         datePicker.style.display = 'none';
       } else {
         datePicker.style.display = '';
