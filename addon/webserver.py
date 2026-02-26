@@ -824,6 +824,18 @@ class LightDesignerServer:
                         html_content = html_content.replace(pattern, inline_script)
                         break
 
+            # Substitute HA location into config when use_ha_location is true
+            if config.get("use_ha_location", True):
+                config["latitude"] = float(
+                    os.getenv("HASS_LATITUDE", config.get("latitude", 35.0))
+                )
+                config["longitude"] = float(
+                    os.getenv("HASS_LONGITUDE", config.get("longitude", -78.6))
+                )
+                config["timezone"] = os.getenv(
+                    "HASS_TIME_ZONE", config.get("timezone", "US/Eastern")
+                )
+
             # Build injected data
             inject_data = {"config": config}
             if extra_data:

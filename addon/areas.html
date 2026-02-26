@@ -2170,7 +2170,7 @@
                 <label style="display:flex; align-items:center; gap:4px; cursor:pointer; font-size:0.8rem; opacity:0.7;"><input type="radio" name="spo-through" value="today" onchange="spoThroughChanged()" style="accent-color:var(--muted);"> today</label>
                 <label style="display:flex; align-items:center; gap:4px; cursor:pointer; font-size:0.8rem; opacity:0.7;"><input type="radio" name="spo-through" value="tomorrow" checked onchange="spoThroughChanged()" style="accent-color:var(--muted);"> tomorrow</label>
                 <label style="display:flex; align-items:center; gap:4px; cursor:pointer; font-size:0.8rem; opacity:0.7;"><input type="radio" name="spo-through" value="pick" onchange="spoThroughChanged()" style="accent-color:var(--muted);"> pick date</label>
-                <input type="date" id="spo-until-date" value="${untilDate}" style="display:none; margin-top:2px;">
+                <input type="date" id="spo-until-date" value="${untilDate}" style="display:none; margin-top:2px; width:130px;">
               </div>
             </div>
             <div style="display:flex; justify-content:flex-end; margin-top:8px;">
@@ -2230,6 +2230,7 @@
         datePicker.style.display = 'none';
       } else {
         datePicker.style.display = '';
+        setTimeout(() => { try { datePicker.showPicker(); } catch(e) {} }, 50);
       }
     }
 
