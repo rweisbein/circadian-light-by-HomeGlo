@@ -219,7 +219,6 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
 }
 .sleep-card-detail-inner {
   padding: 0 14px 14px;
-  border-top: 1px solid var(--line);
   padding-top: 12px;
 }
 /* Hidden day-bubbles (source of truth, not visible) */
@@ -376,8 +375,8 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
   margin: 0 0 8px 0;
   max-width: 600px;
 }
-/* Ranges section needs more breathing room between dual-range rows */
-#ranges-section .param-row { margin: 0 0 14px 0; }
+/* More breathing room between dual-range rows */
+#color-temp-section .param-row, #brightness-section .param-row { margin: 0 0 14px 0; }
 /* Solar slider rows: use explicit sibling margin, zero out nested param-row margin */
 .color-rule-slider-row .param-row { margin: 0; }
 .color-rule-slider-row + .color-rule-slider-row { margin-top: 8px; }
@@ -687,8 +686,9 @@ input[type=range]::-moz-range-thumb {
   border-radius: 3px;
 }
 .dual-track.color-track {
-  height: 8px;
-  border-radius: 4px;
+  height: 12px;
+  border-radius: 6px;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
 }
 .dual-fill {
   position: absolute;
@@ -745,7 +745,7 @@ input[type=range]::-moz-range-thumb {
 .color-value-chip {
   border: none;
   border-radius: 999px;
-  padding: 6px 14px;
+  padding: 3px 12px;
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
@@ -948,7 +948,7 @@ input[type=range]::-moz-range-thumb {
 }
 /* Compact solar param: label + slider on one row, value below slider */
 .solar-param {
-  margin-bottom: 6px;
+  margin-bottom: 10px;
   max-width: 500px;
 }
 .solar-param-row {
@@ -1760,12 +1760,12 @@ input[type=range]::-moz-range-thumb {
     </div>
   </div>
 
-  <!-- Ranges -->
-  <div class="section-block" id="ranges-section">
-    <h2>Ranges</h2>
+  <!-- Color temperature -->
+  <div class="section-block" id="color-temp-section">
+    <h2>Color temperature</h2>
 
     <div class="param-row">
-      <label>Color temp.</label>
+      <label>Range</label>
       <div class="dual-range">
         <div class="dual-track color-track" id="color-track">
           <div class="dual-mask" id="color-mask-left"></div>
@@ -1776,25 +1776,6 @@ input[type=range]::-moz-range-thumb {
       </div>
       <span class="dual-chip" id="color-range-display">500 – 6500 K</span>
     </div>
-
-    <div class="param-row">
-      <label>Brightness</label>
-      <div class="dual-range">
-        <div class="dual-track" id="brightness-track" style="background:linear-gradient(to right,#111,#fff);">
-          <div class="dual-mask" id="brightness-mask-left"></div>
-          <div class="dual-mask" id="brightness-mask-right"></div>
-        </div>
-        <input type="range" id="brightness-min" class="range-min" min="1" max="100" step="1" value="1">
-        <input type="range" id="brightness-max" class="range-max" min="1" max="100" step="1" value="100">
-      </div>
-      <span class="dual-chip" id="brightness-range-display">1 – 100%</span>
-    </div>
-
-  </div>
-
-  <!-- Solar Adjustments -->
-  <div class="section-block">
-    <h2>Solar Adjustments</h2>
     <div class="color-rule-grid">
       <div class="color-rule-stack" data-color-row="night">
         <div class="color-rule-stack-label">
@@ -1889,6 +1870,23 @@ input[type=range]::-moz-range-thumb {
           </div>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- Brightness -->
+  <div class="section-block" id="brightness-section">
+    <h2>Brightness</h2>
+    <div class="param-row">
+      <label>Range</label>
+      <div class="dual-range">
+        <div class="dual-track" id="brightness-track" style="background:linear-gradient(to right,#111,#fff);">
+          <div class="dual-mask" id="brightness-mask-left"></div>
+          <div class="dual-mask" id="brightness-mask-right"></div>
+        </div>
+        <input type="range" id="brightness-min" class="range-min" min="1" max="100" step="1" value="1">
+        <input type="range" id="brightness-max" class="range-max" min="1" max="100" step="1" value="100">
+      </div>
+      <span class="dual-chip" id="brightness-range-display">1 – 100%</span>
     </div>
   </div>
 </div>
@@ -4143,17 +4141,12 @@ function getSleepPhase() {
   // Determine current/next for wake and bed based on cursor time
   const now = typeof cursorHour !== 'undefined' && cursorHour !== null
     ? cursorHour : new Date().getHours() + new Date().getMinutes() / 60;
-  const wake = config.wake_time;
-  const bed = config.bed_time;
-  // Between wake and bed → wake is current, bed is next
-  // Otherwise → bed is current, wake is next
-  let inWakePhase;
-  if (wake < bed) {
-    inWakePhase = now >= wake && now < bed;
-  } else {
-    inWakePhase = now >= wake || now < bed;
-  }
-  return { wake: inWakePhase ? 'current' : 'next', bed: inWakePhase ? 'next' : 'current' };
+  const tAscend = config.ascend_start;
+  let tDescend = config.descend_start;
+  if (tDescend <= tAscend) tDescend += 24;
+  const h = now < tAscend ? now + 24 : now;
+  const inAscend = h >= tAscend && h < tDescend;
+  return { wake: inAscend ? 'current' : 'next', bed: inAscend ? 'next' : 'current' };
 }
 
 function updateSleepCardSummaries() {
