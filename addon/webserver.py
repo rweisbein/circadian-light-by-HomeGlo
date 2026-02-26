@@ -1434,6 +1434,10 @@ class LightDesignerServer:
             # Re-read lux tracker config (source, sensor, smoothing) without resetting runtime state
             lux_tracker.reload_config(config)
 
+            # Seed outdoor data so lux/weather values are available immediately
+            await self._seed_outdoor_from_ha()
+            self._seed_sun_elevation()
+
             # Trigger refresh of enabled areas by firing an event
             # main.py listens for this event and signals the periodic updater
             refreshed = False
