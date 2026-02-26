@@ -3200,12 +3200,12 @@ class LightDesignerServer:
             override
             and override.get("mode") == "off"
             and override_until_date
-            and override_until_date > today_date
+            and override_until_date >= today_date
         )
         if override_is_off:
             from datetime import timedelta
 
-            skip_days = (override_until_date - today_date).days
+            skip_days = (override_until_date - today_date).days + 1
         else:
             skip_days = 0
 

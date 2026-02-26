@@ -428,7 +428,7 @@
     .wake-alarm-toggle input { opacity: 0; width: 0; height: 0; }
     .wake-alarm-toggle .slider { position: absolute; inset: 0; background: var(--line); border-radius: 11px; cursor: pointer; transition: background 0.2s; }
     .wake-alarm-toggle .slider::before { content: ''; position: absolute; left: 3px; top: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--muted); transition: all 0.2s; }
-    .wake-alarm-toggle input:checked + .slider { background: var(--accent); }
+    .wake-alarm-toggle input:checked + .slider { background: var(--text); }
     .wake-alarm-toggle input:checked + .slider::before { transform: translateX(18px); background: #000; }
     .wake-alarm-body { margin-top: 12px; }
     .wake-alarm-row { display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
@@ -444,7 +444,7 @@
     .wake-offset-btn { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line); background: transparent; color: var(--text); font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
     .wake-offset-btn:hover { border-color: var(--accent); color: var(--accent); }
     .wake-offset-value { font-size: 0.85rem; color: var(--text); min-width: 3em; text-align: center; font-variant-numeric: tabular-nums; }
-    .wake-next-alarm { font-size: 0.75rem; color: var(--muted2); white-space: nowrap; }
+    .wake-next-alarm { font-size: 0.85rem; color: var(--accent); font-weight: 600; white-space: nowrap; }
     .wake-alarm-chevron { color: var(--muted2); font-size: 1.1rem; cursor: pointer; transition: transform 0.2s; flex-shrink: 0; }
     .wake-alarm-chevron.open { transform: rotate(90deg); }
     .tune-light-impact { font-size: 0.75rem; color: var(--muted2); white-space: nowrap; min-width: 2.5em; text-align: right; font-variant-numeric: tabular-nums; }
@@ -452,7 +452,7 @@
     /* Alarm tab bar */
     .alarm-tab-bar { display: flex; gap: 4px; margin-bottom: 10px; }
     .alarm-tab-btn { padding: 4px 12px; border-radius: 6px; border: 1px solid var(--line); background: transparent; color: var(--muted); font-size: 0.75rem; cursor: pointer; transition: all 0.15s; }
-    .alarm-tab-btn.active { background: var(--accent); border-color: var(--accent); color: #000; }
+    .alarm-tab-btn.active { background: rgba(255,255,255,0.08); border-color: var(--muted); color: var(--text); }
 
     /* Scheduled tab: radio column + content */
     .alarm-scheduled-layout { display: flex; gap: 12px; align-items: flex-start; }
@@ -648,7 +648,7 @@
       <div class="wake-alarm-card">
         <div class="wake-alarm-header" onclick="toggleAlarmBody()">
           <span class="wake-alarm-chevron" id="wake-alarm-chevron">&#9656;</span>
-          <span class="wake-alarm-title">Alarm</span>
+          <span class="wake-alarm-title">Light alarm</span>
           <label class="wake-alarm-toggle" onclick="event.stopPropagation()">
             <input type="checkbox" id="wake-alarm-enabled" onchange="saveWakeAlarmSettings()">
             <span class="slider"></span>
@@ -2849,8 +2849,39 @@
         }
 
         showResolvedWakeTime();
+
+        // Default to Temporary tab when override is active
+        const zoneName = selectedArea.zone_name;
+        if (zoneName && cachedGlozones?.zones?.[zoneName]?.schedule_override) {
+          switchAlarmTab('temporary');
+        }
+
+        // Fetch backend next_wake_alarm (accounts for overrides)
+        fetchNextWakeAlarm();
       } catch (err) {
         console.error('Error loading wake alarm settings:', err);
+      }
+    }
+
+    async function fetchNextWakeAlarm() {
+      if (!selectedArea) return;
+      try {
+        const res = await fetch(basePath + `/api/area-status?area_id=${encodeURIComponent(selectedArea.area_id)}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const status = data[selectedArea.area_id];
+        const nextEl = document.getElementById('wake-next-alarm');
+        if (!nextEl) return;
+        const alarmEnabled = document.getElementById('wake-alarm-enabled')?.checked;
+        if (!alarmEnabled) { nextEl.textContent = ''; return; }
+        const nwa = status?.next_wake_alarm;
+        if (nwa) {
+          nextEl.textContent = nwa.time + (nwa.day ? ' ' + nwa.day : '');
+        } else {
+          nextEl.textContent = '';
+        }
+      } catch (err) {
+        // fall back to client-side display (already set by showResolvedWakeTime)
       }
     }
 
@@ -2896,6 +2927,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
+        fetchNextWakeAlarm();
       } catch (err) {
         console.error('Error saving wake alarm settings:', err);
       }
@@ -3064,7 +3096,7 @@
         if (override.mode === 'main') desc = formatAlarmTime(mainWake);
         else if (override.mode === 'alt' && altWake != null) desc = formatAlarmTime(altWake);
         else if (override.mode === 'custom' && override.custom_wake != null) desc = formatAlarmTime(override.custom_wake);
-        else if (override.mode === 'off') desc = 'Suspended';
+        else if (override.mode === 'off') desc = 'suspended';
 
         const untilStr = override.until_date ? ' through ' + fmtRelativeDate(override.until_date) : '';
 
@@ -3111,7 +3143,7 @@
           <div class="spo-grid">
             <div class="spo-radio-row" onclick="document.getElementById('spo-off').checked=true">
               <input type="radio" id="spo-off" name="spo-mode" value="off">
-              <div class="spo-time-cell">Suspend</div>
+              <div class="spo-time-cell">suspend</div>
             </div>
             ${otherTimeHtml}
             <div class="spo-radio-row" onclick="document.getElementById('spo-custom').checked=true">
@@ -3172,6 +3204,7 @@
           const gzRes = await fetch(basePath + '/api/glozones');
           if (gzRes.ok) cachedGlozones = await gzRes.json();
           renderTempAlarmTab();
+          fetchNextWakeAlarm();
         }
       } catch (err) {
         console.error('Error applying temp alarm:', err);
@@ -3191,6 +3224,7 @@
           const gzRes = await fetch(basePath + '/api/glozones');
           if (gzRes.ok) cachedGlozones = await gzRes.json();
           renderTempAlarmTab();
+          fetchNextWakeAlarm();
         }
       } catch (err) {
         console.error('Error clearing temp alarm:', err);

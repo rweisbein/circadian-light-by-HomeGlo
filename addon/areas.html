@@ -2096,7 +2096,7 @@
         if (override.mode === 'main') desc = fmtCompactTime(mainWake);
         else if (override.mode === 'alt' && altWake != null) desc = fmtCompactTime(altWake);
         else if (override.mode === 'custom' && override.custom_wake != null) desc = fmtCompactTime(override.custom_wake);
-        else if (override.mode === 'off') desc = 'Cancelled';
+        else if (override.mode === 'off') desc = 'suspended';
 
         const untilStr = override.until_date ? ' through ' + fmtRelativeDate(override.until_date) : '';
 
@@ -2149,7 +2149,7 @@
           <div class="spo-grid">
             <div class="spo-radio-row" onclick="document.getElementById('spo-off').checked=true">
               <input type="radio" id="spo-off" name="spo-mode" value="off">
-              <div class="spo-time-cell">Suspend</div>
+              <div class="spo-time-cell">suspend</div>
             </div>
             ${otherTimeHtml}
             <div class="spo-radio-row" onclick="document.getElementById('spo-custom').checked=true">
@@ -2230,9 +2230,13 @@
         });
         if (res.ok) {
           closeSchedulePopover();
-          // Refresh glozone data
-          const gzRes = await fetch('./api/glozones');
+          // Refresh glozone + area-status data so alarm pill updates immediately
+          const [gzRes, statusRes] = await Promise.all([
+            fetch('./api/glozones'),
+            fetch('./api/area-status')
+          ]);
           if (gzRes.ok) cachedGlozones = await gzRes.json();
+          if (statusRes.ok) areaStatus = await statusRes.json();
           renderAreas();
         }
       } catch (err) {
@@ -2250,8 +2254,12 @@
         });
         if (res.ok) {
           closeSchedulePopover();
-          const gzRes = await fetch('./api/glozones');
+          const [gzRes, statusRes] = await Promise.all([
+            fetch('./api/glozones'),
+            fetch('./api/area-status')
+          ]);
           if (gzRes.ok) cachedGlozones = await gzRes.json();
+          if (statusRes.ok) areaStatus = await statusRes.json();
           renderAreas();
         }
       } catch (err) {

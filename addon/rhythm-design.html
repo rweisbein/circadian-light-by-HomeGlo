@@ -4134,8 +4134,9 @@ function updateSleepCardSummaries() {
 
   ['wake', 'bed'].forEach(prefix => {
     const primaryDays = getSelectedDays(`${prefix}-days`);
-    const altDays = (primaryDays.length > 0 && primaryDays.length < 7)
-      ? ALL.filter(d => !primaryDays.includes(d)) : [];
+    const altDays = primaryDays.length === 0
+      ? ALL.slice()
+      : (primaryDays.length < 7 ? ALL.filter(d => !primaryDays.includes(d)) : []);
     const hasAlt = altDays.length > 0;
 
     // Card time (show the relevant time for today/next)
