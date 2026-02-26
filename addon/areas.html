@@ -307,8 +307,8 @@
     }
 
     .timer-alarm {
-      color: var(--accent);
-      background: rgba(254, 172, 96, 0.15);
+      color: #e2e8f0;
+      opacity: 0.9;
       padding: 1px 5px;
       border-radius: 3px;
     }
@@ -411,7 +411,7 @@
       cursor: pointer;
     }
 
-    .row-timer { font-size: 0.7rem; color: #e2e8f0; white-space: nowrap; background: rgba(0,0,0,0.3); border-radius: 3px; padding: 0 4px; display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; }
+    .row-timer { font-size: 0.7rem; color: #e2e8f0; white-space: nowrap; background: rgba(0,0,0,0.5); border-radius: 3px; padding: 0 4px; display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; }
     .row-timer:empty { display: none; }
     .row-timer .timer-sep { opacity: 0.3; }
 
@@ -550,7 +550,7 @@
       display: flex;
       align-items: center;
       gap: 6px;
-      padding: 6px 8px;
+      padding: 6px 8px 6px 0;
       background: var(--panel);
       cursor: pointer;
       border: 1px solid var(--line);
@@ -585,7 +585,7 @@
       line-height: 1;
     }
     .zone-label-sub {
-      font-size: 0.5rem;
+      font-size: 0.6rem;
       text-transform: lowercase;
       letter-spacing: 0.04em;
       opacity: 0.45;
@@ -618,7 +618,8 @@
 
     .zone-chevron-tap {
       cursor: pointer;
-      padding: 4px 6px 4px 4px;
+      width: 32px;
+      min-width: 32px;
       margin: -4px 0;
       display: inline-flex;
       align-items: center;
@@ -666,46 +667,17 @@
       overflow: hidden;
     }
 
+    .zone-content.no-header {
+      border-radius: 8px;
+      margin-left: 0;
+      margin-top: 0;
+    }
+
     .zone-content.hidden {
       display: none;
     }
 
-    /* Next-times display in zone header */
-    .zone-next-times {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 0.7rem;
-      opacity: 0.65;
-      cursor: pointer;
-      padding: 2px 6px;
-      border-radius: 4px;
-      transition: opacity 0.15s;
-    }
-    .zone-next-times:hover {
-      opacity: 1;
-    }
-    .zone-next-times.has-override {
-      opacity: 0.85;
-      border: 1px solid currentColor;
-      border-style: dashed;
-    }
-    .zone-next-stack {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      line-height: 1.3;
-      white-space: nowrap;
-    }
-    .zone-next-stack .next-event-label {
-      opacity: 0.6;
-      font-size: 0.6rem;
-    }
-    .zone-next-stack .next-event-time {
-      font-weight: 600;
-    }
-
-    /* Schedule override popover */
+    /* Schedule override popover (Temporary Alarm) */
     .schedule-popover {
       position: fixed;
       z-index: 200;
@@ -724,18 +696,12 @@
       font-size: 0.9rem;
       margin-bottom: 8px;
     }
-    /* Grid: radio | wake-col | bed-col */
+    /* Grid: radio | time */
     .spo-grid {
       display: grid;
-      grid-template-columns: 20px 1fr 1fr;
+      grid-template-columns: 20px 1fr;
       gap: 0 12px;
       align-items: center;
-    }
-    .spo-col-header {
-      font-size: 0.7rem;
-      opacity: 0.45;
-      text-align: left;
-      padding-bottom: 4px;
     }
     .spo-radio-row {
       display: contents;
@@ -1699,6 +1665,21 @@
           parts.push(formatNextWakeAlarm(status.next_wake_alarm));
         }
 
+        // Temporary alarm (schedule override on zone)
+        const zoneName = el.getAttribute('data-zone-name');
+        if (zoneName) {
+          const zoneData = cachedGlozones?.zones?.[zoneName];
+          if (zoneData?.schedule_override) {
+            const ov = zoneData.schedule_override;
+            let ovTime = '';
+            if (ov.mode === 'main') ovTime = fmtCompactTime(zoneData.wake_time ?? 7);
+            else if (ov.mode === 'alt' && zoneData.wake_alt_time != null) ovTime = fmtCompactTime(zoneData.wake_alt_time);
+            else if (ov.mode === 'custom' && ov.custom_wake != null) ovTime = fmtCompactTime(ov.custom_wake);
+            const escapedZone = zoneName.replace(/'/g, "\\'");
+            parts.push(`<span class="timer-alarm" style="cursor:pointer;" onclick="event.stopPropagation(); openSchedulePopover('${escapedZone}', this)">tmp ${ovTime}</span>`);
+          }
+        }
+
         // Motion + boost (combined or separate)
         if (hasMotion && isBoosted && isMotionCoupled) {
           const remaining = formatCountdown(status.motion_expires_at);
@@ -2097,34 +2078,7 @@
       return all.filter(d => !altDays.includes(d));
     }
 
-    // Build the next-times HTML for a zone header
-    // Shows chronological order: next event first (bed tonight → wake tomorrow)
-    function buildNextTimesHtml(zoneName, zoneTextColor) {
-      const zoneData = cachedGlozones?.zones?.[zoneName];
-      if (!zoneData?.next_times) return '';
-      const nt = zoneData.next_times;
-      const hasOverride = !!zoneData.schedule_override;
-      const overrideClass = hasOverride ? ' has-override' : '';
-      const escapedName = zoneName.replace(/'/g, "\\'");
-
-      // Determine which event comes next chronologically
-      const now = new Date();
-      const nowDay = now.getDay() === 0 ? 6 : now.getDay() - 1; // JS Sun=0 → Mon=0..Sun=6
-      const nowH = now.getHours() + now.getMinutes() / 60;
-      // Compute hours-from-now for each event
-      const wakeHoursAway = ((nt.wake_day - nowDay) * 24 + nt.wake_time - nowH + 168) % 168;
-      const bedHoursAway = ((nt.bed_day - nowDay) * 24 + nt.bed_time - nowH + 168) % 168;
-      const bedFirst = bedHoursAway <= wakeHoursAway;
-
-      const bedStr = `<span class="next-event-label">bed</span> <span class="next-event-time">${nt.bed_day_name} ${fmtCompactTime(nt.bed_time)}</span>`;
-      const wakeStr = `<span class="next-event-label">wake</span> <span class="next-event-time">${nt.wake_day_name} ${fmtCompactTime(nt.wake_time)}</span>`;
-      const firstStr = bedFirst ? bedStr : wakeStr;
-      const secondStr = bedFirst ? wakeStr : bedStr;
-
-      return `<span class="zone-next-times${overrideClass}" style="color: ${zoneTextColor};" onclick="event.stopPropagation(); openSchedulePopover('${escapedName}', this)" title="${hasOverride ? 'Schedule override active — click to edit' : 'Click to set schedule override'}"><span class="zone-next-stack"><span>${firstStr}</span><span>${secondStr}</span></span></span>`;
-    }
-
-    // Schedule override popover
+    // Temporary Alarm popover
     let activePopoverZone = null;
 
     function openSchedulePopover(zoneName, anchorEl) {
@@ -2140,24 +2094,13 @@
       if (!zoneData) return;
 
       const mainWake = zoneData.wake_time ?? 7;
-      const mainBed = zoneData.bed_time ?? 22;
       const altWake = zoneData.wake_alt_time;
-      const altBed = zoneData.bed_alt_time;
-      const hasAlt = altWake != null || altBed != null;
+      const hasAlt = altWake != null;
 
-      // Day-of-week indicators
+      // Day-of-week indicators for wake
       const wakeAltDays = zoneData.wake_alt_days || [];
-      const bedAltDays = zoneData.bed_alt_days || [];
       const mainWakeDaysLabel = wakeAltDays.length > 0 ? fmtDayList(complementDays(wakeAltDays)) : '';
-      const mainBedDaysLabel = bedAltDays.length > 0 ? fmtDayList(complementDays(bedAltDays)) : '';
       const altWakeDaysLabel = wakeAltDays.length > 0 ? fmtDayList(wakeAltDays) : '';
-      const altBedDaysLabel = bedAltDays.length > 0 ? fmtDayList(bedAltDays) : '';
-
-      // Slider bounds from zone's ascend/descend phases
-      const ascendStart = zoneData.ascend_start ?? 3;
-      let descendStart = zoneData.descend_start ?? 12;
-      if (descendStart <= ascendStart) descendStart += 24;
-      const bedMax = ascendStart + 24;  // descend phase wraps to next ascend
 
       const override = zoneData.schedule_override;
       const currentMode = override?.mode || '';
@@ -2166,7 +2109,6 @@
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
       const untilDate = override?.until_date || tomorrow.toISOString().split('T')[0];
-      const untilEvent = override?.until_event || 'wake';
 
       const popover = document.createElement('div');
       popover.className = 'schedule-popover';
@@ -2174,53 +2116,35 @@
       popover.onclick = (e) => e.stopPropagation();
 
       let customWake = override?.custom_wake ?? mainWake;
-      let customBed = override?.custom_bed ?? mainBed;
-      // Lift bed into slider range if needed (bed slider uses descend_start..bedMax range)
-      let customBedSlider = customBed;
-      if (customBedSlider < descendStart) customBedSlider += 24;
 
       popover.innerHTML = `
-        <div class="schedule-popover-title">Override bed/wake</div>
+        <div class="schedule-popover-title">Temporary Alarm</div>
         <div class="spo-grid">
-          <div></div>
-          <div class="spo-col-header">wake</div>
-          <div class="spo-col-header">bed</div>
-
           <div class="spo-radio-row" onclick="document.getElementById('spo-main').checked=true">
             <input type="radio" id="spo-main" name="spo-mode" value="main" ${currentMode === 'main' ? 'checked' : ''}>
-            <div class="spo-time-cell">${fmtCompactTime(mainWake)}${mainWakeDaysLabel ? `<span class="spo-days">${mainWakeDaysLabel}</span>` : ''}</div>
-            <div class="spo-time-cell">${fmtCompactTime(mainBed)}${mainBedDaysLabel ? `<span class="spo-days">${mainBedDaysLabel}</span>` : ''}</div>
+            <div class="spo-time-cell">${fmtCompactTime(mainWake)}${mainWakeDaysLabel ? `<span class="spo-days">${mainWakeDaysLabel}</span>` : '<span class="spo-days">primary</span>'}</div>
           </div>
           ${hasAlt ? `
           <div class="spo-radio-row" onclick="document.getElementById('spo-alt').checked=true">
             <input type="radio" id="spo-alt" name="spo-mode" value="alt" ${currentMode === 'alt' ? 'checked' : ''}>
-            <div class="spo-time-cell">${fmtCompactTime(altWake ?? mainWake)}${altWakeDaysLabel ? `<span class="spo-days">${altWakeDaysLabel}</span>` : ''}</div>
-            <div class="spo-time-cell">${fmtCompactTime(altBed ?? mainBed)}${altBedDaysLabel ? `<span class="spo-days">${altBedDaysLabel}</span>` : ''}</div>
+            <div class="spo-time-cell">${fmtCompactTime(altWake)}${altWakeDaysLabel ? `<span class="spo-days">${altWakeDaysLabel}</span>` : '<span class="spo-days">secondary</span>'}</div>
           </div>` : ''}
 
           <div class="spo-radio-row" onclick="document.getElementById('spo-custom').checked=true">
             <input type="radio" id="spo-custom" name="spo-mode" value="custom" ${currentMode === 'custom' ? 'checked' : ''}>
             <div class="spo-slider-cell">
-              <input type="range" id="spo-custom-wake" min="${ascendStart}" max="${descendStart}" step="0.25" value="${customWake}">
+              <input type="range" id="spo-custom-wake" min="0" max="24" step="0.25" value="${customWake}">
               <span class="spo-slider-val" id="spo-wake-display">${fmtCompactTime(customWake)}</span>
-            </div>
-            <div class="spo-slider-cell">
-              <input type="range" id="spo-custom-bed" min="${descendStart}" max="${bedMax}" step="0.25" value="${customBedSlider}">
-              <span class="spo-slider-val" id="spo-bed-display">${fmtCompactTime(customBed)}</span>
             </div>
           </div>
         </div>
         <div class="schedule-popover-apply-row">
-          <label>Until</label>
+          <label>End on</label>
           <input type="date" id="spo-until-date" value="${untilDate}">
-          <select id="spo-until-event">
-            <option value="wake" ${untilEvent === 'wake' ? 'selected' : ''}>wake</option>
-            <option value="bed" ${untilEvent === 'bed' ? 'selected' : ''}>bed</option>
-          </select>
           <span style="flex:1;"></span>
           <button class="primary" onclick="applyScheduleOverride()">Apply</button>
         </div>
-        ${override ? '<div class="schedule-popover-clear"><button onclick="clearScheduleOverride()" title="Remove override, resume normal schedule">Clear override</button></div>' : ''}
+        ${override ? '<div class="schedule-popover-clear"><button onclick="clearScheduleOverride()" title="Remove temporary alarm">Clear</button></div>' : ''}
       `;
 
       document.body.appendChild(popover);
@@ -2238,25 +2162,17 @@
       popover.style.left = left + 'px';
       popover.style.top = top + 'px';
 
-      // Auto-select custom radio and update display when sliders are used
+      // Auto-select custom radio and update display when slider is used
       const customWakeInput = document.getElementById('spo-custom-wake');
-      const customBedInput = document.getElementById('spo-custom-bed');
       const wakeDisplay = document.getElementById('spo-wake-display');
-      const bedDisplay = document.getElementById('spo-bed-display');
       const selectCustom = () => { document.getElementById('spo-custom').checked = true; };
       customWakeInput.addEventListener('input', () => {
         selectCustom();
-        wakeDisplay.textContent = fmtCompactTime(parseFloat(customWakeInput.value));
-      });
-      customBedInput.addEventListener('input', () => {
-        selectCustom();
-        bedDisplay.textContent = fmtCompactTime(parseFloat(customBedInput.value) % 24);
+        wakeDisplay.textContent = fmtCompactTime(parseFloat(customWakeInput.value) % 24);
       });
       // Prevent slider drag from toggling radio via parent onclick
       customWakeInput.addEventListener('mousedown', (e) => e.stopPropagation());
-      customBedInput.addEventListener('mousedown', (e) => e.stopPropagation());
       customWakeInput.addEventListener('pointerdown', (e) => { e.stopPropagation(); selectCustom(); });
-      customBedInput.addEventListener('pointerdown', (e) => { e.stopPropagation(); selectCustom(); });
     }
 
     function closeSchedulePopover() {
@@ -2275,12 +2191,11 @@
       const body = {
         mode: mode,
         until_date: document.getElementById('spo-until-date').value,
-        until_event: document.getElementById('spo-until-event').value,
+        until_event: 'wake',
       };
 
       if (mode === 'custom') {
-        body.custom_wake = parseFloat(document.getElementById('spo-custom-wake').value);
-        body.custom_bed = parseFloat(document.getElementById('spo-custom-bed').value) % 24;
+        body.custom_wake = parseFloat(document.getElementById('spo-custom-wake').value) % 24;
       }
 
       try {
@@ -3262,7 +3177,7 @@
                 <span class="zone-chevron-tap" onclick="event.stopPropagation(); toggleZone('${escapedZoneName}', this)">${chevronIcon}</span>
                 <div class="zone-name-group">
                   <a class="zone-rhythm-link" href="./zone/${encodeURIComponent(zoneName)}?back=home" onclick="event.stopPropagation()">${zoneName}</a>
-                  <span class="zone-label-sub">rhythm zone</span>
+                  <span class="zone-label-sub">zone</span>
                 </div>
                 <span class="tune-zone-bri-group">
                   <span class="tune-zone-base-bri">${rhythmBri}%</span>
@@ -3370,12 +3285,11 @@
               ${zonePowerBtn}
               <div class="zone-name-group" style="color: ${zoneTextColor};">
                 <a class="zone-rhythm-link" href="./zone/${encodeURIComponent(zoneName)}?back=home" style="color: ${zoneTextColor};" onclick="event.stopPropagation()">${zoneName}</a>
-                <span class="zone-label-sub">rhythm zone</span>
+                <span class="zone-label-sub">zone</span>
               </div>
               ${zoneFrozenIndicator}
               ${zoneMismatchDot}
               <span style="flex: 1;"></span>
-              ${buildNextTimesHtml(zoneName, zoneTextColor)}
               <div class="row-controls">
                 <button class="row-btn" onclick="event.stopPropagation(); glozoneDown('${escapedZoneName}')" title="Rhythm Zone Down: send to all areas">${glozoneDownIcon}</button>
                 <button class="row-btn" onclick="event.stopPropagation(); glozoneReset('${escapedZoneName}')" title="Reset Rhythm Zone">${glozoneResetIcon}</button>
@@ -3559,7 +3473,7 @@
       } else {
         // Alpha: flat list, all areas sorted alphabetically, no zone headers
         const allSorted = [...filtered].sort((a, b) => a.name.localeCompare(b.name));
-        html += `<div class="zone-content">${allSorted.map(area => renderAreaRow(area)).join('')}</div>`;
+        html += `<div class="zone-content no-header">${allSorted.map(area => renderAreaRow(area)).join('')}</div>`;
       }
 
       // Handle empty state
@@ -3602,7 +3516,7 @@
           <div class="row-middle">
             <div class="row-middle-top">
               <span class="area-row-name" onclick="openAreaModal('${area.area_id}')">${area.name}</span>
-              <span class="row-timer" data-area-timer="${area.area_id}"></span>
+              <span class="row-timer" data-area-timer="${area.area_id}" data-zone-name="${area.zone_name || ''}"></span>
               ${mismatchDot}
             </div>
             <div class="row-slider-track" data-area-id="${area.area_id}" data-bmin="${area.min_brightness ?? 1}" data-bmax="${area.max_brightness ?? 100}" data-cmin="${area.min_color_temp ?? 2200}" data-cmax="${area.max_color_temp ?? 6500}">
@@ -3877,7 +3791,7 @@
 
       // Close schedule popover when clicking outside
       document.addEventListener('click', (e) => {
-        if (!e.target.closest('.schedule-popover') && !e.target.closest('.zone-next-times')) {
+        if (!e.target.closest('.schedule-popover') && !e.target.closest('.timer-alarm')) {
           closeSchedulePopover();
         }
       });
