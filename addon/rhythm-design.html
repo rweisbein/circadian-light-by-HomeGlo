@@ -359,6 +359,7 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
 }
 /* More breathing room between dual-range rows */
 #color-temp-section .param-row, #brightness-section .param-row { margin: 0 0 14px 0; }
+#color-temp-section .param-row { grid-template-columns: 92px 1fr 140px; }
 /* Solar slider rows: use explicit sibling margin, zero out nested param-row margin */
 .color-rule-slider-row .param-row { margin: 0; }
 .color-rule-slider-row + .color-rule-slider-row { margin-top: 8px; }
@@ -4289,20 +4290,28 @@ function syncConfigFromUI() {
   // Alt timing — selected "Days" = primary days, unselected = alt days
   const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6];
   const wakePrimaryDays = getSelectedDays('wake-days');
-  if (wakePrimaryDays.length === 0 || wakePrimaryDays.length === 7) {
+  if (wakePrimaryDays.length === 7) {
     config.wake_alt_days = [];
     config._wake_alt_time_last = parseFloat(document.getElementById('wake-alt-time').value) % 24;
     config.wake_alt_time = null;
+  } else if (wakePrimaryDays.length === 0) {
+    config.wake_alt_days = ALL_DAYS.slice();
+    config.wake_alt_time = parseFloat(document.getElementById('wake-alt-time').value) % 24;
+    config._wake_alt_time_last = config.wake_alt_time;
   } else {
     config.wake_alt_days = ALL_DAYS.filter(d => !wakePrimaryDays.includes(d));
     config.wake_alt_time = parseFloat(document.getElementById('wake-alt-time').value) % 24;
     config._wake_alt_time_last = config.wake_alt_time;
   }
   const bedPrimaryDays = getSelectedDays('bed-days');
-  if (bedPrimaryDays.length === 0 || bedPrimaryDays.length === 7) {
+  if (bedPrimaryDays.length === 7) {
     config.bed_alt_days = [];
     config._bed_alt_time_last = parseFloat(document.getElementById('bed-alt-time').value) % 24;
     config.bed_alt_time = null;
+  } else if (bedPrimaryDays.length === 0) {
+    config.bed_alt_days = ALL_DAYS.slice();
+    config.bed_alt_time = parseFloat(document.getElementById('bed-alt-time').value) % 24;
+    config._bed_alt_time_last = config.bed_alt_time;
   } else {
     config.bed_alt_days = ALL_DAYS.filter(d => !bedPrimaryDays.includes(d));
     config.bed_alt_time = parseFloat(document.getElementById('bed-alt-time').value) % 24;

@@ -92,7 +92,7 @@
     .page-header-meta {
       display: flex;
       flex-direction: column;
-      align-items: center;
+      align-items: flex-end;
       justify-content: center;
       flex-shrink: 0;
     }
@@ -100,7 +100,7 @@
     .page-header-meta a {
       color: var(--accent);
       text-decoration: none;
-      font-size: 0.95rem;
+      font-size: 1.1rem;
       white-space: nowrap;
     }
 
@@ -109,10 +109,11 @@
     }
 
     .page-header-meta-label {
-      font-size: 0.65rem;
-      color: var(--muted2);
+      font-size: 0.6rem;
+      color: var(--text);
+      opacity: 0.45;
       white-space: nowrap;
-      text-transform: uppercase;
+      text-transform: lowercase;
       letter-spacing: 0.03em;
     }
 
@@ -431,9 +432,6 @@
     .wake-alarm-toggle input:checked + .slider::before { transform: translateX(18px); background: #000; }
     .wake-alarm-body { margin-top: 12px; }
     .wake-alarm-row { display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
-    .wake-mode-btns { display: flex; gap: 4px; }
-    .wake-mode-btn { padding: 4px 10px; border-radius: 6px; border: 1px solid var(--line); background: transparent; color: var(--muted); font-size: 0.75rem; cursor: pointer; transition: all 0.15s; }
-    .wake-mode-btn.active { background: var(--accent); border-color: var(--accent); color: #000; }
     .wake-day-bubbles { display: flex; gap: 6px; justify-content: center; margin-bottom: 10px; }
     .wake-day-col { display: flex; flex-direction: column; align-items: center; gap: 2px; }
     .wake-day-bubble { width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--line); background: transparent; color: var(--muted); font-size: 0.65rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; line-height: 1; transition: all 0.15s; }
@@ -447,33 +445,43 @@
     .wake-offset-btn:hover { border-color: var(--accent); color: var(--accent); }
     .wake-offset-value { font-size: 0.85rem; color: var(--text); min-width: 3em; text-align: center; font-variant-numeric: tabular-nums; }
     .wake-next-alarm { font-size: 0.75rem; color: var(--muted2); white-space: nowrap; }
-    .temp-alarm-badge { font-size: 0.7rem; color: var(--text); background: rgba(255,255,255,0.1); border: 1px dashed var(--muted2); padding: 1px 8px; border-radius: 4px; cursor: pointer; white-space: nowrap; margin-left: 6px; }
-    .temp-alarm-badge:hover { background: rgba(255,255,255,0.15); border-color: var(--accent); }
     .wake-alarm-chevron { color: var(--muted2); font-size: 1.1rem; cursor: pointer; transition: transform 0.2s; flex-shrink: 0; }
     .wake-alarm-chevron.open { transform: rotate(90deg); }
     .tune-light-impact { font-size: 0.75rem; color: var(--muted2); white-space: nowrap; min-width: 2.5em; text-align: right; font-variant-numeric: tabular-nums; }
 
-    /* Temporary alarm popover */
-    .schedule-popover { position: fixed; z-index: 200; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); padding: 14px 16px; min-width: 240px; max-width: 300px; color: var(--text); font-size: 0.85rem; }
-    .schedule-popover-title { font-weight: 700; font-size: 0.9rem; margin-bottom: 8px; }
-    .spo-grid { display: grid; grid-template-columns: 20px 1fr; gap: 0 12px; align-items: center; }
-    .spo-radio-row { display: contents; cursor: pointer; }
-    .spo-radio-row input[type="radio"] { accent-color: var(--accent); margin: 0; cursor: pointer; }
-    .spo-time-cell { text-align: left; padding: 6px 0; font-size: 0.88rem; cursor: pointer; }
-    .spo-days { display: block; font-size: 0.65rem; opacity: 0.4; margin-top: 1px; }
-    .spo-slider-cell { display: flex; flex-direction: column; align-items: stretch; padding: 10px 0 4px; }
-    .spo-slider-cell input[type="range"] { width: 100%; height: 4px; accent-color: var(--accent); }
-    .spo-slider-cell .spo-slider-val { font-size: 0.75rem; opacity: 0.6; margin-top: 4px; }
-    .schedule-popover-apply-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 0.8rem; }
-    .schedule-popover-apply-row label { opacity: 0.7; }
-    .schedule-popover-apply-row input[type="date"] { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; color: var(--text); padding: 5px 6px; font-size: 0.8rem; height: 30px; box-sizing: border-box; }
-    .schedule-popover-apply-row button { padding: 5px 14px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.8rem; height: 30px; box-sizing: border-box; cursor: pointer; }
-    .schedule-popover-apply-row button:hover { background: rgba(255,255,255,0.08); }
-    .schedule-popover-apply-row button.primary { background: var(--accent); color: #000; border-color: var(--accent); }
-    .schedule-popover-apply-row button.primary:hover { opacity: 0.9; }
-    .schedule-popover-clear { margin-top: 8px; text-align: center; }
-    .schedule-popover-clear button { background: none; border: none; color: #ef4444; font-size: 0.75rem; cursor: pointer; opacity: 0.7; padding: 4px 8px; }
-    .schedule-popover-clear button:hover { opacity: 1; }
+    /* Alarm tab bar */
+    .alarm-tab-bar { display: flex; gap: 4px; margin-bottom: 10px; }
+    .alarm-tab-btn { padding: 4px 12px; border-radius: 6px; border: 1px solid var(--line); background: transparent; color: var(--muted); font-size: 0.75rem; cursor: pointer; transition: all 0.15s; }
+    .alarm-tab-btn.active { background: var(--accent); border-color: var(--accent); color: #000; }
+
+    /* Scheduled tab: radio column + content */
+    .alarm-scheduled-layout { display: flex; gap: 12px; align-items: flex-start; }
+    .alarm-mode-radios { display: flex; flex-direction: column; gap: 6px; padding-top: 2px; }
+    .alarm-mode-radios label { display: flex; align-items: center; gap: 5px; font-size: 0.78rem; color: var(--muted); cursor: pointer; white-space: nowrap; }
+    .alarm-mode-radios input[type="radio"] { accent-color: var(--accent); margin: 0; cursor: pointer; }
+    .alarm-scheduled-content { flex: 1; min-width: 0; }
+
+    /* Temporary tab: inline override controls */
+    .alarm-temp-content { font-size: 0.85rem; }
+    .alarm-temp-content .spo-grid { display: grid; grid-template-columns: 20px 1fr; gap: 0 12px; align-items: center; }
+    .alarm-temp-content .spo-radio-row { display: contents; cursor: pointer; }
+    .alarm-temp-content .spo-radio-row input[type="radio"] { accent-color: var(--accent); margin: 0; cursor: pointer; }
+    .alarm-temp-content .spo-time-cell { text-align: left; padding: 6px 0; font-size: 0.88rem; cursor: pointer; }
+    .alarm-temp-content .spo-days { display: block; font-size: 0.65rem; opacity: 0.4; margin-top: 1px; }
+    .alarm-temp-content .spo-slider-cell { display: flex; flex-direction: column; align-items: stretch; padding: 10px 0 4px; }
+    .alarm-temp-content .spo-slider-cell input[type="range"] { width: 100%; height: 4px; accent-color: var(--accent); }
+    .alarm-temp-content .spo-slider-cell .spo-slider-val { font-size: 0.75rem; opacity: 0.6; margin-top: 4px; }
+    .alarm-temp-content .spo-info { font-size: 0.85rem; color: var(--text); margin-bottom: 8px; }
+    .alarm-temp-apply-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 0.8rem; }
+    .alarm-temp-apply-row label { opacity: 0.7; }
+    .alarm-temp-apply-row input[type="date"] { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; color: var(--text); padding: 5px 6px; font-size: 0.8rem; height: 30px; box-sizing: border-box; }
+    .alarm-temp-apply-row button { padding: 5px 14px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.8rem; height: 30px; box-sizing: border-box; cursor: pointer; }
+    .alarm-temp-apply-row button:hover { background: rgba(255,255,255,0.08); }
+    .alarm-temp-apply-row button.primary { background: var(--accent); color: #000; border-color: var(--accent); }
+    .alarm-temp-apply-row button.primary:hover { opacity: 0.9; }
+    .alarm-temp-clear { margin-top: 8px; text-align: center; }
+    .alarm-temp-clear button { background: none; border: none; color: #ef4444; font-size: 0.75rem; cursor: pointer; opacity: 0.7; padding: 4px 8px; }
+    .alarm-temp-clear button:hover { opacity: 1; }
 
     /* Tune section — shared */
     .tune-card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 8px; overflow: hidden; font-size: 13px; }
@@ -646,37 +654,51 @@
             <span class="slider"></span>
           </label>
           <span class="wake-next-alarm" id="wake-next-alarm" style="margin-left:auto;"></span>
-          <span class="temp-alarm-badge" id="temp-alarm-badge" style="display:none;" onclick="event.stopPropagation(); openTempAlarmPopover(this)"></span>
         </div>
         <div class="wake-alarm-body" id="wake-alarm-body" style="display:none;">
-          <div class="wake-alarm-row">
-            <div class="wake-mode-btns">
-              <button class="wake-mode-btn active" id="wake-mode-rhythm" onclick="setWakeAlarmMode('rhythm')">Rhythm</button>
-              <button class="wake-mode-btn" id="wake-mode-custom" onclick="setWakeAlarmMode('custom')">Custom</button>
-            </div>
+          <div class="alarm-tab-bar">
+            <button class="alarm-tab-btn active" id="alarm-tab-scheduled" onclick="switchAlarmTab('scheduled')">Scheduled</button>
+            <button class="alarm-tab-btn" id="alarm-tab-temporary" onclick="switchAlarmTab('temporary')">Temporary</button>
           </div>
-          <div class="wake-day-bubbles" id="wake-alarm-days">
-            <div class="wake-day-col"><button class="wake-day-bubble" data-day="0" onclick="toggleWakeDay(this)">Mo</button><span class="wake-day-time" data-daytime="0"></span></div>
-            <div class="wake-day-col"><button class="wake-day-bubble" data-day="1" onclick="toggleWakeDay(this)">Tu</button><span class="wake-day-time" data-daytime="1"></span></div>
-            <div class="wake-day-col"><button class="wake-day-bubble" data-day="2" onclick="toggleWakeDay(this)">We</button><span class="wake-day-time" data-daytime="2"></span></div>
-            <div class="wake-day-col"><button class="wake-day-bubble" data-day="3" onclick="toggleWakeDay(this)">Th</button><span class="wake-day-time" data-daytime="3"></span></div>
-            <div class="wake-day-col"><button class="wake-day-bubble" data-day="4" onclick="toggleWakeDay(this)">Fr</button><span class="wake-day-time" data-daytime="4"></span></div>
-            <div class="wake-day-col"><button class="wake-day-bubble" data-day="5" onclick="toggleWakeDay(this)">Sa</button><span class="wake-day-time" data-daytime="5"></span></div>
-            <div class="wake-day-col"><button class="wake-day-bubble" data-day="6" onclick="toggleWakeDay(this)">Su</button><span class="wake-day-time" data-daytime="6"></span></div>
-          </div>
-          <div id="wake-rhythm-controls">
-            <div class="wake-alarm-row">
-              <div class="wake-offset-control">
-                <button class="wake-offset-btn" onclick="adjustWakeOffset(-5)">-</button>
-                <span class="wake-offset-value" id="wake-offset-value">0 min</span>
-                <button class="wake-offset-btn" onclick="adjustWakeOffset(5)">+</button>
+
+          <!-- Scheduled tab -->
+          <div id="alarm-tab-scheduled-content">
+            <div class="alarm-scheduled-layout">
+              <div class="alarm-mode-radios">
+                <label onclick="setWakeAlarmMode('rhythm')"><input type="radio" name="wake-mode" id="wake-mode-rhythm" checked> Rhythm</label>
+                <label onclick="setWakeAlarmMode('custom')"><input type="radio" name="wake-mode" id="wake-mode-custom"> Custom</label>
+              </div>
+              <div class="alarm-scheduled-content">
+                <div class="wake-day-bubbles" id="wake-alarm-days">
+                  <div class="wake-day-col"><button class="wake-day-bubble" data-day="0" onclick="toggleWakeDay(this)">Mo</button><span class="wake-day-time" data-daytime="0"></span></div>
+                  <div class="wake-day-col"><button class="wake-day-bubble" data-day="1" onclick="toggleWakeDay(this)">Tu</button><span class="wake-day-time" data-daytime="1"></span></div>
+                  <div class="wake-day-col"><button class="wake-day-bubble" data-day="2" onclick="toggleWakeDay(this)">We</button><span class="wake-day-time" data-daytime="2"></span></div>
+                  <div class="wake-day-col"><button class="wake-day-bubble" data-day="3" onclick="toggleWakeDay(this)">Th</button><span class="wake-day-time" data-daytime="3"></span></div>
+                  <div class="wake-day-col"><button class="wake-day-bubble" data-day="4" onclick="toggleWakeDay(this)">Fr</button><span class="wake-day-time" data-daytime="4"></span></div>
+                  <div class="wake-day-col"><button class="wake-day-bubble" data-day="5" onclick="toggleWakeDay(this)">Sa</button><span class="wake-day-time" data-daytime="5"></span></div>
+                  <div class="wake-day-col"><button class="wake-day-bubble" data-day="6" onclick="toggleWakeDay(this)">Su</button><span class="wake-day-time" data-daytime="6"></span></div>
+                </div>
+                <div id="wake-rhythm-controls">
+                  <div class="wake-alarm-row">
+                    <div class="wake-offset-control">
+                      <button class="wake-offset-btn" onclick="adjustWakeOffset(-5)">-</button>
+                      <span class="wake-offset-value" id="wake-offset-value">0 min</span>
+                      <button class="wake-offset-btn" onclick="adjustWakeOffset(5)">+</button>
+                    </div>
+                  </div>
+                </div>
+                <div id="wake-custom-controls" style="display:none;">
+                  <div class="wake-alarm-row">
+                    <input type="time" class="wake-time-input" id="wake-custom-time" value="07:00" onchange="saveWakeAlarmSettings()">
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-          <div id="wake-custom-controls" style="display:none;">
-            <div class="wake-alarm-row">
-              <input type="time" class="wake-time-input" id="wake-custom-time" value="07:00" onchange="saveWakeAlarmSettings()">
-            </div>
+
+          <!-- Temporary tab -->
+          <div id="alarm-tab-temporary-content" style="display:none;">
+            <div class="alarm-temp-content" id="alarm-temp-inner"></div>
           </div>
         </div>
       </div>
@@ -1773,7 +1795,6 @@
       }, 50);
       loadTuneSection();
       loadWakeAlarmSettings();
-      updateTempAlarmBadge();
     }
 
 
@@ -1921,7 +1942,7 @@
       if (areaZoneName) {
         metaRhythm.innerHTML = `<a href="${basePath}/zone/${encodeURIComponent(areaZoneName)}?back=area/${encodeURIComponent(selectedArea.area_id)}">${areaZoneName}</a>`;
         metaRhythm.style.display = '';
-        metaZone.textContent = 'Rhythm zone';
+        metaZone.textContent = 'zone';
         metaZone.style.display = '';
       } else {
         metaRhythm.innerHTML = '';
@@ -2894,8 +2915,8 @@
     }
 
     function setWakeAlarmModeUI(mode) {
-      document.getElementById('wake-mode-rhythm').classList.toggle('active', mode === 'rhythm');
-      document.getElementById('wake-mode-custom').classList.toggle('active', mode === 'custom');
+      document.getElementById('wake-mode-rhythm').checked = (mode === 'rhythm');
+      document.getElementById('wake-mode-custom').checked = (mode === 'custom');
       document.getElementById('wake-rhythm-controls').style.display = mode === 'rhythm' ? 'block' : 'none';
       document.getElementById('wake-custom-controls').style.display = mode === 'custom' ? 'block' : 'none';
     }
@@ -2998,113 +3019,130 @@
     }
 
     // ============================================================
-    // Temporary Alarm (Schedule Override)
+    // Alarm Tabs: Scheduled / Temporary
     // ============================================================
-    let tempAlarmPopoverOpen = false;
+    let currentAlarmTab = 'scheduled';
 
-    function updateTempAlarmBadge() {
-      const badge = document.getElementById('temp-alarm-badge');
-      if (!badge || !selectedArea) { if (badge) badge.style.display = 'none'; return; }
-      const zoneName = selectedArea.zone_name;
-      if (!zoneName) { badge.style.display = 'none'; return; }
-      const zoneData = cachedGlozones?.zones?.[zoneName];
-      const override = zoneData?.schedule_override;
-      if (!override) { badge.style.display = 'none'; return; }
-
-      let timeStr = '';
-      if (override.mode === 'main') timeStr = formatAlarmTime(zoneData.wake_time ?? 7);
-      else if (override.mode === 'alt' && zoneData.wake_alt_time != null) timeStr = formatAlarmTime(zoneData.wake_alt_time);
-      else if (override.mode === 'custom' && override.custom_wake != null) timeStr = formatAlarmTime(override.custom_wake);
-
-      badge.textContent = 'tmp ' + timeStr;
-      if (override.until_date) badge.textContent += ' \u2192 ' + override.until_date;
-      badge.style.display = '';
+    function switchAlarmTab(tab) {
+      currentAlarmTab = tab;
+      document.getElementById('alarm-tab-scheduled').classList.toggle('active', tab === 'scheduled');
+      document.getElementById('alarm-tab-temporary').classList.toggle('active', tab === 'temporary');
+      document.getElementById('alarm-tab-scheduled-content').style.display = tab === 'scheduled' ? '' : 'none';
+      document.getElementById('alarm-tab-temporary-content').style.display = tab === 'temporary' ? '' : 'none';
+      if (tab === 'temporary') renderTempAlarmTab();
     }
 
-    function openTempAlarmPopover(anchorEl) {
-      closeTempAlarmPopover();
-      if (!selectedArea) return;
-      const zoneName = selectedArea.zone_name;
-      if (!zoneName) return;
-      const zoneData = cachedGlozones?.zones?.[zoneName];
-      if (!zoneData) return;
+    function fmtRelativeDate(isoDateStr) {
+      const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+      const SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const target = new Date(isoDateStr + 'T00:00:00');
+      const today = new Date(); today.setHours(0,0,0,0);
+      const diff = Math.round((target - today) / 86400000);
+      if (diff <= 0) return 'today (' + SHORT[target.getDay()] + ')';
+      if (diff === 1) return 'tomorrow (' + SHORT[target.getDay()] + ')';
+      if (diff <= 5) return DAYS[target.getDay()];
+      return DAYS[target.getDay()] + ' (' + MONTHS[target.getMonth()] + ' ' + target.getDate() + ')';
+    }
 
-      tempAlarmPopoverOpen = true;
+    function renderTempAlarmTab() {
+      const container = document.getElementById('alarm-temp-inner');
+      if (!container || !selectedArea) return;
+      const zoneName = selectedArea.zone_name;
+      if (!zoneName) { container.innerHTML = ''; return; }
+      const zoneData = cachedGlozones?.zones?.[zoneName];
+      if (!zoneData) { container.innerHTML = ''; return; }
+
       const mainWake = zoneData.wake_time ?? 7;
       const altWake = zoneData.wake_alt_time;
       const hasAlt = altWake != null;
       const override = zoneData.schedule_override;
-      const currentMode = override?.mode || '';
 
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const untilDate = override?.until_date || tomorrow.toISOString().split('T')[0];
+      if (override) {
+        // Override active: show info + clear
+        let desc = '';
+        if (override.mode === 'main') desc = formatAlarmTime(mainWake);
+        else if (override.mode === 'alt' && altWake != null) desc = formatAlarmTime(altWake);
+        else if (override.mode === 'custom' && override.custom_wake != null) desc = formatAlarmTime(override.custom_wake);
+        else if (override.mode === 'off') desc = 'Suspended';
 
-      let customWake = override?.custom_wake ?? mainWake;
+        const untilStr = override.until_date ? ' through ' + fmtRelativeDate(override.until_date) : '';
 
-      const popover = document.createElement('div');
-      popover.className = 'schedule-popover';
-      popover.id = 'schedule-popover';
-      popover.onclick = (e) => e.stopPropagation();
+        container.innerHTML = `
+          <div class="spo-info">${desc}${untilStr}</div>
+          <div class="alarm-temp-clear"><button onclick="clearTempAlarm()">Clear</button></div>
+        `;
+      } else {
+        // No override: show selection form
+        const wakeAltDays = zoneData.wake_alt_days || [];
+        let nextIsPrimary = true;
+        if (hasAlt && wakeAltDays.length > 0) {
+          const now = new Date();
+          const currentHour = now.getHours() + now.getMinutes() / 60;
+          let checkDay = now.getDay() === 0 ? 6 : now.getDay() - 1;
+          const todayAlarm = wakeAltDays.includes(checkDay) ? altWake : mainWake;
+          if (currentHour >= todayAlarm) checkDay = (checkDay + 1) % 7;
+          nextIsPrimary = !wakeAltDays.includes(checkDay);
+        }
 
-      popover.innerHTML = `
-        <div class="schedule-popover-title">Temporary Alarm</div>
-        <div class="spo-grid">
-          <div class="spo-radio-row" onclick="document.getElementById('spo-main').checked=true">
-            <input type="radio" id="spo-main" name="spo-mode" value="main" ${currentMode === 'main' ? 'checked' : ''}>
-            <div class="spo-time-cell">${formatAlarmTime(mainWake)}<span class="spo-days">primary</span></div>
-          </div>
-          ${hasAlt ? `
-          <div class="spo-radio-row" onclick="document.getElementById('spo-alt').checked=true">
-            <input type="radio" id="spo-alt" name="spo-mode" value="alt" ${currentMode === 'alt' ? 'checked' : ''}>
-            <div class="spo-time-cell">${formatAlarmTime(altWake)}<span class="spo-days">secondary</span></div>
-          </div>` : ''}
-          <div class="spo-radio-row" onclick="document.getElementById('spo-custom').checked=true">
-            <input type="radio" id="spo-custom" name="spo-mode" value="custom" ${currentMode === 'custom' ? 'checked' : ''}>
-            <div class="spo-slider-cell">
-              <input type="range" id="spo-custom-wake" min="0" max="24" step="0.25" value="${customWake}">
-              <span class="spo-slider-val" id="spo-wake-display">${formatAlarmTime(customWake)}</span>
+        let otherTimeHtml = '';
+        if (hasAlt) {
+          if (nextIsPrimary) {
+            otherTimeHtml = `
+            <div class="spo-radio-row" onclick="document.getElementById('spo-alt').checked=true">
+              <input type="radio" id="spo-alt" name="spo-mode" value="alt">
+              <div class="spo-time-cell">${formatAlarmTime(altWake)}</div>
+            </div>`;
+          } else {
+            otherTimeHtml = `
+            <div class="spo-radio-row" onclick="document.getElementById('spo-main').checked=true">
+              <input type="radio" id="spo-main" name="spo-mode" value="main">
+              <div class="spo-time-cell">${formatAlarmTime(mainWake)}</div>
+            </div>`;
+          }
+        }
+
+        const customWake = mainWake;
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const untilDate = tomorrow.toISOString().split('T')[0];
+
+        container.innerHTML = `
+          <div class="spo-grid">
+            <div class="spo-radio-row" onclick="document.getElementById('spo-off').checked=true">
+              <input type="radio" id="spo-off" name="spo-mode" value="off">
+              <div class="spo-time-cell">Suspend</div>
+            </div>
+            ${otherTimeHtml}
+            <div class="spo-radio-row" onclick="document.getElementById('spo-custom').checked=true">
+              <input type="radio" id="spo-custom" name="spo-mode" value="custom">
+              <div class="spo-slider-cell">
+                <input type="range" id="spo-custom-wake" min="0" max="24" step="0.25" value="${customWake}">
+                <span class="spo-slider-val" id="spo-wake-display">${formatAlarmTime(customWake)}</span>
+              </div>
             </div>
           </div>
-        </div>
-        <div class="schedule-popover-apply-row">
-          <label>End on</label>
-          <input type="date" id="spo-until-date" value="${untilDate}">
-          <span style="flex:1;"></span>
-          <button class="primary" onclick="applyTempAlarm()">Apply</button>
-        </div>
-        ${override ? '<div class="schedule-popover-clear"><button onclick="clearTempAlarm()">Clear</button></div>' : ''}
-      `;
+          <div class="alarm-temp-apply-row">
+            <label>through</label>
+            <input type="date" id="spo-until-date" value="${untilDate}">
+            <span style="flex:1;"></span>
+            <button class="primary" onclick="applyTempAlarm()">Apply</button>
+          </div>
+        `;
 
-      document.body.appendChild(popover);
-
-      // Position relative to anchor
-      const rect = anchorEl.getBoundingClientRect();
-      const popW = popover.offsetWidth;
-      const popH = popover.offsetHeight;
-      let left = rect.left + rect.width / 2 - popW / 2;
-      let top = rect.bottom + 6;
-      if (left < 8) left = 8;
-      if (left + popW > window.innerWidth - 8) left = window.innerWidth - popW - 8;
-      if (top + popH > window.innerHeight - 8) top = rect.top - popH - 6;
-      popover.style.left = left + 'px';
-      popover.style.top = top + 'px';
-
-      const customWakeInput = document.getElementById('spo-custom-wake');
-      const wakeDisplay = document.getElementById('spo-wake-display');
-      const selectCustom = () => { document.getElementById('spo-custom').checked = true; };
-      customWakeInput.addEventListener('input', () => {
-        selectCustom();
-        wakeDisplay.textContent = formatAlarmTime(parseFloat(customWakeInput.value) % 24);
-      });
-      customWakeInput.addEventListener('mousedown', (e) => e.stopPropagation());
-      customWakeInput.addEventListener('pointerdown', (e) => { e.stopPropagation(); selectCustom(); });
-    }
-
-    function closeTempAlarmPopover() {
-      const existing = document.getElementById('schedule-popover');
-      if (existing) existing.remove();
-      tempAlarmPopoverOpen = false;
+        // Wire up custom slider
+        const customWakeInput = document.getElementById('spo-custom-wake');
+        if (customWakeInput) {
+          const wakeDisplay = document.getElementById('spo-wake-display');
+          const selectCustom = () => { document.getElementById('spo-custom').checked = true; };
+          customWakeInput.addEventListener('input', () => {
+            selectCustom();
+            wakeDisplay.textContent = formatAlarmTime(parseFloat(customWakeInput.value) % 24);
+          });
+          customWakeInput.addEventListener('mousedown', (e) => e.stopPropagation());
+          customWakeInput.addEventListener('pointerdown', (e) => { e.stopPropagation(); selectCustom(); });
+        }
+      }
     }
 
     async function applyTempAlarm() {
@@ -3131,10 +3169,9 @@
           body: JSON.stringify(body),
         });
         if (res.ok) {
-          closeTempAlarmPopover();
           const gzRes = await fetch(basePath + '/api/glozones');
           if (gzRes.ok) cachedGlozones = await gzRes.json();
-          updateTempAlarmBadge();
+          renderTempAlarmTab();
         }
       } catch (err) {
         console.error('Error applying temp alarm:', err);
@@ -3151,22 +3188,14 @@
           method: 'DELETE',
         });
         if (res.ok) {
-          closeTempAlarmPopover();
           const gzRes = await fetch(basePath + '/api/glozones');
           if (gzRes.ok) cachedGlozones = await gzRes.json();
-          updateTempAlarmBadge();
+          renderTempAlarmTab();
         }
       } catch (err) {
         console.error('Error clearing temp alarm:', err);
       }
     }
-
-    // Close popover on outside click
-    document.addEventListener('click', (e) => {
-      if (tempAlarmPopoverOpen && !e.target.closest('.schedule-popover') && !e.target.closest('.temp-alarm-badge')) {
-        closeTempAlarmPopover();
-      }
-    });
   </script>
 </body>
 </html>

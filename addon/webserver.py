@@ -5644,9 +5644,9 @@ class LightDesignerServer:
             name = request.match_info.get("name", "")
             data = await request.json()
             mode = data.get("mode")
-            if mode not in ("main", "alt", "custom"):
+            if mode not in ("main", "alt", "custom", "off"):
                 return web.json_response(
-                    {"error": "mode must be main, alt, or custom"}, status=400
+                    {"error": "mode must be main, alt, custom, or off"}, status=400
                 )
             override = {
                 "mode": mode,

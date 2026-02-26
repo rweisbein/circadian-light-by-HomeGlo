@@ -2047,6 +2047,19 @@
     }
 
     // Temporary Alarm popover
+    function fmtRelativeDate(isoDateStr) {
+      const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+      const SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const target = new Date(isoDateStr + 'T00:00:00');
+      const today = new Date(); today.setHours(0,0,0,0);
+      const diff = Math.round((target - today) / 86400000);
+      if (diff <= 0) return 'today (' + SHORT[target.getDay()] + ')';
+      if (diff === 1) return 'tomorrow (' + SHORT[target.getDay()] + ')';
+      if (diff <= 5) return DAYS[target.getDay()];
+      return DAYS[target.getDay()] + ' (' + MONTHS[target.getMonth()] + ' ' + target.getDate() + ')';
+    }
+
     let activePopoverZone = null;
 
     function openSchedulePopover(zoneName, anchorEl) {
@@ -2085,10 +2098,10 @@
         else if (override.mode === 'custom' && override.custom_wake != null) desc = fmtCompactTime(override.custom_wake);
         else if (override.mode === 'off') desc = 'Cancelled';
 
-        const untilStr = override.until_date ? ' until ' + override.until_date : '';
+        const untilStr = override.until_date ? ' through ' + fmtRelativeDate(override.until_date) : '';
 
         popover.innerHTML = `
-          <div class="schedule-popover-title">Temporary Alarm</div>
+          <div class="schedule-popover-title">Temporary light alarm</div>
           <div class="spo-info">${desc}${untilStr}</div>
           <div class="schedule-popover-clear"><button onclick="clearScheduleOverride()" title="Remove temporary alarm">Clear</button></div>
         `;
@@ -2132,11 +2145,11 @@
         let customWake = mainWake;
 
         popover.innerHTML = `
-          <div class="schedule-popover-title">Temporary Alarm</div>
+          <div class="schedule-popover-title">Temporary light alarm</div>
           <div class="spo-grid">
             <div class="spo-radio-row" onclick="document.getElementById('spo-off').checked=true">
               <input type="radio" id="spo-off" name="spo-mode" value="off">
-              <div class="spo-time-cell">Cancel alarm</div>
+              <div class="spo-time-cell">Suspend</div>
             </div>
             ${otherTimeHtml}
             <div class="spo-radio-row" onclick="document.getElementById('spo-custom').checked=true">
@@ -2148,7 +2161,7 @@
             </div>
           </div>
           <div class="schedule-popover-apply-row">
-            <label>End on</label>
+            <label>through</label>
             <input type="date" id="spo-until-date" value="${untilDate}">
             <span style="flex:1;"></span>
             <button class="primary" onclick="applyScheduleOverride()">Apply</button>
