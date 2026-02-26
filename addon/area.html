@@ -435,8 +435,8 @@
     .wake-day-bubbles { display: flex; gap: 6px; justify-content: center; margin-bottom: 10px; }
     .wake-day-col { display: flex; flex-direction: column; align-items: center; gap: 2px; }
     .wake-day-bubble { width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--line); background: transparent; color: var(--muted); font-size: 0.65rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; line-height: 1; transition: all 0.15s; }
-    .wake-day-bubble:hover { border-color: var(--muted); color: var(--text); }
-    .wake-day-bubble.active { background: var(--muted); border-color: var(--muted); color: #000; }
+    .wake-day-bubble:hover { border-color: var(--text); color: var(--text); }
+    .wake-day-bubble.active { background: #c8d0da; border-color: #c8d0da; color: #000; }
     .wake-day-time { font-size: 0.6rem; color: var(--muted2); height: 0.75rem; line-height: 0.75rem; font-variant-numeric: tabular-nums; }
     .wake-time-input { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; font-size: 0.85rem; outline: none; }
     .wake-time-input:focus { border-color: var(--accent); }
@@ -461,11 +461,11 @@
     .alarm-temp-content { font-size: 0.85rem; }
     .alarm-temp-content .spo-grid { display: grid; grid-template-columns: 20px 1fr; gap: 0 12px; align-items: center; }
     .alarm-temp-content .spo-radio-row { display: contents; cursor: pointer; }
-    .alarm-temp-content .spo-radio-row input[type="radio"] { accent-color: var(--accent); margin: 0; cursor: pointer; }
+    .alarm-temp-content .spo-radio-row input[type="radio"] { accent-color: var(--muted); margin: 0; cursor: pointer; }
     .alarm-temp-content .spo-time-cell { text-align: left; padding: 6px 0; font-size: 0.88rem; cursor: pointer; }
     .alarm-temp-content .spo-days { display: block; font-size: 0.65rem; opacity: 0.4; margin-top: 1px; }
     .alarm-temp-content .spo-slider-cell { display: flex; flex-direction: column; align-items: stretch; padding: 10px 0 4px; }
-    .alarm-temp-content .spo-slider-cell input[type="range"] { width: 100%; height: 4px; accent-color: var(--accent); }
+    .alarm-temp-content .spo-slider-cell input[type="range"] { width: 100%; height: 4px; accent-color: var(--muted); }
     .alarm-temp-content .spo-slider-cell .spo-slider-val { font-size: 0.75rem; opacity: 0.6; margin-top: 4px; }
     .alarm-temp-content .spo-info { font-size: 0.85rem; color: var(--text); margin-bottom: 8px; }
     .alarm-temp-apply-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 0.8rem; }
@@ -676,7 +676,7 @@
               <span class="wake-next-alarm" id="wake-next-alarm"></span>
             </span>
             <a id="wake-override-clear" href="#" onclick="event.preventDefault(); event.stopPropagation(); clearOverrideFromHeader();" style="display:none; font-size:0.65rem; color:var(--muted2); text-decoration:underline;">clear</a>
-            <a id="alarm-temp-override-link" href="#" onclick="event.preventDefault(); event.stopPropagation(); openAreaTempOverridePopup(this);" style="font-size:0.7rem; color:var(--muted2); text-decoration:underline;">temp override</a>
+            <a id="alarm-temp-override-link" href="#" onclick="event.preventDefault(); event.stopPropagation(); openAreaTempOverridePopup(this);" style="display:none; font-size:0.7rem; color:var(--muted2); text-decoration:underline;">temp override</a>
           </span>
         </div>
         <div class="wake-alarm-body" id="wake-alarm-body" style="display:none;">
@@ -2815,11 +2815,10 @@
       body.style.display = collapsed ? 'none' : 'block';
       chevron.classList.toggle('open', !collapsed);
       localStorage.setItem('wake_alarm_collapsed', collapsed ? 'true' : 'false');
-      // Update override clear visibility based on expand state
+      // Update override/link visibility based on expand state
       const zoneName = selectedArea?.zone_name;
       const hasOverride = !!(zoneName && cachedGlozones?.zones?.[zoneName]?.schedule_override);
-      const clearEl = document.getElementById('wake-override-clear');
-      if (clearEl) clearEl.style.display = (hasOverride && !collapsed) ? '' : 'none';
+      updateOverrideIndicator(hasOverride);
     }
 
     async function loadWakeAlarmSettings() {
@@ -2907,11 +2906,13 @@
     function updateOverrideIndicator(hasOverride) {
       const labelEl = document.getElementById('wake-override-label');
       const clearEl = document.getElementById('wake-override-clear');
+      const overrideLink = document.getElementById('alarm-temp-override-link');
+      const bodyVisible = document.getElementById('wake-alarm-body')?.style.display !== 'none';
       if (labelEl) labelEl.style.display = hasOverride ? '' : 'none';
-      if (clearEl) {
-        const bodyVisible = document.getElementById('wake-alarm-body')?.style.display !== 'none';
-        clearEl.style.display = (hasOverride && bodyVisible) ? '' : 'none';
-      }
+      if (clearEl) clearEl.style.display = (hasOverride && bodyVisible) ? '' : 'none';
+      // When override active: show only clear, no temp override link
+      // When no override: show link only if body is expanded
+      if (overrideLink) overrideLink.style.display = (!hasOverride && bodyVisible) ? '' : 'none';
     }
 
     async function clearOverrideFromHeader() {
@@ -3060,19 +3061,26 @@
       if (!alarmEnabled) { nextEl.textContent = ''; return; }
 
       const dayAbbrs = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      const monthAbbrs = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       const now = new Date();
       const jsToday = now.getDay(); // JS: Sun=0
       const pyToday = jsToday === 0 ? 6 : jsToday - 1; // Python: Mon=0
       const nowDecimal = now.getHours() + now.getMinutes() / 60.0;
 
-      for (let i = 0; i < 7; i++) {
+      for (let i = 0; i < 14; i++) {
         const pyDay = (pyToday + i) % 7;
         if (!activeDays.includes(pyDay)) continue;
         const t = getResolvedWakeTimeForDay(pyDay);
         if (t == null) continue;
         if (i === 0 && nowDecimal >= t) continue; // today but already passed
-        // Always show the day of week for the next alarm
-        nextEl.textContent = formatAlarmTime(t) + ' ' + dayAbbrs[pyDay];
+        if (i > 5) {
+          // More than 5 days out — show date
+          const alarmDate = new Date(now);
+          alarmDate.setDate(alarmDate.getDate() + i);
+          nextEl.textContent = formatAlarmTime(t) + ' ' + dayAbbrs[pyDay] + ' ' + monthAbbrs[alarmDate.getMonth()] + ' ' + alarmDate.getDate();
+        } else {
+          nextEl.textContent = formatAlarmTime(t) + ' ' + dayAbbrs[pyDay];
+        }
         return;
       }
       nextEl.textContent = '';
@@ -3196,7 +3204,7 @@
           }
         }
 
-        const customWake = mainWake;
+        const customWake = 0;
 
         popover.innerHTML = `
           <div class="schedule-popover-title">Temp alarm override</div>
@@ -3208,22 +3216,26 @@
             ${otherTimeHtml}
             <div class="spo-radio-row" onclick="document.getElementById('spo-custom').checked=true">
               <input type="radio" id="spo-custom" name="spo-mode" value="custom">
-              <div class="spo-slider-cell">
-                <input type="range" id="spo-custom-wake" min="0" max="24" step="0.25" value="${customWake}">
-                <span class="spo-slider-val" id="spo-wake-display">${formatAlarmTime(customWake)}</span>
+              <div class="spo-time-cell" style="display:flex; align-items:center; gap:8px;">
+                <span id="spo-wake-display">${formatAlarmTime(customWake)}</span>
+                <input type="range" id="spo-custom-wake" min="0" max="24" step="0.25" value="${customWake}" style="flex:1; height:4px; accent-color:var(--muted);">
               </div>
             </div>
           </div>
           <div class="schedule-popover-apply-row" style="flex-direction:column; align-items:stretch;">
-            <div class="spo-through-radios" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-              <label style="opacity:0.7;">through</label>
-              <label style="display:flex; align-items:center; gap:3px; cursor:pointer;"><input type="radio" name="spo-through" value="today" onchange="areaPopoverThroughChanged()"> today</label>
-              <label style="display:flex; align-items:center; gap:3px; cursor:pointer;"><input type="radio" name="spo-through" value="tomorrow" checked onchange="areaPopoverThroughChanged()"> tomorrow</label>
-              <label style="display:flex; align-items:center; gap:3px; cursor:pointer;"><input type="radio" name="spo-through" value="pick" onchange="areaPopoverThroughChanged()"> pick date</label>
-              <input type="date" id="spo-until-date" value="${untilDate}" style="display:none;">
+            <div class="spo-through-radios" style="display:flex; gap:12px;">
+              <div style="display:flex; flex-direction:column; gap:4px;">
+                <label style="opacity:0.7;">through:</label>
+                <label style="display:flex; align-items:center; gap:3px; cursor:pointer;"><input type="radio" name="spo-through" value="today" onchange="areaPopoverThroughChanged()"> today</label>
+                <label style="display:flex; align-items:center; gap:3px; cursor:pointer;"><input type="radio" name="spo-through" value="tomorrow" checked onchange="areaPopoverThroughChanged()"> tomorrow</label>
+                <label style="display:flex; align-items:center; gap:3px; cursor:pointer;"><input type="radio" name="spo-through" value="pick" onchange="areaPopoverThroughChanged()"> pick date</label>
+              </div>
+              <div style="display:flex; align-items:center;">
+                <input type="date" id="spo-until-date" value="${untilDate}" style="display:none;">
+              </div>
             </div>
-            <div style="display:flex; justify-content:flex-end; margin-top:8px;">
-              <button class="primary" onclick="applyTempAlarm()">Apply</button>
+            <div style="display:flex; justify-content:flex-end; margin-top:10px;">
+              <button class="primary" onclick="applyTempAlarm()">Save</button>
             </div>
           </div>
         `;

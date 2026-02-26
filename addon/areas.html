@@ -708,7 +708,7 @@
       cursor: pointer;
     }
     .spo-radio-row input[type="radio"] {
-      accent-color: var(--accent);
+      accent-color: var(--muted);
       margin: 0;
       cursor: pointer;
     }
@@ -729,7 +729,7 @@
     .spo-slider-cell input[type="range"] {
       width: 100%;
       height: 4px;
-      accent-color: var(--accent);
+      accent-color: var(--muted);
     }
     .spo-slider-cell .spo-slider-val {
       font-size: 0.75rem;
@@ -2143,7 +2143,7 @@
           }
         }
 
-        let customWake = mainWake;
+        let customWake = 0;
 
         popover.innerHTML = `
           <div class="schedule-popover-title">Temp alarm override</div>
@@ -2155,22 +2155,26 @@
             ${otherTimeHtml}
             <div class="spo-radio-row" onclick="document.getElementById('spo-custom').checked=true">
               <input type="radio" id="spo-custom" name="spo-mode" value="custom">
-              <div class="spo-slider-cell">
-                <input type="range" id="spo-custom-wake" min="0" max="24" step="0.25" value="${customWake}">
-                <span class="spo-slider-val" id="spo-wake-display">${fmtCompactTime(customWake)}</span>
+              <div class="spo-time-cell" style="display:flex; align-items:center; gap:8px;">
+                <span id="spo-wake-display">${fmtCompactTime(customWake)}</span>
+                <input type="range" id="spo-custom-wake" min="0" max="24" step="0.25" value="${customWake}" style="flex:1; height:4px; accent-color:var(--muted);">
               </div>
             </div>
           </div>
           <div class="schedule-popover-apply-row" style="flex-direction:column; align-items:stretch;">
-            <div class="spo-through-radios" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-              <label style="opacity:0.7;">through</label>
-              <label style="display:flex; align-items:center; gap:3px; cursor:pointer;"><input type="radio" name="spo-through" value="today" onchange="spoThroughChanged()"> today</label>
-              <label style="display:flex; align-items:center; gap:3px; cursor:pointer;"><input type="radio" name="spo-through" value="tomorrow" checked onchange="spoThroughChanged()"> tomorrow</label>
-              <label style="display:flex; align-items:center; gap:3px; cursor:pointer;"><input type="radio" name="spo-through" value="pick" onchange="spoThroughChanged()"> pick date</label>
-              <input type="date" id="spo-until-date" value="${untilDate}" style="display:none;">
+            <div class="spo-through-radios" style="display:flex; gap:12px;">
+              <div style="display:flex; flex-direction:column; gap:4px;">
+                <label style="opacity:0.7;">through:</label>
+                <label style="display:flex; align-items:center; gap:3px; cursor:pointer;"><input type="radio" name="spo-through" value="today" onchange="spoThroughChanged()"> today</label>
+                <label style="display:flex; align-items:center; gap:3px; cursor:pointer;"><input type="radio" name="spo-through" value="tomorrow" checked onchange="spoThroughChanged()"> tomorrow</label>
+                <label style="display:flex; align-items:center; gap:3px; cursor:pointer;"><input type="radio" name="spo-through" value="pick" onchange="spoThroughChanged()"> pick date</label>
+              </div>
+              <div style="display:flex; align-items:center;">
+                <input type="date" id="spo-until-date" value="${untilDate}" style="display:none;">
+              </div>
             </div>
-            <div style="display:flex; justify-content:flex-end; margin-top:8px;">
-              <button class="primary" onclick="applyScheduleOverride()">Apply</button>
+            <div style="display:flex; justify-content:flex-end; margin-top:10px;">
+              <button class="primary" onclick="applyScheduleOverride()">Save</button>
             </div>
           </div>
         `;

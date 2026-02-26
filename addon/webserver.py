@@ -3253,6 +3253,19 @@ class LightDesignerServer:
             if time_passed_today and fire_offset == 1:
                 # Tomorrow is the next occurrence and alarm fires tomorrow
                 day_label = ""
+            elif fire_offset > 5:
+                # More than 5 days out — include month + date
+                from datetime import timedelta
+
+                fire_date = today_date + timedelta(days=fire_offset)
+                month_abbrs = [
+                    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+                ]
+                day_label = (
+                    f"{day_abbrs[fire_day]} "
+                    f"{month_abbrs[fire_date.month - 1]} {fire_date.day}"
+                )
             else:
                 # The immediate next occurrence is being skipped
                 day_label = day_abbrs[fire_day]
