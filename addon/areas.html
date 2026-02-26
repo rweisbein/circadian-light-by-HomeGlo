@@ -712,6 +712,7 @@
       margin: 0;
       cursor: pointer;
     }
+    .spo-through-radios input[type="radio"] { accent-color: var(--muted); }
     .spo-time-cell {
       text-align: left;
       padding: 6px 0;
@@ -2096,12 +2097,12 @@
         if (override.mode === 'main') desc = fmtCompactTime(mainWake);
         else if (override.mode === 'alt' && altWake != null) desc = fmtCompactTime(altWake);
         else if (override.mode === 'custom' && override.custom_wake != null) desc = fmtCompactTime(override.custom_wake);
-        else if (override.mode === 'off') desc = 'suspended';
+        else if (override.mode === 'off') desc = 'paused';
 
         const untilStr = override.until_date ? ' through ' + fmtRelativeDate(override.until_date) : '';
 
         popover.innerHTML = `
-          <div class="schedule-popover-title">Temporary light alarm</div>
+          <div class="schedule-popover-title">Temp alarm override</div>
           <div class="spo-info">${desc}${untilStr}</div>
           <div class="schedule-popover-clear"><button onclick="clearScheduleOverride()" title="Remove temporary alarm">Clear</button></div>
         `;
@@ -2145,11 +2146,11 @@
         let customWake = mainWake;
 
         popover.innerHTML = `
-          <div class="schedule-popover-title">Temporary light alarm</div>
+          <div class="schedule-popover-title">Temp alarm override</div>
           <div class="spo-grid">
             <div class="spo-radio-row" onclick="document.getElementById('spo-off').checked=true">
               <input type="radio" id="spo-off" name="spo-mode" value="off">
-              <div class="spo-time-cell">suspend</div>
+              <div class="spo-time-cell">pause</div>
             </div>
             ${otherTimeHtml}
             <div class="spo-radio-row" onclick="document.getElementById('spo-custom').checked=true">
@@ -2160,11 +2161,17 @@
               </div>
             </div>
           </div>
-          <div class="schedule-popover-apply-row">
-            <label>through</label>
-            <input type="date" id="spo-until-date" value="${untilDate}">
-            <span style="flex:1;"></span>
-            <button class="primary" onclick="applyScheduleOverride()">Apply</button>
+          <div class="schedule-popover-apply-row" style="flex-direction:column; align-items:stretch;">
+            <div class="spo-through-radios" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+              <label style="opacity:0.7;">through</label>
+              <label style="display:flex; align-items:center; gap:3px; cursor:pointer;"><input type="radio" name="spo-through" value="today" onchange="spoThroughChanged()"> today</label>
+              <label style="display:flex; align-items:center; gap:3px; cursor:pointer;"><input type="radio" name="spo-through" value="tomorrow" checked onchange="spoThroughChanged()"> tomorrow</label>
+              <label style="display:flex; align-items:center; gap:3px; cursor:pointer;"><input type="radio" name="spo-through" value="pick" onchange="spoThroughChanged()"> pick date</label>
+              <input type="date" id="spo-until-date" value="${untilDate}" style="display:none;">
+            </div>
+            <div style="display:flex; justify-content:flex-end; margin-top:8px;">
+              <button class="primary" onclick="applyScheduleOverride()">Apply</button>
+            </div>
           </div>
         `;
       }
@@ -2203,6 +2210,23 @@
       const existing = document.getElementById('schedule-popover');
       if (existing) existing.remove();
       activePopoverZone = null;
+    }
+
+    function spoThroughChanged() {
+      const val = document.querySelector('input[name="spo-through"]:checked')?.value;
+      const datePicker = document.getElementById('spo-until-date');
+      if (!datePicker) return;
+      const today = new Date();
+      if (val === 'today') {
+        datePicker.value = today.toISOString().split('T')[0];
+        datePicker.style.display = 'none';
+      } else if (val === 'tomorrow') {
+        today.setDate(today.getDate() + 1);
+        datePicker.value = today.toISOString().split('T')[0];
+        datePicker.style.display = 'none';
+      } else {
+        datePicker.style.display = '';
+      }
     }
 
     async function applyScheduleOverride() {

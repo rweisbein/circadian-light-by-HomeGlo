@@ -424,19 +424,19 @@
     .wake-alarm-card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
     .wake-alarm-header { display: flex; align-items: center; gap: 8px; cursor: pointer; }
     .wake-alarm-title { font-size: 0.85rem; font-weight: 600; color: var(--text); }
-    .wake-alarm-toggle { position: relative; width: 40px; height: 22px; }
+    .wake-alarm-toggle { position: relative; width: 32px; height: 16px; }
     .wake-alarm-toggle input { opacity: 0; width: 0; height: 0; }
-    .wake-alarm-toggle .slider { position: absolute; inset: 0; background: var(--line); border-radius: 11px; cursor: pointer; transition: background 0.2s; }
-    .wake-alarm-toggle .slider::before { content: ''; position: absolute; left: 3px; top: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--muted); transition: all 0.2s; }
+    .wake-alarm-toggle .slider { position: absolute; inset: 0; background: var(--line); border-radius: 8px; cursor: pointer; transition: background 0.2s; }
+    .wake-alarm-toggle .slider::before { content: ''; position: absolute; left: 3px; top: 3px; width: 10px; height: 10px; border-radius: 50%; background: var(--muted); transition: all 0.2s; }
     .wake-alarm-toggle input:checked + .slider { background: var(--text); }
-    .wake-alarm-toggle input:checked + .slider::before { transform: translateX(18px); background: #000; }
+    .wake-alarm-toggle input:checked + .slider::before { transform: translateX(16px); background: #000; }
     .wake-alarm-body { margin-top: 12px; }
     .wake-alarm-row { display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
     .wake-day-bubbles { display: flex; gap: 6px; justify-content: center; margin-bottom: 10px; }
     .wake-day-col { display: flex; flex-direction: column; align-items: center; gap: 2px; }
     .wake-day-bubble { width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--line); background: transparent; color: var(--muted); font-size: 0.65rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; line-height: 1; transition: all 0.15s; }
-    .wake-day-bubble:hover { border-color: var(--accent); color: var(--text); }
-    .wake-day-bubble.active { background: var(--accent); border-color: var(--accent); color: #000; }
+    .wake-day-bubble:hover { border-color: var(--muted); color: var(--text); }
+    .wake-day-bubble.active { background: var(--muted); border-color: var(--muted); color: #000; }
     .wake-day-time { font-size: 0.6rem; color: var(--muted2); height: 0.75rem; line-height: 0.75rem; font-variant-numeric: tabular-nums; }
     .wake-time-input { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; font-size: 0.85rem; outline: none; }
     .wake-time-input:focus { border-color: var(--accent); }
@@ -449,16 +449,12 @@
     .wake-alarm-chevron.open { transform: rotate(90deg); }
     .tune-light-impact { font-size: 0.75rem; color: var(--muted2); white-space: nowrap; min-width: 2.5em; text-align: right; font-variant-numeric: tabular-nums; }
 
-    /* Alarm tab bar */
-    .alarm-tab-bar { display: flex; gap: 4px; margin-bottom: 10px; }
-    .alarm-tab-btn { padding: 4px 12px; border-radius: 6px; border: 1px solid var(--line); background: transparent; color: var(--muted); font-size: 0.75rem; cursor: pointer; transition: all 0.15s; }
-    .alarm-tab-btn.active { background: rgba(255,255,255,0.08); border-color: var(--muted); color: var(--text); }
 
     /* Scheduled tab: radio column + content */
     .alarm-scheduled-layout { display: flex; gap: 12px; align-items: flex-start; }
     .alarm-mode-radios { display: flex; flex-direction: column; gap: 6px; padding-top: 2px; }
     .alarm-mode-radios label { display: flex; align-items: center; gap: 5px; font-size: 0.78rem; color: var(--muted); cursor: pointer; white-space: nowrap; }
-    .alarm-mode-radios input[type="radio"] { accent-color: var(--accent); margin: 0; cursor: pointer; }
+    .alarm-mode-radios input[type="radio"] { accent-color: var(--muted); margin: 0; cursor: pointer; }
     .alarm-scheduled-content { flex: 1; min-width: 0; }
 
     /* Temporary tab: inline override controls */
@@ -482,6 +478,27 @@
     .alarm-temp-clear { margin-top: 8px; text-align: center; }
     .alarm-temp-clear button { background: none; border: none; color: #ef4444; font-size: 0.75rem; cursor: pointer; opacity: 0.7; padding: 4px 8px; }
     .alarm-temp-clear button:hover { opacity: 1; }
+
+    /* Temp override popover (area detail page) */
+    .area-override-popover { position: fixed; z-index: 200; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px; min-width: 240px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+    .area-override-popover .spo-grid { display: grid; grid-template-columns: 20px 1fr; gap: 0 12px; align-items: center; }
+    .area-override-popover .spo-radio-row { display: contents; cursor: pointer; }
+    .area-override-popover .spo-radio-row input[type="radio"] { accent-color: var(--muted); margin: 0; cursor: pointer; }
+    .area-override-popover .spo-time-cell { text-align: left; padding: 6px 0; font-size: 0.88rem; cursor: pointer; }
+    .area-override-popover .spo-slider-cell { display: flex; flex-direction: column; align-items: stretch; padding: 10px 0 4px; }
+    .area-override-popover .spo-slider-cell input[type="range"] { width: 100%; height: 4px; accent-color: var(--muted); }
+    .area-override-popover .spo-slider-cell .spo-slider-val { font-size: 0.75rem; opacity: 0.6; margin-top: 4px; }
+    .area-override-popover .spo-through-radios input[type="radio"] { accent-color: var(--muted); }
+    .area-override-popover .spo-info { font-size: 0.9rem; font-weight: 600; padding: 6px 0; text-align: center; }
+    .area-override-popover .schedule-popover-title { font-size: 0.8rem; font-weight: 600; margin-bottom: 8px; color: var(--text); }
+    .area-override-popover .schedule-popover-clear { margin-top: 8px; text-align: center; }
+    .area-override-popover .schedule-popover-clear button { background: none; border: none; color: #ef4444; font-size: 0.75rem; cursor: pointer; opacity: 0.7; padding: 4px 8px; }
+    .area-override-popover .schedule-popover-clear button:hover { opacity: 1; }
+    .area-override-popover .schedule-popover-apply-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 0.8rem; }
+    .area-override-popover .schedule-popover-apply-row button { padding: 5px 14px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.8rem; height: 30px; box-sizing: border-box; cursor: pointer; }
+    .area-override-popover .schedule-popover-apply-row button:hover { background: rgba(255,255,255,0.08); }
+    .area-override-popover .schedule-popover-apply-row button.primary { background: var(--accent); color: #000; border-color: var(--accent); }
+    .area-override-popover .schedule-popover-apply-row button.primary:hover { opacity: 0.9; }
 
     /* Tune section — shared */
     .tune-card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 8px; overflow: hidden; font-size: 13px; }
@@ -653,16 +670,19 @@
             <input type="checkbox" id="wake-alarm-enabled" onchange="saveWakeAlarmSettings()">
             <span class="slider"></span>
           </label>
-          <span class="wake-next-alarm" id="wake-next-alarm" style="margin-left:auto;"></span>
+          <span style="margin-left:auto; display:flex; flex-direction:column; align-items:flex-end;">
+            <span style="display:flex; align-items:center; gap:6px;">
+              <span id="wake-override-label" style="display:none; font-size:0.7rem; color:var(--muted); font-weight:400;">override</span>
+              <span class="wake-next-alarm" id="wake-next-alarm"></span>
+            </span>
+            <a id="wake-override-clear" href="#" onclick="event.preventDefault(); event.stopPropagation(); clearOverrideFromHeader();" style="display:none; font-size:0.65rem; color:var(--muted2); text-decoration:underline;">clear</a>
+            <a id="alarm-temp-override-link" href="#" onclick="event.preventDefault(); event.stopPropagation(); openAreaTempOverridePopup(this);" style="font-size:0.7rem; color:var(--muted2); text-decoration:underline;">temp override</a>
+          </span>
         </div>
         <div class="wake-alarm-body" id="wake-alarm-body" style="display:none;">
-          <div class="alarm-tab-bar">
-            <button class="alarm-tab-btn active" id="alarm-tab-scheduled" onclick="switchAlarmTab('scheduled')">Scheduled</button>
-            <button class="alarm-tab-btn" id="alarm-tab-temporary" onclick="switchAlarmTab('temporary')">Temporary</button>
-          </div>
+          <div style="font-size:0.75rem; font-weight:500; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px;">Schedule</div>
 
-          <!-- Scheduled tab -->
-          <div id="alarm-tab-scheduled-content">
+          <div>
             <div class="alarm-scheduled-layout">
               <div class="alarm-mode-radios">
                 <label onclick="setWakeAlarmMode('rhythm')"><input type="radio" name="wake-mode" id="wake-mode-rhythm" checked> Rhythm</label>
@@ -696,10 +716,6 @@
             </div>
           </div>
 
-          <!-- Temporary tab -->
-          <div id="alarm-tab-temporary-content" style="display:none;">
-            <div class="alarm-temp-content" id="alarm-temp-inner"></div>
-          </div>
         </div>
       </div>
     </div>
@@ -2799,6 +2815,11 @@
       body.style.display = collapsed ? 'none' : 'block';
       chevron.classList.toggle('open', !collapsed);
       localStorage.setItem('wake_alarm_collapsed', collapsed ? 'true' : 'false');
+      // Update override clear visibility based on expand state
+      const zoneName = selectedArea?.zone_name;
+      const hasOverride = !!(zoneName && cachedGlozones?.zones?.[zoneName]?.schedule_override);
+      const clearEl = document.getElementById('wake-override-clear');
+      if (clearEl) clearEl.style.display = (hasOverride && !collapsed) ? '' : 'none';
     }
 
     async function loadWakeAlarmSettings() {
@@ -2850,12 +2871,6 @@
 
         showResolvedWakeTime();
 
-        // Default to Temporary tab when override is active
-        const zoneName = selectedArea.zone_name;
-        if (zoneName && cachedGlozones?.zones?.[zoneName]?.schedule_override) {
-          switchAlarmTab('temporary');
-        }
-
         // Fetch backend next_wake_alarm (accounts for overrides)
         fetchNextWakeAlarm();
       } catch (err) {
@@ -2873,16 +2888,35 @@
         const nextEl = document.getElementById('wake-next-alarm');
         if (!nextEl) return;
         const alarmEnabled = document.getElementById('wake-alarm-enabled')?.checked;
-        if (!alarmEnabled) { nextEl.textContent = ''; return; }
+        if (!alarmEnabled) { nextEl.textContent = ''; updateOverrideIndicator(false); return; }
         const nwa = status?.next_wake_alarm;
         if (nwa) {
           nextEl.textContent = nwa.time + (nwa.day ? ' ' + nwa.day : '');
         } else {
           nextEl.textContent = '';
         }
+        // Check for override
+        const zoneName = selectedArea?.zone_name;
+        const hasOverride = !!(zoneName && cachedGlozones?.zones?.[zoneName]?.schedule_override);
+        updateOverrideIndicator(hasOverride);
       } catch (err) {
         // fall back to client-side display (already set by showResolvedWakeTime)
       }
+    }
+
+    function updateOverrideIndicator(hasOverride) {
+      const labelEl = document.getElementById('wake-override-label');
+      const clearEl = document.getElementById('wake-override-clear');
+      if (labelEl) labelEl.style.display = hasOverride ? '' : 'none';
+      if (clearEl) {
+        const bodyVisible = document.getElementById('wake-alarm-body')?.style.display !== 'none';
+        clearEl.style.display = (hasOverride && bodyVisible) ? '' : 'none';
+      }
+    }
+
+    async function clearOverrideFromHeader() {
+      await clearTempAlarm();
+      updateOverrideIndicator(false);
     }
 
     async function saveWakeAlarmSettings() {
@@ -3050,20 +3084,6 @@
       return String(hrs).padStart(2, '0') + ':' + String(mins).padStart(2, '0');
     }
 
-    // ============================================================
-    // Alarm Tabs: Scheduled / Temporary
-    // ============================================================
-    let currentAlarmTab = 'scheduled';
-
-    function switchAlarmTab(tab) {
-      currentAlarmTab = tab;
-      document.getElementById('alarm-tab-scheduled').classList.toggle('active', tab === 'scheduled');
-      document.getElementById('alarm-tab-temporary').classList.toggle('active', tab === 'temporary');
-      document.getElementById('alarm-tab-scheduled-content').style.display = tab === 'scheduled' ? '' : 'none';
-      document.getElementById('alarm-tab-temporary-content').style.display = tab === 'temporary' ? '' : 'none';
-      if (tab === 'temporary') renderTempAlarmTab();
-    }
-
     function fmtRelativeDate(isoDateStr) {
       const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
       const SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -3077,35 +3097,77 @@
       return DAYS[target.getDay()] + ' (' + MONTHS[target.getMonth()] + ' ' + target.getDate() + ')';
     }
 
-    function renderTempAlarmTab() {
-      const container = document.getElementById('alarm-temp-inner');
-      if (!container || !selectedArea) return;
+    async function applyTempAlarm() {
+      if (!selectedArea) return;
       const zoneName = selectedArea.zone_name;
-      if (!zoneName) { container.innerHTML = ''; return; }
+      if (!zoneName) return;
+
+      const mode = document.querySelector('input[name="spo-mode"]:checked')?.value;
+      if (!mode) return;
+
+      const body = {
+        mode: mode,
+        until_date: document.getElementById('spo-until-date').value,
+        until_event: 'wake',
+      };
+      if (mode === 'custom') {
+        body.custom_wake = parseFloat(document.getElementById('spo-custom-wake').value) % 24;
+      }
+
+      try {
+        const res = await fetch(basePath + '/api/glozones/' + encodeURIComponent(zoneName) + '/schedule-override', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (res.ok) {
+          const gzRes = await fetch(basePath + '/api/glozones');
+          if (gzRes.ok) cachedGlozones = await gzRes.json();
+          closeAreaTempOverridePopup();
+          fetchNextWakeAlarm();
+        }
+      } catch (err) {
+        console.error('Error applying temp alarm:', err);
+      }
+    }
+
+    function openAreaTempOverridePopup(anchorEl) {
+      closeAreaTempOverridePopup();
+      if (!selectedArea) return;
+      const zoneName = selectedArea.zone_name;
+      if (!zoneName) return;
       const zoneData = cachedGlozones?.zones?.[zoneName];
-      if (!zoneData) { container.innerHTML = ''; return; }
+      if (!zoneData) return;
 
       const mainWake = zoneData.wake_time ?? 7;
       const altWake = zoneData.wake_alt_time;
       const hasAlt = altWake != null;
       const override = zoneData.schedule_override;
 
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const untilDate = tomorrow.toISOString().split('T')[0];
+
+      const popover = document.createElement('div');
+      popover.className = 'area-override-popover';
+      popover.id = 'area-override-popover';
+      popover.onclick = (e) => e.stopPropagation();
+
       if (override) {
-        // Override active: show info + clear
         let desc = '';
         if (override.mode === 'main') desc = formatAlarmTime(mainWake);
         else if (override.mode === 'alt' && altWake != null) desc = formatAlarmTime(altWake);
         else if (override.mode === 'custom' && override.custom_wake != null) desc = formatAlarmTime(override.custom_wake);
-        else if (override.mode === 'off') desc = 'suspended';
+        else if (override.mode === 'off') desc = 'paused';
 
         const untilStr = override.until_date ? ' through ' + fmtRelativeDate(override.until_date) : '';
 
-        container.innerHTML = `
+        popover.innerHTML = `
+          <div class="schedule-popover-title">Temp alarm override</div>
           <div class="spo-info">${desc}${untilStr}</div>
-          <div class="alarm-temp-clear"><button onclick="clearTempAlarm()">Clear</button></div>
+          <div class="schedule-popover-clear"><button onclick="clearTempAlarm()">Clear</button></div>
         `;
       } else {
-        // No override: show selection form
         const wakeAltDays = zoneData.wake_alt_days || [];
         let nextIsPrimary = true;
         if (hasAlt && wakeAltDays.length > 0) {
@@ -3135,15 +3197,13 @@
         }
 
         const customWake = mainWake;
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        const untilDate = tomorrow.toISOString().split('T')[0];
 
-        container.innerHTML = `
+        popover.innerHTML = `
+          <div class="schedule-popover-title">Temp alarm override</div>
           <div class="spo-grid">
             <div class="spo-radio-row" onclick="document.getElementById('spo-off').checked=true">
               <input type="radio" id="spo-off" name="spo-mode" value="off">
-              <div class="spo-time-cell">suspend</div>
+              <div class="spo-time-cell">pause</div>
             </div>
             ${otherTimeHtml}
             <div class="spo-radio-row" onclick="document.getElementById('spo-custom').checked=true">
@@ -3154,60 +3214,81 @@
               </div>
             </div>
           </div>
-          <div class="alarm-temp-apply-row">
-            <label>through</label>
-            <input type="date" id="spo-until-date" value="${untilDate}">
-            <span style="flex:1;"></span>
-            <button class="primary" onclick="applyTempAlarm()">Apply</button>
+          <div class="schedule-popover-apply-row" style="flex-direction:column; align-items:stretch;">
+            <div class="spo-through-radios" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+              <label style="opacity:0.7;">through</label>
+              <label style="display:flex; align-items:center; gap:3px; cursor:pointer;"><input type="radio" name="spo-through" value="today" onchange="areaPopoverThroughChanged()"> today</label>
+              <label style="display:flex; align-items:center; gap:3px; cursor:pointer;"><input type="radio" name="spo-through" value="tomorrow" checked onchange="areaPopoverThroughChanged()"> tomorrow</label>
+              <label style="display:flex; align-items:center; gap:3px; cursor:pointer;"><input type="radio" name="spo-through" value="pick" onchange="areaPopoverThroughChanged()"> pick date</label>
+              <input type="date" id="spo-until-date" value="${untilDate}" style="display:none;">
+            </div>
+            <div style="display:flex; justify-content:flex-end; margin-top:8px;">
+              <button class="primary" onclick="applyTempAlarm()">Apply</button>
+            </div>
           </div>
         `;
+      }
 
-        // Wire up custom slider
-        const customWakeInput = document.getElementById('spo-custom-wake');
-        if (customWakeInput) {
-          const wakeDisplay = document.getElementById('spo-wake-display');
-          const selectCustom = () => { document.getElementById('spo-custom').checked = true; };
-          customWakeInput.addEventListener('input', () => {
-            selectCustom();
-            wakeDisplay.textContent = formatAlarmTime(parseFloat(customWakeInput.value) % 24);
-          });
-          customWakeInput.addEventListener('mousedown', (e) => e.stopPropagation());
-          customWakeInput.addEventListener('pointerdown', (e) => { e.stopPropagation(); selectCustom(); });
-        }
+      document.body.appendChild(popover);
+
+      // Position relative to anchor
+      const rect = anchorEl.getBoundingClientRect();
+      const popW = popover.offsetWidth;
+      const popH = popover.offsetHeight;
+      let left = rect.left + rect.width / 2 - popW / 2;
+      let top = rect.bottom + 6;
+      if (left < 8) left = 8;
+      if (left + popW > window.innerWidth - 8) left = window.innerWidth - popW - 8;
+      if (top + popH > window.innerHeight - 8) top = rect.top - popH - 6;
+      popover.style.left = left + 'px';
+      popover.style.top = top + 'px';
+
+      // Wire up custom slider
+      const customWakeInput = document.getElementById('spo-custom-wake');
+      if (customWakeInput) {
+        const wakeDisplay = document.getElementById('spo-wake-display');
+        const selectCustom = () => { document.getElementById('spo-custom').checked = true; };
+        customWakeInput.addEventListener('input', () => {
+          selectCustom();
+          wakeDisplay.textContent = formatAlarmTime(parseFloat(customWakeInput.value) % 24);
+        });
+        customWakeInput.addEventListener('mousedown', (e) => e.stopPropagation());
+        customWakeInput.addEventListener('pointerdown', (e) => { e.stopPropagation(); selectCustom(); });
+      }
+
+      // Close on outside click
+      setTimeout(() => {
+        document.addEventListener('click', closeAreaTempOverridePopupOnOutsideClick);
+      }, 0);
+    }
+
+    function closeAreaTempOverridePopup() {
+      const existing = document.getElementById('area-override-popover');
+      if (existing) existing.remove();
+      document.removeEventListener('click', closeAreaTempOverridePopupOnOutsideClick);
+    }
+
+    function closeAreaTempOverridePopupOnOutsideClick(e) {
+      const popover = document.getElementById('area-override-popover');
+      if (popover && !popover.contains(e.target)) {
+        closeAreaTempOverridePopup();
       }
     }
 
-    async function applyTempAlarm() {
-      if (!selectedArea) return;
-      const zoneName = selectedArea.zone_name;
-      if (!zoneName) return;
-
-      const mode = document.querySelector('input[name="spo-mode"]:checked')?.value;
-      if (!mode) return;
-
-      const body = {
-        mode: mode,
-        until_date: document.getElementById('spo-until-date').value,
-        until_event: 'wake',
-      };
-      if (mode === 'custom') {
-        body.custom_wake = parseFloat(document.getElementById('spo-custom-wake').value) % 24;
-      }
-
-      try {
-        const res = await fetch(basePath + '/api/glozones/' + encodeURIComponent(zoneName) + '/schedule-override', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        });
-        if (res.ok) {
-          const gzRes = await fetch(basePath + '/api/glozones');
-          if (gzRes.ok) cachedGlozones = await gzRes.json();
-          renderTempAlarmTab();
-          fetchNextWakeAlarm();
-        }
-      } catch (err) {
-        console.error('Error applying temp alarm:', err);
+    function areaPopoverThroughChanged() {
+      const val = document.querySelector('input[name="spo-through"]:checked')?.value;
+      const datePicker = document.getElementById('spo-until-date');
+      if (!datePicker) return;
+      const today = new Date();
+      if (val === 'today') {
+        datePicker.value = today.toISOString().split('T')[0];
+        datePicker.style.display = 'none';
+      } else if (val === 'tomorrow') {
+        today.setDate(today.getDate() + 1);
+        datePicker.value = today.toISOString().split('T')[0];
+        datePicker.style.display = 'none';
+      } else {
+        datePicker.style.display = '';
       }
     }
 
@@ -3223,7 +3304,7 @@
         if (res.ok) {
           const gzRes = await fetch(basePath + '/api/glozones');
           if (gzRes.ok) cachedGlozones = await gzRes.json();
-          renderTempAlarmTab();
+          closeAreaTempOverridePopup();
           fetchNextWakeAlarm();
         }
       } catch (err) {

@@ -4140,7 +4140,27 @@ function updateSleepCardSummaries() {
     const hasAlt = altDays.length > 0;
 
     // Card time (show the relevant time for today/next)
-    const timeVal = prefix === 'wake' ? config.wake_time : config.bed_time;
+    const p = phase[prefix];
+    const primaryTime = prefix === 'wake' ? config.wake_time : config.bed_time;
+    const altTimeVal = prefix === 'wake' ? config.wake_alt_time : config.bed_alt_time;
+    const altDaysCfg = prefix === 'wake' ? (config.wake_alt_days || []) : (config.bed_alt_days || []);
+    let timeVal = primaryTime;
+
+    if (altTimeVal != null && altDaysCfg.length > 0) {
+      const jsToday = new Date().getDay();
+      const pyToday = jsToday === 0 ? 6 : jsToday - 1;
+      if (p === 'current') {
+        if (altDaysCfg.includes(pyToday)) timeVal = altTimeVal;
+      } else {
+        const nowDecimal = new Date().getHours() + new Date().getMinutes() / 60;
+        let startOffset = 1;
+        if (prefix === 'bed' && nowDecimal < (config.descend_start || 20)) startOffset = 0;
+        if (prefix === 'wake' && nowDecimal < (config.ascend_start || 6)) startOffset = 0;
+        const checkDay = (pyToday + startOffset) % 7;
+        if (altDaysCfg.includes(checkDay)) timeVal = altTimeVal;
+      }
+    }
+
     const cardTime = document.getElementById(`${prefix}-card-time`);
     if (cardTime) cardTime.textContent = formatHour(timeVal);
 
