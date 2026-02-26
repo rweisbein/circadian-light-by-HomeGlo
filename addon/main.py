@@ -2591,6 +2591,14 @@ class HomeAssistantWebSocketClient:
                     logger.info(
                         f"Natural light: {original_bri}% -> {brightness}% (exposure={natural_exposure}, outdoor_norm={outdoor_norm:.3f}, sensitivity={brightness_sensitivity})"
                     )
+            elif log_periodic:
+                logger.info(
+                    f"Natural light: no reduction for {area_id} (exposure={natural_exposure}, outdoor_norm={outdoor_norm:.3f}, nl_factor={nl_factor:.3f})"
+                )
+        elif log_periodic and brightness is not None:
+            logger.info(
+                f"Natural light: skipped for {area_id} (exposure={natural_exposure})"
+            )
 
         # Check if light filters are active for this area
         area_filters = glozone.get_area_light_filters(area_id)
