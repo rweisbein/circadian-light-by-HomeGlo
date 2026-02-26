@@ -155,6 +155,52 @@ def init(config: Optional[dict] = None):
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
+
+def reload_config(config: Optional[dict] = None):
+    """Re-read config-driven settings without resetting runtime state.
+
+    Updates preferred source, sensor entity, smoothing interval, and
+    learned baselines from config.  Does NOT touch accumulated runtime
+    state (_ema_lux, _cloud_cover, _weather_condition, _sun_elevation, etc.).
+    """
+    global _sensor_entity, _smoothing_interval, _learned_ceiling, _learned_floor
+    global _preferred_source
+
+    if config is None:
+        config = glozone.load_config_from_files()
+
+    _sensor_entity = config.get("outdoor_lux_sensor") or None
+    _smoothing_interval = float(config.get("lux_smoothing_interval", 300))
+
+    ceiling = config.get("lux_learned_ceiling")
+    floor = config.get("lux_learned_floor")
+    if ceiling is not None:
+        try:
+            _learned_ceiling = float(ceiling)
+        except (ValueError, TypeError):
+            pass
+    if floor is not None:
+        try:
+            _learned_floor = float(floor)
+        except (ValueError, TypeError):
+            pass
+
+    if "outdoor_brightness_source" in config:
+        _preferred_source = config["outdoor_brightness_source"]
+    elif _sensor_entity:
+        _preferred_source = "lux"
+    else:
+        _preferred_source = "weather"
+
+    logger.info(
+        f"Lux tracker config reloaded: source={_preferred_source}, "
+        f"sensor={_sensor_entity}, "
+        f"smoothing={_smoothing_interval}s, "
+        f"ceiling={_learned_ceiling}, floor={_learned_floor}"
+    )
+
+
 def set_learned_baselines(ceiling: float, floor: float) -> None:
     """Update in-memory learned baselines (call after saving to config)."""
     global _learned_ceiling, _learned_floor
