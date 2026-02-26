@@ -2143,33 +2143,33 @@
           }
         }
 
-        let customWake = 0;
+        let customWake = 12;
 
         popover.innerHTML = `
           <div class="schedule-popover-title">Temp alarm override</div>
           <div class="spo-grid">
             <div class="spo-radio-row" onclick="document.getElementById('spo-off').checked=true">
               <input type="radio" id="spo-off" name="spo-mode" value="off">
-              <div class="spo-time-cell">pause</div>
+              <div class="spo-time-cell">pause (no alarm)</div>
             </div>
             ${otherTimeHtml}
             <div class="spo-radio-row" onclick="document.getElementById('spo-custom').checked=true">
               <input type="radio" id="spo-custom" name="spo-mode" value="custom">
               <div class="spo-time-cell" style="display:flex; align-items:center; gap:8px;">
-                <span id="spo-wake-display">${fmtCompactTime(customWake)}</span>
+                <span id="spo-wake-display" style="min-width:3.5em;">${fmtCompactTime(customWake)}</span>
                 <input type="range" id="spo-custom-wake" min="0" max="24" step="0.25" value="${customWake}" style="flex:1; height:4px; accent-color:var(--muted);">
               </div>
             </div>
           </div>
           <div class="schedule-popover-apply-row" style="flex-direction:column; align-items:stretch;">
             <div class="spo-through-radios" style="display:flex; gap:12px;">
-              <div style="display:flex; flex-direction:column; gap:4px;">
-                <label style="opacity:0.7;">through:</label>
-                <label style="display:flex; align-items:center; gap:3px; cursor:pointer;"><input type="radio" name="spo-through" value="today" onchange="spoThroughChanged()"> today</label>
-                <label style="display:flex; align-items:center; gap:3px; cursor:pointer;"><input type="radio" name="spo-through" value="tomorrow" checked onchange="spoThroughChanged()"> tomorrow</label>
-                <label style="display:flex; align-items:center; gap:3px; cursor:pointer;"><input type="radio" name="spo-through" value="pick" onchange="spoThroughChanged()"> pick date</label>
+              <div style="display:flex; flex-direction:column; gap:6px;">
+                <span style="opacity:0.7;">through:</span>
+                <label style="display:flex; align-items:center; gap:3px; cursor:pointer; padding-left:6px;"><input type="radio" name="spo-through" value="today" onchange="spoThroughChanged()"> today</label>
+                <label style="display:flex; align-items:center; gap:3px; cursor:pointer; padding-left:6px;"><input type="radio" name="spo-through" value="tomorrow" checked onchange="spoThroughChanged()"> tomorrow</label>
+                <label style="display:flex; align-items:center; gap:3px; cursor:pointer; padding-left:6px;"><input type="radio" name="spo-through" value="pick" onchange="spoThroughChanged()"> pick date</label>
               </div>
-              <div style="display:flex; align-items:center;">
+              <div style="display:flex; align-items:flex-end;">
                 <input type="date" id="spo-until-date" value="${untilDate}" style="display:none;">
               </div>
             </div>

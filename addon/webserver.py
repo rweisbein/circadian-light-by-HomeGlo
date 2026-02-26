@@ -3244,31 +3244,23 @@ class LightDesignerServer:
         # If the alarm actually fires on that day → no day label needed.
         # Otherwise show the abbreviated day name so the user sees it's deferred.
         if fire_offset == 0:
-            # Fires today (time hasn't passed) — this IS the next occurrence
-            day_label = ""
-        else:
-            # Time already passed today, or today isn't scheduled.
-            # The next chronological occurrence is tomorrow.
-            time_passed_today = now_decimal >= (get_alarm_time_for_day(today_wd) or 0)
-            if time_passed_today and fire_offset == 1:
-                # Tomorrow is the next occurrence and alarm fires tomorrow
-                day_label = ""
-            elif fire_offset > 5:
-                # More than 5 days out — include month + date
-                from datetime import timedelta
+            day_label = "today"
+        elif fire_offset == 1:
+            day_label = f"tomorrow ({day_abbrs[fire_day]})"
+        elif fire_offset > 5:
+            from datetime import timedelta
 
-                fire_date = today_date + timedelta(days=fire_offset)
-                month_abbrs = [
-                    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-                ]
-                day_label = (
-                    f"{day_abbrs[fire_day]} "
-                    f"{month_abbrs[fire_date.month - 1]} {fire_date.day}"
-                )
-            else:
-                # The immediate next occurrence is being skipped
-                day_label = day_abbrs[fire_day]
+            fire_date = today_date + timedelta(days=fire_offset)
+            month_abbrs = [
+                "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+            ]
+            day_label = (
+                f"{day_abbrs[fire_day]} "
+                f"({month_abbrs[fire_date.month - 1]} {fire_date.day})"
+            )
+        else:
+            day_label = day_abbrs[fire_day]
 
         return {"time": time_str, "day": day_label}
 

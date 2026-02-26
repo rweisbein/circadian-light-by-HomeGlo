@@ -436,7 +436,7 @@
     .wake-day-col { display: flex; flex-direction: column; align-items: center; gap: 2px; }
     .wake-day-bubble { width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--line); background: transparent; color: var(--muted); font-size: 0.65rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; line-height: 1; transition: all 0.15s; }
     .wake-day-bubble:hover { border-color: var(--text); color: var(--text); }
-    .wake-day-bubble.active { background: #c8d0da; border-color: #c8d0da; color: #000; }
+    .wake-day-bubble.active { background: #dfe4ea; border-color: #dfe4ea; color: #000; }
     .wake-day-time { font-size: 0.6rem; color: var(--muted2); height: 0.75rem; line-height: 0.75rem; font-variant-numeric: tabular-nums; }
     .wake-time-input { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; font-size: 0.85rem; outline: none; }
     .wake-time-input:focus { border-color: var(--accent); }
@@ -998,30 +998,33 @@
     // Resolve effective wake/bed times considering schedule override and alt days.
     // Uses phase-aware logic: the graph needs the wake/bed for the current phase
     // and the next phase, which may fall on different weekdays.
-    function resolveEffectiveCfg(cfg, zoneName) {
+    function resolveEffectiveCfg(cfg, zoneName, opts) {
       const resolved = { ...cfg };
+      const skipOverride = opts?.skipOverride;
 
       // 1. Schedule override takes priority (forces specific times for all days)
-      const zoneData = cachedGlozones?.zones?.[zoneName];
-      const override = zoneData?.schedule_override;
-      if (override) {
-        if (override.mode === 'main') {
-          // Force primary times, disable alt
-          resolved.wake_alt_time = null;
-          resolved.bed_alt_time = null;
-          return resolved;
-        } else if (override.mode === 'alt') {
-          if (resolved.wake_alt_time != null) resolved.wake_time = resolved.wake_alt_time;
-          if (resolved.bed_alt_time != null) resolved.bed_time = resolved.bed_alt_time;
-          resolved.wake_alt_time = null;
-          resolved.bed_alt_time = null;
-          return resolved;
-        } else if (override.mode === 'custom') {
-          if (override.custom_wake != null) resolved.wake_time = override.custom_wake;
-          if (override.custom_bed != null) resolved.bed_time = override.custom_bed;
-          resolved.wake_alt_time = null;
-          resolved.bed_alt_time = null;
-          return resolved;
+      // Skipped for graph rendering — overrides affect alarm only, not circadian rhythm
+      if (!skipOverride) {
+        const zoneData = cachedGlozones?.zones?.[zoneName];
+        const override = zoneData?.schedule_override;
+        if (override) {
+          if (override.mode === 'main') {
+            resolved.wake_alt_time = null;
+            resolved.bed_alt_time = null;
+            return resolved;
+          } else if (override.mode === 'alt') {
+            if (resolved.wake_alt_time != null) resolved.wake_time = resolved.wake_alt_time;
+            if (resolved.bed_alt_time != null) resolved.bed_time = resolved.bed_alt_time;
+            resolved.wake_alt_time = null;
+            resolved.bed_alt_time = null;
+            return resolved;
+          } else if (override.mode === 'custom') {
+            if (override.custom_wake != null) resolved.wake_time = override.custom_wake;
+            if (override.custom_bed != null) resolved.bed_time = override.custom_bed;
+            resolved.wake_alt_time = null;
+            resolved.bed_alt_time = null;
+            return resolved;
+          }
         }
       }
 
@@ -1447,7 +1450,7 @@
         const zs = zoneName ? (zoneStates[zoneName] || {}) : {};
         const zoneData = zoneName ? (cachedGlozones?.zones?.[zoneName] || {}) : {};
         let cfg = { ...cachedConfig, ...zoneData };
-        cfg = resolveEffectiveCfg(cfg, zoneName);
+        cfg = resolveEffectiveCfg(cfg, zoneName, { skipOverride: true });
         const areaState = {
           brightness_mid: status.brightness_mid ?? null,
           color_mid: status.color_mid ?? null,
@@ -2088,7 +2091,7 @@
       const zoneName = status.zone_name;
       const zoneData = zoneName ? (cachedGlozones?.zones?.[zoneName] || {}) : {};
       let cfg = { ...cachedConfig, ...zoneData };
-      cfg = resolveEffectiveCfg(cfg, zoneName);
+      cfg = resolveEffectiveCfg(cfg, zoneName, { skipOverride: true });
 
       const areaState = {
         brightness_mid: status.brightness_mid ?? null,
@@ -3073,14 +3076,19 @@
         const t = getResolvedWakeTimeForDay(pyDay);
         if (t == null) continue;
         if (i === 0 && nowDecimal >= t) continue; // today but already passed
-        if (i > 5) {
-          // More than 5 days out — show date
+        let dayLabel;
+        if (i === 0) {
+          dayLabel = 'today';
+        } else if (i === 1) {
+          dayLabel = 'tomorrow (' + dayAbbrs[pyDay] + ')';
+        } else if (i > 5) {
           const alarmDate = new Date(now);
           alarmDate.setDate(alarmDate.getDate() + i);
-          nextEl.textContent = formatAlarmTime(t) + ' ' + dayAbbrs[pyDay] + ' ' + monthAbbrs[alarmDate.getMonth()] + ' ' + alarmDate.getDate();
+          dayLabel = dayAbbrs[pyDay] + ' (' + monthAbbrs[alarmDate.getMonth()] + ' ' + alarmDate.getDate() + ')';
         } else {
-          nextEl.textContent = formatAlarmTime(t) + ' ' + dayAbbrs[pyDay];
+          dayLabel = dayAbbrs[pyDay];
         }
+        nextEl.textContent = formatAlarmTime(t) + ' ' + dayLabel;
         return;
       }
       nextEl.textContent = '';
@@ -3204,33 +3212,33 @@
           }
         }
 
-        const customWake = 0;
+        const customWake = 12;
 
         popover.innerHTML = `
           <div class="schedule-popover-title">Temp alarm override</div>
           <div class="spo-grid">
             <div class="spo-radio-row" onclick="document.getElementById('spo-off').checked=true">
               <input type="radio" id="spo-off" name="spo-mode" value="off">
-              <div class="spo-time-cell">pause</div>
+              <div class="spo-time-cell">pause (no alarm)</div>
             </div>
             ${otherTimeHtml}
             <div class="spo-radio-row" onclick="document.getElementById('spo-custom').checked=true">
               <input type="radio" id="spo-custom" name="spo-mode" value="custom">
               <div class="spo-time-cell" style="display:flex; align-items:center; gap:8px;">
-                <span id="spo-wake-display">${formatAlarmTime(customWake)}</span>
+                <span id="spo-wake-display" style="min-width:3.5em;">${formatAlarmTime(customWake)}</span>
                 <input type="range" id="spo-custom-wake" min="0" max="24" step="0.25" value="${customWake}" style="flex:1; height:4px; accent-color:var(--muted);">
               </div>
             </div>
           </div>
           <div class="schedule-popover-apply-row" style="flex-direction:column; align-items:stretch;">
             <div class="spo-through-radios" style="display:flex; gap:12px;">
-              <div style="display:flex; flex-direction:column; gap:4px;">
-                <label style="opacity:0.7;">through:</label>
-                <label style="display:flex; align-items:center; gap:3px; cursor:pointer;"><input type="radio" name="spo-through" value="today" onchange="areaPopoverThroughChanged()"> today</label>
-                <label style="display:flex; align-items:center; gap:3px; cursor:pointer;"><input type="radio" name="spo-through" value="tomorrow" checked onchange="areaPopoverThroughChanged()"> tomorrow</label>
-                <label style="display:flex; align-items:center; gap:3px; cursor:pointer;"><input type="radio" name="spo-through" value="pick" onchange="areaPopoverThroughChanged()"> pick date</label>
+              <div style="display:flex; flex-direction:column; gap:6px;">
+                <span style="opacity:0.7;">through:</span>
+                <label style="display:flex; align-items:center; gap:3px; cursor:pointer; padding-left:6px;"><input type="radio" name="spo-through" value="today" onchange="areaPopoverThroughChanged()"> today</label>
+                <label style="display:flex; align-items:center; gap:3px; cursor:pointer; padding-left:6px;"><input type="radio" name="spo-through" value="tomorrow" checked onchange="areaPopoverThroughChanged()"> tomorrow</label>
+                <label style="display:flex; align-items:center; gap:3px; cursor:pointer; padding-left:6px;"><input type="radio" name="spo-through" value="pick" onchange="areaPopoverThroughChanged()"> pick date</label>
               </div>
-              <div style="display:flex; align-items:center;">
+              <div style="display:flex; align-items:flex-end;">
                 <input type="date" id="spo-until-date" value="${untilDate}" style="display:none;">
               </div>
             </div>
