@@ -301,6 +301,11 @@
       align-items: center;
       gap: 8px;
     }
+    .step-buttons { display: flex; flex-direction: column; gap: 8px; align-self: center; }
+    .step-btn { width: 32px; height: 32px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: rgba(30,30,30,0.9); color: var(--muted); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; padding: 0; }
+    .step-btn:hover { border-color: rgba(255,255,255,0.35); background: rgba(50,50,50,0.9); color: var(--text); }
+    .step-btn:active { background: rgba(70,70,70,0.9); }
+    .step-btn svg { width: 16px; height: 16px; }
     .slider-column {
       display: flex;
       flex-direction: column;
@@ -507,12 +512,6 @@
     .tune-save-status { position: fixed; bottom: 24px; right: 24px; padding: 12px 20px; background: var(--success); color: white; border-radius: 8px; font-size: 0.9rem; opacity: 0; transform: translateY(10px); transition: all 0.3s; z-index: 50; }
     .tune-save-status.visible { opacity: 1; transform: translateY(0); }
 
-    /* Card 1: Summary bar */
-    .tune-summary { --state-bg: var(--panel); --state-fill: 0; background: var(--state-bg); border-radius: 10px; padding: 12px 20px; margin-bottom: 8px; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 1.1rem; font-weight: 600; position: relative; overflow: hidden; }
-    .tune-summary::before { content: ''; position: absolute; inset: 0; background: rgba(255,255,255,0.12); opacity: var(--state-fill); pointer-events: none; }
-    .tune-summary span { position: relative; z-index: 1; }
-    .tune-summary-sep { opacity: 0.5; }
-
     /* Card 2: Room Tuning */
     .tune-control-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px 2px; }
     .tune-control-label { font-size: 0.8rem; color: var(--muted); }
@@ -660,6 +659,67 @@
       </div>
     </div>
 
+    <div id="circadian-content-wrap" style="position: relative;">
+    <div id="mini-chart"></div>
+    <div class="adjust-section">
+      <div class="adjust-slider-row">
+        <div class="slider-group">
+          <div class="slider-column">
+            <div class="slider-label">Bright</div>
+            <div class="slider-extreme" id="bright-max" onclick="executeSetPosition(100,'brightness')">brightest</div>
+            <div class="slider-track" data-mode="brightness">
+              <div class="slider-fill"></div>
+              <div class="slider-thumb"></div>
+            </div>
+            <div class="slider-extreme" id="bright-min" onclick="executeSetPosition(0,'brightness')">dimmest</div>
+          </div>
+          <div class="step-buttons">
+            <button class="step-btn" onclick="executeAction('bright_up')" title="Brighten">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 15 12 9 18 15"/></svg>
+            </button>
+            <button class="step-btn" onclick="executeAction('bright_down')" title="Dim">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="slider-group">
+          <div class="slider-column">
+            <div class="slider-label">Color</div>
+            <div class="slider-extreme" id="color-max" onclick="executeSetPosition(100,'color')">coolest</div>
+            <div class="slider-track" data-mode="color">
+              <div class="slider-fill"></div>
+              <div class="slider-thumb"></div>
+            </div>
+            <div class="slider-extreme" id="color-min" onclick="executeSetPosition(0,'color')">warmest</div>
+          </div>
+          <div class="step-buttons">
+            <button class="step-btn" onclick="executeAction('color_up')" title="Cooler">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 15 12 9 18 15"/></svg>
+            </button>
+            <button class="step-btn" onclick="executeAction('color_down')" title="Warmer">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <button class="enable-circadian-btn" id="enable-circadian-btn"
+            style="display:none;" onclick="executeAction('circadian_on')">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="5"/>
+        <line x1="12" y1="1" x2="12" y2="3"/>
+        <line x1="12" y1="21" x2="12" y2="23"/>
+        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+        <line x1="1" y1="12" x2="3" y2="12"/>
+        <line x1="21" y1="12" x2="23" y2="12"/>
+        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+      </svg>
+      Enable
+    </button>
+    </div>
+
     <!-- Alarm Section -->
     <div id="wake-alarm-section" class="wake-alarm-section" style="display:none;">
       <div class="wake-alarm-card">
@@ -720,54 +780,8 @@
       </div>
     </div>
 
-    <div id="circadian-content-wrap" style="position: relative;">
-    <div id="mini-chart"></div>
-    <div class="adjust-section">
-      <div class="adjust-slider-row">
-        <div class="slider-group">
-          <div class="slider-column">
-            <div class="slider-label">Bright</div>
-            <div class="slider-extreme" id="bright-max" onclick="executeSetPosition(100,'brightness')">brightest</div>
-            <div class="slider-track" data-mode="brightness">
-              <div class="slider-fill"></div>
-              <div class="slider-thumb"></div>
-            </div>
-            <div class="slider-extreme" id="bright-min" onclick="executeSetPosition(0,'brightness')">dimmest</div>
-          </div>
-        </div>
-        <div class="slider-group">
-          <div class="slider-column">
-            <div class="slider-label">Color</div>
-            <div class="slider-extreme" id="color-max" onclick="executeSetPosition(100,'color')">coolest</div>
-            <div class="slider-track" data-mode="color">
-              <div class="slider-fill"></div>
-              <div class="slider-thumb"></div>
-            </div>
-            <div class="slider-extreme" id="color-min" onclick="executeSetPosition(0,'color')">warmest</div>
-          </div>
-        </div>
-      </div>
-    </div>
-    <button class="enable-circadian-btn" id="enable-circadian-btn"
-            style="display:none;" onclick="executeAction('circadian_on')">
-      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-        <circle cx="12" cy="12" r="5"/>
-        <line x1="12" y1="1" x2="12" y2="3"/>
-        <line x1="12" y1="21" x2="12" y2="23"/>
-        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-        <line x1="1" y1="12" x2="3" y2="12"/>
-        <line x1="21" y1="12" x2="23" y2="12"/>
-        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-      </svg>
-      Enable
-    </button>
-    </div>
-
     <!-- Tune Section -->
     <div id="area-tune-section" style="display:none; margin: 16px;">
-      <div class="tune-summary" id="tune-summary"></div>
       <div class="tune-card" id="tune-room-card"></div>
       <div class="tune-card" id="tune-lights-card"></div>
       <div class="tune-card" id="tune-details-card"></div>
@@ -2377,21 +2391,6 @@
         if (sb.warm_night_enabled) adjustedK -= (sb.night_shift || 0);
       }
 
-      // -- Card 1: Summary bar --
-      const summaryEl = document.getElementById('tune-summary');
-      if (summaryEl) {
-        const briEl = document.getElementById('tune-summary-bri');
-        const cctEl = document.getElementById('tune-summary-cct');
-        if (briEl) briEl.textContent = adjustedBri + '%';
-        if (cctEl) cctEl.textContent = Math.round(adjustedK) + 'K';
-        const cctRgb = cctToRGB(adjustedK);
-        const tinted = tintColorByBrightness(cctRgb, adjustedBri);
-        summaryEl.style.setProperty('--state-bg', tinted);
-        summaryEl.style.setProperty('--state-fill', (adjustedBri / 100).toFixed(3));
-        const textColor = readableTextColor(tinted);
-        summaryEl.style.color = textColor;
-      }
-
       // -- Card 2: Room Tuning (word labels + source info) --
       const elLumenWord = document.getElementById('tune-lumen-word');
       if (elLumenWord) elLumenWord.textContent = LUMEN_STEPS[ts.lumenStep].label;
@@ -2572,12 +2571,6 @@
         areaName: selectedArea.name || '',
         expandedLightIdx: null,
       });
-
-      // ── Card 1: Summary Bar ──
-      const summaryEl = document.getElementById('tune-summary');
-      summaryEl.innerHTML = '<span class="tune-summary-bri" id="tune-summary-bri"></span>'
-        + '<span class="tune-summary-sep">&middot;</span>'
-        + '<span class="tune-summary-cct" id="tune-summary-cct"></span>';
 
       // ── Card 2: Room Tuning ──
       const roomCard = document.getElementById('tune-room-card');
