@@ -437,7 +437,7 @@
     .wake-alarm-toggle input:checked + .slider::before { transform: translateX(16px); background: #000; }
     .wake-alarm-body { max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.3s ease, opacity 0.25s ease; }
     .wake-alarm-card.is-open .wake-alarm-body { max-height: 500px; opacity: 1; }
-    .wake-alarm-body-inner { padding: 0 14px 14px; padding-top: 4px; }
+    .wake-alarm-body-inner { padding: 4px 0 14px 0; }
     .wake-alarm-row { display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
     .wake-day-bubbles { display: flex; gap: 6px; justify-content: center; margin-bottom: 10px; }
     .wake-day-col { display: flex; flex-direction: column; align-items: center; gap: 2px; }
@@ -458,7 +458,7 @@
 
 
     /* Scheduled tab: radio column + content */
-    .alarm-scheduled-layout { display: flex; gap: 12px; align-items: flex-start; }
+    .alarm-scheduled-layout { display: flex; gap: 12px; align-items: flex-start; padding: 0 14px; }
     .alarm-mode-radios { display: flex; flex-direction: column; gap: 6px; padding-top: 2px; padding-left: 8px; }
     .alarm-mode-radios label { display: flex; align-items: center; gap: 5px; font-size: 0.82rem; color: var(--muted); cursor: pointer; white-space: nowrap; }
     .alarm-mode-radios input[type="radio"] { accent-color: var(--muted); margin: 0; cursor: pointer; }
@@ -536,13 +536,13 @@
     .section-save-btn:hover { opacity: 0.9; }
 
     /* Room Balance / Solar sliders */
-    .tune-control-row { display: grid; grid-template-columns: 1fr auto; align-items: baseline; padding: 8px 14px 2px; gap: 0 12px; }
+    .tune-control-row { display: grid; grid-template-columns: 1fr auto; align-items: baseline; padding: 8px 14px 2px 22px; gap: 0 12px; }
     .tune-control-left { display: flex; align-items: center; gap: 6px; }
     .tune-control-label { font-size: 0.82rem; color: var(--muted); }
     .tune-control-reset { font-size: 0.7rem; color: var(--muted2); cursor: pointer; opacity: 0; transition: opacity 0.15s; text-transform: uppercase; letter-spacing: 0.03em; }
     .tune-control-row:hover .tune-control-reset { opacity: 1; }
     .tune-control-reset:hover { color: var(--accent); }
-    .tune-slider-row { padding: 2px 22px 8px 22px; max-width: 70%; }
+    .tune-slider-row { padding: 2px 22px 8px 30px; max-width: 70%; }
     .tune-slider-word { font-size: 0.75rem; color: var(--muted2); white-space: nowrap; display: block; margin-top: 2px; }
     .tune-inline-slider { -webkit-appearance: none; appearance: none; width: 100%; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.12); outline: none; cursor: pointer; min-width: 80px; }
     .tune-inline-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; cursor: pointer; border: 2px solid rgba(255,255,255,0.3); }
@@ -565,14 +565,14 @@
     .tune-light-item:last-child { border-bottom: none; }
     .tune-light-summary { display: grid; grid-template-columns: auto 1fr auto auto; align-items: baseline; padding: 8px 0; gap: 0 8px; }
     .tune-light-name { font-size: 0.82rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .tune-light-behaviour { font-size: 0.75rem; color: var(--accent); cursor: pointer; white-space: nowrap; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 2px; }
-    .tune-light-behaviour:hover { color: var(--text); }
+    .tune-light-behaviour { font-size: 0.75rem; color: var(--muted); cursor: pointer; white-space: nowrap; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 2px; }
+    .tune-light-behaviour:hover { color: var(--accent); }
     .tune-light-impact { font-size: 0.82rem; color: var(--text); white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; min-width: 3em; }
     .tune-light-bri { font-size: 0.82rem; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; min-width: 3em; color: var(--text); }
     .tune-light-expanded { display: flex; align-items: center; gap: 8px; padding: 0 0 10px; padding-left: 14px; flex-wrap: wrap; }
     .tune-light-select { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 2px 6px; font-size: 0.75rem; cursor: pointer; outline: none; }
     .tune-light-select:focus { border-color: var(--accent); }
-    .tune-light-meta { font-size: 0.7rem; color: var(--muted2); line-height: 1.4; }
+    .tune-light-meta { font-size: 0.7rem; color: var(--muted2); line-height: 1.4; margin-left: 6px; }
 
     /* Brightness card — alarm-style collapsible */
     .tune-brightness-header { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 12px 14px; user-select: none; }
@@ -582,13 +582,13 @@
     .tune-brightness-val { margin-left: auto; font-size: 1.1rem; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
     .tune-brightness-body { max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.3s ease, opacity 0.25s ease; padding-bottom: 0; }
     .tune-brightness-card.is-open .tune-brightness-body { max-height: 500px; opacity: 1; padding-bottom: 8px; }
-    .tune-detail-sub { padding: 0 22px 2px; font-size: 0.7rem; color: var(--muted2); }
-    .tune-source-info { font-size: 0.7rem; color: var(--muted2); padding: 2px 22px 0; }
+    .tune-detail-sub { padding: 0 22px 2px 30px; font-size: 0.7rem; color: var(--muted2); }
+    .tune-source-info { font-size: 0.7rem; color: var(--muted2); padding: 2px 22px 0 30px; }
     .tune-refresh-btn { background: none; border: none; color: var(--muted2); font-size: 0.8rem; padding: 0 2px; cursor: pointer; vertical-align: middle; }
     .tune-refresh-btn:hover { color: var(--text); }
     .tune-col-headers { display: grid; grid-template-columns: 1fr auto; padding: 0 14px 2px; gap: 0 12px; }
     .tune-col-header { font-size: 11px; color: var(--muted2); text-align: right; white-space: nowrap; }
-    .tune-bk-row { display: grid; grid-template-columns: 1fr auto; align-items: baseline; padding: 5px 14px; gap: 0 12px; }
+    .tune-bk-row { display: grid; grid-template-columns: 1fr auto; align-items: baseline; padding: 5px 14px 5px 22px; gap: 0 12px; }
     .tune-bk-row .tune-bk-label { color: var(--muted); font-size: 0.82rem; }
     .tune-bk-row .tune-bk-total { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; min-width: 3em; }
     .tune-bk-row .tune-bk-total.final { font-weight: 600; }
@@ -596,6 +596,20 @@
     .tune-group-label { font-size: 0.75rem; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 14px 4px; }
     .tune-area-total { padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.06); margin-top: 4px; }
     .tune-area-total .tune-bk-label { font-weight: 600; color: var(--text) !important; }
+
+    /* Custom behaviour dropdown */
+    .tune-light-dropdown { position: absolute; z-index: 100; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.4); min-width: 220px; overflow: hidden; }
+    .tune-light-dropdown-item { padding: 8px 12px; cursor: pointer; border-bottom: 1px solid var(--line); }
+    .tune-light-dropdown-item:last-child { border-bottom: none; }
+    .tune-light-dropdown-item:hover { background: rgba(255,255,255,0.05); }
+    .tune-light-dropdown-item.selected { background: rgba(254,172,96,0.1); }
+    .tune-light-dropdown-name { font-size: 0.82rem; color: var(--text); }
+    .tune-light-dropdown-meta { font-size: 0.7rem; color: var(--muted2); margin-top: 2px; }
+
+    /* Light brightness column headers */
+    .tune-light-col-headers { display: grid; grid-template-columns: auto 1fr auto auto; padding: 4px 14px 2px; gap: 0 8px; font-size: 0.65rem; color: var(--muted2); }
+    .tune-light-col-headers span:nth-child(3),
+    .tune-light-col-headers span:nth-child(4) { text-align: right; min-width: 3em; }
   </style>
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
   <script src="./shared.js"></script>
@@ -1920,6 +1934,8 @@
                 tuneState.luxFloor = ls.lux_floor ?? null;
                 tuneState.weatherCondition = ls.weather_condition ?? null;
                 tuneState.solarBreakdown = ls.solar_breakdown ?? null;
+                tuneState.boosted = _as.boosted || false;
+                tuneState.boostBrightness = _as.boost_brightness || 0;
 
                 // Update base row display in details card
                 const elDetBase = document.getElementById('tune-det-base-total');
@@ -2325,6 +2341,8 @@
       areaInfo: null,
       areaName: '',
       expandedLightIdx: null,
+      boosted: false,
+      boostBrightness: 0,
     };
 
     function tunePresetMeta(presets, filterName, nowPct) {
@@ -2505,7 +2523,7 @@
         const orig = tuneSnapshot.lightFilters[light.entity_id] || 'Standard';
         light.filterName = orig;
         const sel = document.querySelector(`.tune-light-select[data-light-idx="${light.idx}"]`);
-        if (sel) sel.value = orig;
+        if (sel) sel.textContent = orig + ' \u25BE';
         const labelEl = document.getElementById('tune-light-preset-label-' + light.idx);
         if (labelEl) labelEl.textContent = orig;
         if (!tuneState.areaInfo.light_filters) tuneState.areaInfo.light_filters = {};
@@ -2541,6 +2559,77 @@
       updateAlarmButtons();
     }
 
+    // ---- Custom behaviour dropdown ----
+    function closeBehaviourDropdown() {
+      const existing = document.querySelector('.tune-light-dropdown');
+      if (existing) existing.remove();
+    }
+
+    function openBehaviourDropdown(idx, anchorEl) {
+      closeBehaviourDropdown();
+      const light = tuneState.lights[idx];
+      if (!light) return;
+      const presets = tuneState.presets;
+      const presetNames = Object.keys(presets);
+
+      const dropdown = document.createElement('div');
+      dropdown.className = 'tune-light-dropdown';
+
+      for (const pName of presetNames) {
+        const preset = presets[pName] || {};
+        const atDim = preset.at_dim ?? 100;
+        const atBright = preset.at_bright ?? 100;
+        const offThresh = preset.off_threshold ?? tuneState.globalOffThreshold;
+        const isSelected = pName === light.filterName;
+
+        const item = document.createElement('div');
+        item.className = 'tune-light-dropdown-item' + (isSelected ? ' selected' : '');
+        item.innerHTML = '<div class="tune-light-dropdown-name">' + pName + '</div>'
+          + '<div class="tune-light-dropdown-meta">dim ' + atDim + '% &middot; bright ' + atBright + '% &middot; off &lt;' + offThresh + '</div>';
+        item.addEventListener('click', () => {
+          light.filterName = pName;
+          if (!tuneState.areaInfo.light_filters) tuneState.areaInfo.light_filters = {};
+          if (pName === 'Standard') {
+            delete tuneState.areaInfo.light_filters[light.entity_id];
+          } else {
+            tuneState.areaInfo.light_filters[light.entity_id] = pName;
+          }
+          const labelEl = document.getElementById('tune-light-preset-label-' + idx);
+          if (labelEl) labelEl.textContent = pName;
+          const metaEl = document.getElementById('tune-meta-' + idx);
+          if (metaEl) metaEl.innerHTML = tunePresetMeta(presets, pName);
+          if (anchorEl) anchorEl.textContent = pName + ' \u25BE';
+          recalcTune();
+          updateTuneButtons();
+          closeBehaviourDropdown();
+        });
+        dropdown.appendChild(item);
+      }
+
+      document.body.appendChild(dropdown);
+
+      // Position relative to anchor
+      const rect = anchorEl.getBoundingClientRect();
+      let left = rect.left;
+      let top = rect.bottom + 4;
+      if (left + dropdown.offsetWidth > window.innerWidth - 8) left = window.innerWidth - dropdown.offsetWidth - 8;
+      if (top + dropdown.offsetHeight > window.innerHeight - 8) top = rect.top - dropdown.offsetHeight - 4;
+      dropdown.style.left = left + 'px';
+      dropdown.style.top = top + 'px';
+      dropdown.style.position = 'fixed';
+
+      // Close on outside click
+      setTimeout(() => {
+        const closeHandler = (e) => {
+          if (!dropdown.contains(e.target) && e.target !== anchorEl) {
+            closeBehaviourDropdown();
+            document.removeEventListener('click', closeHandler, true);
+          }
+        };
+        document.addEventListener('click', closeHandler, true);
+      }, 0);
+    }
+
     // ---- recalcTune: pure client-side math, reads tuneState, writes to DOM ----
     function recalcTune() {
       if (!tuneState.initialized) return;
@@ -2549,6 +2638,13 @@
       // -- Brightness cascade --
       const baseBriPct = ts.baseBri;
       let running = baseBriPct / 100;
+
+      // Boost (additive, matching backend)
+      const boostAmount = ts.boosted ? (ts.boostBrightness || 0) : 0;
+      const beforeBoost = Math.round(running * 100);
+      running += boostAmount / 100;
+      const afterBoost = Math.round(running * 100);
+      const boostImpact = afterBoost - beforeBoost;
 
       // Lumen adjustment
       ts.areaFactor = 1 / LUMEN_STEPS[ts.lumenStep].intensity;
@@ -2619,14 +2715,16 @@
         const offThresh = preset.off_threshold ?? ts.globalOffThreshold;
         const filterMult = (atDim + (atBright - atDim) * curvePos) / 100;
         const nowPct = Math.round(filterMult * 100);
-        const finalBri = running * 100 * filterMult;
-        const isOff = finalBri < offThresh;
-        const finalVal = isOff ? 0 : Math.min(100, Math.round(finalBri));
+        const rawFinal = running * 100 * filterMult;
+        const isOff = rawFinal < offThresh;
+        const wasCapped = rawFinal > 100;
+        const finalVal = isOff ? 0 : Math.min(100, Math.round(rawFinal));
 
         const elBri = document.getElementById('tune-light-bri-' + light.idx);
         if (elBri) {
           elBri.className = 'tune-light-bri';
           elBri.textContent = finalVal + '%';
+          elBri.style.color = (wasCapped && finalVal === 100) ? 'var(--muted)' : '';
         }
         const elImpact = document.getElementById('tune-light-impact-' + light.idx);
         if (elImpact) {
@@ -2640,6 +2738,11 @@
       // -- Brightness card: cascade values --
       const elBaseBri = document.getElementById('tune-det-base-total');
       if (elBaseBri) elBaseBri.textContent = baseBriPct + '%';
+
+      const elBoostVal = document.getElementById('tune-det-boost-val');
+      if (elBoostVal) {
+        elBoostVal.textContent = ts.boosted ? '+' + boostAmount + '%' : '\u2014';
+      }
 
       const elCtVal = document.getElementById('tune-det-ct-val');
       if (elCtVal) {
@@ -2677,7 +2780,7 @@
           let h = d.getHours(), m = d.getMinutes();
           const ampm = h >= 12 ? 'p' : 'a';
           h = h % 12 || 12;
-          timeStr = h + ':' + (m < 10 ? '0' : '') + m + ampm + ' ';
+          timeStr = h + ':' + (m < 10 ? '0' : '') + m + ampm;
         }
         let status = '';
         if (ts.outdoorSource === 'lux' && ts.luxSmoothed != null) {
@@ -2687,8 +2790,9 @@
         } else if (ts.outdoorSource === 'angle') {
           status = 'sun angle \u00b7 ' + (ts.sunElev ?? 0) + '\u00b0';
         }
-        sourceInfo.innerHTML = timeStr + sunIntPct + '%'
-          + (status ? ' &middot; ' + status : '')
+        sourceInfo.innerHTML = sunIntPct + '%'
+          + (status ? ' | ' + status : '')
+          + (timeStr ? ' @ ' + timeStr : '')
           + ' <button class="tune-refresh-btn" id="tune-refresh-outdoor" title="Refresh">&#x21bb;</button>';
         const refreshBtn = document.getElementById('tune-refresh-outdoor');
         if (refreshBtn && !refreshBtn._bound) {
@@ -2796,6 +2900,8 @@
         areaInfo: areaInfo,
         areaName: selectedArea.name || '',
         expandedLightIdx: null,
+        boosted: status.boosted || false,
+        boostBrightness: status.boost_brightness || 0,
       });
 
       // ── Card 3: Lights ──
@@ -2803,20 +2909,17 @@
       const lightsExpanded = localStorage.getItem('tune_lights_expanded') !== 'false';
       let lhtml = '<div class="tune-lights-header" onclick="toggleLightsBody()">';
       lhtml += '<span class="tune-lights-chevron" id="tune-lights-chevron">&#x203A;</span>';
-      lhtml += '<span class="tune-lights-title">Lights</span>';
+      lhtml += '<span class="tune-lights-title">Light brightness</span>';
       lhtml += '</div>';
       lhtml += '<div class="tune-lights-body" id="tune-lights-body">';
       lhtml += '<div id="tune-lights-list">';
       if (sortedLights.length === 0) {
         lhtml += '<div style="padding:10px 14px;color:var(--muted2);font-size:0.82rem;">No lights found</div>';
       } else {
+        lhtml += '<div class="tune-light-col-headers"><span></span><span>behav.</span><span>adjust</span><span>final</span></div>';
         for (const light of lightsArr) {
           const meta = tunePresetMeta(presets, light.filterName);
-          let selectHtml = '<select class="tune-light-select" data-light-idx="' + light.idx + '">';
-          for (const pName of presetNames) {
-            selectHtml += '<option value="' + pName + '"' + (pName === light.filterName ? ' selected' : '') + '>' + pName + '</option>';
-          }
-          selectHtml += '</select>';
+          const triggerHtml = '<button class="tune-light-select" data-light-idx="' + light.idx + '" onclick="openBehaviourDropdown(' + light.idx + ', this)">' + light.filterName + ' &#x25BE;</button>';
 
           lhtml += '<div class="tune-light-item" data-idx="' + light.idx + '">';
           lhtml += '<div class="tune-light-summary" data-idx="' + light.idx + '">'
@@ -2826,7 +2929,7 @@
             + '<span class="tune-light-bri" id="tune-light-bri-' + light.idx + '"></span>'
             + '</div>';
           lhtml += '<div class="tune-light-expanded" id="tune-light-exp-' + light.idx + '" style="display:none;">'
-            + selectHtml
+            + triggerHtml
             + '<span class="tune-light-meta" id="tune-meta-' + light.idx + '">' + meta + '</span>'
             + '</div>';
           lhtml += '</div>';
@@ -2846,7 +2949,7 @@
       const briExpanded = localStorage.getItem('tune_details_expanded') !== 'false';
       let bhtml = '<div class="tune-brightness-header" onclick="toggleBrightnessBody()">';
       bhtml += '<span class="tune-brightness-chevron" id="tune-brightness-chevron">&#x203A;</span>';
-      bhtml += '<span class="tune-brightness-title">Brightness</span>';
+      bhtml += '<span class="tune-brightness-title">Area brightness</span>';
       bhtml += '<span class="tune-brightness-val" id="tune-brightness-header-val">--</span>';
       bhtml += '</div>';
       bhtml += '<div class="tune-brightness-body" id="tune-brightness-body">';
@@ -2871,6 +2974,9 @@
       bhtml += '<div class="tune-slider-row">'
         + '<input type="range" class="tune-inline-slider tune-inline-slider--sun" id="tune-slider-solar" min="0" max="9" step="1" value="' + solarStep + '">'
         + '<span class="tune-slider-word" id="tune-solar-word">' + SOLAR_STEPS[solarStep].label + '</span></div>';
+      // Boost row
+      bhtml += '<div class="tune-bk-row"><span class="tune-bk-label">Boost</span>'
+        + '<span class="tune-bk-total" id="tune-det-boost-val">\u2014</span></div>';
       bhtml += '<div class="section-action-bar" id="tune-action-bar" style="display:none;">';
       bhtml += '<button class="section-cancel-btn" onclick="cancelBrightnessChanges()">Cancel</button>';
       bhtml += '<button class="section-save-btn" onclick="saveBrightnessChanges()">Save</button>';
@@ -2964,34 +3070,6 @@
           });
         });
 
-        // Preset select changes
-        lightsList.querySelectorAll('.tune-light-select').forEach(sel => {
-          sel.addEventListener('change', () => {
-            const idx = parseInt(sel.dataset.lightIdx);
-            const light = tuneState.lights[idx];
-            if (!light) return;
-            const newFilter = sel.value;
-            light.filterName = newFilter;
-
-            if (!tuneState.areaInfo.light_filters) tuneState.areaInfo.light_filters = {};
-            if (newFilter === 'Standard') {
-              delete tuneState.areaInfo.light_filters[light.entity_id];
-            } else {
-              tuneState.areaInfo.light_filters[light.entity_id] = newFilter;
-            }
-
-            // Update preset label in summary row
-            const labelEl = document.getElementById('tune-light-preset-label-' + idx);
-            if (labelEl) labelEl.textContent = newFilter;
-
-            // Update meta
-            const metaEl = document.getElementById('tune-meta-' + idx);
-            if (metaEl) metaEl.innerHTML = tunePresetMeta(presets, newFilter);
-
-            recalcTune();
-            updateTuneButtons();
-          });
-        });
       }
 
       // Initial calc

@@ -309,7 +309,7 @@
     .timer-alarm {
       color: #e2e8f0;
       opacity: 0.9;
-      padding: 1px 5px;
+      padding: 1px 3px;
       border-radius: 3px;
     }
 
@@ -1678,14 +1678,14 @@
         // Motion + boost (combined or separate)
         if (hasMotion && isBoosted && isMotionCoupled) {
           const remaining = formatCountdown(status.motion_expires_at);
-          if (remaining) parts.push(`<span class="timer-motion${warnClass}">M+${status.boost_brightness}% ${remaining}</span>`);
+          if (remaining) parts.push(`<span class="timer-motion${warnClass}">M\u26A1 ${remaining}</span>`);
         } else {
           if (hasMotion) {
             const remaining = formatCountdown(status.motion_expires_at);
             if (remaining) parts.push(`<span class="timer-motion${warnClass}">M ${remaining}</span>`);
           }
           if (isBoosted && status.boost_brightness && !isMotionCoupled) {
-            let text = `B+${status.boost_brightness}%`;
+            let text = '\u26A1';
             if (status.boost_expires_at !== 'forever' && status.boost_expires_at) {
               const remaining = formatCountdown(status.boost_expires_at);
               if (remaining) text += ` ${remaining}`;
@@ -2176,7 +2176,8 @@
               <label style="display:flex; align-items:center; gap:4px; cursor:pointer; font-size:0.8rem; opacity:0.7;"><input type="radio" name="spo-through" value="pick" onchange="spoThroughChanged()" style="accent-color:var(--muted);"> pick date</label>
               <input type="date" id="spo-until-date" value="${untilDate}" style="display:none; margin-top:2px; width:130px;">
             </div>
-            <div style="display:flex; justify-content:flex-end; margin-top:8px;">
+            <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
+              <button onclick="closeSchedulePopover()" style="padding:5px 14px; border-radius:6px; border:1px solid var(--line); background:transparent; color:var(--muted); font-size:0.8rem; cursor:pointer;">Cancel</button>
               <button class="primary" onclick="applyScheduleOverride()">Save</button>
             </div>
           </div>
