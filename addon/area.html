@@ -426,8 +426,8 @@
 
     /* Wake alarm section */
     .wake-alarm-section { margin: 16px; }
-    .wake-alarm-card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
-    .wake-alarm-header { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+    .wake-alarm-card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; transition: border-color 0.2s; }
+    .wake-alarm-header { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 12px 14px; user-select: none; }
     .wake-alarm-title { font-size: 0.85rem; font-weight: 600; color: var(--text); }
     .wake-alarm-toggle { position: relative; width: 32px; height: 16px; }
     .wake-alarm-toggle input { opacity: 0; width: 0; height: 0; }
@@ -435,7 +435,9 @@
     .wake-alarm-toggle .slider::before { content: ''; position: absolute; left: 3px; top: 3px; width: 10px; height: 10px; border-radius: 50%; background: var(--muted); transition: all 0.2s; }
     .wake-alarm-toggle input:checked + .slider { background: var(--text); }
     .wake-alarm-toggle input:checked + .slider::before { transform: translateX(16px); background: #000; }
-    .wake-alarm-body { margin-top: 12px; }
+    .wake-alarm-body { max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.3s ease, opacity 0.25s ease; }
+    .wake-alarm-card.is-open .wake-alarm-body { max-height: 500px; opacity: 1; }
+    .wake-alarm-body-inner { padding: 0 14px 14px; padding-top: 4px; }
     .wake-alarm-row { display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
     .wake-day-bubbles { display: flex; gap: 6px; justify-content: center; margin-bottom: 10px; }
     .wake-day-col { display: flex; flex-direction: column; align-items: center; gap: 2px; }
@@ -450,8 +452,8 @@
     .wake-offset-btn:hover { border-color: var(--accent); color: var(--accent); }
     .wake-offset-value { font-size: 0.85rem; color: var(--text); min-width: 3em; text-align: center; font-variant-numeric: tabular-nums; }
     .wake-next-alarm { font-size: 0.85rem; color: var(--accent); font-weight: 600; white-space: nowrap; }
-    .wake-alarm-chevron { color: var(--muted2); font-size: 1.1rem; cursor: pointer; transition: transform 0.2s; flex-shrink: 0; }
-    .wake-alarm-chevron.open { transform: rotate(90deg); }
+    .wake-alarm-chevron { display: inline-block; font-size: 0.65rem; transition: transform 0.25s; color: var(--muted2); flex-shrink: 0; }
+    .wake-alarm-card.is-open .wake-alarm-chevron { transform: rotate(90deg); }
     .tune-light-impact { font-size: 0.75rem; color: var(--muted2); white-space: nowrap; min-width: 2.5em; text-align: right; font-variant-numeric: tabular-nums; }
 
 
@@ -724,8 +726,8 @@
     <div id="wake-alarm-section" class="wake-alarm-section" style="display:none;">
       <div class="wake-alarm-card">
         <div class="wake-alarm-header" onclick="toggleAlarmBody()">
-          <span class="wake-alarm-chevron" id="wake-alarm-chevron">&#9656;</span>
-          <span class="wake-alarm-title">Light alarm</span>
+          <span class="wake-alarm-chevron" id="wake-alarm-chevron">&#x203A;</span>
+          <span class="wake-alarm-title">Alarm</span>
           <label class="wake-alarm-toggle" onclick="event.stopPropagation()">
             <input type="checkbox" id="wake-alarm-enabled" onchange="saveWakeAlarmSettings()">
             <span class="slider"></span>
@@ -739,7 +741,8 @@
             </span>
           </span>
         </div>
-        <div class="wake-alarm-body" id="wake-alarm-body" style="display:none;">
+        <div class="wake-alarm-body" id="wake-alarm-body">
+         <div class="wake-alarm-body-inner">
           <div style="font-size:0.75rem; font-weight:500; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px;">Schedule</div>
 
           <div>
@@ -776,6 +779,7 @@
             </div>
           </div>
 
+         </div>
         </div>
       </div>
     </div>
@@ -2805,12 +2809,10 @@
     let wakeAlarmMode = 'rhythm';
 
     function toggleAlarmBody() {
-      const body = document.getElementById('wake-alarm-body');
-      const chevron = document.getElementById('wake-alarm-chevron');
-      const collapsed = body.style.display !== 'none';
-      body.style.display = collapsed ? 'none' : 'block';
-      chevron.classList.toggle('open', !collapsed);
-      localStorage.setItem('wake_alarm_collapsed', collapsed ? 'true' : 'false');
+      const card = document.querySelector('.wake-alarm-card');
+      if (!card) return;
+      const isOpen = card.classList.toggle('is-open');
+      localStorage.setItem('wake_alarm_collapsed', isOpen ? 'false' : 'true');
       // Update override/link visibility based on expand state
       const zoneName = selectedArea?.zone_name;
       const hasOverride = !!(zoneName && cachedGlozones?.zones?.[zoneName]?.schedule_override);
@@ -2832,13 +2834,11 @@
 
         // Respect collapsed state from localStorage (default collapsed)
         const isCollapsed = localStorage.getItem('wake_alarm_collapsed') !== 'false';
-        const chevron = document.getElementById('wake-alarm-chevron');
+        const card = document.querySelector('.wake-alarm-card');
         if (enabled && !isCollapsed) {
-          document.getElementById('wake-alarm-body').style.display = 'block';
-          chevron.classList.add('open');
+          card?.classList.add('is-open');
         } else {
-          document.getElementById('wake-alarm-body').style.display = 'none';
-          chevron.classList.remove('open');
+          card?.classList.remove('is-open');
         }
 
         // Days
@@ -2903,7 +2903,7 @@
       const labelEl = document.getElementById('wake-override-label');
       const clearEl = document.getElementById('wake-override-clear');
       const overrideLink = document.getElementById('alarm-temp-override-link');
-      const bodyVisible = document.getElementById('wake-alarm-body')?.style.display !== 'none';
+      const bodyVisible = document.querySelector('.wake-alarm-card')?.classList.contains('is-open');
       // Override label only visible when expanded AND has override
       if (labelEl) labelEl.style.display = (hasOverride && bodyVisible) ? '' : 'none';
       // Clear/override links shown when expanded (height:0 wrapper prevents header jump)
@@ -2921,13 +2921,11 @@
 
       const enabled = document.getElementById('wake-alarm-enabled').checked;
       const isCollapsed = localStorage.getItem('wake_alarm_collapsed') !== 'false';
-      const chevron = document.getElementById('wake-alarm-chevron');
+      const card = document.querySelector('.wake-alarm-card');
       if (enabled && !isCollapsed) {
-        document.getElementById('wake-alarm-body').style.display = 'block';
-        chevron.classList.add('open');
+        card?.classList.add('is-open');
       } else if (!enabled) {
-        document.getElementById('wake-alarm-body').style.display = 'none';
-        chevron.classList.remove('open');
+        card?.classList.remove('is-open');
       }
 
       const days = [];
