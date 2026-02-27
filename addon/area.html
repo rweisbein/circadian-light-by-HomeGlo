@@ -542,7 +542,7 @@
     .tune-control-reset { font-size: 0.7rem; color: var(--muted2); cursor: pointer; opacity: 0; transition: opacity 0.15s; text-transform: uppercase; letter-spacing: 0.03em; }
     .tune-control-row:hover .tune-control-reset { opacity: 1; }
     .tune-control-reset:hover { color: var(--accent); }
-    .tune-slider-row { padding: 2px 22px 8px 22px; }
+    .tune-slider-row { padding: 2px 22px 8px 22px; max-width: 70%; }
     .tune-slider-word { font-size: 0.75rem; color: var(--muted2); white-space: nowrap; display: block; margin-top: 2px; }
     .tune-inline-slider { -webkit-appearance: none; appearance: none; width: 100%; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.12); outline: none; cursor: pointer; min-width: 80px; }
     .tune-inline-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; cursor: pointer; border: 2px solid rgba(255,255,255,0.3); }
@@ -563,8 +563,7 @@
     .tune-light-behaviour:hover { color: var(--text); }
     .tune-light-impact { font-size: 0.82rem; color: var(--text); white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; min-width: 3em; }
     .tune-light-bri { font-size: 0.82rem; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; min-width: 3em; color: var(--text); }
-    .tune-light-expanded { padding: 0 0 10px; }
-    .tune-light-select-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .tune-light-expanded { display: flex; align-items: center; gap: 8px; padding: 0 0 10px; padding-left: 14px; flex-wrap: wrap; }
     .tune-light-select { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 2px 6px; font-size: 0.75rem; cursor: pointer; outline: none; }
     .tune-light-select:focus { border-color: var(--accent); }
     .tune-light-meta { font-size: 0.7rem; color: var(--muted2); line-height: 1.4; }
@@ -2397,14 +2396,23 @@
       alarmSnapshot.days.sort();
     }
 
-    function isTuneDirty() {
+    function isBrightnessDirty() {
       if (!tuneSnapshot) return false;
       if (tuneState.lumenStep !== tuneSnapshot.lumenStep) return true;
       if (tuneState.solarStep !== tuneSnapshot.solarStep) return true;
+      return false;
+    }
+
+    function isLightsDirty() {
+      if (!tuneSnapshot) return false;
       for (const light of tuneState.lights) {
         if (light.filterName !== (tuneSnapshot.lightFilters[light.entity_id] || 'Standard')) return true;
       }
       return false;
+    }
+
+    function isTuneDirty() {
+      return isBrightnessDirty() || isLightsDirty();
     }
 
     function isAlarmDirty() {
@@ -2422,8 +2430,10 @@
     }
 
     function updateTuneButtons() {
-      const bar = document.getElementById('tune-action-bar');
-      if (bar) bar.style.display = isTuneDirty() ? 'flex' : 'none';
+      const briBar = document.getElementById('tune-action-bar');
+      if (briBar) briBar.style.display = isBrightnessDirty() ? 'flex' : 'none';
+      const lightsBar = document.getElementById('lights-action-bar');
+      if (lightsBar) lightsBar.style.display = isLightsDirty() ? 'flex' : 'none';
     }
 
     function updateAlarmButtons() {
@@ -2431,7 +2441,7 @@
       if (bar) bar.style.display = isAlarmDirty() ? 'flex' : 'none';
     }
 
-    async function saveTuneChanges() {
+    async function saveBrightnessChanges() {
       const areaId = tuneState.areaId;
       if (!areaId) return;
       const factor = 1 / LUMEN_STEPS[tuneState.lumenStep].intensity;
@@ -2440,6 +2450,14 @@
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ area_id: areaId, brightness_factor: factor, natural_light_exposure: exposure })
       });
+      captureTuneSnapshot();
+      updateTuneButtons();
+      showTuneSave();
+    }
+
+    async function saveLightsChanges() {
+      const areaId = tuneState.areaId;
+      if (!areaId) return;
       for (const light of tuneState.lights) {
         const orig = tuneSnapshot?.lightFilters[light.entity_id] || 'Standard';
         if (light.filterName !== orig) {
@@ -2460,7 +2478,7 @@
       updateAlarmButtons();
     }
 
-    function cancelTuneChanges() {
+    function cancelBrightnessChanges() {
       if (!tuneSnapshot) return;
       tuneState.lumenStep = tuneSnapshot.lumenStep;
       tuneState.areaFactor = 1 / LUMEN_STEPS[tuneSnapshot.lumenStep].intensity;
@@ -2469,6 +2487,12 @@
       if (lumenSlider) lumenSlider.value = tuneSnapshot.lumenStep;
       const solarSlider = document.getElementById('tune-slider-solar');
       if (solarSlider) solarSlider.value = tuneSnapshot.solarStep;
+      recalcTune();
+      updateTuneButtons();
+    }
+
+    function cancelLightsChanges() {
+      if (!tuneSnapshot) return;
       for (const light of tuneState.lights) {
         const orig = tuneSnapshot.lightFilters[light.entity_id] || 'Standard';
         light.filterName = orig;
@@ -2598,8 +2622,8 @@
         }
         const elImpact = document.getElementById('tune-light-impact-' + light.idx);
         if (elImpact) {
-          const impactPct = Math.round((filterMult - 1) * 100);
-          elImpact.textContent = formatImpact(impactPct) + '%';
+          const netImpact = finalVal - adjustedBri;
+          elImpact.textContent = formatImpact(netImpact) + '%';
         }
         const elMeta = document.getElementById('tune-meta-' + light.idx);
         if (elMeta) elMeta.innerHTML = tunePresetMeta(ts.presets, light.filterName);
@@ -2772,15 +2796,16 @@
             + '<span class="tune-light-bri" id="tune-light-bri-' + light.idx + '"></span>'
             + '</div>';
           lhtml += '<div class="tune-light-expanded" id="tune-light-exp-' + light.idx + '" style="display:none;">'
-            + '<div class="tune-light-select-row">'
-            + '<span style="font-size:0.75rem; color:var(--muted2);">Behaviour:</span>'
             + selectHtml
-            + '</div>'
-            + '<div class="tune-light-meta" id="tune-meta-' + light.idx + '">' + meta + '</div>'
+            + '<span class="tune-light-meta" id="tune-meta-' + light.idx + '">' + meta + '</span>'
             + '</div>';
           lhtml += '</div>';
         }
       }
+      lhtml += '</div>';
+      lhtml += '<div class="section-action-bar" id="lights-action-bar" style="display:none;">';
+      lhtml += '<button class="section-cancel-btn" onclick="cancelLightsChanges()">Cancel</button>';
+      lhtml += '<button class="section-save-btn" onclick="saveLightsChanges()">Save</button>';
       lhtml += '</div>';
       lightsCard.innerHTML = lhtml;
 
@@ -2816,8 +2841,8 @@
       // Source info
       bhtml += '<div class="tune-source-info" id="tune-source-info"></div>';
       bhtml += '<div class="section-action-bar" id="tune-action-bar" style="display:none;">';
-      bhtml += '<button class="section-cancel-btn" onclick="cancelTuneChanges()">Cancel</button>';
-      bhtml += '<button class="section-save-btn" onclick="saveTuneChanges()">Save</button>';
+      bhtml += '<button class="section-cancel-btn" onclick="cancelBrightnessChanges()">Cancel</button>';
+      bhtml += '<button class="section-save-btn" onclick="saveBrightnessChanges()">Save</button>';
       bhtml += '</div>';
       bhtml += '</div>';
       brightnessCard.innerHTML = bhtml;
