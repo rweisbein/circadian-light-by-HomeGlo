@@ -670,12 +670,10 @@
             <input type="checkbox" id="wake-alarm-enabled" onchange="saveWakeAlarmSettings()">
             <span class="slider"></span>
           </label>
-          <span style="margin-left:auto; display:flex; flex-direction:column; align-items:flex-end;">
-            <span style="display:flex; align-items:center; gap:6px;">
-              <span id="wake-override-label" style="display:none; font-size:0.7rem; color:var(--muted); font-weight:400;">override</span>
-              <span class="wake-next-alarm" id="wake-next-alarm"></span>
-            </span>
-            <span style="height:0; overflow:visible; display:flex; flex-direction:column; align-items:flex-end;">
+          <span style="margin-left:auto; display:inline-flex; align-items:center; gap:6px; position:relative;">
+            <span id="wake-override-label" style="display:none; font-size:0.7rem; color:var(--muted); font-weight:400;">override</span>
+            <span class="wake-next-alarm" id="wake-next-alarm"></span>
+            <span style="position:absolute; top:100%; right:0; display:flex; flex-direction:column; align-items:flex-end;">
               <a id="wake-override-clear" href="#" onclick="event.preventDefault(); event.stopPropagation(); clearOverrideFromHeader();" style="display:none; font-size:0.65rem; color:var(--muted2); text-decoration:underline; line-height:1;">clear</a>
               <a id="alarm-temp-override-link" href="#" onclick="event.preventDefault(); event.stopPropagation(); openAreaTempOverridePopup(this);" style="display:none; font-size:0.7rem; color:var(--muted2); text-decoration:underline; line-height:1;">create temp override</a>
             </span>
