@@ -582,7 +582,7 @@
     .tune-bk-row .tune-bk-label { color: var(--muted); font-size: 0.82rem; }
     .tune-bk-row .tune-bk-total { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; min-width: 3em; }
     .tune-bk-row .tune-bk-total.final { font-weight: 600; }
-    .tune-control-impact { font-size: 0.82rem; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; text-align: right; min-width: 3em; margin-left: auto; }
+    .tune-control-impact { font-size: 0.82rem; color: var(--text); white-space: nowrap; font-variant-numeric: tabular-nums; }
     .tune-group-label { font-size: 0.82rem; font-weight: 600; color: var(--text); text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 14px 4px; }
     .tune-area-total { padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.06); margin-top: 4px; }
     .tune-area-total .tune-bk-label { font-weight: 600; color: var(--text) !important; }
@@ -2503,22 +2503,11 @@
         const d = parseInt(btn.dataset.day);
         btn.classList.toggle('active', alarmSnapshot.days.includes(d));
       });
-      const card = document.querySelector('.wake-alarm-card');
-      const isCollapsed = localStorage.getItem('wake_alarm_collapsed') !== 'false';
-      if (alarmSnapshot.enabled && !isCollapsed) {
-        card?.classList.add('is-open');
-      } else if (!alarmSnapshot.enabled) {
-        card?.classList.remove('is-open');
-      }
       showResolvedWakeTime();
       updateAlarmButtons();
     }
 
     function onAlarmFieldChanged() {
-      const enabled = document.getElementById('wake-alarm-enabled').checked;
-      const card = document.querySelector('.wake-alarm-card');
-      if (enabled) card?.classList.add('is-open');
-      else card?.classList.remove('is-open');
       showResolvedWakeTime();
       updateAlarmButtons();
     }
@@ -3011,14 +3000,9 @@
         const enabled = settings.wake_alarm || false;
         document.getElementById('wake-alarm-enabled').checked = enabled;
 
-        // Respect collapsed state from localStorage (default collapsed)
-        const isCollapsed = localStorage.getItem('wake_alarm_collapsed') !== 'false';
+        // Always start alarm card closed when entering area details
         const card = document.querySelector('.wake-alarm-card');
-        if (enabled && !isCollapsed) {
-          card?.classList.add('is-open');
-        } else {
-          card?.classList.remove('is-open');
-        }
+        card?.classList.remove('is-open');
 
         // Days
         const days = settings.wake_alarm_days || [0, 1, 2, 3, 4, 5, 6];
@@ -3100,13 +3084,6 @@
       if (!selectedArea) return;
 
       const enabled = document.getElementById('wake-alarm-enabled').checked;
-      const isCollapsed = localStorage.getItem('wake_alarm_collapsed') !== 'false';
-      const card = document.querySelector('.wake-alarm-card');
-      if (enabled && !isCollapsed) {
-        card?.classList.add('is-open');
-      } else if (!enabled) {
-        card?.classList.remove('is-open');
-      }
 
       const days = [];
       document.querySelectorAll('#wake-alarm-days .wake-day-bubble.active').forEach(btn => {
