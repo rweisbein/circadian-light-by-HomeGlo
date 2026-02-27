@@ -2638,6 +2638,16 @@
         elCtVal.textContent = ts.ctEnabled ? formatImpact(ctImpactAbs) + '%' : 'disabled';
         elCtVal.style.color = ts.ctEnabled ? '' : 'var(--muted)';
       }
+      const elCtDetail = document.getElementById('tune-det-ct-detail');
+      const elCtDetailRow = document.getElementById('tune-ct-detail-row');
+      if (elCtDetail && elCtDetailRow) {
+        if (ts.ctEnabled && ts.baseKelvin != null) {
+          elCtDetail.textContent = formatImpact(ctImpactAbs) + '% @ ' + ts.baseKelvin + 'K';
+          elCtDetailRow.style.display = '';
+        } else {
+          elCtDetailRow.style.display = 'none';
+        }
+      }
 
       const elLumenImpact = document.getElementById('tune-det-lumen-val');
       if (elLumenImpact) elLumenImpact.textContent = formatImpact(lumenImpact) + '%';
@@ -2818,21 +2828,22 @@
       bhtml += '<span class="tune-brightness-val" id="tune-brightness-header-val">--</span>';
       bhtml += '</div>';
       bhtml += '<div class="tune-brightness-body" id="tune-brightness-body">';
-      bhtml += '<div class="tune-group-label">Factors</div>';
-      bhtml += '<div class="tune-bk-row"><span class="tune-bk-label">Circadian Rhythm</span>'
+      bhtml += '<div class="tune-group-label">Adjustments</div>';
+      bhtml += '<div class="tune-bk-row"><span class="tune-bk-label">Starting</span>'
         + '<span class="tune-bk-total" id="tune-det-base-total">' + baseBri + '%</span></div>';
-      const ctLabel = tuneState.ctEnabled ? 'Color temp adjustment (@ ' + kelvin + 'K)' : 'Color temp adjustment';
-      bhtml += '<div class="tune-bk-row"><span class="tune-bk-label">' + ctLabel + '</span>'
+      bhtml += '<div class="tune-bk-row"><span class="tune-bk-label">Color temp</span>'
         + '<span class="tune-bk-total" id="tune-det-ct-val"></span></div>';
+      bhtml += '<div class="tune-bk-row" id="tune-ct-detail-row" style="margin-top:-4px;"><span class="tune-bk-label"></span>'
+        + '<span class="tune-bk-total" id="tune-det-ct-detail" style="font-size:0.7rem; color:var(--muted2); font-weight:400;"></span></div>';
       // Room Balance with inline slider
-      bhtml += '<div class="tune-control-row"><span class="tune-control-left"><span class="tune-control-label">Room balance adjustment</span>'
+      bhtml += '<div class="tune-control-row"><span class="tune-control-left"><span class="tune-control-label">Room balance</span>'
         + '<span class="tune-control-reset" id="tune-reset-lumen">reset</span></span>'
         + '<span class="tune-control-impact" id="tune-det-lumen-val"></span></div>';
       bhtml += '<div class="tune-slider-row">'
         + '<input type="range" class="tune-inline-slider tune-inline-slider--light" id="tune-slider-lumen" min="0" max="9" step="1" value="' + lumenStep + '">'
         + '<span class="tune-slider-word" id="tune-lumen-word">' + LUMEN_STEPS[lumenStep].label + '</span></div>';
       // Solar exposure with inline slider
-      bhtml += '<div class="tune-control-row"><span class="tune-control-left"><span class="tune-control-label">Solar exposure adjustment</span>'
+      bhtml += '<div class="tune-control-row"><span class="tune-control-left"><span class="tune-control-label">Solar exposure</span>'
         + '<span class="tune-control-reset" id="tune-reset-solar">reset</span></span>'
         + '<span class="tune-control-impact" id="tune-det-solar-val"></span></div>';
       bhtml += '<div class="tune-slider-row">'
