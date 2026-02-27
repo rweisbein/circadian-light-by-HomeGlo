@@ -3582,6 +3582,7 @@ class LightDesignerServer:
                         ),
                         "base_kelvin": base_kelvin,
                         "solar_breakdown": solar_breakdown,
+                        "weather_condition": lux_tracker._weather_condition,
                         "next_wake_alarm": self._compute_next_wake_alarm(
                             area_id,
                             config.get("area_settings", {}),

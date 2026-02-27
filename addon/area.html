@@ -576,9 +576,10 @@
     .tune-brightness-val { margin-left: auto; font-size: 1.0rem; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
     .tune-brightness-body { max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.3s ease, opacity 0.25s ease; padding-bottom: 0; }
     .tune-brightness-card.is-open .tune-brightness-body { max-height: 500px; opacity: 1; padding-bottom: 8px; }
-    .tune-source-info { font-size: 11px; color: var(--muted2); text-align: center; padding: 6px 14px 2px; }
-    .tune-refresh-btn { background: none; border: 1px solid var(--line); color: var(--muted2); font-size: 10px; padding: 1px 6px; border-radius: 4px; cursor: pointer; margin-left: 6px; }
-    .tune-refresh-btn:hover { color: var(--text); border-color: var(--muted); }
+    .tune-detail-sub { padding: 0 22px 2px; font-size: 0.7rem; color: var(--muted2); }
+    .tune-source-info { font-size: 0.7rem; color: var(--muted2); padding: 2px 22px 0; }
+    .tune-refresh-btn { background: none; border: none; color: var(--muted2); font-size: 0.8rem; padding: 0 2px; cursor: pointer; vertical-align: middle; }
+    .tune-refresh-btn:hover { color: var(--text); }
     .tune-col-headers { display: grid; grid-template-columns: 1fr auto; padding: 0 14px 2px; gap: 0 12px; }
     .tune-col-header { font-size: 11px; color: var(--muted2); text-align: right; white-space: nowrap; }
     .tune-bk-row { display: grid; grid-template-columns: 1fr auto; align-items: baseline; padding: 5px 14px; gap: 0 12px; }
@@ -1911,6 +1912,7 @@
                 tuneState.luxSmoothed = ls.lux_smoothed ?? null;
                 tuneState.luxCeiling = ls.lux_ceiling ?? null;
                 tuneState.luxFloor = ls.lux_floor ?? null;
+                tuneState.weatherCondition = ls.weather_condition ?? null;
                 tuneState.solarBreakdown = ls.solar_breakdown ?? null;
 
                 // Update base row display in details card
@@ -2302,7 +2304,7 @@
       sunElev: 0, outdoorNormalized: 0.0,
       outdoorSource: 'none',
       outdoorSourceEntity: null, outdoorLastUpdate: null,
-      luxSmoothed: null, luxCeiling: null, luxFloor: null,
+      luxSmoothed: null, luxCeiling: null, luxFloor: null, weatherCondition: null,
       ctEnabled: false, ctBegin: 1650, ctEnd: 2250, ctMax: 1.4,
       brightnessSensitivity: 5.0,
       solarBreakdown: null,
@@ -2649,6 +2651,7 @@
         }
       }
 
+
       const elLumenImpact = document.getElementById('tune-det-lumen-val');
       if (elLumenImpact) elLumenImpact.textContent = formatImpact(lumenImpact) + '%';
 
@@ -2658,33 +2661,38 @@
       const elBriHeader = document.getElementById('tune-brightness-header-val');
       if (elBriHeader) elBriHeader.textContent = adjustedBri + '%';
 
-      // -- Brightness card: source info + refresh --
+      // -- Solar source info (above slider) --
       const sourceInfo = document.getElementById('tune-source-info');
       if (sourceInfo) {
         const sunIntPct = Math.round(ts.outdoorNormalized * 100);
-        let srcName = ts.outdoorSource;
-        if (ts.outdoorSourceEntity) srcName = ts.outdoorSourceEntity;
-        else if (srcName === 'angle') srcName = 'Sun angle estimate';
         let timeStr = '';
         if (ts.outdoorLastUpdate) {
           const d = new Date(ts.outdoorLastUpdate * 1000);
           let h = d.getHours(), m = d.getMinutes();
           const ampm = h >= 12 ? 'p' : 'a';
           h = h % 12 || 12;
-          timeStr = ' @ ' + h + ':' + (m < 10 ? '0' : '') + m + ampm;
+          timeStr = h + ':' + (m < 10 ? '0' : '') + m + ampm + ' ';
         }
-        sourceInfo.innerHTML = 'Sun intensity' + timeStr + ': ' + sunIntPct + '%'
-          + ' &middot; Source: ' + srcName
-          + '<button class="tune-refresh-btn" id="tune-refresh-outdoor">refresh</button>';
+        let status = '';
+        if (ts.outdoorSource === 'lux' && ts.luxSmoothed != null) {
+          status = 'lux \u00b7 ' + Math.round(ts.luxSmoothed).toLocaleString() + ' lx';
+        } else if (ts.outdoorSource === 'weather' && ts.weatherCondition) {
+          status = ts.weatherCondition.replace(/-/g, ' ');
+        } else if (ts.outdoorSource === 'angle') {
+          status = 'sun angle \u00b7 ' + (ts.sunElev ?? 0) + '\u00b0';
+        }
+        sourceInfo.innerHTML = timeStr + sunIntPct + '%'
+          + (status ? ' &middot; ' + status : '')
+          + ' <button class="tune-refresh-btn" id="tune-refresh-outdoor" title="Refresh">&#x21bb;</button>';
         const refreshBtn = document.getElementById('tune-refresh-outdoor');
         if (refreshBtn && !refreshBtn._bound) {
           refreshBtn._bound = true;
           refreshBtn.addEventListener('click', async () => {
-            refreshBtn.textContent = '...';
+            refreshBtn.textContent = '\u22ef';
             try {
               await fetch('./api/refresh-outdoor', { method: 'POST' });
             } catch (e) {}
-            setTimeout(() => { refreshBtn.textContent = 'refresh'; }, 1500);
+            setTimeout(() => { refreshBtn.innerHTML = '&#x21bb;'; }, 1500);
           });
         }
       }
@@ -2763,6 +2771,7 @@
         luxSmoothed: liveStatus.lux_smoothed ?? null,
         luxCeiling: liveStatus.lux_ceiling ?? null,
         luxFloor: liveStatus.lux_floor ?? null,
+        weatherCondition: liveStatus.weather_condition ?? null,
         ctEnabled: config.ct_comp_enabled || false,
         ctBegin: config.ct_comp_begin || 1650,
         ctEnd: config.ct_comp_end || 2250,
@@ -2833,8 +2842,7 @@
         + '<span class="tune-bk-total" id="tune-det-base-total">' + baseBri + '%</span></div>';
       bhtml += '<div class="tune-bk-row"><span class="tune-bk-label">Color temp</span>'
         + '<span class="tune-bk-total" id="tune-det-ct-val"></span></div>';
-      bhtml += '<div class="tune-bk-row" id="tune-ct-detail-row" style="margin-top:-4px;"><span class="tune-bk-label"></span>'
-        + '<span class="tune-bk-total" id="tune-det-ct-detail" style="font-size:0.7rem; color:var(--muted2); font-weight:400;"></span></div>';
+      bhtml += '<div class="tune-detail-sub" id="tune-ct-detail-row"><span id="tune-det-ct-detail"></span></div>';
       // Room Balance with inline slider
       bhtml += '<div class="tune-control-row"><span class="tune-control-left"><span class="tune-control-label">Room balance</span>'
         + '<span class="tune-control-reset" id="tune-reset-lumen">reset</span></span>'
@@ -2846,11 +2854,10 @@
       bhtml += '<div class="tune-control-row"><span class="tune-control-left"><span class="tune-control-label">Solar exposure</span>'
         + '<span class="tune-control-reset" id="tune-reset-solar">reset</span></span>'
         + '<span class="tune-control-impact" id="tune-det-solar-val"></span></div>';
+      bhtml += '<div class="tune-source-info" id="tune-source-info"></div>';
       bhtml += '<div class="tune-slider-row">'
         + '<input type="range" class="tune-inline-slider tune-inline-slider--sun" id="tune-slider-solar" min="0" max="9" step="1" value="' + solarStep + '">'
         + '<span class="tune-slider-word" id="tune-solar-word">' + SOLAR_STEPS[solarStep].label + '</span></div>';
-      // Source info
-      bhtml += '<div class="tune-source-info" id="tune-source-info"></div>';
       bhtml += '<div class="section-action-bar" id="tune-action-bar" style="display:none;">';
       bhtml += '<button class="section-cancel-btn" onclick="cancelBrightnessChanges()">Cancel</button>';
       bhtml += '<button class="section-save-btn" onclick="saveBrightnessChanges()">Save</button>';
