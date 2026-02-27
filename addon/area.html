@@ -428,7 +428,7 @@
     .wake-alarm-section { margin: 16px; }
     .wake-alarm-card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; transition: border-color 0.2s; }
     .wake-alarm-header { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 12px 14px; user-select: none; }
-    .wake-alarm-title { font-size: 0.85rem; font-weight: 600; color: var(--text); }
+    .wake-alarm-title { font-size: 1.0rem; font-weight: 600; color: var(--text); }
     .wake-alarm-toggle { position: relative; width: 32px; height: 16px; }
     .wake-alarm-toggle input { opacity: 0; width: 0; height: 0; }
     .wake-alarm-toggle .slider { position: absolute; inset: 0; background: var(--line); border-radius: 8px; cursor: pointer; transition: background 0.2s; }
@@ -451,7 +451,7 @@
     .wake-offset-btn { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line); background: transparent; color: var(--text); font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
     .wake-offset-btn:hover { border-color: var(--accent); color: var(--accent); }
     .wake-offset-value { font-size: 0.85rem; color: var(--text); min-width: 3em; text-align: center; font-variant-numeric: tabular-nums; }
-    .wake-next-alarm { font-size: 1.0rem; color: var(--text); font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .wake-next-alarm { font-size: 1.1rem; color: var(--text); font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
     .wake-alarm-chevron { display: inline-block; font-size: 1.1rem; line-height: 1; transition: transform 0.25s; color: var(--muted2); flex-shrink: 0; }
     .wake-alarm-card.is-open .wake-alarm-chevron { transform: rotate(90deg); }
     .tune-light-impact { font-size: 0.75rem; color: var(--muted2); white-space: nowrap; min-width: 2.5em; text-align: right; font-variant-numeric: tabular-nums; }
@@ -556,7 +556,7 @@
 
     /* Lights card — collapsible like brightness/alarm */
     .tune-lights-header { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 12px 14px; user-select: none; }
-    .tune-lights-title { font-size: 0.85rem; font-weight: 600; color: var(--text); }
+    .tune-lights-title { font-size: 1.0rem; font-weight: 600; color: var(--text); }
     .tune-lights-chevron { display: inline-block; font-size: 1.1rem; line-height: 1; transition: transform 0.25s; color: var(--muted2); flex-shrink: 0; }
     .tune-lights-card.is-open .tune-lights-chevron { transform: rotate(90deg); }
     .tune-lights-body { max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.3s ease, opacity 0.25s ease; padding-bottom: 0; }
@@ -576,10 +576,10 @@
 
     /* Brightness card — alarm-style collapsible */
     .tune-brightness-header { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 12px 14px; user-select: none; }
-    .tune-brightness-title { font-size: 0.85rem; font-weight: 600; color: var(--text); }
+    .tune-brightness-title { font-size: 1.0rem; font-weight: 600; color: var(--text); }
     .tune-brightness-chevron { display: inline-block; font-size: 1.1rem; line-height: 1; transition: transform 0.25s; color: var(--muted2); flex-shrink: 0; }
     .tune-brightness-card.is-open .tune-brightness-chevron { transform: rotate(90deg); }
-    .tune-brightness-val { margin-left: auto; font-size: 1.0rem; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .tune-brightness-val { margin-left: auto; font-size: 1.1rem; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
     .tune-brightness-body { max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.3s ease, opacity 0.25s ease; padding-bottom: 0; }
     .tune-brightness-card.is-open .tune-brightness-body { max-height: 500px; opacity: 1; padding-bottom: 8px; }
     .tune-detail-sub { padding: 0 22px 2px; font-size: 0.7rem; color: var(--muted2); }
@@ -593,7 +593,7 @@
     .tune-bk-row .tune-bk-total { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; min-width: 3em; }
     .tune-bk-row .tune-bk-total.final { font-weight: 600; }
     .tune-control-impact { font-size: 0.82rem; color: var(--text); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; min-width: 3em; }
-    .tune-group-label { font-size: 0.7rem; font-weight: 500; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 14px 4px; }
+    .tune-group-label { font-size: 0.75rem; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 14px 4px; }
     .tune-area-total { padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.06); margin-top: 4px; }
     .tune-area-total .tune-bk-label { font-weight: 600; color: var(--text) !important; }
   </style>
@@ -2913,26 +2913,28 @@
         });
       }
 
-      // Reset lumen
+      // Reset lumen to last saved value
       const resetLumen = document.getElementById('tune-reset-lumen');
       if (resetLumen) {
         resetLumen.onclick = (e) => {
           e.stopPropagation();
-          tuneState.lumenStep = 4;
-          tuneState.areaFactor = 1.0;
-          if (lumenSlider) lumenSlider.value = 4;
+          const savedStep = tuneSnapshot ? tuneSnapshot.lumenStep : 4;
+          tuneState.lumenStep = savedStep;
+          tuneState.areaFactor = 1 / LUMEN_STEPS[savedStep].intensity;
+          if (lumenSlider) lumenSlider.value = savedStep;
           recalcTune();
           updateTuneButtons();
         };
       }
 
-      // Reset solar
+      // Reset solar to last saved value
       const resetSolar = document.getElementById('tune-reset-solar');
       if (resetSolar) {
         resetSolar.onclick = (e) => {
           e.stopPropagation();
-          tuneState.solarStep = 0;
-          if (solarSlider) solarSlider.value = 0;
+          const savedStep = tuneSnapshot ? tuneSnapshot.solarStep : 0;
+          tuneState.solarStep = savedStep;
+          if (solarSlider) solarSlider.value = savedStep;
           recalcTune();
           updateTuneButtons();
         };
