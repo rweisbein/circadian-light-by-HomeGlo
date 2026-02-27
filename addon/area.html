@@ -757,12 +757,9 @@
             <input type="checkbox" id="wake-alarm-enabled" onchange="onAlarmFieldChanged()">
             <span class="slider"></span>
           </label>
-          <span style="margin-left:auto; display:inline-flex; align-items:center; gap:6px; position:relative;">
-            <span id="wake-override-label" style="display:none; font-size:0.7rem; color:var(--muted); font-weight:400;">override</span>
+          <span style="margin-left:auto; display:flex; flex-direction:column; align-items:flex-end;">
             <span class="wake-next-alarm" id="wake-next-alarm"></span>
-            <span style="position:absolute; top:100%; right:0; display:flex; flex-direction:column; align-items:flex-end;">
-              <a id="wake-override-clear" href="#" onclick="event.preventDefault(); event.stopPropagation(); clearOverrideFromHeader();" style="display:none; font-size:0.65rem; color:var(--muted2); text-decoration:underline; line-height:1;">clear</a>
-            </span>
+            <a id="wake-override-clear" href="#" onclick="event.preventDefault(); event.stopPropagation(); clearOverrideFromHeader();" style="display:none; font-size:0.65rem; color:var(--muted2); text-decoration:underline; line-height:1;">clear temp override</a>
           </span>
         </div>
         <div class="wake-alarm-body" id="wake-alarm-body">
@@ -3064,14 +3061,12 @@
     }
 
     function updateOverrideIndicator(hasOverride) {
-      const labelEl = document.getElementById('wake-override-label');
       const clearEl = document.getElementById('wake-override-clear');
       const overrideLink = document.getElementById('alarm-temp-override-link');
       const bodyVisible = document.querySelector('.wake-alarm-card')?.classList.contains('is-open');
-      // Override label only visible when expanded AND has override
-      if (labelEl) labelEl.style.display = (hasOverride && bodyVisible) ? '' : 'none';
-      // Clear/override links shown when expanded (height:0 wrapper prevents header jump)
-      if (clearEl) clearEl.style.display = (hasOverride && bodyVisible) ? '' : 'none';
+      // "clear temp override" shown in header when override exists (always visible, not just when expanded)
+      if (clearEl) clearEl.style.display = hasOverride ? '' : 'none';
+      // "create temp override" link shown in body when expanded and no override
       if (overrideLink) overrideLink.style.display = (!hasOverride && bodyVisible) ? '' : 'none';
     }
 
@@ -3289,6 +3284,7 @@
           const gzRes = await fetch(basePath + '/api/glozones');
           if (gzRes.ok) cachedGlozones = await gzRes.json();
           closeAreaTempOverridePopup();
+          updateOverrideIndicator(true);
           fetchNextWakeAlarm();
         }
       } catch (err) {
@@ -3389,7 +3385,8 @@
               <label style="display:flex; align-items:center; gap:4px; cursor:pointer; font-size:0.8rem; opacity:0.7;"><input type="radio" name="spo-through" value="pick" onchange="areaPopoverThroughChanged()" style="accent-color:var(--muted);"> pick date</label>
               <input type="date" id="spo-until-date" value="${untilDate}" style="display:none; margin-top:2px; width:130px;">
             </div>
-            <div style="display:flex; justify-content:flex-end; margin-top:8px;">
+            <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
+              <button onclick="closeAreaTempOverridePopup()" style="padding:6px 12px; border-radius:6px; border:1px solid var(--line); background:none; color:var(--muted); font-size:0.8rem; cursor:pointer;">Cancel</button>
               <button class="primary" onclick="applyTempAlarm()">Save</button>
             </div>
           </div>
