@@ -555,16 +555,19 @@
     .tune-inline-slider--sun::-moz-range-thumb { background: #fbbf24; }
 
     /* Card 3: Lights */
-    .tune-light-item { padding: 0 16px; border-bottom: 1px solid var(--line); }
+    .tune-light-item { padding: 0 14px; border-bottom: 1px solid var(--line); }
     .tune-light-item:last-child { border-bottom: none; }
-    .tune-light-summary { display: flex; align-items: center; padding: 10px 0; cursor: pointer; gap: 8px; }
-    .tune-light-name { flex: 1; font-size: 0.85rem; color: var(--muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .tune-light-preset-label { font-size: 0.75rem; color: var(--muted2); white-space: nowrap; }
-    .tune-light-bri { font-size: 0.85rem; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; min-width: 3em; color: var(--text); }
-    .tune-light-expanded { display: flex; align-items: center; gap: 8px; padding: 0 0 10px; }
+    .tune-light-summary { display: grid; grid-template-columns: auto 1fr auto auto; align-items: baseline; padding: 8px 0; gap: 0 8px; }
+    .tune-light-name { font-size: 0.82rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tune-light-behaviour { font-size: 0.75rem; color: var(--accent); cursor: pointer; white-space: nowrap; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 2px; }
+    .tune-light-behaviour:hover { color: var(--text); }
+    .tune-light-impact { font-size: 0.82rem; color: var(--text); white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; min-width: 3em; }
+    .tune-light-bri { font-size: 0.82rem; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; min-width: 3em; color: var(--text); }
+    .tune-light-expanded { padding: 0 0 10px; }
+    .tune-light-select-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
     .tune-light-select { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 2px 6px; font-size: 0.75rem; cursor: pointer; outline: none; }
     .tune-light-select:focus { border-color: var(--accent); }
-    .tune-light-meta { font-size: 0.7rem; color: var(--muted2); white-space: nowrap; }
+    .tune-light-meta { font-size: 0.7rem; color: var(--muted2); line-height: 1.4; }
 
     /* Brightness card — alarm-style collapsible */
     .tune-brightness-header { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 12px 14px; user-select: none; }
@@ -2596,9 +2599,7 @@
         const elImpact = document.getElementById('tune-light-impact-' + light.idx);
         if (elImpact) {
           const impactPct = Math.round((filterMult - 1) * 100);
-          if (impactPct < 0) elImpact.textContent = '\u2193' + Math.abs(impactPct) + '%';
-          else if (impactPct > 0) elImpact.textContent = '\u2191' + impactPct + '%';
-          else elImpact.textContent = '0%';
+          elImpact.textContent = formatImpact(impactPct) + '%';
         }
         const elMeta = document.getElementById('tune-meta-' + light.idx);
         if (elMeta) elMeta.innerHTML = tunePresetMeta(ts.presets, light.filterName);
@@ -2753,7 +2754,7 @@
       let lhtml = '<div class="tune-card-title">Lights</div>';
       lhtml += '<div id="tune-lights-list">';
       if (sortedLights.length === 0) {
-        lhtml += '<div style="padding:10px 16px;color:var(--muted2);font-size:0.85rem;">No lights found</div>';
+        lhtml += '<div style="padding:10px 14px;color:var(--muted2);font-size:0.82rem;">No lights found</div>';
       } else {
         for (const light of lightsArr) {
           const meta = tunePresetMeta(presets, light.filterName);
@@ -2766,13 +2767,16 @@
           lhtml += '<div class="tune-light-item" data-idx="' + light.idx + '">';
           lhtml += '<div class="tune-light-summary" data-idx="' + light.idx + '">'
             + '<span class="tune-light-name" title="' + light.entity_id + '">' + light.name + '</span>'
-            + '<span class="tune-light-preset-label" id="tune-light-preset-label-' + light.idx + '">' + light.filterName + '</span>'
+            + '<span class="tune-light-behaviour" id="tune-light-preset-label-' + light.idx + '" data-idx="' + light.idx + '">' + light.filterName + '</span>'
             + '<span class="tune-light-impact" id="tune-light-impact-' + light.idx + '"></span>'
             + '<span class="tune-light-bri" id="tune-light-bri-' + light.idx + '"></span>'
             + '</div>';
           lhtml += '<div class="tune-light-expanded" id="tune-light-exp-' + light.idx + '" style="display:none;">'
+            + '<div class="tune-light-select-row">'
+            + '<span style="font-size:0.75rem; color:var(--muted2);">Behaviour:</span>'
             + selectHtml
-            + '<span class="tune-light-meta" id="tune-meta-' + light.idx + '">' + meta + '</span>'
+            + '</div>'
+            + '<div class="tune-light-meta" id="tune-meta-' + light.idx + '">' + meta + '</div>'
             + '</div>';
           lhtml += '</div>';
         }
@@ -2881,12 +2885,11 @@
       // Light accordion + preset selects
       const lightsList = document.getElementById('tune-lights-list');
       if (lightsList) {
-        // Accordion clicks
-        lightsList.querySelectorAll('.tune-light-summary').forEach(row => {
-          row.addEventListener('click', (e) => {
-            // Don't toggle if clicking on the select in expanded area
-            if (e.target.closest('.tune-light-expanded')) return;
-            const idx = parseInt(row.dataset.idx);
+        // Behaviour link clicks toggle expanded area
+        lightsList.querySelectorAll('.tune-light-behaviour').forEach(link => {
+          link.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const idx = parseInt(link.dataset.idx);
             const wasExpanded = tuneState.expandedLightIdx === idx;
             // Collapse current
             if (tuneState.expandedLightIdx !== null) {
@@ -2898,7 +2901,7 @@
             } else {
               tuneState.expandedLightIdx = idx;
               const exp = document.getElementById('tune-light-exp-' + idx);
-              if (exp) exp.style.display = 'flex';
+              if (exp) exp.style.display = 'block';
             }
           });
         });
