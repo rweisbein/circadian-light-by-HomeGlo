@@ -122,6 +122,8 @@ class Config:
     color_sensitivity: float = DEFAULT_COLOR_SENSITIVITY
     daylight_enabled: bool = True
     daylight_cct: int = DEFAULT_DAYLIGHT_CCT
+    daylight_start: int = 60   # minutes offset from sunrise (positive = after)
+    daylight_end: int = -60    # minutes offset from sunset (negative = before)
     daylight_fade: int = DEFAULT_DAYLIGHT_FADE
 
     @classmethod
@@ -163,6 +165,8 @@ class Config:
             ),
             daylight_enabled=d.get("daylight_enabled", True),
             daylight_cct=d.get("daylight_cct", DEFAULT_DAYLIGHT_CCT),
+            daylight_start=d.get("daylight_start", 60),
+            daylight_end=d.get("daylight_end", -60),
             daylight_fade=d.get("daylight_fade", DEFAULT_DAYLIGHT_FADE),
             # Alt timing
             wake_alt_time=d.get("wake_alt_time"),
@@ -326,31 +330,55 @@ def compute_daylight_fade_weight(
     sunrise: float,
     sunset: float,
     daylight_fade: int,
+    daylight_start: int = 60,
+    daylight_end: int = -60,
 ) -> float:
-    """Compute daylight fade time-weight (0→1) based on proximity to sunrise/sunset.
+    """Compute daylight fade time-weight (0→1) using a window from start to end offset.
 
-    Ramps linearly from 0 at sunrise/sunset to 1.0 after daylight_fade minutes.
+    The window runs from (sunrise + daylight_start) to (sunset + daylight_end),
+    with a linear fade of daylight_fade minutes at each edge.
 
     Args:
         hour: Current hour (0-24)
         sunrise: Sunrise hour
         sunset: Sunset hour
         daylight_fade: Fade duration in minutes (0 = no fade, instant full effect)
+        daylight_start: Minutes offset from sunrise (positive = after sunrise)
+        daylight_end: Minutes offset from sunset (negative = before sunset)
 
     Returns:
         Weight 0.0–1.0 to multiply into daylight-dependent effects.
     """
-    if daylight_fade <= 0:
-        return 1.0
-    fade_hrs = daylight_fade / 60.0
+    start_offset_hrs = daylight_start / 60.0
+    end_offset_hrs = daylight_end / 60.0
+    fade_hrs = daylight_fade / 60.0 if daylight_fade > 0 else 0.0
+    ws = (sunrise + start_offset_hrs) % 24
+    we = (sunset + end_offset_hrs) % 24
+
     h = hour % 24
-    dist_after_sunrise = (h - sunrise) % 24
-    dist_before_sunset = (sunset - h) % 24
+
+    # Check if hour is inside the window (handles wrap-around)
+    if ws < we:
+        in_window = ws <= h <= we
+    else:
+        in_window = h >= ws or h <= we
+
+    if not in_window:
+        return 0.0
+
+    if fade_hrs <= 0:
+        return 1.0
+
+    # Distance from start (wrapping)
+    dist_from_start = (h - ws) % 24
+    # Distance to end (wrapping)
+    dist_to_end = (we - h) % 24
+
     weight = 1.0
-    if dist_after_sunrise < fade_hrs:
-        weight = min(weight, dist_after_sunrise / fade_hrs)
-    if dist_before_sunset < fade_hrs:
-        weight = min(weight, dist_before_sunset / fade_hrs)
+    if dist_from_start < fade_hrs:
+        weight = min(weight, dist_from_start / fade_hrs)
+    if dist_to_end < fade_hrs:
+        weight = min(weight, dist_to_end / fade_hrs)
     return weight
 
 
@@ -1004,9 +1032,10 @@ class CircadianLight:
         if config.daylight_enabled and config.daylight_cct > 0 and sun_times.outdoor_normalized > 0:
             outdoor_norm = sun_times.outdoor_normalized
             blend = min(1.0, outdoor_norm * config.color_sensitivity)
-            # Apply daylight fade: ramp blend over daylight_fade minutes after sunrise / before sunset
+            # Apply daylight window + fade
             blend *= compute_daylight_fade_weight(
-                hour, sunrise, sunset, config.daylight_fade
+                hour, sunrise, sunset, config.daylight_fade,
+                config.daylight_start, config.daylight_end,
             )
             daylight_target = config.daylight_cct
             if state.color_override and state.color_override < 0:
@@ -1089,9 +1118,10 @@ class CircadianLight:
         if config.daylight_enabled and config.daylight_cct > 0 and sun_times.outdoor_normalized > 0:
             outdoor_norm = sun_times.outdoor_normalized
             blend = min(1.0, outdoor_norm * config.color_sensitivity)
-            # Apply daylight fade
+            # Apply daylight window + fade
             daylight_fade_weight = compute_daylight_fade_weight(
-                hour, sunrise, sunset, config.daylight_fade
+                hour, sunrise, sunset, config.daylight_fade,
+                config.daylight_start, config.daylight_end,
             )
             blend *= daylight_fade_weight
             if state.color_override and state.color_override < 0:

@@ -1453,21 +1453,16 @@
       // Daylight color blend (intensity-based)
       const daylightCct = cfg.daylight_cct || 0;
       const colorSensitivity = cfg.color_sensitivity ?? 1.50;
-      if (cfg.daylight_enabled !== false && daylightCct > 0) {
+      if (cfg.daylight_enabled !== false && daylightCct > 0 && sunTimes) {
         let blend = Math.min(1.0, 1.0 * colorSensitivity);
-        // Apply daylight fade
-        const daylightFade = cfg.daylight_fade ?? 60;
-        if (daylightFade > 0 && sunTimes) {
-          const fadeHrs = daylightFade / 60;
-          const h = ((hour % 24) + 24) % 24;
-          const sr = sunTimes.sunrise, ss = sunTimes.sunset;
-          const distSunrise = ((h - sr) % 24 + 24) % 24;
-          const distSunset = ((ss - h) % 24 + 24) % 24;
-          let tw = 1.0;
-          if (distSunrise < fadeHrs) tw = Math.min(tw, distSunrise / fadeHrs);
-          if (distSunset < fadeHrs) tw = Math.min(tw, distSunset / fadeHrs);
-          blend *= tw;
-        }
+        // Apply daylight window + fade using configurable start/end offsets
+        const startOffsetHrs = (cfg.daylight_start ?? 60) / 60;
+        const endOffsetHrs = (cfg.daylight_end ?? -60) / 60;
+        const fadeHrs = (cfg.daylight_fade ?? 60) / 60;
+        const ds = wrap24(sunTimes.sunrise + startOffsetHrs);
+        const de = wrap24(sunTimes.sunset + endOffsetHrs);
+        const dw = getWindowWeight(hour, ds, de, fadeHrs);
+        blend *= dw.weight;
         let daylightTarget = daylightCct;
         if (colorOverride && colorOverride < 0) {
           daylightTarget += colorOverride;

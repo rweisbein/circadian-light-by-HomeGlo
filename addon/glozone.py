@@ -363,6 +363,8 @@ def get_zone_config(zone_name: str) -> Dict[str, Any]:
         "daylight_enabled": True,
         "daylight_cct": 5500,
         "daylight_fade": 60,
+        "daylight_start": 60,
+        "daylight_end": -60,
         "activity_preset": "adult",
         "max_dim_steps": 10,
     }
