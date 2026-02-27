@@ -441,7 +441,7 @@
     .wake-alarm-row { display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
     .wake-day-bubbles { display: flex; gap: 6px; justify-content: center; margin-bottom: 10px; }
     .wake-day-col { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-    .wake-day-bubble { width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--line); background: transparent; color: var(--muted); font-size: 0.65rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; line-height: 1; transition: all 0.15s; }
+    .wake-day-bubble { width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid var(--line); background: transparent; color: var(--muted); font-size: 0.55rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; line-height: 1; transition: all 0.15s; }
     .wake-day-bubble:hover { border-color: var(--text); color: var(--text); }
     .wake-day-bubble.active { background: #eef1f5; border-color: #eef1f5; color: #000; }
     .wake-day-time { font-size: 0.6rem; color: var(--muted2); height: 0.75rem; line-height: 0.75rem; font-variant-numeric: tabular-nums; }
@@ -451,7 +451,7 @@
     .wake-offset-btn { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line); background: transparent; color: var(--text); font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
     .wake-offset-btn:hover { border-color: var(--accent); color: var(--accent); }
     .wake-offset-value { font-size: 0.85rem; color: var(--text); min-width: 3em; text-align: center; font-variant-numeric: tabular-nums; }
-    .wake-next-alarm { font-size: 0.85rem; color: var(--accent); font-weight: 600; white-space: nowrap; }
+    .wake-next-alarm { font-size: 1.0rem; color: var(--text); font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
     .wake-alarm-chevron { display: inline-block; font-size: 1.1rem; line-height: 1; transition: transform 0.25s; color: var(--muted2); flex-shrink: 0; }
     .wake-alarm-card.is-open .wake-alarm-chevron { transform: rotate(90deg); }
     .tune-light-impact { font-size: 0.75rem; color: var(--muted2); white-space: nowrap; min-width: 2.5em; text-align: right; font-variant-numeric: tabular-nums; }
@@ -459,8 +459,8 @@
 
     /* Scheduled tab: radio column + content */
     .alarm-scheduled-layout { display: flex; gap: 12px; align-items: flex-start; }
-    .alarm-mode-radios { display: flex; flex-direction: column; gap: 6px; padding-top: 2px; }
-    .alarm-mode-radios label { display: flex; align-items: center; gap: 5px; font-size: 0.78rem; color: var(--muted); cursor: pointer; white-space: nowrap; }
+    .alarm-mode-radios { display: flex; flex-direction: column; gap: 6px; padding-top: 2px; padding-left: 8px; }
+    .alarm-mode-radios label { display: flex; align-items: center; gap: 5px; font-size: 0.85rem; color: var(--text); cursor: pointer; white-space: nowrap; }
     .alarm-mode-radios input[type="radio"] { accent-color: var(--muted); margin: 0; cursor: pointer; }
     .alarm-scheduled-content { flex: 1; min-width: 0; }
 
@@ -535,7 +535,7 @@
     }
     .section-save-btn:hover { opacity: 0.9; }
 
-    /* Card 2: Room Tuning */
+    /* Room Balance / Solar sliders */
     .tune-control-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px 2px; }
     .tune-control-label { font-size: 0.8rem; color: var(--muted); }
     .tune-control-reset { font-size: 0.7rem; color: var(--muted2); cursor: pointer; opacity: 0; transition: opacity 0.15s; text-transform: uppercase; letter-spacing: 0.03em; }
@@ -565,12 +565,14 @@
     .tune-light-select:focus { border-color: var(--accent); }
     .tune-light-meta { font-size: 0.7rem; color: var(--muted2); white-space: nowrap; }
 
-    /* Card 4: Details (collapsible) */
-    .tune-details-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; cursor: pointer; }
-    .tune-details-header span:first-child { font-size: 0.75rem; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
-    .tune-details-chevron { color: var(--muted2); font-size: 0.8rem; transition: transform 0.2s; }
-    .tune-details-chevron.open { transform: rotate(90deg); }
-    .tune-details-body { padding: 0 0 8px; }
+    /* Brightness card — alarm-style collapsible */
+    .tune-brightness-header { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 12px 14px; user-select: none; }
+    .tune-brightness-title { font-size: 0.85rem; font-weight: 600; color: var(--text); }
+    .tune-brightness-chevron { display: inline-block; font-size: 1.1rem; line-height: 1; transition: transform 0.25s; color: var(--muted2); flex-shrink: 0; }
+    .tune-brightness-card.is-open .tune-brightness-chevron { transform: rotate(90deg); }
+    .tune-brightness-val { margin-left: auto; font-size: 1.0rem; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .tune-brightness-body { max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.3s ease, opacity 0.25s ease; padding-bottom: 0; }
+    .tune-brightness-card.is-open .tune-brightness-body { max-height: 500px; opacity: 1; padding-bottom: 8px; }
     .tune-source-info { font-size: 11px; color: var(--muted2); text-align: center; padding: 6px 16px 2px; }
     .tune-refresh-btn { background: none; border: 1px solid var(--line); color: var(--muted2); font-size: 10px; padding: 1px 6px; border-radius: 4px; cursor: pointer; margin-left: 6px; }
     .tune-refresh-btn:hover { color: var(--text); border-color: var(--muted); }
@@ -758,13 +760,12 @@
             <span class="wake-next-alarm" id="wake-next-alarm"></span>
             <span style="position:absolute; top:100%; right:0; display:flex; flex-direction:column; align-items:flex-end;">
               <a id="wake-override-clear" href="#" onclick="event.preventDefault(); event.stopPropagation(); clearOverrideFromHeader();" style="display:none; font-size:0.65rem; color:var(--muted2); text-decoration:underline; line-height:1;">clear</a>
-              <a id="alarm-temp-override-link" href="#" onclick="event.preventDefault(); event.stopPropagation(); openAreaTempOverridePopup(this);" style="display:none; font-size:0.7rem; color:var(--muted2); text-decoration:underline; line-height:1; white-space:nowrap;">create temp override</a>
             </span>
           </span>
         </div>
         <div class="wake-alarm-body" id="wake-alarm-body">
          <div class="wake-alarm-body-inner">
-          <div style="font-size:0.75rem; font-weight:500; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px;">Schedule</div>
+          <div style="font-size:0.82rem; font-weight:600; color:var(--text); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px;">Schedule</div>
 
           <div>
             <div class="alarm-scheduled-layout">
@@ -799,6 +800,7 @@
               </div>
             </div>
           </div>
+          <a id="alarm-temp-override-link" href="#" onclick="event.preventDefault(); event.stopPropagation(); openAreaTempOverridePopup(this);" style="display:none; font-size:0.75rem; color:var(--muted2); text-decoration:underline; margin-top:8px; padding-left:8px;">create temp override</a>
 
           <div class="section-action-bar" id="alarm-action-bar" style="display:none;">
             <button class="section-cancel-btn" onclick="cancelAlarmChanges()">Cancel</button>
@@ -811,9 +813,8 @@
 
     <!-- Tune Section -->
     <div id="area-tune-section" style="display:none; margin: 16px;">
-      <div class="tune-card" id="tune-room-card"></div>
+      <div class="tune-card tune-brightness-card" id="tune-brightness-card"></div>
       <div class="tune-card" id="tune-lights-card"></div>
-      <div class="tune-card" id="tune-details-card"></div>
       <div class="section-action-bar" id="tune-action-bar" style="display:none;">
         <button class="section-cancel-btn" onclick="cancelTuneChanges()">Cancel</button>
         <button class="section-save-btn" onclick="saveTuneChanges()">Save</button>
@@ -2578,7 +2579,7 @@
         if (sb.warm_night_enabled) adjustedK -= (sb.night_shift || 0);
       }
 
-      // -- Card 2: Room Tuning (word labels + source info) --
+      // -- Brightness card: slider word labels --
       const elLumenWord = document.getElementById('tune-lumen-word');
       if (elLumenWord) elLumenWord.textContent = LUMEN_STEPS[ts.lumenStep].label;
       const elSolarWord = document.getElementById('tune-solar-word');
@@ -2615,15 +2616,9 @@
         if (elMeta) elMeta.innerHTML = tunePresetMeta(ts.presets, light.filterName);
       }
 
-      // -- Card 4: Details (brightness cascade) --
+      // -- Brightness card: cascade values --
       const elBaseBri = document.getElementById('tune-det-base-total');
       if (elBaseBri) elBaseBri.textContent = baseBriPct + '%';
-
-      const elLumenVal = document.getElementById('tune-det-lumen-val');
-      if (elLumenVal) elLumenVal.textContent = formatImpact(lumenImpact) + '%';
-
-      const elSolarVal = document.getElementById('tune-det-solar-val');
-      if (elSolarVal) elSolarVal.textContent = formatImpact(solarImpact) + '%';
 
       const elCtVal = document.getElementById('tune-det-ct-val');
       if (elCtVal) {
@@ -2631,10 +2626,10 @@
         elCtVal.style.color = ts.ctEnabled ? '' : 'var(--muted)';
       }
 
-      const elFinalTotal = document.getElementById('tune-det-final-total');
-      if (elFinalTotal) elFinalTotal.textContent = adjustedBri + '%';
+      const elBriHeader = document.getElementById('tune-brightness-header-val');
+      if (elBriHeader) elBriHeader.textContent = adjustedBri + '%';
 
-      // -- Card 4: Details (source info + refresh) --
+      // -- Brightness card: source info + refresh --
       const sourceInfo = document.getElementById('tune-source-info');
       if (sourceInfo) {
         const sunIntPct = Math.round(ts.outdoorNormalized * 100);
@@ -2759,25 +2754,6 @@
         expandedLightIdx: null,
       });
 
-      // ── Card 2: Room Tuning ──
-      const roomCard = document.getElementById('tune-room-card');
-      let rhtml = '<div class="tune-card-title">Room Tuning</div>';
-      // Lumen
-      rhtml += '<div class="tune-control-row">'
-        + '<span class="tune-control-label">Room Balance</span>'
-        + '<span class="tune-control-reset" id="tune-reset-lumen">reset</span></div>';
-      rhtml += '<div class="tune-slider-row">'
-        + '<input type="range" class="tune-inline-slider tune-inline-slider--light" id="tune-slider-lumen" min="0" max="9" step="1" value="' + lumenStep + '">'
-        + '<span class="tune-slider-word" id="tune-lumen-word">' + LUMEN_STEPS[lumenStep].label + '</span></div>';
-      // Solar
-      rhtml += '<div class="tune-control-row">'
-        + '<span class="tune-control-label">Solar exposure</span>'
-        + '<span class="tune-control-reset" id="tune-reset-solar">reset</span></div>';
-      rhtml += '<div class="tune-slider-row">'
-        + '<input type="range" class="tune-inline-slider tune-inline-slider--sun" id="tune-slider-solar" min="0" max="9" step="1" value="' + solarStep + '">'
-        + '<span class="tune-slider-word" id="tune-solar-word">' + SOLAR_STEPS[solarStep].label + '</span></div>';
-      roomCard.innerHTML = rhtml;
-
       // ── Card 3: Lights ──
       const lightsCard = document.getElementById('tune-lights-card');
       let lhtml = '<div class="tune-card-title">Lights</div>';
@@ -2810,45 +2786,41 @@
       lhtml += '</div>';
       lightsCard.innerHTML = lhtml;
 
-      // ── Card 4: Details (collapsible) ──
-      const detailsCard = document.getElementById('tune-details-card');
-      const detailsExpanded = localStorage.getItem('tune_details_expanded') === 'true';
-      let dhtml = '<div class="tune-details-header" id="tune-details-toggle">'
-        + '<span>Brightness</span>'
-        + '<span class="tune-details-chevron' + (detailsExpanded ? ' open' : '') + '" id="tune-details-chevron">&#9656;</span></div>';
-      dhtml += '<div class="tune-details-body" id="tune-details-body" style="display:' + (detailsExpanded ? 'block' : 'none') + ';">';
-      dhtml += '<div id="tune-detail-brightness">';
-      dhtml += '<div class="tune-bk-row"><span class="tune-bk-label">Circadian base</span>'
+      // ── Brightness card (merged) ──
+      const brightnessCard = document.getElementById('tune-brightness-card');
+      const briExpanded = localStorage.getItem('tune_details_expanded') !== 'false';
+      let bhtml = '<div class="tune-brightness-header" onclick="toggleBrightnessBody()">';
+      bhtml += '<span class="tune-brightness-chevron" id="tune-brightness-chevron">&#x203A;</span>';
+      bhtml += '<span class="tune-brightness-title">Brightness</span>';
+      bhtml += '<span class="tune-brightness-val" id="tune-brightness-header-val">--</span>';
+      bhtml += '</div>';
+      bhtml += '<div class="tune-brightness-body" id="tune-brightness-body">';
+      bhtml += '<div class="tune-bk-row"><span class="tune-bk-label">Circadian Rhythm</span>'
         + '<span class="tune-bk-total" id="tune-det-base-total">' + baseBri + '%</span></div>';
-      dhtml += '<div class="tune-bk-row"><span class="tune-bk-label">Fixture adjustment</span>'
-        + '<span class="tune-bk-total" id="tune-det-lumen-val"></span></div>';
-      dhtml += '<div class="tune-bk-row"><span class="tune-bk-label">Sun adjustment</span>'
-        + '<span class="tune-bk-total" id="tune-det-solar-val"></span></div>';
       const ctLabel = tuneState.ctEnabled ? 'Color temp adjustment (@ ' + kelvin + 'K)' : 'Color temp adjustment';
-      dhtml += '<div class="tune-bk-row"><span class="tune-bk-label">' + ctLabel + '</span>'
+      bhtml += '<div class="tune-bk-row"><span class="tune-bk-label">' + ctLabel + '</span>'
         + '<span class="tune-bk-total" id="tune-det-ct-val"></span></div>';
-      dhtml += '<div class="tune-bk-row tune-area-total"><span class="tune-bk-label">Adjusted brightness</span>'
-        + '<span class="tune-bk-total final" id="tune-det-final-total"></span></div>';
-      dhtml += '</div>';
-      // Sun intensity source info
-      dhtml += '<div class="tune-source-info" id="tune-source-info"></div>';
-      dhtml += '</div>';
-      detailsCard.innerHTML = dhtml;
+      // Room Balance with inline slider
+      bhtml += '<div class="tune-control-row"><span class="tune-control-label">Room Balance</span>'
+        + '<span class="tune-control-reset" id="tune-reset-lumen">reset</span></div>';
+      bhtml += '<div class="tune-slider-row">'
+        + '<input type="range" class="tune-inline-slider tune-inline-slider--light" id="tune-slider-lumen" min="0" max="9" step="1" value="' + lumenStep + '">'
+        + '<span class="tune-slider-word" id="tune-lumen-word">' + LUMEN_STEPS[lumenStep].label + '</span></div>';
+      // Solar exposure with inline slider
+      bhtml += '<div class="tune-control-row"><span class="tune-control-label">Solar exposure</span>'
+        + '<span class="tune-control-reset" id="tune-reset-solar">reset</span></div>';
+      bhtml += '<div class="tune-slider-row">'
+        + '<input type="range" class="tune-inline-slider tune-inline-slider--sun" id="tune-slider-solar" min="0" max="9" step="1" value="' + solarStep + '">'
+        + '<span class="tune-slider-word" id="tune-solar-word">' + SOLAR_STEPS[solarStep].label + '</span></div>';
+      // Source info
+      bhtml += '<div class="tune-source-info" id="tune-source-info"></div>';
+      bhtml += '</div>';
+      brightnessCard.innerHTML = bhtml;
+
+      // Set initial expanded state
+      if (briExpanded) brightnessCard.classList.add('is-open');
 
       // ── Wire events ──
-
-      // Details toggle
-      const detailsToggle = document.getElementById('tune-details-toggle');
-      if (detailsToggle) {
-        detailsToggle.addEventListener('click', () => {
-          const body = document.getElementById('tune-details-body');
-          const chevron = document.getElementById('tune-details-chevron');
-          const isOpen = body.style.display !== 'none';
-          body.style.display = isOpen ? 'none' : 'block';
-          chevron.classList.toggle('open', !isOpen);
-          localStorage.setItem('tune_details_expanded', !isOpen ? 'true' : 'false');
-        });
-      }
 
       // Lumen slider
       const lumenSlider = document.getElementById('tune-slider-lumen');
@@ -3003,6 +2975,13 @@
       const zoneName = selectedArea?.zone_name;
       const hasOverride = !!(zoneName && cachedGlozones?.zones?.[zoneName]?.schedule_override);
       updateOverrideIndicator(hasOverride);
+    }
+
+    function toggleBrightnessBody() {
+      const card = document.querySelector('.tune-brightness-card');
+      if (!card) return;
+      const isOpen = card.classList.toggle('is-open');
+      localStorage.setItem('tune_details_expanded', isOpen ? 'true' : 'false');
     }
 
     async function loadWakeAlarmSettings() {

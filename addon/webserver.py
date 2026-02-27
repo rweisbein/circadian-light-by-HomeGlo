@@ -3231,7 +3231,7 @@ class LightDesignerServer:
             skip_days = (override_until_date - today_date).days + 1
             if skip_days > 365:
                 # "Forever" pause — no alarm will fire
-                return {"time": "paused", "day": ""}
+                return {"time": "paused", "day": "", "offset": -1}
         else:
             skip_days = 0
 
@@ -3267,6 +3267,11 @@ class LightDesignerServer:
 
         time_str = fmt_time(fire_time)
 
+        # For pill: when fire_offset==1 but alarm time < now, it's imminent
+        display_offset = fire_offset
+        if fire_offset == 1 and fire_time < now_decimal:
+            display_offset = 0
+
         # Determine if the next chronological occurrence of the alarm time is
         # being skipped.  The "next chronological" occurrence is:
         #   - today, if the time hasn't passed yet
@@ -3292,7 +3297,24 @@ class LightDesignerServer:
         else:
             day_label = day_abbrs[fire_day]
 
-        return {"time": time_str, "day": day_label}
+        result = {
+            "time": time_str,
+            "day": day_label,
+            "offset": display_offset,
+            "day_abbr": day_abbrs[fire_day],
+        }
+        if fire_offset > 6:
+            from datetime import timedelta
+
+            fire_date_r = today_date + timedelta(days=fire_offset)
+            month_abbrs_r = [
+                "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+            ]
+            result["date_short"] = (
+                f"{month_abbrs_r[fire_date_r.month - 1]} {fire_date_r.day}"
+            )
+        return result
 
     async def get_area_status(self, request: Request) -> Response:
         """Get status for areas using Circadian Light state (no HA polling).

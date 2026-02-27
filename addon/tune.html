@@ -422,6 +422,31 @@
       transform: translateY(0);
     }
 
+    /* Page-level action bar */
+    .page-action-bar {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      display: flex; justify-content: flex-end; gap: 8px;
+      padding: 12px 20px; background: var(--panel);
+      border-top: 1px solid var(--line);
+      z-index: 50; animation: fadeSlideUp 0.2s ease;
+    }
+    @keyframes fadeSlideUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .section-cancel-btn {
+      padding: 6px 16px; border-radius: 6px; border: 1px solid var(--line);
+      background: transparent; color: var(--muted); font-size: 0.8rem;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .section-cancel-btn:hover { background: rgba(255,255,255,0.05); color: var(--text); border-color: var(--muted); }
+    .section-save-btn {
+      padding: 6px 16px; border-radius: 6px; border: 1px solid var(--accent);
+      background: var(--accent); color: #000; font-size: 0.8rem; font-weight: 600;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .section-save-btn:hover { opacity: 0.9; }
+
     /* Color tab placeholder */
     .tune-placeholder {
       text-align: center;
@@ -505,6 +530,11 @@
 
   <div class="save-status" id="save-status">Saved</div>
 
+  <div class="page-action-bar" id="tune-page-action-bar" style="display:none;">
+    <button class="section-cancel-btn" onclick="cancelAllTuneChanges()">Cancel</button>
+    <button class="section-save-btn" onclick="saveAllTuneChanges()">Save</button>
+  </div>
+
   <script>
     // ============================================================
     // State
@@ -517,6 +547,7 @@
     let tuneDebounceTimers = {};
     let pendingSensorSave = Promise.resolve();
     let expandedAreas = {};  // areaId -> true/false
+    let tuneSnapshot = null;  // { areas: { [areaId]: { lumenStep, solarStep, lightFilters: {entityId: filterName} } }, sensitivityStep: int }
 
     // ============================================================
     // Constants
@@ -846,6 +877,161 @@
       } catch (err) {
         console.error('Error saving light filter:', err);
       }
+    }
+
+    // ============================================================
+    // Deferred save/cancel
+    // ============================================================
+    function captureTuneSnapshot() {
+      if (!tuneData) { tuneSnapshot = null; return; }
+      const snap = { areas: {}, sensitivityStep: 0 };
+      const sensEl = document.getElementById('tune-global-sensitivity');
+      snap.sensitivityStep = sensEl ? parseInt(sensEl.value) : 0;
+      document.querySelectorAll('.tune-area').forEach(el => {
+        const areaId = el.dataset.areaId;
+        const lumenSlider = el.querySelector('.tune-lumen-slider');
+        const solarSlider = el.querySelector('.tune-solar-slider');
+        const lightFilters = {};
+        el.querySelectorAll('.tune-light-select').forEach(sel => {
+          lightFilters[sel.dataset.entityId] = sel.value;
+        });
+        snap.areas[areaId] = {
+          lumenStep: lumenSlider ? parseInt(lumenSlider.value) : 4,
+          solarStep: solarSlider ? parseInt(solarSlider.value) : 0,
+          lightFilters
+        };
+      });
+      tuneSnapshot = snap;
+    }
+
+    function isTuneDirty() {
+      if (!tuneSnapshot) return false;
+      const sensEl = document.getElementById('tune-global-sensitivity');
+      if (sensEl && parseInt(sensEl.value) !== tuneSnapshot.sensitivityStep) return true;
+      let dirty = false;
+      for (const [areaId, snap] of Object.entries(tuneSnapshot.areas)) {
+        const el = document.querySelector(`.tune-area[data-area-id="${areaId}"]`);
+        if (!el) continue;
+        const lumen = el.querySelector('.tune-lumen-slider');
+        if (lumen && parseInt(lumen.value) !== snap.lumenStep) return true;
+        const solar = el.querySelector('.tune-solar-slider');
+        if (solar && parseInt(solar.value) !== snap.solarStep) return true;
+        el.querySelectorAll('.tune-light-select').forEach(sel => {
+          const orig = snap.lightFilters[sel.dataset.entityId] || 'Standard';
+          if (sel.value !== orig) dirty = true;
+        });
+        if (dirty) return true;
+      }
+      return false;
+    }
+
+    function updateTuneActionBar() {
+      const bar = document.getElementById('tune-page-action-bar');
+      if (bar) bar.style.display = isTuneDirty() ? 'flex' : 'none';
+    }
+
+    async function saveAllTuneChanges() {
+      if (!tuneSnapshot) return;
+      const promises = [];
+      const sensEl = document.getElementById('tune-global-sensitivity');
+      if (sensEl && parseInt(sensEl.value) !== tuneSnapshot.sensitivityStep) {
+        const step = parseInt(sensEl.value);
+        promises.push(fetch('./api/config', {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ brightness_sensitivity: SENSITIVITY_STEPS[step].multiplier })
+        }));
+      }
+      for (const [areaId, snap] of Object.entries(tuneSnapshot.areas)) {
+        const el = document.querySelector(`.tune-area[data-area-id="${areaId}"]`);
+        if (!el) continue;
+        const lumen = el.querySelector('.tune-lumen-slider');
+        const solar = el.querySelector('.tune-solar-slider');
+        const lumenChanged = lumen && parseInt(lumen.value) !== snap.lumenStep;
+        const solarChanged = solar && parseInt(solar.value) !== snap.solarStep;
+        if (lumenChanged || solarChanged) {
+          const factor = 1 / LUMEN_STEPS[parseInt(lumen.value)].intensity;
+          const exposure = SOLAR_STEPS[parseInt(solar.value)].exposure;
+          promises.push(fetch('./api/light-filters/area-brightness', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ area_id: areaId, brightness_factor: factor, natural_light_exposure: exposure })
+          }));
+        }
+        el.querySelectorAll('.tune-light-select').forEach(sel => {
+          const orig = snap.lightFilters[sel.dataset.entityId] || 'Standard';
+          if (sel.value !== orig) {
+            promises.push(fetch('./api/light-filters/light-filter', {
+              method: 'POST', headers: {'Content-Type':'application/json'},
+              body: JSON.stringify({ area_id: areaId, entity_id: sel.dataset.entityId, filter: sel.value })
+            }));
+          }
+        });
+      }
+      await Promise.all(promises);
+      captureTuneSnapshot();
+      updateTuneActionBar();
+      showTuneSaved();
+    }
+
+    function cancelAllTuneChanges() {
+      if (!tuneSnapshot) return;
+      // Restore global sensitivity
+      const sensEl = document.getElementById('tune-global-sensitivity');
+      if (sensEl) {
+        sensEl.value = tuneSnapshot.sensitivityStep;
+        const step = tuneSnapshot.sensitivityStep;
+        const wordEl = document.getElementById('tune-global-sensitivity-word');
+        if (wordEl) wordEl.textContent = SENSITIVITY_STEPS[step].label;
+        const valEl = document.getElementById('tune-global-sensitivity-val');
+        if (valEl) valEl.textContent = fmtVal(SENSITIVITY_STEPS[step].multiplier);
+        if (tuneData) tuneData.brightness_sensitivity = SENSITIVITY_STEPS[step].multiplier;
+        const outdoorNorm = tuneData?.outdoor_normalized ?? 0.0;
+        const newSensitivity = SENSITIVITY_STEPS[step].multiplier;
+        const nowEl = document.getElementById('tune-global-sun-now');
+        if (nowEl) nowEl.textContent = '\u2193' + Math.min(100, Math.round(outdoorNorm * newSensitivity * 100)) + '%';
+        const peakEl = document.getElementById('tune-global-sun-peak');
+        if (peakEl) peakEl.textContent = 'pk\u2193' + Math.min(100, Math.round(newSensitivity * 100)) + '%';
+        document.querySelectorAll('.tune-area').forEach(el => {
+          el.dataset.sensitivity = newSensitivity;
+        });
+      }
+      // Restore per-area
+      for (const [areaId, snap] of Object.entries(tuneSnapshot.areas)) {
+        const el = document.querySelector(`.tune-area[data-area-id="${areaId}"]`);
+        if (!el) continue;
+        const lumen = el.querySelector('.tune-lumen-slider');
+        if (lumen) {
+          lumen.value = snap.lumenStep;
+          const word = el.querySelector('.tune-lumen-word');
+          if (word) word.textContent = LUMEN_STEPS[snap.lumenStep].label;
+          const factorMeta = el.querySelector('.tune-factor-meta');
+          if (factorMeta) factorMeta.textContent = formatFactorMeta(1 / LUMEN_STEPS[snap.lumenStep].intensity);
+        }
+        const solar = el.querySelector('.tune-solar-slider');
+        if (solar) {
+          solar.value = snap.solarStep;
+          const word = el.querySelector('.tune-solar-word');
+          if (word) word.textContent = SOLAR_STEPS[snap.solarStep].label;
+          const valEl = el.querySelector('.tune-solar-val');
+          if (valEl) valEl.textContent = fmtVal(SOLAR_STEPS[snap.solarStep].exposure);
+        }
+        // Restore light filters
+        el.querySelectorAll('.tune-light-select').forEach(sel => {
+          const orig = snap.lightFilters[sel.dataset.entityId] || 'Standard';
+          sel.value = orig;
+          const tuneArea = getTuneArea(areaId);
+          if (tuneArea) {
+            const light = (tuneArea.lights || []).find(l => l.entity_id === sel.dataset.entityId);
+            if (light) light.filter = orig;
+          }
+        });
+        // Rebuild lights section to update impact/bri display
+        const lightsContainer = document.getElementById('tune-lights-' + areaId);
+        const tuneArea = getTuneArea(areaId);
+        if (lightsContainer && tuneArea) lightsContainer.innerHTML = buildLightsSection(areaId, tuneArea);
+        // Update preview
+        updateTuneNowPreview(el, {});
+      }
+      updateTuneActionBar();
     }
 
     // ============================================================
@@ -1257,6 +1443,7 @@
       }
 
       container.innerHTML = html;
+      captureTuneSnapshot();
     }
 
     // ============================================================
@@ -1366,12 +1553,11 @@
           fetch('./api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ outdoor_brightness_source: val }) })
             .then(() => refreshOutdoorAndRender());
         }
-        // Light filter preset change
+        // Light filter preset change (deferred save)
         if (e.target.classList.contains('tune-light-select')) {
           const areaId = e.target.dataset.areaId;
           const entityId = e.target.dataset.entityId;
           const newFilter = e.target.value;
-          saveLightFilter(areaId, entityId, newFilter);
           // Update the tuneData in memory
           const tuneArea = getTuneArea(areaId);
           if (tuneArea) {
@@ -1383,6 +1569,7 @@
           if (lightsContainer && tuneArea) {
             lightsContainer.innerHTML = buildLightsSection(areaId, tuneArea);
           }
+          updateTuneActionBar();
         }
       });
 
@@ -1406,6 +1593,7 @@
             el.dataset.sensitivity = newSensitivity;
             updateTuneNowPreview(el, {});
           });
+          updateTuneActionBar();
           return;
         }
         // Per-area controls
@@ -1420,6 +1608,7 @@
           const factorMeta = tuneArea.querySelector('.tune-factor-meta');
           if (factorMeta) factorMeta.textContent = formatFactorMeta(newFactor);
           updateTuneNowPreview(tuneArea, { factor: newFactor });
+          updateTuneActionBar();
         }
         if (e.target.classList.contains('tune-solar-slider')) {
           const step = parseInt(e.target.value);
@@ -1429,25 +1618,16 @@
           const valEl = tuneArea.querySelector('.tune-solar-val');
           if (valEl) valEl.textContent = fmtVal(newExposure);
           updateTuneNowPreview(tuneArea, { exposure: newExposure });
+          updateTuneActionBar();
         }
       });
 
-      // Slider change events (save on release)
+      // Slider change events (deferred — just update action bar)
       container.addEventListener('change', (e) => {
-        if (e.target.id === 'tune-global-sensitivity') {
-          const step = parseInt(e.target.value);
-          saveGlobalSetting('brightness_sensitivity', SENSITIVITY_STEPS[step].multiplier);
-        }
-        if (e.target.classList.contains('tune-lumen-slider')) {
-          const step = parseInt(e.target.value);
-          const areaId = e.target.dataset.areaId;
-          const newFactor = 1 / LUMEN_STEPS[step].intensity;
-          saveTuneValue(areaId, { brightness_factor: newFactor });
-        }
-        if (e.target.classList.contains('tune-solar-slider')) {
-          const step = parseInt(e.target.value);
-          const areaId = e.target.dataset.areaId;
-          saveTuneValue(areaId, { natural_light_exposure: SOLAR_STEPS[step].exposure });
+        if (e.target.id === 'tune-global-sensitivity' ||
+            e.target.classList.contains('tune-lumen-slider') ||
+            e.target.classList.contains('tune-solar-slider')) {
+          updateTuneActionBar();
         }
       });
     }
@@ -1462,6 +1642,13 @@
 
       setupEventListeners();
       loadData();
+    });
+
+    window.addEventListener('beforeunload', (e) => {
+      if (isTuneDirty()) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
     });
   </script>
 </body>

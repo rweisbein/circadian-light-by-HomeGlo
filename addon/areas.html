@@ -1638,14 +1638,23 @@
 
     function formatNextWakeAlarm(nwa, zoneName) {
       if (!nwa) return '';
-      // day is empty when the alarm fires at the next chronological occurrence,
-      // or an abbreviated day name (e.g. "Wed") when days are being skipped
-      const time = nwa.day ? nwa.time + ' ' + nwa.day : nwa.time;
+      // Compact time: strip :00
+      let t = nwa.time;
+      if (t && t !== 'paused') t = t.replace(/:00([ap])$/, '$1');
+      // Compact day based on offset
+      let day = '';
+      const offset = nwa.offset;
+      if (offset != null && offset >= 0) {
+        if (offset <= 1) day = '';
+        else if (offset <= 6) day = nwa.day_abbr || '';
+        else day = nwa.date_short || '';
+      }
+      const text = day ? t + ' ' + day : t;
       if (zoneName) {
         const escapedZone = zoneName.replace(/'/g, "\\'");
-        return `<span class="timer-alarm" style="cursor:pointer;" onclick="event.stopPropagation(); openSchedulePopover('${escapedZone}', this)">⏰ ${time}</span>`;
+        return `<span class="timer-alarm" style="cursor:pointer;" onclick="event.stopPropagation(); openSchedulePopover('${escapedZone}', this)">⏰ ${text}</span>`;
       }
-      return `<span class="timer-alarm">⏰ ${time}</span>`;
+      return `<span class="timer-alarm">⏰ ${text}</span>`;
     }
 
     function updateHomeTimers() {
