@@ -514,6 +514,27 @@
     .tune-save-status { position: fixed; bottom: 24px; right: 24px; padding: 12px 20px; background: var(--success); color: white; border-radius: 8px; font-size: 0.9rem; opacity: 0; transform: translateY(10px); transition: all 0.3s; z-index: 50; }
     .tune-save-status.visible { opacity: 1; transform: translateY(0); }
 
+    .section-action-bar {
+      display: flex; justify-content: flex-end; gap: 8px;
+      padding: 10px 16px; animation: fadeSlideIn 0.2s ease;
+    }
+    @keyframes fadeSlideIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .section-cancel-btn {
+      padding: 6px 16px; border-radius: 6px; border: 1px solid var(--line);
+      background: transparent; color: var(--muted); font-size: 0.8rem;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .section-cancel-btn:hover { background: rgba(255,255,255,0.05); color: var(--text); border-color: var(--muted); }
+    .section-save-btn {
+      padding: 6px 16px; border-radius: 6px; border: 1px solid var(--accent);
+      background: var(--accent); color: #000; font-size: 0.8rem; font-weight: 600;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .section-save-btn:hover { opacity: 0.9; }
+
     /* Card 2: Room Tuning */
     .tune-control-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px 2px; }
     .tune-control-label { font-size: 0.8rem; color: var(--muted); }
@@ -729,7 +750,7 @@
           <span class="wake-alarm-chevron" id="wake-alarm-chevron">&#x203A;</span>
           <span class="wake-alarm-title">Alarm</span>
           <label class="wake-alarm-toggle" onclick="event.stopPropagation()">
-            <input type="checkbox" id="wake-alarm-enabled" onchange="saveWakeAlarmSettings()">
+            <input type="checkbox" id="wake-alarm-enabled" onchange="onAlarmFieldChanged()">
             <span class="slider"></span>
           </label>
           <span style="margin-left:auto; display:inline-flex; align-items:center; gap:6px; position:relative;">
@@ -772,13 +793,17 @@
                 </div>
                 <div id="wake-custom-controls" style="display:none;">
                   <div class="wake-alarm-row">
-                    <input type="time" class="wake-time-input" id="wake-custom-time" value="07:00" onchange="saveWakeAlarmSettings()">
+                    <input type="time" class="wake-time-input" id="wake-custom-time" value="07:00" onchange="onAlarmFieldChanged()">
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
+          <div class="section-action-bar" id="alarm-action-bar" style="display:none;">
+            <button class="section-cancel-btn" onclick="cancelAlarmChanges()">Cancel</button>
+            <button class="section-save-btn" onclick="saveAlarmChanges()">Save</button>
+          </div>
          </div>
         </div>
       </div>
@@ -789,6 +814,10 @@
       <div class="tune-card" id="tune-room-card"></div>
       <div class="tune-card" id="tune-lights-card"></div>
       <div class="tune-card" id="tune-details-card"></div>
+      <div class="section-action-bar" id="tune-action-bar" style="display:none;">
+        <button class="section-cancel-btn" onclick="cancelTuneChanges()">Cancel</button>
+        <button class="section-save-btn" onclick="saveTuneChanges()">Save</button>
+      </div>
       <div class="tune-save-status" id="tune-save-status">Saved</div>
     </div>
   </main>
@@ -808,6 +837,8 @@
     let tickInterval = null;
     let basePath = '';
     let sliderInteracting = false;
+    let tuneSnapshot = null;
+    let alarmSnapshot = null;
 
     // ============================================================
     // Circadian Curve Calculation (from areas.html modal)
@@ -1910,6 +1941,9 @@
     // Navigation
     // ============================================================
     function goBack() {
+      if (isTuneDirty() || isAlarmDirty()) {
+        if (!confirm('You have unsaved changes. Discard and leave?')) return;
+      }
       stopRefresh();
       const params = new URLSearchParams(window.location.search);
       const from = params.get('from');
@@ -2337,6 +2371,156 @@
       }
     }
 
+    // ---- Deferred save/cancel: snapshots + dirty tracking ----
+
+    function captureTuneSnapshot() {
+      tuneSnapshot = {
+        lumenStep: tuneState.lumenStep,
+        solarStep: tuneState.solarStep,
+        lightFilters: {}
+      };
+      for (const light of tuneState.lights) {
+        tuneSnapshot.lightFilters[light.entity_id] = light.filterName;
+      }
+    }
+
+    function captureAlarmSnapshot() {
+      alarmSnapshot = {
+        enabled: document.getElementById('wake-alarm-enabled').checked,
+        mode: wakeAlarmMode,
+        offset: wakeAlarmOffset,
+        customTime: document.getElementById('wake-custom-time')?.value || '07:00',
+        days: []
+      };
+      document.querySelectorAll('#wake-alarm-days .wake-day-bubble.active').forEach(btn => {
+        alarmSnapshot.days.push(parseInt(btn.dataset.day));
+      });
+      alarmSnapshot.days.sort();
+    }
+
+    function isTuneDirty() {
+      if (!tuneSnapshot) return false;
+      if (tuneState.lumenStep !== tuneSnapshot.lumenStep) return true;
+      if (tuneState.solarStep !== tuneSnapshot.solarStep) return true;
+      for (const light of tuneState.lights) {
+        if (light.filterName !== (tuneSnapshot.lightFilters[light.entity_id] || 'Standard')) return true;
+      }
+      return false;
+    }
+
+    function isAlarmDirty() {
+      if (!alarmSnapshot) return false;
+      if (document.getElementById('wake-alarm-enabled').checked !== alarmSnapshot.enabled) return true;
+      if (wakeAlarmMode !== alarmSnapshot.mode) return true;
+      if (wakeAlarmOffset !== alarmSnapshot.offset) return true;
+      if ((document.getElementById('wake-custom-time')?.value || '07:00') !== alarmSnapshot.customTime) return true;
+      const currentDays = [];
+      document.querySelectorAll('#wake-alarm-days .wake-day-bubble.active').forEach(btn => {
+        currentDays.push(parseInt(btn.dataset.day));
+      });
+      currentDays.sort();
+      return JSON.stringify(currentDays) !== JSON.stringify(alarmSnapshot.days);
+    }
+
+    function updateTuneButtons() {
+      const bar = document.getElementById('tune-action-bar');
+      if (bar) bar.style.display = isTuneDirty() ? 'flex' : 'none';
+    }
+
+    function updateAlarmButtons() {
+      const bar = document.getElementById('alarm-action-bar');
+      if (bar) bar.style.display = isAlarmDirty() ? 'flex' : 'none';
+    }
+
+    async function saveTuneChanges() {
+      const areaId = tuneState.areaId;
+      if (!areaId) return;
+      const factor = 1 / LUMEN_STEPS[tuneState.lumenStep].intensity;
+      const exposure = SOLAR_STEPS[tuneState.solarStep].exposure;
+      await fetch(basePath + '/api/light-filters/area-brightness', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ area_id: areaId, brightness_factor: factor, natural_light_exposure: exposure })
+      });
+      for (const light of tuneState.lights) {
+        const orig = tuneSnapshot?.lightFilters[light.entity_id] || 'Standard';
+        if (light.filterName !== orig) {
+          await fetch(basePath + '/api/light-filters/light-filter', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ area_id: areaId, entity_id: light.entity_id, filter: light.filterName })
+          });
+        }
+      }
+      captureTuneSnapshot();
+      updateTuneButtons();
+      showTuneSave();
+    }
+
+    async function saveAlarmChanges() {
+      await saveWakeAlarmSettings();
+      captureAlarmSnapshot();
+      updateAlarmButtons();
+    }
+
+    function cancelTuneChanges() {
+      if (!tuneSnapshot) return;
+      tuneState.lumenStep = tuneSnapshot.lumenStep;
+      tuneState.areaFactor = 1 / LUMEN_STEPS[tuneSnapshot.lumenStep].intensity;
+      tuneState.solarStep = tuneSnapshot.solarStep;
+      const lumenSlider = document.getElementById('tune-slider-lumen');
+      if (lumenSlider) lumenSlider.value = tuneSnapshot.lumenStep;
+      const solarSlider = document.getElementById('tune-slider-solar');
+      if (solarSlider) solarSlider.value = tuneSnapshot.solarStep;
+      for (const light of tuneState.lights) {
+        const orig = tuneSnapshot.lightFilters[light.entity_id] || 'Standard';
+        light.filterName = orig;
+        const sel = document.querySelector(`.tune-light-select[data-light-idx="${light.idx}"]`);
+        if (sel) sel.value = orig;
+        const labelEl = document.getElementById('tune-light-preset-label-' + light.idx);
+        if (labelEl) labelEl.textContent = orig;
+        if (!tuneState.areaInfo.light_filters) tuneState.areaInfo.light_filters = {};
+        if (orig === 'Standard') {
+          delete tuneState.areaInfo.light_filters[light.entity_id];
+        } else {
+          tuneState.areaInfo.light_filters[light.entity_id] = orig;
+        }
+      }
+      recalcTune();
+      updateTuneButtons();
+    }
+
+    function cancelAlarmChanges() {
+      if (!alarmSnapshot) return;
+      document.getElementById('wake-alarm-enabled').checked = alarmSnapshot.enabled;
+      wakeAlarmMode = alarmSnapshot.mode;
+      setWakeAlarmModeUI(alarmSnapshot.mode);
+      wakeAlarmOffset = alarmSnapshot.offset;
+      document.getElementById('wake-offset-value').textContent = formatOffset(alarmSnapshot.offset);
+      const customTimeEl = document.getElementById('wake-custom-time');
+      if (customTimeEl) customTimeEl.value = alarmSnapshot.customTime;
+      document.querySelectorAll('#wake-alarm-days .wake-day-bubble').forEach(btn => {
+        const d = parseInt(btn.dataset.day);
+        btn.classList.toggle('active', alarmSnapshot.days.includes(d));
+      });
+      const card = document.querySelector('.wake-alarm-card');
+      const isCollapsed = localStorage.getItem('wake_alarm_collapsed') !== 'false';
+      if (alarmSnapshot.enabled && !isCollapsed) {
+        card?.classList.add('is-open');
+      } else if (!alarmSnapshot.enabled) {
+        card?.classList.remove('is-open');
+      }
+      showResolvedWakeTime();
+      updateAlarmButtons();
+    }
+
+    function onAlarmFieldChanged() {
+      const enabled = document.getElementById('wake-alarm-enabled').checked;
+      const card = document.querySelector('.wake-alarm-card');
+      if (enabled) card?.classList.add('is-open');
+      else card?.classList.remove('is-open');
+      showResolvedWakeTime();
+      updateAlarmButtons();
+    }
+
     // ---- recalcTune: pure client-side math, reads tuneState, writes to DOM ----
     function recalcTune() {
       if (!tuneState.initialized) return;
@@ -2673,10 +2857,11 @@
           sliderInteracting = true;
           tuneState.lumenStep = parseInt(lumenSlider.value);
           recalcTune();
+          updateTuneButtons();
         });
         lumenSlider.addEventListener('change', () => {
           sliderInteracting = false;
-          saveTuneAreaBrightness(areaId, { brightness_factor: tuneState.areaFactor });
+          updateTuneButtons();
         });
       }
 
@@ -2687,10 +2872,11 @@
           sliderInteracting = true;
           tuneState.solarStep = parseInt(solarSlider.value);
           recalcTune();
+          updateTuneButtons();
         });
         solarSlider.addEventListener('change', () => {
           sliderInteracting = false;
-          saveTuneAreaBrightness(areaId, { natural_light_exposure: SOLAR_STEPS[tuneState.solarStep].exposure });
+          updateTuneButtons();
         });
       }
 
@@ -2702,8 +2888,8 @@
           tuneState.lumenStep = 4;
           tuneState.areaFactor = 1.0;
           if (lumenSlider) lumenSlider.value = 4;
-          saveTuneAreaBrightness(areaId, { brightness_factor: 1.0 });
           recalcTune();
+          updateTuneButtons();
         };
       }
 
@@ -2714,8 +2900,8 @@
           e.stopPropagation();
           tuneState.solarStep = 0;
           if (solarSlider) solarSlider.value = 0;
-          saveTuneAreaBrightness(areaId, { natural_light_exposure: 0.0 });
           recalcTune();
+          updateTuneButtons();
         };
       }
 
@@ -2768,14 +2954,15 @@
             const metaEl = document.getElementById('tune-meta-' + idx);
             if (metaEl) metaEl.innerHTML = tunePresetMeta(presets, newFilter);
 
-            saveTuneLightFilter(areaId, light.entity_id, newFilter);
             recalcTune();
+            updateTuneButtons();
           });
         });
       }
 
       // Initial calc
       recalcTune();
+      captureTuneSnapshot();
     }
 
     async function loadTuneSection() {
@@ -2864,6 +3051,7 @@
         }
 
         showResolvedWakeTime();
+        captureAlarmSnapshot();
 
         // Fetch backend next_wake_alarm (accounts for overrides)
         fetchNextWakeAlarm();
@@ -2963,15 +3151,15 @@
 
     function toggleWakeDay(btn) {
       btn.classList.toggle('active');
-      saveWakeAlarmSettings();
       showResolvedWakeTime();
+      updateAlarmButtons();
     }
 
     function setWakeAlarmMode(mode) {
       wakeAlarmMode = mode;
       setWakeAlarmModeUI(mode);
-      saveWakeAlarmSettings();
       showResolvedWakeTime();
+      updateAlarmButtons();
     }
 
     function setWakeAlarmModeUI(mode) {
@@ -2984,8 +3172,8 @@
     function adjustWakeOffset(delta) {
       wakeAlarmOffset += delta;
       document.getElementById('wake-offset-value').textContent = formatOffset(wakeAlarmOffset);
-      saveWakeAlarmSettings();
       showResolvedWakeTime();
+      updateAlarmButtons();
     }
 
     function formatOffset(minutes) {
