@@ -460,7 +460,7 @@
     /* Scheduled tab: radio column + content */
     .alarm-scheduled-layout { display: flex; gap: 12px; align-items: flex-start; }
     .alarm-mode-radios { display: flex; flex-direction: column; gap: 6px; padding-top: 2px; padding-left: 8px; }
-    .alarm-mode-radios label { display: flex; align-items: center; gap: 5px; font-size: 0.85rem; color: var(--text); cursor: pointer; white-space: nowrap; }
+    .alarm-mode-radios label { display: flex; align-items: center; gap: 5px; font-size: 0.82rem; color: var(--muted); cursor: pointer; white-space: nowrap; }
     .alarm-mode-radios input[type="radio"] { accent-color: var(--muted); margin: 0; cursor: pointer; }
     .alarm-scheduled-content { flex: 1; min-width: 0; }
 
@@ -536,13 +536,13 @@
     .section-save-btn:hover { opacity: 0.9; }
 
     /* Room Balance / Solar sliders */
-    .tune-control-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px 2px; }
-    .tune-control-label { font-size: 0.8rem; color: var(--muted); }
+    .tune-control-row { display: flex; align-items: center; padding: 8px 14px 2px; gap: 6px; }
+    .tune-control-label { font-size: 0.82rem; color: var(--muted); }
     .tune-control-reset { font-size: 0.7rem; color: var(--muted2); cursor: pointer; opacity: 0; transition: opacity 0.15s; text-transform: uppercase; letter-spacing: 0.03em; }
     .tune-control-row:hover .tune-control-reset { opacity: 1; }
     .tune-control-reset:hover { color: var(--accent); }
-    .tune-slider-row { display: grid; grid-template-columns: 1fr auto; align-items: center; padding: 2px 16px 8px; gap: 0 12px; }
-    .tune-slider-word { font-size: 0.8rem; color: var(--text); text-align: right; white-space: nowrap; min-width: 8em; }
+    .tune-slider-row { display: grid; grid-template-columns: 1fr auto; align-items: center; padding: 2px 22px 8px 22px; gap: 0 8px; }
+    .tune-slider-word { font-size: 0.75rem; color: var(--muted2); text-align: right; white-space: nowrap; min-width: 5em; }
     .tune-inline-slider { -webkit-appearance: none; appearance: none; width: 100%; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.12); outline: none; cursor: pointer; min-width: 80px; }
     .tune-inline-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; cursor: pointer; border: 2px solid rgba(255,255,255,0.3); }
     .tune-inline-slider::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; cursor: pointer; border: 2px solid rgba(255,255,255,0.3); }
@@ -573,15 +573,17 @@
     .tune-brightness-val { margin-left: auto; font-size: 1.0rem; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
     .tune-brightness-body { max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.3s ease, opacity 0.25s ease; padding-bottom: 0; }
     .tune-brightness-card.is-open .tune-brightness-body { max-height: 500px; opacity: 1; padding-bottom: 8px; }
-    .tune-source-info { font-size: 11px; color: var(--muted2); text-align: center; padding: 6px 16px 2px; }
+    .tune-source-info { font-size: 11px; color: var(--muted2); text-align: center; padding: 6px 14px 2px; }
     .tune-refresh-btn { background: none; border: 1px solid var(--line); color: var(--muted2); font-size: 10px; padding: 1px 6px; border-radius: 4px; cursor: pointer; margin-left: 6px; }
     .tune-refresh-btn:hover { color: var(--text); border-color: var(--muted); }
-    .tune-col-headers { display: grid; grid-template-columns: 1fr auto; padding: 0 16px 2px; gap: 0 12px; }
+    .tune-col-headers { display: grid; grid-template-columns: 1fr auto; padding: 0 14px 2px; gap: 0 12px; }
     .tune-col-header { font-size: 11px; color: var(--muted2); text-align: right; white-space: nowrap; }
-    .tune-bk-row { display: grid; grid-template-columns: 1fr auto; align-items: baseline; padding: 5px 16px; gap: 0 12px; }
-    .tune-bk-row .tune-bk-label { color: var(--muted); font-size: 13px; }
-    .tune-bk-row .tune-bk-total { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .tune-bk-row { display: grid; grid-template-columns: 1fr auto; align-items: baseline; padding: 5px 14px; gap: 0 12px; }
+    .tune-bk-row .tune-bk-label { color: var(--muted); font-size: 0.82rem; }
+    .tune-bk-row .tune-bk-total { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; min-width: 3em; }
     .tune-bk-row .tune-bk-total.final { font-weight: 600; }
+    .tune-control-impact { font-size: 0.82rem; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; text-align: right; min-width: 3em; margin-left: auto; }
+    .tune-group-label { font-size: 0.82rem; font-weight: 600; color: var(--text); text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 14px 4px; }
     .tune-area-total { padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.06); margin-top: 4px; }
     .tune-area-total .tune-bk-label { font-weight: 600; color: var(--text) !important; }
   </style>
@@ -772,6 +774,7 @@
               <div class="alarm-mode-radios">
                 <label onclick="setWakeAlarmMode('rhythm')"><input type="radio" name="wake-mode" id="wake-mode-rhythm" checked> Rhythm</label>
                 <label onclick="setWakeAlarmMode('custom')"><input type="radio" name="wake-mode" id="wake-mode-custom"> Custom</label>
+                <a id="alarm-temp-override-link" href="#" onclick="event.preventDefault(); event.stopPropagation(); openAreaTempOverridePopup(this);" style="display:none; font-size:0.75rem; color:var(--muted2); text-decoration:underline;">create temp override</a>
               </div>
               <div class="alarm-scheduled-content">
                 <div class="wake-day-bubbles" id="wake-alarm-days">
@@ -800,8 +803,6 @@
               </div>
             </div>
           </div>
-          <a id="alarm-temp-override-link" href="#" onclick="event.preventDefault(); event.stopPropagation(); openAreaTempOverridePopup(this);" style="display:none; font-size:0.75rem; color:var(--muted2); text-decoration:underline; margin-top:8px; padding-left:8px;">create temp override</a>
-
           <div class="section-action-bar" id="alarm-action-bar" style="display:none;">
             <button class="section-cancel-btn" onclick="cancelAlarmChanges()">Cancel</button>
             <button class="section-save-btn" onclick="saveAlarmChanges()">Save</button>
@@ -2583,7 +2584,11 @@
       const elLumenWord = document.getElementById('tune-lumen-word');
       if (elLumenWord) elLumenWord.textContent = LUMEN_STEPS[ts.lumenStep].label;
       const elSolarWord = document.getElementById('tune-solar-word');
-      if (elSolarWord) elSolarWord.textContent = SOLAR_STEPS[ts.solarStep].label;
+      if (elSolarWord) {
+        const sLabel = SOLAR_STEPS[ts.solarStep].label;
+        const sExposure = SOLAR_STEPS[ts.solarStep].exposure;
+        elSolarWord.textContent = sExposure > 0 ? sLabel + ' ' + sExposure.toFixed(1) : sLabel;
+      }
 
       // -- Card 3: Lights --
       const briRange = ts.maxBri - ts.minBri;
@@ -2625,6 +2630,12 @@
         elCtVal.textContent = ts.ctEnabled ? formatImpact(ctImpactAbs) + '%' : 'disabled';
         elCtVal.style.color = ts.ctEnabled ? '' : 'var(--muted)';
       }
+
+      const elLumenImpact = document.getElementById('tune-det-lumen-val');
+      if (elLumenImpact) elLumenImpact.textContent = formatImpact(lumenImpact) + '%';
+
+      const elSolarImpact = document.getElementById('tune-det-solar-val');
+      if (elSolarImpact) elSolarImpact.textContent = formatImpact(solarImpact) + '%';
 
       const elBriHeader = document.getElementById('tune-brightness-header-val');
       if (elBriHeader) elBriHeader.textContent = adjustedBri + '%';
@@ -2795,20 +2806,23 @@
       bhtml += '<span class="tune-brightness-val" id="tune-brightness-header-val">--</span>';
       bhtml += '</div>';
       bhtml += '<div class="tune-brightness-body" id="tune-brightness-body">';
+      bhtml += '<div class="tune-group-label">Factors</div>';
       bhtml += '<div class="tune-bk-row"><span class="tune-bk-label">Circadian Rhythm</span>'
         + '<span class="tune-bk-total" id="tune-det-base-total">' + baseBri + '%</span></div>';
       const ctLabel = tuneState.ctEnabled ? 'Color temp adjustment (@ ' + kelvin + 'K)' : 'Color temp adjustment';
       bhtml += '<div class="tune-bk-row"><span class="tune-bk-label">' + ctLabel + '</span>'
         + '<span class="tune-bk-total" id="tune-det-ct-val"></span></div>';
       // Room Balance with inline slider
-      bhtml += '<div class="tune-control-row"><span class="tune-control-label">Room Balance</span>'
-        + '<span class="tune-control-reset" id="tune-reset-lumen">reset</span></div>';
+      bhtml += '<div class="tune-control-row"><span class="tune-control-label">Room balance adjustment</span>'
+        + '<span class="tune-control-reset" id="tune-reset-lumen">reset</span>'
+        + '<span class="tune-control-impact" id="tune-det-lumen-val"></span></div>';
       bhtml += '<div class="tune-slider-row">'
         + '<input type="range" class="tune-inline-slider tune-inline-slider--light" id="tune-slider-lumen" min="0" max="9" step="1" value="' + lumenStep + '">'
         + '<span class="tune-slider-word" id="tune-lumen-word">' + LUMEN_STEPS[lumenStep].label + '</span></div>';
       // Solar exposure with inline slider
-      bhtml += '<div class="tune-control-row"><span class="tune-control-label">Solar exposure</span>'
-        + '<span class="tune-control-reset" id="tune-reset-solar">reset</span></div>';
+      bhtml += '<div class="tune-control-row"><span class="tune-control-label">Solar exposure adjustment</span>'
+        + '<span class="tune-control-reset" id="tune-reset-solar">reset</span>'
+        + '<span class="tune-control-impact" id="tune-det-solar-val"></span></div>';
       bhtml += '<div class="tune-slider-row">'
         + '<input type="range" class="tune-inline-slider tune-inline-slider--sun" id="tune-slider-solar" min="0" max="9" step="1" value="' + solarStep + '">'
         + '<span class="tune-slider-word" id="tune-solar-word">' + SOLAR_STEPS[solarStep].label + '</span></div>';
