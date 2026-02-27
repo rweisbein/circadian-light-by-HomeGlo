@@ -1971,16 +1971,16 @@
     let tuneDebounceTimers = {};
 
     const LUMEN_STEPS = [
-      { label: "Severely underlit",  intensity: 0.50 },
-      { label: "Very underlit",      intensity: 0.60 },
-      { label: "Underlit",           intensity: 0.75 },
-      { label: "Slightly underlit",  intensity: 0.90 },
-      { label: "Properly lit",       intensity: 1.00 },
-      { label: "Slightly overlit",   intensity: 1.15 },
-      { label: "Overlit",            intensity: 1.35 },
-      { label: "Very overlit",       intensity: 1.60 },
-      { label: "Brightly overlit",   intensity: 1.80 },
-      { label: "Severely overlit",   intensity: 2.00 },
+      { label: "Relaxed",   intensity: 2.00 },
+      { label: "Calm",      intensity: 1.80 },
+      { label: "Steady",    intensity: 1.60 },
+      { label: "Softened",  intensity: 1.35 },
+      { label: "Standard",  intensity: 1.00 },
+      { label: "Utility",   intensity: 0.90 },
+      { label: "Sharp",     intensity: 0.75 },
+      { label: "Precise",   intensity: 0.60 },
+      { label: "Focused",   intensity: 0.55 },
+      { label: "Intense",   intensity: 0.50 },
     ];
 
     const SOLAR_STEPS = [
@@ -3138,7 +3138,7 @@
               <span class="view-sep">&middot;</span>
               <button class="view-link ${tuneSortOrder === 'az' ? 'active' : ''}" data-tune-sort="az">a&ndash;z</button>
               <span class="view-sep">&middot;</span>
-              <button class="view-link ${tuneSortOrder === 'light' ? 'active' : ''}" data-tune-sort="light">fixture</button>
+              <button class="view-link ${tuneSortOrder === 'light' ? 'active' : ''}" data-tune-sort="light">balance</button>
               <span class="view-sep">&middot;</span>
               <button class="view-link ${tuneSortOrder === 'sun' ? 'active' : ''}" data-tune-sort="sun">exposure</button>
             </div>
@@ -3227,7 +3227,7 @@
             <div class="tune-zone-controls" data-zone="${zoneName}" onclick="event.stopPropagation()">
               <div class="tune-area-row tune-col-headers">
                 <span class="tune-name-col"></span>
-                <span class="tune-fixture-col tune-col-header">Fixture density</span>
+                <span class="tune-fixture-col tune-col-header">Room Balance</span>
                 <span class="tune-sun-col tune-col-header">Sun exposure</span>
                 <span class="tune-bri-col"></span>
               </div>
