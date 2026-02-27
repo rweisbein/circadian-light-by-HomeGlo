@@ -554,7 +554,13 @@
     .tune-inline-slider--sun::-webkit-slider-thumb { background: #fbbf24; }
     .tune-inline-slider--sun::-moz-range-thumb { background: #fbbf24; }
 
-    /* Card 3: Lights */
+    /* Lights card — collapsible like brightness/alarm */
+    .tune-lights-header { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 12px 14px; user-select: none; }
+    .tune-lights-title { font-size: 0.85rem; font-weight: 600; color: var(--text); }
+    .tune-lights-chevron { display: inline-block; font-size: 1.1rem; line-height: 1; transition: transform 0.25s; color: var(--muted2); flex-shrink: 0; }
+    .tune-lights-card.is-open .tune-lights-chevron { transform: rotate(90deg); }
+    .tune-lights-body { max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.3s ease, opacity 0.25s ease; padding-bottom: 0; }
+    .tune-lights-card.is-open .tune-lights-body { max-height: 1000px; opacity: 1; padding-bottom: 8px; }
     .tune-light-item { padding: 0 14px; border-bottom: 1px solid var(--line); }
     .tune-light-item:last-child { border-bottom: none; }
     .tune-light-summary { display: grid; grid-template-columns: auto 1fr auto auto; align-items: baseline; padding: 8px 0; gap: 0 8px; }
@@ -587,7 +593,7 @@
     .tune-bk-row .tune-bk-total { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; min-width: 3em; }
     .tune-bk-row .tune-bk-total.final { font-weight: 600; }
     .tune-control-impact { font-size: 0.82rem; color: var(--text); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; min-width: 3em; }
-    .tune-group-label { font-size: 0.82rem; font-weight: 600; color: var(--text); text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 14px 4px; }
+    .tune-group-label { font-size: 0.7rem; font-weight: 500; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 14px 4px; }
     .tune-area-total { padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.06); margin-top: 4px; }
     .tune-area-total .tune-bk-label { font-weight: 600; color: var(--text) !important; }
   </style>
@@ -768,7 +774,7 @@
         </div>
         <div class="wake-alarm-body" id="wake-alarm-body">
          <div class="wake-alarm-body-inner">
-          <div style="font-size:0.82rem; font-weight:600; color:var(--text); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px;">Schedule</div>
+          <div class="tune-group-label" style="padding-top:4px; margin-bottom:6px;">Schedule</div>
 
           <div>
             <div class="alarm-scheduled-layout">
@@ -816,7 +822,7 @@
     <!-- Tune Section -->
     <div id="area-tune-section" style="display:none; margin: 16px;">
       <div class="tune-card tune-brightness-card" id="tune-brightness-card"></div>
-      <div class="tune-card" id="tune-lights-card"></div>
+      <div class="tune-card tune-lights-card" id="tune-lights-card"></div>
       <div class="tune-save-status" id="tune-save-status">Saved</div>
     </div>
   </main>
@@ -2794,7 +2800,12 @@
 
       // ── Card 3: Lights ──
       const lightsCard = document.getElementById('tune-lights-card');
-      let lhtml = '<div class="tune-card-title">Lights</div>';
+      const lightsExpanded = localStorage.getItem('tune_lights_expanded') !== 'false';
+      let lhtml = '<div class="tune-lights-header" onclick="toggleLightsBody()">';
+      lhtml += '<span class="tune-lights-chevron" id="tune-lights-chevron">&#x203A;</span>';
+      lhtml += '<span class="tune-lights-title">Lights</span>';
+      lhtml += '</div>';
+      lhtml += '<div class="tune-lights-body" id="tune-lights-body">';
       lhtml += '<div id="tune-lights-list">';
       if (sortedLights.length === 0) {
         lhtml += '<div style="padding:10px 14px;color:var(--muted2);font-size:0.82rem;">No lights found</div>';
@@ -2826,7 +2837,9 @@
       lhtml += '<button class="section-cancel-btn" onclick="cancelLightsChanges()">Cancel</button>';
       lhtml += '<button class="section-save-btn" onclick="saveLightsChanges()">Save</button>';
       lhtml += '</div>';
+      lhtml += '</div>'; // close tune-lights-body
       lightsCard.innerHTML = lhtml;
+      if (lightsExpanded) lightsCard.classList.add('is-open');
 
       // ── Brightness card (merged) ──
       const brightnessCard = document.getElementById('tune-brightness-card');
@@ -3029,6 +3042,13 @@
       if (!card) return;
       const isOpen = card.classList.toggle('is-open');
       localStorage.setItem('tune_details_expanded', isOpen ? 'true' : 'false');
+    }
+
+    function toggleLightsBody() {
+      const card = document.querySelector('.tune-lights-card');
+      if (!card) return;
+      const isOpen = card.classList.toggle('is-open');
+      localStorage.setItem('tune_lights_expanded', isOpen ? 'true' : 'false');
     }
 
     async function loadWakeAlarmSettings() {
