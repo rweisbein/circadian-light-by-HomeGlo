@@ -1811,7 +1811,7 @@ class LightDesignerServer:
                     logger.warning(f"Invalid value for {param_name}: {raw_value}")
 
         # Boolean parameters
-        bool_params = ["warm_night_enabled", "use_ha_location"]
+        bool_params = ["warm_night_enabled", "daylight_enabled", "use_ha_location"]
         for param_name in bool_params:
             if param_name in query:
                 config[param_name] = query[param_name].lower() in (
@@ -1904,7 +1904,10 @@ class LightDesignerServer:
         "warm_night_start",
         "warm_night_end",
         "warm_night_fade",
+        "daylight_enabled",
         "daylight_cct",
+        "daylight_start",
+        "daylight_end",
         "daylight_fade",
         "color_sensitivity",
         "activity_preset",
@@ -2112,6 +2115,7 @@ class LightDesignerServer:
             "warm_night_end": 60,  # minutes offset from sunrise (positive = after)
             "warm_night_fade": 60,  # fade duration in minutes
             # Daylight blend
+            "daylight_enabled": True,
             "daylight_cct": 5500,
             "daylight_fade": 60,
             "color_sensitivity": 1.50,

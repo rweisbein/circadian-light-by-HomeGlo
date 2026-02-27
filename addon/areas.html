@@ -1453,7 +1453,7 @@
       // Daylight color blend (intensity-based)
       const daylightCct = cfg.daylight_cct || 0;
       const colorSensitivity = cfg.color_sensitivity ?? 1.50;
-      if (daylightCct > 0) {
+      if (cfg.daylight_enabled !== false && daylightCct > 0) {
         let blend = Math.min(1.0, 1.0 * colorSensitivity);
         // Apply daylight fade
         const daylightFade = cfg.daylight_fade ?? 60;

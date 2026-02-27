@@ -120,6 +120,7 @@ class Config:
     # Natural light / daylight color
     brightness_sensitivity: float = DEFAULT_BRIGHTNESS_SENSITIVITY
     color_sensitivity: float = DEFAULT_COLOR_SENSITIVITY
+    daylight_enabled: bool = True
     daylight_cct: int = DEFAULT_DAYLIGHT_CCT
     daylight_fade: int = DEFAULT_DAYLIGHT_FADE
 
@@ -160,6 +161,7 @@ class Config:
                     else DEFAULT_COLOR_SENSITIVITY
                 )
             ),
+            daylight_enabled=d.get("daylight_enabled", True),
             daylight_cct=d.get("daylight_cct", DEFAULT_DAYLIGHT_CCT),
             daylight_fade=d.get("daylight_fade", DEFAULT_DAYLIGHT_FADE),
             # Alt timing
@@ -874,7 +876,7 @@ class CircadianLight:
                 else c_min
             )
             upper = (
-                max(c_max, config.daylight_cct) if config.daylight_cct > 0 else c_max
+                max(c_max, config.daylight_cct) if config.daylight_enabled and config.daylight_cct > 0 else c_max
             )
             return int(max(lower, min(upper, round(kelvin))))
 
@@ -999,7 +1001,7 @@ class CircadianLight:
 
         # Daylight color blend (intensity-based)
         day_shift = 0
-        if config.daylight_cct > 0 and sun_times.outdoor_normalized > 0:
+        if config.daylight_enabled and config.daylight_cct > 0 and sun_times.outdoor_normalized > 0:
             outdoor_norm = sun_times.outdoor_normalized
             blend = min(1.0, outdoor_norm * config.color_sensitivity)
             # Apply daylight fade: ramp blend over daylight_fade minutes after sunrise / before sunset
@@ -1084,7 +1086,7 @@ class CircadianLight:
         daylight_fade_weight = 1.0
         day_shift = 0
         daylight_target = config.daylight_cct
-        if config.daylight_cct > 0 and sun_times.outdoor_normalized > 0:
+        if config.daylight_enabled and config.daylight_cct > 0 and sun_times.outdoor_normalized > 0:
             outdoor_norm = sun_times.outdoor_normalized
             blend = min(1.0, outdoor_norm * config.color_sensitivity)
             # Apply daylight fade

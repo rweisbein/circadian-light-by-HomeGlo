@@ -986,7 +986,7 @@
       const outdoorNorm = clearSkyAtHour * condMult;
       const daylightCct = cfg.daylight_cct || 0;
       const colorSensitivity = cfg.color_sensitivity ?? 1.50;
-      if (daylightCct > 0 && outdoorNorm > 0) {
+      if (cfg.daylight_enabled !== false && daylightCct > 0 && outdoorNorm > 0) {
         let blend = Math.min(1.0, outdoorNorm * colorSensitivity);
         // Apply daylight fade
         const daylightFade = cfg.daylight_fade ?? 60;
