@@ -2741,7 +2741,7 @@
         }
         const elImpact = document.getElementById('tune-light-impact-' + light.idx);
         if (elImpact) {
-          const behavImpact = finalVal - adjustedBri;
+          const behavImpact = Math.round(rawFinal) - adjustedBri;
           elImpact.textContent = formatImpact(behavImpact) + '%';
           elImpact.style.color = behavImpact === 0 ? 'var(--muted2)' : '';
         }
