@@ -677,7 +677,7 @@
       display: none;
     }
 
-    /* Schedule override popover (Temporary Alarm) */
+    /* Schedule override popover (Temporary override) */
     .schedule-popover {
       position: fixed;
       z-index: 200;
@@ -685,110 +685,59 @@
       border: 1px solid var(--line);
       border-radius: 10px;
       box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-      padding: 14px 16px;
+      padding: 0;
       min-width: 260px;
       max-width: 320px;
       color: var(--text);
       font-size: 0.85rem;
+      overflow: hidden;
+    }
+    .spo-next-alarm {
+      background: rgba(255,255,255,0.04);
+      padding: 8px 14px;
+      font-size: 0.82rem;
+      color: var(--muted);
+      border-bottom: 1px solid var(--line);
     }
     .schedule-popover-title {
-      font-weight: 700;
+      font-weight: 600;
       font-size: 0.9rem;
-      margin-bottom: 8px;
+      padding: 10px 14px 4px;
     }
-    /* Grid: radio | time */
-    .spo-grid {
-      display: grid;
-      grid-template-columns: 20px 1fr;
-      gap: 0 12px;
+    .spo-section-label {
+      font-size: 0.7rem;
+      font-weight: 500;
+      color: var(--muted2);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 8px 14px 4px;
+    }
+    .spo-options {
+      padding: 0 14px 0 22px;
+    }
+    .spo-option {
+      display: flex;
       align-items: center;
-    }
-    .spo-radio-row {
-      display: contents;
+      gap: 6px;
+      padding: 5px 0;
+      font-size: 0.82rem;
+      color: var(--muted);
       cursor: pointer;
     }
-    .spo-radio-row input[type="radio"] {
+    .spo-option input[type="radio"] {
       accent-color: var(--muted);
       margin: 0;
       cursor: pointer;
-    }
-    .spo-through-radios input[type="radio"] { accent-color: var(--muted); }
-    .spo-time-cell {
-      text-align: left;
-      padding: 6px 0;
-      font-size: 0.88rem;
-      cursor: pointer;
-    }
-    /* Custom slider row */
-    .spo-slider-cell {
-      display: flex;
-      flex-direction: column;
-      align-items: stretch;
-      padding: 10px 0 4px;
-    }
-    .spo-slider-cell input[type="range"] {
-      width: 100%;
-      height: 4px;
-      accent-color: var(--muted);
-    }
-    .spo-slider-cell .spo-slider-val {
-      font-size: 0.75rem;
-      opacity: 0.6;
-      margin-top: 4px;
-    }
-    .schedule-popover-apply-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-top: 10px;
-      padding-top: 10px;
-      border-top: 1px solid var(--line);
-      font-size: 0.8rem;
-    }
-    .schedule-popover-apply-row label {
-      opacity: 0.7;
-    }
-    .schedule-popover-apply-row input[type="date"],
-    .schedule-popover-apply-row select {
-      background: var(--bg);
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      color: var(--text);
-      padding: 5px 6px;
-      font-size: 0.8rem;
-      height: 30px;
-      box-sizing: border-box;
-    }
-    .schedule-popover-apply-row button {
-      padding: 5px 14px;
-      border-radius: 6px;
-      border: 1px solid var(--line);
-      background: var(--bg);
-      color: var(--text);
-      font-size: 0.8rem;
-      height: 30px;
-      box-sizing: border-box;
-      cursor: pointer;
-    }
-    .schedule-popover-apply-row button:hover {
-      background: rgba(255,255,255,0.08);
-    }
-    .schedule-popover-apply-row button.primary {
-      background: var(--accent);
-      color: #000;
-      border-color: var(--accent);
-    }
-    .schedule-popover-apply-row button.primary:hover {
-      opacity: 0.9;
+      flex-shrink: 0;
     }
     .spo-info {
-      font-size: 0.9rem;
+      font-size: 0.88rem;
       font-weight: 600;
-      padding: 6px 0;
+      padding: 6px 14px;
       text-align: center;
     }
     .schedule-popover-clear {
-      margin-top: 8px;
+      padding: 6px 14px 10px;
       text-align: center;
     }
     .schedule-popover-clear button {
@@ -803,6 +752,35 @@
     .schedule-popover-clear button:hover {
       opacity: 1;
     }
+    .spo-buttons {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      padding: 8px 14px 10px;
+      border-top: 1px solid var(--line);
+      margin-top: 6px;
+    }
+    .spo-btn-cancel {
+      padding: 6px 14px;
+      border-radius: 6px;
+      border: 1px solid var(--line);
+      background: transparent;
+      color: var(--muted);
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+    .spo-btn-cancel:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+    .spo-btn-save {
+      padding: 6px 14px;
+      border-radius: 6px;
+      border: 1px solid var(--accent);
+      background: var(--accent);
+      color: #000;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .spo-btn-save:hover { opacity: 0.9; }
 
     /* Red dot: area doesn't match zone (inline after power button) */
     .mismatch-dot-area {
@@ -2068,6 +2046,24 @@
 
     let activePopoverZone = null;
 
+    function getNextAlarmForZone(zoneName) {
+      // Find next_wake_alarm from any area in the given zone
+      for (const [areaId, status] of Object.entries(areaStatus)) {
+        if ((status.zone_name || '') === zoneName && status.next_wake_alarm) {
+          return status.next_wake_alarm;
+        }
+      }
+      return null;
+    }
+
+    function fmtNextAlarmHeader(nwa) {
+      if (!nwa) return '';
+      let t = nwa.time;
+      if (t && t !== 'paused') t = t.replace(/:00([ap])$/, '$1');
+      const day = nwa.day_abbr || nwa.day || '';
+      return day ? t + ' ' + day : t;
+    }
+
     function openSchedulePopover(zoneName, anchorEl) {
       // Toggle: close if already open for this zone
       if (activePopoverZone === zoneName) {
@@ -2096,6 +2092,10 @@
       popover.id = 'schedule-popover';
       popover.onclick = (e) => e.stopPropagation();
 
+      // Next alarm header
+      const nwa = getNextAlarmForZone(zoneName);
+      const nextAlarmStr = nwa ? fmtNextAlarmHeader(nwa) : '';
+
       if (override) {
         // --- Override IS active: show info + clear ---
         let desc = '';
@@ -2105,81 +2105,75 @@
         else if (override.mode === 'off') desc = 'paused';
 
         const throughLabel = fmtRelativeDate(override.until_date || '');
-        const untilStr = throughLabel ? ' daily through ' + throughLabel : '';
+        const untilStr = throughLabel ? ' through ' + throughLabel : '';
 
         popover.innerHTML = `
-          <div class="schedule-popover-title">Temp alarm override</div>
+          ${nextAlarmStr ? '<div class="spo-next-alarm">Next alarm: ' + nextAlarmStr + '</div>' : ''}
+          <div class="schedule-popover-title">Temporary override</div>
           <div class="spo-info">${desc}${untilStr}</div>
-          <div class="schedule-popover-clear"><button onclick="clearScheduleOverride()" title="Remove temporary alarm">Clear</button></div>
+          <div class="schedule-popover-clear"><button onclick="clearScheduleOverride()" title="Remove temporary alarm">Clear override</button></div>
         `;
       } else {
         // --- No override: cancel / other time / custom slider ---
-        // Determine which schedule fires next (to show the OTHER one)
         const wakeAltDays = zoneData.wake_alt_days || [];
         let nextIsPrimary = true;
         if (hasAlt && wakeAltDays.length > 0) {
           const now = new Date();
           const currentHour = now.getHours() + now.getMinutes() / 60;
-          let checkDay = now.getDay() === 0 ? 6 : now.getDay() - 1; // convert Sun=0 to Mon=0
-          // If today's alarm has passed, check tomorrow
+          let checkDay = now.getDay() === 0 ? 6 : now.getDay() - 1;
           const todayAlarm = wakeAltDays.includes(checkDay) ? altWake : mainWake;
-          if (currentHour >= todayAlarm) {
-            checkDay = (checkDay + 1) % 7;
-          }
+          if (currentHour >= todayAlarm) checkDay = (checkDay + 1) % 7;
           nextIsPrimary = !wakeAltDays.includes(checkDay);
         }
 
-        // Build the "other" time option (the schedule NOT firing next)
         let otherTimeHtml = '';
         if (hasAlt) {
           if (nextIsPrimary) {
-            // Next is primary → offer alt
             otherTimeHtml = `
-            <div class="spo-radio-row" onclick="document.getElementById('spo-alt').checked=true">
+            <label class="spo-option" onclick="document.getElementById('spo-alt').checked=true">
               <input type="radio" id="spo-alt" name="spo-mode" value="alt">
-              <div class="spo-time-cell">${fmtCompactTime(altWake)}</div>
-            </div>`;
+              <span>${fmtCompactTime(altWake)}</span>
+            </label>`;
           } else {
-            // Next is alt → offer primary
             otherTimeHtml = `
-            <div class="spo-radio-row" onclick="document.getElementById('spo-main').checked=true">
+            <label class="spo-option" onclick="document.getElementById('spo-main').checked=true">
               <input type="radio" id="spo-main" name="spo-mode" value="main">
-              <div class="spo-time-cell">${fmtCompactTime(mainWake)}</div>
-            </div>`;
+              <span>${fmtCompactTime(mainWake)}</span>
+            </label>`;
           }
         }
 
         let customWake = 12;
 
         popover.innerHTML = `
-          <div class="schedule-popover-title">Temp alarm override</div>
-          <div class="spo-grid">
-            <div class="spo-radio-row" onclick="document.getElementById('spo-off').checked=true">
+          ${nextAlarmStr ? '<div class="spo-next-alarm">Next alarm: ' + nextAlarmStr + '</div>' : ''}
+          <div class="schedule-popover-title">Temporary override</div>
+          <div class="spo-section-label">Wake time</div>
+          <div class="spo-options">
+            <label class="spo-option" onclick="document.getElementById('spo-off').checked=true">
               <input type="radio" id="spo-off" name="spo-mode" value="off">
-              <div class="spo-time-cell">pause (no alarm)</div>
-            </div>
+              <span>pause (no alarm)</span>
+            </label>
             ${otherTimeHtml}
-            <div class="spo-radio-row" onclick="document.getElementById('spo-custom').checked=true">
+            <label class="spo-option" onclick="document.getElementById('spo-custom').checked=true">
               <input type="radio" id="spo-custom" name="spo-mode" value="custom">
-              <div class="spo-time-cell" style="display:flex; align-items:center; gap:8px;">
+              <span style="display:flex; align-items:center; gap:8px; flex:1;">
                 <span id="spo-wake-display" style="min-width:3.5em;">${fmtCompactTime(customWake)}</span>
                 <input type="range" id="spo-custom-wake" min="0" max="24" step="0.25" value="${customWake}" style="flex:1; height:4px; accent-color:var(--muted);">
-              </div>
-            </div>
+              </span>
+            </label>
           </div>
-          <div class="schedule-popover-apply-row" style="flex-direction:column; align-items:stretch;">
-            <div style="padding:6px 0 2px; font-size:0.88rem;">daily through:</div>
-            <div style="display:flex; flex-direction:column; gap:4px; padding:2px 0 6px; padding-left:20px;">
-              <label style="display:flex; align-items:center; gap:4px; cursor:pointer; font-size:0.8rem; opacity:0.7;"><input type="radio" name="spo-through" value="today" onchange="spoThroughChanged()" style="accent-color:var(--muted);"> today</label>
-              <label style="display:flex; align-items:center; gap:4px; cursor:pointer; font-size:0.8rem; opacity:0.7;"><input type="radio" name="spo-through" value="tomorrow" checked onchange="spoThroughChanged()" style="accent-color:var(--muted);"> tomorrow</label>
-              <label style="display:flex; align-items:center; gap:4px; cursor:pointer; font-size:0.8rem; opacity:0.7;"><input type="radio" name="spo-through" value="forever" onchange="spoThroughChanged()" style="accent-color:var(--muted);"> forever</label>
-              <label style="display:flex; align-items:center; gap:4px; cursor:pointer; font-size:0.8rem; opacity:0.7;"><input type="radio" name="spo-through" value="pick" onchange="spoThroughChanged()" style="accent-color:var(--muted);"> pick date</label>
-              <input type="date" id="spo-until-date" value="${untilDate}" style="display:none; margin-top:2px; width:130px;">
-            </div>
-            <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
-              <button onclick="closeSchedulePopover()" style="padding:5px 14px; border-radius:6px; border:1px solid var(--line); background:transparent; color:var(--muted); font-size:0.8rem; cursor:pointer;">Cancel</button>
-              <button class="primary" onclick="applyScheduleOverride()">Save</button>
-            </div>
+          <div class="spo-section-label">Daily through</div>
+          <div class="spo-options">
+            <label class="spo-option"><input type="radio" name="spo-through" value="today" onchange="spoThroughChanged()"> <span>today</span></label>
+            <label class="spo-option"><input type="radio" name="spo-through" value="tomorrow" checked onchange="spoThroughChanged()"> <span>tomorrow</span></label>
+            <label class="spo-option"><input type="radio" name="spo-through" value="forever" onchange="spoThroughChanged()"> <span>forever</span></label>
+            <label class="spo-option"><input type="radio" name="spo-through" value="pick" onchange="spoThroughChanged()"> <span>pick date</span></label>
+            <input type="date" id="spo-until-date" value="${untilDate}" style="display:none; margin-left:22px; margin-top:2px; width:130px;">
+          </div>
+          <div class="spo-buttons">
+            <button class="spo-btn-cancel" onclick="closeSchedulePopover()">Cancel</button>
+            <button class="spo-btn-save" onclick="applyScheduleOverride()">Save</button>
           </div>
         `;
       }
