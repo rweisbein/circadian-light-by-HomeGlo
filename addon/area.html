@@ -2707,6 +2707,7 @@
       // -- Card 3: Lights --
       const briRange = ts.maxBri - ts.minBri;
       const curvePos = briRange > 0 ? Math.max(0, Math.min(1, (ts.baseBri - ts.minBri) / briRange)) : 0;
+      let anyCapped = false;
 
       for (const light of ts.lights) {
         const preset = ts.presets[light.filterName] || { at_bright: 100, at_dim: 100 };
@@ -2719,6 +2720,7 @@
         const isOff = rawFinal < offThresh;
         const wasCapped = rawFinal > 100;
         const finalVal = isOff ? 0 : Math.min(100, Math.round(rawFinal));
+        if (wasCapped && finalVal === 100) anyCapped = true;
 
         const elBri = document.getElementById('tune-light-bri-' + light.idx);
         if (elBri) {
@@ -2728,11 +2730,21 @@
         }
         const elImpact = document.getElementById('tune-light-impact-' + light.idx);
         if (elImpact) {
-          const netImpact = finalVal - adjustedBri;
-          elImpact.textContent = formatImpact(netImpact) + '%';
+          elImpact.textContent = nowPct + '%';
+          elImpact.style.color = nowPct === 100 ? 'var(--muted2)' : '';
         }
         const elMeta = document.getElementById('tune-meta-' + light.idx);
         if (elMeta) elMeta.innerHTML = tunePresetMeta(ts.presets, light.filterName);
+      }
+
+      const legendEl = document.getElementById('tune-lights-legend');
+      if (legendEl) {
+        if (anyCapped) {
+          legendEl.textContent = 'muted = capped at 100%';
+          legendEl.style.display = '';
+        } else {
+          legendEl.style.display = 'none';
+        }
       }
 
       // -- Brightness card: cascade values --
@@ -2916,7 +2928,7 @@
       if (sortedLights.length === 0) {
         lhtml += '<div style="padding:10px 14px;color:var(--muted2);font-size:0.82rem;">No lights found</div>';
       } else {
-        lhtml += '<div class="tune-light-col-headers"><span></span><span></span><span>adjust</span><span>final</span></div>';
+        lhtml += '<div class="tune-light-col-headers"><span></span><span></span><span>behav.</span><span>final</span></div>';
         for (const light of lightsArr) {
           const meta = tunePresetMeta(presets, light.filterName);
           const triggerHtml = '<button class="tune-light-select" data-light-idx="' + light.idx + '" onclick="openBehaviourDropdown(' + light.idx + ', this)">' + light.filterName + ' &#x25BE;</button>';
@@ -2936,6 +2948,7 @@
         }
       }
       lhtml += '</div>';
+      lhtml += '<div id="tune-lights-legend" style="display:none; padding:4px 14px 6px; font-size:0.65rem; color:var(--muted2);"></div>';
       lhtml += '<div class="section-action-bar" id="lights-action-bar" style="display:none;">';
       lhtml += '<button class="section-cancel-btn" onclick="cancelLightsChanges()">Cancel</button>';
       lhtml += '<button class="section-save-btn" onclick="saveLightsChanges()">Save</button>';
