@@ -2730,8 +2730,9 @@
         }
         const elImpact = document.getElementById('tune-light-impact-' + light.idx);
         if (elImpact) {
-          elImpact.textContent = nowPct + '%';
-          elImpact.style.color = nowPct === 100 ? 'var(--muted2)' : '';
+          const behavImpact = finalVal - adjustedBri;
+          elImpact.textContent = formatImpact(behavImpact) + '%';
+          elImpact.style.color = behavImpact === 0 ? 'var(--muted2)' : '';
         }
         const elMeta = document.getElementById('tune-meta-' + light.idx);
         if (elMeta) elMeta.innerHTML = tunePresetMeta(ts.presets, light.filterName);
