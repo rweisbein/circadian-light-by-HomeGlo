@@ -540,7 +540,7 @@
     .tune-control-row:hover .tune-control-reset { opacity: 1; }
     .tune-control-reset:hover { color: var(--accent); }
     .tune-slider-row { padding: 2px 22px 8px 30px; max-width: 70%; }
-    .tune-slider-word { font-size: 0.75rem; color: var(--muted2); white-space: nowrap; display: block; margin-top: 2px; }
+    .tune-slider-word { font-size: 0.75rem; color: var(--muted2); white-space: nowrap; display: flex; justify-content: space-between; margin-top: 2px; }
     .tune-inline-slider { -webkit-appearance: none; appearance: none; width: 100%; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.12); outline: none; cursor: pointer; min-width: 80px; }
     .tune-inline-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; cursor: pointer; border: 2px solid rgba(255,255,255,0.3); }
     .tune-inline-slider::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; cursor: pointer; border: 2px solid rgba(255,255,255,0.3); }
@@ -565,7 +565,8 @@
     .tune-light-behaviour { font-size: 0.75rem; color: var(--muted); cursor: pointer; white-space: nowrap; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 2px; }
     .tune-light-behaviour:hover { color: var(--accent); }
     .tune-light-impact { font-size: 0.82rem; color: var(--text); white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; min-width: 3em; }
-    .tune-light-bri { font-size: 0.82rem; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; min-width: 3em; color: var(--text); }
+    .tune-light-bri { font-size: 0.82rem; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; min-width: 3em; color: var(--text); position: relative; }
+    .tune-capped-star { position: absolute; font-size: 0.7rem; font-weight: 400; color: var(--muted2); margin-left: 1px; }
     .tune-light-expanded { display: flex; align-items: center; gap: 8px; padding: 0 0 10px; padding-left: 14px; flex-wrap: wrap; }
     .tune-light-select { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 2px 6px; font-size: 0.75rem; cursor: pointer; outline: none; }
     .tune-light-select:focus { border-color: var(--accent); }
@@ -2701,7 +2702,14 @@
       if (elSolarWord) {
         const sLabel = SOLAR_STEPS[ts.solarStep].label;
         const sExposure = SOLAR_STEPS[ts.solarStep].exposure;
-        elSolarWord.textContent = sExposure > 0 ? sLabel + ' ' + sExposure.toFixed(1) : sLabel;
+        let leftText = sExposure > 0 ? sLabel + ' ' + sExposure.toFixed(1) : sLabel;
+        let rightText = '';
+        if (sExposure > 0) {
+          const peakNl = Math.max(0.0, 1.0 - sExposure * 1.0 * ts.brightnessSensitivity);
+          const peakDrop = Math.round((1.0 - peakNl) * 100);
+          rightText = 'peak sun \u2193 -' + Math.min(peakDrop, 100) + '%';
+        }
+        elSolarWord.innerHTML = '<span>' + leftText + '</span>' + (rightText ? '<span>' + rightText + '</span>' : '');
       }
 
       // -- Card 3: Lights --
@@ -2725,8 +2733,11 @@
         const elBri = document.getElementById('tune-light-bri-' + light.idx);
         if (elBri) {
           elBri.className = 'tune-light-bri';
-          elBri.textContent = finalVal + '%';
-          elBri.style.color = (wasCapped && finalVal === 100) ? 'var(--muted)' : '';
+          if (wasCapped && finalVal === 100) {
+            elBri.innerHTML = finalVal + '%<span class="tune-capped-star">*</span>';
+          } else {
+            elBri.textContent = finalVal + '%';
+          }
         }
         const elImpact = document.getElementById('tune-light-impact-' + light.idx);
         if (elImpact) {
@@ -2741,7 +2752,7 @@
       const legendEl = document.getElementById('tune-lights-legend');
       if (legendEl) {
         if (anyCapped) {
-          legendEl.textContent = 'muted = capped at 100%';
+          legendEl.textContent = '* = capped at 100%';
           legendEl.style.display = '';
         } else {
           legendEl.style.display = 'none';
@@ -2989,7 +3000,7 @@
       bhtml += '<div class="tune-source-info" id="tune-source-info"></div>';
       bhtml += '<div class="tune-slider-row">'
         + '<input type="range" class="tune-inline-slider tune-inline-slider--sun" id="tune-slider-solar" min="0" max="9" step="1" value="' + solarStep + '">'
-        + '<span class="tune-slider-word" id="tune-solar-word">' + SOLAR_STEPS[solarStep].label + '</span></div>';
+        + '<span class="tune-slider-word" id="tune-solar-word"><span>' + SOLAR_STEPS[solarStep].label + '</span></span></div>';
       bhtml += '<div class="section-action-bar" id="tune-action-bar" style="display:none;">';
       bhtml += '<button class="section-cancel-btn" onclick="cancelBrightnessChanges()">Cancel</button>';
       bhtml += '<button class="section-save-btn" onclick="saveBrightnessChanges()">Save</button>';
@@ -3479,10 +3490,7 @@
       const nwa = areaStatusData.next_wake_alarm;
       let nextAlarmStr = '';
       if (nwa) {
-        let t = nwa.time;
-        if (t && t !== 'paused') t = t.replace(/:00([ap])$/, '$1');
-        const day = nwa.day_abbr || nwa.day || '';
-        nextAlarmStr = day ? t + ' ' + day : t;
+        nextAlarmStr = nwa.time + (nwa.day ? ' ' + nwa.day : '');
       }
 
       if (override) {

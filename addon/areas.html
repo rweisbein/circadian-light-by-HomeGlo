@@ -2058,10 +2058,7 @@
 
     function fmtNextAlarmHeader(nwa) {
       if (!nwa) return '';
-      let t = nwa.time;
-      if (t && t !== 'paused') t = t.replace(/:00([ap])$/, '$1');
-      const day = nwa.day_abbr || nwa.day || '';
-      return day ? t + ' ' + day : t;
+      return nwa.time + (nwa.day ? ' ' + nwa.day : '');
     }
 
     function openSchedulePopover(zoneName, anchorEl) {
