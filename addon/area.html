@@ -2235,6 +2235,17 @@
                 const singleStatus = await res.json();
                 Object.assign(areaStatus, singleStatus);
               }
+              // Update tuneState from fresh status so header+Starting stay in sync
+              if (tuneState.initialized) {
+                const _as = areaStatus[areaId] || {};
+                tuneState.baseBri = _as.curve_brightness || _as.brightness || 50;
+                tuneState.baseKelvin = _as.kelvin || 4000;
+                tuneState.boosted = _as.boosted || false;
+                tuneState.boostBrightness = _as.boost_brightness || 0;
+                const elDetBase = document.getElementById('tune-det-base-total');
+                if (elDetBase) elDetBase.textContent = tuneState.baseBri + '%';
+                recalcTune();
+              }
               updateContent();
               renderMiniChartForArea(areaId);
               updateAllSliders();
@@ -2271,6 +2282,16 @@
               if (res.ok) {
                 const singleStatus = await res.json();
                 Object.assign(areaStatus, singleStatus);
+              }
+              if (tuneState.initialized) {
+                const _as = areaStatus[selectedArea.area_id] || {};
+                tuneState.baseBri = _as.curve_brightness || _as.brightness || 50;
+                tuneState.baseKelvin = _as.kelvin || 4000;
+                tuneState.boosted = _as.boosted || false;
+                tuneState.boostBrightness = _as.boost_brightness || 0;
+                const elDetBase = document.getElementById('tune-det-base-total');
+                if (elDetBase) elDetBase.textContent = tuneState.baseBri + '%';
+                recalcTune();
               }
               updateContent();
               renderMiniChartForArea(selectedArea.area_id);
