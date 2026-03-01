@@ -694,9 +694,10 @@
     }
     .spo-next-alarm {
       background: rgba(255,255,255,0.04);
-      padding: 8px 14px;
-      font-size: 0.82rem;
-      color: var(--muted);
+      padding: 12px 14px;
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--text);
       border-bottom: 1px solid var(--line);
     }
     .schedule-popover-title {
@@ -2105,7 +2106,7 @@
         const untilStr = throughLabel ? ' through ' + throughLabel : '';
 
         popover.innerHTML = `
-          ${nextAlarmStr ? '<div class="spo-next-alarm">Next alarm: ' + nextAlarmStr + '</div>' : ''}
+          ${nextAlarmStr ? '<div class="spo-next-alarm">\u23f0 next: ' + nextAlarmStr + '</div>' : ''}
           <div class="schedule-popover-title">Temporary override</div>
           <div class="spo-info">${desc}${untilStr}</div>
           <div class="schedule-popover-clear"><button onclick="clearScheduleOverride()" title="Remove temporary alarm">Clear override</button></div>
@@ -2143,7 +2144,7 @@
         let customWake = 12;
 
         popover.innerHTML = `
-          ${nextAlarmStr ? '<div class="spo-next-alarm">Next alarm: ' + nextAlarmStr + '</div>' : ''}
+          ${nextAlarmStr ? '<div class="spo-next-alarm">\u23f0 next: ' + nextAlarmStr + '</div>' : ''}
           <div class="schedule-popover-title">Temporary override</div>
           <div class="spo-section-label">Wake time</div>
           <div class="spo-options">
