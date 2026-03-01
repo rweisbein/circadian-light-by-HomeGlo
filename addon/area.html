@@ -92,7 +92,7 @@
     .page-header-meta {
       display: flex;
       flex-direction: column;
-      align-items: flex-end;
+      align-items: center;
       justify-content: center;
       flex-shrink: 0;
     }
@@ -109,12 +109,12 @@
     }
 
     .page-header-meta-label {
-      font-size: 0.6rem;
+      font-size: 0.55rem;
       color: var(--text);
-      opacity: 0.45;
+      opacity: 0.35;
       white-space: nowrap;
-      text-transform: lowercase;
-      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
     }
 
     /* Area state display - with dynamic shading (from modal) */
@@ -1869,7 +1869,7 @@
         motion_warning_active: status.motion_warning_active || false
       };
 
-      document.getElementById('page-title').textContent = 'Area: ' + area.name;
+      document.getElementById('page-title').innerHTML = '<span style="color:var(--muted);font-weight:500;">Area:</span> ' + area.name;
 
       // Show area controls
       document.getElementById('controls-left').style.display = 'flex';
@@ -2035,7 +2035,7 @@
       if (areaZoneName) {
         metaRhythm.innerHTML = `<a href="${basePath}/zone/${encodeURIComponent(areaZoneName)}?back=area/${encodeURIComponent(selectedArea.area_id)}">${areaZoneName}</a>`;
         metaRhythm.style.display = '';
-        metaZone.textContent = 'zone';
+        metaZone.textContent = 'rhythm zone';
         metaZone.style.display = '';
       } else {
         metaRhythm.innerHTML = '';
@@ -2736,7 +2736,7 @@
         if (sExposure > 0) {
           const peakNl = Math.max(0.0, 1.0 - sExposure * 1.0 * ts.brightnessSensitivity);
           const peakDrop = Math.round((1.0 - peakNl) * 100);
-          rightText = 'peak sun \u2193 -' + Math.min(peakDrop, 100) + '%';
+          rightText = 'peak sun \u2193 ' + Math.min(peakDrop, 100) + '%';
         }
         elSolarWord.innerHTML = '<span>' + leftText + '</span>' + (rightText ? '<span>' + rightText + '</span>' : '');
       }
@@ -2781,7 +2781,7 @@
       const legendEl = document.getElementById('tune-lights-legend');
       if (legendEl) {
         if (anyCapped) {
-          legendEl.textContent = '* = capped at 100%';
+          legendEl.textContent = '* capped at 100%';
           legendEl.style.display = '';
         } else {
           legendEl.style.display = 'none';
