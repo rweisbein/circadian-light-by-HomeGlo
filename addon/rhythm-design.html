@@ -211,6 +211,9 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
   border-radius: 8px;
   padding: 16px;
   margin-bottom: 16px;
+  position: sticky;
+  top: 49px;
+  z-index: 50;
 }
 
 /* Sliders */
@@ -1154,6 +1157,52 @@ input[type=range]::-moz-range-thumb {
     <span class="live-design-status" id="live-design-status"></span>
   </div>
 
+  <!-- Chart -->
+  <div class="section-block" id="chart-section">
+    <div class="chart-toolbar">
+      <div class="chart-date-control">
+        <span class="chart-date-display" id="chart-date-display">Today</span>
+        <input type="range" id="chart-date-slider" min="0" max="364" value="0">
+      </div>
+      <div class="modeled-conditions">
+        <select id="modeled-conditions" title="Preview how weather affects the color curve">
+          <option value="1.0">Clear sun</option>
+          <option value="0.6">Partly cloudy</option>
+          <option value="0.3">Overcast</option>
+          <option value="0.15">Heavy overcast</option>
+          <option value="0">Dark / indoor</option>
+        </select>
+      </div>
+      <div class="chart-schedule-toggles" id="chart-schedule-toggles" style="display:none;">
+        <label class="schedule-toggle">
+          <input type="checkbox" id="chart-wake-secondary"> wake secondary
+        </label>
+        <label class="schedule-toggle">
+          <input type="checkbox" id="chart-bed-secondary"> bed secondary
+        </label>
+      </div>
+    </div>
+    <div class="chart-wrapper">
+      <div id="chart"></div>
+      <div class="time-hover-label" id="time-hover-label"></div>
+      <div class="graph-cursor-callout" id="cursor-callout"></div>
+    </div>
+
+    <div class="chart-below-row">
+      <div class="time-nav-group">
+        <button class="time-nav-btn" id="cursor-time-minus-30" title="-30 minutes">-30</button>
+        <button class="time-nav-btn" id="cursor-time-minus" title="-5 minutes">-5</button>
+        <button class="time-nav-btn" id="cursor-time-plus" title="+5 minutes">+5</button>
+        <button class="time-nav-btn" id="cursor-time-plus-30" title="+30 minutes">+30</button>
+      </div>
+      <button class="time-nav-btn" id="cursor-time-now" title="Jump to current time">Now</button>
+      <label style="display:flex;align-items:center;gap:6px;font-size:0.75rem;color:var(--muted);cursor:pointer;user-select:none;margin-left:auto;">
+        <input type="checkbox" id="simple-mode" checked style="width:14px;height:14px;accent-color:var(--muted2);">
+        Simple
+      </label>
+    </div>
+  </div>
+
   <div class="rhythm-card" id="rhythm-sleep-card">
     <div class="rhythm-card-header" onclick="toggleRhythmCard('rhythm-sleep-card', 'rhythm_sleep_expanded')">
       <span class="rhythm-card-chevron" id="rhythm-sleep-chevron">&#x203A;</span>
@@ -1301,52 +1350,6 @@ input[type=range]::-moz-range-thumb {
       <!-- Hidden fields for ascend/descend (set by sleep pattern) -->
       <input type="range" id="ascend-start" min="0" max="24" step="0.5" value="3" style="display:none">
       <input type="range" id="descend-start" min="0" max="36" step="0.5" value="12" style="display:none">
-    </div>
-  </div>
-
-  <!-- Chart -->
-  <div class="section-block" id="chart-section">
-    <div class="chart-toolbar">
-      <div class="chart-date-control">
-        <span class="chart-date-display" id="chart-date-display">Today</span>
-        <input type="range" id="chart-date-slider" min="0" max="364" value="0">
-      </div>
-      <div class="modeled-conditions">
-        <select id="modeled-conditions" title="Preview how weather affects the color curve">
-          <option value="1.0">Clear sun</option>
-          <option value="0.6">Partly cloudy</option>
-          <option value="0.3">Overcast</option>
-          <option value="0.15">Heavy overcast</option>
-          <option value="0">Dark / indoor</option>
-        </select>
-      </div>
-      <div class="chart-schedule-toggles" id="chart-schedule-toggles" style="display:none;">
-        <label class="schedule-toggle">
-          <input type="checkbox" id="chart-wake-secondary"> wake secondary
-        </label>
-        <label class="schedule-toggle">
-          <input type="checkbox" id="chart-bed-secondary"> bed secondary
-        </label>
-      </div>
-    </div>
-    <div class="chart-wrapper">
-      <div id="chart"></div>
-      <div class="time-hover-label" id="time-hover-label"></div>
-      <div class="graph-cursor-callout" id="cursor-callout"></div>
-    </div>
-
-    <div class="chart-below-row">
-      <div class="time-nav-group">
-        <button class="time-nav-btn" id="cursor-time-minus-30" title="-30 minutes">-30</button>
-        <button class="time-nav-btn" id="cursor-time-minus" title="-5 minutes">-5</button>
-        <button class="time-nav-btn" id="cursor-time-plus" title="+5 minutes">+5</button>
-        <button class="time-nav-btn" id="cursor-time-plus-30" title="+30 minutes">+30</button>
-      </div>
-      <button class="time-nav-btn" id="cursor-time-now" title="Jump to current time">Now</button>
-      <label style="display:flex;align-items:center;gap:6px;font-size:0.75rem;color:var(--muted);cursor:pointer;user-select:none;margin-left:auto;">
-        <input type="checkbox" id="simple-mode" checked style="width:14px;height:14px;accent-color:var(--muted2);">
-        Simple
-      </label>
     </div>
   </div>
 
@@ -3210,15 +3213,6 @@ function toggleRhythmCard(cardId, storageKey) {
   if (!card) return;
   const isOpen = card.classList.toggle('is-open');
   localStorage.setItem(storageKey, isOpen ? 'true' : 'false');
-  // When Sleep card opens, scroll so chart top aligns with viewport top
-  if (isOpen && cardId === 'rhythm-sleep-card') {
-    const chartSection = document.getElementById('chart-section');
-    if (chartSection) {
-      setTimeout(() => {
-        chartSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 50);
-    }
-  }
 }
 
 function initSleepDayIndicators() {
