@@ -144,8 +144,8 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
   color: var(--text);
 }
 .day-bubble.active {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: #eef1f5;
+  border-color: #eef1f5;
   color: #000;
 }
 
@@ -258,7 +258,7 @@ input[type=range]::-moz-range-thumb {
 
 /* Chart Section */
 .chart-wrapper { position: relative; margin-bottom: 18px; }
-#chart { height: 320px; transition: height 0.2s ease; }
+#chart { height: 280px; }
 .chart-toolbar {
   display: flex;
   align-items: center;
@@ -297,6 +297,7 @@ input[type=range]::-moz-range-thumb {
 .chart-below-row {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   margin-top: 8px;
 }
@@ -304,6 +305,12 @@ input[type=range]::-moz-range-thumb {
   display: flex;
   gap: 4px;
   align-items: center;
+}
+.time-nav-divider {
+  width: 1px;
+  height: 16px;
+  background: rgba(255,255,255,0.15);
+  margin: 0 2px;
 }
 .time-nav-btn {
   --btn-bg: rgba(255,255,255,0.06);
@@ -1192,6 +1199,7 @@ input[type=range]::-moz-range-thumb {
         <button class="time-nav-btn" id="cursor-time-plus" title="+5 minutes">+5</button>
         <button class="time-nav-btn" id="cursor-time-plus-30" title="+30 minutes">+30</button>
       </div>
+      <div class="time-nav-divider"></div>
       <button class="time-nav-btn" id="cursor-time-now" title="Jump to current time">Now</button>
     </div>
   </div>
@@ -1411,11 +1419,10 @@ input[type=range]::-moz-range-thumb {
                 <span class="tune-control-label">Fade</span>
                 <span class="tune-control-reset" id="reset-warm-night-fade" data-default="60">reset</span>
               </span>
-              <span class="tune-control-impact"></span>
+              <span class="tune-control-impact" id="warm-night-fade-text">1 hr</span>
             </div>
             <div class="tune-slider-row">
               <input type="range" id="warm-night-fade" min="0" max="300" step="30" value="60">
-              <div class="tune-slider-word" id="warm-night-fade-text">1 hr</div>
             </div>
           </div>
         </div>
@@ -1466,22 +1473,20 @@ input[type=range]::-moz-range-thumb {
                 <span class="tune-control-label">Fade</span>
                 <span class="tune-control-reset" id="reset-daylight-fade" data-default="60">reset</span>
               </span>
-              <span class="tune-control-impact"></span>
+              <span class="tune-control-impact" id="daylight-fade-text">1 hr</span>
             </div>
             <div class="tune-slider-row">
               <input type="range" id="daylight-fade" min="0" max="300" step="30" value="60">
-              <div class="tune-slider-word" id="daylight-fade-text">1 hr</div>
             </div>
             <div class="tune-control-row">
               <span class="tune-control-left">
                 <span class="tune-control-label">Sun sensitivity</span>
                 <span class="tune-control-reset" id="reset-color-sensitivity" data-default="6">reset</span>
               </span>
-              <span class="tune-control-impact" id="color-sensitivity-impact"></span>
+              <span class="tune-control-impact" id="color-sensitivity-text">1.50: strong</span>
             </div>
             <div class="tune-slider-row">
               <input type="range" id="color-sensitivity" min="0" max="9" step="1" value="6">
-              <div class="tune-slider-word" id="color-sensitivity-text">Strong</div>
             </div>
           </div>
         </div>
@@ -2525,11 +2530,11 @@ function renderChart() {
   const descendStart = wrap24(config.descend_start);
 
   // Below-axis annotation positions (tiered: x-ticks → phase → solar → cursor)
-  const phaseLabelLineY = -0.07;
-  const phaseLabelY = -0.12;
-  const solarLabelLineY = -0.14;
-  const solarLabelY = -0.20;
-  const cursorExtendY = -0.27;
+  const phaseLabelLineY = -0.08;
+  const phaseLabelY = -0.16;
+  const solarLabelLineY = -0.18;
+  const solarLabelY = -0.25;
+  const cursorExtendY = -0.32;
 
   // X-axis labels (from top to bottom):
   // 1. Time labels (handled by xaxis ticktext at y=0)
@@ -2804,7 +2809,7 @@ function applyCursor() {
   }
 
   // Cursor line extending below x-axis down to callout
-  const cursorExtendY = -0.27;
+  const cursorExtendY = -0.32;
   shapes.push({
     type: 'line', xref: 'x', yref: 'paper',
     x0: cursorHour, x1: cursorHour, y0: cursorExtendY, y1: 0,
@@ -3278,8 +3283,8 @@ function syncUIFromConfig() {
   updateDisplay('wake-brightness-display', wb + '%');
   const bb = config.bed_brightness || 50;
   updateDisplay('bed-brightness-display', bb + '%');
-  updateDisplay('wake-speed-display', `${SPEED_LABELS[config.wake_speed]} (${config.wake_speed})`);
-  updateDisplay('bed-speed-display', `${SPEED_LABELS[config.bed_speed]} (${config.bed_speed})`);
+  updateDisplay('wake-speed-display', `${config.wake_speed}: ${SPEED_LABELS[config.wake_speed].toLowerCase()}`);
+  updateDisplay('bed-speed-display', `${config.bed_speed}: ${SPEED_LABELS[config.bed_speed].toLowerCase()}`);
   updateRangeDisplays();
 
 
@@ -3385,7 +3390,8 @@ function updateOffsetDisplays() {
   updateDisplay('daylight-start-text', formatOffset(config.daylight_start ?? 60, 'sunrise'));
   updateDisplay('daylight-end-text', formatOffset(config.daylight_end ?? -60, 'sunset'));
   updateDisplay('daylight-fade-text', fmtHrs(config.daylight_fade));
-  updateDisplay('color-sensitivity-text', SENSITIVITY_STEPS[findClosestSensitivityStep(config.color_sensitivity)].label);
+  const sensStep = SENSITIVITY_STEPS[findClosestSensitivityStep(config.color_sensitivity)];
+  updateDisplay('color-sensitivity-text', `${sensStep.multiplier.toFixed(2)}: ${sensStep.label.toLowerCase()}`);
 }
 
 function updateSolarImpacts() {
@@ -3413,11 +3419,6 @@ function updateSolarImpacts() {
   const dlEnd = sunset + ((config.daylight_end ?? -60) / 60);
   updateDisplay('daylight-end-impact', fmt12(dlEnd));
 
-  // Sun sensitivity peak K shift
-  const baseCCT = calculateColorAtHour(solarNoon, false);
-  const withSolar = calculateColorAtHour(solarNoon, true);
-  const delta = Math.round(withSolar - baseCCT);
-  updateDisplay('color-sensitivity-impact', delta > 0 ? `peak +${delta} K` : '\u2014');
 }
 
 // Sync color rule rows - toggle is-disabled based on checkbox + mode state
@@ -3571,8 +3572,8 @@ function setupEventListeners() {
   updateSliderValue('descend-start', 'descend-start-display', formatHour);
   updateSliderValue('wake-time', 'wake-time-display', formatHour);
   updateSliderValue('bed-time', 'bed-time-display', formatHour);
-  updateSliderValue('wake-speed', 'wake-speed-display', v => `${SPEED_LABELS[v]} (${v})`);
-  updateSliderValue('bed-speed', 'bed-speed-display', v => `${SPEED_LABELS[v]} (${v})`);
+  updateSliderValue('wake-speed', 'wake-speed-display', v => `${v}: ${SPEED_LABELS[v].toLowerCase()}`);
+  updateSliderValue('bed-speed', 'bed-speed-display', v => `${v}: ${SPEED_LABELS[v].toLowerCase()}`);
 
   // Alt time sliders
   updateSliderValue('wake-alt-time', 'wake-alt-time-display', formatHour);
