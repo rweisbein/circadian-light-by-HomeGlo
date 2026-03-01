@@ -371,7 +371,7 @@ input[type=range]::-moz-range-thumb {
 /* Cursor callout - shows values at cursor position */
 .graph-cursor-callout {
   position: absolute;
-  bottom: 0px;
+  bottom: 10px;
   padding: 4px 10px;
   border-radius: 8px;
   border: 1.5px solid #fdfdfd;
@@ -1193,12 +1193,15 @@ input[type=range]::-moz-range-thumb {
 
 /* Section save/cancel buttons */
 .section-actions {
-  display: flex;
+  display: none;
   justify-content: flex-end;
   gap: 14px;
   padding: 10px 0 2px;
   margin-top: 8px;
   border-top: 1px solid var(--line);
+}
+.section-actions.has-changes {
+  display: flex;
 }
 .section-action-btn {
   background: none;
@@ -1221,7 +1224,7 @@ input[type=range]::-moz-range-thumb {
       <polyline points="15 18 9 12 15 6"/>
     </svg>
   </button>
-  <span style="color: var(--muted); font-size: 0.9rem; font-weight: 500;">Design:</span>
+  <span style="color: var(--muted); font-size: 0.9rem; font-weight: 500;">Rhythm zone:</span>
   <input type="text" class="rhythm-name-input" id="rhythm-name" value="Daily Rhythm 1" placeholder="Zone name">
 </header>
 
@@ -2626,11 +2629,11 @@ function renderChart() {
   const descendStart = wrap24(config.descend_start);
 
   // Below-axis annotation positions (tiered: x-ticks → phase → solar → cursor)
-  const phaseLabelLineY = -0.10;
-  const phaseLabelY = -0.20;
-  const solarLabelLineY = -0.22;
-  const solarLabelY = -0.29;
-  const cursorExtendY = -0.32;
+  const phaseLabelLineY = -0.12;
+  const phaseLabelY = -0.24;
+  const solarLabelLineY = -0.26;
+  const solarLabelY = -0.33;
+  const cursorExtendY = -0.38;
 
   // X-axis labels (from top to bottom):
   // 1. Time labels (handled by xaxis ticktext at y=0)
@@ -2725,7 +2728,7 @@ function renderChart() {
   const layout = {
     paper_bgcolor: '#0a0a0a',
     plot_bgcolor: '#0a0a0a',
-    margin: { t: 10, r: 40, l: 50, b: 80 },
+    margin: { t: 10, r: 40, l: 50, b: 90 },
     showlegend: false,
     hovermode: 'closest',
     xaxis: {
@@ -2750,7 +2753,7 @@ function renderChart() {
     annotations
   };
 
-  Plotly.react('chart', traces, layout, { displayModeBar: false }).then(() => {
+  Plotly.react('chart', traces, layout, { displayModeBar: false, doubleClick: false }).then(() => {
     initChartInteractivity();
     applyCursor();
   });
@@ -2905,7 +2908,7 @@ function applyCursor() {
   }
 
   // Cursor line extending below x-axis down to callout
-  const cursorExtendY = -0.32;
+  const cursorExtendY = -0.38;
   shapes.push({
     type: 'line', xref: 'x', yref: 'paper',
     x0: cursorHour, x1: cursorHour, y0: cursorExtendY, y1: 0,
@@ -4811,13 +4814,26 @@ const _backUrl = _backParam && _backParam !== 'home'
   ? (_basePath || '.') + '/' + _backParam
   : (_basePath || '.') + '/';
 
+function stopLiveDesign() {
+  if (liveDesignEnabled && liveDesignAreaId) {
+    // Fire-and-forget re-enable circadian for the area
+    setCircadianMode(liveDesignAreaId, true);
+    liveDesignEnabled = false;
+    liveDesignAreaId = null;
+  }
+}
+
 function goBack() {
+  stopLiveDesign();
   if (window.history.length > 1 && document.referrer) {
     window.history.back();
   } else {
     window.location.href = _backUrl;
   }
 }
+
+// Also stop Live Design if user navigates away via browser back/close
+window.addEventListener('beforeunload', stopLiveDesign);
 
 let _saveCallback = goBack;
 
@@ -4831,6 +4847,18 @@ function setupSaveButton() {
     saveZoneSettings();
   });
   document.getElementById('cancel-btn')?.addEventListener('click', goBack);
+}
+
+function setupSectionActions() {
+  document.querySelectorAll('.rhythm-card').forEach(card => {
+    const actions = card.querySelector('.section-actions');
+    if (!actions) return;
+    const body = card.querySelector('.rhythm-card-body');
+    if (!body) return;
+    const show = () => actions.classList.add('has-changes');
+    body.addEventListener('input', show);
+    body.addEventListener('change', show);
+  });
 }
 
 // ============================================================
@@ -4854,6 +4882,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupEventListeners();
   setupLiveDesign();
   setupSaveButton();
+  setupSectionActions();
   syncUIFromConfig();
 
   // Set cursor to current time on page load
