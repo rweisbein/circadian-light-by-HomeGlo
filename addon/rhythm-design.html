@@ -371,7 +371,7 @@ input[type=range]::-moz-range-thumb {
 /* Cursor callout - shows values at cursor position */
 .graph-cursor-callout {
   position: absolute;
-  bottom: -14px;
+  bottom: 0px;
   padding: 4px 10px;
   border-radius: 8px;
   border: 1.5px solid #fdfdfd;
@@ -796,6 +796,12 @@ input[type=range]::-moz-range-thumb {
   font-family: inherit;
 }
 .live-design-link:hover { color: var(--text); text-decoration: underline; }
+.live-design-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent);
+  margin-left: 4px;
+}
 .live-design-status {
   font-size: 0.75rem;
   color: var(--muted);
@@ -1231,7 +1237,8 @@ input[type=range]::-moz-range-thumb {
     <select id="live-area-select">
       <option value="">Select area</option>
     </select>
-    <a href="#" class="live-design-link" id="live-design-toggle" style="display: none;">Pause</a>
+    <a href="#" class="live-design-link" id="live-design-toggle" style="display: none;">Stop</a>
+    <span class="live-design-label" id="live-design-label" style="display: none;">Live</span>
     <span class="live-design-status" id="live-design-status"></span>
   </div>
 
@@ -1243,7 +1250,7 @@ input[type=range]::-moz-range-thumb {
         <input type="range" id="chart-date-slider" min="0" max="364" value="0">
       </div>
       <div class="modeled-conditions">
-        <select id="modeled-conditions" title="Preview how weather affects the color curve" style="width: 90px;">
+        <select id="modeled-conditions" title="Preview how weather affects the color curve" style="width: 76px;">
           <option value="1.0">Sunny</option>
           <option value="0.6">Mixed</option>
           <option value="0.3">Cloudy</option>
@@ -2619,10 +2626,10 @@ function renderChart() {
   const descendStart = wrap24(config.descend_start);
 
   // Below-axis annotation positions (tiered: x-ticks → phase → solar → cursor)
-  const phaseLabelLineY = -0.08;
-  const phaseLabelY = -0.16;
-  const solarLabelLineY = -0.18;
-  const solarLabelY = -0.25;
+  const phaseLabelLineY = -0.10;
+  const phaseLabelY = -0.20;
+  const solarLabelLineY = -0.22;
+  const solarLabelY = -0.29;
   const cursorExtendY = -0.32;
 
   // X-axis labels (from top to bottom):
@@ -2718,7 +2725,7 @@ function renderChart() {
   const layout = {
     paper_bgcolor: '#0a0a0a',
     plot_bgcolor: '#0a0a0a',
-    margin: { t: 10, r: 40, l: 50, b: 70 },
+    margin: { t: 10, r: 40, l: 50, b: 80 },
     showlegend: false,
     hovermode: 'closest',
     xaxis: {
@@ -4077,8 +4084,10 @@ async function setCircadianMode(areaId, enabled) {
 function updateLiveVisuals() {
   const controls = document.getElementById('live-design-controls');
   const fab = document.getElementById('live-fab');
+  const liveLabel = document.getElementById('live-design-label');
   if (controls) controls.classList.toggle('is-live', liveDesignEnabled);
   if (fab) fab.classList.toggle('is-active', liveDesignEnabled);
+  if (liveLabel) liveLabel.style.display = liveDesignEnabled ? '' : 'none';
 }
 
 function setupLiveDesign() {
@@ -4091,42 +4100,19 @@ function setupLiveDesign() {
       e.preventDefault();
       if (!liveDesignAreaId) return;
 
-      liveDesignEnabled = !liveDesignEnabled;
-      toggleBtn.textContent = liveDesignEnabled ? 'Pause' : 'Resume';
+      // Stop: re-enable Circadian, reset UI to initial state
+      liveDesignEnabled = false;
+      toggleBtn.style.display = 'none';
+      areaSelect.value = '';
+      if (statusEl) {
+        statusEl.textContent = '';
+        statusEl.classList.remove('active', 'live-blink');
+      }
       updateDesignModeUI();
       updateLiveVisuals();
-
-      // Disable/enable Circadian mode for the area
-      if (liveDesignEnabled) {
-        // Disable Circadian so periodic updates don't override Live Design
-        await setCircadianMode(liveDesignAreaId, false);
-        if (statusEl) {
-          statusEl.textContent = 'starting Live Design';
-          statusEl.classList.remove('live-blink');
-          statusEl.classList.add('active');
-        }
-        // Apply current cursor position with 3s transition
-        liveDesignFirstApply = true;
-        if (cursorHour !== null) {
-          applyLiveLight();
-        }
-        // Update status after transition
-        setTimeout(() => {
-          if (liveDesignEnabled && statusEl) {
-            statusEl.textContent = 'Live!';
-            statusEl.classList.add('live-blink');
-          }
-        }, 2500);
-      } else {
-        // Re-enable Circadian when pausing (this restores lights via backend)
-        if (statusEl) {
-          statusEl.textContent = 'Paused';
-          statusEl.classList.remove('active', 'live-blink');
-        }
-        await setCircadianMode(liveDesignAreaId, true);
-        // Snap cursor back to now — exiting design mode
-        snapCursorToNow();
-      }
+      await setCircadianMode(liveDesignAreaId, true);
+      liveDesignAreaId = null;
+      snapCursorToNow();
     });
   }
 
@@ -4149,11 +4135,11 @@ function setupLiveDesign() {
         // Auto-enable Live Design when area is selected
         liveDesignEnabled = true;
         toggleBtn.style.display = '';
-        toggleBtn.textContent = 'Pause';
+        toggleBtn.textContent = 'Stop';
         updateDesignModeUI();
         updateLiveVisuals();
         if (statusEl) {
-          statusEl.textContent = 'starting Live Design';
+          statusEl.textContent = 'Live starting...';
           statusEl.classList.remove('live-blink');
           statusEl.classList.add('active');
         }
