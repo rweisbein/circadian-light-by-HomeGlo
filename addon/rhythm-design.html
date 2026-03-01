@@ -52,7 +52,7 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
 .rhythm-ct-rules { font-size: 0.7rem; color: var(--muted2); margin-left: 8px; }
 
 /* Tune-control-row pattern (label + reset + impact, then indented slider + word) */
-.tune-control-row { display: grid; grid-template-columns: 1fr auto; align-items: baseline; padding: 6px 14px 2px 16px; gap: 0 12px; }
+.tune-control-row { display: grid; grid-template-columns: 1fr auto; align-items: baseline; padding: 4px 14px 2px 16px; gap: 0 12px; }
 .tune-control-left { display: flex; align-items: center; gap: 6px; }
 .tune-control-label { font-size: 0.82rem; color: var(--muted); }
 .tune-control-reset { font-size: 0.7rem; color: var(--muted2); cursor: pointer; opacity: 0; transition: opacity 0.15s; text-transform: uppercase; letter-spacing: 0.03em; pointer-events: none; }
@@ -60,7 +60,7 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
 .tune-control-row:hover .tune-control-reset.is-dirty { opacity: 1; }
 .tune-control-reset:hover { color: var(--accent); }
 .tune-control-impact { font-size: 0.82rem; color: var(--text); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; min-width: 3em; }
-.tune-slider-row { padding: 2px 14px 5px 44px; max-width: 75%; }
+.tune-slider-row { padding: 0px 14px 2px 44px; max-width: 75%; }
 .tune-slider-word { font-size: 0.75rem; color: var(--muted2); margin-top: 1px; }
 .tune-group-label { font-size: 0.75rem; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 0 4px 0; }
 .rhythm-select { background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; color: var(--text); font-size: 0.82rem; padding: 4px 8px; outline: none; }
@@ -257,7 +257,7 @@ input[type=range]::-moz-range-thumb {
 
 /* Chart Section */
 .chart-wrapper { position: relative; margin-bottom: 6px; }
-#chart { height: 320px; }
+#chart { height: 320px; transition: height 0.2s ease; }
 .chart-toolbar {
   display: flex;
   align-items: center;
@@ -1217,18 +1217,16 @@ input[type=range]::-moz-range-thumb {
       </div>
     </div>
     <div class="rhythm-card-body" id="rhythm-sleep-body">
-      <div class="tune-control-row">
-        <span class="tune-control-left">
-          <span class="tune-control-label">Pattern</span>
-          <select id="activity-preset" class="rhythm-select">
-            <option value="young">Young Child</option>
-            <option value="adult" selected>Adult</option>
-            <option value="nightowl">Night Owl</option>
-            <option value="duskbat">Dusk Bat</option>
-            <option value="shiftearly">Shift Early</option>
-            <option value="shiftlate">Shift Late</option>
-          </select>
-        </span>
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 0 2px;">
+        <span class="tune-control-label">Pattern</span>
+        <select id="activity-preset" class="rhythm-select">
+          <option value="young">Young Child</option>
+          <option value="adult" selected>Adult</option>
+          <option value="nightowl">Night Owl</option>
+          <option value="duskbat">Dusk Bat</option>
+          <option value="shiftearly">Shift Early</option>
+          <option value="shiftlate">Shift Late</option>
+        </select>
       </div>
 
       <div class="tune-group-label">Wake</div>
@@ -2777,11 +2775,14 @@ function renderChart() {
   window.baseShapes = shapes.slice();
   window.baseAnnotations = annotations.slice();
 
+  // Resize chart for annotation space in non-simple mode
+  document.getElementById('chart').style.height = simpleMode ? '320px' : '400px';
+
   const layout = {
     paper_bgcolor: '#0a0a0a',
     plot_bgcolor: '#0a0a0a',
-    margin: { t: simpleMode ? 10 : 40, r: 40, l: 50, b: 100 },
-    legend: { orientation: 'h', x: 0, y: 1.1, font: { color: '#c8c8c8' } },
+    margin: { t: simpleMode ? 10 : 55, r: 40, l: 50, b: simpleMode ? 60 : 100 },
+    legend: { orientation: 'h', x: 0, y: 1.12, font: { color: '#c8c8c8' } },
     showlegend: !simpleMode,
     hovermode: 'closest',
     xaxis: {
@@ -3447,6 +3448,50 @@ function syncUIFromConfig() {
   updateSleepSummary();
   updateSolarImpacts();
   updateScheduleToggles();
+  initChartScheduleDefaults();
+}
+
+// Set chart wake/bed secondary checkboxes based on current/next effective schedule
+function initChartScheduleDefaults() {
+  const ALL = [0, 1, 2, 3, 4, 5, 6];
+  const phase = getSleepPhase();
+  const jsToday = new Date().getDay();
+  const pyToday = jsToday === 0 ? 6 : jsToday - 1;
+  const nowDecimal = new Date().getHours() + new Date().getMinutes() / 60;
+
+  ['wake', 'bed'].forEach(prefix => {
+    const primaryDays = getSelectedDays(`${prefix}-days`);
+    const altDays = primaryDays.length === 0
+      ? []
+      : (primaryDays.length < 7 ? ALL.filter(d => !primaryDays.includes(d)) : []);
+    if (altDays.length === 0) return;
+
+    const altSlider = document.getElementById(`${prefix}-alt-time`);
+    if (!altSlider) return;
+
+    const p = phase[prefix];
+    let useAlt = false;
+    if (p === 'current') {
+      useAlt = altDays.includes(pyToday);
+    } else {
+      let startOffset = 1;
+      if (prefix === 'bed' && nowDecimal < (config.descend_start || 20)) startOffset = 0;
+      if (prefix === 'wake' && nowDecimal < (config.ascend_start || 6)) startOffset = 0;
+      const checkDay = (pyToday + startOffset) % 7;
+      useAlt = altDays.includes(checkDay);
+    }
+
+    const checkboxId = prefix === 'wake' ? 'chart-wake-secondary' : 'chart-bed-secondary';
+    if (useAlt) {
+      if (prefix === 'wake') chartWakeMode = 'alt'; else chartBedMode = 'alt';
+      const cb = document.getElementById(checkboxId);
+      if (cb) cb.checked = true;
+    } else {
+      if (prefix === 'wake') chartWakeMode = 'primary'; else chartBedMode = 'primary';
+      const cb = document.getElementById(checkboxId);
+      if (cb) cb.checked = false;
+    }
+  });
 }
 
 // Update combined range displays (color temp + brightness)
