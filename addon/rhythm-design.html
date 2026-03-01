@@ -1305,7 +1305,7 @@ input[type=range]::-moz-range-thumb {
   </div>
 
   <!-- Chart -->
-  <div class="section-block">
+  <div class="section-block" id="chart-section">
     <div class="chart-toolbar">
       <div class="chart-date-control">
         <span class="chart-date-display" id="chart-date-display">Today</span>
@@ -3210,6 +3210,15 @@ function toggleRhythmCard(cardId, storageKey) {
   if (!card) return;
   const isOpen = card.classList.toggle('is-open');
   localStorage.setItem(storageKey, isOpen ? 'true' : 'false');
+  // When Sleep card opens, scroll so chart top aligns with viewport top
+  if (isOpen && cardId === 'rhythm-sleep-card') {
+    const chartSection = document.getElementById('chart-section');
+    if (chartSection) {
+      setTimeout(() => {
+        chartSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 50);
+    }
+  }
 }
 
 function initSleepDayIndicators() {
