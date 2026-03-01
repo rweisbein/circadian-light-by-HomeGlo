@@ -173,7 +173,7 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
 .sleep-time-group .day-indicators {
   display: flex;
   gap: 3px;
-  margin-top: 6px;
+  margin-top: 2px;
 }
 .sleep-time-group .day-indicator {
   width: 24px;
@@ -257,7 +257,7 @@ input[type=range]::-moz-range-thumb {
 }
 
 /* Chart Section */
-.chart-wrapper { position: relative; margin-bottom: 6px; }
+.chart-wrapper { position: relative; margin-bottom: 32px; }
 #chart { height: 320px; transition: height 0.2s ease; }
 .chart-toolbar {
   display: flex;
@@ -363,7 +363,7 @@ input[type=range]::-moz-range-thumb {
 /* Cursor callout - shows values at cursor position */
 .graph-cursor-callout {
   position: absolute;
-  bottom: 10px;
+  bottom: -24px;
   padding: 4px 10px;
   border-radius: 8px;
   border: 1.5px solid #fdfdfd;
@@ -1356,7 +1356,7 @@ input[type=range]::-moz-range-thumb {
       <span class="rhythm-card-val" id="rhythm-color-val">500 – 6500 K</span>
     </div>
     <div class="rhythm-card-body" id="rhythm-color-body">
-      <div class="tune-control-row">
+      <div class="tune-control-row" style="padding-left:0;">
         <span class="tune-control-left"><span class="tune-control-label">Range</span></span>
         <span class="tune-control-impact" id="color-range-display">500 – 6500 K</span>
       </div>
@@ -1505,7 +1505,7 @@ input[type=range]::-moz-range-thumb {
       <span class="rhythm-card-val" id="rhythm-brightness-val">1 – 100%</span>
     </div>
     <div class="rhythm-card-body" id="rhythm-brightness-body">
-      <div class="tune-control-row">
+      <div class="tune-control-row" style="padding-left:0;">
         <span class="tune-control-left"><span class="tune-control-label">Range</span></span>
         <span class="tune-control-impact" id="brightness-range-display">1 – 100%</span>
       </div>
@@ -2714,13 +2714,13 @@ function renderChart() {
     shapes.push({
       type: 'line', xref: 'x', yref: 'paper',
       x0: marker.x, x1: marker.x,
-      y0: -0.06,
+      y0: -0.07,
       y1: marker.extendUp ? 1 : 0,
       line: { color: marker.lineColor, width: marker.solid ? 1.6 : 1, dash: marker.solid ? 'solid' : 'dot' }
     });
     const hoverBg = marker.color === ASCEND_COLORS.text ? ASCEND_COLORS.hoverBg : DESCEND_COLORS.hoverBg;
     annotations.push({
-      x: marker.x, y: -0.11, xref: 'x', yref: 'paper',
+      x: marker.x, y: -0.15, xref: 'x', yref: 'paper',
       text: marker.label,
       showarrow: false,
       font: { size: 11, color: marker.color },
@@ -2736,21 +2736,14 @@ function renderChart() {
   // Solar labels - all same muted grey color, lower position
   const solarLabelColor = 'rgba(215,215,215,0.8)';
   const solarLineColor = 'rgba(200,200,200,0.35)';
-  const allSolarLabels = [
+  const solarLabels = [
     { label: 'sunrise', x: wrap24(sunrise), extendUp: true },
-    { label: 'sunset', x: wrap24(sunset), extendUp: true },
-    { label: 'solar noon', x: wrap24(solarNoon), extendUp: false },
-    { label: 'solar midnight', x: wrap24(solarMid), extendUp: false }
+    { label: 'sunset', x: wrap24(sunset), extendUp: true }
   ];
-  // In simple mode: only sunrise/sunset, lines stop at x-axis
-  const solarLabels = simpleMode
-    ? allSolarLabels.filter(m => m.label === 'sunrise' || m.label === 'sunset')
-    : allSolarLabels;
 
   const solarHoverBg = '#3a3a3a';
   solarLabels.forEach(marker => {
     if (!Number.isFinite(marker.x)) return;
-    // Line from label up (sunrise/sunset go all the way up, unless simple mode)
     shapes.push({
       type: 'line', xref: 'x', yref: 'paper',
       x0: marker.x, x1: marker.x,
@@ -2759,7 +2752,7 @@ function renderChart() {
       line: { color: solarLineColor, width: 1, dash: 'dot' }
     });
     annotations.push({
-      x: marker.x, y: -0.24, xref: 'x', yref: 'paper',
+      x: marker.x, y: -0.26, xref: 'x', yref: 'paper',
       text: marker.label,
       showarrow: false,
       font: { size: 10, color: solarLabelColor },
@@ -2782,7 +2775,7 @@ function renderChart() {
   const layout = {
     paper_bgcolor: '#0a0a0a',
     plot_bgcolor: '#0a0a0a',
-    margin: { t: simpleMode ? 10 : 55, r: 40, l: 50, b: simpleMode ? 60 : 100 },
+    margin: { t: simpleMode ? 10 : 55, r: 40, l: 50, b: simpleMode ? 80 : 110 },
     legend: { orientation: 'h', x: 0, y: 1.12, font: { color: '#c8c8c8' } },
     showlegend: !simpleMode,
     hovermode: 'closest',
@@ -2965,7 +2958,7 @@ function applyCursor() {
   // Cursor line extending below x-axis down to callout
   shapes.push({
     type: 'line', xref: 'x', yref: 'paper',
-    x0: cursorHour, x1: cursorHour, y0: -0.32, y1: 0,
+    x0: cursorHour, x1: cursorHour, y0: -0.34, y1: 0,
     line: cursorLineStyle, layer: 'above'
   });
 
@@ -3450,6 +3443,16 @@ function syncUIFromConfig() {
   updateSolarImpacts();
   updateScheduleToggles();
   initChartScheduleDefaults();
+
+  // Capture loaded values for reset links (so "reset" restores to loaded state)
+  document.querySelectorAll('.tune-control-reset').forEach(resetEl => {
+    const sliderId = resetEl.id.replace('reset-', '');
+    const input = document.getElementById(sliderId);
+    if (input) {
+      resetEl.dataset.loaded = input.value;
+      resetEl.classList.remove('is-dirty');
+    }
+  });
 }
 
 // Set chart wake/bed secondary checkboxes based on current/next effective schedule
@@ -3730,30 +3733,29 @@ function setupEventListeners() {
   updateSliderValue('wake-brightness', 'wake-brightness-display', v => v + '%');
   updateSliderValue('bed-brightness', 'bed-brightness-display', v => v + '%');
 
-  // Reset links — click to reset slider to default
-  document.querySelectorAll('.tune-control-reset[data-default]').forEach(resetEl => {
+  // Reset links — click to reset slider to loaded value
+  document.querySelectorAll('.tune-control-reset').forEach(resetEl => {
     resetEl.addEventListener('click', (e) => {
       e.stopPropagation();
       const sliderId = resetEl.id.replace('reset-', '');
       const input = document.getElementById(sliderId);
-      if (input) {
-        input.value = resetEl.dataset.default;
+      if (input && resetEl.dataset.loaded != null) {
+        input.value = resetEl.dataset.loaded;
         input.dispatchEvent(new Event('input', { bubbles: true }));
       }
     });
   });
 
   // Dirty-state tracking for reset links
-  document.querySelectorAll('.tune-control-reset[data-default]').forEach(resetEl => {
+  document.querySelectorAll('.tune-control-reset').forEach(resetEl => {
     const sliderId = resetEl.id.replace('reset-', '');
     const input = document.getElementById(sliderId);
     if (input) {
       input.addEventListener('input', () => {
-        const isDirty = input.value !== resetEl.dataset.default;
-        resetEl.classList.toggle('is-dirty', isDirty);
+        if (resetEl.dataset.loaded != null) {
+          resetEl.classList.toggle('is-dirty', input.value !== resetEl.dataset.loaded);
+        }
       });
-      // Initialize dirty state
-      resetEl.classList.toggle('is-dirty', input.value !== resetEl.dataset.default);
     }
   });
 
