@@ -428,7 +428,7 @@
       display: flex;
       align-items: center;
       gap: 4px;
-      margin-top: 2px;
+      margin-top: 5px;
     }
 
     .row-status-sym {
@@ -550,9 +550,8 @@
       display: flex;
       align-items: center;
       gap: 6px;
-      padding: 6px 8px 6px 0;
+      padding: 8px 8px 8px 0;
       background: var(--panel);
-      cursor: pointer;
       border: 1px solid var(--line);
       border-radius: 8px 8px 0 8px;
       user-select: none;
@@ -582,22 +581,29 @@
     .zone-name-group {
       display: flex;
       flex-direction: column;
+      align-items: center;
       line-height: 1;
+      flex: 1;
+      min-width: 0;
     }
     .zone-label-sub {
-      font-size: 0.6rem;
-      text-transform: lowercase;
-      letter-spacing: 0.04em;
-      opacity: 0.45;
+      font-size: 0.55rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      opacity: 0.35;
     }
     .zone-rhythm-link {
       font-size: 1.35rem;
       font-weight: 600;
       text-decoration: none;
       transition: opacity 0.15s;
+      cursor: pointer;
     }
     .zone-rhythm-link:hover {
-      opacity: 0.8;
+      opacity: 0.7;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      text-decoration-thickness: 1px;
     }
 
     .zone-header.collapsed {
@@ -2486,9 +2492,9 @@
       panelHtml += '<select id="tune-outdoor-override-cond">';
       panelHtml += '<option value="">Off</option>';
       panelHtml += '<option value="sunny"' + (d?.override?.condition === 'sunny' ? ' selected' : '') + '>Sunny</option>';
-      panelHtml += '<option value="partly_cloudy"' + (d?.override?.condition === 'partly_cloudy' ? ' selected' : '') + '>Partly cloudy</option>';
+      panelHtml += '<option value="mixed"' + (d?.override?.condition === 'mixed' ? ' selected' : '') + '>Mixed</option>';
       panelHtml += '<option value="cloudy"' + (d?.override?.condition === 'cloudy' ? ' selected' : '') + '>Cloudy</option>';
-      panelHtml += '<option value="heavy_overcast"' + (d?.override?.condition === 'heavy_overcast' ? ' selected' : '') + '>Heavy overcast</option>';
+      panelHtml += '<option value="dark"' + (d?.override?.condition === 'dark' ? ' selected' : '') + '>Dark</option>';
       panelHtml += '</select>';
       panelHtml += '<select id="tune-outdoor-override-dur">';
       panelHtml += '<option value="30">30m</option><option value="60" selected>1h</option><option value="120">2h</option><option value="240">4h</option>';
@@ -3340,16 +3346,15 @@
 
         return `
           <div class="zone-group">
-            <div class="zone-header ${isCollapsed ? 'collapsed' : ''} ${allOff ? 'no-tint' : ''}" data-zone="${zoneName}" style="${zoneHeaderStyle}" onclick="openZoneModal('${escapedZoneName}')">
-              <span class="zone-chevron-tap" onclick="event.stopPropagation(); toggleZone('${escapedZoneName}', this)">${chevronIcon}</span>
+            <div class="zone-header ${isCollapsed ? 'collapsed' : ''} ${allOff ? 'no-tint' : ''}" data-zone="${zoneName}" style="${zoneHeaderStyle}">
+              <span class="zone-chevron-tap" onclick="toggleZone('${escapedZoneName}', this)">${chevronIcon}</span>
               ${zonePowerBtn}
               <div class="zone-name-group" style="color: ${zoneTextColor};">
-                <a class="zone-rhythm-link" href="./zone/${encodeURIComponent(zoneName)}?back=home" style="color: ${zoneTextColor};" onclick="event.stopPropagation()">${zoneName}</a>
-                <span class="zone-label-sub">zone</span>
+                <a class="zone-rhythm-link" href="./zone/${encodeURIComponent(zoneName)}?back=home" style="color: ${zoneTextColor};">${zoneName}</a>
+                <span class="zone-label-sub">rhythm zone</span>
               </div>
               ${zoneFrozenIndicator}
               ${zoneMismatchDot}
-              <span style="flex: 1;"></span>
               <div class="row-controls">
                 <button class="row-btn" onclick="event.stopPropagation(); glozoneDown('${escapedZoneName}')" title="Rhythm Zone Down: send to all areas">${glozoneDownIcon}</button>
                 <button class="row-btn" onclick="event.stopPropagation(); glozoneReset('${escapedZoneName}')" title="Reset Rhythm Zone">${glozoneResetIcon}</button>

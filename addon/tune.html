@@ -754,9 +754,9 @@
       panelHtml += '<select id="tune-outdoor-override-cond">';
       panelHtml += '<option value="">Off</option>';
       panelHtml += '<option value="sunny"' + (d?.override?.condition === 'sunny' ? ' selected' : '') + '>Sunny</option>';
-      panelHtml += '<option value="partly_cloudy"' + (d?.override?.condition === 'partly_cloudy' ? ' selected' : '') + '>Partly cloudy</option>';
+      panelHtml += '<option value="mixed"' + (d?.override?.condition === 'mixed' ? ' selected' : '') + '>Mixed</option>';
       panelHtml += '<option value="cloudy"' + (d?.override?.condition === 'cloudy' ? ' selected' : '') + '>Cloudy</option>';
-      panelHtml += '<option value="heavy_overcast"' + (d?.override?.condition === 'heavy_overcast' ? ' selected' : '') + '>Heavy overcast</option>';
+      panelHtml += '<option value="dark"' + (d?.override?.condition === 'dark' ? ' selected' : '') + '>Dark</option>';
       panelHtml += '</select>';
       panelHtml += '<select id="tune-outdoor-override-dur">';
       panelHtml += '<option value="30">30m</option><option value="60" selected>1h</option><option value="120">2h</option><option value="240">4h</option>';

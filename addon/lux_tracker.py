@@ -30,9 +30,10 @@ CONDITION_MULTIPLIERS = {
     "clear-night": 1.0,
     "windy": 1.0,
     "windy-variant": 1.0,
-    # Partly cloudy
+    # Partly cloudy / mixed
     "partlycloudy": 0.6,
     "partly_cloudy": 0.6,  # override compat
+    "mixed": 0.6,  # override compat
     # Cloudy
     "cloudy": 0.3,
     # Precipitation / dark
@@ -46,6 +47,8 @@ CONDITION_MULTIPLIERS = {
     "pouring": 0.1,
     "lightning": 0.08,
     "lightning-rainy": 0.08,
+    # Dark / indoor
+    "dark": 0.0,  # override compat
 }
 
 # ---------------------------------------------------------------------------

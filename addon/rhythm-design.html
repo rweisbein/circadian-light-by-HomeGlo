@@ -73,24 +73,25 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
 .page-header {
   background: var(--panel);
   border-bottom: 1px solid var(--line);
-  padding: 12px 16px;
+  padding: 8px 12px;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   position: sticky;
   top: 0;
   z-index: 100;
 }
 .rhythm-name-input {
-  font-size: 1.2rem;
+  font-size: 1.05rem;
   font-weight: 600;
   background: transparent;
   border: none;
   color: var(--text);
-  padding: 4px 0;
+  padding: 2px 0;
   width: auto;
-  min-width: 120px;
+  min-width: 80px;
   max-width: 300px;
+  flex: 1;
 }
 .rhythm-name-input:focus {
   outline: none;
@@ -210,7 +211,7 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 16px;
+  padding: 10px 16px 8px;
   margin-bottom: 16px;
   position: sticky;
   top: 49px;
@@ -257,13 +258,13 @@ input[type=range]::-moz-range-thumb {
 }
 
 /* Chart Section */
-.chart-wrapper { position: relative; margin-bottom: 18px; }
-#chart { height: 280px; }
+.chart-wrapper { position: relative; margin-bottom: 8px; }
+#chart { height: 240px; }
 .chart-toolbar {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 6px 0 8px;
+  margin: 2px 0 4px;
 }
 .chart-date-control {
   display: flex;
@@ -299,7 +300,7 @@ input[type=range]::-moz-range-thumb {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  margin-top: 8px;
+  margin-top: 2px;
 }
 .time-nav-group {
   display: flex;
@@ -741,33 +742,51 @@ input[type=range]::-moz-range-thumb {
 }
 
 /* Live Design Controls */
+/* Live Design CTA row */
 .live-design-controls {
   display: flex;
   align-items: center;
   padding: 4px 0;
-  margin-bottom: 12px;
-  gap: 16px;
+  margin-bottom: 10px;
+  gap: 10px;
 }
-.live-design-controls label {
-  font-size: 0.9rem;
-  color: var(--muted);
+.live-design-cta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
   font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.live-design-cta svg {
+  width: 14px;
+  height: 14px;
+  opacity: 0.6;
+}
+.live-design-controls.is-live .live-design-cta svg {
+  opacity: 1;
+  color: var(--accent);
 }
 .live-design-controls select {
-  padding: 8px 12px;
-  border-radius: 8px;
-  border: 1px solid rgba(255,255,255,0.35);
+  padding: 6px 10px;
+  border-radius: 20px;
+  border: 1px solid rgba(255,255,255,0.25);
   background: rgba(255,255,255,0.06);
   color: #fff;
-  min-width: 180px;
-  font-size: 0.9rem;
+  min-width: 140px;
+  font-size: 0.8rem;
 }
 .live-design-controls select:focus {
   outline: none;
-  border-color: dodgerblue;
+  border-color: var(--accent);
+}
+.live-design-controls.is-live select {
+  border-color: rgba(254,172,96,0.5);
+  background: rgba(254,172,96,0.08);
 }
 .live-design-link {
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   color: var(--muted);
   cursor: pointer;
   text-decoration: none;
@@ -778,9 +797,9 @@ input[type=range]::-moz-range-thumb {
 }
 .live-design-link:hover { color: var(--text); text-decoration: underline; }
 .live-design-status {
-  font-size: 0.8rem;
-  color: var(--text);
-  margin-left: 4px;
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-left: 2px;
 }
 .live-design-status.active {
   color: var(--text);
@@ -791,6 +810,41 @@ input[type=range]::-moz-range-thumb {
 }
 .live-design-status.live-blink {
   animation: live-pulse 1.8s ease-in-out infinite;
+}
+
+/* Floating LIVE badge on chart */
+.live-fab {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: none;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px 4px 8px;
+  border-radius: 20px;
+  background: rgba(254,172,96,0.15);
+  border: 1px solid rgba(254,172,96,0.4);
+  color: var(--accent);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  z-index: 10;
+  pointer-events: none;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.live-fab svg {
+  width: 10px;
+  height: 10px;
+}
+@keyframes fab-glow {
+  0%, 100% { box-shadow: 0 0 6px rgba(254,172,96,0.3); }
+  50% { box-shadow: 0 0 14px rgba(254,172,96,0.5); }
+}
+.live-fab.is-active {
+  display: flex;
+  animation: fab-glow 2s ease-in-out infinite;
 }
 
 /* Rhythm Zone Management Styles */
@@ -1104,8 +1158,8 @@ input[type=range]::-moz-range-thumb {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border-radius: 8px;
   border: 1px solid var(--line);
   background: var(--card);
@@ -1119,8 +1173,8 @@ input[type=range]::-moz-range-thumb {
   border-color: var(--accent);
 }
 .back-btn svg {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
 }
 
 /* Header action links */
@@ -1130,6 +1184,27 @@ input[type=range]::-moz-range-thumb {
 .header-link-save { color: var(--accent); font-weight: 600; transition: color 0.6s ease; }
 .header-link-save:hover { opacity: 0.8; }
 .header-link-save.saved { color: var(--text); }
+
+/* Section save/cancel buttons */
+.section-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 14px;
+  padding: 10px 0 2px;
+  margin-top: 8px;
+  border-top: 1px solid var(--line);
+}
+.section-action-btn {
+  background: none;
+  border: none;
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 0;
+}
+.section-action-cancel { color: var(--muted); }
+.section-action-cancel:hover { color: var(--text); }
+.section-action-save { color: var(--accent); font-weight: 600; }
+.section-action-save:hover { opacity: 0.8; }
 </style>
 </head>
 <body>
@@ -1140,12 +1215,8 @@ input[type=range]::-moz-range-thumb {
       <polyline points="15 18 9 12 15 6"/>
     </svg>
   </button>
-  <span style="color: var(--muted); font-size: 1.1rem; font-weight: 500;">Design:</span>
+  <span style="color: var(--muted); font-size: 0.9rem; font-weight: 500;">Design:</span>
   <input type="text" class="rhythm-name-input" id="rhythm-name" value="Daily Rhythm 1" placeholder="Zone name">
-  <div class="header-actions">
-    <button class="header-link header-link-cancel" id="cancel-btn">Cancel</button>
-    <button class="header-link header-link-save" id="save-config">Save</button>
-  </div>
 </header>
 
 <div class="container">
@@ -1153,9 +1224,12 @@ input[type=range]::-moz-range-thumb {
 
   <!-- Live Design Controls -->
   <div class="live-design-controls" id="live-design-controls">
-    <label for="live-area-select">Live Design:</label>
+    <span class="live-design-cta">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49"/><path d="M7.76 16.24a6 6 0 0 1 0-8.49"/></svg>
+      Try it live
+    </span>
     <select id="live-area-select">
-      <option value="">Select Area</option>
+      <option value="">Select area</option>
     </select>
     <a href="#" class="live-design-link" id="live-design-toggle" style="display: none;">Pause</a>
     <span class="live-design-status" id="live-design-status"></span>
@@ -1169,20 +1243,19 @@ input[type=range]::-moz-range-thumb {
         <input type="range" id="chart-date-slider" min="0" max="364" value="0">
       </div>
       <div class="modeled-conditions">
-        <select id="modeled-conditions" title="Preview how weather affects the color curve">
-          <option value="1.0">Clear sun</option>
-          <option value="0.6">Partly cloudy</option>
-          <option value="0.3">Overcast</option>
-          <option value="0.15">Heavy overcast</option>
-          <option value="0">Dark / indoor</option>
+        <select id="modeled-conditions" title="Preview how weather affects the color curve" style="width: 90px;">
+          <option value="1.0">Sunny</option>
+          <option value="0.6">Mixed</option>
+          <option value="0.3">Cloudy</option>
+          <option value="0">Dark</option>
         </select>
       </div>
       <div class="chart-schedule-toggles" id="chart-schedule-toggles" style="display:none;">
         <label class="schedule-toggle">
-          <input type="checkbox" id="chart-wake-secondary"> wake secondary
+          <input type="checkbox" id="chart-wake-secondary"> wake 2
         </label>
         <label class="schedule-toggle">
-          <input type="checkbox" id="chart-bed-secondary"> bed secondary
+          <input type="checkbox" id="chart-bed-secondary"> bed 2
         </label>
       </div>
     </div>
@@ -1190,6 +1263,10 @@ input[type=range]::-moz-range-thumb {
       <div id="chart"></div>
       <div class="time-hover-label" id="time-hover-label"></div>
       <div class="graph-cursor-callout" id="cursor-callout"></div>
+      <div class="live-fab" id="live-fab">
+        <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="4"/></svg>
+        Live
+      </div>
     </div>
 
     <div class="chart-below-row">
@@ -1345,6 +1422,10 @@ input[type=range]::-moz-range-thumb {
       <!-- Hidden fields for ascend/descend (set by sleep pattern) -->
       <input type="range" id="ascend-start" min="0" max="24" step="0.5" value="3" style="display:none">
       <input type="range" id="descend-start" min="0" max="36" step="0.5" value="12" style="display:none">
+      <div class="section-actions">
+        <button class="section-action-btn section-action-cancel" onclick="goBack()">Cancel</button>
+        <button class="section-action-btn section-action-save" onclick="saveZoneSettings()">Save</button>
+      </div>
     </div>
   </div>
 
@@ -1491,6 +1572,10 @@ input[type=range]::-moz-range-thumb {
           </div>
         </div>
       </div>
+      <div class="section-actions">
+        <button class="section-action-btn section-action-cancel" onclick="goBack()">Cancel</button>
+        <button class="section-action-btn section-action-save" onclick="saveZoneSettings()">Save</button>
+      </div>
     </div>
   </div>
 
@@ -1515,6 +1600,10 @@ input[type=range]::-moz-range-thumb {
           <input type="range" id="brightness-min" class="range-min" min="1" max="100" step="1" value="1">
           <input type="range" id="brightness-max" class="range-max" min="1" max="100" step="1" value="100">
         </div>
+      </div>
+      <div class="section-actions">
+        <button class="section-action-btn section-action-cancel" onclick="goBack()">Cancel</button>
+        <button class="section-action-btn section-action-save" onclick="saveZoneSettings()">Save</button>
       </div>
     </div>
   </div>
@@ -3023,8 +3112,8 @@ function updateSleepSummary() {
     // Time control labels — "Time" when single, "Primary"/"Secondary" when alt exists
     const primaryLabel = document.getElementById(`${prefix}-primary-label`);
     const altLabel = document.getElementById(`${prefix}-alt-label`);
-    if (primaryLabel) primaryLabel.textContent = hasAlt ? 'Primary' : 'Time';
-    if (altLabel) altLabel.textContent = 'Secondary';
+    if (primaryLabel) primaryLabel.textContent = hasAlt ? '1 - Primary' : 'Time';
+    if (altLabel) altLabel.textContent = '2 - Secondary';
 
     // Render clickable day indicators inside time blocks
     const primaryDaysEl = document.getElementById(`${prefix}-primary-days`);
@@ -3985,6 +4074,13 @@ async function setCircadianMode(areaId, enabled) {
  * - Selecting an area auto-enables Live Design
  * - Pause button pauses/resumes (restoring lights on pause)
  */
+function updateLiveVisuals() {
+  const controls = document.getElementById('live-design-controls');
+  const fab = document.getElementById('live-fab');
+  if (controls) controls.classList.toggle('is-live', liveDesignEnabled);
+  if (fab) fab.classList.toggle('is-active', liveDesignEnabled);
+}
+
 function setupLiveDesign() {
   const toggleBtn = document.getElementById('live-design-toggle');
   const areaSelect = document.getElementById('live-area-select');
@@ -3998,6 +4094,7 @@ function setupLiveDesign() {
       liveDesignEnabled = !liveDesignEnabled;
       toggleBtn.textContent = liveDesignEnabled ? 'Pause' : 'Resume';
       updateDesignModeUI();
+      updateLiveVisuals();
 
       // Disable/enable Circadian mode for the area
       if (liveDesignEnabled) {
@@ -4054,6 +4151,7 @@ function setupLiveDesign() {
         toggleBtn.style.display = '';
         toggleBtn.textContent = 'Pause';
         updateDesignModeUI();
+        updateLiveVisuals();
         if (statusEl) {
           statusEl.textContent = 'starting Live Design';
           statusEl.classList.remove('live-blink');
@@ -4081,6 +4179,7 @@ function setupLiveDesign() {
           statusEl.classList.remove('active', 'live-blink');
         }
         updateDesignModeUI();
+        updateLiveVisuals();
         // Snap cursor back to now — exiting design mode
         snapCursorToNow();
       }
