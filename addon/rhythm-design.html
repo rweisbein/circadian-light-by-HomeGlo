@@ -1232,7 +1232,7 @@ input[type=range]::-moz-range-thumb {
   <div class="live-design-controls" id="live-design-controls">
     <span class="live-design-cta">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49"/><path d="M7.76 16.24a6 6 0 0 1 0-8.49"/></svg>
-      Try it live
+      Design it live
     </span>
     <select id="live-area-select">
       <option value="">Select area</option>
@@ -4034,7 +4034,7 @@ async function applyLiveLight() {
 
     if (response.ok) {
       if (statusEl) {
-        statusEl.textContent = 'Live!';
+        statusEl.textContent = 'Live';
         statusEl.classList.add('active', 'live-blink');
       }
     } else {
@@ -4152,7 +4152,7 @@ function setupLiveDesign() {
         // Update status after transition
         setTimeout(() => {
           if (liveDesignEnabled && statusEl) {
-            statusEl.textContent = 'Live!';
+            statusEl.textContent = 'Live';
             statusEl.classList.add('live-blink');
           }
         }, 2500);
