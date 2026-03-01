@@ -3786,6 +3786,24 @@ class LightDesignerServer:
             if not area_id:
                 return web.json_response({"error": "area_id is required"}, status=400)
 
+            # Apply CT brightness compensation (same as normal circadian operation)
+            if brightness is not None and color_temp is not None:
+                try:
+                    raw_config = glozone.load_config_from_files()
+                    if raw_config.get("ct_comp_enabled", False):
+                        handover_begin = raw_config.get("ct_comp_begin", 1650)
+                        handover_end = raw_config.get("ct_comp_end", 2250)
+                        max_factor = raw_config.get("ct_comp_factor", 1.4)
+                        if color_temp < handover_end:
+                            if color_temp <= handover_begin:
+                                factor = max_factor
+                            else:
+                                pos = (handover_end - color_temp) / (handover_end - handover_begin)
+                                factor = 1.0 + pos * (max_factor - 1.0)
+                            brightness = min(100, round(brightness * factor))
+                except Exception as e:
+                    logger.warning(f"CT compensation error in Live Design: {e}")
+
             headers = {
                 "Authorization": f"Bearer {token}",
                 "Content-Type": "application/json",
