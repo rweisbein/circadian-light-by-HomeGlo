@@ -540,8 +540,9 @@
     .tune-control-reset.is-dirty { pointer-events: auto; }
     .tune-control-row:hover .tune-control-reset.is-dirty { opacity: 1; }
     .tune-control-reset:hover { color: var(--accent); }
-    .tune-slider-row { padding: 2px 22px 8px 52px; max-width: 70%; }
-    .tune-slider-word { font-size: 0.75rem; color: var(--muted2); white-space: nowrap; display: flex; justify-content: space-between; margin-top: 2px; }
+    .tune-slider-row { padding: 0px 22px 2px 52px; max-width: 70%; }
+    .tune-slider-row input[type=range] { height: 14px; }
+    .tune-slider-word { font-size: 0.75rem; color: var(--muted2); white-space: nowrap; display: flex; justify-content: space-between; margin-top: 0; }
     .tune-inline-slider { -webkit-appearance: none; appearance: none; width: 100%; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.12); outline: none; cursor: pointer; min-width: 80px; }
     .tune-inline-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; cursor: pointer; border: 2px solid rgba(255,255,255,0.3); }
     .tune-inline-slider::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; cursor: pointer; border: 2px solid rgba(255,255,255,0.3); }
@@ -581,8 +582,8 @@
     .tune-brightness-val { margin-left: auto; font-size: 1.1rem; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
     .tune-brightness-body { max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.3s ease, opacity 0.25s ease; padding-bottom: 0; }
     .tune-brightness-card.is-open .tune-brightness-body { max-height: 500px; opacity: 1; padding-bottom: 8px; }
-    .tune-detail-sub { padding: 0 22px 2px 38px; font-size: 0.7rem; color: var(--muted2); }
-    .tune-source-info { font-size: 0.7rem; color: var(--muted2); padding: 2px 22px 0 38px; }
+    .tune-detail-sub { padding: 0 22px 2px 52px; font-size: 0.7rem; color: var(--muted2); }
+    .tune-source-info { font-size: 0.7rem; color: var(--muted2); padding: 2px 22px 0 52px; }
     .tune-refresh-btn { background: none; border: none; color: var(--muted2); font-size: 0.8rem; padding: 0 2px; cursor: pointer; vertical-align: middle; }
     .tune-refresh-btn:hover { color: var(--text); }
     .tune-col-headers { display: grid; grid-template-columns: 1fr auto; padding: 0 14px 2px; gap: 0 12px; }
