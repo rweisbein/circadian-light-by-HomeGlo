@@ -492,6 +492,10 @@ input[type=range]::-moz-range-thumb {
   border-color: rgba(255,255,255,0.4);
 }
 
+/* Schedule toggles in chart toolbar */
+.chart-schedule-toggles { display: flex; gap: 10px; align-items: center; font-size: 0.75rem; color: var(--muted); }
+.schedule-toggle select { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 4px; font-size: 0.7rem; padding: 1px 4px; }
+
 /* Time hover label - above x-axis, shows time with phase color */
 .time-hover-label {
   position: absolute;
@@ -529,128 +533,6 @@ input[type=range]::-moz-range-thumb {
   transition: opacity 0.12s ease, left 0.08s ease;
   white-space: nowrap;
   z-index: 100;
-}
-
-/* Cursor Controls — vertical sliders */
-.cursor-controls {
-  display: flex;
-  justify-content: center;
-  margin-top: 4px;
-  -webkit-user-select: none;
-  user-select: none;
-}
-#cursor-controls .adjust-slider-row {
-  display: flex;
-  align-items: stretch;
-  justify-content: center;
-  gap: 36px;
-}
-#cursor-controls .slider-group {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-#cursor-controls .slider-column {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-}
-#cursor-controls .slider-label {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--text);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-#cursor-controls .slider-track {
-  position: relative;
-  width: 24px;
-  height: 160px;
-  background: rgba(255,255,255,0.08);
-  border-radius: 12px;
-  cursor: pointer;
-  touch-action: none;
-  overflow: visible;
-}
-#cursor-controls .slider-fill {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  background: rgba(0,0,0,0.55);
-  pointer-events: none;
-  transition: height 0.15s ease;
-  border-radius: 12px 12px 0 0;
-  overflow: hidden;
-}
-#cursor-controls .slider-thumb {
-  position: absolute;
-  left: 50%;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: #fff;
-  border: 2px solid rgba(255,255,255,0.8);
-  box-shadow: 0 1px 6px rgba(0,0,0,0.4);
-  transform: translate(-50%, 50%);
-  pointer-events: none;
-  transition: bottom 0.15s ease, background 0.15s ease;
-  z-index: 2;
-}
-#cursor-controls .slider-track.dragging .slider-fill,
-#cursor-controls .slider-track.dragging .slider-thumb {
-  transition: none;
-}
-#cursor-controls .slider-extreme {
-  font-size: 0.6rem;
-  color: var(--muted);
-  cursor: pointer;
-  padding: 2px 0;
-  letter-spacing: 0.02em;
-}
-#cursor-controls .slider-extreme:hover {
-  color: var(--text);
-}
-/* Top extreme (before track): extra space below for thumb */
-#cursor-controls .slider-column > .slider-extreme:nth-child(2) {
-  padding-bottom: 18px;
-}
-/* Bottom extreme (after track): extra space above for thumb */
-#cursor-controls .slider-track + .slider-extreme {
-  padding-top: 18px;
-}
-#cursor-controls .step-buttons {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  align-self: center;
-}
-#cursor-controls .step-btn {
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
-  border: 1px solid rgba(255,255,255,0.15);
-  background: rgba(30,30,30,0.9);
-  color: var(--muted);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s;
-  padding: 0;
-}
-#cursor-controls .step-btn:hover {
-  border-color: rgba(255,255,255,0.35);
-  background: rgba(50,50,50,0.9);
-  color: var(--text);
-}
-#cursor-controls .step-btn:active {
-  background: rgba(70,70,70,0.9);
-}
-#cursor-controls .step-btn svg {
-  width: 16px;
-  height: 16px;
 }
 
 /* Dual Range Slider - fixed from llm_access for proper left handle grabbing */
@@ -737,38 +619,6 @@ input[type=range]::-moz-range-thumb {
 }
 .color-value-chip:hover {
   filter: brightness(1.1);
-}
-
-/* Temporary ceiling/floor chip (shown when runtime differs from config) */
-.temp-ceiling-chip {
-  display: inline-block;
-  border-radius: 999px;
-  padding: 4px 10px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  margin-left: 6px;
-  background: rgba(255, 255, 255, 0.15);
-  color: #ccc;
-  border: 1px dashed rgba(255, 255, 255, 0.3);
-}
-.temp-ceiling-chip.hidden {
-  display: none;
-}
-
-/* Temporary bounds row */
-.temp-bounds-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 0 4px 140px;
-  font-size: 0.8rem;
-}
-.temp-bounds-row.hidden {
-  display: none;
-}
-.temp-bounds-label {
-  color: #888;
-  font-style: italic;
 }
 
 /* Lock checkbox for range controls */
@@ -1143,7 +993,6 @@ input[type=range]::-moz-range-thumb {
   .param-row .value,
   .param-row .dual-chip,
   .param-row .offset-text { text-align: right; }
-  .cursor-controls { flex-wrap: wrap; gap: 24px; }
   .solar-rule { grid-template-columns: 1fr; }
 }
 
@@ -1653,6 +1502,14 @@ input[type=range]::-moz-range-thumb {
           <option value="0">Dark / indoor</option>
         </select>
       </div>
+      <div class="chart-schedule-toggles" id="chart-schedule-toggles" style="display:none;">
+        <label class="schedule-toggle">
+          wake <select id="chart-wake-mode"><option value="primary">primary</option><option value="alt">alt</option></select>
+        </label>
+        <label class="schedule-toggle">
+          bed <select id="chart-bed-mode"><option value="primary">primary</option><option value="alt">alt</option></select>
+        </label>
+      </div>
       <div class="time-nav-group">
         <button class="time-nav-btn" id="cursor-time-minus" title="-5 minutes">-5 min</button>
         <button class="time-nav-btn" id="cursor-time-now" title="Jump to current time">Now</button>
@@ -1665,71 +1522,6 @@ input[type=range]::-moz-range-thumb {
       <div class="graph-cursor-callout" id="cursor-callout"></div>
     </div>
 
-    <!-- Cursor Controls — vertical sliders -->
-    <div class="cursor-controls" id="cursor-controls">
-      <div class="adjust-slider-row">
-        <!-- Step/Circadian slider -->
-        <div class="slider-group">
-          <div class="slider-column">
-            <div class="slider-label">Circadian</div>
-            <div class="slider-extreme" id="cursor-set-britelite">BriteLite</div>
-            <div class="slider-track" data-mode="step">
-              <div class="slider-fill"></div>
-              <div class="slider-thumb"></div>
-            </div>
-            <div class="slider-extreme" id="cursor-set-nitelite">NiteLite</div>
-          </div>
-          <div class="step-buttons">
-            <button class="step-btn" id="cursor-step-up" title="Step Up">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 15 12 9 18 15"/></svg>
-            </button>
-            <button class="step-btn" id="cursor-step-down" title="Step Down">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-            </button>
-          </div>
-        </div>
-        <!-- Brightness slider -->
-        <div class="slider-group">
-          <div class="slider-column">
-            <div class="slider-label">Bright</div>
-            <div class="slider-extreme" id="cursor-bright-max">brightest</div>
-            <div class="slider-track" data-mode="brightness">
-              <div class="slider-fill"></div>
-              <div class="slider-thumb"></div>
-            </div>
-            <div class="slider-extreme" id="cursor-bright-min">dimmest</div>
-          </div>
-          <div class="step-buttons">
-            <button class="step-btn" id="cursor-bright-up" title="Brighten">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 15 12 9 18 15"/></svg>
-            </button>
-            <button class="step-btn" id="cursor-bright-down" title="Dim">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-            </button>
-          </div>
-        </div>
-        <!-- Color slider -->
-        <div class="slider-group">
-          <div class="slider-column">
-            <div class="slider-label">Color</div>
-            <div class="slider-extreme" id="cursor-color-max">coolest</div>
-            <div class="slider-track" data-mode="color">
-              <div class="slider-fill"></div>
-              <div class="slider-thumb"></div>
-            </div>
-            <div class="slider-extreme" id="cursor-color-min">warmest</div>
-          </div>
-          <div class="step-buttons">
-            <button class="step-btn" id="cursor-color-up" title="Cooler">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 15 12 9 18 15"/></svg>
-            </button>
-            <button class="step-btn" id="cursor-color-down" title="Warmer">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
     <div style="display:flex;justify-content:flex-end;margin-top:8px;">
       <label style="display:flex;align-items:center;gap:6px;font-size:0.75rem;color:var(--muted);cursor:pointer;user-select:none;">
         <input type="checkbox" id="simple-mode" checked style="width:14px;height:14px;accent-color:var(--muted2);">
@@ -1932,6 +1724,10 @@ function findClosestSensitivityStep(value) {
 // Simple mode - hides advanced chart elements
 let simpleMode = true;
 
+// Chart schedule toggles — pick which wake/bed timing the chart displays
+let chartWakeMode = 'primary';
+let chartBedMode = 'primary';
+
 // State
 let config = {
   ascend_start: 3.0,
@@ -1967,21 +1763,10 @@ let config = {
 // Current sun times (cached for solar rules)
 let sunTimes = { sunrise: 6, sunset: 18, solarNoon: 12, solarMid: 0 };
 
-// Runtime state for current phase (resets at phase transitions)
-// Only one phase is active at a time, so we only need one midpoint per axis
-let runtimeState = {
-  enabled: false,              // Whether circadian lighting is active
-  frozen: false,               // Whether to freeze at current position (stop following time)
-  brightness_mid: null,        // Current phase's brightness midpoint (falls back to wake_time or bed_time)
-  color_mid: null,             // Current phase's color midpoint (falls back to wake_time or bed_time)
-  color_override: null,        // Solar rule target offset (Kelvin) from color stepping
-};
-
 // Cursor state — always present, initialized to current time
 const _nowInit = new Date();
 let cursorHour = _nowInit.getHours() + _nowInit.getMinutes() / 60;
 let graphData = null;
-let lastCursorPhase = null;  // Track phase for reset on transition
 
 // Live Design state
 let liveDesignEnabled = false;
@@ -2095,10 +1880,7 @@ function applySolarRuleAtHour(baseCCT, hour) {
 
   // Warm night — ceiling
   if (config.warm_night_enabled) {
-    let warmTarget = config.warm_night_target;
-    if (runtimeState.color_override && runtimeState.color_override > 0) {
-      warmTarget += runtimeState.color_override;
-    }
+    const warmTarget = config.warm_night_target;
 
     if (cct > warmTarget) {
       const fadeHrs = config.warm_night_fade / 60;
@@ -2144,10 +1926,7 @@ function applySolarRuleAtHour(baseCCT, hour) {
       const de = wrap24(sunset + endOffsetHrs);
       const { inWindow, weight } = getWindowWeight(hour, ds, de, fadeHrs);
       blend *= weight;
-      let daylightTarget = daylightCct;
-      if (runtimeState.color_override && runtimeState.color_override < 0) {
-        daylightTarget += runtimeState.color_override;
-      }
+      const daylightTarget = daylightCct;
       if (daylightTarget > cct && blend > 0) {
         cct += (daylightTarget - cct) * blend;
       }
@@ -2174,19 +1953,32 @@ function resolveEffectiveTiming(hour, weekday, wakeWeekdayOverride) {
   let wake = config.wake_time;
   let bed = config.bed_time;
 
-  // Alt wake — use wakeWeekdayOverride if provided (phase-aware callers)
-  const wakeWd = wakeWeekdayOverride != null ? wakeWeekdayOverride : weekday;
-  if (config.wake_alt_time != null && (config.wake_alt_days || []).includes(wakeWd)) {
+  // Chart schedule toggles override weekday-based logic
+  if (chartWakeMode === 'alt' && config.wake_alt_time != null) {
     wake = config.wake_alt_time;
+  } else if (chartWakeMode === 'primary') {
+    // use primary (default)
+  } else {
+    // Weekday-based fallback
+    const wakeWd = wakeWeekdayOverride != null ? wakeWeekdayOverride : weekday;
+    if (config.wake_alt_time != null && (config.wake_alt_days || []).includes(wakeWd)) {
+      wake = config.wake_alt_time;
+    }
   }
 
-  // Alt bed: post-midnight pre-ascend uses yesterday's weekday
-  let bedWeekday = weekday;
-  if (hour < config.ascend_start) {
-    bedWeekday = (weekday + 6) % 7;  // yesterday
-  }
-  if (config.bed_alt_time != null && (config.bed_alt_days || []).includes(bedWeekday)) {
+  if (chartBedMode === 'alt' && config.bed_alt_time != null) {
     bed = config.bed_alt_time;
+  } else if (chartBedMode === 'primary') {
+    // use primary (default)
+  } else {
+    // Weekday-based fallback
+    let bedWeekday = weekday;
+    if (hour < config.ascend_start) {
+      bedWeekday = (weekday + 6) % 7;  // yesterday
+    }
+    if (config.bed_alt_time != null && (config.bed_alt_days || []).includes(bedWeekday)) {
+      bed = config.bed_alt_time;
+    }
   }
 
   return { wake, bed };
@@ -2248,28 +2040,26 @@ function getValuesAtTime(hour) {
   const wakeWd = !nowInAscend && nowH >= tAscend ? (chartWeekday + 1) % 7 : chartWeekday;
   const timing = resolveEffectiveTiming(hour, chartWeekday, wakeWd);
 
-  // Brightness midpoint (runtimeState applies to current phase only)
-  let wakeMid = inAscend ? (runtimeState.brightness_mid ?? timing.wake) : timing.wake;
-  let bedMid = !inAscend ? (runtimeState.brightness_mid ?? timing.bed) : timing.bed;
+  // Brightness midpoint
+  let wakeMid = timing.wake;
+  let bedMid = timing.bed;
 
-  // Apply brightness target shift when not stepping (no runtimeState.brightness_mid)
-  if (runtimeState.brightness_mid == null) {
-    const slope = inAscend ? kAscend : -kDescend;
-    const brightPct = inAscend ? (config.wake_brightness || 50) : (config.bed_brightness || 50);
-    if (brightPct !== 50) {
-      if (inAscend) {
-        let mid48 = wakeMid;
-        while (mid48 < tAscend) mid48 += 24;
-        while (mid48 > tDescend) mid48 -= 24;
-        const shifted = computeShiftedMidpoint(mid48, brightPct, slope, bMin, bMax);
-        wakeMid = shifted % 24;
-      } else {
-        let mid48 = bedMid;
-        while (mid48 < tDescend) mid48 += 24;
-        while (mid48 > tDescend + 24) mid48 -= 24;
-        const shifted = computeShiftedMidpoint(mid48, brightPct, slope, bMin, bMax);
-        bedMid = shifted % 24;
-      }
+  // Apply brightness target shift
+  const slope = inAscend ? kAscend : -kDescend;
+  const brightPct = inAscend ? (config.wake_brightness || 50) : (config.bed_brightness || 50);
+  if (brightPct !== 50) {
+    if (inAscend) {
+      let mid48 = wakeMid;
+      while (mid48 < tAscend) mid48 += 24;
+      while (mid48 > tDescend) mid48 -= 24;
+      const shifted = computeShiftedMidpoint(mid48, brightPct, slope, bMin, bMax);
+      wakeMid = shifted % 24;
+    } else {
+      let mid48 = bedMid;
+      while (mid48 < tDescend) mid48 += 24;
+      while (mid48 > tDescend + 24) mid48 -= 24;
+      const shifted = computeShiftedMidpoint(mid48, brightPct, slope, bMin, bMax);
+      bedMid = shifted % 24;
     }
   }
 
@@ -2292,24 +2082,22 @@ function getValuesAtTime(hour) {
   const brightness = brightnessNorm * 100;
 
   // Color midpoint — same brightness target shift (circadian: color follows brightness)
-  let colorWakeMid = inAscend ? (runtimeState.color_mid ?? timing.wake) : timing.wake;
-  let colorBedMid = !inAscend ? (runtimeState.color_mid ?? timing.bed) : timing.bed;
+  let colorWakeMid = timing.wake;
+  let colorBedMid = timing.bed;
 
-  if (runtimeState.color_mid == null) {
-    const cSlope = inAscend ? kAscend : -kDescend;
-    const cBrightPct = inAscend ? (config.wake_brightness || 50) : (config.bed_brightness || 50);
-    if (cBrightPct !== 50) {
-      if (inAscend) {
-        let cMid48 = colorWakeMid;
-        while (cMid48 < tAscend) cMid48 += 24;
-        while (cMid48 > tDescend) cMid48 -= 24;
-        colorWakeMid = computeShiftedMidpoint(cMid48, cBrightPct, cSlope, bMin, bMax) % 24;
-      } else {
-        let cMid48 = colorBedMid;
-        while (cMid48 < tDescend) cMid48 += 24;
-        while (cMid48 > tDescend + 24) cMid48 -= 24;
-        colorBedMid = computeShiftedMidpoint(cMid48, cBrightPct, cSlope, bMin, bMax) % 24;
-      }
+  const cSlope = inAscend ? kAscend : -kDescend;
+  const cBrightPct = inAscend ? (config.wake_brightness || 50) : (config.bed_brightness || 50);
+  if (cBrightPct !== 50) {
+    if (inAscend) {
+      let cMid48 = colorWakeMid;
+      while (cMid48 < tAscend) cMid48 += 24;
+      while (cMid48 > tDescend) cMid48 -= 24;
+      colorWakeMid = computeShiftedMidpoint(cMid48, cBrightPct, cSlope, bMin, bMax) % 24;
+    } else {
+      let cMid48 = colorBedMid;
+      while (cMid48 < tDescend) cMid48 += 24;
+      while (cMid48 > tDescend + 24) cMid48 -= 24;
+      colorBedMid = computeShiftedMidpoint(cMid48, cBrightPct, cSlope, bMin, bMax) % 24;
     }
   }
 
@@ -2336,193 +2124,6 @@ function getValuesAtTime(hour) {
   cct = applySolarRuleAtHour(cct, hour);
 
   return { brightness, cct, phase };
-}
-
-/**
- * Calculate what step up/down would produce.
- * Simulates stepCursor logic to preview button results.
- * @param {Object} cursorPoint - Current cursor point with x (hour), y (brightness), cct
- * @returns {Object} { upBri, upCCT, downBri, downCCT }
- */
-function getStepPreview(cursorPoint) {
-  // Defensive check
-  if (!cursorPoint || !config) {
-    return { upBri: 100, upCCT: 4000, downBri: 10, downCCT: 2700 };
-  }
-
-  const hour = cursorPoint.x;
-  const currentBri = cursorPoint.y;
-  const currentCCT = cursorPoint.cct;
-
-  const steps = config.max_dim_steps ?? 10;
-
-  // Config bounds (only use these, no runtime overrides)
-  const bMin = config.min_brightness;
-  const bMax = config.max_brightness;
-  const cMin = config.min_color_temp;
-  const cMax = config.max_color_temp;
-
-  // Step size based on config range
-  const briStep = (bMax - bMin) / steps;
-
-  // Phase detection
-  const tAscend = config.ascend_start;
-  let tDescend = config.descend_start;
-  if (tDescend <= tAscend) tDescend += 24;
-  const h48 = hour < tAscend ? hour + 24 : hour;
-  const inAscend = h48 >= tAscend && h48 < tDescend;
-
-  // Clamp speed to valid range 1-10 (matches brain.py)
-  const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, config.wake_speed))];
-  const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, config.bed_speed))];
-  const slope = inAscend ? kAscend : -kDescend;
-
-  // Helper: calculate CCT for a target brightness (simulates curve traversal)
-  function getStepResultCCT(targetBri) {
-    // Within bounds - traverse the diverged curve
-    const briMid = runtimeState.brightness_mid ?? (inAscend ? config.wake_time : config.bed_time);
-    const colorMid = runtimeState.color_mid ?? (inAscend ? config.wake_time : config.bed_time);
-
-    // Lift midpoints into 48h space
-    let briMid48 = briMid;
-    let colorMid48 = colorMid;
-    if (inAscend) {
-      while (briMid48 < tAscend) briMid48 += 24;
-      while (colorMid48 < tAscend) colorMid48 += 24;
-    } else {
-      while (briMid48 < tDescend) briMid48 += 24;
-      while (colorMid48 < tDescend) colorMid48 += 24;
-    }
-
-    // Calculate virtual time T' where brightness = targetBri
-    const bMinNorm = bMin / 100;
-    const bMaxNorm = bMax / 100;
-    const clampedBri = Math.max(bMin + 0.1, Math.min(bMax - 0.1, targetBri));
-    const targetBriNorm = clampedBri / 100;
-    const briRatio = (targetBriNorm - bMinNorm) / (bMaxNorm - bMinNorm);
-
-    // Avoid extreme virtual time values near bounds
-    // The 0.99/0.01 threshold catches edge cases where virtual time would
-    // extrapolate far beyond the curve, producing bogus CCT values
-    if (briRatio <= 0.01 || briRatio >= 0.99) {
-      return currentCCT;
-    }
-
-    const virtualTime = briMid48 + Math.log(briRatio / (1 - briRatio)) / slope;
-
-    // Get color at virtual time from color curve (base curve)
-    let colorNorm;
-    if (inAscend) {
-      colorNorm = logistic(virtualTime, colorMid48, slope, 0, 1);
-    } else {
-      const vtDescend = virtualTime < tDescend ? virtualTime + 24 : virtualTime;
-      colorNorm = logistic(vtDescend, colorMid48, slope, 0, 1);
-    }
-    colorNorm = Math.max(0, Math.min(1, colorNorm));
-    const baseCCT = cMin + (cMax - cMin) * colorNorm;
-
-    // Clamp to config bounds
-    return Math.max(cMin, Math.min(cMax, baseCCT));
-  }
-
-  // Check if at config bounds
-  const atMaxBri = currentBri >= bMax - 0.5;
-  const atMinBri = currentBri <= bMin + 0.5;
-
-  // Calculate step up preview
-  let upBri, upCCT;
-  if (atMaxBri) {
-    // At config bound, can't go further
-    upBri = currentBri;
-    upCCT = currentCCT;
-  } else {
-    upBri = Math.min(bMax, currentBri + briStep);
-    upCCT = getStepResultCCT(upBri);
-  }
-
-  // Calculate step down preview
-  let downBri, downCCT;
-  if (atMinBri) {
-    // At config bound, can't go further
-    downBri = currentBri;
-    downCCT = currentCCT;
-  } else {
-    downBri = Math.max(bMin, currentBri - briStep);
-    downCCT = getStepResultCCT(downBri);
-  }
-
-  return { upBri, upCCT, downBri, downCCT };
-}
-
-/**
- * Preview brightness button results (matches stepCursor logic for brightness-only).
- * @returns {Object} { up: { value, atExtreme }, down: { value, atExtreme } }
- */
-function getBrightnessPreview() {
-  const currentBri = getBrightnessAtCursor();
-  if (currentBri === null) {
-    return {
-      up: { value: 100, atExtreme: true },
-      down: { value: 10, atExtreme: true }
-    };
-  }
-
-  const bMin = config.min_brightness;
-  const bMax = config.max_brightness;
-  const steps = config.max_dim_steps ?? 10;
-  const briStep = (bMax - bMin) / steps;
-
-  const atMaxBri = currentBri >= bMax - 0.5;
-  const atMinBri = currentBri <= bMin + 0.5;
-
-  const upValue = atMaxBri ? currentBri : Math.min(bMax, currentBri + briStep);
-  const downValue = atMinBri ? currentBri : Math.max(bMin, currentBri - briStep);
-
-  return {
-    up: { value: upValue, atExtreme: atMaxBri },
-    down: { value: downValue, atExtreme: atMinBri }
-  };
-}
-
-/**
- * Preview color button results (matches stepCursor logic for color-only).
- * Applies solar rules to get the actual displayed result.
- * @returns {Object} { up: { value, atExtreme }, down: { value, atExtreme } }
- */
-function getColorPreview() {
-  const displayedCCT = getDisplayedCCTAtCursor();
-  if (displayedCCT === null || cursorHour === null) {
-    return {
-      up: { value: 6500, atExtreme: true },
-      down: { value: 2700, atExtreme: true }
-    };
-  }
-
-  const cMin = config.min_color_temp;
-  const cMax = config.max_color_temp;
-  const steps = config.max_dim_steps ?? 10;
-  const cctStep = (cMax - cMin) / steps;
-
-  // Check config bounds (same as stepCursor)
-  const atConfigMax = displayedCCT >= cMax - 10;
-  const atConfigMin = displayedCCT <= cMin + 10;
-
-  // Calculate raw targets (same as stepCursor)
-  const rawUpTarget = Math.min(cMax, displayedCCT + cctStep);
-  const rawDownTarget = Math.max(cMin, displayedCCT - cctStep);
-
-  // Apply solar rules to get what will actually be displayed
-  const upDisplayed = applySolarRuleAtHour(rawUpTarget, cursorHour);
-  const downDisplayed = applySolarRuleAtHour(rawDownTarget, cursorHour);
-
-  // At extreme if at config bounds OR if solar rules capped the result
-  const upAtExtreme = atConfigMax || Math.abs(upDisplayed - displayedCCT) < 10;
-  const downAtExtreme = atConfigMin || Math.abs(downDisplayed - displayedCCT) < 10;
-
-  return {
-    up: { value: upDisplayed, atExtreme: upAtExtreme },
-    down: { value: downDisplayed, atExtreme: downAtExtreme }
-  };
 }
 
 function dayOfYear(dateStr) {
@@ -2750,27 +2351,24 @@ function calculateBrightnessAtHour(hour) {
   let tDescend = config.descend_start;
   if (tDescend <= tAscend) tDescend += 24;
 
-  // Determine current phase from cursor for runtimeState application
+  // Determine current phase from cursor
   const cursorH48 = cursorHour !== null ? (cursorHour < tAscend ? cursorHour + 24 : cursorHour) : tAscend;
   const cursorInAscend = cursorH48 >= tAscend && cursorH48 < tDescend;
 
   // Resolve effective timing with phase-aware weekday for wake
-  // Use cursor/now phase (not per-hour phase) because when in descent,
-  // the entire ascend portion of the chart represents tomorrow's morning.
   const chartWeekday = getChartWeekday();
   const nowH = cursorHour !== null ? cursorHour : new Date().getHours() + new Date().getMinutes() / 60;
   const wakeWd = !cursorInAscend && nowH >= tAscend ? (chartWeekday + 1) % 7 : chartWeekday;
   const timing = resolveEffectiveTiming(hour, chartWeekday, wakeWd);
 
-  // runtimeState midpoints apply to current phase only
-  let wakeMid = cursorInAscend ? (runtimeState.brightness_mid ?? timing.wake) : timing.wake;
-  let bedMid = !cursorInAscend ? (runtimeState.brightness_mid ?? timing.bed) : timing.bed;
+  let wakeMid = timing.wake;
+  let bedMid = timing.bed;
 
   // Clamp speed to valid range 1-10 (matches brain.py)
   const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, config.wake_speed))];
   const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, config.bed_speed))];
 
-  // Config bounds (only use these, no runtime overrides)
+  // Config bounds
   const bMin = config.min_brightness / 100;
   const bMax = config.max_brightness / 100;
 
@@ -2778,25 +2376,23 @@ function calculateBrightnessAtHour(hour) {
   const h48 = hour < tAscend ? hour + 24 : hour;
   const inAscend = h48 >= tAscend && h48 < tDescend;
 
-  // Apply brightness target shift when not stepping
-  if (runtimeState.brightness_mid == null) {
-    const slope = inAscend ? kAscend : -kDescend;
-    const brightPct = inAscend ? (config.wake_brightness || 50) : (config.bed_brightness || 50);
-    if (brightPct !== 50) {
-      if (inAscend) {
-        let rawMid48 = wakeMid;
-        while (rawMid48 < tAscend) rawMid48 += 24;
-        while (rawMid48 > tDescend) rawMid48 -= 24;
-        rawMid48 = Math.max(tAscend + 0.01, Math.min(tDescend - 0.01, rawMid48));
-        wakeMid = computeShiftedMidpoint(rawMid48, brightPct, slope, bMin, bMax) % 24;
-      } else {
-        const phaseEnd = tDescend + 24;
-        let rawMid48 = bedMid;
-        while (rawMid48 < tDescend) rawMid48 += 24;
-        while (rawMid48 > phaseEnd) rawMid48 -= 24;
-        rawMid48 = Math.max(tDescend + 0.01, Math.min(phaseEnd - 0.01, rawMid48));
-        bedMid = computeShiftedMidpoint(rawMid48, brightPct, slope, bMin, bMax) % 24;
-      }
+  // Apply brightness target shift
+  const slope = inAscend ? kAscend : -kDescend;
+  const brightPct = inAscend ? (config.wake_brightness || 50) : (config.bed_brightness || 50);
+  if (brightPct !== 50) {
+    if (inAscend) {
+      let rawMid48 = wakeMid;
+      while (rawMid48 < tAscend) rawMid48 += 24;
+      while (rawMid48 > tDescend) rawMid48 -= 24;
+      rawMid48 = Math.max(tAscend + 0.01, Math.min(tDescend - 0.01, rawMid48));
+      wakeMid = computeShiftedMidpoint(rawMid48, brightPct, slope, bMin, bMax) % 24;
+    } else {
+      const phaseEnd = tDescend + 24;
+      let rawMid48 = bedMid;
+      while (rawMid48 < tDescend) rawMid48 += 24;
+      while (rawMid48 > phaseEnd) rawMid48 -= 24;
+      rawMid48 = Math.max(tDescend + 0.01, Math.min(phaseEnd - 0.01, rawMid48));
+      bedMid = computeShiftedMidpoint(rawMid48, brightPct, slope, bMin, bMax) % 24;
     }
   }
 
@@ -2839,27 +2435,24 @@ function calculateColorAtHour(hour, applySolar = true) {
   let tDescend = config.descend_start;
   if (tDescend <= tAscend) tDescend += 24;
 
-  // Determine current phase from cursor for runtimeState application
+  // Determine current phase from cursor
   const cursorH48 = cursorHour !== null ? (cursorHour < tAscend ? cursorHour + 24 : cursorHour) : tAscend;
   const cursorInAscend = cursorH48 >= tAscend && cursorH48 < tDescend;
 
   // Resolve effective timing with phase-aware weekday for wake
-  // Use cursor/now phase (not per-hour phase) because when in descent,
-  // the entire ascend portion of the chart represents tomorrow's morning.
   const chartWeekday = getChartWeekday();
   const nowH = cursorHour !== null ? cursorHour : new Date().getHours() + new Date().getMinutes() / 60;
   const wakeWd = !cursorInAscend && nowH >= tAscend ? (chartWeekday + 1) % 7 : chartWeekday;
   const timing = resolveEffectiveTiming(hour, chartWeekday, wakeWd);
 
-  // runtimeState midpoints apply to current phase only
-  let colorWakeMid = cursorInAscend ? (runtimeState.color_mid ?? timing.wake) : timing.wake;
-  let colorBedMid = !cursorInAscend ? (runtimeState.color_mid ?? timing.bed) : timing.bed;
+  let colorWakeMid = timing.wake;
+  let colorBedMid = timing.bed;
 
   // Clamp speed to valid range 1-10 (matches brain.py)
   const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, config.wake_speed))];
   const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, config.bed_speed))];
 
-  // Config bounds (only use these, no runtime overrides)
+  // Config bounds
   const cLow = config.min_color_temp;
   const cHigh = config.max_color_temp;
 
@@ -2868,26 +2461,24 @@ function calculateColorAtHour(hour, applySolar = true) {
   const inAscend = h48 >= tAscend && h48 < tDescend;
 
   // Apply brightness target shift — color follows brightness on the circadian curve
-  if (runtimeState.color_mid == null) {
-    const bMin = config.min_brightness / 100;
-    const bMax = config.max_brightness / 100;
-    const slope = inAscend ? kAscend : -kDescend;
-    const brightPct = inAscend ? (config.wake_brightness || 50) : (config.bed_brightness || 50);
-    if (brightPct !== 50) {
-      if (inAscend) {
-        let rawMid48 = colorWakeMid;
-        while (rawMid48 < tAscend) rawMid48 += 24;
-        while (rawMid48 > tDescend) rawMid48 -= 24;
-        rawMid48 = Math.max(tAscend + 0.01, Math.min(tDescend - 0.01, rawMid48));
-        colorWakeMid = computeShiftedMidpoint(rawMid48, brightPct, slope, bMin, bMax) % 24;
-      } else {
-        const phaseEnd = tDescend + 24;
-        let rawMid48 = colorBedMid;
-        while (rawMid48 < tDescend) rawMid48 += 24;
-        while (rawMid48 > phaseEnd) rawMid48 -= 24;
-        rawMid48 = Math.max(tDescend + 0.01, Math.min(phaseEnd - 0.01, rawMid48));
-        colorBedMid = computeShiftedMidpoint(rawMid48, brightPct, slope, bMin, bMax) % 24;
-      }
+  const bMin = config.min_brightness / 100;
+  const bMax = config.max_brightness / 100;
+  const slope = inAscend ? kAscend : -kDescend;
+  const brightPct = inAscend ? (config.wake_brightness || 50) : (config.bed_brightness || 50);
+  if (brightPct !== 50) {
+    if (inAscend) {
+      let rawMid48 = colorWakeMid;
+      while (rawMid48 < tAscend) rawMid48 += 24;
+      while (rawMid48 > tDescend) rawMid48 -= 24;
+      rawMid48 = Math.max(tAscend + 0.01, Math.min(tDescend - 0.01, rawMid48));
+      colorWakeMid = computeShiftedMidpoint(rawMid48, brightPct, slope, bMin, bMax) % 24;
+    } else {
+      const phaseEnd = tDescend + 24;
+      let rawMid48 = colorBedMid;
+      while (rawMid48 < tDescend) rawMid48 += 24;
+      while (rawMid48 > phaseEnd) rawMid48 -= 24;
+      rawMid48 = Math.max(tDescend + 0.01, Math.min(phaseEnd - 0.01, rawMid48));
+      colorBedMid = computeShiftedMidpoint(rawMid48, brightPct, slope, bMin, bMax) % 24;
     }
   }
 
@@ -3427,9 +3018,8 @@ function initChartInteractivity() {
     hoverLabel.style.opacity = '0';
   }, true);
 
-  // Click for cursor placement - only in Live Design mode
+  // Click for cursor placement - always interactive
   chart.addEventListener('click', (ev) => {
-    if (!liveDesignEnabled) return;  // Cursor locked to "now" outside design mode
     const plotArea = getPlotArea();
     if (!plotArea) {
       console.log('No plot area found');
@@ -3456,7 +3046,6 @@ function initChartInteractivity() {
 
 function applyCursor() {
   const chart = document.getElementById('chart');
-  const cursorControls = document.getElementById('cursor-controls');
   const cursorCallout = document.getElementById('cursor-callout');
   const traceIdx = typeof window.cursorTraceIndex === 'number' ? window.cursorTraceIndex : null;
 
@@ -3474,14 +3063,6 @@ function applyCursor() {
       cct: calculateColorAtHour(cursorHour, true),     // With solar rules
       phase: getPhaseAtHour(cursorHour)
     };
-
-    // Reset runtime state on phase transition (ascend ↔ descend)
-    if (lastCursorPhase !== null && cursorPoint.phase !== lastCursorPhase) {
-      resetRuntimeState();
-      // Re-render chart with reset state
-      renderChart();
-    }
-    lastCursorPhase = cursorPoint.phase;
   }
 
   // Cursor line style - dotted white
@@ -3568,12 +3149,6 @@ function applyCursor() {
       Plotly.restyle(chart, markerUpdate, traceIdx);
     }
 
-    // Update cursor button styles with NEXT values
-    updateCursorButtons(cursorPoint);
-
-    // Update slider positions to match cursor
-    updateCursorSliders(cursorPoint);
-
     // Live Design: update lights when cursor values change
     applyLiveLight();
   }
@@ -3594,432 +3169,32 @@ function updateSleepPhaseBadges() {
   });
 }
 
-// Style cursor buttons based on NEXT values (what button WILL DO)
-function updateCursorButtons(point) {
-  const stepUp = document.getElementById('cursor-step-up');
-  const stepDown = document.getElementById('cursor-step-down');
-  const brightUp = document.getElementById('cursor-bright-up');
-  const brightDown = document.getElementById('cursor-bright-down');
-  const colorUp = document.getElementById('cursor-color-up');
-  const colorDown = document.getElementById('cursor-color-down');
-  const brightMidInfo = document.getElementById('brightness-midpoint-info');
-  const colorMidInfo = document.getElementById('color-midpoint-info');
-
-  const clearBtn = (btn) => {
-    if (!btn) return;
-    btn.style.removeProperty('--btn-bg');
-    btn.style.removeProperty('--btn-text');
-    btn.style.removeProperty('--btn-fill-opacity');
-    btn.classList.remove('at-extreme');
-  };
-
-  if (!point) {
-    [stepUp, stepDown, brightUp, brightDown, colorUp, colorDown].forEach(clearBtn);
-    if (brightMidInfo) brightMidInfo.textContent = '';
-    if (colorMidInfo) colorMidInfo.textContent = '';
-    return;
-  }
-
-  // Determine phase (ascend = wake, descend = bed)
-  const inAscend = point.phase === 'Ascend';
-
-  // Get current runtime midpoints (always show, even if equal to base)
-  const currentBriMid = runtimeState.brightness_mid ?? (inAscend ? config.wake_time : config.bed_time);
-  const currentColorMid = runtimeState.color_mid ?? (inAscend ? config.wake_time : config.bed_time);
-
-  // Show just the time next to the label
-  if (brightMidInfo) {
-    brightMidInfo.textContent = fmtTime(currentBriMid);
-  }
-  if (colorMidInfo) {
-    colorMidInfo.textContent = fmtTime(currentColorMid);
-  }
-
-  // Config bounds (for step button extreme checks)
-  const configMinPct = config.min_brightness;
-  const configMaxPct = config.max_brightness;
-
-  const currentPct = point.y;
-  const currentCCT = point.cct;
-
-  // Get preview values from shared functions (same logic as click handlers)
-  const briPreview = getBrightnessPreview();
-  const colorPreview = getColorPreview();
-  const stepPreview = getStepPreview(point);
-
-  // Helper to style a button
-  const styleBtn = (btn, targetBri, targetColor, mode) => {
-    if (!btn) return;
-
-    // Brightness glow (for brightness and combo modes)
-    if ((mode === 'brightness' || mode === 'combo') && Number.isFinite(targetBri)) {
-      const frac = Math.max(0, Math.min(1, targetBri / 100));
-      btn.style.setProperty('--btn-fill-opacity', frac.toFixed(3));
-    } else {
-      btn.style.removeProperty('--btn-fill-opacity');
-    }
-
-    // Color background
-    if (Number.isFinite(targetColor)) {
-      let color = cctToRGB(targetColor);
-      if (Number.isFinite(targetBri)) {
-        color = tintColorByBrightness(color, targetBri);
-      }
-      btn.style.setProperty('--btn-bg', color);
-      btn.style.setProperty('--btn-text', readableTextColor(color));
-    } else {
-      btn.style.removeProperty('--btn-bg');
-      btn.style.removeProperty('--btn-text');
-    }
-  };
-
-  // Style buttons with preview values
-  styleBtn(brightUp, briPreview.up.value, currentCCT, 'brightness');
-  styleBtn(brightDown, briPreview.down.value, currentCCT, 'brightness');
-  styleBtn(colorUp, null, colorPreview.up.value, 'color');
-  styleBtn(colorDown, null, colorPreview.down.value, 'color');
-  styleBtn(stepUp, stepPreview.upBri, stepPreview.upCCT, 'combo');
-  styleBtn(stepDown, stepPreview.downBri, stepPreview.downCCT, 'combo');
-
-  // For display
-  const displayedCCT = currentCCT;
-
-  // Use preview extreme states
-  const briAtMax = briPreview.up.atExtreme;
-  const briAtMin = briPreview.down.atExtreme;
-  const cctAtMax = colorPreview.up.atExtreme;
-  const cctAtMin = colorPreview.down.atExtreme;
-
-  // Step buttons: at extreme based on brightness only
-  const stepUpAtExtreme = currentPct >= configMaxPct - 0.5;
-  const stepDownAtExtreme = currentPct <= configMinPct + 0.5;
-
-  // Toggle at-extreme class for styling
-  brightUp?.classList.toggle('at-extreme', briAtMax);
-  brightDown?.classList.toggle('at-extreme', briAtMin);
-  colorUp?.classList.toggle('at-extreme', cctAtMax);
-  colorDown?.classList.toggle('at-extreme', cctAtMin);
-  stepUp?.classList.toggle('at-extreme', stepUpAtExtreme);
-  stepDown?.classList.toggle('at-extreme', stepDownAtExtreme);
-
-  // Update button tooltips with detailed preview info
-  if (brightUp) brightUp.title = briAtMax
-    ? `Bright up: at max ${Math.round(currentPct)}%`
-    : `Bright up ${Math.round(briPreview.up.value - currentPct)}% to ${Math.round(briPreview.up.value)}%`;
-  if (brightDown) brightDown.title = briAtMin
-    ? `Bright down: at min ${Math.round(currentPct)}%`
-    : `Bright down ${Math.round(currentPct - briPreview.down.value)}% to ${Math.round(briPreview.down.value)}%`;
-  if (colorUp) colorUp.title = cctAtMax
-    ? `Color up: at max ${Math.round(displayedCCT)}K`
-    : `Color up ${Math.round(colorPreview.up.value - displayedCCT)}K to ${Math.round(colorPreview.up.value)}K`;
-  if (colorDown) colorDown.title = cctAtMin
-    ? `Color down: at min ${Math.round(displayedCCT)}K`
-    : `Color down ${Math.round(displayedCCT - colorPreview.down.value)}K to ${Math.round(colorPreview.down.value)}K`;
-  if (stepUp) stepUp.title = stepUpAtExtreme
-    ? `Step up: at max ${Math.round(currentPct)}% @ ${Math.round(displayedCCT)}K`
-    : `Step up ${Math.round(stepPreview.upBri - currentPct)}% / ${Math.round(stepPreview.upCCT - displayedCCT)}K to ${Math.round(stepPreview.upBri)}% at ${Math.round(stepPreview.upCCT)}K`;
-  if (stepDown) stepDown.title = stepDownAtExtreme
-    ? `Step down: at min ${Math.round(currentPct)}% @ ${Math.round(displayedCCT)}K`
-    : `Step down ${Math.round(currentPct - stepPreview.downBri)}% / ${Math.round(displayedCCT - stepPreview.downCCT)}K to ${Math.round(stepPreview.downBri)}% at ${Math.round(stepPreview.downCCT)}K`;
-
-  // Style reset button with what values WILL be after reset (cleared runtime state)
-  const resetBtn = document.getElementById('cursor-reset');
-  if (resetBtn && config && cursorHour !== null) {
-    const savedMidBri = runtimeState.brightness_mid;
-    const savedMidColor = runtimeState.color_mid;
-    const savedColorOverride = runtimeState.color_override;
-    runtimeState.brightness_mid = null;
-    runtimeState.color_mid = null;
-    runtimeState.color_override = null;
-    const h = ((cursorHour % 24) + 24) % 24;
-    const resetBri = Math.round(calculateBrightnessAtHour(h) * 100);
-    const resetCct = Math.round(calculateColorAtHour(h, true));
-    runtimeState.brightness_mid = savedMidBri;
-    runtimeState.color_mid = savedMidColor;
-    runtimeState.color_override = savedColorOverride;
-    styleBtn(resetBtn, resetBri, resetCct, 'combo');
-    resetBtn.title = `Reset to curve: ${resetBri}% at ${resetCct}K`;
-  }
-
-  // Update time navigation button tooltips
-  const timeMinusBtn = document.getElementById('cursor-time-minus');
-  const timePlusBtn = document.getElementById('cursor-time-plus');
-
-  // Helper to format hour as H:MMa/p
-  const formatTime = (hour) => {
-    const h = ((hour % 24) + 24) % 24;
-    let hours24 = Math.floor(h);
-    let mins = Math.round((h - hours24) * 60);
-    if (mins === 60) { mins = 0; hours24 = (hours24 + 1) % 24; }
-    const isPM = hours24 >= 12;
-    let hours12 = hours24 % 12;
-    if (hours12 === 0) hours12 = 12;
-    return `${hours12}:${mins.toString().padStart(2, '0')}${isPM ? 'p' : 'a'}`;
-  };
-
-  if (config && cursorHour !== null) {
-    const getValuesAtHour = (hour) => {
-      const h = ((hour % 24) + 24) % 24;
-      return {
-        bri: Math.round(calculateBrightnessAtHour(h) * 100),
-        cct: Math.round(calculateColorAtHour(h, true))
-      };
-    };
-
-    const displayedBri = Math.round(currentPct);
-    const displayedCct = Math.round(displayedCCT);
-
-    const minusHour = cursorHour - 5/60;
-    const minusVals = getValuesAtHour(minusHour);
-    const minusBriDelta = minusVals.bri - displayedBri;
-    const minusCctDelta = minusVals.cct - displayedCct;
-    if (timeMinusBtn) {
-      const briStr = minusBriDelta >= 0 ? `+${minusBriDelta}%` : `${minusBriDelta}%`;
-      const cctStr = minusCctDelta >= 0 ? `+${minusCctDelta}K` : `${minusCctDelta}K`;
-      timeMinusBtn.title = `5 minutes earlier, ${briStr} / ${cctStr} to ${minusVals.bri}% at ${minusVals.cct}K`;
-      styleBtn(timeMinusBtn, minusVals.bri, minusVals.cct, 'combo');
-    }
-
-    const plusHour = cursorHour + 5/60;
-    const plusVals = getValuesAtHour(plusHour);
-    const plusBriDelta = plusVals.bri - displayedBri;
-    const plusCctDelta = plusVals.cct - displayedCct;
-    if (timePlusBtn) {
-      const briStr = plusBriDelta >= 0 ? `+${plusBriDelta}%` : `${plusBriDelta}%`;
-      const cctStr = plusCctDelta >= 0 ? `+${plusCctDelta}K` : `${plusCctDelta}K`;
-      timePlusBtn.title = `5 minutes later, ${briStr} / ${cctStr} to ${plusVals.bri}% at ${plusVals.cct}K`;
-      styleBtn(timePlusBtn, plusVals.bri, plusVals.cct, 'combo');
-    }
-
-    // Style Now button with current-time curve values
-    const timeNowBtn = document.getElementById('cursor-time-now');
-    if (timeNowBtn) {
-      const now = new Date();
-      const nowHour = now.getHours() + now.getMinutes() / 60;
-      const nowVals = getValuesAtHour(nowHour);
-      styleBtn(timeNowBtn, nowVals.bri, nowVals.cct, 'combo');
-      timeNowBtn.title = `Now: ${nowVals.bri}% at ${nowVals.cct}K`;
-    }
-  }
-}
-
 // ============================================================
-// Cursor Slider Functions
+// UI Updates
 // ============================================================
 
-let cursorSliderInteracting = false;
-
-function buildCursorTrackGradient(mode) {
-  if (!config) return '';
-  const bMin = config.min_brightness, bMax = config.max_brightness;
-  const cMin = config.min_color_temp, cMax = config.max_color_temp;
-  const currentBri = cursorHour !== null ? calculateBrightnessAtHour(cursorHour) * 100 : 50;
-  const currentCCT = cursorHour !== null ? calculateColorAtHour(cursorHour, true) : (cMin + cMax) / 2;
-  const stops = [];
-  const n = 6;
-  for (let i = 0; i <= n; i++) {
-    const frac = i / n;
-    let color;
-    if (mode === 'color') {
-      const k = cMin + (cMax - cMin) * frac;
-      color = cctToRGB(k);
-    } else if (mode === 'brightness') {
-      const b = bMin + (bMax - bMin) * frac;
-      color = tintColorByBrightness(cctToRGB(currentCCT), b);
-    } else {
-      // Step/circadian slider: combined brightness + color
-      const b = bMin + (bMax - bMin) * frac;
-      const k = cMin + (cMax - cMin) * frac;
-      color = tintColorByBrightness(cctToRGB(k), b);
-    }
-    stops.push(color + ' ' + Math.round(frac * 100) + '%');
-  }
-  return 'linear-gradient(to top, ' + stops.join(', ') + ')';
+function updateDisplay(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = value;
 }
 
-function applyOneCursorSlider(track, pct, bri, cct, mode) {
-  const fill = track.querySelector('.slider-fill');
-  const thumb = track.querySelector('.slider-thumb');
-  if (!fill || !thumb) return;
-  fill.style.height = (100 - pct) + '%';
-  thumb.style.bottom = pct + '%';
-  const color = cctToRGB(cct);
-  const tinted = mode === 'color' ? color : tintColorByBrightness(color, bri);
-  thumb.style.background = tinted;
-  thumb.style.borderColor = color;
-}
-
-function updateCursorSliders(point) {
-  if (!config) return;
-  const container = document.getElementById('cursor-controls');
-  if (!container) return;
-  const tracks = container.querySelectorAll('.slider-track');
-  if (!tracks.length) return;
-
-  if (!point) {
-    // Reset slider visuals
-    tracks.forEach(track => {
-      track.style.background = '';
-      const fill = track.querySelector('.slider-fill');
-      const thumb = track.querySelector('.slider-thumb');
-      if (fill) fill.style.height = '50%';
-      if (thumb) { thumb.style.bottom = '50%'; thumb.style.background = '#fff'; }
-    });
-    return;
-  }
-
-  const bMin = config.min_brightness, bMax = config.max_brightness;
-  const cMin = config.min_color_temp, cMax = config.max_color_temp;
-  const currentBri = point.y;  // 0-100
-  const currentCCT = point.cct;
-
-  const briFrac = bMax > bMin ? Math.max(0, Math.min(100, (currentBri - bMin) / (bMax - bMin) * 100)) : 50;
-  const cctFrac = cMax > cMin ? Math.max(0, Math.min(100, (currentCCT - cMin) / (cMax - cMin) * 100)) : 50;
-  const gloFrac = briFrac;  // Step slider follows brightness position
-
-  tracks.forEach(track => {
-    if (track.classList.contains('dragging')) return;
-    const mode = track.dataset.mode;
-    track.style.background = buildCursorTrackGradient(mode);
-    const pct = mode === 'step' ? gloFrac : mode === 'brightness' ? briFrac : cctFrac;
-    applyOneCursorSlider(track, pct, currentBri, currentCCT, mode);
-  });
-}
-
-function getCursorSliderPosition(track, e) {
-  const rect = track.getBoundingClientRect();
-  const y = Math.max(0, Math.min(1, (rect.bottom - e.clientY) / rect.height));
-  return y * 100;
-}
-
-function setCursorToPosition(pct) {
-  // Set both brightness and color to a percentage position
-  if (cursorHour === null || !config) return;
-  const bMin = config.min_brightness, bMax = config.max_brightness;
-  const cMin = config.min_color_temp, cMax = config.max_color_temp;
-
-  const targetBri = bMin + (bMax - bMin) * pct / 100;
-  const targetCCT = cMin + (cMax - cMin) * pct / 100;
-
-  // Compute time parameters
-  const tAscend = config.ascend_start;
-  let tDescend = config.descend_start;
-  if (tDescend <= tAscend) tDescend += 24;
-  let h48 = cursorHour < tAscend ? cursorHour + 24 : cursorHour;
-  const inAscend = h48 >= tAscend && h48 < tDescend;
-  const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, config.wake_speed))];
-  const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, config.bed_speed))];
-  const slope = inAscend ? kAscend : -kDescend;
-
-  let calcTime = h48;
-  if (!inAscend && h48 < tDescend) calcTime = h48 + 24;
-
-  const bMinNorm = bMin / 100, bMaxNorm = bMax / 100;
-  const targetBriNorm = Math.max(bMinNorm + 0.001, Math.min(bMaxNorm - 0.001, targetBri / 100));
-  const targetCCTNorm = Math.max(0.001, Math.min(0.999, (targetCCT - cMin) / (cMax - cMin)));
-
-  runtimeState.brightness_mid = inverseMidpoint(calcTime, targetBriNorm, slope, bMinNorm, bMaxNorm);
-  runtimeState.color_mid = inverseMidpoint(calcTime, targetCCTNorm, slope, 0, 1);
-
-  renderChart();
-  applyCursor();
-}
-
-function setCursorBrightness(pct) {
-  if (cursorHour === null || !config) return;
-  const bMin = config.min_brightness, bMax = config.max_brightness;
-  const targetBri = bMin + (bMax - bMin) * pct / 100;
-
-  const tAscend = config.ascend_start;
-  let tDescend = config.descend_start;
-  if (tDescend <= tAscend) tDescend += 24;
-  let h48 = cursorHour < tAscend ? cursorHour + 24 : cursorHour;
-  const inAscend = h48 >= tAscend && h48 < tDescend;
-  const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, config.wake_speed))];
-  const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, config.bed_speed))];
-  const slope = inAscend ? kAscend : -kDescend;
-
-  let calcTime = h48;
-  if (!inAscend && h48 < tDescend) calcTime = h48 + 24;
-
-  const bMinNorm = bMin / 100, bMaxNorm = bMax / 100;
-  const targetNorm = Math.max(bMinNorm + 0.001, Math.min(bMaxNorm - 0.001, targetBri / 100));
-  runtimeState.brightness_mid = inverseMidpoint(calcTime, targetNorm, slope, bMinNorm, bMaxNorm);
-
-  renderChart();
-  applyCursor();
-}
-
-function setCursorColor(pct) {
-  if (cursorHour === null || !config) return;
-  const cMin = config.min_color_temp, cMax = config.max_color_temp;
-  const targetCCT = cMin + (cMax - cMin) * pct / 100;
-
-  const tAscend = config.ascend_start;
-  let tDescend = config.descend_start;
-  if (tDescend <= tAscend) tDescend += 24;
-  let h48 = cursorHour < tAscend ? cursorHour + 24 : cursorHour;
-  const inAscend = h48 >= tAscend && h48 < tDescend;
-  const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, config.wake_speed))];
-  const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, config.bed_speed))];
-  const slope = inAscend ? kAscend : -kDescend;
-
-  let calcTime = h48;
-  if (!inAscend && h48 < tDescend) calcTime = h48 + 24;
-
-  const targetNorm = Math.max(0.001, Math.min(0.999, (targetCCT - cMin) / (cMax - cMin)));
-  runtimeState.color_mid = inverseMidpoint(calcTime, targetNorm, slope, 0, 1);
-
-  renderChart();
-  applyCursor();
-}
-
-function previewCursorSlider(track, position) {
-  if (!config) return;
-  const container = document.getElementById('cursor-controls');
-  if (!container) return;
-  const dragMode = track.dataset.mode;
-
-  const bMin = config.min_brightness, bMax = config.max_brightness;
-  const cMin = config.min_color_temp, cMax = config.max_color_temp;
-  const currentBri = cursorHour !== null ? calculateBrightnessAtHour(cursorHour) * 100 : 50;
-  const currentCCT = cursorHour !== null ? calculateColorAtHour(cursorHour, true) : (cMin + cMax) / 2;
-
-  let previewBri, previewCCT;
-  if (dragMode === 'brightness') {
-    previewBri = bMin + (bMax - bMin) * position / 100;
-    previewCCT = currentCCT;
-  } else if (dragMode === 'color') {
-    previewBri = currentBri;
-    previewCCT = cMin + (cMax - cMin) * position / 100;
-  } else {
-    previewBri = bMin + (bMax - bMin) * position / 100;
-    previewCCT = cMin + (cMax - cMin) * position / 100;
-  }
-
-  const briFrac = bMax > bMin ? Math.max(0, Math.min(100, (previewBri - bMin) / (bMax - bMin) * 100)) : 50;
-  const cctFrac = cMax > cMin ? Math.max(0, Math.min(100, (previewCCT - cMin) / (cMax - cMin) * 100)) : 50;
-  const gloFrac = briFrac;
-
-  container.querySelectorAll('.slider-track').forEach(t => {
-    const m = t.dataset.mode;
-    t.style.background = buildCursorTrackGradient(m);
-    const pct = m === 'step' ? gloFrac : m === 'brightness' ? briFrac : cctFrac;
-    applyOneCursorSlider(t, pct, previewBri, previewCCT, m);
-  });
-}
 
 /**
  * Show/hide design-mode-only controls based on Live Design state.
  */
 function updateDesignModeUI() {
-  const inDesign = liveDesignEnabled;
-  // Chart toolbar (date slider, conditions, time nav)
-  const toolbar = document.querySelector('.chart-toolbar');
-  if (toolbar) toolbar.style.display = inDesign ? '' : 'none';
-  // Simple mode checkbox
-  const simpleWrap = document.getElementById('simple-mode')?.closest('div');
-  if (simpleWrap) simpleWrap.style.display = inDesign ? '' : 'none';
+  // Chart toolbar and simple mode checkbox are always visible now.
+  // This function retained for Live Design status indicator updates if needed.
+}
+
+/**
+ * Show/hide chart schedule toggles based on whether alt times are configured.
+ */
+function updateScheduleToggles() {
+  const el = document.getElementById('chart-schedule-toggles');
+  if (!el) return;
+  const hasAlt = config.wake_alt_time != null || config.bed_alt_time != null;
+  el.style.display = hasAlt ? 'flex' : 'none';
 }
 
 /**
@@ -4031,82 +3206,6 @@ function snapCursorToNow() {
   renderChart();
   applyCursor();
 }
-
-/**
- * Push a zone action to the server so the zone's runtime state updates.
- * Only fires when we have a selectedZoneName and NOT in Live Design mode.
- */
-function pushZoneAction(action, value, mode) {
-  if (!selectedZoneName || liveDesignEnabled) return;
-  const payload = { zone_name: selectedZoneName, action };
-  if (value !== undefined) payload.value = value;
-  if (mode !== undefined) payload.mode = mode;
-  fetch('./api/zone/action', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  }).catch(err => console.warn('[Zone Action] push failed:', err));
-}
-
-function initCursorSliderHandlers() {
-  const container = document.getElementById('cursor-controls');
-  if (!container) return;
-
-  container.querySelectorAll('.slider-track').forEach(track => {
-    let lastPos = null;
-    const mode = track.dataset.mode;
-
-    function onDown(e) {
-      e.preventDefault();
-      cursorSliderInteracting = true;
-      track.classList.add('dragging');
-      track.setPointerCapture(e.pointerId);
-      lastPos = getCursorSliderPosition(track, e);
-      previewCursorSlider(track, lastPos);
-    }
-    function onMove(e) {
-      if (!track.classList.contains('dragging')) return;
-      e.preventDefault();
-      lastPos = getCursorSliderPosition(track, e);
-      previewCursorSlider(track, lastPos);
-    }
-    function onUp(e) {
-      if (!track.classList.contains('dragging')) return;
-      e.preventDefault();
-      track.classList.remove('dragging');
-      cursorSliderInteracting = false;
-      if (lastPos !== null) {
-        if (mode === 'step') setCursorToPosition(lastPos);
-        else if (mode === 'brightness') setCursorBrightness(lastPos);
-        else if (mode === 'color') setCursorColor(lastPos);
-        pushZoneAction('set_position', Math.round(lastPos), mode);
-      }
-    }
-
-    track.addEventListener('pointerdown', onDown);
-    track.addEventListener('pointermove', onMove);
-    track.addEventListener('pointerup', onUp);
-    track.addEventListener('pointercancel', onUp);
-  });
-
-  // Extreme label clicks
-  document.getElementById('cursor-set-britelite')?.addEventListener('click', () => { setCursorToPosition(100); pushZoneAction('set_position', 100, 'step'); });
-  document.getElementById('cursor-set-nitelite')?.addEventListener('click', () => { setCursorToPosition(0); pushZoneAction('set_position', 0, 'step'); });
-  document.getElementById('cursor-bright-max')?.addEventListener('click', () => { setCursorBrightness(100); pushZoneAction('set_position', 100, 'brightness'); });
-  document.getElementById('cursor-bright-min')?.addEventListener('click', () => { setCursorBrightness(0); pushZoneAction('set_position', 0, 'brightness'); });
-  document.getElementById('cursor-color-max')?.addEventListener('click', () => { setCursorColor(100); pushZoneAction('set_position', 100, 'color'); });
-  document.getElementById('cursor-color-min')?.addEventListener('click', () => { setCursorColor(0); pushZoneAction('set_position', 0, 'color'); });
-}
-
-// ============================================================
-// UI Updates
-// ============================================================
-
-function updateDisplay(id, value) {
-  const el = document.getElementById(id);
-  if (el) el.textContent = value;
-}
-
 function positionTimelineBadges() {
   const ascendBadge = document.getElementById('ascend-start-badge');
   const descendBadge = document.getElementById('descend-start-badge');
@@ -4408,7 +3507,6 @@ function syncConfigFromUI() {
   config.daylight_fade = parseInt(document.getElementById('daylight-fade')?.value || '60');
   config.color_sensitivity = SENSITIVITY_STEPS[parseInt(document.getElementById('color-sensitivity').value)].multiplier;
 
-  resetRuntimeState();
   updateColorGradients();
   constrainWakeBedSliders();
   updateSleepCardSummaries();
@@ -4534,6 +3632,7 @@ function syncUIFromConfig() {
   syncColorRuleRows();
   constrainWakeBedSliders();
   updateSleepCardSummaries();
+  updateScheduleToggles();
 }
 
 // Update combined range displays (color temp + brightness)
@@ -4695,16 +3794,6 @@ function updateDualFills() {
     briMaskRight.style.left = `${rightPct}%`;
     briMaskRight.style.width = `${100 - rightPct}%`;
   }
-}
-
-function resetRuntimeState() {
-  // Reset turns on circadian lighting and resets to default curve
-  runtimeState.enabled = true;
-  runtimeState.frozen = false;
-  // Reset midpoints to follow config
-  runtimeState.brightness_mid = null;
-  runtimeState.color_mid = null;
-  runtimeState.color_override = null;
 }
 
 // ============================================================
@@ -4871,7 +3960,6 @@ function setupEventListeners() {
         config.descend_start = preset.descend_start;
       }
 
-      resetRuntimeState();
       syncUIFromConfig();
       renderChart();
     }
@@ -4888,43 +3976,34 @@ function setupEventListeners() {
   // Simple mode toggle
   document.getElementById('simple-mode').addEventListener('change', (e) => {
     simpleMode = e.target.checked;
-    document.querySelector('.chart-date-control').style.display = simpleMode ? 'none' : 'flex';
-    document.querySelector('.time-nav-group').style.display = simpleMode ? 'none' : 'flex';
     renderChart();
   });
-  // Apply initial simple mode state
-  document.querySelector('.chart-date-control').style.display = simpleMode ? 'none' : 'flex';
-  document.querySelector('.time-nav-group').style.display = simpleMode ? 'none' : 'flex';
 
-  document.getElementById('cursor-step-up')?.addEventListener('click', () => { stepCursor('up', true, true); pushZoneAction('step_up'); });
-  document.getElementById('cursor-step-down')?.addEventListener('click', () => { stepCursor('down', true, true); pushZoneAction('step_down'); });
-  document.getElementById('cursor-bright-up')?.addEventListener('click', () => { stepCursor('up', true, false); pushZoneAction('bright_up'); });
-  document.getElementById('cursor-bright-down')?.addEventListener('click', () => { stepCursor('down', true, false); pushZoneAction('bright_down'); });
-  document.getElementById('cursor-color-up')?.addEventListener('click', () => { stepCursor('up', false, true); pushZoneAction('color_up'); });
-  document.getElementById('cursor-color-down')?.addEventListener('click', () => { stepCursor('down', false, true); pushZoneAction('color_down'); });
-  document.getElementById('cursor-reset')?.addEventListener('click', () => {
-    resetRuntimeState();
+  // Chart schedule toggles (wake/bed primary vs alt)
+  document.getElementById('chart-wake-mode')?.addEventListener('change', (e) => {
+    chartWakeMode = e.target.value;
     renderChart();
     applyCursor();
-    pushZoneAction('glozone_reset');
+  });
+  document.getElementById('chart-bed-mode')?.addEventListener('change', (e) => {
+    chartBedMode = e.target.value;
+    renderChart();
+    applyCursor();
   });
 
-  // Time navigation buttons — only in Live Design mode
+  // Time navigation buttons — always active
   document.getElementById('cursor-time-now')?.addEventListener('click', () => {
-    if (!liveDesignEnabled) return;
     const now = new Date();
     cursorHour = now.getHours() + now.getMinutes() / 60;
     renderChart();
     applyCursor();
   });
   document.getElementById('cursor-time-plus')?.addEventListener('click', () => {
-    if (!liveDesignEnabled) return;
     cursorHour = (cursorHour + 5/60) % 24;  // +5 minutes, wrap at 24
     renderChart();
     applyCursor();
   });
   document.getElementById('cursor-time-minus')?.addEventListener('click', () => {
-    if (!liveDesignEnabled) return;
     cursorHour = (cursorHour - 5/60 + 24) % 24;  // -5 minutes, wrap at 0
     renderChart();
     applyCursor();
@@ -4934,209 +4013,8 @@ function setupEventListeners() {
     document.getElementById(id)?.addEventListener('input', updateDualFills);
   });
 
-  // Initialize cursor slider drag handlers
-  initCursorSliderHandlers();
-
 }
 
-// Inverse logistic: find midpoint that gives target value at time x
-function inverseMidpoint(x, targetValue, slope, y0, y1) {
-  // Clamp target to avoid division issues
-  const epsilon = 0.001;
-  const clampedTarget = Math.max(y0 + epsilon, Math.min(y1 - epsilon, targetValue));
-  const ratio = (clampedTarget - y0) / (y1 - y0);
-  // midpoint = x + ln((1 - ratio) / ratio) / slope
-  return x + Math.log((1 - ratio) / ratio) / slope;
-}
-
-// Get current brightness at cursor (0-100 scale) using core calculation
-function getBrightnessAtCursor() {
-  if (cursorHour === null || !config) return null;
-  return calculateBrightnessAtHour(cursorHour) * 100;  // Convert 0-1 to 0-100
-}
-
-// Get displayed CCT at cursor (AFTER solar rules are applied) using core calculation
-function getDisplayedCCTAtCursor() {
-  if (cursorHour === null || !config) return null;
-  return calculateColorAtHour(cursorHour, true);  // With solar rules
-}
-
-// Get current CCT value at cursor (before solar rules, from base curve) using core calculation
-function getBaseCCTAtCursor() {
-  if (cursorHour === null || !config) return null;
-  return calculateColorAtHour(cursorHour, false);  // Without solar rules
-}
-
-function stepCursor(direction, adjustBrightness, adjustColor) {
-  if (cursorHour === null) return;
-
-  const sign = direction === 'up' ? 1 : -1;
-  // Select increment based on mode
-  let steps;
-  if (adjustBrightness && adjustColor) {
-    steps = config.step_increments ?? config.max_dim_steps ?? 10;
-  } else if (adjustBrightness) {
-    steps = config.max_dim_steps ?? 10;
-  } else {
-    steps = config.max_dim_steps ?? 10;
-  }
-
-  const tAscend = config.ascend_start;
-  let tDescend = config.descend_start;
-  if (tDescend <= tAscend) tDescend += 24;
-  let h48 = cursorHour < tAscend ? cursorHour + 24 : cursorHour;
-  const inAscend = h48 >= tAscend && h48 < tDescend;
-
-  // Clamp speed to valid range 1-10 (matches brain.py)
-  const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, config.wake_speed))];
-  const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, config.bed_speed))];
-  const slope = inAscend ? kAscend : -kDescend;
-
-  // For Step Up/Down: brightness-primary, traverse diverged curve
-  if (adjustBrightness && adjustColor) {
-    // Config bounds (only use these, no runtime overrides)
-    const bMin = config.min_brightness;
-    const bMax = config.max_brightness;
-    const cMin = config.min_color_temp;
-    const cMax = config.max_color_temp;
-
-    // Step sizes based on config range
-    const briStep = (bMax - bMin) / steps;
-    const cctStep = (cMax - cMin) / steps;
-
-    // Current values
-    const currentBri = getBrightnessAtCursor();
-    const currentCCT = getDisplayedCCTAtCursor();
-    if (currentBri === null || currentCCT === null) return;
-
-    const briMargin = Math.max(1.0, (bMax - bMin) * 0.01);
-    const cctMargin = Math.max(10, (cMax - cMin) * 0.01);
-
-    // Check limits per dimension
-    const briAtLimit = (direction === 'up' && currentBri >= bMax - briMargin) ||
-                       (direction === 'down' && currentBri <= bMin + briMargin);
-    const cctAtLimit = (direction === 'up' && currentCCT >= cMax - cctMargin) ||
-                       (direction === 'down' && currentCCT <= cMin + cctMargin);
-
-    if (briAtLimit && cctAtLimit) return; // Both at limit
-
-    // Step each dimension independently, skip ones at limit
-    let targetBri = briAtLimit ? currentBri : currentBri + sign * briStep;
-    let targetCCT = cctAtLimit ? currentCCT : currentCCT + sign * cctStep;
-
-    // Clamp
-    targetBri = Math.max(bMin, Math.min(bMax, targetBri));
-    targetCCT = Math.max(cMin, Math.min(cMax, targetCCT));
-
-    // Calculate midpoints (only for dimensions that moved)
-    const bMinNorm = bMin / 100;
-    const bMaxNorm = bMax / 100;
-    const targetBriNorm = Math.max(bMinNorm + 0.001, Math.min(bMaxNorm - 0.001, targetBri / 100));
-    const targetCCTNorm = Math.max(0.001, Math.min(0.999, (targetCCT - cMin) / (cMax - cMin)));
-
-    let calcTime = h48;
-    if (!inAscend && h48 < tDescend) calcTime = h48 + 24;
-
-    if (!briAtLimit) {
-      runtimeState.brightness_mid = inverseMidpoint(calcTime, targetBriNorm, slope, bMinNorm, bMaxNorm);
-    }
-    if (!cctAtLimit) {
-      runtimeState.color_mid = inverseMidpoint(calcTime, targetCCTNorm, slope, 0, 1);
-    }
-
-    renderChart();
-    applyCursor();
-    return;
-  }
-
-  // Brightness only: fixed value increments
-  if (adjustBrightness && !adjustColor) {
-    // Config bounds (only use these, no runtime overrides)
-    const bMin = config.min_brightness;
-    const bMax = config.max_brightness;
-    const briStep = (bMax - bMin) / steps;
-
-    const currentBri = getBrightnessAtCursor();
-    if (currentBri === null) return;
-
-    // Check if at config bounds
-    const atMax = direction === 'up' && currentBri >= bMax - 0.5;
-    const atMin = direction === 'down' && currentBri <= bMin + 0.5;
-
-    if (atMax || atMin) {
-      return; // At config bound, can't go further
-    }
-
-    // Calculate target
-    let targetBri = currentBri + sign * briStep;
-
-    // Clamp to config bounds
-    targetBri = Math.max(bMin, Math.min(bMax, targetBri));
-
-    // Reverse-solve midpoint
-    const targetNorm = targetBri / 100;
-    const bMinNorm = bMin / 100;
-    const bMaxNorm = bMax / 100;
-
-    let calcTime = h48;
-    if (!inAscend && h48 < tDescend) calcTime = h48 + 24;
-
-    const newMid = inverseMidpoint(calcTime, targetNorm, slope, bMinNorm, bMaxNorm);
-
-    runtimeState.brightness_mid = newMid;
-  }
-
-  // Color only: step NATURAL curve, set color_override when solar rules clamp
-  if (adjustColor && !adjustBrightness) {
-    // Config bounds (only use these, no runtime overrides)
-    const cMin = config.min_color_temp;
-    const cMax = config.max_color_temp;
-    const cctStep = (cMax - cMin) / steps;
-    const safeMargin = Math.max(10, (cMax - cMin) * 0.01);
-
-    // Get NATURAL CCT (before solar rules) for stepping/midpoint
-    const naturalCCT = getBaseCCTAtCursor();
-    // Get RENDERED CCT (after solar rules) for clamping detection
-    const renderedCCT = getDisplayedCCTAtCursor();
-    if (naturalCCT === null || renderedCCT === null) return;
-
-    // Check if NATURAL curve is at config bounds
-    const atMax = direction === 'up' && naturalCCT >= cMax - safeMargin;
-    const atMin = direction === 'down' && naturalCCT <= cMin + safeMargin;
-
-    if (atMax || atMin) return;
-
-    // Step the NATURAL curve
-    let targetNaturalCCT = naturalCCT + sign * cctStep;
-    targetNaturalCCT = Math.max(cMin + safeMargin, Math.min(cMax - safeMargin, targetNaturalCCT));
-
-    if (Math.abs(targetNaturalCCT - naturalCCT) < safeMargin) return;
-
-    // Detect solar rule clamping and accumulate color_override
-    const isClamped = Math.abs(renderedCCT - naturalCCT) > 1.0;
-    if (isClamped) {
-      // WarmNight: rendered < natural (ceiling), user stepping up (cooler)
-      if (renderedCCT < naturalCCT && direction === 'up') {
-        runtimeState.color_override = (runtimeState.color_override || 0) + cctStep;
-      }
-      // CoolDay: rendered > natural (floor), user stepping down (warmer)
-      else if (renderedCCT > naturalCCT && direction === 'down') {
-        runtimeState.color_override = (runtimeState.color_override || 0) - cctStep;
-      }
-    }
-
-    // Calculate new midpoint from NATURAL target
-    const targetNorm = Math.max(0.001, Math.min(0.999, (targetNaturalCCT - cMin) / (cMax - cMin)));
-
-    let calcTime = h48;
-    if (!inAscend && h48 < tDescend) calcTime = h48 + 24;
-
-    runtimeState.color_mid = inverseMidpoint(calcTime, targetNorm, slope, 0, 1);
-  }
-
-  renderChart();
-  applyCursor();
-}
 
 // ============================================================
 // API Communication
@@ -5148,7 +4026,6 @@ async function loadConfig() {
     if (resp.ok) {
       const data = await resp.json();
       Object.assign(config, data);
-      resetRuntimeState();
       syncUIFromConfig();
       renderChart();
     }
@@ -5361,7 +4238,6 @@ function setupLiveDesign() {
         }
         await setCircadianMode(liveDesignAreaId, true);
         // Snap cursor back to now — exiting design mode
-        resetRuntimeState();
         snapCursorToNow();
       }
     });
@@ -5416,7 +4292,6 @@ function setupLiveDesign() {
         }
         updateDesignModeUI();
         // Snap cursor back to now — exiting design mode
-        resetRuntimeState();
         snapCursorToNow();
       }
     });
@@ -5955,7 +4830,6 @@ async function loadZoneFromData() {
       // Merge zone rhythm settings into config object
       Object.assign(config, zoneData);
 
-      resetRuntimeState();
       syncUIFromConfig();
       renderChart();
     }
@@ -6102,7 +4976,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (injectedCfg[key] != null) config[key] = injectedCfg[key];
   });
 
-  resetRuntimeState();
   setupEventListeners();
   setupLiveDesign();
   setupSaveButton();
