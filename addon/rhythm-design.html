@@ -36,7 +36,8 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
 .rhythm-card-chevron { display: inline-block; font-size: 1.1rem; line-height: 1; transition: transform 0.25s; color: var(--muted2); flex-shrink: 0; }
 .rhythm-card.is-open .rhythm-card-chevron { transform: rotate(90deg); }
 .rhythm-card-title { font-size: 1.0rem; font-weight: 600; color: var(--text); }
-.rhythm-card-val { margin-left: auto; font-size: 0.85rem; color: var(--muted); white-space: nowrap; text-align: right; }
+.rhythm-card-val { margin-left: auto; font-size: 0.85rem; color: var(--muted); white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
+.rhythm-card-val b { font-weight: 700; font-size: 0.95rem; color: var(--text); }
 .rhythm-card-body { max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.35s ease, opacity 0.25s ease; padding: 0 14px; }
 .rhythm-card.is-open .rhythm-card-body { max-height: 1200px; opacity: 1; padding-bottom: 14px; }
 
@@ -289,6 +290,16 @@ input[type=range]::-moz-range-thumb {
   color: var(--text);
   font-size: 0.75rem;
 }
+.chart-below-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+}
+.chart-below-row > :last-child {
+  align-self: flex-end;
+}
 .time-nav-group {
   display: flex;
   gap: 4px;
@@ -326,7 +337,8 @@ input[type=range]::-moz-range-thumb {
 
 /* Schedule toggles in chart toolbar */
 .chart-schedule-toggles { display: flex; gap: 10px; align-items: center; font-size: 0.75rem; color: var(--muted); }
-.schedule-toggle select { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 4px; font-size: 0.7rem; padding: 1px 4px; }
+.schedule-toggle { display: flex; align-items: center; gap: 4px; cursor: pointer; user-select: none; }
+.schedule-toggle input[type=checkbox] { width: 13px; height: 13px; accent-color: var(--muted2); }
 
 /* Time hover label - above x-axis, shows time with phase color */
 .time-hover-label {
@@ -1161,15 +1173,17 @@ input[type=range]::-moz-range-thumb {
     </div>
     <div class="rhythm-card-body" id="rhythm-sleep-body">
       <div class="tune-control-row">
-        <span class="tune-control-left"><span class="tune-control-label">Pattern</span></span>
-        <select id="activity-preset" class="rhythm-select">
-          <option value="young">Young Child</option>
-          <option value="adult" selected>Adult</option>
-          <option value="nightowl">Night Owl</option>
-          <option value="duskbat">Dusk Bat</option>
-          <option value="shiftearly">Shift Early</option>
-          <option value="shiftlate">Shift Late</option>
-        </select>
+        <span class="tune-control-left">
+          <span class="tune-control-label">Pattern</span>
+          <select id="activity-preset" class="rhythm-select">
+            <option value="young">Young Child</option>
+            <option value="adult" selected>Adult</option>
+            <option value="nightowl">Night Owl</option>
+            <option value="duskbat">Dusk Bat</option>
+            <option value="shiftearly">Shift Early</option>
+            <option value="shiftlate">Shift Late</option>
+          </select>
+        </span>
       </div>
 
       <div class="tune-group-label">Wake</div>
@@ -1308,16 +1322,11 @@ input[type=range]::-moz-range-thumb {
       </div>
       <div class="chart-schedule-toggles" id="chart-schedule-toggles" style="display:none;">
         <label class="schedule-toggle">
-          wake <select id="chart-wake-mode"><option value="primary">primary</option><option value="alt">alt</option></select>
+          <input type="checkbox" id="chart-wake-secondary"> wake secondary
         </label>
         <label class="schedule-toggle">
-          bed <select id="chart-bed-mode"><option value="primary">primary</option><option value="alt">alt</option></select>
+          <input type="checkbox" id="chart-bed-secondary"> bed secondary
         </label>
-      </div>
-      <div class="time-nav-group">
-        <button class="time-nav-btn" id="cursor-time-minus" title="-5 minutes">-5 min</button>
-        <button class="time-nav-btn" id="cursor-time-now" title="Jump to current time">Now</button>
-        <button class="time-nav-btn" id="cursor-time-plus" title="+5 minutes">+5 min</button>
       </div>
     </div>
     <div class="chart-wrapper">
@@ -1326,8 +1335,15 @@ input[type=range]::-moz-range-thumb {
       <div class="graph-cursor-callout" id="cursor-callout"></div>
     </div>
 
-    <div style="display:flex;justify-content:flex-end;margin-top:8px;">
-      <label style="display:flex;align-items:center;gap:6px;font-size:0.75rem;color:var(--muted);cursor:pointer;user-select:none;">
+    <div class="chart-below-row">
+      <div class="time-nav-group">
+        <button class="time-nav-btn" id="cursor-time-minus-30" title="-30 minutes">-30</button>
+        <button class="time-nav-btn" id="cursor-time-minus" title="-5 minutes">-5</button>
+        <button class="time-nav-btn" id="cursor-time-plus" title="+5 minutes">+5</button>
+        <button class="time-nav-btn" id="cursor-time-plus-30" title="+30 minutes">+30</button>
+      </div>
+      <button class="time-nav-btn" id="cursor-time-now" title="Jump to current time">Now</button>
+      <label style="display:flex;align-items:center;gap:6px;font-size:0.75rem;color:var(--muted);cursor:pointer;user-select:none;margin-left:auto;">
         <input type="checkbox" id="simple-mode" checked style="width:14px;height:14px;accent-color:var(--muted2);">
         Simple
       </label>
@@ -2780,7 +2796,7 @@ function renderChart() {
       tickcolor: 'rgba(160,190,220,0.2)'
     },
     yaxis: {
-      range: [0, GRAPH_Y_MAX],
+      range: [0, simpleMode ? 105 : GRAPH_Y_MAX],
       gridcolor: 'rgba(80,100,130,0.22)',
       tickfont: { color: '#c8c8c8' },
       ticklen: 4,
@@ -3440,14 +3456,18 @@ function updateRangeDisplays() {
   const briRange = `${config.min_brightness} – ${config.max_brightness}%`;
   updateDisplay('color-range-display', ctRange);
   updateDisplay('brightness-range-display', briRange);
-  // Update card header summaries
-  updateDisplay('rhythm-brightness-val', briRange);
-  // Color temp header: rule labels · range
-  const rules = [];
-  if (config.warm_night_enabled) rules.push('warm');
-  if (config.daylight_enabled !== false) rules.push('cool');
-  rules.push(ctRange);
-  updateDisplay('rhythm-color-val', rules.join(' \u00b7 '));
+  // Update card header summaries with bold range values
+  const briEl = document.getElementById('rhythm-brightness-val');
+  if (briEl) briEl.innerHTML = `<b>${config.min_brightness} – ${config.max_brightness}%</b>`;
+  // Color temp header: rule labels · bold range
+  const ctEl = document.getElementById('rhythm-color-val');
+  if (ctEl) {
+    const rules = [];
+    if (config.warm_night_enabled) rules.push('warm');
+    if (config.daylight_enabled !== false) rules.push('cool');
+    const labels = rules.length ? rules.join(' \u00b7 ') + ' \u00b7 ' : '';
+    ctEl.innerHTML = labels + `<b>${config.min_color_temp} – ${config.max_color_temp} K</b>`;
+  }
 }
 
 // Update offset text displays
@@ -3524,6 +3544,13 @@ function syncColorRuleRows() {
     daylightBody.querySelectorAll('input[type="range"]').forEach(el => {
       el.disabled = !daylightEnabled;
     });
+  }
+
+  // Grey out weather selector when cool day is off
+  const weatherEl = document.getElementById('modeled-conditions');
+  if (weatherEl) {
+    weatherEl.disabled = !daylightEnabled;
+    weatherEl.style.opacity = daylightEnabled ? '' : '0.4';
   }
 
   // Update card header with warm/cool labels
@@ -3842,13 +3869,13 @@ function setupEventListeners() {
   });
 
   // Chart schedule toggles (wake/bed primary vs alt)
-  document.getElementById('chart-wake-mode')?.addEventListener('change', (e) => {
-    chartWakeMode = e.target.value;
+  document.getElementById('chart-wake-secondary')?.addEventListener('change', (e) => {
+    chartWakeMode = e.target.checked ? 'alt' : 'primary';
     renderChart();
     applyCursor();
   });
-  document.getElementById('chart-bed-mode')?.addEventListener('change', (e) => {
-    chartBedMode = e.target.value;
+  document.getElementById('chart-bed-secondary')?.addEventListener('change', (e) => {
+    chartBedMode = e.target.checked ? 'alt' : 'primary';
     renderChart();
     applyCursor();
   });
@@ -3866,7 +3893,17 @@ function setupEventListeners() {
     applyCursor();
   });
   document.getElementById('cursor-time-minus')?.addEventListener('click', () => {
-    cursorHour = (cursorHour - 5/60 + 24) % 24;  // -5 minutes, wrap at 0
+    cursorHour = (cursorHour - 5/60 + 24) % 24;
+    renderChart();
+    applyCursor();
+  });
+  document.getElementById('cursor-time-plus-30')?.addEventListener('click', () => {
+    cursorHour = (cursorHour + 30/60) % 24;
+    renderChart();
+    applyCursor();
+  });
+  document.getElementById('cursor-time-minus-30')?.addEventListener('click', () => {
+    cursorHour = (cursorHour - 30/60 + 24) % 24;
     renderChart();
     applyCursor();
   });
