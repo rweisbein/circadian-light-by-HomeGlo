@@ -2699,9 +2699,9 @@ function renderChart() {
   const wakeTiming = resolveEffectiveTiming(nowH, wakeWeekday);
   const bedTiming = resolveEffectiveTiming(nowH, bedWeekday);
   const allPhaseLabels = [
-    { label: 'ascend starts', x: ascendStart, color: ASCEND_COLORS.text, lineColor: ASCEND_COLORS.axis, solid: true, extendUp: true },
+    { label: 'ascend', x: ascendStart, color: ASCEND_COLORS.text, lineColor: ASCEND_COLORS.axis, solid: true, extendUp: true },
     { label: 'wake', x: wrap24(wakeTiming.wake), color: ASCEND_COLORS.text, lineColor: ASCEND_COLORS.axis, solid: false, extendUp: true },
-    { label: 'descend starts', x: descendStart, color: DESCEND_COLORS.text, lineColor: DESCEND_COLORS.axis, solid: true, extendUp: true },
+    { label: 'descend', x: descendStart, color: DESCEND_COLORS.text, lineColor: DESCEND_COLORS.axis, solid: true, extendUp: true },
     { label: 'bed', x: wrap24(bedTiming.bed), color: DESCEND_COLORS.text, lineColor: DESCEND_COLORS.axis, solid: false, extendUp: true }
   ];
   const phaseLabels = simpleMode
@@ -2713,13 +2713,13 @@ function renderChart() {
     shapes.push({
       type: 'line', xref: 'x', yref: 'paper',
       x0: marker.x, x1: marker.x,
-      y0: -0.08,
+      y0: -0.06,
       y1: marker.extendUp ? 1 : 0,
       line: { color: marker.lineColor, width: marker.solid ? 1.6 : 1, dash: marker.solid ? 'solid' : 'dot' }
     });
     const hoverBg = marker.color === ASCEND_COLORS.text ? ASCEND_COLORS.hoverBg : DESCEND_COLORS.hoverBg;
     annotations.push({
-      x: marker.x, y: -0.14, xref: 'x', yref: 'paper',
+      x: marker.x, y: -0.11, xref: 'x', yref: 'paper',
       text: marker.label,
       showarrow: false,
       font: { size: 11, color: marker.color },
@@ -2753,12 +2753,12 @@ function renderChart() {
     shapes.push({
       type: 'line', xref: 'x', yref: 'paper',
       x0: marker.x, x1: marker.x,
-      y0: -0.135,
+      y0: -0.18,
       y1: (simpleMode) ? 0 : (marker.extendUp ? 1 : 0),
       line: { color: solarLineColor, width: 1, dash: 'dot' }
     });
     annotations.push({
-      x: marker.x, y: -0.20, xref: 'x', yref: 'paper',
+      x: marker.x, y: -0.24, xref: 'x', yref: 'paper',
       text: marker.label,
       showarrow: false,
       font: { size: 10, color: solarLabelColor },
@@ -2964,7 +2964,7 @@ function applyCursor() {
   // Cursor line extending below x-axis down to callout
   shapes.push({
     type: 'line', xref: 'x', yref: 'paper',
-    x0: cursorHour, x1: cursorHour, y0: -0.26, y1: 0,
+    x0: cursorHour, x1: cursorHour, y0: -0.32, y1: 0,
     line: cursorLineStyle, layer: 'above'
   });
 
