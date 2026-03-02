@@ -1768,6 +1768,7 @@ function takeConfigSnapshot() {
 }
 
 function isSectionDirty(fields) {
+  if (!configSnapshot || Object.keys(configSnapshot).length === 0) return false;
   for (const f of fields) {
     const cur = JSON.stringify(config[f]);
     const snap = JSON.stringify(configSnapshot[f]);
@@ -3336,6 +3337,7 @@ function syncConfigFromUI() {
   updateColorGradients();
   constrainWakeBedSliders();
   updateSleepSummary();
+  updateSectionDirtyState();
 }
 
 function syncUIFromConfig() {
