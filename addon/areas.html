@@ -1105,7 +1105,11 @@
       letter-spacing: 0.5px;
       color: var(--muted2);
       white-space: nowrap;
+      cursor: pointer;
+      transition: color 0.15s;
     }
+    .tune-col-header:hover { color: var(--text); }
+    .tune-col-header.active-sort { color: var(--muted); }
 
     .tune-zone-header {
       background: var(--panel);
@@ -3260,8 +3264,8 @@
             <div class="tune-zone-controls" data-zone="${zoneName}" onclick="event.stopPropagation()">
               <div class="tune-area-row tune-col-headers">
                 <span class="tune-name-col"></span>
-                <span class="tune-fixture-col tune-col-header">Room Balance</span>
-                <span class="tune-sun-col tune-col-header">Sun exposure</span>
+                <span class="tune-fixture-col tune-col-header ${tuneSortOrder === 'light' ? 'active-sort' : ''}" onclick="setTuneSort(tuneSortOrder === 'light' ? 'custom' : 'light')">Room Balance</span>
+                <span class="tune-sun-col tune-col-header ${tuneSortOrder === 'sun' ? 'active-sort' : ''}" onclick="setTuneSort(tuneSortOrder === 'sun' ? 'custom' : 'sun')">Sun exposure</span>
                 <span class="tune-bri-col"></span>
               </div>
             </div>
