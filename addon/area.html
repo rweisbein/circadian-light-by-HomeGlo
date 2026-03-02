@@ -282,6 +282,7 @@
       width: 100%;
       height: 190px;
       margin: 4px 0;
+      touch-action: pan-x pan-y;
     }
 
     /* Adjust sliders (from modal - exact same styling) */
@@ -321,7 +322,7 @@
     }
     .slider-track {
       position: relative;
-      width: 18px;
+      width: 14px;
       height: 107px;
       background: rgba(255,255,255,0.08);
       border-radius: 9px;
@@ -370,11 +371,12 @@
     }
     /* Top extreme (before track): extra space below for thumb */
     .slider-column > .slider-extreme:nth-child(2) {
-      padding-bottom: 14px;
+      padding-bottom: 11px;
+      margin-top: 3px;
     }
     /* Bottom extreme (after track): extra space above for thumb */
     .slider-track + .slider-extreme {
-      padding-top: 14px;
+      padding-top: 10px;
     }
     /* Circadian-off overlay */
     .circadian-off-overlay::after {
@@ -1380,6 +1382,7 @@
         x: [currentHour], y: [markerBri],
         mode: 'markers',
         marker: { size: 22, color: markerColor, line: { width: 3, color: markerOutline } },
+        cliponaxis: false,
         hoverinfo: 'skip', showlegend: false
       });
 
@@ -1393,12 +1396,12 @@
 
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
-        x0: wakeTime, x1: wakeTime, y0: -0.24, y1: 1,
+        x0: wakeTime, x1: wakeTime, y0: -0.28, y1: 1,
         line: { color: 'rgba(92, 179, 255, 0.35)', width: 1.5, dash: 'dot' }
       });
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
-        x0: bedTime, x1: bedTime, y0: -0.24, y1: 1,
+        x0: bedTime, x1: bedTime, y0: -0.28, y1: 1,
         line: { color: 'rgba(255, 230, 128, 0.35)', width: 1.5, dash: 'dot' }
       });
 
@@ -1409,30 +1412,30 @@
       if (Number.isFinite(sunrise)) {
         shapes.push({
           type: 'line', xref: 'x', yref: 'paper',
-          x0: sunrise, x1: sunrise, y0: -0.38, y1: 0,
+          x0: sunrise, x1: sunrise, y0: -0.42, y1: 0,
           line: sunTickStyle
         });
       }
       if (Number.isFinite(sunset)) {
         shapes.push({
           type: 'line', xref: 'x', yref: 'paper',
-          x0: sunset, x1: sunset, y0: -0.38, y1: 0,
+          x0: sunset, x1: sunset, y0: -0.42, y1: 0,
           line: sunTickStyle
         });
       }
 
       // Wake/bed labels
       annotations.push({
-        x: wakeTime, y: -0.28, xref: 'x', yref: 'paper',
+        x: wakeTime, y: -0.32, xref: 'x', yref: 'paper',
         text: 'wake', showarrow: false,
-        font: { size: 10, color: '#5cb3ff' },
+        font: { size: 11, color: '#5cb3ff' },
         hovertext: formatHourLabel(wakeTime),
         hoverlabel: { bgcolor: '#7fc7ff', bordercolor: '#7fc7ff', font: { color: '#000', size: 12 } }
       });
       annotations.push({
-        x: bedTime, y: -0.28, xref: 'x', yref: 'paper',
+        x: bedTime, y: -0.32, xref: 'x', yref: 'paper',
         text: 'bed', showarrow: false,
-        font: { size: 10, color: '#ffe680' },
+        font: { size: 11, color: '#ffe680' },
         hovertext: formatHourLabel(bedTime),
         hoverlabel: { bgcolor: '#ffe680', bordercolor: '#ffe680', font: { color: '#000', size: 12 } }
       });
@@ -1440,18 +1443,18 @@
       // Sunrise/sunset labels
       if (Number.isFinite(sunrise)) {
         annotations.push({
-          x: sunrise, y: -0.44, xref: 'x', yref: 'paper',
+          x: sunrise, y: -0.48, xref: 'x', yref: 'paper',
           text: 'sunrise', showarrow: false,
-          font: { size: 9, color: 'rgba(215,215,215,0.6)' },
+          font: { size: 10, color: 'rgba(215,215,215,0.6)' },
           hovertext: formatHourLabel(sunrise),
           hoverlabel: { bgcolor: '#3a3a3a', bordercolor: '#3a3a3a', font: { color: '#fff', size: 12 } }
         });
       }
       if (Number.isFinite(sunset)) {
         annotations.push({
-          x: sunset, y: -0.44, xref: 'x', yref: 'paper',
+          x: sunset, y: -0.48, xref: 'x', yref: 'paper',
           text: 'sunset', showarrow: false,
-          font: { size: 9, color: 'rgba(215,215,215,0.6)' },
+          font: { size: 10, color: 'rgba(215,215,215,0.6)' },
           hovertext: formatHourLabel(sunset),
           hoverlabel: { bgcolor: '#3a3a3a', bordercolor: '#3a3a3a', font: { color: '#fff', size: 12 } }
         });
@@ -1477,7 +1480,7 @@
       });
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
-        x0: cursorHour, x1: cursorHour, y0: -0.50, y1: 0,
+        x0: cursorHour, x1: cursorHour, y0: -0.56, y1: 0,
         line: cursorLineStyle, layer: 'above'
       });
 
@@ -1486,7 +1489,7 @@
       const cursorLabel = isFrozen ? 'frozen' : 'now';
       const cursorColor = isFrozen ? '#63b3ed' : '#fdfdfd';
       annotations.push({
-        x: cursorHour, y: -0.62, xref: 'x', yref: 'paper',
+        x: cursorHour, y: -0.70, xref: 'x', yref: 'paper',
         text: `${cursorLabel}<br>${cursorTimeStr}`, showarrow: false,
         font: { size: 10, color: cursorColor },
         align: 'center'
@@ -1495,7 +1498,7 @@
       const layout = {
         paper_bgcolor: '#0a0a0a',
         plot_bgcolor: '#0a0a0a',
-        margin: { t: 16, r: 12, l: 32, b: 85 },
+        margin: { t: 16, r: 12, l: 32, b: 95 },
         hovermode: 'closest',
         xaxis: {
           range: [0, 24],
@@ -1524,7 +1527,8 @@
       Plotly.react('mini-chart', traces, layout, {
         displayModeBar: false,
         doubleClick: false,
-        responsive: true
+        responsive: true,
+        scrollZoom: false
       });
     }
 

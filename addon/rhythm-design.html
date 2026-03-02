@@ -301,7 +301,7 @@ input[type=range]::-moz-range-thumb {
 
 /* Chart Section */
 .chart-wrapper { position: relative; margin-bottom: 8px; }
-#chart { height: 240px; }
+#chart { height: 240px; touch-action: pan-x pan-y; }
 .chart-toolbar {
   display: flex;
   align-items: center;
@@ -2827,7 +2827,7 @@ function renderChart() {
     annotations
   };
 
-  Plotly.react('chart', traces, layout, { displayModeBar: false, doubleClick: false }).then(() => {
+  Plotly.react('chart', traces, layout, { displayModeBar: false, doubleClick: false, scrollZoom: false }).then(() => {
     initChartInteractivity();
     applyCursor();
   });
