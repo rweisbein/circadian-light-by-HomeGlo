@@ -1397,12 +1397,12 @@
       // Wake/bed vertical dashed lines (extend to tier 1)
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
-        x0: wakeTime, x1: wakeTime, y0: -0.22, y1: 1,
+        x0: wakeTime, x1: wakeTime, y0: -0.29, y1: 1,
         line: { color: 'rgba(92, 179, 255, 0.35)', width: 1.5, dash: 'dot' }
       });
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
-        x0: bedTime, x1: bedTime, y0: -0.22, y1: 1,
+        x0: bedTime, x1: bedTime, y0: -0.29, y1: 1,
         line: { color: 'rgba(255, 230, 128, 0.35)', width: 1.5, dash: 'dot' }
       });
 
@@ -1413,38 +1413,38 @@
       if (Number.isFinite(sunrise)) {
         shapes.push({
           type: 'line', xref: 'x', yref: 'paper',
-          x0: sunrise, x1: sunrise, y0: -0.36, y1: 0,
+          x0: sunrise, x1: sunrise, y0: -0.47, y1: 0,
           line: sunTickStyle
         });
       }
       if (Number.isFinite(sunset)) {
         shapes.push({
           type: 'line', xref: 'x', yref: 'paper',
-          x0: sunset, x1: sunset, y0: -0.36, y1: 0,
+          x0: sunset, x1: sunset, y0: -0.47, y1: 0,
           line: sunTickStyle
         });
       }
 
-      // Tier 1: Wake/bed labels
+      // Tier 1: Wake/bed labels (29px below plot — clear of axis ticks)
       annotations.push({
-        x: wakeTime, y: -0.25, xref: 'x', yref: 'paper',
+        x: wakeTime, y: -0.33, xref: 'x', yref: 'paper',
         text: 'wake', showarrow: false,
         font: { size: 11, color: '#5cb3ff' },
         hovertext: formatHourLabel(wakeTime),
         hoverlabel: { bgcolor: '#7fc7ff', bordercolor: '#7fc7ff', font: { color: '#000', size: 12 } }
       });
       annotations.push({
-        x: bedTime, y: -0.25, xref: 'x', yref: 'paper',
+        x: bedTime, y: -0.33, xref: 'x', yref: 'paper',
         text: 'bed', showarrow: false,
         font: { size: 11, color: '#ffe680' },
         hovertext: formatHourLabel(bedTime),
         hoverlabel: { bgcolor: '#ffe680', bordercolor: '#ffe680', font: { color: '#000', size: 12 } }
       });
 
-      // Tier 2: Sunrise/sunset labels
+      // Tier 2: Sunrise/sunset labels (46px below plot)
       if (Number.isFinite(sunrise)) {
         annotations.push({
-          x: sunrise, y: -0.40, xref: 'x', yref: 'paper',
+          x: sunrise, y: -0.52, xref: 'x', yref: 'paper',
           text: 'sunrise', showarrow: false,
           font: { size: 10, color: 'rgba(215,215,215,0.6)' },
           hovertext: formatHourLabel(sunrise),
@@ -1453,7 +1453,7 @@
       }
       if (Number.isFinite(sunset)) {
         annotations.push({
-          x: sunset, y: -0.40, xref: 'x', yref: 'paper',
+          x: sunset, y: -0.52, xref: 'x', yref: 'paper',
           text: 'sunset', showarrow: false,
           font: { size: 10, color: 'rgba(215,215,215,0.6)' },
           hovertext: formatHourLabel(sunset),
@@ -1481,16 +1481,16 @@
       });
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
-        x0: cursorHour, x1: cursorHour, y0: -0.50, y1: 0,
+        x0: cursorHour, x1: cursorHour, y0: -0.64, y1: 0,
         line: cursorLineStyle, layer: 'above'
       });
 
-      // Tier 3: Cursor label
+      // Tier 3: Cursor label (64px below plot)
       const cursorTimeStr = formatHourLabel(cursorHour);
       const cursorLabel = isFrozen ? 'frozen' : 'now';
       const cursorColor = isFrozen ? '#63b3ed' : '#fdfdfd';
       annotations.push({
-        x: cursorHour, y: -0.58, xref: 'x', yref: 'paper',
+        x: cursorHour, y: -0.72, xref: 'x', yref: 'paper',
         text: `${cursorLabel}<br>${cursorTimeStr}`, showarrow: false,
         font: { size: 10, color: cursorColor },
         align: 'center'
@@ -1499,7 +1499,7 @@
       const layout = {
         paper_bgcolor: '#0a0a0a',
         plot_bgcolor: '#0a0a0a',
-        margin: { t: 16, r: 12, l: 32, b: 80 },
+        margin: { t: 16, r: 12, l: 32, b: 85 },
         hovermode: 'closest',
         xaxis: {
           range: [0, 24],
