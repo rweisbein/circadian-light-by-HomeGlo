@@ -585,7 +585,7 @@
     .tune-lights-card.is-open .tune-lights-body { max-height: 1000px; opacity: 1; padding-bottom: 8px; }
     .tune-light-item { padding: 0 14px; border-bottom: 1px solid var(--line); }
     .tune-light-item:last-child { border-bottom: none; }
-    .tune-light-summary { display: grid; grid-template-columns: auto 1fr auto auto; align-items: baseline; padding: 8px 0; gap: 0 8px; }
+    .tune-light-summary { display: grid; grid-template-columns: auto 1fr auto auto auto; align-items: baseline; padding: 8px 0; gap: 0 8px; }
     .tune-light-name { font-size: 0.82rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .tune-light-behaviour { font-size: 0.75rem; color: var(--muted); cursor: pointer; white-space: nowrap; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 2px; }
     .tune-light-behaviour:hover { color: var(--accent); }
@@ -630,9 +630,11 @@
     .tune-light-dropdown-meta { font-size: 0.7rem; color: var(--muted2); margin-top: 2px; }
 
     /* Light brightness column headers */
-    .tune-light-col-headers { display: grid; grid-template-columns: auto 1fr auto auto; padding: 2px 14px 0; gap: 0 8px; font-size: 0.65rem; color: var(--muted2); border-bottom: 1px solid var(--line); }
+    .tune-light-col-headers { display: grid; grid-template-columns: auto 1fr auto auto auto; padding: 2px 14px 0; gap: 0 8px; font-size: 0.65rem; color: var(--muted2); border-bottom: 1px solid var(--line); }
     .tune-light-col-headers span:nth-child(3),
-    .tune-light-col-headers span:nth-child(4) { text-align: right; min-width: 3em; }
+    .tune-light-col-headers span:nth-child(4),
+    .tune-light-col-headers span:nth-child(5) { text-align: right; min-width: 3em; }
+    .tune-light-ct { font-size: 0.82rem; color: var(--text); white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; min-width: 3em; }
   </style>
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
   <script src="./shared.js"></script>
@@ -2811,6 +2813,18 @@
           elImpact.textContent = formatImpact(behavImpact) + '%';
           elImpact.style.color = behavImpact === 0 ? 'var(--muted2)' : '';
         }
+        const elCt = document.getElementById('tune-light-ct-' + light.idx);
+        if (elCt) {
+          if (!ts.ctEnabled || ctFactor === 1.0) {
+            elCt.textContent = '0%';
+            elCt.style.color = 'var(--muted2)';
+          } else {
+            const rawWithoutCt = rawFinal / ctFactor;
+            const ctImpact = Math.round(rawFinal) - Math.round(rawWithoutCt);
+            elCt.textContent = formatImpact(ctImpact) + '%';
+            elCt.style.color = '';
+          }
+        }
         const elMeta = document.getElementById('tune-meta-' + light.idx);
         if (elMeta) elMeta.innerHTML = tunePresetMeta(ts.presets, light.filterName);
       }
@@ -2833,23 +2847,6 @@
       if (elBoostVal) {
         elBoostVal.textContent = boostAmount > 0 ? '+' + boostAmount + '%' : '0%';
       }
-
-      const elCtVal = document.getElementById('tune-det-ct-val');
-      if (elCtVal) {
-        elCtVal.textContent = ts.ctEnabled ? formatImpact(ctImpactAbs) + '%' : 'disabled';
-        elCtVal.style.color = ts.ctEnabled ? '' : 'var(--muted)';
-      }
-      const elCtDetail = document.getElementById('tune-det-ct-detail');
-      const elCtDetailRow = document.getElementById('tune-ct-detail-row');
-      if (elCtDetail && elCtDetailRow) {
-        if (ts.ctEnabled && ts.baseKelvin != null) {
-          elCtDetail.textContent = formatImpact(ctImpactAbs) + '% @ ' + ts.baseKelvin + 'K';
-          elCtDetailRow.style.display = '';
-        } else {
-          elCtDetailRow.style.display = 'none';
-        }
-      }
-
 
       const elLumenImpact = document.getElementById('tune-det-lumen-val');
       if (elLumenImpact) elLumenImpact.textContent = formatImpact(lumenImpact) + '%';
@@ -3006,7 +3003,7 @@
       if (sortedLights.length === 0) {
         lhtml += '<div style="padding:10px 14px;color:var(--muted2);font-size:0.82rem;">No lights found</div>';
       } else {
-        lhtml += '<div class="tune-light-col-headers"><span></span><span></span><span>behav.</span><span>final</span></div>';
+        lhtml += '<div class="tune-light-col-headers"><span></span><span></span><span>behav.</span><span>CT</span><span>final</span></div>';
         for (const light of lightsArr) {
           const meta = tunePresetMeta(presets, light.filterName);
           const triggerHtml = '<button class="tune-light-select" data-light-idx="' + light.idx + '" onclick="openBehaviourDropdown(' + light.idx + ', this)">' + light.filterName + ' &#x25BE;</button>';
@@ -3016,6 +3013,7 @@
             + '<span class="tune-light-name" title="' + light.entity_id + '">' + light.name + '</span>'
             + '<span class="tune-light-behaviour" id="tune-light-preset-label-' + light.idx + '" data-idx="' + light.idx + '">' + light.filterName + '</span>'
             + '<span class="tune-light-impact" id="tune-light-impact-' + light.idx + '"></span>'
+            + '<span class="tune-light-ct" id="tune-light-ct-' + light.idx + '"></span>'
             + '<span class="tune-light-bri" id="tune-light-bri-' + light.idx + '"></span>'
             + '</div>';
           lhtml += '<div class="tune-light-expanded" id="tune-light-exp-' + light.idx + '" style="display:none;">'
@@ -3049,9 +3047,6 @@
         + '<span class="tune-bk-total" id="tune-det-base-total">' + baseBri + '%</span></div>';
       bhtml += '<div class="tune-bk-row"><span class="tune-bk-label">Boost</span>'
         + '<span class="tune-bk-total" id="tune-det-boost-val">0%</span></div>';
-      bhtml += '<div class="tune-bk-row"><span class="tune-bk-label">Color temp</span>'
-        + '<span class="tune-bk-total" id="tune-det-ct-val"></span></div>';
-      bhtml += '<div class="tune-detail-sub" id="tune-ct-detail-row"><span id="tune-det-ct-detail"></span></div>';
       // Room Balance with inline slider
       bhtml += '<div class="tune-control-row"><span class="tune-control-left"><span class="tune-control-label">Room balance</span>'
         + '<span class="tune-control-reset" id="tune-reset-lumen">reset</span></span>'
