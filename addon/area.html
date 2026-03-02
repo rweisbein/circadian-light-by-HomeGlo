@@ -472,7 +472,7 @@
     .alarm-temp-content .spo-time-cell { text-align: left; padding: 6px 0; font-size: 0.88rem; cursor: pointer; }
     .alarm-temp-content .spo-days { display: block; font-size: 0.65rem; opacity: 0.4; margin-top: 1px; }
     .alarm-temp-content .spo-slider-cell { display: flex; flex-direction: column; align-items: stretch; padding: 10px 0 4px; }
-    .alarm-temp-content .spo-slider-cell input[type="range"] { width: 100%; height: 4px; accent-color: var(--muted); }
+    .alarm-temp-content .spo-slider-cell input[type="range"] { width: 100%; }
     .alarm-temp-content .spo-slider-cell .spo-slider-val { font-size: 0.75rem; opacity: 0.6; margin-top: 4px; }
     .alarm-temp-content .spo-info { font-size: 0.85rem; color: var(--text); margin-bottom: 8px; }
     .alarm-temp-apply-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 0.8rem; }
@@ -532,6 +532,28 @@
     }
     .section-save-btn:hover { opacity: 0.9; }
 
+    /* Sliders — custom minimal styling */
+    input[type=range] {
+      -webkit-appearance: none; appearance: none;
+      width: 100%; height: 14px; padding: 0; margin: 0;
+      background: transparent; cursor: pointer;
+    }
+    input[type=range]:focus { outline: none; }
+    input[type=range]::-webkit-slider-runnable-track {
+      height: 3px; background: rgba(255,255,255,0.12); border-radius: 2px;
+    }
+    input[type=range]::-moz-range-track {
+      height: 3px; background: rgba(255,255,255,0.12); border-radius: 2px;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%;
+      background: #fff; border: 1px solid rgba(0,0,0,0.15); margin-top: -5px;
+    }
+    input[type=range]::-moz-range-thumb {
+      width: 12px; height: 12px; border-radius: 50%;
+      background: #fff; border: 1px solid rgba(0,0,0,0.15);
+    }
+
     /* Room Balance / Solar sliders */
     .tune-control-row { display: grid; grid-template-columns: 1fr auto; align-items: baseline; padding: 8px 14px 2px 30px; gap: 0 12px; }
     .tune-control-left { display: flex; align-items: center; gap: 6px; }
@@ -541,9 +563,9 @@
     .tune-control-reset.is-dirty:hover { opacity: 1; }
     .tune-control-reset:hover { color: var(--accent); }
     .tune-slider-row { padding: 0px 22px 2px 52px; max-width: 70%; }
-    .tune-slider-row input[type=range] { height: 6px; }
+    .tune-slider-row input[type=range] { }
     .tune-slider-word { font-size: 0.75rem; color: var(--muted2); white-space: nowrap; display: flex; justify-content: space-between; margin-top: 0; }
-    .tune-inline-slider { width: 100%; height: 4px; cursor: pointer; min-width: 80px; accent-color: var(--muted); }
+    .tune-inline-slider { width: 100%; cursor: pointer; min-width: 80px; }
     .tune-inline-slider--light { }
     .tune-inline-slider--sun { }
 
@@ -3583,7 +3605,7 @@
               <input type="radio" id="spo-custom" name="spo-mode" value="custom">
               <span style="display:flex; align-items:center; gap:8px; flex:1;">
                 <span id="spo-wake-display" style="min-width:3.5em;">${formatAlarmTime(customWake)}</span>
-                <input type="range" id="spo-custom-wake" min="0" max="24" step="0.25" value="${customWake}" style="flex:1; height:4px; accent-color:var(--muted);">
+                <input type="range" id="spo-custom-wake" min="0" max="24" step="0.25" value="${customWake}" style="flex:1;">
               </span>
             </label>
           </div>
