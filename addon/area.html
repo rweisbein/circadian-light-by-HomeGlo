@@ -772,7 +772,7 @@
           <span class="wake-alarm-chevron" id="wake-alarm-chevron">&#x203A;</span>
           <span class="wake-alarm-title">Alarm</span>
           <label class="wake-alarm-toggle" onclick="event.stopPropagation()">
-            <input type="checkbox" id="wake-alarm-enabled" onchange="onAlarmFieldChanged()">
+            <input type="checkbox" id="wake-alarm-enabled" onchange="onAlarmToggleChanged()">
             <span class="slider"></span>
           </label>
           <span style="margin-left:auto; display:flex; flex-direction:column; align-items:flex-end;">
@@ -2459,7 +2459,6 @@
 
     function isAlarmDirty() {
       if (!alarmSnapshot) return false;
-      if (document.getElementById('wake-alarm-enabled').checked !== alarmSnapshot.enabled) return true;
       if (wakeAlarmMode !== alarmSnapshot.mode) return true;
       if (wakeAlarmOffset !== alarmSnapshot.offset) return true;
       if ((document.getElementById('wake-custom-time')?.value || '07:00') !== alarmSnapshot.customTime) return true;
@@ -2572,6 +2571,13 @@
         btn.classList.toggle('active', alarmSnapshot.days.includes(d));
       });
       showResolvedWakeTime();
+      updateAlarmButtons();
+    }
+
+    async function onAlarmToggleChanged() {
+      showResolvedWakeTime();
+      await saveWakeAlarmSettings();
+      captureAlarmSnapshot();
       updateAlarmButtons();
     }
 
