@@ -586,7 +586,7 @@
     .tune-lights-card.is-open .tune-lights-body { max-height: 1000px; opacity: 1; padding-bottom: 8px; }
     .tune-light-item { padding: 0 14px; border-bottom: 1px solid var(--line); }
     .tune-light-item:last-child { border-bottom: none; }
-    .tune-light-summary { display: grid; grid-template-columns: auto 1fr 3.5em 3.5em 3.5em; align-items: baseline; padding: 8px 0; gap: 0 4px; }
+    .tune-light-summary { display: grid; grid-template-columns: auto 1fr 42px 42px 42px; align-items: baseline; padding: 8px 0; gap: 0 4px; }
     .tune-light-name { font-size: 0.82rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .tune-light-behaviour { font-size: 0.75rem; color: var(--muted); cursor: pointer; white-space: nowrap; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 2px; }
     .tune-light-behaviour:hover { color: var(--accent); }
@@ -632,9 +632,9 @@
     .tune-light-dropdown-name { font-size: 0.82rem; color: var(--text); }
     .tune-light-dropdown-meta { font-size: 0.7rem; color: var(--muted2); margin-top: 2px; }
 
-    /* Light brightness column headers */
-    .tune-light-col-headers { display: flex; justify-content: flex-end; padding: 2px 14px 0; gap: 4px; font-size: 0.65rem; color: var(--muted2); border-bottom: 1px solid var(--line); }
-    .tune-light-col-headers span { width: 3.5em; text-align: right; }
+    /* Light brightness column headers — same grid as data rows for alignment */
+    .tune-light-col-headers { display: grid; grid-template-columns: auto 1fr 42px 42px 42px; padding: 2px 14px 0; gap: 0 4px; font-size: 0.65rem; color: var(--muted2); border-bottom: 1px solid var(--line); }
+    .tune-light-col-headers span { text-align: right; }
     .tune-light-ct { font-size: 0.82rem; color: var(--muted); white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
   </style>
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
@@ -3004,7 +3004,7 @@
       if (sortedLights.length === 0) {
         lhtml += '<div style="padding:10px 14px;color:var(--muted2);font-size:0.82rem;">No lights found</div>';
       } else {
-        lhtml += '<div class="tune-light-col-headers"><span>behav.</span><span>CT</span><span>final</span></div>';
+        lhtml += '<div class="tune-light-col-headers"><span></span><span></span><span>behav.</span><span>CT</span><span>final</span></div>';
         for (const light of lightsArr) {
           const meta = tunePresetMeta(presets, light.filterName);
           const triggerHtml = '<button class="tune-light-select" data-light-idx="' + light.idx + '" onclick="openBehaviourDropdown(' + light.idx + ', this)">' + light.filterName + ' &#x25BE;</button>';
