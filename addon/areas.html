@@ -792,22 +792,29 @@
     /* Sliders — custom minimal styling */
     input[type=range] {
       -webkit-appearance: none; appearance: none;
-      width: 100%; height: 14px; padding: 0; margin: 0;
+      width: 100%; height: 18px; padding: 0; margin: 0;
       background: transparent; cursor: pointer;
+      --track-fill: rgba(255,255,255,0.25);
+      --track-empty: rgba(255,255,255,0.12);
     }
     input[type=range]:focus { outline: none; }
     input[type=range]::-webkit-slider-runnable-track {
-      height: 3px; background: rgba(255,255,255,0.12); border-radius: 2px;
+      height: 3px;
+      background: linear-gradient(to right, var(--track-fill) var(--fill-pct, 50%), var(--track-empty) var(--fill-pct, 50%));
+      border-radius: 2px;
     }
     input[type=range]::-moz-range-track {
-      height: 3px; background: rgba(255,255,255,0.12); border-radius: 2px;
+      height: 3px; background: var(--track-empty); border-radius: 2px;
+    }
+    input[type=range]::-moz-range-progress {
+      height: 3px; background: var(--track-fill); border-radius: 2px;
     }
     input[type=range]::-webkit-slider-thumb {
-      -webkit-appearance: none; width: 16px; height: 10px; border-radius: 5px;
-      background: #fff; border: 1px solid rgba(0,0,0,0.15); margin-top: -4px;
+      -webkit-appearance: none; width: 20px; height: 12px; border-radius: 6px;
+      background: #fff; border: 1px solid rgba(0,0,0,0.15); margin-top: -5px;
     }
     input[type=range]::-moz-range-thumb {
-      width: 16px; height: 10px; border-radius: 5px;
+      width: 20px; height: 12px; border-radius: 6px;
       background: #fff; border: 1px solid rgba(0,0,0,0.15);
     }
 
@@ -1200,7 +1207,7 @@
     .tune-zone-ctrl-label { font-size: 0.7rem; color: var(--muted2); text-transform: uppercase; white-space: nowrap; }
     .tune-zone-ctrl-word { font-size: 0.8rem; color: var(--text); white-space: nowrap; }
     .tune-zone-ctrl-val { font-size: 0.75rem; color: var(--text); white-space: nowrap; }
-    .tune-sensitivity-slider { width: 80px; accent-color: var(--accent); }
+    .tune-sensitivity-slider { width: 80px; }
     .tune-zone-controls .tune-area-row { padding-top: 3px; padding-bottom: 3px; }
     .tune-zone-bri-group {
       display: flex; align-items: baseline; gap: 6px;
@@ -1225,9 +1232,8 @@
       margin-right: 12px;
     }
     .tune-fixture-col input[type="range"], .tune-sun-col input[type="range"] {
-      flex: 1; min-width: 40px; max-width: 100px; accent-color: var(--accent);
+      flex: 1; min-width: 40px; max-width: 100px;
     }
-    .tune-sun-col input[type="range"] { accent-color: #fbbf24; }
     .tune-bri-col {
       min-width: 55px; text-align: right; flex-shrink: 0; white-space: nowrap;
     }
@@ -2222,11 +2228,13 @@
       // Auto-select custom radio and update display when slider is used
       const customWakeInput = document.getElementById('spo-custom-wake');
       if (customWakeInput) {
+        updateSliderFill(customWakeInput);
         const wakeDisplay = document.getElementById('spo-wake-display');
         const selectCustom = () => { document.getElementById('spo-custom').checked = true; };
         customWakeInput.addEventListener('input', () => {
           selectCustom();
           wakeDisplay.textContent = fmtCompactTime(parseFloat(customWakeInput.value) % 24);
+          updateSliderFill(customWakeInput);
         });
         // Prevent slider drag from toggling radio via parent onclick
         customWakeInput.addEventListener('mousedown', (e) => e.stopPropagation());
@@ -3574,6 +3582,7 @@
 
       container.innerHTML = html;
       initRowSliders();
+      updateAllSliderFills();
       updateHomeTimers();
     }
 
@@ -3711,6 +3720,14 @@
       if (dd) dd.classList.toggle('visible');
     }
 
+    function updateSliderFill(el) {
+      const pct = (el.value - el.min) / (el.max - el.min) * 100;
+      el.style.setProperty('--fill-pct', pct + '%');
+    }
+    function updateAllSliderFills() {
+      document.querySelectorAll('input[type=range]').forEach(updateSliderFill);
+    }
+
     function setupEventListeners() {
       // Close toolbar menu when clicking outside
       document.addEventListener('click', () => {
@@ -3811,6 +3828,7 @@
 
       // Tune mode slider events (delegated)
       document.getElementById('areas-container').addEventListener('input', (e) => {
+        if (e.target.matches('input[type=range]')) updateSliderFill(e.target);
         // Global sensitivity slider (standalone)
         if (e.target.id === 'tune-global-sensitivity') {
           const step = parseInt(e.target.value);

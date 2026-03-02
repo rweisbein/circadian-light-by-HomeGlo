@@ -223,36 +223,43 @@ input[type=range] {
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
-  height: 14px;
+  height: 18px;
   padding: 0;
   margin: 0;
   background: transparent;
   cursor: pointer;
+  --track-fill: rgba(255,255,255,0.25);
+  --track-empty: rgba(255,255,255,0.12);
 }
 input[type=range]:focus { outline: none; }
 input[type=range]::-webkit-slider-runnable-track {
   height: 3px;
-  background: rgba(255,255,255,0.12);
+  background: linear-gradient(to right, var(--track-fill) var(--fill-pct, 50%), var(--track-empty) var(--fill-pct, 50%));
   border-radius: 2px;
 }
 input[type=range]::-moz-range-track {
   height: 3px;
-  background: rgba(255,255,255,0.12);
+  background: var(--track-empty);
+  border-radius: 2px;
+}
+input[type=range]::-moz-range-progress {
+  height: 3px;
+  background: var(--track-fill);
   border-radius: 2px;
 }
 input[type=range]::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 16px;
-  height: 10px;
-  border-radius: 5px;
+  width: 20px;
+  height: 12px;
+  border-radius: 6px;
   background: #fff;
   border: 1px solid rgba(0,0,0,0.15);
-  margin-top: -4px;
+  margin-top: -5px;
 }
 input[type=range]::-moz-range-thumb {
-  width: 16px;
-  height: 10px;
-  border-radius: 5px;
+  width: 20px;
+  height: 12px;
+  border-radius: 6px;
   background: #fff;
   border: 1px solid rgba(0,0,0,0.15);
 }
@@ -275,17 +282,17 @@ input[type=range]::-moz-range-thumb {
 .dual-range input[type=range]::-webkit-slider-thumb {
   appearance: none;
   -webkit-appearance: none;
-  width: 16px;
-  height: 10px;
-  border-radius: 5px;
+  width: 20px;
+  height: 12px;
+  border-radius: 6px;
   background: #fff;
   border: 1px solid rgba(0,0,0,0.15);
   cursor: pointer;
 }
 .dual-range input[type=range]::-moz-range-thumb {
-  width: 16px;
-  height: 10px;
-  border-radius: 5px;
+  width: 20px;
+  height: 12px;
+  border-radius: 6px;
   background: #fff;
   border: 1px solid rgba(0,0,0,0.15);
   cursor: pointer;
@@ -3338,6 +3345,7 @@ function syncConfigFromUI() {
   constrainWakeBedSliders();
   updateSleepSummary();
   updateSectionDirtyState();
+  updateSliderFills();
 }
 
 function syncUIFromConfig() {
@@ -4815,6 +4823,17 @@ function updateSectionDirtyState() {
   toggle('brightness-section-actions', BRIGHTNESS_FIELDS);
 }
 
+function updateSliderFill(el) {
+  const pct = (el.value - el.min) / (el.max - el.min) * 100;
+  el.style.setProperty('--fill-pct', pct + '%');
+}
+function updateSliderFills() {
+  document.querySelectorAll('input[type=range]:not(.dual-range input[type=range])').forEach(el => {
+    if (el.closest('.dual-range')) return;
+    updateSliderFill(el);
+  });
+}
+
 /**
  * Save current settings to the selected zone
  */
@@ -4946,6 +4965,10 @@ function setupSectionActions() {
     const check = () => updateSectionDirtyState();
     body.addEventListener('input', check);
     body.addEventListener('change', check);
+    body.querySelectorAll('input[type=range]').forEach(sl => {
+      if (sl.closest('.dual-range')) return;
+      sl.addEventListener('input', () => updateSliderFill(sl));
+    });
   });
 }
 
