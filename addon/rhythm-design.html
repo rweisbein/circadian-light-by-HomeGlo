@@ -3789,13 +3789,7 @@ function setupEventListeners() {
   // Sleep day indicators
   initSleepDayIndicators();
 
-  // Restore rhythm card expand states
-  ['rhythm-sleep-card', 'rhythm-color-card', 'rhythm-brightness-card'].forEach(id => {
-    const key = id.replace('rhythm-', 'rhythm_').replace('-card', '_expanded');
-    if (localStorage.getItem(key) === 'true') {
-      document.getElementById(id)?.classList.add('is-open');
-    }
-  });
+  // All rhythm cards start collapsed (no localStorage restore)
 
   // Dual-range sliders update combined display
   ['color-min', 'color-max'].forEach(id => {

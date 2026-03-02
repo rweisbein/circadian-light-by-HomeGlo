@@ -3001,7 +3001,7 @@
 
       // ── Card 3: Lights ──
       const lightsCard = document.getElementById('tune-lights-card');
-      const lightsExpanded = localStorage.getItem('tune_lights_expanded') === 'true';
+      const lightsExpanded = false; // always start collapsed
       let lhtml = '<div class="tune-lights-header" onclick="toggleLightsBody()">';
       lhtml += '<span class="tune-lights-chevron" id="tune-lights-chevron">&#x203A;</span>';
       lhtml += '<span class="tune-lights-title">Light brightness</span>';
@@ -3043,7 +3043,7 @@
 
       // ── Brightness card (merged) ──
       const brightnessCard = document.getElementById('tune-brightness-card');
-      const briExpanded = localStorage.getItem('tune_details_expanded') === 'true';
+      const briExpanded = false; // always start collapsed
       let bhtml = '<div class="tune-brightness-header" onclick="toggleBrightnessBody()">';
       bhtml += '<span class="tune-brightness-chevron" id="tune-brightness-chevron">&#x203A;</span>';
       bhtml += '<span class="tune-brightness-title">Area brightness</span>';
