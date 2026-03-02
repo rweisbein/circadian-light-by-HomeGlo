@@ -4772,9 +4772,10 @@ async function loadZoneFromData() {
 
       // Merge zone rhythm settings into config object
       Object.assign(config, zoneData);
-      takeConfigSnapshot();
 
       syncUIFromConfig();
+      syncConfigFromUI();  // Round-trip ensures all derived fields exist in config
+      takeConfigSnapshot();
       renderChart();
     }
   } catch (err) {
@@ -4785,26 +4786,20 @@ async function loadZoneFromData() {
 /**
  * Per-section cancel — revert fields from snapshot
  */
-function cancelSleepChanges() {
-  SLEEP_FIELDS.forEach(f => { if (f in configSnapshot) config[f] = JSON.parse(JSON.stringify(configSnapshot[f])); });
+function revertFields(fields) {
+  fields.forEach(f => {
+    if (f in configSnapshot) config[f] = JSON.parse(JSON.stringify(configSnapshot[f]));
+    else delete config[f];
+  });
   syncUIFromConfig();
+  syncConfigFromUI();  // Round-trip to stabilize derived fields
   renderChart();
   updateSectionDirtyState();
 }
 
-function cancelColorChanges() {
-  COLOR_FIELDS.forEach(f => { if (f in configSnapshot) config[f] = JSON.parse(JSON.stringify(configSnapshot[f])); });
-  syncUIFromConfig();
-  renderChart();
-  updateSectionDirtyState();
-}
-
-function cancelBrightnessChanges() {
-  BRIGHTNESS_FIELDS.forEach(f => { if (f in configSnapshot) config[f] = JSON.parse(JSON.stringify(configSnapshot[f])); });
-  syncUIFromConfig();
-  renderChart();
-  updateSectionDirtyState();
-}
+function cancelSleepChanges() { revertFields(SLEEP_FIELDS); }
+function cancelColorChanges() { revertFields(COLOR_FIELDS); }
+function cancelBrightnessChanges() { revertFields(BRIGHTNESS_FIELDS); }
 
 function updateSectionDirtyState() {
   const toggle = (id, fields) => {
@@ -4888,6 +4883,7 @@ async function saveZoneSettings() {
         window.history.replaceState(null, '', basePath + prefix + encodeURIComponent(newName) + window.location.search);
       }
       // Update snapshot and hide section-actions (stay on page)
+      syncConfigFromUI();  // Stabilize derived fields before snapshot
       takeConfigSnapshot();
       updateSectionDirtyState();
       // Brief "Saved" toast
