@@ -585,12 +585,12 @@
     .tune-lights-card.is-open .tune-lights-body { max-height: 1000px; opacity: 1; padding-bottom: 8px; }
     .tune-light-item { padding: 0 14px; border-bottom: 1px solid var(--line); }
     .tune-light-item:last-child { border-bottom: none; }
-    .tune-light-summary { display: grid; grid-template-columns: auto 1fr auto auto auto; align-items: baseline; padding: 8px 0; gap: 0 8px; }
+    .tune-light-summary { display: grid; grid-template-columns: auto 1fr 3.5em 3.5em 3.5em; align-items: baseline; padding: 8px 0; gap: 0 4px; }
     .tune-light-name { font-size: 0.82rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .tune-light-behaviour { font-size: 0.75rem; color: var(--muted); cursor: pointer; white-space: nowrap; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 2px; }
     .tune-light-behaviour:hover { color: var(--accent); }
-    .tune-light-impact { font-size: 0.82rem; color: var(--text); white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; min-width: 3em; }
-    .tune-light-bri { font-size: 0.82rem; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; min-width: 3em; color: var(--text); position: relative; }
+    .tune-light-impact { font-size: 0.82rem; color: var(--muted); white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
+    .tune-light-bri { font-size: 0.85rem; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; color: var(--text); position: relative; }
     .tune-capped-star { position: absolute; font-size: 0.7rem; font-weight: 400; color: var(--muted2); margin-left: 1px; }
     .tune-light-expanded { display: flex; align-items: center; gap: 8px; padding: 0 0 10px; padding-left: 14px; flex-wrap: wrap; }
     .tune-light-select { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 2px 6px; font-size: 0.75rem; cursor: pointer; outline: none; }
@@ -630,11 +630,11 @@
     .tune-light-dropdown-meta { font-size: 0.7rem; color: var(--muted2); margin-top: 2px; }
 
     /* Light brightness column headers */
-    .tune-light-col-headers { display: grid; grid-template-columns: auto 1fr auto auto auto; padding: 2px 14px 0; gap: 0 8px; font-size: 0.65rem; color: var(--muted2); border-bottom: 1px solid var(--line); }
+    .tune-light-col-headers { display: grid; grid-template-columns: auto 1fr 3.5em 3.5em 3.5em; padding: 2px 14px 0; gap: 0 4px; font-size: 0.65rem; color: var(--muted2); border-bottom: 1px solid var(--line); }
     .tune-light-col-headers span:nth-child(3),
     .tune-light-col-headers span:nth-child(4),
-    .tune-light-col-headers span:nth-child(5) { text-align: right; min-width: 3em; }
-    .tune-light-ct { font-size: 0.82rem; color: var(--text); white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; min-width: 3em; }
+    .tune-light-col-headers span:nth-child(5) { text-align: right; }
+    .tune-light-ct { font-size: 0.82rem; color: var(--muted); white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
   </style>
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
   <script src="./shared.js"></script>
@@ -2811,18 +2811,15 @@
         if (elImpact) {
           const behavImpact = Math.round(rawFinal) - adjustedBri;
           elImpact.textContent = formatImpact(behavImpact) + '%';
-          elImpact.style.color = behavImpact === 0 ? 'var(--muted2)' : '';
         }
         const elCt = document.getElementById('tune-light-ct-' + light.idx);
         if (elCt) {
           if (!ts.ctEnabled || ctFactor === 1.0) {
             elCt.textContent = '0%';
-            elCt.style.color = 'var(--muted2)';
           } else {
             const rawWithoutCt = rawFinal / ctFactor;
             const ctImpact = Math.round(rawFinal) - Math.round(rawWithoutCt);
             elCt.textContent = formatImpact(ctImpact) + '%';
-            elCt.style.color = '';
           }
         }
         const elMeta = document.getElementById('tune-meta-' + light.idx);
@@ -2856,6 +2853,9 @@
 
       const elBriHeader = document.getElementById('tune-brightness-header-val');
       if (elBriHeader) elBriHeader.textContent = adjustedBri + '%';
+
+      const elFinalVal = document.getElementById('tune-det-final-val');
+      if (elFinalVal) elFinalVal.textContent = adjustedBri + '%';
 
       // -- Solar source info (above slider) --
       const sourceInfo = document.getElementById('tune-source-info');
@@ -3042,9 +3042,9 @@
       bhtml += '<span class="tune-brightness-val" id="tune-brightness-header-val">--</span>';
       bhtml += '</div>';
       bhtml += '<div class="tune-brightness-body" id="tune-brightness-body">';
-      bhtml += '<div class="tune-group-label">Adjustments</div>';
-      bhtml += '<div class="tune-bk-row"><span class="tune-bk-label">Starting</span>'
+      bhtml += '<div class="tune-bk-row" style="padding-left:14px;"><span class="tune-bk-label">Starting</span>'
         + '<span class="tune-bk-total" id="tune-det-base-total">' + baseBri + '%</span></div>';
+      bhtml += '<div class="tune-group-label">Adjustments</div>';
       bhtml += '<div class="tune-bk-row"><span class="tune-bk-label">Boost</span>'
         + '<span class="tune-bk-total" id="tune-det-boost-val">0%</span></div>';
       // Room Balance with inline slider
@@ -3062,6 +3062,8 @@
       bhtml += '<div class="tune-slider-row">'
         + '<input type="range" class="tune-inline-slider tune-inline-slider--sun" id="tune-slider-solar" min="0" max="9" step="1" value="' + solarStep + '">'
         + '<span class="tune-slider-word" id="tune-solar-word"><span>' + SOLAR_STEPS[solarStep].label + '</span></span></div>';
+      bhtml += '<div class="tune-area-total"><div class="tune-bk-row" style="padding-left:14px;"><span class="tune-bk-label">Final</span>'
+        + '<span class="tune-bk-total final" id="tune-det-final-val">--</span></div></div>';
       bhtml += '<div class="section-action-bar" id="tune-action-bar" style="display:none;">';
       bhtml += '<button class="section-cancel-btn" onclick="cancelBrightnessChanges()">Cancel</button>';
       bhtml += '<button class="section-save-btn" onclick="saveBrightnessChanges()">Save</button>';
