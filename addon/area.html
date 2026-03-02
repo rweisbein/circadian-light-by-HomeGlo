@@ -280,8 +280,8 @@
     /* Mini chart container (from modal) */
     #mini-chart {
       width: 100%;
-      height: 280px;
-      margin: 8px 0;
+      height: 190px;
+      margin: 4px 0;
     }
 
     /* Adjust sliders (from modal - exact same styling) */
@@ -321,10 +321,10 @@
     }
     .slider-track {
       position: relative;
-      width: 24px;
-      height: 160px;
+      width: 18px;
+      height: 107px;
       background: rgba(255,255,255,0.08);
-      border-radius: 12px;
+      border-radius: 9px;
       cursor: pointer;
       touch-action: none;
       overflow: visible;
@@ -337,14 +337,14 @@
       background: rgba(0,0,0,0.55);
       pointer-events: none;
       transition: height 0.15s ease;
-      border-radius: 12px 12px 0 0;
+      border-radius: 9px 9px 0 0;
       overflow: hidden;
     }
     .slider-thumb {
       position: absolute;
       left: 50%;
-      width: 32px;
-      height: 32px;
+      width: 24px;
+      height: 24px;
       border-radius: 50%;
       background: #fff;
       border: 2px solid rgba(255,255,255,0.8);
@@ -370,11 +370,11 @@
     }
     /* Top extreme (before track): extra space below for thumb */
     .slider-column > .slider-extreme:nth-child(2) {
-      padding-bottom: 18px;
+      padding-bottom: 14px;
     }
     /* Bottom extreme (after track): extra space above for thumb */
     .slider-track + .slider-extreme {
-      padding-top: 18px;
+      padding-top: 14px;
     }
     /* Circadian-off overlay */
     .circadian-off-overlay::after {
@@ -420,7 +420,7 @@
         gap: 20px;
       }
       .slider-track {
-        height: 140px;
+        height: 90px;
       }
     }
 
@@ -1495,7 +1495,7 @@
       const layout = {
         paper_bgcolor: '#0a0a0a',
         plot_bgcolor: '#0a0a0a',
-        margin: { t: 24, r: 12, l: 36, b: 85 },
+        margin: { t: 16, r: 12, l: 32, b: 75 },
         hovermode: 'closest',
         xaxis: {
           range: [0, 24],
