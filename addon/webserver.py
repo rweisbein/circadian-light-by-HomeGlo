@@ -35,6 +35,7 @@ from brain import (
     apply_activity_preset,
     get_preset_names,
     calculate_sun_times,
+    apply_light_filter_pipeline,
 )
 
 logger = logging.getLogger(__name__)
@@ -3761,12 +3762,34 @@ class LightDesignerServer:
             logger.error(f"[Area Settings] Error saving settings for {area_id}: {e}")
             return web.json_response({"error": str(e)}, status=500)
 
+    def _ct_compensate(self, brightness: int, color_temp: int) -> int:
+        """Apply CT brightness compensation for warm color temperatures."""
+        try:
+            raw_config = glozone.load_config_from_files()
+            if not raw_config.get("ct_comp_enabled", False):
+                return brightness
+            handover_begin = raw_config.get("ct_comp_begin", 1650)
+            handover_end = raw_config.get("ct_comp_end", 2250)
+            max_factor = raw_config.get("ct_comp_factor", 1.4)
+            if color_temp >= handover_end:
+                return brightness
+            if color_temp <= handover_begin:
+                factor = max_factor
+            else:
+                pos = (handover_end - color_temp) / (handover_end - handover_begin)
+                factor = 1.0 + pos * (max_factor - 1.0)
+            return min(100, round(brightness * factor))
+        except Exception:
+            return brightness
+
     async def apply_light(self, request: Request) -> Response:
         """Apply brightness and color temperature to lights in an area.
 
-        Uses cached light capabilities to send appropriate commands:
+        Uses per-light filter pipeline (area_factor, filter presets, off_threshold)
+        to calculate individual brightness per filter group, then dispatches:
         - Color-capable lights: xy_color for full color range
         - CT-only lights: color_temp_kelvin (clamped to 2000K minimum)
+        - Lights below off_threshold: turn_off
         """
         rest_url, ws_url, token = self._get_ha_api_config()
 
@@ -3779,30 +3802,12 @@ class LightDesignerServer:
         try:
             data = await request.json()
             area_id = data.get("area_id")
-            brightness = data.get("brightness")
+            base_brightness = data.get("brightness")
             color_temp = data.get("color_temp")
-            transition = data.get("transition", 0.3)  # Default 0.3s for smooth updates
+            transition = data.get("transition", 0.3)
 
             if not area_id:
                 return web.json_response({"error": "area_id is required"}, status=400)
-
-            # Apply CT brightness compensation (same as normal circadian operation)
-            if brightness is not None and color_temp is not None:
-                try:
-                    raw_config = glozone.load_config_from_files()
-                    if raw_config.get("ct_comp_enabled", False):
-                        handover_begin = raw_config.get("ct_comp_begin", 1650)
-                        handover_end = raw_config.get("ct_comp_end", 2250)
-                        max_factor = raw_config.get("ct_comp_factor", 1.4)
-                        if color_temp < handover_end:
-                            if color_temp <= handover_begin:
-                                factor = max_factor
-                            else:
-                                pos = (handover_end - color_temp) / (handover_end - handover_begin)
-                                factor = 1.0 + pos * (max_factor - 1.0)
-                            brightness = min(100, round(brightness * factor))
-                except Exception as e:
-                    logger.warning(f"CT compensation error in Live Design: {e}")
 
             headers = {
                 "Authorization": f"Bearer {token}",
@@ -3813,48 +3818,94 @@ class LightDesignerServer:
             if self.live_design_area == area_id and (
                 self.live_design_color_lights or self.live_design_ct_lights
             ):
-                # Use capability-based splitting
+                # Load per-light filter data
+                area_factor = glozone.get_area_brightness_factor(area_id)
+                area_filters = glozone.get_area_light_filters(area_id)
+                presets = glozone.get_light_filter_presets()
+                off_threshold = glozone.get_off_threshold()
+                zone_cfg = glozone.get_zone_config_for_area(area_id)
+                min_bri = zone_cfg.get("min_brightness", 1)
+                max_bri = zone_cfg.get("max_brightness", 100)
+
+                # Group lights by filter assignment
+                color_set = set(self.live_design_color_lights)
+                filter_groups = {}  # {filter_name: {"color": [], "ct": []}}
+                for entity_id in self.live_design_color_lights + self.live_design_ct_lights:
+                    filt = area_filters.get(entity_id, "Standard")
+                    if filt not in filter_groups:
+                        filter_groups[filt] = {"color": [], "ct": []}
+                    if entity_id in color_set:
+                        filter_groups[filt]["color"].append(entity_id)
+                    else:
+                        filter_groups[filt]["ct"].append(entity_id)
+
+                xy = None
+                if color_temp is not None:
+                    xy = list(CircadianLight.color_temperature_to_xy(int(color_temp)))
+
                 async with ClientSession() as session:
                     tasks = []
 
-                    # Color-capable lights: use xy_color
-                    if self.live_design_color_lights:
-                        color_data = {
-                            "entity_id": self.live_design_color_lights,
-                            "transition": transition,
-                        }
-                        if brightness is not None:
-                            color_data["brightness_pct"] = int(brightness)
-                        if color_temp is not None:
-                            xy = CircadianLight.color_temperature_to_xy(int(color_temp))
-                            color_data["xy_color"] = list(xy)
+                    for filter_name, lights_by_cap in filter_groups.items():
+                        preset = presets.get(filter_name, {"at_bright": 100, "at_dim": 100})
 
-                        tasks.append(
-                            session.post(
-                                f"{rest_url}/services/light/turn_on",
-                                headers=headers,
-                                json=color_data,
-                            )
+                        # Calculate filtered brightness through the pipeline
+                        filtered_bri, should_off = apply_light_filter_pipeline(
+                            int(base_brightness) if base_brightness is not None else 0,
+                            min_bri, max_bri, area_factor, preset, off_threshold,
                         )
 
-                    # CT-only lights: use color_temp_kelvin
-                    if self.live_design_ct_lights:
-                        ct_data = {
-                            "entity_id": self.live_design_ct_lights,
-                            "transition": transition,
-                        }
-                        if brightness is not None:
-                            ct_data["brightness_pct"] = int(brightness)
-                        if color_temp is not None:
-                            ct_data["color_temp_kelvin"] = max(2000, int(color_temp))
+                        if should_off:
+                            # Turn off lights below threshold
+                            off_entities = lights_by_cap["color"] + lights_by_cap["ct"]
+                            if off_entities:
+                                tasks.append(
+                                    session.post(
+                                        f"{rest_url}/services/light/turn_off",
+                                        headers=headers,
+                                        json={"entity_id": off_entities, "transition": transition},
+                                    )
+                                )
+                            continue
 
-                        tasks.append(
-                            session.post(
-                                f"{rest_url}/services/light/turn_on",
-                                headers=headers,
-                                json=ct_data,
+                        # Apply CT compensation to the filtered brightness
+                        comp_bri = filtered_bri
+                        if color_temp is not None:
+                            comp_bri = self._ct_compensate(filtered_bri, int(color_temp))
+
+                        # Color-capable lights: use xy_color
+                        if lights_by_cap["color"]:
+                            color_data = {
+                                "entity_id": lights_by_cap["color"],
+                                "transition": transition,
+                                "brightness_pct": comp_bri,
+                            }
+                            if xy is not None:
+                                color_data["xy_color"] = xy
+                            tasks.append(
+                                session.post(
+                                    f"{rest_url}/services/light/turn_on",
+                                    headers=headers,
+                                    json=color_data,
+                                )
                             )
-                        )
+
+                        # CT-only lights: use color_temp_kelvin
+                        if lights_by_cap["ct"]:
+                            ct_data = {
+                                "entity_id": lights_by_cap["ct"],
+                                "transition": transition,
+                                "brightness_pct": comp_bri,
+                            }
+                            if color_temp is not None:
+                                ct_data["color_temp_kelvin"] = max(2000, int(color_temp))
+                            tasks.append(
+                                session.post(
+                                    f"{rest_url}/services/light/turn_on",
+                                    headers=headers,
+                                    json=ct_data,
+                                )
+                            )
 
                     # Execute all requests concurrently
                     if tasks:
@@ -3864,21 +3915,25 @@ class LightDesignerServer:
                                 logger.error(f"Failed to apply light: {resp.status}")
 
                 logger.info(
-                    f"Live Design: Applied {brightness}% / {color_temp}K to area {area_id} "
-                    f"({len(self.live_design_color_lights)} color, {len(self.live_design_ct_lights)} CT)"
+                    f"Live Design: Applied base={base_brightness}% / {color_temp}K to area {area_id} "
+                    f"({len(self.live_design_color_lights)} color, {len(self.live_design_ct_lights)} CT, "
+                    f"{len(filter_groups)} filter group(s), area_factor={area_factor})"
                 )
                 return web.json_response({"status": "ok"})
 
             else:
                 # Fallback: no cached capabilities, use area-based with XY
+                # Apply CT compensation to base brightness
+                bri = int(base_brightness) if base_brightness is not None else None
+                if bri is not None and color_temp is not None:
+                    bri = self._ct_compensate(bri, int(color_temp))
+
                 service_data = {
                     "area_id": area_id,
                     "transition": transition,
                 }
-
-                if brightness is not None:
-                    service_data["brightness_pct"] = int(brightness)
-
+                if bri is not None:
+                    service_data["brightness_pct"] = bri
                 if color_temp is not None:
                     xy = CircadianLight.color_temperature_to_xy(int(color_temp))
                     service_data["xy_color"] = list(xy)
@@ -3897,7 +3952,7 @@ class LightDesignerServer:
                             )
 
                 logger.info(
-                    f"Live Design (fallback): Applied {brightness}% / {color_temp}K to area {area_id}"
+                    f"Live Design (fallback): Applied {bri}% / {color_temp}K to area {area_id}"
                 )
                 return web.json_response({"status": "ok"})
         except json.JSONDecodeError:
