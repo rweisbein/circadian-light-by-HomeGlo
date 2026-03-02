@@ -294,18 +294,18 @@
       display: flex;
       align-items: stretch;
       justify-content: center;
-      gap: 36px;
+      gap: 24px;
     }
     .slider-group {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
     }
-    .step-buttons { display: flex; flex-direction: column; gap: 8px; align-self: center; }
-    .step-btn { width: 32px; height: 32px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: rgba(30,30,30,0.9); color: var(--muted); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; padding: 0; }
+    .step-buttons { display: flex; flex-direction: column; gap: 6px; align-self: center; }
+    .step-btn { width: 28px; height: 28px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: rgba(30,30,30,0.9); color: var(--muted); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; padding: 0; }
     .step-btn:hover { border-color: rgba(255,255,255,0.35); background: rgba(50,50,50,0.9); color: var(--text); }
     .step-btn:active { background: rgba(70,70,70,0.9); }
-    .step-btn svg { width: 16px; height: 16px; }
+    .step-btn svg { width: 14px; height: 14px; }
     .slider-column {
       display: flex;
       flex-direction: column;
@@ -1393,12 +1393,12 @@
 
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
-        x0: wakeTime, x1: wakeTime, y0: -0.15, y1: 1,
+        x0: wakeTime, x1: wakeTime, y0: -0.24, y1: 1,
         line: { color: 'rgba(92, 179, 255, 0.35)', width: 1.5, dash: 'dot' }
       });
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
-        x0: bedTime, x1: bedTime, y0: -0.15, y1: 1,
+        x0: bedTime, x1: bedTime, y0: -0.24, y1: 1,
         line: { color: 'rgba(255, 230, 128, 0.35)', width: 1.5, dash: 'dot' }
       });
 
@@ -1409,28 +1409,28 @@
       if (Number.isFinite(sunrise)) {
         shapes.push({
           type: 'line', xref: 'x', yref: 'paper',
-          x0: sunrise, x1: sunrise, y0: -0.22, y1: 0,
+          x0: sunrise, x1: sunrise, y0: -0.38, y1: 0,
           line: sunTickStyle
         });
       }
       if (Number.isFinite(sunset)) {
         shapes.push({
           type: 'line', xref: 'x', yref: 'paper',
-          x0: sunset, x1: sunset, y0: -0.22, y1: 0,
+          x0: sunset, x1: sunset, y0: -0.38, y1: 0,
           line: sunTickStyle
         });
       }
 
       // Wake/bed labels
       annotations.push({
-        x: wakeTime, y: -0.18, xref: 'x', yref: 'paper',
+        x: wakeTime, y: -0.28, xref: 'x', yref: 'paper',
         text: 'wake', showarrow: false,
         font: { size: 10, color: '#5cb3ff' },
         hovertext: formatHourLabel(wakeTime),
         hoverlabel: { bgcolor: '#7fc7ff', bordercolor: '#7fc7ff', font: { color: '#000', size: 12 } }
       });
       annotations.push({
-        x: bedTime, y: -0.18, xref: 'x', yref: 'paper',
+        x: bedTime, y: -0.28, xref: 'x', yref: 'paper',
         text: 'bed', showarrow: false,
         font: { size: 10, color: '#ffe680' },
         hovertext: formatHourLabel(bedTime),
@@ -1440,7 +1440,7 @@
       // Sunrise/sunset labels
       if (Number.isFinite(sunrise)) {
         annotations.push({
-          x: sunrise, y: -0.25, xref: 'x', yref: 'paper',
+          x: sunrise, y: -0.44, xref: 'x', yref: 'paper',
           text: 'sunrise', showarrow: false,
           font: { size: 9, color: 'rgba(215,215,215,0.6)' },
           hovertext: formatHourLabel(sunrise),
@@ -1449,7 +1449,7 @@
       }
       if (Number.isFinite(sunset)) {
         annotations.push({
-          x: sunset, y: -0.25, xref: 'x', yref: 'paper',
+          x: sunset, y: -0.44, xref: 'x', yref: 'paper',
           text: 'sunset', showarrow: false,
           font: { size: 9, color: 'rgba(215,215,215,0.6)' },
           hovertext: formatHourLabel(sunset),
@@ -1477,7 +1477,7 @@
       });
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
-        x0: cursorHour, x1: cursorHour, y0: -0.26, y1: 0,
+        x0: cursorHour, x1: cursorHour, y0: -0.50, y1: 0,
         line: cursorLineStyle, layer: 'above'
       });
 
@@ -1486,7 +1486,7 @@
       const cursorLabel = isFrozen ? 'frozen' : 'now';
       const cursorColor = isFrozen ? '#63b3ed' : '#fdfdfd';
       annotations.push({
-        x: cursorHour, y: -0.38, xref: 'x', yref: 'paper',
+        x: cursorHour, y: -0.62, xref: 'x', yref: 'paper',
         text: `${cursorLabel}<br>${cursorTimeStr}`, showarrow: false,
         font: { size: 10, color: cursorColor },
         align: 'center'
@@ -1495,7 +1495,7 @@
       const layout = {
         paper_bgcolor: '#0a0a0a',
         plot_bgcolor: '#0a0a0a',
-        margin: { t: 16, r: 12, l: 32, b: 75 },
+        margin: { t: 16, r: 12, l: 32, b: 85 },
         hovermode: 'closest',
         xaxis: {
           range: [0, 24],
