@@ -2245,8 +2245,8 @@ function renderColorGradient() {
   const dayEnabled = config.daylight_enabled !== false;
   const dayCct = config.daylight_cct;
 
-  // "Now" = color at cursor position
-  const currentK = (typeof calculateColorAtHour === 'function' && typeof cursorHour === 'number')
+  // "Cursor" = color at cursor position (skip during drag to avoid confusing movement)
+  const currentK = (!window._ctDragging && typeof calculateColorAtHour === 'function' && typeof cursorHour === 'number')
     ? calculateColorAtHour(cursorHour, true) : null;
 
   // Build gradient stops (always 500–6500K)
@@ -2338,10 +2338,10 @@ function renderColorGradient() {
   }
   const layer2 = '<div class="ct-axis ct-axis-ref">' + refHtml + '</div>';
 
-  // Layer 3: Now (read-only)
+  // Layer 3: Cursor (read-only)
   let nowHtml = '';
   if (currentK != null) {
-    nowHtml = '<span class="ct-axis-label" style="' + refStyle(ctPct(currentK)) + '" data-tip="' + Math.round(currentK) + 'K">now</span>';
+    nowHtml = '<span class="ct-axis-label" style="' + refStyle(ctPct(currentK)) + '" data-tip="' + Math.round(currentK) + 'K">cursor</span>';
   }
   const layer3 = hasNowLayer ? '<div class="ct-axis ct-axis-now">' + nowHtml + '</div>' : '';
 
@@ -2369,6 +2369,7 @@ function attachHandleDragListeners(container) {
       e.preventDefault();
       e.stopPropagation();
       el.classList.add('dragging');
+      window._ctDragging = true;
       const barRect = bar.getBoundingClientRect();
 
       const move = (ev) => {
@@ -2381,12 +2382,14 @@ function attachHandleDragListeners(container) {
 
       const end = () => {
         el.classList.remove('dragging');
+        window._ctDragging = false;
         document.removeEventListener('mousemove', move);
         document.removeEventListener('mouseup', end);
         document.removeEventListener('touchmove', move);
         document.removeEventListener('touchend', end);
         syncHiddenInputsFromConfig();
         renderChart();
+        renderColorGradient();  // recalculate cursor position with new config
       };
 
       document.addEventListener('mousemove', move);
@@ -3656,14 +3659,10 @@ function updateRangeDisplays() {
   // Update card header summaries with bold range values
   const briEl = document.getElementById('rhythm-brightness-val');
   if (briEl) briEl.innerHTML = `<b>${config.min_brightness} – ${config.max_brightness}%</b>`;
-  // Color temp header: rule labels · bold range
+  // Color temp header: bold range
   const ctEl = document.getElementById('rhythm-color-val');
   if (ctEl) {
-    const rules = [];
-    if (config.warm_night_enabled) rules.push('warm');
-    if (config.daylight_enabled !== false) rules.push('cool');
-    const labels = rules.length ? rules.join(' \u00b7 ') + ' \u00b7 ' : '';
-    ctEl.innerHTML = labels + `<b>${config.min_color_temp} – ${config.max_color_temp} K</b>`;
+    ctEl.innerHTML = `<b>${config.min_color_temp} – ${config.max_color_temp} K</b>`;
   }
 }
 
