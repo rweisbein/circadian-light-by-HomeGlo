@@ -489,50 +489,13 @@
     }
     .section-save-btn:hover { opacity: 0.9; }
 
-    /* Color tab placeholder */
-    .tune-placeholder {
-      text-align: center;
-      padding: 80px 24px;
-    }
-
     /* Color tab */
-    .ct-zone-card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin-bottom: 8px; padding: 14px; }
-    .ct-zone-header { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
-    .ct-zone-name-group { display: flex; flex-direction: column; min-width: 0; }
-    .ct-kelvin-group { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-    .ct-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-    .ct-kelvin { font-weight: 700; font-size: 0.95rem; color: var(--text); }
-    .ct-gradient-wrap { margin-top: 12px; position: relative; overflow: hidden; }
-    .ct-gradient-bar { height: 12px; border-radius: 6px; position: relative; overflow: visible; }
-    /* Grey-out overlays for unused range */
-    .ct-grey-left, .ct-grey-right { position: absolute; top: 0; height: 100%; background: rgba(0,0,0,0.72); pointer-events: none; z-index: 1; }
-    .ct-grey-left { left: 0; border-radius: 6px 0 0 6px; }
-    .ct-grey-right { right: 0; border-radius: 0 6px 6px 0; }
-    /* Pip lines — only on gradient bar for "now", dotted connectors below for all */
-    .ct-pip { position: absolute; top: 0; width: 0; pointer-events: none; z-index: 2; }
-    .ct-pip-line { position: absolute; left: 50%; width: 2px; transform: translateX(-50%); }
-    .ct-pip-bar { top: 0; height: 12px; border-radius: 1px; }
-    .ct-pip-now .ct-pip-bar { width: 3px; background: #fff; box-shadow: 0 0 3px rgba(0,0,0,0.8), 0 0 6px rgba(0,0,0,0.4); }
-    .ct-pip-ref .ct-pip-bar { display: none; }
-    /* Dotted connector lines extending below gradient into label layers */
-    .ct-pip-dot { top: 12px; border-left: 1px dotted; }
-    .ct-pip-now .ct-pip-dot { border-color: var(--accent); }
-    .ct-pip-ref .ct-pip-dot { border-color: var(--muted); }
-    /* Three label layers */
-    .ct-layers { margin-top: 2px; }
-    .ct-axis { position: relative; height: 15px; }
-    .ct-axis-label { position: absolute; transform: translateX(-50%); font-size: 0.65rem; white-space: nowrap; }
-    .ct-axis-tick .ct-axis-label { color: var(--muted2); }
-    .ct-axis-ref .ct-axis-label { color: var(--muted); font-weight: 600; font-size: 0.65rem; }
-    .ct-axis-now .ct-axis-label { color: var(--accent); font-weight: 600; font-size: 0.7rem; }
-    /* Hover callout bubble */
-    .ct-axis-label[data-tip]:hover::after {
-      content: attr(data-tip);
-      position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
-      background: var(--panel); color: var(--text); border: 1px solid var(--line);
-      border-radius: 4px; padding: 2px 6px; font-size: 0.7rem; font-weight: 600;
-      white-space: nowrap; pointer-events: none; z-index: 10;
-    }
+    .color-tab-message { padding: 32px 24px; text-align: center; }
+    .color-tab-message p { font-size: 0.9rem; color: var(--muted); margin-bottom: 16px; }
+    .color-zone-list { display: flex; flex-direction: column; gap: 6px; max-width: 320px; margin: 0 auto; }
+    .color-zone-link { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; text-decoration: none; color: var(--text); font-weight: 500; font-size: 0.9rem; transition: all 0.15s; }
+    .color-zone-link:hover { border-color: var(--muted2); background: rgba(255,255,255,0.04); }
+    .color-zone-link .cz-arrow { margin-left: auto; color: var(--muted2); font-size: 0.8rem; }
 
     /* Refresh button */
     .tune-refresh-btn {
@@ -1627,162 +1590,28 @@
     }
 
     // ============================================================
-    // Render — Color tab
+    // Render — Color tab (signpost to Rhythm page)
     // ============================================================
-    // System CT bounds
-    const CT_SYSTEM_MIN = 500;
-    const CT_SYSTEM_MAX = 6500;
-    const CT_SPAN = CT_SYSTEM_MAX - CT_SYSTEM_MIN;
-
-    function ctPct(k) {
-      return Math.max(0, Math.min(100, ((k - CT_SYSTEM_MIN) / CT_SPAN) * 100));
-    }
-
-    // Collision-aware tick filter: drop any tick whose label would overlap a neighbor
-    function filterTickCollisions(ticks, minGapPct) {
-      if (ticks.length <= 1) return ticks;
-      const kept = [ticks[0]];
-      for (let i = 1; i < ticks.length; i++) {
-        if (ticks[i].pct - kept[kept.length - 1].pct >= minGapPct) {
-          kept.push(ticks[i]);
-        }
-      }
-      return kept;
-    }
-
     function renderColorTab() {
       const container = document.getElementById('tune-color-tab');
       const gzZonesObj = cachedGlozones?.zones || {};
       const zoneNames = Object.keys(gzZonesObj);
-      if (!zoneNames.length) {
-        container.innerHTML = '<div class="tune-placeholder"><p style="font-size:0.95rem;color:var(--muted);">No zones configured</p></div>';
-        return;
-      }
-      let html = '';
+
+      let linksHtml = '';
       for (const zoneName of zoneNames) {
-        const gz = gzZonesObj[zoneName];
-        const minK = gz.min_color_temp ?? 500;
-        const maxK = gz.max_color_temp ?? 6500;
-        const currentK = zoneStates?.[zoneName]?.kelvin ?? null;
-        const warmEnabled = gz.warm_night_enabled ?? false;
-        const warmTarget = gz.warm_night_target ?? 2700;
-        const dayEnabled = gz.daylight_enabled ?? true;
-        const dayCct = gz.daylight_cct ?? 5500;
-
-        // Header
-        const dotColor = currentK ? cctToRGB(currentK) : 'var(--muted2)';
-        const kelvinStr = currentK ? Math.round(currentK) + 'K' : '--';
         const escapedZone = encodeURIComponent(zoneName);
-
-        // Gradient bar — always 500K–6500K, sample 10 stops
-        const stops = [];
-        for (let i = 0; i <= 9; i++) {
-          stops.push(cctToRGB(CT_SYSTEM_MIN + CT_SPAN * (i / 9)));
-        }
-        const gradStyle = 'background:linear-gradient(to right,' + stops.join(',') + ');';
-
-        // Grey-out overlays for unused range
-        // Right edge: daylight can extend the active range beyond maxK
-        const effectiveCool = (dayEnabled && dayCct > maxK) ? dayCct : maxK;
-        const greyLeftPct = ctPct(minK);
-        const greyRightPct = 100 - ctPct(effectiveCool);
-        let greyHtml = '';
-        if (greyLeftPct > 0.5) greyHtml += '<div class="ct-grey-left" style="width:' + greyLeftPct + '%;"></div>';
-        if (greyRightPct > 0.5) greyHtml += '<div class="ct-grey-right" style="width:' + greyRightPct + '%;"></div>';
-
-        // Count how many label layers we'll have below the bar
-        const hasRefLayer = true; // always have warmest/coolest
-        const hasNowLayer = currentK != null;
-        // Total layers: 1 (ticks) + ref + now?
-        const totalLayers = 1 + 1 + (hasNowLayer ? 1 : 0);
-
-        // Build pip lines with dotted connectors extending into their label layer
-        // Layer indices: 0=ticks, 1=ref, last=now
-        const refLayerIdx = 1;
-        const nowLayerIdx = totalLayers - 1;
-        const barH = 12;
-        const layerH = 14;
-        const gapH = 2; // .ct-layers margin-top
-
-        function pipHtml(pct, cls, targetLayer) {
-          const dotTop = barH;
-          const dotH = gapH + (targetLayer * layerH) + 7; // extend to middle of target layer
-          return '<div class="ct-pip ' + cls + '" style="left:' + pct + '%;">'
-            + '<div class="ct-pip-line ct-pip-bar"></div>'
-            + '<div class="ct-pip-line ct-pip-dot" style="height:' + dotH + 'px;"></div>'
-            + '</div>';
-        }
-
-        let pipsHtml = '';
-        if (currentK != null) pipsHtml += pipHtml(ctPct(currentK), 'ct-pip-now', nowLayerIdx);
-        pipsHtml += pipHtml(ctPct(minK), 'ct-pip-ref', refLayerIdx);  // warmest
-        if (warmEnabled) pipsHtml += pipHtml(ctPct(warmTarget), 'ct-pip-ref', refLayerIdx);
-        pipsHtml += pipHtml(ctPct(maxK), 'ct-pip-ref', refLayerIdx);  // coolest or dark day max
-        if (dayEnabled && dayCct > maxK) pipsHtml += pipHtml(ctPct(dayCct), 'ct-pip-ref', refLayerIdx);  // coolest (daylight)
-
-        // --- Layer 1: CT K tick marks ---
-        // Full "2000K" format, collision-aware
-        let ticks = [{ k: CT_SYSTEM_MIN, pct: 0, label: CT_SYSTEM_MIN + 'K', edge: 'left' }];
-        for (let k = 1000; k < CT_SYSTEM_MAX; k += 1000) {
-          ticks.push({ k, pct: ctPct(k), label: k + 'K' });
-        }
-        ticks.push({ k: CT_SYSTEM_MAX, pct: 100, label: CT_SYSTEM_MAX + 'K', edge: 'right' });
-        ticks = filterTickCollisions(ticks, 12);
-        let ticksHtml = '';
-        for (const t of ticks) {
-          const style = t.edge === 'left' ? 'left:0;transform:none;'
-            : t.edge === 'right' ? 'left:100%;transform:translateX(-100%);'
-            : 'left:' + t.pct + '%;';
-          ticksHtml += '<span class="ct-axis-label" style="' + style + '">' + t.label + '</span>';
-        }
-        const layer1 = '<div class="ct-axis ct-axis-tick">' + ticksHtml + '</div>';
-
-        // Edge-aware alignment helper: left-align near 0%, right-align near 100%
-        function refStyle(pct) {
-          if (pct <= 2) return 'left:' + pct + '%;transform:none;';
-          if (pct >= 98) return 'left:' + pct + '%;transform:translateX(-100%);';
-          return 'left:' + pct + '%;';
-        }
-
-        // --- Layer 2: Reference labels (warmest, coolest, night max, dark day max) ---
-        let refHtml = '';
-        refHtml += '<span class="ct-axis-label" style="' + refStyle(ctPct(minK)) + '" data-tip="' + minK + 'K">warmest</span>';
-        if (warmEnabled) {
-          refHtml += '<span class="ct-axis-label" style="' + refStyle(ctPct(warmTarget)) + '" data-tip="' + warmTarget + 'K">night max</span>';
-        }
-        if (dayEnabled && dayCct > maxK) {
-          refHtml += '<span class="ct-axis-label" style="' + refStyle(ctPct(maxK)) + '" data-tip="' + maxK + 'K">dark day max</span>';
-          refHtml += '<span class="ct-axis-label" style="' + refStyle(ctPct(dayCct)) + '" data-tip="' + dayCct + 'K">coolest</span>';
-        } else {
-          refHtml += '<span class="ct-axis-label" style="' + refStyle(ctPct(maxK)) + '" data-tip="' + maxK + 'K">coolest</span>';
-        }
-        const layer2 = '<div class="ct-axis ct-axis-ref">' + refHtml + '</div>';
-
-        // --- Layer 3: Now ---
-        let nowHtml = '';
-        if (currentK != null) {
-          nowHtml = '<span class="ct-axis-label" style="' + refStyle(ctPct(currentK)) + '" data-tip="' + Math.round(currentK) + 'K">now</span>';
-        }
-        const layer3 = hasNowLayer ? '<div class="ct-axis ct-axis-now">' + nowHtml + '</div>' : '';
-
-        html += '<div class="ct-zone-card">'
-          + '<div class="ct-zone-header">'
-          +   '<div class="ct-zone-name-group">'
-          +     '<a class="zone-rhythm-link" href="./zone/' + escapedZone + '?back=tune">' + zoneName + '</a>'
-          +     '<span class="zone-label-sub">rhythm zone</span>'
-          +   '</div>'
-          +   '<div class="ct-kelvin-group">'
-          +     '<span class="ct-dot" style="background:' + dotColor + ';"></span>'
-          +     '<span class="ct-kelvin">' + kelvinStr + '</span>'
-          +   '</div>'
-          + '</div>'
-          + '<div class="ct-gradient-wrap">'
-          +   '<div class="ct-gradient-bar" style="' + gradStyle + '">' + greyHtml + pipsHtml + '</div>'
-          +   '<div class="ct-layers">' + layer1 + layer2 + layer3 + '</div>'
-          + '</div>'
-          + '</div>';
+        linksHtml += '<a class="color-zone-link" href="./zone/' + escapedZone + '?back=tune">'
+          + zoneName
+          + '<span class="cz-arrow">&#x203A;</span>'
+          + '</a>';
       }
-      container.innerHTML = html;
+
+      container.innerHTML = '<div class="color-tab-message">'
+        + '<p>Color temperature is tuned per zone in the Rhythm Designer</p>'
+        + (zoneNames.length
+          ? '<div class="color-zone-list">' + linksHtml + '</div>'
+          : '<p style="color:var(--muted2);font-size:0.85rem;">No zones configured</p>')
+        + '</div>';
     }
 
     // ============================================================
