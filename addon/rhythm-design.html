@@ -500,21 +500,40 @@ input[type=range]::-moz-range-thumb {
 }
 .dual-chip.right { text-align: left; }
 
-/* Color Value Chip Button */
-.color-value-chip {
-  border: none;
-  border-radius: 999px;
-  padding: 3px 12px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.15s;
-  min-width: 80px;
-  text-align: center;
+/* Interactive color gradient (ported from tune.html + handle additions) */
+.ct-gradient-wrap { margin-top: 4px; position: relative; }
+.ct-gradient-bar { height: 12px; border-radius: 6px; position: relative; overflow: visible; }
+.ct-grey-left, .ct-grey-right { position: absolute; top: 0; height: 100%; background: rgba(0,0,0,0.72); pointer-events: none; z-index: 1; }
+.ct-grey-left { left: 0; border-radius: 6px 0 0 6px; }
+.ct-grey-right { right: 0; border-radius: 0 6px 6px 0; }
+.ct-pip { position: absolute; top: 0; width: 0; pointer-events: none; z-index: 2; }
+.ct-pip-line { position: absolute; left: 50%; width: 2px; transform: translateX(-50%); }
+.ct-pip-bar { top: 0; height: 12px; border-radius: 1px; }
+.ct-pip-now .ct-pip-bar { width: 3px; background: #fff; box-shadow: 0 0 3px rgba(0,0,0,0.8), 0 0 6px rgba(0,0,0,0.4); }
+.ct-pip-ref .ct-pip-bar { display: none; }
+.ct-pip-dot { top: 12px; border-left: 1px dotted; }
+.ct-pip-now .ct-pip-dot { border-color: var(--accent); }
+.ct-pip-ref .ct-pip-dot { border-color: var(--muted); }
+.ct-layers { margin-top: 2px; }
+.ct-axis { position: relative; height: 15px; }
+.ct-axis-label { position: absolute; transform: translateX(-50%); font-size: 0.65rem; white-space: nowrap; }
+.ct-axis-tick .ct-axis-label { color: var(--muted2); }
+.ct-axis-ref .ct-axis-label { color: var(--muted); font-weight: 600; font-size: 0.65rem; }
+.ct-axis-now .ct-axis-label { color: var(--accent); font-weight: 600; font-size: 0.7rem; }
+.ct-axis-label[data-tip]:hover::after {
+  content: attr(data-tip);
+  position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+  background: var(--panel); color: var(--text); border: 1px solid var(--line);
+  border-radius: 4px; padding: 2px 6px; font-size: 0.7rem; font-weight: 600;
+  white-space: nowrap; pointer-events: none; z-index: 10;
 }
-.color-value-chip:hover {
-  filter: brightness(1.1);
-}
+/* Draggable handles on gradient bar */
+.ct-handle { position: absolute; top: -2px; width: 30px; height: 16px; transform: translateX(-50%); cursor: grab; z-index: 5; touch-action: none; }
+.ct-handle:active, .ct-handle.dragging { cursor: grabbing; }
+.ct-handle-thumb { position: absolute; left: 50%; top: 2px; width: 8px; height: 12px; border-radius: 4px; background: rgba(255,255,255,0.85); border: 1px solid rgba(0,0,0,0.3); transform: translateX(-50%); box-shadow: 0 1px 3px rgba(0,0,0,0.4); pointer-events: none; transition: background 0.15s; }
+.ct-handle:hover .ct-handle-thumb, .ct-handle.dragging .ct-handle-thumb { background: #fff; box-shadow: 0 0 6px rgba(255,255,255,0.5); }
+.ct-axis-ref .ct-axis-label.ct-draggable { cursor: grab; user-select: none; }
+.ct-axis-ref .ct-axis-label.ct-draggable:active { cursor: grabbing; }
 
 /* Lock checkbox for range controls */
 .lock-checkbox-wrap {
@@ -543,35 +562,6 @@ input[type=range]::-moz-range-thumb {
   color: #f5a623;
 }
 
-/* Color Slider Popup */
-.color-controls-wrap {
-  position: relative;
-  display: inline-block;
-}
-.color-slider-popup {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%);
-  background: #101010;
-  border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 10px;
-  padding: 12px 14px;
-  box-shadow: 0 12px 24px rgba(0,0,0,0.45);
-  min-width: 280px;
-  display: none;
-  z-index: 50;
-}
-.color-slider-popup.is-open {
-  display: block;
-}
-.color-slider-popup .dual-track {
-  height: 10px;
-  border-radius: 5px;
-}
-.color-slider-popup input[type=range] {
-  height: 20px;
-}
 
 /* Color Rule Stack */
 .color-rule-grid {
@@ -1496,20 +1486,10 @@ input[type=range]::-moz-range-thumb {
       <span class="rhythm-card-val" id="rhythm-color-val">500 – 6500 K</span>
     </div>
     <div class="rhythm-card-body" id="rhythm-color-body">
-      <div class="tune-control-row" style="padding-left:0;">
-        <span class="tune-control-left"><span class="tune-control-label primary">Range</span></span>
-        <span class="tune-control-impact" id="color-range-display">500 – 6500 K</span>
-      </div>
-      <div class="tune-slider-row">
-        <div class="dual-range">
-          <div class="dual-track color-track" id="color-track">
-            <div class="dual-mask" id="color-mask-left"></div>
-            <div class="dual-mask" id="color-mask-right"></div>
-          </div>
-          <input type="range" id="color-min" class="range-min" min="500" max="6500" step="100" value="500">
-          <input type="range" id="color-max" class="range-max" min="500" max="6500" step="100" value="6500">
-        </div>
-      </div>
+      <!-- Interactive color gradient -->
+      <div id="rhythm-ct-gradient-container" class="ct-gradient-wrap"></div>
+      <input type="hidden" id="color-min" value="500">
+      <input type="hidden" id="color-max" value="6500">
 
       <div class="color-rule-grid">
         <div class="color-rule-stack" data-color-row="night">
@@ -1518,19 +1498,9 @@ input[type=range]::-moz-range-thumb {
               <label class="color-rule-label">Warm night<span class="info-icon" data-tooltip="warm-night-info">i<span class="info-tooltip" id="warm-night-info">Caps color temperature when sun isn't up; if your curve is cool (high K) between sunset and sunrise, this warms it.</span></span></label>
               <div class="color-rule-toggle"><input type="checkbox" id="warm-night-enabled"></div>
             </div>
-            <div class="color-rule-controls">
-              <div class="color-controls-wrap">
-                <button type="button" class="color-value-chip" id="warm-night-target-chip">2700 K</button>
-                <div class="color-slider-popup" id="warm-night-popup">
-                  <div class="dual-range">
-                    <div class="dual-track color-track" id="warm-night-track"></div>
-                    <input type="range" id="warm-night-target" class="range-min" min="500" max="6500" step="100" value="2700">
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
           <input type="hidden" id="warm-night-mode" value="all">
+          <input type="hidden" id="warm-night-target" value="2700">
           <div class="color-rule-stack-body" id="warm-night-body">
             <div class="tune-control-row">
               <span class="tune-control-left">
@@ -1573,18 +1543,8 @@ input[type=range]::-moz-range-thumb {
               <label class="color-rule-label">Cool day<span class="info-icon" data-tooltip="daylight-info">i<span class="info-tooltip" id="daylight-info">Pushes color toward a cooler target during the day based on outdoor brightness and sun elevation.</span></span></label>
               <div class="color-rule-toggle"><input type="checkbox" id="daylight-enabled" checked></div>
             </div>
-            <div class="color-rule-controls">
-              <div class="color-controls-wrap">
-                <button type="button" class="color-value-chip" id="daylight-cct-chip">5500 K</button>
-                <div class="color-slider-popup" id="daylight-cct-popup">
-                  <div class="dual-range">
-                    <div class="dual-track color-track" id="daylight-cct-track"></div>
-                    <input type="range" id="daylight-cct" class="range-min" min="0" max="6500" step="100" value="5500">
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
+          <input type="hidden" id="daylight-cct" value="5500">
           <div class="color-rule-stack-body" id="daylight-body">
             <div class="tune-control-row">
               <span class="tune-control-left">
@@ -2244,83 +2204,238 @@ function getSelectedDateISO() {
 // ============================================================
 
 // Generate color gradient for slider tracks
-function updateColorGradients() {
-  const minK = config.min_color_temp;
-  const maxK = config.max_color_temp;
-  const steps = 16;
+// ============================================================
+// Interactive Color Gradient
+// ============================================================
+const CT_SYSTEM_MIN = 500;
+const CT_SYSTEM_MAX = 6500;
+const CT_SPAN = CT_SYSTEM_MAX - CT_SYSTEM_MIN;
 
-  // Main color track
-  const colorTrack = document.getElementById('color-track');
-  if (colorTrack) {
-    const stops = [];
-    for (let i = 0; i <= steps; i++) {
-      const k = 500 + (6000 * i / steps);
-      stops.push(`${cctToRGB(k)} ${(i / steps) * 100}%`);
-    }
-    colorTrack.style.background = `linear-gradient(90deg, ${stops.join(',')})`;
-
-    // Update masks
-    const maskLeft = document.getElementById('color-mask-left');
-    const maskRight = document.getElementById('color-mask-right');
-    if (maskLeft && maskRight) {
-      const leftPct = ((minK - 500) / 6000) * 100;
-      const rightPct = ((maxK - 500) / 6000) * 100;
-      maskLeft.style.left = '0%';
-      maskLeft.style.width = `${leftPct}%`;
-      maskRight.style.left = `${rightPct}%`;
-      maskRight.style.width = `${100 - rightPct}%`;
-    }
-  }
-
-  // Warm night track - gradient matches slider's dynamic bounds
-  const warmTrack = document.getElementById('warm-night-track');
-  const warmSlider = document.getElementById('warm-night-target');
-  if (warmTrack && warmSlider) {
-    const warmMin = parseInt(warmSlider.min) || minK;
-    const warmMax = parseInt(warmSlider.max) || maxK;
-    const stops = [];
-    for (let i = 0; i <= steps; i++) {
-      const k = warmMin + ((warmMax - warmMin) * i / steps);
-      stops.push(`${cctToRGB(k)} ${(i / steps) * 100}%`);
-    }
-    warmTrack.style.background = `linear-gradient(90deg, ${stops.join(',')})`;
-  }
-
-  // Daylight CCT track - gradient matches slider's dynamic bounds
-  const daylightTrack = document.getElementById('daylight-cct-track');
-  const daylightSlider = document.getElementById('daylight-cct');
-  if (daylightTrack && daylightSlider) {
-    const daylightMin = parseInt(daylightSlider.min) || minK;
-    const daylightMax = parseInt(daylightSlider.max) || maxK;
-    const stops = [];
-    for (let i = 0; i <= steps; i++) {
-      const k = daylightMin + ((daylightMax - daylightMin) * i / steps);
-      stops.push(`${cctToRGB(Math.max(500, k))} ${(i / steps) * 100}%`);
-    }
-    daylightTrack.style.background = `linear-gradient(90deg, ${stops.join(',')})`;
-  }
-
-  // Update target chips
-  updateColorChips();
+function ctPct(k) {
+  return Math.max(0, Math.min(100, ((k - CT_SYSTEM_MIN) / CT_SPAN) * 100));
 }
 
-function updateColorChips() {
-  const warmChip = document.getElementById('warm-night-target-chip');
-  if (warmChip) {
-    const k = config.warm_night_target;
-    warmChip.textContent = `${k} K`;
-    warmChip.style.background = cctToRGB(k);
-    warmChip.style.color = readableTextColor(cctToRGB(k));
+function pctToK(pct) {
+  return Math.round((CT_SYSTEM_MIN + (pct / 100) * CT_SPAN) / 100) * 100;
+}
+
+function filterTickCollisions(ticks, minGapPct) {
+  if (ticks.length <= 1) return ticks;
+  const kept = [ticks[0]];
+  for (let i = 1; i < ticks.length; i++) {
+    if (ticks[i].pct - kept[kept.length - 1].pct >= minGapPct) {
+      kept.push(ticks[i]);
+    }
+  }
+  return kept;
+}
+
+function updateColorGradients() {
+  renderColorGradient();
+}
+
+function renderColorGradient() {
+  const container = document.getElementById('rhythm-ct-gradient-container');
+  if (!container || !config) return;
+
+  const minK = config.min_color_temp;
+  const maxK = config.max_color_temp;
+  const warmEnabled = config.warm_night_enabled;
+  const warmTarget = config.warm_night_target;
+  const dayEnabled = config.daylight_enabled !== false;
+  const dayCct = config.daylight_cct;
+
+  // "Now" = color at cursor position
+  const currentK = (typeof calculateColorAtHour === 'function' && typeof cursorHour === 'number')
+    ? calculateColorAtHour(cursorHour, true) : null;
+
+  // Build gradient stops (always 500–6500K)
+  const stops = [];
+  for (let i = 0; i <= 9; i++) {
+    stops.push(cctToRGB(CT_SYSTEM_MIN + CT_SPAN * (i / 9)));
+  }
+  const gradStyle = 'background:linear-gradient(to right,' + stops.join(',') + ');';
+
+  // Grey overlays
+  const effectiveCool = (dayEnabled && dayCct > maxK) ? dayCct : maxK;
+  const greyLeftPct = ctPct(minK);
+  const greyRightPct = 100 - ctPct(effectiveCool);
+  let greyHtml = '';
+  if (greyLeftPct > 0.5) greyHtml += '<div class="ct-grey-left" style="width:' + greyLeftPct + '%;"></div>';
+  if (greyRightPct > 0.5) greyHtml += '<div class="ct-grey-right" style="width:' + greyRightPct + '%;"></div>';
+
+  // Layer counting
+  const hasNowLayer = currentK != null;
+  const totalLayers = 1 + 1 + (hasNowLayer ? 1 : 0);
+  const refLayerIdx = 1;
+  const nowLayerIdx = totalLayers - 1;
+  const barH = 12;
+  const layerH = 15;
+  const gapH = 2;
+
+  function pipHtml(pct, cls, targetLayer) {
+    const dotH = gapH + (targetLayer * layerH) + 7;
+    return '<div class="ct-pip ' + cls + '" style="left:' + pct + '%;">'
+      + '<div class="ct-pip-line ct-pip-bar"></div>'
+      + '<div class="ct-pip-line ct-pip-dot" style="height:' + dotH + 'px;"></div>'
+      + '</div>';
   }
 
-  const daylightChip = document.getElementById('daylight-cct-chip');
-  if (daylightChip) {
-    const k = config.daylight_cct;
-    daylightChip.textContent = k > 0 ? `${k} K` : 'Off';
-    daylightChip.style.background = k > 0 ? cctToRGB(k) : '#666';
-    daylightChip.style.color = k > 0 ? readableTextColor(cctToRGB(k)) : '#fff';
+  let pipsHtml = '';
+  if (currentK != null) pipsHtml += pipHtml(ctPct(currentK), 'ct-pip-now', nowLayerIdx);
+  pipsHtml += pipHtml(ctPct(minK), 'ct-pip-ref', refLayerIdx);
+  if (warmEnabled) pipsHtml += pipHtml(ctPct(warmTarget), 'ct-pip-ref', refLayerIdx);
+  pipsHtml += pipHtml(ctPct(maxK), 'ct-pip-ref', refLayerIdx);
+  if (dayEnabled && dayCct > maxK) pipsHtml += pipHtml(ctPct(dayCct), 'ct-pip-ref', refLayerIdx);
+
+  // Draggable handles on gradient bar
+  let handlesHtml = '';
+  handlesHtml += '<div class="ct-handle" data-handle="warmest" style="left:' + ctPct(minK) + '%;"><div class="ct-handle-thumb"></div></div>';
+  if (warmEnabled) {
+    handlesHtml += '<div class="ct-handle" data-handle="night-max" style="left:' + ctPct(warmTarget) + '%;"><div class="ct-handle-thumb"></div></div>';
+  }
+  handlesHtml += '<div class="ct-handle" data-handle="coolest-base" style="left:' + ctPct(maxK) + '%;"><div class="ct-handle-thumb"></div></div>';
+  if (dayEnabled) {
+    handlesHtml += '<div class="ct-handle" data-handle="coolest-day" style="left:' + ctPct(dayCct) + '%;"><div class="ct-handle-thumb"></div></div>';
   }
 
+  // Layer 1: K tick marks
+  let ticks = [{ k: CT_SYSTEM_MIN, pct: 0, label: CT_SYSTEM_MIN + 'K', edge: 'left' }];
+  for (let k = 1000; k < CT_SYSTEM_MAX; k += 1000) {
+    ticks.push({ k, pct: ctPct(k), label: k + 'K' });
+  }
+  ticks.push({ k: CT_SYSTEM_MAX, pct: 100, label: CT_SYSTEM_MAX + 'K', edge: 'right' });
+  ticks = filterTickCollisions(ticks, 12);
+  let ticksHtml = '';
+  for (const t of ticks) {
+    const style = t.edge === 'left' ? 'left:0;transform:none;'
+      : t.edge === 'right' ? 'left:100%;transform:translateX(-100%);'
+      : 'left:' + t.pct + '%;';
+    ticksHtml += '<span class="ct-axis-label" style="' + style + '">' + t.label + '</span>';
+  }
+  const layer1 = '<div class="ct-axis ct-axis-tick">' + ticksHtml + '</div>';
+
+  function refStyle(pct) {
+    if (pct <= 2) return 'left:' + pct + '%;transform:none;';
+    if (pct >= 98) return 'left:' + pct + '%;transform:translateX(-100%);';
+    return 'left:' + pct + '%;';
+  }
+
+  // Layer 2: Reference labels (draggable)
+  let refHtml = '';
+  refHtml += '<span class="ct-axis-label ct-draggable" data-handle="warmest" style="' + refStyle(ctPct(minK)) + '" data-tip="' + minK + 'K">warmest</span>';
+  if (warmEnabled) {
+    refHtml += '<span class="ct-axis-label ct-draggable" data-handle="night-max" style="' + refStyle(ctPct(warmTarget)) + '" data-tip="' + warmTarget + 'K">night max</span>';
+  }
+  if (dayEnabled && dayCct > maxK) {
+    refHtml += '<span class="ct-axis-label ct-draggable" data-handle="coolest-base" style="' + refStyle(ctPct(maxK)) + '" data-tip="' + maxK + 'K">dark day max</span>';
+    refHtml += '<span class="ct-axis-label ct-draggable" data-handle="coolest-day" style="' + refStyle(ctPct(dayCct)) + '" data-tip="' + dayCct + 'K">coolest</span>';
+  } else {
+    refHtml += '<span class="ct-axis-label ct-draggable" data-handle="coolest-base" style="' + refStyle(ctPct(maxK)) + '" data-tip="' + maxK + 'K">coolest</span>';
+    if (dayEnabled) {
+      refHtml += '<span class="ct-axis-label ct-draggable" data-handle="coolest-day" style="' + refStyle(ctPct(dayCct)) + '" data-tip="' + dayCct + 'K">cool day</span>';
+    }
+  }
+  const layer2 = '<div class="ct-axis ct-axis-ref">' + refHtml + '</div>';
+
+  // Layer 3: Now (read-only)
+  let nowHtml = '';
+  if (currentK != null) {
+    nowHtml = '<span class="ct-axis-label" style="' + refStyle(ctPct(currentK)) + '" data-tip="' + Math.round(currentK) + 'K">now</span>';
+  }
+  const layer3 = hasNowLayer ? '<div class="ct-axis ct-axis-now">' + nowHtml + '</div>' : '';
+
+  container.innerHTML = '<div class="ct-gradient-bar" style="' + gradStyle + '">'
+    + greyHtml + pipsHtml + handlesHtml
+    + '</div>'
+    + '<div class="ct-layers">' + layer1 + layer2 + layer3 + '</div>';
+
+  // Attach drag listeners
+  attachHandleDragListeners(container);
+}
+
+function attachHandleDragListeners(container) {
+  const bar = container.querySelector('.ct-gradient-bar');
+  if (!bar) return;
+
+  const handles = container.querySelectorAll('.ct-handle');
+  const labels = container.querySelectorAll('.ct-axis-label.ct-draggable');
+
+  [...handles, ...labels].forEach(el => {
+    const handleName = el.dataset.handle;
+    if (!handleName) return;
+
+    const start = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      el.classList.add('dragging');
+      const barRect = bar.getBoundingClientRect();
+
+      const move = (ev) => {
+        const clientX = ev.touches ? ev.touches[0].clientX : ev.clientX;
+        let pct = ((clientX - barRect.left) / barRect.width) * 100;
+        pct = Math.max(0, Math.min(100, pct));
+        const k = pctToK(pct);
+        applyHandleValue(handleName, k);
+      };
+
+      const end = () => {
+        el.classList.remove('dragging');
+        document.removeEventListener('mousemove', move);
+        document.removeEventListener('mouseup', end);
+        document.removeEventListener('touchmove', move);
+        document.removeEventListener('touchend', end);
+        syncHiddenInputsFromConfig();
+        renderChart();
+      };
+
+      document.addEventListener('mousemove', move);
+      document.addEventListener('mouseup', end);
+      document.addEventListener('touchmove', move, { passive: false });
+      document.addEventListener('touchend', end);
+    };
+
+    el.addEventListener('mousedown', start);
+    el.addEventListener('touchstart', start, { passive: false });
+  });
+}
+
+function applyHandleValue(handleName, k) {
+  switch (handleName) {
+    case 'warmest':
+      k = Math.max(CT_SYSTEM_MIN, k);
+      k = Math.min(k, config.max_color_temp);
+      if (config.warm_night_enabled) k = Math.min(k, config.warm_night_target);
+      config.min_color_temp = k;
+      break;
+    case 'night-max':
+      k = Math.max(k, config.min_color_temp);
+      k = Math.min(k, config.max_color_temp);
+      config.warm_night_target = k;
+      break;
+    case 'coolest-base':
+      k = Math.max(k, config.min_color_temp);
+      if (config.warm_night_enabled) k = Math.max(k, config.warm_night_target);
+      k = Math.min(k, CT_SYSTEM_MAX);
+      config.max_color_temp = k;
+      break;
+    case 'coolest-day':
+      k = Math.max(k, config.min_color_temp);
+      k = Math.min(k, CT_SYSTEM_MAX);
+      config.daylight_cct = k;
+      break;
+  }
+  syncHiddenInputsFromConfig();
+  renderColorGradient();
+  updateRangeDisplays();
+}
+
+function syncHiddenInputsFromConfig() {
+  const el = (id) => document.getElementById(id);
+  if (el('color-min')) el('color-min').value = config.min_color_temp;
+  if (el('color-max')) el('color-max').value = config.max_color_temp;
+  if (el('warm-night-target')) el('warm-night-target').value = config.warm_night_target;
+  if (el('daylight-cct')) el('daylight-cct').value = config.daylight_cct;
 }
 
 // Apply solar color rules to CCT curve (batch version for chart rendering)
@@ -2841,8 +2956,8 @@ function renderChart() {
     dateDisplay.textContent = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   }
 
-  // Update color chips (including temp ceiling/floor)
-  updateColorChips();
+  // Update color gradient (including temp ceiling/floor)
+  renderColorGradient();
 }
 
 // ============================================================
@@ -3043,6 +3158,9 @@ function applyCursor() {
 
   // Update sleep card phase badges
   updateSleepPhaseBadges();
+
+  // Update "now" pip on color gradient
+  renderColorGradient();
 }
 
 function updateSleepPhaseBadges() {
@@ -3664,20 +3782,10 @@ function updateWakeBedSliderConstraints() {
 
 // Constrain warm_night_target slider to color range
 function updateSolarTargetSliderConstraints() {
-  const warmSlider = document.getElementById('warm-night-target');
-  if (!warmSlider) return;
-
   const minTemp = config.min_color_temp;
   const maxTemp = config.max_color_temp;
-
-  warmSlider.min = minTemp;
-  warmSlider.max = maxTemp;
-
-  let warmVal = Math.max(minTemp, Math.min(maxTemp, parseInt(warmSlider.value)));
-  warmSlider.value = warmVal;
-  config.warm_night_target = warmVal;
-
-  // Update track gradients to match new bounds
+  config.warm_night_target = Math.max(minTemp, Math.min(maxTemp, config.warm_night_target));
+  syncHiddenInputsFromConfig();
   updateColorGradients();
 }
 
@@ -3716,16 +3824,6 @@ function constrainWakeBedSliders() {
 }
 
 function updateDualFills() {
-  const colorMin = parseInt(document.getElementById('color-min').value);
-  const colorMax = parseInt(document.getElementById('color-max').value);
-  const colorFill = document.getElementById('color-fill');
-  if (colorFill) {
-    const left = ((colorMin - 500) / 6000) * 100;
-    const right = ((colorMax - 500) / 6000) * 100;
-    colorFill.style.left = `${left}%`;
-    colorFill.style.width = `${right - left}%`;
-  }
-
   const briMin = parseInt(document.getElementById('brightness-min').value);
   const briMax = parseInt(document.getElementById('brightness-max').value);
   const briMaskLeft = document.getElementById('brightness-mask-left');
@@ -3791,25 +3889,10 @@ function setupEventListeners() {
 
   // All rhythm cards start collapsed (no localStorage restore)
 
-  // Dual-range sliders update combined display
-  ['color-min', 'color-max'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.addEventListener('input', () => { syncConfigFromUI(); updateRangeDisplays(); renderChart(); });
-  });
+  // Brightness dual-range sliders
   ['brightness-min', 'brightness-max'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('input', () => { syncConfigFromUI(); updateRangeDisplays(); renderChart(); });
-  });
-  // Warm night target slider (inside popup)
-  document.getElementById('warm-night-target')?.addEventListener('input', () => {
-    config.warm_night_target = parseInt(document.getElementById('warm-night-target').value);
-    updateSolarTargetSliderConstraints();
-    renderChart();
-  });
-  document.getElementById('daylight-cct')?.addEventListener('input', () => {
-    config.daylight_cct = parseInt(document.getElementById('daylight-cct').value);
-    updateColorGradients();
-    renderChart();
   });
 
   // Cool day sliders (sensitivity, start, end, fade)
@@ -3828,6 +3911,7 @@ function setupEventListeners() {
   document.getElementById('daylight-enabled')?.addEventListener('change', () => {
     config.daylight_enabled = document.getElementById('daylight-enabled').checked;
     syncColorRuleRows();
+    renderColorGradient();
     renderChart();
   });
 
@@ -3846,31 +3930,12 @@ function setupEventListeners() {
   document.getElementById('warm-night-enabled')?.addEventListener('change', () => {
     config.warm_night_enabled = document.getElementById('warm-night-enabled').checked;
     syncColorRuleRows();
+    renderColorGradient();
     renderChart();
   });
 
-  // Color chip buttons - toggle popups
-  document.getElementById('warm-night-target-chip')?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const popup = document.getElementById('warm-night-popup');
-    const other = document.getElementById('daylight-cct-popup');
-    if (other) other.classList.remove('is-open');
-    popup?.classList.toggle('is-open');
-  });
-  document.getElementById('daylight-cct-chip')?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const popup = document.getElementById('daylight-cct-popup');
-    const other = document.getElementById('warm-night-popup');
-    if (other) other.classList.remove('is-open');
-    popup?.classList.toggle('is-open');
-  });
-
-  // Close popups when clicking outside
+  // Close info tooltips when clicking outside
   document.addEventListener('click', (e) => {
-    if (!e.target.closest('.color-controls-wrap')) {
-      document.querySelectorAll('.color-slider-popup').forEach(p => p.classList.remove('is-open'));
-    }
-    // Close info tooltips when clicking outside
     if (!e.target.closest('.info-icon') && !e.target.closest('.info-tooltip')) {
       document.querySelectorAll('.info-tooltip').forEach(t => t.classList.remove('is-open'));
     }
