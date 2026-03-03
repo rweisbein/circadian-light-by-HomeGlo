@@ -503,9 +503,8 @@ input[type=range]::-moz-range-thumb {
 /* Interactive color gradient (ported from tune.html + handle additions) */
 /* Color gradient layout: cursor above, gradient, ticks, labels+K below */
 .ct-gradient-wrap { margin-top: 8px; position: relative; }
-.ct-cursor-layer { position: relative; height: 16px; margin-bottom: 4px; }
-.ct-cursor-label { position: absolute; transform: translateX(-50%); color: var(--accent); font-weight: 600; font-size: 0.75rem; white-space: nowrap; }
-.ct-cursor-k { font-weight: 400; font-size: 0.65rem; margin-left: 3px; }
+.ct-cursor-layer { position: relative; height: 22px; margin-bottom: 4px; }
+.ct-cursor-pill { position: absolute; transform: translateX(-50%); padding: 2px 8px; border-radius: 8px; border: 1.5px solid #fdfdfd; font-size: 0.75rem; font-weight: 600; white-space: nowrap; pointer-events: none; }
 .ct-gradient-bar { height: 12px; border-radius: 6px; position: relative; overflow: visible; }
 .ct-grey-left, .ct-grey-right { position: absolute; top: 0; height: 100%; background: rgba(0,0,0,0.72); pointer-events: none; z-index: 1; }
 .ct-grey-left { left: 0; border-radius: 6px 0 0 6px; }
@@ -2310,8 +2309,15 @@ function renderColorGradient() {
   }
   let cursorLayerHtml = '';
   if (currentK != null) {
+    const cursorColor = cctToRGB(Math.round(currentK));
+    const cursorText = readableTextColor(cursorColor);
+    const cursorPct = ctPct(currentK);
+    let cursorPos = 'left:' + cursorPct + '%;';
+    if (cursorPct <= 2) cursorPos += 'transform:none;';
+    else if (cursorPct >= 98) cursorPos += 'transform:translateX(-100%);';
+    else cursorPos += 'transform:translateX(-50%);';
     cursorLayerHtml = '<div class="ct-cursor-layer">'
-      + '<span class="ct-cursor-label" style="' + refStyle(ctPct(currentK)) + '">cursor<span class="ct-cursor-k">' + Math.round(currentK) + 'K</span></span>'
+      + '<span class="ct-cursor-pill" style="' + cursorPos + 'background:' + cursorColor + ';color:' + cursorText + ';">' + Math.round(currentK) + 'K</span>'
       + '</div>';
   }
 
