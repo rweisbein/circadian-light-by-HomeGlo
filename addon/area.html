@@ -635,8 +635,14 @@
     .tune-light-dropdown-meta { font-size: 0.7rem; color: var(--muted2); margin-top: 2px; }
 
     /* Light brightness column headers — same grid as data rows for alignment */
+    .tune-light-col-super { display: grid; grid-template-columns: auto 1fr 42px 42px 42px; padding: 6px 14px 0; gap: 0 4px; }
+    .tune-light-super-label { grid-column: 3 / 5; text-align: center; font-size: 0.6rem; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.05em; }
     .tune-light-col-headers { display: grid; grid-template-columns: auto 1fr 42px 42px 42px; padding: 2px 14px 0; gap: 0 4px; font-size: 0.65rem; color: var(--muted2); border-bottom: 1px solid var(--line); }
-    .tune-light-col-headers span { text-align: right; }
+    .tune-light-col-headers span:nth-child(n+3) { text-align: right; }
+    .tune-light-sort { cursor: pointer; transition: color 0.15s; }
+    .tune-light-sort:hover { color: var(--text); }
+    .tune-light-sort.active-sort { color: var(--muted); }
+    .tune-light-sort-final { color: var(--text); font-weight: 600; }
     .tune-light-ct { font-size: 0.82rem; color: var(--muted); white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
   </style>
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
@@ -2383,6 +2389,9 @@
       return '0';
     }
 
+    let lightSortOrder = 'name';
+    let lightSortAsc = true;
+
     let tuneState = {
       initialized: false,
       baseBri: 50, baseKelvin: 4000,
@@ -2759,9 +2768,11 @@
       const afterCt = Math.round(running * 100);
       const ctImpactAbs = afterCt - beforeCt;
 
-      // Adjusted brightness (combined)
+      // Area brightness final (before CT — CT is per-light, shown in Light brightness)
+      const areaBri = Math.round(running / ctFactor * 100);
+      // Adjusted brightness including CT (used for per-light calculations)
       const adjustedBri = Math.round(running * 100);
-      const netImpact = adjustedBri - baseBriPct;
+      const netImpact = areaBri - baseBriPct;
 
       // -- Compute adjusted color temp --
       let adjustedK = ts.baseKelvin;
@@ -2860,10 +2871,10 @@
       if (elSolarImpact) elSolarImpact.textContent = formatImpact(solarImpact) + '%';
 
       const elBriHeader = document.getElementById('tune-brightness-header-val');
-      if (elBriHeader) elBriHeader.textContent = adjustedBri + '%';
+      if (elBriHeader) elBriHeader.textContent = areaBri + '%';
 
       const elFinalVal = document.getElementById('tune-det-final-val');
-      if (elFinalVal) elFinalVal.textContent = adjustedBri + '%';
+      if (elFinalVal) elFinalVal.textContent = areaBri + '%';
 
       // -- Solar source info (above slider) --
       const sourceInfo = document.getElementById('tune-source-info');
@@ -2902,6 +2913,42 @@
         }
       }
 
+      sortLightsList();
+    }
+
+    function sortLightsList() {
+      const list = document.getElementById('tune-lights-list');
+      if (!list) return;
+      const items = [...list.querySelectorAll('.tune-light-item')];
+      if (items.length === 0) return;
+
+      items.sort((a, b) => {
+        let va, vb;
+        if (lightSortOrder === 'name') {
+          va = a.querySelector('.tune-light-name')?.textContent || '';
+          vb = b.querySelector('.tune-light-name')?.textContent || '';
+          return lightSortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+        }
+        if (lightSortOrder === 'behaviour') {
+          va = a.querySelector('.tune-light-behaviour')?.textContent || '';
+          vb = b.querySelector('.tune-light-behaviour')?.textContent || '';
+          return lightSortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+        }
+        const colMap = { impact: '.tune-light-impact', ct: '.tune-light-ct', final: '.tune-light-bri' };
+        va = parseFloat(a.querySelector(colMap[lightSortOrder])?.textContent) || 0;
+        vb = parseFloat(b.querySelector(colMap[lightSortOrder])?.textContent) || 0;
+        return lightSortAsc ? va - vb : vb - va;
+      });
+
+      items.forEach(item => list.appendChild(item));
+
+      // Update active-sort class on headers
+      const card = list.closest('.tune-lights-card') || list.closest('.tune-lights-body')?.parentElement;
+      if (card) {
+        card.querySelectorAll('.tune-light-sort').forEach(h => {
+          h.classList.toggle('active-sort', h.dataset.sort === lightSortOrder);
+        });
+      }
     }
 
     // ---- renderUnifiedTune: builds the entire tune section (4 cards) ----
@@ -3011,7 +3058,14 @@
       if (sortedLights.length === 0) {
         lhtml += '<div style="padding:10px 14px;color:var(--muted2);font-size:0.82rem;">No lights found</div>';
       } else {
-        lhtml += '<div class="tune-light-col-headers"><span></span><span></span><span>behav.</span><span>CT</span><span>final</span></div>';
+        lhtml += '<div class="tune-light-col-super"><span></span><span></span><span class="tune-light-super-label">Adjustments</span></div>';
+        lhtml += '<div class="tune-light-col-headers">'
+          + '<span class="tune-light-sort" data-sort="name">name</span>'
+          + '<span class="tune-light-sort" data-sort="behaviour">behaviour</span>'
+          + '<span class="tune-light-sort" data-sort="impact">behav.</span>'
+          + '<span class="tune-light-sort" data-sort="ct">CT</span>'
+          + '<span class="tune-light-sort tune-light-sort-final" data-sort="final">final</span>'
+          + '</div>';
         for (const light of lightsArr) {
           const meta = tunePresetMeta(presets, light.filterName);
           const triggerHtml = '<button class="tune-light-select" data-light-idx="' + light.idx + '" onclick="openBehaviourDropdown(' + light.idx + ', this)">' + light.filterName + ' &#x25BE;</button>';
@@ -3168,7 +3222,23 @@
             }
           });
         });
+      }
 
+      // Light column sort headers
+      const lightsCardEl = document.getElementById('tune-lights-card');
+      if (lightsCardEl) {
+        lightsCardEl.querySelectorAll('.tune-light-sort').forEach(h => {
+          h.addEventListener('click', () => {
+            const sort = h.dataset.sort;
+            if (lightSortOrder === sort) {
+              lightSortAsc = !lightSortAsc;
+            } else {
+              lightSortOrder = sort;
+              lightSortAsc = (sort === 'name' || sort === 'behaviour');
+            }
+            sortLightsList();
+          });
+        });
       }
 
       // Initial calc
