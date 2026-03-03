@@ -1177,10 +1177,14 @@
       const solarSlider = tuneAreaEl.querySelector('.tune-solar-slider');
       const factor = overrides?.factor ?? (1 / LUMEN_STEPS[parseInt(lumenSlider.value)].intensity);
       const exposure = overrides?.exposure ?? SOLAR_STEPS[parseInt(solarSlider.value)].exposure;
-      const nowRaw = computeNowBrightness(rhythmBri, factor, exposure, outdoorNorm, sensitivity);
+      const boostBri = parseFloat(tuneAreaEl.dataset.boostBri) || 0;
+      const nowRaw = computeNowBrightness(rhythmBri, factor, exposure, outdoorNorm, sensitivity) + boostBri;
       const nowBri = Math.min(100, Math.round(nowRaw));
       const nowEl = tuneAreaEl.querySelector('.tune-bri-now');
-      if (nowEl) nowEl.textContent = nowBri + '%';
+      if (nowEl) {
+        const boostIcon = boostBri > 0 ? '\u26A1 ' : '';
+        nowEl.innerHTML = boostIcon + nowBri + '%';
+      }
       const sunMeta = formatSunMeta(exposure, sensitivity, outdoorNorm);
       const sunNowEl = tuneAreaEl.querySelector('.tune-sun-now');
       if (sunNowEl) sunNowEl.textContent = sunMeta.now;
@@ -1243,25 +1247,65 @@
 
     async function refreshTuneBrightness() {
       try {
-        const [zsResp] = await Promise.all([
+        const [zsResp, filtersResp] = await Promise.all([
           fetch('./api/zone-states'),
+          fetch('./api/light-filters'),
           refreshOutdoorInPlace(),
         ]);
+        // Update boost state from light-filters
+        let boostByArea = {};
+        if (filtersResp.ok) {
+          const filtersData = await filtersResp.json();
+          for (const zone of Object.values(filtersData.zones || {})) {
+            for (const area of (zone.areas || [])) {
+              boostByArea[area.id] = {
+                boosted: area.boosted || false,
+                boost_brightness: area.boost_brightness || 0,
+              };
+            }
+          }
+          // Also update tuneData boost fields
+          if (tuneData?.zones) {
+            for (const zone of Object.values(tuneData.zones)) {
+              for (const area of (zone.areas || [])) {
+                const b = boostByArea[area.id];
+                if (b) {
+                  area.boosted = b.boosted;
+                  area.boost_brightness = b.boost_brightness;
+                }
+              }
+            }
+          }
+        }
         if (zsResp.ok) {
           const zs = await zsResp.json();
           zoneStates = zs.zone_states || {};
           document.querySelectorAll('.tune-area').forEach(el => {
+            const areaId = el.dataset.areaId;
             const zoneName = el.closest('.zone-group')?.querySelector('[data-zone]')?.dataset.zone;
             const zoneBri = zoneStates?.[zoneName]?.brightness;
             if (zoneBri != null) {
               el.dataset.rhythmBri = Math.round(zoneBri);
-              updateTuneNowPreview(el, {});
             }
+            // Update boost data attribute
+            const b = boostByArea[areaId];
+            el.dataset.boostBri = (b?.boosted ? (b.boost_brightness || 0) : 0);
+            updateTuneNowPreview(el, {});
           });
           document.querySelectorAll('.tune-zone-base-bri').forEach(el => {
             const zoneName = el.closest('[data-zone]')?.dataset.zone;
             const zoneBri = zoneStates?.[zoneName]?.brightness;
             if (zoneBri != null) el.textContent = Math.round(zoneBri) + '%';
+          });
+          // Update boost legends
+          document.querySelectorAll('.zone-group').forEach(zoneEl => {
+            const legendEl = zoneEl.querySelector('.tune-boost-legend');
+            const anyBoosted = Array.from(zoneEl.querySelectorAll('.tune-area')).some(
+              el => parseFloat(el.dataset.boostBri) > 0
+            );
+            if (legendEl) {
+              legendEl.style.display = anyBoosted ? '' : 'none';
+            }
           });
         }
       } catch (err) {
@@ -1590,8 +1634,10 @@
           const ea = ta?.natural_light_exposure ?? 0.0;
           const eb = tb?.natural_light_exposure ?? 0.0;
           const znA = a.zone_name, znB = b.zone_name;
-          const briA = computeNowBrightness(zoneStates?.[znA]?.brightness ?? 50, fa, ea, outdoorNorm, sensitivity);
-          const briB = computeNowBrightness(zoneStates?.[znB]?.brightness ?? 50, fb, eb, outdoorNorm, sensitivity);
+          const boostA = ta?.boosted ? (ta.boost_brightness || 0) : 0;
+          const boostB = tb?.boosted ? (tb.boost_brightness || 0) : 0;
+          const briA = Math.min(100, computeNowBrightness(zoneStates?.[znA]?.brightness ?? 50, fa, ea, outdoorNorm, sensitivity) + boostA);
+          const briB = Math.min(100, computeNowBrightness(zoneStates?.[znB]?.brightness ?? 50, fb, eb, outdoorNorm, sensitivity) + boostB);
           return dir * (briA - briB);
         });
       }
@@ -1658,14 +1704,14 @@
           const exposure = tuneArea?.natural_light_exposure ?? 0.0;
           const lumenStep = findClosestStep(LUMEN_STEPS, 'intensity', 1 / factor);
           const solarStep = findClosestStep(SOLAR_STEPS, 'exposure', exposure);
-          const nowBri = Math.min(100, computeNowBrightness(rhythmBri, factor, exposure, outdoorNorm, sensitivity));
+          const isBoosted = tuneArea?.boosted || false;
+          const boostBri = isBoosted ? (tuneArea.boost_brightness || 0) : 0;
+          const nowBri = Math.min(100, computeNowBrightness(rhythmBri, factor, exposure, outdoorNorm, sensitivity) + boostBri);
           const factorStr = formatFactorMeta(factor);
           const sunMeta = formatSunMeta(exposure, sensitivity, outdoorNorm);
 
           // Annotate tuneArea with zone name for light brightness calc
           if (tuneArea) tuneArea._zoneName = zoneName;
-
-          const isBoosted = tuneArea?.boosted || false;
           const boostIcon = isBoosted ? '<span title="Boosted" style="font-size:0.75rem;">&#x26A1;</span> ' : '';
           const lights = tuneArea?.lights || [];
           const hasLights = lights.length > 0;
@@ -1674,7 +1720,7 @@
           const lightsHtml = hasLights ? buildLightsSection(area.area_id, tuneArea) : '';
 
           return `
-            <div class="tune-area" data-area-id="${area.area_id}" data-rhythm-bri="${rhythmBri}" data-sensitivity="${sensitivity}" data-outdoor-norm="${outdoorNorm}">
+            <div class="tune-area" data-area-id="${area.area_id}" data-rhythm-bri="${rhythmBri}" data-sensitivity="${sensitivity}" data-outdoor-norm="${outdoorNorm}" data-boost-bri="${isBoosted ? (tuneArea.boost_brightness || 0) : 0}">
               <div class="tune-area-row tune-area-expand-row" onclick="toggleAreaLights('${area.area_id}')">
                 <span class="tune-name-col">
                   ${hasLights ? '<span id="tune-lights-chevron-' + area.area_id + '" style="display:inline-block;font-size:0.6rem;margin-right:4px;transition:transform 0.2s;color:var(--muted2);' + expandChevronStyle + '">&#9654;</span>' : '<span style="display:inline-block;width:0.6rem;margin-right:4px;"></span>'}
@@ -1722,7 +1768,7 @@
         `;
 
         const hasAnyBoosted = areasInZone.some(a => getTuneArea(a.area_id)?.boosted);
-        const boostLegend = hasAnyBoosted ? '<div style="padding:4px 16px 6px;font-size:0.65rem;color:var(--muted2);">&#x26A1; includes boost</div>' : '';
+        const boostLegend = '<div class="tune-boost-legend" style="padding:4px 16px 6px;font-size:0.65rem;color:var(--muted2);' + (hasAnyBoosted ? '' : 'display:none;') + '">&#x26A1; includes boost</div>';
 
         html += `
           <div class="zone-group">
