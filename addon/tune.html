@@ -516,15 +516,15 @@
     .ct-pip-ref .ct-pip-bar { display: none; }
     /* Dotted connector lines extending below gradient into label layers */
     .ct-pip-dot { top: 12px; border-left: 1px dotted; }
-    .ct-pip-now .ct-pip-dot { border-color: rgba(255,255,255,0.5); }
-    .ct-pip-ref .ct-pip-dot { border-color: rgba(255,255,255,0.25); }
+    .ct-pip-now .ct-pip-dot { border-color: var(--accent); }
+    .ct-pip-ref .ct-pip-dot { border-color: var(--muted); }
     /* Three label layers */
     .ct-layers { margin-top: 2px; }
     .ct-axis { position: relative; height: 15px; }
     .ct-axis-label { position: absolute; transform: translateX(-50%); font-size: 0.65rem; white-space: nowrap; }
     .ct-axis-tick .ct-axis-label { color: var(--muted2); }
-    .ct-axis-ref .ct-axis-label { color: var(--text); font-weight: 600; font-size: 0.65rem; }
-    .ct-axis-now .ct-axis-label { color: var(--accent); font-weight: 700; font-size: 0.7rem; }
+    .ct-axis-ref .ct-axis-label { color: var(--muted); font-weight: 600; font-size: 0.65rem; }
+    .ct-axis-now .ct-axis-label { color: var(--accent); font-weight: 600; font-size: 0.7rem; }
     /* Hover callout bubble */
     .ct-axis-label[data-tip]:hover::after {
       content: attr(data-tip);
