@@ -134,8 +134,8 @@
       transition: background 0.2s;
     }
     .zone-header:hover { background: rgba(255,255,255,0.05); }
-    .zone-content { overflow: hidden; }
-    .zone-content.hidden { display: none; }
+    .zone-content { overflow: hidden; transition: max-height 0.3s ease, opacity 0.3s ease; opacity: 1; }
+    .zone-content.hidden { max-height: 0 !important; opacity: 0; overflow: hidden; }
     .zone-chevron { display: inline-block; font-size: 1.1rem; line-height: 1; transition: transform 0.25s; color: var(--muted2); flex-shrink: 0; }
     .zone-header:not(.collapsed) .zone-chevron { transform: rotate(90deg); }
     .zone-name-group { display: flex; flex-direction: column; min-width: 0; }
@@ -1114,16 +1114,34 @@
       const header = zoneGroup
         ? zoneGroup.querySelector(`[data-zone="${zoneName}"]`)
         : document.querySelector(`[data-zone="${zoneName}"]`);
-      const table = zoneGroup
+      const content = zoneGroup
         ? zoneGroup.querySelector(`[data-zone-table="${zoneName}"]`)
         : document.querySelector(`[data-zone-table="${zoneName}"]`);
 
-      if (!header) return;
-      const isCollapsed = header.classList.toggle('collapsed');
-      if (table) table.classList.toggle('hidden', isCollapsed);
+      if (!header || !content) return;
+      const willCollapse = !header.classList.contains('collapsed');
+
+      if (willCollapse) {
+        // Collapse: set explicit height first, then transition to 0
+        content.style.maxHeight = content.scrollHeight + 'px';
+        content.offsetHeight; // force reflow
+        header.classList.add('collapsed');
+        content.classList.add('hidden');
+        content.style.maxHeight = '';
+      } else {
+        // Expand: measure height, animate from 0
+        content.classList.remove('hidden');
+        content.style.maxHeight = content.scrollHeight + 'px';
+        header.classList.remove('collapsed');
+        const onEnd = () => {
+          content.style.maxHeight = '';
+          content.removeEventListener('transitionend', onEnd);
+        };
+        content.addEventListener('transitionend', onEnd);
+      }
 
       const state = getCollapsedZones();
-      state[zoneName] = isCollapsed;
+      state[zoneName] = willCollapse;
       localStorage.setItem('tune_collapsed_zones', JSON.stringify(state));
     }
 

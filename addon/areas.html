@@ -648,6 +648,8 @@
       border-radius: 50%;
       box-shadow: 0 0 0 1.5px rgba(255,255,255,0.25);
       flex-shrink: 0;
+      box-sizing: border-box;
+      padding-left: 2px;
     }
 
     .zone-header:not(.collapsed) .zone-chevron {
@@ -676,6 +678,8 @@
       margin-left: 32px;
       margin-top: -1px;
       overflow: hidden;
+      transition: max-height 0.3s ease, opacity 0.3s ease, border-width 0.3s ease, margin-top 0.3s ease;
+      opacity: 1;
     }
 
     .zone-content.no-header {
@@ -685,7 +689,11 @@
     }
 
     .zone-content.hidden {
-      display: none;
+      max-height: 0 !important;
+      opacity: 0;
+      overflow: hidden;
+      border-width: 0;
+      margin-top: 0;
     }
 
     /* Schedule override popover (Temporary override) */
@@ -1566,18 +1574,33 @@
       const header = zoneGroup
         ? zoneGroup.querySelector(`[data-zone="${zoneName}"]`)
         : document.querySelector(`[data-zone="${zoneName}"]`);
-      const table = zoneGroup
+      const content = zoneGroup
         ? zoneGroup.querySelector(`[data-zone-table="${zoneName}"]`)
         : document.querySelector(`[data-zone-table="${zoneName}"]`);
 
-      const isCurrentlyCollapsed = header ? header.classList.contains('collapsed') : false;
-      const isCollapsed = !isCurrentlyCollapsed;
+      if (!header || !content) return;
+      const willCollapse = !header.classList.contains('collapsed');
 
-      if (header && table) {
-        header.classList.toggle('collapsed', isCollapsed);
-        table.classList.toggle('hidden', isCollapsed);
-        setZoneCollapsed(zoneName, isCollapsed);
+      if (willCollapse) {
+        // Collapse: set explicit height first, then transition to 0
+        content.style.maxHeight = content.scrollHeight + 'px';
+        content.offsetHeight; // force reflow
+        header.classList.add('collapsed');
+        content.classList.add('hidden');
+        content.style.maxHeight = '';
+      } else {
+        // Expand: measure height, animate from 0
+        content.classList.remove('hidden');
+        content.style.maxHeight = content.scrollHeight + 'px';
+        header.classList.remove('collapsed');
+        const onEnd = () => {
+          content.style.maxHeight = '';
+          content.removeEventListener('transitionend', onEnd);
+        };
+        content.addEventListener('transitionend', onEnd);
       }
+
+      setZoneCollapsed(zoneName, willCollapse);
     }
 
     async function zoneAction(zoneName, action, value, mode) {
