@@ -2132,8 +2132,8 @@ function renderColorGradient() {
   const dayEnabled = config.daylight_enabled !== false;
   const dayCct = config.daylight_cct;
 
-  // "Cursor" = color at cursor position (skip during drag to avoid confusing movement)
-  const currentK = (!window._ctDragging && typeof calculateColorAtHour === 'function' && typeof cursorHour === 'number')
+  // Cursor = color at cursor position (updates live during drag)
+  const currentK = (typeof calculateColorAtHour === 'function' && typeof cursorHour === 'number')
     ? calculateColorAtHour(cursorHour, true) : null;
 
   // Build gradient stops (always 500–6500K)
@@ -2200,8 +2200,9 @@ function renderColorGradient() {
     if (cursorPct <= 2) cursorPos += 'transform:none;';
     else if (cursorPct >= 98) cursorPos += 'transform:translateX(-100%);';
     else cursorPos += 'transform:translateX(-50%);';
+    const cursorTimeStr = typeof cursorHour === 'number' ? fmtTime(cursorHour) + ' \u00b7 ' : '';
     cursorLayerHtml = '<div class="ct-cursor-layer">'
-      + '<span class="ct-cursor-pill" style="' + cursorPos + 'background:' + cursorColor + ';color:' + cursorText + ';">' + Math.round(currentK) + 'K</span>'
+      + '<span class="ct-cursor-pill" style="' + cursorPos + 'background:' + cursorColor + ';color:' + cursorText + ';">' + cursorTimeStr + Math.round(currentK) + 'K</span>'
       + '</div>';
   }
 
@@ -2275,7 +2276,6 @@ function attachHandleDragListeners(container) {
       e.preventDefault();
       e.stopPropagation();
       el.classList.add('dragging');
-      window._ctDragging = true;
       const barRect = bar.getBoundingClientRect();
 
       const move = (ev) => {
@@ -2288,7 +2288,6 @@ function attachHandleDragListeners(container) {
 
       const end = () => {
         el.classList.remove('dragging');
-        window._ctDragging = false;
         document.removeEventListener('mousemove', move);
         document.removeEventListener('mouseup', end);
         document.removeEventListener('touchmove', move);
@@ -2365,8 +2364,8 @@ function renderBrightnessGradient() {
   const minB = config.min_brightness;
   const maxB = config.max_brightness;
 
-  // Cursor brightness (skip during drag)
-  const cursorBri = (!window._briDragging && typeof calculateBrightnessAtHour === 'function' && typeof cursorHour === 'number')
+  // Cursor brightness (updates live during drag)
+  const cursorBri = (typeof calculateBrightnessAtHour === 'function' && typeof cursorHour === 'number')
     ? Math.round(calculateBrightnessAtHour(cursorHour) * 100) : null;
 
   // Fixed gradient: dark to white
@@ -2415,8 +2414,9 @@ function renderBrightnessGradient() {
     if (pct <= 2) pos += 'transform:none;';
     else if (pct >= 98) pos += 'transform:translateX(-100%);';
     else pos += 'transform:translateX(-50%);';
+    const briTimeStr = typeof cursorHour === 'number' ? fmtTime(cursorHour) + ' \u00b7 ' : '';
     cursorLayerHtml = '<div class="ct-cursor-layer">'
-      + '<span class="ct-cursor-pill" style="' + pos + 'background:' + bg + ';color:' + fg + ';">' + cursorBri + '%</span>'
+      + '<span class="ct-cursor-pill" style="' + pos + 'background:' + bg + ';color:' + fg + ';">' + briTimeStr + cursorBri + '%</span>'
       + '</div>';
   }
 
@@ -2474,7 +2474,6 @@ function attachBriHandleDragListeners(container) {
       e.preventDefault();
       e.stopPropagation();
       el.classList.add('dragging');
-      window._briDragging = true;
       const barRect = bar.getBoundingClientRect();
 
       const move = (ev) => {
@@ -2486,7 +2485,6 @@ function attachBriHandleDragListeners(container) {
 
       const end = () => {
         el.classList.remove('dragging');
-        window._briDragging = false;
         document.removeEventListener('mousemove', move);
         document.removeEventListener('mouseup', end);
         document.removeEventListener('touchmove', move);
