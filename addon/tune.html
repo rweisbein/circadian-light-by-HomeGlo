@@ -329,7 +329,6 @@
       min-width: 55px; text-align: right; flex-shrink: 0; white-space: nowrap;
     }
     .tune-bri-now { color: var(--text); font-weight: 600; font-size: 0.85rem; }
-    .tune-bri-peak { color: var(--muted2); font-size: 0.75rem; }
 
     .tune-slider-word { font-size: 0.8rem; color: var(--text); white-space: nowrap; }
     .tune-slider-val { font-size: 0.75rem; color: var(--text); white-space: nowrap; }
@@ -689,8 +688,7 @@
 
     function formatSunMeta(exposure, sensitivity, outdoorNorm) {
       const currentPct = Math.min(100, Math.round(exposure * outdoorNorm * sensitivity * 100));
-      const peakPct = Math.min(100, Math.round(exposure * sensitivity * 100));
-      return { now: '\u2193' + currentPct + '%', peak: 'pk\u2193' + peakPct + '%' };
+      return { now: '\u2193' + currentPct + '%' };
     }
 
     function computeNowBrightness(rhythmBri, factor, exposure, outdoorNorm, sensitivity) {
@@ -1046,8 +1044,6 @@
         const newSensitivity = SENSITIVITY_STEPS[step].multiplier;
         const nowEl = document.getElementById('tune-global-sun-now');
         if (nowEl) nowEl.textContent = '\u2193' + Math.min(100, Math.round(outdoorNorm * newSensitivity * 100)) + '%';
-        const peakEl = document.getElementById('tune-global-sun-peak');
-        if (peakEl) peakEl.textContent = 'pk\u2193' + Math.min(100, Math.round(newSensitivity * 100)) + '%';
         document.querySelectorAll('.tune-area').forEach(el => {
           el.dataset.sensitivity = newSensitivity;
         });
@@ -1183,17 +1179,11 @@
       const exposure = overrides?.exposure ?? SOLAR_STEPS[parseInt(solarSlider.value)].exposure;
       const nowRaw = computeNowBrightness(rhythmBri, factor, exposure, outdoorNorm, sensitivity);
       const nowBri = Math.min(100, Math.round(nowRaw));
-      const peakRaw = computeNowBrightness(rhythmBri, factor, exposure, 1.0, sensitivity);
-      const peakBri = Math.min(100, Math.round(peakRaw));
       const nowEl = tuneAreaEl.querySelector('.tune-bri-now');
       if (nowEl) nowEl.textContent = nowBri + '%';
-      const peakEl = tuneAreaEl.querySelector('.tune-bri-peak');
-      if (peakEl) peakEl.textContent = 'pk ' + peakBri + '%';
       const sunMeta = formatSunMeta(exposure, sensitivity, outdoorNorm);
       const sunNowEl = tuneAreaEl.querySelector('.tune-sun-now');
       if (sunNowEl) sunNowEl.textContent = sunMeta.now;
-      const sunPeakEl = tuneAreaEl.querySelector('.tune-sun-peak');
-      if (sunPeakEl) sunPeakEl.textContent = sunMeta.peak;
     }
 
     function updateAllZoneSunMeta() {
@@ -1201,8 +1191,6 @@
       const outdoorNorm = tuneData?.outdoor_normalized ?? 0.0;
       const nowEl = document.getElementById('tune-global-sun-now');
       if (nowEl) nowEl.textContent = '\u2193' + Math.min(100, Math.round(outdoorNorm * sensitivity * 100)) + '%';
-      const peakEl = document.getElementById('tune-global-sun-peak');
-      if (peakEl) peakEl.textContent = 'pk\u2193' + Math.min(100, Math.round(sensitivity * 100)) + '%';
     }
 
     // ============================================================
@@ -1633,7 +1621,6 @@
       // Sensitivity collapsible card
       const tuneSensStep = findClosestSensitivityStep(sensitivity);
       const tuneSensReduction = Math.min(100, Math.round(outdoorNorm * sensitivity * 100));
-      const tuneSensPeak = Math.min(100, Math.round(sensitivity * 100));
       const sensSummary = SENSITIVITY_STEPS[tuneSensStep].label + ' \u2193' + tuneSensReduction + '%';
       const sensIsOpen = localStorage.getItem('tune_sensitivity_open') === '1';
       html += `
@@ -1649,7 +1636,6 @@
               <span class="tune-zone-ctrl-word tune-sensitivity-word" id="tune-global-sensitivity-word">${SENSITIVITY_STEPS[tuneSensStep].label}</span>
               <span class="tune-zone-ctrl-val" id="tune-global-sensitivity-val">${fmtVal(sensitivity)}</span>
               <span class="tune-zone-sun-meta tune-zone-sun-now" id="tune-global-sun-now">\u2193${tuneSensReduction}%</span>
-              <span class="tune-zone-sun-meta tune-zone-sun-peak" id="tune-global-sun-peak">pk\u2193${tuneSensPeak}%</span>
               <span style="flex:1;"></span>
               ${buildOutdoorSection()}
             </div>
@@ -1673,7 +1659,6 @@
           const lumenStep = findClosestStep(LUMEN_STEPS, 'intensity', 1 / factor);
           const solarStep = findClosestStep(SOLAR_STEPS, 'exposure', exposure);
           const nowBri = Math.min(100, computeNowBrightness(rhythmBri, factor, exposure, outdoorNorm, sensitivity));
-          const peakBri = Math.min(100, computeNowBrightness(rhythmBri, factor, exposure, 1.0, sensitivity));
           const factorStr = formatFactorMeta(factor);
           const sunMeta = formatSunMeta(exposure, sensitivity, outdoorNorm);
 
@@ -1713,9 +1698,8 @@
                 <div class="tune-sun-col">
                   <span class="tune-slider-word tune-solar-word">${SOLAR_STEPS[solarStep].label}</span>
                   <span class="tune-slider-val tune-solar-val">${fmtVal(exposure)}</span>
-                  <span class="tune-slider-meta tune-sun-peak">${sunMeta.peak}</span>
                 </div>
-                <span class="tune-bri-col tune-bri-peak">pk ${peakBri}%</span>
+                <span class="tune-bri-col"></span>
               </div>
               ${hasLights ? '<div class="tune-area-lights" id="tune-lights-' + area.area_id + '" style="display:' + (isExpanded ? 'block' : 'none') + ';">' + lightsHtml + '</div>' : ''}
             </div>
@@ -1936,8 +1920,6 @@
           const outdoorNorm = tuneData?.outdoor_normalized ?? 0.0;
           const nowEl = document.getElementById('tune-global-sun-now');
           if (nowEl) nowEl.textContent = '\u2193' + Math.min(100, Math.round(outdoorNorm * newSensitivity * 100)) + '%';
-          const peakEl = document.getElementById('tune-global-sun-peak');
-          if (peakEl) peakEl.textContent = 'pk\u2193' + Math.min(100, Math.round(newSensitivity * 100)) + '%';
           if (tuneData) tuneData.brightness_sensitivity = newSensitivity;
           document.querySelectorAll('.tune-area').forEach(el => {
             el.dataset.sensitivity = newSensitivity;
