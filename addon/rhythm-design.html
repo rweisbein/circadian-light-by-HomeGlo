@@ -501,39 +501,43 @@ input[type=range]::-moz-range-thumb {
 .dual-chip.right { text-align: left; }
 
 /* Interactive color gradient (ported from tune.html + handle additions) */
-.ct-gradient-wrap { margin-top: 4px; position: relative; }
+/* Color gradient layout: cursor above, gradient, ticks, labels+K below */
+.ct-gradient-wrap { margin-top: 8px; position: relative; }
+.ct-cursor-layer { position: relative; height: 16px; margin-bottom: 4px; }
+.ct-cursor-label { position: absolute; transform: translateX(-50%); color: var(--accent); font-weight: 600; font-size: 0.75rem; white-space: nowrap; }
+.ct-cursor-k { font-weight: 400; font-size: 0.65rem; margin-left: 3px; }
 .ct-gradient-bar { height: 12px; border-radius: 6px; position: relative; overflow: visible; }
 .ct-grey-left, .ct-grey-right { position: absolute; top: 0; height: 100%; background: rgba(0,0,0,0.72); pointer-events: none; z-index: 1; }
 .ct-grey-left { left: 0; border-radius: 6px 0 0 6px; }
 .ct-grey-right { right: 0; border-radius: 0 6px 6px 0; }
+/* Pip lines on gradient */
 .ct-pip { position: absolute; top: 0; width: 0; pointer-events: none; z-index: 2; }
 .ct-pip-line { position: absolute; left: 50%; width: 2px; transform: translateX(-50%); }
 .ct-pip-bar { top: 0; height: 12px; border-radius: 1px; }
 .ct-pip-now .ct-pip-bar { width: 3px; background: #fff; box-shadow: 0 0 3px rgba(0,0,0,0.8), 0 0 6px rgba(0,0,0,0.4); }
 .ct-pip-ref .ct-pip-bar { display: none; }
+/* Dotted connectors below gradient */
 .ct-pip-dot { top: 12px; border-left: 1px dotted; }
-.ct-pip-now .ct-pip-dot { border-color: var(--accent); }
+.ct-pip-now .ct-pip-dot { display: none; }
 .ct-pip-ref .ct-pip-dot { border-color: var(--muted); }
+/* Layers below gradient */
 .ct-layers { margin-top: 2px; }
 .ct-axis { position: relative; height: 15px; }
 .ct-axis-label { position: absolute; transform: translateX(-50%); font-size: 0.65rem; white-space: nowrap; }
 .ct-axis-tick .ct-axis-label { color: var(--muted2); }
-.ct-axis-ref .ct-axis-label { color: var(--muted); font-weight: 600; font-size: 0.65rem; }
-.ct-axis-now .ct-axis-label { color: var(--accent); font-weight: 600; font-size: 0.7rem; }
-.ct-axis-label[data-tip]:hover::after {
-  content: attr(data-tip);
-  position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
-  background: var(--panel); color: var(--text); border: 1px solid var(--line);
-  border-radius: 4px; padding: 2px 6px; font-size: 0.7rem; font-weight: 600;
-  white-space: nowrap; pointer-events: none; z-index: 10;
-}
+/* Ref labels: prominent, interactive look */
+.ct-axis-ref .ct-axis-label { color: var(--text); font-weight: 600; font-size: 0.75rem; }
+.ct-axis-ref .ct-axis-label.ct-draggable { cursor: grab; user-select: none; transition: color 0.15s; }
+.ct-axis-ref .ct-axis-label.ct-draggable:hover { color: var(--accent); }
+.ct-axis-ref .ct-axis-label.ct-draggable:active { cursor: grabbing; color: var(--accent); }
+/* K values row below labels */
+.ct-axis-kval { position: relative; height: 14px; }
+.ct-axis-kval .ct-axis-label { color: var(--muted); font-weight: 400; font-size: 0.65rem; }
 /* Draggable handles on gradient bar */
 .ct-handle { position: absolute; top: -16px; width: 44px; height: 44px; transform: translateX(-50%); cursor: grab; z-index: 5; touch-action: none; }
 .ct-handle:active, .ct-handle.dragging { cursor: grabbing; }
 .ct-handle-thumb { position: absolute; left: 50%; top: 50%; width: 14px; height: 20px; border-radius: 5px; background: rgba(255,255,255,0.9); border: 1px solid rgba(0,0,0,0.3); transform: translate(-50%, -50%); box-shadow: 0 1px 4px rgba(0,0,0,0.5); pointer-events: none; transition: background 0.15s; }
 .ct-handle:hover .ct-handle-thumb, .ct-handle.dragging .ct-handle-thumb { background: #fff; box-shadow: 0 0 8px rgba(255,255,255,0.6); }
-.ct-axis-ref .ct-axis-label.ct-draggable { cursor: grab; user-select: none; }
-.ct-axis-ref .ct-axis-label.ct-draggable:active { cursor: grabbing; }
 
 /* Lock checkbox for range controls */
 .lock-checkbox-wrap {
@@ -2264,11 +2268,9 @@ function renderColorGradient() {
   if (greyLeftPct > 0.5) greyHtml += '<div class="ct-grey-left" style="width:' + greyLeftPct + '%;"></div>';
   if (greyRightPct > 0.5) greyHtml += '<div class="ct-grey-right" style="width:' + greyRightPct + '%;"></div>';
 
-  // Layer counting
-  const hasNowLayer = currentK != null;
-  const totalLayers = 1 + 1 + (hasNowLayer ? 1 : 0);
+  // Layer structure: ticks, ref labels, K values (below gradient)
+  // Cursor is ABOVE gradient
   const refLayerIdx = 1;
-  const nowLayerIdx = totalLayers - 1;
   const barH = 12;
   const layerH = 15;
   const gapH = 2;
@@ -2281,8 +2283,9 @@ function renderColorGradient() {
       + '</div>';
   }
 
+  // Ref pip lines (dotted connectors to labels below)
   let pipsHtml = '';
-  if (currentK != null) pipsHtml += pipHtml(ctPct(currentK), 'ct-pip-now', nowLayerIdx);
+  if (currentK != null) pipsHtml += pipHtml(ctPct(currentK), 'ct-pip-now', 0);
   pipsHtml += pipHtml(ctPct(minK), 'ct-pip-ref', refLayerIdx);
   if (warmEnabled) pipsHtml += pipHtml(ctPct(warmTarget), 'ct-pip-ref', refLayerIdx);
   pipsHtml += pipHtml(ctPct(maxK), 'ct-pip-ref', refLayerIdx);
@@ -2299,6 +2302,20 @@ function renderColorGradient() {
     handlesHtml += '<div class="ct-handle" data-handle="coolest-day" style="left:' + ctPct(dayCct) + '%;"><div class="ct-handle-thumb"></div></div>';
   }
 
+  // --- Cursor layer (ABOVE gradient) ---
+  function refStyle(pct) {
+    if (pct <= 2) return 'left:' + pct + '%;transform:none;';
+    if (pct >= 98) return 'left:' + pct + '%;transform:translateX(-100%);';
+    return 'left:' + pct + '%;';
+  }
+  let cursorLayerHtml = '';
+  if (currentK != null) {
+    cursorLayerHtml = '<div class="ct-cursor-layer">'
+      + '<span class="ct-cursor-label" style="' + refStyle(ctPct(currentK)) + '">cursor<span class="ct-cursor-k">' + Math.round(currentK) + 'K</span></span>'
+      + '</div>';
+  }
+
+  // --- Layers below gradient ---
   // Layer 1: K tick marks
   let ticks = [{ k: CT_SYSTEM_MIN, pct: 0, label: CT_SYSTEM_MIN + 'K', edge: 'left' }];
   for (let k = 1000; k < CT_SYSTEM_MAX; k += 1000) {
@@ -2315,37 +2332,36 @@ function renderColorGradient() {
   }
   const layer1 = '<div class="ct-axis ct-axis-tick">' + ticksHtml + '</div>';
 
-  function refStyle(pct) {
-    if (pct <= 2) return 'left:' + pct + '%;transform:none;';
-    if (pct >= 98) return 'left:' + pct + '%;transform:translateX(-100%);';
-    return 'left:' + pct + '%;';
-  }
-
   // Layer 2: Reference labels (draggable)
-  // "coolest" is always the rightmost active boundary
   let refHtml = '';
-  refHtml += '<span class="ct-axis-label ct-draggable" data-handle="warmest" style="' + refStyle(ctPct(minK)) + '" data-tip="' + minK + 'K">warmest</span>';
+  refHtml += '<span class="ct-axis-label ct-draggable" data-handle="warmest" style="' + refStyle(ctPct(minK)) + '">warmest</span>';
   if (warmEnabled) {
-    refHtml += '<span class="ct-axis-label ct-draggable" data-handle="night-max" style="' + refStyle(ctPct(warmTarget)) + '" data-tip="' + warmTarget + 'K">night max</span>';
+    refHtml += '<span class="ct-axis-label ct-draggable" data-handle="night-max" style="' + refStyle(ctPct(warmTarget)) + '">night max</span>';
   }
   if (dayEnabled) {
-    // Cool Day on: max_color_temp is "no-sun max", daylight_cct is "coolest"
-    refHtml += '<span class="ct-axis-label ct-draggable" data-handle="coolest-base" style="' + refStyle(ctPct(maxK)) + '" data-tip="' + maxK + 'K">no-sun max</span>';
-    refHtml += '<span class="ct-axis-label ct-draggable" data-handle="coolest-day" style="' + refStyle(ctPct(dayCct)) + '" data-tip="' + dayCct + 'K">coolest</span>';
+    refHtml += '<span class="ct-axis-label ct-draggable" data-handle="coolest-base" style="' + refStyle(ctPct(maxK)) + '">no-sun max</span>';
+    refHtml += '<span class="ct-axis-label ct-draggable" data-handle="coolest-day" style="' + refStyle(ctPct(dayCct)) + '">coolest</span>';
   } else {
-    // Cool Day off: max_color_temp is "coolest"
-    refHtml += '<span class="ct-axis-label ct-draggable" data-handle="coolest-base" style="' + refStyle(ctPct(maxK)) + '" data-tip="' + maxK + 'K">coolest</span>';
+    refHtml += '<span class="ct-axis-label ct-draggable" data-handle="coolest-base" style="' + refStyle(ctPct(maxK)) + '">coolest</span>';
   }
   const layer2 = '<div class="ct-axis ct-axis-ref">' + refHtml + '</div>';
 
-  // Layer 3: Cursor (read-only)
-  let nowHtml = '';
-  if (currentK != null) {
-    nowHtml = '<span class="ct-axis-label" style="' + refStyle(ctPct(currentK)) + '" data-tip="' + Math.round(currentK) + 'K">cursor</span>';
+  // Layer 3: K values below labels
+  let kvalHtml = '';
+  kvalHtml += '<span class="ct-axis-label" style="' + refStyle(ctPct(minK)) + '">' + minK + 'K</span>';
+  if (warmEnabled) {
+    kvalHtml += '<span class="ct-axis-label" style="' + refStyle(ctPct(warmTarget)) + '">' + warmTarget + 'K</span>';
   }
-  const layer3 = hasNowLayer ? '<div class="ct-axis ct-axis-now">' + nowHtml + '</div>' : '';
+  if (dayEnabled) {
+    kvalHtml += '<span class="ct-axis-label" style="' + refStyle(ctPct(maxK)) + '">' + maxK + 'K</span>';
+    kvalHtml += '<span class="ct-axis-label" style="' + refStyle(ctPct(dayCct)) + '">' + dayCct + 'K</span>';
+  } else {
+    kvalHtml += '<span class="ct-axis-label" style="' + refStyle(ctPct(maxK)) + '">' + maxK + 'K</span>';
+  }
+  const layer3 = '<div class="ct-axis ct-axis-kval">' + kvalHtml + '</div>';
 
-  container.innerHTML = '<div class="ct-gradient-bar" style="' + gradStyle + '">'
+  container.innerHTML = cursorLayerHtml
+    + '<div class="ct-gradient-bar" style="' + gradStyle + '">'
     + greyHtml + pipsHtml + handlesHtml
     + '</div>'
     + '<div class="ct-layers">' + layer1 + layer2 + layer3 + '</div>';
