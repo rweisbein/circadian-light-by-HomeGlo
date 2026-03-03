@@ -528,10 +528,10 @@ input[type=range]::-moz-range-thumb {
   white-space: nowrap; pointer-events: none; z-index: 10;
 }
 /* Draggable handles on gradient bar */
-.ct-handle { position: absolute; top: -2px; width: 30px; height: 16px; transform: translateX(-50%); cursor: grab; z-index: 5; touch-action: none; }
+.ct-handle { position: absolute; top: -16px; width: 44px; height: 44px; transform: translateX(-50%); cursor: grab; z-index: 5; touch-action: none; }
 .ct-handle:active, .ct-handle.dragging { cursor: grabbing; }
-.ct-handle-thumb { position: absolute; left: 50%; top: 2px; width: 8px; height: 12px; border-radius: 4px; background: rgba(255,255,255,0.85); border: 1px solid rgba(0,0,0,0.3); transform: translateX(-50%); box-shadow: 0 1px 3px rgba(0,0,0,0.4); pointer-events: none; transition: background 0.15s; }
-.ct-handle:hover .ct-handle-thumb, .ct-handle.dragging .ct-handle-thumb { background: #fff; box-shadow: 0 0 6px rgba(255,255,255,0.5); }
+.ct-handle-thumb { position: absolute; left: 50%; top: 50%; width: 14px; height: 20px; border-radius: 5px; background: rgba(255,255,255,0.9); border: 1px solid rgba(0,0,0,0.3); transform: translate(-50%, -50%); box-shadow: 0 1px 4px rgba(0,0,0,0.5); pointer-events: none; transition: background 0.15s; }
+.ct-handle:hover .ct-handle-thumb, .ct-handle.dragging .ct-handle-thumb { background: #fff; box-shadow: 0 0 8px rgba(255,255,255,0.6); }
 .ct-axis-ref .ct-axis-label.ct-draggable { cursor: grab; user-select: none; }
 .ct-axis-ref .ct-axis-label.ct-draggable:active { cursor: grabbing; }
 
