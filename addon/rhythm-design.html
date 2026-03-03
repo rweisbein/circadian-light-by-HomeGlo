@@ -284,9 +284,12 @@ input[type=range]::-moz-range-thumb {
 .chart-date-display {
   font-size: 0.8rem;
   color: var(--text);
+  transition: color 0.15s;
   min-width: 50px;
   font-weight: 600;
 }
+.chart-date-display.is-offset { color: var(--accent); cursor: pointer; }
+.chart-date-display.is-offset:hover { text-decoration: underline; }
 .chart-date-control input[type=range] {
   flex: 1;
 }
@@ -3037,11 +3040,21 @@ function renderChart() {
     applyCursor();
   });
 
-  // Update date display
+  // Update date display — "Today" when on today, tappable date when offset
   const dateDisplay = document.getElementById('chart-date-display');
   if (dateDisplay) {
-    const d = new Date(dateStr + 'T12:00:00');
-    dateDisplay.textContent = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const slider = document.getElementById('chart-date-slider');
+    const now = new Date();
+    const todayOffset = Math.floor((now - new Date(now.getFullYear(), 0, 1)) / 86400000);
+    const isToday = slider && parseInt(slider.value) === todayOffset;
+    if (isToday) {
+      dateDisplay.textContent = 'Today';
+      dateDisplay.classList.remove('is-offset');
+    } else {
+      const d = new Date(dateStr + 'T12:00:00');
+      dateDisplay.textContent = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      dateDisplay.classList.add('is-offset');
+    }
   }
 
   // Update color gradient (including temp ceiling/floor)
@@ -4056,6 +4069,19 @@ function setupEventListeners() {
   document.getElementById('chart-date-slider').addEventListener('input', () => {
     renderChart();
   });
+
+  // Click date label to reset to today
+  const dateDisplay = document.getElementById('chart-date-display');
+  if (dateDisplay) {
+    dateDisplay.addEventListener('click', () => {
+      const slider = document.getElementById('chart-date-slider');
+      if (!slider) return;
+      const now = new Date();
+      const todayOffset = Math.floor((now - new Date(now.getFullYear(), 0, 1)) / 86400000);
+      slider.value = todayOffset;
+      renderChart();
+    });
+  }
 
   document.getElementById('modeled-conditions').addEventListener('change', () => {
     renderChart();
