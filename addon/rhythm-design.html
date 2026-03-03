@@ -41,6 +41,18 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
 .rhythm-card-body { max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.35s ease, opacity 0.25s ease; padding: 0 14px; }
 .rhythm-card.is-open .rhythm-card-body { max-height: 1200px; opacity: 1; padding-bottom: 14px; }
 
+/* Sub-section collapse (within cards) */
+.sub-section { border-top: 1px solid var(--line); }
+.sub-section:first-child { border-top: none; }
+.sub-section-header { display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 8px 0; user-select: none; }
+.sub-section-chevron { display: inline-block; font-size: 1rem; line-height: 1; transition: transform 0.25s; color: var(--muted2); flex-shrink: 0; }
+.sub-section.is-open .sub-section-chevron { transform: rotate(90deg); }
+.sub-section-title { font-size: 0.9rem; font-weight: 600; color: var(--text); }
+.sub-section-val { margin-left: auto; font-size: 0.82rem; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.sub-section-val b { font-weight: 600; color: var(--text); }
+.sub-section-body { max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.3s ease, opacity 0.2s ease; }
+.sub-section.is-open .sub-section-body { max-height: 800px; opacity: 1; }
+
 /* Sleep card header summary (two-line stack) */
 .rhythm-sleep-summary { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
 .rhythm-sleep-summary-row { display: flex; align-items: baseline; gap: 6px; font-variant-numeric: tabular-nums; }
@@ -556,12 +568,16 @@ input[type=range]::-moz-range-thumb {
   accent-color: white;
 }
 .color-rule-stack-body {
-  display: block;
   padding-left: 22px;
+  max-height: 400px;
+  opacity: 1;
+  overflow: hidden;
+  transition: max-height 0.3s ease, opacity 0.2s ease;
 }
-.color-rule-stack-body.is-disabled {
-  opacity: 0.4;
-  pointer-events: none;
+.color-rule-stack-body.is-hidden {
+  max-height: 0;
+  opacity: 0;
+  padding: 0 0 0 22px;
 }
 
 
@@ -1255,112 +1271,126 @@ input[type=range]::-moz-range-thumb {
         </select>
       </div>
 
-      <div class="tune-group-label">Wake</div>
-      <!-- Hidden day bubbles (data source) -->
-      <div class="day-bubbles" id="wake-days">
-        <button class="day-bubble" data-day="0">Mo</button>
-        <button class="day-bubble" data-day="1">Tu</button>
-        <button class="day-bubble" data-day="2">We</button>
-        <button class="day-bubble" data-day="3">Th</button>
-        <button class="day-bubble" data-day="4">Fr</button>
-        <button class="day-bubble" data-day="5">Sa</button>
-        <button class="day-bubble" data-day="6">Su</button>
-      </div>
-      <div class="sleep-time-group no-alt" id="wake-time-blocks">
-        <div class="primary-block">
+      <div class="sub-section" id="wake-sub-section">
+        <div class="sub-section-header" onclick="toggleSubSection('wake-sub-section')">
+          <span class="sub-section-chevron">&#x203A;</span>
+          <span class="sub-section-title">Wake</span>
+          <span class="sub-section-val" id="wake-sub-val"></span>
+        </div>
+        <div class="sub-section-body">
+          <!-- Hidden day bubbles (data source) -->
+          <div class="day-bubbles" id="wake-days">
+            <button class="day-bubble" data-day="0">Mo</button>
+            <button class="day-bubble" data-day="1">Tu</button>
+            <button class="day-bubble" data-day="2">We</button>
+            <button class="day-bubble" data-day="3">Th</button>
+            <button class="day-bubble" data-day="4">Fr</button>
+            <button class="day-bubble" data-day="5">Sa</button>
+            <button class="day-bubble" data-day="6">Su</button>
+          </div>
+          <div class="sleep-time-group no-alt" id="wake-time-blocks">
+            <div class="primary-block">
+              <div class="tune-control-row">
+                <span class="tune-control-left"><span class="tune-control-label" id="wake-primary-label">Time</span></span>
+                <span class="tune-control-impact" id="wake-time-display">7:00a</span>
+              </div>
+              <div class="tune-slider-row">
+                <input type="range" id="wake-time" min="0" max="24" step="0.25" value="7">
+                <div class="day-indicators" id="wake-primary-days"></div>
+              </div>
+            </div>
+            <div class="alt-block" id="wake-alt-time-row">
+              <div class="tune-control-row">
+                <span class="tune-control-left"><span class="tune-control-label" id="wake-alt-label">Secondary</span></span>
+                <span class="tune-control-impact" id="wake-alt-time-display">9:00a</span>
+              </div>
+              <div class="tune-slider-row">
+                <input type="range" id="wake-alt-time" min="0" max="24" step="0.25" value="9">
+                <div class="day-indicators" id="wake-alt-days"></div>
+              </div>
+            </div>
+          </div>
           <div class="tune-control-row">
-            <span class="tune-control-left"><span class="tune-control-label" id="wake-primary-label">Time</span></span>
-            <span class="tune-control-impact" id="wake-time-display">7:00a</span>
+            <span class="tune-control-left">
+              <span class="tune-control-label">Brightness</span>
+              <span class="tune-control-reset" id="reset-wake-brightness" data-default="25">reset</span>
+            </span>
+            <span class="tune-control-impact" id="wake-brightness-display">50%</span>
           </div>
           <div class="tune-slider-row">
-            <input type="range" id="wake-time" min="0" max="24" step="0.25" value="7">
-            <div class="day-indicators" id="wake-primary-days"></div>
+            <input type="range" id="wake-brightness" min="10" max="90" step="5" value="50">
           </div>
-        </div>
-        <div class="alt-block" id="wake-alt-time-row">
           <div class="tune-control-row">
-            <span class="tune-control-left"><span class="tune-control-label" id="wake-alt-label">Secondary</span></span>
-            <span class="tune-control-impact" id="wake-alt-time-display">9:00a</span>
+            <span class="tune-control-left">
+              <span class="tune-control-label">Speed</span>
+              <span class="tune-control-reset" id="reset-wake-speed" data-default="6">reset</span>
+            </span>
+            <span class="tune-control-impact" id="wake-speed-display">Crisp (6)</span>
           </div>
           <div class="tune-slider-row">
-            <input type="range" id="wake-alt-time" min="0" max="24" step="0.25" value="9">
-            <div class="day-indicators" id="wake-alt-days"></div>
+            <input type="range" id="wake-speed" min="1" max="10" step="1" value="6">
           </div>
         </div>
-      </div>
-      <div class="tune-control-row">
-        <span class="tune-control-left">
-          <span class="tune-control-label">Brightness</span>
-          <span class="tune-control-reset" id="reset-wake-brightness" data-default="25">reset</span>
-        </span>
-        <span class="tune-control-impact" id="wake-brightness-display">50%</span>
-      </div>
-      <div class="tune-slider-row">
-        <input type="range" id="wake-brightness" min="10" max="90" step="5" value="50">
-      </div>
-      <div class="tune-control-row">
-        <span class="tune-control-left">
-          <span class="tune-control-label">Speed</span>
-          <span class="tune-control-reset" id="reset-wake-speed" data-default="6">reset</span>
-        </span>
-        <span class="tune-control-impact" id="wake-speed-display">Crisp (6)</span>
-      </div>
-      <div class="tune-slider-row">
-        <input type="range" id="wake-speed" min="1" max="10" step="1" value="6">
       </div>
 
-      <div class="tune-group-label">Bed</div>
-      <!-- Hidden day bubbles (data source) -->
-      <div class="day-bubbles" id="bed-days">
-        <button class="day-bubble" data-day="0">Mo</button>
-        <button class="day-bubble" data-day="1">Tu</button>
-        <button class="day-bubble" data-day="2">We</button>
-        <button class="day-bubble" data-day="3">Th</button>
-        <button class="day-bubble" data-day="4">Fr</button>
-        <button class="day-bubble" data-day="5">Sa</button>
-        <button class="day-bubble" data-day="6">Su</button>
-      </div>
-      <div class="sleep-time-group no-alt" id="bed-time-blocks">
-        <div class="primary-block">
+      <div class="sub-section" id="bed-sub-section">
+        <div class="sub-section-header" onclick="toggleSubSection('bed-sub-section')">
+          <span class="sub-section-chevron">&#x203A;</span>
+          <span class="sub-section-title">Bed</span>
+          <span class="sub-section-val" id="bed-sub-val"></span>
+        </div>
+        <div class="sub-section-body">
+          <!-- Hidden day bubbles (data source) -->
+          <div class="day-bubbles" id="bed-days">
+            <button class="day-bubble" data-day="0">Mo</button>
+            <button class="day-bubble" data-day="1">Tu</button>
+            <button class="day-bubble" data-day="2">We</button>
+            <button class="day-bubble" data-day="3">Th</button>
+            <button class="day-bubble" data-day="4">Fr</button>
+            <button class="day-bubble" data-day="5">Sa</button>
+            <button class="day-bubble" data-day="6">Su</button>
+          </div>
+          <div class="sleep-time-group no-alt" id="bed-time-blocks">
+            <div class="primary-block">
+              <div class="tune-control-row">
+                <span class="tune-control-left"><span class="tune-control-label" id="bed-primary-label">Time</span></span>
+                <span class="tune-control-impact" id="bed-time-display">9:00p</span>
+              </div>
+              <div class="tune-slider-row">
+                <input type="range" id="bed-time" min="0" max="36" step="0.25" value="21">
+                <div class="day-indicators" id="bed-primary-days"></div>
+              </div>
+            </div>
+            <div class="alt-block" id="bed-alt-time-row">
+              <div class="tune-control-row">
+                <span class="tune-control-left"><span class="tune-control-label" id="bed-alt-label">Secondary</span></span>
+                <span class="tune-control-impact" id="bed-alt-time-display">11:00p</span>
+              </div>
+              <div class="tune-slider-row">
+                <input type="range" id="bed-alt-time" min="0" max="36" step="0.25" value="23">
+                <div class="day-indicators" id="bed-alt-days"></div>
+              </div>
+            </div>
+          </div>
           <div class="tune-control-row">
-            <span class="tune-control-left"><span class="tune-control-label" id="bed-primary-label">Time</span></span>
-            <span class="tune-control-impact" id="bed-time-display">9:00p</span>
+            <span class="tune-control-left">
+              <span class="tune-control-label">Brightness</span>
+              <span class="tune-control-reset" id="reset-bed-brightness" data-default="25">reset</span>
+            </span>
+            <span class="tune-control-impact" id="bed-brightness-display">50%</span>
           </div>
           <div class="tune-slider-row">
-            <input type="range" id="bed-time" min="0" max="36" step="0.25" value="21">
-            <div class="day-indicators" id="bed-primary-days"></div>
+            <input type="range" id="bed-brightness" min="10" max="90" step="5" value="50">
           </div>
-        </div>
-        <div class="alt-block" id="bed-alt-time-row">
           <div class="tune-control-row">
-            <span class="tune-control-left"><span class="tune-control-label" id="bed-alt-label">Secondary</span></span>
-            <span class="tune-control-impact" id="bed-alt-time-display">11:00p</span>
+            <span class="tune-control-left">
+              <span class="tune-control-label">Speed</span>
+              <span class="tune-control-reset" id="reset-bed-speed" data-default="6">reset</span>
+            </span>
+            <span class="tune-control-impact" id="bed-speed-display">Smooth (4)</span>
           </div>
           <div class="tune-slider-row">
-            <input type="range" id="bed-alt-time" min="0" max="36" step="0.25" value="23">
-            <div class="day-indicators" id="bed-alt-days"></div>
-          </div>
-        </div>
-      </div>
-      <div class="tune-control-row">
-        <span class="tune-control-left">
-          <span class="tune-control-label">Brightness</span>
-          <span class="tune-control-reset" id="reset-bed-brightness" data-default="25">reset</span>
-        </span>
-        <span class="tune-control-impact" id="bed-brightness-display">50%</span>
-      </div>
-      <div class="tune-slider-row">
-        <input type="range" id="bed-brightness" min="10" max="90" step="5" value="50">
-      </div>
-      <div class="tune-control-row">
-        <span class="tune-control-left">
-          <span class="tune-control-label">Speed</span>
-          <span class="tune-control-reset" id="reset-bed-speed" data-default="6">reset</span>
-        </span>
-        <span class="tune-control-impact" id="bed-speed-display">Smooth (4)</span>
-      </div>
-      <div class="tune-slider-row">
-        <input type="range" id="bed-speed" min="1" max="10" step="1" value="4">
+            <input type="range" id="bed-speed" min="1" max="10" step="1" value="4">
       </div>
 
       <!-- Hidden fields for ascend/descend (set by sleep pattern) -->
@@ -3444,6 +3474,8 @@ function updateSleepSummary() {
     const blocks = document.getElementById(`${prefix}-time-blocks`);
     if (blocks) blocks.classList.toggle('no-alt', !hasAlt);
   });
+
+  updateSubSectionSummaries();
 }
 
 function getBrightnessWord(val) {
@@ -3452,6 +3484,29 @@ function getBrightnessWord(val) {
   if (val <= 55) return 'Moderate';
   if (val <= 70) return 'Bright';
   return 'Very bright';
+}
+
+function toggleSubSection(sectionId) {
+  const section = document.getElementById(sectionId);
+  if (!section) return;
+  const wasOpen = section.classList.contains('is-open');
+  // Accordion within parent: close sibling sub-sections
+  const parent = section.parentElement;
+  if (parent) {
+    parent.querySelectorAll('.sub-section.is-open').forEach(s => s.classList.remove('is-open'));
+  }
+  if (!wasOpen) section.classList.add('is-open');
+}
+
+function updateSubSectionSummaries() {
+  const wakeVal = document.getElementById('wake-sub-val');
+  if (wakeVal) {
+    wakeVal.innerHTML = '<b>' + formatHour(config.wake_time) + '</b> · ' + config.wake_brightness + '%';
+  }
+  const bedVal = document.getElementById('bed-sub-val');
+  if (bedVal) {
+    bedVal.innerHTML = '<b>' + formatHour(config.bed_time) + '</b> · ' + config.bed_brightness + '%';
+  }
 }
 
 function toggleRhythmCard(cardId, storageKey) {
@@ -3822,23 +3877,17 @@ function updateSolarImpacts() {
 function syncColorRuleRows() {
   const warmEnabled = config.warm_night_enabled;
 
-  // Warm night body
+  // Warm night body — hide when unchecked
   const warmBody = document.getElementById('warm-night-body');
   if (warmBody) {
-    warmBody.classList.toggle('is-disabled', !warmEnabled);
-    warmBody.querySelectorAll('select, input[type="range"]').forEach(el => {
-      el.disabled = !warmEnabled;
-    });
+    warmBody.classList.toggle('is-hidden', !warmEnabled);
   }
 
-  // Cool day body
+  // Cool day body — hide when unchecked
   const daylightEnabled = config.daylight_enabled !== false;
   const daylightBody = document.getElementById('daylight-body');
   if (daylightBody) {
-    daylightBody.classList.toggle('is-disabled', !daylightEnabled);
-    daylightBody.querySelectorAll('input[type="range"]').forEach(el => {
-      el.disabled = !daylightEnabled;
-    });
+    daylightBody.classList.toggle('is-hidden', !daylightEnabled);
   }
 
   // Grey out weather selector when cool day is off
