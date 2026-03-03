@@ -2321,15 +2321,20 @@ function renderColorGradient() {
     return 'left:' + pct + '%;';
   }
 
-  // Layer 2: Reference labels (draggable) — stable labels regardless of relative position
+  // Layer 2: Reference labels (draggable)
+  // "coolest" is always the rightmost active boundary
   let refHtml = '';
   refHtml += '<span class="ct-axis-label ct-draggable" data-handle="warmest" style="' + refStyle(ctPct(minK)) + '" data-tip="' + minK + 'K">warmest</span>';
   if (warmEnabled) {
     refHtml += '<span class="ct-axis-label ct-draggable" data-handle="night-max" style="' + refStyle(ctPct(warmTarget)) + '" data-tip="' + warmTarget + 'K">night max</span>';
   }
-  refHtml += '<span class="ct-axis-label ct-draggable" data-handle="coolest-base" style="' + refStyle(ctPct(maxK)) + '" data-tip="' + maxK + 'K">coolest</span>';
   if (dayEnabled) {
-    refHtml += '<span class="ct-axis-label ct-draggable" data-handle="coolest-day" style="' + refStyle(ctPct(dayCct)) + '" data-tip="' + dayCct + 'K">cool day</span>';
+    // Cool Day on: max_color_temp is "no-sun max", daylight_cct is "coolest"
+    refHtml += '<span class="ct-axis-label ct-draggable" data-handle="coolest-base" style="' + refStyle(ctPct(maxK)) + '" data-tip="' + maxK + 'K">no-sun max</span>';
+    refHtml += '<span class="ct-axis-label ct-draggable" data-handle="coolest-day" style="' + refStyle(ctPct(dayCct)) + '" data-tip="' + dayCct + 'K">coolest</span>';
+  } else {
+    // Cool Day off: max_color_temp is "coolest"
+    refHtml += '<span class="ct-axis-label ct-draggable" data-handle="coolest-base" style="' + refStyle(ctPct(maxK)) + '" data-tip="' + maxK + 'K">coolest</span>';
   }
   const layer2 = '<div class="ct-axis ct-axis-ref">' + refHtml + '</div>';
 
@@ -2416,9 +2421,14 @@ function applyHandleValue(handleName, k) {
       if (config.warm_night_enabled) k = Math.max(k, config.warm_night_target);
       k = Math.min(k, CT_SYSTEM_MAX);
       config.max_color_temp = k;
+      // Enforce: daylight_cct >= max_color_temp (Cool Day always extends)
+      if (config.daylight_enabled !== false && config.daylight_cct < k) {
+        config.daylight_cct = k;
+      }
       break;
     case 'coolest-day':
-      k = Math.max(k, config.min_color_temp);
+      // daylight_cct must be >= max_color_temp
+      k = Math.max(k, config.max_color_temp);
       k = Math.min(k, CT_SYSTEM_MAX);
       config.daylight_cct = k;
       break;
@@ -3779,6 +3789,10 @@ function updateSolarTargetSliderConstraints() {
   const minTemp = config.min_color_temp;
   const maxTemp = config.max_color_temp;
   config.warm_night_target = Math.max(minTemp, Math.min(maxTemp, config.warm_night_target));
+  // Enforce: daylight_cct >= max_color_temp
+  if (config.daylight_enabled !== false && config.daylight_cct < maxTemp) {
+    config.daylight_cct = maxTemp;
+  }
   syncHiddenInputsFromConfig();
   updateColorGradients();
 }
