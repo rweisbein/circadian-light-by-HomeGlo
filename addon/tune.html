@@ -502,15 +502,18 @@
     .ct-kelvin-group { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
     .ct-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
     .ct-kelvin { font-weight: 700; font-size: 0.95rem; color: var(--text); }
-    .ct-gradient-wrap { margin-top: 12px; position: relative; }
-    .ct-gradient-bar { height: 12px; border-radius: 6px; position: relative; }
-    .ct-pip { position: absolute; top: 0; height: 100%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; pointer-events: none; }
-    .ct-pip-line { width: 2px; height: 100%; border-radius: 1px; }
-    .ct-pip-now .ct-pip-line { width: 3px; background: #fff; box-shadow: 0 0 4px rgba(0,0,0,0.6); }
-    .ct-pip-ref .ct-pip-line { background: rgba(255,255,255,0.35); }
-    .ct-pip-label { position: absolute; top: calc(100% + 3px); font-size: 0.6rem; white-space: nowrap; color: var(--muted2); }
-    .ct-pip-now .ct-pip-label { color: var(--text); font-weight: 600; }
-    .ct-range-labels { display: flex; justify-content: space-between; font-size: 0.6rem; color: var(--muted2); margin-top: 16px; }
+    .ct-gradient-wrap { margin-top: 12px; }
+    .ct-gradient-bar { height: 12px; border-radius: 6px; position: relative; overflow: visible; }
+    .ct-pip { position: absolute; top: 0; width: 0; height: 100%; pointer-events: none; }
+    .ct-pip-line { position: absolute; top: 0; left: 50%; width: 2px; height: 100%; transform: translateX(-50%); border-radius: 1px; }
+    .ct-pip-now .ct-pip-line { width: 3px; background: #fff; box-shadow: 0 0 3px rgba(0,0,0,0.8), 0 0 6px rgba(0,0,0,0.4); }
+    .ct-pip-ref .ct-pip-line { width: 2px; background: rgba(0,0,0,0.5); box-shadow: -1px 0 0 rgba(255,255,255,0.3), 1px 0 0 rgba(255,255,255,0.3); }
+    /* Three label layers — each is a positioned row below the gradient */
+    .ct-axis { position: relative; height: 14px; }
+    .ct-axis-label { position: absolute; transform: translateX(-50%); font-size: 0.6rem; white-space: nowrap; }
+    .ct-axis-tick .ct-axis-label { color: var(--muted2); }
+    .ct-axis-ref .ct-axis-label { color: var(--muted); font-weight: 500; }
+    .ct-axis-now .ct-axis-label { color: var(--text); font-weight: 600; }
 
     /* Refresh button */
     .tune-refresh-btn {
@@ -1626,8 +1629,7 @@
         const dayEnabled = gz.daylight_enabled ?? true;
         const dayCct = gz.daylight_cct ?? 5500;
 
-        // Effective gradient range: warm end is always minK,
-        // cool end extends to daylight_cct if it exceeds maxK
+        // Effective gradient range
         const gradMin = minK;
         const gradMax = (dayEnabled && dayCct > maxK) ? dayCct : maxK;
         const gradSpan = gradMax - gradMin;
@@ -1640,34 +1642,58 @@
         // Gradient bar — sample 8 stops across effective range
         const stops = [];
         for (let i = 0; i <= 7; i++) {
-          const k = gradMin + gradSpan * (i / 7);
-          stops.push(cctToRGB(k));
+          stops.push(cctToRGB(gradMin + gradSpan * (i / 7)));
         }
         const gradStyle = 'background:linear-gradient(to right,' + stops.join(',') + ');';
 
-        // Helper: kelvin to percent position on gradient
-        function kToPct(k) {
-          if (gradSpan <= 0) return 50;
-          return Math.max(0, Math.min(100, ((k - gradMin) / gradSpan) * 100));
-        }
+        // Helper: kelvin to percent position
+        const kToPct = (k) => gradSpan <= 0 ? 50 : Math.max(0, Math.min(100, ((k - gradMin) / gradSpan) * 100));
 
-        // Build pips
+        // Pip lines on the gradient bar (vertical lines only, no labels here)
         let pipsHtml = '';
-
-        // "now" pip — current CT
         if (currentK != null) {
-          pipsHtml += '<div class="ct-pip ct-pip-now" style="left:' + kToPct(currentK) + '%;"><div class="ct-pip-line"></div><span class="ct-pip-label">now</span></div>';
+          pipsHtml += '<div class="ct-pip ct-pip-now" style="left:' + kToPct(currentK) + '%;"><div class="ct-pip-line"></div></div>';
         }
-
-        // "night" pip — warm night target (only if enabled)
         if (warmEnabled) {
-          pipsHtml += '<div class="ct-pip ct-pip-ref" style="left:' + kToPct(warmTarget) + '%;"><div class="ct-pip-line"></div><span class="ct-pip-label">night</span></div>';
+          pipsHtml += '<div class="ct-pip ct-pip-ref" style="left:' + kToPct(warmTarget) + '%;"><div class="ct-pip-line"></div></div>';
+        }
+        if (dayEnabled && dayCct > maxK) {
+          pipsHtml += '<div class="ct-pip ct-pip-ref" style="left:' + kToPct(maxK) + '%;"><div class="ct-pip-line"></div></div>';
         }
 
-        // "dark day" pip — maxK, only when daylight extends the gradient beyond it
-        if (dayEnabled && dayCct > maxK) {
-          pipsHtml += '<div class="ct-pip ct-pip-ref" style="left:' + kToPct(maxK) + '%;"><div class="ct-pip-line"></div><span class="ct-pip-label">dark day</span></div>';
+        // --- Layer 1: CT K tick marks ---
+        // Adaptive: round 1000K ticks, skip if within 8% of edges
+        let ticksHtml = '';
+        const stepK = 1000;
+        const firstTick = Math.ceil(gradMin / stepK) * stepK;
+        for (let k = firstTick; k <= gradMax; k += stepK) {
+          const pct = kToPct(k);
+          if (pct < 8 || pct > 92) continue; // skip near edges
+          ticksHtml += '<span class="ct-axis-label" style="left:' + pct + '%;">' + (k / 1000) + 'k</span>';
         }
+        // Always show edge labels
+        const layer1 = '<div class="ct-axis ct-axis-tick">'
+          + '<span class="ct-axis-label" style="left:0;transform:none;">' + gradMin + 'K</span>'
+          + ticksHtml
+          + '<span class="ct-axis-label" style="left:100%;transform:translateX(-100%);">' + gradMax + 'K</span>'
+          + '</div>';
+
+        // --- Layer 2: Reference labels (night max, dark day max) ---
+        let refHtml = '';
+        if (warmEnabled) {
+          refHtml += '<span class="ct-axis-label" style="left:' + kToPct(warmTarget) + '%;">night max</span>';
+        }
+        if (dayEnabled && dayCct > maxK) {
+          refHtml += '<span class="ct-axis-label" style="left:' + kToPct(maxK) + '%;">dark day max</span>';
+        }
+        const layer2 = refHtml ? '<div class="ct-axis ct-axis-ref">' + refHtml + '</div>' : '';
+
+        // --- Layer 3: Now ---
+        let nowHtml = '';
+        if (currentK != null) {
+          nowHtml = '<span class="ct-axis-label" style="left:' + kToPct(currentK) + '%;">now</span>';
+        }
+        const layer3 = nowHtml ? '<div class="ct-axis ct-axis-now">' + nowHtml + '</div>' : '';
 
         html += '<div class="ct-zone-card">'
           + '<div class="ct-zone-header">'
@@ -1682,7 +1708,7 @@
           + '</div>'
           + '<div class="ct-gradient-wrap">'
           +   '<div class="ct-gradient-bar" style="' + gradStyle + '">' + pipsHtml + '</div>'
-          +   '<div class="ct-range-labels"><span>' + gradMin + 'K</span><span>' + gradMax + 'K</span></div>'
+          +   layer1 + layer2 + layer3
           + '</div>'
           + '</div>';
       }
