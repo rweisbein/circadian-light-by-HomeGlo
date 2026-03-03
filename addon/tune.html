@@ -207,6 +207,12 @@
       min-width: 80px;
       max-width: 200px;
     }
+    .tune-sensitivity-explain {
+      padding: 0 14px 10px;
+      font-size: 0.75rem;
+      color: var(--muted2);
+      line-height: 1.4;
+    }
 
     /* Tune zone header */
     .tune-zone-header {
@@ -1136,6 +1142,20 @@
       localStorage.setItem('tune_sensitivity_open', isOpen ? '1' : '0');
     }
 
+    function buildSensitivityExplain(step, outdoorNorm, reduction) {
+      if (SENSITIVITY_STEPS[step].multiplier === 0) {
+        return 'Sun sensitivity disabled — outdoor brightness has no effect.';
+      }
+      if (outdoorNorm <= 0.01) {
+        return 'No sun impact right now.';
+      }
+      const outdoorPct = Math.round(outdoorNorm * 100);
+      // Find which SOLAR_STEPS entry has exposure = 1.0 ("Full")
+      const fullStep = SOLAR_STEPS.find(s => Math.abs(s.exposure - 1.0) < 0.01);
+      const fullLabel = fullStep ? fullStep.label : 'Full';
+      return 'At current outdoor brightness (' + outdoorPct + '%), areas set to ' + fullLabel + ' sun exposure have brightness reduced by ' + reduction + '%.';
+    }
+
     function updateSensitivitySummary() {
       const el = document.getElementById('tune-sensitivity-summary');
       if (!el) return;
@@ -1145,7 +1165,9 @@
       const sensitivity = SENSITIVITY_STEPS[step].multiplier;
       const outdoorNorm = tuneData?.outdoor_normalized ?? 0.0;
       const reduction = Math.min(100, Math.round(outdoorNorm * sensitivity * 100));
-      el.innerHTML = SENSITIVITY_STEPS[step].label + ' &middot; \u2193' + reduction + '% @ peak sun';
+      el.textContent = SENSITIVITY_STEPS[step].label + ' \u2193' + reduction + '%';
+      const explainEl = document.getElementById('tune-sensitivity-explain');
+      if (explainEl) explainEl.textContent = buildSensitivityExplain(step, outdoorNorm, reduction);
     }
 
     // ============================================================
@@ -1612,7 +1634,7 @@
       const tuneSensStep = findClosestSensitivityStep(sensitivity);
       const tuneSensReduction = Math.min(100, Math.round(outdoorNorm * sensitivity * 100));
       const tuneSensPeak = Math.min(100, Math.round(sensitivity * 100));
-      const sensSummary = SENSITIVITY_STEPS[tuneSensStep].label + ' &middot; \u2193' + tuneSensReduction + '% @ peak sun';
+      const sensSummary = SENSITIVITY_STEPS[tuneSensStep].label + ' \u2193' + tuneSensReduction + '%';
       const sensIsOpen = localStorage.getItem('tune_sensitivity_open') === '1';
       html += `
         <div class="tune-sensitivity-card ${sensIsOpen ? 'is-open' : ''}" id="tune-sensitivity-card">
@@ -1631,6 +1653,7 @@
               <span style="flex:1;"></span>
               ${buildOutdoorSection()}
             </div>
+            <div class="tune-sensitivity-explain" id="tune-sensitivity-explain">${buildSensitivityExplain(tuneSensStep, outdoorNorm, tuneSensReduction)}</div>
           </div>
         </div>
       `;
