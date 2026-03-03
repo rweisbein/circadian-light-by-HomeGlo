@@ -832,19 +832,13 @@ input[type=range]::-moz-range-thumb {
   font-family: inherit;
 }
 .live-design-link:hover { color: var(--text); text-decoration: underline; }
-.live-design-label {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--accent);
-  margin-left: 4px;
-}
 .live-design-status {
   font-size: 0.75rem;
   color: var(--muted);
   margin-left: 2px;
 }
 .live-design-status.active {
-  color: var(--text);
+  color: var(--accent);
 }
 @keyframes live-pulse {
   0%, 100% { opacity: 1; }
@@ -1283,7 +1277,6 @@ input[type=range]::-moz-range-thumb {
       <option value="">Select area</option>
     </select>
     <a href="#" class="live-design-link" id="live-design-toggle" style="display: none;">Stop</a>
-    <span class="live-design-label" id="live-design-label" style="display: none;">Live</span>
     <span class="live-design-status" id="live-design-status"></span>
   </div>
 
@@ -3379,8 +3372,15 @@ function getBrightnessWord(val) {
 function toggleRhythmCard(cardId, storageKey) {
   const card = document.getElementById(cardId);
   if (!card) return;
-  const isOpen = card.classList.toggle('is-open');
-  localStorage.setItem(storageKey, isOpen ? 'true' : 'false');
+  const wasOpen = card.classList.contains('is-open');
+  // Accordion: close all cards first
+  document.querySelectorAll('.rhythm-card.is-open').forEach(c => {
+    c.classList.remove('is-open');
+  });
+  // Toggle the clicked card (open if it was closed, stay closed if it was open)
+  if (!wasOpen) {
+    card.classList.add('is-open');
+  }
 }
 
 function initSleepDayIndicators() {
@@ -4254,10 +4254,8 @@ async function setCircadianMode(areaId, enabled) {
 function updateLiveVisuals() {
   const controls = document.getElementById('live-design-controls');
   const fab = document.getElementById('live-fab');
-  const liveLabel = document.getElementById('live-design-label');
   if (controls) controls.classList.toggle('is-live', liveDesignEnabled);
   if (fab) fab.classList.toggle('is-active', liveDesignEnabled);
-  if (liveLabel) liveLabel.style.display = liveDesignEnabled ? '' : 'none';
 }
 
 function setupLiveDesign() {
