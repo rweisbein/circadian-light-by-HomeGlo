@@ -936,6 +936,12 @@ class LightDesignerServer:
                         area_name = area
                     if not area_id:
                         continue
+                    is_boosted = state.is_boosted(area_id)
+                    boost_brightness = (
+                        state.get_area(area_id).get("boost_brightness", 0)
+                        if is_boosted
+                        else 0
+                    )
                     zone_areas.append(
                         {
                             "id": area_id,
@@ -947,6 +953,8 @@ class LightDesignerServer:
                                 area_id
                             ),
                             "light_filters": glozone.get_area_light_filters(area_id),
+                            "boosted": is_boosted,
+                            "boost_brightness": boost_brightness or 0,
                         }
                     )
                 zone_cfg = glozone.get_zone_config(zone_name)

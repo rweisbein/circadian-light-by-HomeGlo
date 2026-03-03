@@ -106,7 +106,7 @@
     .main {
       max-width: 900px;
       margin: 0 auto;
-      padding: 16px 24px;
+      padding: 10px;
     }
 
     .loading {
@@ -115,33 +115,29 @@
       padding: 60px 0;
     }
 
-    /* View links (sort pills) */
-    .view-links { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
-    .view-link { background: none; border: none; color: var(--muted2); font-size: 0.8rem; cursor: pointer; padding: 2px 6px; border-radius: 4px; white-space: nowrap; }
-    .view-link:hover { color: var(--text); }
-    .view-link.active { color: var(--accent); font-weight: 600; }
-    .view-sep { color: var(--muted2); font-size: 0.7rem; }
+    /* Name-column sort pair (area · a-z) */
+    .tune-name-sort { display: inline; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.5px; }
+    .tune-name-sort-item { color: var(--muted2); cursor: pointer; transition: color 0.15s; }
+    .tune-name-sort-item:hover { color: var(--text); }
+    .tune-name-sort-item.active-sort { color: var(--accent); }
+    .tune-name-sort-dot { color: var(--muted2); margin: 0 2px; }
 
     /* Zone structure */
-    .zone-group { margin-bottom: 8px; }
+    .zone-group { background: var(--card); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin-bottom: 8px; }
     .zone-header {
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 10px 16px;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 8px 8px 0 0;
+      padding: 12px 14px;
       cursor: pointer;
       user-select: none;
       transition: background 0.2s;
     }
     .zone-header:hover { background: rgba(255,255,255,0.05); }
-    .zone-header.collapsed { border-radius: 8px; }
-    .zone-content { border: 1px solid var(--line); border-top: none; border-radius: 0 0 8px 8px; overflow: hidden; }
+    .zone-content { overflow: hidden; }
     .zone-content.hidden { display: none; }
-    .zone-chevron { width: 16px; height: 16px; transition: transform 0.2s; flex-shrink: 0; }
-    .zone-header.collapsed .zone-chevron { transform: rotate(-90deg); }
+    .zone-chevron { display: inline-block; font-size: 1.1rem; line-height: 1; transition: transform 0.25s; color: var(--muted2); flex-shrink: 0; }
+    .zone-header:not(.collapsed) .zone-chevron { transform: rotate(90deg); }
     .zone-chevron-tap { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; cursor: pointer; flex-shrink: 0; }
     .zone-name-group { display: flex; flex-direction: column; min-width: 0; }
     .zone-rhythm-link { font-weight: 700; font-size: 1.05rem; color: var(--text); text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -178,19 +174,41 @@
       margin-bottom: 8px;
     }
 
-    /* Tune sensitivity (global) */
-    .tune-sensitivity-standalone {
+    /* Tune sensitivity — collapsible card */
+    .tune-sensitivity-card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+    .tune-sensitivity-header {
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 6px 10px;
-      margin-bottom: 4px;
-      background: var(--panel);
-      border-radius: 6px;
-      border: 1px solid var(--line);
+      cursor: pointer;
+      padding: 12px 14px;
+      user-select: none;
+    }
+    .tune-sensitivity-header:hover { background: rgba(255,255,255,0.05); }
+    .tune-sensitivity-title { font-size: 1.0rem; font-weight: 600; color: var(--text); }
+    .tune-sensitivity-chevron { display: inline-block; font-size: 1.1rem; line-height: 1; transition: transform 0.25s; color: var(--muted2); flex-shrink: 0; }
+    .tune-sensitivity-card.is-open .tune-sensitivity-chevron { transform: rotate(90deg); }
+    .tune-sensitivity-val { margin-left: auto; font-size: 0.85rem; color: var(--muted); white-space: nowrap; transition: opacity 0.25s; }
+    .tune-sensitivity-card.is-open .tune-sensitivity-val { opacity: 0; pointer-events: none; }
+    .tune-sensitivity-body {
+      max-height: 0; opacity: 0; overflow: hidden;
+      transition: max-height 0.3s ease, opacity 0.25s ease;
+    }
+    .tune-sensitivity-card.is-open .tune-sensitivity-body { max-height: 500px; opacity: 1; }
+    .tune-sensitivity-body-inner {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 14px 12px;
       flex-wrap: wrap;
     }
-    .tune-sensitivity-standalone input[type="range"] {
+    .tune-sensitivity-body-inner input[type="range"] {
       flex: 1;
       min-width: 80px;
       max-width: 200px;
@@ -266,7 +284,7 @@
       transition: color 0.15s;
     }
     .tune-col-header:hover { color: var(--text); }
-    .tune-col-header.active-sort { color: var(--muted); }
+    .tune-col-header.active-sort { color: var(--accent); }
 
     /* Tune area */
     .tune-area {
@@ -280,6 +298,7 @@
     .tune-area-name {
       font-size: 0.85rem;
       color: var(--text);
+      font-weight: 600;
       text-decoration: none;
     }
     .tune-area-name:hover {
@@ -354,28 +373,53 @@
     .tune-area-lights {
       background: var(--card);
       border-top: 1px solid var(--line);
-      padding: 0 16px 0 calc(18% + 16px);
+      padding: 0;
     }
     .tune-area-expand-row {
       cursor: pointer;
     }
-    .tune-light-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 6px 0;
-      border-bottom: 1px solid var(--line);
-    }
-    .tune-light-row:last-child { border-bottom: none; }
+
+    /* Light grid — 5-column layout matching area detail */
+    .tune-light-col-super { display: grid; grid-template-columns: 1fr 1fr 42px 42px 42px; padding: 6px 14px 0; gap: 0 4px; }
+    .tune-light-super-label { grid-column: 3 / 5; text-align: center; font-size: 0.6rem; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.05em; }
+    .tune-light-col-headers { display: grid; grid-template-columns: 1fr 1fr 42px 42px 42px; padding: 2px 14px 0; gap: 0 4px; font-size: 0.65rem; color: var(--muted2); border-bottom: 1px solid var(--line); }
+    .tune-light-col-headers span:nth-child(n+3) { text-align: right; }
+    .tune-light-sort { cursor: pointer; transition: color 0.15s; }
+    .tune-light-sort:hover { color: var(--text); }
+    .tune-light-sort.active-sort { color: var(--accent); }
+    .tune-light-sort-final { color: var(--text); font-weight: 600; }
+    .tune-light-item { padding: 0 14px; border-bottom: 1px solid var(--line); }
+    .tune-light-item:last-child { border-bottom: none; }
+    .tune-light-summary { display: grid; grid-template-columns: 1fr 1fr 42px 42px 42px; align-items: baseline; padding: 8px 0; gap: 0 4px; }
     .tune-light-name {
-      flex: 1;
-      font-size: 0.8rem;
-      color: var(--muted);
-      min-width: 0;
+      font-size: 0.82rem;
+      color: var(--text);
+      font-weight: 600;
+      white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      white-space: nowrap;
     }
+    .tune-light-behaviour { font-size: 0.75rem; color: var(--muted); cursor: pointer; white-space: nowrap; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 2px; }
+    .tune-light-behaviour:hover { color: var(--accent); }
+    .tune-light-impact {
+      font-size: 0.82rem;
+      color: var(--muted);
+      white-space: nowrap;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+    .tune-light-ct { font-size: 0.82rem; color: var(--muted); white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
+    .tune-light-bri {
+      font-size: 0.85rem;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      text-align: right;
+      color: var(--text);
+      position: relative;
+    }
+    .tune-capped-star { position: absolute; font-size: 0.7rem; font-weight: 400; color: var(--muted2); margin-left: 1px; }
+    .tune-light-expanded { display: flex; align-items: center; gap: 8px; padding: 0 0 10px; padding-left: 14px; flex-wrap: wrap; }
     .tune-light-select {
       background: var(--panel);
       color: var(--text);
@@ -387,23 +431,16 @@
       outline: none;
     }
     .tune-light-select:focus { border-color: var(--accent); }
-    .tune-light-impact {
-      font-size: 0.75rem;
-      color: var(--muted2);
-      white-space: nowrap;
-      min-width: 2.5em;
-      text-align: right;
-      font-variant-numeric: tabular-nums;
-    }
-    .tune-light-bri {
-      font-size: 0.8rem;
-      font-weight: 600;
-      font-variant-numeric: tabular-nums;
-      white-space: nowrap;
-      text-align: right;
-      min-width: 3em;
-      color: var(--text);
-    }
+    .tune-light-meta { font-size: 0.7rem; color: var(--muted2); line-height: 1.4; margin-left: 6px; }
+
+    /* Behaviour dropdown */
+    .tune-light-dropdown { position: fixed; z-index: 100; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.4); min-width: 220px; overflow: hidden; }
+    .tune-light-dropdown-item { padding: 8px 12px; cursor: pointer; border-bottom: 1px solid var(--line); }
+    .tune-light-dropdown-item:last-child { border-bottom: none; }
+    .tune-light-dropdown-item:hover { background: rgba(255,255,255,0.05); }
+    .tune-light-dropdown-item.selected { background: rgba(254,172,96,0.1); }
+    .tune-light-dropdown-name { font-size: 0.82rem; color: var(--text); }
+    .tune-light-dropdown-meta { font-size: 0.7rem; color: var(--muted2); margin-top: 2px; }
 
     /* Save status toast */
     .save-status {
@@ -477,7 +514,6 @@
       .tune-zone-ctrl-val { font-size: 0.65rem; }
       .tune-slider-val { font-size: 0.65rem; }
       .tune-name-col { width: 15%; min-width: 40px; }
-      .tune-area-lights { padding-left: calc(15% + 16px); }
     }
   </style>
   <script src="./shared.js"></script>
@@ -548,6 +584,7 @@
     let zoneStates = {};
     let cachedGlozones = null;
     let tuneSortOrder = localStorage.getItem('tune_sort_order') || 'custom';
+    let tuneSortAsc = localStorage.getItem('tune_sort_asc') !== '0';
     let tuneDebounceTimers = {};
     let pendingSensorSave = Promise.resolve();
     let expandedAreas = {};  // areaId -> true/false
@@ -896,9 +933,13 @@
         const lumenSlider = el.querySelector('.tune-lumen-slider');
         const solarSlider = el.querySelector('.tune-solar-slider');
         const lightFilters = {};
-        el.querySelectorAll('.tune-light-select').forEach(sel => {
-          lightFilters[sel.dataset.entityId] = sel.value;
-        });
+        // Read light filters from tuneData model
+        const tuneArea = getTuneArea(areaId);
+        if (tuneArea) {
+          for (const light of (tuneArea.lights || [])) {
+            lightFilters[light.entity_id] = light.filter || 'Standard';
+          }
+        }
         snap.areas[areaId] = {
           lumenStep: lumenSlider ? parseInt(lumenSlider.value) : 4,
           solarStep: solarSlider ? parseInt(solarSlider.value) : 0,
@@ -920,11 +961,14 @@
         if (lumen && parseInt(lumen.value) !== snap.lumenStep) return true;
         const solar = el.querySelector('.tune-solar-slider');
         if (solar && parseInt(solar.value) !== snap.solarStep) return true;
-        el.querySelectorAll('.tune-light-select').forEach(sel => {
-          const orig = snap.lightFilters[sel.dataset.entityId] || 'Standard';
-          if (sel.value !== orig) dirty = true;
-        });
-        if (dirty) return true;
+        const tuneArea = getTuneArea(areaId);
+        if (tuneArea) {
+          for (const light of (tuneArea.lights || [])) {
+            const current = light.filter || 'Standard';
+            const orig = snap.lightFilters[light.entity_id] || 'Standard';
+            if (current !== orig) return true;
+          }
+        }
       }
       return false;
     }
@@ -960,15 +1004,19 @@
             body: JSON.stringify({ area_id: areaId, brightness_factor: factor, natural_light_exposure: exposure })
           }));
         }
-        el.querySelectorAll('.tune-light-select').forEach(sel => {
-          const orig = snap.lightFilters[sel.dataset.entityId] || 'Standard';
-          if (sel.value !== orig) {
-            promises.push(fetch('./api/light-filters/light-filter', {
-              method: 'POST', headers: {'Content-Type':'application/json'},
-              body: JSON.stringify({ area_id: areaId, entity_id: sel.dataset.entityId, filter: sel.value })
-            }));
+        const tuneArea = getTuneArea(areaId);
+        if (tuneArea) {
+          for (const light of (tuneArea.lights || [])) {
+            const current = light.filter || 'Standard';
+            const orig = snap.lightFilters[light.entity_id] || 'Standard';
+            if (current !== orig) {
+              promises.push(fetch('./api/light-filters/light-filter', {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({ area_id: areaId, entity_id: light.entity_id, filter: current })
+              }));
+            }
           }
-        });
+        }
       }
       await Promise.all(promises);
       captureTuneSnapshot();
@@ -1018,19 +1066,16 @@
           const valEl = el.querySelector('.tune-solar-val');
           if (valEl) valEl.textContent = fmtVal(SOLAR_STEPS[snap.solarStep].exposure);
         }
-        // Restore light filters
-        el.querySelectorAll('.tune-light-select').forEach(sel => {
-          const orig = snap.lightFilters[sel.dataset.entityId] || 'Standard';
-          sel.value = orig;
-          const tuneArea = getTuneArea(areaId);
-          if (tuneArea) {
-            const light = (tuneArea.lights || []).find(l => l.entity_id === sel.dataset.entityId);
-            if (light) light.filter = orig;
+        // Restore light filters in model
+        const tuneArea = getTuneArea(areaId);
+        if (tuneArea) {
+          for (const light of (tuneArea.lights || [])) {
+            const orig = snap.lightFilters[light.entity_id] || 'Standard';
+            light.filter = orig;
           }
-        });
+        }
         // Rebuild lights section to update impact/bri display
         const lightsContainer = document.getElementById('tune-lights-' + areaId);
-        const tuneArea = getTuneArea(areaId);
         if (lightsContainer && tuneArea) lightsContainer.innerHTML = buildLightsSection(areaId, tuneArea);
         // Update preview
         updateTuneNowPreview(el, {});
@@ -1042,8 +1087,14 @@
     // Sort
     // ============================================================
     function setTuneSort(sort) {
-      tuneSortOrder = sort;
+      if (tuneSortOrder === sort) {
+        tuneSortAsc = !tuneSortAsc;
+      } else {
+        tuneSortOrder = sort;
+        tuneSortAsc = true;
+      }
       localStorage.setItem('tune_sort_order', sort);
+      localStorage.setItem('tune_sort_asc', tuneSortAsc ? '1' : '0');
       renderTune();
     }
 
@@ -1072,6 +1123,29 @@
       const state = getCollapsedZones();
       state[zoneName] = isCollapsed;
       localStorage.setItem('tune_collapsed_zones', JSON.stringify(state));
+    }
+
+    // ============================================================
+    // Sensitivity card collapse
+    // ============================================================
+    function toggleSensitivityBody() {
+      const card = document.getElementById('tune-sensitivity-card');
+      if (!card) return;
+      card.classList.toggle('is-open');
+      const isOpen = card.classList.contains('is-open');
+      localStorage.setItem('tune_sensitivity_open', isOpen ? '1' : '0');
+    }
+
+    function updateSensitivitySummary() {
+      const el = document.getElementById('tune-sensitivity-summary');
+      if (!el) return;
+      const sensEl = document.getElementById('tune-global-sensitivity');
+      if (!sensEl) return;
+      const step = parseInt(sensEl.value);
+      const sensitivity = SENSITIVITY_STEPS[step].multiplier;
+      const outdoorNorm = tuneData?.outdoor_normalized ?? 0.0;
+      const reduction = Math.min(100, Math.round(outdoorNorm * sensitivity * 100));
+      el.textContent = SENSITIVITY_STEPS[step].label + ' \u2193' + reduction + '%';
     }
 
     // ============================================================
@@ -1188,12 +1262,167 @@
     // ============================================================
     // Expandable lights per area
     // ============================================================
+    let tuneLightSortOrder = 'name';
+    let tuneLightSortAsc = true;
+    let tuneExpandedLightKey = null;  // "areaId:idx"
+
     function toggleAreaLights(areaId) {
       expandedAreas[areaId] = !expandedAreas[areaId];
       const el = document.getElementById('tune-lights-' + areaId);
       if (el) el.style.display = expandedAreas[areaId] ? 'block' : 'none';
       const chevron = document.getElementById('tune-lights-chevron-' + areaId);
       if (chevron) chevron.style.transform = expandedAreas[areaId] ? 'rotate(90deg)' : '';
+    }
+
+    function tunePresetMeta(presets, filterName) {
+      if (!filterName || filterName === 'Standard') return 'No adjustment';
+      const p = presets?.[filterName];
+      if (!p) return '';
+      const atDim = p.at_dim ?? 100;
+      const atBright = p.at_bright ?? 100;
+      const fmtD = (v) => v >= 0 ? '+' + v + '%' : v + '%';
+      return 'at dim ' + fmtD(atDim - 100) + ' &middot; at bright ' + fmtD(atBright - 100);
+    }
+
+    function closeTuneBehaviourDropdown() {
+      const existing = document.querySelector('.tune-light-dropdown');
+      if (existing) existing.remove();
+    }
+
+    function openTuneBehaviourDropdown(areaId, idx, anchorEl) {
+      closeTuneBehaviourDropdown();
+      const tuneArea = getTuneArea(areaId);
+      if (!tuneArea) return;
+      const lights = tuneArea.lights || [];
+      const light = lights[idx];
+      if (!light) return;
+      const presets = tuneData?.presets || {};
+      const presetNames = Object.keys(presets);
+      if (presetNames.indexOf('Standard') < 0) presetNames.unshift('Standard');
+
+      const dropdown = document.createElement('div');
+      dropdown.className = 'tune-light-dropdown';
+
+      for (const pName of presetNames) {
+        const preset = presets[pName] || {};
+        const atDim = preset.at_dim ?? 100;
+        const atBright = preset.at_bright ?? 100;
+        const isSelected = pName === (light.filter || 'Standard');
+
+        const item = document.createElement('div');
+        item.className = 'tune-light-dropdown-item' + (isSelected ? ' selected' : '');
+        const fmtD = (v) => v >= 0 ? '+' + v + '%' : v + '%';
+        item.innerHTML = '<div class="tune-light-dropdown-name">' + pName + '</div>'
+          + '<div class="tune-light-dropdown-meta">at dim ' + fmtD(atDim - 100) + ' &middot; at bright ' + fmtD(atBright - 100) + '</div>';
+        item.addEventListener('click', () => {
+          light.filter = pName;
+          // Update label
+          const labelEl = document.getElementById('tune-light-preset-label-' + areaId + '-' + idx);
+          if (labelEl) labelEl.textContent = pName;
+          // Update trigger button
+          if (anchorEl) anchorEl.textContent = pName + ' \u25BE';
+          // Update meta
+          const metaEl = document.getElementById('tune-meta-' + areaId + '-' + idx);
+          if (metaEl) metaEl.innerHTML = tunePresetMeta(presets, pName);
+          // Recalc this area's lights
+          rebuildTuneLightValues(areaId);
+          updateTuneActionBar();
+          closeTuneBehaviourDropdown();
+        });
+        dropdown.appendChild(item);
+      }
+
+      document.body.appendChild(dropdown);
+      const rect = anchorEl.getBoundingClientRect();
+      let left = rect.left;
+      let top = rect.bottom + 4;
+      if (left + dropdown.offsetWidth > window.innerWidth - 8) left = window.innerWidth - dropdown.offsetWidth - 8;
+      if (top + dropdown.offsetHeight > window.innerHeight - 8) top = rect.top - dropdown.offsetHeight - 4;
+      dropdown.style.left = left + 'px';
+      dropdown.style.top = top + 'px';
+
+      setTimeout(() => {
+        const closeHandler = (e) => {
+          if (!dropdown.contains(e.target) && e.target !== anchorEl) {
+            closeTuneBehaviourDropdown();
+            document.removeEventListener('click', closeHandler, true);
+          }
+        };
+        document.addEventListener('click', closeHandler, true);
+      }, 0);
+    }
+
+    function rebuildTuneLightValues(areaId) {
+      const tuneArea = getTuneArea(areaId);
+      if (!tuneArea) return;
+      const lights = tuneArea.lights || [];
+      const presets = tuneData?.presets || {};
+      const sensitivity = tuneData?.brightness_sensitivity ?? 5.0;
+      const outdoorNorm = tuneData?.outdoor_normalized ?? 0.0;
+      const offThresh = tuneData?.off_threshold ?? 0;
+      const areaFactor = tuneArea?.brightness_factor ?? 1.0;
+      const exposure = tuneArea?.natural_light_exposure ?? 0.0;
+      const zoneName = tuneArea?._zoneName;
+      const zoneBri = zoneStates?.[zoneName]?.brightness ?? 50;
+      const rhythmBri = Math.round(zoneBri);
+      const nlFactor = (exposure <= 0 || outdoorNorm <= 0) ? 1.0 : Math.max(0, 1 - exposure * outdoorNorm * sensitivity);
+      let hasCapped = false;
+
+      for (let i = 0; i < lights.length; i++) {
+        const light = lights[i];
+        const filterName = light.filter || 'Standard';
+        const filterMult = getFilterMultiplier(presets, filterName);
+        const impactPct = Math.round((filterMult - 1) * 100);
+        let impactStr = impactPct === 0 ? '0%' : (impactPct < 0 ? '\u2193' + Math.abs(impactPct) + '%' : '\u2191' + impactPct + '%');
+        const finalBri = rhythmBri * nlFactor * areaFactor * filterMult;
+        const isCapped = finalBri > 100;
+        if (isCapped) hasCapped = true;
+        const isOff = finalBri < offThresh;
+        const finalVal = isOff ? 0 : Math.min(100, Math.round(finalBri));
+        const capStar = isCapped ? '<span class="tune-capped-star">*</span>' : '';
+
+        const impEl = document.getElementById('tune-light-impact-' + areaId + '-' + i);
+        if (impEl) impEl.textContent = impactStr;
+        const briEl = document.getElementById('tune-light-bri-' + areaId + '-' + i);
+        if (briEl) briEl.innerHTML = finalVal + '%' + capStar;
+      }
+      const legendEl = document.getElementById('tune-lights-legend-' + areaId);
+      if (legendEl) legendEl.style.display = hasCapped ? 'block' : 'none';
+    }
+
+    function sortTuneLightsList(areaId) {
+      const list = document.getElementById('tune-lights-list-' + areaId);
+      if (!list) return;
+      const items = [...list.querySelectorAll('.tune-light-item')];
+      if (items.length === 0) return;
+
+      items.sort((a, b) => {
+        let va, vb;
+        if (tuneLightSortOrder === 'name') {
+          va = a.querySelector('.tune-light-name')?.textContent || '';
+          vb = b.querySelector('.tune-light-name')?.textContent || '';
+          return tuneLightSortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+        }
+        if (tuneLightSortOrder === 'behaviour') {
+          va = a.querySelector('.tune-light-behaviour')?.textContent || '';
+          vb = b.querySelector('.tune-light-behaviour')?.textContent || '';
+          return tuneLightSortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+        }
+        const colMap = { impact: '.tune-light-impact', ct: '.tune-light-ct', final: '.tune-light-bri' };
+        va = parseFloat(a.querySelector(colMap[tuneLightSortOrder])?.textContent) || 0;
+        vb = parseFloat(b.querySelector(colMap[tuneLightSortOrder])?.textContent) || 0;
+        return tuneLightSortAsc ? va - vb : vb - va;
+      });
+
+      items.forEach(item => list.appendChild(item));
+
+      // Update active-sort class on headers within this area's lights section
+      const container = list.closest('.tune-area-lights');
+      if (container) {
+        container.querySelectorAll('.tune-light-sort').forEach(h => {
+          h.classList.toggle('active-sort', h.dataset.sort === tuneLightSortOrder);
+        });
+      }
     }
 
     function buildLightsSection(areaId, tuneArea) {
@@ -1207,40 +1436,69 @@
 
       if (lights.length === 0) return '';
 
+      // Compute per-light values
+      const areaFactor = tuneArea?.brightness_factor ?? 1.0;
+      const exposure = tuneArea?.natural_light_exposure ?? 0.0;
+      const zoneName = tuneArea?._zoneName;
+      const zoneBri = zoneStates?.[zoneName]?.brightness ?? 50;
+      const rhythmBri = Math.round(zoneBri);
+      const nlFactor = (exposure <= 0 || outdoorNorm <= 0) ? 1.0 : Math.max(0, 1 - exposure * outdoorNorm * sensitivity);
+      let hasCapped = false;
+
       let html = '';
+      // Super-header
+      html += '<div class="tune-light-col-super"><span></span><span></span><span class="tune-light-super-label">Adjustments</span></div>';
+      // Column headers
+      html += '<div class="tune-light-col-headers">'
+        + '<span class="tune-light-sort' + (tuneLightSortOrder === 'name' ? ' active-sort' : '') + '" data-sort="name" data-area-id="' + areaId + '">name</span>'
+        + '<span class="tune-light-sort' + (tuneLightSortOrder === 'behaviour' ? ' active-sort' : '') + '" data-sort="behaviour" data-area-id="' + areaId + '">behaviour</span>'
+        + '<span class="tune-light-sort' + (tuneLightSortOrder === 'impact' ? ' active-sort' : '') + '" data-sort="impact" data-area-id="' + areaId + '">behav.</span>'
+        + '<span class="tune-light-sort' + (tuneLightSortOrder === 'ct' ? ' active-sort' : '') + '" data-sort="ct" data-area-id="' + areaId + '">CT</span>'
+        + '<span class="tune-light-sort tune-light-sort-final' + (tuneLightSortOrder === 'final' ? ' active-sort' : '') + '" data-sort="final" data-area-id="' + areaId + '">final</span>'
+        + '</div>';
+
+      // Items
+      html += '<div id="tune-lights-list-' + areaId + '">';
       for (let i = 0; i < lights.length; i++) {
         const light = lights[i];
         const filterName = light.filter || 'Standard';
         const filterMult = getFilterMultiplier(presets, filterName);
         const impactPct = Math.round((filterMult - 1) * 100);
-        let impactStr = '';
-        if (impactPct < 0) impactStr = '\u2193' + Math.abs(impactPct) + '%';
-        else if (impactPct > 0) impactStr = '\u2191' + impactPct + '%';
+        let impactStr = impactPct === 0 ? '0%' : (impactPct < 0 ? '\u2193' + Math.abs(impactPct) + '%' : '\u2191' + impactPct + '%');
 
-        let selectHtml = '<select class="tune-light-select" data-area-id="' + areaId + '" data-entity-id="' + light.entity_id + '">';
-        for (const pName of presetNames) {
-          selectHtml += '<option value="' + pName + '"' + (pName === filterName ? ' selected' : '') + '>' + pName + '</option>';
-        }
-        selectHtml += '</select>';
-
-        // Compute per-light brightness
-        const areaFactor = tuneArea?.brightness_factor ?? 1.0;
-        const exposure = tuneArea?.natural_light_exposure ?? 0.0;
-        const zoneName = tuneArea?._zoneName;
-        const zoneBri = zoneStates?.[zoneName]?.brightness ?? 50;
-        const rhythmBri = Math.round(zoneBri);
-        const nlFactor = (exposure <= 0 || outdoorNorm <= 0) ? 1.0 : Math.max(0, 1 - exposure * outdoorNorm * sensitivity);
         const finalBri = rhythmBri * nlFactor * areaFactor * filterMult;
+        const isCapped = finalBri > 100;
+        if (isCapped) hasCapped = true;
         const isOff = finalBri < offThresh;
         const finalVal = isOff ? 0 : Math.min(100, Math.round(finalBri));
+        const capStar = isCapped ? '<span class="tune-capped-star">*</span>' : '';
 
-        html += '<div class="tune-light-row">';
-        html += '<span class="tune-light-name" title="' + light.entity_id + '">' + light.name + '</span>';
-        html += selectHtml;
-        html += '<span class="tune-light-impact">' + impactStr + '</span>';
-        html += '<span class="tune-light-bri">' + finalVal + '%</span>';
+        // CT placeholder — use zone CT data if available
+        const zoneColorTemp = zoneStates?.[zoneName]?.color_temp;
+        const ctStr = zoneColorTemp ? Math.round(zoneColorTemp) + 'K' : '';
+
+        const meta = tunePresetMeta(presets, filterName);
+        const lightKey = areaId + ':' + i;
+        const isExpanded = tuneExpandedLightKey === lightKey;
+
+        html += '<div class="tune-light-item" data-idx="' + i + '">';
+        html += '<div class="tune-light-summary">'
+          + '<span class="tune-light-name" title="' + light.entity_id + '">' + light.name + '</span>'
+          + '<span class="tune-light-behaviour" id="tune-light-preset-label-' + areaId + '-' + i + '" data-area-id="' + areaId + '" data-idx="' + i + '">' + filterName + '</span>'
+          + '<span class="tune-light-impact" id="tune-light-impact-' + areaId + '-' + i + '">' + impactStr + '</span>'
+          + '<span class="tune-light-ct" id="tune-light-ct-' + areaId + '-' + i + '">' + ctStr + '</span>'
+          + '<span class="tune-light-bri" id="tune-light-bri-' + areaId + '-' + i + '">' + finalVal + '%' + capStar + '</span>'
+          + '</div>';
+        html += '<div class="tune-light-expanded" id="tune-light-exp-' + areaId + '-' + i + '" style="display:' + (isExpanded ? 'block' : 'none') + ';">'
+          + '<button class="tune-light-select" data-area-id="' + areaId + '" data-light-idx="' + i + '" onclick="openTuneBehaviourDropdown(\'' + areaId + '\', ' + i + ', this)">' + filterName + ' \u25BE</button>'
+          + '<span class="tune-light-meta" id="tune-meta-' + areaId + '-' + i + '">' + meta + '</span>'
+          + '</div>';
         html += '</div>';
       }
+      html += '</div>';
+
+      html += '<div id="tune-lights-legend-' + areaId + '" style="display:' + (hasCapped ? 'block' : 'none') + '; padding:4px 14px 6px; font-size:0.65rem; color:var(--muted2);">* capped at 100%</div>';
+
       return html;
     }
 
@@ -1259,7 +1517,7 @@
       const sensitivity = tuneData?.brightness_sensitivity ?? 5.0;
       const outdoorNorm = tuneData?.outdoor_normalized ?? 0.0;
       const collapsedState = getCollapsedZones();
-      const chevronIcon = '<svg class="zone-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>';
+      const chevronIcon = '<span class="zone-chevron">&#x203A;</span>';
 
       // Build merged area list from glozone data
       let allAreas = [];
@@ -1281,20 +1539,36 @@
       }
 
       // Apply sort
+      const dir = tuneSortAsc ? 1 : -1;
       let sortedAreas = [...allAreas];
-      if (tuneSortOrder === 'az') {
-        sortedAreas.sort((a, b) => a.name.localeCompare(b.name));
+      if (tuneSortOrder === 'custom') {
+        if (!tuneSortAsc) sortedAreas.reverse();
+      } else if (tuneSortOrder === 'az') {
+        sortedAreas.sort((a, b) => dir * a.name.localeCompare(b.name));
       } else if (tuneSortOrder === 'light') {
         sortedAreas.sort((a, b) => {
           const fa = getTuneArea(a.area_id)?.brightness_factor ?? 1.0;
           const fb = getTuneArea(b.area_id)?.brightness_factor ?? 1.0;
-          return fa - fb;
+          return dir * (fa - fb);
         });
       } else if (tuneSortOrder === 'sun') {
         sortedAreas.sort((a, b) => {
           const ea = getTuneArea(a.area_id)?.natural_light_exposure ?? 0.0;
           const eb = getTuneArea(b.area_id)?.natural_light_exposure ?? 0.0;
-          return eb - ea;
+          return dir * (eb - ea);
+        });
+      } else if (tuneSortOrder === 'bri') {
+        sortedAreas.sort((a, b) => {
+          const ta = getTuneArea(a.area_id);
+          const tb = getTuneArea(b.area_id);
+          const fa = ta?.brightness_factor ?? 1.0;
+          const fb = tb?.brightness_factor ?? 1.0;
+          const ea = ta?.natural_light_exposure ?? 0.0;
+          const eb = tb?.natural_light_exposure ?? 0.0;
+          const znA = a.zone_name, znB = b.zone_name;
+          const briA = computeNowBrightness(zoneStates?.[znA]?.brightness ?? 50, fa, ea, outdoorNorm, sensitivity);
+          const briB = computeNowBrightness(zoneStates?.[znB]?.brightness ?? 50, fb, eb, outdoorNorm, sensitivity);
+          return dir * (briA - briB);
         });
       }
 
@@ -1321,35 +1595,36 @@
       // Build toolbar
       let html = '';
 
-      // Sensitivity row
+      // Sensitivity collapsible card
       const tuneSensStep = findClosestSensitivityStep(sensitivity);
       const tuneSensReduction = Math.min(100, Math.round(outdoorNorm * sensitivity * 100));
       const tuneSensPeak = Math.min(100, Math.round(sensitivity * 100));
+      const sensSummary = SENSITIVITY_STEPS[tuneSensStep].label + ' \u2193' + tuneSensReduction + '%';
+      const sensIsOpen = localStorage.getItem('tune_sensitivity_open') === '1';
       html += `
         <div class="tune-toolbar-row">
-          <div class="view-links">
-            <button class="view-link ${tuneSortOrder === 'custom' ? 'active' : ''}" data-tune-sort="custom">your order</button>
-            <span class="view-sep">&middot;</span>
-            <button class="view-link ${tuneSortOrder === 'az' ? 'active' : ''}" data-tune-sort="az">a&ndash;z</button>
-            <span class="view-sep">&middot;</span>
-            <button class="view-link ${tuneSortOrder === 'light' ? 'active' : ''}" data-tune-sort="light">balance</button>
-            <span class="view-sep">&middot;</span>
-            <button class="view-link ${tuneSortOrder === 'sun' ? 'active' : ''}" data-tune-sort="sun">exposure</button>
-          </div>
           <span style="flex: 1;"></span>
           <button class="tune-refresh-btn" onclick="refreshTuneBrightness()" title="Refresh">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
           </button>
         </div>
-        <div class="tune-sensitivity-standalone">
-          <span class="tune-zone-ctrl-label" style="white-space:nowrap;">Sun sensitivity</span>
-          <input type="range" class="tune-sensitivity-slider" id="tune-global-sensitivity" min="0" max="9" step="1" value="${tuneSensStep}" onclick="event.stopPropagation()">
-          <span class="tune-zone-ctrl-word tune-sensitivity-word" id="tune-global-sensitivity-word">${SENSITIVITY_STEPS[tuneSensStep].label}</span>
-          <span class="tune-zone-ctrl-val tune-sensitivity-val" id="tune-global-sensitivity-val">${fmtVal(sensitivity)}</span>
-          <span class="tune-zone-sun-meta tune-zone-sun-now" id="tune-global-sun-now">\u2193${tuneSensReduction}%</span>
-          <span class="tune-zone-sun-meta tune-zone-sun-peak" id="tune-global-sun-peak">pk\u2193${tuneSensPeak}%</span>
-          <span style="flex:1;"></span>
-          ${buildOutdoorSection()}
+        <div class="tune-sensitivity-card ${sensIsOpen ? 'is-open' : ''}" id="tune-sensitivity-card">
+          <div class="tune-sensitivity-header" onclick="toggleSensitivityBody()">
+            <span class="tune-sensitivity-chevron" id="tune-sensitivity-chevron">&#x203A;</span>
+            <span class="tune-sensitivity-title">Sun sensitivity</span>
+            <span class="tune-sensitivity-val" id="tune-sensitivity-summary">${sensSummary}</span>
+          </div>
+          <div class="tune-sensitivity-body" id="tune-sensitivity-body">
+            <div class="tune-sensitivity-body-inner">
+              <input type="range" class="tune-sensitivity-slider" id="tune-global-sensitivity" min="0" max="9" step="1" value="${tuneSensStep}" onclick="event.stopPropagation()">
+              <span class="tune-zone-ctrl-word tune-sensitivity-word" id="tune-global-sensitivity-word">${SENSITIVITY_STEPS[tuneSensStep].label}</span>
+              <span class="tune-zone-ctrl-val" id="tune-global-sensitivity-val">${fmtVal(sensitivity)}</span>
+              <span class="tune-zone-sun-meta tune-zone-sun-now" id="tune-global-sun-now">\u2193${tuneSensReduction}%</span>
+              <span class="tune-zone-sun-meta tune-zone-sun-peak" id="tune-global-sun-peak">pk\u2193${tuneSensPeak}%</span>
+              <span style="flex:1;"></span>
+              ${buildOutdoorSection()}
+            </div>
+          </div>
         </div>
       `;
 
@@ -1375,6 +1650,8 @@
           // Annotate tuneArea with zone name for light brightness calc
           if (tuneArea) tuneArea._zoneName = zoneName;
 
+          const isBoosted = tuneArea?.boosted || false;
+          const boostIcon = isBoosted ? '<span title="Boosted" style="font-size:0.75rem;">&#x26A1;</span> ' : '';
           const lights = tuneArea?.lights || [];
           const hasLights = lights.length > 0;
           const isExpanded = expandedAreas[area.area_id] || false;
@@ -1396,7 +1673,7 @@
                   <input type="range" class="tune-solar-slider" min="0" max="9" step="1" value="${solarStep}" data-area-id="${area.area_id}">
                   <span class="tune-slider-meta tune-sun-now">${sunMeta.now}</span>
                 </div>
-                <span class="tune-bri-col tune-bri-now">${nowBri}%</span>
+                <span class="tune-bri-col tune-bri-now">${boostIcon}${nowBri}%</span>
               </div>
               <div class="tune-area-row tune-area-row2">
                 <span class="tune-name-col"></span>
@@ -1418,13 +1695,20 @@
         const zoneControlsHtml = `
           <div class="tune-zone-controls" data-zone="${zoneName}" onclick="event.stopPropagation()">
             <div class="tune-area-row tune-col-headers">
-              <span class="tune-name-col"></span>
-              <span class="tune-fixture-col tune-col-header ${tuneSortOrder === 'light' ? 'active-sort' : ''}" onclick="setTuneSort(tuneSortOrder === 'light' ? 'custom' : 'light')">Room Balance</span>
-              <span class="tune-sun-col tune-col-header ${tuneSortOrder === 'sun' ? 'active-sort' : ''}" onclick="setTuneSort(tuneSortOrder === 'sun' ? 'custom' : 'sun')">Sun exposure</span>
-              <span class="tune-bri-col"></span>
+              <span class="tune-name-col tune-name-sort">
+                <span class="tune-name-sort-item ${tuneSortOrder === 'custom' ? 'active-sort' : ''}" onclick="setTuneSort('custom')">area</span>
+                <span class="tune-name-sort-dot">&middot;</span>
+                <span class="tune-name-sort-item ${tuneSortOrder === 'az' ? 'active-sort' : ''}" onclick="setTuneSort('az')">a-z</span>
+              </span>
+              <span class="tune-fixture-col tune-col-header ${tuneSortOrder === 'light' ? 'active-sort' : ''}" onclick="setTuneSort('light')">Room Balance</span>
+              <span class="tune-sun-col tune-col-header ${tuneSortOrder === 'sun' ? 'active-sort' : ''}" onclick="setTuneSort('sun')">Sun exposure</span>
+              <span class="tune-bri-col tune-col-header ${tuneSortOrder === 'bri' ? 'active-sort' : ''}" onclick="setTuneSort('bri')" style="text-align:right;">Bri</span>
             </div>
           </div>
         `;
+
+        const hasAnyBoosted = areasInZone.some(a => getTuneArea(a.area_id)?.boosted);
+        const boostLegend = hasAnyBoosted ? '<div style="padding:4px 16px 6px;font-size:0.65rem;color:var(--muted2);">&#x26A1; includes boost</div>' : '';
 
         html += `
           <div class="zone-group">
@@ -1441,6 +1725,7 @@
             </div>
             <div class="zone-content ${isCollapsed ? 'hidden' : ''}" data-zone-table="${zoneName}">
               ${areaRows}
+              ${boostLegend}
             </div>
           </div>
         `;
@@ -1482,10 +1767,43 @@
     function setupEventListeners() {
       const container = document.getElementById('tune-container');
 
-      // Sort pill clicks
       container.addEventListener('click', (e) => {
-        if (e.target.classList.contains('view-link') && !e.target.classList.contains('active') && e.target.dataset.tuneSort) {
-          setTuneSort(e.target.dataset.tuneSort);
+        // Behaviour label clicks — toggle expanded row
+        if (e.target.classList.contains('tune-light-behaviour')) {
+          e.stopPropagation();
+          const areaId = e.target.dataset.areaId;
+          const idx = parseInt(e.target.dataset.idx);
+          const lightKey = areaId + ':' + idx;
+          const wasExpanded = tuneExpandedLightKey === lightKey;
+          // Collapse current
+          if (tuneExpandedLightKey) {
+            const prev = document.getElementById('tune-light-exp-' + tuneExpandedLightKey.replace(':', '-'));
+            if (prev) prev.style.display = 'none';
+          }
+          if (wasExpanded) {
+            tuneExpandedLightKey = null;
+          } else {
+            tuneExpandedLightKey = lightKey;
+            const exp = document.getElementById('tune-light-exp-' + areaId + '-' + idx);
+            if (exp) exp.style.display = 'flex';
+          }
+        }
+        // Light column sort header clicks
+        if (e.target.classList.contains('tune-light-sort')) {
+          e.stopPropagation();
+          const sort = e.target.dataset.sort;
+          const areaId = e.target.dataset.areaId;
+          if (tuneLightSortOrder === sort) {
+            tuneLightSortAsc = !tuneLightSortAsc;
+          } else {
+            tuneLightSortOrder = sort;
+            tuneLightSortAsc = (sort === 'name' || sort === 'behaviour');
+          }
+          // Sort all expanded areas
+          document.querySelectorAll('.tune-area-lights').forEach(container => {
+            const id = container.id.replace('tune-lights-', '');
+            sortTuneLightsList(id);
+          });
         }
         // Toggle outdoor settings panel
         if (e.target.closest('#tune-outdoor-toggle')) {
@@ -1557,24 +1875,7 @@
           fetch('./api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ outdoor_brightness_source: val }) })
             .then(() => refreshOutdoorAndRender());
         }
-        // Light filter preset change (deferred save)
-        if (e.target.classList.contains('tune-light-select')) {
-          const areaId = e.target.dataset.areaId;
-          const entityId = e.target.dataset.entityId;
-          const newFilter = e.target.value;
-          // Update the tuneData in memory
-          const tuneArea = getTuneArea(areaId);
-          if (tuneArea) {
-            const light = (tuneArea.lights || []).find(l => l.entity_id === entityId);
-            if (light) light.filter = newFilter;
-          }
-          // Re-render this area's lights section
-          const lightsContainer = document.getElementById('tune-lights-' + areaId);
-          if (lightsContainer && tuneArea) {
-            lightsContainer.innerHTML = buildLightsSection(areaId, tuneArea);
-          }
-          updateTuneActionBar();
-        }
+        // (Light filter changes are now handled by the behaviour dropdown)
       });
 
       // Slider input events (live feedback)
@@ -1597,6 +1898,7 @@
             el.dataset.sensitivity = newSensitivity;
             updateTuneNowPreview(el, {});
           });
+          updateSensitivitySummary();
           updateTuneActionBar();
           return;
         }
