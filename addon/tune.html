@@ -495,6 +495,24 @@
       padding: 80px 24px;
     }
 
+    /* Color tab */
+    .ct-zone-card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin-bottom: 8px; padding: 14px; }
+    .ct-zone-header { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+    .ct-zone-name-group { display: flex; flex-direction: column; min-width: 0; }
+    .ct-kelvin-group { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .ct-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .ct-kelvin { font-weight: 700; font-size: 0.95rem; color: var(--text); }
+    .ct-gradient-wrap { margin-top: 12px; }
+    .ct-gradient-bar { height: 12px; border-radius: 6px; overflow: hidden; position: relative; }
+    .ct-marker { position: absolute; width: 3px; height: 100%; background: #fff; border-radius: 2px; box-shadow: 0 0 4px rgba(0,0,0,0.6); top: 0; transform: translateX(-50%); }
+    .ct-range-labels { display: flex; justify-content: space-between; font-size: 0.65rem; color: var(--muted2); margin-top: 2px; }
+    .ct-solar { margin-top: 10px; display: flex; flex-direction: column; gap: 4px; }
+    .ct-solar-row { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; }
+    .ct-solar-label { color: var(--muted2); min-width: 80px; text-transform: uppercase; font-size: 0.65rem; letter-spacing: 0.3px; }
+    .ct-solar-val { font-size: 0.8rem; }
+    .ct-solar-val.off { color: var(--muted2); }
+    .ct-solar-val.on { color: var(--text); }
+
     /* Refresh button */
     .tune-refresh-btn {
       display: flex; align-items: center; justify-content: center;
@@ -562,13 +580,10 @@
       </div>
     </div>
 
-    <!-- Color Tab (placeholder) -->
+    <!-- Color Tab -->
     <div id="tune-color-tab" style="display:none">
       <div class="tune-placeholder">
-        <p style="font-size: 1.1rem; color: var(--muted);">Color tuning coming soon</p>
-        <p style="font-size: 0.85rem; color: var(--muted2); margin-top: 8px;">
-          Zone-level color temperature, warm night, and daylight blend controls will appear here.
-        </p>
+        <p style="font-size: 0.95rem; color: var(--muted);">Loading color data...</p>
       </div>
     </div>
   </main>
@@ -645,6 +660,7 @@
       document.getElementById('tune-brightness-tab').style.display = tab === 'brightness' ? '' : 'none';
       document.getElementById('tune-color-tab').style.display = tab === 'color' ? '' : 'none';
       localStorage.setItem('tune_active_tab', tab);
+      if (tab === 'color' && cachedGlozones) renderColorTab();
     }
 
     // ============================================================
@@ -1329,6 +1345,7 @@
       } catch (err) {
         console.error('refreshTuneBrightness error:', err);
       }
+      if (localStorage.getItem('tune_active_tab') === 'color') renderColorTab();
     }
 
     // ============================================================
@@ -1589,7 +1606,79 @@
     }
 
     // ============================================================
-    // Render
+    // Render — Color tab
+    // ============================================================
+    function renderColorTab() {
+      const container = document.getElementById('tune-color-tab');
+      const gzZonesObj = cachedGlozones?.zones || {};
+      const zoneNames = Object.keys(gzZonesObj);
+      if (!zoneNames.length) {
+        container.innerHTML = '<div class="tune-placeholder"><p style="font-size:0.95rem;color:var(--muted);">No zones configured</p></div>';
+        return;
+      }
+      let html = '';
+      for (const zoneName of zoneNames) {
+        const gz = gzZonesObj[zoneName];
+        const minK = gz.min_color_temp ?? 500;
+        const maxK = gz.max_color_temp ?? 6500;
+        const currentK = zoneStates?.[zoneName]?.kelvin ?? null;
+        const warmEnabled = gz.warm_night_enabled ?? false;
+        const warmTarget = gz.warm_night_target ?? 2700;
+        const dayEnabled = gz.daylight_enabled ?? true;
+        const dayCct = gz.daylight_cct ?? 5500;
+
+        // Header
+        const dotColor = currentK ? cctToRGB(currentK) : 'var(--muted2)';
+        const kelvinStr = currentK ? Math.round(currentK) + 'K' : '--';
+        const escapedZone = encodeURIComponent(zoneName);
+
+        // Gradient bar
+        const stops = [];
+        for (let i = 0; i <= 7; i++) {
+          const k = minK + (maxK - minK) * (i / 7);
+          stops.push(cctToRGB(k));
+        }
+        const gradStyle = 'background:linear-gradient(to right,' + stops.join(',') + ');';
+
+        // Marker position
+        let markerHtml = '';
+        if (currentK != null && maxK > minK) {
+          const pct = Math.max(0, Math.min(100, ((currentK - minK) / (maxK - minK)) * 100));
+          markerHtml = '<div class="ct-marker" style="left:' + pct + '%;"></div>';
+        }
+
+        // Solar rules
+        const warmVal = warmEnabled ? warmTarget + 'K' : 'off';
+        const warmCls = warmEnabled ? 'on' : 'off';
+        const dayVal = dayEnabled ? dayCct + 'K' : 'off';
+        const dayCls = dayEnabled ? 'on' : 'off';
+
+        html += '<div class="ct-zone-card">'
+          + '<div class="ct-zone-header">'
+          +   '<div class="ct-zone-name-group">'
+          +     '<a class="zone-rhythm-link" href="./zone/' + escapedZone + '?back=tune">' + zoneName + '</a>'
+          +     '<span class="zone-label-sub">rhythm zone</span>'
+          +   '</div>'
+          +   '<div class="ct-kelvin-group">'
+          +     '<span class="ct-dot" style="background:' + dotColor + ';"></span>'
+          +     '<span class="ct-kelvin">' + kelvinStr + '</span>'
+          +   '</div>'
+          + '</div>'
+          + '<div class="ct-gradient-wrap">'
+          +   '<div class="ct-gradient-bar" style="' + gradStyle + '">' + markerHtml + '</div>'
+          +   '<div class="ct-range-labels"><span>' + minK + 'K</span><span>' + maxK + 'K</span></div>'
+          + '</div>'
+          + '<div class="ct-solar">'
+          +   '<div class="ct-solar-row"><span class="ct-solar-label">Warm night</span><span class="ct-solar-val ' + warmCls + '">' + warmVal + '</span></div>'
+          +   '<div class="ct-solar-row"><span class="ct-solar-label">Daylight</span><span class="ct-solar-val ' + dayCls + '">' + dayVal + '</span></div>'
+          + '</div>'
+          + '</div>';
+      }
+      container.innerHTML = html;
+    }
+
+    // ============================================================
+    // Render — Brightness tab
     // ============================================================
     function renderTune() {
       const container = document.getElementById('tune-container');
@@ -1850,6 +1939,7 @@
         console.error('Error loading tune data:', err);
       }
       renderTune();
+      if (localStorage.getItem('tune_active_tab') === 'color') renderColorTab();
     }
 
     // ============================================================
