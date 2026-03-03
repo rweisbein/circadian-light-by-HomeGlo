@@ -149,7 +149,8 @@
       display: flex;
       gap: 0;
       padding: 0;
-      margin-bottom: 12px;
+      margin-bottom: 8px;
+      align-items: center;
     }
     .tune-tab {
       padding: 8px 20px;
@@ -167,20 +168,13 @@
       border-bottom-color: var(--accent);
     }
 
-    /* Tune toolbar */
-    .tune-toolbar-row {
-      display: flex;
-      align-items: center;
-      margin-bottom: 8px;
-    }
-
     /* Tune sensitivity — collapsible card */
     .tune-sensitivity-card {
       background: var(--card);
       border: 1px solid var(--line);
       border-radius: 10px;
-      overflow: hidden;
       margin-bottom: 8px;
+      position: relative;
     }
     .tune-sensitivity-header {
       display: flex;
@@ -200,7 +194,7 @@
       max-height: 0; opacity: 0; overflow: hidden;
       transition: max-height 0.3s ease, opacity 0.25s ease;
     }
-    .tune-sensitivity-card.is-open .tune-sensitivity-body { max-height: 500px; opacity: 1; }
+    .tune-sensitivity-card.is-open .tune-sensitivity-body { max-height: 500px; opacity: 1; overflow: visible; }
     .tune-sensitivity-body-inner {
       display: flex;
       align-items: center;
@@ -241,7 +235,7 @@
     }
     .tune-zone-header .tune-col-headers {
       width: 100%;
-      padding: 4px 16px 2px;
+      padding: 4px 2px 2px;
       background: none;
       border-bottom: none;
     }
@@ -371,9 +365,11 @@
 
     /* Expandable lights per area */
     .tune-area-lights {
-      background: var(--card);
+      background: var(--bg);
       border-top: 1px solid var(--line);
+      border-left: 3px solid var(--line);
       padding: 0;
+      margin-left: 14px;
     }
     .tune-area-expand-row {
       cursor: pointer;
@@ -548,6 +544,10 @@
     <div class="tune-tabs">
       <button class="tune-tab active" data-tab="brightness" onclick="switchTab('brightness')">Brightness</button>
       <button class="tune-tab" data-tab="color" onclick="switchTab('color')">Color</button>
+      <span style="flex:1;"></span>
+      <button class="tune-refresh-btn" onclick="refreshTuneBrightness()" title="Refresh">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+      </button>
     </div>
 
     <!-- Brightness Tab -->
@@ -1145,7 +1145,7 @@
       const sensitivity = SENSITIVITY_STEPS[step].multiplier;
       const outdoorNorm = tuneData?.outdoor_normalized ?? 0.0;
       const reduction = Math.min(100, Math.round(outdoorNorm * sensitivity * 100));
-      el.textContent = SENSITIVITY_STEPS[step].label + ' \u2193' + reduction + '%';
+      el.innerHTML = SENSITIVITY_STEPS[step].label + ' &middot; \u2193' + reduction + '% @ peak sun';
     }
 
     // ============================================================
@@ -1267,11 +1267,25 @@
     let tuneExpandedLightKey = null;  // "areaId:idx"
 
     function toggleAreaLights(areaId) {
-      expandedAreas[areaId] = !expandedAreas[areaId];
+      const wasExpanded = expandedAreas[areaId];
+      // Collapse all others (accordion)
+      for (const [otherId, isOpen] of Object.entries(expandedAreas)) {
+        if (isOpen && otherId !== areaId) {
+          expandedAreas[otherId] = false;
+          const otherEl = document.getElementById('tune-lights-' + otherId);
+          if (otherEl) otherEl.style.display = 'none';
+          const otherChevron = document.getElementById('tune-lights-chevron-' + otherId);
+          if (otherChevron) otherChevron.style.transform = '';
+        }
+      }
+      // Toggle this one
+      expandedAreas[areaId] = !wasExpanded;
       const el = document.getElementById('tune-lights-' + areaId);
       if (el) el.style.display = expandedAreas[areaId] ? 'block' : 'none';
       const chevron = document.getElementById('tune-lights-chevron-' + areaId);
       if (chevron) chevron.style.transform = expandedAreas[areaId] ? 'rotate(90deg)' : '';
+      // Also collapse any expanded light detail row when switching areas
+      if (!wasExpanded) tuneExpandedLightKey = null;
     }
 
     function tunePresetMeta(presets, filterName) {
@@ -1592,22 +1606,15 @@
         }
       }
 
-      // Build toolbar
       let html = '';
 
       // Sensitivity collapsible card
       const tuneSensStep = findClosestSensitivityStep(sensitivity);
       const tuneSensReduction = Math.min(100, Math.round(outdoorNorm * sensitivity * 100));
       const tuneSensPeak = Math.min(100, Math.round(sensitivity * 100));
-      const sensSummary = SENSITIVITY_STEPS[tuneSensStep].label + ' \u2193' + tuneSensReduction + '%';
+      const sensSummary = SENSITIVITY_STEPS[tuneSensStep].label + ' &middot; \u2193' + tuneSensReduction + '% @ peak sun';
       const sensIsOpen = localStorage.getItem('tune_sensitivity_open') === '1';
       html += `
-        <div class="tune-toolbar-row">
-          <span style="flex: 1;"></span>
-          <button class="tune-refresh-btn" onclick="refreshTuneBrightness()" title="Refresh">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
-          </button>
-        </div>
         <div class="tune-sensitivity-card ${sensIsOpen ? 'is-open' : ''}" id="tune-sensitivity-card">
           <div class="tune-sensitivity-header" onclick="toggleSensitivityBody()">
             <span class="tune-sensitivity-chevron" id="tune-sensitivity-chevron">&#x203A;</span>
