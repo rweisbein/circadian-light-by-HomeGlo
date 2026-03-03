@@ -2257,7 +2257,7 @@ function renderColorGradient() {
   const gradStyle = 'background:linear-gradient(to right,' + stops.join(',') + ');';
 
   // Grey overlays
-  const effectiveCool = (dayEnabled && dayCct > maxK) ? dayCct : maxK;
+  const effectiveCool = dayEnabled ? Math.max(maxK, dayCct) : maxK;
   const greyLeftPct = ctPct(minK);
   const greyRightPct = 100 - ctPct(effectiveCool);
   let greyHtml = '';
@@ -2286,7 +2286,7 @@ function renderColorGradient() {
   pipsHtml += pipHtml(ctPct(minK), 'ct-pip-ref', refLayerIdx);
   if (warmEnabled) pipsHtml += pipHtml(ctPct(warmTarget), 'ct-pip-ref', refLayerIdx);
   pipsHtml += pipHtml(ctPct(maxK), 'ct-pip-ref', refLayerIdx);
-  if (dayEnabled && dayCct > maxK) pipsHtml += pipHtml(ctPct(dayCct), 'ct-pip-ref', refLayerIdx);
+  if (dayEnabled) pipsHtml += pipHtml(ctPct(dayCct), 'ct-pip-ref', refLayerIdx);
 
   // Draggable handles on gradient bar
   let handlesHtml = '';
@@ -2321,20 +2321,15 @@ function renderColorGradient() {
     return 'left:' + pct + '%;';
   }
 
-  // Layer 2: Reference labels (draggable)
+  // Layer 2: Reference labels (draggable) — stable labels regardless of relative position
   let refHtml = '';
   refHtml += '<span class="ct-axis-label ct-draggable" data-handle="warmest" style="' + refStyle(ctPct(minK)) + '" data-tip="' + minK + 'K">warmest</span>';
   if (warmEnabled) {
     refHtml += '<span class="ct-axis-label ct-draggable" data-handle="night-max" style="' + refStyle(ctPct(warmTarget)) + '" data-tip="' + warmTarget + 'K">night max</span>';
   }
-  if (dayEnabled && dayCct > maxK) {
-    refHtml += '<span class="ct-axis-label ct-draggable" data-handle="coolest-base" style="' + refStyle(ctPct(maxK)) + '" data-tip="' + maxK + 'K">dark day max</span>';
-    refHtml += '<span class="ct-axis-label ct-draggable" data-handle="coolest-day" style="' + refStyle(ctPct(dayCct)) + '" data-tip="' + dayCct + 'K">coolest</span>';
-  } else {
-    refHtml += '<span class="ct-axis-label ct-draggable" data-handle="coolest-base" style="' + refStyle(ctPct(maxK)) + '" data-tip="' + maxK + 'K">coolest</span>';
-    if (dayEnabled) {
-      refHtml += '<span class="ct-axis-label ct-draggable" data-handle="coolest-day" style="' + refStyle(ctPct(dayCct)) + '" data-tip="' + dayCct + 'K">cool day</span>';
-    }
+  refHtml += '<span class="ct-axis-label ct-draggable" data-handle="coolest-base" style="' + refStyle(ctPct(maxK)) + '" data-tip="' + maxK + 'K">coolest</span>';
+  if (dayEnabled) {
+    refHtml += '<span class="ct-axis-label ct-draggable" data-handle="coolest-day" style="' + refStyle(ctPct(dayCct)) + '" data-tip="' + dayCct + 'K">cool day</span>';
   }
   const layer2 = '<div class="ct-axis ct-axis-ref">' + refHtml + '</div>';
 
