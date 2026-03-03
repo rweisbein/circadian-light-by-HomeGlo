@@ -1755,6 +1755,21 @@
           zoneStates = zs.zone_states || {};
         }
         if (glozonesResp.ok) cachedGlozones = await glozonesResp.json();
+
+        // Merge area_lights into zone area objects
+        if (tuneData?.area_lights && tuneData?.zones) {
+          const areaLights = tuneData.area_lights;
+          for (const zone of Object.values(tuneData.zones)) {
+            for (const area of (zone.areas || [])) {
+              const filters = area.light_filters || {};
+              const lights = areaLights[area.id] || [];
+              area.lights = lights.map(l => ({
+                ...l,
+                filter: filters[l.entity_id] || 'Standard',
+              }));
+            }
+          }
+        }
       } catch (err) {
         console.error('Error loading tune data:', err);
       }
