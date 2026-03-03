@@ -138,7 +138,6 @@
     .zone-content.hidden { display: none; }
     .zone-chevron { display: inline-block; font-size: 1.1rem; line-height: 1; transition: transform 0.25s; color: var(--muted2); flex-shrink: 0; }
     .zone-header:not(.collapsed) .zone-chevron { transform: rotate(90deg); }
-    .zone-chevron-tap { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; cursor: pointer; flex-shrink: 0; }
     .zone-name-group { display: flex; flex-direction: column; min-width: 0; }
     .zone-rhythm-link { font-weight: 700; font-size: 1.05rem; color: var(--text); text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .zone-rhythm-link:hover { color: var(--accent); }
@@ -1586,8 +1585,6 @@
       const sensitivity = tuneData?.brightness_sensitivity ?? 5.0;
       const outdoorNorm = tuneData?.outdoor_normalized ?? 0.0;
       const collapsedState = getCollapsedZones();
-      const chevronIcon = '<span class="zone-chevron">&#x203A;</span>';
-
       // Build merged area list from glozone data
       let allAreas = [];
       for (const zoneName of gzZoneNames) {
@@ -1774,7 +1771,7 @@
         html += `
           <div class="zone-group">
             <div class="zone-header tune-zone-header ${isCollapsed ? 'collapsed' : ''}" data-zone="${zoneName}">
-              <span class="zone-chevron-tap" onclick="event.stopPropagation(); toggleZone('${escapedZoneName}', this)">${chevronIcon}</span>
+              <span class="zone-chevron" onclick="event.stopPropagation(); toggleZone('${escapedZoneName}', this)">&#x203A;</span>
               <div class="zone-name-group">
                 <a class="zone-rhythm-link" href="./zone/${encodeURIComponent(zoneName)}?back=tune" onclick="event.stopPropagation()">${zoneName}</a>
                 <span class="zone-label-sub">rhythm zone</span>

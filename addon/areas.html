@@ -635,19 +635,23 @@
     }
 
     .zone-chevron {
-      width: 16px;
-      height: 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      font-size: 1.1rem;
+      line-height: 1;
       color: var(--muted);
-      transition: transform 0.2s;
+      transition: transform 0.25s;
       background: rgba(0,0,0,0.45);
       border-radius: 50%;
-      padding: 2px;
-      box-sizing: content-box;
       box-shadow: 0 0 0 1.5px rgba(255,255,255,0.25);
+      flex-shrink: 0;
     }
 
-    .zone-header.collapsed .zone-chevron {
-      transform: rotate(-90deg);
+    .zone-header:not(.collapsed) .zone-chevron {
+      transform: rotate(90deg);
     }
 
     .zone-name {
@@ -2385,7 +2389,7 @@
       const collapsedState = getCollapsedZones();
 
       // Chevron icon
-      const chevronIcon = `<svg class="zone-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>`;
+      const chevronIcon = `<span class="zone-chevron">&#x203A;</span>`;
 
       // Power icon (shared for zone header)
       const powerIconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0M12 2v10"/></svg>`;
