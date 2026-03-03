@@ -49,7 +49,7 @@
     .nav-brand {
       font-weight: 600;
       font-size: 1.1rem;
-      color: var(--text);
+      color: var(--muted);
       margin-right: 16px;
       text-decoration: none;
       display: flex;
@@ -58,7 +58,7 @@
     }
 
     .nav-brand.active {
-      color: var(--accent);
+      color: var(--text);
     }
 
     .nav-logo {
@@ -90,7 +90,7 @@
     }
 
     .nav-link.active {
-      color: var(--accent);
+      color: var(--text);
     }
 
     /* Nav overflow menu */
@@ -100,7 +100,7 @@
     .nav-overflow.open { display: block; }
     .nav-overflow-item { display: block; padding: 10px 16px; color: var(--muted); text-decoration: none; font-size: 0.9rem; white-space: nowrap; }
     .nav-overflow-item:hover { color: var(--text); background: rgba(255,255,255,0.05); }
-    .nav-overflow-item.active { color: var(--accent); }
+    .nav-overflow-item.active { color: var(--text); }
 
     /* Main Content */
     .main {
@@ -502,16 +502,15 @@
     .ct-kelvin-group { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
     .ct-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
     .ct-kelvin { font-weight: 700; font-size: 0.95rem; color: var(--text); }
-    .ct-gradient-wrap { margin-top: 12px; }
-    .ct-gradient-bar { height: 12px; border-radius: 6px; overflow: hidden; position: relative; }
-    .ct-marker { position: absolute; width: 3px; height: 100%; background: #fff; border-radius: 2px; box-shadow: 0 0 4px rgba(0,0,0,0.6); top: 0; transform: translateX(-50%); }
-    .ct-range-labels { display: flex; justify-content: space-between; font-size: 0.65rem; color: var(--muted2); margin-top: 2px; }
-    .ct-solar { margin-top: 10px; display: flex; flex-direction: column; gap: 4px; }
-    .ct-solar-row { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; }
-    .ct-solar-label { color: var(--muted2); min-width: 80px; text-transform: uppercase; font-size: 0.65rem; letter-spacing: 0.3px; }
-    .ct-solar-val { font-size: 0.8rem; }
-    .ct-solar-val.off { color: var(--muted2); }
-    .ct-solar-val.on { color: var(--text); }
+    .ct-gradient-wrap { margin-top: 12px; position: relative; }
+    .ct-gradient-bar { height: 12px; border-radius: 6px; position: relative; }
+    .ct-pip { position: absolute; top: 0; height: 100%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; pointer-events: none; }
+    .ct-pip-line { width: 2px; height: 100%; border-radius: 1px; }
+    .ct-pip-now .ct-pip-line { width: 3px; background: #fff; box-shadow: 0 0 4px rgba(0,0,0,0.6); }
+    .ct-pip-ref .ct-pip-line { background: rgba(255,255,255,0.35); }
+    .ct-pip-label { position: absolute; top: calc(100% + 3px); font-size: 0.6rem; white-space: nowrap; color: var(--muted2); }
+    .ct-pip-now .ct-pip-label { color: var(--text); font-weight: 600; }
+    .ct-range-labels { display: flex; justify-content: space-between; font-size: 0.6rem; color: var(--muted2); margin-top: 16px; }
 
     /* Refresh button */
     .tune-refresh-btn {
@@ -1627,31 +1626,48 @@
         const dayEnabled = gz.daylight_enabled ?? true;
         const dayCct = gz.daylight_cct ?? 5500;
 
+        // Effective gradient range: warm end is always minK,
+        // cool end extends to daylight_cct if it exceeds maxK
+        const gradMin = minK;
+        const gradMax = (dayEnabled && dayCct > maxK) ? dayCct : maxK;
+        const gradSpan = gradMax - gradMin;
+
         // Header
         const dotColor = currentK ? cctToRGB(currentK) : 'var(--muted2)';
         const kelvinStr = currentK ? Math.round(currentK) + 'K' : '--';
         const escapedZone = encodeURIComponent(zoneName);
 
-        // Gradient bar
+        // Gradient bar — sample 8 stops across effective range
         const stops = [];
         for (let i = 0; i <= 7; i++) {
-          const k = minK + (maxK - minK) * (i / 7);
+          const k = gradMin + gradSpan * (i / 7);
           stops.push(cctToRGB(k));
         }
         const gradStyle = 'background:linear-gradient(to right,' + stops.join(',') + ');';
 
-        // Marker position
-        let markerHtml = '';
-        if (currentK != null && maxK > minK) {
-          const pct = Math.max(0, Math.min(100, ((currentK - minK) / (maxK - minK)) * 100));
-          markerHtml = '<div class="ct-marker" style="left:' + pct + '%;"></div>';
+        // Helper: kelvin to percent position on gradient
+        function kToPct(k) {
+          if (gradSpan <= 0) return 50;
+          return Math.max(0, Math.min(100, ((k - gradMin) / gradSpan) * 100));
         }
 
-        // Solar rules
-        const warmVal = warmEnabled ? warmTarget + 'K' : 'off';
-        const warmCls = warmEnabled ? 'on' : 'off';
-        const dayVal = dayEnabled ? dayCct + 'K' : 'off';
-        const dayCls = dayEnabled ? 'on' : 'off';
+        // Build pips
+        let pipsHtml = '';
+
+        // "now" pip — current CT
+        if (currentK != null) {
+          pipsHtml += '<div class="ct-pip ct-pip-now" style="left:' + kToPct(currentK) + '%;"><div class="ct-pip-line"></div><span class="ct-pip-label">now</span></div>';
+        }
+
+        // "night" pip — warm night target (only if enabled)
+        if (warmEnabled) {
+          pipsHtml += '<div class="ct-pip ct-pip-ref" style="left:' + kToPct(warmTarget) + '%;"><div class="ct-pip-line"></div><span class="ct-pip-label">night</span></div>';
+        }
+
+        // "dark day" pip — maxK, only when daylight extends the gradient beyond it
+        if (dayEnabled && dayCct > maxK) {
+          pipsHtml += '<div class="ct-pip ct-pip-ref" style="left:' + kToPct(maxK) + '%;"><div class="ct-pip-line"></div><span class="ct-pip-label">dark day</span></div>';
+        }
 
         html += '<div class="ct-zone-card">'
           + '<div class="ct-zone-header">'
@@ -1665,12 +1681,8 @@
           +   '</div>'
           + '</div>'
           + '<div class="ct-gradient-wrap">'
-          +   '<div class="ct-gradient-bar" style="' + gradStyle + '">' + markerHtml + '</div>'
-          +   '<div class="ct-range-labels"><span>' + minK + 'K</span><span>' + maxK + 'K</span></div>'
-          + '</div>'
-          + '<div class="ct-solar">'
-          +   '<div class="ct-solar-row"><span class="ct-solar-label">Warm night</span><span class="ct-solar-val ' + warmCls + '">' + warmVal + '</span></div>'
-          +   '<div class="ct-solar-row"><span class="ct-solar-label">Daylight</span><span class="ct-solar-val ' + dayCls + '">' + dayVal + '</span></div>'
+          +   '<div class="ct-gradient-bar" style="' + gradStyle + '">' + pipsHtml + '</div>'
+          +   '<div class="ct-range-labels"><span>' + gradMin + 'K</span><span>' + gradMax + 'K</span></div>'
           + '</div>'
           + '</div>';
       }

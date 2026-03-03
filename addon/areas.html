@@ -55,7 +55,7 @@
     .nav-brand {
       font-weight: 600;
       font-size: 1.1rem;
-      color: var(--text);
+      color: var(--muted);
       margin-right: 16px;
       text-decoration: none;
       display: flex;
@@ -64,7 +64,7 @@
     }
 
     .nav-brand.active {
-      color: var(--accent);
+      color: var(--text);
     }
 
     .nav-logo {
@@ -96,7 +96,7 @@
     }
 
     .nav-link.active {
-      color: var(--accent);
+      color: var(--text);
     }
 
 
@@ -638,8 +638,8 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 20px;
-      height: 20px;
+      width: 22px;
+      height: 22px;
       font-size: 1.1rem;
       line-height: 1;
       color: var(--muted);
@@ -649,7 +649,6 @@
       box-shadow: 0 0 0 1.5px rgba(255,255,255,0.25);
       flex-shrink: 0;
       box-sizing: border-box;
-      padding-left: 2px;
     }
 
     .zone-header:not(.collapsed) .zone-chevron {
@@ -901,7 +900,7 @@
     .nav-overflow.open { display: block; }
     .nav-overflow-item { display: block; padding: 10px 16px; color: var(--muted); text-decoration: none; font-size: 0.9rem; white-space: nowrap; }
     .nav-overflow-item:hover { color: var(--text); background: rgba(255,255,255,0.05); }
-    .nav-overflow-item.active { color: var(--accent); }
+    .nav-overflow-item.active { color: var(--text); }
 
     /* View mode links */
     .view-links { display: flex; align-items: center; gap: 6px; font-size: 0.7rem; }
