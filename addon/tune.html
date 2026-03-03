@@ -502,29 +502,37 @@
     .ct-kelvin-group { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
     .ct-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
     .ct-kelvin { font-weight: 700; font-size: 0.95rem; color: var(--text); }
-    .ct-gradient-wrap { margin-top: 12px; position: relative; }
+    .ct-gradient-wrap { margin-top: 12px; position: relative; overflow: hidden; }
     .ct-gradient-bar { height: 12px; border-radius: 6px; position: relative; overflow: visible; }
     /* Grey-out overlays for unused range */
-    .ct-grey-left, .ct-grey-right { position: absolute; top: 0; height: 100%; background: rgba(0,0,0,0.55); pointer-events: none; z-index: 1; }
+    .ct-grey-left, .ct-grey-right { position: absolute; top: 0; height: 100%; background: rgba(0,0,0,0.72); pointer-events: none; z-index: 1; }
     .ct-grey-left { left: 0; border-radius: 6px 0 0 6px; }
     .ct-grey-right { right: 0; border-radius: 0 6px 6px 0; }
-    /* Pip lines on gradient */
+    /* Pip lines — only on gradient bar for "now", dotted connectors below for all */
     .ct-pip { position: absolute; top: 0; width: 0; pointer-events: none; z-index: 2; }
     .ct-pip-line { position: absolute; left: 50%; width: 2px; transform: translateX(-50%); }
     .ct-pip-bar { top: 0; height: 12px; border-radius: 1px; }
     .ct-pip-now .ct-pip-bar { width: 3px; background: #fff; box-shadow: 0 0 3px rgba(0,0,0,0.8), 0 0 6px rgba(0,0,0,0.4); }
-    .ct-pip-ref .ct-pip-bar { width: 2px; background: rgba(0,0,0,0.5); box-shadow: -1px 0 0 rgba(255,255,255,0.3), 1px 0 0 rgba(255,255,255,0.3); }
+    .ct-pip-ref .ct-pip-bar { display: none; }
     /* Dotted connector lines extending below gradient into label layers */
     .ct-pip-dot { top: 12px; border-left: 1px dotted; }
-    .ct-pip-now .ct-pip-dot { border-color: rgba(255,255,255,0.4); }
-    .ct-pip-ref .ct-pip-dot { border-color: rgba(255,255,255,0.2); }
-    /* Three label layers — each is a positioned row below the gradient */
+    .ct-pip-now .ct-pip-dot { border-color: rgba(255,255,255,0.5); }
+    .ct-pip-ref .ct-pip-dot { border-color: rgba(255,255,255,0.25); }
+    /* Three label layers */
     .ct-layers { margin-top: 2px; }
-    .ct-axis { position: relative; height: 14px; }
-    .ct-axis-label { position: absolute; transform: translateX(-50%); font-size: 0.6rem; white-space: nowrap; }
+    .ct-axis { position: relative; height: 15px; }
+    .ct-axis-label { position: absolute; transform: translateX(-50%); font-size: 0.65rem; white-space: nowrap; }
     .ct-axis-tick .ct-axis-label { color: var(--muted2); }
-    .ct-axis-ref .ct-axis-label { color: var(--muted); font-weight: 500; }
-    .ct-axis-now .ct-axis-label { color: var(--text); font-weight: 600; }
+    .ct-axis-ref .ct-axis-label { color: var(--text); font-weight: 600; font-size: 0.65rem; }
+    .ct-axis-now .ct-axis-label { color: var(--accent); font-weight: 700; font-size: 0.7rem; }
+    /* Hover callout bubble */
+    .ct-axis-label[data-tip]:hover::after {
+      content: attr(data-tip);
+      position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+      background: var(--panel); color: var(--text); border: 1px solid var(--line);
+      border-radius: 4px; padding: 2px 6px; font-size: 0.7rem; font-weight: 600;
+      white-space: nowrap; pointer-events: none; z-index: 10;
+    }
 
     /* Refresh button */
     .tune-refresh-btn {
@@ -1713,14 +1721,13 @@
         if (dayEnabled && dayCct > maxK) pipsHtml += pipHtml(ctPct(dayCct), 'ct-pip-ref', refLayerIdx);  // coolest (daylight)
 
         // --- Layer 1: CT K tick marks ---
-        // Build candidate ticks at round 1000K, plus edges
+        // Full "2000K" format, collision-aware
         let ticks = [{ k: CT_SYSTEM_MIN, pct: 0, label: CT_SYSTEM_MIN + 'K', edge: 'left' }];
         for (let k = 1000; k < CT_SYSTEM_MAX; k += 1000) {
-          ticks.push({ k, pct: ctPct(k), label: (k / 1000) + 'k' });
+          ticks.push({ k, pct: ctPct(k), label: k + 'K' });
         }
         ticks.push({ k: CT_SYSTEM_MAX, pct: 100, label: CT_SYSTEM_MAX + 'K', edge: 'right' });
-        // Filter collisions — ~9% gap minimum (~35px on 375px mobile)
-        ticks = filterTickCollisions(ticks, 9);
+        ticks = filterTickCollisions(ticks, 12);
         let ticksHtml = '';
         for (const t of ticks) {
           const style = t.edge === 'left' ? 'left:0;transform:none;'
@@ -1730,24 +1737,31 @@
         }
         const layer1 = '<div class="ct-axis ct-axis-tick">' + ticksHtml + '</div>';
 
+        // Edge-aware alignment helper: left-align near 0%, right-align near 100%
+        function refStyle(pct) {
+          if (pct <= 2) return 'left:' + pct + '%;transform:none;';
+          if (pct >= 98) return 'left:' + pct + '%;transform:translateX(-100%);';
+          return 'left:' + pct + '%;';
+        }
+
         // --- Layer 2: Reference labels (warmest, coolest, night max, dark day max) ---
         let refHtml = '';
-        refHtml += '<span class="ct-axis-label" style="left:' + ctPct(minK) + '%;" title="' + minK + 'K">warmest</span>';
+        refHtml += '<span class="ct-axis-label" style="' + refStyle(ctPct(minK)) + '" data-tip="' + minK + 'K">warmest</span>';
         if (warmEnabled) {
-          refHtml += '<span class="ct-axis-label" style="left:' + ctPct(warmTarget) + '%;" title="' + warmTarget + 'K">night max</span>';
+          refHtml += '<span class="ct-axis-label" style="' + refStyle(ctPct(warmTarget)) + '" data-tip="' + warmTarget + 'K">night max</span>';
         }
         if (dayEnabled && dayCct > maxK) {
-          refHtml += '<span class="ct-axis-label" style="left:' + ctPct(maxK) + '%;" title="' + maxK + 'K">dark day max</span>';
-          refHtml += '<span class="ct-axis-label" style="left:' + ctPct(dayCct) + '%;" title="' + dayCct + 'K">coolest</span>';
+          refHtml += '<span class="ct-axis-label" style="' + refStyle(ctPct(maxK)) + '" data-tip="' + maxK + 'K">dark day max</span>';
+          refHtml += '<span class="ct-axis-label" style="' + refStyle(ctPct(dayCct)) + '" data-tip="' + dayCct + 'K">coolest</span>';
         } else {
-          refHtml += '<span class="ct-axis-label" style="left:' + ctPct(maxK) + '%;" title="' + maxK + 'K">coolest</span>';
+          refHtml += '<span class="ct-axis-label" style="' + refStyle(ctPct(maxK)) + '" data-tip="' + maxK + 'K">coolest</span>';
         }
         const layer2 = '<div class="ct-axis ct-axis-ref">' + refHtml + '</div>';
 
         // --- Layer 3: Now ---
         let nowHtml = '';
         if (currentK != null) {
-          nowHtml = '<span class="ct-axis-label" style="left:' + ctPct(currentK) + '%;" title="' + Math.round(currentK) + 'K">now</span>';
+          nowHtml = '<span class="ct-axis-label" style="' + refStyle(ctPct(currentK)) + '" data-tip="' + Math.round(currentK) + 'K">now</span>';
         }
         const layer3 = hasNowLayer ? '<div class="ct-axis ct-axis-now">' + nowHtml + '</div>' : '';
 
