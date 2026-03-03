@@ -1195,10 +1195,10 @@ input[type=range]::-moz-range-thumb {
         </select>
       </div>
       <div class="chart-schedule-toggles" id="chart-schedule-toggles" style="display:none;">
-        <label class="schedule-toggle">
+        <label class="schedule-toggle" id="chart-wake-secondary-toggle">
           <input type="checkbox" id="chart-wake-secondary"> wake 2
         </label>
-        <label class="schedule-toggle">
+        <label class="schedule-toggle" id="chart-bed-secondary-toggle">
           <input type="checkbox" id="chart-bed-secondary"> bed 2
         </label>
       </div>
@@ -3291,10 +3291,15 @@ function updateDesignModeUI() {
  * Show/hide chart schedule toggles based on whether alt times are configured.
  */
 function updateScheduleToggles() {
-  const el = document.getElementById('chart-schedule-toggles');
-  if (!el) return;
-  const hasAlt = config.wake_alt_time != null || config.bed_alt_time != null;
-  el.style.display = hasAlt ? 'flex' : 'none';
+  const container = document.getElementById('chart-schedule-toggles');
+  if (!container) return;
+  const hasWakeAlt = config.wake_alt_time != null;
+  const hasBedAlt = config.bed_alt_time != null;
+  const wakeToggle = document.getElementById('chart-wake-secondary-toggle');
+  const bedToggle = document.getElementById('chart-bed-secondary-toggle');
+  if (wakeToggle) wakeToggle.style.display = hasWakeAlt ? '' : 'none';
+  if (bedToggle) bedToggle.style.display = hasBedAlt ? '' : 'none';
+  container.style.display = (hasWakeAlt || hasBedAlt) ? 'flex' : 'none';
 }
 
 /**
