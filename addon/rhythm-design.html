@@ -265,40 +265,6 @@ input[type=range]::-moz-range-thumb {
   border: 1px solid rgba(0,0,0,0.15);
 }
 
-/* Dual-range sliders need custom appearance to overlay on gradient tracks */
-.dual-range input[type=range] {
-  appearance: none;
-  -webkit-appearance: none;
-  background: transparent;
-  height: 20px;
-}
-.dual-range input[type=range]::-webkit-slider-runnable-track {
-  height: 0;
-  background: transparent;
-}
-.dual-range input[type=range]::-moz-range-track {
-  height: 0;
-  background: transparent;
-}
-.dual-range input[type=range]::-webkit-slider-thumb {
-  appearance: none;
-  -webkit-appearance: none;
-  width: 24px;
-  height: 14px;
-  border-radius: 7px;
-  background: #fff;
-  border: 1px solid rgba(0,0,0,0.15);
-  cursor: pointer;
-}
-.dual-range input[type=range]::-moz-range-thumb {
-  width: 24px;
-  height: 14px;
-  border-radius: 7px;
-  background: #fff;
-  border: 1px solid rgba(0,0,0,0.15);
-  cursor: pointer;
-}
-
 /* Chart Section */
 .chart-wrapper { position: relative; margin-bottom: 8px; }
 #chart { height: 240px; touch-action: pan-x pan-y; }
@@ -428,77 +394,6 @@ input[type=range]::-moz-range-thumb {
   white-space: nowrap;
   z-index: 100;
 }
-
-/* Dual Range Slider - fixed from llm_access for proper left handle grabbing */
-.dual-range {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.dual-track {
-  position: relative;
-  flex: 1;
-  height: 6px;
-  background: rgba(255,255,255,0.3);
-  border-radius: 3px;
-}
-.dual-track.color-track {
-  height: 12px;
-  border-radius: 6px;
-  box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
-}
-.dual-fill {
-  position: absolute;
-  top: 0;
-  height: 100%;
-  background: var(--accent);
-  border-radius: inherit;
-  pointer-events: none;
-}
-.dual-mask {
-  position: absolute;
-  top: 0;
-  height: 100%;
-  background: rgba(0,0,0,0.7);
-  pointer-events: none;
-}
-.dual-range input[type=range] {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 100%;
-  height: 20px;
-  background: transparent;
-  pointer-events: none;
-  cursor: pointer;
-}
-.dual-range input[type=range]::-webkit-slider-runnable-track {
-  background: transparent;
-}
-.dual-range input[type=range]::-moz-range-track {
-  background: transparent;
-}
-.dual-range input[type=range]::-webkit-slider-thumb {
-  pointer-events: auto;
-}
-.dual-range input[type=range]::-moz-range-thumb {
-  pointer-events: auto;
-}
-.dual-range input[type=range].range-min {
-  z-index: 4;
-}
-.dual-range input[type=range].range-max {
-  z-index: 3;
-}
-.dual-chip {
-  font-size: 0.85rem;
-  color: var(--muted);
-  min-width: 60px;
-}
-.dual-chip.right { text-align: left; }
 
 /* Interactive color gradient (ported from tune.html + handle additions) */
 /* Color gradient layout: cursor above, gradient, ticks, labels+K below */
@@ -1602,20 +1497,9 @@ input[type=range]::-moz-range-thumb {
       <span class="rhythm-card-val" id="rhythm-brightness-val">1 – 100%</span>
     </div>
     <div class="rhythm-card-body" id="rhythm-brightness-body">
-      <div class="tune-control-row" style="padding-left:0;">
-        <span class="tune-control-left"><span class="tune-control-label primary">Range</span></span>
-        <span class="tune-control-impact" id="brightness-range-display">1 – 100%</span>
-      </div>
-      <div class="tune-slider-row">
-        <div class="dual-range">
-          <div class="dual-track" id="brightness-track" style="background:linear-gradient(to right,#111,#fff);">
-            <div class="dual-mask" id="brightness-mask-left"></div>
-            <div class="dual-mask" id="brightness-mask-right"></div>
-          </div>
-          <input type="range" id="brightness-min" class="range-min" min="1" max="100" step="1" value="1">
-          <input type="range" id="brightness-max" class="range-max" min="1" max="100" step="1" value="100">
-        </div>
-      </div>
+      <div id="rhythm-bri-gradient-container" class="ct-gradient-wrap"></div>
+      <input type="hidden" id="brightness-min" value="1">
+      <input type="hidden" id="brightness-max" value="100">
       <div class="section-actions" id="brightness-section-actions">
         <button class="section-cancel-btn" onclick="cancelBrightnessChanges()">Cancel</button>
         <button class="section-save-btn" onclick="saveZoneSettings()">Save</button>
@@ -2215,6 +2099,12 @@ function pctToK(pct) {
   return Math.round((CT_SYSTEM_MIN + (pct / 100) * CT_SPAN) / 100) * 100;
 }
 
+// Brightness gradient constants
+const BRI_MIN = 1, BRI_MAX = 100, BRI_SPAN = 99;
+function briPct(val) { return Math.max(0, Math.min(100, ((val - BRI_MIN) / BRI_SPAN) * 100)); }
+function pctToBri(pct) { return Math.round(BRI_MIN + (pct / 100) * BRI_SPAN); }
+function briToGrey(val) { const v = Math.round(val * 2.55); return 'rgb(' + v + ',' + v + ',' + v + ')'; }
+
 function filterTickCollisions(ticks, minGapPct) {
   if (ticks.length <= 1) return ticks;
   const kept = [ticks[0]];
@@ -2228,6 +2118,7 @@ function filterTickCollisions(ticks, minGapPct) {
 
 function updateColorGradients() {
   renderColorGradient();
+  renderBrightnessGradient();
 }
 
 function renderColorGradient() {
@@ -2459,6 +2350,179 @@ function syncHiddenInputsFromConfig() {
   if (el('color-max')) el('color-max').value = config.max_color_temp;
   if (el('warm-night-target')) el('warm-night-target').value = config.warm_night_target;
   if (el('daylight-cct')) el('daylight-cct').value = config.daylight_cct;
+  if (el('brightness-min')) el('brightness-min').value = config.min_brightness;
+  if (el('brightness-max')) el('brightness-max').value = config.max_brightness;
+}
+
+// ============================================================
+// Brightness Gradient (matches color gradient visual style)
+// ============================================================
+
+function renderBrightnessGradient() {
+  const container = document.getElementById('rhythm-bri-gradient-container');
+  if (!container || !config) return;
+
+  const minB = config.min_brightness;
+  const maxB = config.max_brightness;
+
+  // Cursor brightness (skip during drag)
+  const cursorBri = (!window._briDragging && typeof calculateBrightnessAtHour === 'function' && typeof cursorHour === 'number')
+    ? Math.round(calculateBrightnessAtHour(cursorHour) * 100) : null;
+
+  // Fixed gradient: dark to white
+  const gradStyle = 'background:linear-gradient(to right,#111,#fff);';
+
+  // Grey overlays
+  const greyLeftPct = briPct(minB);
+  const greyRightPct = 100 - briPct(maxB);
+  let greyHtml = '';
+  if (greyLeftPct > 0.5) greyHtml += '<div class="ct-grey-left" style="width:' + greyLeftPct + '%;"></div>';
+  if (greyRightPct > 0.5) greyHtml += '<div class="ct-grey-right" style="width:' + greyRightPct + '%;"></div>';
+
+  const refLayerIdx = 1;
+  const barH = 12, layerH = 15, gapH = 2;
+
+  function pipHtml(pct, cls, targetLayer) {
+    const dotH = gapH + (targetLayer * layerH) + 7;
+    return '<div class="ct-pip ' + cls + '" style="left:' + pct + '%;">'
+      + '<div class="ct-pip-line ct-pip-bar"></div>'
+      + '<div class="ct-pip-line ct-pip-dot" style="height:' + dotH + 'px;"></div>'
+      + '</div>';
+  }
+
+  let pipsHtml = '';
+  if (cursorBri != null) pipsHtml += pipHtml(briPct(cursorBri), 'ct-pip-now', 0);
+  pipsHtml += pipHtml(briPct(minB), 'ct-pip-ref', refLayerIdx);
+  pipsHtml += pipHtml(briPct(maxB), 'ct-pip-ref', refLayerIdx);
+
+  // Handles
+  let handlesHtml = '';
+  handlesHtml += '<div class="ct-handle" data-handle="dimmest" style="left:' + briPct(minB) + '%;"><div class="ct-handle-thumb"></div></div>';
+  handlesHtml += '<div class="ct-handle" data-handle="brightest" style="left:' + briPct(maxB) + '%;"><div class="ct-handle-thumb"></div></div>';
+
+  // Cursor pill (above gradient)
+  function refStyle(pct) {
+    if (pct <= 2) return 'left:' + pct + '%;transform:none;';
+    if (pct >= 98) return 'left:' + pct + '%;transform:translateX(-100%);';
+    return 'left:' + pct + '%;';
+  }
+  let cursorLayerHtml = '';
+  if (cursorBri != null) {
+    const bg = briToGrey(cursorBri);
+    const fg = readableTextColor(bg);
+    const pct = briPct(cursorBri);
+    let pos = 'left:' + pct + '%;';
+    if (pct <= 2) pos += 'transform:none;';
+    else if (pct >= 98) pos += 'transform:translateX(-100%);';
+    else pos += 'transform:translateX(-50%);';
+    cursorLayerHtml = '<div class="ct-cursor-layer">'
+      + '<span class="ct-cursor-pill" style="' + pos + 'background:' + bg + ';color:' + fg + ';">' + cursorBri + '%</span>'
+      + '</div>';
+  }
+
+  // Layer 1: Tick marks
+  let ticks = [
+    { pct: 0, label: '1%', edge: 'left' },
+    { pct: briPct(25), label: '25%' },
+    { pct: briPct(50), label: '50%' },
+    { pct: briPct(75), label: '75%' },
+    { pct: 100, label: '100%', edge: 'right' }
+  ];
+  ticks = filterTickCollisions(ticks, 12);
+  let ticksHtml = '';
+  for (const t of ticks) {
+    const style = t.edge === 'left' ? 'left:0;transform:none;'
+      : t.edge === 'right' ? 'left:100%;transform:translateX(-100%);'
+      : 'left:' + t.pct + '%;';
+    ticksHtml += '<span class="ct-axis-label" style="' + style + '">' + t.label + '</span>';
+  }
+  const layer1 = '<div class="ct-axis ct-axis-tick">' + ticksHtml + '</div>';
+
+  // Layer 2: Ref labels (draggable)
+  let refHtml = '';
+  refHtml += '<span class="ct-axis-label ct-draggable" data-handle="dimmest" style="' + refStyle(briPct(minB)) + '">dimmest</span>';
+  refHtml += '<span class="ct-axis-label ct-draggable" data-handle="brightest" style="' + refStyle(briPct(maxB)) + '">brightest</span>';
+  const layer2 = '<div class="ct-axis ct-axis-ref">' + refHtml + '</div>';
+
+  // Layer 3: % values below labels
+  let valHtml = '';
+  valHtml += '<span class="ct-axis-label" style="' + refStyle(briPct(minB)) + '">' + minB + '%</span>';
+  valHtml += '<span class="ct-axis-label" style="' + refStyle(briPct(maxB)) + '">' + maxB + '%</span>';
+  const layer3 = '<div class="ct-axis ct-axis-kval">' + valHtml + '</div>';
+
+  container.innerHTML = cursorLayerHtml
+    + '<div class="ct-gradient-bar" style="' + gradStyle + '">'
+    + greyHtml + pipsHtml + handlesHtml
+    + '</div>'
+    + '<div class="ct-layers">' + layer1 + layer2 + layer3 + '</div>';
+
+  attachBriHandleDragListeners(container);
+}
+
+function attachBriHandleDragListeners(container) {
+  const bar = container.querySelector('.ct-gradient-bar');
+  if (!bar) return;
+
+  const handles = container.querySelectorAll('.ct-handle');
+  const labels = container.querySelectorAll('.ct-axis-label.ct-draggable');
+
+  [...handles, ...labels].forEach(el => {
+    const handleName = el.dataset.handle;
+    if (!handleName) return;
+
+    const start = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      el.classList.add('dragging');
+      window._briDragging = true;
+      const barRect = bar.getBoundingClientRect();
+
+      const move = (ev) => {
+        const clientX = ev.touches ? ev.touches[0].clientX : ev.clientX;
+        let pct = ((clientX - barRect.left) / barRect.width) * 100;
+        pct = Math.max(0, Math.min(100, pct));
+        applyBriHandleValue(handleName, pctToBri(pct));
+      };
+
+      const end = () => {
+        el.classList.remove('dragging');
+        window._briDragging = false;
+        document.removeEventListener('mousemove', move);
+        document.removeEventListener('mouseup', end);
+        document.removeEventListener('touchmove', move);
+        document.removeEventListener('touchend', end);
+        syncHiddenInputsFromConfig();
+        renderChart();
+        renderBrightnessGradient();
+      };
+
+      document.addEventListener('mousemove', move);
+      document.addEventListener('mouseup', end);
+      document.addEventListener('touchmove', move, { passive: false });
+      document.addEventListener('touchend', end);
+    };
+
+    el.addEventListener('mousedown', start);
+    el.addEventListener('touchstart', start, { passive: false });
+  });
+}
+
+function applyBriHandleValue(handleName, val) {
+  switch (handleName) {
+    case 'dimmest':
+      val = Math.max(BRI_MIN, val);
+      val = Math.min(val, config.max_brightness);
+      config.min_brightness = val;
+      break;
+    case 'brightest':
+      val = Math.max(val, config.min_brightness);
+      val = Math.min(val, BRI_MAX);
+      config.max_brightness = val;
+      break;
+  }
+  syncHiddenInputsFromConfig();
+  renderBrightnessGradient();
+  updateRangeDisplays();
 }
 
 // Apply solar color rules to CCT curve (batch version for chart rendering)
@@ -3182,8 +3246,9 @@ function applyCursor() {
   // Update sleep card phase badges
   updateSleepPhaseBadges();
 
-  // Update "now" pip on color gradient
+  // Update cursor pips on gradients
   renderColorGradient();
+  renderBrightnessGradient();
 }
 
 function updateSleepPhaseBadges() {
@@ -3613,7 +3678,6 @@ function syncUIFromConfig() {
   updateRangeDisplays();
 
 
-  updateDualFills();
   updateColorGradients();
   updateOffsetDisplays();
   syncColorRuleRows();
@@ -3677,20 +3741,12 @@ function initChartScheduleDefaults() {
   });
 }
 
-// Update combined range displays (color temp + brightness)
+// Update card header range displays
 function updateRangeDisplays() {
-  const ctRange = `${config.min_color_temp} – ${config.max_color_temp} K`;
-  const briRange = `${config.min_brightness} – ${config.max_brightness}%`;
-  updateDisplay('color-range-display', ctRange);
-  updateDisplay('brightness-range-display', briRange);
-  // Update card header summaries with bold range values
   const briEl = document.getElementById('rhythm-brightness-val');
   if (briEl) briEl.innerHTML = `<b>${config.min_brightness} – ${config.max_brightness}%</b>`;
-  // Color temp header: bold range
   const ctEl = document.getElementById('rhythm-color-val');
-  if (ctEl) {
-    ctEl.innerHTML = `<b>${config.min_color_temp} – ${config.max_color_temp} K</b>`;
-  }
+  if (ctEl) ctEl.innerHTML = `<b>${config.min_color_temp} – ${config.max_color_temp} K</b>`;
 }
 
 // Update offset text displays
@@ -3853,21 +3909,6 @@ function constrainWakeBedSliders() {
   updateDisplay('bed-time-display', formatHour(config.bed_time));
 }
 
-function updateDualFills() {
-  const briMin = parseInt(document.getElementById('brightness-min').value);
-  const briMax = parseInt(document.getElementById('brightness-max').value);
-  const briMaskLeft = document.getElementById('brightness-mask-left');
-  const briMaskRight = document.getElementById('brightness-mask-right');
-  if (briMaskLeft && briMaskRight) {
-    const leftPct = ((briMin - 1) / 99) * 100;
-    const rightPct = ((briMax - 1) / 99) * 100;
-    briMaskLeft.style.left = '0%';
-    briMaskLeft.style.width = `${leftPct}%`;
-    briMaskRight.style.left = `${rightPct}%`;
-    briMaskRight.style.width = `${100 - rightPct}%`;
-  }
-}
-
 // ============================================================
 // Event Handlers
 // ============================================================
@@ -3918,12 +3959,6 @@ function setupEventListeners() {
   initSleepDayIndicators();
 
   // All rhythm cards start collapsed (no localStorage restore)
-
-  // Brightness dual-range sliders
-  ['brightness-min', 'brightness-max'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.addEventListener('input', () => { syncConfigFromUI(); updateRangeDisplays(); renderChart(); });
-  });
 
   // Cool day sliders (sensitivity, start, end, fade)
   ['color-sensitivity', 'daylight-start', 'daylight-end', 'daylight-fade'].forEach(id => {
@@ -4063,10 +4098,6 @@ function setupEventListeners() {
     cursorHour = (cursorHour - 30/60 + 24) % 24;
     renderChart();
     applyCursor();
-  });
-
-  ['color-min', 'color-max', 'brightness-min', 'brightness-max'].forEach(id => {
-    document.getElementById(id)?.addEventListener('input', updateDualFills);
   });
 
 }
