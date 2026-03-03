@@ -85,7 +85,7 @@
     .main {
       max-width: 600px;
       margin: 0 auto;
-      padding: 16px;
+      padding: 10px;
     }
 
     /* Header meta (zone link, right-aligned in page header) */
@@ -427,7 +427,7 @@
     }
 
     /* Wake alarm section */
-    .wake-alarm-section { margin: 16px 16px 8px; }
+    .wake-alarm-section { margin: 16px 0 8px; }
     .wake-alarm-card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; transition: border-color 0.2s; }
     .wake-alarm-header { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 12px 14px; user-select: none; }
     .wake-alarm-title { font-size: 1.0rem; font-weight: 600; color: var(--text); }
@@ -588,7 +588,7 @@
     .tune-lights-card.is-open .tune-lights-body { max-height: 1000px; opacity: 1; padding-bottom: 8px; }
     .tune-light-item { padding: 0 14px; border-bottom: 1px solid var(--line); }
     .tune-light-item:last-child { border-bottom: none; }
-    .tune-light-summary { display: grid; grid-template-columns: auto 1fr 42px 42px 42px; align-items: baseline; padding: 8px 0; gap: 0 4px; }
+    .tune-light-summary { display: grid; grid-template-columns: 1fr 1fr 42px 42px 42px; align-items: baseline; padding: 8px 0; gap: 0 4px; }
     .tune-light-name { font-size: 0.82rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .tune-light-behaviour { font-size: 0.75rem; color: var(--muted); cursor: pointer; white-space: nowrap; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 2px; }
     .tune-light-behaviour:hover { color: var(--accent); }
@@ -635,13 +635,13 @@
     .tune-light-dropdown-meta { font-size: 0.7rem; color: var(--muted2); margin-top: 2px; }
 
     /* Light brightness column headers — same grid as data rows for alignment */
-    .tune-light-col-super { display: grid; grid-template-columns: auto 1fr 42px 42px 42px; padding: 6px 14px 0; gap: 0 4px; }
+    .tune-light-col-super { display: grid; grid-template-columns: 1fr 1fr 42px 42px 42px; padding: 6px 14px 0; gap: 0 4px; }
     .tune-light-super-label { grid-column: 3 / 5; text-align: center; font-size: 0.6rem; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.05em; }
-    .tune-light-col-headers { display: grid; grid-template-columns: auto 1fr 42px 42px 42px; padding: 2px 14px 0; gap: 0 4px; font-size: 0.65rem; color: var(--muted2); border-bottom: 1px solid var(--line); }
+    .tune-light-col-headers { display: grid; grid-template-columns: 1fr 1fr 42px 42px 42px; padding: 2px 14px 0; gap: 0 4px; font-size: 0.65rem; color: var(--muted2); border-bottom: 1px solid var(--line); }
     .tune-light-col-headers span:nth-child(n+3) { text-align: right; }
     .tune-light-sort { cursor: pointer; transition: color 0.15s; }
     .tune-light-sort:hover { color: var(--text); }
-    .tune-light-sort.active-sort { color: var(--muted); }
+    .tune-light-sort.active-sort { color: var(--accent); }
     .tune-light-sort-final { color: var(--text); font-weight: 600; }
     .tune-light-ct { font-size: 0.82rem; color: var(--muted); white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
   </style>
@@ -868,7 +868,7 @@
     </div>
 
     <!-- Tune Section -->
-    <div id="area-tune-section" style="display:none; margin: 0 16px 16px;">
+    <div id="area-tune-section" style="display:none; margin: 0 0 16px;">
       <div class="tune-card tune-brightness-card" id="tune-brightness-card"></div>
       <div class="tune-card tune-lights-card" id="tune-lights-card"></div>
       <div class="tune-save-status" id="tune-save-status">Saved</div>
