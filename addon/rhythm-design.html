@@ -3293,13 +3293,14 @@ function updateDesignModeUI() {
 function updateScheduleToggles() {
   const container = document.getElementById('chart-schedule-toggles');
   if (!container) return;
-  const hasWakeAlt = config.wake_alt_time != null;
-  const hasBedAlt = config.bed_alt_time != null;
+  // Hide toggle if no alt exists OR if alt time equals primary time
+  const showWake = config.wake_alt_time != null && config.wake_alt_time !== config.wake_time;
+  const showBed = config.bed_alt_time != null && config.bed_alt_time !== config.bed_time;
   const wakeToggle = document.getElementById('chart-wake-secondary-toggle');
   const bedToggle = document.getElementById('chart-bed-secondary-toggle');
-  if (wakeToggle) wakeToggle.style.display = hasWakeAlt ? '' : 'none';
-  if (bedToggle) bedToggle.style.display = hasBedAlt ? '' : 'none';
-  container.style.display = (hasWakeAlt || hasBedAlt) ? 'flex' : 'none';
+  if (wakeToggle) wakeToggle.style.display = showWake ? '' : 'none';
+  if (bedToggle) bedToggle.style.display = showBed ? '' : 'none';
+  container.style.display = (showWake || showBed) ? 'flex' : 'none';
 }
 
 /**
