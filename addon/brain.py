@@ -427,18 +427,21 @@ def apply_light_filter_pipeline(
     area_factor: float,
     filter_preset: dict,
     off_threshold: int,
+    rhythm_brightness: int = None,
 ) -> tuple:
     """Apply the full filter pipeline to a base brightness value.
 
     Pipeline: base × area_factor × filter_multiplier → cap at 100 → off threshold check.
 
     Args:
-        base_brightness: Brightness from the circadian curve (0-100)
+        base_brightness: Brightness from the circadian curve (0-100), may include NL/boost
         min_brightness: Configured min brightness for the rhythm
         max_brightness: Configured max brightness for the rhythm
         area_factor: Per-area brightness factor (e.g., 0.85, 1.2)
         filter_preset: Dict with "at_bright" and "at_dim" keys (percent values)
         off_threshold: Brightness below which lights should be turned off
+        rhythm_brightness: Pure rhythm curve brightness for curve position (pre-NL/boost).
+                          Falls back to base_brightness if not provided.
 
     Returns:
         Tuple of (final_brightness: int, should_turn_off: bool)
@@ -446,7 +449,8 @@ def apply_light_filter_pipeline(
     at_dim = filter_preset.get("at_dim", 100)
     at_bright = filter_preset.get("at_bright", 100)
 
-    pos = calculate_curve_position(base_brightness, min_brightness, max_brightness)
+    curve_bri = rhythm_brightness if rhythm_brightness is not None else base_brightness
+    pos = calculate_curve_position(curve_bri, min_brightness, max_brightness)
     multiplier = calculate_filter_multiplier(pos, at_dim, at_bright)
 
     result = base_brightness * area_factor * multiplier

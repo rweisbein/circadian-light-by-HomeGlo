@@ -2114,10 +2114,6 @@
     // Init
     // ============================================================
     document.addEventListener('DOMContentLoaded', () => {
-      // Restore active tab
-      const savedTab = localStorage.getItem('tune_active_tab');
-      if (savedTab === 'color') switchTab('color');
-
       setupEventListeners();
       loadData();
     });

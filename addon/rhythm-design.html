@@ -52,6 +52,9 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
 .sub-section-val b { font-weight: 600; color: var(--text); }
 .sub-section-body { max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.3s ease, opacity 0.2s ease; }
 .sub-section.is-open .sub-section-body { max-height: 800px; opacity: 1; }
+/* Sleep sub-sections: no border separators, hide summary when open */
+#rhythm-sleep-body .sub-section { border-top: none; }
+#rhythm-sleep-body .sub-section.is-open .sub-section-val { display: none; }
 
 /* Sleep card header summary (two-line stack) */
 .rhythm-sleep-summary { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
@@ -3491,13 +3494,7 @@ function getBrightnessWord(val) {
 function toggleSubSection(sectionId) {
   const section = document.getElementById(sectionId);
   if (!section) return;
-  const wasOpen = section.classList.contains('is-open');
-  // Accordion within parent: close sibling sub-sections
-  const parent = section.parentElement;
-  if (parent) {
-    parent.querySelectorAll('.sub-section.is-open').forEach(s => s.classList.remove('is-open'));
-  }
-  if (!wasOpen) section.classList.add('is-open');
+  section.classList.toggle('is-open');
 }
 
 function updateSubSectionSummaries() {
@@ -3823,7 +3820,8 @@ function updateRangeDisplays() {
   const briEl = document.getElementById('rhythm-brightness-val');
   if (briEl) briEl.innerHTML = `<b>${config.min_brightness} – ${config.max_brightness}%</b>`;
   const ctEl = document.getElementById('rhythm-color-val');
-  if (ctEl) ctEl.innerHTML = `<b>${config.min_color_temp} – ${config.max_color_temp} K</b>`;
+  const effectiveCoolest = (config.daylight_enabled !== false) ? Math.max(config.max_color_temp, config.daylight_cct) : config.max_color_temp;
+  if (ctEl) ctEl.innerHTML = `<b>${config.min_color_temp} – ${effectiveCoolest} K</b>`;
 }
 
 // Update offset text displays
@@ -4992,6 +4990,12 @@ async function loadZoneFromData() {
       syncConfigFromUI();  // Round-trip ensures all derived fields exist in config
       takeConfigSnapshot();
       renderChart();
+
+      // Auto-expand color card when arriving from tune color tab
+      if (_backParam === 'tune') {
+        const colorCard = document.getElementById('rhythm-color-card');
+        if (colorCard) colorCard.classList.add('is-open');
+      }
     }
   } catch (err) {
     console.error('Error loading zone:', err);

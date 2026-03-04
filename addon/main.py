@@ -2558,12 +2558,14 @@ class HomeAssistantWebSocketClient:
             xy: Pre-computed CIE xy coordinates (optional, computed from color_temp if not provided)
         """
         # Support both dict and kwargs calling conventions
+        rhythm_brightness = None
         if circadian_values:
             brightness = (
                 circadian_values.get("brightness") if brightness is None else brightness
             )
             kelvin = circadian_values.get("kelvin")
             xy = circadian_values.get("xy") if xy is None else xy
+            rhythm_brightness = circadian_values.get("rhythm_brightness")
         else:
             kelvin = color_temp
 
@@ -2617,6 +2619,7 @@ class HomeAssistantWebSocketClient:
                 log_periodic,
                 area_filters,
                 area_factor,
+                rhythm_brightness=rhythm_brightness,
             )
             return
 
@@ -2828,6 +2831,7 @@ class HomeAssistantWebSocketClient:
         log_periodic: bool,
         area_filters: Dict[str, str],
         area_factor: float,
+        rhythm_brightness: int = None,
     ) -> None:
         """Filtered light dispatch: applies per-light filter brightness and routes to sub-groups.
 
@@ -2883,7 +2887,8 @@ class HomeAssistantWebSocketClient:
 
             # Calculate filtered brightness
             filtered_bri, should_off = apply_light_filter_pipeline(
-                base_brightness, min_bri, max_bri, area_factor, preset, off_threshold
+                base_brightness, min_bri, max_bri, area_factor, preset, off_threshold,
+                rhythm_brightness=rhythm_brightness,
             )
 
             if should_off:
@@ -4377,6 +4382,7 @@ class HomeAssistantWebSocketClient:
                 "kelvin": result.color_temp,
                 "rgb": result.rgb,
                 "xy": result.xy,
+                "rhythm_brightness": result.brightness,
             }
 
             # Log the calculation
