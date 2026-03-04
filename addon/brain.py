@@ -1889,8 +1889,43 @@ class CircadianLight:
                     % 24
                 )
             state_updates["color_mid"] = new_color_mid
-            # Clear color_override since user is explicitly choosing position
-            state_updates["color_override"] = None
+
+            # User is explicitly choosing color — override solar rules to
+            # achieve the target (e.g., cool past warm night, warm past
+            # daylight blend).
+            test_state = AreaState(
+                is_circadian=state.is_circadian,
+                is_on=state.is_on,
+                frozen_at=state.frozen_at,
+                brightness_mid=state.brightness_mid,
+                color_mid=new_color_mid,
+                color_override=None,
+            )
+            test_rendered = CircadianLight.calculate_color_at_hour(
+                hour,
+                config,
+                test_state,
+                apply_solar_rules=True,
+                sun_times=sun_times,
+                weekday=weekday,
+            )
+
+            tolerance = max(5, safe_margin_cct * 0.5)
+
+            def _render_color_pos(ovr):
+                s = AreaState(
+                    is_circadian=state.is_circadian, is_on=state.is_on,
+                    frozen_at=state.frozen_at, brightness_mid=state.brightness_mid,
+                    color_mid=new_color_mid, color_override=ovr,
+                )
+                return CircadianLight.calculate_color_at_hour(
+                    hour, config, s,
+                    apply_solar_rules=True, sun_times=sun_times, weekday=weekday,
+                )
+
+            state_updates["color_override"] = _converge_override(
+                target_natural_cct, test_rendered, tolerance, _render_color_pos,
+            )
 
         # Build new state to verify actual output
         new_state = AreaState(
