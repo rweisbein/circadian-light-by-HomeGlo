@@ -1657,6 +1657,8 @@ class LightDesignerServer:
                 AreaState,
                 SunTimes,
                 calculate_sun_times,
+                compute_daylight_fade_weight,
+                DEFAULT_DAYLIGHT_FADE,
             )
 
             # Get location from environment
