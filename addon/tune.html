@@ -691,8 +691,14 @@
       return { now: '\u2193' + currentPct + '%' };
     }
 
-    function computeNowBrightness(rhythmBri, factor, exposure, outdoorNorm, sensitivity) {
-      const nlFactor = (exposure <= 0 || outdoorNorm <= 0) ? 1.0 : Math.max(0, 1 - exposure * outdoorNorm * sensitivity);
+    function computeNlFactor(exposure, outdoorNorm, sensitivity, fadeWeight) {
+      if (exposure <= 0 || outdoorNorm <= 0) return 1.0;
+      const fadedOutdoor = outdoorNorm * (fadeWeight ?? 1.0);
+      return Math.max(0, 1 - exposure * fadedOutdoor * sensitivity);
+    }
+
+    function computeNowBrightness(rhythmBri, factor, exposure, outdoorNorm, sensitivity, fadeWeight) {
+      const nlFactor = computeNlFactor(exposure, outdoorNorm, sensitivity, fadeWeight);
       return Math.min(100, Math.round(rhythmBri * nlFactor * factor));
     }
 
@@ -701,6 +707,15 @@
       const p = presets?.[filterName];
       if (!p) return 1.0;
       return p.brightness_multiplier ?? 1.0;
+    }
+
+    function getPresetFilterMult(presets, filterName, curvePos) {
+      if (!filterName || filterName === 'Standard') return 1.0;
+      const p = presets?.[filterName];
+      if (!p) return 1.0;
+      const atDim = p.at_dim ?? 100;
+      const atBright = p.at_bright ?? 100;
+      return (atDim + (atBright - atDim) * curvePos) / 100;
     }
 
     function getCtFactor(kelvin) {
@@ -1208,12 +1223,13 @@
       const rhythmBri = parseFloat(tuneAreaEl.dataset.rhythmBri) || 50;
       const sensitivity = parseFloat(tuneAreaEl.dataset.sensitivity) || 5.0;
       const outdoorNorm = parseFloat(tuneAreaEl.dataset.outdoorNorm) || 0.0;
+      const fadeWeight = parseFloat(tuneAreaEl.dataset.briFadeWeight) || 1.0;
       const lumenSlider = tuneAreaEl.querySelector('.tune-lumen-slider');
       const solarSlider = tuneAreaEl.querySelector('.tune-solar-slider');
       const factor = overrides?.factor ?? (1 / LUMEN_STEPS[parseInt(lumenSlider.value)].intensity);
       const exposure = overrides?.exposure ?? SOLAR_STEPS[parseInt(solarSlider.value)].exposure;
       const boostBri = parseFloat(tuneAreaEl.dataset.boostBri) || 0;
-      const nowRaw = computeNowBrightness(rhythmBri, factor, exposure, outdoorNorm, sensitivity) + boostBri;
+      const nowRaw = computeNowBrightness(rhythmBri, factor, exposure, outdoorNorm, sensitivity, fadeWeight) + boostBri;
       const nowBri = Math.min(100, Math.round(nowRaw));
       const nowEl = tuneAreaEl.querySelector('.tune-bri-now');
       if (nowEl) {
@@ -1318,10 +1334,16 @@
           document.querySelectorAll('.tune-area').forEach(el => {
             const areaId = el.dataset.areaId;
             const zoneName = el.closest('.zone-group')?.querySelector('[data-zone]')?.dataset.zone;
-            const zoneBri = zoneStates?.[zoneName]?.brightness;
+            const zoneData = zoneStates?.[zoneName];
+            const zoneBri = zoneData?.brightness;
             if (zoneBri != null) {
               el.dataset.rhythmBri = Math.round(zoneBri);
             }
+            if (zoneData?.brightness_fade_weight != null) {
+              el.dataset.briFadeWeight = zoneData.brightness_fade_weight;
+            }
+            if (zoneData?.min_brightness != null) el.dataset.zoneMinBri = zoneData.min_brightness;
+            if (zoneData?.max_brightness != null) el.dataset.zoneMaxBri = zoneData.max_brightness;
             // Update boost data attribute
             const b = boostByArea[areaId];
             el.dataset.boostBri = (b?.boosted ? (b.boost_brightness || 0) : 0);
@@ -1470,13 +1492,18 @@
       const zoneName = tuneArea?._zoneName;
       const zoneBri = zoneStates?.[zoneName]?.brightness ?? 50;
       const rhythmBri = Math.round(zoneBri);
-      const nlFactor = (exposure <= 0 || outdoorNorm <= 0) ? 1.0 : Math.max(0, 1 - exposure * outdoorNorm * sensitivity);
+      const fadeWeight = zoneStates?.[zoneName]?.brightness_fade_weight ?? 1.0;
+      const nlFactor = computeNlFactor(exposure, outdoorNorm, sensitivity, fadeWeight);
+      const zoneMinBri = zoneStates?.[zoneName]?.min_brightness ?? 1;
+      const zoneMaxBri = zoneStates?.[zoneName]?.max_brightness ?? 100;
+      const briRange = zoneMaxBri - zoneMinBri;
+      const curvePos = briRange > 0 ? Math.max(0, Math.min(1, (rhythmBri - zoneMinBri) / briRange)) : 0;
       let hasCapped = false;
 
       for (let i = 0; i < lights.length; i++) {
         const light = lights[i];
         const filterName = light.filter || 'Standard';
-        const filterMult = getFilterMultiplier(presets, filterName);
+        const filterMult = getPresetFilterMult(presets, filterName, curvePos);
         const impactPct = Math.round((filterMult - 1) * 100);
         let impactStr = impactPct === 0 ? '0%' : (impactPct < 0 ? '\u2193' + Math.abs(impactPct) + '%' : '\u2191' + impactPct + '%');
         const zoneKelvin = zoneStates?.[zoneName]?.kelvin;
@@ -1551,7 +1578,12 @@
       const zoneName = tuneArea?._zoneName;
       const zoneBri = zoneStates?.[zoneName]?.brightness ?? 50;
       const rhythmBri = Math.round(zoneBri);
-      const nlFactor = (exposure <= 0 || outdoorNorm <= 0) ? 1.0 : Math.max(0, 1 - exposure * outdoorNorm * sensitivity);
+      const fadeWeight = zoneStates?.[zoneName]?.brightness_fade_weight ?? 1.0;
+      const nlFactor = computeNlFactor(exposure, outdoorNorm, sensitivity, fadeWeight);
+      const zoneMinBri = zoneStates?.[zoneName]?.min_brightness ?? 1;
+      const zoneMaxBri = zoneStates?.[zoneName]?.max_brightness ?? 100;
+      const briRange = zoneMaxBri - zoneMinBri;
+      const curvePos = briRange > 0 ? Math.max(0, Math.min(1, (rhythmBri - zoneMinBri) / briRange)) : 0;
       let hasCapped = false;
 
       let html = '';
@@ -1571,7 +1603,7 @@
       for (let i = 0; i < lights.length; i++) {
         const light = lights[i];
         const filterName = light.filter || 'Standard';
-        const filterMult = getFilterMultiplier(presets, filterName);
+        const filterMult = getPresetFilterMult(presets, filterName, curvePos);
         const impactPct = Math.round((filterMult - 1) * 100);
         let impactStr = impactPct === 0 ? '0%' : (impactPct < 0 ? '\u2193' + Math.abs(impactPct) + '%' : '\u2191' + impactPct + '%');
 
@@ -1760,6 +1792,9 @@
         const escapedZoneName = zoneName.replace(/'/g, "\\'");
         const zoneBri = zoneStates?.[zoneName]?.brightness;
         const rhythmBri = zoneBri != null ? Math.round(zoneBri) : 50;
+        const zoneMinBri = zoneStates?.[zoneName]?.min_brightness ?? 1;
+        const zoneMaxBri = zoneStates?.[zoneName]?.max_brightness ?? 100;
+        const briFadeWeight = zoneStates?.[zoneName]?.brightness_fade_weight ?? 1.0;
 
         const areaRows = areasInZone.map(area => {
           const tuneArea = getTuneArea(area.area_id);
@@ -1769,7 +1804,7 @@
           const solarStep = findClosestStep(SOLAR_STEPS, 'exposure', exposure);
           const isBoosted = tuneArea?.boosted || false;
           const boostBri = isBoosted ? (tuneArea.boost_brightness || 0) : 0;
-          const nowBri = Math.min(100, computeNowBrightness(rhythmBri, factor, exposure, outdoorNorm, sensitivity) + boostBri);
+          const nowBri = Math.min(100, computeNowBrightness(rhythmBri, factor, exposure, outdoorNorm, sensitivity, briFadeWeight) + boostBri);
           const factorStr = formatFactorMeta(factor);
           const sunMeta = formatSunMeta(exposure, sensitivity, outdoorNorm);
 
@@ -1783,7 +1818,7 @@
           const lightsHtml = hasLights ? buildLightsSection(area.area_id, tuneArea) : '';
 
           return `
-            <div class="tune-area" data-area-id="${area.area_id}" data-rhythm-bri="${rhythmBri}" data-sensitivity="${sensitivity}" data-outdoor-norm="${outdoorNorm}" data-boost-bri="${isBoosted ? (tuneArea.boost_brightness || 0) : 0}">
+            <div class="tune-area" data-area-id="${area.area_id}" data-rhythm-bri="${rhythmBri}" data-sensitivity="${sensitivity}" data-outdoor-norm="${outdoorNorm}" data-bri-fade-weight="${briFadeWeight}" data-zone-min-bri="${zoneMinBri}" data-zone-max-bri="${zoneMaxBri}" data-boost-bri="${isBoosted ? (tuneArea.boost_brightness || 0) : 0}">
               <div class="tune-area-row tune-area-expand-row" onclick="toggleAreaLights('${area.area_id}')">
                 <span class="tune-name-col">
                   ${hasLights ? '<span id="tune-lights-chevron-' + area.area_id + '" style="display:inline-block;font-size:0.6rem;margin-right:4px;transition:transform 0.2s;color:var(--muted2);' + expandChevronStyle + '">&#9654;</span>' : '<span style="display:inline-block;width:0.6rem;margin-right:4px;"></span>'}

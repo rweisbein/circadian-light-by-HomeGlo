@@ -1760,9 +1760,23 @@ class LightDesignerServer:
                     calc_hour, brain_config, area_state, sun_times=sun_times
                 )
 
+                # Compute brightness fade weight for this zone
+                zone_daylight_fade = preset_config.get(
+                    "daylight_fade", DEFAULT_DAYLIGHT_FADE
+                )
+                zone_bri_fade_weight = compute_daylight_fade_weight(
+                    calc_hour,
+                    sun_times.sunrise,
+                    sun_times.sunset,
+                    zone_daylight_fade,
+                )
+
                 zone_states[zone_name] = {
                     "brightness": result.brightness,
                     "kelvin": result.color_temp,
+                    "brightness_fade_weight": round(zone_bri_fade_weight, 3),
+                    "min_brightness": brain_config.min_brightness,
+                    "max_brightness": brain_config.max_brightness,
                     "runtime_state": runtime_state,
                 }
                 logger.debug(
