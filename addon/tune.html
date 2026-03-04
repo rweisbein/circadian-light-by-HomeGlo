@@ -703,6 +703,23 @@
       return p.brightness_multiplier ?? 1.0;
     }
 
+    function getCtFactor(kelvin) {
+      if (!tuneData?.ct_comp_enabled || kelvin == null) return 1.0;
+      const begin = tuneData.ct_comp_begin ?? 1650;
+      const end = tuneData.ct_comp_end ?? 2250;
+      const maxF = tuneData.ct_comp_factor ?? 1.4;
+      if (kelvin <= begin) return maxF;
+      if (kelvin < end) return 1.0 + ((end - kelvin) / (end - begin)) * (maxF - 1.0);
+      return 1.0;
+    }
+
+    function formatCtImpact(rawWithCt, ctFactor) {
+      if (ctFactor === 1.0) return '0%';
+      const rawWithout = rawWithCt / ctFactor;
+      const impact = Math.round(rawWithCt) - Math.round(rawWithout);
+      return (impact >= 0 ? '\u2191' : '\u2193') + Math.abs(impact) + '%';
+    }
+
     // ============================================================
     // Outdoor helpers
     // ============================================================
@@ -1462,7 +1479,9 @@
         const filterMult = getFilterMultiplier(presets, filterName);
         const impactPct = Math.round((filterMult - 1) * 100);
         let impactStr = impactPct === 0 ? '0%' : (impactPct < 0 ? '\u2193' + Math.abs(impactPct) + '%' : '\u2191' + impactPct + '%');
-        const finalBri = rhythmBri * nlFactor * areaFactor * filterMult;
+        const zoneKelvin = zoneStates?.[zoneName]?.kelvin;
+        const ctFactor = getCtFactor(zoneKelvin);
+        const finalBri = rhythmBri * nlFactor * areaFactor * filterMult * ctFactor;
         const isCapped = finalBri > 100;
         if (isCapped) hasCapped = true;
         const isOff = finalBri < offThresh;
@@ -1471,6 +1490,8 @@
 
         const impEl = document.getElementById('tune-light-impact-' + areaId + '-' + i);
         if (impEl) impEl.textContent = impactStr;
+        const ctEl = document.getElementById('tune-light-ct-' + areaId + '-' + i);
+        if (ctEl) ctEl.textContent = formatCtImpact(finalBri, ctFactor);
         const briEl = document.getElementById('tune-light-bri-' + areaId + '-' + i);
         if (briEl) briEl.innerHTML = finalVal + '%' + capStar;
       }
@@ -1554,16 +1575,15 @@
         const impactPct = Math.round((filterMult - 1) * 100);
         let impactStr = impactPct === 0 ? '0%' : (impactPct < 0 ? '\u2193' + Math.abs(impactPct) + '%' : '\u2191' + impactPct + '%');
 
-        const finalBri = rhythmBri * nlFactor * areaFactor * filterMult;
+        const zoneKelvin = zoneStates?.[zoneName]?.kelvin;
+        const ctFactor = getCtFactor(zoneKelvin);
+        const finalBri = rhythmBri * nlFactor * areaFactor * filterMult * ctFactor;
         const isCapped = finalBri > 100;
         if (isCapped) hasCapped = true;
         const isOff = finalBri < offThresh;
         const finalVal = isOff ? 0 : Math.min(100, Math.round(finalBri));
         const capStar = isCapped ? '<span class="tune-capped-star">*</span>' : '';
-
-        // CT placeholder — use zone CT data if available
-        const zoneColorTemp = zoneStates?.[zoneName]?.color_temp;
-        const ctStr = zoneColorTemp ? Math.round(zoneColorTemp) + 'K' : '';
+        const ctStr = formatCtImpact(finalBri, ctFactor);
 
         const meta = tunePresetMeta(presets, filterName);
         const lightKey = areaId + ':' + i;

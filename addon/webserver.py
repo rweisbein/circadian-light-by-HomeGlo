@@ -1073,12 +1073,17 @@ class LightDesignerServer:
                     except Exception as e:
                         logger.warning(f"Could not fetch lights for filters page: {e}")
 
+            raw_config = glozone.get_config()
             return web.json_response(
                 {
                     "outdoor_normalized": lux_tracker.get_outdoor_normalized() or 0.0,
-                    "brightness_sensitivity": glozone.get_config().get(
+                    "brightness_sensitivity": raw_config.get(
                         "brightness_sensitivity", 5.0
                     ),
+                    "ct_comp_enabled": raw_config.get("ct_comp_enabled", False),
+                    "ct_comp_begin": raw_config.get("ct_comp_begin", 1650),
+                    "ct_comp_end": raw_config.get("ct_comp_end", 2250),
+                    "ct_comp_factor": raw_config.get("ct_comp_factor", 1.4),
                     "zones": zones,
                     "presets": presets,
                     "off_threshold": off_threshold,
