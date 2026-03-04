@@ -1847,8 +1847,42 @@ class CircadianLight:
                 )
             state_updates["brightness_mid"] = new_bri_mid
             state_updates["color_mid"] = new_color_mid
-            # Clear color_override since user is explicitly choosing position
-            state_updates["color_override"] = None
+            # Only recalibrate an existing override (from color slider);
+            # never create one from scratch — that would fight solar rules
+            # when the user is just moving along the curve.
+            if state.color_override is not None:
+                base_state = AreaState(
+                    is_circadian=state.is_circadian,
+                    is_on=state.is_on,
+                    frozen_at=state.frozen_at,
+                    brightness_mid=state_updates["brightness_mid"],
+                    color_mid=state_updates["color_mid"],
+                    color_override=None,
+                )
+                base_cct = CircadianLight.calculate_color_at_hour(
+                    hour, config, base_state,
+                    apply_solar_rules=True, sun_times=sun_times, weekday=weekday,
+                )
+                tolerance = max(5, safe_margin_cct * 0.5)
+
+                def _render_step_pos(ovr):
+                    s = AreaState(
+                        is_circadian=state.is_circadian, is_on=state.is_on,
+                        frozen_at=state.frozen_at,
+                        brightness_mid=state_updates["brightness_mid"],
+                        color_mid=state_updates["color_mid"],
+                        color_override=ovr,
+                    )
+                    return CircadianLight.calculate_color_at_hour(
+                        hour, config, s,
+                        apply_solar_rules=True, sun_times=sun_times, weekday=weekday,
+                    )
+
+                state_updates["color_override"] = _converge_override(
+                    target_natural_cct, base_cct, tolerance, _render_step_pos,
+                )
+            else:
+                state_updates["color_override"] = None
 
         elif dimension == "brightness":
             new_bri_mid = inverse_midpoint(

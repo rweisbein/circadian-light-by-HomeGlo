@@ -659,16 +659,35 @@ class TestSetPositionWithSolarRules:
 
         assert result.state_updates.get("color_override") is None
 
-    def test_step_slider_clears_override(self, warm_night_config, sun_times):
-        """Step slider always clears color_override; solar rules apply naturally."""
-        state = AreaState(color_override=1500)
+    def test_step_slider_no_override_from_scratch(self, warm_night_config, sun_times):
+        """Step slider with no existing override should not create one."""
+        state = AreaState(color_override=None)
         hour = 22.0
 
         result = CircadianLight.calculate_set_position(
-            hour, 50, "step", warm_night_config, state, sun_times=sun_times
+            hour, 87, "step", warm_night_config, state, sun_times=sun_times
         )
 
-        # Override should be cleared
+        # Override should stay None — warm night caps naturally
         assert result.state_updates.get("color_override") is None
-        # Warm night should cap the result
         assert result.color_temp <= warm_night_config.warm_night_target + 50
+
+    def test_step_slider_recalibrates_existing_override(self, warm_night_config, sun_times):
+        """Step slider should recalibrate (not clear) an existing override.
+
+        After color slider sets an override, dragging step slider to a low
+        position should reduce the override as the curve target drops below
+        warm_night_target.
+        """
+        state = AreaState(color_override=1500)
+        hour = 22.0
+
+        # Drag slider to low position (5%) — natural curve near warm target,
+        # override should clear or shrink significantly
+        result_low = CircadianLight.calculate_set_position(
+            hour, 5, "step", warm_night_config, state, sun_times=sun_times
+        )
+        override_low = result_low.state_updates.get("color_override", state.color_override)
+        assert override_low is None or override_low < 500, (
+            f"Override should clear/shrink at low position, got {override_low}"
+        )
