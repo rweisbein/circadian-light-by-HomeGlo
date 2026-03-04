@@ -602,43 +602,31 @@ class TestSetPositionWithSolarRules:
     def sun_times(self):
         return SunTimes(outdoor_normalized=1.0)
 
-    def test_color_slider_achieves_target_through_warm_night(self, warm_night_config, sun_times):
-        """Color slider should reach target CCT even when WarmNight is active."""
+    def test_color_slider_clears_override_during_warm_night(self, warm_night_config, sun_times):
+        """Color slider sets curve position; solar rules apply naturally (no override)."""
         state = AreaState()
         hour = 22.0  # Warm night active
 
-        # Set slider to 75% (should be ~5550K)
-        target_cct = 2700 + (6500 - 2700) * 0.75  # 5550K
         result = CircadianLight.calculate_set_position(
             hour, 75, "color", warm_night_config, state, sun_times=sun_times
         )
 
-        # Should achieve close to the target through deficit override
-        assert abs(result.color_temp - target_cct) < 100, (
-            f"Slider target={target_cct:.0f}K but got {result.color_temp}K"
-        )
-        # Override should be set (positive to raise warm ceiling)
-        assert result.state_updates.get("color_override") is not None
-        assert result.state_updates["color_override"] > 0
+        # Override should be cleared — solar rules cap naturally
+        assert result.state_updates.get("color_override") is None
+        # Warm night should cap the result
+        assert result.color_temp <= warm_night_config.warm_night_target + 50
 
-    def test_color_slider_achieves_target_through_daylight_blend(self, daylight_config, sun_times):
-        """Color slider should reach target CCT even when daylight blend is active."""
+    def test_color_slider_clears_override_during_daylight(self, daylight_config, sun_times):
+        """Color slider sets curve position; daylight blend applies naturally."""
         state = AreaState()
-        hour = 7.5  # Daylight blend active, natural is low
+        hour = 7.5  # Daylight blend active
 
-        # Set slider to 25% (should be ~3650K, below daylight_cct of 5500)
-        target_cct = 2700 + (6500 - 2700) * 0.25  # 3650K
         result = CircadianLight.calculate_set_position(
             hour, 25, "color", daylight_config, state, sun_times=sun_times
         )
 
-        # Should achieve close to the target through deficit override
-        assert abs(result.color_temp - target_cct) < 100, (
-            f"Slider target={target_cct:.0f}K but got {result.color_temp}K"
-        )
-        # Override should be set (negative to lower daylight push)
-        assert result.state_updates.get("color_override") is not None
-        assert result.state_updates["color_override"] < 0
+        # Override should be cleared
+        assert result.state_updates.get("color_override") is None
 
     def test_color_slider_no_override_without_solar_rules(self):
         """Color slider with no solar rules should set no override."""
@@ -659,36 +647,16 @@ class TestSetPositionWithSolarRules:
 
         assert result.state_updates.get("color_override") is None
 
-    def test_step_slider_recalibrates_override(self, warm_night_config, sun_times):
-        """Combined slider should recalibrate override, not clear it blindly.
-
-        After color-upping past a solar rule, dragging the combined slider
-        to a low position should reduce/clear the override. Then dragging
-        back up should let the solar rule re-engage (override stays gone).
-        """
+    def test_step_slider_clears_override(self, warm_night_config, sun_times):
+        """Step slider always clears color_override; solar rules apply naturally."""
         state = AreaState(color_override=1500)
         hour = 22.0
 
-        # Drag slider to low position (5%) — natural curve near warm target,
-        # override should clear or shrink significantly
-        result_low = CircadianLight.calculate_set_position(
-            hour, 5, "step", warm_night_config, state, sun_times=sun_times
-        )
-        override_low = result_low.state_updates.get("color_override", state.color_override)
-        assert override_low is None or override_low < 500, (
-            f"Override should clear/shrink at low position, got {override_low}"
-        )
-
-        # Apply state updates, then drag back to 50%
-        for key, value in result_low.state_updates.items():
-            setattr(state, key, value)
-
-        result_back_up = CircadianLight.calculate_set_position(
+        result = CircadianLight.calculate_set_position(
             hour, 50, "step", warm_night_config, state, sun_times=sun_times
         )
 
-        # Solar rule should now re-engage — CCT should be clamped toward warm
-        # (not at 4200K+ like it was with override=1500)
-        assert result_back_up.color_temp < 3500, (
-            f"Solar rule should re-engage after override cleared, got {result_back_up.color_temp}K"
-        )
+        # Override should be cleared
+        assert result.state_updates.get("color_override") is None
+        # Warm night should cap the result
+        assert result.color_temp <= warm_night_config.warm_night_target + 50

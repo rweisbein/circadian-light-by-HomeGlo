@@ -1847,6 +1847,8 @@ class CircadianLight:
                 )
             state_updates["brightness_mid"] = new_bri_mid
             state_updates["color_mid"] = new_color_mid
+            # Clear color_override since user is explicitly choosing position
+            state_updates["color_override"] = None
 
         elif dimension == "brightness":
             new_bri_mid = inverse_midpoint(
@@ -1887,42 +1889,8 @@ class CircadianLight:
                     % 24
                 )
             state_updates["color_mid"] = new_color_mid
-
-            # Test-render with new midpoint and no override (start fresh)
-            test_state = AreaState(
-                is_circadian=state.is_circadian,
-                is_on=state.is_on,
-                frozen_at=state.frozen_at,
-                brightness_mid=state.brightness_mid,
-                color_mid=new_color_mid,
-                color_override=None,
-            )
-            test_rendered = CircadianLight.calculate_color_at_hour(
-                hour,
-                config,
-                test_state,
-                apply_solar_rules=True,
-                sun_times=sun_times,
-                weekday=weekday,
-            )
-
-            # If solar rule prevents target, set override with convergence
-            tolerance = max(5, safe_margin_cct * 0.5)
-
-            def _render_color_pos(ovr):
-                s = AreaState(
-                    is_circadian=state.is_circadian, is_on=state.is_on,
-                    frozen_at=state.frozen_at, brightness_mid=state.brightness_mid,
-                    color_mid=new_color_mid, color_override=ovr,
-                )
-                return CircadianLight.calculate_color_at_hour(
-                    hour, config, s,
-                    apply_solar_rules=True, sun_times=sun_times, weekday=weekday,
-                )
-
-            state_updates["color_override"] = _converge_override(
-                target_natural_cct, test_rendered, tolerance, _render_color_pos,
-            )
+            # Clear color_override since user is explicitly choosing position
+            state_updates["color_override"] = None
 
         # Build new state to verify actual output
         new_state = AreaState(
@@ -1944,43 +1912,6 @@ class CircadianLight:
             sun_times=sun_times,
             weekday=weekday,
         )
-
-        # Recalibrate color_override for "step" dimension:
-        # With independent color_mid, solar rules may prevent the target CCT.
-        # Test-render without override and set deficit if needed,
-        # with attenuation correction for accurate targeting.
-        if dimension == "step":
-            base_state = AreaState(
-                is_circadian=new_state.is_circadian,
-                is_on=new_state.is_on,
-                frozen_at=new_state.frozen_at,
-                brightness_mid=new_state.brightness_mid,
-                color_mid=new_state.color_mid,
-                color_override=None,
-            )
-            base_cct = CircadianLight.calculate_color_at_hour(
-                hour, config, base_state,
-                apply_solar_rules=True, sun_times=sun_times, weekday=weekday,
-            )
-            # target_natural_cct already includes the divergence offset
-            tolerance = max(5, safe_margin_cct * 0.5)
-
-            def _render_step_pos(ovr):
-                s = AreaState(
-                    is_circadian=new_state.is_circadian, is_on=new_state.is_on,
-                    frozen_at=new_state.frozen_at, brightness_mid=new_state.brightness_mid,
-                    color_mid=new_state.color_mid, color_override=ovr,
-                )
-                return CircadianLight.calculate_color_at_hour(
-                    hour, config, s,
-                    apply_solar_rules=True, sun_times=sun_times, weekday=weekday,
-                )
-
-            state_updates["color_override"] = _converge_override(
-                target_natural_cct, base_cct, tolerance, _render_step_pos,
-            )
-            # Re-render with recalibrated override
-            actual_cct = _render_step_pos(state_updates.get("color_override"))
 
         rgb = CircadianLight.color_temperature_to_rgb(actual_cct)
         xy = CircadianLight.color_temperature_to_xy(actual_cct)
