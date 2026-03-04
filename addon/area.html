@@ -1977,6 +1977,8 @@
                 tuneState.outdoorSourceEntity = ls.outdoor_source_entity ?? null;
                 tuneState.outdoorLastUpdate = ls.outdoor_last_update ?? null;
                 tuneState.brightnessSensitivity = ls.brightness_sensitivity ?? 5.0;
+                tuneState.backendNlFactor = ls.nl_factor ?? null;
+                tuneState.brightnessFadeWeight = ls.brightness_fade_weight ?? null;
                 tuneState.luxSmoothed = ls.lux_smoothed ?? null;
                 tuneState.luxCeiling = ls.lux_ceiling ?? null;
                 tuneState.luxFloor = ls.lux_floor ?? null;
@@ -2401,6 +2403,8 @@
       luxSmoothed: null, luxCeiling: null, luxFloor: null, weatherCondition: null,
       ctEnabled: false, ctBegin: 1650, ctEnd: 2250, ctMax: 1.4,
       brightnessSensitivity: 5.0,
+      backendNlFactor: null,
+      brightnessFadeWeight: null,
       solarBreakdown: null,
       areaFactor: 1.0,
       lumenStep: 4,
@@ -2744,9 +2748,9 @@
       const exposure = SOLAR_STEPS[ts.solarStep].exposure;
       let nlFactor = 1.0;
       if (exposure > 0 && ts.outdoorNormalized > 0) {
-        // Apply daylight fade weight to outdoor brightness (matches brain.py)
-        const fadeWeight = (ts.solarBreakdown && ts.solarBreakdown.daylight_fade_weight != null)
-          ? ts.solarBreakdown.daylight_fade_weight : 1.0;
+        // Use brightness-specific fade weight from backend (not color breakdown)
+        const fadeWeight = (ts.brightnessFadeWeight != null)
+          ? ts.brightnessFadeWeight : 1.0;
         const fadedOutdoor = ts.outdoorNormalized * fadeWeight;
         nlFactor = Math.max(0.0, 1.0 - exposure * fadedOutdoor * ts.brightnessSensitivity);
       }
@@ -3029,6 +3033,8 @@
         ctEnd: config.ct_comp_end || 2250,
         ctMax: config.ct_comp_factor || 1.4,
         brightnessSensitivity: liveStatus.brightness_sensitivity ?? 5.0,
+        backendNlFactor: liveStatus.nl_factor ?? null,
+        brightnessFadeWeight: liveStatus.brightness_fade_weight ?? null,
         solarBreakdown: liveStatus.solar_breakdown ?? null,
         areaFactor: 1 / LUMEN_STEPS[lumenStep].intensity,
         lumenStep: lumenStep,

@@ -3480,12 +3480,13 @@ class LightDesignerServer:
                     area_daylight_fade = rhythm_cfg.get(
                         "daylight_fade", DEFAULT_DAYLIGHT_FADE
                     )
-                    faded_outdoor_norm = outdoor_norm * compute_daylight_fade_weight(
+                    brightness_fade_weight = compute_daylight_fade_weight(
                         calc_hour,
                         sun_times.sunrise,
                         sun_times.sunset,
                         area_daylight_fade,
                     )
+                    faded_outdoor_norm = outdoor_norm * brightness_fade_weight
                     nl_factor = calculate_natural_light_factor(
                         area_nl_exposure,
                         faded_outdoor_norm,
@@ -3566,6 +3567,7 @@ class LightDesignerServer:
                         "sun_elevation": round(lux_tracker._sun_elevation, 1),
                         "natural_light_exposure": area_nl_exposure,
                         "nl_factor": round(nl_factor, 3),
+                        "brightness_fade_weight": round(brightness_fade_weight, 3),
                         "outdoor_normalized": round(outdoor_norm, 3),
                         "outdoor_source": outdoor_source,
                         "outdoor_source_entity": (

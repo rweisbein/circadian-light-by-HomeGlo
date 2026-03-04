@@ -1309,6 +1309,7 @@
             const b = boostByArea[areaId];
             el.dataset.boostBri = (b?.boosted ? (b.boost_brightness || 0) : 0);
             updateTuneNowPreview(el, {});
+            rebuildTuneLightValues(areaId);
           });
           document.querySelectorAll('.tune-zone-base-bri').forEach(el => {
             const zoneName = el.closest('[data-zone]')?.dataset.zone;
@@ -1537,7 +1538,7 @@
       html += '<div class="tune-light-col-super"><span></span><span></span><span class="tune-light-super-label">Adjustments</span></div>';
       // Column headers
       html += '<div class="tune-light-col-headers">'
-        + '<span class="tune-light-sort' + (tuneLightSortOrder === 'name' ? ' active-sort' : '') + '" data-sort="name" data-area-id="' + areaId + '">name</span>'
+        + '<span class="tune-light-sort' + (tuneLightSortOrder === 'name' ? ' active-sort' : '') + '" data-sort="name" data-area-id="' + areaId + '">light name</span>'
         + '<span class="tune-light-sort' + (tuneLightSortOrder === 'behaviour' ? ' active-sort' : '') + '" data-sort="behaviour" data-area-id="' + areaId + '">behaviour</span>'
         + '<span class="tune-light-sort' + (tuneLightSortOrder === 'impact' ? ' active-sort' : '') + '" data-sort="impact" data-area-id="' + areaId + '">behav.</span>'
         + '<span class="tune-light-sort' + (tuneLightSortOrder === 'ct' ? ' active-sort' : '') + '" data-sort="ct" data-area-id="' + areaId + '">CT</span>'
