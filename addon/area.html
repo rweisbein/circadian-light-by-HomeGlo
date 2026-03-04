@@ -158,6 +158,7 @@
     }
 
     .row-slider-section { margin-bottom: 4px; padding: 6px 16px; }
+    .adjusted-schedule-label { font-size: 0.7rem; color: var(--muted2); text-align: center; padding: 2px 0 0; letter-spacing: 0.02em; }
     .row-slider-track { height: 10px; position: relative; cursor: pointer; touch-action: none; border-radius: 5px; overflow: visible; }
     .row-slider-fill { display: none; }
     .row-slider-thumb { position: absolute; top: 50%; transform: translate(-50%, -50%); width: 30px; height: 16px; border-radius: 8px 8px 5px 5px; background: rgba(255,255,255,0.9); box-shadow: 0 1px 4px rgba(0,0,0,0.4); pointer-events: none; transition: left 0.15s; }
@@ -742,6 +743,7 @@
         <div class="row-slider-fill"></div>
         <div class="row-slider-thumb"></div>
       </div>
+      <div id="adjusted-schedule-label" class="adjusted-schedule-label" style="display:none;"></div>
     </div>
 
     <div id="circadian-content-wrap" style="position: relative;">
@@ -1558,7 +1560,13 @@
           brightness_mid: status.brightness_mid ?? null,
           color_mid: status.color_mid ?? null,
           color_override: status.color_override ?? null,
-          frozen_at: status.frozen_at ?? null
+          brightness_override: status.brightness_override ?? null,
+          frozen_at: status.frozen_at ?? null,
+          actual_brightness: status.actual_brightness ?? null,
+          area_factor: status.area_factor ?? 1.0,
+          adjusted_wake_time: status.adjusted_wake_time ?? null,
+          adjusted_bed_time: status.adjusted_bed_time ?? null,
+          api_kelvin: status.kelvin ?? null,
         };
         let currentHour;
         if (status.frozen && status.frozen_at != null) {
@@ -1581,9 +1589,13 @@
       const bMin = cfg.min_brightness, bMax = cfg.max_brightness;
       const cMin = cfg.min_color_temp, cMax = cfg.max_color_temp;
 
-      const briFrac = bMax > bMin ? Math.max(0, Math.min(100, (currentBri - bMin) / (bMax - bMin) * 100)) : 50;
-      const cctFrac = cMax > cMin ? Math.max(0, Math.min(100, (currentCCT - cMin) / (cMax - cMin) * 100)) : 50;
-      const gloFrac = briFrac;
+      const curveFrac = bMax > bMin ? Math.max(0, Math.min(100, (currentBri - bMin) / (bMax - bMin) * 100)) : 50;
+      // Color slider: prefer API kelvin (handles direct additive override + decay)
+      const effectiveCCT = areaState.api_kelvin != null ? areaState.api_kelvin : currentCCT;
+      const cctFrac = cMax > cMin ? Math.max(0, Math.min(100, (effectiveCCT - cMin) / (cMax - cMin) * 100)) : 50;
+      const gloFrac = curveFrac;
+      // Brightness slider uses actual_brightness (includes area_factor + override decay)
+      const briFrac = areaState.actual_brightness != null ? areaState.actual_brightness : curveFrac;
 
       const effRange = getEffectiveColorRange(cfg, currentHour, areaState.color_override);
 
@@ -1599,20 +1611,48 @@
       const baseCCT = effRange.effMin + (effRange.effMax - effRange.effMin) * gloFrac / 100;
       const colorDelta = currentCCT - baseCCT;
       updateBannerSlider(gloFrac, cfg, effRange, colorDelta);
+
+      // Adjusted schedule label (shown when midpoints are shifted)
+      updateAdjustedScheduleLabel(areaState);
+    }
+
+    function formatHourToTime(h) {
+      if (h == null) return '';
+      h = ((h % 24) + 24) % 24;
+      const hr = Math.floor(h);
+      const min = Math.round((h - hr) * 60);
+      const ampm = hr >= 12 ? 'pm' : 'am';
+      const hr12 = hr === 0 ? 12 : hr > 12 ? hr - 12 : hr;
+      return min === 0 ? hr12 + ampm : hr12 + ':' + String(min).padStart(2, '0') + ampm;
+    }
+
+    function updateAdjustedScheduleLabel(areaState) {
+      const el = document.getElementById('adjusted-schedule-label');
+      if (!el) return;
+      const wake = areaState.adjusted_wake_time;
+      const bed = areaState.adjusted_bed_time;
+      if (wake != null) {
+        el.textContent = 'Wake ' + formatHourToTime(wake);
+        el.style.display = '';
+      } else if (bed != null) {
+        el.textContent = 'Bed ' + formatHourToTime(bed);
+        el.style.display = '';
+      } else {
+        el.style.display = 'none';
+      }
     }
 
     function buildHorizontalGradient(cfg, effectiveColorRange, colorDelta) {
+      // Use natural color range — the override mechanism ensures the slider
+      // can achieve the full range regardless of solar rules.
       const bMin = cfg.min_brightness, bMax = cfg.max_brightness;
       const cMin = cfg.min_color_temp, cMax = cfg.max_color_temp;
-      const effMin = effectiveColorRange ? effectiveColorRange.effMin : cMin;
-      const effMax = effectiveColorRange ? effectiveColorRange.effMax : cMax;
-      const d = colorDelta || 0;
       const stops = [];
       const n = 6;
       for (let i = 0; i <= n; i++) {
         const frac = i / n;
         const b = bMin + (bMax - bMin) * frac;
-        const k = (effMin + d) + ((effMax + d) - (effMin + d)) * frac;
+        const k = cMin + (cMax - cMin) * frac;
         const color = tintColorByBrightness(cctToRGB(k), b);
         stops.push(color + ' ' + Math.round(frac * 100) + '%');
       }
@@ -1655,11 +1695,11 @@
           const b = bMin + (bMax - bMin) * frac;
           color = tintColorByBrightness(cctToRGB(currentCCT), b);
         } else {
-          // Step/circadian slider: use effective (solar-clamped) color range
+          // Step/circadian slider: use natural color range (cMin to cMax).
+          // The override mechanism in set_position counteracts solar rules,
+          // so the slider can achieve the full natural range at any time.
           const b = bMin + (bMax - bMin) * frac;
-          const effMin = effectiveColorRange ? effectiveColorRange.effMin : cMin;
-          const effMax = effectiveColorRange ? effectiveColorRange.effMax : cMax;
-          const k = effMin + (effMax - effMin) * frac;
+          const k = cMin + (cMax - cMin) * frac;
           color = tintColorByBrightness(cctToRGB(k), b);
         }
         stops.push(color + ' ' + Math.round(frac * 100) + '%');

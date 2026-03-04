@@ -39,8 +39,12 @@ def _get_default_area_state() -> Dict[str, Any]:
         # Midpoints (None = use config wake_time/bed_time based on phase)
         "brightness_mid": None,
         "color_mid": None,
-        # Solar rule target offset (Kelvin) from color stepping
+        # Solar rule target offset (Kelvin) from color stepping/slider
         "color_override": None,
+        # Per-axis overrides with time-based decay (additive deltas)
+        "brightness_override": None,  # Brightness delta in % points
+        "brightness_override_set_at": None,  # Hour when set (for decay calc)
+        "color_override_set_at": None,  # Hour when color override set (for decay)
         # Last color temp when lights were turned off (for smart 2-step turn-on)
         "last_off_ct": None,
         # Boost state
@@ -381,6 +385,9 @@ def get_runtime_state(area_id: str) -> Dict[str, Any]:
         "brightness_mid": area.get("brightness_mid"),
         "color_mid": area.get("color_mid"),
         "color_override": area.get("color_override"),
+        "brightness_override": area.get("brightness_override"),
+        "brightness_override_set_at": area.get("brightness_override_set_at"),
+        "color_override_set_at": area.get("color_override_set_at"),
         "frozen_at": area.get("frozen_at"),
     }
 
@@ -395,7 +402,9 @@ def set_runtime_state(area_id: str, runtime_state: Dict[str, Any]) -> None:
         runtime_state: Dict with brightness_mid, color_mid, frozen_at
     """
     updates = {}
-    for key in ["brightness_mid", "color_mid", "color_override", "frozen_at"]:
+    for key in ["brightness_mid", "color_mid", "color_override",
+                "brightness_override", "brightness_override_set_at",
+                "color_override_set_at", "frozen_at"]:
         if key in runtime_state:
             updates[key] = runtime_state[key]
 

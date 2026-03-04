@@ -18,6 +18,8 @@ from brain import (
     AreaState,
     SunTimes,
     get_current_hour,
+    compute_override_decay,
+    calculate_natural_light_factor,
     DEFAULT_MAX_DIM_STEPS,
 )
 
@@ -778,11 +780,25 @@ class CircadianLightPrimitives:
     # Set Position - Slider-based absolute positioning
     # -------------------------------------------------------------------------
 
+    def _compute_nl_factor(self, area_id: str) -> float:
+        """Compute current natural light factor for an area (matches main.py pipeline)."""
+        import lux_tracker
+
+        natural_exposure = glozone.get_area_natural_light_exposure(area_id)
+        if natural_exposure <= 0:
+            return 1.0
+        outdoor_norm = lux_tracker.get_outdoor_normalized()
+        if outdoor_norm is None:
+            outdoor_norm = 0.0
+        sensitivity = glozone.get_config().get("brightness_sensitivity", 5.0)
+        return calculate_natural_light_factor(natural_exposure, outdoor_norm, sensitivity)
+
     async def set_position(self, area_id: str, value: float, mode: str = "step", source: str = "service_call"):
         """Set position along the circadian curve (0=min, 100=max).
 
-        Maps a slider value to brightness/color targets via inverse midpoint.
-        Always succeeds (clamps to achievable range instead of returning None).
+        For step mode: walks the curve via midpoints (inverse_midpoint).
+        For brightness mode: sets an additive override delta with time-based decay.
+        For color mode: sets color_override directly via _converge_override (no color_mid change).
 
         Args:
             area_id: The area ID to control
@@ -805,6 +821,56 @@ class CircadianLightPrimitives:
         hour = get_current_hour()
         sun_times = self.client._get_sun_times() if hasattr(self.client, '_get_sun_times') else None
 
+        if mode == "brightness":
+            # Override model: compute delta between target and current actual brightness.
+            # Target maps slider 0-100 to actual brightness 0-100%.
+            target_actual = max(0, min(100, value))
+
+            # Current actual = rhythm_bri × NL × area_factor
+            result = CircadianLight.calculate_lighting(
+                hour, config, area_state, sun_times=sun_times,
+            )
+            rhythm_bri = result.brightness
+            nl_factor = self._compute_nl_factor(area_id)
+            area_factor = glozone.get_area_brightness_factor(area_id)
+            current_actual = rhythm_bri * nl_factor * area_factor
+
+            delta = round(target_actual - current_actual, 1)
+            self._update_area_state(area_id, {
+                "brightness_override": delta,
+                "brightness_override_set_at": hour,
+            })
+            logger.info(
+                f"[{source}] set_position({value}, brightness) for area {area_id}: "
+                f"target={target_actual}, current={current_actual:.1f}, delta={delta}"
+            )
+            if area_state.is_on:
+                await self.client.update_lights_in_circadian_mode(area_id)
+            return
+
+        if mode == "color":
+            # Override model: set color_override directly, no color_mid change.
+            result = CircadianLight.calculate_set_position(
+                hour=hour,
+                position=value,
+                dimension="color",
+                config=config,
+                state=area_state,
+                sun_times=sun_times,
+            )
+            updates = result.state_updates
+            updates["color_override_set_at"] = hour  # Enable decay
+            logger.info(f"[{source}] set_position({value}, color) for area {area_id}: {updates}")
+            self._update_area_state(area_id, updates)
+
+            if area_state.is_on:
+                await self._apply_circadian_lighting(area_id, result.brightness, result.color_temp)
+                logger.info(f"set_position color applied: {result.brightness}%, {result.color_temp}K")
+            else:
+                logger.info(f"set_position color state updated (lights off): {result.brightness}%, {result.color_temp}K")
+            return
+
+        # mode == "step": walk the curve via midpoints (existing behavior)
         result = CircadianLight.calculate_set_position(
             hour=hour,
             position=value,
@@ -822,6 +888,105 @@ class CircadianLightPrimitives:
             logger.info(f"set_position applied: {result.brightness}%, {result.color_temp}K")
         else:
             logger.info(f"set_position state updated (lights off): {result.brightness}%, {result.color_temp}K")
+
+    # -------------------------------------------------------------------------
+    # Per-axis override up/down (brightness and color buttons)
+    # -------------------------------------------------------------------------
+
+    async def brightness_up(self, area_id: str, source: str = "service_call"):
+        """Bump brightness override up by one step. Uses override+decay model."""
+        await self._brightness_step(area_id, direction="up", source=source)
+
+    async def brightness_down(self, area_id: str, source: str = "service_call"):
+        """Bump brightness override down by one step. Uses override+decay model."""
+        await self._brightness_step(area_id, direction="down", source=source)
+
+    async def _brightness_step(self, area_id: str, direction: str, source: str):
+        """Bump brightness override by one step increment."""
+        area_state = self._get_area_state(area_id)
+        if not area_state.is_circadian:
+            logger.debug(f"[{source}] brightness_{direction} ignored for {area_id} (not circadian)")
+            return
+
+        if area_state.frozen_at is not None:
+            self._unfreeze_internal(area_id, source)
+            area_state = self._get_area_state(area_id)
+
+        config = self._get_config(area_id)
+        hour = get_current_hour()
+        sun_times = self.client._get_sun_times() if hasattr(self.client, '_get_sun_times') else None
+        steps = config.max_dim_steps or DEFAULT_MAX_DIM_STEPS
+        step_size = (config.max_brightness - config.min_brightness) / steps
+
+        # Get current decayed override, then bump
+        current_override = area_state.brightness_override or 0
+        set_at = area_state.brightness_override_set_at
+        if set_at is not None:
+            in_ascend, h48, t_ascend, t_descend, _ = CircadianLight.get_phase_info(hour, config)
+            next_phase = t_descend if in_ascend else t_ascend + 24
+            decay = compute_override_decay(set_at, h48, next_phase)
+            current_override = current_override * decay
+
+        sign = 1 if direction == "up" else -1
+        new_override = round(current_override + sign * step_size, 1)
+
+        self._update_area_state(area_id, {
+            "brightness_override": new_override,
+            "brightness_override_set_at": hour,
+        })
+        logger.info(
+            f"[{source}] brightness_{direction} for {area_id}: "
+            f"override {current_override:.1f} -> {new_override}"
+        )
+        if area_state.is_on:
+            await self.client.update_lights_in_circadian_mode(area_id)
+
+    async def color_up(self, area_id: str, source: str = "service_call"):
+        """Bump color override up (cooler) by one step. Uses override+decay model."""
+        await self._color_step(area_id, direction="up", source=source)
+
+    async def color_down(self, area_id: str, source: str = "service_call"):
+        """Bump color override down (warmer) by one step. Uses override+decay model."""
+        await self._color_step(area_id, direction="down", source=source)
+
+    async def _color_step(self, area_id: str, direction: str, source: str):
+        """Bump color override by one Kelvin step increment."""
+        area_state = self._get_area_state(area_id)
+        if not area_state.is_circadian:
+            logger.debug(f"[{source}] color_{direction} ignored for {area_id} (not circadian)")
+            return
+
+        if area_state.frozen_at is not None:
+            self._unfreeze_internal(area_id, source)
+            area_state = self._get_area_state(area_id)
+
+        config = self._get_config(area_id)
+        hour = get_current_hour()
+        steps = config.max_dim_steps or DEFAULT_MAX_DIM_STEPS
+        cct_step = (config.max_color_temp - config.min_color_temp) / steps
+
+        # Get current decayed override, then bump
+        current_override = area_state.color_override or 0
+        set_at = area_state.color_override_set_at
+        if set_at is not None:
+            in_ascend, h48, t_ascend, t_descend, _ = CircadianLight.get_phase_info(hour, config)
+            next_phase = t_descend if in_ascend else t_ascend + 24
+            decay = compute_override_decay(set_at, h48, next_phase)
+            current_override = current_override * decay
+
+        sign = 1 if direction == "up" else -1
+        new_override = round(current_override + sign * cct_step, 1)
+
+        self._update_area_state(area_id, {
+            "color_override": new_override,
+            "color_override_set_at": hour,
+        })
+        logger.info(
+            f"[{source}] color_{direction} for {area_id}: "
+            f"override {current_override:.1f}K -> {new_override}K"
+        )
+        if area_state.is_on:
+            await self.client.update_lights_in_circadian_mode(area_id)
 
     # -------------------------------------------------------------------------
     # Lights On / Off / Toggle - Control light state under Circadian management

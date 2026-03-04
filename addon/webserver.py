@@ -3372,6 +3372,8 @@ class LightDesignerServer:
                 calculate_sun_times,
                 calculate_natural_light_factor,
                 compute_daylight_fade_weight,
+                compute_override_decay,
+                resolve_effective_timing,
                 DEFAULT_DAYLIGHT_FADE,
             )
 
@@ -3466,12 +3468,35 @@ class LightDesignerServer:
                         else current_hour
                     )
 
+                    # Apply color override decay for slider-originated overrides
+                    render_state = area_state
+                    if area_state.color_override is not None and area_state.color_override_set_at is not None:
+                        _in_asc, _h48, _t_asc, _t_desc, _ = CircadianLight.get_phase_info(
+                            calc_hour, area_config
+                        )
+                        _next_ph = _t_desc if _in_asc else _t_asc + 24
+                        _col_decay = compute_override_decay(
+                            area_state.color_override_set_at, _h48, _next_ph
+                        )
+                        if _col_decay < 1.0:
+                            render_state = AreaState(
+                                is_circadian=area_state.is_circadian,
+                                is_on=area_state.is_on,
+                                frozen_at=area_state.frozen_at,
+                                brightness_mid=area_state.brightness_mid,
+                                color_mid=area_state.color_mid,
+                                color_override=area_state.color_override * _col_decay if _col_decay > 0 else None,
+                                color_override_set_at=area_state.color_override_set_at if _col_decay > 0 else None,
+                                brightness_override=area_state.brightness_override,
+                                brightness_override_set_at=area_state.brightness_override_set_at,
+                            )
+
                     # Calculate using area's actual state (which has brightness_mid, color_mid)
                     brightness = 50
                     kelvin = 4000
                     try:
                         result = CircadianLight.calculate_lighting(
-                            calc_hour, area_config, area_state, sun_times=sun_times
+                            calc_hour, area_config, render_state, sun_times=sun_times
                         )
                         brightness = result.brightness
                         kelvin = result.color_temp
@@ -3546,6 +3571,41 @@ class LightDesignerServer:
                     lux_ceiling = lux_tracker._learned_ceiling if lux_sensor else None
                     lux_floor = lux_tracker._learned_floor if lux_sensor else None
 
+                    # --- Override decay & actual brightness ---
+                    area_factor = glozone.get_area_brightness_factor(area_id)
+                    effective_bri_override = 0
+                    bri_override_raw = area_state.brightness_override
+                    if bri_override_raw is not None:
+                        in_ascend, h48, t_ascend, t_descend, _ = CircadianLight.get_phase_info(
+                            calc_hour, area_config
+                        )
+                        next_phase = t_descend if in_ascend else t_ascend + 24
+                        bri_decay = compute_override_decay(
+                            area_state.brightness_override_set_at, h48, next_phase
+                        )
+                        effective_bri_override = bri_override_raw * bri_decay
+
+                    actual_brightness = int(
+                        min(100, max(0, round(brightness * area_factor + effective_bri_override)))
+                    )
+
+                    # --- Adjusted bed/wake time from midpoint shift ---
+                    weekday = datetime.now().weekday()
+                    eff_wake, eff_bed = resolve_effective_timing(area_config, calc_hour, weekday)
+                    adjusted_wake_time = None
+                    adjusted_bed_time = None
+                    if area_state.brightness_mid is not None:
+                        in_ascend_adj, _, t_asc_adj, t_desc_adj, _ = CircadianLight.get_phase_info(
+                            calc_hour, area_config
+                        )
+                        default_mid = eff_wake if in_ascend_adj else eff_bed
+                        mid_shift = area_state.brightness_mid - default_mid
+                        if abs(mid_shift) > 0.01:
+                            if in_ascend_adj:
+                                adjusted_wake_time = eff_wake + mid_shift
+                            else:
+                                adjusted_bed_time = eff_bed + mid_shift
+
                     area_status[area_id] = {
                         "is_circadian": area_state.is_circadian,
                         "is_on": area_state.is_on,
@@ -3583,7 +3643,13 @@ class LightDesignerServer:
                         "brightness_mid": area_state.brightness_mid,
                         "color_mid": area_state.color_mid,
                         "color_override": area_state.color_override,
+                        "brightness_override": bri_override_raw,
                         "frozen_at": area_state.frozen_at,
+                        # Override + area factor derived values
+                        "actual_brightness": actual_brightness,
+                        "area_factor": round(area_factor, 3),
+                        "adjusted_wake_time": adjusted_wake_time,
+                        "adjusted_bed_time": adjusted_bed_time,
                         # Solar / natural light
                         "sun_elevation": round(lux_tracker._sun_elevation, 1),
                         "natural_light_exposure": area_nl_exposure,

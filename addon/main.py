@@ -30,6 +30,7 @@ from brain import (
     calculate_sun_times,
     apply_light_filter_pipeline,
     calculate_natural_light_factor,
+    compute_override_decay,
     angle_to_estimated_lux,
     DEFAULT_MAX_DIM_STEPS,
     DEFAULT_MIN_BRIGHTNESS,
@@ -2559,6 +2560,7 @@ class HomeAssistantWebSocketClient:
         """
         # Support both dict and kwargs calling conventions
         rhythm_brightness = None
+        brightness_override = None
         if circadian_values:
             brightness = (
                 circadian_values.get("brightness") if brightness is None else brightness
@@ -2566,6 +2568,7 @@ class HomeAssistantWebSocketClient:
             kelvin = circadian_values.get("kelvin")
             xy = circadian_values.get("xy") if xy is None else xy
             rhythm_brightness = circadian_values.get("rhythm_brightness")
+            brightness_override = circadian_values.get("brightness_override")
         else:
             kelvin = color_temp
 
@@ -2620,10 +2623,15 @@ class HomeAssistantWebSocketClient:
                 area_filters,
                 area_factor,
                 rhythm_brightness=rhythm_brightness,
+                brightness_override=brightness_override,
             )
             return
 
-        # ---- Fast path: no filters, existing behavior unchanged ----
+        # ---- Fast path: no filters, area_factor == 1.0 ----
+        # Apply brightness_override directly (additive delta, already decay-adjusted)
+        if brightness_override is not None and brightness is not None:
+            brightness = int(min(100, max(0, round(brightness + brightness_override))))
+
 
         # Apply CT brightness compensation (for warm color temps on Hue bulbs)
         if brightness is not None and kelvin is not None:
@@ -2832,6 +2840,7 @@ class HomeAssistantWebSocketClient:
         area_filters: Dict[str, str],
         area_factor: float,
         rhythm_brightness: int = None,
+        brightness_override: float = None,
     ) -> None:
         """Filtered light dispatch: applies per-light filter brightness and routes to sub-groups.
 
@@ -2889,6 +2898,7 @@ class HomeAssistantWebSocketClient:
             filtered_bri, should_off = apply_light_filter_pipeline(
                 base_brightness, min_bri, max_bri, area_factor, preset, off_threshold,
                 rhythm_brightness=rhythm_brightness,
+                brightness_override=brightness_override,
             )
 
             if should_off:
@@ -4322,10 +4332,10 @@ class HomeAssistantWebSocketClient:
                 hour, config, area_state, sun_times=sun_times
             )
 
-            # Recalibrate color_override: shrink or clear if no longer needed
-            # As the curve naturally warms over time, the override may exceed
-            # what's needed to bridge the solar rule gap.
-            if area_state.color_override is not None:
+            # Recalibrate color_override: only for step-originated overrides (no set_at).
+            # Slider/button-originated overrides (with set_at) are handled by decay above.
+            # As the curve naturally warms, a step override may exceed what's needed.
+            if area_state.color_override is not None and area_state.color_override_set_at is None:
                 # What does the curve produce without override, with solar rules?
                 base_state = AreaState(
                     is_circadian=area_state.is_circadian,
@@ -4376,6 +4386,64 @@ class HomeAssistantWebSocketClient:
                         f"[Periodic] Area {area_id}: applying boost {boost_amount}% -> {brightness}% (state={boost_state})"
                     )
 
+            # Compute decayed brightness_override for pipeline
+            effective_bri_override = None
+            if area_state.brightness_override is not None:
+                in_ascend, h48, t_ascend, t_descend, _ = CircadianLight.get_phase_info(hour, config)
+                next_phase = t_descend if in_ascend else t_ascend + 24
+                bri_decay = compute_override_decay(
+                    area_state.brightness_override_set_at, h48, next_phase
+                )
+                effective_bri_override = area_state.brightness_override * bri_decay
+                if bri_decay <= 0:
+                    # Decay complete — clear override from state
+                    state.update_area(area_id, {
+                        "brightness_override": None,
+                        "brightness_override_set_at": None,
+                    })
+                    effective_bri_override = None
+                elif log_periodic:
+                    logger.info(
+                        f"[Periodic] Area {area_id}: brightness_override={area_state.brightness_override:.1f} "
+                        f"× decay={bri_decay:.2f} = {effective_bri_override:.1f}"
+                    )
+
+            # Compute decayed color_override (only if set_at exists — slider/button origin)
+            if area_state.color_override is not None and area_state.color_override_set_at is not None:
+                in_ascend, h48, t_ascend, t_descend, _ = CircadianLight.get_phase_info(hour, config)
+                next_phase = t_descend if in_ascend else t_ascend + 24
+                color_decay = compute_override_decay(
+                    area_state.color_override_set_at, h48, next_phase
+                )
+                if color_decay <= 0:
+                    state.update_area(area_id, {
+                        "color_override": None,
+                        "color_override_set_at": None,
+                    })
+                    area_state = AreaState.from_dict(state.get_area(area_id))
+                    result = CircadianLight.calculate_lighting(
+                        hour, config, area_state, sun_times=sun_times
+                    )
+                elif color_decay < 1.0:
+                    # Apply decayed color_override by re-rendering
+                    decayed_color_state = AreaState(
+                        is_circadian=area_state.is_circadian,
+                        is_on=area_state.is_on,
+                        frozen_at=area_state.frozen_at,
+                        brightness_mid=area_state.brightness_mid,
+                        color_mid=area_state.color_mid,
+                        color_override=area_state.color_override * color_decay,
+                        color_override_set_at=area_state.color_override_set_at,
+                    )
+                    result = CircadianLight.calculate_lighting(
+                        hour, config, decayed_color_state, sun_times=sun_times
+                    )
+                    if log_periodic:
+                        logger.info(
+                            f"[Periodic] Area {area_id}: color_override={area_state.color_override:.1f}K "
+                            f"× decay={color_decay:.2f} = {area_state.color_override * color_decay:.1f}K"
+                        )
+
             # Build values dict for turn_on_lights_circadian
             lighting_values = {
                 "brightness": brightness,
@@ -4383,6 +4451,7 @@ class HomeAssistantWebSocketClient:
                 "rgb": result.rgb,
                 "xy": result.xy,
                 "rhythm_brightness": result.brightness,
+                "brightness_override": effective_bri_override,
             }
 
             # Log the calculation

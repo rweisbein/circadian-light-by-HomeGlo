@@ -226,8 +226,16 @@ class AreaState:
     color_mid: Optional[float] = None
 
     # Solar rule target offset (Kelvin). Positive raises WarmNight ceiling,
-    # negative lowers CoolDay floor. Set by color_up/color_down stepping.
+    # negative lowers CoolDay floor. Set by color stepping or color slider.
     color_override: Optional[float] = None
+
+    # Per-axis overrides: additive deltas that decay linearly to phase transition.
+    # brightness_override is in brightness % points (e.g., +14 means 14% brighter).
+    # _set_at is the hour when override was set; decay = (phase_shift - now) / (phase_shift - set_at).
+    # When _set_at is None, no decay applies (e.g., step-originated color_override for Cool Day).
+    brightness_override: Optional[float] = None
+    brightness_override_set_at: Optional[float] = None
+    color_override_set_at: Optional[float] = None
 
     @property
     def is_frozen(self) -> bool:
@@ -244,6 +252,9 @@ class AreaState:
             brightness_mid=d.get("brightness_mid"),
             color_mid=d.get("color_mid"),
             color_override=d.get("color_override"),
+            brightness_override=d.get("brightness_override"),
+            brightness_override_set_at=d.get("brightness_override_set_at"),
+            color_override_set_at=d.get("color_override_set_at"),
         )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -255,6 +266,9 @@ class AreaState:
             "brightness_mid": self.brightness_mid,
             "color_mid": self.color_mid,
             "color_override": self.color_override,
+            "brightness_override": self.brightness_override,
+            "brightness_override_set_at": self.brightness_override_set_at,
+            "color_override_set_at": self.color_override_set_at,
         }
 
 
@@ -420,6 +434,29 @@ def calculate_filter_multiplier(
     return pct / 100.0
 
 
+def compute_override_decay(
+    set_at: Optional[float],
+    current_hour: float,
+    next_phase_shift_hour: float,
+) -> float:
+    """Linear decay from 1.0 at set_at to 0.0 at next_phase_shift.
+
+    Used for brightness_override and color_override decay.  When set_at is
+    None (e.g., step-originated color_override for Cool Day), returns 1.0
+    (no decay).
+
+    All hour values should be in the same modular space (h48) to handle
+    midnight wrapping correctly.
+    """
+    if set_at is None:
+        return 1.0
+    total = next_phase_shift_hour - set_at
+    if total <= 0:
+        return 0.0
+    remaining = next_phase_shift_hour - current_hour
+    return max(0.0, min(1.0, remaining / total))
+
+
 def apply_light_filter_pipeline(
     base_brightness: int,
     min_brightness: int,
@@ -428,10 +465,11 @@ def apply_light_filter_pipeline(
     filter_preset: dict,
     off_threshold: int,
     rhythm_brightness: int = None,
+    brightness_override: float = None,
 ) -> tuple:
     """Apply the full filter pipeline to a base brightness value.
 
-    Pipeline: base × area_factor × filter_multiplier → cap at 100 → off threshold check.
+    Pipeline: (base × area_factor + brightness_override) × filter_multiplier → cap → off check.
 
     Args:
         base_brightness: Brightness from the circadian curve (0-100), may include NL/boost
@@ -442,6 +480,8 @@ def apply_light_filter_pipeline(
         off_threshold: Brightness below which lights should be turned off
         rhythm_brightness: Pure rhythm curve brightness for curve position (pre-NL/boost).
                           Falls back to base_brightness if not provided.
+        brightness_override: Decay-adjusted additive delta (already multiplied by decay factor).
+                            Added after area_factor, before per-light filter multiplier.
 
     Returns:
         Tuple of (final_brightness: int, should_turn_off: bool)
@@ -453,7 +493,10 @@ def apply_light_filter_pipeline(
     pos = calculate_curve_position(curve_bri, min_brightness, max_brightness)
     multiplier = calculate_filter_multiplier(pos, at_dim, at_bright)
 
-    result = base_brightness * area_factor * multiplier
+    base = base_brightness * area_factor
+    if brightness_override is not None:
+        base = max(0, min(100, base + brightness_override))
+    result = base * multiplier
 
     preset_threshold = filter_preset.get("off_threshold", off_threshold)
     if result < preset_threshold:
@@ -1024,9 +1067,14 @@ class CircadianLight:
             if in_window:
                 night_strength = weight
 
+        # Slider-originated overrides (set_at present) are direct additive CCT offsets
+        # applied AFTER solar rules.  Step-originated overrides (no set_at) modify
+        # solar rule targets (warm night ceiling / daylight floor).
+        slider_color = state.color_override_set_at is not None
+
         # Apply color_override to warm target
         warm_target = config.warm_night_target
-        if state.color_override and state.color_override > 0:
+        if state.color_override and state.color_override > 0 and not slider_color:
             warm_target += state.color_override
 
         night_effect = max(0, kelvin - warm_target) if night_strength > 0 else 0
@@ -1042,12 +1090,16 @@ class CircadianLight:
                 config.daylight_start, config.daylight_end,
             )
             daylight_target = config.daylight_cct
-            if state.color_override and state.color_override < 0:
+            if state.color_override and state.color_override < 0 and not slider_color:
                 daylight_target += state.color_override
             if daylight_target > kelvin:
                 day_shift = (daylight_target - kelvin) * blend
 
         kelvin = kelvin - night_effect * night_strength + day_shift
+
+        # Direct additive for slider-originated color override
+        if slider_color and state.color_override:
+            kelvin += state.color_override
 
         return kelvin
 
@@ -1106,9 +1158,11 @@ class CircadianLight:
             if in_window:
                 night_strength = weight
 
-        # Apply color_override to warm target
+        slider_color = state.color_override_set_at is not None
+
+        # Apply color_override to warm target (step-originated only)
         warm_target = config.warm_night_target
-        if state.color_override and state.color_override > 0:
+        if state.color_override and state.color_override > 0 and not slider_color:
             warm_target += state.color_override
 
         night_effect = max(0, base_kelvin - warm_target) if night_strength > 0 else 0
@@ -1128,7 +1182,7 @@ class CircadianLight:
                 config.daylight_start, config.daylight_end,
             )
             blend *= daylight_fade_weight
-            if state.color_override and state.color_override < 0:
+            if state.color_override and state.color_override < 0 and not slider_color:
                 daylight_target += state.color_override
             if daylight_target > base_kelvin:
                 day_shift = (daylight_target - base_kelvin) * blend
@@ -1378,6 +1432,11 @@ class CircadianLight:
             state_updates["brightness_mid"] = new_bri_mid
         if not cct_at_limit:
             state_updates["color_mid"] = new_color_mid
+
+        # Step = walking the curve → clear per-axis overrides
+        state_updates["brightness_override"] = None
+        state_updates["brightness_override_set_at"] = None
+        state_updates["color_override_set_at"] = None  # step's color_override has no decay
 
         # Recalibrate color_override
         # Principle: respect warming solar rules, override cooling ones.
@@ -1852,6 +1911,11 @@ class CircadianLight:
             state_updates["brightness_mid"] = new_bri_mid
             state_updates["color_mid"] = new_color_mid
 
+            # Walking the curve → clear per-axis overrides
+            state_updates["brightness_override"] = None
+            state_updates["brightness_override_set_at"] = None
+            state_updates["color_override_set_at"] = None  # step's color_override has no decay
+
             # --- color_override for circadian (step) slider ---
             #
             # Directional override policy (matches calculate_step):
@@ -1915,55 +1979,25 @@ class CircadianLight:
                 state_updates["color_override"] = None
 
         elif dimension == "brightness":
-            new_bri_mid = inverse_midpoint(
-                calc_time, target_bri_norm, slope, b_min_norm, b_max_norm
-            )
-            if in_ascend:
-                new_bri_mid = (
-                    CircadianLight.lift_midpoint_to_phase(
-                        new_bri_mid, t_ascend, t_descend
-                    )
-                    % 24
-                )
-            else:
-                descend_end = t_ascend + 24
-                new_bri_mid = (
-                    CircadianLight.lift_midpoint_to_phase(
-                        new_bri_mid, t_descend, descend_end
-                    )
-                    % 24
-                )
-            state_updates["brightness_mid"] = new_bri_mid
+            # Brightness slider/buttons now use override+decay in primitives.py.
+            # This code path shouldn't be called directly, but if it is,
+            # fall through to the verification below with no state changes.
+            pass
 
         elif dimension == "color":
-            new_color_mid = inverse_midpoint(calc_time, target_cct_norm, slope, 0, 1)
-            if in_ascend:
-                new_color_mid = (
-                    CircadianLight.lift_midpoint_to_phase(
-                        new_color_mid, t_ascend, t_descend
-                    )
-                    % 24
-                )
-            else:
-                descend_end = t_ascend + 24
-                new_color_mid = (
-                    CircadianLight.lift_midpoint_to_phase(
-                        new_color_mid, t_descend, descend_end
-                    )
-                    % 24
-                )
-            state_updates["color_mid"] = new_color_mid
+            # Color slider: set color_override directly, don't change color_mid.
+            # The override targets the desired CCT via _converge_override.
 
-            # User is explicitly choosing color — override solar rules to
-            # achieve the target (e.g., cool past warm night, warm past
-            # daylight blend).
+            # Render with current color_mid, no override
             test_state = AreaState(
                 is_circadian=state.is_circadian,
                 is_on=state.is_on,
                 frozen_at=state.frozen_at,
                 brightness_mid=state.brightness_mid,
-                color_mid=new_color_mid,
+                color_mid=state.color_mid,
                 color_override=None,
+                brightness_override=state.brightness_override,
+                brightness_override_set_at=state.brightness_override_set_at,
             )
             test_rendered = CircadianLight.calculate_color_at_hour(
                 hour,
@@ -1980,7 +2014,10 @@ class CircadianLight:
                 s = AreaState(
                     is_circadian=state.is_circadian, is_on=state.is_on,
                     frozen_at=state.frozen_at, brightness_mid=state.brightness_mid,
-                    color_mid=new_color_mid, color_override=ovr,
+                    color_mid=state.color_mid, color_override=ovr,
+                    color_override_set_at=hour,  # Signal direct additive mode
+                    brightness_override=state.brightness_override,
+                    brightness_override_set_at=state.brightness_override_set_at,
                 )
                 return CircadianLight.calculate_color_at_hour(
                     hour, config, s,
@@ -1990,6 +2027,8 @@ class CircadianLight:
             state_updates["color_override"] = _converge_override(
                 target_natural_cct, test_rendered, tolerance, _render_color_pos,
             )
+            # Mark as slider-originated for direct additive mode in verification
+            state_updates["color_override_set_at"] = hour
 
         # Build new state to verify actual output
         new_state = AreaState(
@@ -1999,6 +2038,9 @@ class CircadianLight:
             brightness_mid=state_updates.get("brightness_mid", state.brightness_mid),
             color_mid=state_updates.get("color_mid", state.color_mid),
             color_override=state_updates.get("color_override", state.color_override),
+            brightness_override=state_updates.get("brightness_override", state.brightness_override),
+            brightness_override_set_at=state_updates.get("brightness_override_set_at", state.brightness_override_set_at),
+            color_override_set_at=state_updates.get("color_override_set_at", state.color_override_set_at),
         )
         actual_bri = CircadianLight.calculate_brightness_at_hour(
             hour, config, new_state, weekday=weekday
