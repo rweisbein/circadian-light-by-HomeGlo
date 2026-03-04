@@ -1851,41 +1851,67 @@ class CircadianLight:
                 )
             state_updates["brightness_mid"] = new_bri_mid
             state_updates["color_mid"] = new_color_mid
-            # Only recalibrate an existing override (from color slider);
-            # never create one from scratch — that would fight solar rules
-            # when the user is just moving along the curve.
-            if state.color_override is not None:
-                base_state = AreaState(
-                    is_circadian=state.is_circadian,
-                    is_on=state.is_on,
+
+            # --- color_override for circadian (step) slider ---
+            #
+            # Directional override policy (matches calculate_step):
+            #   ONLY override COOLING solar rules (Cool Day) that prevent warming.
+            #   NEVER override WARMING solar rules (Warm Night) to push cooler.
+            #
+            # Why: At midday with Cool Day active, dragging the slider down should
+            # produce warm colors — but Cool Day holds the rendered CCT high.
+            # A negative override counteracts that cooling effect.
+            #
+            # At night with Warm Night active, the rendered CCT is already at/below
+            # the natural curve target. Creating an override here would FIGHT Warm
+            # Night and cause a jarring color jump (e.g., 87% 1900K → 86% 4000K).
+            #
+            # Detection: if rendered CCT (with solar rules, no override) is COOLER
+            # (higher K) than the target, a cooling rule is active → override.
+            # If rendered is warmer (lower K) or matches → no new override needed.
+            #
+            # Existing overrides (from a prior drag or color slider) are always
+            # recalibrated so they shrink/clear as the gap closes.
+
+            base_state = AreaState(
+                is_circadian=state.is_circadian,
+                is_on=state.is_on,
+                frozen_at=state.frozen_at,
+                brightness_mid=new_bri_mid,
+                color_mid=new_color_mid,
+                color_override=None,
+            )
+            base_cct = CircadianLight.calculate_color_at_hour(
+                hour, config, base_state,
+                apply_solar_rules=True, sun_times=sun_times, weekday=weekday,
+            )
+            tolerance = max(5, safe_margin_cct * 0.5)
+
+            def _render_step_pos(ovr):
+                s = AreaState(
+                    is_circadian=state.is_circadian, is_on=state.is_on,
                     frozen_at=state.frozen_at,
-                    brightness_mid=state_updates["brightness_mid"],
-                    color_mid=state_updates["color_mid"],
-                    color_override=None,
+                    brightness_mid=new_bri_mid,
+                    color_mid=new_color_mid,
+                    color_override=ovr,
                 )
-                base_cct = CircadianLight.calculate_color_at_hour(
-                    hour, config, base_state,
+                return CircadianLight.calculate_color_at_hour(
+                    hour, config, s,
                     apply_solar_rules=True, sun_times=sun_times, weekday=weekday,
                 )
-                tolerance = max(5, safe_margin_cct * 0.5)
 
-                def _render_step_pos(ovr):
-                    s = AreaState(
-                        is_circadian=state.is_circadian, is_on=state.is_on,
-                        frozen_at=state.frozen_at,
-                        brightness_mid=state_updates["brightness_mid"],
-                        color_mid=state_updates["color_mid"],
-                        color_override=ovr,
-                    )
-                    return CircadianLight.calculate_color_at_hour(
-                        hour, config, s,
-                        apply_solar_rules=True, sun_times=sun_times, weekday=weekday,
-                    )
-
+            if base_cct > target_natural_cct + tolerance:
+                # Cooling rule (Cool Day) is holding CCT above target — override
+                state_updates["color_override"] = _converge_override(
+                    target_natural_cct, base_cct, tolerance, _render_step_pos,
+                )
+            elif state.color_override is not None:
+                # Recalibrate existing override (shrink or clear)
                 state_updates["color_override"] = _converge_override(
                     target_natural_cct, base_cct, tolerance, _render_step_pos,
                 )
             else:
+                # Rendered matches or is warmer than target — no override needed
                 state_updates["color_override"] = None
 
         elif dimension == "brightness":
