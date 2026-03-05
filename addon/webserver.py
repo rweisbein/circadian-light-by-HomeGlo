@@ -3373,6 +3373,7 @@ class LightDesignerServer:
                 calculate_natural_light_factor,
                 compute_daylight_fade_weight,
                 compute_override_decay,
+                compute_shifted_midpoint,
                 resolve_effective_timing,
                 DEFAULT_DAYLIGHT_FADE,
             )
@@ -3595,10 +3596,31 @@ class LightDesignerServer:
                     adjusted_wake_time = None
                     adjusted_bed_time = None
                     if area_state.brightness_mid is not None:
-                        in_ascend_adj, _, t_asc_adj, t_desc_adj, _ = CircadianLight.get_phase_info(
-                            calc_hour, area_config
+                        in_ascend_adj, h48_adj, t_asc_adj, t_desc_adj, slope_adj = (
+                            CircadianLight.get_phase_info(calc_hour, area_config)
                         )
-                        default_mid = eff_wake if in_ascend_adj else eff_bed
+                        # Compute the TRUE default midpoint (including bed/wake brightness shift)
+                        raw_default = eff_wake if in_ascend_adj else eff_bed
+                        default_mid = raw_default
+                        bri_pct = (
+                            area_config.wake_brightness if in_ascend_adj
+                            else area_config.bed_brightness
+                        )
+                        if bri_pct != 50:
+                            b_min_n = area_config.min_brightness / 100.0
+                            b_max_n = area_config.max_brightness / 100.0
+                            if in_ascend_adj:
+                                mid48_r = CircadianLight.lift_midpoint_to_phase(
+                                    default_mid, t_asc_adj, t_desc_adj
+                                )
+                            else:
+                                mid48_r = CircadianLight.lift_midpoint_to_phase(
+                                    default_mid, t_desc_adj, t_asc_adj + 24
+                                )
+                            default_mid = compute_shifted_midpoint(
+                                mid48_r, bri_pct, slope_adj, b_min_n, b_max_n
+                            ) % 24
+
                         mid_shift = area_state.brightness_mid - default_mid
                         if abs(mid_shift) > 0.01:
                             if in_ascend_adj:
