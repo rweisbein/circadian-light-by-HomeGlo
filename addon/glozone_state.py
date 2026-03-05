@@ -223,4 +223,7 @@ def is_state_synced(area_state: Dict[str, Any], zone_state: Dict[str, Any]) -> b
         and values_match(area_state.get("color_mid"), zone_state.get("color_mid"))
         and values_match(area_state.get("frozen_at"), zone_state.get("frozen_at"))
         and values_match(area_state.get("color_override"), zone_state.get("color_override"))
+        and values_match(area_state.get("brightness_override"), zone_state.get("brightness_override"))
+        and values_match(area_state.get("brightness_override_set_at"), zone_state.get("brightness_override_set_at"))
+        and values_match(area_state.get("color_override_set_at"), zone_state.get("color_override_set_at"))
     )

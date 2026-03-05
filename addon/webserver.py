@@ -3692,6 +3692,8 @@ class LightDesignerServer:
                         "color_mid": area_state.color_mid,
                         "color_override": area_state.color_override,
                         "brightness_override": bri_override_raw,
+                        "brightness_override_set_at": area_state.brightness_override_set_at,
+                        "color_override_set_at": area_state.color_override_set_at,
                         "effective_bri_override": round(effective_bri_override, 1) if effective_bri_override else 0,
                         "frozen_at": area_state.frozen_at,
                         # Override + area factor derived values

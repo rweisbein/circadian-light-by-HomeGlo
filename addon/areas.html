@@ -2522,9 +2522,10 @@
             zoneTextColor = 'var(--text)';
           }
 
-          // Red dot: zone has been stepped or frozen away from pure rhythm
+          // Red dot: zone has been stepped, frozen, or overridden away from pure rhythm
           const rs = zs.runtime_state;
-          if (rs && (rs.brightness_mid != null || rs.color_mid != null || rs.frozen_at != null)) {
+          if (rs && (rs.brightness_mid != null || rs.color_mid != null || rs.frozen_at != null ||
+                     rs.color_override != null || rs.brightness_override != null)) {
             zoneMismatchDot = `<span class="mismatch-dot-zone"></span>`;
           }
 
@@ -2730,7 +2731,10 @@
         if (differs(area.brightness_mid, rs.brightness_mid) ||
             differs(area.color_mid, rs.color_mid) ||
             differs(area.frozen_at, rs.frozen_at) ||
-            area.color_override != null) {
+            differs(area.color_override, rs.color_override) ||
+            differs(area.brightness_override, rs.brightness_override) ||
+            differs(area.brightness_override_set_at, rs.brightness_override_set_at) ||
+            differs(area.color_override_set_at, rs.color_override_set_at)) {
           return '<span class="mismatch-dot-area"></span>';
         }
       }
