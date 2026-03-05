@@ -1544,6 +1544,7 @@ def get_switches_summary() -> List[Dict[str, Any]]:
             "device_id": switch.device_id,
             "indicator_light": switch.indicator_light,
             "inactive": switch.inactive,
+            "inactive_until": switch.inactive_until,
             "magic_buttons": switch.magic_buttons,
         })
     return result

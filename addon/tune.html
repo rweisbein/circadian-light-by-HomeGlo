@@ -272,6 +272,9 @@
       padding: 6px 16px 4px;
       gap: 6px;
     }
+    .tune-area-row.tune-col-headers {
+      padding-left: 40px;
+    }
     .tune-col-header {
       flex: 1;
       font-size: 0.65rem;
@@ -316,7 +319,7 @@
       display: flex;
       align-items: center;
       gap: 6px;
-      padding: 0 16px;
+      padding: 0 16px 0 40px;
     }
     .tune-area-row3 { padding-top: 1px; padding-bottom: 4px; }
     .tune-name-col {
@@ -326,6 +329,9 @@
     .tune-fixture-col, .tune-sun-col {
       flex: 1; display: flex; align-items: center; gap: 4px; min-width: 0;
       margin-right: 12px;
+    }
+    .tune-sun-col {
+      margin-right: 48px;
     }
     .tune-fixture-col input[type="range"], .tune-sun-col input[type="range"] {
       flex: 1; min-width: 40px; accent-color: var(--accent);

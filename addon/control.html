@@ -346,19 +346,6 @@
       background: #000;
     }
 
-    /* Pause card body — shown/hidden by JS based on checkbox */
-    #pause-section .ctrl-card-body {
-      max-height: 0;
-      opacity: 0;
-      overflow: hidden;
-      transition: max-height 0.3s ease, opacity 0.25s ease;
-    }
-
-    #pause-section.is-open .ctrl-card-body {
-      max-height: 200px;
-      opacity: 1;
-    }
-
     /* Legacy styles kept for form elements */
     .modal-label {
       display: block;
@@ -461,6 +448,9 @@
     .scope-editor {
       margin-bottom: 14px;
       padding: 0;
+    }
+    .scope-editor > :not(.scope-editor-header) {
+      padding-left: 16px;
     }
 
     .scope-editor:last-of-type {
@@ -838,7 +828,8 @@
 
     <!-- Pause card -->
     <div class="ctrl-card" id="pause-section" style="display: none;">
-      <div class="ctrl-card-header" onclick="document.getElementById('control-pause-checkbox').click();">
+      <div class="ctrl-card-header" onclick="toggleCard('pause-section')">
+        <span class="ctrl-card-chevron">&#x203A;</span>
         <span class="ctrl-card-title-muted">Pause</span>
         <span class="info-icon" onclick="event.stopPropagation()">i<span class="info-tooltip">When paused, a control won't trigger actions. Set a timer to auto-unpause.</span></span>
         <div class="ctrl-card-right">
@@ -1265,14 +1256,13 @@
       const checked = document.getElementById('control-pause-checkbox').checked;
       const pauseSection = document.getElementById('pause-section');
       if (checked) {
-        pauseSection.classList.add('is-open');
-        // Default to "forever" when first pausing
+        // Default to "forever" when first pausing, and open card to show timer
         if (!editingInactiveUntil) {
           editingInactiveUntil = 'forever';
           document.getElementById('pause-timer-select').value = 'forever';
         }
+        pauseSection.classList.add('is-open');
       } else {
-        pauseSection.classList.remove('is-open');
         editingInactiveUntil = null;
       }
       updatePauseRemaining();
