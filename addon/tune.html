@@ -1239,7 +1239,7 @@
       const exposure = overrides?.exposure ?? SOLAR_STEPS[parseInt(solarSlider.value)].exposure;
       const boostBri = parseFloat(tuneAreaEl.dataset.boostBri) || 0;
       const briOverride = parseFloat(tuneAreaEl.dataset.briOverride) || 0;
-      const nowRaw = computeNowBrightness(rhythmBri, factor, exposure, outdoorNorm, sensitivity, fadeWeight) + boostBri + briOverride;
+      const nowRaw = computeNowBrightness(rhythmBri + boostBri, factor, exposure, outdoorNorm, sensitivity, fadeWeight) + briOverride;
       const nowBri = Math.min(100, Math.round(nowRaw));
       const nowEl = tuneAreaEl.querySelector('.tune-bri-now');
       if (nowEl) {
@@ -1744,8 +1744,8 @@
           const znA = a.zone_name, znB = b.zone_name;
           const boostA = ta?.boosted ? (ta.boost_brightness || 0) : 0;
           const boostB = tb?.boosted ? (tb.boost_brightness || 0) : 0;
-          const briA = Math.min(100, computeNowBrightness(zoneStates?.[znA]?.brightness ?? 50, fa, ea, outdoorNorm, sensitivity) + boostA);
-          const briB = Math.min(100, computeNowBrightness(zoneStates?.[znB]?.brightness ?? 50, fb, eb, outdoorNorm, sensitivity) + boostB);
+          const briA = Math.min(100, computeNowBrightness((zoneStates?.[znA]?.brightness ?? 50) + boostA, fa, ea, outdoorNorm, sensitivity));
+          const briB = Math.min(100, computeNowBrightness((zoneStates?.[znB]?.brightness ?? 50) + boostB, fb, eb, outdoorNorm, sensitivity));
           return dir * (briA - briB);
         });
       }
@@ -1818,7 +1818,7 @@
           const isBoosted = tuneArea?.boosted || false;
           const boostBri = isBoosted ? (tuneArea.boost_brightness || 0) : 0;
           const briOverride = tuneArea?.bri_override || 0;
-          const nowBri = Math.min(100, computeNowBrightness(rhythmBri, factor, exposure, outdoorNorm, sensitivity, briFadeWeight) + boostBri + briOverride);
+          const nowBri = Math.min(100, computeNowBrightness(rhythmBri + boostBri, factor, exposure, outdoorNorm, sensitivity, briFadeWeight) + briOverride);
           const factorStr = formatFactorMeta(factor);
           const sunMeta = formatSunMeta(exposure, sensitivity, outdoorNorm);
 

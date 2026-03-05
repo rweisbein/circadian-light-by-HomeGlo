@@ -2854,7 +2854,7 @@ class CircadianLightPrimitives:
         if state.is_boosted(area_id):
             boost_state = state.get_boost_state(area_id)
             boost_amount = boost_state.get("boost_brightness") or 0
-            final_brightness = min(100, brightness + boost_amount)
+            final_brightness = brightness + boost_amount  # No cap — nl_factor/area_factor scale it down
             logger.debug(f"Boost applied: {brightness}% + {boost_amount}% = {final_brightness}%")
 
         await self._apply_lighting(area_id, final_brightness, color_temp, include_color, transition)

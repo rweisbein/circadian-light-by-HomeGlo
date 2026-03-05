@@ -1750,7 +1750,7 @@
           const k = cMin + (cMax - cMin) * frac;
           color = cctToRGB(k);
         } else if (mode === 'brightness') {
-          const b = bMin + (bMax - bMin) * frac;
+          const b = frac * 100;
           color = tintColorByBrightness(cctToRGB(currentCCT), b);
         } else {
           // Step/circadian slider: use natural color range (cMin to cMax).

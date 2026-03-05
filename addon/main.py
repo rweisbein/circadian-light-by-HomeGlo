@@ -1944,7 +1944,7 @@ class HomeAssistantWebSocketClient:
                 if state.is_boosted(area):
                     boost_state = state.get_boost_state(area)
                     boost_amount = boost_state.get("boost_brightness") or 0
-                    brightness = min(100, brightness + boost_amount)
+                    brightness = brightness + boost_amount  # No cap — nl_factor/area_factor scale it down
 
                 lighting_values = {
                     "brightness": brightness,
@@ -4379,7 +4379,7 @@ class HomeAssistantWebSocketClient:
                 # Get boost brightness from area's boost state (set per-sensor)
                 boost_state = state.get_boost_state(area_id)
                 boost_amount = boost_state.get("boost_brightness") or 0
-                brightness = min(100, result.brightness + boost_amount)
+                brightness = result.brightness + boost_amount  # No cap — nl_factor/area_factor scale it down
                 boost_note = f" (boosted +{boost_amount}%)"
                 if log_periodic:
                     logger.info(
@@ -5398,7 +5398,7 @@ class HomeAssistantWebSocketClient:
                         result = CircadianLight.calculate_lighting(
                             hour, config, area_state, sun_times=sun_times
                         )
-                        boosted_brightness = min(100, result.brightness + boost_amount)
+                        boosted_brightness = result.brightness + boost_amount
                         transition = self.primitives._get_turn_on_transition()
                         if started_from_off:
                             await self.primitives._apply_lighting_turn_on(

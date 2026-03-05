@@ -3534,9 +3534,13 @@ class LightDesignerServer:
                     # Check if area is boosted and add boost brightness
                     is_boosted = state.is_boosted(area_id)
                     boost_state = state.get_boost_state(area_id) if is_boosted else {}
+
+                    # Keep curve brightness before boost/NL (pure circadian value)
+                    curve_brightness = brightness
+
                     if is_boosted:
                         boost_amount = boost_state.get("boost_brightness") or 0
-                        brightness = min(100, brightness + boost_amount)
+                        brightness = brightness + boost_amount  # No cap — multiplicative factors scale it down
 
                     # Get motion timer state
                     motion_expires_at = state.get_motion_expires(area_id)
@@ -3564,9 +3568,6 @@ class LightDesignerServer:
                         faded_outdoor_norm,
                         area_brightness_sensitivity,
                     )
-
-                    # Keep curve brightness before NL reduction
-                    curve_brightness = brightness
 
                     # Apply natural light reduction to brightness (matches main.py)
                     if nl_factor < 1.0:
