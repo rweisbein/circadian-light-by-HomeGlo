@@ -280,12 +280,12 @@ def get_categorized_actions() -> Dict[str, List[Dict[str, Any]]]:
             {"id": "set_nitelite", "label": "NiteLite"},
             {"id": "set_wake_or_bed", "label": "Wake / Bed"},
             {"id": "freeze_toggle", "label": "Freeze"},
-            {"id": "glo_reset", "label": "Reset to Daily Rhythm"},
-            {"id": "glo_down", "label": "Reset to Glo Zone"},
+            {"id": "glo_reset", "label": "Reset to Circadian"},
+            {"id": "glo_down", "label": "Reset to Rhythm Zone"},
         ],
-        "Glo Zone": [
-            {"id": "full_send", "label": "Push to whole Glo Zone"},
-            {"id": "glozone_reset_full", "label": "Reset whole Glo Zone"},
+        "Rhythm Zone": [
+            {"id": "full_send", "label": "Push to whole Rhythm Zone"},
+            {"id": "glozone_reset_full", "label": "Reset whole Rhythm Zone"},
         ],
         "Switch": [
             {"id": "cycle_scope", "label": "Advance to next Reach"},
