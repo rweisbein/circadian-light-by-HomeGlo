@@ -5346,6 +5346,7 @@ class LightDesignerServer:
 
         Re-scans Home Assistant for new/moved lights, areas, and ZHA devices.
         Fires an event that main.py listens for to trigger the actual sync.
+        Also auto-creates inactive control configs for unconfigured devices.
         """
         try:
             # Clear areas cache so it gets refreshed on next request
@@ -5358,22 +5359,110 @@ class LightDesignerServer:
                 fired = await self._fire_event_via_websocket(
                     ws_url, token, "circadian_light_sync_devices", {}
                 )
-                if fired:
-                    logger.info("Fired circadian_light_sync_devices event")
-                    return web.json_response(
-                        {"success": True, "message": "Device sync triggered"}
-                    )
-                else:
+                if not fired:
                     return web.json_response(
                         {"error": "Failed to fire sync event"}, status=500
                     )
+                logger.info("Fired circadian_light_sync_devices event")
             else:
                 return web.json_response(
                     {"error": "WebSocket not configured"}, status=503
                 )
+
+            return web.json_response(
+                {"success": True, "message": "Device sync triggered"}
+            )
         except Exception as e:
             logger.error(f"Error triggering device sync: {e}")
             return web.json_response({"error": str(e)}, status=500)
+
+    def _auto_create_controls(self, ha_controls, configured_switches) -> int:
+        """Auto-create inactive control configs for unconfigured HA devices.
+
+        Uses already-fetched HA controls and configured switches to avoid
+        duplicate API calls. Called from get_controls() on page load.
+        """
+        try:
+            created = 0
+            for ctrl in ha_controls:
+                ieee = ctrl.get("ieee")
+                device_id = ctrl.get("device_id")
+                category = ctrl.get("category")
+                area_id = ctrl.get("area_id")
+                name = ctrl.get("name", "Unknown")
+
+                if not ctrl.get("supported"):
+                    continue
+                if not area_id:
+                    continue  # Can't auto-scope without an area
+
+                if category == "switch":
+                    detected_type = ctrl.get("type")
+                    if not detected_type or not ieee:
+                        continue
+                    if ieee in configured_switches:
+                        continue
+                    switches.add_switch(
+                        switches.SwitchConfig(
+                            id=ieee,
+                            name=name,
+                            type=detected_type,
+                            scopes=[switches.SwitchScope(areas=[area_id])],
+                            device_id=device_id,
+                            inactive=True,
+                        )
+                    )
+                    logger.info(
+                        f"[sync] Auto-created switch: {name} ({ieee}) -> area {area_id}"
+                    )
+                    created += 1
+
+                elif category == "motion_sensor":
+                    if not device_id:
+                        continue
+                    existing = switches.get_motion_sensor_by_device_id(device_id)
+                    if existing:
+                        continue
+                    switches.add_motion_sensor(
+                        switches.MotionSensorConfig(
+                            id=device_id,
+                            name=name,
+                            areas=[switches.MotionAreaConfig(area_id=area_id)],
+                            device_id=device_id,
+                            inactive=True,
+                        )
+                    )
+                    logger.info(
+                        f"[sync] Auto-created motion sensor: {name} ({device_id}) -> area {area_id}"
+                    )
+                    created += 1
+
+                elif category == "contact_sensor":
+                    if not device_id:
+                        continue
+                    existing = switches.get_contact_sensor_by_device_id(device_id)
+                    if existing:
+                        continue
+                    switches.add_contact_sensor(
+                        switches.ContactSensorConfig(
+                            id=device_id,
+                            name=name,
+                            areas=[switches.ContactAreaConfig(area_id=area_id)],
+                            device_id=device_id,
+                            inactive=True,
+                        )
+                    )
+                    logger.info(
+                        f"[sync] Auto-created contact sensor: {name} ({device_id}) -> area {area_id}"
+                    )
+                    created += 1
+
+            if created:
+                logger.info(f"[sync] Auto-created {created} control(s) as inactive")
+            return created
+        except Exception as e:
+            logger.error(f"[sync] Error auto-creating controls: {e}")
+            return 0
 
     # -------------------------------------------------------------------------
     # Switch Management API endpoints
@@ -6269,6 +6358,15 @@ class LightDesignerServer:
             }
             configured_motion = switches.get_all_motion_sensors()
 
+            # Auto-create controls for unconfigured devices (first load picks up new devices)
+            created = self._auto_create_controls(ha_controls, configured_switches)
+            if created:
+                # Re-fetch configs since we just added new ones
+                configured_switches = {
+                    sw["id"]: sw for sw in switches.get_switches_summary()
+                }
+                configured_motion = switches.get_all_motion_sensors()
+
             # Pre-load last actions once (avoids N file reads in the loop)
             all_last_actions = switches._load_last_actions()
 
@@ -6354,6 +6452,7 @@ class LightDesignerServer:
                 }
 
                 control_data["inactive"] = config.get("inactive", False)
+                control_data["inactive_until"] = config.get("inactive_until")
                 if category in ("motion_sensor", "contact_sensor"):
                     control_data["areas"] = config.get("areas", [])
                 else:
@@ -6736,6 +6835,7 @@ class LightDesignerServer:
                     areas=areas,
                     device_id=device_id,
                     inactive=data.get("inactive", False),
+                    inactive_until=data.get("inactive_until"),
                 )
 
                 switches.add_motion_sensor(motion_config)
@@ -6777,6 +6877,7 @@ class LightDesignerServer:
                     areas=areas,
                     device_id=device_id,
                     inactive=data.get("inactive", False),
+                    inactive_until=data.get("inactive_until"),
                 )
 
                 switches.add_contact_sensor(contact_config)
@@ -6805,6 +6906,7 @@ class LightDesignerServer:
                     device_id=device_id,
                     indicator_light=indicator_light,
                     inactive=data.get("inactive", False),
+                    inactive_until=data.get("inactive_until"),
                 )
 
                 switches.add_switch(switch_config)

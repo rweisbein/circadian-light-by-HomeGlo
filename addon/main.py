@@ -559,7 +559,7 @@ class HomeAssistantWebSocketClient:
             logger.debug(f"[Motion] No config found for device {device_id}")
             return
 
-        if sensor_config.inactive:
+        if switches.check_inactive_expired(sensor_config):
             logger.debug(
                 f"[Motion] Sensor {sensor_config.name} is inactive, ignoring event"
             )
@@ -771,7 +771,7 @@ class HomeAssistantWebSocketClient:
             )
             return
 
-        if sensor_config.inactive:
+        if switches.check_inactive_expired(sensor_config):
             logger.info(
                 f"[Contact] Sensor {sensor_config.name} is inactive, ignoring event"
             )
@@ -903,7 +903,7 @@ class HomeAssistantWebSocketClient:
             await self._handle_unconfigured_switch(device_ieee, event_data)
             return
 
-        if switch_config.inactive:
+        if switches.check_inactive_expired(switch_config):
             logger.info(
                 f"Switch {switch_config.name} is inactive/paused, ignoring event"
             )
@@ -1128,7 +1128,7 @@ class HomeAssistantWebSocketClient:
             )
             return
 
-        if switch_config.inactive:
+        if switches.check_inactive_expired(switch_config):
             logger.info(
                 f"Switch {switch_config.name} is inactive/paused, ignoring event"
             )

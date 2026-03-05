@@ -31,13 +31,14 @@
       background: var(--bg);
       color: var(--text);
       min-height: 100vh;
+      overflow-x: hidden;
     }
 
     /* Navigation */
     .nav {
       background: var(--panel);
       border-bottom: 1px solid var(--line);
-      padding: 0 24px;
+      padding: 0 12px;
       display: flex;
       align-items: center;
       height: 56px;
@@ -50,11 +51,11 @@
       font-weight: 600;
       font-size: 1.1rem;
       color: var(--muted);
-      margin-right: 16px;
+      margin-right: 8px;
       text-decoration: none;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
     }
 
     .nav-brand.active {
@@ -69,14 +70,14 @@
 
     .nav-links {
       display: flex;
-      gap: 8px;
+      gap: 4px;
       flex: 1;
       min-width: 0;
       overflow: hidden;
     }
 
     .nav-link {
-      padding: 8px 10px;
+      padding: 8px 8px;
       color: var(--muted);
       text-decoration: none;
       border-radius: 6px;
@@ -107,7 +108,7 @@
     .main {
       max-width: 900px;
       margin: 0 auto;
-      padding: 16px 24px;
+      padding: 12px 12px 24px;
     }
 
     .page-header {
@@ -208,13 +209,7 @@
       color: var(--text);
     }
 
-    .switches-table th .sort-arrow {
-      margin-right: 4px;
-      opacity: 0.5;
-    }
-
-    .switches-table th.sorted .sort-arrow {
-      opacity: 1;
+    .switches-table th.sorted {
       color: var(--accent);
     }
 
@@ -348,6 +343,22 @@
     }
 
     .toolbar-search:focus {
+      outline: none;
+      border-color: dodgerblue;
+    }
+
+    .toolbar-zone-filter {
+      padding: 6px 8px;
+      border-radius: 6px;
+      border: 1px solid var(--line);
+      background: var(--card);
+      color: var(--muted);
+      font-size: 0.85rem;
+      max-width: 130px;
+      cursor: pointer;
+    }
+
+    .toolbar-zone-filter:focus {
       outline: none;
       border-color: dodgerblue;
     }
@@ -487,15 +498,7 @@
   <!-- Navigation -->
   <nav class="nav">
     <a href="./" class="nav-brand">
-      <svg class="nav-logo" viewBox="0 0 40 40" fill="none">
-        <circle cx="20" cy="20" r="19" fill="#555"/>
-        <path d="M20 1 A19 19 0 0 1 20 39 Q20 28 8 20 Q20 12 20 1" fill="#ccc"/>
-        <circle cx="20" cy="12" r="5" fill="#fff"/>
-        <line x1="20" y1="3" x2="20" y2="5" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
-        <line x1="27" y1="6" x2="25.5" y2="7.5" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
-        <line x1="29" y1="12" x2="27" y2="12" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
-        <path d="M16 30 A6 6 0 1 1 24 30 A4.5 4.5 0 1 0 16 30" fill="#fff"/>
-      </svg>
+      <img class="nav-logo" src="./icon.png" alt="Circadian Light">
       Home
     </a>
     <div class="nav-links">
@@ -516,6 +519,9 @@
           <input type="text" id="search-input" class="toolbar-search" placeholder="Search...">
           <button id="search-clear" style="display: none; position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--accent); cursor: pointer; font-size: 0.9rem; padding: 2px 4px;">&times;</button>
         </div>
+        <select id="zone-filter" class="toolbar-zone-filter">
+          <option value="all">All zones</option>
+        </select>
         <label class="active-filter-label" title="Show only active controls">
           <input type="checkbox" id="active-filter"> Active
         </label>
@@ -546,6 +552,7 @@
     let sortAsc = true;
     let categoryFilter = 'all';
     let areaFilter = 'all';
+    let zoneFilter = 'all';
     let fourthField = 'lastAction';
     let searchFilter = '';
     let activeOnly = false;
@@ -570,6 +577,7 @@
           sortAsc = prefs.sort_asc !== false;
           categoryFilter = prefs.category_filter || 'all';
           areaFilter = prefs.area_filter || 'all';
+          zoneFilter = prefs.zone_filter || 'all';
           activeOnly = prefs.active_only || false;
           fourthField = prefs.fourth_field || 'lastAction';
           searchFilter = prefs.search_filter || '';
@@ -590,6 +598,7 @@
               sort_asc: sortAsc,
               category_filter: categoryFilter,
               area_filter: areaFilter,
+              zone_filter: zoneFilter,
               active_only: activeOnly,
               fourth_field: fourthField,
               search_filter: searchFilter
@@ -671,8 +680,20 @@
         areaFilter = 'all';
         filtersReset = true;
       }
+      const zoneNames = allGlozones.map(z => z.name);
+      if (zoneFilter !== 'all' && !zoneNames.includes(zoneFilter)) {
+        zoneFilter = 'all';
+        filtersReset = true;
+      }
       if (filtersReset) {
         savePreferences();
+      }
+
+      // Build set of area IDs in the selected zone
+      let zoneAreaIds = null;
+      if (zoneFilter !== 'all') {
+        const zone = allGlozones.find(z => z.name === zoneFilter);
+        zoneAreaIds = zone ? new Set(zone.areaIds) : null;
       }
 
       // Apply all filters
@@ -686,6 +707,7 @@
         if (categoryFilter !== 'all' && c.category !== categoryFilter) return false;
         if (areaFilter === 'unassigned' && c.area_name) return false;
         if (areaFilter !== 'all' && areaFilter !== 'unassigned' && c.area_name !== areaFilter) return false;
+        if (zoneAreaIds && !zoneAreaIds.has(c.area_id)) return false;
         if (activeOnly && c.status !== 'active' && c.status !== 'inactive') return false;
         return true;
       });
@@ -735,11 +757,6 @@
         return 0;
       });
 
-      const arrow = (col) => {
-        if (sortColumn !== col) return '<span class="sort-arrow">↕</span>';
-        return sortAsc ? '<span class="sort-arrow">↑</span>' : '<span class="sort-arrow">↓</span>';
-      };
-
       const thClass = (col) => sortColumn === col ? 'sorted' : '';
 
       // Filter indicator with clear button (orange X)
@@ -760,7 +777,7 @@
         areas.map(a => `<option value="${a}" ${areaFilter === a ? 'selected' : ''}>${a}</option>`).join('');
 
       // Check if any filters are active and show/hide clear filters link
-      const hasActiveFilters = categoryFilter !== 'all' || areaFilter !== 'all' || searchFilter !== '' || activeOnly;
+      const hasActiveFilters = categoryFilter !== 'all' || areaFilter !== 'all' || zoneFilter !== 'all' || searchFilter !== '' || activeOnly;
       document.getElementById('clear-filters-link').style.display = hasActiveFilters ? 'block' : 'none';
 
       // Update search bar and active checkbox (they live above the table)
@@ -768,6 +785,14 @@
       if (searchInput && searchInput !== document.activeElement) {
         searchInput.value = searchFilter;
         searchInput.style.borderColor = searchFilter ? 'var(--accent)' : '';
+      }
+
+      // Update zone filter dropdown
+      const zoneSelect = document.getElementById('zone-filter');
+      if (zoneSelect) {
+        zoneSelect.innerHTML = `<option value="all">All zones</option>` +
+          allGlozones.map(z => `<option value="${z.name}" ${zoneFilter === z.name ? 'selected' : ''}>${z.name}</option>`).join('');
+        zoneSelect.style.borderColor = zoneFilter !== 'all' ? 'var(--accent)' : '';
       }
       const searchClear = document.getElementById('search-clear');
       if (searchClear) searchClear.style.display = searchFilter ? 'block' : 'none';
@@ -778,22 +803,21 @@
         <table class="switches-table">
           <thead>
             <tr>
-              <th class="${thClass('name')}" onclick="sortBy('name')">${arrow('name')}Name</th>
+              <th class="${thClass('name')}" onclick="sortBy('name')">Name</th>
               <th class="${thClass('category')}" style="width: 52px;">
                 <div class="th-with-filter">
-                  <div class="th-title-row" onclick="sortBy('category')">${arrow('category')}Type${filterIndicator('category', categoryFilter, "clearSingleFilter('category')")}</div>
+                  <div class="th-title-row" onclick="sortBy('category')">Type${filterIndicator('category', categoryFilter, "clearSingleFilter('category')")}</div>
                   <select class="header-filter" id="category-filter" onclick="event.stopPropagation()" style="${filterActiveStyle(categoryFilter)}">${categoryOptions}</select>
                 </div>
               </th>
               <th class="${thClass('area')}">
                 <div class="th-with-filter">
-                  <div class="th-title-row" onclick="sortBy('area')">${arrow('area')}Location${filterIndicator('area', areaFilter, "clearSingleFilter('area')")}</div>
+                  <div class="th-title-row" onclick="sortBy('area')">Location${filterIndicator('area', areaFilter, "clearSingleFilter('area')")}</div>
                   <select class="header-filter" id="area-filter" onclick="event.stopPropagation()" style="${filterActiveStyle(areaFilter)}">${areaOptions}</select>
                 </div>
               </th>
               <th class="${thClass('fourth')}">
                 <div class="th-title-row" onclick="sortBy('fourth')">
-                  ${arrow('fourth')}
                   <select class="header-filter fourth-field-picker" id="fourth-field-select" onclick="event.stopPropagation()">
                     <option value="lastAction" ${fourthField === 'lastAction' ? 'selected' : ''}>Last action</option>
                     <option value="lux" ${fourthField === 'lux' ? 'selected' : ''}>Lux</option>
@@ -968,6 +992,7 @@
     function clearFilters() {
       categoryFilter = 'all';
       areaFilter = 'all';
+      zoneFilter = 'all';
       searchFilter = '';
       activeOnly = false;
       savePreferences();
@@ -1086,6 +1111,13 @@
       // Active-only checkbox
       document.getElementById('active-filter').addEventListener('change', (e) => {
         activeOnly = e.target.checked;
+        savePreferences();
+        renderControls();
+      });
+
+      // Zone filter (lives above the table, not re-rendered)
+      document.getElementById('zone-filter').addEventListener('change', (e) => {
+        zoneFilter = e.target.value;
         savePreferences();
         renderControls();
       });

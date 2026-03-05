@@ -530,6 +530,7 @@ class SwitchConfig:
     device_id: Optional[str] = None            # HA device_id for area lookup
     indicator_light: Optional[str] = None      # Entity ID for reach feedback indicator light
     inactive: bool = False                     # If True, switch won't trigger actions
+    inactive_until: Optional[str] = None       # ISO timestamp or "forever"; None = no timer
 
     def get_button_action(self, button_event: str) -> Any:
         """Get the action for a button event, with magic button support.
@@ -569,6 +570,8 @@ class SwitchConfig:
             result["indicator_light"] = self.indicator_light
         if self.inactive:
             result["inactive"] = True
+        if self.inactive_until:
+            result["inactive_until"] = self.inactive_until
         return result
 
     @classmethod
@@ -591,6 +594,7 @@ class SwitchConfig:
             device_id=data.get("device_id"),
             indicator_light=data.get("indicator_light"),
             inactive=data.get("inactive", False),
+            inactive_until=data.get("inactive_until"),
         )
 
 
@@ -692,6 +696,7 @@ class MotionSensorConfig:
     areas: List[MotionAreaConfig] = field(default_factory=list)
     device_id: Optional[str] = None      # HA device_id
     inactive: bool = False               # If True, sensor won't trigger actions
+    inactive_until: Optional[str] = None # ISO timestamp or "forever"; None = no timer
 
     def get_area_config(self, area_id: str) -> Optional[MotionAreaConfig]:
         """Get config for a specific area."""
@@ -714,6 +719,8 @@ class MotionSensorConfig:
         }
         if self.device_id:
             result["device_id"] = self.device_id
+        if self.inactive_until:
+            result["inactive_until"] = self.inactive_until
         return result
 
     @classmethod
@@ -726,6 +733,7 @@ class MotionSensorConfig:
             areas=areas,
             device_id=data.get("device_id"),
             inactive=data.get("inactive", False),
+            inactive_until=data.get("inactive_until"),
         )
 
 
@@ -805,6 +813,7 @@ class ContactSensorConfig:
     areas: List[ContactAreaConfig] = field(default_factory=list)
     device_id: Optional[str] = None      # HA device_id
     inactive: bool = False               # If True, sensor won't trigger actions
+    inactive_until: Optional[str] = None # ISO timestamp or "forever"; None = no timer
 
     def get_area_config(self, area_id: str) -> Optional[ContactAreaConfig]:
         """Get config for a specific area."""
@@ -827,6 +836,8 @@ class ContactSensorConfig:
         }
         if self.device_id:
             result["device_id"] = self.device_id
+        if self.inactive_until:
+            result["inactive_until"] = self.inactive_until
         return result
 
     @classmethod
@@ -839,7 +850,32 @@ class ContactSensorConfig:
             areas=areas,
             device_id=data.get("device_id"),
             inactive=data.get("inactive", False),
+            inactive_until=data.get("inactive_until"),
         )
+
+
+def check_inactive_expired(config) -> bool:
+    """Check if an inactive timer has expired. If so, auto-unpause and save.
+
+    Returns True if the control is still inactive (should be skipped),
+    False if it was unpaused (or was never paused).
+    """
+    if not config.inactive:
+        return False
+    if not config.inactive_until or config.inactive_until == "forever":
+        return True  # still inactive, no expiry
+    try:
+        from datetime import datetime, timezone
+        expiry = datetime.fromisoformat(config.inactive_until.replace("Z", "+00:00"))
+        if datetime.now(timezone.utc) >= expiry:
+            # Timer expired — unpause
+            config.inactive = False
+            config.inactive_until = None
+            _save()
+            return False
+    except (ValueError, TypeError):
+        pass
+    return True  # still inactive, timer not yet expired
 
 
 # =============================================================================

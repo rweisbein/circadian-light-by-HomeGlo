@@ -454,91 +454,107 @@ async function openAreaPicker(options = {}) {
 
     const searchLower = searchFilter.toLowerCase().trim();
 
-    // Convert zones to array for sorting
-    let zoneEntries = Object.entries(zones);
-
-    // Sort zones: default first, then by name or custom order
-    if (sortMode === 'az') {
-      zoneEntries.sort((a, b) => a[0].localeCompare(b[0]));
-    }
-    // 'custom' mode uses the order from the API (user's order)
+    // Convert zones to array
+    const zoneEntries = Object.entries(zones);
 
     let hasResults = false;
 
-    for (const [zoneName, zoneData] of zoneEntries) {
-      const areas = zoneData.areas || [];
-      if (areas.length === 0) continue;
-
-      // Filter areas by search
-      let filteredAreas = areas;
+    // A-Z mode: flatten all areas into one sorted list (no zone headers)
+    if (sortMode === 'az') {
+      let allAreas = [];
+      for (const [, zoneData] of zoneEntries) {
+        for (const area of (zoneData.areas || [])) {
+          allAreas.push(area);
+        }
+      }
+      // Filter by search
       if (searchLower) {
-        filteredAreas = areas.filter(area => {
+        allAreas = allAreas.filter(area => {
           const areaName = (typeof area === 'object' ? (area.name || area.id) : area) || '';
           return areaName.toLowerCase().includes(searchLower);
         });
       }
-      if (filteredAreas.length === 0) continue;
+      // Sort alphabetically
+      allAreas.sort((a, b) => {
+        const nameA = (typeof a === 'object' ? a.name : a) || '';
+        const nameB = (typeof b === 'object' ? b.name : b) || '';
+        return nameA.localeCompare(nameB);
+      });
+      hasResults = allAreas.length > 0;
+      for (const area of allAreas) {
+        appendAreaItem(area);
+      }
+    } else {
+      // Custom mode: group by zone with headers
+      for (const [zoneName, zoneData] of zoneEntries) {
+        const areas = zoneData.areas || [];
+        if (areas.length === 0) continue;
 
-      hasResults = true;
+        // Filter areas by search
+        let filteredAreas = areas;
+        if (searchLower) {
+          filteredAreas = areas.filter(area => {
+            const areaName = (typeof area === 'object' ? (area.name || area.id) : area) || '';
+            return areaName.toLowerCase().includes(searchLower);
+          });
+        }
+        if (filteredAreas.length === 0) continue;
 
-      // Zone header
-      const zoneHeader = document.createElement('div');
-      zoneHeader.className = 'area-picker-zone';
-      zoneHeader.textContent = zoneName;
-      listEl.appendChild(zoneHeader);
+        hasResults = true;
 
-      // Sort areas within zone
-      let sortedAreas = [...filteredAreas];
-      if (sortMode === 'az') {
-        sortedAreas.sort((a, b) => {
-          const nameA = (typeof a === 'object' ? a.name : a) || '';
-          const nameB = (typeof b === 'object' ? b.name : b) || '';
-          return nameA.localeCompare(nameB);
+        // Zone header
+        const zoneHeader = document.createElement('div');
+        zoneHeader.className = 'area-picker-zone';
+        zoneHeader.textContent = zoneName;
+        listEl.appendChild(zoneHeader);
+
+        // Area items
+        for (const area of filteredAreas) {
+          appendAreaItem(area);
+        }
+      }
+    }
+
+    function appendAreaItem(area) {
+      const areaId = typeof area === 'object' ? area.id : area;
+      const areaName = typeof area === 'object' ? (area.name || area.id) : area;
+      const isDisabled = selected.includes(areaId);
+      const isSelected = newSelections.has(areaId);
+
+      const item = document.createElement('div');
+      item.className = 'area-picker-item';
+      if (isDisabled) item.classList.add('disabled');
+      if (isSelected) item.classList.add('selected');
+      item.dataset.areaId = areaId;
+
+      item.innerHTML = `
+        <div class="area-picker-checkbox"></div>
+        <span class="area-picker-name">${areaName}</span>
+      `;
+
+      if (!isDisabled) {
+        item.addEventListener('click', () => {
+          if (multi) {
+            if (newSelections.has(areaId)) {
+              newSelections.delete(areaId);
+              item.classList.remove('selected');
+            } else {
+              newSelections.add(areaId);
+              item.classList.add('selected');
+            }
+          } else {
+            // Single select - clear others
+            newSelections.clear();
+            newSelections.add(areaId);
+            listEl.querySelectorAll('.area-picker-item.selected').forEach(el => {
+              el.classList.remove('selected');
+            });
+            item.classList.add('selected');
+          }
         });
       }
 
-      // Area items
-      for (const area of sortedAreas) {
-        const areaId = typeof area === 'object' ? area.id : area;
-        const areaName = typeof area === 'object' ? (area.name || area.id) : area;
-        const isDisabled = selected.includes(areaId);
-        const isSelected = newSelections.has(areaId);
-
-        const item = document.createElement('div');
-        item.className = 'area-picker-item';
-        if (isDisabled) item.classList.add('disabled');
-        if (isSelected) item.classList.add('selected');
-        item.dataset.areaId = areaId;
-
-        item.innerHTML = `
-          <div class="area-picker-checkbox"></div>
-          <span class="area-picker-name">${areaName}</span>
-        `;
-
-        if (!isDisabled) {
-          item.addEventListener('click', () => {
-            if (multi) {
-              if (newSelections.has(areaId)) {
-                newSelections.delete(areaId);
-                item.classList.remove('selected');
-              } else {
-                newSelections.add(areaId);
-                item.classList.add('selected');
-              }
-            } else {
-              // Single select - clear others
-              newSelections.clear();
-              newSelections.add(areaId);
-              listEl.querySelectorAll('.area-picker-item.selected').forEach(el => {
-                el.classList.remove('selected');
-              });
-              item.classList.add('selected');
-            }
-          });
-        }
-
-        listEl.appendChild(item);
-      }
+      listEl.appendChild(item);
     }
 
     // Show "no results" if search yielded nothing

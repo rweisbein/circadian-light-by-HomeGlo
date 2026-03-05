@@ -71,18 +71,23 @@
       height: 20px;
     }
 
+    .page-header-icon {
+      display: flex;
+      align-items: center;
+      color: var(--muted);
+      flex-shrink: 0;
+    }
+
     .page-header-meta {
       display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      gap: 1px;
-      font-size: 0.75rem;
+      align-items: center;
       flex-shrink: 0;
     }
 
     .page-header-meta span {
       color: var(--muted);
       white-space: nowrap;
+      font-size: 0.9rem;
     }
 
     .page-title {
@@ -99,7 +104,7 @@
     .main {
       max-width: 600px;
       margin: 0 auto;
-      padding: 16px;
+      padding: 12px 12px 24px;
     }
 
     /* Buttons */
@@ -231,23 +236,130 @@
       transform: translateY(0);
     }
 
-    /* Modal sections (adapted from switches.html modal) */
-    .modal-section {
-      margin-bottom: 20px;
+    /* Card-based collapsible sections */
+    .ctrl-card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 10px;
+      transition: border-color 0.2s;
     }
 
-    .modal-settings-divider {
-      margin: 20px 0 0;
+    .ctrl-card-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      padding: 12px 14px;
+      user-select: none;
     }
 
-    .settings-content {
-      padding-left: 14px;
+    .ctrl-card-chevron {
+      display: inline-block;
+      font-size: 1.1rem;
+      line-height: 1;
+      transition: transform 0.25s;
+      color: var(--muted2);
+      flex-shrink: 0;
     }
 
-    .modal-settings-divider .modal-section {
-      margin-bottom: 12px;
+    .ctrl-card.is-open .ctrl-card-chevron {
+      transform: rotate(90deg);
     }
 
+    .ctrl-card-title {
+      font-size: 1.0rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .ctrl-card-title-muted {
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--muted);
+    }
+
+    .ctrl-card-body {
+      max-height: 0;
+      opacity: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease, opacity 0.25s ease;
+    }
+
+    .ctrl-card.is-open .ctrl-card-body {
+      max-height: 2000px;
+      opacity: 1;
+    }
+
+    .ctrl-card-body-inner {
+      padding: 0 14px 14px;
+    }
+
+    .ctrl-card-right {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Toggle switch (matching area.html pattern) */
+    .ctrl-toggle {
+      position: relative;
+      width: 32px;
+      height: 16px;
+    }
+
+    .ctrl-toggle input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .ctrl-toggle .slider {
+      position: absolute;
+      inset: 0;
+      background: var(--line);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .ctrl-toggle .slider::before {
+      content: '';
+      position: absolute;
+      left: 3px;
+      top: 3px;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--muted);
+      transition: all 0.2s;
+    }
+
+    .ctrl-toggle input:checked + .slider {
+      background: var(--text);
+    }
+
+    .ctrl-toggle input:checked + .slider::before {
+      transform: translateX(16px);
+      background: #000;
+    }
+
+    /* Pause card body — shown/hidden by JS based on checkbox */
+    #pause-section .ctrl-card-body {
+      max-height: 0;
+      opacity: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease, opacity 0.25s ease;
+    }
+
+    #pause-section.is-open .ctrl-card-body {
+      max-height: 200px;
+      opacity: 1;
+    }
+
+    /* Legacy styles kept for form elements */
     .modal-label {
       display: block;
       font-size: 0.85rem;
@@ -336,12 +448,9 @@
       color: #000;
     }
 
-    /* Reach container */
+    /* Reach container (inside card body) */
     .reach-container {
-      background: var(--panel);
-      border-radius: 10px;
-      padding: 14px;
-      margin-bottom: 4px;
+      padding: 0;
     }
 
     .reach-container .add-scope-btn {
@@ -527,26 +636,6 @@
       margin-top: 8px;
     }
 
-    .inactive-toggle {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      margin-left: 8px;
-      cursor: pointer;
-    }
-
-    .inactive-toggle input {
-      width: 14px;
-      height: 14px;
-      accent-color: var(--muted);
-      cursor: pointer;
-    }
-
-    .inactive-toggle-label {
-      font-size: 0.75rem;
-      color: var(--muted);
-    }
-
     .info-icon {
       display: inline-flex;
       align-items: center;
@@ -619,10 +708,10 @@
         <polyline points="15 18 9 12 15 6"/>
       </svg>
     </button>
+    <span class="page-header-icon" id="page-header-icon"></span>
     <h1 class="page-title" id="page-title">Loading...</h1>
     <div class="page-header-meta" id="page-header-meta">
       <span id="header-meta-area"></span>
-      <span id="header-meta-glozone"></span>
     </div>
     <div class="toolbar-menu">
       <button class="toolbar-menu-btn" onclick="toggleToolbarMenu(event)">&#8942;</button>
@@ -635,77 +724,92 @@
   </header>
 
   <main class="main">
-    <div class="modal-section" style="margin-bottom: 12px;">
+    <div id="device-info-section" style="margin-bottom: 12px;">
       <div id="device-info" style="font-size: 0.9rem; color: var(--muted); line-height: 1.6;">
         <!-- Populated by JS: Category, Type, Location -->
       </div>
     </div>
 
-    <div class="modal-section" id="type-section" style="display: none;">
+    <div id="type-section" style="display: none;">
       <label class="modal-label">Type</label>
       <select class="modal-select" id="control-type">
         <!-- Populated by JS -->
       </select>
     </div>
 
-    <div class="modal-section" id="switch-config-section" style="margin-bottom: 0;">
-      <div class="reach-container">
-        <div id="scopes-editor">
-          <!-- Scope editors populated by JS -->
+    <!-- Reach card (switches) -->
+    <div class="ctrl-card is-open" id="switch-config-section">
+      <div class="ctrl-card-header" onclick="toggleCard('switch-config-section')">
+        <span class="ctrl-card-chevron">&#x203A;</span>
+        <span class="ctrl-card-title">Reach</span>
+      </div>
+      <div class="ctrl-card-body">
+        <div class="ctrl-card-body-inner">
+          <div class="reach-container">
+            <div id="scopes-editor"></div>
+            <button class="add-scope-btn" id="add-scope-btn">Add Reach</button>
+          </div>
         </div>
-        <button class="add-scope-btn" id="add-scope-btn">Add Reach</button>
       </div>
     </div>
 
-    <div class="modal-section" id="motion-config-section" style="display: none; margin-bottom: 0;">
-      <div class="reach-container">
-        <div id="motion-scopes-editor">
-          <!-- Motion scope editors populated by JS -->
+    <!-- Reach card (motion/contact sensors) -->
+    <div class="ctrl-card is-open" id="motion-config-section" style="display: none;">
+      <div class="ctrl-card-header" onclick="toggleCard('motion-config-section')">
+        <span class="ctrl-card-chevron">&#x203A;</span>
+        <span class="ctrl-card-title">Reach</span>
+      </div>
+      <div class="ctrl-card-body">
+        <div class="ctrl-card-body-inner">
+          <div class="reach-container">
+            <div id="motion-scopes-editor"></div>
+            <button class="add-scope-btn" id="add-motion-scope-btn">Add Reach</button>
+          </div>
         </div>
-        <button class="add-scope-btn" id="add-motion-scope-btn">Add Reach</button>
       </div>
     </div>
 
-    <div class="modal-settings-divider" id="settings-divider">
-      <div class="modal-section" id="magic-section" style="display: none;">
-        <div style="font-size: 0.75rem; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;"><span style="color: var(--accent); margin-right: 4px;">&#10022;</span>Magic Buttons</div>
-        <div id="magic-editor" class="settings-content"></div>
+    <!-- Magic Buttons card -->
+    <div class="ctrl-card is-open" id="magic-section" style="display: none;">
+      <div class="ctrl-card-header" onclick="toggleCard('magic-section')">
+        <span class="ctrl-card-chevron">&#x203A;</span>
+        <span class="ctrl-card-title"><span style="color: var(--accent); margin-right: 4px;">&#10022;</span>Magic Buttons</span>
       </div>
-    </div>
-
-    <div class="modal-settings-divider" id="pause-divider" style="display: none;">
-      <div class="modal-section" id="pause-section" style="display: none;">
-        <label style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer;">
-          <span style="font-size: 0.85rem; color: var(--muted);">Pause</span>
-          <span class="info-icon">i<span class="info-tooltip">When paused, a control won't trigger actions</span></span>
-          <input type="checkbox" id="control-pause-checkbox" style="width: 16px; height: 16px; accent-color: var(--accent);">
-        </label>
-      </div>
-    </div>
-
-    <div class="modal-settings-divider" id="indicator-divider" style="display: none;">
-      <div class="modal-section" id="indicator-light-section" style="display: none;">
-        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-          <label class="modal-label" style="margin-bottom: 0;">Feedback Cues</label>
-          <span class="info-icon">i<span class="info-tooltip">When Feedback Cue of 'subtle' is selected in Settings, this light will show the cue. For example, when a 'freeze' button is pressed on a switch, this light will perform a quick animation indicating the lights in the Reach of the switch are frozen.</span></span>
-          <a href="#" id="indicator-light-toggle" style="font-size: 0.75rem; color: var(--muted); margin-left: auto;" onclick="toggleIndicatorLightScope(); return false;">list all</a>
+      <div class="ctrl-card-body">
+        <div class="ctrl-card-body-inner">
+          <div id="magic-editor"></div>
         </div>
-        <div class="settings-content">
+      </div>
+    </div>
+
+    <!-- Feedback Cues card -->
+    <div class="ctrl-card is-open" id="indicator-light-section" style="display: none;">
+      <div class="ctrl-card-header" onclick="toggleCard('indicator-light-section')">
+        <span class="ctrl-card-chevron">&#x203A;</span>
+        <span class="ctrl-card-title">Feedback Cues</span>
+        <span class="info-icon" onclick="event.stopPropagation()">i<span class="info-tooltip">When Feedback Cue of 'subtle' is selected in Settings, this light will show the cue. For example, when a 'freeze' button is pressed on a switch, this light will perform a quick animation indicating the lights in the Reach of the switch are frozen.</span></span>
+      </div>
+      <div class="ctrl-card-body">
+        <div class="ctrl-card-body-inner">
+          <div style="display: flex; align-items: center; margin-bottom: 8px;">
+            <a href="#" id="indicator-light-toggle" style="font-size: 0.75rem; color: var(--muted); margin-left: auto;" onclick="toggleIndicatorLightScope(); return false;">list all</a>
+          </div>
           <select class="modal-select" id="indicator-light-select" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.9rem;">
             <option value="">None</option>
-            <!-- Populated with lights -->
           </select>
         </div>
       </div>
     </div>
 
-    <div class="modal-settings-divider" id="zha-divider" style="display: none;">
-      <div class="modal-section" id="zha-settings-section" style="display: none;">
-        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
-          <span style="font-size: 0.75rem; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px;">Sensor Settings</span>
-          <span class="info-icon">i<span class="info-tooltip">Hardware settings for ZHA motion sensors. Sensitivity controls motion detection range. Timeout is how long after motion clears before the sensor reports "unoccupied".</span></span>
-        </div>
-        <div class="settings-content">
+    <!-- Sensor Settings card (ZHA) -->
+    <div class="ctrl-card is-open" id="zha-settings-section" style="display: none;">
+      <div class="ctrl-card-header" onclick="toggleCard('zha-settings-section')">
+        <span class="ctrl-card-chevron">&#x203A;</span>
+        <span class="ctrl-card-title">Sensor Settings</span>
+        <span class="info-icon" onclick="event.stopPropagation()">i<span class="info-tooltip">Hardware settings for ZHA motion sensors. Sensitivity controls motion detection range. Timeout is how long after motion clears before the sensor reports "unoccupied".</span></span>
+      </div>
+      <div class="ctrl-card-body">
+        <div class="ctrl-card-body-inner">
           <div style="display: flex; flex-wrap: wrap; gap: 16px;">
             <div style="flex: 1; min-width: 140px;">
               <label style="font-size: 0.8rem; color: var(--muted); display: block; margin-bottom: 4px;">Sensitivity</label>
@@ -727,6 +831,36 @@
           <div style="margin-top: 10px;">
             <button id="zha-settings-save" style="padding: 6px 16px; border-radius: 6px; border: 1px solid var(--accent); background: transparent; color: var(--accent); font-size: 0.8rem; cursor: pointer;" onclick="saveZhaSettings()">Apply</button>
             <span id="zha-settings-status" style="margin-left: 10px; font-size: 0.8rem; color: var(--muted);"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pause card -->
+    <div class="ctrl-card" id="pause-section" style="display: none;">
+      <div class="ctrl-card-header" onclick="document.getElementById('control-pause-checkbox').click();">
+        <span class="ctrl-card-title-muted">Pause</span>
+        <span class="info-icon" onclick="event.stopPropagation()">i<span class="info-tooltip">When paused, a control won't trigger actions. Set a timer to auto-unpause.</span></span>
+        <div class="ctrl-card-right">
+          <span id="pause-remaining" style="font-size: 0.75rem; color: var(--muted2); white-space: nowrap;"></span>
+          <label class="ctrl-toggle" onclick="event.stopPropagation()">
+            <input type="checkbox" id="control-pause-checkbox">
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+      <div class="ctrl-card-body" id="pause-body">
+        <div class="ctrl-card-body-inner">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 0.85rem; color: var(--muted);">Unpause after</span>
+            <select id="pause-timer-select" style="padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.85rem;">
+              <option value="forever">Never</option>
+              <option value="15m">15 min</option>
+              <option value="1h">1 hour</option>
+              <option value="4h">4 hours</option>
+              <option value="1d">1 day</option>
+              <option value="1w">1 week</option>
+            </select>
           </div>
         </div>
       </div>
@@ -772,6 +906,14 @@
     });
 
     // ============================================================
+    // Card toggle
+    // ============================================================
+    function toggleCard(cardId) {
+      const card = document.getElementById(cardId);
+      if (card) card.classList.toggle('is-open');
+    }
+
+    // ============================================================
     // Auto-save with toast
     // ============================================================
     let _autoSaveTimer = null;
@@ -801,6 +943,8 @@
     let editingMotionScopes = [];
     let editingControl = null;
     let editingInactive = false;
+    let editingInactiveUntil = null;
+    let _pauseRemainingInterval = null;
     let editingIndicatorLight = '';
     let indicatorLightShowAll = false;
     let switchMapData = {};
@@ -886,6 +1030,16 @@
         'unknown': 'Unknown'
       };
       return labels[category] || category || '\u2014';
+    }
+
+    function categoryIcon(category) {
+      const size = 20;
+      const icons = {
+        'switch': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="3"/><circle cx="12" cy="8" r="1.5" fill="currentColor" stroke="none"/><circle cx="12" cy="13" r="1.5" fill="currentColor" stroke="none"/><line x1="10" y1="18" x2="14" y2="18"/></svg>`,
+        'motion_sensor': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 18 A8 8 0 0 1 8 6"/><path d="M5 20 A12 12 0 0 1 5 4"/><circle cx="14" cy="12" r="3" fill="currentColor" stroke="none" opacity="0.6"/><path d="M17 9 A5 5 0 0 1 17 15"/><path d="M20 7 A8 8 0 0 1 20 17"/></svg>`,
+        'contact_sensor': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="8" height="12" rx="2"/><rect x="14" y="6" width="8" height="12" rx="2"/><line x1="10" y1="11" x2="14" y2="11" stroke-dasharray="2 2"/><line x1="10" y1="13" x2="14" y2="13" stroke-dasharray="2 2"/></svg>`,
+      };
+      return icons[category] || '';
     }
 
     function getGlozoneForArea(areaId) {
@@ -1102,10 +1256,95 @@
       }
     });
 
-    // Auto-save on pause toggle
+    // ============================================================
+    // Pause timer logic
+    // ============================================================
+    const pauseDurations = { '15m': 900, '1h': 3600, '4h': 14400, '1d': 86400, '1w': 604800 };
+
     document.getElementById('control-pause-checkbox').addEventListener('change', () => {
+      const checked = document.getElementById('control-pause-checkbox').checked;
+      const pauseSection = document.getElementById('pause-section');
+      if (checked) {
+        pauseSection.classList.add('is-open');
+        // Default to "forever" when first pausing
+        if (!editingInactiveUntil) {
+          editingInactiveUntil = 'forever';
+          document.getElementById('pause-timer-select').value = 'forever';
+        }
+      } else {
+        pauseSection.classList.remove('is-open');
+        editingInactiveUntil = null;
+      }
+      updatePauseRemaining();
       autoSave();
     });
+
+    document.getElementById('pause-timer-select').addEventListener('change', () => {
+      const val = document.getElementById('pause-timer-select').value;
+      if (val === 'forever') {
+        editingInactiveUntil = 'forever';
+      } else {
+        const secs = pauseDurations[val] || 3600;
+        editingInactiveUntil = new Date(Date.now() + secs * 1000).toISOString();
+      }
+      updatePauseRemaining();
+      autoSave();
+    });
+
+    function updatePauseRemaining() {
+      const el = document.getElementById('pause-remaining');
+      if (!editingInactiveUntil || editingInactiveUntil === 'forever') {
+        el.textContent = '';
+        return;
+      }
+      const remaining = new Date(editingInactiveUntil) - Date.now();
+      if (remaining <= 0) {
+        el.textContent = 'expired';
+        return;
+      }
+      const mins = Math.floor(remaining / 60000);
+      const hours = Math.floor(mins / 60);
+      const days = Math.floor(hours / 24);
+      if (days > 0) el.textContent = days + 'd ' + (hours % 24) + 'h left';
+      else if (hours > 0) el.textContent = hours + 'h ' + (mins % 60) + 'm left';
+      else el.textContent = mins + 'm left';
+    }
+
+    function startPauseRemainingInterval() {
+      if (_pauseRemainingInterval) clearInterval(_pauseRemainingInterval);
+      _pauseRemainingInterval = setInterval(updatePauseRemaining, 60000);
+    }
+
+    function initPauseTimer(inactiveUntil) {
+      editingInactiveUntil = inactiveUntil || null;
+      const select = document.getElementById('pause-timer-select');
+      const pauseSection = document.getElementById('pause-section');
+
+      if (!editingInactiveUntil) {
+        select.value = 'forever';
+        pauseSection.classList.remove('is-open');
+      } else if (editingInactiveUntil === 'forever') {
+        select.value = 'forever';
+        if (editingInactive) pauseSection.classList.add('is-open');
+      } else {
+        // Find closest matching option
+        const remaining = new Date(editingInactiveUntil) - Date.now();
+        if (remaining <= 0) {
+          select.value = 'forever';
+          editingInactiveUntil = null;
+        } else {
+          const hours = remaining / 3600000;
+          if (hours <= 0.35) select.value = '15m';
+          else if (hours <= 2.5) select.value = '1h';
+          else if (hours <= 12) select.value = '4h';
+          else if (hours <= 72) select.value = '1d';
+          else select.value = '1w';
+        }
+        if (editingInactive) pauseSection.classList.add('is-open');
+      }
+      updatePauseRemaining();
+      startPauseRemainingInterval();
+    }
 
     // ============================================================
     // Unsupported info display
@@ -1115,28 +1354,18 @@
       editingDeviceId = null;
       editingControl = null;
 
-      const categoryLabel = formatCategory(ctrl.category);
-      document.getElementById('page-title').textContent = `${categoryLabel}: ${ctrl.name}`;
+      document.getElementById('page-header-icon').innerHTML = categoryIcon(ctrl.category);
+      document.getElementById('page-title').textContent = ctrl.name;
       document.getElementById('toolbar-menu-reset').style.display = 'none';
       document.getElementById('toolbar-menu-reset-divider').style.display = 'none';
 
       const mfr = ctrl.manufacturer || 'Unknown';
       const model = ctrl.model || 'Unknown';
       const locationName = ctrl.area_name || 'Unassigned';
-      const modalGlozone = getGlozoneForArea(ctrl.area_id);
       const infoText = `${ctrl.name}\nManufacturer: ${mfr}\nModel: ${model}\nArea: ${locationName}`;
 
-      // Populate header meta: area + glo zone
-      const metaArea = document.getElementById('header-meta-area');
-      const metaGlozone = document.getElementById('header-meta-glozone');
-      metaArea.textContent = locationName;
-      if (modalGlozone) {
-        metaGlozone.textContent = modalGlozone;
-        metaGlozone.style.display = '';
-      } else {
-        metaGlozone.textContent = '';
-        metaGlozone.style.display = 'none';
-      }
+      // Populate header meta: area
+      document.getElementById('header-meta-area').textContent = locationName;
 
       document.getElementById('device-info').innerHTML = `
         <div style="margin-bottom: 12px; padding: 12px; background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid rgba(255,255,255,0.06);">
@@ -1161,13 +1390,9 @@
       document.getElementById('switch-config-section').style.display = 'none';
       document.getElementById('motion-config-section').style.display = 'none';
       document.getElementById('pause-section').style.display = 'none';
-      document.getElementById('pause-divider').style.display = 'none';
       document.getElementById('indicator-light-section').style.display = 'none';
-      document.getElementById('indicator-divider').style.display = 'none';
       document.getElementById('magic-section').style.display = 'none';
-      document.getElementById('settings-divider').style.display = 'none';
-      document.getElementById('zha-divider').style.display = 'none';
-
+      document.getElementById('zha-settings-section').style.display = 'none';
     }
 
     // ============================================================
@@ -1628,10 +1853,10 @@
         editingMotionScopes = [];
       }
 
-      // Set page title: "Category: Control Name" with optional "(paused)"
-      const categoryLabel = formatCategory(ctrl.category);
+      // Set page header icon and title
+      document.getElementById('page-header-icon').innerHTML = categoryIcon(ctrl.category);
       const pausedSpan = editingInactive ? ' <span style="color:var(--muted);font-weight:normal;"> (paused)</span>' : '';
-      document.getElementById('page-title').innerHTML = `${categoryLabel}: ${ctrl.name}${pausedSpan}`;
+      document.getElementById('page-title').innerHTML = `${ctrl.name}${pausedSpan}`;
 
       // Populate toolbar menu with device metadata + Reset action
       const typeName = ctrl.type_name || ctrl.type || 'Unknown';
@@ -1652,23 +1877,10 @@
         resetItem.style.display = 'none';
       }
 
-      // Populate header meta: area + glo zone (top-right in page header)
+      // Populate header meta: area (top-right in page header)
       const locationName = ctrl.area_name || 'Unassigned';
-      const modalGlozone = getGlozoneForArea(ctrl.area_id);
-      const metaArea = document.getElementById('header-meta-area');
-      const metaGlozone = document.getElementById('header-meta-glozone');
-      metaArea.textContent = locationName;
-      if (modalGlozone) {
-        metaGlozone.textContent = modalGlozone;
-        metaGlozone.style.display = '';
-      } else {
-        metaGlozone.textContent = '';
-        metaGlozone.style.display = 'none';
-      }
-      document.getElementById('device-info').parentElement.style.display = 'none';
-
-      // Restore elements that unsupported info may have hidden
-      document.getElementById('settings-divider').style.display = '';
+      document.getElementById('header-meta-area').textContent = locationName;
+      document.getElementById('device-info-section').style.display = 'none';
 
       // Show/hide appropriate sections based on control type
       const typeSectionEl = document.getElementById('type-section');
@@ -1676,42 +1888,36 @@
       const motionSection = document.getElementById('motion-config-section');
       const pauseSection = document.getElementById('pause-section');
 
-      // Show pause section for all control types and set checkbox
-      pauseSection.style.display = 'block';
-      document.getElementById('pause-divider').style.display = '';
+      // Show pause section for all control types and set checkbox + timer
+      pauseSection.style.display = '';
       document.getElementById('control-pause-checkbox').checked = editingInactive;
+      initPauseTimer(ctrl.inactive_until);
 
       if (isSensorType) {
         if (typeSectionEl) typeSectionEl.style.display = 'none';
         switchSection.style.display = 'none';
-        motionSection.style.display = 'block';
+        motionSection.style.display = '';
         document.getElementById('indicator-light-section').style.display = 'none';
-        document.getElementById('indicator-divider').style.display = 'none';
         document.getElementById('magic-section').style.display = 'none';
         renderMotionScopesEditor();
 
         // Load ZHA settings for motion sensors (only for ZHA devices)
         const zhaSection = document.getElementById('zha-settings-section');
         if (ctrl.category === 'motion_sensor' && ctrl.integration === 'zha') {
-          zhaSection.style.display = 'block';
-          document.getElementById('zha-divider').style.display = '';
+          zhaSection.style.display = '';
           loadZhaSettings(ctrl.device_id);
         } else {
           zhaSection.style.display = 'none';
-          document.getElementById('zha-divider').style.display = 'none';
         }
       } else {
         // Type is now shown in device-info, hide the type section
         if (typeSectionEl) typeSectionEl.style.display = 'none';
-        switchSection.style.display = 'block';
+        switchSection.style.display = '';
         motionSection.style.display = 'none';
         document.getElementById('zha-settings-section').style.display = 'none';
-        document.getElementById('zha-divider').style.display = 'none';
 
         // Show indicator light section for switches
-        const indicatorSection = document.getElementById('indicator-light-section');
-        indicatorSection.style.display = 'block';
-        document.getElementById('indicator-divider').style.display = '';
+        document.getElementById('indicator-light-section').style.display = '';
         editingIndicatorLight = ctrl.indicator_light || '';
         loadIndicatorLights(ctrl.area_id, editingIndicatorLight);
 
@@ -1721,7 +1927,7 @@
         const hasOrphans = Object.keys(editingMagicButtons).some(k => !magicSlots.includes(k));
         const magicSection = document.getElementById('magic-section');
         if (magicSlots.length > 0 || hasOrphans) {
-          magicSection.style.display = 'block';
+          magicSection.style.display = '';
           renderMagicEditor();
         } else {
           magicSection.style.display = 'none';
@@ -1739,6 +1945,7 @@
 
       // Get pause/inactive status from checkbox (applies to all control types)
       const inactive = document.getElementById('control-pause-checkbox').checked;
+      const inactiveUntil = inactive ? (editingInactiveUntil || 'forever') : null;
 
       let payload;
       if (isSensorType) {
@@ -1752,7 +1959,8 @@
           category: editingControl?.category,
           scopes: editingMotionScopes,
           device_id: editingDeviceId,
-          inactive: inactive
+          inactive: inactive,
+          inactive_until: inactiveUntil
         };
       } else {
         // Switch config
@@ -1764,7 +1972,8 @@
           device_id: editingDeviceId,
           indicator_light: indicatorLight || '',
           magic_buttons: editingMagicButtons,
-          inactive: inactive
+          inactive: inactive,
+          inactive_until: inactiveUntil
         };
       }
 
@@ -1782,9 +1991,8 @@
         }
 
         // Update "(paused)" indicator in title
-        const categoryLabel = formatCategory(editingControl?.category);
         const pausedSpan = inactive ? ' <span style="color:var(--muted);font-weight:normal;"> (paused)</span>' : '';
-        document.getElementById('page-title').innerHTML = `${categoryLabel}: ${editingControl?.name}${pausedSpan}`;
+        document.getElementById('page-title').innerHTML = `${editingControl?.name}${pausedSpan}`;
 
         showSaveStatus();
       } catch (err) {

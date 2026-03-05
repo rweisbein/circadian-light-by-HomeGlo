@@ -37,7 +37,7 @@
     .nav {
       background: var(--panel);
       border-bottom: 1px solid var(--line);
-      padding: 0 24px;
+      padding: 0 12px;
       display: flex;
       align-items: center;
       height: 56px;
@@ -50,11 +50,11 @@
       font-weight: 600;
       font-size: 1.1rem;
       color: var(--muted);
-      margin-right: 16px;
+      margin-right: 8px;
       text-decoration: none;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
     }
 
     .nav-brand.active {
@@ -69,14 +69,14 @@
 
     .nav-links {
       display: flex;
-      gap: 8px;
+      gap: 4px;
       flex: 1;
       min-width: 0;
       overflow: hidden;
     }
 
     .nav-link {
-      padding: 8px 10px;
+      padding: 8px 8px;
       color: var(--muted);
       text-decoration: none;
       border-radius: 6px;
@@ -305,16 +305,22 @@
       color: var(--accent);
     }
 
-    /* Tune area 2-row layout */
+    /* Tune area 3-row layout */
+    .tune-area-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+    }
     .tune-area-row {
       display: flex;
       align-items: center;
       gap: 6px;
       padding: 0 16px;
     }
-    .tune-area-row2 { padding-top: 1px; padding-bottom: 4px; }
+    .tune-area-row3 { padding-top: 1px; padding-bottom: 4px; }
     .tune-name-col {
-      width: 18%; min-width: 50px; flex-shrink: 0;
+      flex: 1; min-width: 0;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
     .tune-fixture-col, .tune-sun-col {
@@ -322,11 +328,11 @@
       margin-right: 12px;
     }
     .tune-fixture-col input[type="range"], .tune-sun-col input[type="range"] {
-      flex: 1; min-width: 40px; max-width: 100px; accent-color: var(--accent);
+      flex: 1; min-width: 40px; accent-color: var(--accent);
     }
     .tune-sun-col input[type="range"] { accent-color: #fbbf24; }
     .tune-bri-col {
-      min-width: 55px; text-align: right; flex-shrink: 0; white-space: nowrap;
+      flex-shrink: 0; white-space: nowrap; text-align: right;
     }
     .tune-bri-now { color: var(--text); font-weight: 600; font-size: 0.85rem; }
 
@@ -516,7 +522,7 @@
       .tune-zone-ctrl-word { font-size: 0.7rem; }
       .tune-zone-ctrl-val { font-size: 0.65rem; }
       .tune-slider-val { font-size: 0.65rem; }
-      .tune-name-col { width: 15%; min-width: 40px; }
+      .tune-name-col { min-width: 40px; }
     }
   </style>
   <script src="./shared.js"></script>
@@ -525,15 +531,7 @@
   <!-- Navigation -->
   <nav class="nav">
     <a href="./" class="nav-brand">
-      <svg class="nav-logo" viewBox="0 0 40 40" fill="none">
-        <circle cx="20" cy="20" r="19" fill="#555"/>
-        <path d="M20 1 A19 19 0 0 1 20 39 Q20 28 8 20 Q20 12 20 1" fill="#ccc"/>
-        <circle cx="20" cy="12" r="5" fill="#fff"/>
-        <line x1="20" y1="3" x2="20" y2="5" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
-        <line x1="27" y1="6" x2="25.5" y2="7.5" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
-        <line x1="29" y1="12" x2="27" y2="12" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
-        <path d="M16 30 A6 6 0 1 1 24 30 A4.5 4.5 0 1 0 16 30" fill="#fff"/>
-      </svg>
+      <img class="nav-logo" src="./icon.png" alt="Circadian Light">
       Home
     </a>
     <div class="nav-links">
@@ -1819,11 +1817,14 @@
 
           return `
             <div class="tune-area" data-area-id="${area.area_id}" data-rhythm-bri="${rhythmBri}" data-sensitivity="${sensitivity}" data-outdoor-norm="${outdoorNorm}" data-bri-fade-weight="${briFadeWeight}" data-zone-min-bri="${zoneMinBri}" data-zone-max-bri="${zoneMaxBri}" data-boost-bri="${isBoosted ? (tuneArea.boost_brightness || 0) : 0}">
-              <div class="tune-area-row tune-area-expand-row" onclick="toggleAreaLights('${area.area_id}')">
+              <div class="tune-area-header tune-area-expand-row" onclick="toggleAreaLights('${area.area_id}')">
                 <span class="tune-name-col">
                   ${hasLights ? '<span id="tune-lights-chevron-' + area.area_id + '" style="display:inline-block;font-size:0.6rem;margin-right:4px;transition:transform 0.2s;color:var(--muted2);' + expandChevronStyle + '">&#9654;</span>' : '<span style="display:inline-block;width:0.6rem;margin-right:4px;"></span>'}
                   <a href="./area/${encodeURIComponent(area.area_id)}?from=tune" class="tune-area-name" onclick="event.stopPropagation()">${area.name}</a>
                 </span>
+                <span class="tune-bri-col tune-bri-now">${boostIcon}${nowBri}%</span>
+              </div>
+              <div class="tune-area-row">
                 <div class="tune-fixture-col" onclick="event.stopPropagation()">
                   <input type="range" class="tune-lumen-slider" min="0" max="9" step="1" value="${lumenStep}" data-area-id="${area.area_id}">
                   <span class="tune-slider-meta tune-factor-meta">${factorStr}</span>
@@ -1832,10 +1833,8 @@
                   <input type="range" class="tune-solar-slider" min="0" max="9" step="1" value="${solarStep}" data-area-id="${area.area_id}">
                   <span class="tune-slider-meta tune-sun-now">${sunMeta.now}</span>
                 </div>
-                <span class="tune-bri-col tune-bri-now">${boostIcon}${nowBri}%</span>
               </div>
-              <div class="tune-area-row tune-area-row2">
-                <span class="tune-name-col"></span>
+              <div class="tune-area-row tune-area-row3">
                 <div class="tune-fixture-col">
                   <span class="tune-slider-word tune-lumen-word">${LUMEN_STEPS[lumenStep].label}</span>
                 </div>
@@ -1843,7 +1842,6 @@
                   <span class="tune-slider-word tune-solar-word">${SOLAR_STEPS[solarStep].label}</span>
                   <span class="tune-slider-val tune-solar-val">${fmtVal(exposure)}</span>
                 </div>
-                <span class="tune-bri-col"></span>
               </div>
               ${hasLights ? '<div class="tune-area-lights" id="tune-lights-' + area.area_id + '" style="display:' + (isExpanded ? 'block' : 'none') + ';">' + lightsHtml + '</div>' : ''}
             </div>
@@ -1852,15 +1850,17 @@
 
         const zoneControlsHtml = `
           <div class="tune-zone-controls" data-zone="${zoneName}" onclick="event.stopPropagation()">
-            <div class="tune-area-row tune-col-headers">
+            <div class="tune-area-header tune-col-headers">
               <span class="tune-name-col tune-name-sort">
                 <span class="tune-name-sort-item ${tuneSortOrder === 'custom' ? 'active-sort' : ''}" onclick="setTuneSort('custom')">area</span>
                 <span class="tune-name-sort-dot">&middot;</span>
                 <span class="tune-name-sort-item ${tuneSortOrder === 'az' ? 'active-sort' : ''}" onclick="setTuneSort('az')">a-z</span>
               </span>
+              <span class="tune-bri-col tune-col-header ${tuneSortOrder === 'bri' ? 'active-sort' : ''}" onclick="setTuneSort('bri')">Bri</span>
+            </div>
+            <div class="tune-area-row tune-col-headers">
               <span class="tune-fixture-col tune-col-header ${tuneSortOrder === 'light' ? 'active-sort' : ''}" onclick="setTuneSort('light')">Room Balance</span>
               <span class="tune-sun-col tune-col-header ${tuneSortOrder === 'sun' ? 'active-sort' : ''}" onclick="setTuneSort('sun')">Sun exposure</span>
-              <span class="tune-bri-col tune-col-header ${tuneSortOrder === 'bri' ? 'active-sort' : ''}" onclick="setTuneSort('bri')" style="text-align:right;">Bri</span>
             </div>
           </div>
         `;
