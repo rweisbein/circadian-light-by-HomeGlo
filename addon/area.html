@@ -1468,21 +1468,21 @@
         hovertext: formatHourLabel(bedTime),
         hoverlabel: { bgcolor: hasAdjBed ? '#666' : '#ffe680', bordercolor: hasAdjBed ? '#666' : '#ffe680', font: { color: hasAdjBed ? '#fff' : '#000', size: 12 } }
       });
-      // Adjusted wake/bed labels with asterisk
+      // Adjusted wake/bed labels — asterisk at top of line
       if (hasAdjWake) {
         annotations.push({
-          x: wrap24(adjustedTimes.wake), y: -0.33, xref: 'x', yref: 'paper',
+          x: wrap24(adjustedTimes.wake), y: 1.02, xref: 'x', yref: 'paper',
           text: '*', showarrow: false,
-          font: { size: 11, color: '#5cb3ff' },
+          font: { size: 13, color: '#5cb3ff' },
           hovertext: formatHourLabel(wrap24(adjustedTimes.wake)),
           hoverlabel: { bgcolor: '#7fc7ff', bordercolor: '#7fc7ff', font: { color: '#000', size: 12 } }
         });
       }
       if (hasAdjBed) {
         annotations.push({
-          x: wrap24(adjustedTimes.bed), y: -0.33, xref: 'x', yref: 'paper',
+          x: wrap24(adjustedTimes.bed), y: 1.02, xref: 'x', yref: 'paper',
           text: '*', showarrow: false,
-          font: { size: 11, color: '#ffe680' },
+          font: { size: 13, color: '#ffe680' },
           hovertext: formatHourLabel(wrap24(adjustedTimes.bed)),
           hoverlabel: { bgcolor: '#ffe680', bordercolor: '#ffe680', font: { color: '#000', size: 12 } }
         });
