@@ -825,6 +825,16 @@ class LightDesignerServer:
                         html_content = html_content.replace(pattern, inline_script)
                         break
 
+            # Inline icon.png as base64 data URI (avoids routing issues with ingress paths)
+            icon_path = Path(__file__).parent / "icon.png"
+            if icon_path.exists() and 'src="./icon.png"' in html_content:
+                import base64
+                icon_b64 = base64.b64encode(icon_path.read_bytes()).decode()
+                html_content = html_content.replace(
+                    'src="./icon.png"',
+                    f'src="data:image/png;base64,{icon_b64}"',
+                )
+
             # Substitute HA location into config when use_ha_location is true
             if config.get("use_ha_location", True):
                 config["latitude"] = float(
