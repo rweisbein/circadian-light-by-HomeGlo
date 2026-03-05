@@ -2355,6 +2355,9 @@
           brightness_mid: status.brightness_mid ?? null,
           color_mid: status.color_mid ?? null,
           color_override: status.color_override ?? null,
+          brightness_override: status.brightness_override ?? null,
+          brightness_override_set_at: status.brightness_override_set_at ?? null,
+          color_override_set_at: status.color_override_set_at ?? null,
           frozen_at: status.frozen_at ?? null
         };
       });
@@ -2379,7 +2382,10 @@
         return differs(area.brightness_mid, rs.brightness_mid) ||
                differs(area.color_mid, rs.color_mid) ||
                differs(area.frozen_at, rs.frozen_at) ||
-               area.color_override != null;
+               differs(area.color_override, rs.color_override) ||
+               differs(area.brightness_override, rs.brightness_override) ||
+               differs(area.brightness_override_set_at, rs.brightness_override_set_at) ||
+               differs(area.color_override_set_at, rs.color_override_set_at);
       }
 
       const filtered = mergedAreas;

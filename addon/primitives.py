@@ -2117,6 +2117,8 @@ class CircadianLightPrimitives:
                     "color_mid": new_mid,
                     "brightness_override": None,
                     "brightness_override_set_at": None,
+                    "color_override": None,
+                    "color_override_set_at": None,
                 })
                 phase_name = "wake" if use_wake else "bed"
                 logger.info(
@@ -2133,6 +2135,8 @@ class CircadianLightPrimitives:
                     "color_mid": None,
                     "brightness_override": None,
                     "brightness_override_set_at": None,
+                    "color_override": None,
+                    "color_override_set_at": None,
                 })
                 state.set_frozen_at(area_id, frozen_hour)
                 logger.info(f"[{source}] Set {area_id} to nitelite preset (frozen_at={frozen_hour})")
@@ -2146,6 +2150,8 @@ class CircadianLightPrimitives:
                     "color_mid": None,
                     "brightness_override": None,
                     "brightness_override_set_at": None,
+                    "color_override": None,
+                    "color_override_set_at": None,
                 })
                 state.set_frozen_at(area_id, frozen_hour)
                 logger.info(f"[{source}] Set {area_id} to britelite preset (frozen_at={frozen_hour})")
