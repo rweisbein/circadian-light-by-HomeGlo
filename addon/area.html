@@ -1324,7 +1324,7 @@
       return remMin > 0 ? `${hr}h ${remMin}m` : `${hr}h`;
     }
 
-    function renderMiniChart(cfg, state, sunTimes, currentHour, isActive) {
+    function renderMiniChart(cfg, state, sunTimes, currentHour, isActive, adjustedTimes) {
       if (!cfg || !sunTimes) return;
 
       const data = calcMiniCurveData(cfg, state, sunTimes, currentHour);
@@ -1415,16 +1415,16 @@
       });
 
       // Adjusted wake/bed vertical lines (solid, brighter) when midpoint is shifted
-      if (status.adjusted_wake_time != null) {
-        const adjWake = wrap24(status.adjusted_wake_time);
+      if (adjustedTimes && adjustedTimes.wake != null) {
+        const adjWake = wrap24(adjustedTimes.wake);
         shapes.push({
           type: 'line', xref: 'x', yref: 'paper',
           x0: adjWake, x1: adjWake, y0: -0.29, y1: 1,
           line: { color: 'rgba(92, 179, 255, 0.55)', width: 1.5 }
         });
       }
-      if (status.adjusted_bed_time != null) {
-        const adjBed = wrap24(status.adjusted_bed_time);
+      if (adjustedTimes && adjustedTimes.bed != null) {
+        const adjBed = wrap24(adjustedTimes.bed);
         shapes.push({
           type: 'line', xref: 'x', yref: 'paper',
           x0: adjBed, x1: adjBed, y0: -0.29, y1: 1,
@@ -2303,7 +2303,11 @@
       }
 
       const isActive = (status.is_on || false) && (status.is_circadian !== false);
-      renderMiniChart(cfg, areaState, cachedSunTimes, currentHour, isActive);
+      const adjustedTimes = {
+        wake: status.adjusted_wake_time ?? null,
+        bed: status.adjusted_bed_time ?? null
+      };
+      renderMiniChart(cfg, areaState, cachedSunTimes, currentHour, isActive, adjustedTimes);
     }
 
 
