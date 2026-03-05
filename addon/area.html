@@ -1405,14 +1405,15 @@
       const hasAdjBed = adjustedTimes && adjustedTimes.bed != null;
 
       // Original wake/bed lines — grey when adjusted, colored when not
+      const vLineTop = 0.91;  // ≈ y=100 in data coords (range 0-110)
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
-        x0: wakeTime, x1: wakeTime, y0: -0.29, y1: 1,
+        x0: wakeTime, x1: wakeTime, y0: -0.29, y1: vLineTop,
         line: { color: hasAdjWake ? 'rgba(160, 160, 160, 0.25)' : 'rgba(92, 179, 255, 0.35)', width: 1.5, dash: 'dot' }
       });
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
-        x0: bedTime, x1: bedTime, y0: -0.29, y1: 1,
+        x0: bedTime, x1: bedTime, y0: -0.29, y1: vLineTop,
         line: { color: hasAdjBed ? 'rgba(160, 160, 160, 0.25)' : 'rgba(255, 230, 128, 0.35)', width: 1.5, dash: 'dot' }
       });
 
@@ -1421,7 +1422,7 @@
         const adjWake = wrap24(adjustedTimes.wake);
         shapes.push({
           type: 'line', xref: 'x', yref: 'paper',
-          x0: adjWake, x1: adjWake, y0: -0.29, y1: 1,
+          x0: adjWake, x1: adjWake, y0: -0.29, y1: vLineTop,
           line: { color: 'rgba(92, 179, 255, 0.55)', width: 1.5 }
         });
       }
@@ -1429,7 +1430,7 @@
         const adjBed = wrap24(adjustedTimes.bed);
         shapes.push({
           type: 'line', xref: 'x', yref: 'paper',
-          x0: adjBed, x1: adjBed, y0: -0.29, y1: 1,
+          x0: adjBed, x1: adjBed, y0: -0.29, y1: vLineTop,
           line: { color: 'rgba(255, 230, 128, 0.55)', width: 1.5 }
         });
       }
@@ -1468,22 +1469,22 @@
         hovertext: formatHourLabel(bedTime),
         hoverlabel: { bgcolor: hasAdjBed ? '#666' : '#ffe680', bordercolor: hasAdjBed ? '#666' : '#ffe680', font: { color: hasAdjBed ? '#fff' : '#000', size: 12 } }
       });
-      // Adjusted wake/bed labels — asterisk at top of line
+      // Adjusted wake/bed labels — asterisk above line top
       if (hasAdjWake) {
         annotations.push({
-          x: wrap24(adjustedTimes.wake), y: 1.02, xref: 'x', yref: 'paper',
+          x: wrap24(adjustedTimes.wake), y: 1.20, xref: 'x', yref: 'paper',
           text: '*', showarrow: false,
           font: { size: 13, color: '#5cb3ff' },
-          hovertext: formatHourLabel(wrap24(adjustedTimes.wake)),
+          hovertext: 'adjusted wake: ' + formatHourLabel(wrap24(adjustedTimes.wake)),
           hoverlabel: { bgcolor: '#7fc7ff', bordercolor: '#7fc7ff', font: { color: '#000', size: 12 } }
         });
       }
       if (hasAdjBed) {
         annotations.push({
-          x: wrap24(adjustedTimes.bed), y: 1.02, xref: 'x', yref: 'paper',
+          x: wrap24(adjustedTimes.bed), y: 1.20, xref: 'x', yref: 'paper',
           text: '*', showarrow: false,
           font: { size: 13, color: '#ffe680' },
-          hovertext: formatHourLabel(wrap24(adjustedTimes.bed)),
+          hovertext: 'adjusted bed: ' + formatHourLabel(wrap24(adjustedTimes.bed)),
           hoverlabel: { bgcolor: '#ffe680', bordercolor: '#ffe680', font: { color: '#000', size: 12 } }
         });
       }
@@ -1508,13 +1509,14 @@
         });
       }
 
-      // Cursor vertical line
+      // Cursor vertical line (muted)
       const isFrozen = state && state.frozen_at != null;
       const cursorHour = currentHour;
-      const cursorLineStyle = { color: '#fdfdfd', width: 2, dash: 'dot' };
+      const cursorLineColor = isFrozen ? 'rgba(99, 179, 237, 0.5)' : 'rgba(200, 200, 200, 0.45)';
+      const cursorLineStyle = { color: cursorLineColor, width: 1.5, dash: 'dot' };
       const gap = 10;
       const lowerEnd = Math.max(0, markerBri - gap);
-      const upperStart = Math.min(110, markerBri + gap);
+      const upperStart = Math.min(100, markerBri + gap);
 
       shapes.push({
         type: 'line', xref: 'x', yref: 'y',
@@ -1523,7 +1525,7 @@
       });
       shapes.push({
         type: 'line', xref: 'x', yref: 'y',
-        x0: cursorHour, x1: cursorHour, y0: upperStart, y1: 110,
+        x0: cursorHour, x1: cursorHour, y0: upperStart, y1: 100,
         line: cursorLineStyle, layer: 'above'
       });
       shapes.push({
@@ -1532,12 +1534,12 @@
         line: cursorLineStyle, layer: 'above'
       });
 
-      // Tier 3: Cursor label (64px below plot)
+      // Tier 3: Cursor label (below plot, lowered to avoid overlap)
       const cursorTimeStr = formatHourLabel(cursorHour);
       const cursorLabel = isFrozen ? 'frozen' : 'now';
-      const cursorColor = isFrozen ? '#63b3ed' : '#fdfdfd';
+      const cursorColor = isFrozen ? 'rgba(99, 179, 237, 0.7)' : 'rgba(200, 200, 200, 0.6)';
       annotations.push({
-        x: cursorHour, y: -0.72, xref: 'x', yref: 'paper',
+        x: cursorHour, y: -0.80, xref: 'x', yref: 'paper',
         text: `${cursorLabel}<br>${cursorTimeStr}`, showarrow: false,
         font: { size: 10, color: cursorColor },
         align: 'center'
@@ -1546,7 +1548,7 @@
       const layout = {
         paper_bgcolor: '#0a0a0a',
         plot_bgcolor: '#0a0a0a',
-        margin: { t: 16, r: 12, l: 32, b: 85 },
+        margin: { t: 16, r: 12, l: 32, b: 95 },
         hovermode: 'closest',
         xaxis: {
           range: [0, 24],
@@ -1681,15 +1683,19 @@
       if (inAscend) {
         const baseWake = areaState.eff_wake_time ?? cfg.wake_time;
         const adjusted = areaState.adjusted_wake_time;
-        const display = adjusted != null ? adjusted : baseWake;
-        const star = adjusted != null ? '*' : '';
-        el.textContent = 'Wake ' + formatHourToTime(display) + star;
+        if (adjusted != null) {
+          el.textContent = 'Adjusted wake* ' + formatHourToTime(adjusted);
+        } else {
+          el.textContent = 'Wake ' + formatHourToTime(baseWake);
+        }
       } else {
         const baseBed = areaState.eff_bed_time ?? cfg.bed_time;
         const adjusted = areaState.adjusted_bed_time;
-        const display = adjusted != null ? adjusted : baseBed;
-        const star = adjusted != null ? '*' : '';
-        el.textContent = 'Bed ' + formatHourToTime(display) + star;
+        if (adjusted != null) {
+          el.textContent = 'Adjusted bed* ' + formatHourToTime(adjusted);
+        } else {
+          el.textContent = 'Bed ' + formatHourToTime(baseBed);
+        }
       }
       el.style.display = '';
     }
