@@ -2800,11 +2800,19 @@
       const afterSolar = Math.round(running * 100);
       const solarImpact = afterSolar - beforeSolar;
 
-      // Color temp adjustment
+      // -- Compute adjusted color temp (needed for CT compensation) --
+      let adjustedK = ts.baseKelvin;
+      const sb = ts.solarBreakdown;
+      if (sb) {
+        adjustedK += (sb.daylight_shift || 0);
+        if (sb.warm_night_enabled) adjustedK -= (sb.night_shift || 0);
+      }
+
+      // Color temp adjustment — use rendered kelvin (after solar rules)
       let ctFactor = 1.0;
-      if (ts.ctEnabled && ts.baseKelvin != null) {
-        if (ts.baseKelvin <= ts.ctBegin) ctFactor = ts.ctMax;
-        else if (ts.baseKelvin < ts.ctEnd) ctFactor = 1.0 + ((ts.ctEnd - ts.baseKelvin) / (ts.ctEnd - ts.ctBegin)) * (ts.ctMax - 1.0);
+      if (ts.ctEnabled && adjustedK != null) {
+        if (adjustedK <= ts.ctBegin) ctFactor = ts.ctMax;
+        else if (adjustedK < ts.ctEnd) ctFactor = 1.0 + ((ts.ctEnd - adjustedK) / (ts.ctEnd - ts.ctBegin)) * (ts.ctMax - 1.0);
       }
       const ctFactorPct = Math.round(ctFactor * 100);
       const beforeCt = Math.round(running * 100);
@@ -2817,14 +2825,6 @@
       // Adjusted brightness including CT (used for per-light calculations)
       const adjustedBri = Math.round(running * 100);
       const netImpact = areaBri - baseBriPct;
-
-      // -- Compute adjusted color temp --
-      let adjustedK = ts.baseKelvin;
-      const sb = ts.solarBreakdown;
-      if (sb) {
-        adjustedK += (sb.daylight_shift || 0);
-        if (sb.warm_night_enabled) adjustedK -= (sb.night_shift || 0);
-      }
 
       // -- Brightness card: slider word labels --
       const elLumenWord = document.getElementById('tune-lumen-word');
