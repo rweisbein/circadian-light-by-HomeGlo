@@ -12,7 +12,8 @@ RUN \
 # py3-aiohttp provides pre-built aiohttp package - much faster!
 RUN apk add --no-cache python3 py3-pip py3-aiohttp py3-aiofiles tzdata curl
 
-# Copy Python app
+# Copy Python app (version arg busts Docker cache when build.yaml ADDON_VERSION changes)
+ARG ADDON_VERSION
 WORKDIR /app
 COPY *.py *.html *.js *.png requirements.txt ./
 
