@@ -1955,11 +1955,15 @@ class CircadianLightPrimitives:
         if copy_from:
             source_state = state.get_area(copy_from)
             if source_state:
-                # Copy relevant state from source area (midpoints and frozen_at only)
+                # Copy relevant state from source area
                 state.update_area(area_id, {
                     "frozen_at": source_state.get("frozen_at"),
                     "brightness_mid": source_state.get("brightness_mid"),
                     "color_mid": source_state.get("color_mid"),
+                    "color_override": source_state.get("color_override"),
+                    "brightness_override": source_state.get("brightness_override"),
+                    "brightness_override_set_at": source_state.get("brightness_override_set_at"),
+                    "color_override_set_at": source_state.get("color_override_set_at"),
                 })
                 logger.info(f"[{source}] Copied settings from {copy_from} to {area_id}")
 
@@ -2439,6 +2443,9 @@ class CircadianLightPrimitives:
             "color_mid": area_state_dict.get("color_mid"),
             "frozen_at": area_state_dict.get("frozen_at"),
             "color_override": area_state_dict.get("color_override"),
+            "brightness_override": area_state_dict.get("brightness_override"),
+            "brightness_override_set_at": area_state_dict.get("brightness_override_set_at"),
+            "color_override_set_at": area_state_dict.get("color_override_set_at"),
         }
 
         # Push to zone state
@@ -2481,6 +2488,9 @@ class CircadianLightPrimitives:
             "color_mid": zone_state.get("color_mid"),
             "frozen_at": zone_state.get("frozen_at"),
             "color_override": zone_state.get("color_override"),
+            "brightness_override": zone_state.get("brightness_override"),
+            "brightness_override_set_at": zone_state.get("brightness_override_set_at"),
+            "color_override_set_at": zone_state.get("color_override_set_at"),
         })
         logger.info(f"Copied zone state to area {area_id}")
 
@@ -2536,6 +2546,9 @@ class CircadianLightPrimitives:
             "color_mid": zone_state.get("color_mid"),
             "frozen_at": zone_state.get("frozen_at"),
             "color_override": zone_state.get("color_override"),
+            "brightness_override": zone_state.get("brightness_override"),
+            "brightness_override_set_at": zone_state.get("brightness_override_set_at"),
+            "color_override_set_at": zone_state.get("color_override_set_at"),
         }
         logger.info(f"Zone '{zone_name}' state: {runtime_state}")
 

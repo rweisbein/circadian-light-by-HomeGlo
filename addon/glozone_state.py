@@ -69,6 +69,9 @@ def _get_default_zone_state() -> Dict[str, Any]:
         "color_mid": None,
         "frozen_at": None,
         "color_override": None,
+        "brightness_override": None,
+        "brightness_override_set_at": None,
+        "color_override_set_at": None,
     }
 
 
@@ -114,7 +117,8 @@ def set_zone_state(zone_name: str, updates: Dict[str, Any]) -> None:
     if zone_name not in all_state:
         all_state[zone_name] = _get_default_zone_state()
 
-    for key in ["brightness_mid", "color_mid", "frozen_at", "color_override"]:
+    for key in ["brightness_mid", "color_mid", "frozen_at", "color_override",
+                 "brightness_override", "brightness_override_set_at", "color_override_set_at"]:
         if key in updates:
             all_state[zone_name][key] = updates[key]
 
