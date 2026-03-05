@@ -950,9 +950,9 @@ class CircadianLightPrimitives:
         sign = 1 if direction == "up" else -1
         new_override = round(current_override + sign * step_size, 1)
 
-        # Clamp so effective brightness stays within physical limits (0–100)
+        # Clamp so effective brightness stays within physical limits (1–100)
         max_override = 100.0 - scaled_base
-        min_override = -scaled_base
+        min_override = 1.0 - scaled_base
         new_override = round(max(min_override, min(max_override, new_override)), 1)
 
         self._update_area_state(area_id, {
