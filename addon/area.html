@@ -1398,24 +1398,26 @@
       const shapes = [];
       const annotations = [];
 
-      // Wake/bed vertical dashed lines
+      // Wake/bed vertical lines
       const wakeTime = wrap24(cfg.wake_time);
       const bedTime = wrap24(cfg.bed_time);
+      const hasAdjWake = adjustedTimes && adjustedTimes.wake != null;
+      const hasAdjBed = adjustedTimes && adjustedTimes.bed != null;
 
-      // Wake/bed vertical dashed lines (extend to tier 1)
+      // Original wake/bed lines — grey when adjusted, colored when not
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
         x0: wakeTime, x1: wakeTime, y0: -0.29, y1: 1,
-        line: { color: 'rgba(92, 179, 255, 0.35)', width: 1.5, dash: 'dot' }
+        line: { color: hasAdjWake ? 'rgba(160, 160, 160, 0.25)' : 'rgba(92, 179, 255, 0.35)', width: 1.5, dash: 'dot' }
       });
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
         x0: bedTime, x1: bedTime, y0: -0.29, y1: 1,
-        line: { color: 'rgba(255, 230, 128, 0.35)', width: 1.5, dash: 'dot' }
+        line: { color: hasAdjBed ? 'rgba(160, 160, 160, 0.25)' : 'rgba(255, 230, 128, 0.35)', width: 1.5, dash: 'dot' }
       });
 
-      // Adjusted wake/bed vertical lines (solid, brighter) when midpoint is shifted
-      if (adjustedTimes && adjustedTimes.wake != null) {
+      // Adjusted wake/bed vertical lines (solid, colored) when midpoint is shifted
+      if (hasAdjWake) {
         const adjWake = wrap24(adjustedTimes.wake);
         shapes.push({
           type: 'line', xref: 'x', yref: 'paper',
@@ -1423,7 +1425,7 @@
           line: { color: 'rgba(92, 179, 255, 0.55)', width: 1.5 }
         });
       }
-      if (adjustedTimes && adjustedTimes.bed != null) {
+      if (hasAdjBed) {
         const adjBed = wrap24(adjustedTimes.bed);
         shapes.push({
           type: 'line', xref: 'x', yref: 'paper',
@@ -1455,17 +1457,36 @@
       annotations.push({
         x: wakeTime, y: -0.33, xref: 'x', yref: 'paper',
         text: 'wake', showarrow: false,
-        font: { size: 11, color: '#5cb3ff' },
+        font: { size: 11, color: hasAdjWake ? 'rgba(160, 160, 160, 0.5)' : '#5cb3ff' },
         hovertext: formatHourLabel(wakeTime),
-        hoverlabel: { bgcolor: '#7fc7ff', bordercolor: '#7fc7ff', font: { color: '#000', size: 12 } }
+        hoverlabel: { bgcolor: hasAdjWake ? '#666' : '#7fc7ff', bordercolor: hasAdjWake ? '#666' : '#7fc7ff', font: { color: hasAdjWake ? '#fff' : '#000', size: 12 } }
       });
       annotations.push({
         x: bedTime, y: -0.33, xref: 'x', yref: 'paper',
         text: 'bed', showarrow: false,
-        font: { size: 11, color: '#ffe680' },
+        font: { size: 11, color: hasAdjBed ? 'rgba(160, 160, 160, 0.5)' : '#ffe680' },
         hovertext: formatHourLabel(bedTime),
-        hoverlabel: { bgcolor: '#ffe680', bordercolor: '#ffe680', font: { color: '#000', size: 12 } }
+        hoverlabel: { bgcolor: hasAdjBed ? '#666' : '#ffe680', bordercolor: hasAdjBed ? '#666' : '#ffe680', font: { color: hasAdjBed ? '#fff' : '#000', size: 12 } }
       });
+      // Adjusted wake/bed labels with asterisk
+      if (hasAdjWake) {
+        annotations.push({
+          x: wrap24(adjustedTimes.wake), y: -0.33, xref: 'x', yref: 'paper',
+          text: '*', showarrow: false,
+          font: { size: 11, color: '#5cb3ff' },
+          hovertext: formatHourLabel(wrap24(adjustedTimes.wake)),
+          hoverlabel: { bgcolor: '#7fc7ff', bordercolor: '#7fc7ff', font: { color: '#000', size: 12 } }
+        });
+      }
+      if (hasAdjBed) {
+        annotations.push({
+          x: wrap24(adjustedTimes.bed), y: -0.33, xref: 'x', yref: 'paper',
+          text: '*', showarrow: false,
+          font: { size: 11, color: '#ffe680' },
+          hovertext: formatHourLabel(wrap24(adjustedTimes.bed)),
+          hoverlabel: { bgcolor: '#ffe680', bordercolor: '#ffe680', font: { color: '#000', size: 12 } }
+        });
+      }
 
       // Tier 2: Sunrise/sunset labels (46px below plot)
       if (Number.isFinite(sunrise)) {
