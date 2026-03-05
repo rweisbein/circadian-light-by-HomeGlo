@@ -1438,10 +1438,9 @@ class CircadianLight:
         if not cct_at_limit:
             state_updates["color_mid"] = new_color_mid
 
-        # Step = walking the curve → clear per-axis overrides
-        state_updates["brightness_override"] = None
-        state_updates["brightness_override_set_at"] = None
-        state_updates["color_override_set_at"] = None  # step's color_override has no decay
+        # Step = walking the curve → clear per-axis color decay (step's color_override has no decay)
+        # Brightness override is kept — it's an independent layer on top of the curve
+        state_updates["color_override_set_at"] = None
 
         # Recalibrate color_override
         # Principle: respect warming solar rules, override cooling ones.
