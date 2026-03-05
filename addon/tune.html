@@ -238,7 +238,7 @@
     .tune-zone-header .tune-zone-controls input[type="range"] {
       flex: 0 0 auto;
     }
-    .tune-zone-header .tune-col-headers {
+    .tune-zone-header .tune-col-headers-row {
       width: 100%;
       padding: 4px 2px 2px;
       background: none;
@@ -257,7 +257,7 @@
     .tune-zone-ctrl-word { font-size: 0.8rem; color: var(--text); white-space: nowrap; }
     .tune-zone-ctrl-val { font-size: 0.75rem; color: var(--text); white-space: nowrap; }
     .tune-sensitivity-slider { width: 80px; accent-color: var(--accent); }
-    .tune-zone-controls .tune-area-row { padding-top: 3px; padding-bottom: 3px; }
+    .tune-zone-controls .tune-col-headers-row { padding-top: 3px; padding-bottom: 3px; }
     .tune-zone-bri-group {
       display: flex; align-items: baseline; gap: 6px;
       margin-left: auto; white-space: nowrap;
@@ -267,13 +267,17 @@
     .tune-zone-sun-times { font-size: 0.7rem; color: var(--muted2); margin-left: 2px; line-height: 1.4; }
 
     /* Column headers */
-    .tune-col-headers {
+    .tune-col-headers-row {
       display: flex;
+      align-items: baseline;
       padding: 6px 16px 4px;
-      gap: 6px;
+      gap: 8px;
     }
-    .tune-area-row.tune-col-headers {
-      padding-left: 40px;
+    .tune-col-headers-row .tune-name-sort {
+      flex: 0 0 auto;
+    }
+    .tune-col-headers-row .tune-col-header {
+      text-align: center;
     }
     .tune-col-header {
       flex: 1;
@@ -337,13 +341,14 @@
       flex: 1; min-width: 40px; accent-color: var(--accent);
     }
     .tune-sun-col input[type="range"] { accent-color: #fbbf24; }
+    .tune-override-star { font-size: 0.75rem; color: var(--muted2); margin-left: 1px; }
     .tune-bri-col {
       flex-shrink: 0; white-space: nowrap; text-align: right;
     }
     .tune-bri-now { color: var(--text); font-weight: 600; font-size: 0.85rem; }
 
-    .tune-slider-word { font-size: 0.8rem; color: var(--text); white-space: nowrap; }
-    .tune-slider-val { font-size: 0.75rem; color: var(--text); white-space: nowrap; }
+    .tune-slider-word { font-size: 0.72rem; color: var(--muted); white-space: nowrap; }
+    .tune-slider-val { font-size: 0.7rem; color: var(--muted); white-space: nowrap; }
     .tune-slider-meta { font-size: 0.7rem; color: var(--muted2); white-space: nowrap; }
 
     /* Outdoor panel */
@@ -388,7 +393,7 @@
       padding: 0;
       margin-left: 14px;
     }
-    .tune-area-expand-row {
+    .tune-area.expandable {
       cursor: pointer;
     }
 
@@ -520,14 +525,14 @@
     .tune-refresh-btn:hover { background: var(--panel); border-color: var(--muted2); opacity: 1; }
 
     @media (max-width: 600px) {
-      .tune-slider-word { font-size: 0.7rem; }
+      .tune-slider-word { font-size: 0.65rem; }
       .tune-col-header { font-size: 0.55rem; }
       .tune-slider-meta { font-size: 0.65rem; }
       .tune-sensitivity-slider { width: 60px; }
       .tune-zone-ctrl-label { font-size: 0.6rem; }
       .tune-zone-ctrl-word { font-size: 0.7rem; }
       .tune-zone-ctrl-val { font-size: 0.65rem; }
-      .tune-slider-val { font-size: 0.65rem; }
+      .tune-slider-val { font-size: 0.6rem; }
       .tune-name-col { min-width: 40px; }
     }
   </style>
@@ -1233,12 +1238,14 @@
       const factor = overrides?.factor ?? (1 / LUMEN_STEPS[parseInt(lumenSlider.value)].intensity);
       const exposure = overrides?.exposure ?? SOLAR_STEPS[parseInt(solarSlider.value)].exposure;
       const boostBri = parseFloat(tuneAreaEl.dataset.boostBri) || 0;
-      const nowRaw = computeNowBrightness(rhythmBri, factor, exposure, outdoorNorm, sensitivity, fadeWeight) + boostBri;
+      const briOverride = parseFloat(tuneAreaEl.dataset.briOverride) || 0;
+      const nowRaw = computeNowBrightness(rhythmBri, factor, exposure, outdoorNorm, sensitivity, fadeWeight) + boostBri + briOverride;
       const nowBri = Math.min(100, Math.round(nowRaw));
       const nowEl = tuneAreaEl.querySelector('.tune-bri-now');
       if (nowEl) {
         const boostIcon = boostBri > 0 ? '\u26A1 ' : '';
-        nowEl.innerHTML = boostIcon + nowBri + '%';
+        const overrideIcon = Math.abs(briOverride) >= 0.5 ? '<span class="tune-override-star" title="Brightness adjustment applied">*</span>' : '';
+        nowEl.innerHTML = boostIcon + nowBri + '%' + overrideIcon;
       }
       const sunMeta = formatSunMeta(exposure, sensitivity, outdoorNorm);
       const sunNowEl = tuneAreaEl.querySelector('.tune-sun-now');
@@ -1316,6 +1323,7 @@
               boostByArea[area.id] = {
                 boosted: area.boosted || false,
                 boost_brightness: area.boost_brightness || 0,
+                bri_override: area.bri_override || 0,
               };
             }
           }
@@ -1327,6 +1335,7 @@
                 if (b) {
                   area.boosted = b.boosted;
                   area.boost_brightness = b.boost_brightness;
+                  area.bri_override = b.bri_override;
                 }
               }
             }
@@ -1348,9 +1357,10 @@
             }
             if (zoneData?.min_brightness != null) el.dataset.zoneMinBri = zoneData.min_brightness;
             if (zoneData?.max_brightness != null) el.dataset.zoneMaxBri = zoneData.max_brightness;
-            // Update boost data attribute
+            // Update boost and override data attributes
             const b = boostByArea[areaId];
             el.dataset.boostBri = (b?.boosted ? (b.boost_brightness || 0) : 0);
+            el.dataset.briOverride = b?.bri_override || 0;
             updateTuneNowPreview(el, {});
             rebuildTuneLightValues(areaId);
           });
@@ -1359,15 +1369,18 @@
             const zoneBri = zoneStates?.[zoneName]?.brightness;
             if (zoneBri != null) el.textContent = Math.round(zoneBri) + '%';
           });
-          // Update boost legends
+          // Update boost and override legends
           document.querySelectorAll('.zone-group').forEach(zoneEl => {
             const legendEl = zoneEl.querySelector('.tune-boost-legend');
             const anyBoosted = Array.from(zoneEl.querySelectorAll('.tune-area')).some(
               el => parseFloat(el.dataset.boostBri) > 0
             );
-            if (legendEl) {
-              legendEl.style.display = anyBoosted ? '' : 'none';
-            }
+            if (legendEl) legendEl.style.display = anyBoosted ? '' : 'none';
+            const overrideLegendEl = zoneEl.querySelector('.tune-override-legend');
+            const anyOverride = Array.from(zoneEl.querySelectorAll('.tune-area')).some(
+              el => Math.abs(parseFloat(el.dataset.briOverride) || 0) >= 0.5
+            );
+            if (overrideLegendEl) overrideLegendEl.style.display = anyOverride ? '' : 'none';
           });
         }
       } catch (err) {
@@ -1391,16 +1404,12 @@
           expandedAreas[otherId] = false;
           const otherEl = document.getElementById('tune-lights-' + otherId);
           if (otherEl) otherEl.style.display = 'none';
-          const otherChevron = document.getElementById('tune-lights-chevron-' + otherId);
-          if (otherChevron) otherChevron.style.transform = '';
         }
       }
       // Toggle this one
       expandedAreas[areaId] = !wasExpanded;
       const el = document.getElementById('tune-lights-' + areaId);
       if (el) el.style.display = expandedAreas[areaId] ? 'block' : 'none';
-      const chevron = document.getElementById('tune-lights-chevron-' + areaId);
-      if (chevron) chevron.style.transform = expandedAreas[areaId] ? 'rotate(90deg)' : '';
       // Also collapse any expanded light detail row when switching areas
       if (!wasExpanded) tuneExpandedLightKey = null;
     }
@@ -1808,27 +1817,27 @@
           const solarStep = findClosestStep(SOLAR_STEPS, 'exposure', exposure);
           const isBoosted = tuneArea?.boosted || false;
           const boostBri = isBoosted ? (tuneArea.boost_brightness || 0) : 0;
-          const nowBri = Math.min(100, computeNowBrightness(rhythmBri, factor, exposure, outdoorNorm, sensitivity, briFadeWeight) + boostBri);
+          const briOverride = tuneArea?.bri_override || 0;
+          const nowBri = Math.min(100, computeNowBrightness(rhythmBri, factor, exposure, outdoorNorm, sensitivity, briFadeWeight) + boostBri + briOverride);
           const factorStr = formatFactorMeta(factor);
           const sunMeta = formatSunMeta(exposure, sensitivity, outdoorNorm);
 
           // Annotate tuneArea with zone name for light brightness calc
           if (tuneArea) tuneArea._zoneName = zoneName;
           const boostIcon = isBoosted ? '<span title="Boosted" style="font-size:0.75rem;">&#x26A1;</span> ' : '';
+          const overrideIcon = Math.abs(briOverride) >= 0.5 ? '<span class="tune-override-star" title="Brightness adjustment applied">*</span>' : '';
           const lights = tuneArea?.lights || [];
           const hasLights = lights.length > 0;
           const isExpanded = expandedAreas[area.area_id] || false;
-          const expandChevronStyle = isExpanded ? 'transform: rotate(90deg);' : '';
           const lightsHtml = hasLights ? buildLightsSection(area.area_id, tuneArea) : '';
 
           return `
-            <div class="tune-area" data-area-id="${area.area_id}" data-rhythm-bri="${rhythmBri}" data-sensitivity="${sensitivity}" data-outdoor-norm="${outdoorNorm}" data-bri-fade-weight="${briFadeWeight}" data-zone-min-bri="${zoneMinBri}" data-zone-max-bri="${zoneMaxBri}" data-boost-bri="${isBoosted ? (tuneArea.boost_brightness || 0) : 0}">
-              <div class="tune-area-header tune-area-expand-row" onclick="toggleAreaLights('${area.area_id}')">
+            <div class="tune-area${hasLights ? ' expandable' : ''}" data-area-id="${area.area_id}" data-rhythm-bri="${rhythmBri}" data-sensitivity="${sensitivity}" data-outdoor-norm="${outdoorNorm}" data-bri-fade-weight="${briFadeWeight}" data-zone-min-bri="${zoneMinBri}" data-zone-max-bri="${zoneMaxBri}" data-boost-bri="${isBoosted ? (tuneArea.boost_brightness || 0) : 0}" data-bri-override="${briOverride}" ${hasLights ? `onclick="toggleAreaLights('${area.area_id}')"` : ''}>
+              <div class="tune-area-header">
                 <span class="tune-name-col">
-                  ${hasLights ? '<span id="tune-lights-chevron-' + area.area_id + '" style="display:inline-block;font-size:0.6rem;margin-right:4px;transition:transform 0.2s;color:var(--muted2);' + expandChevronStyle + '">&#9654;</span>' : '<span style="display:inline-block;width:0.6rem;margin-right:4px;"></span>'}
                   <a href="./area/${encodeURIComponent(area.area_id)}?from=tune" class="tune-area-name" onclick="event.stopPropagation()">${area.name}</a>
                 </span>
-                <span class="tune-bri-col tune-bri-now">${boostIcon}${nowBri}%</span>
+                <span class="tune-bri-col tune-bri-now">${boostIcon}${nowBri}%${overrideIcon}</span>
               </div>
               <div class="tune-area-row">
                 <div class="tune-fixture-col" onclick="event.stopPropagation()">
@@ -1849,30 +1858,30 @@
                   <span class="tune-slider-val tune-solar-val">${fmtVal(exposure)}</span>
                 </div>
               </div>
-              ${hasLights ? '<div class="tune-area-lights" id="tune-lights-' + area.area_id + '" style="display:' + (isExpanded ? 'block' : 'none') + ';">' + lightsHtml + '</div>' : ''}
+              ${hasLights ? '<div class="tune-area-lights" id="tune-lights-' + area.area_id + '" style="display:' + (isExpanded ? 'block' : 'none') + ';" onclick="event.stopPropagation()">' + lightsHtml + '</div>' : ''}
             </div>
           `;
         }).join('');
 
         const zoneControlsHtml = `
           <div class="tune-zone-controls" data-zone="${zoneName}" onclick="event.stopPropagation()">
-            <div class="tune-area-header tune-col-headers">
-              <span class="tune-name-col tune-name-sort">
+            <div class="tune-col-headers-row">
+              <span class="tune-name-sort">
                 <span class="tune-name-sort-item ${tuneSortOrder === 'custom' ? 'active-sort' : ''}" onclick="setTuneSort('custom')">area</span>
                 <span class="tune-name-sort-dot">&middot;</span>
                 <span class="tune-name-sort-item ${tuneSortOrder === 'az' ? 'active-sort' : ''}" onclick="setTuneSort('az')">a-z</span>
               </span>
+              <span class="tune-col-header ${tuneSortOrder === 'light' ? 'active-sort' : ''}" onclick="setTuneSort('light')">RB</span>
+              <span class="tune-col-header ${tuneSortOrder === 'sun' ? 'active-sort' : ''}" onclick="setTuneSort('sun')">SE</span>
               <span class="tune-bri-col tune-col-header ${tuneSortOrder === 'bri' ? 'active-sort' : ''}" onclick="setTuneSort('bri')">Bri</span>
-            </div>
-            <div class="tune-area-row tune-col-headers">
-              <span class="tune-fixture-col tune-col-header ${tuneSortOrder === 'light' ? 'active-sort' : ''}" onclick="setTuneSort('light')">Room Balance</span>
-              <span class="tune-sun-col tune-col-header ${tuneSortOrder === 'sun' ? 'active-sort' : ''}" onclick="setTuneSort('sun')">Sun exposure</span>
             </div>
           </div>
         `;
 
         const hasAnyBoosted = areasInZone.some(a => getTuneArea(a.area_id)?.boosted);
+        const hasAnyOverride = areasInZone.some(a => Math.abs(getTuneArea(a.area_id)?.bri_override || 0) >= 0.5);
         const boostLegend = '<div class="tune-boost-legend" style="padding:4px 16px 6px;font-size:0.65rem;color:var(--muted2);' + (hasAnyBoosted ? '' : 'display:none;') + '">&#x26A1; includes boost</div>';
+        const overrideLegend = '<div class="tune-override-legend" style="padding:4px 16px 6px;font-size:0.65rem;color:var(--muted2);' + (hasAnyOverride ? '' : 'display:none;') + '">* brightness adjustment applied</div>';
 
         html += `
           <div class="zone-group">
@@ -1890,6 +1899,7 @@
             <div class="zone-content ${isCollapsed ? 'hidden' : ''}" data-zone-table="${zoneName}">
               ${areaRows}
               ${boostLegend}
+              ${overrideLegend}
             </div>
           </div>
         `;

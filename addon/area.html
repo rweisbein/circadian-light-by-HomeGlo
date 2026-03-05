@@ -2084,6 +2084,7 @@
                 tuneState.solarBreakdown = ls.solar_breakdown ?? null;
                 tuneState.boosted = _as.boosted || false;
                 tuneState.boostBrightness = _as.boost_brightness || 0;
+                tuneState.briOverride = _as.effective_bri_override || 0;
 
                 // Update base row display in details card
                 const elDetBase = document.getElementById('tune-det-base-total');
@@ -2395,6 +2396,7 @@
                 tuneState.baseKelvin = _as.kelvin || 4000;
                 tuneState.boosted = _as.boosted || false;
                 tuneState.boostBrightness = _as.boost_brightness || 0;
+                tuneState.briOverride = _as.effective_bri_override || 0;
                 const elDetBase = document.getElementById('tune-det-base-total');
                 if (elDetBase) elDetBase.textContent = tuneState.baseBri + '%';
                 recalcTune();
@@ -2442,6 +2444,7 @@
                 tuneState.baseKelvin = _as.kelvin || 4000;
                 tuneState.boosted = _as.boosted || false;
                 tuneState.boostBrightness = _as.boost_brightness || 0;
+                tuneState.briOverride = _as.effective_bri_override || 0;
                 const elDetBase = document.getElementById('tune-det-base-total');
                 if (elDetBase) elDetBase.textContent = tuneState.baseBri + '%';
                 recalcTune();
@@ -2521,6 +2524,7 @@
       expandedLightIdx: null,
       boosted: false,
       boostBrightness: 0,
+      briOverride: 0,
     };
 
     function tunePresetMeta(presets, filterName, nowPct) {
@@ -2862,6 +2866,13 @@
       const afterSolar = Math.round(running * 100);
       const solarImpact = afterSolar - beforeSolar;
 
+      // Brightness override (additive, from slider/buttons, decaying)
+      const briOverride = ts.briOverride || 0;
+      if (briOverride) {
+        running += briOverride / 100;
+        running = Math.max(0, Math.min(1, running));
+      }
+
       // -- Compute adjusted color temp (needed for CT compensation) --
       let adjustedK = ts.baseKelvin;
       const sb = ts.solarBreakdown;
@@ -2975,6 +2986,17 @@
 
       const elSolarImpact = document.getElementById('tune-det-solar-val');
       if (elSolarImpact) elSolarImpact.textContent = formatImpact(solarImpact) + '%';
+
+      const elOverrideRow = document.getElementById('tune-det-override-row');
+      const elOverrideVal = document.getElementById('tune-det-override-val');
+      if (elOverrideRow) {
+        if (Math.abs(briOverride) >= 0.5) {
+          elOverrideRow.style.display = '';
+          if (elOverrideVal) elOverrideVal.textContent = formatImpact(Math.round(briOverride)) + '%';
+        } else {
+          elOverrideRow.style.display = 'none';
+        }
+      }
 
       const elBriHeader = document.getElementById('tune-brightness-header-val');
       if (elBriHeader) elBriHeader.textContent = areaBri + '%';
@@ -3212,7 +3234,7 @@
       bhtml += '<span class="tune-brightness-val" id="tune-brightness-header-val">--</span>';
       bhtml += '</div>';
       bhtml += '<div class="tune-brightness-body" id="tune-brightness-body">';
-      bhtml += '<div class="tune-bk-row" style="padding-left:14px;"><span class="tune-bk-label primary">Start</span>'
+      bhtml += '<div class="tune-bk-row" style="padding-left:14px;"><span class="tune-bk-label primary">Circadian</span>'
         + '<span class="tune-bk-total" id="tune-det-base-total">' + baseBri + '%</span></div>';
       bhtml += '<div class="tune-group-label">Adjustments</div>';
       bhtml += '<div class="tune-bk-row"><span class="tune-bk-label">Boost</span>'
@@ -3232,6 +3254,8 @@
       bhtml += '<div class="tune-slider-row">'
         + '<input type="range" class="tune-inline-slider tune-inline-slider--sun" id="tune-slider-solar" min="0" max="9" step="1" value="' + solarStep + '">'
         + '<span class="tune-slider-word" id="tune-solar-word"><span>' + SOLAR_STEPS[solarStep].label + '</span></span></div>';
+      bhtml += '<div class="tune-bk-row" id="tune-det-override-row" style="display:none;"><span class="tune-bk-label">Bright adjust</span>'
+        + '<span class="tune-bk-total" id="tune-det-override-val">0%</span></div>';
       bhtml += '<div class="tune-area-total"><div class="tune-bk-row" style="padding-left:14px;"><span class="tune-bk-label primary">Final</span>'
         + '<span class="tune-bk-total final" id="tune-det-final-val">--</span></div></div>';
       bhtml += '<div class="section-action-bar" id="tune-action-bar" style="display:none;">';

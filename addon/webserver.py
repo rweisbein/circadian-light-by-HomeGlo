@@ -952,6 +952,20 @@ class LightDesignerServer:
                         if is_boosted
                         else 0
                     )
+                    # Compute decayed brightness override
+                    effective_bri_override = 0
+                    area_st = state.get_area(area_id)
+                    bri_override_raw = area_st.get("brightness_override")
+                    if bri_override_raw is not None:
+                        from brain import CircadianLight, Config, compute_override_decay
+                        preset_config = glozone.get_effective_config_for_zone(zone_name)
+                        brain_config = Config.from_dict(preset_config)
+                        now = datetime.now()
+                        hour = now.hour + now.minute / 60 + now.second / 3600
+                        in_ascend, h48, t_ascend, t_descend, _ = CircadianLight.get_phase_info(hour, brain_config)
+                        next_phase = t_descend if in_ascend else t_ascend + 24
+                        bri_decay = compute_override_decay(area_st.get("brightness_override_set_at"), h48, next_phase)
+                        effective_bri_override = round(bri_override_raw * bri_decay, 1)
                     zone_areas.append(
                         {
                             "id": area_id,
@@ -965,6 +979,7 @@ class LightDesignerServer:
                             "light_filters": glozone.get_area_light_filters(area_id),
                             "boosted": is_boosted,
                             "boost_brightness": boost_brightness or 0,
+                            "bri_override": effective_bri_override,
                         }
                     )
                 zone_cfg = glozone.get_zone_config(zone_name)
@@ -3676,6 +3691,7 @@ class LightDesignerServer:
                         "color_mid": area_state.color_mid,
                         "color_override": area_state.color_override,
                         "brightness_override": bri_override_raw,
+                        "effective_bri_override": round(effective_bri_override, 1) if effective_bri_override else 0,
                         "frozen_at": area_state.frozen_at,
                         # Override + area factor derived values
                         "actual_brightness": actual_brightness,
