@@ -407,9 +407,9 @@ class CircadianLightPrimitives:
         logger.info(f"Step up state_updates: {result.state_updates}")
         self._update_area_state(area_id, result.state_updates)
 
-        # Apply to lights only if is_on=True
+        # Apply to lights only if is_on=True (use full pipeline for override/filter support)
         if area_state.is_on:
-            await self._apply_circadian_lighting(area_id, result.brightness, result.color_temp)
+            await self.client.update_lights_in_circadian_mode(area_id)
             logger.info(f"Step up applied: {result.brightness}%, {result.color_temp}K")
         else:
             logger.info(f"Step up state updated (lights off): {result.brightness}%, {result.color_temp}K")
@@ -491,9 +491,9 @@ class CircadianLightPrimitives:
         # Update state (always, even if is_on=False)
         self._update_area_state(area_id, result.state_updates)
 
-        # Apply to lights only if is_on=True
+        # Apply to lights only if is_on=True (use full pipeline for override/filter support)
         if area_state.is_on:
-            await self._apply_circadian_lighting(area_id, result.brightness, result.color_temp)
+            await self.client.update_lights_in_circadian_mode(area_id)
             logger.info(f"Step down applied: {result.brightness}%, {result.color_temp}K")
         else:
             logger.info(f"Step down state updated (lights off): {result.brightness}%, {result.color_temp}K")
