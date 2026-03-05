@@ -494,15 +494,20 @@ def apply_light_filter_pipeline(
     multiplier = calculate_filter_multiplier(pos, at_dim, at_bright)
 
     base = base_brightness * area_factor
-    if brightness_override is not None:
-        base = max(0, min(100, base + brightness_override))
+    has_override = brightness_override is not None
+    if has_override:
+        base = max(1, min(100, base + brightness_override))
     result = base * multiplier
 
     preset_threshold = filter_preset.get("off_threshold", off_threshold)
     if result < preset_threshold:
-        return (0, True)
+        # If user explicitly set a brightness override, don't auto-off
+        if has_override:
+            result = max(1, result)
+        else:
+            return (0, True)
 
-    final = int(min(100, round(result)))
+    final = int(min(100, max(1, round(result)))) if has_override else int(min(100, round(result)))
     return (final, False)
 
 
