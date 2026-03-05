@@ -927,10 +927,12 @@ class CircadianLightPrimitives:
             decay = compute_override_decay(set_at, h48, next_phase)
             current_override = current_override * decay
 
-        # Compute base brightness to check if already at physical limit
-        # Overrides can push past the rhythm's max/min — the real limits are 100% and 1%
+        # Compute actual output brightness to check physical limit
+        # Pipeline: (base_bri * area_factor + override), capped [0, 100]
         base_bri = CircadianLight.calculate_brightness_at_hour(hour, config, area_state)
-        effective_bri = base_bri + current_override
+        area_factor = glozone.get_area_brightness_factor(area_id)
+        scaled_base = base_bri * area_factor
+        effective_bri = scaled_base + current_override
 
         at_limit = (
             (direction == "up" and effective_bri >= 99.0) or
@@ -949,8 +951,8 @@ class CircadianLightPrimitives:
         new_override = round(current_override + sign * step_size, 1)
 
         # Clamp so effective brightness stays within physical limits (0–100)
-        max_override = 100.0 - base_bri
-        min_override = -base_bri
+        max_override = 100.0 - scaled_base
+        min_override = -scaled_base
         new_override = round(max(min_override, min(max_override, new_override)), 1)
 
         self._update_area_state(area_id, {
