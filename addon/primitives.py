@@ -20,6 +20,7 @@ from brain import (
     get_current_hour,
     compute_override_decay,
     calculate_natural_light_factor,
+    inverse_midpoint,
     DEFAULT_MAX_DIM_STEPS,
 )
 
@@ -329,6 +330,64 @@ class CircadianLightPrimitives:
     # Step Up / Step Down (brightness-primary, both curves)
     # -------------------------------------------------------------------------
 
+    def _absorb_brightness_override(self, area_id: str, area_state, config, hour: float):
+        """Absorb active brightness_override into brightness_mid so steps start from the user's actual position.
+
+        When bright_up/down sets an override (e.g., -54 making 64% appear as 10%),
+        stepping should start from that 10%, not from the raw curve 64%.
+        This bakes the override into the curve midpoint and clears the override.
+
+        Returns updated area_state, or the original if no override was active.
+        """
+        if area_state.brightness_override is None:
+            return area_state
+
+        # Compute decayed override
+        decayed = area_state.brightness_override
+        if area_state.brightness_override_set_at is not None:
+            in_ascend, h48, t_ascend, t_descend, _ = CircadianLight.get_phase_info(hour, config)
+            next_phase = t_descend if in_ascend else t_ascend + 24
+            decay = compute_override_decay(area_state.brightness_override_set_at, h48, next_phase)
+            decayed = area_state.brightness_override * decay
+
+        # Current curve brightness and effective brightness after area_factor + override
+        curve_bri = CircadianLight.calculate_brightness_at_hour(hour, config, area_state)
+        area_factor = glozone.get_area_brightness_factor(area_id)
+        effective_bri = curve_bri * area_factor + decayed
+
+        # Target curve value that reproduces effective_bri without override
+        # Pipeline: curve_bri * area_factor = effective_bri → curve_bri = effective_bri / area_factor
+        target_curve_bri = effective_bri / area_factor if area_factor > 0 else effective_bri
+        target_curve_bri = max(config.min_brightness, min(config.max_brightness, target_curve_bri))
+
+        # Find the midpoint that produces target_curve_bri
+        in_ascend, h48, t_ascend, t_descend, slope = CircadianLight.get_phase_info(hour, config)
+        b_min_norm = config.min_brightness / 100.0
+        b_max_norm = config.max_brightness / 100.0
+        target_norm = max(b_min_norm + 0.001, min(b_max_norm - 0.001, target_curve_bri / 100.0))
+
+        calc_time = h48
+        if not in_ascend and h48 < t_descend:
+            calc_time = h48 + 24
+
+        new_bri_mid = inverse_midpoint(calc_time, target_norm, slope, b_min_norm, b_max_norm)
+        if in_ascend:
+            new_bri_mid = CircadianLight.lift_midpoint_to_phase(new_bri_mid, t_ascend, t_descend) % 24
+        else:
+            new_bri_mid = CircadianLight.lift_midpoint_to_phase(new_bri_mid, t_descend, t_ascend + 24) % 24
+
+        # Update state: new midpoint, clear override
+        self._update_area_state(area_id, {
+            "brightness_mid": new_bri_mid,
+            "brightness_override": None,
+            "brightness_override_set_at": None,
+        })
+        logger.info(
+            f"Absorbed brightness_override {decayed:.1f} into brightness_mid "
+            f"(curve {curve_bri:.1f}% → {target_curve_bri:.1f}%, mid={new_bri_mid:.2f})"
+        )
+        return self._get_area_state(area_id)
+
     async def step_up(self, area_id: str, source: str = "service_call"):
         """Step up along the circadian curve (brighter and cooler).
 
@@ -382,6 +441,9 @@ class CircadianLightPrimitives:
 
         hour = get_current_hour()
         sun_times = self.client._get_sun_times() if hasattr(self.client, '_get_sun_times') else None
+
+        # Absorb brightness override into curve before stepping
+        area_state = self._absorb_brightness_override(area_id, area_state, config, hour)
 
         result = CircadianLight.calculate_step(
             hour=hour,
@@ -464,6 +526,9 @@ class CircadianLightPrimitives:
 
         hour = get_current_hour()
         sun_times = self.client._get_sun_times() if hasattr(self.client, '_get_sun_times') else None
+
+        # Absorb brightness override into curve before stepping
+        area_state = self._absorb_brightness_override(area_id, area_state, config, hour)
 
         result = CircadianLight.calculate_step(
             hour=hour,
