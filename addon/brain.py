@@ -1915,10 +1915,9 @@ class CircadianLight:
             state_updates["brightness_mid"] = new_bri_mid
             state_updates["color_mid"] = new_color_mid
 
-            # Walking the curve → clear per-axis overrides
-            state_updates["brightness_override"] = None
-            state_updates["brightness_override_set_at"] = None
-            state_updates["color_override_set_at"] = None  # step's color_override has no decay
+            # Walking the curve → clear color decay marker (step's color_override has no decay)
+            # brightness_override is kept as an independent layer through step_up/step_down
+            state_updates["color_override_set_at"] = None
 
             # --- color_override for circadian (step) slider ---
             #
