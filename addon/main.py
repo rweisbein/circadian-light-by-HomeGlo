@@ -2630,7 +2630,7 @@ class HomeAssistantWebSocketClient:
         # ---- Fast path: no filters, area_factor == 1.0 ----
         # Apply brightness_override directly (additive delta, already decay-adjusted)
         if brightness_override is not None and brightness is not None:
-            brightness = int(min(100, max(0, round(brightness + brightness_override))))
+            brightness = int(min(100, max(1, round(brightness + brightness_override))))
 
 
         # Apply CT brightness compensation (for warm color temps on Hue bulbs)
