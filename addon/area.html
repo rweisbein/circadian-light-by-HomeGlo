@@ -1404,17 +1404,17 @@
       const hasAdjWake = adjustedTimes && adjustedTimes.wake != null;
       const hasAdjBed = adjustedTimes && adjustedTimes.bed != null;
 
-      // Original wake/bed lines — grey when adjusted, colored when not
+      // Original wake/bed lines — grey dotted when adjusted, colored when not
       const vLineTop = 0.91;  // ≈ y=100 in data coords (range 0-110)
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
         x0: wakeTime, x1: wakeTime, y0: -0.29, y1: vLineTop,
-        line: { color: hasAdjWake ? 'rgba(160, 160, 160, 0.25)' : 'rgba(92, 179, 255, 0.35)', width: 1.5, dash: 'dot' }
+        line: { color: hasAdjWake ? 'rgba(160, 160, 160, 0.2)' : 'rgba(92, 179, 255, 0.35)', width: 1.5, dash: 'dot' }
       });
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
         x0: bedTime, x1: bedTime, y0: -0.29, y1: vLineTop,
-        line: { color: hasAdjBed ? 'rgba(160, 160, 160, 0.25)' : 'rgba(255, 230, 128, 0.35)', width: 1.5, dash: 'dot' }
+        line: { color: hasAdjBed ? 'rgba(160, 160, 160, 0.2)' : 'rgba(255, 230, 128, 0.35)', width: 1.5, dash: 'dot' }
       });
 
       // Adjusted wake/bed vertical lines (solid, colored) when midpoint is shifted
@@ -1454,20 +1454,20 @@
         });
       }
 
-      // Tier 1: Wake/bed labels (29px below plot — clear of axis ticks)
+      // Tier 1: Wake/bed labels (keep color always for symmetry with adjusted * line)
       annotations.push({
         x: wakeTime, y: -0.33, xref: 'x', yref: 'paper',
         text: 'wake', showarrow: false,
-        font: { size: 11, color: hasAdjWake ? 'rgba(160, 160, 160, 0.5)' : '#5cb3ff' },
+        font: { size: 11, color: '#5cb3ff' },
         hovertext: formatHourLabel(wakeTime),
-        hoverlabel: { bgcolor: hasAdjWake ? '#666' : '#7fc7ff', bordercolor: hasAdjWake ? '#666' : '#7fc7ff', font: { color: hasAdjWake ? '#fff' : '#000', size: 12 } }
+        hoverlabel: { bgcolor: '#7fc7ff', bordercolor: '#7fc7ff', font: { color: '#000', size: 12 } }
       });
       annotations.push({
         x: bedTime, y: -0.33, xref: 'x', yref: 'paper',
         text: 'bed', showarrow: false,
-        font: { size: 11, color: hasAdjBed ? 'rgba(160, 160, 160, 0.5)' : '#ffe680' },
+        font: { size: 11, color: '#ffe680' },
         hovertext: formatHourLabel(bedTime),
-        hoverlabel: { bgcolor: hasAdjBed ? '#666' : '#ffe680', bordercolor: hasAdjBed ? '#666' : '#ffe680', font: { color: hasAdjBed ? '#fff' : '#000', size: 12 } }
+        hoverlabel: { bgcolor: '#ffe680', bordercolor: '#ffe680', font: { color: '#000', size: 12 } }
       });
       // Adjusted wake/bed labels — asterisk above line top
       if (hasAdjWake) {
@@ -1509,10 +1509,10 @@
         });
       }
 
-      // Cursor vertical line (muted)
+      // Cursor vertical line (slightly muted)
       const isFrozen = state && state.frozen_at != null;
       const cursorHour = currentHour;
-      const cursorLineColor = isFrozen ? 'rgba(99, 179, 237, 0.5)' : 'rgba(200, 200, 200, 0.45)';
+      const cursorLineColor = isFrozen ? 'rgba(99, 179, 237, 0.55)' : 'rgba(220, 220, 220, 0.5)';
       const cursorLineStyle = { color: cursorLineColor, width: 1.5, dash: 'dot' };
       const gap = 10;
       const lowerEnd = Math.max(0, markerBri - gap);
@@ -1530,16 +1530,16 @@
       });
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
-        x0: cursorHour, x1: cursorHour, y0: -0.64, y1: 0,
+        x0: cursorHour, x1: cursorHour, y0: -0.55, y1: 0,
         line: cursorLineStyle, layer: 'above'
       });
 
-      // Tier 3: Cursor label (below plot, lowered to avoid overlap)
+      // Tier 3: Cursor label
       const cursorTimeStr = formatHourLabel(cursorHour);
       const cursorLabel = isFrozen ? 'frozen' : 'now';
-      const cursorColor = isFrozen ? 'rgba(99, 179, 237, 0.7)' : 'rgba(200, 200, 200, 0.6)';
+      const cursorColor = isFrozen ? 'rgba(99, 179, 237, 0.8)' : 'rgba(220, 220, 220, 0.7)';
       annotations.push({
-        x: cursorHour, y: -0.80, xref: 'x', yref: 'paper',
+        x: cursorHour, y: -0.75, xref: 'x', yref: 'paper',
         text: `${cursorLabel}<br>${cursorTimeStr}`, showarrow: false,
         font: { size: 10, color: cursorColor },
         align: 'center'
@@ -1548,7 +1548,7 @@
       const layout = {
         paper_bgcolor: '#0a0a0a',
         plot_bgcolor: '#0a0a0a',
-        margin: { t: 16, r: 12, l: 32, b: 95 },
+        margin: { t: 16, r: 12, l: 32, b: 85 },
         hovermode: 'closest',
         xaxis: {
           range: [0, 24],
