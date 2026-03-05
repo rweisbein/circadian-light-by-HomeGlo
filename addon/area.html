@@ -158,7 +158,7 @@
     }
 
     .row-slider-section { margin-bottom: 4px; padding: 6px 16px; }
-    .adjusted-schedule-label { font-size: 0.7rem; color: var(--muted2); text-align: center; padding: 2px 0 0; letter-spacing: 0.02em; }
+    .adjusted-schedule-label { font-size: 0.7rem; color: var(--muted2); text-align: center; padding: 4px 0 0; letter-spacing: 0.02em; }
     .row-slider-track { height: 10px; position: relative; cursor: pointer; touch-action: none; border-radius: 5px; overflow: visible; }
     .row-slider-fill { display: none; }
     .row-slider-thumb { position: absolute; top: 50%; transform: translate(-50%, -50%); width: 30px; height: 16px; border-radius: 8px 8px 5px 5px; background: rgba(255,255,255,0.9); box-shadow: 0 1px 4px rgba(0,0,0,0.4); pointer-events: none; transition: left 0.15s; }
@@ -1472,7 +1472,7 @@
       // Adjusted wake/bed labels — asterisk above line top
       if (hasAdjWake) {
         annotations.push({
-          x: wrap24(adjustedTimes.wake), y: 1.20, xref: 'x', yref: 'paper',
+          x: wrap24(adjustedTimes.wake), y: 1.05, xref: 'x', yref: 'paper',
           text: '*', showarrow: false,
           font: { size: 13, color: '#5cb3ff' },
           hovertext: 'adjusted wake: ' + formatHourLabel(wrap24(adjustedTimes.wake)),
@@ -1481,7 +1481,7 @@
       }
       if (hasAdjBed) {
         annotations.push({
-          x: wrap24(adjustedTimes.bed), y: 1.20, xref: 'x', yref: 'paper',
+          x: wrap24(adjustedTimes.bed), y: 1.05, xref: 'x', yref: 'paper',
           text: '*', showarrow: false,
           font: { size: 13, color: '#ffe680' },
           hovertext: 'adjusted bed: ' + formatHourLabel(wrap24(adjustedTimes.bed)),
@@ -1684,17 +1684,17 @@
         const baseWake = areaState.eff_wake_time ?? cfg.wake_time;
         const adjusted = areaState.adjusted_wake_time;
         if (adjusted != null) {
-          el.textContent = 'Adjusted wake* ' + formatHourToTime(adjusted);
+          el.innerHTML = '<span style="color:#5cb3ff">Adjusted wake* ' + formatHourToTime(adjusted) + '</span>';
         } else {
-          el.textContent = 'Wake ' + formatHourToTime(baseWake);
+          el.innerHTML = '<span style="color:#5cb3ff">Wake ' + formatHourToTime(baseWake) + '</span>';
         }
       } else {
         const baseBed = areaState.eff_bed_time ?? cfg.bed_time;
         const adjusted = areaState.adjusted_bed_time;
         if (adjusted != null) {
-          el.textContent = 'Adjusted bed* ' + formatHourToTime(adjusted);
+          el.innerHTML = '<span style="color:#ffe680">Adjusted bed* ' + formatHourToTime(adjusted) + '</span>';
         } else {
-          el.textContent = 'Bed ' + formatHourToTime(baseBed);
+          el.innerHTML = '<span style="color:#ffe680">Bed ' + formatHourToTime(baseBed) + '</span>';
         }
       }
       el.style.display = '';
