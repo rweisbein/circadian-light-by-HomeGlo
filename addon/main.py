@@ -4354,10 +4354,29 @@ class HomeAssistantWebSocketClient:
                     hour, config, base_state,
                     apply_solar_rules=False,
                 )
-                # Override should bridge exactly the gap solar rules create
-                needed_override = natural_cct - base_cct
-                if abs(needed_override) < 10:
+                tolerance = max(5, (config.max_color_temp - config.min_color_temp) * 0.005)
+                if abs(natural_cct - base_cct) < tolerance:
                     needed_override = None
+                else:
+                    # Use _converge_override to account for attenuation
+                    # (step-originated overrides modify solar rule targets, not CCT directly)
+                    def _render_recal(ovr):
+                        s = AreaState(
+                            is_circadian=area_state.is_circadian,
+                            is_on=area_state.is_on,
+                            frozen_at=area_state.frozen_at,
+                            brightness_mid=area_state.brightness_mid,
+                            color_mid=area_state.color_mid,
+                            color_override=ovr,
+                        )
+                        return CircadianLight.calculate_color_at_hour(
+                            hour, config, s,
+                            apply_solar_rules=True, sun_times=sun_times,
+                        )
+                    from brain import _converge_override
+                    needed_override = _converge_override(
+                        natural_cct, base_cct, tolerance, _render_recal,
+                    )
                 if needed_override != area_state.color_override:
                     old_val = area_state.color_override
                     state.update_area(area_id, {"color_override": needed_override})
