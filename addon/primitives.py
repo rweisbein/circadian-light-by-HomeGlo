@@ -371,6 +371,7 @@ class CircadianLightPrimitives:
                         area_state.frozen_at, config, area_state, apply_solar_rules=True, sun_times=sun_times
                     )
                     await self._bounce_at_limit(area_id, frozen_bri, frozen_cct, direction="up", bounce_type="step")
+                    await self.client.update_lights_in_circadian_mode(area_id)
                 return
             # At least one dimension has room → unfreeze and let calculate_step handle it
             self._unfreeze_internal(area_id, source)
@@ -398,6 +399,8 @@ class CircadianLightPrimitives:
                 current_bri = CircadianLight.calculate_brightness_at_hour(hour, config, area_state)
                 current_cct = CircadianLight.calculate_color_at_hour(hour, config, area_state, apply_solar_rules=True, sun_times=sun_times)
                 await self._bounce_at_limit(area_id, current_bri, current_cct, direction="up", bounce_type="step")
+                # Bounce restore uses raw curve brightness; re-apply full pipeline to restore override
+                await self.client.update_lights_in_circadian_mode(area_id)
             return
 
         # Update state (always, even if is_on=False)
@@ -453,6 +456,7 @@ class CircadianLightPrimitives:
                         area_state.frozen_at, config, area_state, apply_solar_rules=True, sun_times=sun_times
                     )
                     await self._bounce_at_limit(area_id, frozen_bri, frozen_cct, direction="down", bounce_type="step")
+                    await self.client.update_lights_in_circadian_mode(area_id)
                 return
             # At least one dimension has room → unfreeze and let calculate_step handle it
             self._unfreeze_internal(area_id, source)
@@ -480,6 +484,8 @@ class CircadianLightPrimitives:
                 current_bri = CircadianLight.calculate_brightness_at_hour(hour, config, area_state)
                 current_cct = CircadianLight.calculate_color_at_hour(hour, config, area_state, apply_solar_rules=True, sun_times=sun_times)
                 await self._bounce_at_limit(area_id, current_bri, current_cct, direction="down", bounce_type="step")
+                # Bounce restore uses raw curve brightness; re-apply full pipeline to restore override
+                await self.client.update_lights_in_circadian_mode(area_id)
             return
 
         # Update state (always, even if is_on=False)
