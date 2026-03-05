@@ -1000,7 +1000,7 @@ class CircadianLightPrimitives:
 
         # Compute base color to check if already at physical limit
         # Overrides can push past the rhythm's max/min — the real limits are bulb extremes
-        PHYSICAL_MIN_CCT = 2000
+        PHYSICAL_MIN_CCT = 500
         PHYSICAL_MAX_CCT = 6500
         base_cct = CircadianLight.calculate_color_at_hour(
             hour, config, area_state, apply_solar_rules=True, sun_times=sun_times
