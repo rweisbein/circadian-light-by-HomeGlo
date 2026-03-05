@@ -3670,6 +3670,8 @@ class LightDesignerServer:
                         # Override + area factor derived values
                         "actual_brightness": actual_brightness,
                         "area_factor": round(area_factor, 3),
+                        "eff_wake_time": eff_wake,
+                        "eff_bed_time": eff_bed,
                         "adjusted_wake_time": adjusted_wake_time,
                         "adjusted_bed_time": adjusted_bed_time,
                         # Solar / natural light

@@ -1414,6 +1414,24 @@
         line: { color: 'rgba(255, 230, 128, 0.35)', width: 1.5, dash: 'dot' }
       });
 
+      // Adjusted wake/bed vertical lines (solid, brighter) when midpoint is shifted
+      if (status.adjusted_wake_time != null) {
+        const adjWake = wrap24(status.adjusted_wake_time);
+        shapes.push({
+          type: 'line', xref: 'x', yref: 'paper',
+          x0: adjWake, x1: adjWake, y0: -0.29, y1: 1,
+          line: { color: 'rgba(92, 179, 255, 0.55)', width: 1.5 }
+        });
+      }
+      if (status.adjusted_bed_time != null) {
+        const adjBed = wrap24(status.adjusted_bed_time);
+        shapes.push({
+          type: 'line', xref: 'x', yref: 'paper',
+          x0: adjBed, x1: adjBed, y0: -0.29, y1: 1,
+          line: { color: 'rgba(255, 230, 128, 0.55)', width: 1.5 }
+        });
+      }
+
       // Sunrise/sunset vertical ticks (extend to tier 2)
       const sunrise = sunTimes.sunrise;
       const sunset = sunTimes.sunset;
@@ -1564,6 +1582,8 @@
           frozen_at: status.frozen_at ?? null,
           actual_brightness: status.actual_brightness ?? null,
           area_factor: status.area_factor ?? 1.0,
+          eff_wake_time: status.eff_wake_time ?? null,
+          eff_bed_time: status.eff_bed_time ?? null,
           adjusted_wake_time: status.adjusted_wake_time ?? null,
           adjusted_bed_time: status.adjusted_bed_time ?? null,
           api_kelvin: status.kelvin ?? null,
@@ -1612,8 +1632,8 @@
       const colorDelta = currentCCT - baseCCT;
       updateBannerSlider(gloFrac, cfg, effRange, colorDelta);
 
-      // Adjusted schedule label (shown when midpoints are shifted)
-      updateAdjustedScheduleLabel(areaState);
+      // Schedule label (bed/wake time, asterisk if adjusted)
+      updateAdjustedScheduleLabel(areaState, cfg);
     }
 
     function formatHourToTime(h) {
@@ -1626,20 +1646,31 @@
       return min === 0 ? hr12 + ampm : hr12 + ':' + String(min).padStart(2, '0') + ampm;
     }
 
-    function updateAdjustedScheduleLabel(areaState) {
+    function updateAdjustedScheduleLabel(areaState, cfg) {
       const el = document.getElementById('adjusted-schedule-label');
       if (!el) return;
-      const wake = areaState.adjusted_wake_time;
-      const bed = areaState.adjusted_bed_time;
-      if (wake != null) {
-        el.textContent = 'Wake ' + formatHourToTime(wake);
-        el.style.display = '';
-      } else if (bed != null) {
-        el.textContent = 'Bed ' + formatHourToTime(bed);
-        el.style.display = '';
+      // Determine phase: use ascend/descend from config + current hour
+      const now = new Date();
+      const h = now.getHours() + now.getMinutes() / 60;
+      const tAsc = cfg.ascend_start, tDesc = cfg.descend_start;
+      const h48 = h < tAsc ? h + 24 : h;
+      const tDesc48 = tDesc <= tAsc ? tDesc + 24 : tDesc;
+      const inAscend = h48 >= tAsc && h48 < tDesc48;
+
+      if (inAscend) {
+        const baseWake = areaState.eff_wake_time ?? cfg.wake_time;
+        const adjusted = areaState.adjusted_wake_time;
+        const display = adjusted != null ? adjusted : baseWake;
+        const star = adjusted != null ? '*' : '';
+        el.textContent = 'Wake ' + formatHourToTime(display) + star;
       } else {
-        el.style.display = 'none';
+        const baseBed = areaState.eff_bed_time ?? cfg.bed_time;
+        const adjusted = areaState.adjusted_bed_time;
+        const display = adjusted != null ? adjusted : baseBed;
+        const star = adjusted != null ? '*' : '';
+        el.textContent = 'Bed ' + formatHourToTime(display) + star;
       }
+      el.style.display = '';
     }
 
     function buildHorizontalGradient(cfg, effectiveColorRange, colorDelta) {
