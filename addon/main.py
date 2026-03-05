@@ -1556,7 +1556,7 @@ class HomeAssistantWebSocketClient:
             )
             if any_on_circadian:
                 await asyncio.gather(
-                    *[self.primitives.bright_up(area, "switch") for area in areas]
+                    *[self.primitives.brightness_up(area, "switch") for area in areas]
                 )
             else:
                 await execute_when_off()
@@ -1568,7 +1568,7 @@ class HomeAssistantWebSocketClient:
             )
             if any_on_circadian:
                 await asyncio.gather(
-                    *[self.primitives.bright_down(area, "switch") for area in areas]
+                    *[self.primitives.brightness_down(area, "switch") for area in areas]
                 )
             else:
                 await execute_when_off()
@@ -5016,7 +5016,7 @@ class HomeAssistantWebSocketClient:
                     if areas:
                         for area in areas:
                             logger.info(f"[{domain}] bright_up for area: {area}")
-                            await self.primitives.bright_up(area, "service_call")
+                            await self.primitives.brightness_up(area, "service_call")
                     else:
                         logger.warning("bright_up called without area_id")
 
@@ -5025,7 +5025,7 @@ class HomeAssistantWebSocketClient:
                     if areas:
                         for area in areas:
                             logger.info(f"[{domain}] bright_down for area: {area}")
-                            await self.primitives.bright_down(area, "service_call")
+                            await self.primitives.brightness_down(area, "service_call")
                     else:
                         logger.warning("bright_down called without area_id")
 
@@ -5320,10 +5320,10 @@ class HomeAssistantWebSocketClient:
                     await self.primitives.step_down(area_id, "webserver")
                 elif service == "bright_up":
                     logger.info(f"[webserver] bright_up for area: {area_id}")
-                    await self.primitives.bright_up(area_id, "webserver")
+                    await self.primitives.brightness_up(area_id, "webserver")
                 elif service == "bright_down":
                     logger.info(f"[webserver] bright_down for area: {area_id}")
-                    await self.primitives.bright_down(area_id, "webserver")
+                    await self.primitives.brightness_down(area_id, "webserver")
                 elif service == "color_up":
                     logger.info(f"[webserver] color_up for area: {area_id}")
                     await self.primitives.color_up(area_id, "webserver")

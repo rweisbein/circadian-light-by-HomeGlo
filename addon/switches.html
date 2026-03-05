@@ -849,7 +849,19 @@
               if (fourthField === 'lux') {
                 fourthCell = ctrl.illuminance && ctrl.illuminance.value != null ? `${ctrl.illuminance.value}` : '—';
               } else if (fourthField === 'pause') {
-                fourthCell = `<input type="checkbox" ${ctrl.inactive ? 'checked' : ''} onclick="event.stopPropagation(); toggleInactive('${ctrl.id}', '${ctrl.category}', ${!ctrl.inactive})">`;
+                let timerLabel = '';
+                if (ctrl.inactive && ctrl.inactive_until && ctrl.inactive_until !== 'forever') {
+                  const remaining = new Date(ctrl.inactive_until) - Date.now();
+                  if (remaining > 0) {
+                    const mins = Math.floor(remaining / 60000);
+                    const hours = Math.floor(mins / 60);
+                    const days = Math.floor(hours / 24);
+                    if (days > 0) timerLabel = `<span style="font-size:0.7rem;color:var(--muted2);margin-left:6px;">${days}d ${hours % 24}h</span>`;
+                    else if (hours > 0) timerLabel = `<span style="font-size:0.7rem;color:var(--muted2);margin-left:6px;">${hours}h ${mins % 60}m</span>`;
+                    else timerLabel = `<span style="font-size:0.7rem;color:var(--muted2);margin-left:6px;">${mins}m</span>`;
+                  }
+                }
+                fourthCell = `<input type="checkbox" ${ctrl.inactive ? 'checked' : ''} onclick="event.stopPropagation(); toggleInactive('${ctrl.id}', '${ctrl.category}', ${!ctrl.inactive})">${timerLabel}`;
               } else {
                 fourthCell = formatLastAction(ctrl);
               }
