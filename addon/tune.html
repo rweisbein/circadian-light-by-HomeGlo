@@ -240,10 +240,13 @@
     }
     .tune-zone-header .tune-col-headers-row {
       width: 100%;
-      padding: 4px 2px 2px;
+      padding: 4px 16px 2px 40px;
       background: none;
       border-bottom: none;
+      gap: 6px;
     }
+    .tune-col-headers-row .tune-col-header-balance { margin-right: 12px; }
+    .tune-col-headers-row .tune-col-header-sun { margin-right: 48px; }
 
     /* Tune zone controls */
     .tune-zone-controls {
@@ -272,9 +275,6 @@
       align-items: baseline;
       padding: 6px 16px 4px;
       gap: 8px;
-    }
-    .tune-col-headers-row .tune-name-sort {
-      flex: 0 0 auto;
     }
     .tune-col-headers-row .tune-col-header {
       text-align: center;
@@ -1607,8 +1607,8 @@
       // Column headers
       html += '<div class="tune-light-col-headers">'
         + '<span class="tune-light-sort' + (tuneLightSortOrder === 'name' ? ' active-sort' : '') + '" data-sort="name" data-area-id="' + areaId + '">light name</span>'
-        + '<span class="tune-light-sort' + (tuneLightSortOrder === 'behaviour' ? ' active-sort' : '') + '" data-sort="behaviour" data-area-id="' + areaId + '">behaviour</span>'
-        + '<span class="tune-light-sort' + (tuneLightSortOrder === 'impact' ? ' active-sort' : '') + '" data-sort="impact" data-area-id="' + areaId + '">behav.</span>'
+        + '<span class="tune-light-sort' + (tuneLightSortOrder === 'behaviour' ? ' active-sort' : '') + '" data-sort="behaviour" data-area-id="' + areaId + '">purpose</span>'
+        + '<span class="tune-light-sort' + (tuneLightSortOrder === 'impact' ? ' active-sort' : '') + '" data-sort="impact" data-area-id="' + areaId + '">purpose adj.</span>'
         + '<span class="tune-light-sort' + (tuneLightSortOrder === 'ct' ? ' active-sort' : '') + '" data-sort="ct" data-area-id="' + areaId + '">CT</span>'
         + '<span class="tune-light-sort tune-light-sort-final' + (tuneLightSortOrder === 'final' ? ' active-sort' : '') + '" data-sort="final" data-area-id="' + areaId + '">final</span>'
         + '</div>';
@@ -1870,13 +1870,8 @@
         const zoneControlsHtml = `
           <div class="tune-zone-controls" data-zone="${zoneName}" onclick="event.stopPropagation()">
             <div class="tune-col-headers-row">
-              <span class="tune-name-sort">
-                <span class="tune-name-sort-item ${tuneSortOrder === 'custom' ? 'active-sort' : ''}" onclick="setTuneSort('custom')">area</span>
-                <span class="tune-name-sort-dot">&middot;</span>
-                <span class="tune-name-sort-item ${tuneSortOrder === 'az' ? 'active-sort' : ''}" onclick="setTuneSort('az')">a-z</span>
-              </span>
-              <span class="tune-col-header ${tuneSortOrder === 'light' ? 'active-sort' : ''}" onclick="setTuneSort('light')">Room Balance</span>
-              <span class="tune-col-header ${tuneSortOrder === 'sun' ? 'active-sort' : ''}" onclick="setTuneSort('sun')">Sun Exposure</span>
+              <span class="tune-col-header tune-col-header-balance ${tuneSortOrder === 'light' ? 'active-sort' : ''}" onclick="setTuneSort('light')">Room Balance</span>
+              <span class="tune-col-header tune-col-header-sun ${tuneSortOrder === 'sun' ? 'active-sort' : ''}" onclick="setTuneSort('sun')">Sun Exposure</span>
               <span class="tune-bri-col tune-col-header ${tuneSortOrder === 'bri' ? 'active-sort' : ''}" onclick="setTuneSort('bri')">Bri</span>
             </div>
           </div>
@@ -1894,6 +1889,11 @@
               <div class="zone-name-group">
                 <a class="zone-rhythm-link" href="./zone/${encodeURIComponent(zoneName)}?back=tune" onclick="event.stopPropagation()">${zoneName}</a>
                 <span class="zone-label-sub">rhythm zone</span>
+                <span class="tune-name-sort" onclick="event.stopPropagation()">
+                  <span class="tune-name-sort-item ${tuneSortOrder === 'custom' ? 'active-sort' : ''}" onclick="setTuneSort('custom')">area</span>
+                  <span class="tune-name-sort-dot">&middot;</span>
+                  <span class="tune-name-sort-item ${tuneSortOrder === 'az' ? 'active-sort' : ''}" onclick="setTuneSort('az')">a-z</span>
+                </span>
               </div>
               <span class="tune-zone-bri-group">
                 <span class="tune-zone-base-bri">${rhythmBri}%</span>

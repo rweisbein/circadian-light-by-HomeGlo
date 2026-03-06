@@ -3191,8 +3191,8 @@
         lhtml += '<div class="tune-light-col-super"><span></span><span></span><span class="tune-light-super-label">Adjustments</span></div>';
         lhtml += '<div class="tune-light-col-headers">'
           + '<span class="tune-light-sort" data-sort="name">light name</span>'
-          + '<span class="tune-light-sort" data-sort="behaviour">behaviour</span>'
-          + '<span class="tune-light-sort" data-sort="impact">behav.</span>'
+          + '<span class="tune-light-sort" data-sort="behaviour">purpose</span>'
+          + '<span class="tune-light-sort" data-sort="impact">purpose adj.</span>'
           + '<span class="tune-light-sort" data-sort="ct">CT</span>'
           + '<span class="tune-light-sort tune-light-sort-final" data-sort="final">final</span>'
           + '</div>';
@@ -3782,7 +3782,7 @@
 
         popover.innerHTML = `
           ${nextAlarmStr ? '<div class="spo-next-alarm">\u23f0 next: ' + nextAlarmStr + '</div>' : ''}
-          <div class="schedule-popover-title">Temporary override</div>
+          <div class="schedule-popover-title">Alarm temp. override</div>
           <div class="spo-info">${desc}${untilStr}</div>
           <div class="schedule-popover-clear"><button onclick="clearTempAlarm()">Clear override</button></div>
         `;
@@ -3819,8 +3819,8 @@
 
         popover.innerHTML = `
           ${nextAlarmStr ? '<div class="spo-next-alarm">\u23f0 next: ' + nextAlarmStr + '</div>' : ''}
-          <div class="schedule-popover-title">Temporary override</div>
-          <div class="spo-section-label">Alarm time</div>
+          <div class="schedule-popover-title">Alarm temp. override</div>
+          <div class="spo-section-label">Temp. time</div>
           <div class="spo-options">
             <label class="spo-option" onclick="document.getElementById('spo-off').checked=true">
               <input type="radio" id="spo-off" name="spo-mode" value="off">
