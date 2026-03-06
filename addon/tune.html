@@ -116,7 +116,7 @@
     }
 
     /* Name-column sort pair (area · a-z) */
-    .tune-name-sort { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.5px; flex: 1; min-width: 0; }
+    .tune-name-sort { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.5px; flex: 0 0 auto; margin-right: 6px; }
     .tune-name-sort-item { color: var(--muted2); cursor: pointer; transition: color 0.15s; }
     .tune-name-sort-item:hover { color: var(--text); }
     .tune-name-sort-item.active-sort { color: var(--accent); }
@@ -277,10 +277,10 @@
       gap: 8px;
     }
     .tune-col-headers-row .tune-col-header {
-      text-align: center;
+      text-align: left;
     }
     .tune-col-header {
-      flex: 1;
+      flex: 0 1 38%;
       font-size: 0.65rem;
       text-transform: uppercase;
       letter-spacing: 0.5px;
@@ -331,7 +331,7 @@
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
     .tune-fixture-col, .tune-sun-col {
-      flex: 1; display: flex; align-items: center; gap: 4px; min-width: 0;
+      flex: 0 1 38%; display: flex; align-items: center; gap: 4px; min-width: 0;
       margin-right: 12px;
     }
     .tune-sun-col {
@@ -1850,7 +1850,6 @@
                 </div>
                 <div class="tune-sun-col" onclick="event.stopPropagation()">
                   <input type="range" class="tune-solar-slider" min="0" max="9" step="1" value="${solarStep}" data-area-id="${area.area_id}">
-                  <span class="tune-slider-meta tune-sun-now">${sunMeta.now}</span>
                 </div>
               </div>
               <div class="tune-area-row tune-area-row3">
