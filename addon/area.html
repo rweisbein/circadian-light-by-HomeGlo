@@ -1701,10 +1701,8 @@
     }
 
     function buildHorizontalGradient(cfg, effectiveColorRange, colorDelta) {
-      // Use natural color range — the override mechanism ensures the slider
-      // can achieve the full range regardless of solar rules.
       const bMin = cfg.min_brightness, bMax = cfg.max_brightness;
-      const cMin = cfg.min_color_temp, cMax = cfg.max_color_temp;
+      const cMin = effectiveColorRange.effMin, cMax = effectiveColorRange.effMax;
       const stops = [];
       const n = 6;
       for (let i = 0; i <= n; i++) {
@@ -1740,7 +1738,7 @@
 
     function buildTrackGradient(mode, cfg, currentBri, currentCCT, effectiveColorRange) {
       const bMin = cfg.min_brightness, bMax = cfg.max_brightness;
-      const cMin = cfg.min_color_temp, cMax = cfg.max_color_temp;
+      const cMin = effectiveColorRange.effMin, cMax = effectiveColorRange.effMax;
       const stops = [];
       const n = 6;
       for (let i = 0; i <= n; i++) {
@@ -1753,9 +1751,6 @@
           const b = frac * 100;
           color = tintColorByBrightness(cctToRGB(currentCCT), b);
         } else {
-          // Step/circadian slider: use natural color range (cMin to cMax).
-          // The override mechanism in set_position counteracts solar rules,
-          // so the slider can achieve the full natural range at any time.
           const b = bMin + (bMax - bMin) * frac;
           const k = cMin + (cMax - cMin) * frac;
           color = tintColorByBrightness(cctToRGB(k), b);
@@ -3192,7 +3187,7 @@
         lhtml += '<div class="tune-light-col-headers">'
           + '<span class="tune-light-sort" data-sort="name">light name</span>'
           + '<span class="tune-light-sort" data-sort="behaviour">purpose</span>'
-          + '<span class="tune-light-sort" data-sort="impact">purpose adj.</span>'
+          + '<span class="tune-light-sort" data-sort="impact">purpose</span>'
           + '<span class="tune-light-sort" data-sort="ct">CT</span>'
           + '<span class="tune-light-sort tune-light-sort-final" data-sort="final">final</span>'
           + '</div>';

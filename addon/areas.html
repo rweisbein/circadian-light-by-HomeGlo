@@ -2695,6 +2695,7 @@
       const { leftControls, rightControls } = getRowControls(area);
       const sliderPct = getSliderPct(area.brightness || 0, area);
       const mismatchDot = getMismatchDot(area);
+      const effColor = getEffectiveColorLimits(area);
 
       return `
         <div class="area-row" style="--row-bg: ${style.bg}; --row-text: ${style.textColor}; --row-fill: ${style.fill.toFixed(3)};">
@@ -2705,7 +2706,7 @@
               <span class="row-timer" data-area-timer="${area.area_id}" data-zone-name="${area.zone_name || ''}"></span>
               ${mismatchDot}
             </div>
-            <div class="row-slider-track" data-area-id="${area.area_id}" data-bmin="${area.min_brightness ?? 1}" data-bmax="${area.max_brightness ?? 100}" data-cmin="${area.min_color_temp ?? 2200}" data-cmax="${area.max_color_temp ?? 6500}">
+            <div class="row-slider-track" data-area-id="${area.area_id}" data-bmin="${area.min_brightness ?? 1}" data-bmax="${area.max_brightness ?? 100}" data-cmin="${effColor.effMin}" data-cmax="${effColor.effMax}">
               <div class="row-slider-fill"></div>
               <div class="row-slider-thumb" style="left: ${sliderPct.toFixed(1)}%"></div>
             </div>
@@ -2752,6 +2753,24 @@
       const bMin = area?.min_brightness ?? 1;
       const bMax = area?.max_brightness ?? 100;
       return bMax > bMin ? Math.max(0, Math.min(100, (brightness - bMin) / (bMax - bMin) * 100)) : 0;
+    }
+
+    function getEffectiveColorLimits(area) {
+      const cMin = area.min_color_temp ?? 2200;
+      const cMax = area.max_color_temp ?? 6500;
+      const sb = area.solar_breakdown;
+      if (!sb) return { effMin: cMin, effMax: cMax };
+      let effMax = cMax;
+      if (sb.warm_night_enabled && sb.night_strength > 0) {
+        const ceiling = sb.warm_night_target || 2700;
+        effMax = Math.round(cMax - Math.max(0, cMax - ceiling) * sb.night_strength);
+      }
+      let effMin = cMin;
+      if (sb.daylight_blend > 0 && sb.daylight_cct > 0) {
+        effMin = Math.round(cMin + Math.max(0, sb.daylight_cct - cMin) * sb.daylight_blend);
+      }
+      if (effMin > effMax) effMin = effMax;
+      return { effMin, effMax };
     }
 
     function getRowStyle(area) {
