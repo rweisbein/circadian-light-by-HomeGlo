@@ -1240,7 +1240,7 @@
       const boostBri = parseFloat(tuneAreaEl.dataset.boostBri) || 0;
       const briOverride = parseFloat(tuneAreaEl.dataset.briOverride) || 0;
       const nowRaw = computeNowBrightness(rhythmBri + boostBri, factor, exposure, outdoorNorm, sensitivity, fadeWeight) + briOverride;
-      const nowBri = Math.min(100, Math.round(nowRaw));
+      const nowBri = Math.max(0, Math.min(100, Math.round(nowRaw)));
       const nowEl = tuneAreaEl.querySelector('.tune-bri-now');
       if (nowEl) {
         const boostIcon = boostBri > 0 ? '\u26A1 ' : '';
@@ -1822,7 +1822,7 @@
           const isBoosted = tuneArea?.boosted || false;
           const boostBri = isBoosted ? (tuneArea.boost_brightness || 0) : 0;
           const briOverride = tuneArea?.bri_override || 0;
-          const nowBri = Math.min(100, computeNowBrightness(rhythmBri + boostBri, factor, exposure, outdoorNorm, sensitivity, briFadeWeight) + briOverride);
+          const nowBri = Math.max(0, Math.min(100, Math.round(computeNowBrightness(rhythmBri + boostBri, factor, exposure, outdoorNorm, sensitivity, briFadeWeight) + briOverride)));
           const factorStr = formatFactorMeta(factor);
           const sunMeta = formatSunMeta(exposure, sensitivity, outdoorNorm);
 
