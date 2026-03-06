@@ -1974,9 +1974,15 @@ class CircadianLight:
                 )
             elif state.color_override is not None:
                 # Recalibrate existing override (shrink or clear)
-                state_updates["color_override"] = _converge_override(
+                needed = _converge_override(
                     target_natural_cct, base_cct, tolerance, _render_step_pos,
                 )
+                # Only keep negative overrides (counteracting cooling rules);
+                # positive overrides would fight warming rules (Warm Night)
+                if needed is not None and needed > 0:
+                    state_updates["color_override"] = None
+                else:
+                    state_updates["color_override"] = needed
             else:
                 # Rendered matches or is warmer than target — no override needed
                 state_updates["color_override"] = None
