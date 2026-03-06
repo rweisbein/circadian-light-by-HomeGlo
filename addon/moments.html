@@ -190,6 +190,27 @@
     }
 
     /* Delete button in row */
+    .row-run-btn {
+      background: transparent;
+      border: none;
+      color: var(--muted2);
+      cursor: pointer;
+      font-size: 0.85rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      line-height: 1;
+      transition: all 0.15s;
+    }
+    .row-run-btn:hover {
+      color: var(--accent);
+      background: rgba(59, 130, 246, 0.1);
+    }
+    .row-run-btn.running {
+      color: var(--accent);
+      opacity: 0.5;
+      pointer-events: none;
+    }
+
     .row-delete-btn {
       background: transparent;
       border: none;
@@ -439,7 +460,8 @@
             <td>${escapeHtml(categoryLabel)}</td>
             <td>${escapeHtml(actionLabel)}</td>
             <td>${exceptionsLabel}</td>
-            <td>
+            <td style="white-space: nowrap;">
+              <button class="row-run-btn" title="Run moment" onclick="event.stopPropagation(); runMoment('${m.id.replace(/'/g, "\\'")}', this)">&#x25B6;</button>
               <button class="row-delete-btn" title="Delete moment" onclick="event.stopPropagation(); deleteMoment('${m.id.replace(/'/g, "\\'")}', '${escapeHtml(m.name).replace(/'/g, "\\'")}')">&#x2715;</button>
             </td>
           </tr>
@@ -468,6 +490,22 @@
         console.error('Error deleting moment:', err);
         alert('Error deleting moment');
       }
+    }
+
+    async function runMoment(id, btn) {
+      btn.classList.add('running');
+      try {
+        const response = await fetch(`./api/moments/${encodeURIComponent(id)}/run`, {
+          method: 'POST'
+        });
+        if (!response.ok) {
+          const data = await response.json();
+          alert(data.error || 'Failed to run moment');
+        }
+      } catch (err) {
+        console.error('Error running moment:', err);
+      }
+      setTimeout(() => btn.classList.remove('running'), 600);
     }
 
     async function createNewMoment() {

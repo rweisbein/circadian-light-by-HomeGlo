@@ -5491,6 +5491,20 @@ class HomeAssistantWebSocketClient:
                     await self.primitives.set(
                         area_id, "webserver", preset="britelite", is_on=True
                     )
+                elif service and service.startswith("set_"):
+                    moment_id = service[4:]
+                    moments = self._get_moments()
+                    if moment_id in moments:
+                        logger.info(
+                            f"[webserver] Applying moment '{moment_id}'"
+                        )
+                        await self.primitives.set(
+                            None, "webserver", preset=moment_id
+                        )
+                    else:
+                        logger.warning(
+                            f"Unknown set action from webserver: {service}"
+                        )
                 else:
                     logger.warning(
                         f"Unknown circadian_light_service_event: service={service}, area_id={area_id}"

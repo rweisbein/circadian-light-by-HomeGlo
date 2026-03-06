@@ -465,14 +465,14 @@ def get_area_zone_and_config(area_id: str) -> Tuple[str, Dict[str, Any]]:
 
 # Default filter presets
 DEFAULT_FILTER_PRESETS = {
-    "Standard": {"at_bright": 100, "at_dim": 100, "off_threshold": 3},
+    "Standard": {"at_bright": 100, "at_dim": 100, "off_threshold": 0},
     "Overhead": {"at_bright": 100, "at_dim": 0, "off_threshold": 3},
-    "Lamp": {"at_bright": 30, "at_dim": 100, "off_threshold": 3},
-    "Accent": {"at_bright": 50, "at_dim": 50, "off_threshold": 3},
-    "Nightlight": {"at_bright": 0, "at_dim": 40, "off_threshold": 3},
+    "Lamp": {"at_bright": 30, "at_dim": 100, "off_threshold": 0},
+    "Accent": {"at_bright": 50, "at_dim": 50, "off_threshold": 0},
+    "Nightlight": {"at_bright": 0, "at_dim": 40, "off_threshold": 0},
 }
 
-DEFAULT_OFF_THRESHOLD = 3
+DEFAULT_OFF_THRESHOLD = 0
 
 
 def get_light_filter_presets() -> Dict[str, Dict[str, int]]:

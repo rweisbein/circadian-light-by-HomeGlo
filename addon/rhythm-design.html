@@ -3500,11 +3500,11 @@ function toggleSubSection(sectionId) {
 function updateSubSectionSummaries() {
   const wakeVal = document.getElementById('wake-sub-val');
   if (wakeVal) {
-    wakeVal.innerHTML = '<b>' + formatHour(config.wake_time) + '</b> · ' + config.wake_brightness + '%';
+    wakeVal.innerHTML = '';
   }
   const bedVal = document.getElementById('bed-sub-val');
   if (bedVal) {
-    bedVal.innerHTML = '<b>' + formatHour(config.bed_time) + '</b> · ' + config.bed_brightness + '%';
+    bedVal.innerHTML = '';
   }
 }
 

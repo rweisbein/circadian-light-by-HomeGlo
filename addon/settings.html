@@ -1002,7 +1002,7 @@
           document.getElementById('two-step-delay').value = config.two_step_delay ?? 3;
           document.getElementById('multi-click-enabled').checked = config.multi_click_enabled ?? true;
           document.getElementById('multi-click-speed').value = config.multi_click_speed ?? 10;
-          document.getElementById('long-press-repeat-interval').value = config.long_press_repeat_interval ?? 3;
+          document.getElementById('long-press-repeat-interval').value = config.long_press_repeat_interval ?? 7;
           document.getElementById('max-dim-steps').value = config.max_dim_steps ?? 10;
           document.getElementById('reach-learn-mode').checked = config.reach_learn_mode ?? true;
           document.getElementById('confirm-zone-pushes').checked = config.confirm_zone_pushes ?? false;
@@ -1094,7 +1094,7 @@
         two_step_delay: parseFloat(document.getElementById('two-step-delay').value) || 3,
         multi_click_enabled: document.getElementById('multi-click-enabled').checked,
         multi_click_speed: parseFloat(document.getElementById('multi-click-speed').value) || 10,
-        long_press_repeat_interval: parseFloat(document.getElementById('long-press-repeat-interval').value) || 3,
+        long_press_repeat_interval: parseFloat(document.getElementById('long-press-repeat-interval').value) || 7,
         max_dim_steps: parseInt(document.getElementById('max-dim-steps').value) || 10,
         reach_learn_mode: document.getElementById('reach-learn-mode').checked,
         confirm_zone_pushes: document.getElementById('confirm-zone-pushes').checked,

@@ -524,7 +524,11 @@
     function updateHeader() {
       if (!moment) return;
       document.getElementById('header-icon-btn').innerHTML = moment.icon || '&#127763;';
-      document.getElementById('page-title').value = moment.name || 'Unnamed Moment';
+      const titleInput = document.getElementById('page-title');
+      titleInput.value = moment.name || 'Unnamed Moment';
+      if (moment.name === 'New Moment') {
+        requestAnimationFrame(() => { titleInput.focus(); titleInput.select(); });
+      }
     }
 
     function renderMomentEditor() {

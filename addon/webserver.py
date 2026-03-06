@@ -536,6 +536,14 @@ class LightDesignerServer:
         self.app.router.add_get("/api/moments/{moment_id}", self.get_moment)
         self.app.router.add_put("/api/moments/{moment_id}", self.update_moment)
         self.app.router.add_delete("/api/moments/{moment_id}", self.delete_moment)
+        self.app.router.add_route(
+            "POST",
+            "/{path:.*}/api/moments/{moment_id}/run",
+            self.run_moment,
+        )
+        self.app.router.add_post(
+            "/api/moments/{moment_id}/run", self.run_moment
+        )
 
         # GloZone API routes - Actions
         self.app.router.add_route(
@@ -1105,10 +1113,10 @@ class LightDesignerServer:
                     "brightness_sensitivity": raw_config.get(
                         "brightness_sensitivity", 5.0
                     ),
-                    "ct_comp_enabled": raw_config.get("ct_comp_enabled", False),
+                    "ct_comp_enabled": raw_config.get("ct_comp_enabled", True),
                     "ct_comp_begin": raw_config.get("ct_comp_begin", 1650),
                     "ct_comp_end": raw_config.get("ct_comp_end", 2250),
-                    "ct_comp_factor": raw_config.get("ct_comp_factor", 1.4),
+                    "ct_comp_factor": raw_config.get("ct_comp_factor", 1.7),
                     "zones": zones,
                     "presets": presets,
                     "off_threshold": off_threshold,
@@ -2195,7 +2203,7 @@ class LightDesignerServer:
             "log_periodic": False,  # log periodic update details
             "home_refresh_interval": 10,  # seconds (home page card refresh)
             # Motion warning settings
-            "motion_warning_time": 0,  # seconds (0 = disabled)
+            "motion_warning_time": 30,  # seconds (0 = disabled)
             "motion_warning_blink_threshold": 15,  # percent brightness
             # Visual feedback settings
             "freeze_off_rise": 10,  # tenths of seconds (1.0s)
@@ -2278,7 +2286,7 @@ class LightDesignerServer:
             "log_periodic": False,  # log periodic update details
             "home_refresh_interval": 10,  # seconds (home page card refresh)
             # Motion warning settings
-            "motion_warning_time": 0,  # seconds (0 = disabled)
+            "motion_warning_time": 30,  # seconds (0 = disabled)
             "motion_warning_blink_threshold": 15,  # percent brightness
             # Visual feedback settings
             "freeze_off_rise": 10,  # tenths of seconds (1.0s)
@@ -5043,6 +5051,41 @@ class LightDesignerServer:
             return web.json_response({"status": "deleted", "id": moment_id})
         except Exception as e:
             logger.error(f"Error deleting moment: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def run_moment(self, request: Request) -> Response:
+        """Run a moment – fire set_<moment_id> event for main.py to apply."""
+        try:
+            moment_id = request.match_info.get("moment_id")
+            config = await self.load_raw_config()
+            moments = config.get("moments", {})
+            if moment_id not in moments:
+                return web.json_response(
+                    {"error": f"Moment '{moment_id}' not found"}, status=404
+                )
+
+            event_data = {
+                "service": f"set_{moment_id}",
+                "area_id": "__moment__",
+            }
+            _, ws_url, token = self._get_ha_api_config()
+            if ws_url and token:
+                success = await self._fire_event_via_websocket(
+                    ws_url, token, "circadian_light_service_event", event_data
+                )
+                if success:
+                    logger.info(f"Fired run event for moment '{moment_id}'")
+                    return web.json_response(
+                        {"status": "ok", "moment_id": moment_id}
+                    )
+                return web.json_response(
+                    {"error": "Failed to fire event"}, status=500
+                )
+            return web.json_response(
+                {"error": "HA API not configured"}, status=503
+            )
+        except Exception as e:
+            logger.error(f"Error running moment: {e}")
             return web.json_response({"error": str(e)}, status=500)
 
     # -------------------------------------------------------------------------
