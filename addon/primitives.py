@@ -325,6 +325,57 @@ class CircadianLightPrimitives:
         """Update area state in state module."""
         state.update_area(area_id, updates)
 
+    def _reduce_overrides_toward_zero(self, area_id: str, area_state, config, direction: str) -> bool:
+        """Reduce brightness/color overrides that oppose the step direction.
+
+        When step_up/step_down hits the curve limit but overrides are keeping
+        the effective value away from the limit, reduce the overrides by one
+        step instead of bouncing.
+
+        Args:
+            area_id: Area ID
+            area_state: Current AreaState
+            config: Area config
+            direction: "up" or "down"
+
+        Returns:
+            True if any override was reduced (caller should skip bounce).
+        """
+        steps = config.max_dim_steps or DEFAULT_MAX_DIM_STEPS
+        updates = {}
+
+        # Brightness override
+        bri_override = area_state.brightness_override or 0
+        bri_opposes = (direction == "up" and bri_override < 0) or (direction == "down" and bri_override > 0)
+        if bri_opposes:
+            bri_step = (config.max_brightness - config.min_brightness) / steps
+            if direction == "up":
+                new_bri = round(min(0, bri_override + bri_step), 1)
+            else:
+                new_bri = round(max(0, bri_override - bri_step), 1)
+            new_bri = new_bri if new_bri != 0 else None
+            updates["brightness_override"] = new_bri
+            updates["brightness_override_set_at"] = area_state.brightness_override_set_at if new_bri is not None else None
+
+        # Color override (only user-originated, i.e. has set_at)
+        color_override = area_state.color_override or 0
+        color_opposes = (direction == "up" and color_override < 0) or (direction == "down" and color_override > 0)
+        if color_opposes and area_state.color_override_set_at is not None:
+            color_step = (config.max_color_temp - config.min_color_temp) / steps
+            if direction == "up":
+                new_color = round(min(0, color_override + color_step), 1)
+            else:
+                new_color = round(max(0, color_override - color_step), 1)
+            new_color = new_color if new_color != 0 else None
+            updates["color_override"] = new_color
+            updates["color_override_set_at"] = area_state.color_override_set_at if new_color is not None else None
+
+        if updates:
+            self._update_area_state(area_id, updates)
+            logger.info(f"Step {direction} at curve limit, reducing overrides for {area_id}: {updates}")
+            return True
+        return False
+
     # -------------------------------------------------------------------------
     # Step Up / Step Down (brightness-primary, both curves)
     # -------------------------------------------------------------------------
@@ -364,19 +415,7 @@ class CircadianLightPrimitives:
             bri_at_max = frozen_bri >= config.max_brightness - bri_margin
             cct_at_max = frozen_cct_natural >= config.max_color_temp - cct_margin
             if bri_at_max and cct_at_max:
-                # Frozen at max — if there's a negative override, reduce it instead of bouncing
-                current_override = area_state.brightness_override or 0
-                if current_override < 0:
-                    steps = config.max_dim_steps or DEFAULT_MAX_DIM_STEPS
-                    step_size = (config.max_brightness - config.min_brightness) / steps
-                    new_override = round(min(0, current_override + step_size), 1)
-                    new_override = new_override if new_override != 0 else None
-                    set_at = area_state.brightness_override_set_at if new_override is not None else None
-                    self._update_area_state(area_id, {
-                        "brightness_override": new_override,
-                        "brightness_override_set_at": set_at,
-                    })
-                    logger.info(f"Step up at frozen max, reducing override {current_override:.1f} -> {new_override} for {area_id}")
+                if self._reduce_overrides_toward_zero(area_id, area_state, config, "up"):
                     if area_state.is_on:
                         await self.client.update_lights_in_circadian_mode(area_id)
                     return
@@ -410,19 +449,7 @@ class CircadianLightPrimitives:
         )
 
         if result is None:
-            # Curve at limit — if there's a negative override, reduce it instead of bouncing
-            current_override = area_state.brightness_override or 0
-            if current_override < 0:
-                steps = config.max_dim_steps or DEFAULT_MAX_DIM_STEPS
-                step_size = (config.max_brightness - config.min_brightness) / steps
-                new_override = round(min(0, current_override + step_size), 1)
-                new_override = new_override if new_override != 0 else None
-                set_at = area_state.brightness_override_set_at if new_override is not None else None
-                self._update_area_state(area_id, {
-                    "brightness_override": new_override,
-                    "brightness_override_set_at": set_at,
-                })
-                logger.info(f"Step up at curve limit, reducing override {current_override:.1f} -> {new_override} for {area_id}")
+            if self._reduce_overrides_toward_zero(area_id, area_state, config, "up"):
                 if area_state.is_on:
                     await self.client.update_lights_in_circadian_mode(area_id)
                 return
@@ -482,19 +509,7 @@ class CircadianLightPrimitives:
             bri_at_min = frozen_bri <= config.min_brightness + bri_margin
             cct_at_min = frozen_cct_natural <= config.min_color_temp + cct_margin
             if bri_at_min and cct_at_min:
-                # Frozen at min — if there's a positive override, reduce it instead of bouncing
-                current_override = area_state.brightness_override or 0
-                if current_override > 0:
-                    steps = config.max_dim_steps or DEFAULT_MAX_DIM_STEPS
-                    step_size = (config.max_brightness - config.min_brightness) / steps
-                    new_override = round(max(0, current_override - step_size), 1)
-                    new_override = new_override if new_override != 0 else None
-                    set_at = area_state.brightness_override_set_at if new_override is not None else None
-                    self._update_area_state(area_id, {
-                        "brightness_override": new_override,
-                        "brightness_override_set_at": set_at,
-                    })
-                    logger.info(f"Step down at frozen min, reducing override {current_override:.1f} -> {new_override} for {area_id}")
+                if self._reduce_overrides_toward_zero(area_id, area_state, config, "down"):
                     if area_state.is_on:
                         await self.client.update_lights_in_circadian_mode(area_id)
                     return
@@ -528,19 +543,7 @@ class CircadianLightPrimitives:
         )
 
         if result is None:
-            # Curve at limit — if there's a positive override, reduce it instead of bouncing
-            current_override = area_state.brightness_override or 0
-            if current_override > 0:
-                steps = config.max_dim_steps or DEFAULT_MAX_DIM_STEPS
-                step_size = (config.max_brightness - config.min_brightness) / steps
-                new_override = round(max(0, current_override - step_size), 1)
-                new_override = new_override if new_override != 0 else None
-                set_at = area_state.brightness_override_set_at if new_override is not None else None
-                self._update_area_state(area_id, {
-                    "brightness_override": new_override,
-                    "brightness_override_set_at": set_at,
-                })
-                logger.info(f"Step down at curve limit, reducing override {current_override:.1f} -> {new_override} for {area_id}")
+            if self._reduce_overrides_toward_zero(area_id, area_state, config, "down"):
                 if area_state.is_on:
                     await self.client.update_lights_in_circadian_mode(area_id)
                 return
