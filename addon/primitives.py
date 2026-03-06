@@ -325,6 +325,50 @@ class CircadianLightPrimitives:
         """Update area state in state module."""
         state.update_area(area_id, updates)
 
+    def _get_decayed_brightness_override(self, area_id: str) -> Optional[float]:
+        """Get the current decay-adjusted brightness override for an area.
+
+        Returns None if no override is set or decay has completed.
+        """
+        area_state = self._get_area_state(area_id)
+        if area_state.brightness_override is None:
+            return None
+        if area_state.brightness_override_set_at is None:
+            return area_state.brightness_override
+        config = self._get_config(area_id)
+        hour = get_current_hour()
+        in_ascend, h48, t_ascend, t_descend, _ = CircadianLight.get_phase_info(hour, config)
+        next_phase = t_descend if in_ascend else t_ascend + 24
+        decay = compute_override_decay(area_state.brightness_override_set_at, h48, next_phase)
+        if decay <= 0:
+            return None
+        return area_state.brightness_override * decay
+
+    async def _apply_step_result(self, area_id: str, result) -> None:
+        """Apply a StepResult to lights using the full pipeline.
+
+        Uses the step's color/brightness values (not re-rendered) but runs
+        through turn_on_lights_circadian so area_factor, filters, and
+        brightness_override are applied correctly.
+        """
+        effective_override = self._get_decayed_brightness_override(area_id)
+        # Check for boost
+        brightness = result.brightness
+        if state.is_boosted(area_id):
+            boost_state = state.get_boost_state(area_id)
+            boost_amount = boost_state.get("boost_brightness") or 0
+            brightness = result.brightness + boost_amount
+
+        lighting_values = {
+            "brightness": brightness,
+            "kelvin": result.color_temp,
+            "rgb": result.rgb,
+            "xy": result.xy,
+            "rhythm_brightness": result.brightness,
+            "brightness_override": effective_override,
+        }
+        await self.client.turn_on_lights_circadian(area_id, lighting_values)
+
     def _reduce_overrides_toward_zero(self, area_id: str, area_state, config, direction: str) -> bool:
         """Reduce brightness/color overrides that oppose the step direction.
 
@@ -467,9 +511,10 @@ class CircadianLightPrimitives:
         logger.info(f"Step up state_updates: {result.state_updates}")
         self._update_area_state(area_id, result.state_updates)
 
-        # Apply to lights only if is_on=True (use full pipeline for override/filter support)
+        # Apply to lights only if is_on=True
+        # Use step's color values directly (not re-rendered) with pipeline for area_factor/filters/override
         if area_state.is_on:
-            await self.client.update_lights_in_circadian_mode(area_id)
+            await self._apply_step_result(area_id, result)
             logger.info(f"Step up applied: {result.brightness}%, {result.color_temp}K")
         else:
             logger.info(f"Step up state updated (lights off): {result.brightness}%, {result.color_temp}K")
@@ -560,9 +605,10 @@ class CircadianLightPrimitives:
         # Update state (always, even if is_on=False)
         self._update_area_state(area_id, result.state_updates)
 
-        # Apply to lights only if is_on=True (use full pipeline for override/filter support)
+        # Apply to lights only if is_on=True
+        # Use step's color values directly (not re-rendered) with pipeline for area_factor/filters/override
         if area_state.is_on:
-            await self.client.update_lights_in_circadian_mode(area_id)
+            await self._apply_step_result(area_id, result)
             logger.info(f"Step down applied: {result.brightness}%, {result.color_temp}K")
         else:
             logger.info(f"Step down state updated (lights off): {result.brightness}%, {result.color_temp}K")
