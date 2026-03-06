@@ -116,7 +116,7 @@
     }
 
     /* Name-column sort pair (area · a-z) */
-    .tune-name-sort { display: inline; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.5px; }
+    .tune-name-sort { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.5px; flex: 1; min-width: 0; }
     .tune-name-sort-item { color: var(--muted2); cursor: pointer; transition: color 0.15s; }
     .tune-name-sort-item:hover { color: var(--text); }
     .tune-name-sort-item.active-sort { color: var(--accent); }
@@ -1870,6 +1870,11 @@
         const zoneControlsHtml = `
           <div class="tune-zone-controls" data-zone="${zoneName}" onclick="event.stopPropagation()">
             <div class="tune-col-headers-row">
+              <span class="tune-name-sort" onclick="event.stopPropagation()">
+                <span class="tune-name-sort-item ${tuneSortOrder === 'custom' ? 'active-sort' : ''}" onclick="setTuneSort('custom')">area</span>
+                <span class="tune-name-sort-dot">&middot;</span>
+                <span class="tune-name-sort-item ${tuneSortOrder === 'az' ? 'active-sort' : ''}" onclick="setTuneSort('az')">a-z</span>
+              </span>
               <span class="tune-col-header tune-col-header-balance ${tuneSortOrder === 'light' ? 'active-sort' : ''}" onclick="setTuneSort('light')">Room Balance</span>
               <span class="tune-col-header tune-col-header-sun ${tuneSortOrder === 'sun' ? 'active-sort' : ''}" onclick="setTuneSort('sun')">Sun Exposure</span>
               <span class="tune-bri-col tune-col-header ${tuneSortOrder === 'bri' ? 'active-sort' : ''}" onclick="setTuneSort('bri')">Bri</span>
@@ -1889,11 +1894,6 @@
               <div class="zone-name-group">
                 <a class="zone-rhythm-link" href="./zone/${encodeURIComponent(zoneName)}?back=tune" onclick="event.stopPropagation()">${zoneName}</a>
                 <span class="zone-label-sub">rhythm zone</span>
-                <span class="tune-name-sort" onclick="event.stopPropagation()">
-                  <span class="tune-name-sort-item ${tuneSortOrder === 'custom' ? 'active-sort' : ''}" onclick="setTuneSort('custom')">area</span>
-                  <span class="tune-name-sort-dot">&middot;</span>
-                  <span class="tune-name-sort-item ${tuneSortOrder === 'az' ? 'active-sort' : ''}" onclick="setTuneSort('az')">a-z</span>
-                </span>
               </div>
               <span class="tune-zone-bri-group">
                 <span class="tune-zone-base-bri">${rhythmBri}%</span>
