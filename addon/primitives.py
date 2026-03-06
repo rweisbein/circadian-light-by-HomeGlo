@@ -1074,7 +1074,22 @@ class CircadianLightPrimitives:
         # Clamp so effective brightness stays within physical limits (1–100)
         max_override = 100.0 - scaled_base
         min_override = 1.0 - scaled_base
+        unclamped = new_override
         new_override = round(max(min_override, min(max_override, new_override)), 1)
+
+        # If the clamp prevented movement in the desired direction, we're at the limit
+        clamped_at_limit = (
+            (direction == "down" and unclamped < new_override) or
+            (direction == "up" and unclamped > new_override)
+        )
+        if clamped_at_limit:
+            logger.info(f"brightness_{direction} clamped at limit for {area_id} (effective={scaled_base + new_override:.1f})")
+            if area_state.is_on:
+                current_cct = CircadianLight.calculate_color_at_hour(
+                    hour, config, area_state, apply_solar_rules=True, sun_times=sun_times
+                )
+                await self._bounce_at_limit(area_id, scaled_base + new_override, current_cct, direction=direction, bounce_type="bright")
+            return
 
         self._update_area_state(area_id, {
             "brightness_override": new_override,
