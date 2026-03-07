@@ -1240,11 +1240,17 @@ class CircadianLightPrimitives:
         result = CircadianLight.calculate_lighting(hour, config, area_state, sun_times=sun_times)
         transition = self._get_turn_on_transition()
 
+        # Apply brightness_override (from step_up/down or zone sync)
+        base_brightness = result.brightness
+        effective_override = self._get_decayed_brightness_override(area_id)
+        if effective_override is not None:
+            base_brightness = max(1, min(100, round(base_brightness + effective_override)))
+
         # Calculate final brightness (with boost if provided)
         if has_boost:
-            final_brightness = min(100, result.brightness + boost_brightness)
+            final_brightness = min(100, base_brightness + boost_brightness)
         else:
-            final_brightness = result.brightness
+            final_brightness = base_brightness
 
         # Set boost state BEFORE applying lighting to prevent race condition:
         # _apply_lighting_turn_on() has an asyncio.sleep for two-step delay,
@@ -1383,8 +1389,13 @@ class CircadianLightPrimitives:
             hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
             result = CircadianLight.calculate_lighting(hour, config, area_state)
             transition = self._get_turn_on_transition()
-            await self._apply_lighting_turn_on(area_id, result.brightness, result.color_temp, transition)
-            logger.info(f"circadian_on applied: {result.brightness}%, {result.color_temp}K (is_on=True)")
+            # Apply brightness_override (from step_up/down or zone sync)
+            final_brightness = result.brightness
+            effective_override = self._get_decayed_brightness_override(area_id)
+            if effective_override is not None:
+                final_brightness = max(1, min(100, round(final_brightness + effective_override)))
+            await self._apply_lighting_turn_on(area_id, final_brightness, result.color_temp, transition)
+            logger.info(f"circadian_on applied: {final_brightness}%, {result.color_temp}K (is_on=True)")
         else:
             # Enforce off state
             transition = self._get_turn_off_transition()
@@ -1482,7 +1493,12 @@ class CircadianLightPrimitives:
                 hour = area_state.frozen_at if area_state.frozen_at is not None else get_current_hour()
 
                 result = CircadianLight.calculate_lighting(hour, config, area_state, sun_times=sun_times)
-                area_lighting.append((area_id, result.brightness, result.color_temp))
+                # Apply brightness_override (from step_up/down or zone sync)
+                final_brightness = result.brightness
+                effective_override = self._get_decayed_brightness_override(area_id)
+                if effective_override is not None:
+                    final_brightness = max(1, min(100, round(final_brightness + effective_override)))
+                area_lighting.append((area_id, final_brightness, result.color_temp))
 
             # Use batched turn-on for unified 2-step across all areas
             await self._apply_lighting_turn_on_multiple(area_lighting, transition=transition)
