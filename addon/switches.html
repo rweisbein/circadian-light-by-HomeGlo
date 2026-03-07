@@ -961,7 +961,14 @@
       // Handle motion sensor actions
       if (action === 'motion_detected') {
         const sortVal = timestamp || '';
-        return `<span class="last-action" data-sort="${sortVal}">${timeStr ? timeStr + ' ' : ''}Motion</span>`;
+        let cooldownStr = '';
+        if (ctrl.cooldown > 0 && ctrl.last_action?.cooldown_until) {
+          const remaining = Math.max(0, Math.ceil((new Date(ctrl.last_action.cooldown_until).getTime() - Date.now()) / 1000));
+          if (remaining > 0) {
+            cooldownStr = ` <span style="color:var(--accent);font-size:0.75rem;">(${remaining}s)</span>`;
+          }
+        }
+        return `<span class="last-action" data-sort="${sortVal}">${timeStr ? timeStr + ' ' : ''}Motion${cooldownStr}</span>`;
       }
       if (action === 'motion_cleared') {
         const sortVal = timestamp || '';

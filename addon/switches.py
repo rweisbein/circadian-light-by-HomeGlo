@@ -697,6 +697,7 @@ class MotionSensorConfig:
     device_id: Optional[str] = None      # HA device_id
     inactive: bool = False               # If True, sensor won't trigger actions
     inactive_until: Optional[str] = None # ISO timestamp or "forever"; None = no timer
+    cooldown: int = 0                    # Seconds to ignore triggers after processing one (0 = disabled)
 
     def get_area_config(self, area_id: str) -> Optional[MotionAreaConfig]:
         """Get config for a specific area."""
@@ -721,6 +722,8 @@ class MotionSensorConfig:
             result["device_id"] = self.device_id
         if self.inactive_until:
             result["inactive_until"] = self.inactive_until
+        if self.cooldown > 0:
+            result["cooldown"] = self.cooldown
         return result
 
     @classmethod
@@ -734,6 +737,7 @@ class MotionSensorConfig:
             device_id=data.get("device_id"),
             inactive=data.get("inactive", False),
             inactive_until=data.get("inactive_until"),
+            cooldown=data.get("cooldown", 0),
         )
 
 
@@ -1390,10 +1394,15 @@ def get_hold_action(switch_id: str) -> Optional[str]:
     return state.hold_action if state else None
 
 
-def set_last_action(switch_id: str, action: str) -> None:
+def set_last_action(switch_id: str, action: str, cooldown_until: str = None) -> None:
     """Record the last button action for a switch with timestamp.
 
     Persists to file for cross-process sharing with webserver.
+
+    Args:
+        switch_id: Switch or sensor ID
+        action: Action name (e.g., "motion_detected")
+        cooldown_until: Optional ISO timestamp when cooldown expires
     """
     from datetime import datetime
 
@@ -1407,10 +1416,13 @@ def set_last_action(switch_id: str, action: str) -> None:
 
     # Persist to file for webserver to read (with timestamp)
     all_actions = _load_last_actions()
-    all_actions[switch_id] = {
+    entry = {
         "action": action,
         "timestamp": datetime.now().isoformat()
     }
+    if cooldown_until:
+        entry["cooldown_until"] = cooldown_until
+    all_actions[switch_id] = entry
     _save_last_actions(all_actions)
     logger.debug(f"[LastAction] SET '{switch_id}': {action}")
 

@@ -6530,6 +6530,7 @@ class LightDesignerServer:
                 control_data["inactive_until"] = config.get("inactive_until")
                 if category in ("motion_sensor", "contact_sensor"):
                     control_data["areas"] = config.get("areas", [])
+                    control_data["cooldown"] = config.get("cooldown", 0)
                 else:
                     control_data["scopes"] = config.get("scopes", [])
                     control_data["indicator_light"] = config.get("indicator_light")
@@ -6922,6 +6923,7 @@ class LightDesignerServer:
                     device_id=device_id,
                     inactive=data.get("inactive", False),
                     inactive_until=data.get("inactive_until"),
+                    cooldown=data.get("cooldown", 0),
                 )
 
                 switches.add_motion_sensor(motion_config)

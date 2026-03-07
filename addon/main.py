@@ -167,6 +167,10 @@ class HomeAssistantWebSocketClient:
         self._dial_position: Dict[str, float] = {}
         self._dial_pending: Dict[str, Dict[str, Any]] = {}
 
+        # Motion sensor cooldown: sensor_id -> time.time() when cooldown expires
+        # In-memory only — resets on restart (no stale cooldowns)
+        self._motion_cooldown_until: Dict[str, float] = {}
+
         # Brightness curve configuration (populated from supervisor/designer config)
         self.max_dim_steps = DEFAULT_MAX_DIM_STEPS
         self.min_brightness = DEFAULT_MIN_BRIGHTNESS
@@ -547,10 +551,8 @@ class HomeAssistantWebSocketClient:
             logger.debug(f"[Motion] No device ID mapped for entity {entity_id}")
             return
 
-        # Record last action for UI display (motion detected or cleared)
-        if new_state == "on":
-            switches.set_last_action(device_id, "motion_detected")
-        else:
+        # Record last action for UI display (motion cleared doesn't need cooldown info)
+        if new_state != "on":
             switches.set_last_action(device_id, "motion_cleared")
 
         # Get motion sensor config by device_id
@@ -565,6 +567,16 @@ class HomeAssistantWebSocketClient:
             )
             return
 
+        # Check cooldown (only for motion detected, not cleared)
+        if new_state == "on" and sensor_config.cooldown > 0:
+            now = time.time()
+            until = self._motion_cooldown_until.get(sensor_config.id, 0)
+            if now < until:
+                logger.debug(
+                    f"[Motion] {sensor_config.name} in cooldown ({until - now:.0f}s left)"
+                )
+                return
+
         if not sensor_config.areas:
             logger.debug(
                 f"[Motion] Sensor {sensor_config.name} has no areas configured"
@@ -574,6 +586,17 @@ class HomeAssistantWebSocketClient:
         logger.info(
             f"[Motion] {entity_id} -> {new_state} (sensor={sensor_config.name})"
         )
+
+        # Set cooldown and record last action with cooldown_until for UI
+        if new_state == "on":
+            cooldown_until_iso = None
+            if sensor_config.cooldown > 0:
+                expires = time.time() + sensor_config.cooldown
+                self._motion_cooldown_until[sensor_config.id] = expires
+                cooldown_until_iso = datetime.fromtimestamp(expires).isoformat()
+            switches.set_last_action(
+                device_id, "motion_detected", cooldown_until=cooldown_until_iso
+            )
 
         # Process each area configured for this sensor
         for area_config in sensor_config.areas:
@@ -674,11 +697,30 @@ class HomeAssistantWebSocketClient:
             switches.set_last_action(device_id, "motion_cleared")
             return
 
+        # Check cooldown before processing motion detected
+        if sensor_config.cooldown > 0:
+            now = time.time()
+            until = self._motion_cooldown_until.get(sensor_config.id, 0)
+            if now < until:
+                logger.debug(
+                    f"[ZHA Motion] {sensor_config.name} in cooldown ({until - now:.0f}s left)"
+                )
+                return
+
         # Motion detected
         logger.info(
             f"[ZHA Motion] {sensor_config.name}: motion detected (command={command})"
         )
-        switches.set_last_action(device_id, "motion_detected")
+
+        # Set cooldown and record last action with cooldown_until for UI
+        cooldown_until_iso = None
+        if sensor_config.cooldown > 0:
+            expires = time.time() + sensor_config.cooldown
+            self._motion_cooldown_until[sensor_config.id] = expires
+            cooldown_until_iso = datetime.fromtimestamp(expires).isoformat()
+        switches.set_last_action(
+            device_id, "motion_detected", cooldown_until=cooldown_until_iso
+        )
 
         if not sensor_config.areas:
             logger.debug(

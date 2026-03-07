@@ -759,6 +759,31 @@
       </div>
     </div>
 
+    <!-- Cooldown card (motion/contact sensors) -->
+    <div class="ctrl-card is-open" id="cooldown-section" style="display: none;">
+      <div class="ctrl-card-header" onclick="toggleCard('cooldown-section')">
+        <span class="ctrl-card-chevron">&#x203A;</span>
+        <span class="ctrl-card-title">Cooldown</span>
+        <span class="info-icon" onclick="event.stopPropagation()">i<span class="info-tooltip">After motion is detected and processed, ignore subsequent triggers for this many seconds. Useful for sensors with short hardware blind times (e.g. Hue ~10s). Set to 0 to disable.</span></span>
+      </div>
+      <div class="ctrl-card-body">
+        <div class="ctrl-card-body-inner">
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <div class="number-input-wrap">
+              <input type="number" id="motion-cooldown" style="width: 60px;" value="0" min="0" max="300" step="5"
+                onchange="editingCooldown = parseInt(this.value) || 0; autoSave();">
+              <div class="number-input-btns">
+                <button type="button" onclick="stepNumberInput('motion-cooldown', 5)">&#9650;</button>
+                <button type="button" onclick="stepNumberInput('motion-cooldown', -5)">&#9660;</button>
+              </div>
+            </div>
+            <span style="color: var(--muted); font-size: 0.85rem;">sec</span>
+            <span id="cooldown-status" style="color: var(--muted); font-size: 0.8rem; margin-left: 8px;"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Magic Buttons card -->
     <div class="ctrl-card is-open" id="magic-section" style="display: none;">
       <div class="ctrl-card-header" onclick="toggleCard('magic-section')">
@@ -942,6 +967,9 @@
     let allMoments = {};
     let editingMagicButtons = {};
     let currentZhaDeviceId = null;
+    let editingCooldown = 0;
+    let _cooldownInterval = null;
+    let _cooldownPollInterval = null;
 
     // ============================================================
     // DOMContentLoaded
@@ -1383,6 +1411,7 @@
       document.getElementById('indicator-light-section').style.display = 'none';
       document.getElementById('magic-section').style.display = 'none';
       document.getElementById('zha-settings-section').style.display = 'none';
+      document.getElementById('cooldown-section').style.display = 'none';
     }
 
     // ============================================================
@@ -1773,6 +1802,58 @@
     }
 
     // ============================================================
+    // Cooldown countdown + polling
+    // ============================================================
+    function startCooldownCountdown(ctrl) {
+      // Clear any existing intervals
+      if (_cooldownInterval) { clearInterval(_cooldownInterval); _cooldownInterval = null; }
+      if (_cooldownPollInterval) { clearInterval(_cooldownPollInterval); _cooldownPollInterval = null; }
+
+      const statusEl = document.getElementById('cooldown-status');
+      if (!statusEl) return;
+
+      let cooldownUntil = ctrl.last_action?.cooldown_until ? new Date(ctrl.last_action.cooldown_until).getTime() : 0;
+      const cooldownSec = ctrl.cooldown || 0;
+
+      function updateDisplay() {
+        if (cooldownSec <= 0) {
+          statusEl.textContent = '';
+          return;
+        }
+        const remaining = Math.max(0, Math.ceil((cooldownUntil - Date.now()) / 1000));
+        if (remaining > 0) {
+          statusEl.textContent = `Cooldown: ${remaining}s`;
+          statusEl.style.color = 'var(--accent)';
+        } else {
+          statusEl.textContent = 'Ready';
+          statusEl.style.color = 'var(--muted)';
+        }
+      }
+
+      updateDisplay();
+
+      if (cooldownSec > 0) {
+        // Tick every second for live countdown
+        _cooldownInterval = setInterval(updateDisplay, 1000);
+
+        // Poll for new motion triggers every 10s
+        _cooldownPollInterval = setInterval(async () => {
+          try {
+            const cacheBust = `?_t=${Date.now()}`;
+            const res = await fetch(basePath + `/api/controls${cacheBust}`);
+            if (res.ok) {
+              const data = await res.json();
+              const updatedCtrl = (data.controls || []).find(c => c.id === editingControlId);
+              if (updatedCtrl?.last_action?.cooldown_until) {
+                cooldownUntil = new Date(updatedCtrl.last_action.cooldown_until).getTime();
+              }
+            }
+          } catch (e) { /* ignore poll errors */ }
+        }, 10000);
+      }
+    }
+
+    // ============================================================
     // setupControlPage - main setup function
     // ============================================================
     function setupControlPage() {
@@ -1891,6 +1972,12 @@
         document.getElementById('magic-section').style.display = 'none';
         renderMotionScopesEditor();
 
+        // Load cooldown setting (motion/contact sensors only)
+        editingCooldown = ctrl.cooldown || 0;
+        document.getElementById('motion-cooldown').value = editingCooldown;
+        document.getElementById('cooldown-section').style.display = '';
+        startCooldownCountdown(ctrl);
+
         // Load ZHA settings for motion sensors (only for ZHA devices)
         const zhaSection = document.getElementById('zha-settings-section');
         if (ctrl.category === 'motion_sensor' && ctrl.integration === 'zha') {
@@ -1905,6 +1992,7 @@
         switchSection.style.display = '';
         motionSection.style.display = 'none';
         document.getElementById('zha-settings-section').style.display = 'none';
+        document.getElementById('cooldown-section').style.display = 'none';
 
         // Show indicator light section for switches
         document.getElementById('indicator-light-section').style.display = '';
@@ -1950,7 +2038,8 @@
           scopes: editingMotionScopes,
           device_id: editingDeviceId,
           inactive: inactive,
-          inactive_until: inactiveUntil
+          inactive_until: inactiveUntil,
+          cooldown: editingCooldown
         };
       } else {
         // Switch config
