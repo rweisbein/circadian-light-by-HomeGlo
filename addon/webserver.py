@@ -1996,6 +1996,7 @@ class LightDesignerServer:
         "motion_warning_time",  # Seconds before motion timer expires to trigger warning dim
         "motion_warning_blink_threshold",  # Brightness % below which warning blinks instead of dims
         "freeze_off_rise",  # Transition time in tenths of seconds for unfreeze rise (default 10 = 1.0s)
+        "limit_bounce_enabled",  # Whether to show visual bounce when hitting step limits (default true)
         "limit_warning_speed",  # Transition time in tenths of seconds for limit bounce animation (default 3 = 0.3s)
         "limit_bounce_max_percent",  # Percentage of range to dip when hitting max limit (default 30)
         "limit_bounce_min_percent",  # Percentage of range to flash when hitting min limit (default 10)
@@ -2207,6 +2208,7 @@ class LightDesignerServer:
             "motion_warning_blink_threshold": 15,  # percent brightness
             # Visual feedback settings
             "freeze_off_rise": 10,  # tenths of seconds (1.0s)
+            "limit_bounce_enabled": True,  # Show visual bounce at step limits
             "limit_warning_speed": 3,  # tenths of seconds (0.3s)
             "limit_bounce_max_percent": 30,  # % of range (hitting max)
             "limit_bounce_min_percent": 10,  # % of range (hitting min)
@@ -2290,6 +2292,7 @@ class LightDesignerServer:
             "motion_warning_blink_threshold": 15,  # percent brightness
             # Visual feedback settings
             "freeze_off_rise": 10,  # tenths of seconds (1.0s)
+            "limit_bounce_enabled": True,  # Show visual bounce at step limits
             "limit_warning_speed": 3,  # tenths of seconds (0.3s)
             "limit_bounce_max_percent": 30,  # % of range (hitting max)
             "limit_bounce_min_percent": 10,  # % of range (hitting min)

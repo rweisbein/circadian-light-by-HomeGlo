@@ -626,12 +626,18 @@
 
         <div class="form-row">
           <label class="form-label">
-            Limit warning speed
-            <span class="info-icon">i<span class="info-tooltip">When stepping up/down hits the brightness or color limit, lights bounce to indicate the limit. This controls how fast the bounce animation plays.</span></span>
+            Limit bounce
+            <span class="info-icon">i<span class="info-tooltip">When stepping up/down hits the brightness or color limit, lights briefly dip/flash to indicate the limit has been reached.</span></span>
           </label>
           <div class="form-control">
-            <input type="number" class="form-input" id="limit-warning-speed" min="0" max="100" step="0.1" value="3" style="width: 80px;">
-            <span class="form-hint">tenths of a second</span>
+            <label class="checkbox-label">
+              <input type="checkbox" id="limit-bounce-enabled" checked>
+            </label>
+            <span id="limit-bounce-settings" style="display: flex; align-items: center; gap: 8px; margin-left: 12px;">
+              <span class="form-hint" style="margin-left: 0;">Speed</span>
+              <input type="number" class="form-input" id="limit-warning-speed" min="0" max="100" step="0.1" value="3" style="width: 60px;">
+              <span class="form-hint">tenths/s</span>
+            </span>
           </div>
         </div>
 
@@ -1035,7 +1041,9 @@
           document.getElementById('motion-warning-time').value = config.motion_warning_time ?? 0;
           document.getElementById('motion-warning-blink-threshold').value = config.motion_warning_blink_threshold ?? 15;
           document.getElementById('freeze-off-rise').value = config.freeze_off_rise ?? 10;
+          document.getElementById('limit-bounce-enabled').checked = config.limit_bounce_enabled ?? true;
           document.getElementById('limit-warning-speed').value = config.limit_warning_speed ?? 3;
+          updateLimitBounceState();
           document.getElementById('limit-bounce-max-percent').value = config.limit_bounce_max_percent ?? 30;
           document.getElementById('limit-bounce-min-percent').value = config.limit_bounce_min_percent ?? 10;
           document.getElementById('reach-dip-percent').value = config.reach_dip_percent ?? 50;
@@ -1105,6 +1113,7 @@
         motion_warning_time: parseInt(document.getElementById('motion-warning-time').value) || 0,
         motion_warning_blink_threshold: parseInt(document.getElementById('motion-warning-blink-threshold').value) || 15,
         freeze_off_rise: parseFloat(document.getElementById('freeze-off-rise').value) || 10,
+        limit_bounce_enabled: document.getElementById('limit-bounce-enabled').checked,
         limit_warning_speed: parseFloat(document.getElementById('limit-warning-speed').value) || 3,
         limit_bounce_max_percent: parseInt(document.getElementById('limit-bounce-max-percent').value) || 30,
         limit_bounce_min_percent: parseInt(document.getElementById('limit-bounce-min-percent').value) || 10,
@@ -1145,6 +1154,20 @@
         speedInput.disabled = false;
       } else {
         speedGroup.style.opacity = '0.4';
+        speedInput.disabled = true;
+      }
+    }
+
+    function updateLimitBounceState() {
+      const enabled = document.getElementById('limit-bounce-enabled').checked;
+      const settings = document.getElementById('limit-bounce-settings');
+      const speedInput = document.getElementById('limit-warning-speed');
+
+      if (enabled) {
+        settings.style.opacity = '1';
+        speedInput.disabled = false;
+      } else {
+        settings.style.opacity = '0.4';
         speedInput.disabled = true;
       }
     }
@@ -1309,6 +1332,10 @@
     document.getElementById('motion-warning-time').addEventListener('blur', saveSettings);
     document.getElementById('motion-warning-blink-threshold').addEventListener('blur', saveSettings);
     document.getElementById('freeze-off-rise').addEventListener('blur', saveSettings);
+    document.getElementById('limit-bounce-enabled').addEventListener('change', () => {
+      updateLimitBounceState();
+      saveSettings();
+    });
     document.getElementById('limit-warning-speed').addEventListener('blur', saveSettings);
     document.getElementById('limit-bounce-max-percent').addEventListener('blur', saveSettings);
     document.getElementById('limit-bounce-min-percent').addEventListener('blur', saveSettings);

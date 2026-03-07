@@ -169,6 +169,14 @@ class CircadianLightPrimitives:
         except Exception:
             return 1.0
 
+    def _is_limit_bounce_enabled(self) -> bool:
+        """Check if limit bounce visual feedback is enabled."""
+        try:
+            raw_config = glozone.load_config_from_files()
+            return raw_config.get("limit_bounce_enabled", True)
+        except Exception:
+            return True
+
     def _get_limit_warning_speed(self) -> float:
         """Get the limit warning animation speed in seconds.
 
@@ -3242,6 +3250,10 @@ class CircadianLightPrimitives:
             direction: "up" (hit upper limit, dip down) or "down" (hit lower limit, flash up)
             bounce_type: "step", "bright", or "color"
         """
+        if not self._is_limit_bounce_enabled():
+            logger.debug(f"Limit bounce disabled, skipping for {area_id}")
+            return
+
         import asyncio
 
         # Add boost if area is boosted
