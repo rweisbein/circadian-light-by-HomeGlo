@@ -1049,10 +1049,11 @@ class CircadianLightPrimitives:
             current_override = current_override * decay
 
         # Compute actual output brightness to check physical limit
-        # Pipeline: (base_bri * area_factor + override), capped [0, 100]
+        # Pipeline: (base_bri * nl_factor * area_factor + override), capped [0, 100]
         base_bri = CircadianLight.calculate_brightness_at_hour(hour, config, area_state)
+        nl_factor = self._compute_nl_factor(area_id)
         area_factor = glozone.get_area_brightness_factor(area_id)
-        scaled_base = base_bri * area_factor
+        scaled_base = base_bri * nl_factor * area_factor
         effective_bri = scaled_base + current_override
 
         at_limit = (
@@ -1060,7 +1061,7 @@ class CircadianLightPrimitives:
             (direction == "down" and effective_bri <= 1.0)
         )
         if at_limit:
-            logger.info(f"brightness_{direction} at limit for {area_id} (effective={effective_bri:.1f})")
+            logger.info(f"brightness_{direction} at limit for {area_id} (effective={effective_bri:.1f}, nl={nl_factor:.2f})")
             if area_state.is_on:
                 current_cct = CircadianLight.calculate_color_at_hour(
                     hour, config, area_state, apply_solar_rules=True, sun_times=sun_times
@@ -1083,7 +1084,7 @@ class CircadianLightPrimitives:
             (direction == "up" and unclamped > new_override)
         )
         if clamped_at_limit:
-            logger.info(f"brightness_{direction} clamped at limit for {area_id} (effective={scaled_base + new_override:.1f})")
+            logger.info(f"brightness_{direction} clamped at limit for {area_id} (effective={scaled_base + new_override:.1f}, nl={nl_factor:.2f})")
             if area_state.is_on:
                 current_cct = CircadianLight.calculate_color_at_hour(
                     hour, config, area_state, apply_solar_rules=True, sun_times=sun_times
@@ -1097,7 +1098,7 @@ class CircadianLightPrimitives:
         })
         logger.info(
             f"[{source}] brightness_{direction} for {area_id}: "
-            f"override {current_override:.1f} -> {new_override}"
+            f"override {current_override:.1f} -> {new_override} (base={base_bri:.0f}, nl={nl_factor:.2f}, factor={area_factor:.2f})"
         )
         if area_state.is_on:
             await self.client.update_lights_in_circadian_mode(area_id)
