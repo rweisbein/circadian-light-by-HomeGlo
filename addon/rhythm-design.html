@@ -2391,6 +2391,7 @@ function syncHiddenInputsFromConfig() {
   if (el('daylight-cct')) el('daylight-cct').value = config.daylight_cct;
   if (el('brightness-min')) el('brightness-min').value = config.min_brightness;
   if (el('brightness-max')) el('brightness-max').value = config.max_brightness;
+  updateSectionDirtyState();
 }
 
 // ============================================================
