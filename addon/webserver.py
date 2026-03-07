@@ -6904,8 +6904,19 @@ class LightDesignerServer:
                     for area_data in areas_data:
                         areas.append(switches.MotionAreaConfig.from_dict(area_data))
 
+                # Resolve correct storage ID: if an existing config was stored
+                # by device_id (from auto-create), use that ID to update in place
+                # rather than creating a duplicate entry keyed by ieee.
+                sensor_id = control_id
+                if device_id:
+                    existing = switches.get_motion_sensor_by_device_id(device_id)
+                    if existing and existing.id != control_id:
+                        # Remove the old entry so we don't leave a duplicate
+                        switches.remove_motion_sensor(existing.id)
+                        sensor_id = control_id
+
                 motion_config = switches.MotionSensorConfig(
-                    id=control_id,
+                    id=sensor_id,
                     name=name,
                     areas=areas,
                     device_id=device_id,
@@ -6946,8 +6957,16 @@ class LightDesignerServer:
                     for area_data in areas_data:
                         areas.append(switches.ContactAreaConfig.from_dict(area_data))
 
+                # Resolve correct storage ID (same as motion sensor above)
+                sensor_id = control_id
+                if device_id:
+                    existing = switches.get_contact_sensor_by_device_id(device_id)
+                    if existing and existing.id != control_id:
+                        switches.remove_contact_sensor(existing.id)
+                        sensor_id = control_id
+
                 contact_config = switches.ContactSensorConfig(
-                    id=control_id,
+                    id=sensor_id,
                     name=name,
                     areas=areas,
                     device_id=device_id,
