@@ -812,9 +812,13 @@ class ZigBeeController(LightController):
             # Get light color modes from the main client for capability detection
             light_color_modes = getattr(self.ws_client, "light_color_modes", {})
 
-            # Process each area
+            # ------------------------------------------------------------------
+            # Phase 1: Collect desired group membership for all areas
+            # ------------------------------------------------------------------
+            all_capability_groups = []  # [(group_name, members, cap_type, area_name)]
+            all_members = set()  # unique (ieee, endpoint_id) across all areas
+
             for area_id, area_info in areas.items():
-                # Skip areas without switches (if areas_with_switches is provided)
                 if (
                     areas_with_switches is not None
                     and area_id not in areas_with_switches
@@ -826,7 +830,6 @@ class ZigBeeController(LightController):
 
                 area_name = area_info["name"]
 
-                # Skip the Circadian_Zigbee_Groups area - it's for organizing group entities, not a real room
                 if area_name == "Circadian_Zigbee_Groups":
                     continue
 
@@ -839,7 +842,6 @@ class ZigBeeController(LightController):
                     )
                     continue
 
-                # Log mixed areas but still create groups for ZHA lights
                 if non_zha_lights:
                     logger.info(
                         f"Area '{area_name}' has {len(zha_lights)} ZHA + {len(non_zha_lights)} non-ZHA lights (mixed area, creating ZHA groups anyway)"
@@ -848,12 +850,9 @@ class ZigBeeController(LightController):
                     logger.info(f"  ZHA: {zha_entity_ids}")
                     logger.info(f"  Non-ZHA: {non_zha_lights}")
 
-                # Split ZHA lights by filter assignment, then by color capability
                 area_name_normalized = area_name.replace(" ", "_")
                 area_filters = (filter_config or {}).get(area_id, {})
 
-                # Group lights by filter name
-                # filter_groups: {filter_name: {"color": [member], "ct": [member]}}
                 filter_groups = {}
 
                 logger.debug(
@@ -870,7 +869,6 @@ class ZigBeeController(LightController):
 
                     member_entry = {"ieee": ieee.lower(), "endpoint_id": endpoint_id}
 
-                    # Determine capability from light_color_modes cache
                     modes = light_color_modes.get(entity_id, {"color_temp"})
 
                     if "xy" in modes or "rgb" in modes or "hs" in modes:
@@ -878,22 +876,20 @@ class ZigBeeController(LightController):
                     elif "color_temp" in modes:
                         cap = "ct"
                     else:
-                        # brightness-only and on/off lights are NOT added to groups
                         logger.debug(
                             f"  - Non-color light {entity_id} (brightness/onoff only): skipping group"
                         )
                         continue
 
-                    # Determine filter assignment (default to Standard)
                     filt = area_filters.get(entity_id, "Standard")
                     if filt not in filter_groups:
                         filter_groups[filt] = {"color": [], "ct": []}
                     filter_groups[filt][cap].append(member_entry)
+                    all_members.add((ieee.lower(), endpoint_id))
                     logger.debug(
                         f"  - {cap} light {entity_id}: filter={filt}, IEEE={ieee}, endpoint={endpoint_id}"
                     )
 
-                # Create capability-specific groups per filter
                 capability_groups = []
                 for filt_name, caps in filter_groups.items():
                     filt_normalized = filt_name.replace(" ", "_")
@@ -922,267 +918,126 @@ class ZigBeeController(LightController):
 
                 for group_name, members, cap_type in capability_groups:
                     expected_group_names.add(group_name)
+                    all_capability_groups.append(
+                        (group_name, members, cap_type, area_name)
+                    )
                     logger.info(
                         f"Prepared {len(members)} {cap_type} members for group '{group_name}'"
                     )
 
-                    # Check if group exists
-                    existing_group = existing_groups_by_name.get(group_name)
+            # ------------------------------------------------------------------
+            # Phase 2: Clear stale Zigbee group IDs from all devices
+            #
+            # ZHA's group/remove API only deletes from its database — it does
+            # NOT send ZCL "Remove Group" to member devices.  When the freed
+            # Zigbee group ID is later reused by another area's group, devices
+            # with the stale ID respond to the wrong broadcasts ("breathing").
+            #
+            # Sending "Remove All Groups" to every device that will be in a
+            # Circadian group clears their entire Zigbee group table.  Phase 3
+            # then re-adds each device to exactly the right group.
+            # ------------------------------------------------------------------
+            if all_members:
+                logger.info(
+                    f"Clearing stale Zigbee groups from {len(all_members)} devices"
+                )
+                for ieee, endpoint_id in all_members:
+                    await self._zcl_remove_all_groups(ieee, endpoint_id)
 
-                    if existing_group:
-                        # Group exists - check if membership needs updating
-                        existing_members = existing_group.get("members", [])
+            # ------------------------------------------------------------------
+            # Phase 3: Create / update groups (re-add devices to correct groups)
+            # ------------------------------------------------------------------
+            for group_name, members, cap_type, area_name in all_capability_groups:
+                existing_group = existing_groups_by_name.get(group_name)
 
-                        # Handle empty groups or groups with None members
-                        if not existing_members or (
-                            len(existing_members) == 1 and existing_members[0] is None
-                        ):
-                            # Group is empty, just add all members
+                if existing_group:
+                    # Group exists — always re-add all members since we just
+                    # cleared their Zigbee group tables in Phase 2.
+                    logger.info(
+                        f"Re-adding {len(members)} members to existing group '{group_name}'"
+                    )
+                    await self.manage_group(
+                        GroupCommand(
+                            name=group_name,
+                            group_id=existing_group["group_id"],
+                            members=members,
+                            operation="add_members",
+                        )
+                    )
+
+                    # Remove members that shouldn't be in the group (ZHA database)
+                    existing_members = existing_group.get("members", [])
+                    if existing_members and not (
+                        len(existing_members) == 1 and existing_members[0] is None
+                    ):
+                        existing_member_set = set()
+                        for m in existing_members:
+                            if m:
+                                ieee = m.get("ieee") or (
+                                    m.get("device", {}).get("ieee")
+                                    if m.get("device")
+                                    else None
+                                )
+                                ep = m.get("endpoint_id")
+                                if ieee and ep is not None:
+                                    existing_member_set.add((ieee.lower(), ep))
+
+                        new_member_set = {
+                            (m["ieee"].lower(), m["endpoint_id"]) for m in members
+                        }
+                        to_remove = [
+                            {"ieee": ieee, "endpoint_id": ep}
+                            for ieee, ep in existing_member_set - new_member_set
+                        ]
+                        if to_remove:
                             logger.info(
-                                f"Group '{group_name}' is empty, adding all {len(members)} members"
+                                f"Removing {len(to_remove)} stale members from group '{group_name}'"
                             )
                             await self.manage_group(
                                 GroupCommand(
                                     name=group_name,
                                     group_id=existing_group["group_id"],
-                                    members=members,
-                                    operation="add_members",
+                                    members=to_remove,
+                                    operation="remove_members",
                                 )
                             )
-                        else:
-                            # Compare existing and new members (ensure lowercase comparison)
-                            # Handle nested structure where IEEE is in device.ieee
-                            existing_member_set = set()
-                            for m in existing_members:
-                                if m:
-                                    # Check if IEEE is directly on member or nested in device
-                                    ieee = m.get("ieee") or (
-                                        m.get("device", {}).get("ieee")
-                                        if m.get("device")
-                                        else None
-                                    )
-                                    endpoint_id = m.get("endpoint_id")
-                                    if ieee and endpoint_id is not None:
-                                        existing_member_set.add(
-                                            (ieee.lower(), endpoint_id)
-                                        )
 
-                            new_member_set = {
-                                (m["ieee"].lower(), m["endpoint_id"]) for m in members
-                            }
-
-                            if existing_member_set != new_member_set:
-                                logger.info(
-                                    f"Updating members for group '{group_name}'"
-                                )
-                                logger.info(
-                                    f"  Existing members: {existing_member_set}"
-                                )
-                                logger.info(f"  New members: {new_member_set}")
-
-                                # Remove members that shouldn't be in the group
-                                to_remove = [
-                                    {"ieee": ieee, "endpoint_id": ep}
-                                    for ieee, ep in existing_member_set - new_member_set
-                                ]
-                                if to_remove:
-                                    logger.info(
-                                        f"Removing {len(to_remove)} members from group {group_name}"
-                                    )
-                                    for member in to_remove:
-                                        logger.info(
-                                            f"  Remove: IEEE={member['ieee']}, endpoint={member['endpoint_id']}"
-                                        )
-                                    result = await self.manage_group(
-                                        GroupCommand(
-                                            name=group_name,
-                                            group_id=existing_group["group_id"],
-                                            members=to_remove,
-                                            operation="remove_members",
-                                        )
-                                    )
-                                    if not result:
-                                        logger.error(
-                                            f"Failed to remove members from group {group_name}"
-                                        )
-
-                                # Add new members
-                                to_add = [
-                                    {"ieee": ieee, "endpoint_id": ep}
-                                    for ieee, ep in new_member_set - existing_member_set
-                                ]
-                                if to_add:
-                                    logger.info(
-                                        f"Adding {len(to_add)} members to group {group_name}"
-                                    )
-                                    for member in to_add:
-                                        logger.info(
-                                            f"  Add: IEEE={member['ieee']}, endpoint={member['endpoint_id']}"
-                                        )
-                                    result = await self.manage_group(
-                                        GroupCommand(
-                                            name=group_name,
-                                            group_id=existing_group["group_id"],
-                                            members=to_add,
-                                            operation="add_members",
-                                        )
-                                    )
-                                    if not result:
-                                        logger.error(
-                                            f"Failed to add members to group {group_name}"
-                                        )
-                            else:
-                                logger.debug(
-                                    f"Group '{group_name}' already has correct members"
-                                )
-
-                        # Move existing group entity to Circadian area if needed
-                        if circadian_area_id:
-                            await self.move_group_entity_to_circadian_area(
-                                group_name, circadian_area_id
-                            )
-                    else:
-                        # Create new group with random 16-bit group ID
-                        random_group_id = random.randint(1, 65535)
-                        logger.info(
-                            f"Creating new ZHA group '{group_name}' for area '{area_name}' with ID {random_group_id}"
+                    if circadian_area_id:
+                        await self.move_group_entity_to_circadian_area(
+                            group_name, circadian_area_id
                         )
-                        success = await self.create_group(
-                            GroupCommand(
-                                name=group_name,
-                                group_id=random_group_id,
-                                members=members,
-                            )
-                        )
-
-                        if success:
-                            # Get the newly created group to store its ID
-                            updated_groups = await self.list_zha_groups()
-                            for g in updated_groups:
-                                if g.get("name") == group_name:
-                                    # Find the entity_id for this group and move it to Circadian area
-                                    if circadian_area_id:
-                                        await self.move_group_entity_to_circadian_area(
-                                            group_name, circadian_area_id
-                                        )
-                                    break
-
-            # Device-level group cleanup: ensure each light's Zigbee group table
-            # only contains its intended Circadian group.  Previous syncs may have
-            # deleted ZHA groups (via zha/group/remove) without sending ZCL "remove
-            # group" to the devices, leaving stale group IDs.  When those IDs are
-            # reused by other groups, the device responds to the wrong broadcasts.
-            #
-            # For each expected group, send ZCL "remove group" to its members for
-            # every OTHER Circadian group in the same area.  This is scoped per-area
-            # to avoid unnecessary cross-area commands.
-            refreshed_groups = await self.list_zha_groups()
-            refreshed_by_name = {g.get("name"): g for g in refreshed_groups}
-
-            # Group expected groups by area prefix (e.g. "Kitchen")
-            area_expected_groups: Dict[str, List[str]] = (
-                {}
-            )  # area_prefix -> [group_names]
-            for gname in expected_group_names:
-                # Parse: Circadian_{Area}_{Filter}_{cap}
-                if not gname.startswith("Circadian_"):
-                    continue
-                suffix = gname[len("Circadian_") :]  # e.g. "Kitchen_Standard_color"
-                # Last part is capability (_color or _ct), second-to-last is filter
-                parts = suffix.rsplit("_", 2)
-                if len(parts) >= 3:
-                    area_prefix = parts[0]
-                elif len(parts) == 2:
-                    area_prefix = parts[0]
                 else:
-                    area_prefix = suffix
-                area_expected_groups.setdefault(area_prefix, []).append(gname)
-
-            for area_prefix, group_names in area_expected_groups.items():
-                if len(group_names) < 2:
-                    continue  # Only one group in area, nothing to clean up
-
-                # Collect members per group
-                group_members: Dict[str, List[dict]] = {}
-                for gname in group_names:
-                    grp = refreshed_by_name.get(gname)
-                    if not grp:
-                        continue
-                    members = []
-                    for m in grp.get("members", []):
-                        if not m:
-                            continue
-                        ieee = m.get("ieee") or (
-                            m.get("device", {}).get("ieee") if m.get("device") else None
+                    random_group_id = random.randint(1, 65535)
+                    logger.info(
+                        f"Creating new ZHA group '{group_name}' for area '{area_name}' with ID {random_group_id}"
+                    )
+                    success = await self.create_group(
+                        GroupCommand(
+                            name=group_name,
+                            group_id=random_group_id,
+                            members=members,
                         )
-                        ep = m.get("endpoint_id")
-                        if ieee and ep is not None:
-                            members.append({"ieee": ieee.lower(), "endpoint_id": ep})
-                    group_members[gname] = members
+                    )
 
-                # For each group A, remove its members from every other group B
-                # in the same area.  The ZCL "remove group" is harmless if the
-                # device doesn't actually have that group ID.
-                for gname_a, members_a in group_members.items():
-                    if not members_a:
-                        continue
-                    for gname_b in group_names:
-                        if gname_b == gname_a:
-                            continue
-                        grp_b = refreshed_by_name.get(gname_b)
-                        if not grp_b:
-                            continue
-                        logger.debug(
-                            f"Device cleanup: removing {len(members_a)} member(s) "
-                            f"of '{gname_a}' from '{gname_b}' (area={area_prefix})"
-                        )
-                        await self.manage_group(
-                            GroupCommand(
-                                name=gname_b,
-                                group_id=grp_b["group_id"],
-                                members=members_a,
-                                operation="remove_members",
-                            )
-                        )
+                    if success:
+                        updated_groups = await self.list_zha_groups()
+                        for g in updated_groups:
+                            if g.get("name") == group_name:
+                                if circadian_area_id:
+                                    await self.move_group_entity_to_circadian_area(
+                                        group_name, circadian_area_id
+                                    )
+                                break
 
-            # Delete groups for areas that no longer exist (only our Circadian_ groups)
-            # IMPORTANT: Remove members BEFORE deleting, because zha/group/remove
-            # only deletes from ZHA's database — it does NOT send ZCL "remove group"
-            # to member devices.  Without this, devices retain the stale group ID
-            # and may respond to broadcasts from a different group that reuses the ID.
+            # ------------------------------------------------------------------
+            # Phase 4: Delete obsolete Circadian groups from ZHA database
+            # (device-side cleanup already handled by Phase 2)
+            # ------------------------------------------------------------------
             for group_name, group in existing_groups_by_name.items():
                 if (
                     group_name.startswith("Circadian_")
                     and group_name not in expected_group_names
                 ):
-                    # Extract valid members so we can send ZCL remove-group first
-                    existing_members = group.get("members", [])
-                    valid_members = []
-                    for m in existing_members:
-                        if m:
-                            ieee = m.get("ieee") or (
-                                m.get("device", {}).get("ieee")
-                                if m.get("device")
-                                else None
-                            )
-                            endpoint_id = m.get("endpoint_id")
-                            if ieee and endpoint_id is not None:
-                                valid_members.append(
-                                    {"ieee": ieee.lower(), "endpoint_id": endpoint_id}
-                                )
-                    if valid_members:
-                        logger.info(
-                            f"Removing {len(valid_members)} members from obsolete group "
-                            f"'{group_name}' before deletion (ensures devices drop group ID)"
-                        )
-                        await self.manage_group(
-                            GroupCommand(
-                                name=group_name,
-                                group_id=group["group_id"],
-                                members=valid_members,
-                                operation="remove_members",
-                            )
-                        )
                     logger.info(f"Removing obsolete ZHA group '{group_name}'")
                     await self.manage_group(
                         GroupCommand(
@@ -1198,6 +1053,35 @@ class ZigBeeController(LightController):
         except Exception as e:
             logger.error(f"Failed to sync ZHA groups: {e}")
             return False, {}
+
+    async def _zcl_remove_all_groups(self, ieee: str, endpoint_id: int) -> bool:
+        """Send ZCL 'Remove All Groups' command to a device endpoint.
+
+        Clears every Zigbee group ID from the device's group table so that
+        it no longer responds to stale group broadcasts.  Called during sync
+        before re-adding the device to its correct group.
+        """
+        try:
+            message = {
+                "type": "call_service",
+                "domain": "zha",
+                "service": "issue_zigbee_cluster_command",
+                "service_data": {
+                    "ieee": ieee,
+                    "endpoint_id": endpoint_id,
+                    "cluster_id": 4,  # Groups cluster (0x0004)
+                    "cluster_type": "in",
+                    "command": 4,  # Remove All Groups
+                    "command_type": "server",
+                },
+            }
+            await self.ws_client.send_message_wait_response(message)
+            return True
+        except Exception as e:
+            logger.warning(
+                f"Failed to send 'Remove All Groups' to {ieee} ep{endpoint_id}: {e}"
+            )
+            return False
 
     async def create_group(self, command: GroupCommand) -> bool:
         """Create a ZHA group."""

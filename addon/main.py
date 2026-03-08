@@ -3072,13 +3072,7 @@ class HomeAssistantWebSocketClient:
                 if include_color and xy is not None:
                     color_data["xy_color"] = list(xy)
 
-                # When an area has mixed filters, skip ZHA groups for ALL
-                # filters (including Standard).  Devices may retain stale
-                # Zigbee group IDs from previous filter assignments, so a
-                # Standard group broadcast can hit Overhead lights (and vice
-                # versa), causing brightness oscillation ("breathing").
-                # Individual commands are the only reliable path here.
-                zha_group = None
+                zha_group = group_candidates.get(f"zha_group_{filt_norm}_color")
                 if zha_group:
                     non_zha = [
                         l for l in lights_by_cap["color"] if l not in self.zha_lights
@@ -3137,8 +3131,7 @@ class HomeAssistantWebSocketClient:
                             ct_floor = min_ct
                     ct_data["color_temp_kelvin"] = max(ct_floor, kelvin)
 
-                # Mixed-filter area: skip ZHA groups (see color note above)
-                zha_group = None
+                zha_group = group_candidates.get(f"zha_group_{filt_norm}_ct")
                 if zha_group:
                     non_zha = [
                         l for l in lights_by_cap["ct"] if l not in self.zha_lights
