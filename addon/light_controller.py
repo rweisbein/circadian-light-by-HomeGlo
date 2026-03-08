@@ -406,6 +406,11 @@ class ZigBeeController(LightController):
             for state in states:
                 entity_id = state.get("entity_id", "")
                 if entity_id.startswith("light."):
+                    # Skip Circadian ZHA group entities — managed via
+                    # area_group_map, never as individual area lights
+                    if "_circadian_" in entity_id.lower():
+                        continue
+
                     attributes = state.get("attributes", {})
 
                     # Skip Hue room/zone groups - they duplicate control of individual lights

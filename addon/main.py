@@ -3699,6 +3699,11 @@ class HomeAssistantWebSocketClient:
             if not entity_id.startswith("light."):
                 continue
 
+            # Skip Circadian ZHA group entities — they are managed via
+            # area_group_map, never as individual area lights
+            if "_circadian_" in entity_id.lower():
+                continue
+
             # Get area - either direct or via device
             device_id = entity.get("device_id")
             area_id = entity.get("area_id")
