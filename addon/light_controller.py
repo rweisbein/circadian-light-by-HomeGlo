@@ -941,8 +941,21 @@ class ZigBeeController(LightController):
                 logger.info(
                     f"Clearing stale Zigbee groups from {len(all_members)} devices"
                 )
+                clear_ok = 0
+                clear_fail = 0
                 for ieee, endpoint_id in all_members:
-                    await self._zcl_remove_all_groups(ieee, endpoint_id)
+                    ok = await self._zcl_remove_all_groups(ieee, endpoint_id)
+                    if ok:
+                        clear_ok += 1
+                    else:
+                        clear_fail += 1
+                logger.info(
+                    f"Remove All Groups complete: {clear_ok} succeeded, "
+                    f"{clear_fail} failed out of {len(all_members)} devices"
+                )
+                # Allow devices time to process the ZCL clear before
+                # Phase 3 re-adds them to the correct groups.
+                await asyncio.sleep(2)
 
             # ------------------------------------------------------------------
             # Phase 3: Create / update groups (re-add devices to correct groups)
