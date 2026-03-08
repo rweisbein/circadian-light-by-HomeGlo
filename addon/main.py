@@ -3764,6 +3764,10 @@ class HomeAssistantWebSocketClient:
             f"  ZHA-connected: {len(self.zha_lights)}, Hue-connected: {len(self.hue_lights)}, Hue groups skipped: {hue_groups_skipped}"
         )
 
+        # Log entity IDs per area for debugging group entity leakage
+        for aid, entity_list in sorted(self.area_lights.items()):
+            logger.info(f"  area_lights[{aid}]: {entity_list}")
+
         # Build motion sensor entity_id -> device_id mapping
         # This lets us look up motion sensor config when events come in
         self.motion_sensor_ids.clear()
