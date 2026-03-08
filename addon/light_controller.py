@@ -1009,15 +1009,46 @@ class ZigBeeController(LightController):
                                 break
 
             # ------------------------------------------------------------------
-            # Phase 4: Delete obsolete Circadian groups from ZHA database
-            # (device-side cleanup already handled by Phase 2)
+            # Phase 3: Delete obsolete Circadian groups from ZHA database
+            # Remove members first so ZHA sends ZCL "Remove Group" to devices,
+            # preventing stale group IDs if the ID is later reused.
             # ------------------------------------------------------------------
             for group_name, group in existing_groups_by_name.items():
                 if (
                     group_name.startswith("Circadian_")
                     and group_name not in expected_group_names
                 ):
-                    logger.info(f"Removing obsolete ZHA group '{group_name}'")
+                    # Remove members before deleting so devices clear the group ID
+                    existing_members = group.get("members", [])
+                    if existing_members and not (
+                        len(existing_members) == 1 and existing_members[0] is None
+                    ):
+                        members_to_remove = []
+                        for m in existing_members:
+                            if m:
+                                ieee = m.get("ieee") or (
+                                    m.get("device", {}).get("ieee")
+                                    if m.get("device")
+                                    else None
+                                )
+                                ep = m.get("endpoint_id")
+                                if ieee and ep is not None:
+                                    members_to_remove.append(
+                                        {"ieee": ieee, "endpoint_id": ep}
+                                    )
+                        if members_to_remove:
+                            logger.info(
+                                f"Removing {len(members_to_remove)} members from obsolete group '{group_name}'"
+                            )
+                            await self.manage_group(
+                                GroupCommand(
+                                    name=group_name,
+                                    group_id=group["group_id"],
+                                    members=members_to_remove,
+                                    operation="remove_members",
+                                )
+                            )
+                    logger.info(f"Deleting obsolete ZHA group '{group_name}'")
                     await self.manage_group(
                         GroupCommand(
                             name=group_name,
