@@ -6597,10 +6597,16 @@ class LightDesignerServer:
                 else:
                     status = "unsupported"
 
-                # Look up last_action from pre-loaded dict (ieee first, then device_id)
-                last_action = all_last_actions.get(ieee)
-                if not last_action and device_id:
+                # Look up last_action from pre-loaded dict
+                # Motion/contact sensors save under device_id; switches save under ieee
+                if category in ("motion_sensor", "contact_sensor") and device_id:
                     last_action = all_last_actions.get(device_id)
+                    if not last_action:
+                        last_action = all_last_actions.get(ieee)
+                else:
+                    last_action = all_last_actions.get(ieee)
+                    if not last_action and device_id:
+                        last_action = all_last_actions.get(device_id)
                 logger.debug(f"[Controls] last_action for '{ieee}': {last_action}")
 
                 # Build response - include appropriate config based on category
