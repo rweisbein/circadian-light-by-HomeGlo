@@ -90,14 +90,26 @@
       font-size: 0.9rem;
     }
 
+    .page-title-group {
+      flex: 1;
+      min-width: 0;
+    }
+
     .page-title {
       font-size: 1.1rem;
       font-weight: 600;
-      flex: 1;
-      min-width: 0;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+
+    .page-title-sub {
+      font-size: 0.75rem;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-top: 1px;
     }
 
     /* Main content */
@@ -699,7 +711,10 @@
       </svg>
     </button>
     <span class="page-header-icon" id="page-header-icon"></span>
-    <h1 class="page-title" id="page-title">Loading...</h1>
+    <div class="page-title-group">
+      <h1 class="page-title" id="page-title">Loading...</h1>
+      <div class="page-title-sub" id="page-title-sub"></div>
+    </div>
     <div class="page-header-meta" id="page-header-meta">
       <span id="header-meta-area"></span>
     </div>
@@ -1902,6 +1917,29 @@
       document.getElementById('page-header-icon').innerHTML = categoryIcon(ctrl.category);
       const pausedSpan = editingInactive ? ' <span style="color:var(--muted);font-weight:normal;"> (paused)</span>' : '';
       document.getElementById('page-title').innerHTML = `${ctrl.name}${pausedSpan}`;
+
+      // Show last action in header subtitle
+      const subEl = document.getElementById('page-title-sub');
+      if (ctrl.last_action && typeof ctrl.last_action === 'object' && ctrl.last_action.action) {
+        const la = ctrl.last_action;
+        let actionLabel = la.action;
+        if (actionLabel === 'motion_detected') actionLabel = 'Motion';
+        else if (actionLabel === 'motion_cleared') actionLabel = 'Cleared';
+        let timeStr = '';
+        if (la.timestamp) {
+          const d = new Date(la.timestamp);
+          const mo = d.getMonth() + 1;
+          const day = d.getDate();
+          let h = d.getHours();
+          const mi = d.getMinutes().toString().padStart(2, '0');
+          const ap = h >= 12 ? 'p' : 'a';
+          h = h % 12 || 12;
+          timeStr = ` ${mo}/${day} ${h}:${mi}${ap}`;
+        }
+        subEl.textContent = `last: ${actionLabel}${timeStr}`;
+      } else {
+        subEl.textContent = '';
+      }
 
       // Populate toolbar menu with device metadata + Reset action
       const typeName = ctrl.type_name || ctrl.type || 'Unknown';

@@ -579,8 +579,15 @@ class HomeAssistantWebSocketClient:
             now = time.time()
             until = self._motion_cooldown_until.get(sensor_config.id, 0)
             if now < until:
+                # Reset cooldown timer on continued motion
+                expires = now + sensor_config.cooldown
+                self._motion_cooldown_until[sensor_config.id] = expires
+                cooldown_until_iso = datetime.fromtimestamp(expires).isoformat()
+                switches.set_last_action(
+                    device_id, "motion_detected", cooldown_until=cooldown_until_iso
+                )
                 logger.debug(
-                    f"[Motion] {sensor_config.name} in cooldown ({until - now:.0f}s left)"
+                    f"[Motion] {sensor_config.name} cooldown reset ({sensor_config.cooldown}s)"
                 )
                 return
 
@@ -716,8 +723,15 @@ class HomeAssistantWebSocketClient:
             now = time.time()
             until = self._motion_cooldown_until.get(sensor_config.id, 0)
             if now < until:
+                # Reset cooldown timer on continued motion
+                expires = now + sensor_config.cooldown
+                self._motion_cooldown_until[sensor_config.id] = expires
+                cooldown_until_iso = datetime.fromtimestamp(expires).isoformat()
+                switches.set_last_action(
+                    device_id, "motion_detected", cooldown_until=cooldown_until_iso
+                )
                 logger.debug(
-                    f"[ZHA Motion] {sensor_config.name} in cooldown ({until - now:.0f}s left)"
+                    f"[ZHA Motion] {sensor_config.name} cooldown reset ({sensor_config.cooldown}s)"
                 )
                 return
 
