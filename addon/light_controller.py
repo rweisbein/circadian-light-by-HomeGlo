@@ -816,7 +816,6 @@ class ZigBeeController(LightController):
             # Phase 1: Collect desired group membership for all areas
             # ------------------------------------------------------------------
             all_capability_groups = []  # [(group_name, members, cap_type, area_name)]
-            all_members = set()  # unique (ieee, endpoint_id) across all areas
 
             for area_id, area_info in areas.items():
                 if (
@@ -885,7 +884,6 @@ class ZigBeeController(LightController):
                     if filt not in filter_groups:
                         filter_groups[filt] = {"color": [], "ct": []}
                     filter_groups[filt][cap].append(member_entry)
-                    all_members.add((ieee.lower(), endpoint_id))
                     logger.debug(
                         f"  - {cap} light {entity_id}: filter={filt}, IEEE={ieee}, endpoint={endpoint_id}"
                     )
@@ -926,39 +924,7 @@ class ZigBeeController(LightController):
                     )
 
             # ------------------------------------------------------------------
-            # Phase 2: Clear stale Zigbee group IDs from all devices
-            #
-            # ZHA's group/remove API only deletes from its database — it does
-            # NOT send ZCL "Remove Group" to member devices.  When the freed
-            # Zigbee group ID is later reused by another area's group, devices
-            # with the stale ID respond to the wrong broadcasts ("breathing").
-            #
-            # Sending "Remove All Groups" to every device that will be in a
-            # Circadian group clears their entire Zigbee group table.  Phase 3
-            # then re-adds each device to exactly the right group.
-            # ------------------------------------------------------------------
-            if all_members:
-                logger.info(
-                    f"Clearing stale Zigbee groups from {len(all_members)} devices"
-                )
-                clear_ok = 0
-                clear_fail = 0
-                for ieee, endpoint_id in all_members:
-                    ok = await self._zcl_remove_all_groups(ieee, endpoint_id)
-                    if ok:
-                        clear_ok += 1
-                    else:
-                        clear_fail += 1
-                logger.info(
-                    f"Remove All Groups complete: {clear_ok} succeeded, "
-                    f"{clear_fail} failed out of {len(all_members)} devices"
-                )
-                # Allow devices time to process the ZCL clear before
-                # Phase 3 re-adds them to the correct groups.
-                await asyncio.sleep(2)
-
-            # ------------------------------------------------------------------
-            # Phase 3: Create / update groups (re-add devices to correct groups)
+            # Phase 2: Re-add devices to correct groups
             # ------------------------------------------------------------------
             for group_name, members, cap_type, area_name in all_capability_groups:
                 existing_group = existing_groups_by_name.get(group_name)
@@ -1066,36 +1032,6 @@ class ZigBeeController(LightController):
         except Exception as e:
             logger.error(f"Failed to sync ZHA groups: {e}")
             return False, {}
-
-    async def _zcl_remove_all_groups(self, ieee: str, endpoint_id: int) -> bool:
-        """Send ZCL 'Remove All Groups' command to a device endpoint.
-
-        Clears every Zigbee group ID from the device's group table so that
-        it no longer responds to stale group broadcasts.  Called during sync
-        before re-adding the device to its correct group.
-        """
-        try:
-            message = {
-                "type": "call_service",
-                "domain": "zha",
-                "service": "issue_zigbee_cluster_command",
-                "service_data": {
-                    "ieee": ieee,
-                    "endpoint_id": endpoint_id,
-                    "cluster_id": 4,  # Groups cluster (0x0004)
-                    "cluster_type": "in",
-                    "command": 4,  # Remove All Groups
-                    "command_type": "server",
-                    "args": [],
-                },
-            }
-            await self.ws_client.send_message_wait_response(message)
-            return True
-        except Exception as e:
-            logger.warning(
-                f"Failed to send 'Remove All Groups' to {ieee} ep{endpoint_id}: {e}"
-            )
-            return False
 
     async def create_group(self, command: GroupCommand) -> bool:
         """Create a ZHA group."""
