@@ -555,7 +555,9 @@ class HomeAssistantWebSocketClient:
         if new_state != "on":
             existing = switches.get_last_action(device_id)
             cooldown_until = existing.get("cooldown_until") if existing else None
-            switches.set_last_action(device_id, "motion_cleared", cooldown_until=cooldown_until)
+            switches.set_last_action(
+                device_id, "motion_cleared", cooldown_until=cooldown_until
+            )
 
         # Get motion sensor config by device_id
         sensor_config = switches.get_motion_sensor_by_device_id(device_id)
@@ -701,7 +703,9 @@ class HomeAssistantWebSocketClient:
                 until = self._motion_cooldown_until.get(sensor_config.id, 0)
                 if time.time() < until:
                     cooldown_until_iso = datetime.fromtimestamp(until).isoformat()
-            switches.set_last_action(device_id, "motion_cleared", cooldown_until=cooldown_until_iso)
+            switches.set_last_action(
+                device_id, "motion_cleared", cooldown_until=cooldown_until_iso
+            )
             return
 
         # Check cooldown before processing motion detected
@@ -1993,7 +1997,9 @@ class HomeAssistantWebSocketClient:
                 if state.is_boosted(area):
                     boost_state = state.get_boost_state(area)
                     boost_amount = boost_state.get("boost_brightness") or 0
-                    brightness = brightness + boost_amount  # No cap — nl_factor/area_factor scale it down
+                    brightness = (
+                        brightness + boost_amount
+                    )  # No cap — nl_factor/area_factor scale it down
 
                 lighting_values = {
                     "brightness": brightness,
@@ -2681,7 +2687,6 @@ class HomeAssistantWebSocketClient:
         if brightness_override is not None and brightness is not None:
             brightness = int(min(100, max(1, round(brightness + brightness_override))))
 
-
         # Apply CT brightness compensation (for warm color temps on Hue bulbs)
         if brightness is not None and kelvin is not None:
             original_brightness = brightness
@@ -2788,13 +2793,19 @@ class HomeAssistantWebSocketClient:
                     )
                 )
 
-        # CT-only lights: use color_temp_kelvin (clamped to 2000K min)
+        # CT-only lights: use color_temp_kelvin (clamped to light's actual minimum)
         if ct_lights:
             ct_data = {"transition": transition}
             if brightness is not None:
                 ct_data["brightness_pct"] = brightness
             if include_color and kelvin is not None:
-                ct_data["color_temp_kelvin"] = max(2000, kelvin)
+                ct_floor = 2000
+                for ct_eid in ct_lights:
+                    ct_attrs = self.cached_states.get(ct_eid, {}).get("attributes", {})
+                    min_ct = ct_attrs.get("min_color_temp_kelvin")
+                    if min_ct and min_ct > ct_floor:
+                        ct_floor = min_ct
+                ct_data["color_temp_kelvin"] = max(ct_floor, kelvin)
 
             # Use ZHA group if available (efficient hardware-level control)
             if zha_ct_group:
@@ -2945,7 +2956,12 @@ class HomeAssistantWebSocketClient:
 
             # Calculate filtered brightness
             filtered_bri, should_off = apply_light_filter_pipeline(
-                base_brightness, min_bri, max_bri, area_factor, preset, off_threshold,
+                base_brightness,
+                min_bri,
+                max_bri,
+                area_factor,
+                preset,
+                off_threshold,
                 rhythm_brightness=rhythm_brightness,
                 brightness_override=brightness_override,
             )
@@ -3103,7 +3119,17 @@ class HomeAssistantWebSocketClient:
             if lights_by_cap["ct"]:
                 ct_data = {"transition": transition, "brightness_pct": comp_brightness}
                 if include_color and kelvin is not None:
-                    ct_data["color_temp_kelvin"] = max(2000, kelvin)
+                    # Use the highest min_color_temp_kelvin from the CT lights
+                    # so the value is valid for all members (fallback 2000K)
+                    ct_floor = 2000
+                    for ct_eid in lights_by_cap["ct"]:
+                        ct_attrs = self.cached_states.get(ct_eid, {}).get(
+                            "attributes", {}
+                        )
+                        min_ct = ct_attrs.get("min_color_temp_kelvin")
+                        if min_ct and min_ct > ct_floor:
+                            ct_floor = min_ct
+                    ct_data["color_temp_kelvin"] = max(ct_floor, kelvin)
 
                 zha_group = group_candidates.get(f"zha_group_{filt_norm}_ct")
                 if zha_group:
@@ -3553,11 +3579,14 @@ class HomeAssistantWebSocketClient:
 
             count = 0
             select_entities = [
-                eid for eid in self.cached_states.keys()
+                eid
+                for eid in self.cached_states.keys()
                 if eid.startswith("select.") and "start_up_behavior" in eid
             ]
             if not select_entities:
-                logger.info(f"Power recovery '{recovery}': no start_up_behavior select entities found")
+                logger.info(
+                    f"Power recovery '{recovery}': no start_up_behavior select entities found"
+                )
             else:
                 for entity_id in select_entities:
                     try:
@@ -3566,19 +3595,31 @@ class HomeAssistantWebSocketClient:
                         options = entity_state.get("attributes", {}).get("options", [])
                         # Find the right option value (varies by device manufacturer)
                         if recovery == "bright":
-                            option = next((o for o in options if o.lower() == "on"), None)
+                            option = next(
+                                (o for o in options if o.lower() == "on"), None
+                            )
                         else:
-                            option = next((o for o in options if "previous" in o.lower()), None)
+                            option = next(
+                                (o for o in options if "previous" in o.lower()), None
+                            )
                         if not option:
-                            logger.warning(f"Power recovery: no matching option for '{recovery}' in {entity_id} options: {options}")
+                            logger.warning(
+                                f"Power recovery: no matching option for '{recovery}' in {entity_id} options: {options}"
+                            )
                             continue
-                        await self.call_service("select", "select_option", {
-                            "entity_id": entity_id,
-                            "option": option,
-                        })
+                        await self.call_service(
+                            "select",
+                            "select_option",
+                            {
+                                "entity_id": entity_id,
+                                "option": option,
+                            },
+                        )
                         count += 1
                     except Exception as e:
-                        logger.warning(f"Failed to set power recovery for {entity_id}: {e}")
+                        logger.warning(
+                            f"Failed to set power recovery for {entity_id}: {e}"
+                        )
                 logger.info(f"Applied power recovery '{recovery}' to {count} lights")
         except Exception as e:
             logger.error(f"Error applying power recovery setting: {e}")
@@ -4384,7 +4425,10 @@ class HomeAssistantWebSocketClient:
             # Recalibrate color_override: only for step-originated overrides (no set_at).
             # Slider/button-originated overrides (with set_at) are handled by decay above.
             # As the curve naturally warms, a step override may exceed what's needed.
-            if area_state.color_override is not None and area_state.color_override_set_at is None:
+            if (
+                area_state.color_override is not None
+                and area_state.color_override_set_at is None
+            ):
                 # What does the curve produce without override, with solar rules?
                 base_state = AreaState(
                     is_circadian=area_state.is_circadian,
@@ -4395,15 +4439,22 @@ class HomeAssistantWebSocketClient:
                     color_override=None,
                 )
                 base_cct = CircadianLight.calculate_color_at_hour(
-                    hour, config, base_state,
-                    apply_solar_rules=True, sun_times=sun_times,
+                    hour,
+                    config,
+                    base_state,
+                    apply_solar_rules=True,
+                    sun_times=sun_times,
                 )
                 # What does the curve want naturally (no override, no solar rules)?
                 natural_cct = CircadianLight.calculate_color_at_hour(
-                    hour, config, base_state,
+                    hour,
+                    config,
+                    base_state,
                     apply_solar_rules=False,
                 )
-                tolerance = max(5, (config.max_color_temp - config.min_color_temp) * 0.005)
+                tolerance = max(
+                    5, (config.max_color_temp - config.min_color_temp) * 0.005
+                )
                 if abs(natural_cct - base_cct) < tolerance:
                     needed_override = None
                 else:
@@ -4419,12 +4470,20 @@ class HomeAssistantWebSocketClient:
                             color_override=ovr,
                         )
                         return CircadianLight.calculate_color_at_hour(
-                            hour, config, s,
-                            apply_solar_rules=True, sun_times=sun_times,
+                            hour,
+                            config,
+                            s,
+                            apply_solar_rules=True,
+                            sun_times=sun_times,
                         )
+
                     from brain import _converge_override
+
                     needed_override = _converge_override(
-                        natural_cct, base_cct, tolerance, _render_recal,
+                        natural_cct,
+                        base_cct,
+                        tolerance,
+                        _render_recal,
                     )
                 if needed_override != area_state.color_override:
                     old_val = area_state.color_override
@@ -4447,7 +4506,9 @@ class HomeAssistantWebSocketClient:
                 # Get boost brightness from area's boost state (set per-sensor)
                 boost_state = state.get_boost_state(area_id)
                 boost_amount = boost_state.get("boost_brightness") or 0
-                brightness = result.brightness + boost_amount  # No cap — nl_factor/area_factor scale it down
+                brightness = (
+                    result.brightness + boost_amount
+                )  # No cap — nl_factor/area_factor scale it down
                 boost_note = f" (boosted +{boost_amount}%)"
                 if log_periodic:
                     logger.info(
@@ -4457,7 +4518,9 @@ class HomeAssistantWebSocketClient:
             # Compute decayed brightness_override for pipeline
             effective_bri_override = None
             if area_state.brightness_override is not None:
-                in_ascend, h48, t_ascend, t_descend, _ = CircadianLight.get_phase_info(hour, config)
+                in_ascend, h48, t_ascend, t_descend, _ = CircadianLight.get_phase_info(
+                    hour, config
+                )
                 next_phase = t_descend if in_ascend else t_ascend + 24
                 bri_decay = compute_override_decay(
                     area_state.brightness_override_set_at, h48, next_phase
@@ -4465,10 +4528,13 @@ class HomeAssistantWebSocketClient:
                 effective_bri_override = area_state.brightness_override * bri_decay
                 if bri_decay <= 0:
                     # Decay complete — clear override from state
-                    state.update_area(area_id, {
-                        "brightness_override": None,
-                        "brightness_override_set_at": None,
-                    })
+                    state.update_area(
+                        area_id,
+                        {
+                            "brightness_override": None,
+                            "brightness_override_set_at": None,
+                        },
+                    )
                     effective_bri_override = None
                 elif log_periodic:
                     logger.info(
@@ -4477,17 +4543,25 @@ class HomeAssistantWebSocketClient:
                     )
 
             # Compute decayed color_override (only if set_at exists — slider/button origin)
-            if area_state.color_override is not None and area_state.color_override_set_at is not None:
-                in_ascend, h48, t_ascend, t_descend, _ = CircadianLight.get_phase_info(hour, config)
+            if (
+                area_state.color_override is not None
+                and area_state.color_override_set_at is not None
+            ):
+                in_ascend, h48, t_ascend, t_descend, _ = CircadianLight.get_phase_info(
+                    hour, config
+                )
                 next_phase = t_descend if in_ascend else t_ascend + 24
                 color_decay = compute_override_decay(
                     area_state.color_override_set_at, h48, next_phase
                 )
                 if color_decay <= 0:
-                    state.update_area(area_id, {
-                        "color_override": None,
-                        "color_override_set_at": None,
-                    })
+                    state.update_area(
+                        area_id,
+                        {
+                            "color_override": None,
+                            "color_override_set_at": None,
+                        },
+                    )
                     area_state = AreaState.from_dict(state.get_area(area_id))
                     result = CircadianLight.calculate_lighting(
                         hour, config, area_state, sun_times=sun_times
@@ -4700,17 +4774,28 @@ class HomeAssistantWebSocketClient:
                     elif logging_until:
                         try:
                             from datetime import datetime, timezone
-                            expiry = datetime.fromisoformat(logging_until.replace("Z", "+00:00"))
+
+                            expiry = datetime.fromisoformat(
+                                logging_until.replace("Z", "+00:00")
+                            )
                             log_periodic = datetime.now(timezone.utc) < expiry
                         except (ValueError, TypeError):
                             log_periodic = False
                     else:
                         log_periodic = False
                     # Periodic transition speed (day/night) — values in seconds
-                    periodic_transition_day = float(raw_config.get("periodic_transition_day", refresh_interval))
-                    periodic_transition_night = float(raw_config.get("periodic_transition_night", 1))
+                    periodic_transition_day = float(
+                        raw_config.get("periodic_transition_day", refresh_interval)
+                    )
+                    periodic_transition_night = float(
+                        raw_config.get("periodic_transition_night", 1)
+                    )
                     sun_elev = self.sun_data.get("elevation", 0) if self.sun_data else 0
-                    periodic_transition = periodic_transition_day if sun_elev > 0 else periodic_transition_night
+                    periodic_transition = (
+                        periodic_transition_day
+                        if sun_elev > 0
+                        else periodic_transition_night
+                    )
                 except Exception:
                     refresh_interval = 30
                     log_periodic = False
@@ -5282,9 +5367,7 @@ class HomeAssistantWebSocketClient:
                 lux_entity = lux_tracker.get_sensor_entity()
                 if lux_entity and lux_entity in self.cached_states:
                     try:
-                        raw_lux = float(
-                            self.cached_states[lux_entity].get("state", 0)
-                        )
+                        raw_lux = float(self.cached_states[lux_entity].get("state", 0))
                         lux_tracker.update(raw_lux)
                         logger.info(
                             f"Re-seeded lux sensor after config reload: {raw_lux:.0f}"
@@ -5544,16 +5627,10 @@ class HomeAssistantWebSocketClient:
                     moment_id = service[4:]
                     moments = self._get_moments()
                     if moment_id in moments:
-                        logger.info(
-                            f"[webserver] Applying moment '{moment_id}'"
-                        )
-                        await self.primitives.set(
-                            None, "webserver", preset=moment_id
-                        )
+                        logger.info(f"[webserver] Applying moment '{moment_id}'")
+                        await self.primitives.set(None, "webserver", preset=moment_id)
                     else:
-                        logger.warning(
-                            f"Unknown set action from webserver: {service}"
-                        )
+                        logger.warning(f"Unknown set action from webserver: {service}")
                 else:
                     logger.warning(
                         f"Unknown circadian_light_service_event: service={service}, area_id={area_id}"

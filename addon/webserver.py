@@ -541,9 +541,7 @@ class LightDesignerServer:
             "/{path:.*}/api/moments/{moment_id}/run",
             self.run_moment,
         )
-        self.app.router.add_post(
-            "/api/moments/{moment_id}/run", self.run_moment
-        )
+        self.app.router.add_post("/api/moments/{moment_id}/run", self.run_moment)
 
         # GloZone API routes - Actions
         self.app.router.add_route(
@@ -837,6 +835,7 @@ class LightDesignerServer:
             icon_path = Path(__file__).parent / "icon.png"
             if icon_path.exists() and 'src="./icon.png"' in html_content:
                 import base64
+
                 icon_b64 = base64.b64encode(icon_path.read_bytes()).decode()
                 html_content = html_content.replace(
                     'src="./icon.png"',
@@ -966,13 +965,18 @@ class LightDesignerServer:
                     bri_override_raw = area_st.get("brightness_override")
                     if bri_override_raw is not None:
                         from brain import CircadianLight, Config, compute_override_decay
+
                         preset_config = glozone.get_effective_config_for_zone(zone_name)
                         brain_config = Config.from_dict(preset_config)
                         now = datetime.now()
                         hour = now.hour + now.minute / 60 + now.second / 3600
-                        in_ascend, h48, t_ascend, t_descend, _ = CircadianLight.get_phase_info(hour, brain_config)
+                        in_ascend, h48, t_ascend, t_descend, _ = (
+                            CircadianLight.get_phase_info(hour, brain_config)
+                        )
                         next_phase = t_descend if in_ascend else t_ascend + 24
-                        bri_decay = compute_override_decay(area_st.get("brightness_override_set_at"), h48, next_phase)
+                        bri_decay = compute_override_decay(
+                            area_st.get("brightness_override_set_at"), h48, next_phase
+                        )
                         effective_bri_override = round(bri_override_raw * bri_decay, 1)
                     zone_areas.append(
                         {
@@ -2018,11 +2022,11 @@ class LightDesignerServer:
         "lux_learned_ceiling",  # Learned bright-day lux baseline (85th percentile)
         "lux_learned_floor",  # Learned dark-day lux baseline (5th percentile)
         "outdoor_brightness_source",  # Preferred outdoor brightness source: "lux", "weather", or "angle"
-        "periodic_transition_day",   # Periodic transition speed during day (tenths of seconds, default 20)
-        "periodic_transition_night", # Periodic transition speed at night (tenths of seconds, default 1)
-        "power_recovery",            # Power failure recovery: "bright" or "last_state" (default "last_state")
-        "advanced_logging_until",    # ISO timestamp or "forever" for advanced logging expiry
-        "confirm_zone_pushes",       # Show confirmation dialogs for zone push actions (default false)
+        "periodic_transition_day",  # Periodic transition speed during day (tenths of seconds, default 20)
+        "periodic_transition_night",  # Periodic transition speed at night (tenths of seconds, default 1)
+        "power_recovery",  # Power failure recovery: "bright" or "last_state" (default "last_state")
+        "advanced_logging_until",  # ISO timestamp or "forever" for advanced logging expiry
+        "confirm_zone_pushes",  # Show confirmation dialogs for zone push actions (default false)
     }
 
     def _migrate_to_glozone_format(self, config: dict) -> dict:
@@ -3155,6 +3159,16 @@ class LightDesignerServer:
                     if device_id and device_id in device_areas:
                         areas_with_lights.add(device_areas[device_id])
 
+                # Also include areas configured in glozones (user explicitly added
+                # these, so they should always appear even if HA has no matching
+                # light/switch entities — e.g. a shed with only a power outlet)
+                config = await self.load_config()
+                for zone_data in config.get("glozones", {}).values():
+                    for area in zone_data.get("areas", []):
+                        aid = area.get("id") if isinstance(area, dict) else area
+                        if aid:
+                            areas_with_lights.add(aid)
+
                 # Return only areas that have lights (exclude internal groups area)
                 areas = [
                     {"area_id": area_id, "name": all_areas[area_id]}
@@ -3247,6 +3261,7 @@ class LightDesignerServer:
             override = zone_gz.get("schedule_override")
             if override:
                 from datetime import date as date_cls
+
                 until_str = override.get("until_date")
                 if until_str:
                     try:
@@ -3317,6 +3332,7 @@ class LightDesignerServer:
             # (ignoring normal day restrictions). After override expires,
             # revert to normal day schedule.
             from datetime import timedelta as _td
+
             day_date = today_date + _td(days=i)
             day_in_override = override_active and day_date <= override_until_date
             if not day_in_override and py_day not in days:
@@ -3358,8 +3374,18 @@ class LightDesignerServer:
 
             fire_date = today_date + timedelta(days=fire_offset)
             month_abbrs = [
-                "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+                "Jan",
+                "Feb",
+                "Mar",
+                "Apr",
+                "May",
+                "Jun",
+                "Jul",
+                "Aug",
+                "Sep",
+                "Oct",
+                "Nov",
+                "Dec",
             ]
             day_label = (
                 f"{day_abbrs[fire_day]} "
@@ -3379,8 +3405,18 @@ class LightDesignerServer:
 
             fire_date_r = today_date + timedelta(days=fire_offset)
             month_abbrs_r = [
-                "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+                "Jan",
+                "Feb",
+                "Mar",
+                "Apr",
+                "May",
+                "Jun",
+                "Jul",
+                "Aug",
+                "Sep",
+                "Oct",
+                "Nov",
+                "Dec",
             ]
             result["date_short"] = (
                 f"{month_abbrs_r[fire_date_r.month - 1]} {fire_date_r.day}"
@@ -3512,9 +3548,12 @@ class LightDesignerServer:
 
                     # Apply color override decay for slider-originated overrides
                     render_state = area_state
-                    if area_state.color_override is not None and area_state.color_override_set_at is not None:
-                        _in_asc, _h48, _t_asc, _t_desc, _ = CircadianLight.get_phase_info(
-                            calc_hour, area_config
+                    if (
+                        area_state.color_override is not None
+                        and area_state.color_override_set_at is not None
+                    ):
+                        _in_asc, _h48, _t_asc, _t_desc, _ = (
+                            CircadianLight.get_phase_info(calc_hour, area_config)
                         )
                         _next_ph = _t_desc if _in_asc else _t_asc + 24
                         _col_decay = compute_override_decay(
@@ -3527,8 +3566,16 @@ class LightDesignerServer:
                                 frozen_at=area_state.frozen_at,
                                 brightness_mid=area_state.brightness_mid,
                                 color_mid=area_state.color_mid,
-                                color_override=area_state.color_override * _col_decay if _col_decay > 0 else None,
-                                color_override_set_at=area_state.color_override_set_at if _col_decay > 0 else None,
+                                color_override=(
+                                    area_state.color_override * _col_decay
+                                    if _col_decay > 0
+                                    else None
+                                ),
+                                color_override_set_at=(
+                                    area_state.color_override_set_at
+                                    if _col_decay > 0
+                                    else None
+                                ),
                                 brightness_override=area_state.brightness_override,
                                 brightness_override_set_at=area_state.brightness_override_set_at,
                             )
@@ -3556,7 +3603,9 @@ class LightDesignerServer:
 
                     if is_boosted:
                         boost_amount = boost_state.get("boost_brightness") or 0
-                        brightness = brightness + boost_amount  # No cap — multiplicative factors scale it down
+                        brightness = (
+                            brightness + boost_amount
+                        )  # No cap — multiplicative factors scale it down
 
                     # Get motion timer state
                     motion_expires_at = state.get_motion_expires(area_id)
@@ -3619,8 +3668,8 @@ class LightDesignerServer:
                     effective_bri_override = 0
                     bri_override_raw = area_state.brightness_override
                     if bri_override_raw is not None:
-                        in_ascend, h48, t_ascend, t_descend, _ = CircadianLight.get_phase_info(
-                            calc_hour, area_config
+                        in_ascend, h48, t_ascend, t_descend, _ = (
+                            CircadianLight.get_phase_info(calc_hour, area_config)
                         )
                         next_phase = t_descend if in_ascend else t_ascend + 24
                         bri_decay = compute_override_decay(
@@ -3629,12 +3678,22 @@ class LightDesignerServer:
                         effective_bri_override = bri_override_raw * bri_decay
 
                     actual_brightness = int(
-                        min(100, max(0, round(brightness * area_factor + effective_bri_override)))
+                        min(
+                            100,
+                            max(
+                                0,
+                                round(
+                                    brightness * area_factor + effective_bri_override
+                                ),
+                            ),
+                        )
                     )
 
                     # --- Adjusted bed/wake time from midpoint shift ---
                     weekday = datetime.now().weekday()
-                    eff_wake, eff_bed = resolve_effective_timing(area_config, calc_hour, weekday)
+                    eff_wake, eff_bed = resolve_effective_timing(
+                        area_config, calc_hour, weekday
+                    )
                     adjusted_wake_time = None
                     adjusted_bed_time = None
                     if area_state.brightness_mid is not None:
@@ -3645,7 +3704,8 @@ class LightDesignerServer:
                         raw_default = eff_wake if in_ascend_adj else eff_bed
                         default_mid = raw_default
                         bri_pct = (
-                            area_config.wake_brightness if in_ascend_adj
+                            area_config.wake_brightness
+                            if in_ascend_adj
                             else area_config.bed_brightness
                         )
                         if bri_pct != 50:
@@ -3659,9 +3719,12 @@ class LightDesignerServer:
                                 mid48_r = CircadianLight.lift_midpoint_to_phase(
                                     default_mid, t_desc_adj, t_asc_adj + 24
                                 )
-                            default_mid = compute_shifted_midpoint(
-                                mid48_r, bri_pct, slope_adj, b_min_n, b_max_n
-                            ) % 24
+                            default_mid = (
+                                compute_shifted_midpoint(
+                                    mid48_r, bri_pct, slope_adj, b_min_n, b_max_n
+                                )
+                                % 24
+                            )
 
                         mid_shift = area_state.brightness_mid - default_mid
                         if abs(mid_shift) > 0.01:
@@ -3710,7 +3773,11 @@ class LightDesignerServer:
                         "brightness_override": bri_override_raw,
                         "brightness_override_set_at": area_state.brightness_override_set_at,
                         "color_override_set_at": area_state.color_override_set_at,
-                        "effective_bri_override": round(effective_bri_override, 1) if effective_bri_override else 0,
+                        "effective_bri_override": (
+                            round(effective_bri_override, 1)
+                            if effective_bri_override
+                            else 0
+                        ),
                         "frozen_at": area_state.frozen_at,
                         # Override + area factor derived values
                         "actual_brightness": actual_brightness,
@@ -3996,7 +4063,9 @@ class LightDesignerServer:
                 # Group lights by filter assignment
                 color_set = set(self.live_design_color_lights)
                 filter_groups = {}  # {filter_name: {"color": [], "ct": []}}
-                for entity_id in self.live_design_color_lights + self.live_design_ct_lights:
+                for entity_id in (
+                    self.live_design_color_lights + self.live_design_ct_lights
+                ):
                     filt = area_filters.get(entity_id, "Standard")
                     if filt not in filter_groups:
                         filter_groups[filt] = {"color": [], "ct": []}
@@ -4013,12 +4082,18 @@ class LightDesignerServer:
                     tasks = []
 
                     for filter_name, lights_by_cap in filter_groups.items():
-                        preset = presets.get(filter_name, {"at_bright": 100, "at_dim": 100})
+                        preset = presets.get(
+                            filter_name, {"at_bright": 100, "at_dim": 100}
+                        )
 
                         # Calculate filtered brightness through the pipeline
                         filtered_bri, should_off = apply_light_filter_pipeline(
                             int(base_brightness) if base_brightness is not None else 0,
-                            min_bri, max_bri, area_factor, preset, off_threshold,
+                            min_bri,
+                            max_bri,
+                            area_factor,
+                            preset,
+                            off_threshold,
                         )
 
                         if should_off:
@@ -4029,7 +4104,10 @@ class LightDesignerServer:
                                     session.post(
                                         f"{rest_url}/services/light/turn_off",
                                         headers=headers,
-                                        json={"entity_id": off_entities, "transition": transition},
+                                        json={
+                                            "entity_id": off_entities,
+                                            "transition": transition,
+                                        },
                                     )
                                 )
                             continue
@@ -4037,7 +4115,9 @@ class LightDesignerServer:
                         # Apply CT compensation to the filtered brightness
                         comp_bri = filtered_bri
                         if color_temp is not None:
-                            comp_bri = self._ct_compensate(filtered_bri, int(color_temp))
+                            comp_bri = self._ct_compensate(
+                                filtered_bri, int(color_temp)
+                            )
 
                         # Color-capable lights: use xy_color
                         if lights_by_cap["color"]:
@@ -4064,7 +4144,9 @@ class LightDesignerServer:
                                 "brightness_pct": comp_bri,
                             }
                             if color_temp is not None:
-                                ct_data["color_temp_kelvin"] = max(2000, int(color_temp))
+                                ct_data["color_temp_kelvin"] = max(
+                                    2000, int(color_temp)
+                                )
                             tasks.append(
                                 session.post(
                                     f"{rest_url}/services/light/turn_on",
@@ -5083,15 +5165,9 @@ class LightDesignerServer:
                 )
                 if success:
                     logger.info(f"Fired run event for moment '{moment_id}'")
-                    return web.json_response(
-                        {"status": "ok", "moment_id": moment_id}
-                    )
-                return web.json_response(
-                    {"error": "Failed to fire event"}, status=500
-                )
-            return web.json_response(
-                {"error": "HA API not configured"}, status=503
-            )
+                    return web.json_response({"status": "ok", "moment_id": moment_id})
+                return web.json_response({"error": "Failed to fire event"}, status=500)
+            return web.json_response({"error": "HA API not configured"}, status=503)
         except Exception as e:
             logger.error(f"Error running moment: {e}")
             return web.json_response({"error": str(e)}, status=500)
@@ -6061,7 +6137,9 @@ class LightDesignerServer:
             _, ws_url, token = self._get_ha_api_config()
             if ws_url and token:
                 await self._fire_event_via_websocket(
-                    ws_url, token, "circadian_light_outdoor_override",
+                    ws_url,
+                    token,
+                    "circadian_light_outdoor_override",
                     {"condition": condition, "duration_minutes": int(duration)},
                 )
 
@@ -6078,7 +6156,9 @@ class LightDesignerServer:
         _, ws_url, token = self._get_ha_api_config()
         if ws_url and token:
             await self._fire_event_via_websocket(
-                ws_url, token, "circadian_light_outdoor_override",
+                ws_url,
+                token,
+                "circadian_light_outdoor_override",
                 {"condition": None},
             )
 
