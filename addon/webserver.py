@@ -518,6 +518,14 @@ class LightDesignerServer:
         self.app.router.add_delete(
             "/api/glozones/{name}/areas/{area_id}", self.remove_area_from_zone
         )
+        self.app.router.add_route(
+            "DELETE",
+            "/{path:.*}/api/areas/{area_id}/purge",
+            self.purge_area_from_config,
+        )
+        self.app.router.add_delete(
+            "/api/areas/{area_id}/purge", self.purge_area_from_config
+        )
 
         # Moments API routes
         self.app.router.add_route("GET", "/{path:.*}/api/moments", self.get_moments)
@@ -4941,6 +4949,42 @@ class LightDesignerServer:
             return web.json_response({"status": "removed", "area_id": area_id})
         except Exception as e:
             logger.error(f"Error removing area from zone: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def purge_area_from_config(self, request: Request) -> Response:
+        """Remove an area from all zones in config (for areas deleted from HA)."""
+        try:
+            area_id = request.match_info.get("area_id")
+            config = await self.load_raw_config()
+            zones = config.get("glozones", {})
+
+            removed_from = []
+            for zone_name, zone_config in zones.items():
+                areas = zone_config.get("areas", [])
+                new_areas = [
+                    a for a in areas
+                    if not (
+                        (isinstance(a, dict) and a.get("id") == area_id)
+                        or (isinstance(a, str) and a == area_id)
+                    )
+                ]
+                if len(new_areas) < len(areas):
+                    zone_config["areas"] = new_areas
+                    removed_from.append(zone_name)
+
+            if not removed_from:
+                return web.json_response(
+                    {"error": f"Area '{area_id}' not found in any zone"}, status=404
+                )
+
+            await self.save_config_to_file(config)
+            glozone.set_config(config)
+            logger.info(f"Purged area {area_id} from zones: {removed_from}")
+            return web.json_response(
+                {"status": "purged", "area_id": area_id, "removed_from": removed_from}
+            )
+        except Exception as e:
+            logger.error(f"Error purging area from config: {e}")
             return web.json_response({"error": str(e)}, status=500)
 
     # -------------------------------------------------------------------------

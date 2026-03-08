@@ -2321,7 +2321,7 @@
 
     async function removeStaleArea(areaId, zoneName) {
       try {
-        const resp = await fetch(`./api/glozones/${encodeURIComponent(zoneName)}/areas/${encodeURIComponent(areaId)}`, { method: 'DELETE' });
+        const resp = await fetch(`./api/areas/${encodeURIComponent(areaId)}/purge`, { method: 'DELETE' });
         if (!resp.ok) throw new Error(`Failed to remove: ${resp.status}`);
         const gzRes = await fetch('./api/glozones');
         if (gzRes.ok) cachedGlozones = await gzRes.json();
