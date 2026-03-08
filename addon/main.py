@@ -8,7 +8,7 @@ import math
 import os
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional, Sequence, Set, Tuple, Union
 
 import websockets
@@ -586,6 +586,16 @@ class HomeAssistantWebSocketClient:
                 switches.set_last_action(
                     device_id, "motion_detected", cooldown_until=cooldown_until_iso
                 )
+                # Extend motion timers for areas already on (don't turn on dark areas)
+                for area_config in sensor_config.areas:
+                    if area_config.mode == "on_off" and state.has_motion_timer(area_config.area_id):
+                        new_exp = (datetime.now() + timedelta(seconds=area_config.duration)).isoformat()
+                        current_exp = state.get_motion_expires(area_config.area_id)
+                        if current_exp != "forever" and (current_exp is None or new_exp > current_exp):
+                            state.extend_motion_expires(area_config.area_id, new_exp)
+                            logger.debug(
+                                f"[Motion] Cooldown: extended timer for {area_config.area_id} to {new_exp}"
+                            )
                 logger.debug(
                     f"[Motion] {sensor_config.name} cooldown reset ({sensor_config.cooldown}s)"
                 )
@@ -730,6 +740,16 @@ class HomeAssistantWebSocketClient:
                 switches.set_last_action(
                     device_id, "motion_detected", cooldown_until=cooldown_until_iso
                 )
+                # Extend motion timers for areas already on (don't turn on dark areas)
+                for area_config in sensor_config.areas:
+                    if area_config.mode == "on_off" and state.has_motion_timer(area_config.area_id):
+                        new_exp = (datetime.now() + timedelta(seconds=area_config.duration)).isoformat()
+                        current_exp = state.get_motion_expires(area_config.area_id)
+                        if current_exp != "forever" and (current_exp is None or new_exp > current_exp):
+                            state.extend_motion_expires(area_config.area_id, new_exp)
+                            logger.debug(
+                                f"[ZHA Motion] Cooldown: extended timer for {area_config.area_id} to {new_exp}"
+                            )
                 logger.debug(
                     f"[ZHA Motion] {sensor_config.name} cooldown reset ({sensor_config.cooldown}s)"
                 )
