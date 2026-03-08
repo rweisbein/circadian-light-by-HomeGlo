@@ -551,9 +551,11 @@ class HomeAssistantWebSocketClient:
             logger.debug(f"[Motion] No device ID mapped for entity {entity_id}")
             return
 
-        # Record last action for UI display (motion cleared doesn't need cooldown info)
+        # Record last action for UI display (preserve cooldown_until so UI countdown survives)
         if new_state != "on":
-            switches.set_last_action(device_id, "motion_cleared")
+            existing = switches.get_last_action(device_id)
+            cooldown_until = existing.get("cooldown_until") if existing else None
+            switches.set_last_action(device_id, "motion_cleared", cooldown_until=cooldown_until)
 
         # Get motion sensor config by device_id
         sensor_config = switches.get_motion_sensor_by_device_id(device_id)
@@ -690,11 +692,16 @@ class HomeAssistantWebSocketClient:
                     is_motion_detected = attr_value == 1 or attr_value == True
 
         if not is_motion_detected:
-            # Motion cleared - for motion sensors we just let the timer handle it
+            # Motion cleared - preserve cooldown_until so UI countdown survives
             logger.debug(
                 f"[ZHA Motion] {sensor_config.name}: motion cleared (command={command})"
             )
-            switches.set_last_action(device_id, "motion_cleared")
+            cooldown_until_iso = None
+            if sensor_config.cooldown > 0:
+                until = self._motion_cooldown_until.get(sensor_config.id, 0)
+                if time.time() < until:
+                    cooldown_until_iso = datetime.fromtimestamp(until).isoformat()
+            switches.set_last_action(device_id, "motion_cleared", cooldown_until=cooldown_until_iso)
             return
 
         # Check cooldown before processing motion detected

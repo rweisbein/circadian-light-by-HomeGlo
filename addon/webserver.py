@@ -3134,19 +3134,24 @@ class LightDesignerServer:
                     areas.sort(key=lambda x: x["name"].lower())
                     return areas
 
-                # Find area_ids that have at least one light entity
-                # Check both direct entity area and area via device
+                # Find area_ids that have at least one controllable entity
+                # (light.* or switch.* for power outlets used as lights)
                 areas_with_lights = set()
                 for entity in entity_msg["result"]:
                     entity_id = entity.get("entity_id", "")
-                    if not entity_id.startswith("light."):
+                    is_light = entity_id.startswith("light.")
+                    is_switch = entity_id.startswith("switch.")
+                    if not (is_light or is_switch):
+                        continue
+                    # switch.* entities must belong to a device (skip helpers/templates)
+                    device_id = entity.get("device_id")
+                    if is_switch and not device_id:
                         continue
                     # Check direct area assignment
                     area_id = entity.get("area_id")
                     if area_id:
                         areas_with_lights.add(area_id)
                     # Check area via device
-                    device_id = entity.get("device_id")
                     if device_id and device_id in device_areas:
                         areas_with_lights.add(device_areas[device_id])
 
