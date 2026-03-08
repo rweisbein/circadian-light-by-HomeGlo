@@ -1,5 +1,14 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.11
+- **Fix breathing on non-Standard filter lights**: Lights with Overhead/Lamp/etc. filters now use individual commands instead of ZHA group broadcasts, preventing stale group ID cross-talk
+- **Fix ZHA group cleanup**: Remove members before deleting obsolete groups; smart color_temp_kelvin clamping using actual light attributes
+- **Fix shed/switch-only area visibility**: Areas configured in glozones now appear even without light entities
+- **Apply brightness_override on all turn-on paths**: `circadian_on`, `lights_on`, and `lights_toggle_multiple` now apply decayed brightness_override immediately
+- **Fix cooldown countdown**: Timer display now works correctly; areas with only switch entities show properly
+- **Add configurable motion sensor cooldown**: New setting for motion sensor cooldown duration
+- **Fix motion/contact sensor config persistence**: Config now persists after save
+
 ## 1.0.0
 **Initial public release**
 
