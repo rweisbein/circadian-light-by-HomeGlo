@@ -371,12 +371,17 @@ class ZigBeeController(LightController):
                 {"type": "config/entity_registry/list"}
             )
             entity_to_device = {}
+            entity_area_overrides = {}  # Entity-level area assignments (e.g., group entities moved to Circadian_Zigbee_Groups)
             if entity_registry:
                 for entity in entity_registry:
                     entity_id = entity.get("entity_id")
                     device_id = entity.get("device_id")
                     if entity_id and device_id:
                         entity_to_device[entity_id] = device_id
+                    # Track entity-level area overrides
+                    entity_area = entity.get("area_id")
+                    if entity_id and entity_area:
+                        entity_area_overrides[entity_id] = entity_area
 
             # Get all ZHA devices for IEEE lookup
             zha_devices = await self.list_zha_devices()
@@ -436,10 +441,14 @@ class ZigBeeController(LightController):
                         )
                         continue
 
-                    # Try to get area_id from attributes first
-                    area_id = attributes.get("area_id")
+                    # Try to get area_id: entity registry override first (handles
+                    # ZHA group entities moved to Circadian_Zigbee_Groups), then
+                    # state attributes, then device registry.
+                    area_id = entity_area_overrides.get(entity_id)
 
-                    # If not in attributes, try to get from device
+                    if not area_id:
+                        area_id = attributes.get("area_id")
+
                     if not area_id and device_id and device_id in device_by_id:
                         area_id = device_by_id[device_id].get("area_id")
 
