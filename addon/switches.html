@@ -963,6 +963,7 @@
         const sortVal = timestamp || '';
         const label = action === 'motion_detected' ? 'Motion' : 'Cleared';
         let cooldownStr = '';
+        console.log('[cooldown debug]', ctrl.name, {cooldown: ctrl.cooldown, last_action: ctrl.last_action, action});
         if (ctrl.cooldown > 0 && ctrl.last_action?.cooldown_until) {
           const cdUntil = new Date(ctrl.last_action.cooldown_until).getTime();
           const remaining = Math.max(0, Math.ceil((cdUntil - Date.now()) / 1000));
