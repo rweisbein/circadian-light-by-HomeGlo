@@ -213,18 +213,38 @@ async function openAreaPicker(options = {}) {
   // Return a Promise that resolves when user confirms or cancels
   return new Promise(async (resolve) => {
 
-  // Fetch zones and areas
+  // Fetch zones and HA areas
   let zones = {};
+  let haAreaIds = null;
   try {
-    const resp = await fetch('./api/glozones');
-    if (resp.ok) {
-      const data = await resp.json();
+    const [gzResp, haResp] = await Promise.all([
+      fetch('./api/glozones'),
+      fetch('./api/areas')
+    ]);
+    if (gzResp.ok) {
+      const data = await gzResp.json();
       zones = data.zones || {};
+    }
+    if (haResp.ok) {
+      const haAreas = await haResp.json();
+      haAreaIds = new Set(haAreas.map(a => a.area_id));
     }
   } catch (err) {
     console.error('Failed to fetch zones:', err);
     resolve(null);
     return;
+  }
+
+  // Filter out stale areas (in config but removed from HA)
+  if (haAreaIds) {
+    for (const [zoneName, zoneData] of Object.entries(zones)) {
+      if (zoneData.areas) {
+        zoneData.areas = zoneData.areas.filter(area => {
+          const areaId = typeof area === 'object' ? (area.id || area.area_id) : area;
+          return haAreaIds.has(areaId);
+        });
+      }
+    }
   }
 
   // Track sort preference (persisted in localStorage)

@@ -2319,6 +2319,18 @@
       }
     }
 
+    async function removeStaleArea(areaId, zoneName) {
+      try {
+        const resp = await fetch(`./api/glozones/${encodeURIComponent(zoneName)}/areas/${encodeURIComponent(areaId)}`, { method: 'DELETE' });
+        if (!resp.ok) throw new Error(`Failed to remove: ${resp.status}`);
+        const gzRes = await fetch('./api/glozones');
+        if (gzRes.ok) cachedGlozones = await gzRes.json();
+        renderAreas();
+      } catch (err) {
+        console.error('Error removing stale area:', err);
+      }
+    }
+
     async function moveAreaToZone(selectEl, areaId, sourceZone) {
       const targetZone = selectEl.value;
       if (!targetZone) return;
@@ -2483,6 +2495,25 @@
             </div>
           `).join('');
 
+          // Find stale areas: in zone config but not in HA
+          const haAreaIds = new Set(areas.map(a => a.area_id));
+          const configAreas = cachedGlozones?.zones?.[zoneName]?.areas || [];
+          const staleRows = configAreas
+            .filter(ca => {
+              const cId = typeof ca === 'object' ? ca.id : ca;
+              return !haAreaIds.has(cId);
+            })
+            .map(ca => {
+              const cId = typeof ca === 'object' ? ca.id : ca;
+              const cName = (typeof ca === 'object' ? ca.name : ca) || cId;
+              return `
+                <div class="edit-mode-row stale-area-row" data-area-id="${cId}">
+                  <span style="flex: 1; font-size: 0.9rem; color: var(--muted); font-style: italic;">${cName} <span style="font-size: 0.75rem;">(removed from HA)</span></span>
+                  <button class="edit-icon-btn danger" onclick="event.stopPropagation(); removeStaleArea('${cId}', '${escapedZoneName}')" title="Remove">&#128465;</button>
+                </div>
+              `;
+            }).join('');
+
           return `
             <div class="zone-group">
               <div class="edit-zone-header ${isCollapsed ? 'collapsed' : ''}" data-zone="${zoneName}"
@@ -2505,6 +2536,7 @@
                 ondragleave="onZoneContentDragLeave(event)"
                 ondrop="onZoneContentDrop(event, '${escapedZoneName}')">
                 ${areaRows}
+                ${staleRows}
               </div>
             </div>
           `;
