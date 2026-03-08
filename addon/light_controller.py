@@ -1073,6 +1073,7 @@ class ZigBeeController(LightController):
                     "cluster_type": "in",
                     "command": 4,  # Remove All Groups
                     "command_type": "server",
+                    "args": [],
                 },
             }
             await self.ws_client.send_message_wait_response(message)
