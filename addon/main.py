@@ -3295,7 +3295,9 @@ class HomeAssistantWebSocketClient:
                     )
             else:
                 if log_periodic:
-                    logger.info(f"Turn off (color): {len(color_lights)} lights")
+                    logger.info(
+                        f"Turn off (color, {area_id}): {len(color_lights)} lights"
+                    )
                 tasks.append(
                     asyncio.create_task(
                         self.call_service(
@@ -3342,7 +3344,7 @@ class HomeAssistantWebSocketClient:
                     )
             else:
                 if log_periodic:
-                    logger.info(f"Turn off (CT): {len(ct_lights)} lights")
+                    logger.info(f"Turn off (CT, {area_id}): {len(ct_lights)} lights")
                 tasks.append(
                     asyncio.create_task(
                         self.call_service(
@@ -4337,6 +4339,9 @@ class HomeAssistantWebSocketClient:
             # Send redundant off commands for a few periods to catch missed turn-offs
             OFF_CONFIRM_THRESHOLD = 3  # Send off for this many periods before stopping
             if not state.get_is_on(area_id):
+                if log_periodic:
+                    enforced = state.is_off_enforced(area_id)
+                    logger.info(f"Area {area_id} is_on=false (off_enforced={enforced})")
                 if not state.is_off_enforced(area_id):
                     # Check cached_states to see if lights are actually off
                     lights = self.area_lights.get(area_id, [])
