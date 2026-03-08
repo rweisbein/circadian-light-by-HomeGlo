@@ -3072,7 +3072,17 @@ class HomeAssistantWebSocketClient:
                 if include_color and xy is not None:
                     color_data["xy_color"] = list(xy)
 
-                zha_group = group_candidates.get(f"zha_group_{filt_norm}_color")
+                # For non-Standard filters, use individual commands instead of
+                # ZHA groups.  Devices may retain stale Zigbee group IDs from
+                # previous filter assignments, causing them to respond to the
+                # wrong group's brightness broadcasts ("breathing" effect).
+                # Standard filter lights are safe because the fast path also
+                # targets Standard groups, so there's no brightness mismatch.
+                zha_group = (
+                    group_candidates.get(f"zha_group_{filt_norm}_color")
+                    if filter_name == "Standard"
+                    else None
+                )
                 if zha_group:
                     non_zha = [
                         l for l in lights_by_cap["color"] if l not in self.zha_lights
@@ -3131,7 +3141,12 @@ class HomeAssistantWebSocketClient:
                             ct_floor = min_ct
                     ct_data["color_temp_kelvin"] = max(ct_floor, kelvin)
 
-                zha_group = group_candidates.get(f"zha_group_{filt_norm}_ct")
+                # Non-Standard filters: use individual commands (see color note above)
+                zha_group = (
+                    group_candidates.get(f"zha_group_{filt_norm}_ct")
+                    if filter_name == "Standard"
+                    else None
+                )
                 if zha_group:
                     non_zha = [
                         l for l in lights_by_cap["ct"] if l not in self.zha_lights
