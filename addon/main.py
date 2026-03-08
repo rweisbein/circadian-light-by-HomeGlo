@@ -3866,7 +3866,12 @@ class HomeAssistantWebSocketClient:
             # Check for motion/occupancy binary sensors
             if not entity_id.startswith("binary_sensor."):
                 continue
-            if "_motion" not in entity_id and "_occupancy" not in entity_id:
+
+            dc = entity.get("device_class") or entity.get("original_device_class") or ""
+            has_motion_id = "_motion" in entity_id or "_occupancy" in entity_id
+            has_motion_class = dc in ("motion", "occupancy")
+
+            if not has_motion_id and not has_motion_class:
                 continue
             # Skip contact/opening sensors that happen to have _motion in the
             # device name (e.g. binary_sensor.entry_motion_opening)
@@ -3912,10 +3917,12 @@ class HomeAssistantWebSocketClient:
             # Check for contact/door/window binary sensors
             if not entity_id.startswith("binary_sensor."):
                 continue
-            # Look for opening, door, window, contact in entity_id
-            if not any(
+            dc = entity.get("device_class") or entity.get("original_device_class") or ""
+            has_contact_id = any(
                 x in entity_id for x in ["_opening", "_door", "_window", "_contact"]
-            ):
+            )
+            has_contact_class = dc in ("door", "window", "opening", "garage_door")
+            if not has_contact_id and not has_contact_class:
                 continue
 
             # Get device_id for this entity

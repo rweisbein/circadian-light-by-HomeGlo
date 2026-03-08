@@ -6805,22 +6805,24 @@ class LightDesignerServer:
                             ):
                                 device_entities[device_id]["has_button"] = True
                         elif entity_id.startswith("binary_sensor."):
-                            if "_motion" in entity_id:
+                            # Check both entity_id patterns and device_class for categorization
+                            dc = entity.get("device_class") or entity.get("original_device_class") or ""
+                            if "_motion" in entity_id or dc == "motion":
                                 device_entities[device_id]["has_motion"] = True
                                 logger.info(
-                                    f"[Controls] Found motion entity: {entity_id} for device {device_id}"
+                                    f"[Controls] Found motion entity: {entity_id} (device_class={dc}) for device {device_id}"
                                 )
-                            elif "_occupancy" in entity_id:
+                            elif "_occupancy" in entity_id or dc == "occupancy":
                                 device_entities[device_id]["has_occupancy"] = True
                                 logger.info(
-                                    f"[Controls] Found occupancy entity: {entity_id} for device {device_id}"
+                                    f"[Controls] Found occupancy entity: {entity_id} (device_class={dc}) for device {device_id}"
                                 )
-                            elif "_presence" in entity_id:
+                            elif "_presence" in entity_id or dc == "presence":
                                 device_entities[device_id]["has_presence"] = True
                                 logger.info(
-                                    f"[Controls] Found presence entity: {entity_id} for device {device_id}"
+                                    f"[Controls] Found presence entity: {entity_id} (device_class={dc}) for device {device_id}"
                                 )
-                            elif "_contact" in entity_id or "_opening" in entity_id:
+                            elif "_contact" in entity_id or "_opening" in entity_id or dc in ("door", "window", "opening", "garage_door"):
                                 device_entities[device_id]["has_contact"] = True
                         elif (
                             entity_id.startswith("sensor.") and "_battery" in entity_id
