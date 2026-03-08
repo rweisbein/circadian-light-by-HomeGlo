@@ -1449,11 +1449,11 @@
         // Motion + boost (combined or separate)
         if (hasMotion && isBoosted && isMotionCoupled) {
           const remaining = formatCountdown(status.motion_expires_at);
-          if (remaining) parts.push(`<span class="timer-motion${warnClass}">M\u26A1 ${remaining}</span>`);
+          if (remaining) parts.push(`<span class="timer-motion${warnClass}">\u26A1 ${remaining}</span>`);
         } else {
           if (hasMotion) {
             const remaining = formatCountdown(status.motion_expires_at);
-            if (remaining) parts.push(`<span class="timer-motion${warnClass}">M ${remaining}</span>`);
+            if (remaining) parts.push(`<span class="timer-motion${warnClass}">${remaining}</span>`);
           }
           if (isBoosted && status.boost_brightness && !isMotionCoupled) {
             let text = '\u26A1';

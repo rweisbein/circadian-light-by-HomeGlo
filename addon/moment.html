@@ -438,8 +438,10 @@
 
     // Action options
     const ACTION_OPTIONS = [
+      { value: 'lights_on', label: 'On' },
       { value: 'off', label: 'Off' },
       { value: 'nitelite', label: 'NiteLite' },
+      { value: 'britelite', label: 'BriteLite' },
       { value: 'wake_or_bed', label: 'Wake / Bed' },
       { value: 'circadian_off', label: 'Circadian off' },
       { value: 'reset', label: 'Reset' },
@@ -563,6 +565,16 @@
               <option value="${opt.value}" ${moment.default_action === opt.value ? 'selected' : ''}>${opt.label}</option>
             `).join('')}
           </select>
+        </div>
+
+        <div class="settings-row">
+          <span class="settings-label">Auto-off</span>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <input type="number" class="form-select form-select-sm" style="width: 60px;"
+              value="${Math.round((moment.timer || 0) / 60)}" min="0" max="480" step="1"
+              onchange="moment.timer = (parseInt(this.value) || 0) * 60; saveMoment();">
+            <span style="color: var(--muted); font-size: 0.85rem;">min</span>
+          </div>
         </div>
 
         <div class="exceptions-section">

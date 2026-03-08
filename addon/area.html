@@ -2253,13 +2253,13 @@
         if (hasMotion && hasBoostedMotion) {
           const remaining = formatCountdown(selectedArea.motion_expires_at);
           if (remaining) {
-            parts.push(`<span class="timer-motion${warnClass}">Motion +${selectedArea.boost_brightness}%: ${remaining}<span class="timer-arrow">→</span>off</span>`);
+            parts.push(`<span class="timer-motion${warnClass}">+${selectedArea.boost_brightness}%: ${remaining}<span class="timer-arrow">→</span>off</span>`);
           }
         } else {
           if (hasMotion) {
             const remaining = formatCountdown(selectedArea.motion_expires_at);
             if (remaining) {
-              parts.push(`<span class="timer-motion${warnClass}">Motion: ${remaining}<span class="timer-arrow">→</span>off</span>`);
+              parts.push(`<span class="timer-motion${warnClass}">${remaining}<span class="timer-arrow">→</span>off</span>`);
             }
           }
 

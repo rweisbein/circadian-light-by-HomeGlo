@@ -5037,6 +5037,7 @@ class LightDesignerServer:
                 "trigger": data.get("trigger", {"type": "primitive"}),
                 "default_action": data.get("default_action", "off"),
                 "exceptions": data.get("exceptions", {}),
+                "timer": data.get("timer", 0),
             }
 
             # Add fun moment fields if applicable
@@ -5098,6 +5099,7 @@ class LightDesignerServer:
                 "exceptions",
                 "default_participation",
                 "effect",
+                "timer",
             ]:
                 if field in data:
                     moment[field] = data[field]

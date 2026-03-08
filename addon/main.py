@@ -116,6 +116,9 @@ class HomeAssistantWebSocketClient:
         self.area_lights: Dict[str, List[str]] = (
             {}
         )  # area_id -> list of light entity_ids
+        self.area_switch_entities: Dict[str, List[str]] = (
+            {}
+        )  # area_id -> list of switch entity_ids (relay/plug on-off)
         self.hue_lights: Set[str] = (
             set()
         )  # entity_ids of Hue-connected lights (skip 2-step for these)
@@ -3386,6 +3389,22 @@ class HomeAssistantWebSocketClient:
         if tasks:
             await asyncio.gather(*tasks)
 
+    async def turn_on_switch_entities(self, area_id: str) -> None:
+        """Turn on switch.* entities (relays, smart plugs) in an area."""
+        switches = self.area_switch_entities.get(area_id, [])
+        if not switches:
+            return
+        logger.info(f"Turn on {len(switches)} switch entities in area {area_id}")
+        await self.call_service("switch", "turn_on", {}, {"entity_id": switches})
+
+    async def turn_off_switch_entities(self, area_id: str) -> None:
+        """Turn off switch.* entities (relays, smart plugs) in an area."""
+        switches = self.area_switch_entities.get(area_id, [])
+        if not switches:
+            return
+        logger.info(f"Turn off {len(switches)} switch entities in area {area_id}")
+        await self.call_service("switch", "turn_off", {}, {"entity_id": switches})
+
     async def turn_on_reach_groups(
         self,
         areas: List[str],
@@ -3663,6 +3682,7 @@ class HomeAssistantWebSocketClient:
         # Clear existing caches
         self.light_color_modes.clear()
         self.area_lights.clear()
+        self.area_switch_entities.clear()
         self.hue_lights.clear()
         self.zha_lights.clear()
         hue_groups_skipped = 0
@@ -3744,9 +3764,37 @@ class HomeAssistantWebSocketClient:
                 # Default to color_temp if no modes specified (legacy lights)
                 self.light_color_modes[entity_id] = {"color_temp"}
 
+        # Collect switch.* entities (relay switches, smart plugs) per area
+        for entity in entities:
+            if not isinstance(entity, dict):
+                continue
+            entity_id = entity.get("entity_id", "")
+            if not entity_id.startswith("switch."):
+                continue
+            # Skip disabled entities
+            if entity.get("disabled_by"):
+                continue
+
+            # Get area - either direct or via device
+            device_id = entity.get("device_id")
+            area_id = entity.get("area_id")
+            if not area_id and device_id:
+                area_id = device_area_map.get(device_id)
+            if not area_id:
+                continue
+
+            if area_id not in self.area_switch_entities:
+                self.area_switch_entities[area_id] = []
+            self.area_switch_entities[area_id].append(entity_id)
+
         logger.info(
             f"✓ Light capability cache built: {len(self.light_color_modes)} lights across {len(self.area_lights)} areas"
         )
+        if self.area_switch_entities:
+            total_switches = sum(len(v) for v in self.area_switch_entities.values())
+            logger.info(
+                f"  Switch entities: {total_switches} across {len(self.area_switch_entities)} areas"
+            )
 
         # Log summary of light capabilities (4 types)
         color_count = 0

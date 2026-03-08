@@ -292,6 +292,7 @@ class CircadianLightPrimitives:
 
         all_areas = self._get_all_area_ids()
         tasks = []
+        turn_on_areas = []
 
         for area_id in all_areas:
             action = exceptions.get(area_id, default_action)
@@ -300,11 +301,16 @@ class CircadianLightPrimitives:
                 continue
             elif action == "off":
                 tasks.append(self.lights_off(area_id, source))
+            elif action == "lights_on":
+                tasks.append(self.lights_on(area_id, source))
+                turn_on_areas.append(area_id)
             elif action == "nitelite":
-                # Use set with nitelite preset, turn on the lights
                 tasks.append(self.set(area_id, source, preset="nitelite", is_on=True))
+                turn_on_areas.append(area_id)
+            elif action == "britelite":
+                tasks.append(self.set(area_id, source, preset="britelite", is_on=True))
+                turn_on_areas.append(area_id)
             elif action == "circadian_off":
-                # Release circadian control (lights unchanged)
                 tasks.append(self.circadian_off(area_id, source))
             elif action == "wake_or_bed":
                 tasks.append(self.set(area_id, source, preset="wake_or_bed"))
@@ -319,6 +325,16 @@ class CircadianLightPrimitives:
         else:
             logger.info(
                 f"[{source}] Moment '{moment_id}' - no areas to update (all leave_alone)"
+            )
+
+        # Set auto-off timer for areas that were turned on
+        timer = moment.get("timer", 0)
+        if timer > 0 and turn_on_areas:
+            expires_at = (datetime.now() + timedelta(seconds=timer)).isoformat()
+            for area_id in turn_on_areas:
+                state.set_motion_expires(area_id, expires_at)
+            logger.info(
+                f"[{source}] Set auto-off timer ({timer}s) for {len(turn_on_areas)} areas"
             )
 
     async def _turn_off_area(self, area_id: str, transition: float = 0.3) -> None:
@@ -1653,6 +1669,9 @@ class CircadianLightPrimitives:
                 area_id, final_brightness, result.color_temp, transition=transition
             )
 
+        # Also turn on any switch entities (relays, smart plugs) in the area
+        await self.client.turn_on_switch_entities(area_id)
+
         if has_boost:
             logger.info(
                 f"lights_on for area {area_id}: {result.brightness}% + {boost_brightness}% = {final_brightness}%, "
@@ -1712,9 +1731,10 @@ class CircadianLightPrimitives:
         # Clear off_enforced so the periodic loop verifies lights are actually off
         state.set_off_enforced(area_id, False)
 
-        # Turn off lights (uses ZHA groups when available)
+        # Turn off lights (uses ZHA groups when available) and switch entities
         transition = self._get_turn_off_transition()
         await self.client.turn_off_lights(area_id, transition=transition)
+        await self.client.turn_off_switch_entities(area_id)
 
         logger.info(f"lights_off for area {area_id} (was_circadian={was_circadian})")
 
@@ -1884,8 +1904,9 @@ class CircadianLightPrimitives:
 
                 # Enable circadian and set is_on=False
                 state.enable_circadian_and_set_on(area_id, False)
-                # Turn off lights (uses ZHA groups when available)
+                # Turn off lights (uses ZHA groups when available) and switch entities
                 await self.client.turn_off_lights(area_id, transition=transition)
+                await self.client.turn_off_switch_entities(area_id)
             logger.info(f"lights_toggle_multiple: turned off {len(area_ids)} area(s)")
 
         else:
@@ -1935,6 +1956,10 @@ class CircadianLightPrimitives:
             await self._apply_lighting_turn_on_multiple(
                 area_lighting, transition=transition
             )
+
+            # Also turn on any switch entities (relays, smart plugs)
+            for area_id in area_ids:
+                await self.client.turn_on_switch_entities(area_id)
 
             logger.info(f"lights_toggle_multiple: turned on {len(area_ids)} area(s)")
 
@@ -2459,6 +2484,7 @@ class CircadianLightPrimitives:
         # Turn off (set is_on=False, Circadian enforces off state)
         transition = self._get_turn_off_transition()
         await self._turn_off_area(area_id, transition=transition)
+        await self.client.turn_off_switch_entities(area_id)
         state.set_is_on(area_id, False)
         state.set_off_enforced(area_id, False)
         logger.info(
@@ -3024,9 +3050,13 @@ class CircadianLightPrimitives:
                 await self._apply_circadian_lighting(
                     area_id, result.brightness, result.color_temp, transition=transition
                 )
+                # Also turn on any switch entities when preset turns lights on
+                if take_control and is_on:
+                    await self.client.turn_on_switch_entities(area_id)
             elif take_control and is_on == False:
                 transition = self._get_turn_off_transition()
                 await self._turn_off_area(area_id, transition=transition)
+                await self.client.turn_off_switch_entities(area_id)
 
     # -------------------------------------------------------------------------
     # Freeze Toggle (kept for manual toggling)

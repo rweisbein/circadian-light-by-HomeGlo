@@ -958,21 +958,19 @@
         timeStr = `${month}/${day} ${hours}:${mins}${ampm}`;
       }
 
-      // Handle motion sensor actions
-      if (action === 'motion_detected') {
+      // Handle motion sensor actions (show cooldown for both detected and cleared)
+      if (action === 'motion_detected' || action === 'motion_cleared') {
         const sortVal = timestamp || '';
+        const label = action === 'motion_detected' ? 'Motion' : 'Cleared';
         let cooldownStr = '';
         if (ctrl.cooldown > 0 && ctrl.last_action?.cooldown_until) {
-          const remaining = Math.max(0, Math.ceil((new Date(ctrl.last_action.cooldown_until).getTime() - Date.now()) / 1000));
+          const cdUntil = new Date(ctrl.last_action.cooldown_until).getTime();
+          const remaining = Math.max(0, Math.ceil((cdUntil - Date.now()) / 1000));
           if (remaining > 0) {
-            cooldownStr = ` <span style="color:var(--accent);font-size:0.75rem;">(${remaining}s)</span>`;
+            cooldownStr = ` <span class="cooldown-tick" data-cooldown-until="${cdUntil}" style="color:var(--accent);font-size:0.75rem;">(${remaining}s)</span>`;
           }
         }
-        return `<span class="last-action" data-sort="${sortVal}">${timeStr ? timeStr + ' ' : ''}Motion${cooldownStr}</span>`;
-      }
-      if (action === 'motion_cleared') {
-        const sortVal = timestamp || '';
-        return `<span class="last-action" data-sort="${sortVal}">${timeStr ? timeStr + ' ' : ''}Cleared</span>`;
+        return `<span class="last-action" data-sort="${sortVal}">${timeStr ? timeStr + ' ' : ''}${label}${cooldownStr}</span>`;
       }
 
       // Handle contact sensor actions
@@ -1145,6 +1143,42 @@
     function editControl(id) {
       window.location.href = './control/' + encodeURIComponent(id);
     }
+
+    // Live cooldown countdown — tick every second to update visible "(Ns)" spans
+    setInterval(() => {
+      document.querySelectorAll('.cooldown-tick').forEach(el => {
+        const until = parseFloat(el.dataset.cooldownUntil);
+        const remaining = Math.max(0, Math.ceil((until - Date.now()) / 1000));
+        if (remaining > 0) {
+          el.textContent = `(${remaining}s)`;
+        } else {
+          el.textContent = '';
+        }
+      });
+    }, 1000);
+
+    // Background poll — refresh last_action data every 15s to pick up new motion triggers
+    setInterval(async () => {
+      try {
+        const res = await fetch(basePath + `/api/controls?_t=${Date.now()}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const updated = data.controls || [];
+        // Merge last_action + cooldown into existing controls without full re-render
+        let needsRender = false;
+        for (const ctrl of controls) {
+          const fresh = updated.find(u => u.id === ctrl.id);
+          if (!fresh) continue;
+          const oldAction = JSON.stringify(ctrl.last_action);
+          const newAction = JSON.stringify(fresh.last_action);
+          if (oldAction !== newAction) {
+            ctrl.last_action = fresh.last_action;
+            needsRender = true;
+          }
+        }
+        if (needsRender) renderControls();
+      } catch (e) { /* ignore poll errors */ }
+    }, 15000);
   </script>
 </body>
 </html>

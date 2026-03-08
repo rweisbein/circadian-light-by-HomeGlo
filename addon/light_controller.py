@@ -14,6 +14,10 @@ from typing import Dict, List, Optional, Any, Union
 
 logger = logging.getLogger(__name__)
 
+# Max members to add per ZHA API call. ZHA times out with ~32+ members in a
+# single group/add or group/members/add request, so we batch below that.
+ZHA_GROUP_BATCH_SIZE = 16
+
 # Known Hue/Signify button devices that expose a faux light entity via ZHA.
 ZHA_BUTTON_MODELS = {"rom001", "rdm003"}
 
@@ -371,7 +375,9 @@ class ZigBeeController(LightController):
                 {"type": "config/entity_registry/list"}
             )
             entity_to_device = {}
-            entity_area_overrides = {}  # Entity-level area assignments (e.g., group entities moved to Circadian_Zigbee_Groups)
+            entity_area_overrides = (
+                {}
+            )  # Entity-level area assignments (e.g., group entities moved to Circadian_Zigbee_Groups)
             if entity_registry:
                 for entity in entity_registry:
                     entity_id = entity.get("entity_id")
@@ -1132,6 +1138,38 @@ class ZigBeeController(LightController):
             logger.error(f"Error details: {str(e)}")
             return False
 
+    async def _add_members_batched(
+        self, group_name: str, group_id: int, members: List[Dict[str, Any]]
+    ) -> bool:
+        """Add members to a ZHA group in batches to avoid ZHA API timeouts.
+
+        Returns True if all batches succeeded, False if any batch failed.
+        """
+        for i in range(0, len(members), ZHA_GROUP_BATCH_SIZE):
+            batch = members[i : i + ZHA_GROUP_BATCH_SIZE]
+            batch_num = i // ZHA_GROUP_BATCH_SIZE + 1
+            total_batches = (
+                len(members) + ZHA_GROUP_BATCH_SIZE - 1
+            ) // ZHA_GROUP_BATCH_SIZE
+            if total_batches > 1:
+                logger.info(
+                    f"  Adding batch {batch_num}/{total_batches} ({len(batch)} members) to '{group_name}'"
+                )
+            ok = await self.manage_group(
+                GroupCommand(
+                    name=group_name,
+                    group_id=group_id,
+                    members=batch,
+                    operation="add_members",
+                )
+            )
+            if not ok:
+                logger.error(
+                    f"  Batch {batch_num} failed for '{group_name}', aborting remaining batches"
+                )
+                return False
+        return True
+
     async def sync_reach_groups(
         self,
         reaches: Dict[str, List[str]],
@@ -1296,6 +1334,7 @@ class ZigBeeController(LightController):
         """Sync a single ZHA group with the given members.
 
         Creates the group if it doesn't exist, or updates membership if needed.
+        Large member lists are added in batches to avoid ZHA API timeouts.
 
         Args:
             group_name: Name for the ZHA group
@@ -1308,19 +1347,13 @@ class ZigBeeController(LightController):
         if existing_group:
             # Group exists - check membership
             existing_members = existing_group.get("members", [])
+            group_id = existing_group["group_id"]
 
             if not existing_members or (
                 len(existing_members) == 1 and existing_members[0] is None
             ):
-                # Empty group - add all members
-                await self.manage_group(
-                    GroupCommand(
-                        name=group_name,
-                        group_id=existing_group["group_id"],
-                        members=members,
-                        operation="add_members",
-                    )
-                )
+                # Empty group - add all members (batched)
+                await self._add_members_batched(group_name, group_id, members)
             else:
                 # Compare members
                 existing_member_set = set()
@@ -1347,26 +1380,19 @@ class ZigBeeController(LightController):
                         await self.manage_group(
                             GroupCommand(
                                 name=group_name,
-                                group_id=existing_group["group_id"],
+                                group_id=group_id,
                                 members=to_remove,
                                 operation="remove_members",
                             )
                         )
 
-                    # Add new members
+                    # Add new members (batched)
                     to_add = [
                         {"ieee": ieee, "endpoint_id": ep}
                         for ieee, ep in new_member_set - existing_member_set
                     ]
                     if to_add:
-                        await self.manage_group(
-                            GroupCommand(
-                                name=group_name,
-                                group_id=existing_group["group_id"],
-                                members=to_add,
-                                operation="add_members",
-                            )
-                        )
+                        await self._add_members_batched(group_name, group_id, to_add)
 
             # Move to Circadian area if needed
             if circadian_area_id:
@@ -1374,15 +1400,26 @@ class ZigBeeController(LightController):
                     group_name, circadian_area_id
                 )
         else:
-            # Create new group
+            # Create new group — create empty first, then add members in
+            # batches so we don't hit ZHA's size limit on group/add.
             random_group_id = random.randint(1, 65535)
             logger.info(
-                f"Creating reach group '{group_name}' with ID {random_group_id}"
+                f"Creating group '{group_name}' (ID {random_group_id}) with {len(members)} members"
             )
 
-            await self.create_group(
-                GroupCommand(name=group_name, group_id=random_group_id, members=members)
+            created = await self.create_group(
+                GroupCommand(name=group_name, group_id=random_group_id)
             )
+            if not created:
+                logger.error(
+                    f"Failed to create group '{group_name}', skipping member add and area move"
+                )
+                return
+
+            # Add members in batches
+            ok = await self._add_members_batched(group_name, random_group_id, members)
+            if not ok:
+                logger.error(f"Some members failed to add to '{group_name}'")
 
             # Move to Circadian area
             if circadian_area_id:
