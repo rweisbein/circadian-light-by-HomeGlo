@@ -930,26 +930,16 @@ class ZigBeeController(LightController):
                 existing_group = existing_groups_by_name.get(group_name)
 
                 if existing_group:
-                    # Group exists — always re-add all members since we just
-                    # cleared their Zigbee group tables in Phase 2.
-                    logger.info(
-                        f"Re-adding {len(members)} members to existing group '{group_name}'"
-                    )
-                    await self.manage_group(
-                        GroupCommand(
-                            name=group_name,
-                            group_id=existing_group["group_id"],
-                            members=members,
-                            operation="add_members",
-                        )
-                    )
-
-                    # Remove members that shouldn't be in the group (ZHA database)
+                    # Remove ALL current members first so ZHA clears its
+                    # database.  This forces the subsequent add_members to
+                    # actually send ZCL "Add Group" to each device (ZHA
+                    # skips the ZCL command for devices it already considers
+                    # members).
                     existing_members = existing_group.get("members", [])
                     if existing_members and not (
                         len(existing_members) == 1 and existing_members[0] is None
                     ):
-                        existing_member_set = set()
+                        members_to_clear = []
                         for m in existing_members:
                             if m:
                                 ieee = m.get("ieee") or (
@@ -959,27 +949,35 @@ class ZigBeeController(LightController):
                                 )
                                 ep = m.get("endpoint_id")
                                 if ieee and ep is not None:
-                                    existing_member_set.add((ieee.lower(), ep))
-
-                        new_member_set = {
-                            (m["ieee"].lower(), m["endpoint_id"]) for m in members
-                        }
-                        to_remove = [
-                            {"ieee": ieee, "endpoint_id": ep}
-                            for ieee, ep in existing_member_set - new_member_set
-                        ]
-                        if to_remove:
+                                    members_to_clear.append(
+                                        {"ieee": ieee, "endpoint_id": ep}
+                                    )
+                        if members_to_clear:
                             logger.info(
-                                f"Removing {len(to_remove)} stale members from group '{group_name}'"
+                                f"Clearing {len(members_to_clear)} members from group '{group_name}' before re-add"
                             )
                             await self.manage_group(
                                 GroupCommand(
                                     name=group_name,
                                     group_id=existing_group["group_id"],
-                                    members=to_remove,
+                                    members=members_to_clear,
                                     operation="remove_members",
                                 )
                             )
+
+                    # Now add desired members — ZHA will send ZCL "Add Group"
+                    # since it no longer considers them existing members.
+                    logger.info(
+                        f"Adding {len(members)} members to group '{group_name}'"
+                    )
+                    await self.manage_group(
+                        GroupCommand(
+                            name=group_name,
+                            group_id=existing_group["group_id"],
+                            members=members,
+                            operation="add_members",
+                        )
+                    )
 
                     if circadian_area_id:
                         await self.move_group_entity_to_circadian_area(
