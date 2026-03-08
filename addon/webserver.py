@@ -975,7 +975,10 @@ class LightDesignerServer:
                         )
                         next_phase = t_descend if in_ascend else t_ascend + 24
                         bri_decay = compute_override_decay(
-                            area_st.get("brightness_override_set_at"), h48, next_phase
+                            area_st.get("brightness_override_set_at"),
+                            h48,
+                            next_phase,
+                            t_ascend=t_ascend,
                         )
                         effective_bri_override = round(bri_override_raw * bri_decay, 1)
                     zone_areas.append(
@@ -3557,7 +3560,10 @@ class LightDesignerServer:
                         )
                         _next_ph = _t_desc if _in_asc else _t_asc + 24
                         _col_decay = compute_override_decay(
-                            area_state.color_override_set_at, _h48, _next_ph
+                            area_state.color_override_set_at,
+                            _h48,
+                            _next_ph,
+                            t_ascend=_t_asc,
                         )
                         if _col_decay < 1.0:
                             render_state = AreaState(
@@ -3673,7 +3679,10 @@ class LightDesignerServer:
                         )
                         next_phase = t_descend if in_ascend else t_ascend + 24
                         bri_decay = compute_override_decay(
-                            area_state.brightness_override_set_at, h48, next_phase
+                            area_state.brightness_override_set_at,
+                            h48,
+                            next_phase,
+                            t_ascend=t_ascend,
                         )
                         effective_bri_override = bri_override_raw * bri_decay
 

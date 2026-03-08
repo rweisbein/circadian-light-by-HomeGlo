@@ -4523,7 +4523,10 @@ class HomeAssistantWebSocketClient:
                 )
                 next_phase = t_descend if in_ascend else t_ascend + 24
                 bri_decay = compute_override_decay(
-                    area_state.brightness_override_set_at, h48, next_phase
+                    area_state.brightness_override_set_at,
+                    h48,
+                    next_phase,
+                    t_ascend=t_ascend,
                 )
                 effective_bri_override = area_state.brightness_override * bri_decay
                 if bri_decay <= 0:
@@ -4552,7 +4555,7 @@ class HomeAssistantWebSocketClient:
                 )
                 next_phase = t_descend if in_ascend else t_ascend + 24
                 color_decay = compute_override_decay(
-                    area_state.color_override_set_at, h48, next_phase
+                    area_state.color_override_set_at, h48, next_phase, t_ascend=t_ascend
                 )
                 if color_decay <= 0:
                     state.update_area(
