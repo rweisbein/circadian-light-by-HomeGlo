@@ -460,6 +460,13 @@
     let allAreas = [];
     let allZones = [];
     let newExceptionAction = 'leave_alone';
+    let newExceptionTimer = 0;
+
+    // Normalize exception value: old format was a plain string, new format is {action, timer}
+    function normalizeException(val) {
+      if (typeof val === 'string') return { action: val, timer: 0 };
+      return { action: val.action || 'leave_alone', timer: val.timer || 0 };
+    }
 
     // Compute base path for API calls (handles ingress prefix)
     const basePath = (() => {
@@ -581,17 +588,24 @@
           <div class="exceptions-header">Exceptions</div>
           <div class="exceptions-inset">
             <div class="exceptions-list" id="exceptions-list">
-              ${Object.entries(exceptions).map(([areaId, action]) => {
+              ${Object.entries(exceptions).map(([areaId, rawVal]) => {
+                const exc = normalizeException(rawVal);
                 const area = allAreas.find(a => a.area_id === areaId);
                 const areaName = area ? area.name : areaId;
                 return `
                   <div class="exception-item">
                     <span class="exception-area">${areaName}</span>
-                    <select class="exception-action" onchange="updateException('${areaId}', this.value); saveMoment();">
+                    <select class="exception-action" onchange="updateException('${areaId}', {action: this.value, timer: ${exc.timer}}); saveMoment();">
                       ${ACTION_OPTIONS.map(opt => `
-                        <option value="${opt.value}" ${action === opt.value ? 'selected' : ''}>${opt.label}</option>
+                        <option value="${opt.value}" ${exc.action === opt.value ? 'selected' : ''}>${opt.label}</option>
                       `).join('')}
                     </select>
+                    <div style="display:flex;align-items:center;gap:4px;">
+                      <input type="number" style="width:48px;padding:2px 4px;font-size:0.8rem;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--fg);"
+                        value="${Math.round(exc.timer / 60)}" min="0" max="480" step="1"
+                        onchange="updateException('${areaId}', {action:'${exc.action}', timer:(parseInt(this.value)||0)*60}); saveMoment();">
+                      <span style="color:var(--muted);font-size:0.75rem;">m</span>
+                    </div>
                     <button class="exception-remove" onclick="removeException('${areaId}'); saveMoment();">&times;</button>
                   </div>
                 `;
@@ -603,6 +617,12 @@
                   <option value="${opt.value}" ${newExceptionAction === opt.value ? 'selected' : ''}>${opt.label}</option>
                 `).join('')}
               </select>
+              <div style="display:flex;align-items:center;gap:4px;">
+                <input type="number" style="width:48px;padding:2px 4px;font-size:0.8rem;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--fg);"
+                  value="${Math.round(newExceptionTimer / 60)}" min="0" max="480" step="1"
+                  onchange="newExceptionTimer = (parseInt(this.value)||0) * 60;">
+                <span style="color:var(--muted);font-size:0.75rem;">m</span>
+              </div>
               <button class="add-exception-btn" onclick="addException()">+ Add exception</button>
             </div>
           </div>
@@ -626,10 +646,10 @@
       renderMomentEditor();
     }
 
-    function updateException(areaId, action) {
+    function updateException(areaId, excObj) {
       if (!moment) return;
       if (!moment.exceptions) moment.exceptions = {};
-      moment.exceptions[areaId] = action;
+      moment.exceptions[areaId] = excObj;
       renderMomentEditor();
     }
 
@@ -656,7 +676,7 @@
         if (!moment.exceptions) moment.exceptions = {};
         selected.forEach(areaId => {
           if (!moment.exceptions[areaId]) {
-            moment.exceptions[areaId] = newExceptionAction;
+            moment.exceptions[areaId] = { action: newExceptionAction, timer: newExceptionTimer };
           }
         });
         renderMomentEditor();

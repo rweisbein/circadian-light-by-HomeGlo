@@ -291,11 +291,24 @@ class CircadianLightPrimitives:
         )
 
         all_areas = self._get_all_area_ids()
+        default_timer = moment.get("timer", 0)
         tasks = []
-        turn_on_areas = []
+        # Track areas that get turned on and their per-area timer
+        turn_on_timers: Dict[str, int] = {}
 
         for area_id in all_areas:
-            action = exceptions.get(area_id, default_action)
+            exc_val = exceptions.get(area_id)
+            if exc_val is not None:
+                # Exception: may be old string format or new {action, timer} dict
+                if isinstance(exc_val, dict):
+                    action = exc_val.get("action", "leave_alone")
+                    area_timer = exc_val.get("timer", 0)
+                else:
+                    action = exc_val
+                    area_timer = 0
+            else:
+                action = default_action
+                area_timer = default_timer
 
             if action == "leave_alone":
                 continue
@@ -303,13 +316,13 @@ class CircadianLightPrimitives:
                 tasks.append(self.lights_off(area_id, source))
             elif action == "lights_on":
                 tasks.append(self.lights_on(area_id, source))
-                turn_on_areas.append(area_id)
+                turn_on_timers[area_id] = area_timer
             elif action == "nitelite":
                 tasks.append(self.set(area_id, source, preset="nitelite", is_on=True))
-                turn_on_areas.append(area_id)
+                turn_on_timers[area_id] = area_timer
             elif action == "britelite":
                 tasks.append(self.set(area_id, source, preset="britelite", is_on=True))
-                turn_on_areas.append(area_id)
+                turn_on_timers[area_id] = area_timer
             elif action == "circadian_off":
                 tasks.append(self.circadian_off(area_id, source))
             elif action == "wake_or_bed":
@@ -327,15 +340,15 @@ class CircadianLightPrimitives:
                 f"[{source}] Moment '{moment_id}' - no areas to update (all leave_alone)"
             )
 
-        # Set auto-off timer for areas that were turned on
-        timer = moment.get("timer", 0)
-        if timer > 0 and turn_on_areas:
-            expires_at = (datetime.now() + timedelta(seconds=timer)).isoformat()
-            for area_id in turn_on_areas:
+        # Set auto-off timers for areas that were turned on
+        timer_areas = {area_id for area_id, t in turn_on_timers.items() if t > 0}
+        if timer_areas:
+            now = datetime.now()
+            for area_id in timer_areas:
+                t = turn_on_timers[area_id]
+                expires_at = (now + timedelta(seconds=t)).isoformat()
                 state.set_motion_expires(area_id, expires_at)
-            logger.info(
-                f"[{source}] Set auto-off timer ({timer}s) for {len(turn_on_areas)} areas"
-            )
+            logger.info(f"[{source}] Set auto-off timers for {len(timer_areas)} areas")
 
     async def _turn_off_area(self, area_id: str, transition: float = 0.3) -> None:
         """Turn off all lights in an area.
