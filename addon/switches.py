@@ -1022,7 +1022,7 @@ def get_switch(switch_id: str) -> Optional[SwitchConfig]:
     _reload_switches()
     result = _switches.get(switch_id)
     if result is None and _switches:
-        logger.info(f"Switch {switch_id} not found. Configured switches: {list(_switches.keys())}")
+        logger.debug(f"Switch {switch_id} not found ({len(_switches)} configured)")
     return result
 
 
