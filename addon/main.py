@@ -3867,7 +3867,11 @@ class HomeAssistantWebSocketClient:
             if not entity_id.startswith("binary_sensor."):
                 continue
 
+            # Get device_class from entity registry, falling back to state attributes
             dc = entity.get("device_class") or entity.get("original_device_class") or ""
+            if not dc:
+                cached_state = self.cached_states.get(entity_id, {})
+                dc = (cached_state.get("attributes") or {}).get("device_class", "")
             has_motion_id = "_motion" in entity_id or "_occupancy" in entity_id
             has_motion_class = dc in ("motion", "occupancy")
 
@@ -3918,6 +3922,9 @@ class HomeAssistantWebSocketClient:
             if not entity_id.startswith("binary_sensor."):
                 continue
             dc = entity.get("device_class") or entity.get("original_device_class") or ""
+            if not dc:
+                cached_state = self.cached_states.get(entity_id, {})
+                dc = (cached_state.get("attributes") or {}).get("device_class", "")
             has_contact_id = any(
                 x in entity_id for x in ["_opening", "_door", "_window", "_contact"]
             )

@@ -6774,6 +6774,20 @@ class LightDesignerServer:
                 )
                 entity_msg = json.loads(await ws.recv())
 
+                # Get states for device_class fallback (entity registry often has null device_class)
+                await ws.send(
+                    json.dumps({"id": 4, "type": "get_states"})
+                )
+                states_msg = json.loads(await ws.recv())
+                state_device_classes = {}
+                if states_msg.get("success") and states_msg.get("result"):
+                    for s in states_msg["result"]:
+                        eid = s.get("entity_id", "")
+                        if eid.startswith("binary_sensor."):
+                            sdc = (s.get("attributes") or {}).get("device_class", "")
+                            if sdc:
+                                state_device_classes[eid] = sdc
+
                 # Track entity types per device
                 device_entities: Dict[str, Dict[str, Any]] = {}
                 if entity_msg.get("success") and entity_msg.get("result"):
@@ -6807,19 +6821,21 @@ class LightDesignerServer:
                         elif entity_id.startswith("binary_sensor."):
                             # Check both entity_id patterns and device_class for categorization
                             dc = entity.get("device_class") or entity.get("original_device_class") or ""
+                            if not dc:
+                                dc = state_device_classes.get(entity_id, "")
                             if "_motion" in entity_id or dc == "motion":
                                 device_entities[device_id]["has_motion"] = True
-                                logger.info(
+                                logger.debug(
                                     f"[Controls] Found motion entity: {entity_id} (device_class={dc}) for device {device_id}"
                                 )
                             elif "_occupancy" in entity_id or dc == "occupancy":
                                 device_entities[device_id]["has_occupancy"] = True
-                                logger.info(
+                                logger.debug(
                                     f"[Controls] Found occupancy entity: {entity_id} (device_class={dc}) for device {device_id}"
                                 )
                             elif "_presence" in entity_id or dc == "presence":
                                 device_entities[device_id]["has_presence"] = True
-                                logger.info(
+                                logger.debug(
                                     f"[Controls] Found presence entity: {entity_id} (device_class={dc}) for device {device_id}"
                                 )
                             elif "_contact" in entity_id or "_opening" in entity_id or dc in ("door", "window", "opening", "garage_door"):
@@ -6850,8 +6866,7 @@ class LightDesignerServer:
                     if de.get("illuminance_entity")
                 }
                 if illuminance_entities:
-                    await ws.send(json.dumps({"id": 4, "type": "get_states"}))
-                    states_msg = json.loads(await ws.recv())
+                    # Reuse states already fetched for device_class lookup
                     if states_msg.get("success") and states_msg.get("result"):
                         for state in states_msg["result"]:
                             eid = state.get("entity_id", "")
