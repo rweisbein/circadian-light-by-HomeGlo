@@ -3875,6 +3875,15 @@ class HomeAssistantWebSocketClient:
             has_motion_id = "_motion" in entity_id or "_occupancy" in entity_id
             has_motion_class = dc in ("motion", "occupancy")
 
+            # Debug: log SML003 entities to diagnose device_class detection
+            if "sml003" in entity_id.lower() or "signify" in entity_id.lower():
+                logger.info(
+                    f"  [debug] SML003 entity: {entity_id}, registry_dc={entity.get('device_class')}, "
+                    f"orig_dc={entity.get('original_device_class')}, state_dc={dc}, "
+                    f"has_motion_id={has_motion_id}, has_motion_class={has_motion_class}, "
+                    f"in_cached_states={'yes' if entity_id in self.cached_states else 'no'}"
+                )
+
             if not has_motion_id and not has_motion_class:
                 continue
             # Skip contact/opening sensors that happen to have _motion in the
