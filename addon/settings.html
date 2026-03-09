@@ -580,6 +580,17 @@
 
         <div class="form-row">
           <label class="form-label">
+            Third-step retry
+            <span class="info-icon">i<span class="info-tooltip">After the two-step turn-on, resend the brightness command after this delay. Catches intermittent cases where lights stay dim because the second command was dropped. 0 = disabled.</span></span>
+          </label>
+          <div class="form-control">
+            <input type="number" class="form-input" id="third-step-delay" min="0" max="30" step="1" value="8" style="width: 80px;">
+            <span class="form-hint">tenths of a second (0 = off)</span>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">
             Reach adjustment learn mode
             <span class="info-icon">i<span class="info-tooltip">When enabled, all lights in the reach areas fade out and back so you can see which areas are included. When disabled, only a single indicator light flashes (1x/2x/3x for each reach level). Configure the indicator light per-switch in the Controls page.</span></span>
           </label>
@@ -1006,6 +1017,7 @@
           document.getElementById('turn-on-transition').value = config.turn_on_transition ?? 3;
           document.getElementById('turn-off-transition').value = config.turn_off_transition ?? 3;
           document.getElementById('two-step-delay').value = config.two_step_delay ?? 3;
+          document.getElementById('third-step-delay').value = config.third_step_delay ?? 8;
           document.getElementById('multi-click-enabled').checked = config.multi_click_enabled ?? true;
           document.getElementById('multi-click-speed').value = config.multi_click_speed ?? 10;
           document.getElementById('long-press-repeat-interval').value = config.long_press_repeat_interval ?? 7;
@@ -1100,6 +1112,7 @@
         turn_on_transition: parseFloat(document.getElementById('turn-on-transition').value) || 3,
         turn_off_transition: parseFloat(document.getElementById('turn-off-transition').value) || 3,
         two_step_delay: parseFloat(document.getElementById('two-step-delay').value) || 3,
+        third_step_delay: parseInt(document.getElementById('third-step-delay').value) || 0,
         multi_click_enabled: document.getElementById('multi-click-enabled').checked,
         multi_click_speed: parseFloat(document.getElementById('multi-click-speed').value) || 10,
         long_press_repeat_interval: parseFloat(document.getElementById('long-press-repeat-interval').value) || 7,
@@ -1297,6 +1310,7 @@
     document.getElementById('turn-on-transition').addEventListener('blur', saveSettings);
     document.getElementById('turn-off-transition').addEventListener('blur', saveSettings);
     document.getElementById('two-step-delay').addEventListener('blur', saveSettings);
+    document.getElementById('third-step-delay').addEventListener('blur', saveSettings);
     document.getElementById('multi-click-enabled').addEventListener('change', () => {
       updateMultiClickState();
       saveSettings();
