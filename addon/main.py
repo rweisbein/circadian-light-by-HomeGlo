@@ -3875,15 +3875,6 @@ class HomeAssistantWebSocketClient:
             has_motion_id = "_motion" in entity_id or "_occupancy" in entity_id
             has_motion_class = dc in ("motion", "occupancy")
 
-            # Debug: log SML003 entities to diagnose device_class detection
-            if "sml003" in entity_id.lower() or "signify" in entity_id.lower():
-                logger.info(
-                    f"  [debug] SML003 entity: {entity_id}, registry_dc={entity.get('device_class')}, "
-                    f"orig_dc={entity.get('original_device_class')}, state_dc={dc}, "
-                    f"has_motion_id={has_motion_id}, has_motion_class={has_motion_class}, "
-                    f"in_cached_states={'yes' if entity_id in self.cached_states else 'no'}"
-                )
-
             if not has_motion_id and not has_motion_class:
                 continue
             # Skip contact/opening sensors that happen to have _motion in the
@@ -3922,6 +3913,8 @@ class HomeAssistantWebSocketClient:
         # Build contact sensor entity_id -> device_id mapping
         # This lets us look up contact sensor config when events come in
         self.contact_sensor_ids.clear()
+        # Skip _opening entities on devices already identified as motion sensors
+        motion_device_ids = set(self.motion_sensor_ids.values())
         for entity in entities:
             if not isinstance(entity, dict):
                 continue
@@ -3944,6 +3937,12 @@ class HomeAssistantWebSocketClient:
             # Get device_id for this entity
             device_id = entity.get("device_id")
             if device_id:
+                # Skip if this device is already a motion sensor (e.g. Hue _opening artifact)
+                if device_id in motion_device_ids:
+                    logger.debug(
+                        f"  Skipping contact entity {entity_id} — device {device_id} is a motion sensor"
+                    )
+                    continue
                 self.contact_sensor_ids[entity_id] = device_id
                 logger.info(
                     f"  Contact sensor cached: {entity_id} -> device:{device_id}"
