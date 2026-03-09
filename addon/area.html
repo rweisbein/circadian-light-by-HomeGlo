@@ -1702,7 +1702,8 @@
 
     function buildHorizontalGradient(cfg, effectiveColorRange, colorDelta) {
       const bMin = cfg.min_brightness, bMax = cfg.max_brightness;
-      const cMin = effectiveColorRange.effMin, cMax = effectiveColorRange.effMax;
+      // Use full config range — slider can reach any CCT via color_override
+      const cMin = cfg.min_color_temp, cMax = cfg.max_color_temp;
       const stops = [];
       const n = 6;
       for (let i = 0; i <= n; i++) {
@@ -1738,7 +1739,8 @@
 
     function buildTrackGradient(mode, cfg, currentBri, currentCCT, effectiveColorRange) {
       const bMin = cfg.min_brightness, bMax = cfg.max_brightness;
-      const cMin = effectiveColorRange.effMin, cMax = effectiveColorRange.effMax;
+      // Use full config range for step/color — slider can reach any CCT via color_override
+      const cMin = cfg.min_color_temp, cMax = cfg.max_color_temp;
       const stops = [];
       const n = 6;
       for (let i = 0; i <= n; i++) {

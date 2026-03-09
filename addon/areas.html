@@ -2728,7 +2728,7 @@
       const { leftControls, rightControls } = getRowControls(area);
       const sliderPct = getSliderPct(area.brightness || 0, area);
       const mismatchDot = getMismatchDot(area);
-      const effColor = getEffectiveColorLimits(area);
+
 
       return `
         <div class="area-row" style="--row-bg: ${style.bg}; --row-text: ${style.textColor}; --row-fill: ${style.fill.toFixed(3)};">
@@ -2739,7 +2739,7 @@
               <span class="row-timer" data-area-timer="${area.area_id}" data-zone-name="${area.zone_name || ''}"></span>
               ${mismatchDot}
             </div>
-            <div class="row-slider-track" data-area-id="${area.area_id}" data-bmin="${area.min_brightness ?? 1}" data-bmax="${area.max_brightness ?? 100}" data-cmin="${effColor.effMin}" data-cmax="${effColor.effMax}">
+            <div class="row-slider-track" data-area-id="${area.area_id}" data-bmin="${area.min_brightness ?? 1}" data-bmax="${area.max_brightness ?? 100}" data-cmin="${area.min_color_temp ?? 2200}" data-cmax="${area.max_color_temp ?? 6500}">
               <div class="row-slider-fill"></div>
               <div class="row-slider-thumb" style="left: ${sliderPct.toFixed(1)}%"></div>
             </div>
