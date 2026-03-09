@@ -7081,6 +7081,11 @@ class LightDesignerServer:
                         # Remove the old entry so we don't leave a duplicate
                         switches.remove_motion_sensor(existing.id)
                         sensor_id = control_id
+                    # Remove any stale contact sensor config for same device
+                    old_contact = switches.get_contact_sensor_by_device_id(device_id)
+                    if old_contact:
+                        logger.info(f"Removing stale contact config for device {device_id} (now motion)")
+                        switches.remove_contact_sensor(old_contact.id)
 
                 motion_config = switches.MotionSensorConfig(
                     id=sensor_id,
@@ -7132,6 +7137,11 @@ class LightDesignerServer:
                     if existing and existing.id != control_id:
                         switches.remove_contact_sensor(existing.id)
                         sensor_id = control_id
+                    # Remove any stale motion sensor config for same device
+                    old_motion = switches.get_motion_sensor_by_device_id(device_id)
+                    if old_motion:
+                        logger.info(f"Removing stale motion config for device {device_id} (now contact)")
+                        switches.remove_motion_sensor(old_motion.id)
 
                 contact_config = switches.ContactSensorConfig(
                     id=sensor_id,
