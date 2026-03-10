@@ -6366,6 +6366,19 @@ class HomeAssistantWebSocketClient:
                 # Subscribe to all events
                 await self.subscribe_events()
 
+                # Clean up orphaned state entries (areas in state but not in any glozone)
+                all_zone_areas = set()
+                for zone_name in glozone.get_glozones():
+                    all_zone_areas.update(glozone.get_areas_in_zone(zone_name))
+                orphaned = [
+                    a for a in state.get_circadian_areas_for_update()
+                    if a not in all_zone_areas
+                ]
+                for area_id in orphaned:
+                    state.remove_area(area_id)
+                if orphaned:
+                    logger.info(f"Cleaned up {len(orphaned)} orphaned state entries: {orphaned}")
+
                 # Start periodic light updater
                 self.periodic_update_task = asyncio.create_task(
                     self.periodic_light_updater()
