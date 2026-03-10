@@ -4975,9 +4975,12 @@ class LightDesignerServer:
                     zone_config["areas"] = new_areas
                     removed_from.append(zone_name)
 
+            # Always remove from runtime state so periodic refresh stops updating it
+            state.remove_area(area_id)
+
             if not removed_from:
                 return web.json_response(
-                    {"error": f"Area '{area_id}' not found in any zone"}, status=404
+                    {"status": "purged", "area_id": area_id, "removed_from": []}
                 )
 
             await self.save_config_to_file(config)

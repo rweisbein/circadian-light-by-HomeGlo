@@ -2584,7 +2584,7 @@ class HomeAssistantWebSocketClient:
             )
             return "entity_id", chosen
 
-        logger.info(f"Using area-based control for area '{area_id}'")
+        logger.debug(f"Using area-based control for area '{area_id}'")
         return "area_id", area_id
 
     def get_area_zha_groups(self, area_id: str) -> List[str]:
