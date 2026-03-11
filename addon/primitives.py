@@ -1407,8 +1407,8 @@ class CircadianLightPrimitives:
             if hasattr(self.client, "_get_sun_times")
             else None
         )
-        steps = config.max_dim_steps or DEFAULT_MAX_DIM_STEPS
-        step_size = (config.max_brightness - config.min_brightness) / steps
+        num_steps = config.max_dim_steps or DEFAULT_MAX_DIM_STEPS
+        step_size = (config.max_brightness - config.min_brightness) / num_steps
 
         # Get current decayed override, then bump
         current_override = area_state.brightness_override or 0
@@ -1538,8 +1538,8 @@ class CircadianLightPrimitives:
             if hasattr(self.client, "_get_sun_times")
             else None
         )
-        steps = config.max_dim_steps or DEFAULT_MAX_DIM_STEPS
-        cct_step = (config.max_color_temp - config.min_color_temp) / steps
+        num_steps = config.max_dim_steps or DEFAULT_MAX_DIM_STEPS
+        cct_step = (config.max_color_temp - config.min_color_temp) / num_steps
 
         # Get current decayed override, then bump
         current_override = area_state.color_override or 0
@@ -1552,17 +1552,30 @@ class CircadianLightPrimitives:
             decay = compute_override_decay(set_at, h48, next_phase, t_ascend=t_ascend)
             current_override = current_override * decay
 
-        # Compute base color to check if already at physical limit
-        # Overrides can push past the rhythm's max/min — the real limits are bulb extremes
-        PHYSICAL_MIN_CCT = 500
-        PHYSICAL_MAX_CCT = 6500
+        # Compute base CCT WITHOUT current override (matches _brightness_step pattern)
+        # to avoid double-counting the override in the at_limit check and clamping.
+        base_state = AreaState(
+            is_circadian=area_state.is_circadian,
+            is_on=area_state.is_on,
+            frozen_at=area_state.frozen_at,
+            brightness_mid=area_state.brightness_mid,
+            color_mid=area_state.color_mid,
+            color_override=None,
+            color_override_set_at=None,
+            brightness_override=area_state.brightness_override,
+            brightness_override_set_at=area_state.brightness_override_set_at,
+        )
         base_cct = CircadianLight.calculate_color_at_hour(
-            hour, config, area_state, apply_solar_rules=True, sun_times=sun_times
+            hour, config, base_state, apply_solar_rules=True, sun_times=sun_times
         )
         effective_cct = base_cct + current_override
 
-        at_limit = (direction == "up" and effective_cct >= PHYSICAL_MAX_CCT - 50) or (
-            direction == "down" and effective_cct <= PHYSICAL_MIN_CCT + 50
+        # Limit bounds match the slider range (config min/max color temp)
+        c_min = config.min_color_temp
+        c_max = config.max_color_temp
+
+        at_limit = (direction == "up" and effective_cct >= c_max - 50) or (
+            direction == "down" and effective_cct <= c_min + 50
         )
         if at_limit:
             logger.info(
@@ -1584,9 +1597,9 @@ class CircadianLightPrimitives:
         sign = 1 if direction == "up" else -1
         new_override = round(current_override + sign * cct_step, 1)
 
-        # Clamp so effective color stays within physical bulb limits
-        max_override = PHYSICAL_MAX_CCT - base_cct
-        min_override = PHYSICAL_MIN_CCT - base_cct
+        # Clamp so effective color stays within config range
+        max_override = c_max - base_cct
+        min_override = c_min - base_cct
         new_override = round(max(min_override, min(max_override, new_override)), 1)
 
         self._update_area_state(
