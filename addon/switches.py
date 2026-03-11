@@ -296,34 +296,34 @@ def get_categorized_actions() -> Dict[str, List[Dict[str, Any]]]:
             {"id": "circadian_off", "label": "Off"},
             {"id": "circadian_toggle", "label": "Toggle on/off"},
             {"id": "step_up", "label": "Step Up", "supports_when_off": True},
-            {"id": "step_down", "label": "Step Down", "supports_when_off": True},
             {"id": "step_up_2", "label": "Step Up 2\u00d7", "supports_when_off": True},
+            {"id": "step_up_3", "label": "Step Up 3\u00d7", "supports_when_off": True},
+            {"id": "step_down", "label": "Step Down", "supports_when_off": True},
             {
                 "id": "step_down_2",
                 "label": "Step Down 2\u00d7",
                 "supports_when_off": True,
             },
-            {"id": "step_up_3", "label": "Step Up 3\u00d7", "supports_when_off": True},
             {
                 "id": "step_down_3",
                 "label": "Step Down 3\u00d7",
                 "supports_when_off": True,
             },
             {"id": "bright_up", "label": "Bright Up", "supports_when_off": True},
-            {"id": "bright_down", "label": "Bright Down", "supports_when_off": True},
             {
                 "id": "bright_up_2",
                 "label": "Bright Up 2\u00d7",
                 "supports_when_off": True,
             },
             {
-                "id": "bright_down_2",
-                "label": "Bright Down 2\u00d7",
-                "supports_when_off": True,
-            },
-            {
                 "id": "bright_up_3",
                 "label": "Bright Up 3\u00d7",
+                "supports_when_off": True,
+            },
+            {"id": "bright_down", "label": "Bright Down", "supports_when_off": True},
+            {
+                "id": "bright_down_2",
+                "label": "Bright Down 2\u00d7",
                 "supports_when_off": True,
             },
             {

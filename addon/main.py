@@ -3818,6 +3818,14 @@ class HomeAssistantWebSocketClient:
                 logger.debug(f"Skipping Hue group entity: {entity_id}")
                 continue
 
+            # Get color modes from cached state
+            supported_modes = attributes.get("supported_color_modes", [])
+
+            # Skip entities with no color modes (e.g., Zigbee coordinators)
+            if not supported_modes:
+                logger.debug(f"Skipping light with no color modes: {entity_id}")
+                continue
+
             # Track Hue-connected lights (skip 2-step for these)
             if device_id and device_id in hue_device_ids:
                 self.hue_lights.add(entity_id)
@@ -3831,14 +3839,7 @@ class HomeAssistantWebSocketClient:
                 self.area_lights[area_id] = []
             self.area_lights[area_id].append(entity_id)
 
-            # Get color modes from cached state (reuse attributes from above)
-            supported_modes = attributes.get("supported_color_modes", [])
-
-            if supported_modes:
-                self.light_color_modes[entity_id] = set(supported_modes)
-            else:
-                # Default to color_temp if no modes specified (legacy lights)
-                self.light_color_modes[entity_id] = {"color_temp"}
+            self.light_color_modes[entity_id] = set(supported_modes)
 
         # Collect switch.* entities (relay switches, smart plugs) per area
         for entity in entities:

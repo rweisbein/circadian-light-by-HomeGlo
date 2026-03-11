@@ -2986,13 +2986,11 @@
 
       const elOverrideRow = document.getElementById('tune-det-override-row');
       const elOverrideVal = document.getElementById('tune-det-override-val');
+      const elOverrideLabel = document.getElementById('tune-det-override-label');
       if (elOverrideRow) {
-        if (Math.abs(briOverride) >= 0.5) {
-          elOverrideRow.style.display = '';
-          if (elOverrideVal) elOverrideVal.textContent = formatImpact(Math.round(briOverride)) + '%';
-        } else {
-          elOverrideRow.style.display = 'none';
-        }
+        const rounded = Math.round(briOverride);
+        if (elOverrideLabel) elOverrideLabel.textContent = rounded < 0 ? 'User dimmed' : 'User brightened';
+        if (elOverrideVal) elOverrideVal.textContent = formatImpact(rounded) + '%';
       }
 
       const elBriHeader = document.getElementById('tune-brightness-header-val');
@@ -3251,7 +3249,7 @@
       bhtml += '<div class="tune-slider-row">'
         + '<input type="range" class="tune-inline-slider tune-inline-slider--sun" id="tune-slider-solar" min="0" max="9" step="1" value="' + solarStep + '">'
         + '<span class="tune-slider-word" id="tune-solar-word"><span>' + SOLAR_STEPS[solarStep].label + '</span></span></div>';
-      bhtml += '<div class="tune-bk-row" id="tune-det-override-row" style="display:none;"><span class="tune-bk-label">Bright adjust</span>'
+      bhtml += '<div class="tune-bk-row" id="tune-det-override-row"><span class="tune-bk-label" id="tune-det-override-label">User brightened</span>'
         + '<span class="tune-bk-total" id="tune-det-override-val">0%</span></div>';
       bhtml += '<div class="tune-area-total"><div class="tune-bk-row" style="padding-left:14px;"><span class="tune-bk-label primary">Final</span>'
         + '<span class="tune-bk-total final" id="tune-det-final-val">--</span></div></div>';

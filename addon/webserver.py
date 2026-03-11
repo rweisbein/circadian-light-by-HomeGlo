@@ -1069,6 +1069,7 @@ class LightDesignerServer:
                                     states_msg = json.loads(await ws.recv())
                                     friendly_names = {}
                                     light_groups = set()
+                                    no_color_modes = set()
                                     if states_msg.get("success") and states_msg.get(
                                         "result"
                                     ):
@@ -1085,6 +1086,10 @@ class LightDesignerServer:
                                                     or attrs.get("is_hue_group")
                                                 ):
                                                     light_groups.add(eid)
+                                                if not attrs.get(
+                                                    "supported_color_modes"
+                                                ):
+                                                    no_color_modes.add(eid)
 
                                     if entity_msg.get("success") and entity_msg.get(
                                         "result"
@@ -1100,6 +1105,9 @@ class LightDesignerServer:
                                             if "circadian_" in eid.lower():
                                                 continue
                                             if eid in light_groups:
+                                                continue
+                                            # Skip entities with no color modes (e.g., coordinators)
+                                            if eid in no_color_modes:
                                                 continue
                                             # Determine area
                                             a_id = entity.get("area_id")

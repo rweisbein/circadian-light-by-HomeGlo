@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Circadian Light - Switch actions</title>
+  <title>Circadian Light - Switch Map</title>
   <style>
     :root {
       --bg: #000;
@@ -375,12 +375,12 @@
       color: var(--muted2);
     }
 
-    /* Magic summary rows */
+    /* Magic summary rows — two-line left, moment right */
     .magic-summary-row {
       display: flex;
-      align-items: baseline;
-      gap: 8px;
-      padding: 5px 0;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 0;
       font-size: 0.85rem;
     }
 
@@ -388,19 +388,34 @@
       border-top: 1px solid rgba(255, 255, 255, 0.04);
     }
 
+    .magic-left {
+      flex: 1;
+      min-width: 0;
+    }
+
     .magic-switch-name {
       color: var(--muted);
-      min-width: 0;
+    }
+
+    .magic-btn-slot {
+      color: var(--muted2);
+      font-size: 0.8rem;
+      padding-left: 10px;
+    }
+
+    .magic-right {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
     }
 
     .magic-arrow {
       color: var(--muted2);
-      flex-shrink: 0;
     }
 
     .magic-moment {
       color: var(--text);
-      white-space: nowrap;
     }
 
     .muted-text {
@@ -537,7 +552,7 @@
   <main class="main">
     <div class="page-header">
       <a href="./switches" title="Back to Controls">&larr;</a>
-      <span class="page-title">Switch Actions</span>
+      <span class="page-title">Switch Map</span>
       <span class="unsaved-indicator" id="unsaved-indicator"></span>
     </div>
 
@@ -883,7 +898,8 @@
           // slot format: "on_press", "down_hold", etc.
           const btnKey = parts.slice(0, -1).join('_');
           const eventType = parts[parts.length - 1];
-          const btnName = buttonNames[btnKey] || (btnKey.charAt(0).toUpperCase() + btnKey.slice(1));
+          let btnName = buttonNames[btnKey] || (btnKey.charAt(0).toUpperCase() + btnKey.slice(1));
+          btnName = btnName.replace(/ Button$/, '');
           const eventLabel = {
             'press': '1\u00D7', 'short_release': '1\u00D7', 'double_press': '2\u00D7',
             'triple_press': '3\u00D7', 'hold': 'Long'
@@ -893,9 +909,14 @@
 
           rows.push(`
             <div class="magic-summary-row">
-              <span class="magic-switch-name">${sw.name}: ${btnName} ${eventLabel}</span>
-              <span class="magic-arrow">\u2192</span>
-              <span class="magic-moment">${momentText}</span>
+              <div class="magic-left">
+                <div class="magic-switch-name">${sw.name}</div>
+                <div class="magic-btn-slot">${btnName} ${eventLabel}</div>
+              </div>
+              <div class="magic-right">
+                <span class="magic-arrow">\u2192</span>
+                <span class="magic-moment">${momentText}</span>
+              </div>
             </div>
           `);
         }
@@ -1192,7 +1213,8 @@
           const parts = slot.split('_');
           const btnKey = parts.slice(0, -1).join('_');
           const eventType = parts[parts.length - 1];
-          const btnName = buttonNames[btnKey] || (btnKey.charAt(0).toUpperCase() + btnKey.slice(1));
+          let btnName = buttonNames[btnKey] || (btnKey.charAt(0).toUpperCase() + btnKey.slice(1));
+          btnName = btnName.replace(/ Button$/, '');
           const eventLabel = {
             'press': '1\u00D7', 'short_release': '1\u00D7', 'double_press': '2\u00D7',
             'triple_press': '3\u00D7', 'hold': 'Long'
@@ -1209,11 +1231,25 @@
       }
 
       const text = lines.join('\n').trimEnd();
-      navigator.clipboard.writeText(text).then(() => {
+      // Use textarea fallback for Safari compatibility
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand('copy');
         showStatus('Copied!', 'success');
-      }).catch(() => {
-        showStatus('Copy failed', 'error');
-      });
+      } catch (e) {
+        // Fall back to async clipboard API
+        navigator.clipboard.writeText(text).then(() => {
+          showStatus('Copied!', 'success');
+        }).catch(() => {
+          showStatus('Copy failed', 'error');
+        });
+      }
+      document.body.removeChild(ta);
     }
 
     function getActionLabelPlain(actionId) {
