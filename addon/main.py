@@ -1631,50 +1631,76 @@ class HomeAssistantWebSocketClient:
         elif main_action in ("toggle", "circadian_toggle"):
             await self.primitives.lights_toggle_multiple(areas, "switch")
 
-        elif main_action == "step_up":
+        elif main_action in ("step_up", "step_up_2", "step_up_3"):
             # Step up only if lights are on AND in circadian mode
+            step_count = (
+                int(main_action.split("_")[-1]) if main_action[-1].isdigit() else 1
+            )
             any_on_circadian = any(
                 state.is_circadian(area) and state.get_is_on(area) for area in areas
             )
             if any_on_circadian:
                 await asyncio.gather(
-                    *[self.primitives.step_up(area, "switch") for area in areas]
+                    *[
+                        self.primitives.step_up(area, "switch", steps=step_count)
+                        for area in areas
+                    ]
                 )
             else:
                 await execute_when_off()
 
-        elif main_action == "step_down":
+        elif main_action in ("step_down", "step_down_2", "step_down_3"):
             # Step down only if lights are on AND in circadian mode
+            step_count = (
+                int(main_action.split("_")[-1]) if main_action[-1].isdigit() else 1
+            )
             any_on_circadian = any(
                 state.is_circadian(area) and state.get_is_on(area) for area in areas
             )
             if any_on_circadian:
                 await asyncio.gather(
-                    *[self.primitives.step_down(area, "switch") for area in areas]
+                    *[
+                        self.primitives.step_down(area, "switch", steps=step_count)
+                        for area in areas
+                    ]
                 )
             else:
                 await execute_when_off()
 
-        elif main_action == "bright_up":
+        elif main_action in ("bright_up", "bright_up_2", "bright_up_3"):
             # Bright up only if lights are on AND in circadian mode
+            step_count = (
+                int(main_action.split("_")[-1]) if main_action[-1].isdigit() else 1
+            )
             any_on_circadian = any(
                 state.is_circadian(area) and state.get_is_on(area) for area in areas
             )
             if any_on_circadian:
                 await asyncio.gather(
-                    *[self.primitives.brightness_up(area, "switch") for area in areas]
+                    *[
+                        self.primitives.brightness_up(area, "switch", steps=step_count)
+                        for area in areas
+                    ]
                 )
             else:
                 await execute_when_off()
 
-        elif main_action == "bright_down":
+        elif main_action in ("bright_down", "bright_down_2", "bright_down_3"):
             # Bright down only if lights are on AND in circadian mode
+            step_count = (
+                int(main_action.split("_")[-1]) if main_action[-1].isdigit() else 1
+            )
             any_on_circadian = any(
                 state.is_circadian(area) and state.get_is_on(area) for area in areas
             )
             if any_on_circadian:
                 await asyncio.gather(
-                    *[self.primitives.brightness_down(area, "switch") for area in areas]
+                    *[
+                        self.primitives.brightness_down(
+                            area, "switch", steps=step_count
+                        )
+                        for area in areas
+                    ]
                 )
             else:
                 await execute_when_off()

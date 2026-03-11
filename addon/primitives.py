@@ -501,7 +501,7 @@ class CircadianLightPrimitives:
     # Step Up / Step Down (brightness-primary, both curves)
     # -------------------------------------------------------------------------
 
-    async def step_up(self, area_id: str, source: str = "service_call"):
+    async def step_up(self, area_id: str, source: str = "service_call", steps: int = 1):
         """Step up along the circadian curve (brighter and cooler).
 
         Uses brightness-primary algorithm: brightness determines the step,
@@ -513,6 +513,7 @@ class CircadianLightPrimitives:
         Args:
             area_id: The area ID to control
             source: Source of the action
+            steps: Number of steps to take (each computed from updated state)
         """
         area_state = self._get_area_state(area_id)
 
@@ -636,7 +637,12 @@ class CircadianLightPrimitives:
                 f"Step up state updated (lights off): {result.brightness}%, {result.color_temp}K"
             )
 
-    async def step_down(self, area_id: str, source: str = "service_call"):
+        if steps > 1:
+            await self.step_up(area_id, source, steps - 1)
+
+    async def step_down(
+        self, area_id: str, source: str = "service_call", steps: int = 1
+    ):
         """Step down along the circadian curve (dimmer and warmer).
 
         Uses brightness-primary algorithm: brightness determines the step,
@@ -648,6 +654,7 @@ class CircadianLightPrimitives:
         Args:
             area_id: The area ID to control
             source: Source of the action
+            steps: Number of steps to take (each computed from updated state)
         """
         area_state = self._get_area_state(area_id)
 
@@ -771,6 +778,9 @@ class CircadianLightPrimitives:
             logger.info(
                 f"Step down state updated (lights off): {result.brightness}%, {result.color_temp}K"
             )
+
+        if steps > 1:
+            await self.step_down(area_id, source, steps - 1)
 
     # -------------------------------------------------------------------------
     # Bright Up / Bright Down (brightness only)
@@ -1361,15 +1371,23 @@ class CircadianLightPrimitives:
     # Per-axis override up/down (brightness and color buttons)
     # -------------------------------------------------------------------------
 
-    async def brightness_up(self, area_id: str, source: str = "service_call"):
+    async def brightness_up(
+        self, area_id: str, source: str = "service_call", steps: int = 1
+    ):
         """Bump brightness override up by one step. Uses override+decay model."""
-        await self._brightness_step(area_id, direction="up", source=source)
+        await self._brightness_step(area_id, direction="up", source=source, steps=steps)
 
-    async def brightness_down(self, area_id: str, source: str = "service_call"):
+    async def brightness_down(
+        self, area_id: str, source: str = "service_call", steps: int = 1
+    ):
         """Bump brightness override down by one step. Uses override+decay model."""
-        await self._brightness_step(area_id, direction="down", source=source)
+        await self._brightness_step(
+            area_id, direction="down", source=source, steps=steps
+        )
 
-    async def _brightness_step(self, area_id: str, direction: str, source: str):
+    async def _brightness_step(
+        self, area_id: str, direction: str, source: str, steps: int = 1
+    ):
         """Bump brightness override by one step increment."""
         area_state = self._get_area_state(area_id)
         if not area_state.is_circadian:
@@ -1483,15 +1501,24 @@ class CircadianLightPrimitives:
         if area_state.is_on:
             await self.client.update_lights_in_circadian_mode(area_id)
 
-    async def color_up(self, area_id: str, source: str = "service_call"):
+        if steps > 1:
+            await self._brightness_step(area_id, direction, source, steps - 1)
+
+    async def color_up(
+        self, area_id: str, source: str = "service_call", steps: int = 1
+    ):
         """Bump color override up (cooler) by one step. Uses override+decay model."""
-        await self._color_step(area_id, direction="up", source=source)
+        await self._color_step(area_id, direction="up", source=source, steps=steps)
 
-    async def color_down(self, area_id: str, source: str = "service_call"):
+    async def color_down(
+        self, area_id: str, source: str = "service_call", steps: int = 1
+    ):
         """Bump color override down (warmer) by one step. Uses override+decay model."""
-        await self._color_step(area_id, direction="down", source=source)
+        await self._color_step(area_id, direction="down", source=source, steps=steps)
 
-    async def _color_step(self, area_id: str, direction: str, source: str):
+    async def _color_step(
+        self, area_id: str, direction: str, source: str, steps: int = 1
+    ):
         """Bump color override by one Kelvin step increment."""
         area_state = self._get_area_state(area_id)
         if not area_state.is_circadian:
@@ -1575,6 +1602,9 @@ class CircadianLightPrimitives:
         )
         if area_state.is_on:
             await self.client.update_lights_in_circadian_mode(area_id)
+
+        if steps > 1:
+            await self._color_step(area_id, direction, source, steps - 1)
 
     # -------------------------------------------------------------------------
     # Lights On / Off / Toggle - Control light state under Circadian management

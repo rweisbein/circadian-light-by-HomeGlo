@@ -760,6 +760,7 @@ def _migrate_config(config: Dict[str, Any]) -> Dict[str, Any]:
             old_to_new[old_id] = new_id
             counter += 1
         config["moments"] = new_moments
+        config["_moments_migrated"] = True  # Signal save needed
         # Migrate switch magic_button references
         any_changed = False
         for sw in switches_mod.get_all_switches().values():
@@ -947,7 +948,9 @@ def load_config_from_files(data_dir: Optional[str] = None) -> Dict[str, Any]:
         zc.get("is_default", False) for zc in config.get("glozones", {}).values()
     )
     ensure_default_zone_exists()
-    needs_save = needs_migration or not had_default
+    needs_save = needs_migration or not had_default or config.pop(
+        "_moments_migrated", False
+    )
 
     # Save config to disk if changes were made
     if needs_save:

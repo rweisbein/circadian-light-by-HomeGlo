@@ -67,6 +67,7 @@ def _save_last_actions(actions: Dict[str, str]) -> None:
     except IOError as e:
         logger.error(f"Failed to save last actions file: {e}")
 
+
 # =============================================================================
 # Custom Button Mappings (from designer_config.json)
 # =============================================================================
@@ -102,7 +103,9 @@ def load_custom_mappings() -> Dict[str, Dict[str, Any]]:
         with open(config_path, "r", encoding="utf-8") as f:
             config = json.load(f)
         _custom_mappings = config.get("switch_mappings", {})
-        logger.debug(f"Loaded custom switch mappings for types: {list(_custom_mappings.keys())}")
+        logger.debug(
+            f"Loaded custom switch mappings for types: {list(_custom_mappings.keys())}"
+        )
     except (json.JSONDecodeError, IOError) as e:
         logger.warning(f"Failed to load custom switch mappings: {e}")
         _custom_mappings = {}
@@ -191,29 +194,37 @@ def save_custom_mappings(mappings: Dict[str, Dict[str, Any]]) -> bool:
 # Available actions that can be mapped to buttons
 # Note: Moment actions (set_sleep, set_exit, etc.) are also valid - see get_all_available_actions()
 AVAILABLE_ACTIONS = [
-    "circadian_on",      # Enable + apply circadian values
-    "circadian_off",     # Disable circadian mode (lights unchanged)
-    "toggle",            # Smart toggle based on state
-    "step_up",           # Brighter + cooler along curve
-    "step_down",         # Dimmer + warmer along curve
-    "bright_up",         # Brightness only
-    "bright_down",       # Brightness only
-    "color_up",          # Color temp only
-    "color_down",        # Color temp only
-    "glo_reset",         # Reset area to Daily Rhythm
-    "freeze_toggle",     # Toggle freeze at current position
-    "glo_up",            # Push area settings to GloZone
-    "glo_down",          # Pull GloZone settings to area
-    "glozone_reset",     # Reset GloZone to Daily Rhythm
-    "glozone_down",      # Push GloZone settings to all areas
-    "full_send",         # glo_up + glozone_down (push area to zone to all)
-    "glozone_reset_full", # glozone_reset + glozone_down (reset zone + push to all)
-    "cycle_scope",       # Cycle through scopes
-    "set_britelite",     # 100% brightness, cool white (6500K)
-    "set_nitelite",      # 5% brightness, warm (2200K)
-    "toggle_wake_bed",   # Legacy alias for set_wake_or_bed
-    "set_wake_or_bed",   # Wake (ascend) or Bed (descend) midpoint
-    None,                # Unmapped / do nothing
+    "circadian_on",  # Enable + apply circadian values
+    "circadian_off",  # Disable circadian mode (lights unchanged)
+    "toggle",  # Smart toggle based on state
+    "step_up",  # Brighter + cooler along curve
+    "step_down",  # Dimmer + warmer along curve
+    "step_up_2",  # 2× step up
+    "step_down_2",  # 2× step down
+    "step_up_3",  # 3× step up
+    "step_down_3",  # 3× step down
+    "bright_up",  # Brightness only
+    "bright_down",  # Brightness only
+    "bright_up_2",  # 2× bright up
+    "bright_down_2",  # 2× bright down
+    "bright_up_3",  # 3× bright up
+    "bright_down_3",  # 3× bright down
+    "color_up",  # Color temp only
+    "color_down",  # Color temp only
+    "glo_reset",  # Reset area to Daily Rhythm
+    "freeze_toggle",  # Toggle freeze at current position
+    "glo_up",  # Push area settings to GloZone
+    "glo_down",  # Pull GloZone settings to area
+    "glozone_reset",  # Reset GloZone to Daily Rhythm
+    "glozone_down",  # Push GloZone settings to all areas
+    "full_send",  # glo_up + glozone_down (push area to zone to all)
+    "glozone_reset_full",  # glozone_reset + glozone_down (reset zone + push to all)
+    "cycle_scope",  # Cycle through scopes
+    "set_britelite",  # 100% brightness, cool white (6500K)
+    "set_nitelite",  # 5% brightness, warm (2200K)
+    "toggle_wake_bed",  # Legacy alias for set_wake_or_bed
+    "set_wake_or_bed",  # Wake (ascend) or Bed (descend) midpoint
+    None,  # Unmapped / do nothing
 ]
 
 
@@ -231,6 +242,7 @@ def get_all_available_actions() -> list:
     # Add moment actions dynamically
     try:
         from . import glozone
+
         raw_config = glozone.load_config_from_files()
         moments = raw_config.get("moments", {})
         for moment_id in moments.keys():
@@ -245,15 +257,28 @@ def get_all_available_actions() -> list:
 
 # Actions that support a when_off alternate action
 ADJUSTMENT_ACTIONS = [
-    "step_up", "step_down",
-    "bright_up", "bright_down",
-    "color_up", "color_down",
+    "step_up",
+    "step_down",
+    "step_up_2",
+    "step_down_2",
+    "step_up_3",
+    "step_down_3",
+    "bright_up",
+    "bright_down",
+    "bright_up_2",
+    "bright_down_2",
+    "bright_up_3",
+    "bright_down_3",
+    "color_up",
+    "color_down",
 ]
 
 # Allowed alternate actions for when_off
 WHEN_OFF_ACTIONS = [
-    "circadian_on", "circadian_toggle",
-    "set_nitelite", "set_britelite",
+    "circadian_on",
+    "circadian_toggle",
+    "set_nitelite",
+    "set_britelite",
     "set_wake_or_bed",
     None,  # No alternate action
 ]
@@ -272,8 +297,40 @@ def get_categorized_actions() -> Dict[str, List[Dict[str, Any]]]:
             {"id": "circadian_toggle", "label": "Toggle on/off"},
             {"id": "step_up", "label": "Step Up", "supports_when_off": True},
             {"id": "step_down", "label": "Step Down", "supports_when_off": True},
+            {"id": "step_up_2", "label": "Step Up 2\u00d7", "supports_when_off": True},
+            {
+                "id": "step_down_2",
+                "label": "Step Down 2\u00d7",
+                "supports_when_off": True,
+            },
+            {"id": "step_up_3", "label": "Step Up 3\u00d7", "supports_when_off": True},
+            {
+                "id": "step_down_3",
+                "label": "Step Down 3\u00d7",
+                "supports_when_off": True,
+            },
             {"id": "bright_up", "label": "Bright Up", "supports_when_off": True},
             {"id": "bright_down", "label": "Bright Down", "supports_when_off": True},
+            {
+                "id": "bright_up_2",
+                "label": "Bright Up 2\u00d7",
+                "supports_when_off": True,
+            },
+            {
+                "id": "bright_down_2",
+                "label": "Bright Down 2\u00d7",
+                "supports_when_off": True,
+            },
+            {
+                "id": "bright_up_3",
+                "label": "Bright Up 3\u00d7",
+                "supports_when_off": True,
+            },
+            {
+                "id": "bright_down_3",
+                "label": "Bright Down 3\u00d7",
+                "supports_when_off": True,
+            },
             {"id": "color_up", "label": "Color Up", "supports_when_off": True},
             {"id": "color_down", "label": "Color Down", "supports_when_off": True},
             {"id": "set_britelite", "label": "BriteLite"},
@@ -304,16 +361,19 @@ def get_categorized_actions() -> Dict[str, List[Dict[str, Any]]]:
     # Add moment actions dynamically
     try:
         from . import glozone
+
         raw_config = glozone.load_config_from_files()
         moments = raw_config.get("moments", {})
         if moments:
             moment_actions = []
             for moment_id, moment_data in moments.items():
                 moment_name = moment_data.get("name", moment_id)
-                moment_actions.append({
-                    "id": f"set_{moment_id}",
-                    "label": moment_name,
-                })
+                moment_actions.append(
+                    {
+                        "id": f"set_{moment_id}",
+                        "label": moment_name,
+                    }
+                )
             if moment_actions:
                 categories["Moments"] = moment_actions
     except Exception:
@@ -340,50 +400,50 @@ def get_when_off_options() -> List[Dict[str, Any]]:
 
 # Button action types (event suffixes from ZHA)
 BUTTON_ACTION_TYPES = [
-    "press",           # Immediately when pressed
-    "hold",            # After ~0.5s if still held
-    "short_release",   # Released quickly (short press)
-    "long_release",    # Released after hold
-    "double_press",    # Double click
-    "triple_press",    # Triple click
-    "quadruple_press", # 4x click
-    "quintuple_press", # 5x click
+    "press",  # Immediately when pressed
+    "hold",  # After ~0.5s if still held
+    "short_release",  # Released quickly (short press)
+    "long_release",  # Released after hold
+    "double_press",  # Double click
+    "triple_press",  # Triple click
+    "quadruple_press",  # 4x click
+    "quintuple_press",  # 5x click
 ]
 
 # Switch type definitions
 # Shared button mapping for Hue 4-button dimmers (v1 and v2 use same layout)
 _HUE_4BUTTON_MAPPING = {
     # On button (top)
-    "on_short_release": "circadian_toggle",     # 1x - on/off
-    "on_double_press": "full_send",              # 2x - push to zone + all areas
-    "on_triple_press": "freeze_toggle",          # 3x - freeze
-    "on_quadruple_press": None,                 # 4x - not used
-    "on_quintuple_press": None,                 # 5x - coming soon: emergency toggle
-    "on_hold": None,                            # long - RESERVED for magic button
+    "on_short_release": "circadian_toggle",  # 1x - on/off
+    "on_double_press": "full_send",  # 2x - push to zone + all areas
+    "on_triple_press": "freeze_toggle",  # 3x - freeze
+    "on_quadruple_press": None,  # 4x - not used
+    "on_quintuple_press": None,  # 5x - coming soon: emergency toggle
+    "on_hold": None,  # long - RESERVED for magic button
     "on_long_release": None,
     # Up button
     "up_short_release": {"action": "step_up", "when_off": "set_nitelite"},
     "up_double_press": {"action": "color_up", "when_off": None},
-    "up_triple_press": "set_britelite",         # 3x
-    "up_quadruple_press": None,                 # 4x - not used
-    "up_quintuple_press": None,                 # 5x - not used
+    "up_triple_press": "set_britelite",  # 3x
+    "up_quadruple_press": None,  # 4x - not used
+    "up_quintuple_press": None,  # 5x - not used
     "up_hold": {"action": "bright_up", "when_off": None},
     "up_long_release": None,
     # Down button
     "down_short_release": {"action": "step_down", "when_off": "set_nitelite"},
     "down_double_press": {"action": "color_down", "when_off": None},
-    "down_triple_press": "set_nitelite",        # 3x
-    "down_quadruple_press": None,               # 4x - not used
-    "down_quintuple_press": None,               # 5x - not used
+    "down_triple_press": "set_nitelite",  # 3x
+    "down_quadruple_press": None,  # 4x - not used
+    "down_quintuple_press": None,  # 5x - not used
     "down_hold": {"action": "bright_down", "when_off": None},
     "down_long_release": None,
     # Hue button (bottom)
-    "off_short_release": "cycle_scope",         # 1x - change controlled areas
-    "off_double_press": "glo_down",              # 2x - pull zone state
-    "off_triple_press": "glozone_reset_full",   # 3x - reset zone + push to all
-    "off_quadruple_press": None,                # 4x - not used
-    "off_quintuple_press": None,                # 5x - coming soon: Sleep
-    "off_hold": None,                           # long - RESERVED for magic button
+    "off_short_release": "cycle_scope",  # 1x - change controlled areas
+    "off_double_press": "glo_down",  # 2x - pull zone state
+    "off_triple_press": "glozone_reset_full",  # 3x - reset zone + push to all
+    "off_quadruple_press": None,  # 4x - not used
+    "off_quintuple_press": None,  # 5x - coming soon: Sleep
+    "off_hold": None,  # long - RESERVED for magic button
     "off_long_release": None,
 }
 
@@ -394,7 +454,16 @@ SWITCH_TYPES: Dict[str, Dict[str, Any]] = {
         "manufacturers": ["Philips", "Signify", "Signify Netherlands B.V."],
         "models": ["RWL020", "RWL021", "RWL022"],  # v1, v1.5, v2
         "buttons": ["on", "up", "down", "off"],
-        "action_types": ["press", "hold", "short_release", "long_release", "double_press", "triple_press", "quadruple_press", "quintuple_press"],
+        "action_types": [
+            "press",
+            "hold",
+            "short_release",
+            "long_release",
+            "double_press",
+            "triple_press",
+            "quadruple_press",
+            "quintuple_press",
+        ],
         "default_mapping": _HUE_4BUTTON_MAPPING,
         "repeat_on_hold": ["up_hold", "down_hold"],
         "repeat_interval_ms": 300,
@@ -404,14 +473,23 @@ SWITCH_TYPES: Dict[str, Dict[str, Any]] = {
         "manufacturers": ["Philips", "Signify", "Signify Netherlands B.V."],
         "models": ["ROM001", "RDM003"],
         "buttons": ["on"],
-        "action_types": ["press", "hold", "short_release", "long_release", "double_press", "triple_press", "quadruple_press", "quintuple_press"],
+        "action_types": [
+            "press",
+            "hold",
+            "short_release",
+            "long_release",
+            "double_press",
+            "triple_press",
+            "quadruple_press",
+            "quintuple_press",
+        ],
         "default_mapping": {
-            "on_short_release": "magic",             # 1x - magic button
+            "on_short_release": "magic",  # 1x - magic button
             "on_double_press": None,
             "on_triple_press": None,
             "on_quadruple_press": None,
             "on_quintuple_press": None,
-            "on_hold": "magic",                     # long - magic button
+            "on_hold": "magic",  # long - magic button
             "on_long_release": None,
         },
         "repeat_on_hold": [],
@@ -426,7 +504,7 @@ SWITCH_TYPES: Dict[str, Dict[str, Any]] = {
         "dial": True,  # Continuous input — rotation maps to set_position
         "default_mapping": {
             "dial_press": "toggle",
-            "dial_rotate": "set_position_step",     # Dial controls Glo (step mode)
+            "dial_rotate": "set_position_step",  # Dial controls Glo (step mode)
         },
         "repeat_on_hold": [],
         "repeat_interval_ms": 300,
@@ -435,7 +513,13 @@ SWITCH_TYPES: Dict[str, Dict[str, Any]] = {
         "name": "IKEA Tradfri Remote",
         "manufacturer": "IKEA",
         "models": ["E1524", "E1810"],
-        "buttons": ["toggle", "brightness_up", "brightness_down", "arrow_left", "arrow_right"],
+        "buttons": [
+            "toggle",
+            "brightness_up",
+            "brightness_down",
+            "arrow_left",
+            "arrow_right",
+        ],
         "action_types": ["press", "hold", "release"],
         "default_mapping": {
             "toggle_press": "toggle",
@@ -504,7 +588,9 @@ def get_sensor_name(manufacturer: Optional[str], model: Optional[str]) -> Option
 
 
 # Backwards compatibility alias
-def get_motion_sensor_name(manufacturer: Optional[str], model: Optional[str]) -> Optional[str]:
+def get_motion_sensor_name(
+    manufacturer: Optional[str], model: Optional[str]
+) -> Optional[str]:
     """Deprecated: Use get_sensor_name instead."""
     return get_sensor_name(manufacturer, model)
 
@@ -513,24 +599,29 @@ def get_motion_sensor_name(manufacturer: Optional[str], model: Optional[str]) ->
 # Data Classes
 # =============================================================================
 
+
 @dataclass
 class SwitchScope:
     """A scope defines which areas a switch controls."""
+
     areas: List[str] = field(default_factory=list)
 
 
 @dataclass
 class SwitchConfig:
     """Configuration for a single switch."""
-    id: str                                    # IEEE address or unique identifier
-    name: str                                  # User-friendly name
-    type: str                                  # Switch type key (e.g., "hue_4button_v2")
+
+    id: str  # IEEE address or unique identifier
+    name: str  # User-friendly name
+    type: str  # Switch type key (e.g., "hue_4button_v2")
     scopes: List[SwitchScope] = field(default_factory=list)
     magic_buttons: Dict[str, Optional[str]] = field(default_factory=dict)
-    device_id: Optional[str] = None            # HA device_id for area lookup
-    indicator_light: Optional[str] = None      # Entity ID for reach feedback indicator light
-    inactive: bool = False                     # If True, switch won't trigger actions
-    inactive_until: Optional[str] = None       # ISO timestamp or "forever"; None = no timer
+    device_id: Optional[str] = None  # HA device_id for area lookup
+    indicator_light: Optional[str] = (
+        None  # Entity ID for reach feedback indicator light
+    )
+    inactive: bool = False  # If True, switch won't trigger actions
+    inactive_until: Optional[str] = None  # ISO timestamp or "forever"; None = no timer
 
     def get_button_action(self, button_event: str) -> Any:
         """Get the action for a button event, with magic button support.
@@ -601,6 +692,7 @@ class SwitchConfig:
 @dataclass
 class SwitchRuntimeState:
     """Runtime state for a switch (not persisted)."""
+
     current_scope: int = 0
     last_activity: float = 0.0
     hold_active: bool = False
@@ -611,6 +703,7 @@ class SwitchRuntimeState:
 # =============================================================================
 # Motion Sensor Data Classes
 # =============================================================================
+
 
 @dataclass
 class MotionAreaConfig:
@@ -625,6 +718,7 @@ class MotionAreaConfig:
     - boost_enabled: Whether to temporarily increase brightness
     - boost_brightness: Percentage points to add
     """
+
     area_id: str
     mode: str = "on_off"  # on_only, on_off, disabled
     duration: int = 60  # seconds for on_off auto-off timer
@@ -691,13 +785,14 @@ class MotionAreaConfig:
 @dataclass
 class MotionSensorConfig:
     """Configuration for a motion sensor."""
-    id: str                              # Device ID or unique identifier
-    name: str                            # User-friendly name
+
+    id: str  # Device ID or unique identifier
+    name: str  # User-friendly name
     areas: List[MotionAreaConfig] = field(default_factory=list)
-    device_id: Optional[str] = None      # HA device_id
-    inactive: bool = False               # If True, sensor won't trigger actions
-    inactive_until: Optional[str] = None # ISO timestamp or "forever"; None = no timer
-    cooldown: int = 0                    # Seconds to ignore triggers after processing one (0 = disabled)
+    device_id: Optional[str] = None  # HA device_id
+    inactive: bool = False  # If True, sensor won't trigger actions
+    inactive_until: Optional[str] = None  # ISO timestamp or "forever"; None = no timer
+    cooldown: int = 0  # Seconds to ignore triggers after processing one (0 = disabled)
 
     def get_area_config(self, area_id: str) -> Optional[MotionAreaConfig]:
         """Get config for a specific area."""
@@ -745,6 +840,7 @@ class MotionSensorConfig:
 # Contact Sensor Data Classes
 # =============================================================================
 
+
 @dataclass
 class ContactAreaConfig:
     """Config for one area controlled by a contact sensor (e.g., door/window sensor).
@@ -758,9 +854,12 @@ class ContactAreaConfig:
     - boost_enabled: Whether to temporarily increase brightness
     - boost_brightness: Percentage points to add
     """
+
     area_id: str
     mode: str = "on_off"  # on_only, on_off, disabled
-    duration: int = 60  # seconds, fallback timer for on_off (0 = forever, rely on close)
+    duration: int = (
+        60  # seconds, fallback timer for on_off (0 = forever, rely on close)
+    )
     boost_enabled: bool = False  # whether to boost brightness
     boost_brightness: int = 50  # percentage points to add when boosting
 
@@ -812,12 +911,13 @@ class ContactAreaConfig:
 @dataclass
 class ContactSensorConfig:
     """Configuration for a contact sensor (door/window sensor)."""
-    id: str                              # Device ID or unique identifier
-    name: str                            # User-friendly name
+
+    id: str  # Device ID or unique identifier
+    name: str  # User-friendly name
     areas: List[ContactAreaConfig] = field(default_factory=list)
-    device_id: Optional[str] = None      # HA device_id
-    inactive: bool = False               # If True, sensor won't trigger actions
-    inactive_until: Optional[str] = None # ISO timestamp or "forever"; None = no timer
+    device_id: Optional[str] = None  # HA device_id
+    inactive: bool = False  # If True, sensor won't trigger actions
+    inactive_until: Optional[str] = None  # ISO timestamp or "forever"; None = no timer
 
     def get_area_config(self, area_id: str) -> Optional[ContactAreaConfig]:
         """Get config for a specific area."""
@@ -870,6 +970,7 @@ def check_inactive_expired(config) -> bool:
         return True  # still inactive, no expiry
     try:
         from datetime import datetime, timezone
+
         expiry = datetime.fromisoformat(config.inactive_until.replace("Z", "+00:00"))
         if datetime.now(timezone.utc) >= expiry:
             # Timer expired — unpause
@@ -908,6 +1009,7 @@ SCOPE_RESET_TIMEOUT = 45.0
 # =============================================================================
 # Initialization and Persistence
 # =============================================================================
+
 
 def _get_data_directory() -> str:
     """Get the appropriate data directory based on environment."""
@@ -958,9 +1060,13 @@ def init(config_file: Optional[str] = None) -> None:
                 contact = ContactSensorConfig.from_dict(contact_data)
                 _contact_sensors[contact.id] = contact
 
-            logger.info(f"Loaded {len(_switches)} switch(es), {len(_motion_sensors)} motion sensor(s), {len(_contact_sensors)} contact sensor(s) from {_config_file_path}")
+            logger.info(
+                f"Loaded {len(_switches)} switch(es), {len(_motion_sensors)} motion sensor(s), {len(_contact_sensors)} contact sensor(s) from {_config_file_path}"
+            )
         except Exception as e:
-            logger.warning(f"Failed to load switches config from {_config_file_path}: {e}")
+            logger.warning(
+                f"Failed to load switches config from {_config_file_path}: {e}"
+            )
     else:
         logger.info(f"No switches config found at {_config_file_path}, starting fresh")
 
@@ -989,6 +1095,7 @@ def _save() -> None:
 # =============================================================================
 # Switch Management
 # =============================================================================
+
 
 def _reload_switches() -> None:
     """Reload configured switches from disk (for cross-process sync)."""
@@ -1077,6 +1184,7 @@ def is_configured(switch_id: str) -> bool:
 # Motion Sensor Management
 # =============================================================================
 
+
 def _reload_motion_sensors() -> None:
     """Reload configured motion sensors from disk (for cross-process sync)."""
     global _motion_sensors
@@ -1160,6 +1268,7 @@ def get_motion_sensors_for_area(area_id: str) -> List[MotionSensorConfig]:
 # =============================================================================
 # Contact Sensor Management
 # =============================================================================
+
 
 def _reload_contact_sensors() -> None:
     """Reload configured contact sensors from disk (for cross-process sync)."""
@@ -1245,7 +1354,10 @@ def get_contact_sensors_for_area(area_id: str) -> List[ContactSensorConfig]:
 # Switch Type Detection
 # =============================================================================
 
-def detect_switch_type(manufacturer: Optional[str], model: Optional[str]) -> Optional[str]:
+
+def detect_switch_type(
+    manufacturer: Optional[str], model: Optional[str]
+) -> Optional[str]:
     """Attempt to detect switch type from manufacturer/model info.
 
     Requires BOTH manufacturer AND model to match to avoid false positives
@@ -1266,7 +1378,9 @@ def detect_switch_type(manufacturer: Optional[str], model: Optional[str]) -> Opt
             manufacturers = [type_info["manufacturer"]]
 
         # Check if manufacturer matches
-        manufacturer_match = any(mfr.lower() in manufacturer_lower for mfr in manufacturers)
+        manufacturer_match = any(
+            mfr.lower() in manufacturer_lower for mfr in manufacturers
+        )
         if not manufacturer_match:
             continue
 
@@ -1281,6 +1395,7 @@ def detect_switch_type(manufacturer: Optional[str], model: Optional[str]) -> Opt
 # =============================================================================
 # Scope Management
 # =============================================================================
+
 
 def get_current_scope(switch_id: str) -> int:
     """Get the current scope index for a switch."""
@@ -1315,7 +1430,11 @@ def cycle_scope(switch_id: str) -> int:
         return state.current_scope
 
     # Find next valid scope
-    current_pos = valid_scopes.index(state.current_scope) if state.current_scope in valid_scopes else -1
+    current_pos = (
+        valid_scopes.index(state.current_scope)
+        if state.current_scope in valid_scopes
+        else -1
+    )
     next_pos = (current_pos + 1) % len(valid_scopes)
     state.current_scope = valid_scopes[next_pos]
 
@@ -1353,7 +1472,9 @@ def check_scope_timeouts() -> List[str]:
             if now - state.last_activity > SCOPE_RESET_TIMEOUT:
                 state.current_scope = 0
                 reset_switches.append(switch_id)
-                logger.debug(f"Switch {switch_id} auto-reset to scope 1 due to inactivity")
+                logger.debug(
+                    f"Switch {switch_id} auto-reset to scope 1 due to inactivity"
+                )
 
     return reset_switches
 
@@ -1361,6 +1482,7 @@ def check_scope_timeouts() -> List[str]:
 # =============================================================================
 # Hold State Management
 # =============================================================================
+
 
 def start_hold(switch_id: str, action: str) -> None:
     """Mark that a hold action has started."""
@@ -1416,10 +1538,7 @@ def set_last_action(switch_id: str, action: str, cooldown_until: str = None) -> 
 
     # Persist to file for webserver to read (with timestamp)
     all_actions = _load_last_actions()
-    entry = {
-        "action": action,
-        "timestamp": datetime.now().isoformat()
-    }
+    entry = {"action": action, "timestamp": datetime.now().isoformat()}
     if cooldown_until:
         entry["cooldown_until"] = cooldown_until
     all_actions[switch_id] = entry
@@ -1451,6 +1570,7 @@ def get_last_action(switch_id: str) -> Optional[dict]:
 # =============================================================================
 # Switch Type Helpers
 # =============================================================================
+
 
 def get_switch_type(type_id: str) -> Optional[Dict[str, Any]]:
     """Get a switch type definition."""
@@ -1498,6 +1618,7 @@ def should_repeat_on_hold(switch_id: str, button_event: str) -> bool:
 # Reach Group Utilities (for multi-area ZigBee group sync)
 # =============================================================================
 
+
 def get_reach_key(areas: List[str]) -> str:
     """Generate stable hash key for a reach (sorted, deduped areas).
 
@@ -1539,24 +1660,27 @@ def get_all_unique_reaches() -> Dict[str, List[str]]:
 # API Helpers (for webserver)
 # =============================================================================
 
+
 def get_switches_summary() -> List[Dict[str, Any]]:
     """Get a summary of all switches for the UI."""
     result = []
     for switch_id, switch in _switches.items():
         state = _runtime_state.get(switch_id, SwitchRuntimeState())
         valid_scopes = len([s for s in switch.scopes if s.areas])
-        result.append({
-            "id": switch.id,
-            "name": switch.name,
-            "type": switch.type,
-            "type_name": SWITCH_TYPES.get(switch.type, {}).get("name", switch.type),
-            "current_scope": state.current_scope + 1,  # 1-indexed for display
-            "total_scopes": valid_scopes,
-            "scopes": [{"areas": s.areas} for s in switch.scopes],
-            "device_id": switch.device_id,
-            "indicator_light": switch.indicator_light,
-            "inactive": switch.inactive,
-            "inactive_until": switch.inactive_until,
-            "magic_buttons": switch.magic_buttons,
-        })
+        result.append(
+            {
+                "id": switch.id,
+                "name": switch.name,
+                "type": switch.type,
+                "type_name": SWITCH_TYPES.get(switch.type, {}).get("name", switch.type),
+                "current_scope": state.current_scope + 1,  # 1-indexed for display
+                "total_scopes": valid_scopes,
+                "scopes": [{"areas": s.areas} for s in switch.scopes],
+                "device_id": switch.device_id,
+                "indicator_light": switch.indicator_light,
+                "inactive": switch.inactive,
+                "inactive_until": switch.inactive_until,
+                "magic_buttons": switch.magic_buttons,
+            }
+        )
     return result

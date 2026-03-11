@@ -623,6 +623,8 @@
       { icon: '&#128187;', name: 'work' },
       { icon: '&#128170;', name: 'workout' },
       { icon: '&#128704;', name: 'yoga' },
+      { icon: '&#9889;', name: 'bright' },
+      { icon: '&#128680;', name: 'emergency' },
     ];
 
     // Action options
@@ -737,22 +739,26 @@
     });
 
     async function loadData() {
-      try {
-        const [momentsRes, zonesRes, switchesRes, switchmapRes] = await Promise.all([
-          fetch(basePath + '/api/moments'),
-          fetch(basePath + '/api/glozones'),
-          fetch(basePath + '/api/switches'),
-          fetch(basePath + '/api/switchmap')
-        ]);
+      const fetches = await Promise.allSettled([
+        fetch(basePath + '/api/moments'),
+        fetch(basePath + '/api/glozones'),
+        fetch(basePath + '/api/switches'),
+        fetch(basePath + '/api/switchmap')
+      ]);
 
-        if (momentsRes.ok) {
-          const data = await momentsRes.json();
+      const [momentsRes, zonesRes, switchesRes, switchmapRes] = fetches;
+
+      try {
+        if (momentsRes.status === 'fulfilled' && momentsRes.value.ok) {
+          const data = await momentsRes.value.json();
           allMoments = data.moments || {};
           moment = allMoments[selectedMomentId] || null;
         }
+      } catch (err) { console.error('Error parsing moments:', err); }
 
-        if (zonesRes.ok) {
-          const data = await zonesRes.json();
+      try {
+        if (zonesRes.status === 'fulfilled' && zonesRes.value.ok) {
+          const data = await zonesRes.value.json();
           allZones = data.zones || [];
           allAreas = [];
           allZones.forEach(zone => {
@@ -766,19 +772,21 @@
             });
           });
         }
+      } catch (err) { console.error('Error parsing zones:', err); }
 
-        if (switchesRes.ok) {
-          const data = await switchesRes.json();
+      try {
+        if (switchesRes.status === 'fulfilled' && switchesRes.value.ok) {
+          const data = await switchesRes.value.json();
           allSwitches = data.switches || [];
         }
+      } catch (err) { console.error('Error parsing switches:', err); }
 
-        if (switchmapRes.ok) {
-          const data = await switchmapRes.json();
+      try {
+        if (switchmapRes.status === 'fulfilled' && switchmapRes.value.ok) {
+          const data = await switchmapRes.value.json();
           switchMapData = data.mappings || {};
         }
-      } catch (err) {
-        console.error('Error loading data:', err);
-      }
+      } catch (err) { console.error('Error parsing switchmap:', err); }
     }
 
     function updateHeader() {
@@ -881,6 +889,16 @@
           </div>
           <div class="ctrl-card-body">
             <div class="ctrl-card-body-inner">
+              ${exceptionCount > 0 ? `
+                <div class="exception-item" style="padding-bottom: 2px; margin-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                  <span class="exception-area" style="font-size: 0.75rem; color: var(--muted2);">Area</span>
+                  <span style="font-size: 0.75rem; color: var(--muted2);">Action</span>
+                  <div style="display:flex;align-items:center;gap:4px;">
+                    <span style="font-size: 0.75rem; color: var(--muted2);">Auto-off</span>
+                  </div>
+                  <span style="width: 22px;"></span>
+                </div>
+              ` : ''}
               <div id="exceptions-list">
                 ${Object.entries(exceptions).map(([areaId, rawVal]) => {
                   const exc = normalizeException(rawVal);
@@ -1028,6 +1046,28 @@
     }
 
     function renderAssignSwitchList(container) {
+      // Build the picker shell with input if not already present
+      if (!container.querySelector('.assign-picker')) {
+        container.innerHTML = `
+          <div class="assign-picker">
+            <input type="text" class="assign-search" id="assign-search-input"
+                   placeholder="Search controls..." value="${assignPickerSearch}"
+                   oninput="assignPickerSearch = this.value; updateAssignList();">
+            <div class="assign-switch-list" id="assign-list-inner"></div>
+            <div style="margin-top: 8px;">
+              <button class="add-exception-btn" onclick="closeAssignPicker()" style="color: var(--muted2);">Cancel</button>
+            </div>
+          </div>
+        `;
+      }
+
+      updateAssignList();
+    }
+
+    function updateAssignList() {
+      const listEl = document.getElementById('assign-list-inner');
+      if (!listEl) return;
+
       // Filter to switches with magic slots
       const switchesWithMagic = allSwitches.filter(sw => {
         const slots = getMagicSlots(sw.type);
@@ -1049,16 +1089,9 @@
           })
         : switchesWithMagic;
 
-      let html = `
-        <div class="assign-picker">
-          <input type="text" class="assign-search" id="assign-search-input"
-                 placeholder="Search controls..." value="${assignPickerSearch}"
-                 oninput="assignPickerSearch = this.value; renderAssignPicker();">
-          <div class="assign-switch-list">
-      `;
-
+      let html = '';
       if (filtered.length === 0) {
-        html += '<div style="font-size: 0.85rem; color: var(--muted); padding: 8px 0;">No matching controls</div>';
+        html = '<div style="font-size: 0.85rem; color: var(--muted); padding: 8px 0;">No matching controls</div>';
       } else {
         for (const sw of filtered) {
           const scopeAreas = (sw.scopes || [])
@@ -1078,15 +1111,7 @@
         }
       }
 
-      html += `
-          </div>
-          <div style="margin-top: 8px;">
-            <button class="add-exception-btn" onclick="closeAssignPicker()" style="color: var(--muted2);">Cancel</button>
-          </div>
-        </div>
-      `;
-
-      container.innerHTML = html;
+      listEl.innerHTML = html;
     }
 
     function selectAssignSwitch(switchId) {

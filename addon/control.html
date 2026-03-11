@@ -1465,7 +1465,8 @@
             ${Object.entries(allMoments).map(([id, m]) => {
               const val = 'set_' + id;
               const sel = currentValue === val ? ' selected' : '';
-              return `<option value="${val}"${sel}>${m.name || id}</option>`;
+              const icon = m.icon ? m.icon + ' ' : '';
+              return `<option value="${val}"${sel}>${icon}${m.name || id}</option>`;
             }).join('')}
           </select>
         </div>`;
@@ -1478,7 +1479,9 @@
         let momentName = momentAction;
         if (momentAction && momentAction.startsWith('set_')) {
           const momentId = momentAction.slice(4);
-          momentName = allMoments[momentId]?.name || momentId;
+          const momentObj = allMoments[momentId];
+          momentName = momentObj?.name || momentId;
+          if (momentObj?.icon) momentName = momentObj.icon + ' ' + momentName;
         }
         html += `<div class="magic-row magic-row-orphan">
           <span class="magic-row-label">${label} (no longer in Switch actions)</span>
