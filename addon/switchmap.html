@@ -345,28 +345,49 @@
       font-size: 0.85rem;
     }
 
-    /* Cheat sheet rows */
-    .cheat-row {
+    /* Cheat sheet — inline rows with button on left */
+    .cheat-row-inline {
       display: flex;
       align-items: baseline;
-      gap: 10px;
-      padding: 4px 0;
+      gap: 8px;
+      padding: 3px 0;
     }
 
-    .cheat-row + .cheat-row {
-      border-top: 1px solid rgba(255, 255, 255, 0.04);
+    .cheat-row-inline + .cheat-row-inline {
+      border-top: 1px solid rgba(255, 255, 255, 0.03);
+    }
+
+    .cheat-btn-col {
+      width: 100px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-badge-sm {
+      width: 22px;
+      height: 22px;
+      font-size: 0.7rem;
+      border-width: 1.5px;
+    }
+
+    .cheat-btn-name {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text);
     }
 
     .cheat-label {
       font-size: 0.8rem;
       color: var(--muted);
       font-weight: 500;
-      min-width: 36px;
+      min-width: 32px;
       flex-shrink: 0;
     }
 
     .cheat-action {
-      font-size: 0.9rem;
+      font-size: 0.88rem;
       color: var(--text);
     }
 
@@ -375,43 +396,28 @@
       color: var(--muted2);
     }
 
-    /* Magic summary rows — two-line left, moment right */
+    /* Magic summary rows — single line: name · slot → moment */
     .magic-summary-row {
       display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 5px 0;
+      align-items: baseline;
+      gap: 6px;
+      padding: 4px 0;
       font-size: 0.85rem;
+      flex-wrap: wrap;
     }
 
     .magic-summary-row + .magic-summary-row {
       border-top: 1px solid rgba(255, 255, 255, 0.04);
     }
 
-    .magic-left {
-      flex: 1;
-      min-width: 0;
-      overflow: hidden;
-    }
-
     .magic-switch-name {
-      color: var(--muted);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      color: var(--text);
+      font-weight: 500;
     }
 
     .magic-btn-slot {
       color: var(--muted2);
       font-size: 0.8rem;
-      padding-left: 10px;
-    }
-
-    .magic-right {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      flex-shrink: 0;
     }
 
     .magic-arrow {
@@ -419,8 +425,7 @@
     }
 
     .magic-moment {
-      color: var(--text);
-      white-space: nowrap;
+      color: var(--muted);
     }
 
     .muted-text {
@@ -431,16 +436,12 @@
 
     /* Cheat sheet card - always open, no pointer */
     .cheatsheet-card {
-      margin-bottom: 8px;
+      margin-bottom: 10px;
     }
 
     .cheatsheet-card .ctrl-card-header {
       cursor: default;
       padding: 10px 14px;
-    }
-
-    .cheatsheet-card .ctrl-card-body-inner {
-      padding: 0 14px 10px;
     }
 
     /* Save bar */
@@ -547,12 +548,15 @@
       .ctrl-card { border-color: #ccc; margin-bottom: 6px; break-inside: avoid; }
       .ctrl-card-header { padding: 6px 10px; }
       .ctrl-card-body-inner { padding: 0 10px 6px; }
-      .cheat-row { padding: 2px 0; }
-      .magic-summary-row { padding: 2px 0; }
-      .btn-badge { border-color: #999; background: #eee; color: #333; width: 24px; height: 24px; font-size: 0.7rem; }
+      .cheat-row-inline { padding: 1px 0; }
+      .magic-summary-row { padding: 1px 0; }
+      .btn-badge { border-color: #999; background: #eee; color: #333; }
+      .btn-badge-sm { width: 18px; height: 18px; font-size: 0.6rem; }
+      .cheat-btn-col { width: 80px; }
       .ctrl-card-title { font-size: 0.9rem; }
-      .cheat-label { font-size: 0.75rem; }
-      .cheat-action { font-size: 0.8rem; }
+      .cheat-label { font-size: 0.7rem; min-width: 24px; }
+      .cheat-action { font-size: 0.75rem; }
+      .cheat-btn-name { font-size: 0.75rem; }
       .magic-switch-name, .magic-btn-slot, .magic-arrow, .magic-moment { color: #333; }
       .cheat-if-off { color: #666; }
       .muted-text { color: #666; }
@@ -853,11 +857,13 @@
       const availableActionTypes = getDisplayableActionTypes(typeInfo);
       let html = `<div class="print-title" style="display:none; font-size:1.1rem; font-weight:600; margin-bottom:8px;">${typeInfo.name}</div>`;
 
+      // Single card with all buttons — compact inline layout
+      let buttonRows = '';
       for (const btn of buttons) {
         const buttonName = buttonNames[btn] || btn.charAt(0).toUpperCase() + btn.slice(1);
         const badge = buttonLabels[btn] || btn;
 
-        const rows = [];
+        const actionRows = [];
         for (const actionType of availableActionTypes) {
           const eventKey = `${btn}_${actionType}`;
           const mapping = currentMappings[eventKey];
@@ -880,29 +886,30 @@
             actionText += ` <span class="cheat-if-off">(if off: ${getActionLabel(whenOffValue)})</span>`;
           }
 
-          // Check if this is a magic action
           if (actionValue === 'magic') {
             actionText = formatMagicLabel('Magic');
           }
 
-          rows.push(`
-            <div class="cheat-row">
-              <span class="cheat-label">${label}</span>
-              <span class="cheat-action">${actionText}</span>
-            </div>
-          `);
+          actionRows.push({ label, actionText });
         }
 
-        if (rows.length === 0) continue;
+        if (actionRows.length === 0) continue;
 
+        // First row includes button badge+name, subsequent rows indent
+        buttonRows += actionRows.map((r, i) => `
+          <div class="cheat-row-inline">
+            <div class="cheat-btn-col">${i === 0 ? `<span class="btn-badge btn-badge-sm">${badge}</span><span class="cheat-btn-name">${buttonName}</span>` : ''}</div>
+            <span class="cheat-label">${r.label}</span>
+            <span class="cheat-action">${r.actionText}</span>
+          </div>
+        `).join('');
+      }
+
+      if (buttonRows) {
         html += `
           <div class="ctrl-card is-open cheatsheet-card">
-            <div class="ctrl-card-header">
-              <span class="btn-badge">${badge}</span>
-              <span class="ctrl-card-title">${buttonName}</span>
-            </div>
-            <div class="ctrl-card-body"><div class="ctrl-card-body-inner">
-              ${rows.join('')}
+            <div class="ctrl-card-body" style="max-height:none;opacity:1;"><div class="ctrl-card-body-inner" style="padding-top:12px;">
+              ${buttonRows}
             </div></div>
           </div>
         `;
@@ -937,14 +944,10 @@
 
           rows.push(`
             <div class="magic-summary-row">
-              <div class="magic-left">
-                <div class="magic-switch-name">${sw.name}</div>
-                <div class="magic-btn-slot">${btnName} ${eventLabel}</div>
-              </div>
-              <div class="magic-right">
-                <span class="magic-arrow">\u2192</span>
-                <span class="magic-moment">${momentText}</span>
-              </div>
+              <span class="magic-switch-name">${sw.name}</span>
+              <span class="magic-btn-slot">${btnName} ${eventLabel}</span>
+              <span class="magic-arrow">\u2192</span>
+              <span class="magic-moment">${momentText}</span>
             </div>
           `);
         }

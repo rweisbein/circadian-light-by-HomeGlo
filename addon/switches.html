@@ -331,6 +331,19 @@
       color: var(--muted);
     }
 
+    tr.stale-row td { opacity: 0.5; }
+    tr.stale-row:hover td { opacity: 0.8; }
+
+    .stale-remove-btn {
+      cursor: pointer;
+      color: var(--danger);
+      font-size: 1.1rem;
+      font-weight: bold;
+      margin-left: 4px;
+      opacity: 0.6;
+    }
+    .stale-remove-btn:hover { opacity: 1; }
+
     /* Toolbar search + active filter */
     .toolbar-search {
       padding: 6px 28px 6px 10px;
@@ -437,6 +450,16 @@
       padding: 0 2px;
       height: auto;
     }
+
+    .fourth-sort-btn {
+      cursor: pointer;
+      font-size: 0.6rem;
+      opacity: 0.5;
+      padding: 2px 4px;
+      line-height: 1;
+    }
+    .fourth-sort-btn:hover { opacity: 1; }
+    th.sorted .fourth-sort-btn { opacity: 0.8; color: var(--accent); }
 
 
     .toolbar-menu {
@@ -563,12 +586,10 @@
 
     async function loadPreferences() {
       try {
-        const res = await fetch('./api/config');
-        if (res.ok) {
-          const config = await res.json();
-          const prefs = config.controls_ui || {};
+        const raw = sessionStorage.getItem('controls_ui');
+        if (raw) {
+          const prefs = JSON.parse(raw);
           sortColumn = prefs.sort_column || 'area';
-          // Migrate old lastAction/lux sort columns to 'fourth'
           if (sortColumn === 'lastAction' || sortColumn === 'lux') sortColumn = 'fourth';
           sortAsc = prefs.sort_asc !== false;
           categoryFilter = prefs.category_filter || 'all';
@@ -583,24 +604,18 @@
       }
     }
 
-    async function savePreferences() {
+    function savePreferences() {
       try {
-        await fetch('./api/config', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            controls_ui: {
-              sort_column: sortColumn,
-              sort_asc: sortAsc,
-              category_filter: categoryFilter,
-              area_filter: areaFilter,
-              zone_filter: zoneFilter,
-              active_only: activeOnly,
-              fourth_field: fourthField,
-              search_filter: searchFilter
-            }
-          })
-        });
+        sessionStorage.setItem('controls_ui', JSON.stringify({
+          sort_column: sortColumn,
+          sort_asc: sortAsc,
+          category_filter: categoryFilter,
+          area_filter: areaFilter,
+          zone_filter: zoneFilter,
+          active_only: activeOnly,
+          fourth_field: fourthField,
+          search_filter: searchFilter
+        }));
       } catch (err) {
         console.error('Error saving preferences:', err);
       }
@@ -726,7 +741,11 @@
             valB = customAreaOrder[b.area_id] ?? 99999;
             break;
           case 'fourth':
-            if (fourthField === 'lux') {
+            if (fourthField === 'status') {
+              const statusOrder = { active: 0, inactive: 1, not_configured: 2, unsupported: 3, stale: 4 };
+              valA = statusOrder[a.status] ?? 99;
+              valB = statusOrder[b.status] ?? 99;
+            } else if (fourthField === 'lux') {
               valA = a.illuminance?.value ?? -1;
               valB = b.illuminance?.value ?? -1;
             } else if (fourthField === 'pause') {
@@ -811,12 +830,14 @@
                 </div>
               </th>
               <th class="${thClass('fourth')}">
-                <div class="th-title-row" onclick="sortBy('fourth')">
+                <div class="th-title-row">
                   <select class="header-filter fourth-field-picker" id="fourth-field-select" onclick="event.stopPropagation()">
                     <option value="lastAction" ${fourthField === 'lastAction' ? 'selected' : ''}>Last action</option>
+                    <option value="status" ${fourthField === 'status' ? 'selected' : ''}>Status</option>
                     <option value="lux" ${fourthField === 'lux' ? 'selected' : ''}>Lux</option>
                     <option value="pause" ${fourthField === 'pause' ? 'selected' : ''}>Pause</option>
                   </select>
+                  <span class="fourth-sort-btn" onclick="sortBy('fourth')" title="Sort by this column">${sortColumn === 'fourth' ? (sortAsc ? '&#9650;' : '&#9660;') : '&#9650;'}</span>
                 </div>
               </th>
             </tr>
@@ -840,7 +861,17 @@
               const statusSub = getStatusSubtitle(ctrl);
               const glozoneLabel = glozoneName ? `<div style="font-size: 0.7rem; color: var(--muted); opacity: 0.7; margin-bottom: 1px;">${glozoneName}</div>` : '';
               let fourthCell;
-              if (fourthField === 'lux') {
+              if (fourthField === 'status') {
+                const staleX = ctrl.stale ? ` <span class="stale-remove-btn" onclick="event.stopPropagation(); removeStaleControl('${ctrl.id}', '${ctrl.category}')" title="Remove from config">&times;</span>` : '';
+                const statusLabels = {
+                  'active': '<span style="color: var(--success);">Active</span>',
+                  'inactive': '<span style="color: var(--warning);">Paused</span>',
+                  'not_configured': '<span style="color: var(--warning);">Setup</span>',
+                  'unsupported': '<span style="color: var(--muted);">Unsupported</span>',
+                  'stale': '<span style="color: var(--danger);">Stale</span>',
+                };
+                fourthCell = (statusLabels[ctrl.status] || ctrl.status) + staleX;
+              } else if (fourthField === 'lux') {
                 fourthCell = ctrl.illuminance && ctrl.illuminance.value != null ? `${ctrl.illuminance.value}` : '—';
               } else if (fourthField === 'pause') {
                 let timerLabel = '';
@@ -859,8 +890,9 @@
               } else {
                 fourthCell = formatLastAction(ctrl);
               }
+              const rowClass = ctrl.stale ? 'clickable-row stale-row' : 'clickable-row';
               return `
-                <tr class="clickable-row" ${rowClick}>
+                <tr class="${rowClass}" ${rowClick}>
                   <td><span class="switch-name-text">${ctrl.name}</span>${magicIcon}${statusSub}</td>
                   <td title="${categoryLabel}" style="text-align: center; color: var(--muted);">${categoryIcon(ctrl.category)}</td>
                   <td>${glozoneLabel}${areaName}</td>
@@ -1091,6 +1123,20 @@
         console.error('Error toggling inactive:', err);
         alert('Error updating control');
         renderControls();
+      }
+    }
+
+    async function removeStaleControl(controlId, category) {
+      if (!confirm('Remove this stale control from config?')) return;
+      try {
+        const res = await fetch(`./api/controls/${encodeURIComponent(controlId)}/configure`, {
+          method: 'DELETE'
+        });
+        if (res.ok) {
+          loadData();
+        }
+      } catch (err) {
+        console.error('Error removing stale control:', err);
       }
     }
 

@@ -3766,12 +3766,15 @@ class HomeAssistantWebSocketClient:
         # Build device_id -> integration mapping from device identifiers
         hue_device_ids: Set[str] = set()
         zha_device_ids: Set[str] = set()
+        service_device_ids: Set[str] = set()
         for device in devices:
             if isinstance(device, dict):
                 device_id = device.get("id")
                 identifiers = device.get("identifiers", [])
                 device_name = device.get("name", "")
                 manufacturer = device.get("manufacturer", "")
+                if device.get("entry_type") == "service":
+                    service_device_ids.add(device_id)
                 found_zha = False
                 for identifier in identifiers:
                     if isinstance(identifier, list) and len(identifier) >= 2:
@@ -3818,10 +3821,15 @@ class HomeAssistantWebSocketClient:
                 logger.debug(f"Skipping Hue group entity: {entity_id}")
                 continue
 
+            # Skip entities from service devices (coordinators, bridges)
+            if device_id and device_id in service_device_ids:
+                logger.debug(f"Skipping service device light: {entity_id}")
+                continue
+
             # Get color modes from cached state
             supported_modes = attributes.get("supported_color_modes", [])
 
-            # Skip entities with no color modes (e.g., Zigbee coordinators)
+            # Skip entities with no color modes
             if not supported_modes:
                 logger.debug(f"Skipping light with no color modes: {entity_id}")
                 continue

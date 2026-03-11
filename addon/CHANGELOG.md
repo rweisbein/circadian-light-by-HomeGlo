@@ -1,5 +1,19 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.28
+- **Filter service devices from area lights**: Devices with `entry_type: "service"` (coordinators, bridges) are now excluded from area light lists and light commands, without affecting legitimate on/off-only lights like smart plugs.
+- **Detect stale switches**: Switches whose device no longer exists in Home Assistant are marked stale and filtered from the moment assign picker, preventing duplicate entries from old config data.
+- **Power icon visible on moment detail header**: Fixed ⏻ icon not rendering in header button by using inherited font-family instead of browser button defaults.
+- **Moments list mobile-friendly**: Removed Category column from moments list for a cleaner layout.
+- **Cheat sheet compact layout**: Button badge and label now appear inline to the left of action rows, saving vertical space.
+- **Magic summary single-line layout**: Each magic assignment now shows on one line (switch · slot → moment) instead of two lines.
+- **Usage section styling**: Switch name is bolder; button press label is more muted for better hierarchy.
+- **Remove magic assignment from moment detail**: × button on each usage row lets you remove a magic button assignment directly.
+- **Session-only filter persistence**: Controls page sort/filter preferences now use sessionStorage instead of the config API, so preferences don't leak across devices or users.
+- **Fourth column sort button**: Added a visible sort arrow next to the fourth column dropdown, making it easier to sort by that column.
+- **Status column on controls page**: New "Status" option in the 4th column dropdown shows Active, Paused, Setup, Unsupported, or Stale for each control.
+- **Surface stale controls**: Config-only entries whose device no longer exists in HA now appear in the controls list as "Stale" with a × button to remove them from config.
+
 ## 1.0.27
 - **Sort assign picker by name**: Controls in the moment "assign to control" picker are now sorted alphabetically.
 - **Run button on moment detail page**: Play button in the header lets you run a magic moment directly from its detail page.

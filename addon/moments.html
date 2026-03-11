@@ -457,7 +457,6 @@
             <tr>
               <th style="width: 40px; cursor: default;"></th>
               <th class="${thClass('name')}" onclick="setSort('name')">${arrow('name')}Name</th>
-              <th class="${thClass('category')}" onclick="setSort('category')">${arrow('category')}Category</th>
               <th class="${thClass('action')}" onclick="setSort('action')">${arrow('action')}Action</th>
               <th class="${thClass('usage')}" onclick="setSort('usage')">${arrow('usage')}Usage</th>
               <th style="width: 40px; cursor: default;"></th>
@@ -467,7 +466,6 @@
       `;
 
       for (const m of items) {
-        const categoryLabel = m.category === 'fun' ? 'Fun' : 'Utility';
         const actionLabel = ACTION_LABELS[m.action] || m.action;
         const usageLabel = m.usageCount > 0
           ? m.usageCount
@@ -477,7 +475,6 @@
           <tr class="data-row" onclick="window.location.href='./moment/${encodeURIComponent(m.id)}'">
             <td style="font-size: 1rem; text-align: center;">${m.icon}</td>
             <td><span style="font-weight: 500;">${escapeHtml(m.name)}</span></td>
-            <td>${escapeHtml(categoryLabel)}</td>
             <td>${escapeHtml(actionLabel)}</td>
             <td>${usageLabel}</td>
             <td style="white-space: nowrap;">

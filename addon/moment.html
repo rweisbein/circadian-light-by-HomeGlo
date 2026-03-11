@@ -81,6 +81,8 @@
       border: 1px solid var(--line);
       border-radius: 8px;
       font-size: 1.2rem;
+      color: var(--text);
+      font-family: inherit;
       cursor: pointer;
       transition: all 0.2s;
       flex-shrink: 0;
@@ -317,20 +319,39 @@
 
     .usage-button-label {
       flex: 1;
-      font-size: 0.85rem;
-      color: var(--muted);
+      font-size: 0.8rem;
+      color: var(--muted2);
     }
 
     .usage-switch-link {
       color: var(--text);
       text-decoration: none;
       font-size: 0.9rem;
+      font-weight: 500;
       min-width: 140px;
       transition: color 0.2s;
     }
 
     .usage-switch-link:hover {
       color: var(--accent);
+    }
+
+    .usage-remove-btn {
+      background: transparent;
+      border: none;
+      color: var(--muted2);
+      font-size: 1rem;
+      cursor: pointer;
+      padding: 2px 6px;
+      line-height: 1;
+      opacity: 0.5;
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
+
+    .usage-remove-btn:hover {
+      color: var(--danger);
+      opacity: 1;
     }
 
     /* Assign picker */
@@ -1014,6 +1035,7 @@
           <div class="usage-row">
             <a href="${basePath}/control/${encodeURIComponent(u.switch_id)}?from=moment&id=${encodeURIComponent(selectedMomentId)}" class="usage-switch-link">${u.switch_name}</a>
             <span class="usage-button-label">${u.button_label}</span>
+            <button class="usage-remove-btn" onclick="event.preventDefault(); removeAssignment('${u.switch_id}', '${u.button_event}')" title="Remove assignment">&times;</button>
           </div>
         `).join('');
       }
@@ -1099,8 +1121,9 @@
       const listEl = document.getElementById('assign-list-inner');
       if (!listEl) return;
 
-      // Filter to switches with magic slots that have at least one area assigned
+      // Filter to switches with magic slots, areas, and not stale
       const switchesWithMagic = allSwitches.filter(sw => {
+        if (sw.stale) return false;
         const slots = getMagicSlots(sw.type);
         if (slots.length === 0) return false;
         const hasAreas = (sw.scopes || []).some(s => (s.areas || []).length > 0);
@@ -1330,6 +1353,48 @@
         });
         renderMomentEditor();
         saveMoment();
+      }
+    }
+
+    // ========== Remove Assignment ==========
+
+    async function removeAssignment(switchId, buttonEvent) {
+      const sw = allSwitches.find(s => s.id === switchId);
+      if (!sw) return;
+
+      // Remove the magic button assignment
+      if (sw.magic_buttons) {
+        delete sw.magic_buttons[buttonEvent];
+      }
+
+      // Save to backend
+      try {
+        const payload = {
+          name: sw.name,
+          type: sw.type,
+          scopes: sw.scopes,
+          device_id: sw.device_id,
+          indicator_light: sw.indicator_light || '',
+          magic_buttons: sw.magic_buttons || {},
+          inactive: sw.inactive || false,
+          inactive_until: sw.inactive_until || null
+        };
+
+        const response = await fetch(basePath + `/api/controls/${encodeURIComponent(switchId)}/configure`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+          renderMomentEditor();
+          showSaveStatus();
+        } else {
+          const data = await response.json();
+          console.error('Failed to remove assignment:', data.error);
+        }
+      } catch (err) {
+        console.error('Error removing assignment:', err);
       }
     }
 

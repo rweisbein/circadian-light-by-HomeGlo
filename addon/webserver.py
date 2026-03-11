@@ -1040,10 +1040,13 @@ class LightDesignerServer:
                                     )
                                     device_msg = json.loads(await ws.recv())
                                     device_areas = {}
+                                    service_devices = set()
                                     if device_msg.get("success") and device_msg.get(
                                         "result"
                                     ):
                                         for device in device_msg["result"]:
+                                            if device.get("entry_type") == "service":
+                                                service_devices.add(device.get("id"))
                                             if device.get("id") and device.get(
                                                 "area_id"
                                             ):
@@ -1086,9 +1089,11 @@ class LightDesignerServer:
                                                     or attrs.get("is_hue_group")
                                                 ):
                                                     light_groups.add(eid)
-                                                if not attrs.get(
-                                                    "supported_color_modes"
-                                                ):
+                                                scm = (
+                                                    attrs.get("supported_color_modes")
+                                                    or []
+                                                )
+                                                if not scm:
                                                     no_color_modes.add(eid)
 
                                     if entity_msg.get("success") and entity_msg.get(
@@ -1106,8 +1111,15 @@ class LightDesignerServer:
                                                 continue
                                             if eid in light_groups:
                                                 continue
-                                            # Skip entities with no color modes (e.g., coordinators)
+                                            # Skip entities with no color modes
                                             if eid in no_color_modes:
+                                                continue
+                                            # Skip entities from service devices (coordinators, bridges)
+                                            dev_id_check = entity.get("device_id")
+                                            if (
+                                                dev_id_check
+                                                and dev_id_check in service_devices
+                                            ):
                                                 continue
                                             # Determine area
                                             a_id = entity.get("area_id")
@@ -5747,13 +5759,16 @@ class LightDesignerServer:
         try:
             switches_data = switches.get_switches_summary()
 
-            # Try to enrich with area names from HA device registry
+            # Try to enrich with area names and detect stale devices
             try:
-                device_area_map = await self._fetch_device_areas()
+                device_area_map, all_device_ids = await self._fetch_device_areas()
                 for sw in switches_data:
                     device_id = sw.get("device_id")
                     if device_id and device_id in device_area_map:
                         sw["area_name"] = device_area_map[device_id]
+                    # Mark as stale if device_id is set but not in HA device registry
+                    if device_id and all_device_ids and device_id not in all_device_ids:
+                        sw["stale"] = True
             except Exception as e:
                 logger.warning(f"Could not fetch device areas: {e}")
 
@@ -5762,22 +5777,22 @@ class LightDesignerServer:
             logger.error(f"Error getting switches: {e}")
             return web.json_response({"error": str(e)}, status=500)
 
-    async def _fetch_device_areas(self) -> Dict[str, str]:
-        """Fetch device_id -> area_name mapping from HA."""
+    async def _fetch_device_areas(self):
+        """Fetch device_id -> area_name mapping and all device IDs from HA."""
         rest_url, ws_url, token = self._get_ha_api_config()
         if not token or not ws_url:
-            return {}
+            return {}, set()
 
         try:
             async with websockets.connect(ws_url) as ws:
                 # Auth
                 msg = json.loads(await ws.recv())
                 if msg.get("type") != "auth_required":
-                    return {}
+                    return {}, set()
                 await ws.send(json.dumps({"type": "auth", "access_token": token}))
                 msg = json.loads(await ws.recv())
                 if msg.get("type") != "auth_ok":
-                    return {}
+                    return {}, set()
 
                 # Get area registry
                 await ws.send(
@@ -5794,17 +5809,20 @@ class LightDesignerServer:
                 )
                 device_msg = json.loads(await ws.recv())
                 device_areas = {}
+                all_device_ids = set()
                 if device_msg.get("success") and device_msg.get("result"):
                     for device in device_msg["result"]:
                         device_id = device.get("id")
+                        if device_id:
+                            all_device_ids.add(device_id)
                         area_id = device.get("area_id")
                         if device_id and area_id and area_id in area_names:
                             device_areas[device_id] = area_names[area_id]
 
-                return device_areas
+                return device_areas, all_device_ids
         except Exception as e:
             logger.warning(f"Error fetching device areas: {e}")
-            return {}
+            return {}, set()
 
     async def flash_light(self, request: Request) -> Response:
         """Flash a light entity briefly so the user can identify it.
@@ -6654,6 +6672,103 @@ class LightDesignerServer:
                     control_data["magic_buttons"] = config.get("magic_buttons", {})
 
                 controls.append(control_data)
+
+            # Surface stale config entries (not found in HA)
+            seen_ids = {c["id"] for c in controls}
+            seen_device_ids = {c["device_id"] for c in controls if c.get("device_id")}
+
+            # Stale switches
+            for ieee, sw_config in configured_switches.items():
+                if ieee not in seen_ids:
+                    last_action = all_last_actions.get(ieee)
+                    controls.append(
+                        {
+                            "id": ieee,
+                            "device_id": sw_config.get("device_id"),
+                            "name": sw_config.get("name", f"Switch ({ieee[-8:]})"),
+                            "manufacturer": None,
+                            "model": None,
+                            "area_id": None,
+                            "area_name": None,
+                            "category": "switch",
+                            "integration": None,
+                            "type": sw_config.get("type"),
+                            "type_name": sw_config.get("type_name"),
+                            "supported": True,
+                            "status": "stale",
+                            "stale": True,
+                            "last_action": last_action,
+                            "illuminance": None,
+                            "inactive": sw_config.get("inactive", False),
+                            "inactive_until": sw_config.get("inactive_until"),
+                            "scopes": sw_config.get("scopes", []),
+                            "indicator_light": sw_config.get("indicator_light"),
+                            "magic_buttons": sw_config.get("magic_buttons", {}),
+                        }
+                    )
+
+            # Stale motion sensors
+            for sensor_id, sensor in configured_motion.items():
+                if (sensor.device_id and sensor.device_id not in seen_device_ids) or (
+                    not sensor.device_id and sensor_id not in seen_ids
+                ):
+                    config = sensor.to_dict()
+                    controls.append(
+                        {
+                            "id": sensor_id,
+                            "device_id": sensor.device_id or sensor_id,
+                            "name": config.get("name", sensor_id),
+                            "manufacturer": None,
+                            "model": None,
+                            "area_id": None,
+                            "area_name": None,
+                            "category": "motion_sensor",
+                            "integration": None,
+                            "type": None,
+                            "type_name": None,
+                            "supported": True,
+                            "status": "stale",
+                            "stale": True,
+                            "last_action": all_last_actions.get(sensor_id),
+                            "illuminance": None,
+                            "inactive": config.get("inactive", False),
+                            "inactive_until": config.get("inactive_until"),
+                            "areas": config.get("areas", []),
+                            "cooldown": config.get("cooldown", 0),
+                        }
+                    )
+
+            # Stale contact sensors
+            configured_contact = switches.get_all_contact_sensors()
+            for sensor_id, sensor in configured_contact.items():
+                if (sensor.device_id and sensor.device_id not in seen_device_ids) or (
+                    not sensor.device_id and sensor_id not in seen_ids
+                ):
+                    config = sensor.to_dict()
+                    controls.append(
+                        {
+                            "id": sensor_id,
+                            "device_id": sensor.device_id or sensor_id,
+                            "name": config.get("name", sensor_id),
+                            "manufacturer": None,
+                            "model": None,
+                            "area_id": None,
+                            "area_name": None,
+                            "category": "contact_sensor",
+                            "integration": None,
+                            "type": None,
+                            "type_name": None,
+                            "supported": True,
+                            "status": "stale",
+                            "stale": True,
+                            "last_action": all_last_actions.get(sensor_id),
+                            "illuminance": None,
+                            "inactive": config.get("inactive", False),
+                            "inactive_until": config.get("inactive_until"),
+                            "areas": config.get("areas", []),
+                            "cooldown": config.get("cooldown", 0),
+                        }
+                    )
 
             return web.json_response({"controls": controls})
         except Exception as e:
