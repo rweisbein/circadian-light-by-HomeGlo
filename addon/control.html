@@ -905,6 +905,11 @@
     // Navigation
     // ============================================================
     function goBack() {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('from') === 'moment' && params.get('id')) {
+        window.location.href = basePath + '/moment/' + encodeURIComponent(params.get('id'));
+        return;
+      }
       if (window.history.length > 1 && document.referrer) {
         window.history.back();
       } else {

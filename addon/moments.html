@@ -324,6 +324,7 @@
   <script>
     // State
     let moments = {};
+    let allSwitches = [];
     let sortColumn = 'name';
     let sortAsc = true;
 
@@ -342,15 +343,34 @@
 
     async function loadData() {
       try {
-        const momentsRes = await fetch('./api/moments');
+        const [momentsRes, switchesRes] = await Promise.all([
+          fetch('./api/moments'),
+          fetch('./api/switches')
+        ]);
         if (momentsRes.ok) {
           const data = await momentsRes.json();
           moments = data.moments || {};
+        }
+        if (switchesRes.ok) {
+          const data = await switchesRes.json();
+          allSwitches = data.switches || [];
         }
       } catch (err) {
         console.error('Error loading data:', err);
       }
       renderMomentList();
+    }
+
+    function getUsageCount(momentId) {
+      const actionRef = 'set_' + momentId;
+      let count = 0;
+      for (const sw of allSwitches) {
+        const mb = sw.magic_buttons || {};
+        for (const action of Object.values(mb)) {
+          if (action === actionRef) { count++; break; }
+        }
+      }
+      return count;
     }
 
     function escapeHtml(str) {
@@ -390,7 +410,7 @@
         name: m.name || 'Unnamed',
         category: m.category || 'utility',
         action: m.default_action || 'off',
-        exceptionCount: Object.keys(m.exceptions || {}).length
+        usageCount: getUsageCount(id)
       }));
 
       // Sort
@@ -409,9 +429,9 @@
             valA = (ACTION_LABELS[a.action] || a.action).toLowerCase();
             valB = (ACTION_LABELS[b.action] || b.action).toLowerCase();
             break;
-          case 'exceptions':
-            valA = a.exceptionCount;
-            valB = b.exceptionCount;
+          case 'usage':
+            valA = a.usageCount;
+            valB = b.usageCount;
             break;
           default:
             valA = a.name.toLowerCase();
@@ -439,7 +459,7 @@
               <th class="${thClass('name')}" onclick="setSort('name')">${arrow('name')}Name</th>
               <th class="${thClass('category')}" onclick="setSort('category')">${arrow('category')}Category</th>
               <th class="${thClass('action')}" onclick="setSort('action')">${arrow('action')}Action</th>
-              <th class="${thClass('exceptions')}" onclick="setSort('exceptions')">${arrow('exceptions')}Exceptions</th>
+              <th class="${thClass('usage')}" onclick="setSort('usage')">${arrow('usage')}Usage</th>
               <th style="width: 40px; cursor: default;"></th>
             </tr>
           </thead>
@@ -449,8 +469,8 @@
       for (const m of items) {
         const categoryLabel = m.category === 'fun' ? 'Fun' : 'Utility';
         const actionLabel = ACTION_LABELS[m.action] || m.action;
-        const exceptionsLabel = m.exceptionCount > 0
-          ? m.exceptionCount
+        const usageLabel = m.usageCount > 0
+          ? m.usageCount
           : '<span style="color: var(--muted2);">--</span>';
 
         html += `
@@ -459,7 +479,7 @@
             <td><span style="font-weight: 500;">${escapeHtml(m.name)}</span></td>
             <td>${escapeHtml(categoryLabel)}</td>
             <td>${escapeHtml(actionLabel)}</td>
-            <td>${exceptionsLabel}</td>
+            <td>${usageLabel}</td>
             <td style="white-space: nowrap;">
               <button class="row-run-btn" title="Run moment" onclick="event.stopPropagation(); runMoment('${m.id.replace(/'/g, "\\'")}', this)">&#x25B6;</button>
               <button class="row-delete-btn" title="Delete moment" onclick="event.stopPropagation(); deleteMoment('${m.id.replace(/'/g, "\\'")}', '${escapeHtml(m.name).replace(/'/g, "\\'")}')">&#x2715;</button>

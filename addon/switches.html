@@ -658,7 +658,7 @@
       }
     }
 
-    function renderControls() {
+    function renderControls(restoreSearchFocus) {
       const container = document.getElementById('controls-container');
 
       // Build filter options from data
@@ -794,7 +794,7 @@
                 <div style="margin-top: 4px;" onclick="event.stopPropagation()">
                   <div style="position: relative;">
                     <input type="text" id="search-input" class="toolbar-search" placeholder="Search..." style="width: 100%; box-sizing: border-box;">
-                    <button id="search-clear" style="display: none; position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--accent); cursor: pointer; font-size: 0.9rem; padding: 2px 4px;">&times;</button>
+                    <button id="search-clear" onclick="event.stopPropagation(); clearSearch();" style="display: none; position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--accent); cursor: pointer; font-size: 0.9rem; padding: 2px 4px;">&times;</button>
                   </div>
                 </div>
               </th>
@@ -874,9 +874,13 @@
 
       // Restore search state after table render
       const searchInput = document.getElementById('search-input');
-      if (searchInput && searchInput !== document.activeElement) {
+      if (searchInput) {
         searchInput.value = searchFilter;
         searchInput.style.borderColor = searchFilter ? 'var(--accent)' : '';
+        if (restoreSearchFocus) {
+          searchInput.focus();
+          searchInput.setSelectionRange(searchFilter.length, searchFilter.length);
+        }
       }
       const searchClear = document.getElementById('search-clear');
       if (searchClear) searchClear.style.display = searchFilter ? 'block' : 'none';
@@ -1030,13 +1034,13 @@
 
     function handleSearch(value) {
       searchFilter = value;
-      renderControls();
+      renderControls(true);
       savePreferences();
     }
 
     function clearSearch() {
       searchFilter = '';
-      renderControls();
+      renderControls(true);
       savePreferences();
     }
 
@@ -1101,6 +1105,9 @@
     });
 
     function setupEventListeners() {
+      // Track whether fourth-field dropdown value changed (for sort on re-select)
+      let fourthFieldChanged = false;
+
       // Use event delegation for dynamically created filter dropdowns
       document.getElementById('controls-container').addEventListener('change', (e) => {
         if (e.target.id === 'category-filter') {
@@ -1112,7 +1119,10 @@
           savePreferences();
           renderControls();
         } else if (e.target.id === 'fourth-field-select') {
+          fourthFieldChanged = true;
           fourthField = e.target.value;
+          sortColumn = 'fourth';
+          sortAsc = true;
           savePreferences();
           renderControls();
         }
@@ -1124,14 +1134,19 @@
           handleSearch(e.target.value);
         }
       });
-      document.getElementById('controls-container').addEventListener('click', (e) => {
-        if (e.target.id === 'search-clear') {
-          e.stopPropagation();
-          clearSearch();
-          const searchInput = document.getElementById('search-input');
-          if (searchInput) searchInput.value = '';
+
+      // Fourth-field dropdown: sort on close even when same value re-selected
+      document.getElementById('controls-container').addEventListener('focus', (e) => {
+        if (e.target.id === 'fourth-field-select') fourthFieldChanged = false;
+      }, true);
+      document.getElementById('controls-container').addEventListener('blur', (e) => {
+        if (e.target.id === 'fourth-field-select' && !fourthFieldChanged) {
+          sortColumn = 'fourth';
+          sortAsc = !sortAsc;
+          savePreferences();
+          renderControls();
         }
-      });
+      }, true);
 
       // Active-only checkbox
       document.getElementById('active-filter').addEventListener('change', (e) => {

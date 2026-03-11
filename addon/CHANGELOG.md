@@ -1,5 +1,19 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.27
+- **Sort assign picker by name**: Controls in the moment "assign to control" picker are now sorted alphabetically.
+- **Run button on moment detail page**: Play button in the header lets you run a magic moment directly from its detail page.
+- **Back navigation returns to moment page**: Clicking "back" on a control detail page opened from a moment's Usage section now returns to that moment.
+- **Filter stale switches from assign list**: Switches with no assigned areas are excluded from the moment assign picker.
+- **Switch name as link in Usage section**: Switch name is now a clickable link (white, orange on hover) replacing the separate "Edit" link.
+- **Add power-off icon for moments**: New ⏻ icon option in the moment icon picker for "off" presets.
+- **Replace Exceptions with Usage on moments list**: Moments list now shows a Usage column (number of controls using each moment) instead of exception count.
+- **Fix search field on controls list**: Search input no longer loses focus after each keystroke; clear button works correctly.
+- **Fourth-field dropdown sorts by column**: Selecting a value in the 4th column dropdown now also sorts by that column. Re-selecting the same value toggles sort direction.
+- **Fix Exceptions header alignment**: Action and Auto-off column headers now align with their data fields.
+- **Cheat sheet print optimization**: Tighter spacing, print-friendly colors, switch type title shown, page breaks avoided within cards.
+- **Fix magic button alignment on cheat sheet**: Long switch names truncate with ellipsis instead of wrapping and clipping.
+
 ## 1.0.26
 - **Rename Switch Map page**: Page title and Controls menu link now say "Switch Map".
 - **Group action variants in dropdown**: Step Up/2x/3x now listed contiguously, same for Step Down, Bright Up, Bright Down.

@@ -350,7 +350,7 @@
       display: flex;
       align-items: baseline;
       gap: 10px;
-      padding: 5px 0;
+      padding: 4px 0;
     }
 
     .cheat-row + .cheat-row {
@@ -380,7 +380,7 @@
       display: flex;
       align-items: center;
       gap: 10px;
-      padding: 6px 0;
+      padding: 5px 0;
       font-size: 0.85rem;
     }
 
@@ -391,10 +391,14 @@
     .magic-left {
       flex: 1;
       min-width: 0;
+      overflow: hidden;
     }
 
     .magic-switch-name {
       color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .magic-btn-slot {
@@ -416,6 +420,7 @@
 
     .magic-moment {
       color: var(--text);
+      white-space: nowrap;
     }
 
     .muted-text {
@@ -425,8 +430,17 @@
     }
 
     /* Cheat sheet card - always open, no pointer */
+    .cheatsheet-card {
+      margin-bottom: 8px;
+    }
+
     .cheatsheet-card .ctrl-card-header {
       cursor: default;
+      padding: 10px 14px;
+    }
+
+    .cheatsheet-card .ctrl-card-body-inner {
+      padding: 0 14px 10px;
     }
 
     /* Save bar */
@@ -526,8 +540,22 @@
 
     /* Print Styles */
     @media print {
-      .nav, .mode-bar, .save-bar { display: none; }
+      .nav, .mode-bar, .save-bar, .type-selector, .page-header { display: none !important; }
+      .print-title { display: block !important; }
+      body { background: white; color: #000; }
       .main { max-width: none; padding: 0; }
+      .ctrl-card { border-color: #ccc; margin-bottom: 6px; break-inside: avoid; }
+      .ctrl-card-header { padding: 6px 10px; }
+      .ctrl-card-body-inner { padding: 0 10px 6px; }
+      .cheat-row { padding: 2px 0; }
+      .magic-summary-row { padding: 2px 0; }
+      .btn-badge { border-color: #999; background: #eee; color: #333; width: 24px; height: 24px; font-size: 0.7rem; }
+      .ctrl-card-title { font-size: 0.9rem; }
+      .cheat-label { font-size: 0.75rem; }
+      .cheat-action { font-size: 0.8rem; }
+      .magic-switch-name, .magic-btn-slot, .magic-arrow, .magic-moment { color: #333; }
+      .cheat-if-off { color: #666; }
+      .muted-text { color: #666; }
     }
   </style>
 </head>
@@ -823,7 +851,7 @@
 
       const buttons = typeInfo.buttons || ['on', 'up', 'down', 'off'];
       const availableActionTypes = getDisplayableActionTypes(typeInfo);
-      let html = '';
+      let html = `<div class="print-title" style="display:none; font-size:1.1rem; font-weight:600; margin-bottom:8px;">${typeInfo.name}</div>`;
 
       for (const btn of buttons) {
         const buttonName = buttonNames[btn] || btn.charAt(0).toUpperCase() + btn.slice(1);

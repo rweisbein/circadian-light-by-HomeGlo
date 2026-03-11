@@ -108,6 +108,33 @@
       border-bottom-color: dodgerblue;
     }
 
+    .run-btn {
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      font-size: 0.9rem;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+
+    .run-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .run-btn.running {
+      color: var(--accent);
+      opacity: 0.5;
+      pointer-events: none;
+    }
+
     /* Main Content */
     .main {
       max-width: 600px;
@@ -222,6 +249,7 @@
     }
 
     .exception-action {
+      flex: 1;
       padding: 5px 8px;
       background: var(--panel);
       border: 1px solid var(--line);
@@ -293,14 +321,16 @@
       color: var(--muted);
     }
 
-    .usage-edit-link {
-      color: var(--accent);
+    .usage-switch-link {
+      color: var(--text);
       text-decoration: none;
-      font-size: 0.85rem;
+      font-size: 0.9rem;
+      min-width: 140px;
+      transition: color 0.2s;
     }
 
-    .usage-edit-link:hover {
-      text-decoration: underline;
+    .usage-switch-link:hover {
+      color: var(--accent);
     }
 
     /* Assign picker */
@@ -572,6 +602,7 @@
     <button class="editor-icon-btn" id="header-icon-btn" onclick="showIconPicker()">&#127763;</button>
     <input type="text" class="page-title-input" id="page-title" value="Loading..."
            onchange="updateMomentName(this.value)" onblur="saveMoment()">
+    <button class="run-btn" id="header-run-btn" onclick="runMoment()" title="Run moment">&#x25B6;</button>
   </header>
 
   <main class="main">
@@ -625,6 +656,7 @@
       { icon: '&#128704;', name: 'yoga' },
       { icon: '&#9889;', name: 'bright' },
       { icon: '&#128680;', name: 'emergency' },
+      { icon: '&#9211;', name: 'off' },
     ];
 
     // Action options
@@ -892,8 +924,8 @@
               ${exceptionCount > 0 ? `
                 <div class="exception-item" style="padding-bottom: 2px; margin-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.05);">
                   <span class="exception-area" style="font-size: 0.75rem; color: var(--muted2);">Area</span>
-                  <span style="font-size: 0.75rem; color: var(--muted2);">Action</span>
-                  <div style="display:flex;align-items:center;gap:4px;">
+                  <span style="flex: 1; font-size: 0.75rem; color: var(--muted2);">Action</span>
+                  <div style="display:flex;align-items:center;gap:4px; min-width: 62px;">
                     <span style="font-size: 0.75rem; color: var(--muted2);">Auto-off</span>
                   </div>
                   <span style="width: 22px;"></span>
@@ -980,9 +1012,8 @@
       } else {
         listHtml = usages.map(u => `
           <div class="usage-row">
-            <span class="usage-switch-name">${u.switch_name}</span>
+            <a href="${basePath}/control/${encodeURIComponent(u.switch_id)}?from=moment&id=${encodeURIComponent(selectedMomentId)}" class="usage-switch-link">${u.switch_name}</a>
             <span class="usage-button-label">${u.button_label}</span>
-            <a href="${basePath}/control/${encodeURIComponent(u.switch_id)}" class="usage-edit-link">Edit</a>
           </div>
         `).join('');
       }
@@ -1068,15 +1099,17 @@
       const listEl = document.getElementById('assign-list-inner');
       if (!listEl) return;
 
-      // Filter to switches with magic slots
+      // Filter to switches with magic slots that have at least one area assigned
       const switchesWithMagic = allSwitches.filter(sw => {
         const slots = getMagicSlots(sw.type);
-        return slots.length > 0;
+        if (slots.length === 0) return false;
+        const hasAreas = (sw.scopes || []).some(s => (s.areas || []).length > 0);
+        return hasAreas;
       });
 
       // Apply search filter
       const search = assignPickerSearch.toLowerCase();
-      const filtered = search
+      const filtered = (search
         ? switchesWithMagic.filter(sw => {
             const nameMatch = (sw.name || '').toLowerCase().includes(search);
             const areaMatch = (sw.scopes || []).some(s =>
@@ -1087,7 +1120,8 @@
             );
             return nameMatch || areaMatch;
           })
-        : switchesWithMagic;
+        : switchesWithMagic
+      ).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
       let html = '';
       if (filtered.length === 0) {
@@ -1297,6 +1331,26 @@
         renderMomentEditor();
         saveMoment();
       }
+    }
+
+    // ========== Run Moment ==========
+
+    async function runMoment() {
+      if (!selectedMomentId) return;
+      const btn = document.getElementById('header-run-btn');
+      if (btn) btn.classList.add('running');
+      try {
+        const response = await fetch(basePath + `/api/moments/${encodeURIComponent(selectedMomentId)}/run`, {
+          method: 'POST'
+        });
+        if (!response.ok) {
+          const data = await response.json();
+          console.error('Failed to run moment:', data.error);
+        }
+      } catch (err) {
+        console.error('Error running moment:', err);
+      }
+      setTimeout(() => { if (btn) btn.classList.remove('running'); }, 600);
     }
 
     // ========== Save/Load ==========
