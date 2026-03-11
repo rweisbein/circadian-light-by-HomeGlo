@@ -4965,7 +4965,8 @@ class LightDesignerServer:
             for zone_name, zone_config in zones.items():
                 areas = zone_config.get("areas", [])
                 new_areas = [
-                    a for a in areas
+                    a
+                    for a in areas
                     if not (
                         (isinstance(a, dict) and a.get("id") == area_id)
                         or (isinstance(a, str) and a == area_id)
@@ -4997,43 +4998,12 @@ class LightDesignerServer:
     # Moments API - CRUD for whole-home presets
     # -------------------------------------------------------------------------
 
-    # Reserved preset names that cannot be used for moments
-    RESERVED_PRESET_NAMES = {"wake", "bed", "nitelite", "britelite"}
-
-    def _slugify_moment_name(
-        self, name: str, existing_ids: set, exclude_id: str = None
-    ) -> str:
-        """Convert moment name to a URL-safe slug, handling duplicates.
-
-        Args:
-            name: The display name to slugify
-            existing_ids: Set of existing moment IDs
-            exclude_id: ID to exclude from duplicate check (for renames)
-
-        Returns:
-            Unique slug like 'sleep' or 'sleep_2' if duplicate
-        """
-        import re
-
-        # Lowercase, replace spaces/dashes with underscores, remove other special chars
-        slug = name.lower().strip()
-        slug = re.sub(r"[\s\-]+", "_", slug)  # spaces/dashes to underscores
-        slug = re.sub(r"[^a-z0-9_]", "", slug)  # remove non-alphanumeric
-        slug = re.sub(r"_+", "_", slug)  # collapse multiple underscores
-        slug = slug.strip("_")  # remove leading/trailing underscores
-
-        if not slug:
-            slug = "moment"
-
-        # Check for duplicates and append number if needed
-        base_slug = slug
-        counter = 2
-        check_ids = existing_ids - {exclude_id} if exclude_id else existing_ids
-        while slug in check_ids or slug in self.RESERVED_PRESET_NAMES:
-            slug = f"{base_slug}_{counter}"
+    def _next_moment_id(self, existing_ids: set) -> str:
+        """Generate next auto-increment moment ID (moment_1, moment_2, ...)."""
+        counter = 1
+        while f"moment_{counter}" in existing_ids:
             counter += 1
-
-        return slug
+        return f"moment_{counter}"
 
     async def get_moments(self, request: Request) -> Response:
         """Get all moments."""
@@ -5076,8 +5046,8 @@ class LightDesignerServer:
             config = await self.load_raw_config()
             moments = config.setdefault("moments", {})
 
-            # Generate unique slug from name
-            moment_id = self._slugify_moment_name(name, set(moments.keys()))
+            # Generate stable auto-increment ID
+            moment_id = self._next_moment_id(set(moments.keys()))
 
             # Create the moment with defaults
             moments[moment_id] = {
@@ -5126,20 +5096,7 @@ class LightDesignerServer:
 
             moment = moments[moment_id]
 
-            # Handle rename if name changed
-            new_name = data.get("name")
-            if new_name and new_name != moment.get("name"):
-                new_id = self._slugify_moment_name(
-                    new_name, set(moments.keys()), exclude_id=moment_id
-                )
-                # Rename: create new key, delete old
-                if new_id != moment_id:
-                    moments[new_id] = moment
-                    del moments[moment_id]
-                    moment_id = new_id
-                    moment = moments[moment_id]
-
-            # Update fields
+            # Update fields (ID stays stable; only the name field changes)
             for field in [
                 "name",
                 "icon",
@@ -6781,9 +6738,7 @@ class LightDesignerServer:
                 entity_msg = json.loads(await ws.recv())
 
                 # Get states for device_class fallback (entity registry often has null device_class)
-                await ws.send(
-                    json.dumps({"id": 4, "type": "get_states"})
-                )
+                await ws.send(json.dumps({"id": 4, "type": "get_states"}))
                 states_msg = json.loads(await ws.recv())
                 state_device_classes = {}
                 if states_msg.get("success") and states_msg.get("result"):
@@ -6826,7 +6781,11 @@ class LightDesignerServer:
                                 device_entities[device_id]["has_button"] = True
                         elif entity_id.startswith("binary_sensor."):
                             # Check both entity_id patterns and device_class for categorization
-                            dc = entity.get("device_class") or entity.get("original_device_class") or ""
+                            dc = (
+                                entity.get("device_class")
+                                or entity.get("original_device_class")
+                                or ""
+                            )
                             if not dc:
                                 dc = state_device_classes.get(entity_id, "")
                             if "_motion" in entity_id or dc == "motion":
@@ -6844,7 +6803,11 @@ class LightDesignerServer:
                                 logger.debug(
                                     f"[Controls] Found presence entity: {entity_id} (device_class={dc}) for device {device_id}"
                                 )
-                            elif "_contact" in entity_id or "_opening" in entity_id or dc in ("door", "window", "opening", "garage_door"):
+                            elif (
+                                "_contact" in entity_id
+                                or "_opening" in entity_id
+                                or dc in ("door", "window", "opening", "garage_door")
+                            ):
                                 device_entities[device_id]["has_contact"] = True
                         elif (
                             entity_id.startswith("sensor.") and "_battery" in entity_id
@@ -7087,7 +7050,9 @@ class LightDesignerServer:
                     # Remove any stale contact sensor config for same device
                     old_contact = switches.get_contact_sensor_by_device_id(device_id)
                     if old_contact:
-                        logger.info(f"Removing stale contact config for device {device_id} (now motion)")
+                        logger.info(
+                            f"Removing stale contact config for device {device_id} (now motion)"
+                        )
                         switches.remove_contact_sensor(old_contact.id)
 
                 motion_config = switches.MotionSensorConfig(
@@ -7143,7 +7108,9 @@ class LightDesignerServer:
                     # Remove any stale motion sensor config for same device
                     old_motion = switches.get_motion_sensor_by_device_id(device_id)
                     if old_motion:
-                        logger.info(f"Removing stale motion config for device {device_id} (now contact)")
+                        logger.info(
+                            f"Removing stale motion config for device {device_id} (now contact)"
+                        )
                         switches.remove_motion_sensor(old_motion.id)
 
                 contact_config = switches.ContactSensorConfig(

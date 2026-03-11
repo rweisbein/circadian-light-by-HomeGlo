@@ -115,6 +115,64 @@
       padding: 20px 16px;
     }
 
+    /* Card-based collapsible sections */
+    .ctrl-card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 10px;
+      transition: border-color 0.2s;
+    }
+
+    .ctrl-card-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      padding: 12px 14px;
+      user-select: none;
+    }
+
+    .ctrl-card-chevron {
+      display: inline-block;
+      font-size: 1.1rem;
+      line-height: 1;
+      transition: transform 0.25s;
+      color: var(--muted2);
+      flex-shrink: 0;
+    }
+
+    .ctrl-card.is-open .ctrl-card-chevron {
+      transform: rotate(90deg);
+    }
+
+    .ctrl-card-title {
+      font-size: 1.0rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .ctrl-card-right {
+      margin-left: auto;
+    }
+
+    .ctrl-card-body {
+      max-height: 0;
+      opacity: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease, opacity 0.25s ease;
+    }
+
+    .ctrl-card.is-open .ctrl-card-body {
+      max-height: 2000px;
+      opacity: 1;
+    }
+
+    .ctrl-card-body-inner {
+      padding: 0 14px 14px;
+    }
+
     /* Settings rows */
     .settings-row {
       display: flex;
@@ -149,42 +207,12 @@
       font-size: 0.85rem;
     }
 
-    /* Exceptions Section */
-    .exceptions-section {
-      margin-top: 20px;
-    }
-
-    .exceptions-header {
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: var(--muted);
-      margin-bottom: 10px;
-    }
-
-    .exceptions-inset {
-      background: rgba(0, 0, 0, 0.2);
-      border-radius: 8px;
-      padding: 12px 14px;
-    }
-
-    .exceptions-list {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
+    /* Exception items */
     .exception-item {
       display: flex;
       align-items: center;
       gap: 10px;
-      padding: 6px 8px;
-      margin: 0 -8px;
-      border-radius: 6px;
-      transition: background 0.15s;
-    }
-
-    .exception-item:hover {
-      background: rgba(255, 255, 255, 0.03);
+      padding: 6px 0;
     }
 
     .exception-area {
@@ -244,6 +272,167 @@
 
     .add-exception-btn:hover {
       color: var(--accent);
+    }
+
+    /* Usage rows */
+    .usage-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .usage-switch-name {
+      font-size: 0.9rem;
+      min-width: 140px;
+    }
+
+    .usage-button-label {
+      flex: 1;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .usage-edit-link {
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 0.85rem;
+    }
+
+    .usage-edit-link:hover {
+      text-decoration: underline;
+    }
+
+    /* Assign picker */
+    .assign-picker {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .assign-search {
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--text);
+      font-size: 0.85rem;
+      width: 100%;
+      margin-bottom: 8px;
+    }
+
+    .assign-search:focus {
+      outline: none;
+      border-color: dodgerblue;
+    }
+
+    .assign-switch-list {
+      max-height: 240px;
+      overflow-y: auto;
+    }
+
+    .assign-switch-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px;
+      margin: 0 -8px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .assign-switch-row:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .assign-switch-name {
+      font-size: 0.9rem;
+    }
+
+    .assign-switch-area {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-left: auto;
+    }
+
+    .assign-slot-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .assign-back-btn {
+      background: transparent;
+      border: none;
+      color: var(--accent);
+      font-size: 0.85rem;
+      cursor: pointer;
+      padding: 0;
+    }
+
+    .assign-back-btn:hover {
+      text-decoration: underline;
+    }
+
+    .assign-slot-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px;
+      margin: 0 -8px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .assign-slot-row:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .assign-slot-row.is-current {
+      opacity: 0.5;
+      cursor: default;
+    }
+
+    .assign-slot-label {
+      font-size: 0.9rem;
+    }
+
+    .assign-slot-current {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-left: auto;
+    }
+
+    .assign-confirm {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px;
+      margin-top: 4px;
+      background: rgba(254, 172, 96, 0.08);
+      border-radius: 6px;
+      font-size: 0.85rem;
+    }
+
+    .assign-confirm-btn {
+      padding: 4px 12px;
+      background: var(--accent);
+      color: #000;
+      border: none;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+
+    .assign-confirm-cancel {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      font-size: 0.85rem;
+      cursor: pointer;
     }
 
     /* Icon Picker Modal */
@@ -454,13 +643,58 @@
       { value: 'fun', label: 'Fun' }
     ];
 
+    // Magic button label maps (from control.html)
+    const magicButtonNames = {
+      'on': 'Power', 'up': 'Up', 'down': 'Down', 'off': 'Hue',
+      'toggle': 'Toggle', 'brightness_up': 'Bright Up', 'brightness_down': 'Bright Down',
+      'arrow_left': 'Left', 'arrow_right': 'Right',
+      'dial': 'Dial'
+    };
+    const magicActionLabels = {
+      'hold': 'Long press', 'short_release': 'Press', 'press': 'Press',
+      'double_press': '2\u00d7 press', 'triple_press': '3\u00d7 press',
+      'quadruple_press': '4\u00d7 press', 'quintuple_press': '5\u00d7 press',
+      'rotate': 'Rotate'
+    };
+    const knownActionSuffixes = [
+      'quintuple_press', 'quadruple_press', 'triple_press', 'double_press',
+      'short_release', 'press', 'hold', 'rotate'
+    ];
+
+    function formatMagicButtonEvent(key) {
+      for (const suffix of knownActionSuffixes) {
+        if (key.endsWith('_' + suffix)) {
+          const buttonPart = key.slice(0, key.length - suffix.length - 1);
+          const buttonLabel = magicButtonNames[buttonPart] || buttonPart;
+          const actionLabel = magicActionLabels[suffix] || suffix;
+          return `${buttonLabel} \u2014 ${actionLabel}`;
+        }
+      }
+      return key.replace(/_/g, ' ');
+    }
+
+    function getMagicSlots(switchType) {
+      const typeData = switchMapData[switchType];
+      if (!typeData || !typeData.effective_mapping) return [];
+      return Object.entries(typeData.effective_mapping)
+        .filter(([_, action]) => action === 'magic')
+        .map(([key]) => key);
+    }
+
     // State
     let moment = null;
     let selectedMomentId = null;
     let allAreas = [];
     let allZones = [];
+    let allSwitches = [];
+    let allMoments = {};
+    let switchMapData = {};
     let newExceptionAction = 'leave_alone';
     let newExceptionTimer = 0;
+    let assignPickerOpen = false;
+    let assignPickerSearch = '';
+    let assignPickerSwitch = null; // selected switch in step 2
+    let assignConfirmSlot = null; // slot pending confirmation
 
     // Normalize exception value: old format was a plain string, new format is {action, timer}
     function normalizeException(val) {
@@ -483,6 +717,11 @@
       }
     }
 
+    function toggleCard(cardId) {
+      const card = document.getElementById(cardId);
+      if (card) card.classList.toggle('is-open');
+    }
+
     // Initialize
     document.addEventListener('DOMContentLoaded', async () => {
       const data = window.circadianData || {};
@@ -499,14 +738,16 @@
 
     async function loadData() {
       try {
-        const [momentsRes, zonesRes] = await Promise.all([
+        const [momentsRes, zonesRes, switchesRes, switchmapRes] = await Promise.all([
           fetch(basePath + '/api/moments'),
-          fetch(basePath + '/api/glozones')
+          fetch(basePath + '/api/glozones'),
+          fetch(basePath + '/api/switches'),
+          fetch(basePath + '/api/switchmap')
         ]);
 
         if (momentsRes.ok) {
           const data = await momentsRes.json();
-          const allMoments = data.moments || {};
+          allMoments = data.moments || {};
           moment = allMoments[selectedMomentId] || null;
         }
 
@@ -525,6 +766,16 @@
             });
           });
         }
+
+        if (switchesRes.ok) {
+          const data = await switchesRes.json();
+          allSwitches = data.switches || [];
+        }
+
+        if (switchmapRes.ok) {
+          const data = await switchmapRes.json();
+          switchMapData = data.mappings || {};
+        }
       } catch (err) {
         console.error('Error loading data:', err);
       }
@@ -540,6 +791,8 @@
       }
     }
 
+    // ========== Main Render ==========
+
     function renderMomentEditor() {
       if (!moment) {
         document.getElementById('page-title').value = 'Moment not found';
@@ -554,81 +807,418 @@
       updateHeader();
 
       const exceptions = moment.exceptions || {};
+      const exceptionCount = Object.keys(exceptions).length;
+      const usages = getUsages();
+      const usageCount = usages.length;
 
       document.getElementById('moment-editor').innerHTML = `
-        <div class="settings-row">
-          <span class="settings-label">Category</span>
-          <select class="form-select form-select-sm" onchange="updateMomentCategory(this.value); saveMoment();">
-            ${CATEGORY_OPTIONS.map(opt => `
-              <option value="${opt.value}" ${moment.category === opt.value ? 'selected' : ''}>${opt.label}</option>
-            `).join('')}
-          </select>
-        </div>
+        ${renderSettingsCard()}
+        ${renderExceptionsCard(exceptions, exceptionCount)}
+        ${renderUsageCard(usages, usageCount)}
+      `;
 
-        <div class="settings-row">
-          <span class="settings-label">Action</span>
-          <select class="form-select form-select-sm" onchange="updateDefaultAction(this.value); saveMoment();">
-            ${ACTION_OPTIONS.map(opt => `
-              <option value="${opt.value}" ${moment.default_action === opt.value ? 'selected' : ''}>${opt.label}</option>
-            `).join('')}
-          </select>
-        </div>
+      // Render assign picker if open
+      if (assignPickerOpen) {
+        renderAssignPicker();
+      }
+    }
 
-        <div class="settings-row">
-          <span class="settings-label">Auto-off</span>
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <input type="number" class="form-select form-select-sm" style="width: 60px;"
-              value="${Math.round((moment.timer || 0) / 60)}" min="0" max="480" step="1"
-              onchange="moment.timer = (parseInt(this.value) || 0) * 60; saveMoment();">
-            <span style="color: var(--muted); font-size: 0.85rem;">min</span>
+    // ========== Settings Card ==========
+
+    function renderSettingsCard() {
+      return `
+        <div class="ctrl-card is-open" id="settings-section">
+          <div class="ctrl-card-header" onclick="toggleCard('settings-section')">
+            <span class="ctrl-card-chevron">&#x203A;</span>
+            <span class="ctrl-card-title">Settings</span>
           </div>
-        </div>
-
-        <div class="exceptions-section">
-          <div class="exceptions-header">Exceptions</div>
-          <div class="exceptions-inset">
-            <div class="exceptions-list" id="exceptions-list">
-              ${Object.entries(exceptions).map(([areaId, rawVal]) => {
-                const exc = normalizeException(rawVal);
-                const area = allAreas.find(a => a.area_id === areaId);
-                const areaName = area ? area.name : areaId;
-                return `
-                  <div class="exception-item">
-                    <span class="exception-area">${areaName}</span>
-                    <select class="exception-action" onchange="updateException('${areaId}', {action: this.value, timer: ${exc.timer}}); saveMoment();">
-                      ${ACTION_OPTIONS.map(opt => `
-                        <option value="${opt.value}" ${exc.action === opt.value ? 'selected' : ''}>${opt.label}</option>
-                      `).join('')}
-                    </select>
-                    <div style="display:flex;align-items:center;gap:4px;">
-                      <input type="number" style="width:48px;padding:2px 4px;font-size:0.8rem;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--fg);"
-                        value="${Math.round(exc.timer / 60)}" min="0" max="480" step="1"
-                        onchange="updateException('${areaId}', {action:'${exc.action}', timer:(parseInt(this.value)||0)*60}); saveMoment();">
-                      <span style="color:var(--muted);font-size:0.75rem;">m</span>
-                    </div>
-                    <button class="exception-remove" onclick="removeException('${areaId}'); saveMoment();">&times;</button>
-                  </div>
-                `;
-              }).join('')}
-            </div>
-            <div class="add-exception-row">
-              <select class="form-select form-select-sm" id="new-exception-action" onchange="newExceptionAction = this.value;">
-                ${ACTION_OPTIONS.map(opt => `
-                  <option value="${opt.value}" ${newExceptionAction === opt.value ? 'selected' : ''}>${opt.label}</option>
-                `).join('')}
-              </select>
-              <div style="display:flex;align-items:center;gap:4px;">
-                <input type="number" style="width:48px;padding:2px 4px;font-size:0.8rem;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--fg);"
-                  value="${Math.round(newExceptionTimer / 60)}" min="0" max="480" step="1"
-                  onchange="newExceptionTimer = (parseInt(this.value)||0) * 60;">
-                <span style="color:var(--muted);font-size:0.75rem;">m</span>
+          <div class="ctrl-card-body">
+            <div class="ctrl-card-body-inner">
+              <div class="settings-row">
+                <span class="settings-label">Category</span>
+                <select class="form-select form-select-sm" onchange="updateMomentCategory(this.value); saveMoment();">
+                  ${CATEGORY_OPTIONS.map(opt => `
+                    <option value="${opt.value}" ${moment.category === opt.value ? 'selected' : ''}>${opt.label}</option>
+                  `).join('')}
+                </select>
               </div>
-              <button class="add-exception-btn" onclick="addException()">+ Add exception</button>
+              <div class="settings-row">
+                <span class="settings-label">Action</span>
+                <select class="form-select form-select-sm" onchange="updateDefaultAction(this.value); saveMoment();">
+                  ${ACTION_OPTIONS.map(opt => `
+                    <option value="${opt.value}" ${moment.default_action === opt.value ? 'selected' : ''}>${opt.label}</option>
+                  `).join('')}
+                </select>
+              </div>
+              <div class="settings-row">
+                <span class="settings-label">Auto-off</span>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <input type="number" class="form-select form-select-sm" style="width: 60px;"
+                    value="${Math.round((moment.timer || 0) / 60)}" min="0" max="480" step="1"
+                    onchange="moment.timer = (parseInt(this.value) || 0) * 60; saveMoment();">
+                  <span style="color: var(--muted); font-size: 0.85rem;">min</span>
+                </div>
+              </div>
+              <div style="color: var(--muted2); font-size: 0.75rem; margin-top: 4px;">
+                ID: ${selectedMomentId}
+              </div>
             </div>
           </div>
         </div>
       `;
     }
+
+    // ========== Exceptions Card ==========
+
+    function renderExceptionsCard(exceptions, exceptionCount) {
+      const countLabel = exceptionCount > 0 ? exceptionCount : '';
+      return `
+        <div class="ctrl-card is-open" id="exceptions-section">
+          <div class="ctrl-card-header" onclick="toggleCard('exceptions-section')">
+            <span class="ctrl-card-chevron">&#x203A;</span>
+            <span class="ctrl-card-title">Exceptions</span>
+            <span class="ctrl-card-right" style="color: var(--muted); font-size: 0.85rem;">${countLabel}</span>
+          </div>
+          <div class="ctrl-card-body">
+            <div class="ctrl-card-body-inner">
+              <div id="exceptions-list">
+                ${Object.entries(exceptions).map(([areaId, rawVal]) => {
+                  const exc = normalizeException(rawVal);
+                  const area = allAreas.find(a => a.area_id === areaId);
+                  const areaName = area ? area.name : areaId;
+                  return `
+                    <div class="exception-item">
+                      <span class="exception-area">${areaName}</span>
+                      <select class="exception-action" onchange="updateException('${areaId}', {action: this.value, timer: ${exc.timer}}); saveMoment();">
+                        ${ACTION_OPTIONS.map(opt => `
+                          <option value="${opt.value}" ${exc.action === opt.value ? 'selected' : ''}>${opt.label}</option>
+                        `).join('')}
+                      </select>
+                      <div style="display:flex;align-items:center;gap:4px;">
+                        <input type="number" style="width:48px;padding:2px 4px;font-size:0.8rem;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--text);"
+                          value="${Math.round(exc.timer / 60)}" min="0" max="480" step="1"
+                          onchange="updateException('${areaId}', {action:'${exc.action}', timer:(parseInt(this.value)||0)*60}); saveMoment();">
+                        <span style="color:var(--muted);font-size:0.75rem;">m</span>
+                      </div>
+                      <button class="exception-remove" onclick="removeException('${areaId}'); saveMoment();">&times;</button>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+              <div class="add-exception-row">
+                <select class="form-select form-select-sm" id="new-exception-action" onchange="newExceptionAction = this.value;">
+                  ${ACTION_OPTIONS.map(opt => `
+                    <option value="${opt.value}" ${newExceptionAction === opt.value ? 'selected' : ''}>${opt.label}</option>
+                  `).join('')}
+                </select>
+                <div style="display:flex;align-items:center;gap:4px;">
+                  <input type="number" style="width:48px;padding:2px 4px;font-size:0.8rem;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--text);"
+                    value="${Math.round(newExceptionTimer / 60)}" min="0" max="480" step="1"
+                    onchange="newExceptionTimer = (parseInt(this.value)||0) * 60;">
+                  <span style="color:var(--muted);font-size:0.75rem;">m</span>
+                </div>
+                <button class="add-exception-btn" onclick="addException()">+ Add exception</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // ========== Usage Card ==========
+
+    function getUsages() {
+      const actionRef = 'set_' + selectedMomentId;
+      const usages = [];
+      for (const sw of allSwitches) {
+        const buttons = sw.magic_buttons || {};
+        for (const [buttonEvent, action] of Object.entries(buttons)) {
+          if (action === actionRef) {
+            // Get area names from scopes
+            const scopeAreas = (sw.scopes || [])
+              .flatMap(s => s.areas || [])
+              .map(areaId => {
+                const area = allAreas.find(a => a.area_id === areaId);
+                return area ? area.name : areaId;
+              });
+            usages.push({
+              switch_id: sw.id,
+              switch_name: sw.name,
+              area_names: scopeAreas.join(', '),
+              button_event: buttonEvent,
+              button_label: formatMagicButtonEvent(buttonEvent)
+            });
+          }
+        }
+      }
+      return usages;
+    }
+
+    function renderUsageCard(usages, usageCount) {
+      const countLabel = usageCount > 0 ? usageCount : '';
+      let listHtml;
+      if (usages.length === 0) {
+        listHtml = '<div style="font-size: 0.85rem; color: var(--muted);">Not assigned to any controls</div>';
+      } else {
+        listHtml = usages.map(u => `
+          <div class="usage-row">
+            <span class="usage-switch-name">${u.switch_name}</span>
+            <span class="usage-button-label">${u.button_label}</span>
+            <a href="${basePath}/control/${encodeURIComponent(u.switch_id)}" class="usage-edit-link">Edit</a>
+          </div>
+        `).join('');
+      }
+
+      return `
+        <div class="ctrl-card is-open" id="usage-section">
+          <div class="ctrl-card-header" onclick="toggleCard('usage-section')">
+            <span class="ctrl-card-chevron">&#x203A;</span>
+            <span class="ctrl-card-title">Usage</span>
+            <span class="ctrl-card-right" style="color: var(--muted); font-size: 0.85rem;">${countLabel}</span>
+          </div>
+          <div class="ctrl-card-body">
+            <div class="ctrl-card-body-inner">
+              ${listHtml}
+              <div id="assign-picker-container"></div>
+              ${!assignPickerOpen ? `
+                <div style="margin-top: ${usages.length > 0 ? '10' : '8'}px;">
+                  <button class="add-exception-btn" onclick="openAssignPicker()">+ Assign to a control</button>
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // ========== Assign Picker ==========
+
+    function openAssignPicker() {
+      assignPickerOpen = true;
+      assignPickerSearch = '';
+      assignPickerSwitch = null;
+      assignConfirmSlot = null;
+      renderMomentEditor();
+      // Focus search input after render
+      requestAnimationFrame(() => {
+        const input = document.getElementById('assign-search-input');
+        if (input) input.focus();
+      });
+    }
+
+    function closeAssignPicker() {
+      assignPickerOpen = false;
+      assignPickerSearch = '';
+      assignPickerSwitch = null;
+      assignConfirmSlot = null;
+      renderMomentEditor();
+    }
+
+    function renderAssignPicker() {
+      const container = document.getElementById('assign-picker-container');
+      if (!container) return;
+
+      if (assignPickerSwitch) {
+        // Step 2: show slots for selected switch
+        renderAssignSlots(container);
+      } else {
+        // Step 1: show switch list
+        renderAssignSwitchList(container);
+      }
+    }
+
+    function renderAssignSwitchList(container) {
+      // Filter to switches with magic slots
+      const switchesWithMagic = allSwitches.filter(sw => {
+        const slots = getMagicSlots(sw.type);
+        return slots.length > 0;
+      });
+
+      // Apply search filter
+      const search = assignPickerSearch.toLowerCase();
+      const filtered = search
+        ? switchesWithMagic.filter(sw => {
+            const nameMatch = (sw.name || '').toLowerCase().includes(search);
+            const areaMatch = (sw.scopes || []).some(s =>
+              (s.areas || []).some(areaId => {
+                const area = allAreas.find(a => a.area_id === areaId);
+                return area && area.name.toLowerCase().includes(search);
+              })
+            );
+            return nameMatch || areaMatch;
+          })
+        : switchesWithMagic;
+
+      let html = `
+        <div class="assign-picker">
+          <input type="text" class="assign-search" id="assign-search-input"
+                 placeholder="Search controls..." value="${assignPickerSearch}"
+                 oninput="assignPickerSearch = this.value; renderAssignPicker();">
+          <div class="assign-switch-list">
+      `;
+
+      if (filtered.length === 0) {
+        html += '<div style="font-size: 0.85rem; color: var(--muted); padding: 8px 0;">No matching controls</div>';
+      } else {
+        for (const sw of filtered) {
+          const scopeAreas = (sw.scopes || [])
+            .flatMap(s => s.areas || [])
+            .map(areaId => {
+              const area = allAreas.find(a => a.area_id === areaId);
+              return area ? area.name : '';
+            })
+            .filter(Boolean);
+          const areaLabel = scopeAreas.slice(0, 3).join(', ') + (scopeAreas.length > 3 ? '...' : '');
+          html += `
+            <div class="assign-switch-row" onclick="selectAssignSwitch('${sw.id}')">
+              <span class="assign-switch-name">${sw.name}</span>
+              <span class="assign-switch-area">${areaLabel}</span>
+            </div>
+          `;
+        }
+      }
+
+      html += `
+          </div>
+          <div style="margin-top: 8px;">
+            <button class="add-exception-btn" onclick="closeAssignPicker()" style="color: var(--muted2);">Cancel</button>
+          </div>
+        </div>
+      `;
+
+      container.innerHTML = html;
+    }
+
+    function selectAssignSwitch(switchId) {
+      assignPickerSwitch = allSwitches.find(sw => sw.id === switchId) || null;
+      assignConfirmSlot = null;
+      renderAssignPicker();
+    }
+
+    function assignPickerBack() {
+      assignPickerSwitch = null;
+      assignConfirmSlot = null;
+      renderAssignPicker();
+    }
+
+    function renderAssignSlots(container) {
+      const sw = assignPickerSwitch;
+      if (!sw) return;
+
+      const slots = getMagicSlots(sw.type);
+      const actionRef = 'set_' + selectedMomentId;
+
+      let html = `
+        <div class="assign-picker">
+          <div class="assign-slot-header">
+            <button class="assign-back-btn" onclick="assignPickerBack()">&larr; Back</button>
+            <span style="font-size: 0.9rem; font-weight: 500;">${sw.name}</span>
+          </div>
+      `;
+
+      if (slots.length === 0) {
+        html += '<div style="font-size: 0.85rem; color: var(--muted);">No magic button slots</div>';
+      } else {
+        for (const slot of slots) {
+          const currentAction = (sw.magic_buttons || {})[slot] || '';
+          const isCurrent = currentAction === actionRef;
+          let currentLabel = 'Unassigned';
+          if (currentAction && currentAction.startsWith('set_')) {
+            const mId = currentAction.slice(4);
+            currentLabel = allMoments[mId]?.name || mId;
+          }
+
+          if (isCurrent) {
+            html += `
+              <div class="assign-slot-row is-current" title="Already assigned to this moment">
+                <span class="assign-slot-label">${formatMagicButtonEvent(slot)}</span>
+                <span class="assign-slot-current" style="color: var(--accent);">${currentLabel}</span>
+              </div>
+            `;
+          } else if (assignConfirmSlot === slot && currentAction) {
+            // Show confirmation for replacing
+            html += `
+              <div class="assign-confirm">
+                <span>Replace <strong>${currentLabel}</strong>?</span>
+                <button class="assign-confirm-btn" onclick="confirmAssignSlot('${sw.id}', '${slot}')">Replace</button>
+                <button class="assign-confirm-cancel" onclick="assignConfirmSlot = null; renderAssignPicker();">Cancel</button>
+              </div>
+            `;
+          } else {
+            html += `
+              <div class="assign-slot-row" onclick="handleAssignSlot('${sw.id}', '${slot}', '${currentAction}')">
+                <span class="assign-slot-label">${formatMagicButtonEvent(slot)}</span>
+                <span class="assign-slot-current">${currentLabel}</span>
+              </div>
+            `;
+          }
+        }
+      }
+
+      html += `
+          <div style="margin-top: 8px;">
+            <button class="add-exception-btn" onclick="closeAssignPicker()" style="color: var(--muted2);">Cancel</button>
+          </div>
+        </div>
+      `;
+
+      container.innerHTML = html;
+    }
+
+    function handleAssignSlot(switchId, slot, currentAction) {
+      if (currentAction && currentAction.startsWith('set_')) {
+        // Slot has an existing assignment — ask for confirmation
+        assignConfirmSlot = slot;
+        renderAssignPicker();
+      } else {
+        // Slot is unassigned — assign directly
+        confirmAssignSlot(switchId, slot);
+      }
+    }
+
+    async function confirmAssignSlot(switchId, slot) {
+      const sw = allSwitches.find(s => s.id === switchId);
+      if (!sw) return;
+
+      // Update magic_buttons locally
+      if (!sw.magic_buttons) sw.magic_buttons = {};
+      sw.magic_buttons[slot] = 'set_' + selectedMomentId;
+
+      // Save to backend
+      try {
+        const payload = {
+          name: sw.name,
+          type: sw.type,
+          scopes: sw.scopes,
+          device_id: sw.device_id,
+          indicator_light: sw.indicator_light || '',
+          magic_buttons: sw.magic_buttons,
+          inactive: sw.inactive || false,
+          inactive_until: sw.inactive_until || null
+        };
+
+        const response = await fetch(basePath + `/api/controls/${encodeURIComponent(switchId)}/configure`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+          assignPickerOpen = false;
+          assignPickerSwitch = null;
+          assignConfirmSlot = null;
+          renderMomentEditor();
+          showSaveStatus();
+        } else {
+          const data = await response.json();
+          console.error('Failed to assign:', data.error);
+        }
+      } catch (err) {
+        console.error('Error assigning moment:', err);
+      }
+    }
+
+    // ========== Moment CRUD Helpers ==========
 
     function updateMomentName(name) {
       if (!moment) return;
@@ -684,10 +1274,10 @@
       }
     }
 
+    // ========== Save/Load ==========
+
     async function saveMoment() {
       if (!selectedMomentId || !moment) return;
-
-      const oldId = selectedMomentId;
 
       try {
         const response = await fetch(basePath + `/api/moments/${encodeURIComponent(selectedMomentId)}`, {
@@ -697,13 +1287,6 @@
         });
 
         if (response.ok) {
-          const data = await response.json();
-          if (data.id && data.id !== oldId) {
-            selectedMomentId = data.id;
-            // Update URL to reflect new ID
-            const newPath = basePath + '/moment/' + encodeURIComponent(data.id);
-            window.history.replaceState(null, '', newPath);
-          }
           showSaveStatus();
         } else {
           const data = await response.json();
@@ -720,7 +1303,8 @@
       setTimeout(() => status.classList.remove('visible'), 2000);
     }
 
-    // Icon Picker
+    // ========== Icon Picker ==========
+
     function showIconPicker() {
       const grid = document.getElementById('icon-grid');
       const currentIcon = moment?.icon || '&#127763;';

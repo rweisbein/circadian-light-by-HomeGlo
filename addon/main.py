@@ -170,6 +170,9 @@ class HomeAssistantWebSocketClient:
         self._dial_position: Dict[str, float] = {}
         self._dial_pending: Dict[str, Dict[str, Any]] = {}
 
+        # Timestamp of the last switch action (used to defer periodic updates)
+        self._last_switch_action_time: float = 0
+
         # Motion sensor cooldown: sensor_id -> time.time() when cooldown expires
         # In-memory only — resets on restart (no stale cooldowns)
         self._motion_cooldown_until: Dict[str, float] = {}
@@ -588,10 +591,16 @@ class HomeAssistantWebSocketClient:
                 )
                 # Extend motion timers for areas already on (don't turn on dark areas)
                 for area_config in sensor_config.areas:
-                    if area_config.mode == "on_off" and state.has_motion_timer(area_config.area_id):
-                        new_exp = (datetime.now() + timedelta(seconds=area_config.duration)).isoformat()
+                    if area_config.mode == "on_off" and state.has_motion_timer(
+                        area_config.area_id
+                    ):
+                        new_exp = (
+                            datetime.now() + timedelta(seconds=area_config.duration)
+                        ).isoformat()
                         current_exp = state.get_motion_expires(area_config.area_id)
-                        if current_exp != "forever" and (current_exp is None or new_exp > current_exp):
+                        if current_exp != "forever" and (
+                            current_exp is None or new_exp > current_exp
+                        ):
                             state.extend_motion_expires(area_config.area_id, new_exp)
                             logger.debug(
                                 f"[Motion] Cooldown: extended timer for {area_config.area_id} to {new_exp}"
@@ -742,10 +751,16 @@ class HomeAssistantWebSocketClient:
                 )
                 # Extend motion timers for areas already on (don't turn on dark areas)
                 for area_config in sensor_config.areas:
-                    if area_config.mode == "on_off" and state.has_motion_timer(area_config.area_id):
-                        new_exp = (datetime.now() + timedelta(seconds=area_config.duration)).isoformat()
+                    if area_config.mode == "on_off" and state.has_motion_timer(
+                        area_config.area_id
+                    ):
+                        new_exp = (
+                            datetime.now() + timedelta(seconds=area_config.duration)
+                        ).isoformat()
                         current_exp = state.get_motion_expires(area_config.area_id)
-                        if current_exp != "forever" and (current_exp is None or new_exp > current_exp):
+                        if current_exp != "forever" and (
+                            current_exp is None or new_exp > current_exp
+                        ):
                             state.extend_motion_expires(area_config.area_id, new_exp)
                             logger.debug(
                                 f"[ZHA Motion] Cooldown: extended timer for {area_config.area_id} to {new_exp}"
@@ -1555,6 +1570,7 @@ class HomeAssistantWebSocketClient:
         """
         # Record activity for scope timeout
         switches.record_activity(switch_id)
+        self._last_switch_action_time = time.time()
 
         # Parse action - can be string or {action, when_off} object
         main_action = action
@@ -4940,6 +4956,17 @@ class HomeAssistantWebSocketClient:
                 except asyncio.TimeoutError:
                     pass  # Normal periodic tick
 
+                # Skip periodic update if a switch action happened recently
+                # (avoid flooding the Zigbee mesh while switch commands propagate)
+                if not triggered_by_event and self._last_switch_action_time:
+                    elapsed = time.time() - self._last_switch_action_time
+                    if elapsed < 3.0:
+                        if log_periodic:
+                            logger.info(
+                                f"Deferring periodic update — switch action {elapsed:.1f}s ago"
+                            )
+                        continue
+
                 # Get all circadian areas from state module
                 circadian_areas = state.get_circadian_areas_for_update()
 
@@ -6371,13 +6398,16 @@ class HomeAssistantWebSocketClient:
                 for zone_name in glozone.get_glozones():
                     all_zone_areas.update(glozone.get_areas_in_zone(zone_name))
                 orphaned = [
-                    a for a in state.get_circadian_areas_for_update()
+                    a
+                    for a in state.get_circadian_areas_for_update()
                     if a not in all_zone_areas
                 ]
                 for area_id in orphaned:
                     state.remove_area(area_id)
                 if orphaned:
-                    logger.info(f"Cleaned up {len(orphaned)} orphaned state entries: {orphaned}")
+                    logger.info(
+                        f"Cleaned up {len(orphaned)} orphaned state entries: {orphaned}"
+                    )
 
                 # Start periodic light updater
                 self.periodic_update_task = asyncio.create_task(

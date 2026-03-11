@@ -1902,6 +1902,7 @@ class CircadianLightPrimitives:
                 if hasattr(self.client, "_get_sun_times")
                 else None
             )
+            # Phase 1: State updates (synchronous, no I/O)
             for area_id in area_ids:
                 # Calculate current CT before turning off
                 try:
@@ -1933,9 +1934,15 @@ class CircadianLightPrimitives:
 
                 # Enable circadian and set is_on=False
                 state.enable_circadian_and_set_on(area_id, False)
-                # Turn off lights (uses ZHA groups when available) and switch entities
-                await self.client.turn_off_lights(area_id, transition=transition)
-                await self.client.turn_off_switch_entities(area_id)
+
+            # Phase 2: Send all turn-off commands in parallel
+            tasks = []
+            for area_id in area_ids:
+                tasks.append(
+                    self.client.turn_off_lights(area_id, transition=transition)
+                )
+                tasks.append(self.client.turn_off_switch_entities(area_id))
+            await asyncio.gather(*tasks)
             logger.info(f"lights_toggle_multiple: turned off {len(area_ids)} area(s)")
 
         else:
@@ -4136,6 +4143,7 @@ class CircadianLightPrimitives:
             # Phase 3 (optional): Retry brightness command to catch intermittent drops
             third_step = self._get_third_step_delay()
             if third_step > 0:
+
                 async def _retry_brightness():
                     await asyncio.sleep(third_step)
                     await self._apply_lighting(
@@ -4145,6 +4153,7 @@ class CircadianLightPrimitives:
                         include_color=True,
                         transition=0,
                     )
+
                 asyncio.create_task(_retry_brightness())
         else:
             # CT is similar - just turn on directly
@@ -4244,6 +4253,7 @@ class CircadianLightPrimitives:
             # Phase 3 (optional): Retry brightness for all 2-step areas
             third_step = self._get_third_step_delay()
             if third_step > 0:
+
                 async def _retry_brightness_batch():
                     await asyncio.sleep(third_step)
                     retry_tasks = []
@@ -4259,6 +4269,7 @@ class CircadianLightPrimitives:
                         )
                     if retry_tasks:
                         await asyncio.gather(*retry_tasks)
+
                 asyncio.create_task(_retry_brightness_batch())
 
     async def _apply_color_only(

@@ -13,6 +13,7 @@ Zone configuration is stored in designer_config.json and cached in memory.
 import json
 import logging
 import os
+import re
 import tempfile
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -744,6 +745,33 @@ def _migrate_config(config: Dict[str, Any]) -> Dict[str, Any]:
 
     # Remove deprecated global setting
     config.pop("daylight_saturation_deg", None)
+
+    # Migrate moment keys from name-slugs to stable auto-increment IDs
+    moments = config.get("moments", {})
+    if moments and not all(re.match(r"^moment_\d+$", k) for k in moments):
+        import switches as switches_mod
+
+        new_moments = {}
+        old_to_new = {}
+        counter = 1
+        for old_id, moment_data in moments.items():
+            new_id = f"moment_{counter}"
+            new_moments[new_id] = moment_data
+            old_to_new[old_id] = new_id
+            counter += 1
+        config["moments"] = new_moments
+        # Migrate switch magic_button references
+        any_changed = False
+        for sw in switches_mod.get_all_switches().values():
+            for btn, action in list(sw.magic_buttons.items()):
+                if action and action.startswith("set_"):
+                    old_moment_id = action[4:]
+                    if old_moment_id in old_to_new:
+                        sw.magic_buttons[btn] = f"set_{old_to_new[old_moment_id]}"
+                        any_changed = True
+        if any_changed:
+            switches_mod._save()
+        logger.info(f"Migrated {len(old_to_new)} moment(s) to stable IDs: {old_to_new}")
 
     # --- Collapse circadian_rhythms into glozones (Rhythm Zone migration) ---
     if "circadian_rhythms" in config and "glozones" in config:
