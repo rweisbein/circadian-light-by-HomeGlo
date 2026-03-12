@@ -507,8 +507,9 @@ def apply_light_filter_pipeline(
 
     preset_threshold = filter_preset.get("off_threshold", off_threshold)
     if result < preset_threshold:
-        # If user explicitly set a brightness override, don't auto-off
-        if has_override:
+        # If user explicitly brightened (positive override), don't auto-off.
+        # Negative override (user dimmed) should still respect off_threshold.
+        if has_override and brightness_override > 0:
             result = max(1, result)
         else:
             return (0, True)

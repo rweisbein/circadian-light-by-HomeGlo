@@ -346,23 +346,38 @@
     }
 
     /* Cheat sheet — inline rows with button on left */
-    .cheat-row-inline {
+    .cheat-button-section {
+      display: flex;
+      align-items: center;
+      padding: 4px 0;
+    }
+
+    .cheat-button-section + .cheat-button-section {
+      border-top: 2px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .cheat-btn-label {
+      width: 100px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .cheat-actions {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .cheat-action-row {
       display: flex;
       align-items: baseline;
       gap: 8px;
       padding: 3px 0;
     }
 
-    .cheat-row-inline + .cheat-row-inline {
+    .cheat-action-row + .cheat-action-row {
       border-top: 1px solid rgba(255, 255, 255, 0.03);
-    }
-
-    .cheat-btn-col {
-      width: 100px;
-      flex-shrink: 0;
-      display: flex;
-      align-items: center;
-      gap: 6px;
     }
 
     .btn-badge-sm {
@@ -548,11 +563,12 @@
       .ctrl-card { border-color: #ccc; margin-bottom: 6px; break-inside: avoid; }
       .ctrl-card-header { padding: 6px 10px; }
       .ctrl-card-body-inner { padding: 0 10px 6px; }
-      .cheat-row-inline { padding: 1px 0; }
+      .cheat-action-row { padding: 1px 0; }
+      .cheat-button-section + .cheat-button-section { border-top-color: #ccc; }
       .magic-summary-row { padding: 1px 0; }
       .btn-badge { border-color: #999; background: #eee; color: #333; }
       .btn-badge-sm { width: 18px; height: 18px; font-size: 0.6rem; }
-      .cheat-btn-col { width: 80px; }
+      .cheat-btn-label { width: 80px; }
       .ctrl-card-title { font-size: 0.9rem; }
       .cheat-label { font-size: 0.7rem; min-width: 24px; }
       .cheat-action { font-size: 0.75rem; }
@@ -596,11 +612,11 @@
 
     <div class="mode-bar">
       <div class="mode-toggle">
-        <button class="mode-btn active" id="mode-edit" onclick="setMode('edit')">Edit</button>
-        <button class="mode-btn" id="mode-cheatsheet" onclick="setMode('cheatsheet')">Cheat Sheet</button>
+        <button class="mode-btn active" id="mode-cheatsheet" onclick="setMode('cheatsheet')">Cheat Sheet</button>
+        <button class="mode-btn" id="mode-edit" onclick="setMode('edit')">Edit</button>
       </div>
       <div class="mode-bar-right">
-        <button class="copy-btn" id="copy-btn" onclick="copyCheatSheet()" style="display:none;">Copy</button>
+        <button class="copy-btn" id="copy-btn" onclick="copyCheatSheet()">Copy</button>
       </div>
     </div>
 
@@ -608,7 +624,7 @@
       <div class="loading">Loading mappings...</div>
     </div>
 
-    <div class="save-bar" id="save-bar">
+    <div class="save-bar" id="save-bar" style="display:none;">
       <button class="btn btn-danger" onclick="resetToDefaults()">Reset to Defaults</button>
       <button class="btn btn-secondary" id="cancel-btn" onclick="cancelChanges()" disabled>Cancel</button>
       <button class="btn btn-primary" id="save-btn" onclick="saveMappings()" disabled>Save</button>
@@ -628,7 +644,7 @@
     let actionCategories = {};
     let whenOffOptions = [];
     let hasUnsavedChanges = false;
-    let currentMode = 'edit';
+    let currentMode = 'cheatsheet';
     let allSwitches = [];
     let allMoments = {};
 
@@ -895,14 +911,23 @@
 
         if (actionRows.length === 0) continue;
 
-        // First row includes button badge+name, subsequent rows indent
-        buttonRows += actionRows.map((r, i) => `
-          <div class="cheat-row-inline">
-            <div class="cheat-btn-col">${i === 0 ? `<span class="btn-badge btn-badge-sm">${badge}</span><span class="cheat-btn-name">${buttonName}</span>` : ''}</div>
-            <span class="cheat-label">${r.label}</span>
-            <span class="cheat-action">${r.actionText}</span>
+        // Button section: label vertically centered, action rows stacked
+        buttonRows += `
+          <div class="cheat-button-section">
+            <div class="cheat-btn-label">
+              <span class="btn-badge btn-badge-sm">${badge}</span>
+              <span class="cheat-btn-name">${buttonName}</span>
+            </div>
+            <div class="cheat-actions">
+              ${actionRows.map(r => `
+                <div class="cheat-action-row">
+                  <span class="cheat-label">${r.label}</span>
+                  <span class="cheat-action">${r.actionText}</span>
+                </div>
+              `).join('')}
+            </div>
           </div>
-        `).join('');
+        `;
       }
 
       if (buttonRows) {

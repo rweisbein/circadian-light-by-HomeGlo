@@ -5971,8 +5971,11 @@ class LightDesignerServer:
                 device_msg = json.loads(await ws.recv())
                 device_areas = {}  # device_id -> area_id
                 area_device_ids = set()  # devices in target area (for filtered mode)
+                service_devices = set()  # coordinators, bridges, etc.
                 if device_msg.get("success") and device_msg.get("result"):
                     for device in device_msg["result"]:
+                        if device.get("entry_type") == "service":
+                            service_devices.add(device.get("id"))
                         device_areas[device.get("id")] = device.get("area_id")
                         if device.get("area_id") == area_id:
                             area_device_ids.add(device.get("id"))
@@ -6007,6 +6010,11 @@ class LightDesignerServer:
                     for entity in entity_msg["result"]:
                         entity_id = entity.get("entity_id", "")
                         if not entity_id.startswith("light."):
+                            continue
+
+                        # Skip service devices (coordinators, bridges)
+                        dev_id = entity.get("device_id")
+                        if dev_id and dev_id in service_devices:
                             continue
 
                         # Determine entity's area (direct or via device)

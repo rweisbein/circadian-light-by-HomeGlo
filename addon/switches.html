@@ -203,6 +203,9 @@
       user-select: none;
       transition: color 0.2s;
       vertical-align: top;
+      position: sticky;
+      top: 56px;
+      z-index: 10;
     }
 
     .switches-table th:hover {
@@ -589,6 +592,11 @@
         const raw = sessionStorage.getItem('controls_ui');
         if (raw) {
           const prefs = JSON.parse(raw);
+          // Expire preferences after 5 minutes
+          if (!prefs.saved_at || Date.now() - prefs.saved_at > 300000) {
+            sessionStorage.removeItem('controls_ui');
+            return;
+          }
           sortColumn = prefs.sort_column || 'area';
           if (sortColumn === 'lastAction' || sortColumn === 'lux') sortColumn = 'fourth';
           sortAsc = prefs.sort_asc !== false;
@@ -614,7 +622,8 @@
           zone_filter: zoneFilter,
           active_only: activeOnly,
           fourth_field: fourthField,
-          search_filter: searchFilter
+          search_filter: searchFilter,
+          saved_at: Date.now()
         }));
       } catch (err) {
         console.error('Error saving preferences:', err);
