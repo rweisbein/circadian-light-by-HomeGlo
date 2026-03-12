@@ -1561,6 +1561,152 @@ class HomeAssistantWebSocketClient:
 
         return command_lower
 
+    def _can_use_reach(self, areas: List[str]) -> bool:
+        """Quick structural check: can reach groups be used for these areas?
+
+        Checks: 2+ areas, reach groups exist, all areas have ZHA parity.
+        Does NOT check filters or values.
+        """
+        if len(areas) < 2:
+            return False
+        reach_color, reach_ct = self.get_reach_groups(areas)
+        if not reach_color and not reach_ct:
+            return False
+        return all(self.area_parity_cache.get(a, False) for a in areas)
+
+    def _compute_reach_value(
+        self, area_id: str, base_bri: float, color_temp: int
+    ) -> Optional[Tuple[int, int]]:
+        """Compute final (brightness, color_temp) for reach group comparison.
+
+        Applies the same pipeline as turn_on_lights_circadian fast path:
+        (base_bri + boost) * NL_factor + brightness_override.
+        CT compensation is NOT applied (reach groups handle it internally).
+
+        Returns None if area has filters (can't use reach).
+        """
+        # Filters require per-light sub-groups — can't use reach
+        area_filters = glozone.get_area_light_filters(area_id)
+        area_factor = glozone.get_area_brightness_factor(area_id)
+        if bool(area_filters) or area_factor != 1.0:
+            return None
+
+        bri = base_bri
+        if state.is_boosted(area_id):
+            boost_state = state.get_boost_state(area_id)
+            bri += boost_state.get("boost_brightness") or 0
+
+        nl_factor = self.primitives._compute_nl_factor(area_id)
+        bri = max(1, int(round(bri * nl_factor)))
+
+        override = self.primitives._get_decayed_brightness_override(area_id)
+        if override is not None:
+            bri = int(min(100, max(1, round(bri + override))))
+
+        return (bri, color_temp)
+
+    async def _send_step_via_reach_or_fallback(
+        self, areas: List[str], results: list
+    ) -> None:
+        """Send step results via reach groups if all values match, else per-area.
+
+        Args:
+            areas: List of area IDs
+            results: List of StepResult (or None for at-limit areas)
+        """
+        # Collect valid results and compute final values
+        valid = []
+        final_values = set()
+        can_reach = True
+
+        for area_id, result in zip(areas, results):
+            if result is None or not state.get_is_on(area_id):
+                continue
+            rv = self._compute_reach_value(
+                area_id, result.brightness, result.color_temp
+            )
+            if rv is None:
+                can_reach = False
+                break
+            valid.append((area_id, result))
+            final_values.add(rv)
+
+        if can_reach and valid and len(final_values) == 1:
+            bri, ct = final_values.pop()
+            used = await self.turn_on_reach_groups(
+                [a for a, _ in valid], brightness=bri, color_temp=ct
+            )
+            if used:
+                logger.info(
+                    f"Step via reach groups: {bri}%, {ct}K for {len(valid)} areas"
+                )
+                return
+
+        # Fallback: per-area
+        tasks = []
+        for area_id, result in zip(areas, results):
+            if result is not None and state.get_is_on(area_id):
+                tasks.append(self.primitives._apply_step_result(area_id, result))
+        if tasks:
+            await asyncio.gather(*tasks)
+
+    async def _send_bright_via_reach_or_fallback(
+        self, areas: List[str], results: list
+    ) -> None:
+        """Send brightness update via reach groups if all values match, else per-area.
+
+        Args:
+            areas: List of area IDs
+            results: List of True/None from _brightness_step
+        """
+        valid = []
+        final_values = set()
+        can_reach = True
+        sun_times = self._get_sun_times()
+
+        for area_id, result in zip(areas, results):
+            if result is None or not state.get_is_on(area_id):
+                continue
+
+            # Compute current lighting from state (override already updated)
+            area_state = AreaState.from_dict(state.get_area(area_id))
+            config_dict = glozone.get_effective_config_for_area(area_id)
+            config = Config.from_dict(config_dict)
+            hour = (
+                area_state.frozen_at
+                if area_state.frozen_at is not None
+                else get_current_hour()
+            )
+            lighting = CircadianLight.calculate_lighting(
+                hour, config, area_state, sun_times=sun_times
+            )
+
+            rv = self._compute_reach_value(
+                area_id, lighting.brightness, lighting.color_temp
+            )
+            if rv is None:
+                can_reach = False
+                break
+            valid.append(area_id)
+            final_values.add(rv)
+
+        if can_reach and valid and len(final_values) == 1:
+            bri, ct = final_values.pop()
+            used = await self.turn_on_reach_groups(valid, brightness=bri, color_temp=ct)
+            if used:
+                logger.info(
+                    f"Bright via reach groups: {bri}%, {ct}K for {len(valid)} areas"
+                )
+                return
+
+        # Fallback: per-area update
+        tasks = []
+        for area_id, result in zip(areas, results):
+            if result is not None and state.get_is_on(area_id):
+                tasks.append(self.update_lights_in_circadian_mode(area_id))
+        if tasks:
+            await asyncio.gather(*tasks)
+
     async def _execute_switch_action(self, switch_id: str, action) -> None:
         """Execute a switch action.
 
@@ -1640,12 +1786,23 @@ class HomeAssistantWebSocketClient:
                 state.is_circadian(area) and state.get_is_on(area) for area in areas
             )
             if any_on_circadian:
-                await asyncio.gather(
-                    *[
-                        self.primitives.step_up(area, "switch", steps=step_count)
-                        for area in areas
-                    ]
-                )
+                if self._can_use_reach(areas):
+                    results = await asyncio.gather(
+                        *[
+                            self.primitives.step_up(
+                                a, "switch", steps=step_count, send_command=False
+                            )
+                            for a in areas
+                        ]
+                    )
+                    await self._send_step_via_reach_or_fallback(areas, results)
+                else:
+                    await asyncio.gather(
+                        *[
+                            self.primitives.step_up(area, "switch", steps=step_count)
+                            for area in areas
+                        ]
+                    )
             else:
                 await execute_when_off()
 
@@ -1658,12 +1815,23 @@ class HomeAssistantWebSocketClient:
                 state.is_circadian(area) and state.get_is_on(area) for area in areas
             )
             if any_on_circadian:
-                await asyncio.gather(
-                    *[
-                        self.primitives.step_down(area, "switch", steps=step_count)
-                        for area in areas
-                    ]
-                )
+                if self._can_use_reach(areas):
+                    results = await asyncio.gather(
+                        *[
+                            self.primitives.step_down(
+                                a, "switch", steps=step_count, send_command=False
+                            )
+                            for a in areas
+                        ]
+                    )
+                    await self._send_step_via_reach_or_fallback(areas, results)
+                else:
+                    await asyncio.gather(
+                        *[
+                            self.primitives.step_down(area, "switch", steps=step_count)
+                            for area in areas
+                        ]
+                    )
             else:
                 await execute_when_off()
 
@@ -1676,12 +1844,25 @@ class HomeAssistantWebSocketClient:
                 state.is_circadian(area) and state.get_is_on(area) for area in areas
             )
             if any_on_circadian:
-                await asyncio.gather(
-                    *[
-                        self.primitives.brightness_up(area, "switch", steps=step_count)
-                        for area in areas
-                    ]
-                )
+                if self._can_use_reach(areas):
+                    results = await asyncio.gather(
+                        *[
+                            self.primitives.brightness_up(
+                                a, "switch", steps=step_count, send_command=False
+                            )
+                            for a in areas
+                        ]
+                    )
+                    await self._send_bright_via_reach_or_fallback(areas, results)
+                else:
+                    await asyncio.gather(
+                        *[
+                            self.primitives.brightness_up(
+                                area, "switch", steps=step_count
+                            )
+                            for area in areas
+                        ]
+                    )
             else:
                 await execute_when_off()
 
@@ -1694,14 +1875,25 @@ class HomeAssistantWebSocketClient:
                 state.is_circadian(area) and state.get_is_on(area) for area in areas
             )
             if any_on_circadian:
-                await asyncio.gather(
-                    *[
-                        self.primitives.brightness_down(
-                            area, "switch", steps=step_count
-                        )
-                        for area in areas
-                    ]
-                )
+                if self._can_use_reach(areas):
+                    results = await asyncio.gather(
+                        *[
+                            self.primitives.brightness_down(
+                                a, "switch", steps=step_count, send_command=False
+                            )
+                            for a in areas
+                        ]
+                    )
+                    await self._send_bright_via_reach_or_fallback(areas, results)
+                else:
+                    await asyncio.gather(
+                        *[
+                            self.primitives.brightness_down(
+                                area, "switch", steps=step_count
+                            )
+                            for area in areas
+                        ]
+                    )
             else:
                 await execute_when_off()
 

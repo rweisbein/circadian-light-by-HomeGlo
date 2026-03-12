@@ -501,19 +501,29 @@ class CircadianLightPrimitives:
     # Step Up / Step Down (brightness-primary, both curves)
     # -------------------------------------------------------------------------
 
-    async def step_up(self, area_id: str, source: str = "service_call", steps: int = 1):
+    async def step_up(
+        self,
+        area_id: str,
+        source: str = "service_call",
+        steps: int = 1,
+        send_command: bool = True,
+    ):
         """Step up along the circadian curve (brighter and cooler).
 
         Uses brightness-primary algorithm: brightness determines the step,
         color follows the diverged curve.
 
         Only works when is_circadian=True. Updates midpoints always, but only
-        applies to lights if is_on=True.
+        applies to lights if is_on=True and send_command=True.
 
         Args:
             area_id: The area ID to control
             source: Source of the action
             steps: Number of steps to take (each computed from updated state)
+            send_command: Whether to send light commands (False for reach group batching)
+
+        Returns:
+            The last StepResult applied, or None if at limit / not circadian.
         """
         area_state = self._get_area_state(area_id)
 
@@ -521,7 +531,7 @@ class CircadianLightPrimitives:
             logger.debug(
                 f"[{source}] step_up ignored for area {area_id} (not in circadian mode)"
             )
-            return
+            return None
 
         # If frozen, check if already at limit before unfreezing
         # (inverse_midpoint drift at asymptotes can mask the limit after unfreeze)
@@ -544,12 +554,12 @@ class CircadianLightPrimitives:
                 if self._reduce_overrides_toward_zero(
                     area_id, area_state, config, "up"
                 ):
-                    if area_state.is_on:
+                    if send_command and area_state.is_on:
                         await self.client.update_lights_in_circadian_mode(area_id)
-                    return
+                    return None
 
                 logger.info(f"Step up at limit for area {area_id} (frozen at max)")
-                if area_state.is_on:
+                if send_command and area_state.is_on:
                     sun_times = (
                         self.client._get_sun_times()
                         if hasattr(self.client, "_get_sun_times")
@@ -570,7 +580,7 @@ class CircadianLightPrimitives:
                         bounce_type="step",
                     )
                     await self.client.update_lights_in_circadian_mode(area_id)
-                return
+                return None
             # At least one dimension has room → unfreeze and let calculate_step handle it
             self._unfreeze_internal(area_id, source)
             area_state = self._get_area_state(area_id)
@@ -586,62 +596,78 @@ class CircadianLightPrimitives:
             else None
         )
 
-        result = CircadianLight.calculate_step(
-            hour=hour,
-            direction="up",
-            config=config,
-            state=area_state,
-            sun_times=sun_times,
-        )
+        last_result = None
+        for step_i in range(steps):
+            if step_i > 0:
+                area_state = self._get_area_state(area_id)
 
-        if result is None:
-            if self._reduce_overrides_toward_zero(area_id, area_state, config, "up"):
-                if area_state.is_on:
-                    await self.client.update_lights_in_circadian_mode(area_id)
-                return
-
-            logger.info(f"Step up at limit for area {area_id}")
-            # Bounce effect at limit (only if is_on)
-            if area_state.is_on:
-                current_bri = CircadianLight.calculate_brightness_at_hour(
-                    hour, config, area_state
-                )
-                current_cct = CircadianLight.calculate_color_at_hour(
-                    hour,
-                    config,
-                    area_state,
-                    apply_solar_rules=True,
-                    sun_times=sun_times,
-                )
-                await self._bounce_at_limit(
-                    area_id,
-                    current_bri,
-                    current_cct,
-                    direction="up",
-                    bounce_type="step",
-                )
-                await self.client.update_lights_in_circadian_mode(area_id)
-            return
-
-        # Update state (always, even if is_on=False)
-        logger.info(f"Step up state_updates: {result.state_updates}")
-        self._update_area_state(area_id, result.state_updates)
-
-        # Apply to lights only if is_on=True
-        # Use step's color values directly (not re-rendered) with pipeline for area_factor/filters/override
-        if area_state.is_on:
-            await self._apply_step_result(area_id, result)
-            logger.info(f"Step up applied: {result.brightness}%, {result.color_temp}K")
-        else:
-            logger.info(
-                f"Step up state updated (lights off): {result.brightness}%, {result.color_temp}K"
+            result = CircadianLight.calculate_step(
+                hour=hour,
+                direction="up",
+                config=config,
+                state=area_state,
+                sun_times=sun_times,
             )
 
-        if steps > 1:
-            await self.step_up(area_id, source, steps - 1)
+            if result is None:
+                if step_i == 0:
+                    # First step at limit → existing override reduction + bounce
+                    if self._reduce_overrides_toward_zero(
+                        area_id, area_state, config, "up"
+                    ):
+                        if send_command and area_state.is_on:
+                            await self.client.update_lights_in_circadian_mode(area_id)
+                        return None
+
+                    logger.info(f"Step up at limit for area {area_id}")
+                    if send_command and area_state.is_on:
+                        current_bri = CircadianLight.calculate_brightness_at_hour(
+                            hour, config, area_state
+                        )
+                        current_cct = CircadianLight.calculate_color_at_hour(
+                            hour,
+                            config,
+                            area_state,
+                            apply_solar_rules=True,
+                            sun_times=sun_times,
+                        )
+                        await self._bounce_at_limit(
+                            area_id,
+                            current_bri,
+                            current_cct,
+                            direction="up",
+                            bounce_type="step",
+                        )
+                        await self.client.update_lights_in_circadian_mode(area_id)
+                    return None
+                break  # Mid-sequence limit → use last good result
+
+            logger.info(f"Step up state_updates: {result.state_updates}")
+            self._update_area_state(area_id, result.state_updates)
+            last_result = result
+
+        # Apply to lights only if send_command=True and we have a result
+        if send_command and last_result:
+            area_state = self._get_area_state(area_id)
+            if area_state.is_on:
+                await self._apply_step_result(area_id, last_result)
+                logger.info(
+                    f"Step up applied: {last_result.brightness}%, {last_result.color_temp}K"
+                )
+            else:
+                logger.info(
+                    f"Step up state updated (lights off): "
+                    f"{last_result.brightness}%, {last_result.color_temp}K"
+                )
+
+        return last_result
 
     async def step_down(
-        self, area_id: str, source: str = "service_call", steps: int = 1
+        self,
+        area_id: str,
+        source: str = "service_call",
+        steps: int = 1,
+        send_command: bool = True,
     ):
         """Step down along the circadian curve (dimmer and warmer).
 
@@ -649,12 +675,16 @@ class CircadianLightPrimitives:
         color follows the diverged curve.
 
         Only works when is_circadian=True. Updates midpoints always, but only
-        applies to lights if is_on=True.
+        applies to lights if is_on=True and send_command=True.
 
         Args:
             area_id: The area ID to control
             source: Source of the action
             steps: Number of steps to take (each computed from updated state)
+            send_command: Whether to send light commands (False for reach group batching)
+
+        Returns:
+            The last StepResult applied, or None if at limit / not circadian.
         """
         area_state = self._get_area_state(area_id)
 
@@ -662,7 +692,7 @@ class CircadianLightPrimitives:
             logger.debug(
                 f"[{source}] step_down ignored for area {area_id} (not in circadian mode)"
             )
-            return
+            return None
 
         # If frozen, check if already at limit before unfreezing
         # (inverse_midpoint drift at asymptotes can mask the limit after unfreeze)
@@ -685,12 +715,12 @@ class CircadianLightPrimitives:
                 if self._reduce_overrides_toward_zero(
                     area_id, area_state, config, "down"
                 ):
-                    if area_state.is_on:
+                    if send_command and area_state.is_on:
                         await self.client.update_lights_in_circadian_mode(area_id)
-                    return
+                    return None
 
                 logger.info(f"Step down at limit for area {area_id} (frozen at min)")
-                if area_state.is_on:
+                if send_command and area_state.is_on:
                     sun_times = (
                         self.client._get_sun_times()
                         if hasattr(self.client, "_get_sun_times")
@@ -711,7 +741,7 @@ class CircadianLightPrimitives:
                         bounce_type="step",
                     )
                     await self.client.update_lights_in_circadian_mode(area_id)
-                return
+                return None
             # At least one dimension has room → unfreeze and let calculate_step handle it
             self._unfreeze_internal(area_id, source)
             area_state = self._get_area_state(area_id)
@@ -727,60 +757,70 @@ class CircadianLightPrimitives:
             else None
         )
 
-        result = CircadianLight.calculate_step(
-            hour=hour,
-            direction="down",
-            config=config,
-            state=area_state,
-            sun_times=sun_times,
-        )
+        last_result = None
+        for step_i in range(steps):
+            if step_i > 0:
+                area_state = self._get_area_state(area_id)
 
-        if result is None:
-            if self._reduce_overrides_toward_zero(area_id, area_state, config, "down"):
-                if area_state.is_on:
-                    await self.client.update_lights_in_circadian_mode(area_id)
-                return
+            result = CircadianLight.calculate_step(
+                hour=hour,
+                direction="down",
+                config=config,
+                state=area_state,
+                sun_times=sun_times,
+            )
 
-            logger.info(f"Step down at limit for area {area_id}")
-            # Bounce effect at limit (only if is_on)
+            if result is None:
+                if step_i == 0:
+                    # First step at limit → existing override reduction + bounce
+                    if self._reduce_overrides_toward_zero(
+                        area_id, area_state, config, "down"
+                    ):
+                        if send_command and area_state.is_on:
+                            await self.client.update_lights_in_circadian_mode(area_id)
+                        return None
+
+                    logger.info(f"Step down at limit for area {area_id}")
+                    if send_command and area_state.is_on:
+                        current_bri = CircadianLight.calculate_brightness_at_hour(
+                            hour, config, area_state
+                        )
+                        current_cct = CircadianLight.calculate_color_at_hour(
+                            hour,
+                            config,
+                            area_state,
+                            apply_solar_rules=True,
+                            sun_times=sun_times,
+                        )
+                        await self._bounce_at_limit(
+                            area_id,
+                            current_bri,
+                            current_cct,
+                            direction="down",
+                            bounce_type="step",
+                        )
+                        await self.client.update_lights_in_circadian_mode(area_id)
+                    return None
+                break  # Mid-sequence limit → use last good result
+
+            self._update_area_state(area_id, result.state_updates)
+            last_result = result
+
+        # Apply to lights only if send_command=True and we have a result
+        if send_command and last_result:
+            area_state = self._get_area_state(area_id)
             if area_state.is_on:
-                current_bri = CircadianLight.calculate_brightness_at_hour(
-                    hour, config, area_state
+                await self._apply_step_result(area_id, last_result)
+                logger.info(
+                    f"Step down applied: {last_result.brightness}%, {last_result.color_temp}K"
                 )
-                current_cct = CircadianLight.calculate_color_at_hour(
-                    hour,
-                    config,
-                    area_state,
-                    apply_solar_rules=True,
-                    sun_times=sun_times,
+            else:
+                logger.info(
+                    f"Step down state updated (lights off): "
+                    f"{last_result.brightness}%, {last_result.color_temp}K"
                 )
-                await self._bounce_at_limit(
-                    area_id,
-                    current_bri,
-                    current_cct,
-                    direction="down",
-                    bounce_type="step",
-                )
-                await self.client.update_lights_in_circadian_mode(area_id)
-            return
 
-        # Update state (always, even if is_on=False)
-        self._update_area_state(area_id, result.state_updates)
-
-        # Apply to lights only if is_on=True
-        # Use step's color values directly (not re-rendered) with pipeline for area_factor/filters/override
-        if area_state.is_on:
-            await self._apply_step_result(area_id, result)
-            logger.info(
-                f"Step down applied: {result.brightness}%, {result.color_temp}K"
-            )
-        else:
-            logger.info(
-                f"Step down state updated (lights off): {result.brightness}%, {result.color_temp}K"
-            )
-
-        if steps > 1:
-            await self.step_down(area_id, source, steps - 1)
+        return last_result
 
     # -------------------------------------------------------------------------
     # Bright Up / Bright Down (brightness only)
@@ -1372,29 +1412,65 @@ class CircadianLightPrimitives:
     # -------------------------------------------------------------------------
 
     async def brightness_up(
-        self, area_id: str, source: str = "service_call", steps: int = 1
+        self,
+        area_id: str,
+        source: str = "service_call",
+        steps: int = 1,
+        send_command: bool = True,
     ):
         """Bump brightness override up by one step. Uses override+decay model."""
-        await self._brightness_step(area_id, direction="up", source=source, steps=steps)
+        return await self._brightness_step(
+            area_id,
+            direction="up",
+            source=source,
+            steps=steps,
+            send_command=send_command,
+        )
 
     async def brightness_down(
-        self, area_id: str, source: str = "service_call", steps: int = 1
+        self,
+        area_id: str,
+        source: str = "service_call",
+        steps: int = 1,
+        send_command: bool = True,
     ):
         """Bump brightness override down by one step. Uses override+decay model."""
-        await self._brightness_step(
-            area_id, direction="down", source=source, steps=steps
+        return await self._brightness_step(
+            area_id,
+            direction="down",
+            source=source,
+            steps=steps,
+            send_command=send_command,
         )
 
     async def _brightness_step(
-        self, area_id: str, direction: str, source: str, steps: int = 1
+        self,
+        area_id: str,
+        direction: str,
+        source: str,
+        steps: int = 1,
+        send_command: bool = True,
     ):
-        """Bump brightness override by one step increment."""
+        """Bump brightness override by one or more step increments.
+
+        Collapses multiple steps into a single loop with one light command at the end.
+
+        Args:
+            area_id: The area ID to control
+            direction: "up" or "down"
+            source: Source of the action
+            steps: Number of steps to take
+            send_command: Whether to send light commands (False for reach group batching)
+
+        Returns:
+            True if override was applied, None if at limit / not circadian.
+        """
         area_state = self._get_area_state(area_id)
         if not area_state.is_circadian:
             logger.debug(
                 f"[{source}] brightness_{direction} ignored for {area_id} (not circadian)"
             )
-            return
+            return None
 
         if area_state.frozen_at is not None:
             self._unfreeze_internal(area_id, source)
@@ -1409,100 +1485,118 @@ class CircadianLightPrimitives:
         )
         num_steps = config.max_dim_steps or DEFAULT_MAX_DIM_STEPS
         step_size = (config.max_brightness - config.min_brightness) / num_steps
+        sign = 1 if direction == "up" else -1
 
-        # Get current decayed override, then bump
-        current_override = area_state.brightness_override or 0
-        set_at = area_state.brightness_override_set_at
-        if set_at is not None:
-            in_ascend, h48, t_ascend, t_descend, _ = CircadianLight.get_phase_info(
-                hour, config
-            )
-            next_phase = t_descend if in_ascend else t_ascend + 24
-            decay = compute_override_decay(set_at, h48, next_phase, t_ascend=t_ascend)
-            current_override = current_override * decay
-
-        # Compute actual output brightness to check physical limit
-        # Pipeline: (base_bri * nl_factor * area_factor + override), capped [0, 100]
+        # Pre-compute constants that don't change between iterations
         base_bri = CircadianLight.calculate_brightness_at_hour(hour, config, area_state)
         nl_factor = self._compute_nl_factor(area_id)
         area_factor = glozone.get_area_brightness_factor(area_id)
         scaled_base = base_bri * nl_factor * area_factor
-        effective_bri = scaled_base + current_override
 
-        at_limit = (direction == "up" and effective_bri >= 99.0) or (
-            direction == "down" and effective_bri <= 1.0
-        )
-        if at_limit:
-            logger.info(
-                f"brightness_{direction} at limit for {area_id} (effective={effective_bri:.1f}, nl={nl_factor:.2f})"
+        applied = False
+        for step_i in range(steps):
+            if step_i > 0:
+                area_state = self._get_area_state(area_id)
+
+            # Get current decayed override
+            current_override = area_state.brightness_override or 0
+            set_at = area_state.brightness_override_set_at
+            if set_at is not None:
+                in_ascend, h48, t_ascend, t_descend, _ = CircadianLight.get_phase_info(
+                    hour, config
+                )
+                next_phase = t_descend if in_ascend else t_ascend + 24
+                decay = compute_override_decay(
+                    set_at, h48, next_phase, t_ascend=t_ascend
+                )
+                current_override = current_override * decay
+
+            effective_bri = scaled_base + current_override
+
+            at_limit = (direction == "up" and effective_bri >= 99.0) or (
+                direction == "down" and effective_bri <= 1.0
             )
-            if area_state.is_on:
-                current_cct = CircadianLight.calculate_color_at_hour(
-                    hour,
-                    config,
-                    area_state,
-                    apply_solar_rules=True,
-                    sun_times=sun_times,
-                )
-                await self._bounce_at_limit(
-                    area_id,
-                    effective_bri,
-                    current_cct,
-                    direction=direction,
-                    bounce_type="bright",
-                )
-            return
+            if at_limit:
+                if step_i == 0:
+                    logger.info(
+                        f"brightness_{direction} at limit for {area_id} "
+                        f"(effective={effective_bri:.1f}, nl={nl_factor:.2f})"
+                    )
+                    if send_command and area_state.is_on:
+                        current_cct = CircadianLight.calculate_color_at_hour(
+                            hour,
+                            config,
+                            area_state,
+                            apply_solar_rules=True,
+                            sun_times=sun_times,
+                        )
+                        await self._bounce_at_limit(
+                            area_id,
+                            effective_bri,
+                            current_cct,
+                            direction=direction,
+                            bounce_type="bright",
+                        )
+                    return None
+                break  # Mid-sequence limit → use last good override
 
-        sign = 1 if direction == "up" else -1
-        new_override = round(current_override + sign * step_size, 1)
+            new_override = round(current_override + sign * step_size, 1)
 
-        # Clamp so effective brightness stays within physical limits (1–100)
-        max_override = 100.0 - scaled_base
-        min_override = 1.0 - scaled_base
-        unclamped = new_override
-        new_override = round(max(min_override, min(max_override, new_override)), 1)
+            # Clamp so effective brightness stays within physical limits (1–100)
+            max_override = 100.0 - scaled_base
+            min_override = 1.0 - scaled_base
+            unclamped = new_override
+            new_override = round(max(min_override, min(max_override, new_override)), 1)
 
-        # If the clamp prevented movement in the desired direction, we're at the limit
-        clamped_at_limit = (direction == "down" and unclamped < new_override) or (
-            direction == "up" and unclamped > new_override
-        )
-        if clamped_at_limit:
-            logger.info(
-                f"brightness_{direction} clamped at limit for {area_id} (effective={scaled_base + new_override:.1f}, nl={nl_factor:.2f})"
+            # If the clamp prevented movement, we're at the limit
+            clamped_at_limit = (direction == "down" and unclamped < new_override) or (
+                direction == "up" and unclamped > new_override
             )
+            if clamped_at_limit:
+                if step_i == 0:
+                    logger.info(
+                        f"brightness_{direction} clamped at limit for {area_id} "
+                        f"(effective={scaled_base + new_override:.1f}, nl={nl_factor:.2f})"
+                    )
+                    if send_command and area_state.is_on:
+                        current_cct = CircadianLight.calculate_color_at_hour(
+                            hour,
+                            config,
+                            area_state,
+                            apply_solar_rules=True,
+                            sun_times=sun_times,
+                        )
+                        await self._bounce_at_limit(
+                            area_id,
+                            scaled_base + new_override,
+                            current_cct,
+                            direction=direction,
+                            bounce_type="bright",
+                        )
+                    return None
+                break  # Mid-sequence clamp → use last good override
+
+            self._update_area_state(
+                area_id,
+                {
+                    "brightness_override": new_override,
+                    "brightness_override_set_at": hour,
+                },
+            )
+            logger.info(
+                f"[{source}] brightness_{direction} for {area_id}: "
+                f"override {current_override:.1f} -> {new_override} "
+                f"(base={base_bri:.0f}, nl={nl_factor:.2f}, factor={area_factor:.2f})"
+            )
+            applied = True
+
+        # Send ONE light command at end (not per-step)
+        if send_command and applied:
+            area_state = self._get_area_state(area_id)
             if area_state.is_on:
-                current_cct = CircadianLight.calculate_color_at_hour(
-                    hour,
-                    config,
-                    area_state,
-                    apply_solar_rules=True,
-                    sun_times=sun_times,
-                )
-                await self._bounce_at_limit(
-                    area_id,
-                    scaled_base + new_override,
-                    current_cct,
-                    direction=direction,
-                    bounce_type="bright",
-                )
-            return
+                await self.client.update_lights_in_circadian_mode(area_id)
 
-        self._update_area_state(
-            area_id,
-            {
-                "brightness_override": new_override,
-                "brightness_override_set_at": hour,
-            },
-        )
-        logger.info(
-            f"[{source}] brightness_{direction} for {area_id}: "
-            f"override {current_override:.1f} -> {new_override} (base={base_bri:.0f}, nl={nl_factor:.2f}, factor={area_factor:.2f})"
-        )
-        if area_state.is_on:
-            await self.client.update_lights_in_circadian_mode(area_id)
-
-        if steps > 1:
-            await self._brightness_step(area_id, direction, source, steps - 1)
+        return True if applied else None
 
     async def color_up(
         self, area_id: str, source: str = "service_call", steps: int = 1
@@ -1978,15 +2072,35 @@ class CircadianLightPrimitives:
                 # Enable circadian and set is_on=False
                 state.enable_circadian_and_set_on(area_id, False)
 
-            # Phase 2: Send all turn-off commands in parallel
-            tasks = []
-            for area_id in area_ids:
-                tasks.append(
-                    self.client.turn_off_lights(area_id, transition=transition)
+            # Phase 2: Send turn-off commands — reach groups when possible
+            reach_used = False
+            if len(area_ids) >= 2:
+                all_parity = all(
+                    self.client.area_parity_cache.get(a, False) for a in area_ids
                 )
-                tasks.append(self.client.turn_off_switch_entities(area_id))
-            await asyncio.gather(*tasks)
-            logger.info(f"lights_toggle_multiple: turned off {len(area_ids)} area(s)")
+                if all_parity:
+                    reach_used = await self.client.turn_off_reach_groups(
+                        area_ids, transition=transition
+                    )
+
+            if not reach_used:
+                tasks = [
+                    self.client.turn_off_lights(a, transition=transition)
+                    for a in area_ids
+                ]
+                tasks.extend(self.client.turn_off_switch_entities(a) for a in area_ids)
+                await asyncio.gather(*tasks)
+            else:
+                # Reach handled ZHA lights; still need per-area switch entities
+                switch_tasks = [
+                    self.client.turn_off_switch_entities(a) for a in area_ids
+                ]
+                if switch_tasks:
+                    await asyncio.gather(*switch_tasks)
+            logger.info(
+                f"lights_toggle_multiple: turned off {len(area_ids)} area(s)"
+                + (" via reach groups" if reach_used else "")
+            )
 
         else:
             # Turn on all areas with Circadian values
@@ -2031,16 +2145,25 @@ class CircadianLightPrimitives:
                     )
                 area_lighting.append((area_id, final_brightness, result.color_temp))
 
-            # Use batched turn-on for unified 2-step across all areas
-            await self._apply_lighting_turn_on_multiple(
-                area_lighting, transition=transition
+            # Try reach groups for unified multi-area turn-on
+            reach_used = await self._try_reach_turn_on(
+                area_ids, area_lighting, transition=transition
             )
+
+            if not reach_used:
+                # Fall back to batched per-area turn-on with 2-step
+                await self._apply_lighting_turn_on_multiple(
+                    area_lighting, transition=transition
+                )
 
             # Also turn on any switch entities (relays, smart plugs)
             for area_id in area_ids:
                 await self.client.turn_on_switch_entities(area_id)
 
-            logger.info(f"lights_toggle_multiple: turned on {len(area_ids)} area(s)")
+            logger.info(
+                f"lights_toggle_multiple: turned on {len(area_ids)} area(s)"
+                + (" via reach groups" if reach_used else "")
+            )
 
     # -------------------------------------------------------------------------
     # Bright Boost - Temporary brightness increase
@@ -4207,6 +4330,77 @@ class CircadianLightPrimitives:
                 include_color=True,
                 transition=transition,
             )
+
+    async def _try_reach_turn_on(
+        self,
+        area_ids: List[str],
+        area_lighting: List[Tuple[str, int, int]],
+        transition: float = 0.4,
+    ) -> bool:
+        """Try to use reach groups for turn-on when all areas get identical values.
+
+        Pre-applies NL factor so reach groups send the same brightness that
+        per-area control would. Falls back if areas have filters, different
+        NL factors, or different lighting values.
+
+        Args:
+            area_ids: List of area IDs
+            area_lighting: List of (area_id, brightness, color_temp) tuples
+            transition: Transition time in seconds
+
+        Returns:
+            True if reach groups were used, False otherwise.
+        """
+        if len(area_ids) < 2:
+            return False
+
+        all_parity = all(self.client.area_parity_cache.get(a, False) for a in area_ids)
+        if not all_parity:
+            return False
+
+        # Compute final values for each area through the pipeline
+        final_values = set()
+        for area_id, brightness, color_temp in area_lighting:
+            # Filters require per-light sub-groups — can't use reach
+            area_filters = glozone.get_area_light_filters(area_id)
+            area_factor = glozone.get_area_brightness_factor(area_id)
+            if bool(area_filters) or area_factor != 1.0:
+                return False
+
+            # Apply NL factor (same as turn_on_lights_circadian pipeline)
+            nl_factor = self._compute_nl_factor(area_id)
+            final_bri = max(1, int(round(brightness * nl_factor)))
+            final_values.add((final_bri, color_temp))
+
+        if len(final_values) != 1:
+            return False  # Different areas get different values
+
+        bri, ct = final_values.pop()
+
+        # 2-step check: if ANY area needs 2-step, do it for entire reach
+        ct_threshold = 500
+        needs_two_step = False
+        for area_id, _, color_temp in area_lighting:
+            if self.client.is_all_hue_area(area_id):
+                continue
+            last_ct = state.get_last_off_ct(area_id)
+            if last_ct is None or abs(color_temp - last_ct) >= ct_threshold:
+                needs_two_step = True
+                break
+
+        if needs_two_step:
+            # Phase 1: set color at 1%
+            await self.client.turn_on_reach_groups(
+                area_ids, brightness=1, color_temp=ct, transition=0
+            )
+            delay = self._get_two_step_delay()
+            await asyncio.sleep(delay)
+
+        # Phase 2 (or direct): target brightness
+        reach_used = await self.client.turn_on_reach_groups(
+            area_ids, brightness=bri, color_temp=ct, transition=transition
+        )
+        return reach_used
 
     async def _apply_lighting_turn_on_multiple(
         self,
