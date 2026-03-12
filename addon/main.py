@@ -3975,6 +3975,9 @@ class HomeAssistantWebSocketClient:
                         elif identifier[0] == "zha":
                             zha_device_ids.add(device_id)
                             found_zha = True
+                # ZHA coordinator: has zha identifier but no via_device_id
+                if found_zha and not device.get("via_device_id"):
+                    service_device_ids.add(device_id)
                 # Debug: log Signify devices that aren't detected as ZHA
                 if manufacturer and "signify" in manufacturer.lower() and not found_zha:
                     logger.debug(

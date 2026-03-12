@@ -1047,6 +1047,18 @@ class LightDesignerServer:
                                         for device in device_msg["result"]:
                                             if device.get("entry_type") == "service":
                                                 service_devices.add(device.get("id"))
+                                            # ZHA coordinator: has zha identifier but no via_device_id
+                                            identifiers = device.get("identifiers", [])
+                                            is_zha = any(
+                                                isinstance(i, list)
+                                                and len(i) >= 2
+                                                and i[0] == "zha"
+                                                for i in identifiers
+                                            )
+                                            if is_zha and not device.get(
+                                                "via_device_id"
+                                            ):
+                                                service_devices.add(device.get("id"))
                                             if device.get("id") and device.get(
                                                 "area_id"
                                             ):
@@ -5975,6 +5987,14 @@ class LightDesignerServer:
                 if device_msg.get("success") and device_msg.get("result"):
                     for device in device_msg["result"]:
                         if device.get("entry_type") == "service":
+                            service_devices.add(device.get("id"))
+                        # ZHA coordinator: has zha identifier but no via_device_id
+                        identifiers = device.get("identifiers", [])
+                        is_zha = any(
+                            isinstance(i, list) and len(i) >= 2 and i[0] == "zha"
+                            for i in identifiers
+                        )
+                        if is_zha and not device.get("via_device_id"):
                             service_devices.add(device.get("id"))
                         device_areas[device.get("id")] = device.get("area_id")
                         if device.get("area_id") == area_id:

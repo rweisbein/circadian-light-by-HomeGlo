@@ -188,8 +188,12 @@
       background: var(--card);
       border: 1px solid var(--line);
       border-radius: 8px;
-      overflow: hidden;
     }
+
+    .switches-table thead tr:first-child th:first-child { border-top-left-radius: 8px; }
+    .switches-table thead tr:first-child th:last-child { border-top-right-radius: 8px; }
+    .switches-table tbody tr:last-child td:first-child { border-bottom-left-radius: 8px; }
+    .switches-table tbody tr:last-child td:last-child { border-bottom-right-radius: 8px; }
 
     .switches-table th {
       text-align: left;
