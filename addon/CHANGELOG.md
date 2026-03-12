@@ -2,7 +2,6 @@
 
 ## 1.0.29
 - **Step collapse**: Multi-step commands (step_down_3, bright_up_2, etc.) now compute all steps in a single loop and send one light command at the end, instead of recursively sending per step.
-- **Reach groups for toggle off**: Multi-area switch toggle-off uses reach groups when all areas have ZHA parity, reducing Zigbee commands from 2N to 2.
 - **Reach groups for toggle on**: Multi-area switch toggle-on uses reach groups when all areas produce identical lighting values (no filters, same NL factor), with 2-step warm flash prevention.
 - **Reach groups for step/bright**: Step and brightness commands on multi-area switches compute values without sending, then dispatch via reach groups when all areas match. A 3-area step_down_3 drops from 18 Zigbee commands to 2.
 

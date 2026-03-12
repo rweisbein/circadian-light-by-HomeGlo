@@ -2072,35 +2072,15 @@ class CircadianLightPrimitives:
                 # Enable circadian and set is_on=False
                 state.enable_circadian_and_set_on(area_id, False)
 
-            # Phase 2: Send turn-off commands — reach groups when possible
-            reach_used = False
-            if len(area_ids) >= 2:
-                all_parity = all(
-                    self.client.area_parity_cache.get(a, False) for a in area_ids
+            # Phase 2: Send all turn-off commands in parallel
+            tasks = []
+            for area_id in area_ids:
+                tasks.append(
+                    self.client.turn_off_lights(area_id, transition=transition)
                 )
-                if all_parity:
-                    reach_used = await self.client.turn_off_reach_groups(
-                        area_ids, transition=transition
-                    )
-
-            if not reach_used:
-                tasks = [
-                    self.client.turn_off_lights(a, transition=transition)
-                    for a in area_ids
-                ]
-                tasks.extend(self.client.turn_off_switch_entities(a) for a in area_ids)
-                await asyncio.gather(*tasks)
-            else:
-                # Reach handled ZHA lights; still need per-area switch entities
-                switch_tasks = [
-                    self.client.turn_off_switch_entities(a) for a in area_ids
-                ]
-                if switch_tasks:
-                    await asyncio.gather(*switch_tasks)
-            logger.info(
-                f"lights_toggle_multiple: turned off {len(area_ids)} area(s)"
-                + (" via reach groups" if reach_used else "")
-            )
+                tasks.append(self.client.turn_off_switch_entities(area_id))
+            await asyncio.gather(*tasks)
+            logger.info(f"lights_toggle_multiple: turned off {len(area_ids)} area(s)")
 
         else:
             # Turn on all areas with Circadian values
