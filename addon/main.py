@@ -4045,6 +4045,7 @@ class HomeAssistantWebSocketClient:
             self.light_color_modes[entity_id] = set(supported_modes)
 
         # Collect switch.* entities (relay switches, smart plugs) per area
+        # Skip config/diagnostic entities (e.g. Hue sensor enable switches)
         for entity in entities:
             if not isinstance(entity, dict):
                 continue
@@ -4053,6 +4054,9 @@ class HomeAssistantWebSocketClient:
                 continue
             # Skip disabled entities
             if entity.get("disabled_by"):
+                continue
+            # Skip non-primary entities (config/diagnostic knobs on sensors etc.)
+            if entity.get("entity_category") in ("config", "diagnostic"):
                 continue
 
             # Get area - either direct or via device
