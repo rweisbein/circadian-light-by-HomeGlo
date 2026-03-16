@@ -124,6 +124,8 @@ def _reset_all():
     lux_tracker._override_condition = None
     lux_tracker._override_expires_at = None
     lux_tracker._sun_elevation = 0.0
+    lux_tracker._max_summer_elevation = 78.0
+    lux_tracker._condition_map = dict(lux_tracker.CONDITION_MULTIPLIERS)
 
 
 class TestGetOutdoorNormalized:
@@ -143,7 +145,8 @@ class TestGetOutdoorNormalized:
         lux_tracker._sun_elevation = 45.0
         result = lux_tracker.get_outdoor_normalized()
         assert result is not None
-        assert result > 0.5
+        # 45 / 78 ≈ 0.577
+        assert 0.5 < result < 0.7
 
     def test_active_sensor_returns_float(self):
         """When sensor + baselines + data are all present, returns sun_factor."""
@@ -259,13 +262,14 @@ class TestWeatherEstimation:
         assert lux_tracker._cloud_cover == 0.0
 
     def test_compute_weather_outdoor_norm_clear_sky(self):
-        """0% cloud with high elevation should give close to 1.0."""
+        """0% cloud with high elevation should give high value."""
         lux_tracker._weather_entity = "weather.home"
         lux_tracker._cloud_cover = 0.0
         lux_tracker._sun_elevation = 60.0
         result = lux_tracker._compute_weather_outdoor_norm()
         assert result is not None
-        assert result > 0.8
+        # 60/78 * 1.0 ≈ 0.769
+        assert result > 0.7
 
     def test_compute_weather_outdoor_norm_overcast(self):
         """100% cloud (no condition) should give reduced value via cloud formula."""
@@ -275,7 +279,8 @@ class TestWeatherEstimation:
         lux_tracker._sun_elevation = 60.0
         result = lux_tracker._compute_weather_outdoor_norm()
         assert result is not None
-        assert result < 0.85  # Reduced from clear sky
+        # 60/78 * 0.3 ≈ 0.231
+        assert result < 0.3
 
     def test_compute_weather_condition_rainy(self):
         """Rainy condition should use CONDITION_MULTIPLIERS and give lower value."""
@@ -330,14 +335,13 @@ class TestWeatherEstimation:
         assert result == 0.0
 
     def test_compute_weather_outdoor_norm_twilight(self):
-        """Elevation near horizon should give small positive value."""
+        """Elevation at horizon should give 0.0 (elev_factor = 0 at 0°)."""
         lux_tracker._weather_entity = "weather.home"
         lux_tracker._cloud_cover = 0.0
         lux_tracker._sun_elevation = 0.0
         result = lux_tracker._compute_weather_outdoor_norm()
         assert result is not None
-        assert result > 0.0
-        assert result < 0.1  # small but non-zero
+        assert result == 0.0
 
     def test_no_weather_entity_returns_none(self):
         """No weather entity should return None."""
@@ -709,20 +713,161 @@ class TestTwilightModel:
         assert lux_tracker._compute_angle_outdoor_norm() == 0.0
 
     def test_angle_norm_at_minus3_zero(self):
-        """outdoor_norm at -3° is 0.0 (lux below 300 normalization floor)."""
+        """outdoor_norm at -3° is 0.0 (elev_factor = 0 for negative elevation)."""
         lux_tracker._sun_elevation = -3.0
         result = lux_tracker._compute_angle_outdoor_norm()
         assert result == 0.0
 
-    def test_angle_norm_at_horizon_small(self):
-        """outdoor_norm at 0° should be small positive (400 lux > 300 floor)."""
+    def test_angle_norm_at_horizon_zero(self):
+        """outdoor_norm at 0° should be 0.0 (elev_factor = 0 at horizon)."""
         lux_tracker._sun_elevation = 0.0
         result = lux_tracker._compute_angle_outdoor_norm()
-        assert result > 0.0
-        assert result < 0.15
+        assert result == 0.0
 
     def test_angle_norm_at_2deg(self):
-        """outdoor_norm at 2° should be moderate."""
+        """outdoor_norm at 2° should be small positive."""
         lux_tracker._sun_elevation = 2.0
         result = lux_tracker._compute_angle_outdoor_norm()
-        assert result > 0.1
+        # 2 / 78 ≈ 0.026
+        assert result > 0.0
+        assert result < 0.1
+
+
+class TestSetLatitude:
+    """Test set_latitude() and max summer elevation calculation."""
+
+    def setup_method(self):
+        _reset_all()
+
+    def test_default_max_elevation(self):
+        """Default should be 78.0 (~35°N)."""
+        assert lux_tracker._max_summer_elevation == 78.0
+
+    def test_latitude_35n(self):
+        """35°N → max elev = 90 - |35 - 23.44| = 78.44."""
+        lux_tracker.set_latitude(35.0)
+        assert abs(lux_tracker._max_summer_elevation - 78.44) < 0.01
+
+    def test_latitude_60n(self):
+        """60°N → max elev = 90 - |60 - 23.44| = 53.44."""
+        lux_tracker.set_latitude(60.0)
+        assert abs(lux_tracker._max_summer_elevation - 53.44) < 0.01
+
+    def test_latitude_equator(self):
+        """0° → max elev = 90 - |0 - 23.44| = 66.56."""
+        lux_tracker.set_latitude(0.0)
+        assert abs(lux_tracker._max_summer_elevation - 66.56) < 0.01
+
+    def test_latitude_23n_tropic(self):
+        """23.44°N (tropic) → max elev = 90.0."""
+        lux_tracker.set_latitude(23.44)
+        assert lux_tracker._max_summer_elevation == 90.0
+
+    def test_latitude_floor(self):
+        """Extreme latitude should be clamped to at least 20°."""
+        lux_tracker.set_latitude(89.0)
+        assert abs(lux_tracker._max_summer_elevation - 24.44) < 0.01
+
+    def test_southern_hemisphere(self):
+        """35°S should work same as 35°N."""
+        lux_tracker.set_latitude(-35.0)
+        assert abs(lux_tracker._max_summer_elevation - 78.44) < 0.01
+
+
+class TestElevFactor:
+    """Test _compute_elev_factor() direct formula."""
+
+    def setup_method(self):
+        _reset_all()
+
+    def test_negative_elevation_zero(self):
+        """Negative elevation should give 0."""
+        lux_tracker._sun_elevation = -10.0
+        assert lux_tracker._compute_elev_factor() == 0.0
+
+    def test_zero_elevation_zero(self):
+        """Zero elevation should give 0."""
+        lux_tracker._sun_elevation = 0.0
+        assert lux_tracker._compute_elev_factor() == 0.0
+
+    def test_max_elevation_one(self):
+        """Elevation at max_summer_elevation should give 1.0."""
+        lux_tracker._max_summer_elevation = 78.0
+        lux_tracker._sun_elevation = 78.0
+        assert lux_tracker._compute_elev_factor() == 1.0
+
+    def test_above_max_clamped(self):
+        """Elevation above max should be clamped to 1.0."""
+        lux_tracker._max_summer_elevation = 78.0
+        lux_tracker._sun_elevation = 90.0
+        assert lux_tracker._compute_elev_factor() == 1.0
+
+    def test_midpoint(self):
+        """Half of max should give 0.5."""
+        lux_tracker._max_summer_elevation = 78.0
+        lux_tracker._sun_elevation = 39.0
+        assert lux_tracker._compute_elev_factor() == 0.5
+
+    def test_linear_scaling(self):
+        """Factor should scale linearly with elevation."""
+        lux_tracker._max_summer_elevation = 80.0
+        lux_tracker._sun_elevation = 20.0
+        assert lux_tracker._compute_elev_factor() == 0.25
+        lux_tracker._sun_elevation = 40.0
+        assert lux_tracker._compute_elev_factor() == 0.5
+        lux_tracker._sun_elevation = 60.0
+        assert lux_tracker._compute_elev_factor() == 0.75
+
+
+class TestConditionMap:
+    """Test condition map loading from config."""
+
+    def setup_method(self):
+        _reset_all()
+
+    def test_init_loads_default_condition_map(self):
+        """init() with no weather_condition_map uses hardcoded defaults."""
+        lux_tracker.init(config={})
+        assert lux_tracker._condition_map["sunny"] == 1.0
+        assert lux_tracker._condition_map["cloudy"] == 0.3
+
+    def test_init_loads_custom_condition_map(self):
+        """init() with weather_condition_map merges on top of defaults."""
+        lux_tracker.init(
+            config={"weather_condition_map": {"sunny": 0.9, "cloudy": 0.5}}
+        )
+        assert lux_tracker._condition_map["sunny"] == 0.9
+        assert lux_tracker._condition_map["cloudy"] == 0.5
+        # Unspecified conditions still have defaults
+        assert lux_tracker._condition_map["rainy"] == 0.2
+
+    def test_reload_updates_condition_map(self):
+        """reload_config() should update condition map."""
+        lux_tracker.init(config={})
+        assert lux_tracker._condition_map["sunny"] == 1.0
+        lux_tracker.reload_config(config={"weather_condition_map": {"sunny": 0.8}})
+        assert lux_tracker._condition_map["sunny"] == 0.8
+
+    def test_weather_norm_uses_condition_map(self):
+        """_compute_weather_outdoor_norm uses _condition_map, not CONDITION_MULTIPLIERS."""
+        lux_tracker._weather_entity = "weather.home"
+        lux_tracker._cloud_cover = 0.0
+        lux_tracker._sun_elevation = 78.0  # max → elev_factor = 1.0
+        lux_tracker._weather_condition = "cloudy"
+        # Default: cloudy = 0.3
+        result_default = lux_tracker._compute_weather_outdoor_norm()
+        assert abs(result_default - 0.3) < 0.01
+
+        # Override via condition map
+        lux_tracker._condition_map["cloudy"] = 0.5
+        result_custom = lux_tracker._compute_weather_outdoor_norm()
+        assert abs(result_custom - 0.5) < 0.01
+
+    def test_override_uses_condition_map(self):
+        """Override path should use _condition_map."""
+        lux_tracker._sun_elevation = 78.0  # max → elev_factor = 1.0
+        lux_tracker._condition_map["cloudy"] = 0.4
+        lux_tracker.set_override("cloudy", 60)
+        result = lux_tracker.get_outdoor_normalized()
+        # elev_factor=1.0 * 0.4 = 0.4
+        assert abs(result - 0.4) < 0.01

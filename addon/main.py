@@ -4372,6 +4372,7 @@ class HomeAssistantWebSocketClient:
                 # Set environment variables for brain.py to use as defaults
                 if self.latitude:
                     os.environ["HASS_LATITUDE"] = str(self.latitude)
+                    lux_tracker.set_latitude(self.latitude)
                 if self.longitude:
                     os.environ["HASS_LONGITUDE"] = str(self.longitude)
                 if self.timezone:
@@ -6402,6 +6403,7 @@ class HomeAssistantWebSocketClient:
                     # Set environment variables for brain.py to use as defaults
                     if self.latitude:
                         os.environ["HASS_LATITUDE"] = str(self.latitude)
+                        lux_tracker.set_latitude(self.latitude)
                     if self.longitude:
                         os.environ["HASS_LONGITUDE"] = str(self.longitude)
                     if self.timezone:

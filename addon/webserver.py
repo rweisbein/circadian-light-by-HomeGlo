@@ -2061,6 +2061,7 @@ class LightDesignerServer:
         "ct_comp_end",  # Handover zone end (cooler end) in Kelvin
         "ct_comp_factor",  # Max brightness compensation factor (e.g., 1.4 = 40% boost)
         "light_filters",  # Filter presets + off threshold for per-light brightness curves
+        "weather_condition_map",  # User overrides for weather condition multipliers
         "outdoor_lux_sensor",  # Entity ID of outdoor illuminance sensor
         "lux_smoothing_interval",  # EMA smoothing time constant in seconds (default 300)
         "lux_learned_ceiling",  # Learned bright-day lux baseline (85th percentile)

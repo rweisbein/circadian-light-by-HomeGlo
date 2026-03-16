@@ -783,6 +783,13 @@
             <button type="button" class="btn btn-sm" id="override-clear" style="display: none; background: var(--danger); color: #fff;">Clear</button>
           </div>
         </div>
+        <div class="form-row" id="weather-condition-group" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); display: none;">
+          <label class="form-label">
+            Weather condition strengths
+            <span class="info-icon">i<span class="info-tooltip">How strongly each weather condition reduces outdoor brightness. 100% = full sun, 0% = complete darkness. These multiply the sun elevation factor to produce the final outdoor brightness estimate.</span></span>
+          </label>
+          <div class="form-control" id="weather-condition-sliders" style="display: flex; flex-direction: column; gap: 6px; width: 100%;"></div>
+        </div>
       </div>
     </div>
 
@@ -1095,6 +1102,7 @@
           document.getElementById('lux-learned-ceiling').value = config.lux_learned_ceiling ?? '';
           document.getElementById('lux-learned-floor').value = config.lux_learned_floor ?? '';
           updateOutdoorSourceState();
+          buildWeatherConditionSliders(config);
           // Load outdoor status
           refreshOutdoorStatus();
           document.getElementById('ct-comp-enabled').checked = config.ct_comp_enabled ?? false;
@@ -1237,6 +1245,76 @@
     function updateOutdoorSourceState() {
       const source = document.getElementById('outdoor-brightness-source').value;
       document.getElementById('lux-settings-group').style.display = source === 'lux' ? '' : 'none';
+      document.getElementById('weather-condition-group').style.display =
+        (source === 'weather' || source === 'angle') ? '' : 'none';
+    }
+
+    // Weather condition multiplier sliders
+    const WEATHER_GROUPS = [
+      { label: 'Sunny',         keys: ['sunny', 'clear-night', 'windy', 'windy-variant'], default: 100 },
+      { label: 'Partly cloudy', keys: ['partlycloudy', 'partly_cloudy', 'mixed'],         default: 60 },
+      { label: 'Cloudy',        keys: ['cloudy'],                                          default: 30 },
+      { label: 'Rainy',         keys: ['rainy', 'exceptional'],                            default: 20 },
+      { label: 'Snow',          keys: ['snowy', 'snowy-rainy'],                            default: 20 },
+      { label: 'Fog',           keys: ['fog', 'heavy_overcast'],                           default: 15 },
+      { label: 'Pouring',       keys: ['pouring', 'hail'],                                 default: 10 },
+      { label: 'Storm',         keys: ['lightning', 'lightning-rainy'],                     default: 8 },
+    ];
+
+    function buildWeatherConditionSliders(config) {
+      const container = document.getElementById('weather-condition-sliders');
+      container.innerHTML = '';
+      const savedMap = config.weather_condition_map || {};
+      WEATHER_GROUPS.forEach(group => {
+        const firstKey = group.keys[0];
+        const currentVal = savedMap[firstKey] != null
+          ? Math.round(savedMap[firstKey] * 100)
+          : group.default;
+        const row = document.createElement('div');
+        row.style.cssText = 'display: flex; align-items: center; gap: 8px;';
+        const label = document.createElement('span');
+        label.style.cssText = 'width: 100px; font-size: 0.85rem; flex-shrink: 0;';
+        label.textContent = group.label;
+        const slider = document.createElement('input');
+        slider.type = 'range';
+        slider.min = '0';
+        slider.max = '100';
+        slider.step = '1';
+        slider.value = currentVal;
+        slider.style.cssText = 'flex: 1;';
+        slider.dataset.groupKeys = JSON.stringify(group.keys);
+        const valLabel = document.createElement('span');
+        valLabel.style.cssText = 'width: 40px; text-align: right; font-size: 0.85rem; font-variant-numeric: tabular-nums;';
+        valLabel.textContent = currentVal + '%';
+        slider.addEventListener('input', () => {
+          valLabel.textContent = slider.value + '%';
+        });
+        slider.addEventListener('change', () => {
+          saveWeatherConditionMap();
+        });
+        row.appendChild(label);
+        row.appendChild(slider);
+        row.appendChild(valLabel);
+        container.appendChild(row);
+      });
+    }
+
+    async function saveWeatherConditionMap() {
+      const map = {};
+      const sliders = document.querySelectorAll('#weather-condition-sliders input[type=range]');
+      sliders.forEach(slider => {
+        const keys = JSON.parse(slider.dataset.groupKeys);
+        const val = parseInt(slider.value) / 100;
+        keys.forEach(k => { map[k] = val; });
+      });
+      try {
+        await fetch('./api/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ weather_condition_map: map })
+        });
+        showSaveStatus();
+      } catch (e) { console.error('Error saving condition map:', e); }
     }
 
     // Outdoor brightness override + status

@@ -13,7 +13,7 @@ When no source is available, falls back to sun-angle-based estimation.
 import logging
 import math
 import time
-from typing import Optional
+from typing import Dict, Optional
 
 import glozone
 
@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-FULL_SUN_INTENSITY = 8.4  # log2(100000 / 300) — matches brain.py
+FULL_SUN_INTENSITY = 8.4  # log2(100000 / 300) — used by lux sensor path
 
 CONDITION_MULTIPLIERS = {
     # Clear / light
@@ -85,6 +85,12 @@ _override_expires_at: Optional[float] = None  # monotonic timestamp
 # Module state — sun elevation cache
 # ---------------------------------------------------------------------------
 _sun_elevation: float = 0.0
+_max_summer_elevation: float = 78.0  # default for ~35°N, set via set_latitude()
+
+# ---------------------------------------------------------------------------
+# Module state — runtime condition map (CONDITION_MULTIPLIERS + user overrides)
+# ---------------------------------------------------------------------------
+_condition_map: Dict[str, float] = dict(CONDITION_MULTIPLIERS)
 
 # ---------------------------------------------------------------------------
 # Module state — last outdoor data update (wall-clock)
@@ -104,7 +110,7 @@ def init(config: Optional[dict] = None):
     global _sensor_entity, _smoothing_interval, _learned_ceiling, _learned_floor
     global _ema_lux, _last_update_time, _cached_sun_factor
     global _preferred_source, _cloud_cover, _weather_condition
-    global _sun_elevation, _last_outdoor_update
+    global _sun_elevation, _last_outdoor_update, _condition_map
 
     if config is None:
         config = glozone.load_config_from_files()
@@ -137,6 +143,16 @@ def init(config: Optional[dict] = None):
         except (ValueError, TypeError):
             _learned_floor = None
 
+    # Load condition map (hardcoded defaults + user overrides from config)
+    custom_map = config.get("weather_condition_map")
+    if custom_map and isinstance(custom_map, dict):
+        _condition_map = {
+            **CONDITION_MULTIPLIERS,
+            **{k: float(v) for k, v in custom_map.items()},
+        }
+    else:
+        _condition_map = dict(CONDITION_MULTIPLIERS)
+
     # Reset runtime state (re-seeded by _seed_outdoor_from_ha)
     # Note: override is NOT reset — it's user-initiated and time-limited
     _ema_lux = None
@@ -163,12 +179,13 @@ def init(config: Optional[dict] = None):
 def reload_config(config: Optional[dict] = None):
     """Re-read config-driven settings without resetting runtime state.
 
-    Updates preferred source, sensor entity, smoothing interval, and
-    learned baselines from config.  Does NOT touch accumulated runtime
-    state (_ema_lux, _cloud_cover, _weather_condition, _sun_elevation, etc.).
+    Updates preferred source, sensor entity, smoothing interval,
+    learned baselines, and condition map from config.  Does NOT touch
+    accumulated runtime state (_ema_lux, _cloud_cover, _weather_condition,
+    _sun_elevation, etc.).
     """
     global _sensor_entity, _smoothing_interval, _learned_ceiling, _learned_floor
-    global _preferred_source
+    global _preferred_source, _condition_map
 
     if config is None:
         config = glozone.load_config_from_files()
@@ -195,6 +212,16 @@ def reload_config(config: Optional[dict] = None):
         _preferred_source = "lux"
     else:
         _preferred_source = "weather"
+
+    # Reload condition map
+    custom_map = config.get("weather_condition_map")
+    if custom_map and isinstance(custom_map, dict):
+        _condition_map = {
+            **CONDITION_MULTIPLIERS,
+            **{k: float(v) for k, v in custom_map.items()},
+        }
+    else:
+        _condition_map = dict(CONDITION_MULTIPLIERS)
 
     logger.info(
         f"Lux tracker config reloaded: source={_preferred_source}, "
@@ -233,7 +260,7 @@ def get_outdoor_normalized() -> Optional[float]:
     # 1. Override always wins
     info = get_override_info()  # auto-clears expired
     if info:
-        mult = CONDITION_MULTIPLIERS.get(_override_condition, 1.0)
+        mult = _condition_map.get(_override_condition, 1.0)
         return _compute_angle_outdoor_norm() * mult
 
     # 2. Source-dependent chain
@@ -310,6 +337,17 @@ def set_weather_entity(entity_id: str):
     """Set the auto-detected weather entity (called by main.py at startup)."""
     global _weather_entity
     _weather_entity = entity_id
+
+
+def set_latitude(latitude: float):
+    """Compute max summer solstice elevation for this latitude."""
+    global _max_summer_elevation
+    # Summer solstice: sun declination = +23.44°
+    # Max elevation = 90 - |latitude - 23.44|
+    _max_summer_elevation = max(20.0, 90.0 - abs(abs(latitude) - 23.44))
+    logger.info(
+        f"Latitude {latitude:.1f}° → max summer elevation {_max_summer_elevation:.1f}°"
+    )
 
 
 def get_weather_condition() -> Optional[str]:
@@ -396,34 +434,30 @@ def _estimate_clear_sky_lux(elevation_deg: float) -> float:
     return 120000.0 * math.sin(math.radians(elevation_deg))
 
 
+def _compute_elev_factor() -> float:
+    """Sun elevation → 0-1 factor, linear from 0° to max summer elevation."""
+    if _sun_elevation <= 0:
+        return 0.0
+    return min(1.0, _sun_elevation / _max_summer_elevation)
+
+
 def _compute_weather_outdoor_norm() -> Optional[float]:
-    """Compute outdoor normalized from weather entity cloud coverage + condition."""
+    """Compute outdoor normalized from weather entity: elev_factor × condition_mult."""
     if _weather_entity is None or _cloud_cover is None:
         return None
     # Prefer condition-based multiplier when available
-    if _weather_condition and _weather_condition in CONDITION_MULTIPLIERS:
-        condition_mult = CONDITION_MULTIPLIERS[_weather_condition]
+    if _weather_condition and _weather_condition in _condition_map:
+        condition_mult = _condition_map[_weather_condition]
     else:
         # Cloud cover alone: 100% → 0.3 (= "cloudy", can't distinguish darker)
         cloud_fraction = _cloud_cover / 100.0
         condition_mult = 1.0 - cloud_fraction * 0.7
-    elev = _sun_elevation
-    clear_sky_lux = _estimate_clear_sky_lux(elev)
-    estimated_lux = clear_sky_lux * condition_mult
-    if estimated_lux <= 0:
-        return 0.0
-    return max(
-        0.0, min(1.0, math.log2(max(1, estimated_lux) / 300) / FULL_SUN_INTENSITY)
-    )
+    return _compute_elev_factor() * condition_mult
 
 
 def _compute_angle_outdoor_norm() -> float:
-    """Compute outdoor normalized from sun elevation (clear-sky model)."""
-    elev = _sun_elevation
-    est_lux = _estimate_clear_sky_lux(elev)
-    if est_lux <= 0:
-        return 0.0
-    return max(0.0, min(1.0, math.log2(max(1, est_lux) / 300) / FULL_SUN_INTENSITY))
+    """Compute outdoor normalized from sun elevation (clear-sky = multiplier 1.0)."""
+    return _compute_elev_factor()
 
 
 def update(raw_lux: float) -> float:
