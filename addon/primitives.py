@@ -155,22 +155,6 @@ class CircadianLightPrimitives:
         except Exception:
             return 0.3  # Default 0.3 seconds
 
-    def _get_third_step_delay(self) -> float:
-        """Get the third-step retry delay in seconds.
-
-        After the two-step turn-on, resend the brightness command after this
-        delay to catch intermittent cases where lights stay dim. 0 = disabled.
-
-        Returns:
-            Delay time in seconds, or 0 if disabled
-        """
-        try:
-            raw_config = glozone.load_config_from_files()
-            tenths = raw_config.get("third_step_delay", 8)
-            return tenths / 10.0
-        except Exception:
-            return 0.8  # Default 0.8 seconds
-
     def _get_freeze_off_rise(self) -> float:
         """Get the freeze-off rise transition time in seconds.
 
@@ -433,6 +417,7 @@ class CircadianLightPrimitives:
             "brightness_override": effective_override,
         }
         await self.client.turn_on_lights_circadian(area_id, lighting_values)
+        self.client.schedule_nudge(area_id, lighting_values)
 
     def _reduce_overrides_toward_zero(
         self, area_id: str, area_state, config, direction: str
@@ -4172,6 +4157,12 @@ class CircadianLightPrimitives:
             transition=transition,
             include_color=include_color,
         )
+        self.client.schedule_nudge(
+            area_id,
+            brightness=brightness,
+            color_temp=color_temp,
+            include_color=include_color,
+        )
 
     async def _apply_circadian_lighting(
         self,
@@ -4285,22 +4276,6 @@ class CircadianLightPrimitives:
                 include_color=True,
                 transition=transition,
             )
-
-            # Phase 3 (optional): Retry brightness command to catch intermittent drops
-            third_step = self._get_third_step_delay()
-            if third_step > 0:
-
-                async def _retry_brightness():
-                    await asyncio.sleep(third_step)
-                    await self._apply_lighting(
-                        area_id,
-                        brightness,
-                        color_temp,
-                        include_color=True,
-                        transition=0,
-                    )
-
-                asyncio.create_task(_retry_brightness())
         else:
             # CT is similar - just turn on directly
             await self._apply_lighting(
@@ -4467,28 +4442,6 @@ class CircadianLightPrimitives:
             if phase2_tasks:
                 await asyncio.gather(*phase2_tasks)
 
-            # Phase 3 (optional): Retry brightness for all 2-step areas
-            third_step = self._get_third_step_delay()
-            if third_step > 0:
-
-                async def _retry_brightness_batch():
-                    await asyncio.sleep(third_step)
-                    retry_tasks = []
-                    for area_id, brightness, color_temp in needs_two_step:
-                        retry_tasks.append(
-                            self._apply_lighting(
-                                area_id,
-                                brightness,
-                                color_temp,
-                                include_color=True,
-                                transition=0,
-                            )
-                        )
-                    if retry_tasks:
-                        await asyncio.gather(*retry_tasks)
-
-                asyncio.create_task(_retry_brightness_batch())
-
     async def _apply_color_only(
         self, area_id: str, color_temp: int, transition: float = 0.4
     ):
@@ -4507,6 +4460,12 @@ class CircadianLightPrimitives:
             brightness=None,  # Don't change brightness
             color_temp=color_temp,
             transition=transition,
+            include_color=True,
+        )
+        self.client.schedule_nudge(
+            area_id,
+            brightness=None,
+            color_temp=color_temp,
             include_color=True,
         )
 

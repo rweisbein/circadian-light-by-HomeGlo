@@ -173,6 +173,9 @@ class HomeAssistantWebSocketClient:
         # Timestamp of the last switch action (used to defer periodic updates)
         self._last_switch_action_time: float = 0
 
+        # Pending nudge tasks: area_id -> asyncio.Task (cancellable post-command retry)
+        self._pending_nudges: Dict[str, asyncio.Task] = {}
+
         # Motion sensor cooldown: sensor_id -> time.time() when cooldown expires
         # In-memory only — resets on restart (no stale cooldowns)
         self._motion_cooldown_until: Dict[str, float] = {}
@@ -2850,6 +2853,87 @@ class HomeAssistantWebSocketClient:
 
         return groups
 
+    # -------------------------------------------------------------------------
+    # Post-command nudge (cancellable retry)
+    # -------------------------------------------------------------------------
+
+    def _get_nudge_delay(self) -> float:
+        """Get the post-command nudge delay in seconds.
+
+        After any light command, resend the same values after this delay
+        to catch dropped Zigbee commands. 0 = disabled.
+
+        Returns:
+            Delay time in seconds, or 0 if disabled
+        """
+        try:
+            raw_config = glozone.load_config_from_files()
+            tenths = raw_config.get("nudge_delay", 10)
+            return tenths / 10.0
+        except Exception:
+            return 1.0  # Default 1.0 seconds
+
+    def cancel_nudge(self, area_id: str) -> None:
+        """Cancel a pending nudge for an area (if any)."""
+        task = self._pending_nudges.pop(area_id, None)
+        if task is not None and not task.done():
+            task.cancel()
+
+    def schedule_nudge(
+        self,
+        area_id: str,
+        lighting_values: Dict[str, Any] = None,
+        *,
+        brightness: int = None,
+        color_temp: int = None,
+        include_color: bool = True,
+    ) -> None:
+        """Schedule a post-command nudge for an area.
+
+        Cancels any existing nudge for this area, then schedules a new one
+        that re-sends the same lighting values after nudge_delay seconds.
+        Accepts either a lighting_values dict (like turn_on_lights_circadian)
+        or keyword arguments.
+
+        Args:
+            area_id: The area ID
+            lighting_values: Dict with brightness, kelvin, xy keys (optional)
+            brightness: Brightness percentage (alternative to dict)
+            color_temp: Color temperature in Kelvin (alternative to dict)
+            include_color: Whether to include color data
+        """
+        # Cancel any existing nudge for this area
+        self.cancel_nudge(area_id)
+
+        delay = self._get_nudge_delay()
+        if delay <= 0:
+            return  # Nudge disabled
+
+        async def _nudge():
+            try:
+                await asyncio.sleep(delay)
+                if lighting_values is not None:
+                    await self.turn_on_lights_circadian(
+                        area_id, lighting_values, transition=0
+                    )
+                else:
+                    await self.turn_on_lights_circadian(
+                        area_id,
+                        brightness=brightness,
+                        color_temp=color_temp,
+                        transition=0,
+                        include_color=include_color,
+                    )
+                logger.debug(f"Nudge fired for area {area_id} after {delay}s")
+            except asyncio.CancelledError:
+                pass  # Expected when a new action supersedes
+            except Exception as e:
+                logger.debug(f"Nudge failed for area {area_id}: {e}")
+            finally:
+                self._pending_nudges.pop(area_id, None)
+
+        self._pending_nudges[area_id] = asyncio.create_task(_nudge())
+
     async def turn_on_lights_circadian(
         self,
         area_id: str,
@@ -4680,7 +4764,11 @@ class HomeAssistantWebSocketClient:
         )
 
     async def update_lights_in_circadian_mode(
-        self, area_id: str, log_periodic: bool = False, periodic_transition: float = 0.5
+        self,
+        area_id: str,
+        log_periodic: bool = False,
+        periodic_transition: float = 0.5,
+        nudge: bool = True,
     ):
         """Update lights in an area with circadian lighting if Circadian Light is enabled.
 
@@ -4693,6 +4781,7 @@ class HomeAssistantWebSocketClient:
         Args:
             area_id: The area ID to update
             log_periodic: Whether to log periodic update details (controlled by settings toggle)
+            nudge: Whether to schedule a post-command nudge (False for periodic updates)
         """
         try:
             # Only update if area is under circadian control
@@ -4990,6 +5079,10 @@ class HomeAssistantWebSocketClient:
                 log_periodic=log_periodic,
             )
 
+            # Schedule post-command nudge (not for periodic updates)
+            if nudge:
+                self.schedule_nudge(area_id, lighting_values)
+
         except Exception as e:
             logger.error(f"Error updating lights in area {area_id}: {e}")
 
@@ -5073,7 +5166,7 @@ class HomeAssistantWebSocketClient:
 
             # Update all circadian areas with new values
             for area_id in state.get_circadian_areas_for_update():
-                await self.update_lights_in_circadian_mode(area_id)
+                await self.update_lights_in_circadian_mode(area_id, nudge=False)
 
         return now
 
@@ -5237,6 +5330,7 @@ class HomeAssistantWebSocketClient:
                                 area_id,
                                 log_periodic=log_periodic,
                                 periodic_transition=periodic_transition,
+                                nudge=False,
                             )
                     else:
                         logger.debug(

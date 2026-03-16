@@ -2035,7 +2035,7 @@ class LightDesignerServer:
         "turn_on_transition",  # Transition time in tenths of seconds for turn-on operations
         "turn_off_transition",  # Transition time in tenths of seconds for turn-off operations
         "two_step_delay",  # Delay between two-step phases in tenths of seconds (default 3 = 300ms)
-        "third_step_delay",  # Retry delay after two-step in tenths of seconds (default 8 = 800ms, 0 = disabled)
+        "nudge_delay",  # Post-command nudge delay in tenths of seconds (default 10 = 1.0s, 0 = disabled)
         "multi_click_enabled",  # Enable multi-click detection for Hue Hub switches
         "multi_click_speed",  # Multi-click window in tenths of seconds
         "circadian_refresh",  # How often to refresh circadian lighting (seconds)
@@ -2246,7 +2246,7 @@ class LightDesignerServer:
             "turn_on_transition": 3,
             "turn_off_transition": 3,
             "two_step_delay": 3,
-            "third_step_delay": 8,
+            "nudge_delay": 10,
             "multi_click_enabled": True,
             "multi_click_speed": 2,
             "circadian_refresh": 30,  # seconds
@@ -2331,7 +2331,7 @@ class LightDesignerServer:
             "turn_on_transition": 3,
             "turn_off_transition": 3,
             "two_step_delay": 3,
-            "third_step_delay": 8,
+            "nudge_delay": 10,
             "multi_click_enabled": True,
             "multi_click_speed": 2,
             "circadian_refresh": 30,  # seconds
