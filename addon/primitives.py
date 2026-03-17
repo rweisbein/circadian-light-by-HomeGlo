@@ -2721,6 +2721,26 @@ class CircadianLightPrimitives:
                 # Rhythm mode: look up zone's rhythm wake time
                 try:
                     zone_name = glozone.get_zone_for_area(area_id)
+
+                    # Check if schedule override mode is "off" (alarm paused)
+                    glozones = glozone.get_glozones()
+                    zone_gz = glozones.get(zone_name, {})
+                    override = zone_gz.get("schedule_override")
+                    if override and override.get("mode") == "off":
+                        until_date_str = override.get("until_date")
+                        if until_date_str:
+                            from datetime import date as date_cls
+
+                            try:
+                                until_date = date_cls.fromisoformat(until_date_str)
+                                if now.date() <= until_date:
+                                    continue  # Alarm suppressed by "off" override
+                            except ValueError:
+                                pass
+                        else:
+                            # No until_date = forever pause
+                            continue
+
                     zone_cfg = glozone.get_effective_config_for_zone(zone_name)
                     # Check alt days for today
                     wake_time = zone_cfg.get("wake_time", 7.0)

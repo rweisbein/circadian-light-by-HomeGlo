@@ -4261,6 +4261,9 @@ class HomeAssistantWebSocketClient:
             if not dc:
                 cached_state = self.cached_states.get(entity_id, {})
                 dc = (cached_state.get("attributes") or {}).get("device_class", "")
+            # Skip tamper entities (e.g. binary_sensor.*_contact_tamper)
+            if "_tamper" in entity_id:
+                continue
             has_contact_id = any(
                 x in entity_id for x in ["_opening", "_door", "_window", "_contact"]
             )
@@ -6282,6 +6285,7 @@ class HomeAssistantWebSocketClient:
                 elif (
                     entity_id
                     and entity_id.startswith("binary_sensor.")
+                    and "_tamper" not in entity_id
                     and any(
                         x in entity_id
                         for x in ["_opening", "_door", "_window", "_contact"]

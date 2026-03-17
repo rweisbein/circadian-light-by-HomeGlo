@@ -948,8 +948,8 @@ def load_config_from_files(data_dir: Optional[str] = None) -> Dict[str, Any]:
         zc.get("is_default", False) for zc in config.get("glozones", {}).values()
     )
     ensure_default_zone_exists()
-    needs_save = needs_migration or not had_default or config.pop(
-        "_moments_migrated", False
+    needs_save = (
+        needs_migration or not had_default or config.pop("_moments_migrated", False)
     )
 
     # Save config to disk if changes were made
@@ -1067,7 +1067,7 @@ def get_next_active_times(zone_name: str, _now=None) -> Optional[Dict[str, Any]]
         if until_date_str:
             try:
                 until_date = date_cls.fromisoformat(until_date_str)
-                if today_date >= until_date:
+                if today_date > until_date:
                     if until_event == "bed":
                         override_expires_at_bed = True
                     elif until_event == "wake":
@@ -1172,11 +1172,13 @@ def clear_expired_overrides(phase: str) -> None:
         if not until_date or not until_event:
             continue
 
-        # Check if this override should expire at this phase transition
-        if phase == "ascend" and until_event == "wake" and today >= until_date:
+        # Check if this override should expire at this phase transition.
+        # Use > (not >=) so "through Tuesday" means active ON Tuesday,
+        # cleared at Wednesday's phase transition.
+        if phase == "ascend" and until_event == "wake" and today > until_date:
             zone_config["schedule_override"] = None
             cleared.append(zone_name)
-        elif phase == "descend" and until_event == "bed" and today >= until_date:
+        elif phase == "descend" and until_event == "bed" and today > until_date:
             zone_config["schedule_override"] = None
             cleared.append(zone_name)
 
