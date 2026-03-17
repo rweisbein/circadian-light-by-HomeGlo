@@ -690,6 +690,16 @@
             <span class="form-hint">tenths of a second (0 = off)</span>
           </div>
         </div>
+        <div class="form-row">
+          <label class="form-label">
+            Nudge transition
+            <span class="info-icon">i<span class="info-tooltip">Transition time for the nudge re-send. A short fade hides the nudge if a light missed the original command, making it look like a smooth catch-up instead of a sudden pop-on.</span></span>
+          </label>
+          <div class="form-control">
+            <input type="number" class="form-input" id="nudge-transition" min="0" max="30" step="1" value="10" style="width: 80px;">
+            <span class="form-hint">tenths of a second</span>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1030,6 +1040,7 @@
           document.getElementById('turn-off-transition').value = config.turn_off_transition ?? 3;
           document.getElementById('two-step-delay').value = config.two_step_delay ?? 3;
           document.getElementById('nudge-delay').value = config.nudge_delay ?? 10;
+          document.getElementById('nudge-transition').value = config.nudge_transition ?? 10;
           document.getElementById('multi-click-enabled').checked = config.multi_click_enabled ?? true;
           document.getElementById('multi-click-speed').value = config.multi_click_speed ?? 10;
           document.getElementById('long-press-repeat-interval').value = config.long_press_repeat_interval ?? 7;
@@ -1126,6 +1137,7 @@
         turn_off_transition: parseFloat(document.getElementById('turn-off-transition').value) || 3,
         two_step_delay: parseFloat(document.getElementById('two-step-delay').value) || 3,
         nudge_delay: parseInt(document.getElementById('nudge-delay').value) || 0,
+        nudge_transition: parseInt(document.getElementById('nudge-transition').value) || 0,
         multi_click_enabled: document.getElementById('multi-click-enabled').checked,
         multi_click_speed: parseFloat(document.getElementById('multi-click-speed').value) || 10,
         long_press_repeat_interval: parseFloat(document.getElementById('long-press-repeat-interval').value) || 7,
@@ -1394,6 +1406,7 @@
     document.getElementById('turn-off-transition').addEventListener('blur', saveSettings);
     document.getElementById('two-step-delay').addEventListener('blur', saveSettings);
     document.getElementById('nudge-delay').addEventListener('blur', saveSettings);
+    document.getElementById('nudge-transition').addEventListener('blur', saveSettings);
     document.getElementById('multi-click-enabled').addEventListener('change', () => {
       updateMultiClickState();
       saveSettings();

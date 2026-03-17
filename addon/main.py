@@ -2873,6 +2873,21 @@ class HomeAssistantWebSocketClient:
         except Exception:
             return 1.0  # Default 1.0 seconds
 
+    def _get_nudge_transition(self) -> float:
+        """Get the nudge transition time in seconds.
+
+        A short fade hides the nudge if a light missed the original command.
+
+        Returns:
+            Transition time in seconds
+        """
+        try:
+            raw_config = glozone.load_config_from_files()
+            tenths = raw_config.get("nudge_transition", 10)
+            return tenths / 10.0
+        except Exception:
+            return 1.0  # Default 1.0 seconds
+
     def cancel_nudge(self, area_id: str) -> None:
         """Cancel a pending nudge for an area (if any)."""
         task = self._pending_nudges.pop(area_id, None)
@@ -2909,19 +2924,21 @@ class HomeAssistantWebSocketClient:
         if delay <= 0:
             return  # Nudge disabled
 
+        nudge_transition = self._get_nudge_transition()
+
         async def _nudge():
             try:
                 await asyncio.sleep(delay)
                 if lighting_values is not None:
                     await self.turn_on_lights_circadian(
-                        area_id, lighting_values, transition=0
+                        area_id, lighting_values, transition=nudge_transition
                     )
                 else:
                     await self.turn_on_lights_circadian(
                         area_id,
                         brightness=brightness,
                         color_temp=color_temp,
-                        transition=0,
+                        transition=nudge_transition,
                         include_color=include_color,
                     )
                 logger.debug(f"Nudge fired for area {area_id} after {delay}s")

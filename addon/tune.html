@@ -691,6 +691,29 @@
       return factor > 1.0 ? ('\u2191' + pct + '%') : ('\u2193' + pct + '%');
     }
 
+    function factorSuffix(factor) {
+      if (Math.abs(factor - 1.0) < 0.005) return '';
+      const pct = Math.round((factor - 1.0) * 100);
+      return (pct > 0 ? ' +' : ' ') + pct + '%';
+    }
+
+    function formatImpactDelta(impact) {
+      if (impact === 0) return '0%';
+      return (impact > 0 ? '+' : '') + impact + '%';
+    }
+
+    function computeFactorImpact(rhythmBri, factor, exposure, outdoorNorm, sensitivity, fadeWeight) {
+      const with_f = computeNowBrightness(rhythmBri, factor, exposure, outdoorNorm, sensitivity, fadeWeight);
+      const without_f = computeNowBrightness(rhythmBri, 1.0, exposure, outdoorNorm, sensitivity, fadeWeight);
+      return with_f - without_f;
+    }
+
+    function computeSolarImpact(rhythmBri, factor, exposure, outdoorNorm, sensitivity, fadeWeight) {
+      const with_s = computeNowBrightness(rhythmBri, factor, exposure, outdoorNorm, sensitivity, fadeWeight);
+      const without_s = computeNowBrightness(rhythmBri, factor, 0, outdoorNorm, sensitivity, fadeWeight);
+      return with_s - without_s;
+    }
+
     function fmtVal(v) {
       return v === 0 ? '0' : v % 1 === 0 ? v.toFixed(1) : parseFloat(v.toFixed(2)).toString();
     }
@@ -1247,9 +1270,11 @@
         const overrideIcon = Math.abs(briOverride) >= 0.5 ? '<span class="tune-override-star" title="Brightness adjustment applied">*</span>' : '';
         nowEl.innerHTML = boostIcon + nowBri + '%' + overrideIcon;
       }
-      const sunMeta = formatSunMeta(exposure, sensitivity, outdoorNorm);
-      const sunNowEl = tuneAreaEl.querySelector('.tune-sun-now');
-      if (sunNowEl) sunNowEl.textContent = sunMeta.now;
+      // Update impact deltas
+      const factorMetaEl = tuneAreaEl.querySelector('.tune-factor-meta');
+      if (factorMetaEl) factorMetaEl.textContent = formatImpactDelta(computeFactorImpact(rhythmBri + boostBri, factor, exposure, outdoorNorm, sensitivity, fadeWeight));
+      const solarMetaEl = tuneAreaEl.querySelector('.tune-solar-meta');
+      if (solarMetaEl) solarMetaEl.textContent = formatImpactDelta(computeSolarImpact(rhythmBri + boostBri, factor, exposure, outdoorNorm, sensitivity, fadeWeight));
     }
 
     function updateAllZoneSunMeta() {
@@ -1823,8 +1848,8 @@
           const boostBri = isBoosted ? (tuneArea.boost_brightness || 0) : 0;
           const briOverride = tuneArea?.bri_override || 0;
           const nowBri = Math.max(0, Math.min(100, Math.round(computeNowBrightness(rhythmBri + boostBri, factor, exposure, outdoorNorm, sensitivity, briFadeWeight) + briOverride)));
-          const factorStr = formatFactorMeta(factor);
-          const sunMeta = formatSunMeta(exposure, sensitivity, outdoorNorm);
+          const factorImpact = formatImpactDelta(computeFactorImpact(rhythmBri + boostBri, factor, exposure, outdoorNorm, sensitivity, briFadeWeight));
+          const solarImpact = formatImpactDelta(computeSolarImpact(rhythmBri + boostBri, factor, exposure, outdoorNorm, sensitivity, briFadeWeight));
 
           // Annotate tuneArea with zone name for light brightness calc
           if (tuneArea) tuneArea._zoneName = zoneName;
@@ -1846,15 +1871,16 @@
               <div class="tune-area-row">
                 <div class="tune-fixture-col" onclick="event.stopPropagation()">
                   <input type="range" class="tune-lumen-slider" min="0" max="9" step="1" value="${lumenStep}" data-area-id="${area.area_id}">
-                  <span class="tune-slider-meta tune-factor-meta">${factorStr}</span>
+                  <span class="tune-slider-meta tune-factor-meta">${factorImpact}</span>
                 </div>
                 <div class="tune-sun-col" onclick="event.stopPropagation()">
                   <input type="range" class="tune-solar-slider" min="0" max="9" step="1" value="${solarStep}" data-area-id="${area.area_id}">
+                  <span class="tune-slider-meta tune-solar-meta">${solarImpact}</span>
                 </div>
               </div>
               <div class="tune-area-row tune-area-row3">
                 <div class="tune-fixture-col">
-                  <span class="tune-slider-word tune-lumen-word">${LUMEN_STEPS[lumenStep].label}</span>
+                  <span class="tune-slider-word tune-lumen-word">${LUMEN_STEPS[lumenStep].label}${factorSuffix(factor)}</span>
                 </div>
                 <div class="tune-sun-col">
                   <span class="tune-slider-word tune-solar-word">${SOLAR_STEPS[solarStep].label}</span>
@@ -2099,11 +2125,9 @@
 
         if (e.target.classList.contains('tune-lumen-slider')) {
           const step = parseInt(e.target.value);
-          const word = tuneArea.querySelector('.tune-lumen-word');
-          if (word) word.textContent = LUMEN_STEPS[step].label;
           const newFactor = 1 / LUMEN_STEPS[step].intensity;
-          const factorMeta = tuneArea.querySelector('.tune-factor-meta');
-          if (factorMeta) factorMeta.textContent = formatFactorMeta(newFactor);
+          const word = tuneArea.querySelector('.tune-lumen-word');
+          if (word) word.textContent = LUMEN_STEPS[step].label + factorSuffix(newFactor);
           updateTuneNowPreview(tuneArea, { factor: newFactor });
           updateTuneActionBar();
         }

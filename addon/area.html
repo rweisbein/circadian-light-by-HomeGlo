@@ -2898,7 +2898,11 @@
 
       // -- Brightness card: slider word labels --
       const elLumenWord = document.getElementById('tune-lumen-word');
-      if (elLumenWord) elLumenWord.textContent = LUMEN_STEPS[ts.lumenStep].label;
+      if (elLumenWord) {
+        const lf = 1 / LUMEN_STEPS[ts.lumenStep].intensity;
+        const lfSuffix = Math.abs(lf - 1.0) < 0.005 ? '' : (Math.round((lf - 1.0) * 100) > 0 ? ' +' : ' ') + Math.round((lf - 1.0) * 100) + '%';
+        elLumenWord.textContent = LUMEN_STEPS[ts.lumenStep].label + lfSuffix;
+      }
       const elSolarWord = document.getElementById('tune-solar-word');
       if (elSolarWord) {
         const sLabel = SOLAR_STEPS[ts.solarStep].label;
@@ -3240,7 +3244,7 @@
         + '<span class="tune-control-impact" id="tune-det-lumen-val"></span></div>';
       bhtml += '<div class="tune-slider-row">'
         + '<input type="range" class="tune-inline-slider tune-inline-slider--light" id="tune-slider-lumen" min="0" max="9" step="1" value="' + lumenStep + '">'
-        + '<span class="tune-slider-word" id="tune-lumen-word">' + LUMEN_STEPS[lumenStep].label + '</span></div>';
+        + '<span class="tune-slider-word" id="tune-lumen-word">' + LUMEN_STEPS[lumenStep].label + (function(f){ if(Math.abs(f-1)<0.005) return ''; var p=Math.round((f-1)*100); return (p>0?' +':' ')+p+'%'; })(factor) + '</span></div>';
       // Solar exposure with inline slider
       bhtml += '<div class="tune-control-row"><span class="tune-control-left"><span class="tune-control-label">Solar exposure</span>'
         + '<span class="tune-control-reset" id="tune-reset-solar">reset</span></span>'
