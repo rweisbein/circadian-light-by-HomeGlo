@@ -136,6 +136,7 @@ class HomeAssistantWebSocketClient:
         # Pending response futures for async message routing (used when message loop is running)
         self._pending_responses: Dict[int, asyncio.Future] = {}
         self._message_loop_active = False  # Set True once main message loop starts
+        self._sensor_grace_until = 0.0  # Ignore motion/contact events until this time
 
         # Motion sensor cache for event handling
         # Maps entity_id -> device_id (used to look up motion sensor config)
@@ -2697,8 +2698,16 @@ class HomeAssistantWebSocketClient:
             subscribe_msg["event_type"] = event_type
 
         await self.websocket.send(json.dumps(subscribe_msg))
+        # Grace period: ignore motion/contact sensor events for 5 seconds after
+        # subscribing to avoid processing the initial state flood as real events.
+        # The flood sends 15+ light commands in <1 second, overwhelming the
+        # ZigBee coordinator and causing battery sensors to drop off the network.
+        import time as _time
+
+        self._sensor_grace_until = _time.monotonic() + 5.0
         logger.info(
-            f"Subscribed to events (id: {message_id}, type: {event_type or 'all'})"
+            f"Subscribed to events (id: {message_id}, type: {event_type or 'all'}), "
+            f"sensor grace period active for 5s"
         )
 
         return message_id
@@ -3771,7 +3780,9 @@ class HomeAssistantWebSocketClient:
         switches = self.area_switch_entities.get(area_id, [])
         if not switches:
             return
-        logger.info(f"Turn off {len(switches)} switch entities in area {area_id}")
+        logger.info(
+            f"Turn off {len(switches)} switch entities in area {area_id}: {switches}"
+        )
         await self.call_service("switch", "turn_off", {}, {"entity_id": switches})
 
     async def turn_on_reach_groups(
@@ -4158,6 +4169,9 @@ class HomeAssistantWebSocketClient:
                 continue
             # Skip non-primary entities (config/diagnostic knobs on sensors etc.)
             if entity.get("entity_category") in ("config", "diagnostic"):
+                logger.debug(
+                    f"  Switch skipped (entity_category={entity.get('entity_category')}): {entity_id}"
+                )
                 continue
 
             # Get area - either direct or via device
@@ -4180,6 +4194,8 @@ class HomeAssistantWebSocketClient:
             logger.info(
                 f"  Switch entities: {total_switches} across {len(self.area_switch_entities)} areas"
             )
+            for aid, sw_list in self.area_switch_entities.items():
+                logger.info(f"    area {aid}: {sw_list}")
 
         # Log summary of light capabilities (4 types)
         color_count = 0
@@ -6274,27 +6290,44 @@ class HomeAssistantWebSocketClient:
                         pass
 
                 # Handle motion sensor state changes
-                if entity_id and entity_id in self.motion_sensor_ids:
+                # Skip during grace period after event subscription (initial state flood)
+                # Skip "unavailable"/"unknown" states — these are device connectivity
+                # changes (e.g. coordinator hiccup), not real sensor events.
+                import time as _time
+
+                _in_grace = _time.monotonic() < self._sensor_grace_until
+                _NON_REAL_STATES = ("unavailable", "unknown")
+                if entity_id and entity_id in self.motion_sensor_ids and not _in_grace:
                     new_state_val = (
                         new_state.get("state") if isinstance(new_state, dict) else None
                     )
                     old_state_val = (
                         old_state.get("state") if isinstance(old_state, dict) else None
                     )
-                    if new_state_val and new_state_val != old_state_val:
+                    if (
+                        new_state_val
+                        and new_state_val not in _NON_REAL_STATES
+                        and old_state_val not in _NON_REAL_STATES
+                        and new_state_val != old_state_val
+                    ):
                         await self._handle_motion_event(
                             entity_id, new_state_val, old_state_val
                         )
 
                 # Handle contact sensor state changes
-                if entity_id and entity_id in self.contact_sensor_ids:
+                if entity_id and entity_id in self.contact_sensor_ids and not _in_grace:
                     new_state_val = (
                         new_state.get("state") if isinstance(new_state, dict) else None
                     )
                     old_state_val = (
                         old_state.get("state") if isinstance(old_state, dict) else None
                     )
-                    if new_state_val and new_state_val != old_state_val:
+                    if (
+                        new_state_val
+                        and new_state_val not in _NON_REAL_STATES
+                        and old_state_val not in _NON_REAL_STATES
+                        and new_state_val != old_state_val
+                    ):
                         await self._handle_contact_event(
                             entity_id, new_state_val, old_state_val
                         )
