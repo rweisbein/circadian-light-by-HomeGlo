@@ -5486,6 +5486,10 @@ class HomeAssistantWebSocketClient:
             if zigbee_controller:
                 sync_registry = await zigbee_controller.fetch_all_registries()
 
+            if sync_registry is None:
+                logger.error("[sync] Aborting sync — registry fetch failed")
+                return
+
             # 3. Rebuild light capability cache (uses pre-fetched registry)
             await self.build_light_capability_cache(registry=sync_registry)
 
@@ -5610,9 +5614,11 @@ class HomeAssistantWebSocketClient:
             if zigbee_controller:
                 # Fetch registries once if not provided
                 if registry is None:
-                    from light_controller import RegistryData
-
                     registry = await zigbee_controller.fetch_all_registries()
+
+                if registry is None:
+                    logger.error("Registry fetch failed — skipping ZHA group sync")
+                    return
 
                 # Populate area_name_to_id mapping from registry
                 self.area_name_to_id.clear()

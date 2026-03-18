@@ -318,6 +318,15 @@ class ZigBeeController(LightController):
             f"{len(entities)} entities, {len(states)} states, "
             f"{len(zha_devices)} ZHA devices, {len(zha_groups)} ZHA groups"
         )
+
+        # Validate critical registries — abort if WebSocket is degraded
+        if not areas or not entities:
+            logger.error(
+                "Registry fetch returned empty critical data (areas or entities). "
+                "WebSocket may be degraded — aborting sync to avoid data loss."
+            )
+            return None
+
         return RegistryData(
             areas=areas,
             devices=devices,
