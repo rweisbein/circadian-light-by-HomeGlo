@@ -1200,17 +1200,22 @@ input[type=range]::-moz-range-thumb {
 
   <!-- Chart -->
   <div class="section-block" id="chart-section">
-    <div class="chart-toolbar">
-      <div class="chart-date-control">
+    <div class="chart-toolbar" style="flex-wrap: wrap;">
+      <div class="chart-date-control" style="width: 100%;">
         <span class="chart-date-display" id="chart-date-display">Today</span>
         <input type="range" id="chart-date-slider" min="0" max="364" value="0">
       </div>
-      <div class="modeled-conditions">
-        <select id="modeled-conditions" title="Preview how weather affects the color curve" style="width: 76px;">
-          <option value="1.0">Sunny</option>
-          <option value="0.6">Mixed</option>
-          <option value="0.3">Cloudy</option>
-          <option value="0">Dark</option>
+      <div class="modeled-conditions" style="width: 100%; margin-left: 0;">
+        <select id="modeled-conditions" title="Preview how weather affects the color curve" style="width: 100%;">
+          <option value="current" selected>Current</option>
+          <option value="1.0">Sunny (100%)</option>
+          <option value="0.6">Partly cloudy (60%)</option>
+          <option value="0.3">Cloudy (30%)</option>
+          <option value="0.2">Rainy / Snowy (20%)</option>
+          <option value="0.15">Fog (15%)</option>
+          <option value="0.1">Pouring / Hail (10%)</option>
+          <option value="0.08">Lightning (8%)</option>
+          <option value="0">Dark (0%)</option>
         </select>
       </div>
       <div class="chart-schedule-toggles" id="chart-schedule-toggles" style="display:none;">
@@ -1671,6 +1676,12 @@ function isAnyDirty() {
 // Current sun times (cached for solar rules)
 let sunTimes = { sunrise: 6, sunset: 18, solarNoon: 12, solarMid: 0 };
 
+// Live outdoor data for "Current" condition option
+let _liveOutdoorNorm = null;
+let _liveElevation = null;
+let _liveCondition = null;
+let _liveSource = null;
+
 // Cursor state — always present, initialized to current time
 const _nowInit = new Date();
 let cursorHour = _nowInit.getHours() + _nowInit.getMinutes() / 60;
@@ -1818,10 +1829,28 @@ function applySolarRuleAtHour(baseCCT, hour) {
   // Cool day color blend (intensity-based)
   // Condition multiplier from dropdown modulates clear-sky lux at this hour's sun elevation
   if (config.daylight_enabled !== false) {
-    const conditionMult = parseFloat(document.getElementById('modeled-conditions')?.value ?? '1.0');
-    const dateStr = getSelectedDateISO();
-    const elev = getSunElevationAtHour(hour, config.latitude, config.longitude, dateStr);
-    const outdoorNorm = elevationToOutdoorNorm(elev, conditionMult);
+    const condDropdown = document.getElementById('modeled-conditions')?.value ?? '1.0';
+    let outdoorNorm;
+    if (condDropdown === 'current' && _liveOutdoorNorm != null) {
+      // Use live outdoor_normalized directly (already accounts for real conditions)
+      // Scale by ratio of this hour's elevation to current elevation
+      const dateStr = getSelectedDateISO();
+      const elev = getSunElevationAtHour(hour, config.latitude, config.longitude, dateStr);
+      const currentElev = _liveElevation || 1;
+      if (currentElev > 0 && elev > 0) {
+        const elevRatio = elevationToOutdoorNorm(elev, 1.0) / (elevationToOutdoorNorm(currentElev, 1.0) || 1);
+        outdoorNorm = Math.min(1.0, _liveOutdoorNorm * elevRatio);
+      } else if (elev <= 0) {
+        outdoorNorm = 0;
+      } else {
+        outdoorNorm = _liveOutdoorNorm;
+      }
+    } else {
+      const conditionMult = parseFloat(condDropdown) || 1.0;
+      const dateStr = getSelectedDateISO();
+      const elev = getSunElevationAtHour(hour, config.latitude, config.longitude, dateStr);
+      outdoorNorm = elevationToOutdoorNorm(elev, conditionMult);
+    }
     const daylightCct = config.daylight_cct || 0;
     const colorSensitivity = config.color_sensitivity ?? 1.50;
     if (daylightCct > 0 && outdoorNorm > 0) {
@@ -5215,6 +5244,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Load zone settings from API
   loadZoneFromData();
+
+  // Fetch live outdoor data for "Current" condition option
+  fetch('./api/outdoor-status').then(r => r.json()).then(data => {
+    _liveOutdoorNorm = data.outdoor_normalized ?? null;
+    _liveElevation = data.sun_elevation ?? null;
+    _liveCondition = data.weather_condition ?? null;
+    _liveSource = data.source ?? null;
+    // Update the "Current" option label
+    const sel = document.getElementById('modeled-conditions');
+    if (sel && sel.options[0]?.value === 'current') {
+      let label = 'Current';
+      if (_liveSource === 'weather' && _liveCondition) {
+        label = 'Current: ' + _liveCondition.replace(/-/g, ' ');
+      } else if (_liveSource === 'lux') {
+        label = 'Current: lux ' + Math.round((_liveOutdoorNorm || 0) * 100) + '%';
+      } else if (_liveSource === 'angle') {
+        label = 'Current: sun angle';
+      }
+      sel.options[0].text = label;
+    }
+    if (sel?.value === 'current') {
+      renderChart();
+      applyCursor();
+    }
+  }).catch(() => {});
 
   // Keep cursor at "now" when not in Live Design mode (tick every 30s)
   setInterval(() => {
