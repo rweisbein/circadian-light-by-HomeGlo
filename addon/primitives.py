@@ -1039,15 +1039,18 @@ class CircadianLightPrimitives:
     # Color Up / Color Down (color only)
     # -------------------------------------------------------------------------
 
-    async def color_up(self, area_id: str, source: str = "service_call"):
+    async def color_up(
+        self, area_id: str, source: str = "service_call", send_command: bool = True
+    ):
         """Increase color temperature (cooler), brightness unchanged.
 
         Only works when is_circadian=True. Updates midpoints always, but only
-        applies to lights if is_on=True.
+        applies to lights if is_on=True and send_command=True.
 
         Args:
             area_id: The area ID to control
             source: Source of the action
+            send_command: Whether to send light commands (False for reach group batching)
         """
         area_state = self._get_area_state(area_id)
 
@@ -1136,26 +1139,33 @@ class CircadianLightPrimitives:
         # Update state (always, even if is_on=False)
         self._update_area_state(area_id, result.state_updates)
 
-        # Apply to lights only if is_on=True
-        if area_state.is_on:
+        # Apply to lights only if is_on=True and send_command=True
+        if area_state.is_on and send_command:
             # Calculate current brightness to include in command (needed for CT compensation)
             current_bri = CircadianLight.calculate_brightness_at_hour(
                 hour, config, area_state
             )
-            await self._apply_lighting(area_id, current_bri, result.color_temp)
+            await self._apply_circadian_lighting(
+                area_id, current_bri, result.color_temp
+            )
             logger.info(f"Color up applied: {result.color_temp}K, {current_bri}%")
-        else:
+        elif not area_state.is_on:
             logger.info(f"Color up state updated (lights off): {result.color_temp}K")
 
-    async def color_down(self, area_id: str, source: str = "service_call"):
+        return result
+
+    async def color_down(
+        self, area_id: str, source: str = "service_call", send_command: bool = True
+    ):
         """Decrease color temperature (warmer), brightness unchanged.
 
         Only works when is_circadian=True. Updates midpoints always, but only
-        applies to lights if is_on=True.
+        applies to lights if is_on=True and send_command=True.
 
         Args:
             area_id: The area ID to control
             source: Source of the action
+            send_command: Whether to send light commands (False for reach group batching)
         """
         area_state = self._get_area_state(area_id)
 
@@ -1244,16 +1254,20 @@ class CircadianLightPrimitives:
         # Update state (always, even if is_on=False)
         self._update_area_state(area_id, result.state_updates)
 
-        # Apply to lights only if is_on=True
-        if area_state.is_on:
+        # Apply to lights only if is_on=True and send_command=True
+        if area_state.is_on and send_command:
             # Calculate current brightness to include in command (needed for CT compensation)
             current_bri = CircadianLight.calculate_brightness_at_hour(
                 hour, config, area_state
             )
-            await self._apply_lighting(area_id, current_bri, result.color_temp)
+            await self._apply_circadian_lighting(
+                area_id, current_bri, result.color_temp
+            )
             logger.info(f"Color down applied: {result.color_temp}K, {current_bri}%")
-        else:
+        elif not area_state.is_on:
             logger.info(f"Color down state updated (lights off): {result.color_temp}K")
+
+        return result
 
     # -------------------------------------------------------------------------
     # Set Position - Slider-based absolute positioning
@@ -3681,15 +3695,19 @@ class CircadianLightPrimitives:
     # Reset
     # -------------------------------------------------------------------------
 
-    async def glo_reset(self, area_id: str, source: str = "service_call"):
+    async def glo_reset(
+        self, area_id: str, source: str = "service_call", send_command: bool = True
+    ):
         """Reset area to Daily Rhythm settings.
 
         Resets midpoints, bounds, and frozen_at to defaults.
-        Preserves enabled status. Only applies lighting if already enabled.
+        Preserves enabled status. Only applies lighting if already enabled
+        and send_command=True.
 
         Args:
             area_id: The area ID
             source: Source of the action
+            send_command: Whether to send light commands (False for reach group batching)
         """
         logger.info(f"[{source}] glo_reset for area {area_id}")
 
@@ -3703,9 +3721,10 @@ class CircadianLightPrimitives:
             hour = get_current_hour()
 
             result = CircadianLight.calculate_lighting(hour, config, area_state)
-            await self._apply_circadian_lighting(
-                area_id, result.brightness, result.color_temp
-            )
+            if send_command:
+                await self._apply_circadian_lighting(
+                    area_id, result.brightness, result.color_temp
+                )
 
             logger.info(
                 f"glo_reset complete for area {area_id}: "

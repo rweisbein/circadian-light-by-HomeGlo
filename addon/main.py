@@ -1926,35 +1926,66 @@ class HomeAssistantWebSocketClient:
 
         elif main_action == "color_up":
             # Color up only if lights are on AND in circadian mode
-            # TODO: Add send_command=False pattern to color_up/down for reach group support
             any_on_circadian = any(
                 state.is_circadian(area) and state.get_is_on(area) for area in areas
             )
             if any_on_circadian:
-                await asyncio.gather(
-                    *[self.primitives.color_up(area, "switch") for area in areas]
-                )
+                if self._can_use_reach(areas):
+                    await asyncio.gather(
+                        *[
+                            self.primitives.color_up(a, "switch", send_command=False)
+                            for a in areas
+                        ]
+                    )
+                    await self._send_bright_via_reach_or_fallback(
+                        areas, [True for _ in areas]
+                    )
+                else:
+                    await asyncio.gather(
+                        *[self.primitives.color_up(area, "switch") for area in areas]
+                    )
             else:
                 await execute_when_off()
 
         elif main_action == "color_down":
             # Color down only if lights are on AND in circadian mode
-            # TODO: Add send_command=False pattern to color_up/down for reach group support
             any_on_circadian = any(
                 state.is_circadian(area) and state.get_is_on(area) for area in areas
             )
             if any_on_circadian:
-                await asyncio.gather(
-                    *[self.primitives.color_down(area, "switch") for area in areas]
-                )
+                if self._can_use_reach(areas):
+                    await asyncio.gather(
+                        *[
+                            self.primitives.color_down(a, "switch", send_command=False)
+                            for a in areas
+                        ]
+                    )
+                    await self._send_bright_via_reach_or_fallback(
+                        areas, [True for _ in areas]
+                    )
+                else:
+                    await asyncio.gather(
+                        *[self.primitives.color_down(area, "switch") for area in areas]
+                    )
             else:
                 await execute_when_off()
 
         elif main_action == "glo_reset":
             # Reset area to Daily Rhythm
-            await asyncio.gather(
-                *[self.primitives.glo_reset(area, "switch") for area in areas]
-            )
+            if self._can_use_reach(areas):
+                await asyncio.gather(
+                    *[
+                        self.primitives.glo_reset(a, "switch", send_command=False)
+                        for a in areas
+                    ]
+                )
+                await self._send_bright_via_reach_or_fallback(
+                    areas, [True for _ in areas]
+                )
+            else:
+                await asyncio.gather(
+                    *[self.primitives.glo_reset(area, "switch") for area in areas]
+                )
 
         elif main_action == "freeze_toggle":
             await asyncio.gather(
