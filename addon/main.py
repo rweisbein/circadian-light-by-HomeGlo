@@ -3787,9 +3787,16 @@ class HomeAssistantWebSocketClient:
         async def _off_nudge():
             try:
                 await asyncio.sleep(delay)
-                await self.turn_off_lights(
-                    area_id, transition=nudge_transition, log_periodic=False
-                )
+                # Send turn_off directly (NOT via turn_off_lights) to avoid
+                # infinite loop: turn_off_lights schedules another off-nudge.
+                all_lights = list(self.area_lights.get(area_id, []))
+                if all_lights:
+                    await self.call_service(
+                        "light",
+                        "turn_off",
+                        {"transition": nudge_transition},
+                        {"entity_id": all_lights},
+                    )
                 logger.debug(f"Off-nudge fired for area {area_id} after {delay}s")
             except asyncio.CancelledError:
                 pass
@@ -4870,6 +4877,13 @@ class HomeAssistantWebSocketClient:
             # Only update if area is under circadian control
             if not state.is_circadian(area_id):
                 logger.debug(f"Area {area_id} not in Circadian mode, skipping update")
+                return
+
+            # Skip areas with no known lights (deleted from HA)
+            if area_id not in self.area_lights:
+                logger.debug(
+                    f"Area {area_id} not in area_lights cache, skipping update"
+                )
                 return
 
             # Get area state (includes stepped midpoints, pushed bounds, and frozen_at)
