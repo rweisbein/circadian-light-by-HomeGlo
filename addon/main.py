@@ -1568,15 +1568,20 @@ class HomeAssistantWebSocketClient:
     def _can_use_reach(self, areas: List[str]) -> bool:
         """Quick structural check: can reach groups be used for these areas?
 
-        Checks: 2+ areas, reach groups exist, all areas have ZHA parity.
-        Does NOT check filters or values.
+        Checks: 2+ areas and reach groups exist (legacy or filter-aware).
+        Does NOT check filters, values, or ZHA parity — _try_reach_turn_on
+        handles those checks per-filter at runtime.
         """
         if len(areas) < 2:
             return False
-        reach_color, reach_ct = self.get_reach_groups(areas)
-        if not reach_color and not reach_ct:
+        import switches as _switches
+
+        key = _switches.get_reach_key(areas)
+        reach = self.reach_groups.get(key)
+        if not reach:
             return False
-        return all(self.area_parity_cache.get(a, False) for a in areas)
+        # Has filter-aware groups OR legacy entity_id_color/ct
+        return bool(reach.filter_groups) or reach.entity_id_color or reach.entity_id_ct
 
     def _compute_reach_value(
         self, area_id: str, base_bri: float, color_temp: int
