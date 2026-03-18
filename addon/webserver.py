@@ -1856,7 +1856,7 @@ class LightDesignerServer:
                 zone_states[zone_name] = {
                     "brightness": result.brightness,
                     "kelvin": result.color_temp,
-                    "brightness_fade_weight": round(zone_bri_fade_weight, 3),
+                    "brightness_fade_weight": 1.0,  # Fade applies to color only, not brightness
                     "min_brightness": brain_config.min_brightness,
                     "max_brightness": brain_config.max_brightness,
                     "runtime_state": runtime_state,
@@ -3667,20 +3667,11 @@ class LightDesignerServer:
                     area_brightness_sensitivity = glozone.get_config().get(
                         "brightness_sensitivity", 5.0
                     )
-                    # Apply daylight fade to brightness: ramp outdoor_norm over fade period
-                    area_daylight_fade = rhythm_cfg.get(
-                        "daylight_fade", DEFAULT_DAYLIGHT_FADE
-                    )
-                    brightness_fade_weight = compute_daylight_fade_weight(
-                        calc_hour,
-                        sun_times.sunrise,
-                        sun_times.sunset,
-                        area_daylight_fade,
-                    )
-                    faded_outdoor_norm = outdoor_norm * brightness_fade_weight
+                    # Brightness NL uses raw outdoor_norm (no daylight fade —
+                    # fade applies to color solar rules only, not brightness)
                     nl_factor = calculate_natural_light_factor(
                         area_nl_exposure,
-                        faded_outdoor_norm,
+                        outdoor_norm,
                         area_brightness_sensitivity,
                     )
 
@@ -3843,7 +3834,7 @@ class LightDesignerServer:
                         "sun_elevation": round(lux_tracker._sun_elevation, 1),
                         "natural_light_exposure": area_nl_exposure,
                         "nl_factor": round(nl_factor, 3),
-                        "brightness_fade_weight": round(brightness_fade_weight, 3),
+                        "brightness_fade_weight": 1.0,  # Fade applies to color only, not brightness
                         "outdoor_normalized": round(outdoor_norm, 3),
                         "outdoor_source": outdoor_source,
                         "outdoor_source_entity": (
