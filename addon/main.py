@@ -6709,14 +6709,21 @@ class HomeAssistantWebSocketClient:
                 self.light_controller.add_controller(Protocol.HOMEASSISTANT)
                 logger.info("Initialized multi-protocol light controller")
 
-                # Pre-fetch areas to populate area_name_to_id mapping BEFORE loading states
-                # This ensures group registration can look up area_id from area_name
+                # Fetch all registries once for the entire startup sequence
+                # (areas, devices, entities, states, ZHA devices, ZHA groups)
                 zigbee_controller = self.light_controller.controllers.get(
                     Protocol.ZIGBEE
                 )
+                startup_registry = None
                 if zigbee_controller:
+                    startup_registry = await zigbee_controller.fetch_all_registries()
+
+                # Populate area_name_to_id mapping from registry
+                if startup_registry:
                     try:
-                        areas = await zigbee_controller.get_areas()
+                        areas = await zigbee_controller.get_areas(
+                            registry=startup_registry
+                        )
                         self.area_name_to_id.clear()
                         for area_id, area_info in areas.items():
                             area_name = area_info.get("name", "")
@@ -6730,16 +6737,14 @@ class HomeAssistantWebSocketClient:
                     except Exception as e:
                         logger.warning(f"Failed to pre-load area mappings: {e}")
 
-                # Get initial states to populate mappings and sun data
-                logger.info("Loading initial entity states...")
-                states = await self.get_states()
-
-                if not states:
-                    logger.error("Failed to load initial states! No states returned.")
-                else:
-                    logger.info(f"Successfully loaded {len(states)} entity states")
-
-                    # Count light entities
+                # Extract grouped light mappings from states
+                # (cached_states already populated by fetch_all_registries → get_states)
+                states = (
+                    startup_registry.states
+                    if startup_registry
+                    else await self.get_states()
+                )
+                if states:
                     light_count = sum(
                         1 for s in states if s.get("entity_id", "").startswith("light.")
                     )
@@ -6764,14 +6769,8 @@ class HomeAssistantWebSocketClient:
                         logger.warning(
                             "⚠ No grouped light entities detected (no Hue rooms or Circadian_ ZHA groups found)"
                         )
-
-                # Fetch all registries once for the entire startup sequence
-                zigbee_controller = self.light_controller.controllers.get(
-                    Protocol.ZIGBEE
-                )
-                startup_registry = None
-                if zigbee_controller:
-                    startup_registry = await zigbee_controller.fetch_all_registries()
+                else:
+                    logger.error("Failed to load initial states! No states returned.")
 
                 # Build light capability cache for color mode detection
                 await self.build_light_capability_cache(registry=startup_registry)

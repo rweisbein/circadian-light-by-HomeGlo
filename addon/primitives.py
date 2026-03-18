@@ -57,6 +57,7 @@ class CircadianLightPrimitives:
         self._wake_alarm_fired: dict = (
             {}
         )  # area_id -> {"date": "YYYY-MM-DD", "time": float}
+        self._load_wake_alarm_fired()
 
     def _get_config(self, area_id: Optional[str] = None) -> Config:
         """Load config, optionally zone-aware for a specific area.
@@ -2771,6 +2772,7 @@ class CircadianLightPrimitives:
                     "date": today_str,
                     "time": alarm_time,
                 }
+                self._save_wake_alarm_fired()
                 logger.info(
                     f"[wake_alarm] Firing wake alarm for area {area_id} "
                     f"(time={alarm_time:.2f}, now={current_hour:.2f})"
@@ -2786,6 +2788,41 @@ class CircadianLightPrimitives:
                 f"{len(self._wake_alarm_fired)} area(s)"
             )
             self._wake_alarm_fired.clear()
+            self._save_wake_alarm_fired()
+
+    def _get_wake_alarm_file(self) -> str:
+        """Get the path to the wake alarm fired state file."""
+        import os
+
+        data_dir = os.environ.get("CIRCADIAN_DATA_DIR", "/config/circadian-light")
+        return os.path.join(data_dir, "wake_alarm_fired.json")
+
+    def _save_wake_alarm_fired(self):
+        """Persist wake alarm fired state to disk."""
+        import json
+
+        try:
+            with open(self._get_wake_alarm_file(), "w") as f:
+                json.dump(self._wake_alarm_fired, f)
+        except Exception as e:
+            logger.debug(f"[wake_alarm] Failed to save fired state: {e}")
+
+    def _load_wake_alarm_fired(self):
+        """Load wake alarm fired state from disk."""
+        import json
+        import os
+
+        path = self._get_wake_alarm_file()
+        if not os.path.exists(path):
+            return
+        try:
+            with open(path) as f:
+                self._wake_alarm_fired = json.load(f)
+            logger.info(
+                f"[wake_alarm] Loaded fired state: {len(self._wake_alarm_fired)} area(s)"
+            )
+        except Exception as e:
+            logger.debug(f"[wake_alarm] Failed to load fired state: {e}")
 
     # -------------------------------------------------------------------------
     # Motion Warning
