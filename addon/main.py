@@ -1988,9 +1988,7 @@ class HomeAssistantWebSocketClient:
                 )
 
         elif main_action == "freeze_toggle":
-            await asyncio.gather(
-                *[self.primitives.freeze_toggle(area, "switch") for area in areas]
-            )
+            await self.primitives.freeze_toggle_multiple(areas, "switch")
 
         elif main_action == "glo_up":
             # Push area settings to GloZone (atomic - zone only, not to other areas)

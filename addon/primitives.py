@@ -3640,15 +3640,20 @@ class CircadianLightPrimitives:
         dim_duration = self._get_turn_off_transition()
         two_step_delay = self._get_two_step_delay()
 
-        # Dim all areas in parallel
-        await asyncio.gather(
-            *[
-                self._apply_lighting(
-                    area_id, 0, 2700, include_color=False, transition=dim_duration
-                )
-                for area_id in areas_on
-            ]
+        # Dim all areas — use reach groups for synchronized dimming
+        reach_dimmed = await self.client.turn_off_reach_groups(
+            areas_on, transition=dim_duration
         )
+        if not reach_dimmed:
+            # Fallback: dim per-area
+            await asyncio.gather(
+                *[
+                    self._apply_lighting(
+                        area_id, 0, 2700, include_color=False, transition=dim_duration
+                    )
+                    for area_id in areas_on
+                ]
+            )
 
         await asyncio.sleep(
             dim_duration + two_step_delay
@@ -3659,23 +3664,49 @@ class CircadianLightPrimitives:
             for area_id in areas_on:
                 self._unfreeze_internal(area_id, source)
 
-            # Rise all areas in parallel at freeze-off-rise speed (boost-aware)
+            # Rise all areas at freeze-off-rise speed — try reach groups first
             rise_transition = self._get_freeze_off_rise()
             hour = get_current_hour()
-            rise_tasks = []
+            area_lighting = []
             for area_id in areas_on:
                 config = self._get_config(area_id)
                 area_state = self._get_area_state(area_id)
                 result = CircadianLight.calculate_lighting(hour, config, area_state)
-                rise_tasks.append(
-                    self._apply_circadian_lighting(
+                override = self._get_decayed_brightness_override(area_id)
+                area_lighting.append(
+                    (
                         area_id,
                         result.brightness,
                         result.color_temp,
-                        transition=rise_transition,
+                        result.brightness,
+                        override,
                     )
                 )
-            await asyncio.gather(*rise_tasks)
+
+            handled = await self._try_reach_turn_on(
+                areas_on, area_lighting, transition=rise_transition
+            )
+            for entry in area_lighting:
+                area_id = entry[0]
+                skip = handled.get(area_id)
+                if skip:
+                    area_filters = glozone.get_area_light_filters(area_id)
+                    all_norms = {
+                        f.replace(" ", "_").lower()
+                        for f in (
+                            set(area_filters.values()) if area_filters else {"Standard"}
+                        )
+                    }
+                    if not area_filters or any(
+                        l not in area_filters
+                        for l in self.client.area_lights.get(area_id, [])
+                    ):
+                        all_norms.add("standard")
+                    if all_norms.issubset(skip):
+                        continue
+                await self._apply_circadian_lighting(
+                    area_id, entry[1], entry[2], transition=rise_transition
+                )
 
             logger.info(f"[{source}] Freeze toggle: {len(areas_on)} area(s) unfrozen")
 
@@ -3685,20 +3716,49 @@ class CircadianLightPrimitives:
             for area_id in areas_on:
                 state.set_frozen_at(area_id, frozen_at)
 
-            # Flash all areas in parallel to frozen values instantly (boost-aware)
-            flash_tasks = []
+            # Flash all areas to frozen values instantly — try reach groups first
+            area_lighting = []
             for area_id in areas_on:
                 config = self._get_config(area_id)
                 area_state = self._get_area_state(area_id)
                 result = CircadianLight.calculate_lighting(
                     frozen_at, config, area_state
                 )
-                flash_tasks.append(
-                    self._apply_circadian_lighting(
-                        area_id, result.brightness, result.color_temp, transition=0
+                override = self._get_decayed_brightness_override(area_id)
+                area_lighting.append(
+                    (
+                        area_id,
+                        result.brightness,
+                        result.color_temp,
+                        result.brightness,
+                        override,
                     )
                 )
-            await asyncio.gather(*flash_tasks)
+
+            handled = await self._try_reach_turn_on(
+                areas_on, area_lighting, transition=0
+            )
+            for entry in area_lighting:
+                area_id = entry[0]
+                skip = handled.get(area_id)
+                if skip:
+                    area_filters = glozone.get_area_light_filters(area_id)
+                    all_norms = {
+                        f.replace(" ", "_").lower()
+                        for f in (
+                            set(area_filters.values()) if area_filters else {"Standard"}
+                        )
+                    }
+                    if not area_filters or any(
+                        l not in area_filters
+                        for l in self.client.area_lights.get(area_id, [])
+                    ):
+                        all_norms.add("standard")
+                    if all_norms.issubset(skip):
+                        continue
+                await self._apply_circadian_lighting(
+                    area_id, entry[1], entry[2], transition=0
+                )
 
             logger.info(
                 f"[{source}] Freeze toggle: {len(areas_on)} area(s) frozen at hour {frozen_at:.2f}"
