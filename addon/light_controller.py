@@ -1242,8 +1242,8 @@ class ZigBeeController(LightController):
 
             reach_groups: Dict[str, ReachGroup] = {}
             expected_group_names = set()
-            logger.info(f"Reach sync area_factors: {area_factors}")
-            logger.info(f"Reach sync filter_config keys: {list(filter_config.keys())}")
+            logger.debug(f"Reach sync area_factors: {area_factors}")
+            logger.debug(f"Reach sync filter_config keys: {list(filter_config.keys())}")
 
             for reach_key, area_ids in reaches.items():
                 logger.info(f"Processing reach {reach_key}: areas={area_ids}")
@@ -1255,7 +1255,7 @@ class ZigBeeController(LightController):
                 for area_id in area_ids:
                     area_info = areas_data.get(area_id, {})
                     if not area_info:
-                        logger.warning(f"  Area {area_id} not found in areas_data!")
+                        logger.debug(f"  Area {area_id} not found in areas_data")
                         continue
                     zha_lights = area_info.get("zha_lights", [])
                     area_filter_map = filter_config.get(area_id, {})
@@ -1290,10 +1290,6 @@ class ZigBeeController(LightController):
                             continue  # brightness-only skipped
 
                         key = (filter_norm, factor_key, cap)
-                        logger.info(
-                            f"  Reach light {entity_id} in area {area_id}: "
-                            f"filter={filter_norm}, factor={factor_key}, cap={cap}, key={key}"
-                        )
                         if key not in filter_factor_groups:
                             filter_factor_groups[key] = {
                                 "members": [],
