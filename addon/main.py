@@ -3595,6 +3595,7 @@ class HomeAssistantWebSocketClient:
         area_id: str,
         transition: float = 0.3,
         log_periodic: bool = True,
+        nudge: bool = True,
     ) -> None:
         """Turn off lights using ZHA groups when available.
 
@@ -3768,7 +3769,8 @@ class HomeAssistantWebSocketClient:
             await asyncio.gather(*tasks)
 
         # Schedule turn-off nudge to catch missed ZigBee commands
-        self.schedule_off_nudge(area_id, transition=transition)
+        if nudge:
+            self.schedule_off_nudge(area_id, transition=transition)
 
     def schedule_off_nudge(self, area_id: str, transition: float = 0.3) -> None:
         """Schedule a post-turn-off nudge to catch missed ZigBee commands.
@@ -3787,16 +3789,12 @@ class HomeAssistantWebSocketClient:
         async def _off_nudge():
             try:
                 await asyncio.sleep(delay)
-                # Send turn_off directly (NOT via turn_off_lights) to avoid
-                # infinite loop: turn_off_lights schedules another off-nudge.
-                all_lights = list(self.area_lights.get(area_id, []))
-                if all_lights:
-                    await self.call_service(
-                        "light",
-                        "turn_off",
-                        {"transition": nudge_transition},
-                        {"entity_id": all_lights},
-                    )
+                await self.turn_off_lights(
+                    area_id,
+                    transition=nudge_transition,
+                    log_periodic=False,
+                    nudge=False,
+                )
                 logger.debug(f"Off-nudge fired for area {area_id} after {delay}s")
             except asyncio.CancelledError:
                 pass
