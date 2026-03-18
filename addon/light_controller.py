@@ -47,6 +47,21 @@ class LightCommand:
 
 
 @dataclass
+class RegistryData:
+    """Pre-fetched registry data to avoid redundant WebSocket calls.
+
+    Fetched once at the start of sync, passed through all functions.
+    """
+
+    areas: list  # config/area_registry/list
+    devices: list  # config/device_registry/list
+    entities: list  # config/entity_registry/list
+    states: list  # get_states result
+    zha_devices: list  # zha/devices
+    zha_groups: list  # zha/groups
+
+
+@dataclass
 class ReachGroup:
     """ZHA group for a multi-area reach combination.
 
@@ -262,6 +277,47 @@ class ZigBeeController(LightController):
         """ZigBee supports group operations via ZHA."""
         return True
 
+    async def fetch_all_registries(self) -> RegistryData:
+        """Fetch all registries in one pass to avoid redundant WebSocket calls.
+
+        Returns a RegistryData with areas, devices, entities, states,
+        zha_devices, and zha_groups — all fetched once.
+        """
+        areas = (
+            await self.ws_client.send_message_wait_response(
+                {"type": "config/area_registry/list"}
+            )
+            or []
+        )
+        devices = (
+            await self.ws_client.send_message_wait_response(
+                {"type": "config/device_registry/list"}
+            )
+            or []
+        )
+        entities = (
+            await self.ws_client.send_message_wait_response(
+                {"type": "config/entity_registry/list"}
+            )
+            or []
+        )
+        states = await self.ws_client.get_states() or []
+        zha_devices = await self.list_zha_devices()
+        zha_groups = await self.list_zha_groups()
+        logger.info(
+            f"Fetched registries: {len(areas)} areas, {len(devices)} devices, "
+            f"{len(entities)} entities, {len(states)} states, "
+            f"{len(zha_devices)} ZHA devices, {len(zha_groups)} ZHA groups"
+        )
+        return RegistryData(
+            areas=areas,
+            devices=devices,
+            entities=entities,
+            states=states,
+            zha_devices=zha_devices,
+            zha_groups=zha_groups,
+        )
+
     async def list_zha_groups(self) -> List[Dict[str, Any]]:
         """List all ZHA groups."""
         try:
@@ -334,15 +390,42 @@ class ZigBeeController(LightController):
         else:
             return 11
 
-    async def get_areas(self) -> Dict[str, Dict[str, Any]]:
+    async def get_areas(
+        self, registry: RegistryData = None
+    ) -> Dict[str, Dict[str, Any]]:
         """Get all areas and their associated entities."""
         try:
             logger.debug("Getting areas and their associated entities...")
 
-            # Get all areas
-            areas_result = await self.ws_client.send_message_wait_response(
-                {"type": "config/area_registry/list"}
-            )
+            # Use pre-fetched registry data or fetch individually (backward compat)
+            if registry:
+                areas_result = registry.areas
+                device_registry = registry.devices
+                entity_registry = registry.entities
+                zha_devices = registry.zha_devices
+                states = registry.states
+            else:
+                areas_result = (
+                    await self.ws_client.send_message_wait_response(
+                        {"type": "config/area_registry/list"}
+                    )
+                    or []
+                )
+                device_registry = (
+                    await self.ws_client.send_message_wait_response(
+                        {"type": "config/device_registry/list"}
+                    )
+                    or []
+                )
+                entity_registry = (
+                    await self.ws_client.send_message_wait_response(
+                        {"type": "config/entity_registry/list"}
+                    )
+                    or []
+                )
+                zha_devices = await self.list_zha_devices()
+                states = await self.ws_client.get_states() or []
+
             if not areas_result:
                 return {}
 
@@ -356,13 +439,9 @@ class ZigBeeController(LightController):
                         "area_id": area_id,
                         "lights": [],
                         "zha_lights": [],
-                        "non_zha_lights": [],  # Track non-ZHA lights
+                        "non_zha_lights": [],
                     }
 
-            # Get device registry to map devices to entities
-            device_registry = await self.ws_client.send_message_wait_response(
-                {"type": "config/device_registry/list"}
-            )
             device_by_id = {}
             if device_registry:
                 for device in device_registry:
@@ -370,45 +449,31 @@ class ZigBeeController(LightController):
                     if device_id:
                         device_by_id[device_id] = device
 
-            # Get entity registry to find device associations
-            entity_registry = await self.ws_client.send_message_wait_response(
-                {"type": "config/entity_registry/list"}
-            )
             entity_to_device = {}
-            entity_area_overrides = (
-                {}
-            )  # Entity-level area assignments (e.g., group entities moved to Circadian_Zigbee_Groups)
+            entity_area_overrides = {}
             if entity_registry:
                 for entity in entity_registry:
                     entity_id = entity.get("entity_id")
                     device_id = entity.get("device_id")
                     if entity_id and device_id:
                         entity_to_device[entity_id] = device_id
-                    # Track entity-level area overrides
                     entity_area = entity.get("area_id")
                     if entity_id and entity_area:
                         entity_area_overrides[entity_id] = entity_area
 
-            # Get all ZHA devices for IEEE lookup
-            zha_devices = await self.list_zha_devices()
             logger.info(f"Found {len(zha_devices)} ZHA devices")
             zha_device_by_id = {}
             zha_device_by_ieee = {}
             for zha_dev in zha_devices:
-                # Match ZHA device to HA device by name or ID
                 dev_id = zha_dev.get("device_id")
                 ieee = zha_dev.get("ieee")
                 if dev_id:
                     zha_device_by_id[dev_id] = zha_dev
                 if ieee:
-                    # Store IEEE addresses as lowercase for consistency
                     zha_device_by_ieee[ieee.lower()] = zha_dev
                     logger.debug(
                         f"ZHA device: IEEE={ieee.lower()}, name={zha_dev.get('name')}"
                     )
-
-            # Get all states to find lights in each area
-            states = await self.ws_client.get_states()
             for state in states:
                 entity_id = state.get("entity_id", "")
                 if entity_id.startswith("light."):
@@ -784,7 +849,10 @@ class ZigBeeController(LightController):
             return False
 
     async def sync_zha_groups_with_areas(
-        self, areas_with_switches: set = None, filter_config: dict = None
+        self,
+        areas_with_switches: set = None,
+        filter_config: dict = None,
+        registry: RegistryData = None,
     ) -> tuple[bool, dict]:
         """Synchronize ZHA groups to match Home Assistant areas that have switches.
 
@@ -795,6 +863,7 @@ class ZigBeeController(LightController):
         Args:
             areas_with_switches: Set of area IDs that have switches. If None, creates groups for all areas.
             filter_config: Dict of area_id -> {entity_id: filter_name}. If None, all lights use "Standard".
+            registry: Pre-fetched registry data. If None, fetches individually.
 
         Returns:
             Tuple of (success, areas_dict) where areas_dict is the areas data for reuse
@@ -809,8 +878,10 @@ class ZigBeeController(LightController):
                     "Could not ensure Circadian_Zigbee_Groups area exists, groups may be placed in random areas"
                 )
 
-            # Get current ZHA groups
-            existing_groups = await self.list_zha_groups()
+            # Get current ZHA groups (from registry or fresh fetch)
+            existing_groups = (
+                registry.zha_groups if registry else await self.list_zha_groups()
+            )
             logger.info(f"Retrieved {len(existing_groups)} existing ZHA groups")
             for group in existing_groups:
                 members = group.get("members", [])
@@ -819,11 +890,13 @@ class ZigBeeController(LightController):
                 )
             existing_groups_by_name = {g.get("name"): g for g in existing_groups}
 
-            # Get all areas with their lights
-            areas = await self.get_areas()
+            # Get all areas with their lights (from registry or fresh fetch)
+            areas = await self.get_areas(registry=registry)
 
-            # Get ZHA devices for IEEE lookup
-            zha_devices = await self.list_zha_devices()
+            # Get ZHA devices for IEEE lookup (from registry or fresh fetch)
+            zha_devices = (
+                registry.zha_devices if registry else await self.list_zha_devices()
+            )
             device_by_ieee = {d.get("ieee"): d for d in zha_devices}
 
             # Track which groups should exist
@@ -944,87 +1017,15 @@ class ZigBeeController(LightController):
                     )
 
             # ------------------------------------------------------------------
-            # Phase 2: Re-add devices to correct groups
+            # Phase 2: Diff-based group sync
+            # For each desired group, compare existing members vs desired.
+            # Only add/remove what changed. If membership matches, zero ZCL
+            # commands are sent. Creates new groups if they don't exist.
             # ------------------------------------------------------------------
             for group_name, members, cap_type, area_name in all_capability_groups:
-                existing_group = existing_groups_by_name.get(group_name)
-
-                if existing_group:
-                    # Remove ALL current members first so ZHA clears its
-                    # database.  This forces the subsequent add_members to
-                    # actually send ZCL "Add Group" to each device (ZHA
-                    # skips the ZCL command for devices it already considers
-                    # members).
-                    existing_members = existing_group.get("members", [])
-                    if existing_members and not (
-                        len(existing_members) == 1 and existing_members[0] is None
-                    ):
-                        members_to_clear = []
-                        for m in existing_members:
-                            if m:
-                                ieee = m.get("ieee") or (
-                                    m.get("device", {}).get("ieee")
-                                    if m.get("device")
-                                    else None
-                                )
-                                ep = m.get("endpoint_id")
-                                if ieee and ep is not None:
-                                    members_to_clear.append(
-                                        {"ieee": ieee, "endpoint_id": ep}
-                                    )
-                        if members_to_clear:
-                            logger.info(
-                                f"Clearing {len(members_to_clear)} members from group '{group_name}' before re-add"
-                            )
-                            await self.manage_group(
-                                GroupCommand(
-                                    name=group_name,
-                                    group_id=existing_group["group_id"],
-                                    members=members_to_clear,
-                                    operation="remove_members",
-                                )
-                            )
-
-                    # Now add desired members — ZHA will send ZCL "Add Group"
-                    # since it no longer considers them existing members.
-                    logger.info(
-                        f"Adding {len(members)} members to group '{group_name}'"
-                    )
-                    await self.manage_group(
-                        GroupCommand(
-                            name=group_name,
-                            group_id=existing_group["group_id"],
-                            members=members,
-                            operation="add_members",
-                        )
-                    )
-
-                    if circadian_area_id:
-                        await self.move_group_entity_to_circadian_area(
-                            group_name, circadian_area_id
-                        )
-                else:
-                    random_group_id = random.randint(1, 65535)
-                    logger.info(
-                        f"Creating new ZHA group '{group_name}' for area '{area_name}' with ID {random_group_id}"
-                    )
-                    success = await self.create_group(
-                        GroupCommand(
-                            name=group_name,
-                            group_id=random_group_id,
-                            members=members,
-                        )
-                    )
-
-                    if success:
-                        updated_groups = await self.list_zha_groups()
-                        for g in updated_groups:
-                            if g.get("name") == group_name:
-                                if circadian_area_id:
-                                    await self.move_group_entity_to_circadian_area(
-                                        group_name, circadian_area_id
-                                    )
-                                break
+                await self._sync_single_group(
+                    group_name, members, existing_groups_by_name, circadian_area_id
+                )
 
             # ------------------------------------------------------------------
             # Phase 3: Delete obsolete Circadian groups from ZHA database
@@ -1377,6 +1378,9 @@ class ZigBeeController(LightController):
                         for ieee, ep in existing_member_set - new_member_set
                     ]
                     if to_remove:
+                        logger.info(
+                            f"Group '{group_name}': removing {len(to_remove)} stale member(s)"
+                        )
                         await self.manage_group(
                             GroupCommand(
                                 name=group_name,
@@ -1392,7 +1396,14 @@ class ZigBeeController(LightController):
                         for ieee, ep in new_member_set - existing_member_set
                     ]
                     if to_add:
+                        logger.info(
+                            f"Group '{group_name}': adding {len(to_add)} new member(s)"
+                        )
                         await self._add_members_batched(group_name, group_id, to_add)
+                else:
+                    logger.info(
+                        f"Group '{group_name}': membership unchanged ({len(existing_member_set)} members), skipping"
+                    )
 
             # Move to Circadian area if needed
             if circadian_area_id:

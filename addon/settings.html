@@ -990,10 +990,12 @@
         <div class="form-row" style="margin-top: 10px;">
           <label class="form-label">
             Sync devices
-            <span class="info-icon">i<span class="info-tooltip">Re-scans Home Assistant for new or moved lights, areas, and ZHA devices. Only needed after adding or moving hardware. This does not run automatically.</span></span>
+            <span class="info-icon">i<span class="info-tooltip">Re-scans Home Assistant for new or moved lights, areas, and ZHA devices. Runs automatically at the scheduled time daily. Click Sync now to run immediately.</span></span>
           </label>
-          <div class="form-control">
+          <div class="form-control" style="display:flex; align-items:center; gap:10px;">
             <button type="button" class="btn" id="sync-devices-btn" onclick="syncDevices()" style="padding: 6px 16px; cursor: pointer;">Sync now</button>
+            <span style="color:#888;">daily at</span>
+            <input type="time" class="form-input" id="daily-sync-time" value="04:00" style="width: 100px;">
             <span class="form-hint" id="sync-status"></span>
           </div>
         </div>
@@ -1052,6 +1054,10 @@
           document.getElementById('periodic-transition-day').value = config.periodic_transition_day ?? refreshDefault;
           document.getElementById('periodic-transition-night').value = config.periodic_transition_night ?? 1;
           document.getElementById('home-refresh-interval').value = config.home_refresh_interval ?? 10;
+          // Daily sync time
+          const syncH = config.daily_sync_hour ?? 4;
+          const syncM = config.daily_sync_minute ?? 0;
+          document.getElementById('daily-sync-time').value = String(syncH).padStart(2,'0') + ':' + String(syncM).padStart(2,'0');
           // Advanced logging
           advancedLoggingUntil = config.advanced_logging_until || null;
           const loggingSelect = document.getElementById('advanced-logging');
@@ -1148,6 +1154,8 @@
         periodic_transition_day: parseInt(document.getElementById('periodic-transition-day').value) || (parseInt(document.getElementById('circadian-refresh').value) || 30),
         periodic_transition_night: parseInt(document.getElementById('periodic-transition-night').value) || 1,
         home_refresh_interval: parseInt(document.getElementById('home-refresh-interval').value) || 10,
+        daily_sync_hour: parseInt(document.getElementById('daily-sync-time').value.split(':')[0]) || 4,
+        daily_sync_minute: parseInt(document.getElementById('daily-sync-time').value.split(':')[1]) || 0,
         motion_warning_time: parseInt(document.getElementById('motion-warning-time').value) || 0,
         motion_warning_blink_threshold: parseInt(document.getElementById('motion-warning-blink-threshold').value) || 15,
         freeze_off_rise: parseFloat(document.getElementById('freeze-off-rise').value) || 10,
@@ -1420,6 +1428,7 @@
     document.getElementById('periodic-transition-day').addEventListener('blur', saveSettings);
     document.getElementById('periodic-transition-night').addEventListener('blur', saveSettings);
     document.getElementById('home-refresh-interval').addEventListener('blur', saveSettings);
+    document.getElementById('daily-sync-time').addEventListener('change', saveSettings);
     document.getElementById('advanced-logging').addEventListener('change', async function() {
       const val = this.value;
       let until = null;

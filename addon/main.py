@@ -3979,6 +3979,7 @@ class HomeAssistantWebSocketClient:
             recovery = raw_config.get("power_recovery", "last_state")
 
             count = 0
+            skipped = 0
             select_entities = [
                 eid
                 for eid in self.cached_states.keys()
@@ -4008,6 +4009,11 @@ class HomeAssistantWebSocketClient:
                                 f"Power recovery: no matching option for '{recovery}' in {entity_id} options: {options}"
                             )
                             continue
+                        # Skip if already set to the desired value
+                        current = entity_state.get("state", "")
+                        if current == option:
+                            skipped += 1
+                            continue
                         await self.call_service(
                             "select",
                             "select_option",
@@ -4021,30 +4027,37 @@ class HomeAssistantWebSocketClient:
                         logger.warning(
                             f"Failed to set power recovery for {entity_id}: {e}"
                         )
-                logger.info(f"Applied power recovery '{recovery}' to {count} lights")
+                logger.info(
+                    f"Power recovery '{recovery}': {count} updated, {skipped} already set"
+                )
         except Exception as e:
             logger.error(f"Error applying power recovery setting: {e}")
 
-    async def build_light_capability_cache(self) -> None:
+    async def build_light_capability_cache(self, registry=None) -> None:
         """Build the light capability cache from entity and device registries.
 
         Populates:
         - self.light_color_modes: entity_id -> set of supported color modes
         - self.area_lights: area_id -> list of light entity_ids
+
+        Args:
+            registry: Pre-fetched RegistryData. If None, fetches entity and device registries.
         """
         logger.info("Building light capability cache...")
 
-        # Fetch entity registry
-        entity_result = await self.send_message_wait_response(
-            {"type": "config/entity_registry/list"}
-        )
-        entities = entity_result if isinstance(entity_result, list) else []
-
-        # Fetch device registry for area mapping
-        device_result = await self.send_message_wait_response(
-            {"type": "config/device_registry/list"}
-        )
-        devices = device_result if isinstance(device_result, list) else []
+        # Use pre-fetched registry data or fetch individually
+        if registry:
+            entities = registry.entities
+            devices = registry.devices
+        else:
+            entity_result = await self.send_message_wait_response(
+                {"type": "config/entity_registry/list"}
+            )
+            entities = entity_result if isinstance(entity_result, list) else []
+            device_result = await self.send_message_wait_response(
+                {"type": "config/device_registry/list"}
+            )
+            devices = device_result if isinstance(device_result, list) else []
 
         # Store device registry for switch detection and build device_id -> area_id mapping
         self.device_registry.clear()
@@ -5219,6 +5232,7 @@ class HomeAssistantWebSocketClient:
             await asyncio.gather(
                 self._fast_tick_loop(),
                 self._circadian_tick_loop(),
+                self._daily_sync_loop(),
             )
         except asyncio.CancelledError:
             logger.info("Periodic light updater cancelled")
@@ -5379,6 +5393,45 @@ class HomeAssistantWebSocketClient:
             except Exception as e:
                 logger.error(f"Error in circadian tick: {e}")
 
+    async def _daily_sync_loop(self):
+        """Daily maintenance sync at configurable time (default 4:00 AM).
+
+        Catches any drift — new lights, factor changes, stale reach groups.
+        Coordinator is idle at this hour, battery sensors not actively reporting.
+        """
+        from datetime import datetime, timedelta
+
+        while True:
+            try:
+                raw_config = glozone.load_config_from_files()
+                sync_hour = raw_config.get("daily_sync_hour", 4)
+                sync_minute = raw_config.get("daily_sync_minute", 0)
+
+                now = datetime.now()
+                next_sync = now.replace(
+                    hour=sync_hour, minute=sync_minute, second=0, microsecond=0
+                )
+                if next_sync <= now:
+                    next_sync += timedelta(days=1)
+
+                wait_seconds = (next_sync - now).total_seconds()
+                logger.info(
+                    f"Daily sync scheduled for {next_sync.strftime('%H:%M')} "
+                    f"({wait_seconds / 3600:.1f}h from now)"
+                )
+                await asyncio.sleep(wait_seconds)
+
+                logger.info("Running daily maintenance sync...")
+                await self.run_manual_sync()
+                logger.info("Daily maintenance sync complete")
+
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                logger.error(f"Error in daily sync loop: {e}")
+                # Wait an hour before retrying on error
+                await asyncio.sleep(3600)
+
     async def run_manual_sync(self):
         """Run manual sync: refresh light caches, ZHA groups, and group entity mappings.
 
@@ -5389,18 +5442,22 @@ class HomeAssistantWebSocketClient:
             logger.info("[sync] Starting area/group sync")
 
             # 0. Re-fetch all entity states so cached_states is fully up to date
-            #    (state_changed events may have missed new entities or attributes)
             await self.get_states()
 
             # 1. Refresh group entity mappings from cached_states
-            #    (picks up any new Circadian_ or Hue group entities from state_changed events)
             self._refresh_group_entity_mappings()
 
-            # 2. Rebuild light capability cache (area_lights, light_color_modes, zha_lights, hue_lights)
-            await self.build_light_capability_cache()
+            # 2. Fetch all registries once for the entire sync
+            zigbee_controller = self.light_controller.controllers.get(Protocol.ZIGBEE)
+            sync_registry = None
+            if zigbee_controller:
+                sync_registry = await zigbee_controller.fetch_all_registries()
 
-            # 3. Sync ZHA groups (creates/updates/deletes groups, refreshes parity cache + area_name_to_id)
-            await self.sync_zha_groups(quiet=True)
+            # 3. Rebuild light capability cache (uses pre-fetched registry)
+            await self.build_light_capability_cache(registry=sync_registry)
+
+            # 4. Sync ZHA groups (uses pre-fetched registry)
+            await self.sync_zha_groups(quiet=True, registry=sync_registry)
 
             # 4. Re-scan group entity mappings again after sync
             #    (sync may have created new ZHA groups that are now in cached_states)
@@ -5503,11 +5560,12 @@ class HomeAssistantWebSocketClient:
         except Exception as e:
             logger.error(f"Failed to refresh area parity cache: {e}")
 
-    async def sync_zha_groups(self, quiet: bool = False):
+    async def sync_zha_groups(self, quiet: bool = False, registry=None):
         """Helper method to sync ZHA groups with all areas.
 
         Args:
             quiet: If True, suppress banner logging (used for periodic slow-cycle syncs).
+            registry: Pre-fetched RegistryData. If None, fetches all registries once.
         """
         try:
             if not quiet:
@@ -5517,19 +5575,23 @@ class HomeAssistantWebSocketClient:
 
             zigbee_controller = self.light_controller.controllers.get(Protocol.ZIGBEE)
             if zigbee_controller:
-                # Pre-fetch areas to populate area_name_to_id mapping BEFORE sync
-                # This ensures group registration can look up area_id from area_name
-                areas = await zigbee_controller.get_areas()
+                # Fetch registries once if not provided
+                if registry is None:
+                    from light_controller import RegistryData
+
+                    registry = await zigbee_controller.fetch_all_registries()
+
+                # Populate area_name_to_id mapping from registry
                 self.area_name_to_id.clear()
-                for area_id, area_info in areas.items():
-                    area_name = area_info.get("name", "")
-                    if area_name:
+                for area in registry.areas:
+                    area_id = area.get("area_id")
+                    area_name = area.get("name", "")
+                    if area_id and area_name:
                         normalized_name = area_name.lower().replace(" ", "_")
                         self.area_name_to_id[normalized_name] = area_id
                         self.area_name_to_id[area_name.lower()] = area_id
 
                 # Ensure glozone config is loaded in this process
-                # (main.py and webserver.py are separate processes with separate module state)
                 glozone.load_config_from_files()
 
                 # Build filter config from glozone data
@@ -5546,9 +5608,9 @@ class HomeAssistantWebSocketClient:
                 except Exception as e:
                     logger.warning(f"Could not load filter config for group sync: {e}")
 
-                # Sync ZHA groups with all areas (no longer limited to areas with switches)
+                # Sync ZHA groups with all areas (pass registry to avoid re-fetching)
                 success, areas = await zigbee_controller.sync_zha_groups_with_areas(
-                    filter_config=filter_config
+                    filter_config=filter_config, registry=registry
                 )
                 if success:
                     logger.info("ZHA group sync completed")
@@ -6703,8 +6765,16 @@ class HomeAssistantWebSocketClient:
                             "⚠ No grouped light entities detected (no Hue rooms or Circadian_ ZHA groups found)"
                         )
 
+                # Fetch all registries once for the entire startup sequence
+                zigbee_controller = self.light_controller.controllers.get(
+                    Protocol.ZIGBEE
+                )
+                startup_registry = None
+                if zigbee_controller:
+                    startup_registry = await zigbee_controller.fetch_all_registries()
+
                 # Build light capability cache for color mode detection
-                await self.build_light_capability_cache()
+                await self.build_light_capability_cache(registry=startup_registry)
 
                 # Apply power recovery setting to all lights
                 await self.apply_power_recovery_setting()
@@ -6757,7 +6827,8 @@ class HomeAssistantWebSocketClient:
                             break
 
                 # Sync ZHA groups with all areas (includes parity cache refresh)
-                await self.sync_zha_groups()
+                # Pass startup_registry to avoid re-fetching everything
+                await self.sync_zha_groups(registry=startup_registry)
 
                 # Re-fetch states to pick up newly created ZHA group entities
                 refreshed_states = await self.get_states()
