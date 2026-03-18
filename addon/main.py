@@ -3917,48 +3917,54 @@ class HomeAssistantWebSocketClient:
     ) -> bool:
         """Turn off lights via reach groups for synchronized multi-area control.
 
+        Sends turn_off to all filter-aware reach group entities for this reach.
+        Since turn_off doesn't involve brightness, no value matching needed —
+        every reach group entity gets the off command.
+
         Args:
             areas: List of area IDs to control
             transition: Transition time in seconds
 
         Returns:
-            True if reach groups were used, False if fell back to per-area
+            True if any reach groups were used, False otherwise
         """
         if len(areas) < 2:
             return False
 
-        reach_color, reach_ct = self.get_reach_groups(areas)
-        if not reach_color and not reach_ct:
+        import switches as _switches
+
+        key = _switches.get_reach_key(areas)
+        reach = self.reach_groups.get(key)
+        if not reach:
+            return False
+
+        # Collect ALL reach group entities (every filter+factor+cap combo)
+        reach_entities = list(reach.filter_groups.values())
+
+        # Fall back to legacy entity_id_color/ct if no filter_groups
+        if not reach_entities:
+            if reach.entity_id_color:
+                reach_entities.append(reach.entity_id_color)
+            if reach.entity_id_ct:
+                reach_entities.append(reach.entity_id_ct)
+
+        if not reach_entities:
             return False
 
         logger.info(
-            f"Using reach groups for synchronized turn off: color={reach_color}, ct={reach_ct}"
+            f"Reach group turn off: {len(reach_entities)} group(s) for {len(areas)} areas"
         )
 
-        tasks = []
         service_data = {"transition": transition}
-
-        if reach_color:
-            tasks.append(
-                asyncio.create_task(
-                    self.call_service(
-                        "light", "turn_off", service_data, {"entity_id": reach_color}
-                    )
+        tasks = [
+            asyncio.create_task(
+                self.call_service(
+                    "light", "turn_off", service_data, {"entity_id": entity_id}
                 )
             )
-
-        if reach_ct:
-            tasks.append(
-                asyncio.create_task(
-                    self.call_service(
-                        "light", "turn_off", service_data, {"entity_id": reach_ct}
-                    )
-                )
-            )
-
-        if tasks:
-            await asyncio.gather(*tasks)
-
+            for entity_id in reach_entities
+        ]
+        await asyncio.gather(*tasks)
         return True
 
     async def get_states(self) -> List[Dict[str, Any]]:

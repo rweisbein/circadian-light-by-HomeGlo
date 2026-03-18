@@ -2067,15 +2067,29 @@ class CircadianLightPrimitives:
                 # Enable circadian and set is_on=False
                 state.enable_circadian_and_set_on(area_id, False)
 
-            # Phase 2: Send all turn-off commands in parallel
+            # Phase 2: Turn off via reach groups (synchronized) + per-area fallback
+            # Reach groups handle ZHA lights across areas simultaneously.
+            # Per-area turn_off handles non-ZHA lights and areas not in reach groups.
+            reach_used = await self.client.turn_off_reach_groups(
+                area_ids, transition=transition
+            )
+
+            # Per-area turn_off for non-reach lights (Hue, WiFi, individual ZHA)
+            # and switch entities. Idempotent — double-off for ZHA lights is harmless.
             tasks = []
             for area_id in area_ids:
                 tasks.append(
-                    self.client.turn_off_lights(area_id, transition=transition)
+                    self.client.turn_off_lights(
+                        area_id, transition=transition, nudge=not reach_used
+                    )
                 )
                 tasks.append(self.client.turn_off_switch_entities(area_id))
             await asyncio.gather(*tasks)
-            logger.info(f"lights_toggle_multiple: turned off {len(area_ids)} area(s)")
+
+            reach_note = " (reach + per-area)" if reach_used else ""
+            logger.info(
+                f"lights_toggle_multiple: turned off {len(area_ids)} area(s){reach_note}"
+            )
 
         else:
             # Turn on all areas with Circadian values
