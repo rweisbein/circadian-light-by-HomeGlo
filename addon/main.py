@@ -1612,44 +1612,42 @@ class HomeAssistantWebSocketClient:
     async def _send_step_via_reach_or_fallback(
         self, areas: List[str], results: list
     ) -> None:
-        """Send step results via reach groups if all values match, else per-area.
+        """Send step results via filter-aware reach groups where values match, else per-area.
 
         Args:
             areas: List of area IDs
             results: List of StepResult (or None for at-limit areas)
         """
-        # Collect valid results and compute final values
-        valid = []
-        final_values = set()
-        can_reach = True
-
+        # Build area_lighting tuples from step results
+        area_lighting = []
+        valid_results = {}  # area_id -> result (for per-area fallback)
         for area_id, result in zip(areas, results):
             if result is None or not state.get_is_on(area_id):
                 continue
-            rv = self._compute_reach_value(
-                area_id, result.brightness, result.color_temp
-            )
-            if rv is None:
-                can_reach = False
-                break
-            valid.append((area_id, result))
-            final_values.add(rv)
-
-        if can_reach and valid and len(final_values) == 1:
-            bri, ct = final_values.pop()
-            used = await self.turn_on_reach_groups(
-                [a for a, _ in valid], brightness=bri, color_temp=ct
-            )
-            if used:
-                logger.info(
-                    f"Step via reach groups: {bri}%, {ct}K for {len(valid)} areas"
+            override = self.primitives._get_decayed_brightness_override(area_id)
+            area_lighting.append(
+                (
+                    area_id,
+                    result.brightness,
+                    result.color_temp,
+                    result.brightness,
+                    override,
                 )
-                return
+            )
+            valid_results[area_id] = result
 
-        # Fallback: per-area
+        if not area_lighting:
+            return
+
+        # Try filter-aware reach groups
+        handled = await self.primitives._try_reach_turn_on(
+            [e[0] for e in area_lighting], area_lighting, transition=0.5
+        )
+
+        # Fallback: per-area for unhandled areas
         tasks = []
-        for area_id, result in zip(areas, results):
-            if result is not None and state.get_is_on(area_id):
+        for area_id, result in valid_results.items():
+            if area_id not in handled:
                 tasks.append(self.primitives._apply_step_result(area_id, result))
         if tasks:
             await asyncio.gather(*tasks)
@@ -1657,22 +1655,21 @@ class HomeAssistantWebSocketClient:
     async def _send_bright_via_reach_or_fallback(
         self, areas: List[str], results: list
     ) -> None:
-        """Send brightness update via reach groups if all values match, else per-area.
+        """Send brightness update via filter-aware reach groups where values match, else per-area.
 
         Args:
             areas: List of area IDs
             results: List of True/None from _brightness_step
         """
-        valid = []
-        final_values = set()
-        can_reach = True
         sun_times = self._get_sun_times()
 
+        # Build area_lighting tuples from current state
+        area_lighting = []
+        valid_areas = []
         for area_id, result in zip(areas, results):
             if result is None or not state.get_is_on(area_id):
                 continue
 
-            # Compute current lighting from state (override already updated)
             area_state = AreaState.from_dict(state.get_area(area_id))
             config_dict = glozone.get_effective_config_for_area(area_id)
             config = Config.from_dict(config_dict)
@@ -1684,29 +1681,30 @@ class HomeAssistantWebSocketClient:
             lighting = CircadianLight.calculate_lighting(
                 hour, config, area_state, sun_times=sun_times
             )
-
-            rv = self._compute_reach_value(
-                area_id, lighting.brightness, lighting.color_temp
-            )
-            if rv is None:
-                can_reach = False
-                break
-            valid.append(area_id)
-            final_values.add(rv)
-
-        if can_reach and valid and len(final_values) == 1:
-            bri, ct = final_values.pop()
-            used = await self.turn_on_reach_groups(valid, brightness=bri, color_temp=ct)
-            if used:
-                logger.info(
-                    f"Bright via reach groups: {bri}%, {ct}K for {len(valid)} areas"
+            override = self.primitives._get_decayed_brightness_override(area_id)
+            area_lighting.append(
+                (
+                    area_id,
+                    lighting.brightness,
+                    lighting.color_temp,
+                    lighting.brightness,
+                    override,
                 )
-                return
+            )
+            valid_areas.append(area_id)
 
-        # Fallback: per-area update
+        if not area_lighting:
+            return
+
+        # Try filter-aware reach groups
+        handled = await self.primitives._try_reach_turn_on(
+            [e[0] for e in area_lighting], area_lighting, transition=0.5
+        )
+
+        # Fallback: per-area update for unhandled areas
         tasks = []
-        for area_id, result in zip(areas, results):
-            if result is not None and state.get_is_on(area_id):
+        for area_id in valid_areas:
+            if area_id not in handled:
                 tasks.append(self.update_lights_in_circadian_mode(area_id))
         if tasks:
             await asyncio.gather(*tasks)
@@ -1903,6 +1901,7 @@ class HomeAssistantWebSocketClient:
 
         elif main_action == "color_up":
             # Color up only if lights are on AND in circadian mode
+            # TODO: Add send_command=False pattern to color_up/down for reach group support
             any_on_circadian = any(
                 state.is_circadian(area) and state.get_is_on(area) for area in areas
             )
@@ -1915,6 +1914,7 @@ class HomeAssistantWebSocketClient:
 
         elif main_action == "color_down":
             # Color down only if lights are on AND in circadian mode
+            # TODO: Add send_command=False pattern to color_up/down for reach group support
             any_on_circadian = any(
                 state.is_circadian(area) and state.get_is_on(area) for area in areas
             )
