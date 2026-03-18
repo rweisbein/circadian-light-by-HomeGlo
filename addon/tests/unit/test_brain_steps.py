@@ -118,10 +118,12 @@ class TestCalculateStep:
         result = CircadianLight.calculate_step(hour, "down", config, state, sun_times=sun_times)
 
         if result is not None:
-            # The returned color_temp must respect the override, not drop to 2700
-            assert result.color_temp > 3000, (
-                f"Step result dropped color_override: got {result.color_temp}K, "
-                f"expected >3000K (rendered_before={rendered_before}K)"
+            # Step down should move toward natural curve value (warm night target).
+            # The override from prior color-up should be reduced/cleared as
+            # the step moves down and warm night re-engages.
+            assert result.color_temp < rendered_before, (
+                f"Step down should reduce color: got {result.color_temp}K, "
+                f"expected < rendered_before={rendered_before}K"
             )
 
     def test_step_down_recalibrates_override(self):

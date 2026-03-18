@@ -1478,11 +1478,18 @@ class CircadianLight:
         tolerance = max(5, safe_margin_cct * 0.5)
 
         if direction == "down" and (not cct_at_limit or can_grow_override):
-            # Target full rendered color change (same as without Cool Day)
-            desired_rendered = current_cct - cct_step
-            desired_rendered = max(c_min, desired_rendered)
+            # Target the natural curve value at the new position (without solar rules).
+            # Same approach as calculate_set_position: override counteracts Cool Day
+            # so rendered output matches the natural curve target.
+            target_natural_cct = CircadianLight.calculate_color_at_hour(
+                hour,
+                config,
+                new_state,
+                apply_solar_rules=False,
+                weekday=weekday,
+            )
 
-            # Render with new midpoints, no override
+            # Render with new midpoints, no override (shows Cool Day effect)
             base_state = AreaState(
                 is_circadian=new_state.is_circadian,
                 is_on=new_state.is_on,
@@ -1518,16 +1525,41 @@ class CircadianLight:
                     weekday=weekday,
                 )
 
-            state_updates["color_override"] = _converge_override(
-                desired_rendered,
-                base_cct,
-                tolerance,
-                _render_step,
-            )
-            actual_cct = _render_step(state_updates["color_override"])
+            if base_cct > target_natural_cct + tolerance:
+                # Cool Day is holding CCT above target — override to counteract
+                state_updates["color_override"] = _converge_override(
+                    target_natural_cct,
+                    base_cct,
+                    tolerance,
+                    _render_step,
+                )
+            elif state.color_override is not None:
+                # Recalibrate existing override (shrink or clear)
+                needed = _converge_override(
+                    target_natural_cct,
+                    base_cct,
+                    tolerance,
+                    _render_step,
+                )
+                if needed is not None and needed > 0:
+                    state_updates["color_override"] = None
+                else:
+                    state_updates["color_override"] = needed
+            else:
+                state_updates["color_override"] = None
+
+            actual_cct = _render_step(state_updates.get("color_override"))
 
         elif state.color_override is not None:
-            # Step-up or cct-at-limit: recalibrate existing override to minimum
+            # Step-up or cct-at-limit: recalibrate existing override using same
+            # approach as calculate_set_position — target natural curve value.
+            target_natural_cct = CircadianLight.calculate_color_at_hour(
+                hour,
+                config,
+                new_state,
+                apply_solar_rules=False,
+                weekday=weekday,
+            )
             base_state = AreaState(
                 is_circadian=new_state.is_circadian,
                 is_on=new_state.is_on,
@@ -1544,10 +1576,39 @@ class CircadianLight:
                 sun_times=sun_times,
                 weekday=weekday,
             )
-            if abs(base_cct - actual_cct) < 10:
+
+            def _render_step_recal(ovr):
+                s = AreaState(
+                    is_circadian=new_state.is_circadian,
+                    is_on=new_state.is_on,
+                    frozen_at=new_state.frozen_at,
+                    brightness_mid=new_state.brightness_mid,
+                    color_mid=new_state.color_mid,
+                    color_override=ovr,
+                )
+                return CircadianLight.calculate_color_at_hour(
+                    hour,
+                    config,
+                    s,
+                    apply_solar_rules=True,
+                    sun_times=sun_times,
+                    weekday=weekday,
+                )
+
+            if base_cct > target_natural_cct + tolerance:
+                needed = _converge_override(
+                    target_natural_cct, base_cct, tolerance, _render_step_recal
+                )
+                if needed is not None and needed > 0:
+                    state_updates["color_override"] = None
+                else:
+                    state_updates["color_override"] = needed
+            elif abs(base_cct - target_natural_cct) < tolerance:
                 state_updates["color_override"] = None
             else:
-                state_updates["color_override"] = actual_cct - base_cct
+                state_updates["color_override"] = None
+
+            actual_cct = _render_step_recal(state_updates.get("color_override"))
 
         rgb = CircadianLight.color_temperature_to_rgb(actual_cct)
         xy = CircadianLight.color_temperature_to_xy(actual_cct)
