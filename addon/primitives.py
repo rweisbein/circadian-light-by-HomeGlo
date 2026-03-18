@@ -4507,7 +4507,12 @@ class CircadianLightPrimitives:
             max_bri = zone_cfg.get("max_brightness", 100)
 
             # Determine which filters this area uses
-            filter_names = set(area_filters.values()) if area_filters else {"Standard"}
+            # Include "Standard" for any lights not explicitly assigned a filter
+            filter_names = set(area_filters.values()) if area_filters else set()
+            # Check if any lights in this area lack an explicit filter assignment (→ Standard)
+            area_lights = self.client.area_lights.get(area_id, [])
+            if not area_filters or any(l not in area_filters for l in area_lights):
+                filter_names.add("Standard")
 
             filter_results = []
             for filter_name in filter_names:
