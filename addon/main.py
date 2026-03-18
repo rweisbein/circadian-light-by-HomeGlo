@@ -5632,9 +5632,9 @@ class HomeAssistantWebSocketClient:
     async def sync_reach_groups(self, areas_data: Dict[str, Dict[str, Any]] = None):
         """Sync ZHA groups for multi-area reach combinations.
 
-        Creates Circadian_Reach_{hash}_color and _ct groups for each unique
-        multi-area switch scope. These groups enable synchronized control of
-        lights across multiple areas with a single ZigBee command.
+        Creates per-filter reach groups that combine areas with the same filter
+        AND area_factor. These groups enable synchronized control of lights
+        across multiple areas with a single ZigBee command per filter.
 
         Args:
             areas_data: Optional areas data from sync_zha_groups. If not provided,
@@ -5663,11 +5663,35 @@ class HomeAssistantWebSocketClient:
                     )
                     return
 
+            # Build filter config and area factors from glozone data
+            filter_config = {}
+            area_factors = {}
+            try:
+                glozones = glozone.get_glozones()
+                for zone_cfg in glozones.values():
+                    for area_entry in zone_cfg.get("areas", []):
+                        if isinstance(area_entry, dict):
+                            aid = area_entry.get("id")
+                            if aid:
+                                lf = area_entry.get("light_filters")
+                                if lf and isinstance(lf, dict):
+                                    filter_config[aid] = lf
+                                bf = area_entry.get("brightness_factor")
+                                if bf is not None:
+                                    area_factors[aid] = bf
+            except Exception as e:
+                logger.warning(
+                    f"Could not load filter/factor config for reach sync: {e}"
+                )
+
             # Use ZigBee controller to sync reach groups
             zigbee_controller = self.light_controller.controllers.get(Protocol.ZIGBEE)
             if zigbee_controller:
                 self.reach_groups = await zigbee_controller.sync_reach_groups(
-                    reaches, areas_data
+                    reaches,
+                    areas_data,
+                    filter_config=filter_config,
+                    area_factors=area_factors,
                 )
                 logger.info(f"Reach groups synced: {list(self.reach_groups.keys())}")
             else:

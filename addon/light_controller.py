@@ -1008,6 +1008,11 @@ class ZigBeeController(LightController):
                     continue
 
                 for group_name, members, cap_type in capability_groups:
+                    if len(members) < 2:
+                        logger.info(
+                            f"Skipping group '{group_name}' ({len(members)} member — direct control)"
+                        )
+                        continue
                     expected_group_names.add(group_name)
                     all_capability_groups.append(
                         (group_name, members, cap_type, area_name)
@@ -1035,6 +1040,7 @@ class ZigBeeController(LightController):
             for group_name, group in existing_groups_by_name.items():
                 if (
                     group_name.startswith("Circadian_")
+                    and not group_name.startswith("Circadian_Reach_")
                     and group_name not in expected_group_names
                 ):
                     # Remove members before deleting so devices clear the group ID
@@ -1175,23 +1181,32 @@ class ZigBeeController(LightController):
         self,
         reaches: Dict[str, List[str]],
         areas_data: Dict[str, Dict[str, Any]],
+        filter_config: Dict[str, Dict[str, str]] = None,
+        area_factors: Dict[str, float] = None,
     ) -> Dict[str, ReachGroup]:
         """Synchronize ZHA groups for multi-area reach combinations.
 
-        Creates Circadian_Reach_{hash}_color and _ct groups for each unique
-        multi-area reach. Lights from all areas in the reach are combined
-        into these groups for synchronized control.
+        Creates per-filter reach groups that combine areas with the same filter
+        AND same area_factor. This allows a single ZigBee command per filter
+        across multiple areas when a switch is pressed.
+
+        Only creates groups with 2+ members (1-member groups offer no benefit).
 
         Args:
             reaches: Dict of reach_key -> list of area IDs
             areas_data: Areas data from sync_zha_groups_with_areas
+            filter_config: Dict of area_id -> {entity_id: filter_name}
+            area_factors: Dict of area_id -> brightness_factor (default 1.0)
 
         Returns:
-            Dict of reach_key -> ReachGroup with group IDs and entity IDs
+            Dict of reach_key -> ReachGroup with per-filter group mappings
         """
         if not reaches:
             logger.debug("No multi-area reaches to sync")
             return {}
+
+        filter_config = filter_config or {}
+        area_factors = area_factors or {}
 
         try:
             logger.info(
@@ -1201,7 +1216,7 @@ class ZigBeeController(LightController):
             # Ensure Circadian_Zigbee_Groups area exists
             circadian_area_id = await self.ensure_circadian_area_exists()
 
-            # Get existing ZHA groups
+            # Get existing ZHA groups (fresh fetch since area group sync may have changed them)
             existing_groups = await self.list_zha_groups()
             existing_groups_by_name = {g.get("name"): g for g in existing_groups}
 
@@ -1214,13 +1229,17 @@ class ZigBeeController(LightController):
             for reach_key, area_ids in reaches.items():
                 logger.info(f"Processing reach {reach_key}: areas={area_ids}")
 
-                # Collect ZHA lights from all areas in this reach
-                color_members = []
-                ct_members = []
+                # Group lights by (filter_name, area_factor, capability)
+                # Key: (filter_norm, factor_key, cap) -> {members: [], areas: set()}
+                filter_factor_groups: Dict[tuple, Dict] = {}
 
                 for area_id in area_ids:
                     area_info = areas_data.get(area_id, {})
                     zha_lights = area_info.get("zha_lights", [])
+                    area_filter_map = filter_config.get(area_id, {})
+                    factor = area_factors.get(area_id, 1.0)
+                    # Round factor to avoid floating point grouping issues
+                    factor_key = round(factor, 3)
 
                     for light in zha_lights:
                         ieee = light.get("ieee")
@@ -1235,69 +1254,77 @@ class ZigBeeController(LightController):
                             "endpoint_id": endpoint_id,
                         }
 
-                        # Determine capability from light_color_modes cache
+                        # Determine filter for this light
+                        filter_name = area_filter_map.get(entity_id, "Standard")
+                        filter_norm = filter_name.replace(" ", "_").lower()
+
+                        # Determine capability
                         modes = light_color_modes.get(entity_id, {"color_temp"})
-
                         if "xy" in modes or "rgb" in modes or "hs" in modes:
-                            # Avoid duplicates (same light in multiple areas)
-                            if not any(
-                                m["ieee"] == member_entry["ieee"] for m in color_members
-                            ):
-                                color_members.append(member_entry)
+                            cap = "color"
                         elif "color_temp" in modes:
-                            if not any(
-                                m["ieee"] == member_entry["ieee"] for m in ct_members
-                            ):
-                                ct_members.append(member_entry)
-                        # brightness-only lights are skipped
+                            cap = "ct"
+                        else:
+                            continue  # brightness-only skipped
 
-                # Create reach groups
+                        key = (filter_norm, factor_key, cap)
+                        if key not in filter_factor_groups:
+                            filter_factor_groups[key] = {
+                                "members": [],
+                                "areas": set(),
+                            }
+
+                        # Avoid duplicates
+                        grp = filter_factor_groups[key]
+                        if not any(
+                            m["ieee"] == member_entry["ieee"] for m in grp["members"]
+                        ):
+                            grp["members"].append(member_entry)
+                            grp["areas"].add(area_id)
+
+                # Create reach groups for combos with 2+ members from 2+ areas
                 reach_group = ReachGroup(key=reach_key, areas=area_ids)
+                color_groups_created = []
+                ct_groups_created = []
 
-                # Process color group
-                if color_members:
-                    group_name = f"Circadian_Reach_{reach_key}_color"
+                for (filter_norm, factor_key, cap), grp in filter_factor_groups.items():
+                    members = grp["members"]
+                    contributing_areas = grp["areas"]
+
+                    if len(contributing_areas) < 2:
+                        # Only one area contributes — use area group instead
+                        continue
+
+                    if len(members) < 2:
+                        # Single light — direct control
+                        continue
+
+                    group_name = f"Circadian_Reach_{reach_key}_{filter_norm}_{cap}"
                     expected_group_names.add(group_name)
                     logger.info(
-                        f"  Color group '{group_name}': {len(color_members)} lights"
+                        f"  {filter_norm} {cap} group '{group_name}': "
+                        f"{len(members)} lights from {len(contributing_areas)} areas "
+                        f"(factor={factor_key})"
                     )
-
                     await self._sync_single_group(
                         group_name,
-                        color_members,
+                        members,
                         existing_groups_by_name,
                         circadian_area_id,
                     )
 
-                    # Look up entity_id and group_id
-                    updated_groups = await self.list_zha_groups()
-                    for g in updated_groups:
-                        if g.get("name") == group_name:
-                            reach_group.group_id_color = g.get("group_id")
-                            # Entity ID is typically light.{group_name_lower}
-                            reach_group.entity_id_color = f"light.{group_name.lower()}"
-                            break
+                    entity_id = f"light.{group_name.lower()}"
+                    if cap == "color":
+                        color_groups_created.append(entity_id)
+                    elif cap == "ct":
+                        ct_groups_created.append(entity_id)
 
-                # Process CT group
-                if ct_members:
-                    group_name = f"Circadian_Reach_{reach_key}_ct"
-                    expected_group_names.add(group_name)
-                    logger.info(f"  CT group '{group_name}': {len(ct_members)} lights")
-
-                    await self._sync_single_group(
-                        group_name,
-                        ct_members,
-                        existing_groups_by_name,
-                        circadian_area_id,
-                    )
-
-                    # Look up entity_id and group_id
-                    updated_groups = await self.list_zha_groups()
-                    for g in updated_groups:
-                        if g.get("name") == group_name:
-                            reach_group.group_id_ct = g.get("group_id")
-                            reach_group.entity_id_ct = f"light.{group_name.lower()}"
-                            break
+                # Backward compat: populate entity_id_color/ct for simple reaches
+                # (single color/ct group per reach — used by runtime _try_reach_turn_on)
+                if len(color_groups_created) == 1:
+                    reach_group.entity_id_color = color_groups_created[0]
+                if len(ct_groups_created) == 1:
+                    reach_group.entity_id_ct = ct_groups_created[0]
 
                 reach_groups[reach_key] = reach_group
 
