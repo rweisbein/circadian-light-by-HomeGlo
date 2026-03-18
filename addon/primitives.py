@@ -3098,6 +3098,7 @@ class CircadianLightPrimitives:
         frozen_at: float = None,
         copy_from: str = None,
         is_on: bool = None,
+        send_command: bool = True,
     ):
         """Configure area state with presets, frozen_at, or copy settings.
 
@@ -3155,7 +3156,11 @@ class CircadianLightPrimitives:
                 logger.info(f"[{source}] Copied settings from {copy_from} to {area_id}")
 
                 # Apply lighting or turn off based on state
-                if state.is_circadian(area_id) and state.get_is_on(area_id):
+                if (
+                    state.is_circadian(area_id)
+                    and state.get_is_on(area_id)
+                    and send_command
+                ):
                     area_state = self._get_area_state(area_id)
                     hour = (
                         area_state.frozen_at
@@ -3166,7 +3171,7 @@ class CircadianLightPrimitives:
                     await self._apply_circadian_lighting(
                         area_id, result.brightness, result.color_temp
                     )
-                elif take_control and is_on == False:
+                elif take_control and is_on == False and send_command:
                     transition = self._get_turn_off_transition()
                     await self._turn_off_area(area_id, transition=transition)
                 return
@@ -3179,7 +3184,11 @@ class CircadianLightPrimitives:
             logger.info(f"[{source}] Set {area_id} frozen_at={frozen_at:.2f}")
 
             # Apply lighting or turn off based on state
-            if state.is_circadian(area_id) and state.get_is_on(area_id):
+            if (
+                state.is_circadian(area_id)
+                and state.get_is_on(area_id)
+                and send_command
+            ):
                 area_state = self._get_area_state(area_id)
                 result = CircadianLight.calculate_lighting(
                     frozen_at, config, area_state
@@ -3187,7 +3196,7 @@ class CircadianLightPrimitives:
                 await self._apply_circadian_lighting(
                     area_id, result.brightness, result.color_temp
                 )
-            elif take_control and is_on == False:
+            elif take_control and is_on == False and send_command:
                 transition = self._get_turn_off_transition()
                 await self._turn_off_area(area_id, transition=transition)
             return
@@ -3332,7 +3341,11 @@ class CircadianLightPrimitives:
                 return
 
             # Apply lighting or turn off based on state
-            if state.is_circadian(area_id) and state.get_is_on(area_id):
+            if (
+                state.is_circadian(area_id)
+                and state.get_is_on(area_id)
+                and send_command
+            ):
                 area_state = self._get_area_state(area_id)
                 hour = (
                     area_state.frozen_at
@@ -3354,7 +3367,7 @@ class CircadianLightPrimitives:
                 # Also turn on any switch entities when preset turns lights on
                 if take_control and is_on:
                     await self.client.turn_on_switch_entities(area_id)
-            elif take_control and is_on == False:
+            elif take_control and is_on == False and send_command:
                 transition = self._get_turn_off_transition()
                 await self._turn_off_area(area_id, transition=transition)
                 await self.client.turn_off_switch_entities(area_id)
@@ -3778,7 +3791,9 @@ class CircadianLightPrimitives:
             f"glo_up complete: pushed state to zone '{zone_name}': {runtime_state}"
         )
 
-    async def glo_down(self, area_id: str, source: str = "service_call"):
+    async def glo_down(
+        self, area_id: str, source: str = "service_call", send_command: bool = True
+    ):
         """Pull GloZone's runtime state to this area.
 
         glo_down syncs this area to match its zone's state. Use when you want
@@ -3789,6 +3804,7 @@ class CircadianLightPrimitives:
         Args:
             area_id: The area ID to sync to zone state
             source: Source of the action
+            send_command: Whether to send light commands (False for reach group batching)
         """
         logger.info(f"[{source}] glo_down for area {area_id}")
 
@@ -3826,13 +3842,16 @@ class CircadianLightPrimitives:
         logger.info(f"Copied zone state to area {area_id}")
 
         # Apply lighting if area is circadian and is_on
-        # Use centralized update function for consistency
-        if state.is_circadian(area_id) and state.get_is_on(area_id):
+        if state.is_circadian(area_id) and state.get_is_on(area_id) and send_command:
             await self.client.update_lights_in_circadian_mode(area_id)
             logger.info(f"glo_down complete for {area_id}")
-        else:
+        elif not state.is_circadian(area_id) or not state.get_is_on(area_id):
             logger.info(
                 f"glo_down complete for {area_id} (not circadian or lights off, no lighting change)"
+            )
+        else:
+            logger.info(
+                f"glo_down complete for {area_id} (state updated, command deferred)"
             )
 
     # -------------------------------------------------------------------------

@@ -2000,9 +2000,20 @@ class HomeAssistantWebSocketClient:
 
         elif main_action == "glo_down":
             # Pull GloZone settings to this area
-            await asyncio.gather(
-                *[self.primitives.glo_down(area, "switch") for area in areas]
-            )
+            if self._can_use_reach(areas):
+                await asyncio.gather(
+                    *[
+                        self.primitives.glo_down(a, "switch", send_command=False)
+                        for a in areas
+                    ]
+                )
+                await self._send_bright_via_reach_or_fallback(
+                    areas, [True for _ in areas]
+                )
+            else:
+                await asyncio.gather(
+                    *[self.primitives.glo_down(area, "switch") for area in areas]
+                )
 
         elif main_action == "glozone_reset":
             # Reset GloZone to Daily Rhythm (zone state only, not propagated)
@@ -2043,19 +2054,45 @@ class HomeAssistantWebSocketClient:
 
         elif main_action == "set_britelite":
             # Freeze at descend_start (max brightness/coolest color on curve)
-            # Uses primitives.set() which keeps circadian enabled and calculates from curve
             logger.info(f"[switch] set_britelite for areas: {areas}")
-            for area in areas:
-                await self.primitives.set(
-                    area, "switch", preset="britelite", is_on=True
+            if self._can_use_reach(areas):
+                for area in areas:
+                    await self.primitives.set(
+                        area,
+                        "switch",
+                        preset="britelite",
+                        is_on=True,
+                        send_command=False,
+                    )
+                await self._send_bright_via_reach_or_fallback(
+                    areas, [True for _ in areas]
                 )
+            else:
+                for area in areas:
+                    await self.primitives.set(
+                        area, "switch", preset="britelite", is_on=True
+                    )
 
         elif main_action == "set_nitelite":
             # Freeze at ascend_start (min brightness/warmest color on curve)
-            # Uses primitives.set() which keeps circadian enabled and calculates from curve
             logger.info(f"[switch] set_nitelite for areas: {areas}")
-            for area in areas:
-                await self.primitives.set(area, "switch", preset="nitelite", is_on=True)
+            if self._can_use_reach(areas):
+                for area in areas:
+                    await self.primitives.set(
+                        area,
+                        "switch",
+                        preset="nitelite",
+                        is_on=True,
+                        send_command=False,
+                    )
+                await self._send_bright_via_reach_or_fallback(
+                    areas, [True for _ in areas]
+                )
+            else:
+                for area in areas:
+                    await self.primitives.set(
+                        area, "switch", preset="nitelite", is_on=True
+                    )
 
         elif main_action in (
             "toggle_wake_bed",
@@ -2063,8 +2100,17 @@ class HomeAssistantWebSocketClient:
             "set_wake",
             "set_bed",
         ):
-            for area in areas:
-                await self.primitives.set(area, "switch", preset="wake_or_bed")
+            if self._can_use_reach(areas):
+                for area in areas:
+                    await self.primitives.set(
+                        area, "switch", preset="wake_or_bed", send_command=False
+                    )
+                await self._send_bright_via_reach_or_fallback(
+                    areas, [True for _ in areas]
+                )
+            else:
+                for area in areas:
+                    await self.primitives.set(area, "switch", preset="wake_or_bed")
 
         elif main_action and main_action.startswith("set_"):
             # Check if it's a moment action (set_sleep, set_exit, etc.)
