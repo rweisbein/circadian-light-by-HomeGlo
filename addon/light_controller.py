@@ -782,7 +782,7 @@ class ZigBeeController(LightController):
 
     async def move_group_entity_to_circadian_area(
         self, group_name: str, circadian_area_id: str
-    ) -> bool:
+    ) -> Optional[str]:
         """Find the entity_id for a ZHA group and move it to the Circadian_Zigbee_Groups area.
 
         Args:
@@ -790,7 +790,7 @@ class ZigBeeController(LightController):
             circadian_area_id: The area_id of the Circadian_Zigbee_Groups area
 
         Returns:
-            True if successful
+            The actual entity_id if found, None otherwise
         """
         try:
             # Get entity registry to find the group entity
@@ -820,21 +820,20 @@ class ZigBeeController(LightController):
                                 logger.info(
                                     f"Moved ZHA group entity {entity_id} to Circadian_Zigbee_Groups area"
                                 )
-                            return success
                         else:
                             logger.info(
                                 f"Group entity {entity_id} already in Circadian_Zigbee_Groups area"
                             )
-                            return True
+                        return entity_id
 
             logger.warning(f"Could not find entity for ZHA group {group_name}")
-            return False
+            return None
 
         except Exception as e:
             logger.error(
                 f"Failed to move group entity to Circadian_Zigbee_Groups area: {e}"
             )
-            return False
+            return None
 
     async def move_entity_to_area(self, entity_id: str, area_id: str) -> bool:
         """Move an entity to a specific area.
@@ -1324,14 +1323,14 @@ class ZigBeeController(LightController):
                         f"{len(members)} lights from {len(contributing_areas)} areas "
                         f"(factor={factor_key})"
                     )
-                    await self._sync_single_group(
+                    actual_entity_id = await self._sync_single_group(
                         group_name,
                         members,
                         existing_groups_by_name,
                         circadian_area_id,
                     )
 
-                    entity_id = f"light.{group_name.lower()}"
+                    entity_id = actual_entity_id or f"light.{group_name.lower()}"
                     reach_group.filter_groups[(filter_norm, factor_key, cap)] = (
                         entity_id
                     )
@@ -1379,7 +1378,7 @@ class ZigBeeController(LightController):
         members: List[Dict[str, Any]],
         existing_groups_by_name: Dict[str, Any],
         circadian_area_id: Optional[str],
-    ) -> None:
+    ) -> Optional[str]:
         """Sync a single ZHA group with the given members.
 
         Creates the group if it doesn't exist, or updates membership if needed.
@@ -1390,6 +1389,9 @@ class ZigBeeController(LightController):
             members: List of {ieee, endpoint_id} dicts
             existing_groups_by_name: Dict of existing groups by name
             circadian_area_id: Area ID for Circadian_Zigbee_Groups
+
+        Returns:
+            The actual entity_id of the group (with coordinator prefix), or None
         """
         existing_group = existing_groups_by_name.get(group_name)
 
@@ -1453,11 +1455,13 @@ class ZigBeeController(LightController):
                         f"Group '{group_name}': membership unchanged ({len(existing_member_set)} members), skipping"
                     )
 
-            # Move to Circadian area if needed
+            # Move to Circadian area if needed, and get actual entity_id
+            actual_entity_id = None
             if circadian_area_id:
-                await self.move_group_entity_to_circadian_area(
+                actual_entity_id = await self.move_group_entity_to_circadian_area(
                     group_name, circadian_area_id
                 )
+            return actual_entity_id
         else:
             # Create new group — create empty first, then add members in
             # batches so we don't hit ZHA's size limit on group/add.
@@ -1473,18 +1477,20 @@ class ZigBeeController(LightController):
                 logger.error(
                     f"Failed to create group '{group_name}', skipping member add and area move"
                 )
-                return
+                return None
 
             # Add members in batches
             ok = await self._add_members_batched(group_name, random_group_id, members)
             if not ok:
                 logger.error(f"Some members failed to add to '{group_name}'")
 
-            # Move to Circadian area
+            # Move to Circadian area and get actual entity_id
+            actual_entity_id = None
             if circadian_area_id:
-                await self.move_group_entity_to_circadian_area(
+                actual_entity_id = await self.move_group_entity_to_circadian_area(
                     group_name, circadian_area_id
                 )
+            return actual_entity_id
 
 
 class HomeAssistantController(LightController):
