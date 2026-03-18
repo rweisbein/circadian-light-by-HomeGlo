@@ -3767,6 +3767,39 @@ class HomeAssistantWebSocketClient:
         if tasks:
             await asyncio.gather(*tasks)
 
+        # Schedule turn-off nudge to catch missed ZigBee commands
+        self.schedule_off_nudge(area_id, transition=transition)
+
+    def schedule_off_nudge(self, area_id: str, transition: float = 0.3) -> None:
+        """Schedule a post-turn-off nudge to catch missed ZigBee commands.
+
+        Re-sends turn_off after nudge_delay seconds to ensure all lights
+        received the off command.
+        """
+        self.cancel_nudge(area_id)
+
+        delay = self._get_nudge_delay()
+        if delay <= 0:
+            return
+
+        nudge_transition = self._get_nudge_transition()
+
+        async def _off_nudge():
+            try:
+                await asyncio.sleep(delay)
+                await self.turn_off_lights(
+                    area_id, transition=nudge_transition, log_periodic=False
+                )
+                logger.debug(f"Off-nudge fired for area {area_id} after {delay}s")
+            except asyncio.CancelledError:
+                pass
+            except Exception as e:
+                logger.debug(f"Off-nudge failed for area {area_id}: {e}")
+            finally:
+                self._pending_nudges.pop(area_id, None)
+
+        self._pending_nudges[area_id] = asyncio.create_task(_off_nudge())
+
     async def turn_on_switch_entities(self, area_id: str) -> None:
         """Turn on switch.* entities (relays, smart plugs) in an area."""
         switches = self.area_switch_entities.get(area_id, [])

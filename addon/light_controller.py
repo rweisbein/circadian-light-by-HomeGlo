@@ -68,14 +68,23 @@ class ReachGroup:
     When a switch controls multiple areas, we create dedicated ZHA groups
     containing lights from all those areas so we can control them atomically
     with a single command (synchronized color/brightness changes).
+
+    Filter-aware: groups are per (filter, area_factor). The filter_groups dict
+    maps (filter_norm, factor, cap) -> entity_id for runtime lookup.
     """
 
     key: str  # Hash of sorted areas (from get_reach_key)
     areas: List[str]  # Areas in this reach
-    group_id_color: Optional[int] = None  # ZHA group ID for color-capable lights
-    group_id_ct: Optional[int] = None  # ZHA group ID for CT-only lights
-    entity_id_color: Optional[str] = None  # light.circadian_reach_xxx_color entity
-    entity_id_ct: Optional[str] = None  # light.circadian_reach_xxx_ct entity
+    group_id_color: Optional[int] = None  # Legacy flat group ID
+    group_id_ct: Optional[int] = None  # Legacy flat group ID
+    entity_id_color: Optional[str] = None  # Legacy flat entity (backward compat)
+    entity_id_ct: Optional[str] = None  # Legacy flat entity (backward compat)
+    # Per-filter groups: (filter_norm, factor_key, cap) -> entity_id
+    filter_groups: Dict[tuple, str] = None
+
+    def __post_init__(self):
+        if self.filter_groups is None:
+            self.filter_groups = {}
 
 
 @dataclass
@@ -1314,6 +1323,9 @@ class ZigBeeController(LightController):
                     )
 
                     entity_id = f"light.{group_name.lower()}"
+                    reach_group.filter_groups[(filter_norm, factor_key, cap)] = (
+                        entity_id
+                    )
                     if cap == "color":
                         color_groups_created.append(entity_id)
                     elif cap == "ct":
