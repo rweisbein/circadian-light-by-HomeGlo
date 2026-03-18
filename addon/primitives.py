@@ -396,12 +396,19 @@ class CircadianLightPrimitives:
             return None
         return area_state.brightness_override * decay
 
-    async def _apply_step_result(self, area_id: str, result) -> None:
+    async def _apply_step_result(
+        self, area_id: str, result, skip_filters: Set[str] = None
+    ) -> None:
         """Apply a StepResult to lights using the full pipeline.
 
         Uses the step's color/brightness values (not re-rendered) but runs
         through turn_on_lights_circadian so area_factor, filters, and
         brightness_override are applied correctly.
+
+        Args:
+            area_id: The area ID
+            result: StepResult with brightness, color_temp, rgb, xy
+            skip_filters: Set of filter_norms to skip (handled by reach groups)
         """
         effective_override = self._get_decayed_brightness_override(area_id)
         # Check for boost
@@ -419,6 +426,8 @@ class CircadianLightPrimitives:
             "rhythm_brightness": result.brightness,
             "brightness_override": effective_override,
         }
+        if skip_filters:
+            lighting_values["skip_filters"] = skip_filters
         await self.client.turn_on_lights_circadian(area_id, lighting_values)
         self.client.schedule_nudge(area_id, lighting_values)
 
@@ -2143,13 +2152,30 @@ class CircadianLightPrimitives:
                 area_ids, area_lighting, transition=transition
             )
 
-            # Process remaining areas (not fully handled by reach) via per-area
-            remaining = [
-                entry for entry in area_lighting if entry[0] not in reach_handled
-            ]
-            if remaining:
-                await self._apply_lighting_turn_on_multiple(
-                    remaining, transition=transition
+            # Process areas via per-area, skipping filters handled by reach
+            for entry in area_lighting:
+                area_id = entry[0]
+                skip = reach_handled.get(area_id)
+                if skip:
+                    # Check if ALL filters were handled
+                    area_filters = glozone.get_area_light_filters(area_id)
+                    all_filters = (
+                        set(area_filters.values()) if area_filters else {"Standard"}
+                    )
+                    all_norms = {f.replace(" ", "_").lower() for f in all_filters}
+                    if all_norms.issubset(skip):
+                        continue  # Fully handled by reach — skip per-area entirely
+
+                # Per-area with skip_filters for partially handled areas
+                await self._apply_lighting(
+                    area_id,
+                    entry[1],
+                    entry[2],
+                    include_color=True,
+                    transition=transition,
+                    rhythm_brightness=entry[3] if len(entry) > 3 else None,
+                    brightness_override=entry[4] if len(entry) > 4 else None,
+                    skip_filters=skip if skip else None,
                 )
 
             # Also turn on any switch entities (relays, smart plugs)
@@ -2158,9 +2184,7 @@ class CircadianLightPrimitives:
 
             reach_note = ""
             if reach_handled:
-                reach_note = (
-                    f" ({len(reach_handled)} via reach, {len(remaining)} per-area)"
-                )
+                reach_note = f" (reach: {len(reach_handled)} areas)"
             logger.info(
                 f"lights_toggle_multiple: turned on {len(area_ids)} area(s){reach_note}"
             )
@@ -4235,6 +4259,7 @@ class CircadianLightPrimitives:
         *,
         rhythm_brightness: int = None,
         brightness_override: float = None,
+        skip_filters: Set[str] = None,
     ):
         """Apply lighting values to an area.
 
@@ -4251,6 +4276,7 @@ class CircadianLightPrimitives:
             rhythm_brightness: Pure curve brightness for filter curve position (pre-NL/boost).
                 If provided, brightness_override is applied post-NL in the filter pipeline.
             brightness_override: Decay-adjusted additive delta applied post-NL.
+            skip_filters: Set of filter_norms to skip (already handled by reach groups).
         """
         circadian_values = {
             "brightness": brightness,
@@ -4260,6 +4286,8 @@ class CircadianLightPrimitives:
             circadian_values["rhythm_brightness"] = rhythm_brightness
         if brightness_override is not None:
             circadian_values["brightness_override"] = brightness_override
+        if skip_filters:
+            circadian_values["skip_filters"] = skip_filters
 
         await self.client.turn_on_lights_circadian(
             area_id,
@@ -4423,13 +4451,13 @@ class CircadianLightPrimitives:
         area_ids: List[str],
         area_lighting: List[Tuple],
         transition: float = 0.4,
-    ) -> Set[str]:
+    ) -> Dict[str, Set[str]]:
         """Try to use filter-aware reach groups for multi-area turn-on.
 
         Computes per-area per-filter brightness through the full pipeline,
-        then uses reach groups where values match across areas. Returns the
-        set of area IDs that were FULLY handled (all their filters covered).
-        Remaining areas need per-area processing.
+        then uses reach groups where values match across areas. Returns a
+        dict of area_id -> set of filter_norms that were handled via reach.
+        The caller should skip those specific filters in per-area fallback.
 
         Args:
             area_ids: List of area IDs
@@ -4437,12 +4465,13 @@ class CircadianLightPrimitives:
             transition: Transition time in seconds
 
         Returns:
-            Set of area_ids that were fully handled via reach groups.
+            Dict of area_id -> set of filter_norms handled via reach groups.
+            Empty dict if no reach groups were used.
         """
-        handled_areas = set()
+        handled_filters: Dict[str, Set[str]] = {}
 
         if len(area_ids) < 2:
-            return handled_areas
+            return handled_filters
 
         import switches as _switches  # lazy import to avoid circular
 
@@ -4450,7 +4479,7 @@ class CircadianLightPrimitives:
         key = _switches.get_reach_key(area_ids)
         reach = self.client.reach_groups.get(key)
         if not reach or not reach.filter_groups:
-            return handled_areas
+            return handled_filters
 
         # Pre-compute per-area filter data
         area_filter_data = (
@@ -4544,7 +4573,7 @@ class CircadianLightPrimitives:
                 filters_handled[area_id].add(filter_norm)
 
         if not reach_commands:
-            return handled_areas
+            return handled_filters
 
         # Send reach group commands
         tasks = []
@@ -4563,7 +4592,7 @@ class CircadianLightPrimitives:
 
             logger.info(
                 f"Reach group {filter_norm} {cap}: {entity_id}, "
-                f"brightness={bri}%, transition={transition}s"
+                f"brightness={bri}%, {ct}K, transition={transition}s"
             )
             tasks.append(
                 self.client.call_service(
@@ -4574,19 +4603,21 @@ class CircadianLightPrimitives:
         if tasks:
             await asyncio.gather(*tasks)
 
-        # Determine which areas are fully handled (all their filters covered by reach)
-        for area_id, filter_results in area_filter_data.items():
-            area_filter_set = {fn for fn, fk, bri, ct in filter_results}
-            handled_set = filters_handled.get(area_id, set())
-            if area_filter_set and area_filter_set.issubset(handled_set):
-                handled_areas.add(area_id)
+        if filters_handled:
+            fully = [
+                a
+                for a, fns in filters_handled.items()
+                if fns == {fn for fn, fk, bri, ct in area_filter_data.get(a, [])}
+            ]
+            partial = [a for a in filters_handled if a not in fully]
+            parts = []
+            if fully:
+                parts.append(f"{len(fully)} fully")
+            if partial:
+                parts.append(f"{len(partial)} partially ({', '.join(partial)})")
+            logger.info(f"Reach groups handled: {', '.join(parts)}")
 
-        if handled_areas:
-            logger.info(
-                f"Reach groups handled {len(handled_areas)} area(s) fully: {handled_areas}"
-            )
-
-        return handled_areas
+        return filters_handled
 
     async def _apply_lighting_turn_on_multiple(
         self,

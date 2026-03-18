@@ -1649,11 +1649,23 @@ class HomeAssistantWebSocketClient:
             [e[0] for e in area_lighting], area_lighting, transition=0.5
         )
 
-        # Fallback: per-area for unhandled areas
+        # Fallback: per-area for unhandled or partially handled areas
         tasks = []
         for area_id, result in valid_results.items():
-            if area_id not in handled:
-                tasks.append(self.primitives._apply_step_result(area_id, result))
+            skip = handled.get(area_id)
+            if skip:
+                # Check if fully handled
+                area_filters = glozone.get_area_light_filters(area_id)
+                all_filters = (
+                    set(area_filters.values()) if area_filters else {"Standard"}
+                )
+                all_norms = {f.replace(" ", "_").lower() for f in all_filters}
+                if all_norms.issubset(skip):
+                    continue  # Fully handled by reach
+            # Partial or no reach handling — pass skip_filters
+            tasks.append(
+                self.primitives._apply_step_result(area_id, result, skip_filters=skip)
+            )
         if tasks:
             await asyncio.gather(*tasks)
 
@@ -1706,11 +1718,19 @@ class HomeAssistantWebSocketClient:
             [e[0] for e in area_lighting], area_lighting, transition=0.5
         )
 
-        # Fallback: per-area update for unhandled areas
+        # Fallback: per-area update for unhandled or partially handled areas
         tasks = []
         for area_id in valid_areas:
-            if area_id not in handled:
-                tasks.append(self.update_lights_in_circadian_mode(area_id))
+            skip = handled.get(area_id)
+            if skip:
+                area_filters = glozone.get_area_light_filters(area_id)
+                all_filters = (
+                    set(area_filters.values()) if area_filters else {"Standard"}
+                )
+                all_norms = {f.replace(" ", "_").lower() for f in all_filters}
+                if all_norms.issubset(skip):
+                    continue  # Fully handled by reach
+            tasks.append(self.update_lights_in_circadian_mode(area_id))
         if tasks:
             await asyncio.gather(*tasks)
 
@@ -3002,6 +3022,7 @@ class HomeAssistantWebSocketClient:
         # Support both dict and kwargs calling conventions
         rhythm_brightness = None
         brightness_override = None
+        skip_filters = None
         if circadian_values:
             brightness = (
                 circadian_values.get("brightness") if brightness is None else brightness
@@ -3010,6 +3031,7 @@ class HomeAssistantWebSocketClient:
             xy = circadian_values.get("xy") if xy is None else xy
             rhythm_brightness = circadian_values.get("rhythm_brightness")
             brightness_override = circadian_values.get("brightness_override")
+            skip_filters = circadian_values.get("skip_filters")
         else:
             kelvin = color_temp
 
@@ -3065,6 +3087,7 @@ class HomeAssistantWebSocketClient:
                 area_factor,
                 rhythm_brightness=rhythm_brightness,
                 brightness_override=brightness_override,
+                skip_filters=skip_filters,
             )
             return
 
@@ -3287,6 +3310,7 @@ class HomeAssistantWebSocketClient:
         area_factor: float,
         rhythm_brightness: int = None,
         brightness_override: float = None,
+        skip_filters: set = None,
     ) -> None:
         """Filtered light dispatch: applies per-light filter brightness and routes to sub-groups.
 
@@ -3338,6 +3362,15 @@ class HomeAssistantWebSocketClient:
         tasks: List[asyncio.Task] = []
 
         for filter_name, lights_by_cap in filter_groups.items():
+            # Skip filters already handled by reach groups
+            filt_norm_check = filter_name.replace(" ", "_").lower()
+            if skip_filters and filt_norm_check in skip_filters:
+                if log_periodic:
+                    logger.info(
+                        f"Filter '{filter_name}': skipped (handled by reach group)"
+                    )
+                continue
+
             preset = presets.get(filter_name, {"at_bright": 100, "at_dim": 100})
 
             # Calculate filtered brightness
