@@ -4377,10 +4377,44 @@ class HomeAssistantWebSocketClient:
         ]
         await asyncio.gather(*tasks)
 
-        # Schedule off-nudge per area
+        # Schedule reach-group off-nudge: re-send turn_off to the same
+        # reach group entities (synchronized, not per-area)
         if nudge:
-            for area_id in areas:
-                self.schedule_off_nudge(area_id, transition=transition)
+            delay = self._get_nudge_delay()
+            nudge_transition = self._get_nudge_transition()
+            saved_entities = list(reach_entities)
+            nudge_areas = list(areas)
+
+            async def _reach_off_nudge():
+                try:
+                    await asyncio.sleep(delay)
+                    off_data = {"transition": nudge_transition}
+                    ntasks = [
+                        self.call_service(
+                            "light",
+                            "turn_off",
+                            off_data,
+                            {"entity_id": eid},
+                        )
+                        for eid in saved_entities
+                    ]
+                    if ntasks:
+                        await asyncio.gather(*ntasks)
+                    logger.debug(
+                        f"Reach off-nudge fired: {len(saved_entities)} group(s)"
+                    )
+                except asyncio.CancelledError:
+                    pass
+                except Exception as e:
+                    logger.debug(f"Reach off-nudge failed: {e}")
+                finally:
+                    for aid in nudge_areas:
+                        self._pending_nudges.pop(aid, None)
+
+            nudge_task = asyncio.create_task(_reach_off_nudge())
+            for area_id in nudge_areas:
+                self.cancel_nudge(area_id)
+                self._pending_nudges[area_id] = nudge_task
 
         return True
 

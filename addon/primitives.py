@@ -4758,23 +4758,55 @@ class CircadianLightPrimitives:
         if tasks:
             await asyncio.gather(*tasks)
 
-        # Schedule nudge for each area handled by reach groups
-        # Include rhythm_brightness and brightness_override so the nudge
-        # goes through the full filter pipeline in turn_on_lights_circadian
-        if nudge and filters_handled:
-            for area_id in filters_handled:
-                for entry in area_lighting:
-                    if entry[0] == area_id:
-                        nudge_values = {
-                            "brightness": entry[1],
-                            "kelvin": entry[2],
+        # Schedule reach-group nudge: re-send the same reach commands
+        # (synchronized, not per-area) after nudge_delay
+        if nudge and reach_commands:
+            import asyncio as _asyncio
+
+            delay = self.client._get_nudge_delay()
+            nudge_transition = self.client._get_nudge_transition()
+
+            # Capture the commands to replay
+            saved_commands = list(reach_commands)
+            saved_xy = xy
+            handled_areas = set(filters_handled.keys())
+
+            async def _reach_nudge():
+                try:
+                    await _asyncio.sleep(delay)
+                    ntasks = []
+                    for entity_id, bri, ct, filter_norm, cap in saved_commands:
+                        sdata = {
+                            "transition": nudge_transition,
+                            "brightness_pct": bri,
                         }
-                        if len(entry) > 3 and entry[3] is not None:
-                            nudge_values["rhythm_brightness"] = entry[3]
-                        if len(entry) > 4 and entry[4] is not None:
-                            nudge_values["brightness_override"] = entry[4]
-                        self.client.schedule_nudge(area_id, nudge_values)
-                        break
+                        if cap == "color" and saved_xy is not None:
+                            sdata["xy_color"] = list(saved_xy)
+                        elif cap == "ct":
+                            sdata["color_temp_kelvin"] = max(2000, ct)
+                        ntasks.append(
+                            self.client.call_service(
+                                "light",
+                                "turn_on",
+                                sdata,
+                                {"entity_id": entity_id},
+                            )
+                        )
+                    if ntasks:
+                        await _asyncio.gather(*ntasks)
+                    logger.debug(f"Reach nudge fired: {len(saved_commands)} group(s)")
+                except _asyncio.CancelledError:
+                    pass
+                except Exception as e:
+                    logger.debug(f"Reach nudge failed: {e}")
+                finally:
+                    for aid in handled_areas:
+                        self.client._pending_nudges.pop(aid, None)
+
+            nudge_task = _asyncio.create_task(_reach_nudge())
+            for area_id in handled_areas:
+                self.client.cancel_nudge(area_id)
+                self.client._pending_nudges[area_id] = nudge_task
 
         if filters_handled:
             fully = [
