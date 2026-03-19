@@ -4759,15 +4759,20 @@ class CircadianLightPrimitives:
             await asyncio.gather(*tasks)
 
         # Schedule nudge for each area handled by reach groups
+        # Include rhythm_brightness and brightness_override so the nudge
+        # goes through the full filter pipeline in turn_on_lights_circadian
         if nudge and filters_handled:
             for area_id in filters_handled:
-                # Find this area's lighting values for the nudge
                 for entry in area_lighting:
                     if entry[0] == area_id:
                         nudge_values = {
                             "brightness": entry[1],
                             "kelvin": entry[2],
                         }
+                        if len(entry) > 3 and entry[3] is not None:
+                            nudge_values["rhythm_brightness"] = entry[3]
+                        if len(entry) > 4 and entry[4] is not None:
+                            nudge_values["brightness_override"] = entry[4]
                         self.client.schedule_nudge(area_id, nudge_values)
                         break
 

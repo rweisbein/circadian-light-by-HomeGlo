@@ -4375,7 +4375,7 @@ class HomeAssistantWebSocketClient:
         # Schedule off-nudge per area
         if nudge:
             for area_id in areas:
-                self.schedule_nudge(area_id, {"off": True})
+                self.schedule_off_nudge(area_id, transition=transition)
 
         return True
 
