@@ -4969,22 +4969,16 @@ class CircadianLightPrimitives:
     ):
         """Visual bounce effect when hitting a bound limit.
 
-        Uses direction-specific bounce percentages:
-        - "up" (hit max): dip down by limit_bounce_max_percent of range
-        - "down" (hit min): flash up by limit_bounce_min_percent of range
+        Phase 1 (dip/flash) works in visible space: reads actual brightness
+        from cached state, applies bounce delta, sends directly to lights
+        via call_service (bypasses pipeline to avoid override interference).
 
-        Bounce type controls which axes:
-        - "step": bounces both brightness and color
-        - "bright": bounces brightness only
-        - "color": bounces color only
-
-        Values go through the full pipeline via _apply_circadian_lighting
-        (boost, NL, filters, area_factor, nudge). Callers must pass raw
-        circadian brightness (pre-NL, pre-boost, pre-override).
+        Phase 2 (restore) goes through the full pipeline via
+        _apply_circadian_lighting (boost, NL, filters, nudge).
 
         Args:
             area_id: The area ID
-            current_brightness: Raw circadian brightness (pre-NL, pre-boost)
+            current_brightness: Raw circadian brightness (pre-NL, pre-boost) for Phase 2 restore
             current_color: Current color temperature in Kelvin
             direction: "up" (hit upper limit, dip down) or "down" (hit lower limit, flash up)
             bounce_type: "step", "bright", or "color"
@@ -4999,53 +4993,67 @@ class CircadianLightPrimitives:
         limit_speed = self._get_limit_warning_speed()
         two_step_delay = self._get_two_step_delay()
 
-        # Use direction-specific bounce percentage
+        # Read actual visible brightness from cached state (HA 0-255 scale)
+        area_lights = self.client.area_lights.get(area_id, [])
+        max_visible = 0
+        for entity_id in area_lights:
+            ls = self.client.cached_states.get(entity_id, {})
+            if ls.get("state") == "on":
+                bri = ls.get("attributes", {}).get("brightness", 0)
+                if bri > max_visible:
+                    max_visible = bri
+        visible_bri = max_visible or 1
+
+        # Bounce delta in visible space (0-255)
         if direction == "up":
             bounce_percent = self._get_limit_bounce_max_percent() / 100.0
         else:
             bounce_percent = self._get_limit_bounce_min_percent() / 100.0
 
-        # Calculate ranges
-        bri_range = config.max_brightness - config.min_brightness
-        color_range = config.max_color_temp - config.min_color_temp
-
-        # Calculate bounce deltas (% of range) in circadian space
         bounce_bri = bounce_type in ("step", "bright")
         bounce_color = bounce_type in ("step", "color")
-        bri_delta = (bounce_percent * bri_range) if bounce_bri else 0
-        color_delta = (bounce_percent * color_range) if bounce_color else 0
 
-        # Calculate bounce targets based on direction (raw circadian values)
+        # Brightness bounce target in HA 0-255 space
+        if bounce_bri:
+            if direction == "up":
+                target_visible = max(1, int(visible_bri * (1.0 - bounce_percent)))
+            else:
+                target_visible = min(255, int(visible_bri * (1.0 + bounce_percent)))
+        else:
+            target_visible = visible_bri
+
+        # Color bounce target
+        color_range = config.max_color_temp - config.min_color_temp
+        color_delta = (bounce_percent * color_range) if bounce_color else 0
         if direction == "up":
-            target_brightness = max(
-                config.min_brightness, int(current_brightness - bri_delta)
-            )
             target_color = max(config.min_color_temp, int(current_color - color_delta))
         else:
-            target_brightness = min(
-                config.max_brightness, int(current_brightness + bri_delta)
-            )
             target_color = min(config.max_color_temp, int(current_color + color_delta))
-
-        if not bounce_bri:
-            target_brightness = current_brightness
         if not bounce_color:
             target_color = current_color
 
         include_color = bounce_type in ("step", "color")
 
-        # Phase 1: Bounce away (no nudge — temporary state)
-        await self._apply_circadian_lighting(
-            area_id,
-            target_brightness,
-            target_color,
-            include_color=include_color,
-            transition=limit_speed,
-            nudge=False,
-        )
+        # Phase 1: Bounce away via call_service (visible space, bypass pipeline)
+        zha_groups = self.client.get_area_zha_groups(area_id)
+        has_parity = self.client.area_parity_cache.get(area_id, False)
+        if zha_groups and has_parity:
+            targets = [{"entity_id": g} for g in zha_groups]
+        else:
+            targets = [{"area_id": area_id}]
+
+        phase1_tasks = []
+        for target in targets:
+            sdata = {"brightness": target_visible, "transition": limit_speed}
+            if include_color:
+                sdata["color_temp_kelvin"] = max(2000, target_color)
+            phase1_tasks.append(
+                self.client.call_service("light", "turn_on", sdata, target=target)
+            )
+        await asyncio.gather(*phase1_tasks)
         await asyncio.sleep(limit_speed + two_step_delay)
 
-        # Phase 2: Return to original (nudge to ensure it sticks)
+        # Phase 2: Restore via pipeline (with nudge)
         await self._apply_circadian_lighting(
             area_id,
             current_brightness,
@@ -5056,7 +5064,7 @@ class CircadianLightPrimitives:
 
         logger.info(
             f"Limit bounce ({bounce_type} {direction}) for {area_id}: "
-            f"{current_brightness}% -> {target_brightness}% -> restore"
+            f"visible {visible_bri}/255 -> {target_visible}/255 -> restore"
         )
 
     async def _standard_brightness_step(
