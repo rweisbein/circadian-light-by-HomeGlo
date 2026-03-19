@@ -5003,14 +5003,22 @@ class LightDesignerServer:
             # Always remove from runtime state so periodic refresh stops updating it
             state.remove_area(area_id)
 
-            if not removed_from:
-                return web.json_response(
-                    {"status": "purged", "area_id": area_id, "removed_from": []}
+            if removed_from:
+                await self.save_config_to_file(config)
+                glozone.set_config(config)
+                logger.info(f"Purged area {area_id} from zones: {removed_from}")
+
+            # Notify main process to remove from its in-memory state
+            # (main.py is a separate process with its own _state dict)
+            _, ws_url, token = self._get_ha_api_config()
+            if ws_url and token:
+                await self._fire_event_via_websocket(
+                    ws_url,
+                    token,
+                    "circadian_light_service_event",
+                    {"service": "purge_area", "area_id": area_id},
                 )
 
-            await self.save_config_to_file(config)
-            glozone.set_config(config)
-            logger.info(f"Purged area {area_id} from zones: {removed_from}")
             return web.json_response(
                 {"status": "purged", "area_id": area_id, "removed_from": removed_from}
             )

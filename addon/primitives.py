@@ -3544,7 +3544,7 @@ class CircadianLightPrimitives:
         two_step_delay = self._get_two_step_delay()
 
         await self._apply_lighting(
-            area_id, 0, 2700, include_color=False, transition=dim_duration
+            area_id, 0, 2700, include_color=False, transition=dim_duration, nudge=False
         )
         await asyncio.sleep(
             dim_duration + two_step_delay
@@ -3650,9 +3650,9 @@ class CircadianLightPrimitives:
         dim_duration = self._get_turn_off_transition()
         two_step_delay = self._get_two_step_delay()
 
-        # Dim all areas — use reach groups for synchronized dimming
+        # Dim all areas — use reach groups for synchronized dimming (no nudge — Phase 1)
         reach_dimmed = await self.client.turn_off_reach_groups(
-            areas_on, transition=dim_duration
+            areas_on, transition=dim_duration, nudge=False
         )
         if not reach_dimmed:
             # Fallback: dim per-area
@@ -4376,6 +4376,7 @@ class CircadianLightPrimitives:
         rhythm_brightness: int = None,
         brightness_override: float = None,
         skip_filters: Set[str] = None,
+        nudge: bool = True,
     ):
         """Apply lighting values to an area.
 
@@ -4393,6 +4394,7 @@ class CircadianLightPrimitives:
                 If provided, brightness_override is applied post-NL in the filter pipeline.
             brightness_override: Decay-adjusted additive delta applied post-NL.
             skip_filters: Set of filter_norms to skip (already handled by reach groups).
+            nudge: Whether to schedule a post-command nudge (False for temporary Phase 1 states).
         """
         circadian_values = {
             "brightness": brightness,
@@ -4411,7 +4413,8 @@ class CircadianLightPrimitives:
             transition=transition,
             include_color=include_color,
         )
-        self.client.schedule_nudge(area_id, circadian_values)
+        if nudge:
+            self.client.schedule_nudge(area_id, circadian_values)
 
     async def _apply_circadian_lighting(
         self,
@@ -4420,6 +4423,7 @@ class CircadianLightPrimitives:
         color_temp: int,
         include_color: bool = True,
         transition: float = 0.4,
+        nudge: bool = True,
     ):
         """Apply circadian lighting with boost awareness and full pipeline context.
 
@@ -4437,6 +4441,7 @@ class CircadianLightPrimitives:
             color_temp: Color temperature in Kelvin
             include_color: Whether to include color in the command
             transition: Transition time in seconds
+            nudge: Whether to schedule a post-command nudge (False for temporary Phase 1 states).
         """
         # brightness parameter IS the rhythm brightness (pre-boost, pre-NL)
         rhythm_brightness = brightness
@@ -4464,6 +4469,7 @@ class CircadianLightPrimitives:
             transition,
             rhythm_brightness=rhythm_brightness,
             brightness_override=brightness_override,
+            nudge=nudge,
         )
 
     async def _apply_lighting_turn_on(
@@ -4567,6 +4573,7 @@ class CircadianLightPrimitives:
         area_ids: List[str],
         area_lighting: List[Tuple],
         transition: float = 0.4,
+        nudge: bool = True,
     ) -> Dict[str, Set[str]]:
         """Try to use filter-aware reach groups for multi-area turn-on.
 
@@ -4579,6 +4586,7 @@ class CircadianLightPrimitives:
             area_ids: List of area IDs
             area_lighting: List of (area_id, brightness, color_temp, ...) tuples
             transition: Transition time in seconds
+            nudge: Whether to schedule a post-command nudge for handled areas.
 
         Returns:
             Dict of area_id -> set of filter_norms handled via reach groups.
@@ -4663,35 +4671,59 @@ class CircadianLightPrimitives:
         # For each reach filter group, check if all contributing areas match
         reach_commands = []  # (entity_id, brightness, color_temp)
         filters_handled = {}  # area_id -> set of filter_norms handled via reach
+        handled_set = set()  # (area_id, filter_norm) pairs already handled
 
-        for (filter_norm, factor_key, cap), entity_id in reach.filter_groups.items():
-            # Find areas that contribute to this reach group (matching filter+factor)
-            matching = {}
-            for area_id, filter_results in area_filter_data.items():
-                for fn, fk, bri, ct in filter_results:
-                    if fn == filter_norm and fk == factor_key:
-                        matching[area_id] = (bri, ct)
-
-            if len(matching) < 2:
-                continue  # Need 2+ areas for reach to be useful
-
-            # Check if all matching areas have the same brightness
-            values = set(matching.values())
-            if len(values) != 1:
-                logger.debug(
-                    f"Reach {key} {filter_norm} {cap}: values differ across areas, falling back"
-                )
+        # Try exact reach group first, then subset reach groups
+        candidate_reaches = [(key, reach)]
+        # Collect subset reach groups (other reaches whose areas ⊂ our areas)
+        area_set = set(area_ids)
+        for other_key, other_reach in self.client.reach_groups.items():
+            if other_key == key:
                 continue
+            if not other_reach.filter_groups:
+                continue
+            other_areas = set(other_reach.areas)
+            if len(other_areas) >= 2 and other_areas.issubset(area_set):
+                candidate_reaches.append((other_key, other_reach))
 
-            bri, ct = values.pop()
-            if bri <= 0:
-                continue  # All off — handled by per-area off logic
+        for rkey, rgroup in candidate_reaches:
+            for (
+                filter_norm,
+                factor_key,
+                cap,
+            ), entity_id in rgroup.filter_groups.items():
+                # Find areas that contribute to this group (matching filter+factor)
+                # and haven't already been handled for this filter
+                matching = {}
+                for area_id in rgroup.areas:
+                    if (area_id, filter_norm) in handled_set:
+                        continue
+                    for fn, fk, bri, ct in area_filter_data.get(area_id, []):
+                        if fn == filter_norm and fk == factor_key:
+                            matching[area_id] = (bri, ct)
 
-            reach_commands.append((entity_id, bri, ct, filter_norm, cap))
-            for area_id in matching:
-                if area_id not in filters_handled:
-                    filters_handled[area_id] = set()
-                filters_handled[area_id].add(filter_norm)
+                if len(matching) < 2:
+                    continue  # Need 2+ areas for reach to be useful
+
+                # Check if all matching areas have the same brightness
+                values = set(matching.values())
+                if len(values) != 1:
+                    if rkey == key:
+                        logger.debug(
+                            f"Reach {rkey} {filter_norm} {cap}: values differ across areas, falling back"
+                        )
+                    continue
+
+                bri, ct = values.pop()
+                if bri <= 0:
+                    continue  # All off — handled by per-area off logic
+
+                reach_commands.append((entity_id, bri, ct, filter_norm, cap))
+                for area_id in matching:
+                    if area_id not in filters_handled:
+                        filters_handled[area_id] = set()
+                    filters_handled[area_id].add(filter_norm)
+                    handled_set.add((area_id, filter_norm))
 
         if not reach_commands:
             return handled_filters
@@ -4723,6 +4755,19 @@ class CircadianLightPrimitives:
 
         if tasks:
             await asyncio.gather(*tasks)
+
+        # Schedule nudge for each area handled by reach groups
+        if nudge and filters_handled:
+            for area_id in filters_handled:
+                # Find this area's lighting values for the nudge
+                for entry in area_lighting:
+                    if entry[0] == area_id:
+                        nudge_values = {
+                            "brightness": entry[1],
+                            "kelvin": entry[2],
+                        }
+                        self.client.schedule_nudge(area_id, nudge_values)
+                        break
 
         if filters_handled:
             fully = [
@@ -4957,7 +5002,7 @@ class CircadianLightPrimitives:
         if not bounce_color:
             target_color = current_color
 
-        # Phase 1: Bounce away
+        # Phase 1: Bounce away (no nudge — temporary state)
         include_color = bounce_type in ("step", "color")
         await self._apply_lighting(
             area_id,
@@ -4965,10 +5010,11 @@ class CircadianLightPrimitives:
             target_color,
             include_color=include_color,
             transition=limit_speed,
+            nudge=False,
         )
         await asyncio.sleep(limit_speed + two_step_delay)
 
-        # Phase 2: Return to original
+        # Phase 2: Return to original (nudge to ensure it sticks)
         await self._apply_lighting(
             area_id,
             effective_brightness,
