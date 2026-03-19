@@ -2585,15 +2585,20 @@ class HomeAssistantWebSocketClient:
             limit_speed = self.primitives._get_limit_warning_speed()
             two_step_delay = self.primitives._get_two_step_delay()
 
-            # Build area_lighting for Phase 1 (bounce targets)
+            # Fetch per-area brightness_override for pipeline accuracy
+            area_overrides = {
+                a: self.primitives._get_decayed_brightness_override(a) for a in areas
+            }
+
+            # Phase 1: Bounce away
             t_bri, t_color = targets.pop()
             phase1_lighting = [
-                (area_id, t_bri, t_color, t_bri, None) for area_id in areas
+                (area_id, t_bri, t_color, t_bri, area_overrides.get(area_id))
+                for area_id in areas
             ]
             handled = await self.primitives._try_reach_turn_on(
                 areas, phase1_lighting, transition=limit_speed, nudge=False
             )
-            # Per-area fallback for Phase 1
             for area_id in areas:
                 skip = handled.get(area_id)
                 if skip:
@@ -2616,10 +2621,11 @@ class HomeAssistantWebSocketClient:
 
             await asyncio.sleep(limit_speed + two_step_delay)
 
-            # Phase 2: Restore via _try_reach_turn_on (with nudge)
+            # Phase 2: Restore (with nudge)
             r_bri, r_color = restores.pop()
             phase2_lighting = [
-                (area_id, r_bri, r_color, r_bri, None) for area_id in areas
+                (area_id, r_bri, r_color, r_bri, area_overrides.get(area_id))
+                for area_id in areas
             ]
             handled = await self.primitives._try_reach_turn_on(
                 areas, phase2_lighting, transition=limit_speed
