@@ -2526,11 +2526,11 @@ class HomeAssistantWebSocketClient:
         if not areas:
             return
 
-        # Compute bounce targets per area
+        # Compute raw circadian values per area (pre-NL, pre-boost)
         sun_times = self._get_sun_times()
         bounce_data = (
             {}
-        )  # area_id -> (target_bri, target_color, effective_bri, current_color)
+        )  # area_id -> (raw_bri, current_color, target_bri, target_color)
         for area_id in areas:
             area_state = AreaState.from_dict(state.get_area(area_id))
             config = Config.from_dict(glozone.get_effective_config_for_area(area_id))
@@ -2539,21 +2539,14 @@ class HomeAssistantWebSocketClient:
                 if area_state.frozen_at is not None
                 else get_current_hour()
             )
-            current_bri = CircadianLight.calculate_brightness_at_hour(
+            raw_bri = CircadianLight.calculate_brightness_at_hour(
                 hour, config, area_state
             )
             current_color = CircadianLight.calculate_color_at_hour(
                 hour, config, area_state, apply_solar_rules=True, sun_times=sun_times
             )
 
-            # Apply boost
-            effective_bri = current_bri
-            if state.is_boosted(area_id):
-                boost_state = state.get_boost_state(area_id)
-                boost_amount = boost_state.get("boost_brightness") or 0
-                effective_bri = min(100, current_bri + boost_amount)
-
-            # Bounce percentages
+            # Bounce percentages (in circadian space)
             if direction == "up":
                 bounce_percent = self.primitives._get_limit_bounce_max_percent() / 100.0
             else:
@@ -2567,133 +2560,107 @@ class HomeAssistantWebSocketClient:
             color_delta = (bounce_percent * color_range) if bounce_color else 0
 
             if direction == "up":
-                target_bri = max(config.min_brightness, int(effective_bri - bri_delta))
+                target_bri = max(config.min_brightness, int(raw_bri - bri_delta))
                 target_color = max(
                     config.min_color_temp, int(current_color - color_delta)
                 )
             else:
-                target_bri = min(config.max_brightness, int(effective_bri + bri_delta))
+                target_bri = min(config.max_brightness, int(raw_bri + bri_delta))
                 target_color = min(
                     config.max_color_temp, int(current_color + color_delta)
                 )
 
             if not bounce_bri:
-                target_bri = effective_bri
+                target_bri = raw_bri
             if not bounce_color:
                 target_color = current_color
 
-            bounce_data[area_id] = (
-                target_bri,
-                target_color,
-                effective_bri,
-                current_color,
-            )
+            bounce_data[area_id] = (raw_bri, current_color, target_bri, target_color)
 
-        # Check if all bounce targets match → use reach group
-        targets = {(d[0], d[1]) for d in bounce_data.values()}
-        restores = {(d[2], d[3]) for d in bounce_data.values()}
+        # Check if all bounce targets match → try reach group via _try_reach_turn_on
+        targets = {(d[2], d[3]) for d in bounce_data.values()}
+        restores = {(d[0], d[1]) for d in bounce_data.values()}
 
         if len(targets) == 1 and len(restores) == 1:
-            # All match — try reach group for synchronized bounce
-            import switches as _switches
+            limit_speed = self.primitives._get_limit_warning_speed()
+            two_step_delay = self.primitives._get_two_step_delay()
 
-            key = _switches.get_reach_key(areas)
-            reach = self.reach_groups.get(key)
-            if reach and reach.filter_groups:
-                limit_speed = self.primitives._get_limit_warning_speed()
-                two_step_delay = self.primitives._get_two_step_delay()
-                include_color = bounce_type in ("step", "color")
-                t_bri, t_color = targets.pop()
-                r_bri, r_color = restores.pop()
-
-                # Phase 1: Bounce away via reach group
-                xy_bounce = (
-                    CircadianLight.color_temperature_to_xy(t_color)
-                    if include_color
-                    else None
-                )
-                xy_restore = (
-                    CircadianLight.color_temperature_to_xy(r_color)
-                    if include_color
-                    else None
-                )
-
-                tasks = []
-                for (
-                    filter_norm,
-                    factor_key,
-                    cap,
-                ), entity_id in reach.filter_groups.items():
-                    sdata = {
-                        "transition": limit_speed,
-                        "brightness_pct": t_bri,
-                    }
-                    if include_color and cap == "color" and xy_bounce:
-                        sdata["xy_color"] = list(xy_bounce)
-                    elif include_color and cap == "ct":
-                        sdata["color_temp_kelvin"] = max(2000, t_color)
-                    tasks.append(
-                        self.call_service(
-                            "light",
-                            "turn_on",
-                            sdata,
-                            {"entity_id": entity_id},
+            # Build area_lighting for Phase 1 (bounce targets)
+            t_bri, t_color = targets.pop()
+            phase1_lighting = [
+                (area_id, t_bri, t_color, t_bri, None) for area_id in areas
+            ]
+            handled = await self.primitives._try_reach_turn_on(
+                areas, phase1_lighting, transition=limit_speed, nudge=False
+            )
+            # Per-area fallback for Phase 1
+            for area_id in areas:
+                skip = handled.get(area_id)
+                if skip:
+                    area_filters = glozone.get_area_light_filters(area_id)
+                    all_norms = {
+                        f.replace(" ", "_").lower()
+                        for f in (
+                            set(area_filters.values()) if area_filters else {"Standard"}
                         )
-                    )
-                await asyncio.gather(*tasks)
-                await asyncio.sleep(limit_speed + two_step_delay)
-
-                # Phase 2: Restore via reach group (with nudge)
-                tasks = []
-                for (
-                    filter_norm,
-                    factor_key,
-                    cap,
-                ), entity_id in reach.filter_groups.items():
-                    sdata = {
-                        "transition": limit_speed,
-                        "brightness_pct": r_bri,
                     }
-                    if include_color and cap == "color" and xy_restore:
-                        sdata["xy_color"] = list(xy_restore)
-                    elif include_color and cap == "ct":
-                        sdata["color_temp_kelvin"] = max(2000, r_color)
-                    tasks.append(
-                        self.call_service(
-                            "light",
-                            "turn_on",
-                            sdata,
-                            {"entity_id": entity_id},
-                        )
-                    )
-                await asyncio.gather(*tasks)
-
-                # Nudge each area to ensure restore sticks
-                for area_id in areas:
-                    self.schedule_nudge(
-                        area_id, {"brightness": r_bri, "kelvin": r_color}
-                    )
-
-                logger.info(
-                    f"Reach bounce ({bounce_type} {direction}): "
-                    f"{len(areas)} areas via reach group"
+                    if not area_filters or any(
+                        l not in area_filters for l in self.area_lights.get(area_id, [])
+                    ):
+                        all_norms.add("standard")
+                    if all_norms.issubset(skip):
+                        continue
+                await self.primitives._apply_circadian_lighting(
+                    area_id, t_bri, t_color, transition=limit_speed, nudge=False
                 )
-                return
+
+            await asyncio.sleep(limit_speed + two_step_delay)
+
+            # Phase 2: Restore via _try_reach_turn_on (with nudge)
+            r_bri, r_color = restores.pop()
+            phase2_lighting = [
+                (area_id, r_bri, r_color, r_bri, None) for area_id in areas
+            ]
+            handled = await self.primitives._try_reach_turn_on(
+                areas, phase2_lighting, transition=limit_speed
+            )
+            for area_id in areas:
+                skip = handled.get(area_id)
+                if skip:
+                    area_filters = glozone.get_area_light_filters(area_id)
+                    all_norms = {
+                        f.replace(" ", "_").lower()
+                        for f in (
+                            set(area_filters.values()) if area_filters else {"Standard"}
+                        )
+                    }
+                    if not area_filters or any(
+                        l not in area_filters for l in self.area_lights.get(area_id, [])
+                    ):
+                        all_norms.add("standard")
+                    if all_norms.issubset(skip):
+                        continue
+                await self.primitives._apply_circadian_lighting(
+                    area_id, r_bri, r_color, transition=limit_speed
+                )
+
+            logger.info(
+                f"Reach bounce ({bounce_type} {direction}): "
+                f"{len(areas)} areas, {r_bri}% -> {t_bri}% -> restore"
+            )
+            return
 
         # Targets differ or no reach group — fall back to indicator light or switch area
-        fallback_area = None
         if switch_id:
             switch_config = switches.get_switch(switch_id)
             if switch_config:
                 # Option 1: indicator light — bounce on that single entity
                 if switch_config.indicator_light:
-                    indicator = switch_config.indicator_light
-                    data = list(bounce_data.values())[0]
+                    data = bounce_data[areas[0]]
                     await self.primitives._bounce_at_limit(
-                        # Use the first area's values — close enough for a single indicator
                         areas[0],
-                        data[2],
-                        data[3],
+                        data[0],  # raw_bri
+                        data[1],  # current_color
                         direction=direction,
                         bounce_type=bounce_type,
                     )
@@ -2711,8 +2678,8 @@ class HomeAssistantWebSocketClient:
                         data = bounce_data[switch_area]
                         await self.primitives._bounce_at_limit(
                             switch_area,
-                            data[2],
-                            data[3],
+                            data[0],  # raw_bri
+                            data[1],  # current_color
                             direction=direction,
                             bounce_type=bounce_type,
                         )
