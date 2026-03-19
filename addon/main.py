@@ -2590,11 +2590,10 @@ class HomeAssistantWebSocketClient:
                 a: self.primitives._get_decayed_brightness_override(a) for a in areas
             }
 
-            # Phase 1: Bounce away
+            # Phase 1: Bounce away (no override — override would clamp dip to 100%)
             t_bri, t_color = targets.pop()
             phase1_lighting = [
-                (area_id, t_bri, t_color, t_bri, area_overrides.get(area_id))
-                for area_id in areas
+                (area_id, t_bri, t_color, t_bri, None) for area_id in areas
             ]
             handled = await self.primitives._try_reach_turn_on(
                 areas, phase1_lighting, transition=limit_speed, nudge=False
