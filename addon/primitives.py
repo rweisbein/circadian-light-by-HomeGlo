@@ -3550,6 +3550,12 @@ class CircadianLightPrimitives:
             dim_duration + two_step_delay
         )  # Wait for transition to complete
 
+        sun_times = (
+            self.client._get_sun_times()
+            if hasattr(self.client, "_get_sun_times")
+            else None
+        )
+
         if is_frozen:
             # Was frozen → unfreeze (re-anchor midpoints)
             self._unfreeze_internal(area_id, source)
@@ -3558,7 +3564,9 @@ class CircadianLightPrimitives:
             rise_transition = self._get_freeze_off_rise()
             area_state = self._get_area_state(area_id)
             hour = get_current_hour()
-            result = CircadianLight.calculate_lighting(hour, config, area_state)
+            result = CircadianLight.calculate_lighting(
+                hour, config, area_state, sun_times=sun_times
+            )
             await self._apply_circadian_lighting(
                 area_id,
                 result.brightness,
@@ -3575,7 +3583,9 @@ class CircadianLightPrimitives:
 
             # Flash up to frozen values instantly (boost-aware)
             area_state = self._get_area_state(area_id)
-            result = CircadianLight.calculate_lighting(frozen_at, config, area_state)
+            result = CircadianLight.calculate_lighting(
+                frozen_at, config, area_state, sun_times=sun_times
+            )
             await self._apply_circadian_lighting(
                 area_id, result.brightness, result.color_temp, transition=0
             )
@@ -3659,6 +3669,12 @@ class CircadianLightPrimitives:
             dim_duration + two_step_delay
         )  # Wait for transition to complete
 
+        sun_times = (
+            self.client._get_sun_times()
+            if hasattr(self.client, "_get_sun_times")
+            else None
+        )
+
         if is_frozen:
             # Was frozen → unfreeze all
             for area_id in areas_on:
@@ -3671,7 +3687,9 @@ class CircadianLightPrimitives:
             for area_id in areas_on:
                 config = self._get_config(area_id)
                 area_state = self._get_area_state(area_id)
-                result = CircadianLight.calculate_lighting(hour, config, area_state)
+                result = CircadianLight.calculate_lighting(
+                    hour, config, area_state, sun_times=sun_times
+                )
                 override = self._get_decayed_brightness_override(area_id)
                 area_lighting.append(
                     (
@@ -3722,7 +3740,7 @@ class CircadianLightPrimitives:
                 config = self._get_config(area_id)
                 area_state = self._get_area_state(area_id)
                 result = CircadianLight.calculate_lighting(
-                    frozen_at, config, area_state
+                    frozen_at, config, area_state, sun_times=sun_times
                 )
                 override = self._get_decayed_brightness_override(area_id)
                 area_lighting.append(

@@ -4996,12 +4996,12 @@ class HomeAssistantWebSocketClient:
                 logger.debug(f"Area {area_id} not in Circadian mode, skipping update")
                 return
 
-            # Skip areas with no known lights (deleted from HA)
+            # Warn if area has no cached lights (cache may not include it yet)
             if area_id not in self.area_lights:
-                logger.debug(
-                    f"Area {area_id} not in area_lights cache, skipping update"
-                )
-                return
+                if log_periodic:
+                    logger.info(
+                        f"Area {area_id} not in area_lights cache, proceeding with fallback"
+                    )
 
             # Get area state (includes stepped midpoints, pushed bounds, and frozen_at)
             area_state_dict = state.get_area(area_id)
@@ -5066,9 +5066,14 @@ class HomeAssistantWebSocketClient:
 
             # Skip areas in motion warning state (don't override the warning dim)
             if state.is_motion_warned(area_id):
-                logger.debug(
-                    f"[Periodic] Area {area_id} in motion warning state, skipping update"
-                )
+                if log_periodic:
+                    logger.info(
+                        f"Area {area_id} in motion warning state, skipping update"
+                    )
+                else:
+                    logger.debug(
+                        f"[Periodic] Area {area_id} in motion warning state, skipping update"
+                    )
                 return
 
             if (
