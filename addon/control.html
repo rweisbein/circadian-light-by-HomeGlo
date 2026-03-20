@@ -1230,7 +1230,8 @@
         // Load areas from glozones for area options
         const gzRes = await fetch(basePath + '/api/glozones');
         if (gzRes.ok) {
-          const zones = await gzRes.json();
+          const gzData = await gzRes.json();
+          const zones = gzData.zones || gzData;
           const areaGroup = document.createElement('optgroup');
           areaGroup.label = 'Areas';
           for (const [zoneName, zone] of Object.entries(zones)) {
