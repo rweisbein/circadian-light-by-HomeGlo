@@ -732,6 +732,7 @@ class MotionAreaConfig:
     boost_brightness: int = 50  # percentage points to add when boosting
     active_when: str = "always"  # always, sunset_to_sunrise, wake_to_bed
     active_offset: int = 0  # minutes: positive = widen window, negative = shrink
+    cooldown: int = 0  # per-scope cooldown in seconds (0 = use sensor default)
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
@@ -745,6 +746,8 @@ class MotionAreaConfig:
         if self.active_when != "always":
             d["active_when"] = self.active_when
             d["active_offset"] = self.active_offset
+        if self.cooldown > 0:
+            d["cooldown"] = self.cooldown
         return d
 
     @classmethod
@@ -785,6 +788,7 @@ class MotionAreaConfig:
             boost_brightness=data.get("boost_brightness", 50),
             active_when=data.get("active_when", "always"),
             active_offset=data.get("active_offset", 0),
+            cooldown=data.get("cooldown", 0),
         )
 
 

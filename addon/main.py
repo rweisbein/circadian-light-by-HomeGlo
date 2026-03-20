@@ -581,25 +581,33 @@ class HomeAssistantWebSocketClient:
             )
             return
 
-        # Check cooldown (only for motion detected, not cleared)
-        if new_state == "on" and sensor_config.cooldown > 0:
-            now = time.time()
-            until = self._motion_cooldown_until.get(sensor_config.id, 0)
-            if now < until:
-                # Reset cooldown timer on continued motion
-                expires = now + sensor_config.cooldown
-                self._motion_cooldown_until[sensor_config.id] = expires
-                cooldown_until_iso = datetime.fromtimestamp(expires).isoformat()
-                switches.set_last_action(
-                    device_id, "motion_detected", cooldown_until=cooldown_until_iso
-                )
-                # Extend motion timers for areas already on (don't turn on dark areas)
-                # Use deduplicated area_ids to avoid double-extending
-                seen_cooldown_areas = set()
-                for area_config in sensor_config.areas:
-                    if area_config.area_id in seen_cooldown_areas:
-                        continue
-                    seen_cooldown_areas.add(area_config.area_id)
+        if not sensor_config.areas:
+            logger.debug(
+                f"[Motion] Sensor {sensor_config.name} has no areas configured"
+            )
+            return
+
+        logger.info(
+            f"[Motion] {entity_id} -> {new_state} (sensor={sensor_config.name})"
+        )
+
+        # Record last action for UI
+        if new_state == "on":
+            switches.set_last_action(device_id, "motion_detected")
+
+        # Per-scope cooldown: filter out area configs whose scope is cooled down.
+        # Each area_config carries its scope's cooldown. Track per (sensor_id, scope_index).
+        now = time.time()
+        active_configs = []
+        for i, area_config in enumerate(sensor_config.areas):
+            # Effective cooldown: per-scope if set, else sensor default
+            cd = area_config.cooldown or sensor_config.cooldown
+            if cd > 0 and new_state == "on":
+                cd_key = f"{sensor_config.id}_scope{i}"
+                until = self._motion_cooldown_until.get(cd_key, 0)
+                if now < until:
+                    # Still cooled down — extend timers but don't re-trigger
+                    self._motion_cooldown_until[cd_key] = now + cd
                     if area_config.mode == "on_off" and state.has_motion_timer(
                         area_config.area_id
                     ):
@@ -611,41 +619,24 @@ class HomeAssistantWebSocketClient:
                             current_exp is None or new_exp > current_exp
                         ):
                             state.extend_motion_expires(area_config.area_id, new_exp)
-                            logger.debug(
-                                f"[Motion] Cooldown: extended timer for {area_config.area_id} to {new_exp}"
-                            )
-                logger.debug(
-                    f"[Motion] {sensor_config.name} cooldown reset ({sensor_config.cooldown}s)"
-                )
-                return
+                    logger.debug(
+                        f"[Motion] Area {area_config.area_id} cooled down ({cd}s), skipping"
+                    )
+                    continue
+                # Not cooled down — set cooldown for next trigger
+                self._motion_cooldown_until[cd_key] = now + cd
+            active_configs.append(area_config)
 
-        if not sensor_config.areas:
-            logger.debug(
-                f"[Motion] Sensor {sensor_config.name} has no areas configured"
-            )
+        if not active_configs:
+            logger.debug(f"[Motion] All areas cooled down for {sensor_config.name}")
             return
-
-        logger.info(
-            f"[Motion] {entity_id} -> {new_state} (sensor={sensor_config.name})"
-        )
-
-        # Set cooldown and record last action with cooldown_until for UI
-        if new_state == "on":
-            cooldown_until_iso = None
-            if sensor_config.cooldown > 0:
-                expires = time.time() + sensor_config.cooldown
-                self._motion_cooldown_until[sensor_config.id] = expires
-                cooldown_until_iso = datetime.fromtimestamp(expires).isoformat()
-            switches.set_last_action(
-                device_id, "motion_detected", cooldown_until=cooldown_until_iso
-            )
 
         # Merge configs for areas that appear in multiple scopes:
         # Most permissive power mode wins (on_only > on_off > disabled)
         # Boost applies if any config enables it
         mode_priority = {"on_only": 2, "on_off": 1, "disabled": 0}
         merged_areas = {}  # area_id -> merged config dict
-        for area_config in sensor_config.areas:
+        for area_config in active_configs:
             area_id = area_config.area_id
 
             if area_id not in merged_areas:
@@ -781,24 +772,28 @@ class HomeAssistantWebSocketClient:
             )
             return
 
-        # Check cooldown before processing motion detected
-        if sensor_config.cooldown > 0:
-            now = time.time()
-            until = self._motion_cooldown_until.get(sensor_config.id, 0)
-            if now < until:
-                # Reset cooldown timer on continued motion
-                expires = now + sensor_config.cooldown
-                self._motion_cooldown_until[sensor_config.id] = expires
-                cooldown_until_iso = datetime.fromtimestamp(expires).isoformat()
-                switches.set_last_action(
-                    device_id, "motion_detected", cooldown_until=cooldown_until_iso
-                )
-                # Extend motion timers for areas already on (don't turn on dark areas)
-                seen_cooldown_areas = set()
-                for area_config in sensor_config.areas:
-                    if area_config.area_id in seen_cooldown_areas:
-                        continue
-                    seen_cooldown_areas.add(area_config.area_id)
+        if not sensor_config.areas:
+            logger.debug(
+                f"[ZHA Motion] Sensor {sensor_config.name} has no areas configured"
+            )
+            return
+
+        # Motion detected
+        logger.info(
+            f"[ZHA Motion] {sensor_config.name}: motion detected (command={command})"
+        )
+        switches.set_last_action(device_id, "motion_detected")
+
+        # Per-scope cooldown: filter out cooled-down area configs
+        now = time.time()
+        active_configs = []
+        for i, area_config in enumerate(sensor_config.areas):
+            cd = area_config.cooldown or sensor_config.cooldown
+            if cd > 0:
+                cd_key = f"{sensor_config.id}_scope{i}"
+                until = self._motion_cooldown_until.get(cd_key, 0)
+                if now < until:
+                    self._motion_cooldown_until[cd_key] = now + cd
                     if area_config.mode == "on_off" and state.has_motion_timer(
                         area_config.area_id
                     ):
@@ -810,39 +805,21 @@ class HomeAssistantWebSocketClient:
                             current_exp is None or new_exp > current_exp
                         ):
                             state.extend_motion_expires(area_config.area_id, new_exp)
-                            logger.debug(
-                                f"[ZHA Motion] Cooldown: extended timer for {area_config.area_id} to {new_exp}"
-                            )
-                logger.debug(
-                    f"[ZHA Motion] {sensor_config.name} cooldown reset ({sensor_config.cooldown}s)"
-                )
-                return
+                    logger.debug(
+                        f"[ZHA Motion] Area {area_config.area_id} cooled down ({cd}s), skipping"
+                    )
+                    continue
+                self._motion_cooldown_until[cd_key] = now + cd
+            active_configs.append(area_config)
 
-        # Motion detected
-        logger.info(
-            f"[ZHA Motion] {sensor_config.name}: motion detected (command={command})"
-        )
-
-        # Set cooldown and record last action with cooldown_until for UI
-        cooldown_until_iso = None
-        if sensor_config.cooldown > 0:
-            expires = time.time() + sensor_config.cooldown
-            self._motion_cooldown_until[sensor_config.id] = expires
-            cooldown_until_iso = datetime.fromtimestamp(expires).isoformat()
-        switches.set_last_action(
-            device_id, "motion_detected", cooldown_until=cooldown_until_iso
-        )
-
-        if not sensor_config.areas:
-            logger.debug(
-                f"[ZHA Motion] Sensor {sensor_config.name} has no areas configured"
-            )
+        if not active_configs:
+            logger.debug(f"[ZHA Motion] All areas cooled down for {sensor_config.name}")
             return
 
-        # Merge configs for areas in multiple scopes (same logic as _handle_motion_event)
+        # Merge configs for areas in multiple scopes
         mode_priority = {"on_only": 2, "on_off": 1, "disabled": 0}
         merged_areas = {}
-        for area_config in sensor_config.areas:
+        for area_config in active_configs:
             area_id = area_config.area_id
             if area_id not in merged_areas:
                 merged_areas[area_id] = {

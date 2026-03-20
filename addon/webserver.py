@@ -7176,6 +7176,7 @@ class LightDesignerServer:
                         boost_brightness = scope.get("boost_brightness", 50)
                         active_when = scope.get("active_when", "always")
                         active_offset = scope.get("active_offset", 0)
+                        cooldown = scope.get("cooldown", 0)
 
                         for area_id in scope_areas:
                             areas.append(
@@ -7187,6 +7188,7 @@ class LightDesignerServer:
                                     boost_brightness=boost_brightness,
                                     active_when=active_when,
                                     active_offset=active_offset,
+                                    cooldown=cooldown,
                                 )
                             )
                 else:
