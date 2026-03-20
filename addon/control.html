@@ -817,15 +817,17 @@
       <div class="ctrl-card-header" onclick="toggleCard('indicator-light-section')">
         <span class="ctrl-card-chevron">&#x203A;</span>
         <span class="ctrl-card-title">Feedback Cues</span>
-        <span class="info-icon" onclick="event.stopPropagation()">i<span class="info-tooltip">When Feedback Cue of 'subtle' is selected in Settings, this light will show the cue. For example, when a 'freeze' button is pressed on a switch, this light will perform a quick animation indicating the lights in the Reach of the switch are frozen.</span></span>
+        <span class="info-icon" onclick="event.stopPropagation()">i<span class="info-tooltip">Choose which area and light(s) show visual feedback for actions like freeze, step limit bounce, and reach changes.</span></span>
       </div>
       <div class="ctrl-card-body">
         <div class="ctrl-card-body-inner">
-          <div style="display: flex; align-items: center; margin-bottom: 8px;">
-            <a href="#" id="indicator-light-toggle" style="font-size: 0.75rem; color: var(--muted); margin-left: auto;" onclick="toggleIndicatorLightScope(); return false;">list all</a>
-          </div>
-          <select class="modal-select" id="indicator-light-select" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.9rem;">
-            <option value="">None</option>
+          <label style="font-size: 0.8rem; color: var(--muted); margin-bottom: 4px; display: block;">Area</label>
+          <select class="modal-select" id="indicator-area-select" onchange="onIndicatorAreaChanged()" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.9rem; margin-bottom: 12px;">
+            <option value="">Switch location</option>
+          </select>
+          <label style="font-size: 0.8rem; color: var(--muted); margin-bottom: 4px; display: block;">Target</label>
+          <select class="modal-select" id="indicator-light-select" onchange="onIndicatorTargetChanged()" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.9rem;">
+            <option value="">Most popular purpose</option>
           </select>
         </div>
       </div>
@@ -1214,85 +1216,119 @@
     }
 
     // ============================================================
-    // Indicator lights
+    // Feedback cue area + target dropdowns
     // ============================================================
-    async function loadIndicatorLights(areaId, currentValue) {
-      const select = document.getElementById('indicator-light-select');
-      const toggleLink = document.getElementById('indicator-light-toggle');
-      select.innerHTML = '<option value="">None (switch location)</option>';
+    let cachedGzAreas = []; // [{id, name}, ...] from all zones
 
-      // Update toggle link text
-      if (toggleLink) {
-        toggleLink.textContent = indicatorLightShowAll ? 'filter to location' : 'list all';
-      }
+    async function loadFeedbackCueDropdowns(currentArea, currentTarget) {
+      const areaSelect = document.getElementById('indicator-area-select');
+      const targetSelect = document.getElementById('indicator-light-select');
+      areaSelect.innerHTML = '<option value="">Switch location</option>';
 
+      // Load areas from glozones
       try {
-        // Load areas from glozones for area options
         const gzRes = await fetch(basePath + '/api/glozones');
         if (gzRes.ok) {
           const gzData = await gzRes.json();
           const zones = gzData.zones || gzData;
-          const areaGroup = document.createElement('optgroup');
-          areaGroup.label = 'Areas';
+          cachedGzAreas = [];
           for (const [zoneName, zone] of Object.entries(zones)) {
             for (const area of (zone.areas || [])) {
               const aId = typeof area === 'string' ? area : area.id;
               const aName = typeof area === 'object' ? (area.name || aId) : aId;
+              cachedGzAreas.push({ id: aId, name: aName, filters: (typeof area === 'object' ? area.light_filters : null) });
               const opt = document.createElement('option');
-              opt.value = 'area:' + aId;
+              opt.value = aId;
               opt.textContent = aName;
-              if (('area:' + aId) === currentValue) opt.selected = true;
-              areaGroup.appendChild(opt);
+              if (aId === currentArea) opt.selected = true;
+              areaSelect.appendChild(opt);
             }
           }
-          if (areaGroup.children.length > 0) select.appendChild(areaGroup);
         }
+      } catch (err) {
+        console.error('Error loading feedback areas:', err);
+      }
 
-        // Load individual lights
-        let url = indicatorLightShowAll
-          ? basePath + '/api/area-lights?all=true'
-          : basePath + `/api/area-lights?area_id=${encodeURIComponent(areaId || '')}`;
+      // Load targets for the selected area
+      const effectiveArea = areaSelect.value || editingControl?.area_id || '';
+      await loadFeedbackTargets(effectiveArea, currentTarget);
+    }
 
-        const response = await fetch(url);
+    async function loadFeedbackTargets(areaId, currentTarget) {
+      const select = document.getElementById('indicator-light-select');
+      select.innerHTML = '<option value="">Most popular purpose</option>';
+
+      if (!areaId) return;
+
+      try {
+        // Get area's filter config to show purposes with counts
+        const areaInfo = cachedGzAreas.find(a => a.id === areaId);
+        const response = await fetch(basePath + `/api/area-lights?area_id=${encodeURIComponent(areaId)}`);
         if (response.ok) {
           const data = await response.json();
-          const lightGroup = document.createElement('optgroup');
-          lightGroup.label = 'Individual Lights';
-          (data.lights || []).forEach(light => {
-            const opt = document.createElement('option');
-            opt.value = light.entity_id;
-            opt.textContent = light.name;
-            if (light.entity_id === currentValue) opt.selected = true;
-            lightGroup.appendChild(opt);
+          const lights = data.lights || [];
+
+          // Count lights per purpose/filter
+          const filterMap = areaInfo?.filters || {};
+          const purposeCounts = {};
+          lights.forEach(light => {
+            const purpose = filterMap[light.entity_id] || 'Standard';
+            purposeCounts[purpose] = (purposeCounts[purpose] || 0) + 1;
           });
-          if (lightGroup.children.length > 0) select.appendChild(lightGroup);
+
+          // Add purposes as optgroup
+          if (Object.keys(purposeCounts).length > 0) {
+            const purposeGroup = document.createElement('optgroup');
+            purposeGroup.label = 'Purposes';
+            // Sort by count descending
+            const sorted = Object.entries(purposeCounts).sort((a, b) => b[1] - a[1]);
+            for (const [name, count] of sorted) {
+              const opt = document.createElement('option');
+              opt.value = 'filter:' + name;
+              opt.textContent = `${name} (${count} light${count !== 1 ? 's' : ''})`;
+              if (('filter:' + name) === currentTarget) opt.selected = true;
+              purposeGroup.appendChild(opt);
+            }
+            select.appendChild(purposeGroup);
+          }
+
+          // Add individual lights as optgroup
+          if (lights.length > 0) {
+            const lightGroup = document.createElement('optgroup');
+            lightGroup.label = 'Individual Lights';
+            lights.forEach(light => {
+              const opt = document.createElement('option');
+              opt.value = light.entity_id;
+              opt.textContent = light.name;
+              if (light.entity_id === currentTarget) opt.selected = true;
+              lightGroup.appendChild(opt);
+            });
+            select.appendChild(lightGroup);
+          }
         }
       } catch (err) {
-        console.error('Error loading indicator lights:', err);
+        console.error('Error loading feedback targets:', err);
       }
     }
 
-    function toggleIndicatorLightScope() {
-      indicatorLightShowAll = !indicatorLightShowAll;
-      const currentValue = document.getElementById('indicator-light-select').value;
-      loadIndicatorLights(editingControl?.area_id, currentValue);
+    function onIndicatorAreaChanged() {
+      const areaId = document.getElementById('indicator-area-select').value || editingControl?.area_id || '';
+      loadFeedbackTargets(areaId, '');
+      autoSave();
     }
 
-    // Flash indicator light when selected so user can identify it, then auto-save
-    document.getElementById('indicator-light-select').addEventListener('change', async (e) => {
-      const entityId = e.target.value;
+    function onIndicatorTargetChanged() {
+      const targetValue = document.getElementById('indicator-light-select').value;
       autoSave();
-      if (!entityId) return;
-      try {
-        await fetch(basePath + '/api/flash-light', {
+      // Flash the light if it's a specific entity
+      if (targetValue && !targetValue.startsWith('filter:')) {
+        fetch(basePath + '/api/flash-light', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ entity_id: entityId })
-        });
-      } catch (err) {
-        console.error('Error flashing light:', err);
+          body: JSON.stringify({ entity_id: targetValue })
+        }).catch(err => console.error('Error flashing light:', err));
       }
-    });
+    }
 
     // ============================================================
     // Pause timer logic
@@ -2039,14 +2075,16 @@
         document.getElementById('zha-settings-section').style.display = 'none';
         document.getElementById('cooldown-section').style.display = 'none';
 
-        // Show indicator light section for switches
+        // Show feedback cue section for switches
         document.getElementById('indicator-light-section').style.display = '';
-        // Combine indicator_light and indicator_area into single dropdown value
-        editingIndicatorLight = ctrl.indicator_light || '';
-        if (!editingIndicatorLight && ctrl.indicator_area) {
-          editingIndicatorLight = 'area:' + ctrl.indicator_area;
+        // Determine current target value for the target dropdown
+        let currentTarget = '';
+        if (ctrl.indicator_light) {
+          currentTarget = ctrl.indicator_light;
+        } else if (ctrl.indicator_filter) {
+          currentTarget = 'filter:' + ctrl.indicator_filter;
         }
-        loadIndicatorLights(ctrl.area_id, editingIndicatorLight);
+        loadFeedbackCueDropdowns(ctrl.indicator_area || '', currentTarget);
 
         // Load magic buttons and show section if switch type has magic slots
         editingMagicButtons = { ...(ctrl.magic_buttons || {}) };
@@ -2091,14 +2129,16 @@
           cooldown: editingCooldown
         };
       } else {
-        // Switch config — indicator can be a light entity or area (prefixed with "area:")
-        const indicatorValue = document.getElementById('indicator-light-select').value;
+        // Switch config — feedback cue with separate area and target
+        const areaValue = document.getElementById('indicator-area-select').value;
+        const targetValue = document.getElementById('indicator-light-select').value;
         let indicatorLight = '';
-        let indicatorArea = '';
-        if (indicatorValue.startsWith('area:')) {
-          indicatorArea = indicatorValue.substring(5);
-        } else {
-          indicatorLight = indicatorValue;
+        let indicatorArea = areaValue || '';
+        let indicatorFilter = '';
+        if (targetValue.startsWith('filter:')) {
+          indicatorFilter = targetValue.substring(7);
+        } else if (targetValue) {
+          indicatorLight = targetValue;
         }
         payload = {
           name: editingControl?.name,
@@ -2107,6 +2147,7 @@
           device_id: editingDeviceId,
           indicator_light: indicatorLight,
           indicator_area: indicatorArea,
+          indicator_filter: indicatorFilter,
           magic_buttons: editingMagicButtons,
           inactive: inactive,
           inactive_until: inactiveUntil

@@ -2270,8 +2270,9 @@ class HomeAssistantWebSocketClient:
 
         Resolution order:
         1. indicator_light (entity_id) → use directly
-        2. indicator_area (area_id) → ZHA group for most popular filter
-        3. Switch's device area → ZHA group for most popular filter
+        2. indicator_area + indicator_filter → ZHA group for that filter
+        3. indicator_area (no filter) → ZHA group for most popular filter
+        4. Switch's device area → ZHA group for most popular filter
 
         Returns:
             Dict with 'entity_id' key for call_service target, or None.
@@ -2284,10 +2285,10 @@ class HomeAssistantWebSocketClient:
         if switch_config.indicator_light:
             return {"entity_id": switch_config.indicator_light}
 
-        # Option 2: explicit indicator area
+        # Option 2/3: explicit indicator area (with optional filter)
         area_id = switch_config.indicator_area
 
-        # Option 3: switch's own device area
+        # Option 4: switch's own device area
         if not area_id and switch_config.device_id:
             device = self.device_registry.get(switch_config.device_id, {})
             area_id = device.get("area_id")
@@ -2295,36 +2296,43 @@ class HomeAssistantWebSocketClient:
         if not area_id:
             return None
 
-        # Find ZHA group for most popular filter in the area
-        return self._get_feedback_group_for_area(area_id)
+        # Find ZHA group for specified filter or most popular
+        return self._get_feedback_group_for_area(
+            area_id, filter_name=switch_config.indicator_filter
+        )
 
-    def _get_feedback_group_for_area(self, area_id: str) -> Optional[dict]:
-        """Get the ZHA group entity for the most popular filter in an area.
+    def _get_feedback_group_for_area(
+        self, area_id: str, filter_name: str = None
+    ) -> Optional[dict]:
+        """Get the ZHA group entity for a filter in an area.
 
+        If filter_name is specified, uses that filter's ZHA group.
+        Otherwise picks the most popular filter in the area.
         Falls back to the general area ZHA group or area_id target.
 
         Returns:
             Dict with 'entity_id' or 'area_id' key for call_service target.
         """
-        # Count lights per filter in this area
-        area_filters = glozone.get_area_light_filters(area_id)
-        area_lights = self.area_lights.get(area_id, [])
-
-        if area_filters:
-            filter_counts = {}
-            for light_id in area_lights:
-                fname = area_filters.get(light_id, "Standard")
-                filter_counts[fname] = filter_counts.get(fname, 0) + 1
-            # Add Standard for unassigned lights
-            unassigned = sum(1 for l in area_lights if l not in area_filters)
-            if unassigned > 0:
-                filter_counts["Standard"] = (
-                    filter_counts.get("Standard", 0) + unassigned
-                )
-            # Pick most popular
-            best_filter = max(filter_counts, key=filter_counts.get)
+        if filter_name:
+            best_filter = filter_name
         else:
-            best_filter = "Standard"
+            # Count lights per filter in this area
+            area_filters = glozone.get_area_light_filters(area_id)
+            area_lights = self.area_lights.get(area_id, [])
+
+            if area_filters:
+                filter_counts = {}
+                for light_id in area_lights:
+                    fname = area_filters.get(light_id, "Standard")
+                    filter_counts[fname] = filter_counts.get(fname, 0) + 1
+                unassigned = sum(1 for l in area_lights if l not in area_filters)
+                if unassigned > 0:
+                    filter_counts["Standard"] = (
+                        filter_counts.get("Standard", 0) + unassigned
+                    )
+                best_filter = max(filter_counts, key=filter_counts.get)
+            else:
+                best_filter = "Standard"
 
         # Look up ZHA group for this filter
         normalized_key = self._normalize_area_key(area_id)

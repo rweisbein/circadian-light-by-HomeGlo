@@ -6702,6 +6702,7 @@ class LightDesignerServer:
                     control_data["scopes"] = config.get("scopes", [])
                     control_data["indicator_light"] = config.get("indicator_light")
                     control_data["indicator_area"] = config.get("indicator_area")
+                    control_data["indicator_filter"] = config.get("indicator_filter")
                     control_data["magic_buttons"] = config.get("magic_buttons", {})
 
                 controls.append(control_data)
@@ -7296,6 +7297,7 @@ class LightDesignerServer:
                 # Create/update switch config
                 indicator_light = data.get("indicator_light") or None
                 indicator_area = data.get("indicator_area") or None
+                indicator_filter = data.get("indicator_filter") or None
                 switch_config = switches.SwitchConfig(
                     id=control_id,
                     name=name,
@@ -7305,6 +7307,7 @@ class LightDesignerServer:
                     device_id=device_id,
                     indicator_light=indicator_light,
                     indicator_area=indicator_area,
+                    indicator_filter=indicator_filter,
                     inactive=data.get("inactive", False),
                     inactive_until=data.get("inactive_until"),
                 )

@@ -619,6 +619,7 @@ class SwitchConfig:
     device_id: Optional[str] = None  # HA device_id for area lookup
     indicator_light: Optional[str] = None  # Entity ID for feedback cue light
     indicator_area: Optional[str] = None  # Area ID for feedback cue
+    indicator_filter: Optional[str] = None  # Filter/purpose name for feedback cue
     inactive: bool = False  # If True, switch won't trigger actions
     inactive_until: Optional[str] = None  # ISO timestamp or "forever"; None = no timer
 
@@ -660,6 +661,8 @@ class SwitchConfig:
             result["indicator_light"] = self.indicator_light
         if self.indicator_area:
             result["indicator_area"] = self.indicator_area
+        if self.indicator_filter:
+            result["indicator_filter"] = self.indicator_filter
         if self.inactive:
             result["inactive"] = True
         if self.inactive_until:
@@ -686,6 +689,7 @@ class SwitchConfig:
             device_id=data.get("device_id"),
             indicator_light=data.get("indicator_light"),
             indicator_area=data.get("indicator_area"),
+            indicator_filter=data.get("indicator_filter"),
             inactive=data.get("inactive", False),
             inactive_until=data.get("inactive_until"),
         )
