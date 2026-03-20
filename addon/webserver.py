@@ -1021,7 +1021,9 @@ class LightDesignerServer:
                 rest_url, ws_url, token = self._get_ha_api_config()
                 if ws_url and token:
                     try:
-                        async with websockets.connect(ws_url) as ws:
+                        async with websockets.connect(
+                            ws_url, max_size=16 * 1024 * 1024
+                        ) as ws:
                             msg = json.loads(await ws.recv())
                             if msg.get("type") == "auth_required":
                                 await ws.send(
@@ -1358,7 +1360,9 @@ class LightDesignerServer:
 
             if ws_url and token:
                 try:
-                    async with websockets.connect(ws_url) as ws:
+                    async with websockets.connect(
+                        ws_url, max_size=16 * 1024 * 1024
+                    ) as ws:
                         msg = json.loads(await ws.recv())
                         if msg.get("type") == "auth_required":
                             await ws.send(
@@ -2553,7 +2557,7 @@ class LightDesignerServer:
 
             sensor_entity = lux_tracker.get_sensor_entity()
 
-            async with websockets.connect(ws_url) as ws:
+            async with websockets.connect(ws_url, max_size=16 * 1024 * 1024) as ws:
                 msg = json.loads(await ws.recv())
                 if msg.get("type") != "auth_required":
                     return
@@ -2654,7 +2658,7 @@ class LightDesignerServer:
         ct_lights = []
 
         try:
-            async with websockets.connect(ws_url) as ws:
+            async with websockets.connect(ws_url, max_size=16 * 1024 * 1024) as ws:
                 # Authenticate
                 msg = json.loads(await ws.recv())
                 if msg.get("type") != "auth_required":
@@ -2764,7 +2768,7 @@ class LightDesignerServer:
             True if service call succeeded, False otherwise
         """
         try:
-            async with websockets.connect(ws_url) as ws:
+            async with websockets.connect(ws_url, max_size=16 * 1024 * 1024) as ws:
                 # Wait for auth_required message
                 msg = json.loads(await ws.recv())
                 if msg.get("type") != "auth_required":
@@ -2828,7 +2832,7 @@ class LightDesignerServer:
             True if event was fired, False otherwise
         """
         try:
-            async with websockets.connect(ws_url) as ws:
+            async with websockets.connect(ws_url, max_size=16 * 1024 * 1024) as ws:
                 # Wait for auth_required message
                 msg = json.loads(await ws.recv())
                 if msg.get("type") != "auth_required":
@@ -2924,7 +2928,7 @@ class LightDesignerServer:
 
         saved_states = {}
         try:
-            async with websockets.connect(ws_url) as ws:
+            async with websockets.connect(ws_url, max_size=16 * 1024 * 1024) as ws:
                 # Auth
                 msg = json.loads(await ws.recv())
                 if msg.get("type") != "auth_required":
@@ -2981,7 +2985,7 @@ class LightDesignerServer:
             return True
 
         try:
-            async with websockets.connect(ws_url) as ws:
+            async with websockets.connect(ws_url, max_size=16 * 1024 * 1024) as ws:
                 # Auth
                 msg = json.loads(await ws.recv())
                 if msg.get("type") != "auth_required":
@@ -3036,7 +3040,7 @@ class LightDesignerServer:
             return True
 
         try:
-            async with websockets.connect(ws_url) as ws:
+            async with websockets.connect(ws_url, max_size=16 * 1024 * 1024) as ws:
                 # Auth
                 msg = json.loads(await ws.recv())
                 if msg.get("type") != "auth_required":
@@ -3127,7 +3131,7 @@ class LightDesignerServer:
         """
         logger.debug(f"Fetching areas via WebSocket: {ws_url}")
         try:
-            async with websockets.connect(ws_url) as ws:
+            async with websockets.connect(ws_url, max_size=16 * 1024 * 1024) as ws:
                 # Wait for auth_required message
                 msg = json.loads(await ws.recv())
                 if msg.get("type") != "auth_required":
@@ -5796,7 +5800,7 @@ class LightDesignerServer:
             return {}, set()
 
         try:
-            async with websockets.connect(ws_url) as ws:
+            async with websockets.connect(ws_url, max_size=16 * 1024 * 1024) as ws:
                 # Auth
                 msg = json.loads(await ws.recv())
                 if msg.get("type") != "auth_required":
@@ -5853,7 +5857,7 @@ class LightDesignerServer:
             if not token or not ws_url:
                 return web.json_response({"error": "HA not configured"}, status=500)
 
-            async with websockets.connect(ws_url) as ws:
+            async with websockets.connect(ws_url, max_size=16 * 1024 * 1024) as ws:
                 # Auth
                 msg = json.loads(await ws.recv())
                 if msg.get("type") != "auth_required":
@@ -5957,7 +5961,7 @@ class LightDesignerServer:
             if not token or not ws_url:
                 return web.json_response({"lights": []})
 
-            async with websockets.connect(ws_url) as ws:
+            async with websockets.connect(ws_url, max_size=16 * 1024 * 1024) as ws:
                 # Auth
                 msg = json.loads(await ws.recv())
                 if msg.get("type") != "auth_required":
@@ -6136,7 +6140,7 @@ class LightDesignerServer:
             if not token or not ws_url:
                 return web.json_response({"sensors": []})
 
-            async with websockets.connect(ws_url) as ws:
+            async with websockets.connect(ws_url, max_size=16 * 1024 * 1024) as ws:
                 # Auth
                 msg = json.loads(await ws.recv())
                 if msg.get("type") != "auth_required":
@@ -6368,7 +6372,7 @@ class LightDesignerServer:
                 )
 
             # Get HA location config
-            async with websockets.connect(ws_url) as ws:
+            async with websockets.connect(ws_url, max_size=16 * 1024 * 1024) as ws:
                 msg = json.loads(await ws.recv())
                 if msg.get("type") != "auth_required":
                     return web.json_response({"error": "WS auth failed"}, status=500)
@@ -6816,7 +6820,7 @@ class LightDesignerServer:
             return []
 
         try:
-            async with websockets.connect(ws_url) as ws:
+            async with websockets.connect(ws_url, max_size=16 * 1024 * 1024) as ws:
                 # Auth
                 msg = json.loads(await ws.recv())
                 if msg.get("type") != "auth_required":
@@ -7350,7 +7354,7 @@ class LightDesignerServer:
             return web.json_response({"error": "HA API not configured"}, status=500)
 
         try:
-            async with websockets.connect(ws_url) as ws:
+            async with websockets.connect(ws_url, max_size=16 * 1024 * 1024) as ws:
                 # Auth
                 msg = json.loads(await ws.recv())
                 if msg.get("type") != "auth_required":
@@ -7508,7 +7512,7 @@ class LightDesignerServer:
             return web.json_response({"error": "HA API not configured"}, status=500)
 
         try:
-            async with websockets.connect(ws_url) as ws:
+            async with websockets.connect(ws_url, max_size=16 * 1024 * 1024) as ws:
                 # Auth
                 msg = json.loads(await ws.recv())
                 if msg.get("type") != "auth_required":
