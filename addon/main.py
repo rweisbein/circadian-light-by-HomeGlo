@@ -594,7 +594,12 @@ class HomeAssistantWebSocketClient:
                     device_id, "motion_detected", cooldown_until=cooldown_until_iso
                 )
                 # Extend motion timers for areas already on (don't turn on dark areas)
+                # Use deduplicated area_ids to avoid double-extending
+                seen_cooldown_areas = set()
                 for area_config in sensor_config.areas:
+                    if area_config.area_id in seen_cooldown_areas:
+                        continue
+                    seen_cooldown_areas.add(area_config.area_id)
                     if area_config.mode == "on_off" and state.has_motion_timer(
                         area_config.area_id
                     ):
@@ -635,24 +640,59 @@ class HomeAssistantWebSocketClient:
                 device_id, "motion_detected", cooldown_until=cooldown_until_iso
             )
 
-        # Process each area configured for this sensor
+        # Merge configs for areas that appear in multiple scopes:
+        # Most permissive power mode wins (on_only > on_off > disabled)
+        # Boost applies if any config enables it
+        mode_priority = {"on_only": 2, "on_off": 1, "disabled": 0}
+        merged_areas = {}  # area_id -> merged config dict
         for area_config in sensor_config.areas:
             area_id = area_config.area_id
-            mode = area_config.mode
-            duration = area_config.duration
+
+            if area_id not in merged_areas:
+                merged_areas[area_id] = {
+                    "mode": area_config.mode,
+                    "duration": area_config.duration,
+                    "boost_enabled": area_config.boost_enabled,
+                    "boost_brightness": area_config.boost_brightness,
+                    "active_configs": [area_config],
+                }
+            else:
+                existing = merged_areas[area_id]
+                # Most permissive mode wins
+                if mode_priority.get(area_config.mode, 0) > mode_priority.get(
+                    existing["mode"], 0
+                ):
+                    existing["mode"] = area_config.mode
+                # Boost applies if any config enables it
+                if area_config.boost_enabled:
+                    existing["boost_enabled"] = True
+                    existing["boost_brightness"] = max(
+                        existing["boost_brightness"], area_config.boost_brightness
+                    )
+                # Use longest duration for on_off timer
+                if area_config.duration > existing["duration"]:
+                    existing["duration"] = area_config.duration
+                existing["active_configs"].append(area_config)
+
+        # Process each merged area
+        for area_id, merged in merged_areas.items():
+            mode = merged["mode"]
+            duration = merged["duration"]
 
             if mode == "disabled":
                 logger.debug(f"[Motion] Mode disabled for area {area_id}")
                 continue
 
-            if not self._is_motion_time_active(area_config):
-                logger.debug(
-                    f"[Motion] Outside active window for area {area_id} (when={area_config.active_when})"
-                )
+            # Check active window — area is active if ANY config is active
+            any_active = any(
+                self._is_motion_time_active(ac) for ac in merged["active_configs"]
+            )
+            if not any_active:
+                logger.debug(f"[Motion] Outside active window for area {area_id}")
                 continue
 
             logger.debug(
-                f"[Motion] Area {area_id}: mode={mode}, boost={area_config.boost_enabled}, duration={duration}"
+                f"[Motion] Area {area_id}: mode={mode}, boost={merged['boost_enabled']}, duration={duration}"
             )
 
             if new_state == "on":
@@ -661,11 +701,11 @@ class HomeAssistantWebSocketClient:
                     area_id, source="motion_sensor"
                 )
 
-                # Get boost params if enabled (passed to motion_on_off for combined turn-on)
+                # Get boost params if enabled
                 boost_brightness = (
-                    area_config.boost_brightness if area_config.boost_enabled else None
+                    merged["boost_brightness"] if merged["boost_enabled"] else None
                 )
-                boost_duration = duration if area_config.boost_enabled else None
+                boost_duration = duration if merged["boost_enabled"] else None
 
                 # Motion detected - handle mode (power behavior)
                 # Boost is passed through to avoid intermediate brightness flash
@@ -754,7 +794,11 @@ class HomeAssistantWebSocketClient:
                     device_id, "motion_detected", cooldown_until=cooldown_until_iso
                 )
                 # Extend motion timers for areas already on (don't turn on dark areas)
+                seen_cooldown_areas = set()
                 for area_config in sensor_config.areas:
+                    if area_config.area_id in seen_cooldown_areas:
+                        continue
+                    seen_cooldown_areas.add(area_config.area_id)
                     if area_config.mode == "on_off" and state.has_motion_timer(
                         area_config.area_id
                     ):
@@ -795,37 +839,61 @@ class HomeAssistantWebSocketClient:
             )
             return
 
-        # Process each area configured for this sensor
+        # Merge configs for areas in multiple scopes (same logic as _handle_motion_event)
+        mode_priority = {"on_only": 2, "on_off": 1, "disabled": 0}
+        merged_areas = {}
         for area_config in sensor_config.areas:
             area_id = area_config.area_id
-            mode = area_config.mode
-            duration = area_config.duration
+            if area_id not in merged_areas:
+                merged_areas[area_id] = {
+                    "mode": area_config.mode,
+                    "duration": area_config.duration,
+                    "boost_enabled": area_config.boost_enabled,
+                    "boost_brightness": area_config.boost_brightness,
+                    "active_configs": [area_config],
+                }
+            else:
+                existing = merged_areas[area_id]
+                if mode_priority.get(area_config.mode, 0) > mode_priority.get(
+                    existing["mode"], 0
+                ):
+                    existing["mode"] = area_config.mode
+                if area_config.boost_enabled:
+                    existing["boost_enabled"] = True
+                    existing["boost_brightness"] = max(
+                        existing["boost_brightness"], area_config.boost_brightness
+                    )
+                if area_config.duration > existing["duration"]:
+                    existing["duration"] = area_config.duration
+                existing["active_configs"].append(area_config)
+
+        for area_id, merged in merged_areas.items():
+            mode = merged["mode"]
+            duration = merged["duration"]
 
             if mode == "disabled":
                 logger.debug(f"[ZHA Motion] Mode disabled for area {area_id}")
                 continue
 
-            if not self._is_motion_time_active(area_config):
-                logger.debug(
-                    f"[ZHA Motion] Outside active window for area {area_id} (when={area_config.active_when})"
-                )
+            any_active = any(
+                self._is_motion_time_active(ac) for ac in merged["active_configs"]
+            )
+            if not any_active:
+                logger.debug(f"[ZHA Motion] Outside active window for area {area_id}")
                 continue
 
             logger.debug(
-                f"[ZHA Motion] Area {area_id}: mode={mode}, boost={area_config.boost_enabled}, duration={duration}"
+                f"[ZHA Motion] Area {area_id}: mode={mode}, boost={merged['boost_enabled']}, duration={duration}"
             )
 
             # Cancel any active warning first (restores brightness)
             await self.primitives.cancel_motion_warning(area_id, source="motion_sensor")
 
-            # Get boost params if enabled (passed to motion_on_off for combined turn-on)
             boost_brightness = (
-                area_config.boost_brightness if area_config.boost_enabled else None
+                merged["boost_brightness"] if merged["boost_enabled"] else None
             )
-            boost_duration = duration if area_config.boost_enabled else None
+            boost_duration = duration if merged["boost_enabled"] else None
 
-            # Handle mode (power behavior)
-            # Boost is passed through to avoid intermediate brightness flash
             if mode == "on_off":
                 await self.primitives.motion_on_off(
                     area_id,
