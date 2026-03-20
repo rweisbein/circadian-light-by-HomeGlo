@@ -1222,8 +1222,12 @@
       const areaSelect = document.getElementById('indicator-area-select');
       areaSelect.innerHTML = '';
 
-      // Default to switch's device area if no explicit area saved
-      const defaultArea = currentArea || editingControl?.area_id || '';
+      // Default area: saved → device area → first area from first scope → none
+      let defaultArea = currentArea || editingControl?.area_id || '';
+      if (!defaultArea && editingScopes) {
+        const firstScope = editingScopes.find(s => s.areas && s.areas.length > 0);
+        if (firstScope) defaultArea = firstScope.areas[0];
+      }
 
       // Load areas from glozones
       try {
@@ -1247,6 +1251,15 @@
         }
       } catch (err) {
         console.error('Error loading feedback areas:', err);
+      }
+
+      // Add "None" fallback if nothing is selected
+      if (!areaSelect.value) {
+        const noneOpt = document.createElement('option');
+        noneOpt.value = '';
+        noneOpt.textContent = 'None';
+        noneOpt.selected = true;
+        areaSelect.insertBefore(noneOpt, areaSelect.firstChild);
       }
 
       // Load targets for the selected area
