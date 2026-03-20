@@ -617,9 +617,8 @@ class SwitchConfig:
     scopes: List[SwitchScope] = field(default_factory=list)
     magic_buttons: Dict[str, Optional[str]] = field(default_factory=dict)
     device_id: Optional[str] = None  # HA device_id for area lookup
-    indicator_light: Optional[str] = (
-        None  # Entity ID for reach feedback indicator light
-    )
+    indicator_light: Optional[str] = None  # Entity ID for feedback cue light
+    indicator_area: Optional[str] = None  # Area ID for feedback cue
     inactive: bool = False  # If True, switch won't trigger actions
     inactive_until: Optional[str] = None  # ISO timestamp or "forever"; None = no timer
 
@@ -659,6 +658,8 @@ class SwitchConfig:
             result["device_id"] = self.device_id
         if self.indicator_light:
             result["indicator_light"] = self.indicator_light
+        if self.indicator_area:
+            result["indicator_area"] = self.indicator_area
         if self.inactive:
             result["inactive"] = True
         if self.inactive_until:
@@ -684,6 +685,7 @@ class SwitchConfig:
             magic_buttons=data.get("magic_buttons", data.get("button_overrides", {})),
             device_id=data.get("device_id"),
             indicator_light=data.get("indicator_light"),
+            indicator_area=data.get("indicator_area"),
             inactive=data.get("inactive", False),
             inactive_until=data.get("inactive_until"),
         )
