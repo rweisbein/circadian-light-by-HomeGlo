@@ -823,11 +823,9 @@
         <div class="ctrl-card-body-inner">
           <label style="font-size: 0.8rem; color: var(--muted); margin-bottom: 4px; display: block;">Area</label>
           <select class="modal-select" id="indicator-area-select" onchange="onIndicatorAreaChanged()" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.9rem; margin-bottom: 12px;">
-            <option value="">Switch location</option>
           </select>
-          <label style="font-size: 0.8rem; color: var(--muted); margin-bottom: 4px; display: block;">Target</label>
+          <label style="font-size: 0.8rem; color: var(--muted); margin-bottom: 4px; display: block;">Lights</label>
           <select class="modal-select" id="indicator-light-select" onchange="onIndicatorTargetChanged()" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.9rem;">
-            <option value="">Most popular purpose</option>
           </select>
         </div>
       </div>
@@ -1222,8 +1220,10 @@
 
     async function loadFeedbackCueDropdowns(currentArea, currentTarget) {
       const areaSelect = document.getElementById('indicator-area-select');
-      const targetSelect = document.getElementById('indicator-light-select');
-      areaSelect.innerHTML = '<option value="">Switch location</option>';
+      areaSelect.innerHTML = '';
+
+      // Default to switch's device area if no explicit area saved
+      const defaultArea = currentArea || editingControl?.area_id || '';
 
       // Load areas from glozones
       try {
@@ -1240,7 +1240,7 @@
               const opt = document.createElement('option');
               opt.value = aId;
               opt.textContent = aName;
-              if (aId === currentArea) opt.selected = true;
+              if (aId === defaultArea) opt.selected = true;
               areaSelect.appendChild(opt);
             }
           }
@@ -1250,13 +1250,13 @@
       }
 
       // Load targets for the selected area
-      const effectiveArea = areaSelect.value || editingControl?.area_id || '';
+      const effectiveArea = areaSelect.value || '';
       await loadFeedbackTargets(effectiveArea, currentTarget);
     }
 
     async function loadFeedbackTargets(areaId, currentTarget) {
       const select = document.getElementById('indicator-light-select');
-      select.innerHTML = '<option value="">Most popular purpose</option>';
+      select.innerHTML = '';
 
       if (!areaId) return;
 
@@ -1276,17 +1276,22 @@
             purposeCounts[purpose] = (purposeCounts[purpose] || 0) + 1;
           });
 
-          // Add purposes as optgroup
+          // Add purposes as optgroup — most popular is first (pre-selected)
           if (Object.keys(purposeCounts).length > 0) {
             const purposeGroup = document.createElement('optgroup');
             purposeGroup.label = 'Purposes';
-            // Sort by count descending
             const sorted = Object.entries(purposeCounts).sort((a, b) => b[1] - a[1]);
-            for (const [name, count] of sorted) {
+            for (let i = 0; i < sorted.length; i++) {
+              const [name, count] = sorted[i];
               const opt = document.createElement('option');
               opt.value = 'filter:' + name;
               opt.textContent = `${name} (${count} light${count !== 1 ? 's' : ''})`;
-              if (('filter:' + name) === currentTarget) opt.selected = true;
+              // Pre-select: saved target if set, otherwise most popular (first)
+              if (currentTarget) {
+                if (('filter:' + name) === currentTarget) opt.selected = true;
+              } else if (i === 0) {
+                opt.selected = true;
+              }
               purposeGroup.appendChild(opt);
             }
             select.appendChild(purposeGroup);
