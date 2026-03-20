@@ -1219,7 +1219,7 @@
     async function loadIndicatorLights(areaId, currentValue) {
       const select = document.getElementById('indicator-light-select');
       const toggleLink = document.getElementById('indicator-light-toggle');
-      select.innerHTML = '<option value="">None</option>';
+      select.innerHTML = '<option value="">None (switch location)</option>';
 
       // Update toggle link text
       if (toggleLink) {
@@ -1227,6 +1227,27 @@
       }
 
       try {
+        // Load areas from glozones for area options
+        const gzRes = await fetch(basePath + '/api/glozones');
+        if (gzRes.ok) {
+          const zones = await gzRes.json();
+          const areaGroup = document.createElement('optgroup');
+          areaGroup.label = 'Areas';
+          for (const [zoneName, zone] of Object.entries(zones)) {
+            for (const area of (zone.areas || [])) {
+              const aId = typeof area === 'string' ? area : area.id;
+              const aName = typeof area === 'object' ? (area.name || aId) : aId;
+              const opt = document.createElement('option');
+              opt.value = 'area:' + aId;
+              opt.textContent = aName;
+              if (('area:' + aId) === currentValue) opt.selected = true;
+              areaGroup.appendChild(opt);
+            }
+          }
+          if (areaGroup.children.length > 0) select.appendChild(areaGroup);
+        }
+
+        // Load individual lights
         let url = indicatorLightShowAll
           ? basePath + '/api/area-lights?all=true'
           : basePath + `/api/area-lights?area_id=${encodeURIComponent(areaId || '')}`;
@@ -1234,13 +1255,16 @@
         const response = await fetch(url);
         if (response.ok) {
           const data = await response.json();
+          const lightGroup = document.createElement('optgroup');
+          lightGroup.label = 'Individual Lights';
           (data.lights || []).forEach(light => {
             const opt = document.createElement('option');
             opt.value = light.entity_id;
             opt.textContent = light.name;
             if (light.entity_id === currentValue) opt.selected = true;
-            select.appendChild(opt);
+            lightGroup.appendChild(opt);
           });
+          if (lightGroup.children.length > 0) select.appendChild(lightGroup);
         }
       } catch (err) {
         console.error('Error loading indicator lights:', err);
@@ -2016,7 +2040,11 @@
 
         // Show indicator light section for switches
         document.getElementById('indicator-light-section').style.display = '';
+        // Combine indicator_light and indicator_area into single dropdown value
         editingIndicatorLight = ctrl.indicator_light || '';
+        if (!editingIndicatorLight && ctrl.indicator_area) {
+          editingIndicatorLight = 'area:' + ctrl.indicator_area;
+        }
         loadIndicatorLights(ctrl.area_id, editingIndicatorLight);
 
         // Load magic buttons and show section if switch type has magic slots
@@ -2062,14 +2090,22 @@
           cooldown: editingCooldown
         };
       } else {
-        // Switch config
-        const indicatorLight = document.getElementById('indicator-light-select').value;
+        // Switch config — indicator can be a light entity or area (prefixed with "area:")
+        const indicatorValue = document.getElementById('indicator-light-select').value;
+        let indicatorLight = '';
+        let indicatorArea = '';
+        if (indicatorValue.startsWith('area:')) {
+          indicatorArea = indicatorValue.substring(5);
+        } else {
+          indicatorLight = indicatorValue;
+        }
         payload = {
           name: editingControl?.name,
           type: editingControl?.type,
           scopes: editingScopes,
           device_id: editingDeviceId,
-          indicator_light: indicatorLight || '',
+          indicator_light: indicatorLight,
+          indicator_area: indicatorArea,
           magic_buttons: editingMagicButtons,
           inactive: inactive,
           inactive_until: inactiveUntil
