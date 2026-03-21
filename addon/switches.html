@@ -1239,22 +1239,24 @@
       });
     }, 1000);
 
-    // Background poll — refresh last_action data every 15s to pick up new motion triggers
+    // Background poll — lightweight last_action refresh every 15s
     setInterval(async () => {
       try {
-        const res = await fetch(basePath + `/api/controls?_t=${Date.now()}`);
+        const res = await fetch(basePath + `/api/controls/last-actions`);
         if (!res.ok) return;
         const data = await res.json();
-        const updated = data.controls || [];
-        // Merge last_action + cooldown into existing controls without full re-render
+        const actions = data.actions || {};
         let needsRender = false;
         for (const ctrl of controls) {
-          const fresh = updated.find(u => u.id === ctrl.id);
+          // Motion/contact sensors use device_id, switches use ieee
+          const key = (ctrl.category === 'motion_sensor' || ctrl.category === 'contact_sensor')
+            ? ctrl.device_id : ctrl.id;
+          const fresh = actions[key] || actions[ctrl.id] || actions[ctrl.device_id];
           if (!fresh) continue;
           const oldAction = JSON.stringify(ctrl.last_action);
-          const newAction = JSON.stringify(fresh.last_action);
+          const newAction = JSON.stringify(fresh);
           if (oldAction !== newAction) {
-            ctrl.last_action = fresh.last_action;
+            ctrl.last_action = fresh;
             needsRender = true;
           }
         }

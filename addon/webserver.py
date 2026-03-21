@@ -605,6 +605,14 @@ class LightDesignerServer:
         self.app.router.add_delete(
             "/api/controls/{control_id}/configure", self.remove_control_config
         )
+        self.app.router.add_route(
+            "GET",
+            "/{path:.*}/api/controls/last-actions",
+            self.get_controls_last_actions,
+        )
+        self.app.router.add_get(
+            "/api/controls/last-actions", self.get_controls_last_actions
+        )
         self.app.router.add_get("/api/area-lights", self.get_area_lights)
         self.app.router.add_route(
             "POST", "/{path:.*}/api/flash-light", self.flash_light
@@ -7051,7 +7059,7 @@ class LightDesignerServer:
                         or entities.get("has_presence")
                     ):
                         category = "motion_sensor"
-                        logger.info(
+                        logger.debug(
                             f"[Controls] Identified motion sensor: {device.get('name')} (device_id={device_id})"
                         )
                     elif entities.get("has_contact"):
@@ -7070,7 +7078,7 @@ class LightDesignerServer:
                             device.get("manufacturer"), device.get("model")
                         )
                         if not detected_type:
-                            logger.info(
+                            logger.debug(
                                 f"[Controls] Unrecognized switch: manufacturer='{device.get('manufacturer')}' model='{device.get('model')}' name='{device.get('name')}'"
                             )
 
@@ -7136,13 +7144,23 @@ class LightDesignerServer:
                         }
                     )
 
-                logger.info(
-                    f"[Controls] Returning {len(controls)} controls: {[(c.get('name'), c.get('category')) for c in controls]}"
-                )
+                logger.debug(f"[Controls] Returning {len(controls)} controls")
                 return controls
         except Exception as e:
             logger.error(f"Error fetching HA controls: {e}", exc_info=True)
             return []
+
+    async def get_controls_last_actions(self, request: Request) -> Response:
+        """Lightweight endpoint for polling last_action data.
+
+        No WebSocket calls — reads from in-memory/disk last_actions file.
+        Used by the controls page background poll (every 15s).
+        """
+        try:
+            all_actions = switches._load_last_actions()
+            return web.json_response({"actions": all_actions})
+        except Exception as e:
+            return web.json_response({"actions": {}})
 
     async def configure_control(self, request: Request) -> Response:
         """Configure a control (add/update scopes for switches, areas for motion sensors)."""
