@@ -1724,6 +1724,7 @@
         const activeWhen = scope.active_when || 'always';
         const activeOffset = scope.active_offset || 0;
         const showOffset = activeWhen !== 'always';
+        const cooldown = scope.cooldown || 0;
 
         // Build area chips
         const areaChips = (scope.areas || []).map(areaId => {
@@ -1814,6 +1815,18 @@
                 <span style="color: var(--muted); font-size: 0.85rem;">min</span>
               </div>
             </div>
+            <div style="margin-top: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <span style="color: var(--muted); font-size: 0.85rem;">Cooldown:</span>
+              <div class="number-input-wrap">
+                <input type="number" id="cooldown-${idx}" style="width: 55px;" value="${cooldown}" min="0" max="300" step="5"
+                  onchange="updateMotionScope(${idx}, 'cooldown', parseInt(this.value) || 0)">
+                <div class="number-input-btns">
+                  <button type="button" onclick="stepNumberInput('cooldown-${idx}', 5)">&#9650;</button>
+                  <button type="button" onclick="stepNumberInput('cooldown-${idx}', -5)">&#9660;</button>
+                </div>
+              </div>
+              <span style="color: var(--muted); font-size: 0.85rem;">sec</span>
+            </div>
           </div>
         `;
       }).join('');
@@ -1831,7 +1844,8 @@
         boost_enabled: false,
         boost_brightness: 50,
         active_when: 'always',
-        active_offset: 0
+        active_offset: 0,
+        cooldown: 0
       });
       renderMotionScopesEditor();
       autoSave();
