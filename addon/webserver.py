@@ -7059,7 +7059,7 @@ class LightDesignerServer:
                         or entities.get("has_presence")
                     ):
                         category = "motion_sensor"
-                        logger.debug(
+                        logger.info(
                             f"[Controls] Identified motion sensor: {device.get('name')} (device_id={device_id})"
                         )
                     elif entities.get("has_contact"):
@@ -7078,7 +7078,7 @@ class LightDesignerServer:
                             device.get("manufacturer"), device.get("model")
                         )
                         if not detected_type:
-                            logger.debug(
+                            logger.info(
                                 f"[Controls] Unrecognized switch: manufacturer='{device.get('manufacturer')}' model='{device.get('model')}' name='{device.get('name')}'"
                             )
 
@@ -7144,7 +7144,7 @@ class LightDesignerServer:
                         }
                     )
 
-                logger.debug(f"[Controls] Returning {len(controls)} controls")
+                logger.info(f"[Controls] Returning {len(controls)} controls")
                 return controls
         except Exception as e:
             logger.error(f"Error fetching HA controls: {e}", exc_info=True)

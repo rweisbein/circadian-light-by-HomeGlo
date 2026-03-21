@@ -358,6 +358,14 @@
       background: #000;
     }
 
+    .ctrl-toggle.pause-toggle input:checked + .slider {
+      background: #f90;
+    }
+
+    .ctrl-toggle.pause-toggle input:checked + .slider::before {
+      background: #fff;
+    }
+
     /* Legacy styles kept for form elements */
     .modal-label {
       display: block;
@@ -864,7 +872,7 @@
         <span class="info-icon" onclick="event.stopPropagation()">i<span class="info-tooltip">When paused, a control won't trigger actions. Set a timer to auto-unpause.</span></span>
         <div class="ctrl-card-right">
           <span id="pause-remaining" style="font-size: 0.75rem; color: var(--muted2); white-space: nowrap;"></span>
-          <label class="ctrl-toggle" onclick="event.stopPropagation()">
+          <label class="ctrl-toggle pause-toggle" onclick="event.stopPropagation()">
             <input type="checkbox" id="control-pause-checkbox">
             <span class="slider"></span>
           </label>
@@ -1367,6 +1375,9 @@
         editingInactiveUntil = null;
       }
       updatePauseRemaining();
+      // Update header badge
+      const ctrlName = editingControl?.name || '';
+      document.getElementById('page-title').innerHTML = ctrlName + (checked ? ' <span style="font-size:0.6rem;color:#f90;background:rgba(255,153,0,0.15);padding:2px 7px;border-radius:4px;vertical-align:middle;margin-left:6px;">PAUSED</span>' : '');
       autoSave();
     });
 
@@ -1446,7 +1457,7 @@
       editingControl = null;
 
       document.getElementById('page-header-icon').innerHTML = categoryIcon(ctrl.category);
-      document.getElementById('page-title').textContent = ctrl.name;
+      document.getElementById('page-title').innerHTML = ctrl.name + (ctrl.inactive ? ' <span style="font-size:0.6rem;color:#f90;background:rgba(255,153,0,0.15);padding:2px 7px;border-radius:4px;vertical-align:middle;margin-left:6px;">PAUSED</span>' : '');
       document.getElementById('toolbar-menu-reset').style.display = 'none';
       document.getElementById('toolbar-menu-reset-divider').style.display = 'none';
 

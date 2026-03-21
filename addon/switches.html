@@ -933,7 +933,9 @@
     }
 
     function getStatusSubtitle(ctrl) {
-      if (ctrl.status === 'not_configured') {
+      if (ctrl.inactive) {
+        return '<span style="font-size:0.65rem;color:#f90;background:rgba(255,153,0,0.12);padding:1px 5px;border-radius:4px;margin-left:6px;vertical-align:middle;">paused</span>';
+      } else if (ctrl.status === 'not_configured') {
         return '<div class="switch-status-sub status-not-configured-text">setup</div>';
       } else if (ctrl.status === 'unsupported') {
         return '<div class="switch-status-sub status-unsupported-text">request</div>';
