@@ -644,7 +644,9 @@ class HomeAssistantWebSocketClient:
                     "mode": area_config.mode,
                     "duration": area_config.duration,
                     "boost_enabled": area_config.boost_enabled,
-                    "boost_brightness": area_config.boost_brightness,
+                    "boost_brightness": (
+                        area_config.boost_brightness if area_config.boost_enabled else 0
+                    ),
                     "active_configs": [area_config],
                 }
             else:
@@ -658,7 +660,8 @@ class HomeAssistantWebSocketClient:
                 if area_config.boost_enabled:
                     existing["boost_enabled"] = True
                     existing["boost_brightness"] = max(
-                        existing["boost_brightness"], area_config.boost_brightness
+                        existing["boost_brightness"],
+                        area_config.boost_brightness,
                     )
                 # Use longest duration for on_off timer
                 if area_config.duration > existing["duration"]:
@@ -6724,6 +6727,7 @@ class HomeAssistantWebSocketClient:
                     entity_id
                     and entity_id.startswith("binary_sensor.")
                     and "_tamper" not in entity_id
+                    and "_motion" not in entity_id
                     and any(
                         x in entity_id
                         for x in ["_opening", "_door", "_window", "_contact"]
