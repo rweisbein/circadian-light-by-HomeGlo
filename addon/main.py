@@ -1814,12 +1814,15 @@ class HomeAssistantWebSocketClient:
         if tasks:
             await asyncio.gather(*tasks)
 
-    async def _execute_switch_action(self, switch_id: str, action) -> None:
+    async def _execute_switch_action(self, switch_id: str, action) -> str:
         """Execute a switch action.
 
         Args:
             switch_id: The switch IEEE address
             action: The action to execute - string or {action, when_off} dict
+
+        Returns:
+            "at_limit" if the action hit a brightness/step limit, "ok" otherwise.
         """
         # Record activity for scope timeout
         switches.record_activity(switch_id)
@@ -1906,12 +1909,17 @@ class HomeAssistantWebSocketClient:
                         areas, results, switch_id=switch_id, direction="up"
                     )
                 else:
-                    await asyncio.gather(
+                    results = await asyncio.gather(
                         *[
                             self.primitives.step_up(area, "switch", steps=step_count)
                             for area in areas
                         ]
                     )
+                on_areas = [a for a in areas if state.get_is_on(a)]
+                if on_areas and all(
+                    r is None for a, r in zip(areas, results) if a in on_areas
+                ):
+                    return "at_limit"
             else:
                 await execute_when_off()
 
@@ -1937,12 +1945,17 @@ class HomeAssistantWebSocketClient:
                         areas, results, switch_id=switch_id, direction="down"
                     )
                 else:
-                    await asyncio.gather(
+                    results = await asyncio.gather(
                         *[
                             self.primitives.step_down(area, "switch", steps=step_count)
                             for area in areas
                         ]
                     )
+                on_areas = [a for a in areas if state.get_is_on(a)]
+                if on_areas and all(
+                    r is None for a, r in zip(areas, results) if a in on_areas
+                ):
+                    return "at_limit"
             else:
                 await execute_when_off()
 
@@ -1968,7 +1981,7 @@ class HomeAssistantWebSocketClient:
                         areas, results, switch_id=switch_id, direction="up"
                     )
                 else:
-                    await asyncio.gather(
+                    results = await asyncio.gather(
                         *[
                             self.primitives.brightness_up(
                                 area, "switch", steps=step_count
@@ -1976,6 +1989,11 @@ class HomeAssistantWebSocketClient:
                             for area in areas
                         ]
                     )
+                on_areas = [a for a in areas if state.get_is_on(a)]
+                if on_areas and all(
+                    r is None for a, r in zip(areas, results) if a in on_areas
+                ):
+                    return "at_limit"
             else:
                 await execute_when_off()
 
@@ -2001,7 +2019,7 @@ class HomeAssistantWebSocketClient:
                         areas, results, switch_id=switch_id, direction="down"
                     )
                 else:
-                    await asyncio.gather(
+                    results = await asyncio.gather(
                         *[
                             self.primitives.brightness_down(
                                 area, "switch", steps=step_count
@@ -2009,6 +2027,11 @@ class HomeAssistantWebSocketClient:
                             for area in areas
                         ]
                     )
+                on_areas = [a for a in areas if state.get_is_on(a)]
+                if on_areas and all(
+                    r is None for a, r in zip(areas, results) if a in on_areas
+                ):
+                    return "at_limit"
             else:
                 await execute_when_off()
 
@@ -2212,6 +2235,8 @@ class HomeAssistantWebSocketClient:
 
         else:
             logger.warning(f"Unknown action: {main_action}")
+
+        return "ok"
 
     def _get_moments(self) -> dict:
         """Get all moments from config.
@@ -2794,13 +2819,16 @@ class HomeAssistantWebSocketClient:
         # Get repeat interval
         interval_ms = switches.get_repeat_interval(switch_id)
 
-        max_hold_seconds = 30  # Safety timeout
+        max_hold_seconds = 10  # Safety timeout
 
         async def repeat_loop():
             try:
                 start_time = time.time()
                 # Execute immediately first
-                await self._execute_switch_action(switch_id, action)
+                result = await self._execute_switch_action(switch_id, action)
+                if result == "at_limit":
+                    switches.stop_hold(switch_id)
+                    return
 
                 # Then repeat at interval (with safety timeout)
                 while switches.is_holding(switch_id):
@@ -2812,7 +2840,10 @@ class HomeAssistantWebSocketClient:
                         break
                     await asyncio.sleep(interval_ms / 1000.0)
                     if switches.is_holding(switch_id):
-                        await self._execute_switch_action(switch_id, action)
+                        result = await self._execute_switch_action(switch_id, action)
+                        if result == "at_limit":
+                            switches.stop_hold(switch_id)
+                            break
             except asyncio.CancelledError:
                 pass
 
