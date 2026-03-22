@@ -528,16 +528,7 @@ bashio::log.info "Color temperature range: ${MIN_COLOR_TEMP}K - ${MAX_COLOR_TEMP
 export INGRESS_PORT="8099"
 bashio::log.info "Ingress port: ${INGRESS_PORT}"
 
-# Start the web server in background
-bashio::log.info "Starting Light Designer web server..."
+# Run the main application (webserver is embedded in the same process)
+bashio::log.info "Starting main application (with embedded webserver)..."
 cd /app
-python3 webserver.py &
-WEBSERVER_PID=$!
-bashio::log.info "Web server started with PID ${WEBSERVER_PID}"
-
-# Give the web server a moment to start
-sleep 2
-
-# Run the main Python app
-bashio::log.info "Starting main application..."
 exec python3 main.py

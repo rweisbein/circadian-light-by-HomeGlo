@@ -7276,8 +7276,8 @@ class HomeAssistantWebSocketClient:
             await asyncio.sleep(reconnect_interval)
 
 
-def main():
-    """Main entry point."""
+async def async_main():
+    """Async entry point — runs webserver and HA client in the same event loop."""
     # Get configuration from environment variables
     host = os.getenv("HA_HOST", "localhost")
     port = int(os.getenv("HA_PORT", "8123"))
@@ -7291,11 +7291,31 @@ def main():
         )
         sys.exit(1)
 
-    # Create and run client
-    client = HomeAssistantWebSocketClient(host, port, token, use_ssl)
-
+    # Start embedded webserver
+    webserver_runner = None
     try:
-        asyncio.run(client.run())
+        from webserver import LightDesignerServer
+
+        ingress_port = int(os.getenv("INGRESS_PORT", "8099"))
+        webserver = LightDesignerServer(ingress_port)
+        webserver_runner = await webserver.start_serving()
+    except Exception as e:
+        logger.error(f"Failed to start webserver: {e}", exc_info=True)
+        logger.warning("Continuing without webserver — light control will still work")
+
+    # Create and run HA client
+    client = HomeAssistantWebSocketClient(host, port, token, use_ssl)
+    try:
+        await client.run()
+    finally:
+        if webserver_runner:
+            await webserver_runner.cleanup()
+
+
+def main():
+    """Main entry point."""
+    try:
+        asyncio.run(async_main())
     except KeyboardInterrupt:
         logger.info("Shutting down...")
 

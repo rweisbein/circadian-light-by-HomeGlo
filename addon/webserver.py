@@ -7820,21 +7820,28 @@ class LightDesignerServer:
             logger.error(f"Error getting switch types: {e}")
             return web.json_response({"error": str(e)}, status=500)
 
-    async def start(self):
-        """Start the web server."""
-        runner = web.AppRunner(self.app)
-        await runner.setup()
-        site = web.TCPSite(runner, "0.0.0.0", self.port)
+    async def start_serving(self):
+        """Start the web server without blocking.
+
+        Returns the AppRunner so the caller can clean up later.
+        Used when embedded in main.py's event loop.
+        """
+        self._runner = web.AppRunner(self.app)
+        await self._runner.setup()
+        site = web.TCPSite(self._runner, "0.0.0.0", self.port)
         await site.start()
         logger.info(f"Light Designer server started on port {self.port}")
+        return self._runner
 
-        # Keep the server running
+    async def start(self):
+        """Start the web server (blocking). Used for standalone mode."""
+        await self.start_serving()
         try:
             await asyncio.Event().wait()
         except KeyboardInterrupt:
             pass
         finally:
-            await runner.cleanup()
+            await self._runner.cleanup()
 
 
 async def main():
