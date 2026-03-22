@@ -1552,10 +1552,6 @@ class LightDesignerServer:
             # Re-read lux tracker config (source, sensor, smoothing) without resetting runtime state
             lux_tracker.reload_config(config)
 
-            # Seed outdoor data so lux/weather values are available immediately
-            await self._seed_outdoor_from_ha()
-            self._seed_sun_elevation()
-
             # Trigger refresh of enabled areas by firing an event
             # main.py listens for this event and signals the periodic updater
             refreshed = False
@@ -1791,11 +1787,7 @@ class LightDesignerServer:
                     solar_mid=(iso_to_hour(sun_dict.get("noon"), 12.0) + 12.0) % 24.0,
                 )
 
-                # Seed lux_tracker from HA (already initialised at boot)
-                await self._seed_outdoor_from_ha()
-                self._seed_sun_elevation()
-
-                # Resolve outdoor_normalized via lux_tracker fallback chain
+                # Outdoor data is shared in-memory (main.py seeds lux_tracker from live events)
                 outdoor_norm = lux_tracker.get_outdoor_normalized()
                 outdoor_source = lux_tracker.get_outdoor_source()
                 if outdoor_norm is None:
@@ -2264,7 +2256,7 @@ class LightDesignerServer:
             "multi_click_speed": 2,
             "circadian_refresh": 30,  # seconds
             "log_periodic": False,  # log periodic update details
-            "home_refresh_interval": 10,  # seconds (home page card refresh)
+            "home_refresh_interval": 3,  # seconds (home page card refresh)
             # Motion warning settings
             "motion_warning_time": 30,  # seconds (0 = disabled)
             "motion_warning_blink_threshold": 15,  # percent brightness
@@ -2300,6 +2292,11 @@ class LightDesignerServer:
                         config.update(overrides)
         except Exception as e:
             logger.warning(f"Error loading {self.designer_file}: {e}")
+
+        # Migrate home_refresh_interval: polling is now lightweight (no WebSocket/disk I/O),
+        # so reduce from old default to 3s for faster UI updates
+        if config.get("home_refresh_interval", 3) > 3:
+            config["home_refresh_interval"] = 3
 
         # Migrate to GloZone format if needed
         config = self._migrate_to_glozone_format(config)
@@ -2349,7 +2346,7 @@ class LightDesignerServer:
             "multi_click_speed": 2,
             "circadian_refresh": 30,  # seconds
             "log_periodic": False,  # log periodic update details
-            "home_refresh_interval": 10,  # seconds (home page card refresh)
+            "home_refresh_interval": 3,  # seconds (home page card refresh)
             # Motion warning settings
             "motion_warning_time": 30,  # seconds (0 = disabled)
             "motion_warning_blink_threshold": 15,  # percent brightness
@@ -2528,25 +2525,6 @@ class LightDesignerServer:
     # -------------------------------------------------------------------------
     # Live Design API endpoints
     # -------------------------------------------------------------------------
-
-    @staticmethod
-    def _seed_sun_elevation():
-        """Compute current sun elevation and seed lux_tracker.
-
-        The webserver runs in a separate process from main.py, so
-        lux_tracker._sun_elevation is never updated by state_changed
-        events. This seeds it on-demand before outdoor brightness calls.
-        """
-        try:
-            lat = float(os.getenv("HASS_LATITUDE", "35.0"))
-            lon = float(os.getenv("HASS_LONGITUDE", "-78.6"))
-            tz_name = os.getenv("HASS_TIME_ZONE", "US/Eastern")
-            loc = LocationInfo(latitude=lat, longitude=lon, timezone=tz_name)
-            now = datetime.now(ZoneInfo(tz_name))
-            elev = solar_elevation(loc.observer, now)
-            lux_tracker.update_sun_elevation(elev)
-        except Exception:
-            pass  # leave at whatever it was
 
     async def _seed_outdoor_from_ha(self):
         """Fetch live lux sensor and weather entity data from HA.
@@ -3518,8 +3496,7 @@ class LightDesignerServer:
             config = await self.load_config()
             glozones = config.get("glozones", {})
 
-            # Reload state from disk (main.py runs in separate process and writes state there)
-            state.init()
+            # State is shared in-memory (same process as main.py)
 
             # Get current hour for calculations
             current_hour = get_current_hour()
@@ -3561,11 +3538,7 @@ class LightDesignerServer:
             except Exception as e:
                 logger.debug(f"[AreaStatus] Error calculating sun times: {e}")
 
-            # Seed lux_tracker from HA (already initialised at boot)
-            await self._seed_outdoor_from_ha()
-            self._seed_sun_elevation()
-
-            # Resolve outdoor_normalized via lux_tracker fallback chain
+            # Outdoor data is shared in-memory (main.py seeds lux_tracker from live events)
             outdoor_norm = lux_tracker.get_outdoor_normalized()
             outdoor_source = lux_tracker.get_outdoor_source()
             if outdoor_norm is None:
@@ -5411,11 +5384,10 @@ class LightDesignerServer:
                     status=400,
                 )
 
-            # For boost, set state directly in webserver process for immediate UI feedback,
+            # For boost, set state directly for immediate UI feedback,
             # then fire event so main.py applies the actual lighting change
             if action == "boost":
-                # Reload state from disk (main.py may have updated it)
-                state.init()
+                # State is shared in-memory (same process as main.py)
                 if state.is_boosted(area_id):
                     # End boost: clear state, fire event for main.py to restore lighting
                     state.clear_boost(area_id)
@@ -6327,8 +6299,9 @@ class LightDesignerServer:
     async def get_outdoor_status(self, request: Request) -> Response:
         """Get current outdoor brightness state for settings page."""
         config = await self.load_config()
+        # Populate illuminance sensor list for settings dropdown
+        # (not called during polling — only when settings page opens)
         await self._seed_outdoor_from_ha()
-        self._seed_sun_elevation()
         outdoor_norm = lux_tracker.get_outdoor_normalized()
         return web.json_response(
             {
@@ -7826,7 +7799,7 @@ class LightDesignerServer:
         Returns the AppRunner so the caller can clean up later.
         Used when embedded in main.py's event loop.
         """
-        self._runner = web.AppRunner(self.app)
+        self._runner = web.AppRunner(self.app, access_log=None)
         await self._runner.setup()
         site = web.TCPSite(self._runner, "0.0.0.0", self.port)
         await site.start()

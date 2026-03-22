@@ -1402,9 +1402,9 @@
     function getHomeRefreshInterval() {
       if (cachedConfig) {
         const val = cachedConfig.home_refresh_interval;
-        if (val && val >= 2 && val <= 60) return val;
+        if (val && val >= 1 && val <= 60) return val;
       }
-      return 10;
+      return 3;
     }
 
     function formatNextWakeAlarm(nwa, zoneName) {

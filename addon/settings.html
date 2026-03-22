@@ -1053,7 +1053,7 @@
           const refreshDefault = config.circadian_refresh ?? 30;
           document.getElementById('periodic-transition-day').value = config.periodic_transition_day ?? refreshDefault;
           document.getElementById('periodic-transition-night').value = config.periodic_transition_night ?? 1;
-          document.getElementById('home-refresh-interval').value = config.home_refresh_interval ?? 10;
+          document.getElementById('home-refresh-interval').value = config.home_refresh_interval ?? 3;
           // Daily sync time
           const syncH = config.daily_sync_hour ?? 4;
           const syncM = config.daily_sync_minute ?? 0;
@@ -1153,7 +1153,7 @@
         circadian_refresh: parseInt(document.getElementById('circadian-refresh').value) || 30,
         periodic_transition_day: parseInt(document.getElementById('periodic-transition-day').value) || (parseInt(document.getElementById('circadian-refresh').value) || 30),
         periodic_transition_night: parseInt(document.getElementById('periodic-transition-night').value) || 1,
-        home_refresh_interval: parseInt(document.getElementById('home-refresh-interval').value) || 10,
+        home_refresh_interval: parseInt(document.getElementById('home-refresh-interval').value) || 3,
         daily_sync_hour: parseInt(document.getElementById('daily-sync-time').value.split(':')[0]) || 4,
         daily_sync_minute: parseInt(document.getElementById('daily-sync-time').value.split(':')[1]) || 0,
         motion_warning_time: parseInt(document.getElementById('motion-warning-time').value) || 0,
