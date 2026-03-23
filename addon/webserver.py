@@ -3978,13 +3978,49 @@ class LightDesignerServer:
                     zone_config["areas"] = new_areas
                     removed_from.append(zone_name)
 
+            # Remove area from switch scopes
+            switches_cleaned = 0
+            for switch_data in config.get("switches", []):
+                for scope in switch_data.get("scopes", []):
+                    if area_id in scope.get("areas", []):
+                        scope["areas"].remove(area_id)
+                        switches_cleaned += 1
+
+            # Remove area from motion sensor configs
+            motion_cleaned = 0
+            for sensor_data in config.get("motion_sensors", []):
+                areas = sensor_data.get("areas", [])
+                new_areas = [a for a in areas if a.get("area_id") != area_id]
+                if len(new_areas) < len(areas):
+                    sensor_data["areas"] = new_areas
+                    motion_cleaned += 1
+
+            # Remove area from contact sensor configs
+            contact_cleaned = 0
+            for sensor_data in config.get("contact_sensors", []):
+                areas = sensor_data.get("areas", [])
+                new_areas = [a for a in areas if a.get("area_id") != area_id]
+                if len(new_areas) < len(areas):
+                    sensor_data["areas"] = new_areas
+                    contact_cleaned += 1
+
             # Always remove from runtime state so periodic refresh stops updating it
             state.remove_area(area_id)
 
-            if removed_from:
+            config_changed = removed_from or switches_cleaned or motion_cleaned or contact_cleaned
+            if config_changed:
                 await self.save_config_to_file(config)
                 glozone.set_config(config)
-                logger.info(f"Purged area {area_id} from zones: {removed_from}")
+                parts = []
+                if removed_from:
+                    parts.append(f"zones: {removed_from}")
+                if switches_cleaned:
+                    parts.append(f"{switches_cleaned} switch scope(s)")
+                if motion_cleaned:
+                    parts.append(f"{motion_cleaned} motion sensor(s)")
+                if contact_cleaned:
+                    parts.append(f"{contact_cleaned} contact sensor(s)")
+                logger.info(f"Purged area {area_id} from {', '.join(parts)}")
 
             if self.client:
                 await self.client.handle_service_event("purge_area", area_id)
