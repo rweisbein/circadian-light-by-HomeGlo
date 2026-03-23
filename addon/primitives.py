@@ -4159,6 +4159,8 @@ class CircadianLightPrimitives:
         brightness_override: float = None,
         skip_filters: Set[str] = None,
         nudge: bool = True,
+        skip_two_step: bool = False,
+        skip_off_threshold: bool = False,
     ):
         """Apply lighting values to an area.
 
@@ -4177,6 +4179,8 @@ class CircadianLightPrimitives:
             brightness_override: Decay-adjusted additive delta applied post-NL.
             skip_filters: Set of filter_norms to skip (already handled by reach groups).
             nudge: Whether to schedule a post-command nudge (False for temporary Phase 1 states).
+            skip_two_step: Skip inner 2-step detection (caller already handles 2-step).
+            skip_off_threshold: Skip OFF commands for filters below off_threshold (phase 1 only).
         """
         circadian_values = {
             "brightness": brightness,
@@ -4188,6 +4192,10 @@ class CircadianLightPrimitives:
             circadian_values["brightness_override"] = brightness_override
         if skip_filters:
             circadian_values["skip_filters"] = skip_filters
+        if skip_two_step:
+            circadian_values["skip_two_step"] = True
+        if skip_off_threshold:
+            circadian_values["skip_off_threshold"] = True
 
         await self.client.turn_on_lights_circadian(
             area_id,
@@ -4669,7 +4677,8 @@ class CircadianLightPrimitives:
         for area_id, brightness, color_temp, rhythm_bri, bri_override in needs_two_step:
             phase1_tasks.append(
                 self._apply_lighting(
-                    area_id, 1, color_temp, include_color=True, transition=0
+                    area_id, 1, color_temp, include_color=True, transition=0,
+                    nudge=False, skip_two_step=True, skip_off_threshold=True,
                 )
             )
         for area_id, brightness, color_temp, rhythm_bri, bri_override in no_two_step:
@@ -4708,6 +4717,7 @@ class CircadianLightPrimitives:
                         color_temp,
                         include_color=True,
                         transition=transition,
+                        skip_two_step=True,
                         **_pipeline_kwargs(rhythm_bri, bri_override),
                     )
                 )

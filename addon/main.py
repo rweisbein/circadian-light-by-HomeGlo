@@ -3221,6 +3221,8 @@ class HomeAssistantWebSocketClient:
         rhythm_brightness = None
         brightness_override = None
         skip_filters = None
+        skip_two_step = False
+        skip_off_threshold = False
         if circadian_values:
             brightness = (
                 circadian_values.get("brightness") if brightness is None else brightness
@@ -3230,6 +3232,8 @@ class HomeAssistantWebSocketClient:
             rhythm_brightness = circadian_values.get("rhythm_brightness")
             brightness_override = circadian_values.get("brightness_override")
             skip_filters = circadian_values.get("skip_filters")
+            skip_two_step = circadian_values.get("skip_two_step", False)
+            skip_off_threshold = circadian_values.get("skip_off_threshold", False)
         else:
             kelvin = color_temp
 
@@ -3286,6 +3290,8 @@ class HomeAssistantWebSocketClient:
                 rhythm_brightness=rhythm_brightness,
                 brightness_override=brightness_override,
                 skip_filters=skip_filters,
+                skip_two_step=skip_two_step,
+                skip_off_threshold=skip_off_threshold,
             )
             return
 
@@ -3509,6 +3515,8 @@ class HomeAssistantWebSocketClient:
         rhythm_brightness: int = None,
         brightness_override: float = None,
         skip_filters: set = None,
+        skip_two_step: bool = False,
+        skip_off_threshold: bool = False,
     ) -> None:
         """Filtered light dispatch: applies per-light filter brightness and routes to sub-groups.
 
@@ -3570,7 +3578,7 @@ class HomeAssistantWebSocketClient:
         is_all_hue = self.is_all_hue_area(area_id)
         raw_cfg = glozone.load_config_from_files()
         ct_threshold = raw_cfg.get("two_step_ct_threshold", 500)
-        if not is_all_hue and kelvin is not None and ct_threshold > 0:
+        if not skip_two_step and not is_all_hue and kelvin is not None and ct_threshold > 0:
             for filter_name, lights_by_cap in filter_groups.items():
                 filt_norm = filter_name.replace(" ", "_").lower()
                 if skip_filters and filt_norm in skip_filters:
@@ -3720,6 +3728,14 @@ class HomeAssistantWebSocketClient:
             )
 
             if should_off:
+                if skip_off_threshold:
+                    # During outer 2-step phase 1 (brightness=1), don't send OFF
+                    # to filters whose off_threshold > 1%. Phase 2 will handle them.
+                    logger.debug(
+                        f"Filter '{filter_name}': skipping OFF (skip_off_threshold, phase 1)"
+                    )
+                    continue
+
                 # Send OFF to these lights
                 off_entities = (
                     lights_by_cap["color"]
