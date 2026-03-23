@@ -108,6 +108,7 @@ class HomeAssistantWebSocketClient:
         self.last_states_update = None  # Timestamp of last states update
         self.area_parity_cache = {}  # Cache of area ZHA parity status
         self.device_registry: Dict[str, Dict[str, Any]] = {}  # device_id -> device info
+        self.entity_registry: Dict[str, Dict[str, Any]] = {}  # entity_id -> entity info
 
         # Light capability cache for color mode detection
         self.light_color_modes: Dict[str, Set[str]] = (
@@ -4553,6 +4554,14 @@ class HomeAssistantWebSocketClient:
                     self.device_registry[device_id] = device
                     if area_id:
                         device_area_map[device_id] = area_id
+
+        # Store entity registry for entity→device mapping (Controls, ZHA settings, etc.)
+        self.entity_registry.clear()
+        for entity in entities:
+            if isinstance(entity, dict):
+                entity_id = entity.get("entity_id")
+                if entity_id:
+                    self.entity_registry[entity_id] = entity
 
         # Clear existing caches
         self.light_color_modes.clear()

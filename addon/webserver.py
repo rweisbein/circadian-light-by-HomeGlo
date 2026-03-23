@@ -684,9 +684,6 @@ class LightDesignerServer:
         self.app.router.add_route(
             "POST", "/{path:.*}/api/light-filters/reassign-preset", self.reassign_preset
         )
-        self.app.router.add_route(
-            "POST", "/{path:.*}/api/light-filters/suggest", self.suggest_light_filters
-        )
         self.app.router.add_get("/api/light-filters", self.get_light_filters)
         self.app.router.add_post(
             "/api/light-filters/area-brightness", self.save_area_brightness
@@ -696,9 +693,6 @@ class LightDesignerServer:
         )
         self.app.router.add_post(
             "/api/light-filters/reassign-preset", self.reassign_preset
-        )
-        self.app.router.add_post(
-            "/api/light-filters/suggest", self.suggest_light_filters
         )
         self.app.router.add_get("/api/sensors", self.get_sensors)
         self.app.router.add_route("GET", "/{path:.*}/api/sensors", self.get_sensors)
@@ -1022,147 +1016,15 @@ class LightDesignerServer:
                     "areas": zone_areas,
                 }
 
-            # Get light entities per area from cached areas list
+            # Get light entities per area from client cache
             area_lights = {}
-            if self.cached_areas_list:
-                # Use cached_entity_areas if available (populated by get_area_lights)
-                # Otherwise return empty - the frontend will call get_area_lights per area
-                rest_url, ws_url, token = self._get_ha_api_config()
-                if ws_url and token:
-                    try:
-                        async with websockets.connect(
-                            ws_url, max_size=16 * 1024 * 1024
-                        ) as ws:
-                            msg = json.loads(await ws.recv())
-                            if msg.get("type") == "auth_required":
-                                await ws.send(
-                                    json.dumps({"type": "auth", "access_token": token})
-                                )
-                                msg = json.loads(await ws.recv())
-                                if msg.get("type") == "auth_ok":
-                                    # Get device registry for area lookup
-                                    await ws.send(
-                                        json.dumps(
-                                            {
-                                                "id": 1,
-                                                "type": "config/device_registry/list",
-                                            }
-                                        )
-                                    )
-                                    device_msg = json.loads(await ws.recv())
-                                    device_areas = {}
-                                    service_devices = set()
-                                    if device_msg.get("success") and device_msg.get(
-                                        "result"
-                                    ):
-                                        for device in device_msg["result"]:
-                                            if device.get("entry_type") == "service":
-                                                service_devices.add(device.get("id"))
-                                            # ZHA coordinator: has zha identifier but no via_device_id
-                                            identifiers = device.get("identifiers", [])
-                                            is_zha = any(
-                                                isinstance(i, list)
-                                                and len(i) >= 2
-                                                and i[0] == "zha"
-                                                for i in identifiers
-                                            )
-                                            if is_zha and not device.get(
-                                                "via_device_id"
-                                            ):
-                                                service_devices.add(device.get("id"))
-                                            if device.get("id") and device.get(
-                                                "area_id"
-                                            ):
-                                                device_areas[device["id"]] = device[
-                                                    "area_id"
-                                                ]
-
-                                    # Get entity registry
-                                    await ws.send(
-                                        json.dumps(
-                                            {
-                                                "id": 2,
-                                                "type": "config/entity_registry/list",
-                                            }
-                                        )
-                                    )
-                                    entity_msg = json.loads(await ws.recv())
-
-                                    # Get states for friendly names
-                                    await ws.send(
-                                        json.dumps({"id": 3, "type": "get_states"})
-                                    )
-                                    states_msg = json.loads(await ws.recv())
-                                    friendly_names = {}
-                                    light_groups = set()
-                                    no_color_modes = set()
-                                    if states_msg.get("success") and states_msg.get(
-                                        "result"
-                                    ):
-                                        for s in states_msg["result"]:
-                                            eid = s.get("entity_id", "")
-                                            if eid.startswith("light."):
-                                                attrs = s.get("attributes", {})
-                                                friendly_names[eid] = attrs.get(
-                                                    "friendly_name", eid
-                                                )
-                                                if (
-                                                    attrs.get("entity_id")
-                                                    or attrs.get("is_group")
-                                                    or attrs.get("is_hue_group")
-                                                ):
-                                                    light_groups.add(eid)
-                                                scm = (
-                                                    attrs.get("supported_color_modes")
-                                                    or []
-                                                )
-                                                if not scm:
-                                                    no_color_modes.add(eid)
-
-                                    if entity_msg.get("success") and entity_msg.get(
-                                        "result"
-                                    ):
-                                        for entity in entity_msg["result"]:
-                                            eid = entity.get("entity_id", "")
-                                            if not eid.startswith("light."):
-                                                continue
-                                            # Skip disabled entities
-                                            if entity.get("disabled_by"):
-                                                continue
-                                            # Skip group entities (Circadian groups and area-level groups)
-                                            if "circadian_" in eid.lower():
-                                                continue
-                                            if eid in light_groups:
-                                                continue
-                                            # Skip entities with no color modes
-                                            if eid in no_color_modes:
-                                                continue
-                                            # Skip entities from service devices (coordinators, bridges)
-                                            dev_id_check = entity.get("device_id")
-                                            if (
-                                                dev_id_check
-                                                and dev_id_check in service_devices
-                                            ):
-                                                continue
-                                            # Determine area
-                                            a_id = entity.get("area_id")
-                                            if not a_id:
-                                                dev_id = entity.get("device_id")
-                                                if dev_id:
-                                                    a_id = device_areas.get(dev_id)
-                                            if a_id:
-                                                if a_id not in area_lights:
-                                                    area_lights[a_id] = []
-                                                area_lights[a_id].append(
-                                                    {
-                                                        "entity_id": eid,
-                                                        "name": friendly_names.get(
-                                                            eid, eid
-                                                        ),
-                                                    }
-                                                )
-                    except Exception as e:
-                        logger.warning(f"Could not fetch lights for filters page: {e}")
+            if self.client:
+                for a_id, entities in self.client.area_lights.items():
+                    area_lights[a_id] = []
+                    for eid in entities:
+                        s = self.client.cached_states.get(eid, {})
+                        name = s.get("attributes", {}).get("friendly_name", eid)
+                        area_lights[a_id].append({"entity_id": eid, "name": name})
 
             raw_config = glozone.get_config()
             return web.json_response(
@@ -1321,144 +1183,6 @@ class LightDesignerServer:
             return web.json_response({"status": "ok", "reassigned": reassigned})
         except Exception as e:
             logger.error(f"Error reassigning preset: {e}")
-            return web.json_response({"error": str(e)}, status=500)
-
-    async def suggest_light_filters(self, request: Request) -> Response:
-        """Suggest filter assignments based on entity friendly names."""
-        try:
-            # Keyword -> suggested filter mapping
-            keyword_map = {
-                "ceiling": "Overhead",
-                "overhead": "Overhead",
-                "recessed": "Overhead",
-                "can": "Overhead",
-                "flush": "Overhead",
-                "lamp": "Lamp",
-                "table": "Lamp",
-                "floor": "Lamp",
-                "bedside": "Lamp",
-                "strip": "Accent",
-                "accent": "Accent",
-                "under cabinet": "Accent",
-                "backlight": "Accent",
-                "led": "Accent",
-                "nightlight": "Nightlight",
-                "night light": "Nightlight",
-                "plug": "Nightlight",
-            }
-
-            # Get current filter data
-            glozones = glozone.get_glozones()
-            presets = glozone.get_light_filter_presets()
-
-            # Get area lights via the same websocket approach
-            rest_url, ws_url, token = self._get_ha_api_config()
-            suggestions = []
-
-            if ws_url and token:
-                try:
-                    async with websockets.connect(
-                        ws_url, max_size=16 * 1024 * 1024
-                    ) as ws:
-                        msg = json.loads(await ws.recv())
-                        if msg.get("type") == "auth_required":
-                            await ws.send(
-                                json.dumps({"type": "auth", "access_token": token})
-                            )
-                            msg = json.loads(await ws.recv())
-                            if msg.get("type") == "auth_ok":
-                                await ws.send(
-                                    json.dumps(
-                                        {"id": 1, "type": "config/device_registry/list"}
-                                    )
-                                )
-                                device_msg = json.loads(await ws.recv())
-                                device_areas = {}
-                                if device_msg.get("success") and device_msg.get(
-                                    "result"
-                                ):
-                                    for device in device_msg["result"]:
-                                        if device.get("id") and device.get("area_id"):
-                                            device_areas[device["id"]] = device[
-                                                "area_id"
-                                            ]
-
-                                await ws.send(
-                                    json.dumps(
-                                        {"id": 2, "type": "config/entity_registry/list"}
-                                    )
-                                )
-                                entity_msg = json.loads(await ws.recv())
-
-                                await ws.send(
-                                    json.dumps({"id": 3, "type": "get_states"})
-                                )
-                                states_msg = json.loads(await ws.recv())
-                                friendly_names = {}
-                                if states_msg.get("success") and states_msg.get(
-                                    "result"
-                                ):
-                                    for s in states_msg["result"]:
-                                        eid = s.get("entity_id", "")
-                                        if eid.startswith("light."):
-                                            friendly_names[eid] = s.get(
-                                                "attributes", {}
-                                            ).get("friendly_name", eid)
-
-                                if entity_msg.get("success") and entity_msg.get(
-                                    "result"
-                                ):
-                                    for entity in entity_msg["result"]:
-                                        eid = entity.get("entity_id", "")
-                                        if not eid.startswith("light.") or entity.get(
-                                            "disabled_by"
-                                        ):
-                                            continue
-                                        if "circadian_" in eid.lower():
-                                            continue
-                                        a_id = entity.get("area_id")
-                                        if not a_id:
-                                            dev_id = entity.get("device_id")
-                                            if dev_id:
-                                                a_id = device_areas.get(dev_id)
-                                        if not a_id:
-                                            continue
-
-                                        name = friendly_names.get(eid, eid)
-                                        name_lower = name.lower()
-
-                                        # Get current filter
-                                        current = "Standard"
-                                        area_filters = glozone.get_area_light_filters(
-                                            a_id
-                                        )
-                                        if eid in area_filters:
-                                            current = area_filters[eid]
-
-                                        # Check keywords
-                                        suggested = None
-                                        for kw, filt in keyword_map.items():
-                                            if kw in name_lower:
-                                                if filt in presets and filt != current:
-                                                    suggested = filt
-                                                    break
-
-                                        if suggested:
-                                            suggestions.append(
-                                                {
-                                                    "entity_id": eid,
-                                                    "name": name,
-                                                    "area_id": a_id,
-                                                    "current_filter": current,
-                                                    "suggested_filter": suggested,
-                                                }
-                                            )
-                except Exception as e:
-                    logger.warning(f"Error during filter suggestion: {e}")
-
-            return web.json_response({"suggestions": suggestions})
-        except Exception as e:
-            logger.error(f"Error suggesting light filters: {e}")
             return web.json_response({"error": str(e)}, status=500)
 
     async def serve_moments(self, request: Request) -> Response:
@@ -2509,73 +2233,6 @@ class LightDesignerServer:
     # Live Design API endpoints
     # -------------------------------------------------------------------------
 
-    async def _seed_outdoor_from_ha(self):
-        """Fetch live lux sensor and weather entity data from HA.
-
-        Seeds lux_tracker with current values so get_outdoor_normalized()
-        returns accurate data in the webserver process.
-        Also collects illuminance sensor entity IDs for the settings UI.
-
-        Assumes lux_tracker.init(config) was already called by the caller.
-        """
-        self._illuminance_sensors = []
-        try:
-            rest_url, ws_url, token = self._get_ha_api_config()
-            if not token or not ws_url:
-                return
-
-            sensor_entity = lux_tracker.get_sensor_entity()
-
-            async with websockets.connect(ws_url, max_size=16 * 1024 * 1024) as ws:
-                msg = json.loads(await ws.recv())
-                if msg.get("type") != "auth_required":
-                    return
-                await ws.send(json.dumps({"type": "auth", "access_token": token}))
-                msg = json.loads(await ws.recv())
-                if msg.get("type") != "auth_ok":
-                    return
-
-                await ws.send(json.dumps({"id": 1, "type": "get_states"}))
-                states_msg = json.loads(await ws.recv())
-                if not states_msg.get("success") or not states_msg.get("result"):
-                    return
-
-                illuminance_sensors = []
-                for st in states_msg["result"]:
-                    eid = st.get("entity_id", "")
-                    attrs = st.get("attributes", {})
-
-                    # Collect illuminance sensors for settings UI
-                    if (
-                        eid.startswith("sensor.")
-                        and attrs.get("device_class") == "illuminance"
-                    ):
-                        name = attrs.get("friendly_name", eid)
-                        illuminance_sensors.append({"entity_id": eid, "name": name})
-
-                    # Seed lux sensor reading
-                    if sensor_entity and eid == sensor_entity:
-                        try:
-                            lux_tracker.update(float(st.get("state", 0)))
-                        except (ValueError, TypeError):
-                            pass
-
-                    # Auto-detect weather entity and seed cloud coverage + condition
-                    if eid.startswith("weather.") and "cloud_coverage" in attrs:
-                        if not lux_tracker.get_weather_entity():
-                            lux_tracker.set_weather_entity(eid)
-                        if eid == lux_tracker.get_weather_entity():
-                            try:
-                                condition = st.get("state")
-                                lux_tracker.update_weather(
-                                    float(attrs["cloud_coverage"]), condition
-                                )
-                            except (ValueError, TypeError):
-                                pass
-                self._illuminance_sensors = illuminance_sensors
-        except Exception as e:
-            logger.debug(f"Could not seed outdoor data from HA: {e}")
-
     def _get_ha_api_config(self) -> tuple:
         """Get Home Assistant API URL and token from environment.
 
@@ -2607,185 +2264,6 @@ class LightDesignerServer:
 
         return None, None, None
 
-    async def _fetch_area_light_capabilities(
-        self, ws_url: str, token: str, area_id: str
-    ) -> tuple:
-        """Fetch light capabilities for an area via WebSocket.
-
-        Queries HA for lights in the specified area and determines which support
-        color modes (xy/rgb/hs) vs CT-only.
-
-        Args:
-            ws_url: WebSocket URL
-            token: HA auth token
-            area_id: Area to fetch lights for
-
-        Returns:
-            Tuple of (color_lights, ct_lights) - lists of entity_ids
-        """
-        color_lights = []
-        ct_lights = []
-
-        try:
-            async with websockets.connect(ws_url, max_size=16 * 1024 * 1024) as ws:
-                # Authenticate
-                msg = json.loads(await ws.recv())
-                if msg.get("type") != "auth_required":
-                    logger.error(f"[Live Design] Unexpected WS message: {msg}")
-                    return [], []
-
-                await ws.send(json.dumps({"type": "auth", "access_token": token}))
-                msg = json.loads(await ws.recv())
-                if msg.get("type") != "auth_ok":
-                    logger.error(f"[Live Design] WS auth failed: {msg}")
-                    return [], []
-
-                # Fetch device registry (for device -> area mapping)
-                await ws.send(
-                    json.dumps({"id": 1, "type": "config/device_registry/list"})
-                )
-                device_msg = json.loads(await ws.recv())
-                device_areas = {}
-                if device_msg.get("success") and device_msg.get("result"):
-                    for device in device_msg["result"]:
-                        device_id = device.get("id")
-                        dev_area = device.get("area_id")
-                        if device_id and dev_area:
-                            device_areas[device_id] = dev_area
-
-                # Fetch entity registry (for entity -> area/device mapping)
-                await ws.send(
-                    json.dumps({"id": 2, "type": "config/entity_registry/list"})
-                )
-                entity_msg = json.loads(await ws.recv())
-                if not entity_msg.get("success") or not entity_msg.get("result"):
-                    logger.error(f"[Live Design] Failed to get entities: {entity_msg}")
-                    return [], []
-
-                # Find light entities in this area
-                area_light_entities = []
-                for entity in entity_msg["result"]:
-                    entity_id = entity.get("entity_id", "")
-                    if not entity_id.startswith("light."):
-                        continue
-
-                    # Check if entity is in our area (directly or via device)
-                    entity_area = entity.get("area_id")
-                    if not entity_area:
-                        device_id = entity.get("device_id")
-                        if device_id:
-                            entity_area = device_areas.get(device_id)
-
-                    if entity_area == area_id:
-                        area_light_entities.append(entity_id)
-
-                if not area_light_entities:
-                    logger.info(f"[Live Design] No lights found in area {area_id}")
-                    return [], []
-
-                # Fetch states to get supported_color_modes
-                await ws.send(json.dumps({"id": 3, "type": "get_states"}))
-                states_msg = json.loads(await ws.recv())
-                if not states_msg.get("success") or not states_msg.get("result"):
-                    logger.error(f"[Live Design] Failed to get states: {states_msg}")
-                    return [], []
-
-                # Build lookup of entity_id -> state
-                state_lookup = {s.get("entity_id"): s for s in states_msg["result"]}
-
-                # Classify lights by color capability
-                for entity_id in area_light_entities:
-                    state = state_lookup.get(entity_id, {})
-                    attrs = state.get("attributes", {})
-                    modes = set(attrs.get("supported_color_modes", []))
-
-                    # Check if light supports any color mode (xy, rgb, hs)
-                    if "xy" in modes or "rgb" in modes or "hs" in modes:
-                        color_lights.append(entity_id)
-                    else:
-                        ct_lights.append(entity_id)
-
-                logger.info(
-                    f"[Live Design] Area {area_id}: {len(color_lights)} color lights, {len(ct_lights)} CT-only lights"
-                )
-                return color_lights, ct_lights
-
-        except Exception as e:
-            logger.error(
-                f"[Live Design] Error fetching light capabilities: {e}", exc_info=True
-            )
-            return [], []
-
-    async def _call_service_via_websocket(
-        self,
-        ws_url: str,
-        token: str,
-        domain: str,
-        service: str,
-        service_data: dict = None,
-    ) -> bool:
-        """Call a Home Assistant service via WebSocket API.
-
-        Args:
-            ws_url: WebSocket URL (e.g., ws://supervisor/core/api/websocket)
-            token: Home Assistant auth token
-            domain: Service domain (e.g., 'circadian')
-            service: Service name (e.g., 'refresh')
-            service_data: Optional service data dict
-
-        Returns:
-            True if service call succeeded, False otherwise
-        """
-        try:
-            async with websockets.connect(ws_url, max_size=16 * 1024 * 1024) as ws:
-                # Wait for auth_required message
-                msg = json.loads(await ws.recv())
-                if msg.get("type") != "auth_required":
-                    logger.error(f"[WS Service] Unexpected message: {msg}")
-                    return False
-
-                # Send auth
-                await ws.send(json.dumps({"type": "auth", "access_token": token}))
-
-                # Wait for auth response
-                msg = json.loads(await ws.recv())
-                if msg.get("type") != "auth_ok":
-                    logger.error(f"[WS Service] Auth failed: {msg}")
-                    return False
-
-                # Call the service
-                call_msg = {
-                    "id": 1,
-                    "type": "call_service",
-                    "domain": domain,
-                    "service": service,
-                }
-                if service_data:
-                    call_msg["service_data"] = service_data
-
-                await ws.send(json.dumps(call_msg))
-
-                # Wait for result (with timeout)
-                try:
-                    result = await asyncio.wait_for(ws.recv(), timeout=5.0)
-                    result_msg = json.loads(result)
-                    # The result may just acknowledge the call was received
-                    # For circadian.refresh, main.py handles it via event subscription
-                    logger.info(
-                        f"[WS Service] {domain}.{service} call result: {result_msg.get('type')}"
-                    )
-                    return True
-                except asyncio.TimeoutError:
-                    # Service call was sent, assume it worked
-                    logger.info(
-                        f"[WS Service] {domain}.{service} call sent (no response)"
-                    )
-                    return True
-
-        except Exception as e:
-            logger.warning(f"[WS Service] Error calling {domain}.{service}: {e}")
-            return False
-
     async def _trigger_reach_group_sync(self) -> bool:
         """Trigger reach group sync via direct client call.
 
@@ -2816,357 +2294,26 @@ class LightDesignerServer:
             return await self._trigger_reach_group_sync()
         return False
 
-    async def _fetch_light_states(
-        self, ws_url: str, token: str, entity_ids: list
-    ) -> dict:
-        """Fetch current states of lights for later restoration.
-
-        Args:
-            ws_url: WebSocket URL
-            token: Home Assistant auth token
-            entity_ids: List of light entity IDs
-
-        Returns:
-            Dict mapping entity_id to state dict with brightness, color_temp, etc.
-        """
-        if not entity_ids:
-            return {}
-
-        saved_states = {}
-        try:
-            async with websockets.connect(ws_url, max_size=16 * 1024 * 1024) as ws:
-                # Auth
-                msg = json.loads(await ws.recv())
-                if msg.get("type") != "auth_required":
-                    return {}
-                await ws.send(json.dumps({"type": "auth", "access_token": token}))
-                msg = json.loads(await ws.recv())
-                if msg.get("type") != "auth_ok":
-                    return {}
-
-                # Get states
-                await ws.send(json.dumps({"id": 1, "type": "get_states"}))
-                result = json.loads(await ws.recv())
-
-                if result.get("type") == "result" and result.get("success"):
-                    states = result.get("result", [])
-                    for state_obj in states:
-                        entity_id = state_obj.get("entity_id")
-                        if entity_id in entity_ids:
-                            attrs = state_obj.get("attributes", {})
-                            saved_states[entity_id] = {
-                                "state": state_obj.get("state"),
-                                "brightness": attrs.get("brightness"),
-                                "color_temp_kelvin": attrs.get("color_temp_kelvin"),
-                                "color_temp": attrs.get("color_temp"),  # Mireds
-                                "xy_color": attrs.get("xy_color"),
-                                "rgb_color": attrs.get("rgb_color"),
-                                "color_mode": attrs.get("color_mode"),
-                            }
-
-                logger.info(
-                    f"[Live Design] Saved states for {len(saved_states)} lights"
-                )
-                return saved_states
-
-        except Exception as e:
-            logger.error(f"[Live Design] Error fetching light states: {e}")
-            return {}
-
-    async def _turn_off_lights(
-        self, ws_url: str, token: str, entity_ids: list, transition: float = 2
-    ) -> bool:
-        """Turn off lights with a transition.
-
-        Args:
-            ws_url: WebSocket URL
-            token: Home Assistant auth token
-            entity_ids: List of light entity IDs
-            transition: Transition time in seconds
-
-        Returns:
-            True if successful
-        """
-        if not entity_ids:
-            return True
-
-        try:
-            async with websockets.connect(ws_url, max_size=16 * 1024 * 1024) as ws:
-                # Auth
-                msg = json.loads(await ws.recv())
-                if msg.get("type") != "auth_required":
-                    return False
-                await ws.send(json.dumps({"type": "auth", "access_token": token}))
-                msg = json.loads(await ws.recv())
-                if msg.get("type") != "auth_ok":
-                    return False
-
-                # Turn off all lights with transition
-                await ws.send(
-                    json.dumps(
-                        {
-                            "id": 1,
-                            "type": "call_service",
-                            "domain": "light",
-                            "service": "turn_off",
-                            "service_data": {
-                                "entity_id": entity_ids,
-                                "transition": transition,
-                            },
-                        }
-                    )
-                )
-
-                # Wait for transition to complete
-                await asyncio.sleep(transition + 0.5)
-                logger.info(
-                    f"[Live Design] Turned off {len(entity_ids)} lights with {transition}s transition"
-                )
-                return True
-
-        except Exception as e:
-            logger.error(f"[Live Design] Error turning off lights: {e}")
-            return False
-
-    async def _restore_light_states(
-        self, ws_url: str, token: str, saved_states: dict, transition: float = 2
-    ) -> bool:
-        """Restore previously saved light states.
-
-        Args:
-            ws_url: WebSocket URL
-            token: Home Assistant auth token
-            saved_states: Dict from _fetch_light_states
-            transition: Transition time in seconds
-
-        Returns:
-            True if restoration succeeded
-        """
-        if not saved_states:
-            return True
-
-        try:
-            async with websockets.connect(ws_url, max_size=16 * 1024 * 1024) as ws:
-                # Auth
-                msg = json.loads(await ws.recv())
-                if msg.get("type") != "auth_required":
-                    return False
-                await ws.send(json.dumps({"type": "auth", "access_token": token}))
-                msg = json.loads(await ws.recv())
-                if msg.get("type") != "auth_ok":
-                    return False
-
-                msg_id = 1
-                for entity_id, state_data in saved_states.items():
-                    if state_data.get("state") == "off":
-                        # Light was off - turn it off with transition
-                        msg_id += 1
-                        await ws.send(
-                            json.dumps(
-                                {
-                                    "id": msg_id,
-                                    "type": "call_service",
-                                    "domain": "light",
-                                    "service": "turn_off",
-                                    "service_data": {
-                                        "entity_id": entity_id,
-                                        "transition": transition,
-                                    },
-                                }
-                            )
-                        )
-                    else:
-                        # Light was on - restore its settings
-                        service_data = {
-                            "entity_id": entity_id,
-                            "transition": transition,
-                        }
-
-                        brightness = state_data.get("brightness")
-                        if brightness is not None:
-                            service_data["brightness"] = brightness
-
-                        # Restore color based on what mode it was in
-                        color_mode = state_data.get("color_mode")
-                        if color_mode == "xy" and state_data.get("xy_color"):
-                            service_data["xy_color"] = state_data["xy_color"]
-                        elif color_mode == "color_temp" and state_data.get(
-                            "color_temp_kelvin"
-                        ):
-                            service_data["color_temp_kelvin"] = state_data[
-                                "color_temp_kelvin"
-                            ]
-                        elif state_data.get("color_temp_kelvin"):
-                            service_data["color_temp_kelvin"] = state_data[
-                                "color_temp_kelvin"
-                            ]
-
-                        msg_id += 1
-                        await ws.send(
-                            json.dumps(
-                                {
-                                    "id": msg_id,
-                                    "type": "call_service",
-                                    "domain": "light",
-                                    "service": "turn_on",
-                                    "service_data": service_data,
-                                }
-                            )
-                        )
-
-                # Wait for transition to complete
-                await asyncio.sleep(transition + 0.5)
-                logger.info(
-                    f"[Live Design] Restored {len(saved_states)} light states with {transition}s transition"
-                )
-                return True
-
-        except Exception as e:
-            logger.error(f"[Live Design] Error restoring light states: {e}")
-            return False
-
-    async def _fetch_areas_via_websocket(self, ws_url: str, token: str) -> list:
-        """Fetch areas that have lights from Home Assistant via WebSocket API.
-
-        Args:
-            ws_url: WebSocket URL (e.g., ws://supervisor/core/api/websocket)
-            token: Home Assistant auth token
-
-        Returns:
-            List of area dicts with area_id and name (only areas with lights)
-        """
-        logger.debug(f"Fetching areas via WebSocket: {ws_url}")
-        try:
-            async with websockets.connect(ws_url, max_size=16 * 1024 * 1024) as ws:
-                # Wait for auth_required message
-                msg = json.loads(await ws.recv())
-                if msg.get("type") != "auth_required":
-                    logger.error(f"Unexpected WS message during areas fetch: {msg}")
-                    return []
-
-                # Send auth
-                await ws.send(json.dumps({"type": "auth", "access_token": token}))
-
-                # Wait for auth response
-                msg = json.loads(await ws.recv())
-                if msg.get("type") != "auth_ok":
-                    logger.error(f"WS auth failed during areas fetch: {msg}")
-                    return []
-
-                # Request area registry
-                await ws.send(
-                    json.dumps({"id": 1, "type": "config/area_registry/list"})
-                )
-
-                # Get area response
-                area_msg = json.loads(await ws.recv())
-                if not area_msg.get("success") or not area_msg.get("result"):
-                    logger.error(f"Failed to get areas: {area_msg}")
-                    return []
-
-                all_areas = {a["area_id"]: a["name"] for a in area_msg["result"]}
-
-                # Request device registry (lights often get area from device)
-                await ws.send(
-                    json.dumps({"id": 2, "type": "config/device_registry/list"})
-                )
-
-                # Get device response
-                device_msg = json.loads(await ws.recv())
-                device_areas = {}
-                if device_msg.get("success") and device_msg.get("result"):
-                    for device in device_msg["result"]:
-                        device_id = device.get("id")
-                        area_id = device.get("area_id")
-                        if device_id and area_id:
-                            device_areas[device_id] = area_id
-
-                # Request entity registry to find light entities
-                await ws.send(
-                    json.dumps({"id": 3, "type": "config/entity_registry/list"})
-                )
-
-                # Get entity response
-                entity_msg = json.loads(await ws.recv())
-                if not entity_msg.get("success") or not entity_msg.get("result"):
-                    logger.error(f"Failed to get entities: {entity_msg}")
-                    # Fall back to returning all areas
-                    areas = [{"area_id": k, "name": v} for k, v in all_areas.items()]
-                    areas.sort(key=lambda x: x["name"].lower())
-                    return areas
-
-                # Find area_ids that have at least one controllable entity
-                # (light.* or switch.* for power outlets used as lights)
-                areas_with_lights = set()
-                for entity in entity_msg["result"]:
-                    entity_id = entity.get("entity_id", "")
-                    is_light = entity_id.startswith("light.")
-                    is_switch = entity_id.startswith("switch.")
-                    if not (is_light or is_switch):
-                        continue
-                    # switch.* entities must belong to a device (skip helpers/templates)
-                    device_id = entity.get("device_id")
-                    if is_switch and not device_id:
-                        continue
-                    # Check direct area assignment
-                    area_id = entity.get("area_id")
-                    if area_id:
-                        areas_with_lights.add(area_id)
-                    # Check area via device
-                    if device_id and device_id in device_areas:
-                        areas_with_lights.add(device_areas[device_id])
-
-                # Also include areas configured in glozones (user explicitly added
-                # these, so they should always appear even if HA has no matching
-                # light/switch entities — e.g. a shed with only a power outlet)
-                config = await self.load_config()
-                for zone_data in config.get("glozones", {}).values():
-                    for area in zone_data.get("areas", []):
-                        aid = area.get("id") if isinstance(area, dict) else area
-                        if aid:
-                            areas_with_lights.add(aid)
-
-                # Return only areas that have lights (exclude internal groups area)
-                areas = [
-                    {"area_id": area_id, "name": all_areas[area_id]}
-                    for area_id in areas_with_lights
-                    if area_id in all_areas
-                    and all_areas[area_id] != "Circadian_Zigbee_Groups"
-                ]
-                areas.sort(key=lambda x: x["name"].lower())
-                logger.info(f"Fetched {len(areas)} areas with lights from HA")
-                return areas
-
-        except Exception as e:
-            logger.error(f"WebSocket error fetching areas: {e}", exc_info=True)
-            return []
-
     async def get_areas(self, request: Request) -> Response:
-        """Return cached areas list, fetching from HA only if cache is empty."""
+        """Return areas list from client cache."""
         # Return cached areas if available
         if self.cached_areas_list is not None:
             logger.debug(f"Returning {len(self.cached_areas_list)} cached areas")
             return web.json_response(self.cached_areas_list)
 
-        # Cache miss - fetch from HA
-        rest_url, ws_url, token = self._get_ha_api_config()
-
-        if not token:
-            logger.warning("No HA token configured for areas fetch")
+        if not self.client:
             return web.json_response(
-                {"error": "Home Assistant API not configured"}, status=503
-            )
-
-        if not ws_url:
-            logger.warning("No WebSocket URL configured for areas fetch")
-            return web.json_response(
-                {"error": "WebSocket URL not configured"}, status=503
+                {"error": "Home Assistant client not ready"}, status=503
             )
 
         try:
-            areas = await self._fetch_areas_via_websocket(ws_url, token)
-            self.cached_areas_list = areas  # Cache the result
-            logger.info(f"Cached {len(areas)} areas from HA")
+            areas = []
+            for area_id, area_name in self.client.area_id_to_name.items():
+                if self.client.area_lights.get(area_id):
+                    areas.append({"area_id": area_id, "name": area_name})
+            areas.sort(key=lambda x: x["name"].lower())
+            self.cached_areas_list = areas
+            logger.info(f"Cached {len(areas)} areas from client")
             return web.json_response(areas)
         except Exception as e:
             logger.error(f"Error fetching areas: {e}")
@@ -3795,34 +2942,16 @@ class LightDesignerServer:
             if not entity:
                 return web.json_response({"status": "no_entity", "source": source})
 
-            rest_url, _, token = self._get_ha_api_config()
-            if not rest_url or not token:
-                return web.json_response({"error": "No HA API config"}, status=500)
+            if not self.client:
+                return web.json_response({"error": "Client not ready"}, status=500)
 
-            import aiohttp
-
-            url = f"{rest_url}/services/homeassistant/update_entity"
-            headers = {
-                "Authorization": f"Bearer {token}",
-                "Content-Type": "application/json",
-            }
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    url, json={"entity_id": entity}, headers=headers
-                ) as resp:
-                    if resp.status < 300:
-                        logger.info(
-                            f"[RefreshOutdoor] Triggered update_entity for {entity}"
-                        )
-                        return web.json_response({"status": "ok", "entity": entity})
-                    else:
-                        body = await resp.text()
-                        logger.warning(
-                            f"[RefreshOutdoor] update_entity failed: {resp.status} {body}"
-                        )
-                        return web.json_response(
-                            {"error": f"HA returned {resp.status}"}, status=502
-                        )
+            await self.client.call_service(
+                "homeassistant", "update_entity",
+                {},
+                {"entity_id": entity},
+            )
+            logger.info(f"[RefreshOutdoor] Triggered update_entity for {entity}")
+            return web.json_response({"status": "ok", "entity": entity})
         except Exception as e:
             logger.error(f"[RefreshOutdoor] Error: {e}", exc_info=True)
             return web.json_response({"error": str(e)}, status=500)
@@ -3973,12 +3102,9 @@ class LightDesignerServer:
         - CT-only lights: color_temp_kelvin (clamped to 2000K minimum)
         - Lights below off_threshold: turn_off
         """
-        rest_url, ws_url, token = self._get_ha_api_config()
-
-        if not rest_url or not token:
-            logger.warning("Home Assistant API not configured for Live Design")
+        if not self.client:
             return web.json_response(
-                {"error": "Home Assistant API not configured"}, status=503
+                {"error": "Home Assistant client not ready"}, status=503
             )
 
         try:
@@ -3990,11 +3116,6 @@ class LightDesignerServer:
 
             if not area_id:
                 return web.json_response({"error": "area_id is required"}, status=400)
-
-            headers = {
-                "Authorization": f"Bearer {token}",
-                "Content-Type": "application/json",
-            }
 
             # Check if we have cached capabilities for this area
             if self.live_design_area == area_id and (
@@ -4027,89 +3148,78 @@ class LightDesignerServer:
                 if color_temp is not None:
                     xy = list(CircadianLight.color_temperature_to_xy(int(color_temp)))
 
-                async with ClientSession() as session:
-                    tasks = []
+                tasks = []
+                for filter_name, lights_by_cap in filter_groups.items():
+                    preset = presets.get(
+                        filter_name, {"at_bright": 100, "at_dim": 100}
+                    )
 
-                    for filter_name, lights_by_cap in filter_groups.items():
-                        preset = presets.get(
-                            filter_name, {"at_bright": 100, "at_dim": 100}
-                        )
+                    # Calculate filtered brightness through the pipeline
+                    filtered_bri, should_off = apply_light_filter_pipeline(
+                        int(base_brightness) if base_brightness is not None else 0,
+                        min_bri,
+                        max_bri,
+                        area_factor,
+                        preset,
+                        off_threshold,
+                    )
 
-                        # Calculate filtered brightness through the pipeline
-                        filtered_bri, should_off = apply_light_filter_pipeline(
-                            int(base_brightness) if base_brightness is not None else 0,
-                            min_bri,
-                            max_bri,
-                            area_factor,
-                            preset,
-                            off_threshold,
-                        )
-
-                        if should_off:
-                            # Turn off lights below threshold
-                            off_entities = lights_by_cap["color"] + lights_by_cap["ct"]
-                            if off_entities:
-                                tasks.append(
-                                    session.post(
-                                        f"{rest_url}/services/light/turn_off",
-                                        headers=headers,
-                                        json={
-                                            "entity_id": off_entities,
-                                            "transition": transition,
-                                        },
-                                    )
+                    if should_off:
+                        # Turn off lights below threshold
+                        off_entities = lights_by_cap["color"] + lights_by_cap["ct"]
+                        if off_entities:
+                            tasks.append(
+                                self.client.call_service(
+                                    "light", "turn_off",
+                                    {"transition": transition},
+                                    {"entity_id": off_entities},
                                 )
-                            continue
+                            )
+                        continue
 
-                        # Apply CT compensation to the filtered brightness
-                        comp_bri = filtered_bri
+                    # Apply CT compensation to the filtered brightness
+                    comp_bri = filtered_bri
+                    if color_temp is not None:
+                        comp_bri = self._ct_compensate(
+                            filtered_bri, int(color_temp)
+                        )
+
+                    # Color-capable lights: use xy_color
+                    if lights_by_cap["color"]:
+                        color_data = {
+                            "transition": transition,
+                            "brightness_pct": comp_bri,
+                        }
+                        if xy is not None:
+                            color_data["xy_color"] = xy
+                        tasks.append(
+                            self.client.call_service(
+                                "light", "turn_on",
+                                color_data,
+                                {"entity_id": lights_by_cap["color"]},
+                            )
+                        )
+
+                    # CT-only lights: use color_temp_kelvin
+                    if lights_by_cap["ct"]:
+                        ct_data = {
+                            "transition": transition,
+                            "brightness_pct": comp_bri,
+                        }
                         if color_temp is not None:
-                            comp_bri = self._ct_compensate(
-                                filtered_bri, int(color_temp)
+                            ct_data["color_temp_kelvin"] = max(
+                                2000, int(color_temp)
                             )
-
-                        # Color-capable lights: use xy_color
-                        if lights_by_cap["color"]:
-                            color_data = {
-                                "entity_id": lights_by_cap["color"],
-                                "transition": transition,
-                                "brightness_pct": comp_bri,
-                            }
-                            if xy is not None:
-                                color_data["xy_color"] = xy
-                            tasks.append(
-                                session.post(
-                                    f"{rest_url}/services/light/turn_on",
-                                    headers=headers,
-                                    json=color_data,
-                                )
+                        tasks.append(
+                            self.client.call_service(
+                                "light", "turn_on",
+                                ct_data,
+                                {"entity_id": lights_by_cap["ct"]},
                             )
+                        )
 
-                        # CT-only lights: use color_temp_kelvin
-                        if lights_by_cap["ct"]:
-                            ct_data = {
-                                "entity_id": lights_by_cap["ct"],
-                                "transition": transition,
-                                "brightness_pct": comp_bri,
-                            }
-                            if color_temp is not None:
-                                ct_data["color_temp_kelvin"] = max(
-                                    2000, int(color_temp)
-                                )
-                            tasks.append(
-                                session.post(
-                                    f"{rest_url}/services/light/turn_on",
-                                    headers=headers,
-                                    json=ct_data,
-                                )
-                            )
-
-                    # Execute all requests concurrently
-                    if tasks:
-                        responses = await asyncio.gather(*tasks)
-                        for resp in responses:
-                            if resp.status not in (200, 201):
-                                logger.error(f"Failed to apply light: {resp.status}")
+                if tasks:
+                    await asyncio.gather(*tasks)
 
                 logger.info(
                     f"Live Design: Applied base={base_brightness}% / {color_temp}K to area {area_id} "
@@ -4120,33 +3230,22 @@ class LightDesignerServer:
 
             else:
                 # Fallback: no cached capabilities, use area-based with XY
-                # Apply CT compensation to base brightness
                 bri = int(base_brightness) if base_brightness is not None else None
                 if bri is not None and color_temp is not None:
                     bri = self._ct_compensate(bri, int(color_temp))
 
-                service_data = {
-                    "area_id": area_id,
-                    "transition": transition,
-                }
+                service_data = {"transition": transition}
                 if bri is not None:
                     service_data["brightness_pct"] = bri
                 if color_temp is not None:
                     xy = CircadianLight.color_temperature_to_xy(int(color_temp))
                     service_data["xy_color"] = list(xy)
 
-                async with ClientSession() as session:
-                    async with session.post(
-                        f"{rest_url}/services/light/turn_on",
-                        headers=headers,
-                        json=service_data,
-                    ) as resp:
-                        if resp.status not in (200, 201):
-                            logger.error(f"Failed to apply light: {resp.status}")
-                            return web.json_response(
-                                {"error": f"HA API returned {resp.status}"},
-                                status=resp.status,
-                            )
+                await self.client.call_service(
+                    "light", "turn_on",
+                    service_data,
+                    {"area_id": area_id},
+                )
 
                 logger.info(
                     f"Live Design (fallback): Applied {bri}% / {color_temp}K to area {area_id}"
@@ -4177,35 +3276,46 @@ class LightDesignerServer:
 
             state.set_is_circadian(area_id, is_circadian)
 
-            rest_url, ws_url, token = self._get_ha_api_config()
-
             if not is_circadian:
-                # Live Design is starting - fetch light capabilities for this area
-                if ws_url and token:
-                    color_lights, ct_lights = await self._fetch_area_light_capabilities(
-                        ws_url, token, area_id
-                    )
+                # Live Design is starting - get light capabilities from client cache
+                if self.client:
+                    area_lights = self.client.area_lights.get(area_id, [])
+                    color_lights = []
+                    ct_lights = []
+                    for eid in area_lights:
+                        modes = self.client.light_color_modes.get(eid, set())
+                        if "xy" in modes or "hs" in modes or "rgb" in modes:
+                            color_lights.append(eid)
+                        else:
+                            ct_lights.append(eid)
+
                     self.live_design_area = area_id
                     self.live_design_color_lights = color_lights
                     self.live_design_ct_lights = ct_lights
 
-                    # Save current light states for restoration later
+                    # Save current light states from cache for restoration later
                     all_lights = color_lights + ct_lights
-                    self.live_design_saved_states = await self._fetch_light_states(
-                        ws_url, token, all_lights
-                    )
+                    self.live_design_saved_states = {}
+                    for eid in all_lights:
+                        s = self.client.cached_states.get(eid, {})
+                        if s.get("state") == "on":
+                            self.live_design_saved_states[eid] = s.get("attributes", {})
+
                     logger.info(
                         f"[Live Design] Started for area {area_id}: {len(color_lights)} color, {len(ct_lights)} CT-only, saved {len(self.live_design_saved_states)} states"
                     )
 
                     # Visual feedback: fade to off over 2 seconds
-                    await self._turn_off_lights(ws_url, token, all_lights, transition=2)
+                    await self.client.call_service(
+                        "light", "turn_off",
+                        {"transition": 2},
+                        {"entity_id": all_lights},
+                    )
 
-                    if self.client:
-                        self.client.handle_live_design(area_id, True)
+                    self.client.handle_live_design(area_id, True)
                 else:
                     logger.warning(
-                        "[Live Design] Cannot fetch capabilities - no HA API config"
+                        "[Live Design] Cannot fetch capabilities - client not ready"
                     )
                     self.live_design_area = area_id
                     self.live_design_color_lights = []
@@ -4220,17 +3330,31 @@ class LightDesignerServer:
                         self.live_design_color_lights + self.live_design_ct_lights
                     )
 
-                    # Visual feedback: fade to off over 2 seconds, then restore with 2s transition
-                    if all_lights and ws_url and token:
-                        await self._turn_off_lights(
-                            ws_url, token, all_lights, transition=2
+                    # Visual feedback: fade to off over 2 seconds, then restore
+                    if all_lights and self.client:
+                        await self.client.call_service(
+                            "light", "turn_off",
+                            {"transition": 2},
+                            {"entity_id": all_lights},
                         )
 
                     # Restore saved light states with 2s transition
-                    if self.live_design_saved_states and ws_url and token:
-                        await self._restore_light_states(
-                            ws_url, token, self.live_design_saved_states, transition=2
-                        )
+                    if self.live_design_saved_states and self.client:
+                        for eid, attrs in self.live_design_saved_states.items():
+                            restore_data = {"transition": 2}
+                            if attrs.get("brightness"):
+                                restore_data["brightness"] = attrs["brightness"]
+                            xy = attrs.get("xy_color")
+                            ct = attrs.get("color_temp")
+                            if xy:
+                                restore_data["xy_color"] = xy
+                            elif ct:
+                                restore_data["color_temp"] = ct
+                            await self.client.call_service(
+                                "light", "turn_on",
+                                restore_data,
+                                {"entity_id": eid},
+                            )
                         logger.info(
                             f"[Live Design] Restored {len(self.live_design_saved_states)} light states"
                         )
@@ -4317,13 +3441,14 @@ class LightDesignerServer:
             if config.get("areas_migrated_v1"):
                 return
 
-            # Get HA connection info
-            rest_url, ws_url, token = self._get_ha_api_config()
-            if not token or not ws_url:
+            if not self.client:
                 return
 
-            # Fetch all areas from HA
-            ha_areas = await self._fetch_areas_via_websocket(ws_url, token)
+            # Get areas from client cache
+            ha_areas = [
+                {"area_id": aid, "name": aname}
+                for aid, aname in self.client.area_id_to_name.items()
+            ]
             if not ha_areas:
                 return
 
@@ -5532,51 +4657,21 @@ class LightDesignerServer:
             return web.json_response({"error": str(e)}, status=500)
 
     async def _fetch_device_areas(self):
-        """Fetch device_id -> area_name mapping and all device IDs from HA."""
-        rest_url, ws_url, token = self._get_ha_api_config()
-        if not token or not ws_url:
+        """Get device_id -> area_name mapping and all device IDs from client cache."""
+        if not self.client:
             return {}, set()
 
-        try:
-            async with websockets.connect(ws_url, max_size=16 * 1024 * 1024) as ws:
-                # Auth
-                msg = json.loads(await ws.recv())
-                if msg.get("type") != "auth_required":
-                    return {}, set()
-                await ws.send(json.dumps({"type": "auth", "access_token": token}))
-                msg = json.loads(await ws.recv())
-                if msg.get("type") != "auth_ok":
-                    return {}, set()
+        device_areas = {}
+        all_device_ids = set()
+        for device_id, device_info in self.client.device_registry.items():
+            all_device_ids.add(device_id)
+            area_id = device_info.get("area_id")
+            if area_id:
+                area_name = self.client.area_id_to_name.get(area_id)
+                if area_name:
+                    device_areas[device_id] = area_name
 
-                # Get area registry
-                await ws.send(
-                    json.dumps({"id": 1, "type": "config/area_registry/list"})
-                )
-                area_msg = json.loads(await ws.recv())
-                area_names = {}
-                if area_msg.get("success") and area_msg.get("result"):
-                    area_names = {a["area_id"]: a["name"] for a in area_msg["result"]}
-
-                # Get device registry
-                await ws.send(
-                    json.dumps({"id": 2, "type": "config/device_registry/list"})
-                )
-                device_msg = json.loads(await ws.recv())
-                device_areas = {}
-                all_device_ids = set()
-                if device_msg.get("success") and device_msg.get("result"):
-                    for device in device_msg["result"]:
-                        device_id = device.get("id")
-                        if device_id:
-                            all_device_ids.add(device_id)
-                        area_id = device.get("area_id")
-                        if device_id and area_id and area_id in area_names:
-                            device_areas[device_id] = area_names[area_id]
-
-                return device_areas, all_device_ids
-        except Exception as e:
-            logger.warning(f"Error fetching device areas: {e}")
-            return {}, set()
+        return device_areas, all_device_ids
 
     async def flash_light(self, request: Request) -> Response:
         """Flash a light entity briefly so the user can identify it.
@@ -5591,88 +4686,44 @@ class LightDesignerServer:
                     {"error": "Valid light entity_id required"}, status=400
                 )
 
-            rest_url, ws_url, token = self._get_ha_api_config()
-            if not token or not ws_url:
-                return web.json_response({"error": "HA not configured"}, status=500)
+            if not self.client:
+                return web.json_response({"error": "Client not ready"}, status=500)
 
-            async with websockets.connect(ws_url, max_size=16 * 1024 * 1024) as ws:
-                # Auth
-                msg = json.loads(await ws.recv())
-                if msg.get("type") != "auth_required":
-                    return web.json_response({"error": "Auth failed"}, status=500)
-                await ws.send(json.dumps({"type": "auth", "access_token": token}))
-                msg = json.loads(await ws.recv())
-                if msg.get("type") != "auth_ok":
-                    return web.json_response({"error": "Auth failed"}, status=500)
+            # Get current state from cache
+            current_state = self.client.cached_states.get(entity_id, {})
+            was_on = current_state.get("state") == "on"
+            attrs = current_state.get("attributes", {}) if was_on else {}
+            orig_brightness = attrs.get("brightness", 128)
 
-                # Get current state
-                await ws.send(json.dumps({"id": 1, "type": "get_states"}))
-                states_msg = json.loads(await ws.recv())
-                current_state = None
-                if states_msg.get("success") and states_msg.get("result"):
-                    for s in states_msg["result"]:
-                        if s.get("entity_id") == entity_id:
-                            current_state = s
-                            break
+            # Flash: turn on bright
+            await self.client.call_service(
+                "light", "turn_on",
+                {"brightness": 255, "transition": 0},
+                {"entity_id": entity_id},
+            )
 
-                was_on = current_state and current_state.get("state") == "on"
-                attrs = current_state.get("attributes", {}) if was_on else {}
-                orig_brightness = attrs.get("brightness", 128)
+            await asyncio.sleep(0.5)
 
-                # Flash: turn on bright
-                msg_id = 2
-                await ws.send(
-                    json.dumps(
-                        {
-                            "id": msg_id,
-                            "type": "call_service",
-                            "domain": "light",
-                            "service": "turn_on",
-                            "service_data": {"brightness": 255, "transition": 0},
-                            "target": {"entity_id": entity_id},
-                        }
-                    )
+            # Restore
+            if not was_on:
+                await self.client.call_service(
+                    "light", "turn_off",
+                    {"transition": 0},
+                    {"entity_id": entity_id},
                 )
-                await ws.recv()
-
-                await asyncio.sleep(0.5)
-
-                # Restore
-                msg_id += 1
-                if not was_on:
-                    await ws.send(
-                        json.dumps(
-                            {
-                                "id": msg_id,
-                                "type": "call_service",
-                                "domain": "light",
-                                "service": "turn_off",
-                                "service_data": {"transition": 0},
-                                "target": {"entity_id": entity_id},
-                            }
-                        )
-                    )
-                else:
-                    restore_data = {"brightness": orig_brightness, "transition": 0}
-                    xy = attrs.get("xy_color")
-                    ct = attrs.get("color_temp")
-                    if xy:
-                        restore_data["xy_color"] = xy
-                    elif ct:
-                        restore_data["color_temp"] = ct
-                    await ws.send(
-                        json.dumps(
-                            {
-                                "id": msg_id,
-                                "type": "call_service",
-                                "domain": "light",
-                                "service": "turn_on",
-                                "service_data": restore_data,
-                                "target": {"entity_id": entity_id},
-                            }
-                        )
-                    )
-                await ws.recv()
+            else:
+                restore_data = {"brightness": orig_brightness, "transition": 0}
+                xy = attrs.get("xy_color")
+                ct = attrs.get("color_temp")
+                if xy:
+                    restore_data["xy_color"] = xy
+                elif ct:
+                    restore_data["color_temp"] = ct
+                await self.client.call_service(
+                    "light", "turn_on",
+                    restore_data,
+                    {"entity_id": entity_id},
+                )
 
             return web.json_response({"status": "ok"})
         except Exception as e:
@@ -5694,171 +4745,53 @@ class LightDesignerServer:
         if not area_id and not show_all:
             return web.json_response({"lights": []})
 
+        if not self.client:
+            return web.json_response({"lights": []})
+
         try:
-            rest_url, ws_url, token = self._get_ha_api_config()
-            if not token or not ws_url:
-                return web.json_response({"lights": []})
+            lights = []
+            entire_area_lights = []
 
-            async with websockets.connect(ws_url, max_size=16 * 1024 * 1024) as ws:
-                # Auth
-                msg = json.loads(await ws.recv())
-                if msg.get("type") != "auth_required":
-                    return web.json_response({"lights": []})
-                await ws.send(json.dumps({"type": "auth", "access_token": token}))
-                msg = json.loads(await ws.recv())
-                if msg.get("type") != "auth_ok":
-                    return web.json_response({"lights": []})
+            # Determine which areas to scan
+            if show_all:
+                target_areas = list(self.client.area_lights.keys())
+            else:
+                target_areas = [area_id] if area_id in self.client.area_lights else []
 
-                # Get area registry for area names
-                await ws.send(
-                    json.dumps({"id": 1, "type": "config/area_registry/list"})
-                )
-                area_msg = json.loads(await ws.recv())
-                area_names = {}
-                if area_msg.get("success") and area_msg.get("result"):
-                    area_names = {a["area_id"]: a["name"] for a in area_msg["result"]}
+            for aid in target_areas:
+                area_name = self.client.area_id_to_name.get(aid, "Unknown")
+                for eid in self.client.area_lights.get(aid, []):
+                    s = self.client.cached_states.get(eid, {})
+                    attrs = s.get("attributes", {})
+                    is_group = bool(
+                        attrs.get("entity_id")
+                        or attrs.get("is_group")
+                        or attrs.get("is_hue_group")
+                    )
 
-                # Get device registry to find devices and their areas
-                await ws.send(
-                    json.dumps({"id": 2, "type": "config/device_registry/list"})
-                )
-                device_msg = json.loads(await ws.recv())
-                device_areas = {}  # device_id -> area_id
-                area_device_ids = set()  # devices in target area (for filtered mode)
-                service_devices = set()  # coordinators, bridges, etc.
-                if device_msg.get("success") and device_msg.get("result"):
-                    for device in device_msg["result"]:
-                        if device.get("entry_type") == "service":
-                            service_devices.add(device.get("id"))
-                        # ZHA coordinator: has zha identifier but no via_device_id
-                        identifiers = device.get("identifiers", [])
-                        is_zha = any(
-                            isinstance(i, list) and len(i) >= 2 and i[0] == "zha"
-                            for i in identifiers
-                        )
-                        if is_zha and not device.get("via_device_id"):
-                            service_devices.add(device.get("id"))
-                        device_areas[device.get("id")] = device.get("area_id")
-                        if device.get("area_id") == area_id:
-                            area_device_ids.add(device.get("id"))
-
-                # Get states for friendly names and detect groups
-                await ws.send(json.dumps({"id": 3, "type": "get_states"}))
-                states_msg = json.loads(await ws.recv())
-                friendly_names = {}
-                light_groups = set()  # entity_ids that are groups (have child entities)
-                if states_msg.get("success") and states_msg.get("result"):
-                    for state in states_msg["result"]:
-                        entity_id = state.get("entity_id", "")
-                        if entity_id.startswith("light."):
-                            attrs = state.get("attributes", {})
-                            friendly_names[entity_id] = attrs.get("friendly_name", "")
-                            # Detect if this is a group (has entity_id list or is_group attribute)
-                            if (
-                                attrs.get("entity_id")
-                                or attrs.get("is_group")
-                                or attrs.get("is_hue_group")
-                            ):
-                                light_groups.add(entity_id)
-
-                # Get entity registry to find light entities
-                await ws.send(
-                    json.dumps({"id": 4, "type": "config/entity_registry/list"})
-                )
-                entity_msg = json.loads(await ws.recv())
-                lights = []
-                entire_area_lights = []  # Groups go at top
-                if entity_msg.get("success") and entity_msg.get("result"):
-                    for entity in entity_msg["result"]:
-                        entity_id = entity.get("entity_id", "")
-                        if not entity_id.startswith("light."):
-                            continue
-
-                        # Skip service devices (coordinators, bridges)
-                        dev_id = entity.get("device_id")
-                        if dev_id and dev_id in service_devices:
-                            continue
-
-                        # Determine entity's area (direct or via device)
-                        entity_area = entity.get("area_id") or device_areas.get(
-                            entity.get("device_id")
-                        )
-                        is_group = entity_id in light_groups
-
-                        # Skip lights in Circadian_Zigbee_Groups area (internal use only)
-                        area_name_check = area_names.get(entity_area, "")
-                        if area_name_check == "Circadian_Zigbee_Groups":
-                            continue
-
-                        if show_all:
-                            # Include all lights, prefix with area name
-                            area_name = area_names.get(entity_area, "Unknown")
-                            if is_group:
-                                name = f"Entire area: {area_name}"
-                                entire_area_lights.append(
-                                    {
-                                        "entity_id": entity_id,
-                                        "name": name,
-                                        "area_id": entity_area,
-                                        "is_group": True,
-                                    }
-                                )
-                            else:
-                                base_name = (
-                                    friendly_names.get(entity_id)
-                                    or entity.get("name")
-                                    or entity.get("original_name")
-                                    or entity_id.replace("light.", "")
-                                    .replace("_", " ")
-                                    .title()
-                                )
-                                name = f"{area_name}: {base_name}"
-                                lights.append(
-                                    {
-                                        "entity_id": entity_id,
-                                        "name": name,
-                                        "area_id": entity_area,
-                                    }
-                                )
+                    if show_all:
+                        if is_group:
+                            entire_area_lights.append(
+                                {"entity_id": eid, "name": f"Entire area: {area_name}", "area_id": aid, "is_group": True}
+                            )
                         else:
-                            # Filter to target area
-                            if (
-                                entity.get("area_id") == area_id
-                                or entity.get("device_id") in area_device_ids
-                            ):
-                                area_name = area_names.get(entity_area, "")
-                                if is_group:
-                                    name = (
-                                        f"Entire area: {area_name}"
-                                        if area_name
-                                        else "Entire area"
-                                    )
-                                    entire_area_lights.append(
-                                        {
-                                            "entity_id": entity_id,
-                                            "name": name,
-                                            "is_group": True,
-                                        }
-                                    )
-                                else:
-                                    name = (
-                                        friendly_names.get(entity_id)
-                                        or entity.get("name")
-                                        or entity.get("original_name")
-                                        or entity_id.replace("light.", "")
-                                        .replace("_", " ")
-                                        .title()
-                                    )
-                                    lights.append(
-                                        {"entity_id": entity_id, "name": name}
-                                    )
+                            base_name = attrs.get("friendly_name") or eid.replace("light.", "").replace("_", " ").title()
+                            lights.append(
+                                {"entity_id": eid, "name": f"{area_name}: {base_name}", "area_id": aid}
+                            )
+                    else:
+                        if is_group:
+                            name = f"Entire area: {area_name}" if area_name else "Entire area"
+                            entire_area_lights.append(
+                                {"entity_id": eid, "name": name, "is_group": True}
+                            )
+                        else:
+                            name = attrs.get("friendly_name") or eid.replace("light.", "").replace("_", " ").title()
+                            lights.append({"entity_id": eid, "name": name})
 
-                # Sort: entire area lights first, then others alphabetically
-                entire_area_lights.sort(key=lambda x: x["name"].lower())
-                lights.sort(key=lambda x: x["name"].lower())
-                lights = entire_area_lights + lights
-
-                return web.json_response({"lights": lights})
+            entire_area_lights.sort(key=lambda x: x["name"].lower())
+            lights.sort(key=lambda x: x["name"].lower())
+            return web.json_response({"lights": entire_area_lights + lights})
         except Exception as e:
             logger.error(f"Error fetching area lights: {e}", exc_info=True)
             return web.json_response({"lights": []})
@@ -5873,66 +4806,35 @@ class LightDesignerServer:
         """
         device_class_filter = request.query.get("device_class")
 
+        if not self.client:
+            return web.json_response({"sensors": []})
+
         try:
-            rest_url, ws_url, token = self._get_ha_api_config()
-            if not token or not ws_url:
-                return web.json_response({"sensors": []})
-
-            async with websockets.connect(ws_url, max_size=16 * 1024 * 1024) as ws:
-                # Auth
-                msg = json.loads(await ws.recv())
-                if msg.get("type") != "auth_required":
-                    return web.json_response({"sensors": []})
-                await ws.send(json.dumps({"type": "auth", "access_token": token}))
-                msg = json.loads(await ws.recv())
-                if msg.get("type") != "auth_ok":
-                    return web.json_response({"sensors": []})
-
-                # Get entity registry to filter out diagnostic entities
-                await ws.send(
-                    json.dumps({"id": 1, "type": "config/entity_registry/list"})
+            sensors = []
+            for eid, s in self.client.cached_states.items():
+                if not eid.startswith("sensor."):
+                    continue
+                attrs = s.get("attributes", {})
+                dc = attrs.get("device_class", "")
+                if device_class_filter and dc != device_class_filter:
+                    continue
+                # Only include sensors with state_class (HA records
+                # long-term statistics for these — needed for baseline
+                # learning and filters out diagnostic duplicates)
+                if not attrs.get("state_class"):
+                    continue
+                name = attrs.get("friendly_name", eid)
+                sensors.append(
+                    {
+                        "entity_id": eid,
+                        "name": name,
+                        "state": s.get("state"),
+                        "unit": attrs.get("unit_of_measurement", ""),
+                    }
                 )
-                registry_msg = json.loads(await ws.recv())
-                diagnostic_entities = set()
-                if registry_msg.get("success") and registry_msg.get("result"):
-                    for ent in registry_msg["result"]:
-                        if ent.get("entity_category"):
-                            diagnostic_entities.add(ent.get("entity_id"))
 
-                # Get states
-                await ws.send(json.dumps({"id": 2, "type": "get_states"}))
-                states_msg = json.loads(await ws.recv())
-
-                sensors = []
-                if states_msg.get("success") and states_msg.get("result"):
-                    for state in states_msg["result"]:
-                        entity_id = state.get("entity_id", "")
-                        if not entity_id.startswith("sensor."):
-                            continue
-                        # Skip diagnostic/config entities
-                        if entity_id in diagnostic_entities:
-                            continue
-                        attrs = state.get("attributes", {})
-                        dc = attrs.get("device_class", "")
-                        if device_class_filter and dc != device_class_filter:
-                            continue
-                        # Only include sensors with state_class (HA records
-                        # long-term statistics for these — needed for baseline
-                        # learning and filters out diagnostic duplicates)
-                        if not attrs.get("state_class"):
-                            continue
-                        name = attrs.get("friendly_name", entity_id)
-                        sensors.append(
-                            {
-                                "entity_id": entity_id,
-                                "name": name,
-                                "state": state.get("state"),
-                                "unit": attrs.get("unit_of_measurement", ""),
-                            }
-                        )
-
-                sensors.sort(key=lambda x: x["name"].lower())
-                return web.json_response({"sensors": sensors})
+            sensors.sort(key=lambda x: x["name"].lower())
+            return web.json_response({"sensors": sensors})
         except Exception as e:
             logger.error(f"Error fetching sensors: {e}", exc_info=True)
             return web.json_response({"sensors": []})
@@ -6043,9 +4945,18 @@ class LightDesignerServer:
     async def get_outdoor_status(self, request: Request) -> Response:
         """Get current outdoor brightness state for settings page."""
         config = await self.load_config()
-        # Populate illuminance sensor list for settings dropdown
-        # (not called during polling — only when settings page opens)
-        await self._seed_outdoor_from_ha()
+        # Build illuminance sensor list from client cache
+        illuminance_sensors = []
+        if self.client:
+            for eid, s in self.client.cached_states.items():
+                if eid.startswith("sensor."):
+                    attrs = s.get("attributes", {})
+                    if attrs.get("device_class") == "illuminance":
+                        illuminance_sensors.append(
+                            {"entity_id": eid, "name": attrs.get("friendly_name", eid)}
+                        )
+            illuminance_sensors.sort(key=lambda x: x["name"].lower())
+
         outdoor_norm = lux_tracker.get_outdoor_normalized()
         return web.json_response(
             {
@@ -6062,7 +4973,7 @@ class LightDesignerServer:
                 "lux_learned_floor": lux_tracker._learned_floor,
                 "sun_elevation": round(lux_tracker._sun_elevation, 1),
                 "sensor_entity": lux_tracker.get_sensor_entity(),
-                "illuminance_sensors": getattr(self, "_illuminance_sensors", []),
+                "illuminance_sensors": illuminance_sensors,
             }
         )
 
@@ -6084,10 +4995,6 @@ class LightDesignerServer:
             except Exception:
                 pass
 
-            rest_url, ws_url, token = self._get_ha_api_config()
-            if not token or not ws_url:
-                return web.json_response({"error": "No HA connection"}, status=500)
-
             config = await self.load_config()
             lux_tracker.init(config)
             sensor_entity = lux_tracker.get_sensor_entity()
@@ -6096,7 +5003,37 @@ class LightDesignerServer:
                     {"error": "No lux sensor configured"}, status=400
                 )
 
-            # Get HA location config
+            # Get location from client cache
+            if not self.client:
+                return web.json_response({"error": "Client not ready"}, status=500)
+            lat = self.client.latitude
+            lon = self.client.longitude
+            tz_name = self.client.timezone
+            if not lat or not lon or not tz_name:
+                return web.json_response(
+                    {"error": "No location data in HA"}, status=500
+                )
+
+            from datetime import datetime, timedelta
+            from zoneinfo import ZoneInfo
+
+            local_tz = ZoneInfo(tz_name)
+            now = datetime.now(local_tz)
+            if since_str:
+                try:
+                    start = datetime.fromisoformat(since_str)
+                    if start.tzinfo is None:
+                        start = start.replace(tzinfo=local_tz)
+                except (ValueError, TypeError):
+                    start = now - timedelta(days=90)
+            else:
+                start = now - timedelta(days=90)
+
+            # Query recorder statistics via throwaway WS (needs request-response)
+            rest_url, ws_url, token = self._get_ha_api_config()
+            if not token or not ws_url:
+                return web.json_response({"error": "No HA connection"}, status=500)
+
             async with websockets.connect(ws_url, max_size=16 * 1024 * 1024) as ws:
                 msg = json.loads(await ws.recv())
                 if msg.get("type") != "auth_required":
@@ -6106,43 +5043,10 @@ class LightDesignerServer:
                 if msg.get("type") != "auth_ok":
                     return web.json_response({"error": "WS auth failed"}, status=500)
 
-                # Get HA config for location
-                await ws.send(json.dumps({"id": 1, "type": "get_config"}))
-                config_msg = json.loads(await ws.recv())
-                if not config_msg.get("success"):
-                    return web.json_response(
-                        {"error": "Could not get HA config"}, status=500
-                    )
-
-                ha_config = config_msg.get("result", {})
-                lat = ha_config.get("latitude")
-                lon = ha_config.get("longitude")
-                tz_name = ha_config.get("time_zone")
-                if not lat or not lon or not tz_name:
-                    return web.json_response(
-                        {"error": "No location data in HA"}, status=500
-                    )
-
-                # Query recorder statistics (hourly means from start date)
-                from datetime import datetime, timedelta
-                from zoneinfo import ZoneInfo
-
-                local_tz = ZoneInfo(tz_name)
-                now = datetime.now(local_tz)
-                if since_str:
-                    try:
-                        start = datetime.fromisoformat(since_str)
-                        if start.tzinfo is None:
-                            start = start.replace(tzinfo=local_tz)
-                    except (ValueError, TypeError):
-                        start = now - timedelta(days=90)
-                else:
-                    start = now - timedelta(days=90)
-
                 await ws.send(
                     json.dumps(
                         {
-                            "id": 2,
+                            "id": 1,
                             "type": "recorder/statistics_during_period",
                             "start_time": start.isoformat(),
                             "end_time": now.isoformat(),
@@ -6535,334 +5439,229 @@ class LightDesignerServer:
             return web.json_response({"error": str(e)}, status=500)
 
     async def _fetch_ha_controls(self) -> List[Dict[str, Any]]:
-        """Fetch potential control devices from HA.
+        """Fetch potential control devices from client caches.
 
         Identifies controls by entity types:
         - binary_sensor.*_motion, *_occupancy, *_presence, *_contact → sensors
         - Devices with only battery sensor and no lights → likely remotes
         """
-        rest_url, ws_url, token = self._get_ha_api_config()
-        if not token or not ws_url:
+        if not self.client:
             return []
 
         try:
-            async with websockets.connect(ws_url, max_size=16 * 1024 * 1024) as ws:
-                # Auth
-                msg = json.loads(await ws.recv())
-                if msg.get("type") != "auth_required":
-                    return []
-                await ws.send(json.dumps({"type": "auth", "access_token": token}))
-                msg = json.loads(await ws.recv())
-                if msg.get("type") != "auth_ok":
-                    return []
+            # Build device info from client cache
+            devices = {}
+            for device_id, device in self.client.device_registry.items():
+                unique_id = None
+                integration = None
+                for identifier in device.get("identifiers", []):
+                    if isinstance(identifier, list) and len(identifier) >= 2:
+                        if identifier[0] == "zha":
+                            unique_id = identifier[1]
+                            integration = "zha"
+                            break
+                        elif identifier[0] == "hue":
+                            unique_id = identifier[1]
+                            integration = "hue"
+                            break
+                        elif identifier[0] == "matter":
+                            unique_id = identifier[1]
+                            integration = "matter"
+                            break
+                if unique_id:
+                    model = device.get("model_id") or device.get("model")
+                    area_id = device.get("area_id")
+                    devices[device_id] = {
+                        "device_id": device_id,
+                        "ieee": unique_id,
+                        "integration": integration,
+                        "name": device.get("name_by_user") or device.get("name"),
+                        "manufacturer": device.get("manufacturer"),
+                        "model": model,
+                        "area_id": area_id,
+                        "area_name": self.client.area_id_to_name.get(area_id),
+                    }
 
-                # Get area registry
-                await ws.send(
-                    json.dumps({"id": 1, "type": "config/area_registry/list"})
-                )
-                area_msg = json.loads(await ws.recv())
-                area_names = {}
-                if area_msg.get("success") and area_msg.get("result"):
-                    area_names = {a["area_id"]: a["name"] for a in area_msg["result"]}
+            # Track entity types per device using entity_registry cache
+            device_entities: Dict[str, Dict[str, Any]] = {}
+            for entity_id, entity in self.client.entity_registry.items():
+                device_id = entity.get("device_id")
+                if not device_id or device_id not in devices:
+                    continue
 
-                # Get device registry
-                await ws.send(
-                    json.dumps({"id": 2, "type": "config/device_registry/list"})
-                )
-                device_msg = json.loads(await ws.recv())
-                devices = {}
-                if device_msg.get("success") and device_msg.get("result"):
-                    for device in device_msg["result"]:
-                        device_id = device.get("id")
-                        if device_id:
-                            # Extract unique ID from identifiers (ZHA, Hue, or Matter)
-                            unique_id = None
-                            integration = None
-                            for identifier in device.get("identifiers", []):
-                                if (
-                                    isinstance(identifier, list)
-                                    and len(identifier) >= 2
-                                ):
-                                    if identifier[0] == "zha":
-                                        unique_id = identifier[1]  # IEEE address
-                                        integration = "zha"
-                                        break
-                                    elif identifier[0] == "hue":
-                                        unique_id = identifier[1]  # Hue device ID
-                                        integration = "hue"
-                                        break
-                                    elif identifier[0] == "matter":
-                                        unique_id = identifier[1]  # Matter device ID
-                                        integration = "matter"
-                                        break
-                            if unique_id:
-                                logger.debug(
-                                    f"[Controls] HA device {device.get('name')}: id={unique_id} ({integration})"
-                                )
-                                # Use model_id if available (more specific), otherwise model
-                                model = device.get("model_id") or device.get("model")
-                                devices[device_id] = {
-                                    "device_id": device_id,
-                                    "ieee": unique_id,  # Keep 'ieee' key for compatibility
-                                    "integration": integration,
-                                    "name": device.get("name_by_user")
-                                    or device.get("name"),
-                                    "manufacturer": device.get("manufacturer"),
-                                    "model": model,
-                                    "area_id": device.get("area_id"),
-                                    "area_name": area_names.get(device.get("area_id")),
-                                }
+                if device_id not in device_entities:
+                    device_entities[device_id] = {
+                        "has_light": False,
+                        "has_motion": False,
+                        "has_occupancy": False,
+                        "has_presence": False,
+                        "has_contact": False,
+                        "has_button": False,
+                        "has_battery": False,
+                        "illuminance_entity": None,
+                        "sensitivity_entity": None,
+                    }
 
-                # Get entity registry to identify control types
-                await ws.send(
-                    json.dumps({"id": 3, "type": "config/entity_registry/list"})
-                )
-                entity_msg = json.loads(await ws.recv())
-
-                # Get states for device_class fallback (entity registry often has null device_class)
-                await ws.send(json.dumps({"id": 4, "type": "get_states"}))
-                states_msg = json.loads(await ws.recv())
-                state_device_classes = {}
-                if states_msg.get("success") and states_msg.get("result"):
-                    for s in states_msg["result"]:
-                        eid = s.get("entity_id", "")
-                        if eid.startswith("binary_sensor."):
-                            sdc = (s.get("attributes") or {}).get("device_class", "")
-                            if sdc:
-                                state_device_classes[eid] = sdc
-
-                # Track entity types per device
-                device_entities: Dict[str, Dict[str, Any]] = {}
-                if entity_msg.get("success") and entity_msg.get("result"):
-                    for entity in entity_msg["result"]:
-                        device_id = entity.get("device_id")
-                        if not device_id or device_id not in devices:
-                            continue
-
-                        entity_id = entity.get("entity_id", "")
-                        if device_id not in device_entities:
-                            device_entities[device_id] = {
-                                "has_light": False,
-                                "has_motion": False,
-                                "has_occupancy": False,
-                                "has_presence": False,
-                                "has_contact": False,
-                                "has_button": False,
-                                "has_battery": False,
-                                "illuminance_entity": None,
-                                "sensitivity_entity": None,
-                            }
-
-                        if entity_id.startswith("light."):
-                            device_entities[device_id]["has_light"] = True
-                        elif entity_id.startswith("button."):
-                            # Ignore identify buttons (most lights have these)
-                            if "_identify" not in entity_id and not entity_id.endswith(
-                                "_identify"
-                            ):
-                                device_entities[device_id]["has_button"] = True
-                        elif entity_id.startswith("binary_sensor."):
-                            # Check both entity_id patterns and device_class for categorization
-                            dc = (
-                                entity.get("device_class")
-                                or entity.get("original_device_class")
-                                or ""
-                            )
-                            if not dc:
-                                dc = state_device_classes.get(entity_id, "")
-                            if "_motion" in entity_id or dc == "motion":
-                                device_entities[device_id]["has_motion"] = True
-                                logger.debug(
-                                    f"[Controls] Found motion entity: {entity_id} (device_class={dc}) for device {device_id}"
-                                )
-                            elif "_occupancy" in entity_id or dc == "occupancy":
-                                device_entities[device_id]["has_occupancy"] = True
-                                logger.debug(
-                                    f"[Controls] Found occupancy entity: {entity_id} (device_class={dc}) for device {device_id}"
-                                )
-                            elif "_presence" in entity_id or dc == "presence":
-                                device_entities[device_id]["has_presence"] = True
-                                logger.debug(
-                                    f"[Controls] Found presence entity: {entity_id} (device_class={dc}) for device {device_id}"
-                                )
-                            elif (
-                                "_contact" in entity_id
-                                or "_opening" in entity_id
-                                or dc in ("door", "window", "opening", "garage_door")
-                            ):
-                                device_entities[device_id]["has_contact"] = True
-                        elif (
-                            entity_id.startswith("sensor.") and "_battery" in entity_id
-                        ):
-                            device_entities[device_id]["has_battery"] = True
-                        elif entity_id.startswith("sensor.") and (
-                            "illuminance" in entity_id or "_lux" in entity_id
-                        ):
-                            device_entities[device_id]["illuminance_entity"] = entity_id
-                        # Detect sensitivity entities (select or number) for motion sensors
-                        elif (
-                            entity_id.startswith("select.")
-                            or entity_id.startswith("number.")
-                        ) and "sensitivity" in entity_id.lower():
-                            device_entities[device_id]["sensitivity_entity"] = entity_id
-                            logger.debug(
-                                f"[Controls] Found sensitivity entity: {entity_id} for device {device_id}"
-                            )
-
-                # Fetch current entity states for illuminance readings
-                entity_states = {}
-                illuminance_entities = {
-                    de["illuminance_entity"]
-                    for de in device_entities.values()
-                    if de.get("illuminance_entity")
-                }
-                if illuminance_entities:
-                    # Reuse states already fetched for device_class lookup
-                    if states_msg.get("success") and states_msg.get("result"):
-                        for state in states_msg["result"]:
-                            eid = state.get("entity_id", "")
-                            if eid in illuminance_entities:
-                                entity_states[eid] = state.get("state")
-
-                # Filter to potential controls
-                controls = []
-                for device_id, device in devices.items():
-                    entities = device_entities.get(device_id, {})
-
-                    # Skip if it's primarily a light
-                    if entities.get("has_light") and not any(
-                        [
-                            entities.get("has_motion"),
-                            entities.get("has_occupancy"),
-                            entities.get("has_presence"),
-                            entities.get("has_contact"),
-                            entities.get("has_button"),
-                        ]
+                if entity_id.startswith("light."):
+                    device_entities[device_id]["has_light"] = True
+                elif entity_id.startswith("button."):
+                    if "_identify" not in entity_id and not entity_id.endswith(
+                        "_identify"
                     ):
-                        continue
-
-                    # Include if it has control-like entities
-                    is_control = any(
-                        [
-                            entities.get("has_motion"),
-                            entities.get("has_occupancy"),
-                            entities.get("has_presence"),
-                            entities.get("has_contact"),
-                            entities.get("has_button"),
-                            # Remote: has battery but no lights
-                            (
-                                entities.get("has_battery")
-                                and not entities.get("has_light")
-                            ),
-                        ]
+                        device_entities[device_id]["has_button"] = True
+                elif entity_id.startswith("binary_sensor."):
+                    dc = (
+                        entity.get("device_class")
+                        or entity.get("original_device_class")
+                        or ""
                     )
-
-                    if not is_control:
-                        continue
-
-                    # Filter out Hue "Room" virtual devices (not physical controls)
-                    # Hue creates these to represent rooms but they're not actual hardware
-                    model = device.get("model", "")
-                    if model and model.lower() == "room":
-                        logger.debug(
-                            f"[Controls] Skipping Hue Room device: {device.get('name')}"
-                        )
-                        continue
-
-                    # Determine category based on entity types
-                    if (
-                        entities.get("has_motion")
-                        or entities.get("has_occupancy")
-                        or entities.get("has_presence")
+                    if not dc:
+                        # Fallback to cached_states for device_class
+                        s = self.client.cached_states.get(entity_id, {})
+                        dc = s.get("attributes", {}).get("device_class", "")
+                    if "_motion" in entity_id or dc == "motion":
+                        device_entities[device_id]["has_motion"] = True
+                    elif "_occupancy" in entity_id or dc == "occupancy":
+                        device_entities[device_id]["has_occupancy"] = True
+                    elif "_presence" in entity_id or dc == "presence":
+                        device_entities[device_id]["has_presence"] = True
+                    elif (
+                        "_contact" in entity_id
+                        or "_opening" in entity_id
+                        or dc in ("door", "window", "opening", "garage_door")
                     ):
-                        category = "motion_sensor"
-                        logger.info(
-                            f"[Controls] Identified motion sensor: {device.get('name')} (device_id={device_id})"
+                        device_entities[device_id]["has_contact"] = True
+                elif (
+                    entity_id.startswith("sensor.") and "_battery" in entity_id
+                ):
+                    device_entities[device_id]["has_battery"] = True
+                elif entity_id.startswith("sensor.") and (
+                    "illuminance" in entity_id or "_lux" in entity_id
+                ):
+                    device_entities[device_id]["illuminance_entity"] = entity_id
+                elif (
+                    entity_id.startswith("select.")
+                    or entity_id.startswith("number.")
+                ) and "sensitivity" in entity_id.lower():
+                    device_entities[device_id]["sensitivity_entity"] = entity_id
+
+            # Filter to potential controls
+            controls = []
+            for device_id, device in devices.items():
+                entities = device_entities.get(device_id, {})
+
+                # Skip if it's primarily a light
+                if entities.get("has_light") and not any(
+                    [
+                        entities.get("has_motion"),
+                        entities.get("has_occupancy"),
+                        entities.get("has_presence"),
+                        entities.get("has_contact"),
+                        entities.get("has_button"),
+                    ]
+                ):
+                    continue
+
+                # Include if it has control-like entities
+                is_control = any(
+                    [
+                        entities.get("has_motion"),
+                        entities.get("has_occupancy"),
+                        entities.get("has_presence"),
+                        entities.get("has_contact"),
+                        entities.get("has_button"),
+                        (entities.get("has_battery") and not entities.get("has_light")),
+                    ]
+                )
+
+                if not is_control:
+                    continue
+
+                model = device.get("model", "")
+                if model and model.lower() == "room":
+                    continue
+
+                # Determine category
+                if (
+                    entities.get("has_motion")
+                    or entities.get("has_occupancy")
+                    or entities.get("has_presence")
+                ):
+                    category = "motion_sensor"
+                elif entities.get("has_contact"):
+                    category = "contact_sensor"
+                elif entities.get("has_button") or (
+                    entities.get("has_battery") and not entities.get("has_light")
+                ):
+                    category = "switch"
+                else:
+                    category = "unknown"
+
+                detected_type = None
+                if category == "switch":
+                    detected_type = switches.detect_switch_type(
+                        device.get("manufacturer"), device.get("model")
+                    )
+
+                type_info = (
+                    switches.SWITCH_TYPES.get(detected_type, {})
+                    if detected_type
+                    else {}
+                )
+
+                if detected_type:
+                    type_name = type_info.get("name")
+                elif category in ("motion_sensor", "contact_sensor"):
+                    type_name = switches.get_sensor_name(
+                        device.get("manufacturer"), device.get("model")
+                    )
+                else:
+                    type_name = None
+
+                is_supported = (
+                    category in ("motion_sensor", "contact_sensor")
+                    or detected_type is not None
+                )
+
+                # Illuminance from cached_states
+                illum_entity = entities.get("illuminance_entity")
+                illum_info = None
+                if illum_entity:
+                    raw_val = self.client.cached_states.get(illum_entity, {}).get("state")
+                    try:
+                        illum_val = (
+                            round(float(raw_val))
+                            if raw_val not in (None, "unavailable", "unknown")
+                            else None
                         )
-                    elif entities.get("has_contact"):
-                        category = "contact_sensor"
-                    elif entities.get("has_button") or (
-                        entities.get("has_battery") and not entities.get("has_light")
-                    ):
-                        category = "switch"
-                    else:
-                        category = "unknown"
+                    except (ValueError, TypeError):
+                        illum_val = None
+                    illum_info = {
+                        "entity_id": illum_entity,
+                        "value": illum_val,
+                        "unit": "lx",
+                    }
 
-                    # Check if it's a known/supported type (only for switches for now)
-                    detected_type = None
-                    if category == "switch":
-                        detected_type = switches.detect_switch_type(
-                            device.get("manufacturer"), device.get("model")
-                        )
-                        if not detected_type:
-                            logger.info(
-                                f"[Controls] Unrecognized switch: manufacturer='{device.get('manufacturer')}' model='{device.get('model')}' name='{device.get('name')}'"
-                            )
+                sensitivity_entity = (
+                    entities.get("sensitivity_entity")
+                    if category == "motion_sensor"
+                    else None
+                )
 
-                    type_info = (
-                        switches.SWITCH_TYPES.get(detected_type, {})
-                        if detected_type
-                        else {}
-                    )
+                controls.append(
+                    {
+                        **device,
+                        "category": category,
+                        "type": detected_type,
+                        "type_name": type_name,
+                        "supported": is_supported,
+                        "illuminance": illum_info,
+                        "sensitivity_entity": sensitivity_entity,
+                    }
+                )
 
-                    # Get display name based on category
-                    if detected_type:
-                        type_name = type_info.get("name")
-                    elif category in ("motion_sensor", "contact_sensor"):
-                        type_name = switches.get_sensor_name(
-                            device.get("manufacturer"), device.get("model")
-                        )
-                    else:
-                        type_name = None
-
-                    # Determine if supported:
-                    # - Switches: need a recognized type
-                    # - Motion/contact sensors: always supported (configured via area settings)
-                    is_supported = (
-                        category in ("motion_sensor", "contact_sensor")
-                        or detected_type is not None
-                    )
-
-                    # Attach illuminance entity info if present
-                    illum_entity = entities.get("illuminance_entity")
-                    illum_info = None
-                    if illum_entity:
-                        raw_val = entity_states.get(illum_entity)
-                        try:
-                            illum_val = (
-                                round(float(raw_val))
-                                if raw_val not in (None, "unavailable", "unknown")
-                                else None
-                            )
-                        except (ValueError, TypeError):
-                            illum_val = None
-                        illum_info = {
-                            "entity_id": illum_entity,
-                            "value": illum_val,
-                            "unit": "lx",
-                        }
-
-                    # Include sensitivity entity for motion sensors (ZHA only)
-                    sensitivity_entity = (
-                        entities.get("sensitivity_entity")
-                        if category == "motion_sensor"
-                        else None
-                    )
-
-                    controls.append(
-                        {
-                            **device,
-                            "category": category,
-                            "type": detected_type,
-                            "type_name": type_name,
-                            "supported": is_supported,
-                            "illuminance": illum_info,
-                            "sensitivity_entity": sensitivity_entity,
-                        }
-                    )
-
-                logger.info(f"[Controls] Returning {len(controls)} controls")
-                return controls
+            logger.info(f"[Controls] Returning {len(controls)} controls")
+            return controls
         except Exception as e:
             logger.error(f"Error fetching HA controls: {e}", exc_info=True)
             return []
@@ -7089,137 +5888,96 @@ class LightDesignerServer:
         if not device_id:
             return web.json_response({"error": "Device ID is required"}, status=400)
 
-        rest_url, ws_url, token = self._get_ha_api_config()
-        if not token or not ws_url:
-            return web.json_response({"error": "HA API not configured"}, status=500)
+        if not self.client:
+            return web.json_response({"error": "Client not ready"}, status=500)
 
         try:
-            async with websockets.connect(ws_url, max_size=16 * 1024 * 1024) as ws:
-                # Auth
-                msg = json.loads(await ws.recv())
-                if msg.get("type") != "auth_required":
-                    return web.json_response({"error": "Auth failed"}, status=500)
-                await ws.send(json.dumps({"type": "auth", "access_token": token}))
-                msg = json.loads(await ws.recv())
-                if msg.get("type") != "auth_ok":
-                    return web.json_response({"error": "Auth failed"}, status=500)
+            # Look up device IEEE from client cache
+            device_info = self.client.device_registry.get(device_id)
+            if not device_info:
+                return web.json_response({"error": "Device not found"}, status=404)
 
-                msg_id = 1
+            device_ieee = None
+            is_zha = False
+            for identifier in device_info.get("identifiers", []):
+                if isinstance(identifier, list) and len(identifier) >= 2:
+                    if identifier[0] == "zha":
+                        device_ieee = identifier[1]
+                        is_zha = True
+                        break
 
-                # Get device info to find IEEE address
-                await ws.send(
-                    json.dumps({"id": msg_id, "type": "config/device_registry/list"})
+            if not is_zha:
+                return web.json_response(
+                    {"is_zha": False, "sensitivity": None, "timeout": None}
                 )
-                msg_id += 1
-                device_msg = json.loads(await ws.recv())
 
-                device_ieee = None
-                is_zha = False
-                if device_msg.get("success") and device_msg.get("result"):
-                    for device in device_msg["result"]:
-                        if device.get("id") == device_id:
-                            for identifier in device.get("identifiers", []):
-                                if (
-                                    isinstance(identifier, list)
-                                    and len(identifier) >= 2
-                                ):
-                                    if identifier[0] == "zha":
-                                        device_ieee = identifier[1]
-                                        is_zha = True
-                                        break
-                            break
-
-                if not is_zha:
-                    return web.json_response(
-                        {
-                            "is_zha": False,
-                            "sensitivity": None,
-                            "timeout": None,
-                        }
-                    )
-
-                # Get entity registry to find sensitivity entity
-                await ws.send(
-                    json.dumps({"id": msg_id, "type": "config/entity_registry/list"})
-                )
-                msg_id += 1
-                entity_msg = json.loads(await ws.recv())
-
-                sensitivity_entity = None
-                if entity_msg.get("success") and entity_msg.get("result"):
-                    for entity in entity_msg["result"]:
-                        if entity.get("device_id") == device_id:
-                            entity_id = entity.get("entity_id", "")
-                            if "sensitivity" in entity_id.lower() and (
-                                entity_id.startswith("select.")
-                                or entity_id.startswith("number.")
-                            ):
-                                sensitivity_entity = entity_id
-                                break
-
-                # Get current states
-                await ws.send(json.dumps({"id": msg_id, "type": "get_states"}))
-                msg_id += 1
-                states_msg = json.loads(await ws.recv())
-
-                sensitivity_info = None
-                if (
-                    sensitivity_entity
-                    and states_msg.get("success")
-                    and states_msg.get("result")
-                ):
-                    for state in states_msg["result"]:
-                        if state.get("entity_id") == sensitivity_entity:
-                            attrs = state.get("attributes", {})
-                            sensitivity_info = {
-                                "entity_id": sensitivity_entity,
-                                "value": state.get("state"),
-                                "options": attrs.get(
-                                    "options", []
-                                ),  # For select entities
-                                "min": attrs.get("min"),  # For number entities
-                                "max": attrs.get("max"),
-                                "step": attrs.get("step"),
-                            }
-                            break
-
-                # Read occupancy timeout from ZHA cluster attribute
-                # Cluster 0x0406 (1030), attribute 0x0010 (16), endpoint 2
-                timeout_value = None
-                try:
-                    await ws.send(
-                        json.dumps(
-                            {
-                                "id": msg_id,
-                                "type": "zha/devices/clusters/attributes/value",
-                                "ieee": device_ieee,
-                                "endpoint_id": 2,
-                                "cluster_id": 1030,  # 0x0406
-                                "cluster_type": "in",
-                                "attribute": 16,  # 0x0010
-                            }
-                        )
-                    )
-                    msg_id += 1
-                    timeout_msg = json.loads(await ws.recv())
-                    if (
-                        timeout_msg.get("success")
-                        and timeout_msg.get("result") is not None
+            # Find sensitivity entity from entity_registry cache
+            sensitivity_entity = None
+            for eid, entity in self.client.entity_registry.items():
+                if entity.get("device_id") == device_id:
+                    if "sensitivity" in eid.lower() and (
+                        eid.startswith("select.") or eid.startswith("number.")
                     ):
-                        timeout_value = timeout_msg["result"]
+                        sensitivity_entity = eid
+                        break
+
+            # Read sensitivity state from cached_states
+            sensitivity_info = None
+            if sensitivity_entity:
+                s = self.client.cached_states.get(sensitivity_entity, {})
+                attrs = s.get("attributes", {})
+                sensitivity_info = {
+                    "entity_id": sensitivity_entity,
+                    "value": s.get("state"),
+                    "options": attrs.get("options", []),
+                    "min": attrs.get("min"),
+                    "max": attrs.get("max"),
+                    "step": attrs.get("step"),
+                }
+
+            # Read occupancy timeout from ZHA cluster attribute (needs throwaway WS)
+            timeout_value = None
+            rest_url, ws_url, token = self._get_ha_api_config()
+            if ws_url and token:
+                try:
+                    async with websockets.connect(ws_url, max_size=16 * 1024 * 1024) as ws:
+                        msg = json.loads(await ws.recv())
+                        if msg.get("type") == "auth_required":
+                            await ws.send(json.dumps({"type": "auth", "access_token": token}))
+                            msg = json.loads(await ws.recv())
+                            if msg.get("type") == "auth_ok":
+                                await ws.send(
+                                    json.dumps(
+                                        {
+                                            "id": 1,
+                                            "type": "zha/devices/clusters/attributes/value",
+                                            "ieee": device_ieee,
+                                            "endpoint_id": 2,
+                                            "cluster_id": 1030,
+                                            "cluster_type": "in",
+                                            "attribute": 16,
+                                        }
+                                    )
+                                )
+                                timeout_msg = json.loads(await ws.recv())
+                                if (
+                                    timeout_msg.get("success")
+                                    and timeout_msg.get("result") is not None
+                                ):
+                                    timeout_value = timeout_msg["result"]
                 except Exception as e:
                     logger.warning(
                         f"[ZHA Settings] Could not read timeout for {device_ieee}: {e}"
                     )
 
-                return web.json_response(
-                    {
-                        "is_zha": True,
-                        "ieee": device_ieee,
-                        "sensitivity": sensitivity_info,
-                        "timeout": timeout_value,
-                    }
-                )
+            return web.json_response(
+                {
+                    "is_zha": True,
+                    "ieee": device_ieee,
+                    "sensitivity": sensitivity_info,
+                    "timeout": timeout_value,
+                }
+            )
 
         except Exception as e:
             logger.error(f"Error getting ZHA motion settings: {e}", exc_info=True)
@@ -7247,131 +6005,84 @@ class LightDesignerServer:
         if new_sensitivity is None and new_timeout is None:
             return web.json_response({"error": "No settings provided"}, status=400)
 
-        rest_url, ws_url, token = self._get_ha_api_config()
-        if not token or not ws_url:
-            return web.json_response({"error": "HA API not configured"}, status=500)
+        if not self.client:
+            return web.json_response({"error": "Client not ready"}, status=500)
 
         try:
-            async with websockets.connect(ws_url, max_size=16 * 1024 * 1024) as ws:
-                # Auth
-                msg = json.loads(await ws.recv())
-                if msg.get("type") != "auth_required":
-                    return web.json_response({"error": "Auth failed"}, status=500)
-                await ws.send(json.dumps({"type": "auth", "access_token": token}))
-                msg = json.loads(await ws.recv())
-                if msg.get("type") != "auth_ok":
-                    return web.json_response({"error": "Auth failed"}, status=500)
+            # Look up device IEEE from client cache
+            device_info = self.client.device_registry.get(device_id)
+            if not device_info:
+                return web.json_response({"error": "Device not found"}, status=404)
 
-                msg_id = 1
-
-                # Get device info to find IEEE address
-                await ws.send(
-                    json.dumps({"id": msg_id, "type": "config/device_registry/list"})
-                )
-                msg_id += 1
-                device_msg = json.loads(await ws.recv())
-
-                device_ieee = None
-                for device in device_msg.get("result", []):
-                    if device.get("id") == device_id:
-                        for identifier in device.get("identifiers", []):
-                            if isinstance(identifier, list) and len(identifier) >= 2:
-                                if identifier[0] == "zha":
-                                    device_ieee = identifier[1]
-                                    break
+            device_ieee = None
+            for identifier in device_info.get("identifiers", []):
+                if isinstance(identifier, list) and len(identifier) >= 2:
+                    if identifier[0] == "zha":
+                        device_ieee = identifier[1]
                         break
 
-                if not device_ieee:
-                    return web.json_response({"error": "Not a ZHA device"}, status=400)
+            if not device_ieee:
+                return web.json_response({"error": "Not a ZHA device"}, status=400)
 
-                results = {}
+            results = {}
 
-                # Set sensitivity via HA service call
-                if new_sensitivity is not None:
-                    # Find sensitivity entity
-                    await ws.send(
-                        json.dumps(
-                            {"id": msg_id, "type": "config/entity_registry/list"}
-                        )
-                    )
-                    msg_id += 1
-                    entity_msg = json.loads(await ws.recv())
+            # Set sensitivity via client.call_service
+            if new_sensitivity is not None:
+                # Find sensitivity entity from entity_registry cache
+                sensitivity_entity = None
+                for eid, entity in self.client.entity_registry.items():
+                    if entity.get("device_id") == device_id:
+                        if "sensitivity" in eid.lower() and (
+                            eid.startswith("select.") or eid.startswith("number.")
+                        ):
+                            sensitivity_entity = eid
+                            break
 
-                    sensitivity_entity = None
-                    for entity in entity_msg.get("result", []):
-                        if entity.get("device_id") == device_id:
-                            entity_id = entity.get("entity_id", "")
-                            if "sensitivity" in entity_id.lower() and (
-                                entity_id.startswith("select.")
-                                or entity_id.startswith("number.")
-                            ):
-                                sensitivity_entity = entity_id
-                                break
-
-                    if sensitivity_entity:
-                        # Determine service based on entity type
-                        if sensitivity_entity.startswith("select."):
-                            service_call = {
-                                "id": msg_id,
-                                "type": "call_service",
-                                "domain": "select",
-                                "service": "select_option",
-                                "service_data": {"option": new_sensitivity},
-                                "target": {"entity_id": sensitivity_entity},
-                            }
-                        else:  # number entity
-                            service_call = {
-                                "id": msg_id,
-                                "type": "call_service",
-                                "domain": "number",
-                                "service": "set_value",
-                                "service_data": {"value": new_sensitivity},
-                                "target": {"entity_id": sensitivity_entity},
-                            }
-                        await ws.send(json.dumps(service_call))
-                        msg_id += 1
-                        result = json.loads(await ws.recv())
-                        results["sensitivity"] = result.get("success", False)
-                        logger.info(
-                            f"[ZHA Settings] Set sensitivity for {device_id}: {new_sensitivity} -> {results['sensitivity']}"
+                if sensitivity_entity:
+                    if sensitivity_entity.startswith("select."):
+                        await self.client.call_service(
+                            "select", "select_option",
+                            {"option": new_sensitivity},
+                            {"entity_id": sensitivity_entity},
                         )
                     else:
-                        results["sensitivity"] = False
-                        results["sensitivity_error"] = "No sensitivity entity found"
-
-                # Set timeout via ZHA cluster attribute
-                if new_timeout is not None:
-                    try:
-                        timeout_int = int(new_timeout)
-                        await ws.send(
-                            json.dumps(
-                                {
-                                    "id": msg_id,
-                                    "type": "call_service",
-                                    "domain": "zha",
-                                    "service": "set_zigbee_cluster_attribute",
-                                    "service_data": {
-                                        "ieee": device_ieee,
-                                        "endpoint_id": 2,
-                                        "cluster_id": 1030,  # 0x0406
-                                        "cluster_type": "in",
-                                        "attribute": 16,  # 0x0010
-                                        "value": timeout_int,
-                                    },
-                                }
-                            )
+                        await self.client.call_service(
+                            "number", "set_value",
+                            {"value": new_sensitivity},
+                            {"entity_id": sensitivity_entity},
                         )
-                        msg_id += 1
-                        result = json.loads(await ws.recv())
-                        results["timeout"] = result.get("success", False)
-                        logger.info(
-                            f"[ZHA Settings] Set timeout for {device_ieee}: {timeout_int}s -> {results['timeout']}"
-                        )
-                    except (ValueError, TypeError) as e:
-                        results["timeout"] = False
-                        results["timeout_error"] = f"Invalid timeout value: {e}"
+                    results["sensitivity"] = True
+                    logger.info(
+                        f"[ZHA Settings] Set sensitivity for {device_id}: {new_sensitivity}"
+                    )
+                else:
+                    results["sensitivity"] = False
+                    results["sensitivity_error"] = "No sensitivity entity found"
 
-                return web.json_response({"status": "ok", "results": results})
+            # Set timeout via ZHA cluster attribute (needs call_service for ZHA)
+            if new_timeout is not None:
+                try:
+                    timeout_int = int(new_timeout)
+                    await self.client.call_service(
+                        "zha", "set_zigbee_cluster_attribute",
+                        {
+                            "ieee": device_ieee,
+                            "endpoint_id": 2,
+                            "cluster_id": 1030,
+                            "cluster_type": "in",
+                            "attribute": 16,
+                            "value": timeout_int,
+                        },
+                    )
+                    results["timeout"] = True
+                    logger.info(
+                        f"[ZHA Settings] Set timeout for {device_ieee}: {timeout_int}s"
+                    )
+                except (ValueError, TypeError) as e:
+                    results["timeout"] = False
+                    results["timeout_error"] = f"Invalid timeout value: {e}"
+
+            return web.json_response({"status": "ok", "results": results})
 
         except Exception as e:
             logger.error(f"Error setting ZHA motion settings: {e}", exc_info=True)
