@@ -2168,12 +2168,15 @@ class CircadianLightPrimitives:
                 area_ids, area_lighting, transition=transition
             )
 
-            # Process areas via per-area, skipping filters handled by reach
+            # Collect areas needing per-area turn-on (not fully handled by reach)
+            needs_per_area_turn_on = []  # entries with no reach handling (get 2-step)
+            needs_per_area_partial = (
+                []
+            )  # entries partially handled by reach (no 2-step, some lights already on)
             for entry in area_lighting:
                 area_id = entry[0]
                 skip = reach_handled.get(area_id)
                 if skip:
-                    # Check if ALL filters were handled
                     area_filters = glozone.get_area_light_filters(area_id)
                     all_filters = (
                         set(area_filters.values()) if area_filters else {"Standard"}
@@ -2181,17 +2184,27 @@ class CircadianLightPrimitives:
                     all_norms = {f.replace(" ", "_").lower() for f in all_filters}
                     if all_norms.issubset(skip):
                         continue  # Fully handled by reach — skip per-area entirely
+                    needs_per_area_partial.append((entry, skip))
+                else:
+                    needs_per_area_turn_on.append(entry)
 
-                # Per-area with skip_filters for partially handled areas
+            # 2-step turn-on for areas not handled by reach
+            if needs_per_area_turn_on:
+                await self._apply_lighting_turn_on_multiple(
+                    needs_per_area_turn_on, transition=transition
+                )
+
+            # Direct apply for partially reach-handled areas (some lights already on)
+            for entry, skip in needs_per_area_partial:
                 await self._apply_lighting(
-                    area_id,
+                    entry[0],
                     entry[1],
                     entry[2],
                     include_color=True,
                     transition=transition,
                     rhythm_brightness=entry[3] if len(entry) > 3 else None,
                     brightness_override=entry[4] if len(entry) > 4 else None,
-                    skip_filters=skip if skip else None,
+                    skip_filters=skip,
                 )
 
             # Also turn on any switch entities (relays, smart plugs)
@@ -4296,7 +4309,8 @@ class CircadianLightPrimitives:
 
         # Check if 2-step is needed based on CT difference
         last_ct = state.get_last_off_ct(area_id)
-        ct_threshold = 500  # Kelvin difference threshold for 2-step
+        raw_cfg = glozone.load_config_from_files()
+        ct_threshold = raw_cfg.get("two_step_ct_threshold", 500)
 
         needs_two_step = True
         if last_ct is not None:
@@ -4617,7 +4631,8 @@ class CircadianLightPrimitives:
         # Categorize areas by whether they need 2-step
         needs_two_step = []
         no_two_step = []
-        ct_threshold = 500
+        raw_cfg = glozone.load_config_from_files()
+        ct_threshold = raw_cfg.get("two_step_ct_threshold", 500)
 
         for entry in area_lighting:
             area_id, brightness, color_temp = entry[0], entry[1], entry[2]

@@ -3551,6 +3551,133 @@ class HomeAssistantWebSocketClient:
 
         tasks: List[asyncio.Task] = []
 
+        # 2-step color pre-send: when a filter group has a large CT shift AND
+        # brightness is increasing (or light is off), send target color at current
+        # brightness first so the color arc happens while dim/invisible.
+        # Phase 1 runs in parallel with normal updates for unaffected groups.
+        # Phase 2 (target brightness) runs after a delay for 2-step groups only.
+        phase1_tasks = []
+        phase2_tasks = []
+        two_step_filters = set()
+        is_all_hue = self.is_all_hue_area(area_id)
+        raw_cfg = glozone.load_config_from_files()
+        ct_threshold = raw_cfg.get("two_step_ct_threshold", 500)
+        if not is_all_hue and kelvin is not None and ct_threshold > 0:
+            for filter_name, lights_by_cap in filter_groups.items():
+                filt_norm = filter_name.replace(" ", "_").lower()
+                if skip_filters and filt_norm in skip_filters:
+                    continue
+                preset = presets.get(filter_name, {"at_bright": 100, "at_dim": 100})
+                filtered_bri, should_off = apply_light_filter_pipeline(
+                    base_brightness,
+                    min_bri,
+                    max_bri,
+                    area_factor,
+                    preset,
+                    off_threshold,
+                    rhythm_brightness=rhythm_brightness,
+                    brightness_override=brightness_override,
+                )
+                if should_off:
+                    continue
+
+                # Find representative entity to check current state
+                zha_color = group_candidates.get(f"zha_group_{filt_norm}_color")
+                zha_ct = group_candidates.get(f"zha_group_{filt_norm}_ct")
+                check_entity = (
+                    zha_color
+                    or (lights_by_cap["color"][0] if lights_by_cap["color"] else None)
+                    or zha_ct
+                    or (lights_by_cap["ct"][0] if lights_by_cap["ct"] else None)
+                )
+                if not check_entity:
+                    continue
+
+                entity_state = self.cached_states.get(check_entity, {})
+                is_off = entity_state.get("state") == "off"
+
+                # Get current CT (from cached state if on, last_off_ct if off)
+                if is_off:
+                    current_ct = state.get_last_off_ct(area_id)
+                else:
+                    current_ct = entity_state.get("attributes", {}).get(
+                        "color_temp_kelvin"
+                    )
+
+                # Check CT delta — skip if color is close enough
+                if current_ct is not None:
+                    ct_diff = abs(kelvin - current_ct)
+                    if ct_diff < ct_threshold:
+                        continue
+                else:
+                    ct_diff = None  # Unknown — default to 2-step
+
+                # Off→on: always 2-step. Already-on: need >= 15% brightness delta.
+                bri_delta_threshold = 15
+                if not is_off:
+                    current_bri_raw = entity_state.get("attributes", {}).get(
+                        "brightness", 0
+                    )
+                    current_bri_pct = (
+                        round(current_bri_raw / 255 * 100) if current_bri_raw else 0
+                    )
+                    bri_delta = abs(filtered_bri - current_bri_pct)
+                    if bri_delta < bri_delta_threshold:
+                        continue  # Brightness change too small for 2-step to help
+                    brightening = filtered_bri > current_bri_pct
+                else:
+                    current_bri_pct = 0
+                    brightening = True
+
+                two_step_filters.add(filt_norm)
+
+                if brightening:
+                    # Brightening: send target color at current brightness first
+                    phase1_bri = max(1, current_bri_pct)
+                else:
+                    # Dimming: send target brightness at current color first
+                    # (dim while warm, then shift color at dim level)
+                    # Phase 1 dims without color; phase 2 applies color
+                    phase1_bri = None  # handled below as dim-first
+
+                # Build phase 1 command based on direction:
+                # Brightening: target color at current brightness (color shifts while dim)
+                # Dimming: target brightness without color change (dims first, then color)
+                def _add_p1(entity_id, cap_type):
+                    if brightening:
+                        p1 = {"transition": 0, "brightness_pct": phase1_bri}
+                        if cap_type == "color" and xy is not None:
+                            p1["xy_color"] = list(xy)
+                        elif cap_type == "ct":
+                            p1["color_temp_kelvin"] = max(2000, kelvin)
+                    else:
+                        # Dimming: brightness only, no color (shift color in phase 2)
+                        p1 = {"transition": 0, "brightness_pct": filtered_bri}
+                    phase1_tasks.append(
+                        self.call_service(
+                            "light", "turn_on", p1, {"entity_id": entity_id}
+                        )
+                    )
+
+                if zha_color:
+                    _add_p1(zha_color, "color")
+                elif lights_by_cap["color"]:
+                    _add_p1(lights_by_cap["color"], "color")
+                if zha_ct:
+                    _add_p1(zha_ct, "ct")
+                elif lights_by_cap["ct"]:
+                    _add_p1(lights_by_cap["ct"], "ct")
+
+                if log_periodic:
+                    reason = (
+                        "off→on" if is_off else f"{current_bri_pct}%→{filtered_bri}%"
+                    )
+                    direction = "brighten" if brightening else "dim"
+                    delta_str = f"{ct_diff}K" if ct_diff is not None else "?K"
+                    logger.info(
+                        f"Filter 2-step ({filter_name}): {direction} phase 1 ({reason}, CT Δ{delta_str})"
+                    )
+
         for filter_name, lights_by_cap in filter_groups.items():
             # Skip filters already handled by reach groups
             filt_norm_check = filter_name.replace(" ", "_").lower()
@@ -3560,6 +3687,11 @@ class HomeAssistantWebSocketClient:
                         f"Filter '{filter_name}': skipped (handled by reach group)"
                     )
                 continue
+
+            # Route 2-step groups to phase2_tasks (run after delay)
+            target_tasks = (
+                phase2_tasks if filt_norm_check in two_step_filters else tasks
+            )
 
             preset = presets.get(filter_name, {"at_bright": 100, "at_dim": 100})
 
@@ -3690,7 +3822,7 @@ class HomeAssistantWebSocketClient:
                         logger.info(
                             f"Filter update ({filter_name} color ZHA): {zha_group}, brightness={comp_brightness}%, transition={transition}s"
                         )
-                    tasks.append(
+                    target_tasks.append(
                         asyncio.create_task(
                             self.call_service(
                                 "light", "turn_on", color_data, {"entity_id": zha_group}
@@ -3698,7 +3830,7 @@ class HomeAssistantWebSocketClient:
                         )
                     )
                     if non_zha:
-                        tasks.append(
+                        target_tasks.append(
                             asyncio.create_task(
                                 self.call_service(
                                     "light",
@@ -3713,7 +3845,7 @@ class HomeAssistantWebSocketClient:
                         logger.info(
                             f"Filter update ({filter_name} color): {len(lights_by_cap['color'])} lights, brightness={comp_brightness}%, transition={transition}s"
                         )
-                    tasks.append(
+                    target_tasks.append(
                         asyncio.create_task(
                             self.call_service(
                                 "light",
@@ -3749,7 +3881,7 @@ class HomeAssistantWebSocketClient:
                         logger.info(
                             f"Filter update ({filter_name} CT ZHA): {zha_group}, brightness={comp_brightness}%, transition={transition}s"
                         )
-                    tasks.append(
+                    target_tasks.append(
                         asyncio.create_task(
                             self.call_service(
                                 "light", "turn_on", ct_data, {"entity_id": zha_group}
@@ -3757,7 +3889,7 @@ class HomeAssistantWebSocketClient:
                         )
                     )
                     if non_zha:
-                        tasks.append(
+                        target_tasks.append(
                             asyncio.create_task(
                                 self.call_service(
                                     "light", "turn_on", ct_data, {"entity_id": non_zha}
@@ -3769,7 +3901,7 @@ class HomeAssistantWebSocketClient:
                         logger.info(
                             f"Filter update ({filter_name} CT): {len(lights_by_cap['ct'])} lights, brightness={comp_brightness}%, transition={transition}s"
                         )
-                    tasks.append(
+                    target_tasks.append(
                         asyncio.create_task(
                             self.call_service(
                                 "light",
@@ -3787,7 +3919,7 @@ class HomeAssistantWebSocketClient:
                     logger.info(
                         f"Filter update ({filter_name} brightness): {len(lights_by_cap['brightness'])} lights, brightness={comp_brightness}%, transition={transition}s"
                     )
-                tasks.append(
+                target_tasks.append(
                     asyncio.create_task(
                         self.call_service(
                             "light",
@@ -3804,7 +3936,7 @@ class HomeAssistantWebSocketClient:
                     logger.info(
                         f"Filter update ({filter_name} on/off): {len(lights_by_cap['onoff'])} lights"
                     )
-                tasks.append(
+                target_tasks.append(
                     asyncio.create_task(
                         self.call_service(
                             "light",
@@ -3815,8 +3947,16 @@ class HomeAssistantWebSocketClient:
                     )
                 )
 
-        if tasks:
-            await asyncio.gather(*tasks)
+        # Wave 1: phase 1 (1% for off→on groups) + normal updates (already-on + turn-offs)
+        wave1 = phase1_tasks + tasks
+        if wave1:
+            await asyncio.gather(*wave1)
+
+        # Wave 2: delay + phase 2 (target brightness for off→on groups)
+        if phase2_tasks:
+            two_step_delay = self.primitives._get_two_step_delay()
+            await asyncio.sleep(two_step_delay)
+            await asyncio.gather(*phase2_tasks)
 
     async def turn_off_lights(
         self,
