@@ -4817,12 +4817,17 @@ class CircadianLightPrimitives:
         include_color = bounce_type in ("step", "color")
 
         # Phase 1: Bounce away via call_service (visible space, bypass pipeline)
-        zha_groups = self.client.get_area_zha_groups(area_id)
-        has_parity = self.client.area_parity_cache.get(area_id, False)
-        if zha_groups and has_parity:
-            targets = [{"entity_id": g} for g in zha_groups]
+        # Use switch's feedback target if available (single purpose group)
+        feedback_target = getattr(self.client, "_active_feedback_target", None)
+        if feedback_target:
+            targets = [feedback_target]
         else:
-            targets = [{"area_id": area_id}]
+            zha_groups = self.client.get_area_zha_groups(area_id)
+            has_parity = self.client.area_parity_cache.get(area_id, False)
+            if zha_groups and has_parity:
+                targets = [{"entity_id": g} for g in zha_groups]
+            else:
+                targets = [{"area_id": area_id}]
 
         phase1_tasks = []
         for target in targets:

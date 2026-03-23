@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.61
+- **Fix spurious 2-step on already-on lights**: Color lights set via xy_color don't have `color_temp_kelvin` in HA state, causing unknown CT to trigger unnecessary 2-step on every brightness change >= 15%. Now skips 2-step for already-on lights with unknown CT (off-to-on still 2-steps as safety default).
+- **Bounce at limit uses switch indicator target**: Limit bounce now targets the switch's configured indicator purpose group (single ZHA group) instead of all lights in the area. Reduces Zigbee traffic and matches other visual feedback behavior.
+
 ## 1.0.60
 - **Fix glozones endpoint fetching from HA on every poll**: Area name enrichment now reads from shared in-memory cache instead of opening a WebSocket to HA on every `/api/glozones` call. Eliminates ~20 WebSocket connections/min at 3s polling.
 

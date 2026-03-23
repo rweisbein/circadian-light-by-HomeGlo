@@ -176,6 +176,8 @@ class HomeAssistantWebSocketClient:
 
         # Timestamp of the last switch action (used to defer periodic updates)
         self._last_switch_action_time: float = 0
+        # Active feedback target for visual cues (set during switch action execution)
+        self._active_feedback_target: Optional[dict] = None
 
         # Pending nudge tasks: area_id -> asyncio.Task (cancellable post-command retry)
         self._pending_nudges: Dict[str, asyncio.Task] = {}
@@ -1830,6 +1832,9 @@ class HomeAssistantWebSocketClient:
         # Record activity for scope timeout
         switches.record_activity(switch_id)
         self._last_switch_action_time = time.time()
+
+        # Resolve and store feedback target for visual cues (bounce, etc.)
+        self._active_feedback_target = self._resolve_feedback_target(switch_id)
 
         # Parse action - can be string or {action, when_off} object
         main_action = action
@@ -3613,7 +3618,11 @@ class HomeAssistantWebSocketClient:
                     if ct_diff < ct_threshold:
                         continue
                 else:
-                    ct_diff = None  # Unknown — default to 2-step
+                    # Unknown CT: 2-step for off→on (flash is jarring), skip for already-on
+                    # (light is already showing its color, extra Zigbee call not worth it)
+                    if not is_off:
+                        continue
+                    ct_diff = None
 
                 # Off→on: always 2-step. Already-on: need >= 15% brightness delta.
                 bri_delta_threshold = 15
