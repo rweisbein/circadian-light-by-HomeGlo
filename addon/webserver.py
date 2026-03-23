@@ -4268,31 +4268,8 @@ class LightDesignerServer:
             await self._migrate_unassigned_areas_to_default(config)
             zones = config.get("glozones", {})
 
-            # Check if any areas are missing names before fetching from HA
-            needs_name_enrichment = False
-            for zone_config in zones.values():
-                for area in zone_config.get("areas", []):
-                    if isinstance(area, str) or (
-                        isinstance(area, dict) and not area.get("name")
-                    ):
-                        needs_name_enrichment = True
-                        break
-                if needs_name_enrichment:
-                    break
-
-            # Only fetch HA area names if there are areas missing names
-            ha_area_names = {}
-            if needs_name_enrichment:
-                try:
-                    _, ws_url, token = self._get_ha_api_config()
-                    if ws_url and token:
-                        ha_areas = await self._fetch_areas_via_websocket(ws_url, token)
-                        ha_area_names = {
-                            a["area_id"]: a.get("name", a["area_id"])
-                            for a in (ha_areas or [])
-                        }
-                except Exception as e:
-                    logger.debug(f"Could not fetch HA area names: {e}")
+            # Use in-memory area names from main.py (shared process)
+            ha_area_names = self.client.area_id_to_name if self.client else {}
 
             # Enrich with runtime state and area names
             result = {}

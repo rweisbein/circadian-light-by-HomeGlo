@@ -128,6 +128,9 @@ class HomeAssistantWebSocketClient:
         self.area_name_to_id: Dict[str, str] = (
             {}
         )  # area_name -> area_id (for group registration)
+        self.area_id_to_name: Dict[str, str] = (
+            {}
+        )  # area_id -> area_name (for webserver)
 
         # Reach groups for multi-area switch scopes (synchronized ZigBee control)
         # Maps reach_key (hash of sorted areas) -> ReachGroup with group entity IDs
@@ -6225,6 +6228,7 @@ class HomeAssistantWebSocketClient:
             # Clear and rebuild the caches
             self.area_parity_cache.clear()
             self.area_name_to_id.clear()
+            self.area_id_to_name.clear()
 
             for area_id, area_info in areas.items():
                 area_name = area_info.get("name", "")
@@ -6235,6 +6239,7 @@ class HomeAssistantWebSocketClient:
                     self.area_name_to_id[normalized_name] = area_id
                     # Also store without underscores for flexible matching
                     self.area_name_to_id[area_name.lower()] = area_id
+                    self.area_id_to_name[area_id] = area_name
 
                 # Skip the Circadian_Zigbee_Groups area - it's just for organizing group entities
                 if area_name == "Circadian_Zigbee_Groups":
@@ -6286,8 +6291,9 @@ class HomeAssistantWebSocketClient:
                     logger.error("Registry fetch failed — skipping ZHA group sync")
                     return
 
-                # Populate area_name_to_id mapping from registry
+                # Populate area name mappings from registry
                 self.area_name_to_id.clear()
+                self.area_id_to_name.clear()
                 for area in registry.areas:
                     area_id = area.get("area_id")
                     area_name = area.get("name", "")
@@ -6295,6 +6301,7 @@ class HomeAssistantWebSocketClient:
                         normalized_name = area_name.lower().replace(" ", "_")
                         self.area_name_to_id[normalized_name] = area_id
                         self.area_name_to_id[area_name.lower()] = area_id
+                        self.area_id_to_name[area_id] = area_name
 
                 # Ensure glozone config is loaded in this process
                 glozone.load_config_from_files()
@@ -7459,14 +7466,16 @@ class HomeAssistantWebSocketClient:
                             registry=startup_registry
                         )
                         self.area_name_to_id.clear()
+                        self.area_id_to_name.clear()
                         for area_id, area_info in areas.items():
                             area_name = area_info.get("name", "")
                             if area_name:
                                 normalized_name = area_name.lower().replace(" ", "_")
                                 self.area_name_to_id[normalized_name] = area_id
                                 self.area_name_to_id[area_name.lower()] = area_id
+                                self.area_id_to_name[area_id] = area_name
                         logger.info(
-                            f"Pre-loaded {len(self.area_name_to_id)} area name mappings"
+                            f"Pre-loaded {len(self.area_id_to_name)} area name mappings"
                         )
                     except Exception as e:
                         logger.warning(f"Failed to pre-load area mappings: {e}")
