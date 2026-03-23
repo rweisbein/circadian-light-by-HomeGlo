@@ -347,6 +347,7 @@ class LightDesignerServer:
         self.port = port
         self.app = web.Application()
         self.setup_routes()
+        self.client = None  # Set by main.py after client is created
 
         # Detect environment and set appropriate paths
         # Prefer /config/circadian-light (visible in HA config folder, included in backups)
@@ -1221,12 +1222,8 @@ class LightDesignerServer:
             await self.save_config_to_file(config)
             glozone.set_config(config)
 
-            # Fire refresh event
-            _, ws_url, token = self._get_ha_api_config()
-            if ws_url and token:
-                await self._fire_event_via_websocket(
-                    ws_url, token, "circadian_light_refresh", {}
-                )
+            if self.client:
+                await self.client.handle_config_refresh()
 
             return web.json_response({"status": "ok"})
         except Exception as e:
@@ -1274,12 +1271,8 @@ class LightDesignerServer:
             await self.save_config_to_file(config)
             glozone.set_config(config)
 
-            # Fire refresh event
-            _, ws_url, token = self._get_ha_api_config()
-            if ws_url and token:
-                await self._fire_event_via_websocket(
-                    ws_url, token, "circadian_light_refresh", {}
-                )
+            if self.client:
+                await self.client.handle_config_refresh()
 
             return web.json_response({"status": "ok"})
         except Exception as e:
@@ -1322,12 +1315,8 @@ class LightDesignerServer:
             await self.save_config_to_file(config)
             glozone.set_config(config)
 
-            if reassigned > 0:
-                _, ws_url, token = self._get_ha_api_config()
-                if ws_url and token:
-                    await self._fire_event_via_websocket(
-                        ws_url, token, "circadian_light_refresh", {}
-                    )
+            if reassigned > 0 and self.client:
+                await self.client.handle_config_refresh()
 
             return web.json_response({"status": "ok", "reassigned": reassigned})
         except Exception as e:
@@ -1552,18 +1541,12 @@ class LightDesignerServer:
             # Re-read lux tracker config (source, sensor, smoothing) without resetting runtime state
             lux_tracker.reload_config(config)
 
-            # Trigger refresh of enabled areas by firing an event
-            # main.py listens for this event and signals the periodic updater
+            # Signal periodic updater to pick up new config
             refreshed = False
-            _, ws_url, token = self._get_ha_api_config()
-            if ws_url and token:
-                refreshed = await self._fire_event_via_websocket(
-                    ws_url, token, "circadian_light_refresh", {}
-                )
-                if refreshed:
-                    logger.info("Fired circadian_light_refresh event after config save")
-                else:
-                    logger.warning("Failed to fire circadian_light_refresh event")
+            if self.client:
+                await self.client.handle_config_refresh()
+                refreshed = True
+                logger.info("Config refresh signaled after config save")
 
             # Return effective config for backward compatibility
             effective_config = self._get_effective_config(config)
@@ -2803,78 +2786,15 @@ class LightDesignerServer:
             logger.warning(f"[WS Service] Error calling {domain}.{service}: {e}")
             return False
 
-    async def _fire_event_via_websocket(
-        self, ws_url: str, token: str, event_type: str, event_data: dict = None
-    ) -> bool:
-        """Fire a Home Assistant event via WebSocket API.
-
-        Args:
-            ws_url: WebSocket URL (e.g., ws://supervisor/core/api/websocket)
-            token: Home Assistant auth token
-            event_type: Event type to fire (e.g., 'circadian_light_refresh')
-            event_data: Optional event data dict
-
-        Returns:
-            True if event was fired, False otherwise
-        """
-        try:
-            async with websockets.connect(ws_url, max_size=16 * 1024 * 1024) as ws:
-                # Wait for auth_required message
-                msg = json.loads(await ws.recv())
-                if msg.get("type") != "auth_required":
-                    logger.error(f"[WS Event] Unexpected message: {msg}")
-                    return False
-
-                # Send auth
-                await ws.send(json.dumps({"type": "auth", "access_token": token}))
-
-                # Wait for auth response
-                msg = json.loads(await ws.recv())
-                if msg.get("type") != "auth_ok":
-                    logger.error(f"[WS Event] Auth failed: {msg}")
-                    return False
-
-                # Fire the event
-                fire_msg = {
-                    "id": 1,
-                    "type": "fire_event",
-                    "event_type": event_type,
-                }
-                if event_data:
-                    fire_msg["event_data"] = event_data
-
-                await ws.send(json.dumps(fire_msg))
-
-                # Wait for result (with timeout)
-                try:
-                    result = await asyncio.wait_for(ws.recv(), timeout=5.0)
-                    result_msg = json.loads(result)
-                    logger.info(
-                        f"[WS Event] {event_type} fire result: {result_msg.get('type')}"
-                    )
-                    return result_msg.get("type") == "result" and result_msg.get(
-                        "success", False
-                    )
-                except asyncio.TimeoutError:
-                    # Event was sent, assume it worked
-                    logger.info(f"[WS Event] {event_type} event sent (no response)")
-                    return True
-
-        except Exception as e:
-            logger.warning(f"[WS Event] Error firing {event_type}: {e}")
-            return False
-
     async def _trigger_reach_group_sync(self) -> bool:
-        """Trigger reach group sync in main.py via WebSocket event.
+        """Trigger reach group sync via direct client call.
 
         Returns:
-            True if event was fired successfully
+            True if sync was triggered successfully
         """
-        _, ws_url, token = self._get_ha_api_config()
-        if ws_url and token:
-            return await self._fire_event_via_websocket(
-                ws_url, token, "circadian_light_sync_reach_groups", {}
-            )
+        if self.client:
+            await self.client.sync_reach_groups()
+            return True
         return False
 
     async def _trigger_reach_group_sync_if_needed(self, scopes: list) -> bool:
@@ -4281,13 +4201,8 @@ class LightDesignerServer:
                     # Visual feedback: fade to off over 2 seconds
                     await self._turn_off_lights(ws_url, token, all_lights, transition=2)
 
-                    # Notify main.py to skip this area in periodic updates
-                    await self._fire_event_via_websocket(
-                        ws_url,
-                        token,
-                        "circadian_light_live_design",
-                        {"area_id": area_id, "active": True},
-                    )
+                    if self.client:
+                        self.client.handle_live_design(area_id, True)
                 else:
                     logger.warning(
                         "[Live Design] Cannot fetch capabilities - no HA API config"
@@ -4320,14 +4235,8 @@ class LightDesignerServer:
                             f"[Live Design] Restored {len(self.live_design_saved_states)} light states"
                         )
 
-                    # Notify main.py that Live Design ended
-                    if ws_url and token:
-                        await self._fire_event_via_websocket(
-                            ws_url,
-                            token,
-                            "circadian_light_live_design",
-                            {"area_id": area_id, "active": False},
-                        )
+                    if self.client:
+                        self.client.handle_live_design(area_id, False)
 
                     self.live_design_area = None
                     self.live_design_color_lights = []
@@ -4538,13 +4447,9 @@ class LightDesignerServer:
             await self.save_config_to_file(config)
             glozone.set_config(config)
 
-            # Fire refresh event to notify main.py to reload config
-            _, ws_url, token = self._get_ha_api_config()
-            if ws_url and token:
-                await self._fire_event_via_websocket(
-                    ws_url, token, "circadian_light_refresh", {}
-                )
-                logger.info("Fired circadian_light_refresh event after zone create")
+            if self.client:
+                await self.client.handle_config_refresh()
+                logger.info("Config refresh signaled after zone create")
 
             logger.info(f"Created Rhythm Zone: {name}")
             return web.json_response({"status": "created", "name": name})
@@ -4605,14 +4510,9 @@ class LightDesignerServer:
             await self.save_config_to_file(config)
             glozone.set_config(config)
 
-            # Fire refresh event only when lighting-relevant fields changed
-            if needs_refresh:
-                _, ws_url, token = self._get_ha_api_config()
-                if ws_url and token:
-                    await self._fire_event_via_websocket(
-                        ws_url, token, "circadian_light_refresh", {}
-                    )
-                    logger.info("Fired circadian_light_refresh event after zone update")
+            if needs_refresh and self.client:
+                await self.client.handle_config_refresh()
+                logger.info("Config refresh signaled after zone update")
 
             logger.info(f"Updated Rhythm Zone: {name}")
             return web.json_response({"status": "updated", "name": name})
@@ -4657,16 +4557,11 @@ class LightDesignerServer:
             await self.save_config_to_file(config)
             glozone.set_config(config)
 
-            # Fire refresh event
-            if updated_keys:
-                _, ws_url, token = self._get_ha_api_config()
-                if ws_url and token:
-                    await self._fire_event_via_websocket(
-                        ws_url, token, "circadian_light_refresh", {}
-                    )
-                    logger.info(
-                        f"Fired circadian_light_refresh after zone settings update: {updated_keys}"
-                    )
+            if updated_keys and self.client:
+                await self.client.handle_config_refresh()
+                logger.info(
+                    f"Config refresh signaled after zone settings update: {updated_keys}"
+                )
 
             logger.info(f"Updated Rhythm Zone settings: {name} ({updated_keys})")
             return web.json_response({"status": "updated", "name": name})
@@ -4724,13 +4619,9 @@ class LightDesignerServer:
             await self.save_config_to_file(config)
             glozone.set_config(config)
 
-            # Fire refresh event to notify main.py to reload config
-            _, ws_url, token = self._get_ha_api_config()
-            if ws_url and token:
-                await self._fire_event_via_websocket(
-                    ws_url, token, "circadian_light_refresh", {}
-                )
-                logger.info("Fired circadian_light_refresh event after zone delete")
+            if self.client:
+                await self.client.handle_config_refresh()
+                logger.info("Config refresh signaled after zone delete")
 
             logger.info(f"Deleted GloZone: {name}")
             return web.json_response({"status": "deleted", "name": name})
@@ -4993,16 +4884,8 @@ class LightDesignerServer:
                 glozone.set_config(config)
                 logger.info(f"Purged area {area_id} from zones: {removed_from}")
 
-            # Notify main process to remove from its in-memory state
-            # (main.py is a separate process with its own _state dict)
-            _, ws_url, token = self._get_ha_api_config()
-            if ws_url and token:
-                await self._fire_event_via_websocket(
-                    ws_url,
-                    token,
-                    "circadian_light_service_event",
-                    {"service": "purge_area", "area_id": area_id},
-                )
+            if self.client:
+                await self.client.handle_service_event("purge_area", area_id)
 
             return web.json_response(
                 {"status": "purged", "area_id": area_id, "removed_from": removed_from}
@@ -5179,7 +5062,7 @@ class LightDesignerServer:
             return web.json_response({"error": str(e)}, status=500)
 
     async def run_moment(self, request: Request) -> Response:
-        """Run a moment – fire set_<moment_id> event for main.py to apply."""
+        """Run a moment – apply set_<moment_id> via direct client call."""
         try:
             moment_id = request.match_info.get("moment_id")
             config = await self.load_raw_config()
@@ -5189,20 +5072,11 @@ class LightDesignerServer:
                     {"error": f"Moment '{moment_id}' not found"}, status=404
                 )
 
-            event_data = {
-                "service": f"set_{moment_id}",
-                "area_id": "__moment__",
-            }
-            _, ws_url, token = self._get_ha_api_config()
-            if ws_url and token:
-                success = await self._fire_event_via_websocket(
-                    ws_url, token, "circadian_light_service_event", event_data
-                )
-                if success:
-                    logger.info(f"Fired run event for moment '{moment_id}'")
-                    return web.json_response({"status": "ok", "moment_id": moment_id})
-                return web.json_response({"error": "Failed to fire event"}, status=500)
-            return web.json_response({"error": "HA API not configured"}, status=503)
+            if self.client:
+                await self.client.handle_service_event(f"set_{moment_id}", "__moment__")
+                logger.info(f"Applied moment '{moment_id}'")
+                return web.json_response({"status": "ok", "moment_id": moment_id})
+            return web.json_response({"error": "Client not connected"}, status=503)
         except Exception as e:
             logger.error(f"Error running moment: {e}")
             return web.json_response({"error": str(e)}, status=500)
@@ -5212,10 +5086,7 @@ class LightDesignerServer:
     # -------------------------------------------------------------------------
 
     async def handle_glo_up(self, request: Request) -> Response:
-        """Handle glo_up action - push area state to zone, propagate to all areas.
-
-        This fires an event that main.py listens for to execute the primitive.
-        """
+        """Handle glo_up action - push area state to zone, propagate to all areas."""
         try:
             data = await request.json()
             area_id = data.get("area_id")
@@ -5223,26 +5094,12 @@ class LightDesignerServer:
             if not area_id:
                 return web.json_response({"error": "area_id is required"}, status=400)
 
-            # Fire event for main.py to handle
-            _, ws_url, token = self._get_ha_api_config()
-            if ws_url and token:
-                success = await self._fire_event_via_websocket(
-                    ws_url,
-                    token,
-                    "circadian_light_service_event",
-                    {"service": "glo_up", "area_id": area_id},
+            if self.client:
+                await self.client.handle_service_event("glo_up", area_id)
+                return web.json_response(
+                    {"status": "ok", "action": "glo_up", "area_id": area_id}
                 )
-                if success:
-                    logger.info(f"Fired glo_up event for area {area_id}")
-                    return web.json_response(
-                        {"status": "ok", "action": "glo_up", "area_id": area_id}
-                    )
-                else:
-                    return web.json_response(
-                        {"error": "Failed to fire event"}, status=500
-                    )
-            else:
-                return web.json_response({"error": "HA API not configured"}, status=503)
+            return web.json_response({"error": "Client not connected"}, status=503)
 
         except json.JSONDecodeError:
             return web.json_response({"error": "Invalid JSON"}, status=400)
@@ -5251,10 +5108,7 @@ class LightDesignerServer:
             return web.json_response({"error": str(e)}, status=500)
 
     async def handle_glo_down(self, request: Request) -> Response:
-        """Handle glo_down action - pull zone state to area.
-
-        This fires an event that main.py listens for to execute the primitive.
-        """
+        """Handle glo_down action - pull zone state to area."""
         try:
             data = await request.json()
             area_id = data.get("area_id")
@@ -5262,26 +5116,12 @@ class LightDesignerServer:
             if not area_id:
                 return web.json_response({"error": "area_id is required"}, status=400)
 
-            # Fire event for main.py to handle
-            _, ws_url, token = self._get_ha_api_config()
-            if ws_url and token:
-                success = await self._fire_event_via_websocket(
-                    ws_url,
-                    token,
-                    "circadian_light_service_event",
-                    {"service": "glo_down", "area_id": area_id},
+            if self.client:
+                await self.client.handle_service_event("glo_down", area_id)
+                return web.json_response(
+                    {"status": "ok", "action": "glo_down", "area_id": area_id}
                 )
-                if success:
-                    logger.info(f"Fired glo_down event for area {area_id}")
-                    return web.json_response(
-                        {"status": "ok", "action": "glo_down", "area_id": area_id}
-                    )
-                else:
-                    return web.json_response(
-                        {"error": "Failed to fire event"}, status=500
-                    )
-            else:
-                return web.json_response({"error": "HA API not configured"}, status=503)
+            return web.json_response({"error": "Client not connected"}, status=503)
 
         except json.JSONDecodeError:
             return web.json_response({"error": "Invalid JSON"}, status=400)
@@ -5290,10 +5130,7 @@ class LightDesignerServer:
             return web.json_response({"error": str(e)}, status=500)
 
     async def handle_glo_reset(self, request: Request) -> Response:
-        """Handle glo_reset action - reset zone and all member areas.
-
-        This fires an event that main.py listens for to execute the primitive.
-        """
+        """Handle glo_reset action - reset zone and all member areas."""
         try:
             data = await request.json()
             area_id = data.get("area_id")
@@ -5301,26 +5138,12 @@ class LightDesignerServer:
             if not area_id:
                 return web.json_response({"error": "area_id is required"}, status=400)
 
-            # Fire event for main.py to handle
-            _, ws_url, token = self._get_ha_api_config()
-            if ws_url and token:
-                success = await self._fire_event_via_websocket(
-                    ws_url,
-                    token,
-                    "circadian_light_service_event",
-                    {"service": "glo_reset", "area_id": area_id},
+            if self.client:
+                await self.client.handle_service_event("glo_reset", area_id)
+                return web.json_response(
+                    {"status": "ok", "action": "glo_reset", "area_id": area_id}
                 )
-                if success:
-                    logger.info(f"Fired glo_reset event for area {area_id}")
-                    return web.json_response(
-                        {"status": "ok", "action": "glo_reset", "area_id": area_id}
-                    )
-                else:
-                    return web.json_response(
-                        {"error": "Failed to fire event"}, status=500
-                    )
-            else:
-                return web.json_response({"error": "HA API not configured"}, status=503)
+            return web.json_response({"error": "Client not connected"}, status=503)
 
         except json.JSONDecodeError:
             return web.json_response({"error": "Invalid JSON"}, status=400)
@@ -5384,19 +5207,18 @@ class LightDesignerServer:
                     status=400,
                 )
 
-            # For boost, set state directly for immediate UI feedback,
-            # then fire event so main.py applies the actual lighting change
+            # For boost, set state directly for immediate UI feedback
             if action == "boost":
                 # State is shared in-memory (same process as main.py)
                 if state.is_boosted(area_id):
-                    # End boost: clear state, fire event for main.py to restore lighting
+                    # End boost: clear state, restore lighting
                     state.clear_boost(area_id)
                     logger.info(
-                        f"[boost] Cleared boost state for area {area_id}, firing event for lighting restore"
+                        f"[boost] Cleared boost state for area {area_id}, restoring lighting"
                     )
                     action = "boost_off"
                 else:
-                    # Start boost: set state, fire event for main.py to apply lighting
+                    # Start boost: set state, apply lighting
                     raw_config = glozone.load_config_from_files()
                     boost_amount = raw_config.get("boost_default", 30)
                     is_on = state.is_circadian(area_id) and state.get_is_on(area_id)
@@ -5410,46 +5232,28 @@ class LightDesignerServer:
                         glozone.add_area_to_default_zone(area_id)
                     state.enable_circadian_and_set_on(area_id, True)
                     logger.info(
-                        f"[boost] Set boost state for area {area_id} (amount={boost_amount}%), firing event for lighting"
+                        f"[boost] Set boost state for area {area_id} (amount={boost_amount}%), applying lighting"
                     )
                     action = "boost_on"
 
-            # Build event data
-            event_data = {"service": action, "area_id": area_id}
+            # Build extra kwargs for set_position
+            extra_kwargs = {}
             if action == "set_position":
                 value = data.get("value")
                 if value is None:
                     return web.json_response(
                         {"error": "value required for set_position"}, status=400
                     )
-                event_data["value"] = float(value)
-                event_data["mode"] = data.get("mode", "step")
+                extra_kwargs["value"] = float(value)
+                extra_kwargs["mode"] = data.get("mode", "step")
 
-            # Fire event for main.py to handle
-            _, ws_url, token = self._get_ha_api_config()
-            if ws_url and token:
-                success = await self._fire_event_via_websocket(
-                    ws_url, token, "circadian_light_service_event", event_data
+            if self.client:
+                await self.client.handle_service_event(action, area_id, **extra_kwargs)
+                logger.info(f"Executed {action} for area {area_id}")
+                return web.json_response(
+                    {"status": "ok", "action": action, "area_id": area_id}
                 )
-                if success:
-                    logger.info(f"Fired {action} event for area {area_id}")
-                    return web.json_response(
-                        {"status": "ok", "action": action, "area_id": area_id}
-                    )
-                else:
-                    # Event failed but state was already set for boost - return ok for UI
-                    if action in ("boost_on", "boost_off"):
-                        logger.warning(
-                            f"Event fire failed for {action}, but state was set directly"
-                        )
-                        return web.json_response(
-                            {"status": "ok", "action": action, "area_id": area_id}
-                        )
-                    return web.json_response(
-                        {"error": "Failed to fire event"}, status=500
-                    )
-            else:
-                return web.json_response({"error": "HA API not configured"}, status=503)
+            return web.json_response({"error": "Client not connected"}, status=503)
 
         except json.JSONDecodeError:
             return web.json_response({"error": "Invalid JSON"}, status=400)
@@ -5460,7 +5264,6 @@ class LightDesignerServer:
     async def handle_zone_action(self, request: Request) -> Response:
         """Handle zone-level action (modifies zone state only, no light control).
 
-        Fires a circadian_light_zone_action event for main.py to handle.
         Valid actions: step_up, step_down, bright_up, bright_down, color_up, color_down
         """
         VALID_ZONE_ACTIONS = {
@@ -5492,34 +5295,24 @@ class LightDesignerServer:
                     status=400,
                 )
 
-            # Build event data
-            zone_event_data = {"service": action, "zone_name": zone_name}
+            # Build extra kwargs for set_position
+            extra_kwargs = {}
             if action == "set_position":
                 value = data.get("value")
                 if value is None:
                     return web.json_response(
                         {"error": "value required for set_position"}, status=400
                     )
-                zone_event_data["value"] = float(value)
-                zone_event_data["mode"] = data.get("mode", "step")
+                extra_kwargs["value"] = float(value)
+                extra_kwargs["mode"] = data.get("mode", "step")
 
-            # Fire event for main.py to handle
-            _, ws_url, token = self._get_ha_api_config()
-            if ws_url and token:
-                success = await self._fire_event_via_websocket(
-                    ws_url, token, "circadian_light_zone_action", zone_event_data
+            if self.client:
+                await self.client.handle_zone_action(action, zone_name, **extra_kwargs)
+                logger.info(f"Executed zone {action} for zone '{zone_name}'")
+                return web.json_response(
+                    {"status": "ok", "action": action, "zone_name": zone_name}
                 )
-                if success:
-                    logger.info(f"Fired zone {action} event for zone '{zone_name}'")
-                    return web.json_response(
-                        {"status": "ok", "action": action, "zone_name": zone_name}
-                    )
-                else:
-                    return web.json_response(
-                        {"error": "Failed to fire event"}, status=500
-                    )
-            else:
-                return web.json_response({"error": "HA API not configured"}, status=503)
+            return web.json_response({"error": "Client not connected"}, status=503)
 
         except json.JSONDecodeError:
             return web.json_response({"error": "Invalid JSON"}, status=400)
@@ -5535,7 +5328,6 @@ class LightDesignerServer:
         """Trigger manual device/area/group sync.
 
         Re-scans Home Assistant for new/moved lights, areas, and ZHA devices.
-        Fires an event that main.py listens for to trigger the actual sync.
         Also auto-creates inactive control configs for unconfigured devices.
         """
         try:
@@ -5543,21 +5335,10 @@ class LightDesignerServer:
             self.cached_areas_list = None
             logger.info("Cleared areas cache for sync")
 
-            # Fire event for main.py to handle the sync
-            _, ws_url, token = self._get_ha_api_config()
-            if ws_url and token:
-                fired = await self._fire_event_via_websocket(
-                    ws_url, token, "circadian_light_sync_devices", {}
-                )
-                if not fired:
-                    return web.json_response(
-                        {"error": "Failed to fire sync event"}, status=500
-                    )
-                logger.info("Fired circadian_light_sync_devices event")
+            if self.client:
+                await self.client.run_manual_sync()
             else:
-                return web.json_response(
-                    {"error": "WebSocket not configured"}, status=503
-                )
+                return web.json_response({"error": "Client not connected"}, status=503)
 
             return web.json_response(
                 {"success": True, "message": "Device sync triggered"}
@@ -6189,15 +5970,8 @@ class LightDesignerServer:
                 return web.json_response({"error": "condition required"}, status=400)
             lux_tracker.set_override(condition, int(duration))
 
-            # Propagate override to main.py process via HA event
-            _, ws_url, token = self._get_ha_api_config()
-            if ws_url and token:
-                await self._fire_event_via_websocket(
-                    ws_url,
-                    token,
-                    "circadian_light_outdoor_override",
-                    {"condition": condition, "duration_minutes": int(duration)},
-                )
+            if self.client:
+                self.client.handle_outdoor_override(condition, int(duration))
 
             return web.json_response({"status": "ok"})
         except Exception as e:
@@ -6208,15 +5982,8 @@ class LightDesignerServer:
         """Clear the outdoor brightness override."""
         lux_tracker.clear_override()
 
-        # Propagate clear to main.py process via HA event
-        _, ws_url, token = self._get_ha_api_config()
-        if ws_url and token:
-            await self._fire_event_via_websocket(
-                ws_url,
-                token,
-                "circadian_light_outdoor_override",
-                {"condition": None},
-            )
+        if self.client:
+            self.client.handle_outdoor_override()
 
         return web.json_response({"status": "ok"})
 

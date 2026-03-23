@@ -5127,6 +5127,239 @@ class HomeAssistantWebSocketClient:
             outdoor_normalized=outdoor_norm if outdoor_norm is not None else 0.0
         )
 
+    # ------------------------------------------------------------------
+    # Direct methods for webserver (replaces HA event round-trips)
+    # ------------------------------------------------------------------
+
+    async def handle_config_refresh(self):
+        """Reload config and signal periodic updater. Called by webserver after config save."""
+        logger.info("Config refresh — reloading config and signaling periodic updater")
+        glozone.reload()
+        config = glozone.get_config()
+        lux_tracker.reload_config(config)
+
+        if self.sun_data:
+            lux_tracker.update_sun_elevation(self.sun_data.get("elevation", 0.0))
+        lux_entity = lux_tracker.get_sensor_entity()
+        if lux_entity and lux_entity in self.cached_states:
+            try:
+                raw_lux = float(self.cached_states[lux_entity].get("state", 0))
+                lux_tracker.update(raw_lux)
+                logger.info(f"Re-seeded lux sensor after config reload: {raw_lux:.0f}")
+            except (ValueError, TypeError):
+                pass
+        for eid, estate in self.cached_states.items():
+            if eid.startswith("weather."):
+                attrs = estate.get("attributes", {})
+                if "cloud_coverage" in attrs:
+                    lux_tracker.set_weather_entity(eid)
+                    try:
+                        condition = estate.get("state")
+                        lux_tracker.update_weather(
+                            float(attrs["cloud_coverage"]), condition
+                        )
+                    except (ValueError, TypeError):
+                        pass
+                    break
+
+        if self.refresh_event is not None:
+            self.refresh_event.set()
+        else:
+            logger.warning("refresh_event not yet initialized, skipping signal")
+
+    def handle_outdoor_override(self, condition=None, duration_minutes=60):
+        """Set or clear outdoor override. Called by webserver settings page."""
+        if condition:
+            lux_tracker.set_override(condition, int(duration_minutes))
+            logger.info(f"Outdoor override set: {condition} for {duration_minutes}min")
+        else:
+            lux_tracker.clear_override()
+            logger.info("Outdoor override cleared")
+        if self.refresh_event is not None:
+            self.refresh_event.set()
+
+    def handle_live_design(self, area_id, active):
+        """Start or stop Live Design for an area. Called by webserver."""
+        if active:
+            self.live_design_area = area_id
+            logger.info(
+                f"Live Design started for area: {area_id} — skipping periodic updates"
+            )
+        elif self.live_design_area == area_id:
+            self.live_design_area = None
+            logger.info(
+                f"Live Design ended for area: {area_id} — resuming periodic updates"
+            )
+
+    async def handle_service_event(self, service, area_id, **kwargs):
+        """Handle a service action from the webserver. Replaces HA event round-trip."""
+        if not area_id:
+            logger.warning(f"Service event missing area_id: service={service}")
+            return
+
+        logger.info(f"[webserver] {service} for area: {area_id}")
+
+        if service == "lights_on":
+            await self.primitives.lights_on(area_id, "webserver")
+        elif service == "lights_off":
+            await self.primitives.lights_off(area_id, "webserver")
+        elif service == "lights_toggle":
+            await self.primitives.lights_toggle(area_id, "webserver")
+        elif service == "circadian_on":
+            await self.primitives.circadian_on(area_id, "webserver")
+        elif service == "circadian_off":
+            await self.primitives.circadian_off(area_id, "webserver")
+        elif service == "step_up":
+            await self.primitives.step_up(area_id, "webserver")
+        elif service == "step_down":
+            await self.primitives.step_down(area_id, "webserver")
+        elif service == "bright_up":
+            await self.primitives.brightness_up(area_id, "webserver")
+        elif service == "bright_down":
+            await self.primitives.brightness_down(area_id, "webserver")
+        elif service == "color_up":
+            await self.primitives.color_up(area_id, "webserver")
+        elif service == "color_down":
+            await self.primitives.color_down(area_id, "webserver")
+        elif service == "set_position":
+            value = kwargs.get("value")
+            mode = kwargs.get("mode", "step")
+            await self.primitives.set_position(area_id, value, mode, "webserver")
+        elif service == "freeze_toggle":
+            await self.primitives.freeze_toggle(area_id, "webserver")
+        elif service == "reset":
+            await self.primitives.reset(area_id, "webserver")
+        elif service == "glo_up":
+            await self.primitives.glo_up(area_id, "webserver")
+        elif service == "glo_down":
+            await self.primitives.glo_down(area_id, "webserver")
+        elif service == "glo_reset":
+            await self.primitives.glo_reset(area_id, "webserver")
+        elif service == "boost":
+            if state.is_boosted(area_id):
+                await self.primitives.end_boost(area_id, source="webserver")
+            else:
+                raw_config = glozone.load_config_from_files()
+                boost_amount = raw_config.get("boost_default", 30)
+                await self.primitives.bright_boost(
+                    area_id,
+                    duration_seconds=0,
+                    boost_amount=boost_amount,
+                    source="webserver",
+                )
+        elif service == "boost_on":
+            state.clear_all_off_enforced()
+            boost_state = state.get_boost_state(area_id)
+            boost_amount = boost_state.get("boost_brightness") or 30
+            started_from_off = boost_state.get("boost_started_from_off", False)
+            config = self.primitives._get_config(area_id)
+            area_state = self.primitives._get_area_state(area_id)
+            hour = (
+                area_state.frozen_at
+                if area_state.frozen_at is not None
+                else get_current_hour()
+            )
+            sun_times = self._get_sun_times()
+            result = CircadianLight.calculate_lighting(
+                hour, config, area_state, sun_times=sun_times
+            )
+            boosted_brightness = result.brightness + boost_amount
+            transition = self.primitives._get_turn_on_transition()
+            if started_from_off:
+                await self.primitives._apply_lighting_turn_on(
+                    area_id,
+                    boosted_brightness,
+                    result.color_temp,
+                    transition=transition,
+                )
+            else:
+                await self.primitives._apply_lighting(
+                    area_id,
+                    boosted_brightness,
+                    result.color_temp,
+                    transition=transition,
+                )
+            logger.info(
+                f"[webserver] boost_on applied: {area_id} {result.brightness}%+{boost_amount}%={boosted_brightness}%, {result.color_temp}K"
+            )
+        elif service == "boost_off":
+            state.clear_all_off_enforced()
+            config = self.primitives._get_config(area_id)
+            area_state = self.primitives._get_area_state(area_id)
+            hour = (
+                area_state.frozen_at
+                if area_state.frozen_at is not None
+                else get_current_hour()
+            )
+            sun_times = self._get_sun_times()
+            result = CircadianLight.calculate_lighting(
+                hour, config, area_state, sun_times=sun_times
+            )
+            transition = self.primitives._get_turn_on_transition()
+            await self.primitives._apply_lighting(
+                area_id, result.brightness, result.color_temp, transition=transition
+            )
+            logger.info(
+                f"[webserver] boost_off restored: {area_id} {result.brightness}%, {result.color_temp}K"
+            )
+        elif service == "full_send":
+            await self.primitives.full_send(area_id, "webserver")
+        elif service == "set_nitelite":
+            await self.primitives.set(
+                area_id, "webserver", preset="nitelite", is_on=True
+            )
+        elif service == "set_britelite":
+            await self.primitives.set(
+                area_id, "webserver", preset="britelite", is_on=True
+            )
+        elif service and service.startswith("set_"):
+            moment_id = service[4:]
+            moments = self._get_moments()
+            if moment_id in moments:
+                logger.info(f"[webserver] Applying moment '{moment_id}'")
+                await self.primitives.set(None, "webserver", preset=moment_id)
+            else:
+                logger.warning(f"Unknown set action from webserver: {service}")
+        elif service == "purge_area":
+            state.remove_area(area_id)
+        else:
+            logger.warning(
+                f"Unknown service event: service={service}, area_id={area_id}"
+            )
+
+    async def handle_zone_action(self, service, zone_name, **kwargs):
+        """Handle a zone-level action from the webserver. Replaces HA event round-trip."""
+        if not zone_name:
+            logger.warning(f"Zone action missing zone_name: service={service}")
+            return
+
+        logger.info(f"[webserver] zone {service} for zone: {zone_name}")
+
+        if service == "step_up":
+            await self.primitives.zone_step_up(zone_name, "webserver")
+        elif service == "step_down":
+            await self.primitives.zone_step_down(zone_name, "webserver")
+        elif service == "bright_up":
+            await self.primitives.zone_bright_up(zone_name, "webserver")
+        elif service == "bright_down":
+            await self.primitives.zone_bright_down(zone_name, "webserver")
+        elif service == "color_up":
+            await self.primitives.zone_color_up(zone_name, "webserver")
+        elif service == "color_down":
+            await self.primitives.zone_color_down(zone_name, "webserver")
+        elif service == "set_position":
+            value = kwargs.get("value")
+            mode = kwargs.get("mode", "step")
+            await self.primitives.zone_set_position(zone_name, value, mode, "webserver")
+        elif service == "glozone_reset":
+            await self.primitives.glozone_reset(zone_name, "webserver")
+        elif service == "glozone_down":
+            await self.primitives.glozone_down(zone_name, "webserver")
+        else:
+            logger.warning(
+                f"Unknown zone action: service={service}, zone_name={zone_name}"
+            )
+
     async def update_lights_in_circadian_mode(
         self,
         area_id: str,
@@ -7305,6 +7538,11 @@ async def async_main():
 
     # Create and run HA client
     client = HomeAssistantWebSocketClient(host, port, token, use_ssl)
+
+    # Give webserver a reference to the client for direct method calls
+    if webserver_runner:
+        webserver.client = client
+
     try:
         await client.run()
     finally:
