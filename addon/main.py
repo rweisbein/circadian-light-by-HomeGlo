@@ -5429,6 +5429,9 @@ class HomeAssistantWebSocketClient:
             value = kwargs.get("value")
             mode = kwargs.get("mode", "step")
             await self.primitives.set_position(area_id, value, mode, "webserver")
+        elif service == "circadian_adjust":
+            target = kwargs.get("target_brightness")
+            await self.primitives.circadian_adjust(area_id, target, "webserver")
         elif service == "freeze_toggle":
             await self.primitives.freeze_toggle(area_id, "webserver")
         elif service == "reset":

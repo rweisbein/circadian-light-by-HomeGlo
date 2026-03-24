@@ -4326,6 +4326,7 @@ class LightDesignerServer:
             "set_nitelite",
             "set_britelite",
             "set_position",
+            "circadian_adjust",
         }
 
         try:
@@ -4374,7 +4375,7 @@ class LightDesignerServer:
                     )
                     action = "boost_on"
 
-            # Build extra kwargs for set_position
+            # Build extra kwargs for actions that need them
             extra_kwargs = {}
             if action == "set_position":
                 value = data.get("value")
@@ -4384,6 +4385,14 @@ class LightDesignerServer:
                     )
                 extra_kwargs["value"] = float(value)
                 extra_kwargs["mode"] = data.get("mode", "step")
+            elif action == "circadian_adjust":
+                value = data.get("value")
+                if value is None:
+                    return web.json_response(
+                        {"error": "value required for circadian_adjust"},
+                        status=400,
+                    )
+                extra_kwargs["target_brightness"] = float(value)
 
             if self.client:
                 await self.client.handle_service_event(action, area_id, **extra_kwargs)

@@ -2349,7 +2349,7 @@
         return {
           ...area,
           is_on: status.is_on || false,
-          brightness: status.curve_brightness || status.brightness || 0,
+          brightness: status.actual_brightness ?? status.brightness ?? 0,
           kelvin: status.kelvin || 4000,
           frozen: status.frozen || false,
           boosted: status.boosted || false,
@@ -3016,7 +3016,12 @@
           track.classList.remove('dragging');
           const pct = getSliderPctFromPointer(track, e);
           const areaId = track.dataset.areaId;
-          if (areaId) rowAction(areaId, 'set_position', Math.round(pct), 'step');
+          if (areaId) {
+            const bMin = parseFloat(track.dataset.bmin) || 1;
+            const bMax = parseFloat(track.dataset.bmax) || 100;
+            const targetActual = Math.round(bMin + (bMax - bMin) * pct / 100);
+            rowAction(areaId, 'circadian_adjust', targetActual);
+          }
           else sliderDragging = false; // no action to clear it, clear now
         });
         track.addEventListener('pointercancel', (e) => {

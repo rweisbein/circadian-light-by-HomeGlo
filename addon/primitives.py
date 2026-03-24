@@ -498,126 +498,67 @@ class CircadianLightPrimitives:
     # Step Up / Step Down (brightness-primary, both curves)
     # -------------------------------------------------------------------------
 
-    async def step_up(
+    async def _step_circadian(
         self,
         area_id: str,
+        direction: str,
         source: str = "service_call",
         steps: int = 1,
         send_command: bool = True,
     ):
-        """Step up along the circadian curve (brighter and cooler).
+        """Step up or down via circadian_adjust.
 
-        Uses brightness-primary algorithm: brightness determines the step,
-        color follows the diverged curve.
-
-        Only works when is_circadian=True. Updates midpoints always, but only
-        applies to lights if is_on=True and send_command=True.
+        Computes target brightness from current actual + step_size, then
+        delegates to circadian_adjust for P1/P2/P3 logic. Handles bounce
+        when circadian_adjust returns None (at limit).
 
         Args:
             area_id: The area ID to control
+            direction: "up" or "down"
             source: Source of the action
-            steps: Number of steps to take (each computed from updated state)
+            steps: Number of steps to take
             send_command: Whether to send light commands (False for reach group batching)
 
         Returns:
-            The last StepResult applied, or None if at limit / not circadian.
+            The last result from circadian_adjust, or None if at limit / not circadian.
         """
         area_state = self._get_area_state(area_id)
 
         if not area_state.is_circadian:
             logger.debug(
-                f"[{source}] step_up ignored for area {area_id} (not in circadian mode)"
+                f"[{source}] step_{direction} ignored for area {area_id} "
+                f"(not in circadian mode)"
             )
             return None
 
-        # If frozen, check if already at limit before unfreezing
-        # (inverse_midpoint drift at asymptotes can mask the limit after unfreeze)
-        # Both brightness AND color must be at limit to bounce
-        if area_state.frozen_at is not None:
-            config = self._get_config(area_id)
-            frozen_bri = CircadianLight.calculate_brightness_at_hour(
-                area_state.frozen_at, config, area_state
-            )
-            frozen_cct_natural = CircadianLight.calculate_color_at_hour(
-                area_state.frozen_at, config, area_state, apply_solar_rules=False
-            )
-            bri_margin = max(
-                1.0, (config.max_brightness - config.min_brightness) * 0.01
-            )
-            cct_margin = max(10, (config.max_color_temp - config.min_color_temp) * 0.01)
-            bri_at_max = frozen_bri >= config.max_brightness - bri_margin
-            cct_at_max = frozen_cct_natural >= config.max_color_temp - cct_margin
-            if bri_at_max and cct_at_max:
-                if self._reduce_overrides_toward_zero(
-                    area_id, area_state, config, "up"
-                ):
-                    if send_command and area_state.is_on:
-                        await self.client.update_lights_in_circadian_mode(area_id)
-                    return None
-
-                logger.info(f"Step up at limit for area {area_id} (frozen at max)")
-                if send_command and area_state.is_on:
-                    sun_times = (
-                        self.client._get_sun_times()
-                        if hasattr(self.client, "_get_sun_times")
-                        else None
-                    )
-                    frozen_cct = CircadianLight.calculate_color_at_hour(
-                        area_state.frozen_at,
-                        config,
-                        area_state,
-                        apply_solar_rules=True,
-                        sun_times=sun_times,
-                    )
-                    await self._bounce_at_limit(
-                        area_id,
-                        frozen_bri,
-                        frozen_cct,
-                        direction="up",
-                        bounce_type="step",
-                    )
-                    await self.client.update_lights_in_circadian_mode(area_id)
-                return None
-            # At least one dimension has room → unfreeze and let calculate_step handle it
-            self._unfreeze_internal(area_id, source)
-            area_state = self._get_area_state(area_id)
-        else:
-            config = self._get_config(area_id)
-
-        logger.info(f"[{source}] Step up for area {area_id}")
-
-        hour = get_current_hour()
-        sun_times = (
-            self.client._get_sun_times()
-            if hasattr(self.client, "_get_sun_times")
-            else None
+        config = self._get_config(area_id)
+        step_size = (config.max_brightness - config.min_brightness) / (
+            config.max_dim_steps or DEFAULT_MAX_DIM_STEPS
         )
 
         last_result = None
         for step_i in range(steps):
-            if step_i > 0:
-                area_state = self._get_area_state(area_id)
+            current = self._compute_current_actual(area_id)
+            if direction == "up":
+                target = min(config.max_brightness, current + step_size)
+            else:
+                target = max(config.min_brightness, current - step_size)
 
-            result = CircadianLight.calculate_step(
-                hour=hour,
-                direction="up",
-                config=config,
-                state=area_state,
-                sun_times=sun_times,
+            result = await self.circadian_adjust(
+                area_id, target, source=source, send_command=send_command
             )
 
             if result is None:
                 if step_i == 0:
-                    # First step at limit → existing override reduction + bounce
-                    if self._reduce_overrides_toward_zero(
-                        area_id, area_state, config, "up"
-                    ):
-                        if send_command and area_state.is_on:
-                            await self.client.update_lights_in_circadian_mode(area_id)
-                        return None
-
-                    logger.info(f"Step up at limit for area {area_id}")
+                    # First step at limit → bounce
                     if send_command and area_state.is_on:
+                        hour = get_current_hour()
+                        sun_times = (
+                            self.client._get_sun_times()
+                            if hasattr(self.client, "_get_sun_times")
+                            else None
+                        )
+                        area_state = self._get_area_state(area_id)
                         current_bri = CircadianLight.calculate_brightness_at_hour(
                             hour, config, area_state
                         )
@@ -632,32 +573,39 @@ class CircadianLightPrimitives:
                             area_id,
                             current_bri,
                             current_cct,
-                            direction="up",
+                            direction=direction,
                             bounce_type="step",
                         )
                         await self.client.update_lights_in_circadian_mode(area_id)
                     return None
                 break  # Mid-sequence limit → use last good result
-
-            logger.info(f"Step up state_updates: {result.state_updates}")
-            self._update_area_state(area_id, result.state_updates)
             last_result = result
 
-        # Apply to lights only if send_command=True and we have a result
-        if send_command and last_result:
-            area_state = self._get_area_state(area_id)
-            if area_state.is_on:
-                await self._apply_step_result(area_id, last_result)
-                logger.info(
-                    f"Step up applied: {last_result.brightness}%, {last_result.color_temp}K"
-                )
-            else:
-                logger.info(
-                    f"Step up state updated (lights off): "
-                    f"{last_result.brightness}%, {last_result.color_temp}K"
-                )
-
         return last_result
+
+    async def step_up(
+        self,
+        area_id: str,
+        source: str = "service_call",
+        steps: int = 1,
+        send_command: bool = True,
+    ):
+        """Step up along the circadian curve (brighter and cooler).
+
+        Delegates to circadian_adjust with computed target brightness.
+
+        Args:
+            area_id: The area ID to control
+            source: Source of the action
+            steps: Number of steps to take (each computed from updated state)
+            send_command: Whether to send light commands (False for reach group batching)
+
+        Returns:
+            The last result applied, or None if at limit / not circadian.
+        """
+        return await self._step_circadian(
+            area_id, "up", source=source, steps=steps, send_command=send_command
+        )
 
     async def step_down(
         self,
@@ -668,11 +616,7 @@ class CircadianLightPrimitives:
     ):
         """Step down along the circadian curve (dimmer and warmer).
 
-        Uses brightness-primary algorithm: brightness determines the step,
-        color follows the diverged curve.
-
-        Only works when is_circadian=True. Updates midpoints always, but only
-        applies to lights if is_on=True and send_command=True.
+        Delegates to circadian_adjust with computed target brightness.
 
         Args:
             area_id: The area ID to control
@@ -681,143 +625,11 @@ class CircadianLightPrimitives:
             send_command: Whether to send light commands (False for reach group batching)
 
         Returns:
-            The last StepResult applied, or None if at limit / not circadian.
+            The last result applied, or None if at limit / not circadian.
         """
-        area_state = self._get_area_state(area_id)
-
-        if not area_state.is_circadian:
-            logger.debug(
-                f"[{source}] step_down ignored for area {area_id} (not in circadian mode)"
-            )
-            return None
-
-        # If frozen, check if already at limit before unfreezing
-        # (inverse_midpoint drift at asymptotes can mask the limit after unfreeze)
-        # Both brightness AND color must be at limit to bounce
-        if area_state.frozen_at is not None:
-            config = self._get_config(area_id)
-            frozen_bri = CircadianLight.calculate_brightness_at_hour(
-                area_state.frozen_at, config, area_state
-            )
-            frozen_cct_natural = CircadianLight.calculate_color_at_hour(
-                area_state.frozen_at, config, area_state, apply_solar_rules=False
-            )
-            bri_margin = max(
-                1.0, (config.max_brightness - config.min_brightness) * 0.01
-            )
-            cct_margin = max(10, (config.max_color_temp - config.min_color_temp) * 0.01)
-            bri_at_min = frozen_bri <= config.min_brightness + bri_margin
-            cct_at_min = frozen_cct_natural <= config.min_color_temp + cct_margin
-            if bri_at_min and cct_at_min:
-                if self._reduce_overrides_toward_zero(
-                    area_id, area_state, config, "down"
-                ):
-                    if send_command and area_state.is_on:
-                        await self.client.update_lights_in_circadian_mode(area_id)
-                    return None
-
-                logger.info(f"Step down at limit for area {area_id} (frozen at min)")
-                if send_command and area_state.is_on:
-                    sun_times = (
-                        self.client._get_sun_times()
-                        if hasattr(self.client, "_get_sun_times")
-                        else None
-                    )
-                    frozen_cct = CircadianLight.calculate_color_at_hour(
-                        area_state.frozen_at,
-                        config,
-                        area_state,
-                        apply_solar_rules=True,
-                        sun_times=sun_times,
-                    )
-                    await self._bounce_at_limit(
-                        area_id,
-                        frozen_bri,
-                        frozen_cct,
-                        direction="down",
-                        bounce_type="step",
-                    )
-                    await self.client.update_lights_in_circadian_mode(area_id)
-                return None
-            # At least one dimension has room → unfreeze and let calculate_step handle it
-            self._unfreeze_internal(area_id, source)
-            area_state = self._get_area_state(area_id)
-        else:
-            config = self._get_config(area_id)
-
-        logger.info(f"[{source}] Step down for area {area_id}")
-
-        hour = get_current_hour()
-        sun_times = (
-            self.client._get_sun_times()
-            if hasattr(self.client, "_get_sun_times")
-            else None
+        return await self._step_circadian(
+            area_id, "down", source=source, steps=steps, send_command=send_command
         )
-
-        last_result = None
-        for step_i in range(steps):
-            if step_i > 0:
-                area_state = self._get_area_state(area_id)
-
-            result = CircadianLight.calculate_step(
-                hour=hour,
-                direction="down",
-                config=config,
-                state=area_state,
-                sun_times=sun_times,
-            )
-
-            if result is None:
-                if step_i == 0:
-                    # First step at limit → existing override reduction + bounce
-                    if self._reduce_overrides_toward_zero(
-                        area_id, area_state, config, "down"
-                    ):
-                        if send_command and area_state.is_on:
-                            await self.client.update_lights_in_circadian_mode(area_id)
-                        return None
-
-                    logger.info(f"Step down at limit for area {area_id}")
-                    if send_command and area_state.is_on:
-                        current_bri = CircadianLight.calculate_brightness_at_hour(
-                            hour, config, area_state
-                        )
-                        current_cct = CircadianLight.calculate_color_at_hour(
-                            hour,
-                            config,
-                            area_state,
-                            apply_solar_rules=True,
-                            sun_times=sun_times,
-                        )
-                        await self._bounce_at_limit(
-                            area_id,
-                            current_bri,
-                            current_cct,
-                            direction="down",
-                            bounce_type="step",
-                        )
-                        await self.client.update_lights_in_circadian_mode(area_id)
-                    return None
-                break  # Mid-sequence limit → use last good result
-
-            self._update_area_state(area_id, result.state_updates)
-            last_result = result
-
-        # Apply to lights only if send_command=True and we have a result
-        if send_command and last_result:
-            area_state = self._get_area_state(area_id)
-            if area_state.is_on:
-                await self._apply_step_result(area_id, last_result)
-                logger.info(
-                    f"Step down applied: {last_result.brightness}%, {last_result.color_temp}K"
-                )
-            else:
-                logger.info(
-                    f"Step down state updated (lights off): "
-                    f"{last_result.brightness}%, {last_result.color_temp}K"
-                )
-
-        return last_result
 
     # -------------------------------------------------------------------------
     # Bright Up / Bright Down (brightness only)
@@ -1288,6 +1100,65 @@ class CircadianLightPrimitives:
             natural_exposure, outdoor_norm, sensitivity
         )
 
+    def _compute_current_actual(self, area_id: str) -> float:
+        """Compute current actual brightness (post-pipeline approximation).
+
+        Matches webserver's actual_brightness: curve → boost → NL → area_factor + override.
+        """
+        area_state = self._get_area_state(area_id)
+        config = self._get_config(area_id)
+        hour = (
+            area_state.frozen_at
+            if area_state.frozen_at is not None
+            else get_current_hour()
+        )
+        sun_times = (
+            self.client._get_sun_times()
+            if hasattr(self.client, "_get_sun_times")
+            else None
+        )
+
+        result = CircadianLight.calculate_lighting(
+            hour, config, area_state, sun_times=sun_times
+        )
+        brightness = result.brightness
+
+        # Boost
+        if state.is_boosted(area_id):
+            boost_state = state.get_boost_state(area_id)
+            brightness += boost_state.get("boost_brightness") or 0
+
+        # Natural light
+        nl_factor = self._compute_nl_factor(area_id)
+        if nl_factor < 1.0:
+            brightness = max(1, int(round(brightness * nl_factor)))
+
+        # Area factor + override
+        area_factor = glozone.get_area_brightness_factor(area_id)
+        effective_override = self._get_decayed_brightness_override(area_id) or 0
+
+        return min(100, max(0, round(brightness * area_factor + effective_override)))
+
+    def _compute_override_decay_factor(self, area_id: str) -> float:
+        """Get the current decay factor (0.0-1.0) for brightness override.
+
+        Returns 1.0 if no set_at (no decay), 0.0 if fully decayed.
+        """
+        area_state = self._get_area_state(area_id)
+        if area_state.brightness_override is None:
+            return 1.0
+        if area_state.brightness_override_set_at is None:
+            return 1.0
+        config = self._get_config(area_id)
+        hour = get_current_hour()
+        in_ascend, h48, t_ascend, t_descend, _ = CircadianLight.get_phase_info(
+            hour, config
+        )
+        next_phase = t_descend if in_ascend else t_ascend + 24
+        return compute_override_decay(
+            area_state.brightness_override_set_at, h48, next_phase, t_ascend=t_ascend
+        )
+
     async def set_position(
         self,
         area_id: str,
@@ -1417,6 +1288,252 @@ class CircadianLightPrimitives:
             logger.info(
                 f"set_position state updated (lights off): {result.brightness}%, {result.color_temp}K"
             )
+
+    # -------------------------------------------------------------------------
+    # Circadian Adjust — unified slider + step function
+    # -------------------------------------------------------------------------
+
+    async def circadian_adjust(
+        self,
+        area_id: str,
+        target_brightness: float,
+        source: str = "service_call",
+        send_command: bool = True,
+    ):
+        """Adjust area toward a target actual brightness via P1/P2/P3 priority.
+
+        Circadian-first: unwind overrides before shifting curve, shift curve
+        before creating new overrides.
+
+        P1: Unwind opposing brightness override toward zero.
+        P2: Shift brightness_mid and color_mid along the circadian curve.
+        P3: Set/increase brightness override (curve at limit).
+
+        Args:
+            area_id: The area to adjust
+            target_brightness: Target actual brightness (0-100, post-pipeline)
+            source: Source of the action
+            send_command: If False, only update state (for reach group batching)
+
+        Returns:
+            StepResult with final values, or None if already at target / not circadian.
+        """
+        area_state = self._get_area_state(area_id)
+
+        if not area_state.is_circadian:
+            logger.debug(
+                f"[{source}] circadian_adjust ignored for area {area_id} "
+                f"(not in circadian mode)"
+            )
+            return None
+
+        # Always unfreeze (same as set_position)
+        if area_state.frozen_at is not None:
+            self._unfreeze_internal(area_id, source)
+            area_state = self._get_area_state(area_id)
+
+        config = self._get_config(area_id)
+        hour = get_current_hour()
+        sun_times = (
+            self.client._get_sun_times()
+            if hasattr(self.client, "_get_sun_times")
+            else None
+        )
+
+        # Clamp target to rhythm bounds
+        target_brightness = max(
+            config.min_brightness,
+            min(config.max_brightness, target_brightness),
+        )
+
+        current_actual = self._compute_current_actual(area_id)
+        delta = target_brightness - current_actual
+
+        if abs(delta) < 0.5:
+            return None  # Already at target; caller handles bounce if needed
+
+        direction = "up" if delta > 0 else "down"
+        p1_applied = False
+
+        # --- P1: Unwind opposing override ---
+        effective_override = self._get_decayed_brightness_override(area_id) or 0
+        raw_override = area_state.brightness_override or 0
+        override_opposes = (direction == "up" and effective_override < 0) or (
+            direction == "down" and effective_override > 0
+        )
+
+        if override_opposes and abs(effective_override) > 0.1:
+            max_p1_delta = abs(effective_override)
+            if abs(delta) <= max_p1_delta:
+                # Partial unwind — enough to reach target
+                new_effective = effective_override + delta  # moves toward zero
+                decay_factor = self._compute_override_decay_factor(area_id)
+                if decay_factor < 0.1:
+                    new_raw = None
+                else:
+                    new_raw = round(new_effective / decay_factor, 1)
+                    if abs(new_raw) < 0.5:
+                        new_raw = None
+            else:
+                # Full unwind — zero the override, remaining goes to P2
+                new_raw = None
+
+            self._update_area_state(
+                area_id,
+                {
+                    "brightness_override": new_raw,
+                    "brightness_override_set_at": (
+                        area_state.brightness_override_set_at
+                        if new_raw is not None
+                        else None
+                    ),
+                },
+            )
+            area_state = self._get_area_state(area_id)
+            p1_applied = True
+            logger.info(
+                f"[{source}] circadian_adjust P1: unwound override for {area_id} "
+                f"(raw {raw_override} → {new_raw})"
+            )
+
+            # Check if target reached after P1
+            current_actual = self._compute_current_actual(area_id)
+            delta = target_brightness - current_actual
+            if abs(delta) < 0.5:
+                # P1 was sufficient — apply lighting and return
+                if send_command and area_state.is_on:
+                    await self.client.update_lights_in_circadian_mode(area_id)
+                result = CircadianLight.calculate_lighting(
+                    hour, config, area_state, sun_times=sun_times
+                )
+                return result
+
+        # --- P2: Shift midpoints ---
+        if abs(delta) >= 0.5:
+            # Invert target to curve space
+            area_factor = glozone.get_area_brightness_factor(area_id)
+            nl_factor = self._compute_nl_factor(area_id)
+            remaining_override = (
+                self._get_decayed_brightness_override(area_id) or 0
+            )
+
+            # Undo pipeline: actual = (curve + boost) * nl * area_factor + override
+            boost_amount = 0
+            if state.is_boosted(area_id):
+                boost_state = state.get_boost_state(area_id)
+                boost_amount = boost_state.get("boost_brightness") or 0
+
+            denominator = nl_factor * area_factor
+            if denominator < 0.01:
+                denominator = 0.01  # Avoid division by zero
+
+            target_curve = (
+                (target_brightness - remaining_override) / denominator
+                - boost_amount
+            )
+            target_curve = max(
+                config.min_brightness, min(config.max_brightness, target_curve)
+            )
+
+            # Convert to 0-100 position on the curve
+            b_range = config.max_brightness - config.min_brightness
+            if b_range > 0:
+                position = (
+                    (target_curve - config.min_brightness) / b_range * 100
+                )
+            else:
+                position = 50
+            position = max(0, min(100, position))
+
+            result = CircadianLight.calculate_set_position(
+                hour=hour,
+                position=position,
+                dimension="step",
+                config=config,
+                state=area_state,
+                sun_times=sun_times,
+            )
+
+            self._update_area_state(area_id, result.state_updates)
+            area_state = self._get_area_state(area_id)
+            logger.info(
+                f"[{source}] circadian_adjust P2: shifted midpoints for {area_id} "
+                f"(pos={position:.1f}, bri={result.brightness}%, "
+                f"cct={result.color_temp}K)"
+            )
+
+            # Check if target reached after P2
+            current_actual = self._compute_current_actual(area_id)
+            delta = target_brightness - current_actual
+
+        # --- P3: Set/increase override ---
+        if abs(delta) >= 0.5:
+            # Curve is at limit; use override for remaining
+            current_raw = area_state.brightness_override or 0
+            new_raw = round(current_raw + delta, 1)
+
+            # Clamp: ensure actual stays within rhythm bounds
+            # (re-check after applying tentative override)
+            self._update_area_state(
+                area_id,
+                {
+                    "brightness_override": new_raw,
+                    "brightness_override_set_at": hour,
+                },
+            )
+            area_state = self._get_area_state(area_id)
+
+            tentative_actual = self._compute_current_actual(area_id)
+            if tentative_actual > config.max_brightness:
+                overshoot = tentative_actual - config.max_brightness
+                new_raw = round(new_raw - overshoot, 1)
+                self._update_area_state(
+                    area_id,
+                    {
+                        "brightness_override": new_raw if abs(new_raw) > 0.1 else None,
+                        "brightness_override_set_at": (
+                            hour if abs(new_raw) > 0.1 else None
+                        ),
+                    },
+                )
+                area_state = self._get_area_state(area_id)
+            elif tentative_actual < config.min_brightness:
+                undershoot = config.min_brightness - tentative_actual
+                new_raw = round(new_raw + undershoot, 1)
+                self._update_area_state(
+                    area_id,
+                    {
+                        "brightness_override": new_raw if abs(new_raw) > 0.1 else None,
+                        "brightness_override_set_at": (
+                            hour if abs(new_raw) > 0.1 else None
+                        ),
+                    },
+                )
+                area_state = self._get_area_state(area_id)
+
+            logger.info(
+                f"[{source}] circadian_adjust P3: set override for {area_id} "
+                f"(override={new_raw})"
+            )
+
+        # Build final result
+        result = CircadianLight.calculate_lighting(
+            hour, config, area_state, sun_times=sun_times
+        )
+
+        # Send light commands only if send_command and is_on
+        if send_command and area_state.is_on:
+            await self._apply_circadian_lighting(
+                area_id, result.brightness, result.color_temp
+            )
+
+        logger.info(
+            f"[{source}] circadian_adjust done for {area_id}: "
+            f"target={target_brightness}, actual={self._compute_current_actual(area_id)}, "
+            f"bri={result.brightness}%, cct={result.color_temp}K"
+        )
+
+        return result
 
     # -------------------------------------------------------------------------
     # Per-axis override up/down (brightness and color buttons)
