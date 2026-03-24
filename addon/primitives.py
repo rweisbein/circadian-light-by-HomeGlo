@@ -1435,32 +1435,45 @@ class CircadianLightPrimitives:
                 config.min_brightness, min(config.max_brightness, target_curve)
             )
 
-            # Convert to 0-100 position on the curve
-            b_range = config.max_brightness - config.min_brightness
-            if b_range > 0:
-                position = (
-                    (target_curve - config.min_brightness) / b_range * 100
+            # Skip P2 if curve is already at target (avoids midpoint drift
+            # from inverse_midpoint at asymptotes, e.g., NL-crushed rooms
+            # where curve is at max but actual is low)
+            current_curve = CircadianLight.calculate_brightness_at_hour(
+                hour, config, area_state
+            )
+            if abs(current_curve - target_curve) >= 1.0:
+                # Convert to 0-100 position on the curve
+                b_range = config.max_brightness - config.min_brightness
+                if b_range > 0:
+                    position = (
+                        (target_curve - config.min_brightness) / b_range * 100
+                    )
+                else:
+                    position = 50
+                position = max(0, min(100, position))
+
+                result = CircadianLight.calculate_set_position(
+                    hour=hour,
+                    position=position,
+                    dimension="step",
+                    config=config,
+                    state=area_state,
+                    sun_times=sun_times,
+                )
+
+                self._update_area_state(area_id, result.state_updates)
+                area_state = self._get_area_state(area_id)
+                logger.info(
+                    f"[{source}] circadian_adjust P2: shifted midpoints for "
+                    f"{area_id} (pos={position:.1f}, bri={result.brightness}%, "
+                    f"cct={result.color_temp}K)"
                 )
             else:
-                position = 50
-            position = max(0, min(100, position))
-
-            result = CircadianLight.calculate_set_position(
-                hour=hour,
-                position=position,
-                dimension="step",
-                config=config,
-                state=area_state,
-                sun_times=sun_times,
-            )
-
-            self._update_area_state(area_id, result.state_updates)
-            area_state = self._get_area_state(area_id)
-            logger.info(
-                f"[{source}] circadian_adjust P2: shifted midpoints for {area_id} "
-                f"(pos={position:.1f}, bri={result.brightness}%, "
-                f"cct={result.color_temp}K)"
-            )
+                logger.debug(
+                    f"[{source}] circadian_adjust P2: skipped for {area_id} "
+                    f"(curve already at {current_curve:.0f}%, "
+                    f"target {target_curve:.0f}%)"
+                )
 
             # Check if target reached after P2
             current_actual = self._compute_current_actual(area_id)
