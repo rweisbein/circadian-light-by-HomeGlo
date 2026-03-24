@@ -2038,12 +2038,16 @@
           const dur = document.getElementById('tune-outdoor-override-dur')?.value || '60';
           if (cond) {
             fetch('./api/outdoor-override', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ condition: cond, duration_minutes: parseInt(dur) }) })
-              .then(() => refreshOutdoorAndRender());
+              .then(() => refreshOutdoorInPlace());
+          } else {
+            // "Off" selected — clear override
+            fetch('./api/outdoor-override', { method: 'DELETE' })
+              .then(() => refreshOutdoorInPlace());
           }
         }
         if (e.target.id === 'tune-outdoor-clear-override') {
           e.stopPropagation();
-          fetch('./api/outdoor-override', { method: 'DELETE' }).then(() => refreshOutdoorAndRender());
+          fetch('./api/outdoor-override', { method: 'DELETE' }).then(() => refreshOutdoorInPlace());
         }
         if (e.target.id === 'tune-outdoor-learn') {
           e.stopPropagation();
