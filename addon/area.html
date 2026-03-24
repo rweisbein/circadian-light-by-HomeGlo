@@ -1648,7 +1648,10 @@
         const mode = track.dataset.mode;
         track.style.background = buildTrackGradient(mode, cfg, currentBri, currentCCT, effRange);
         const pct = mode === 'step' ? gloFrac : mode === 'brightness' ? briFrac : cctFrac;
-        applyOneSlider(track, pct, currentBri, currentCCT, mode);
+        // Brightness thumb uses actual brightness; color thumb uses effective CCT
+        const thumbBri = mode === 'brightness' ? (areaState.actual_brightness ?? currentBri) : currentBri;
+        const thumbCCT = mode === 'color' ? effectiveCCT : currentCCT;
+        applyOneSlider(track, pct, thumbBri, thumbCCT, mode);
       });
 
       // Banner slider — shows actual brightness, uses current kelvin for gradient
