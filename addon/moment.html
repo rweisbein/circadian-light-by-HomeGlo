@@ -1027,18 +1027,13 @@
 
     function renderUsageCard(usages, usageCount) {
       const countLabel = usageCount > 0 ? usageCount : '';
-      let listHtml;
-      if (usages.length === 0) {
-        listHtml = '<div style="font-size: 0.85rem; color: var(--muted);">Not assigned to any controls</div>';
-      } else {
-        listHtml = usages.map(u => `
-          <div class="usage-row">
-            <a href="${basePath}/control/${encodeURIComponent(u.switch_id)}?from=moment&id=${encodeURIComponent(selectedMomentId)}" class="usage-switch-link">${u.switch_name}</a>
-            <span class="usage-button-label">${u.button_label}</span>
-            <button class="usage-remove-btn" onclick="event.preventDefault(); removeAssignment('${u.switch_id}', '${u.button_event}')" title="Remove assignment">&times;</button>
-          </div>
-        `).join('');
-      }
+      let listHtml = usages.map(u => `
+        <div class="usage-row">
+          <a href="${basePath}/control/${encodeURIComponent(u.switch_id)}?from=moment&id=${encodeURIComponent(selectedMomentId)}" class="usage-switch-link">${u.switch_name}</a>
+          <span class="usage-button-label">${u.button_label}</span>
+          <button class="usage-remove-btn" onclick="event.preventDefault(); removeAssignment('${u.switch_id}', '${u.button_event}')" title="Remove assignment">&times;</button>
+        </div>
+      `).join('');
 
       return `
         <div class="ctrl-card is-open" id="usage-section">
@@ -1052,7 +1047,7 @@
               ${listHtml}
               <div id="assign-picker-container"></div>
               ${!assignPickerOpen ? `
-                <div style="margin-top: ${usages.length > 0 ? '10' : '8'}px;">
+                <div style="margin-top: ${usages.length > 0 ? '10' : '4'}px;">
                   <button class="add-exception-btn" onclick="openAssignPicker()">+ Assign to a control</button>
                 </div>
               ` : ''}
@@ -1172,8 +1167,24 @@
     }
 
     function selectAssignSwitch(switchId) {
-      assignPickerSwitch = allSwitches.find(sw => sw.id === switchId) || null;
+      const sw = allSwitches.find(s => s.id === switchId) || null;
+      assignPickerSwitch = sw;
       assignConfirmSlot = null;
+
+      // Auto-assign if only 1 available (unassigned) slot
+      if (sw) {
+        const slots = getMagicSlots(sw.type);
+        const actionRef = 'set_' + selectedMomentId;
+        const available = slots.filter(slot => {
+          const current = (sw.magic_buttons || {})[slot] || '';
+          return !current || current === actionRef;
+        });
+        if (available.length === 1 && !(sw.magic_buttons || {})[available[0]]) {
+          confirmAssignSlot(sw.id, available[0]);
+          return;
+        }
+      }
+
       renderAssignPicker();
     }
 
@@ -1201,10 +1212,12 @@
       if (slots.length === 0) {
         html += '<div style="font-size: 0.85rem; color: var(--muted);">No magic button slots</div>';
       } else {
+        html += '<div style="font-size: 0.8rem; color: var(--muted); margin-bottom: 6px;">Choose a button:</div>';
         for (const slot of slots) {
           const currentAction = (sw.magic_buttons || {})[slot] || '';
           const isCurrent = currentAction === actionRef;
-          let currentLabel = 'Unassigned';
+          const isOccupied = currentAction && !isCurrent;
+          let currentLabel = '';
           if (currentAction && currentAction.startsWith('set_')) {
             const mId = currentAction.slice(4);
             currentLabel = allMoments[mId]?.name || mId;
@@ -1217,8 +1230,7 @@
                 <span class="assign-slot-current" style="color: var(--accent);">${currentLabel}</span>
               </div>
             `;
-          } else if (assignConfirmSlot === slot && currentAction) {
-            // Show confirmation for replacing
+          } else if (assignConfirmSlot === slot && isOccupied) {
             html += `
               <div class="assign-confirm">
                 <span>Replace <strong>${currentLabel}</strong>?</span>
@@ -1226,11 +1238,18 @@
                 <button class="assign-confirm-cancel" onclick="assignConfirmSlot = null; renderAssignPicker();">Cancel</button>
               </div>
             `;
-          } else {
+          } else if (isOccupied) {
             html += `
-              <div class="assign-slot-row" onclick="handleAssignSlot('${sw.id}', '${slot}', '${currentAction}')">
+              <div class="assign-slot-row" style="opacity: 0.5;" onclick="handleAssignSlot('${sw.id}', '${slot}', '${currentAction}')" title="Reassign from ${currentLabel}">
                 <span class="assign-slot-label">${formatMagicButtonEvent(slot)}</span>
                 <span class="assign-slot-current">${currentLabel}</span>
+              </div>
+            `;
+          } else {
+            html += `
+              <div class="assign-slot-row" onclick="handleAssignSlot('${sw.id}', '${slot}', '')">
+                <span class="assign-slot-label">${formatMagicButtonEvent(slot)}</span>
+                <span class="assign-slot-current" style="color: var(--muted);">Available</span>
               </div>
             `;
           }
