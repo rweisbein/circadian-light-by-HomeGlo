@@ -1870,7 +1870,7 @@ class HomeAssistantWebSocketClient:
             return
 
         logger.info(
-            f"Executing {main_action}"
+            f"[Switch] {switch_name}: {main_action}"
             + (f" on areas: {areas}" if areas else " (global)")
             + (f" (when_off: {when_off_action})" if when_off_action else "")
         )
