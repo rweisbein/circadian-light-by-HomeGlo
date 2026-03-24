@@ -4787,15 +4787,13 @@ class CircadianLightPrimitives:
 
         # Resolve feedback target first (needed to read correct brightness)
         feedback_target = getattr(self.client, "_active_feedback_target", None)
+        if not feedback_target:
+            # No switch context (web UI, etc.) — use most popular filter group
+            feedback_target = self.client._get_feedback_group_for_area(area_id)
         if feedback_target:
             targets = [feedback_target]
         else:
-            zha_groups = self.client.get_area_zha_groups(area_id)
-            has_parity = self.client.area_parity_cache.get(area_id, False)
-            if zha_groups and has_parity:
-                targets = [{"entity_id": g} for g in zha_groups]
-            else:
-                targets = [{"area_id": area_id}]
+            targets = [{"area_id": area_id}]
 
         # Read visible brightness from feedback target entity (not all area lights)
         target_entity = None
