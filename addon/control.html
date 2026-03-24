@@ -630,12 +630,20 @@
       color: var(--accent);
     }
 
-    .magic-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-    .magic-row:last-child { margin-bottom: 0; }
-    .magic-row-label { font-size: 0.85rem; min-width: 140px; white-space: nowrap; color: var(--muted); }
-    .magic-row select { flex: 1; padding: 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.9rem; }
-    .magic-row-orphan { opacity: 0.45; }
-    .magic-row-orphan .magic-row-label { font-style: italic; }
+    .btn-map-section { display: flex; align-items: center; padding: 4px 0; }
+    .btn-map-section + .btn-map-section { border-top: 2px solid rgba(255, 255, 255, 0.08); }
+    .btn-map-label { width: 80px; flex-shrink: 0; display: flex; align-items: center; gap: 5px; font-weight: 500; font-size: 0.85rem; }
+    .btn-map-actions { flex: 1; min-width: 0; }
+    .btn-map-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
+    .btn-map-row + .btn-map-row { border-top: 1px solid rgba(255, 255, 255, 0.03); }
+    .btn-map-type { font-size: 0.75rem; color: var(--muted); min-width: 32px; }
+    .btn-map-action { font-size: 0.85rem; }
+    .btn-map-magic { display: flex; align-items: center; gap: 4px; flex: 1; }
+    .btn-map-magic select { flex: 1; padding: 4px 6px; border-radius: 5px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.85rem; }
+    .magic-star { color: var(--accent); font-size: 0.75rem; }
+    .btn-badge-sm { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 4px; background: rgba(255,255,255,0.08); font-size: 0.7rem; line-height: 1; }
+    .magic-row-orphan { display: flex; align-items: center; gap: 8px; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.06); opacity: 0.45; }
+    .magic-row-orphan .magic-row-label { font-size: 0.85rem; font-style: italic; color: var(--muted); }
     .magic-orphan-remove { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1rem; padding: 0 4px; }
     .magic-orphan-remove:hover { color: var(--danger); }
     .magic-indicator { float: right; color: var(--accent); font-size: 0.7rem; opacity: 0.7; line-height: 1; }
@@ -807,11 +815,11 @@
       </div>
     </div>
 
-    <!-- Magic Buttons card -->
+    <!-- Buttons card (cheat sheet + magic dropdowns) -->
     <div class="ctrl-card is-open" id="magic-section" style="display: none;">
       <div class="ctrl-card-header" onclick="toggleCard('magic-section')">
         <span class="ctrl-card-chevron">&#x203A;</span>
-        <span class="ctrl-card-title"><span style="color: var(--accent); margin-right: 4px;">&#10022;</span>Magic Buttons</span>
+        <span class="ctrl-card-title">Buttons</span>
       </div>
       <div class="ctrl-card-body">
         <div class="ctrl-card-body-inner">
@@ -1016,12 +1024,13 @@
     async function loadData() {
       try {
         const cacheBust = `?_t=${Date.now()}`;
-        const [controlsRes, areasRes, configRes, switchmapRes, momentsRes] = await Promise.all([
+        const [controlsRes, areasRes, configRes, switchmapRes, momentsRes, actionsRes] = await Promise.all([
           fetch(basePath + `/api/controls${cacheBust}`),
           fetch(basePath + `/api/areas${cacheBust}`),
           fetch(basePath + `/api/config${cacheBust}`),
           fetch(basePath + `/api/switchmap${cacheBust}`),
-          fetch(basePath + `/api/moments${cacheBust}`)
+          fetch(basePath + `/api/moments${cacheBust}`),
+          fetch(basePath + `/api/switchmap/actions${cacheBust}`)
         ]);
 
         if (controlsRes.ok) {
@@ -1050,6 +1059,11 @@
         if (momentsRes.ok) {
           const mData = await momentsRes.json();
           allMoments = mData.moments || {};
+        }
+
+        if (actionsRes.ok) {
+          const aData = await actionsRes.json();
+          window._switchmapActions = aData.categories || {};
         }
       } catch (err) {
         console.error('Error loading data:', err);
@@ -1499,19 +1513,24 @@
     }
 
     // ============================================================
-    // Magic Buttons helpers
+    // Buttons card helpers
     // ============================================================
-    const magicButtonNames = {
+    const buttonNames = {
       'on': 'Power', 'up': 'Up', 'down': 'Down', 'off': 'Hue',
       'toggle': 'Toggle', 'brightness_up': 'Bright Up', 'brightness_down': 'Bright Down',
       'arrow_left': 'Left', 'arrow_right': 'Right',
       'dial': 'Dial'
     };
-    const magicActionLabels = {
-      'hold': 'Long press', 'short_release': 'Press', 'press': 'Press',
-      'double_press': '2\u00d7 press', 'triple_press': '3\u00d7 press',
-      'quadruple_press': '4\u00d7 press', 'quintuple_press': '5\u00d7 press',
-      'rotate': 'Rotate'
+    const buttonBadges = {
+      'on': '\u23FB', 'up': '\u25B2', 'down': '\u25BC', 'off': 'Hue',
+      'toggle': '\u23FB', 'brightness_up': '\u25B2', 'brightness_down': '\u25BC',
+      'arrow_left': '\u25C0', 'arrow_right': '\u25B6', 'dial': '\u27F3'
+    };
+    const actionTypeShort = {
+      'short_release': '1\u00d7', 'press': '1\u00d7',
+      'double_press': '2\u00d7', 'triple_press': '3\u00d7',
+      'quadruple_press': '4\u00d7', 'quintuple_press': '5\u00d7',
+      'hold': 'Long', 'rotate': 'Rotate'
     };
     // Known action suffixes, longest first so we match greedily
     const knownActionSuffixes = [
@@ -1519,11 +1538,40 @@
       'short_release', 'press', 'hold', 'rotate'
     ];
 
+    // Action ID -> display label (built from switchmap actions API or inline)
+    let actionLabelCache = null;
+    function getActionLabel(actionId) {
+      if (!actionId) return '';
+      if (actionId === 'magic') return '';
+      if (actionId.startsWith('set_')) {
+        const mId = actionId.slice(4);
+        const m = allMoments[mId];
+        return m ? (m.icon ? m.icon + ' ' : '') + (m.name || mId) : mId;
+      }
+      if (actionId === 'hold_repeat') return 'Hold repeat';
+      // Lazy build from switchmap actions
+      if (!actionLabelCache) {
+        actionLabelCache = {};
+        if (window._switchmapActions) {
+          for (const actions of Object.values(window._switchmapActions)) {
+            for (const a of actions) actionLabelCache[a.id] = a.label;
+          }
+        }
+      }
+      return actionLabelCache[actionId] || actionId.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    }
+
     function formatMagicButtonEvent(key) {
+      const magicActionLabels = {
+        'hold': 'Long press', 'short_release': 'Press', 'press': 'Press',
+        'double_press': '2\u00d7 press', 'triple_press': '3\u00d7 press',
+        'quadruple_press': '4\u00d7 press', 'quintuple_press': '5\u00d7 press',
+        'rotate': 'Rotate'
+      };
       for (const suffix of knownActionSuffixes) {
         if (key.endsWith('_' + suffix)) {
           const buttonPart = key.slice(0, key.length - suffix.length - 1);
-          const buttonLabel = magicButtonNames[buttonPart] || buttonPart;
+          const buttonLabel = buttonNames[buttonPart] || buttonPart;
           const actionLabel = magicActionLabels[suffix] || suffix;
           return `${buttonLabel} \u2014 ${actionLabel}`;
         }
@@ -1542,32 +1590,89 @@
     function renderMagicEditor() {
       const container = document.getElementById('magic-editor');
       const switchType = editingControl?.type;
-      const magicSlots = getMagicSlots(switchType);
+      const typeData = switchMapData[switchType];
 
-      // Find orphaned assignments (keys in editingMagicButtons not in active magic slots)
-      const orphanedKeys = Object.keys(editingMagicButtons).filter(k => !magicSlots.includes(k));
+      if (!typeData || !typeData.effective_mapping) {
+        container.innerHTML = '<div style="font-size:0.85rem; color:var(--muted);">No button data available</div>';
+        return;
+      }
+
+      const buttons = typeData.buttons || [];
+      const actionTypes = typeData.action_types || ['short_release', 'hold'];
+      const mapping = typeData.effective_mapping;
+      const magicSlots = new Set(getMagicSlots(switchType));
 
       let html = '';
 
-      // Active magic slot rows
-      for (const slot of magicSlots) {
-        const currentValue = editingMagicButtons[slot] || '';
-        const label = formatMagicButtonEvent(slot);
-        html += `<div class="magic-row">
-          <span class="magic-row-label">${label}</span>
-          <select onchange="updateMagicButton('${slot}', this.value)">
-            <option value="">None</option>
-            ${Object.entries(allMoments).map(([id, m]) => {
-              const val = 'set_' + id;
-              const sel = currentValue === val ? ' selected' : '';
-              const icon = m.icon ? m.icon + ' ' : '';
-              return `<option value="${val}"${sel}>${icon}${m.name || id}</option>`;
-            }).join('')}
-          </select>
-        </div>`;
+      for (const btn of buttons) {
+        const btnName = buttonNames[btn] || btn.charAt(0).toUpperCase() + btn.slice(1);
+        const badge = buttonBadges[btn] || btn;
+
+        // Collect action rows for this button
+        let actionRows = '';
+        for (const actionType of actionTypes) {
+          const eventKey = `${btn}_${actionType}`;
+          const actionValue = mapping[eventKey];
+          if (!actionValue) continue;
+
+          const typeLabel = actionTypeShort[actionType] || actionType;
+          const isMagic = actionValue === 'magic';
+
+          if (isMagic) {
+            // Magic slot: show ✦ + dropdown
+            const currentValue = editingMagicButtons[eventKey] || '';
+            actionRows += `
+              <div class="btn-map-row">
+                <span class="btn-map-type">${typeLabel}</span>
+                <div class="btn-map-magic">
+                  <span class="magic-star" title="Assignable">&#10022;</span>
+                  <select onchange="updateMagicButton('${eventKey}', this.value)">
+                    <option value="">None</option>
+                    ${Object.entries(allMoments).map(([id, m]) => {
+                      const val = 'set_' + id;
+                      const sel = currentValue === val ? ' selected' : '';
+                      const icon = m.icon ? m.icon + ' ' : '';
+                      return `<option value="${val}"${sel}>${icon}${m.name || id}</option>`;
+                    }).join('')}
+                  </select>
+                </div>
+              </div>
+            `;
+          } else {
+            // Universal action: show as text
+            let label = getActionLabel(typeof actionValue === 'object' ? actionValue.action : actionValue);
+            const whenOff = typeof actionValue === 'object' ? actionValue.when_off : null;
+            if (whenOff) {
+              label += ` <span style="font-size:0.75rem; color:var(--muted);">(if off: ${getActionLabel(whenOff)})</span>`;
+            }
+            actionRows += `
+              <div class="btn-map-row">
+                <span class="btn-map-type">${typeLabel}</span>
+                <span class="btn-map-action">${label}</span>
+              </div>
+            `;
+          }
+        }
+
+        if (!actionRows) continue;
+
+        html += `
+          <div class="btn-map-section">
+            <div class="btn-map-label">
+              <span class="btn-badge-sm">${badge}</span>
+              <span>${btnName}</span>
+            </div>
+            <div class="btn-map-actions">
+              ${actionRows}
+            </div>
+          </div>
+        `;
       }
 
-      // Orphaned assignment rows
+      // Orphaned magic assignments (assigned to keys no longer in mapping)
+      const orphanedKeys = Object.keys(editingMagicButtons).filter(k =>
+        !magicSlots.has(k) && editingMagicButtons[k]
+      );
       for (const key of orphanedKeys) {
         const label = formatMagicButtonEvent(key);
         const momentAction = editingMagicButtons[key];
@@ -1578,15 +1683,15 @@
           momentName = momentObj?.name || momentId;
           if (momentObj?.icon) momentName = momentObj.icon + ' ' + momentName;
         }
-        html += `<div class="magic-row magic-row-orphan">
-          <span class="magic-row-label">${label} (no longer in Switch actions)</span>
+        html += `<div class="magic-row-orphan">
+          <span class="magic-row-label">${label} (removed)</span>
           <span style="flex:1; font-size:0.85rem;">${momentName}</span>
           <button class="magic-orphan-remove" onclick="removeMagicOrphan('${key}')" title="Remove">\u2715</button>
         </div>`;
       }
 
       if (!html) {
-        html = '<div style="font-size:0.85rem; color:var(--muted);">No magic button slots available</div>';
+        html = '<div style="font-size:0.85rem; color:var(--muted);">No button data available</div>';
       }
 
       container.innerHTML = html;
