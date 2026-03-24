@@ -1327,15 +1327,6 @@ class CircadianLightPrimitives:
             )
             return None
 
-        # If lights are off and target > 0, turn on first
-        if not area_state.is_on and target_brightness > 0:
-            self._update_area_state(area_id, {"is_on": True})
-            area_state = self._get_area_state(area_id)
-            logger.info(
-                f"[{source}] circadian_adjust turning on area {area_id} "
-                f"(slider drag from off)"
-            )
-
         # Always unfreeze (same as set_position)
         if area_state.frozen_at is not None:
             self._unfreeze_internal(area_id, source)
