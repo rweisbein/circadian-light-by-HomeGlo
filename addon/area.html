@@ -1650,10 +1650,10 @@
         applyOneSlider(track, pct, currentBri, currentCCT, mode);
       });
 
-      // Banner slider — compute color delta (actual CCT vs base curve CCT at this position)
-      const baseCCT = effRange.effMin + (effRange.effMax - effRange.effMin) * gloFrac / 100;
-      const colorDelta = currentCCT - baseCCT;
-      updateBannerSlider(gloFrac, cfg, effRange, colorDelta);
+      // Banner slider — shows actual brightness, uses current kelvin for gradient
+      const actualBri = areaState.actual_brightness != null ? areaState.actual_brightness : curveFrac;
+      const bannerPct = bMax > bMin ? Math.max(0, Math.min(100, (actualBri - bMin) / (bMax - bMin) * 100)) : 50;
+      updateBannerSlider(bannerPct, cfg, currentCCT);
 
       // Schedule label (bed/wake time, asterisk if adjusted)
       updateAdjustedScheduleLabel(areaState, cfg);
@@ -1700,27 +1700,25 @@
       el.style.display = '';
     }
 
-    function buildHorizontalGradient(cfg, effectiveColorRange, colorDelta) {
+    function buildHorizontalGradient(cfg, currentCCT) {
       const bMin = cfg.min_brightness, bMax = cfg.max_brightness;
-      // Use full config range — slider can reach any CCT via color_override
-      const cMin = cfg.min_color_temp, cMax = cfg.max_color_temp;
+      // Use current kelvin (color doesn't change with brightness override)
       const stops = [];
       const n = 6;
       for (let i = 0; i <= n; i++) {
         const frac = i / n;
         const b = bMin + (bMax - bMin) * frac;
-        const k = cMin + (cMax - cMin) * frac;
-        const color = tintColorByBrightness(cctToRGB(k), b);
+        const color = tintColorByBrightness(cctToRGB(currentCCT), b);
         stops.push(color + ' ' + Math.round(frac * 100) + '%');
       }
       return 'linear-gradient(to right, ' + stops.join(', ') + ')';
     }
 
-    function updateBannerSlider(pct, cfg, effRange, colorDelta) {
+    function updateBannerSlider(pct, cfg, currentCCT) {
       const banner = document.getElementById('area-banner-slider');
       if (!banner || banner.classList.contains('dragging')) return;
-      if (cfg && effRange) {
-        banner.style.background = buildHorizontalGradient(cfg, effRange, colorDelta);
+      if (cfg) {
+        banner.style.background = buildHorizontalGradient(cfg, currentCCT);
       }
       const thumb = banner.querySelector('.row-slider-thumb');
       if (thumb) {
@@ -1857,7 +1855,7 @@
           banner.classList.remove('dragging');
           sliderInteracting = false;
           if (bannerLastPos !== null) {
-            executeSetPosition(Math.round(bannerLastPos), 'step');
+            executeCircadianAdjust(bannerLastPos);
           }
         }
         banner.addEventListener('pointerup', bannerUp);
@@ -1886,8 +1884,9 @@
         previewBri = currentBri;
         previewCCT = cMin + (cMax - cMin) * position / 100;
       } else {
+        // Step/banner: brightness varies, color stays at current kelvin
         previewBri = bMin + (bMax - bMin) * position / 100;
-        previewCCT = cMin + (cMax - cMin) * position / 100;
+        previewCCT = currentCCT;
       }
 
       const briFrac = bMax > bMin ? Math.max(0, Math.min(100, (previewBri - bMin) / (bMax - bMin) * 100)) : 50;
@@ -1903,10 +1902,8 @@
         applyOneSlider(t, pct, previewBri, previewCCT, m);
       });
 
-      // Also update banner slider — compute color delta from preview
-      const previewBaseCCT = effRange.effMin + (effRange.effMax - effRange.effMin) * gloFrac / 100;
-      const previewColorDelta = previewCCT - previewBaseCCT;
-      updateBannerSlider(gloFrac, cfg, effRange, previewColorDelta);
+      // Also update banner slider
+      updateBannerSlider(gloFrac, cfg, previewCCT);
     }
 
     // ============================================================
@@ -2413,6 +2410,41 @@
       } catch (err) {
         console.error('Error executing action:', err);
         alert('Error executing action');
+      }
+    }
+
+    async function executeCircadianAdjust(pct) {
+      if (!selectedArea) return;
+      const cfg = getSliderCfgAndState()?.cfg;
+      const bMin = cfg?.min_brightness ?? 1;
+      const bMax = cfg?.max_brightness ?? 100;
+      const targetActual = Math.round(bMin + (bMax - bMin) * pct / 100);
+      const payload = { area_id: selectedArea.area_id, action: 'circadian_adjust', value: targetActual };
+
+      try {
+        const response = await fetch(basePath + '/api/area/action', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (response.ok) {
+          setTimeout(async () => {
+            try {
+              const res = await fetch(basePath + `/api/area-status?area_id=${encodeURIComponent(selectedArea.area_id)}`);
+              if (res.ok) {
+                const singleStatus = await res.json();
+                Object.assign(areaStatus, singleStatus);
+              }
+              updateContent();
+              renderMiniChartForArea(selectedArea.area_id);
+              updateAllSliders();
+            } catch (err) {
+              console.error('Error refreshing after circadian_adjust:', err);
+            }
+          }, 500);
+        }
+      } catch (err) {
+        console.error('Error executing circadian_adjust:', err);
       }
     }
 
