@@ -3061,7 +3061,7 @@
             const bMin = parseFloat(track.dataset.bmin) || 1;
             const bMax = parseFloat(track.dataset.bmax) || 100;
             const targetActual = Math.round(bMin + (bMax - bMin) * pct / 100);
-            rowAction(areaId, 'circadian_adjust', targetActual);
+            rowAction(areaId, 'set_circadian', targetActual);
           }
           else sliderDragging = false; // no action to clear it, clear now
         });

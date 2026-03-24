@@ -3251,6 +3251,7 @@ class CircadianLightPrimitives:
         frozen_at: float = None,
         copy_from: str = None,
         is_on: bool = None,
+        brightness: float = None,
         send_command: bool = True,
     ):
         """Configure area state with presets, frozen_at, or copy settings.
@@ -3260,19 +3261,23 @@ class CircadianLightPrimitives:
               Ascend phase → wake settings, descend phase → bed settings.
             - nitelite: Freeze at ascend_start (minimum values)
             - britelite: Freeze at descend_start (maximum values)
+            - circadian: Circadian mode. If brightness is provided, adjusts to
+              that actual brightness via circadian_adjust (P1/P2/P3).
 
         Priority: copy_from > frozen_at > preset
 
         Args:
             area_id: The area ID
             source: Source of the action
-            preset: Optional preset name (wake, bed, nitelite, britelite)
+            preset: Optional preset name (wake, bed, nitelite, britelite, circadian)
             frozen_at: Optional specific hour (0-24) to freeze at
             copy_from: Optional area_id to copy settings from
             is_on: Controls whether to take control:
                 - None (default): just configure settings, don't change control state
                 - True: configure + take control + turn on
                 - False: configure + take control + turn off
+            brightness: Optional target actual brightness (0-100). Only used
+                with preset="circadian". Ignored for other presets.
         """
         config = self._get_config(area_id)
         current_hour = get_current_hour()
@@ -3488,6 +3493,33 @@ class CircadianLightPrimitives:
                 logger.info(
                     f"[{source}] Set {area_id} to britelite preset (frozen_at={frozen_hour})"
                 )
+
+            elif preset == "circadian":
+                # Circadian mode with optional brightness target.
+                # If brightness provided, use circadian_adjust (P1/P2/P3).
+                # Otherwise just enable circadian at current curve position.
+                if brightness is not None:
+                    logger.info(
+                        f"[{source}] Set {area_id} to circadian preset "
+                        f"(brightness={brightness})"
+                    )
+                    await self.circadian_adjust(
+                        area_id, brightness, source=source,
+                        send_command=send_command,
+                    )
+                else:
+                    logger.info(
+                        f"[{source}] Set {area_id} to circadian preset"
+                    )
+                    if (
+                        state.is_circadian(area_id)
+                        and state.get_is_on(area_id)
+                        and send_command
+                    ):
+                        await self.client.update_lights_in_circadian_mode(
+                            area_id
+                        )
+                return
 
             else:
                 logger.warning(f"[{source}] Unknown preset: {preset}")

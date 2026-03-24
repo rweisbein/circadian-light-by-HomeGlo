@@ -2457,7 +2457,7 @@
       const bMin = cfg?.min_brightness ?? 1;
       const bMax = cfg?.max_brightness ?? 100;
       const targetActual = Math.round(bMin + (bMax - bMin) * pct / 100);
-      const payload = { area_id: selectedArea.area_id, action: 'circadian_adjust', value: targetActual };
+      const payload = { area_id: selectedArea.area_id, action: 'set_circadian', value: targetActual };
 
       try {
         const response = await fetch(basePath + '/api/area/action', {

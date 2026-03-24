@@ -5519,6 +5519,12 @@ class HomeAssistantWebSocketClient:
             await self.primitives.set(
                 area_id, "webserver", preset="britelite", is_on=True
             )
+        elif service == "set_circadian":
+            target_bri = kwargs.get("brightness")
+            await self.primitives.set(
+                area_id, "webserver", preset="circadian",
+                is_on=True, brightness=target_bri,
+            )
         elif service and service.startswith("set_"):
             moment_id = service[4:]
             moments = self._get_moments()

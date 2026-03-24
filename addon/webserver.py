@@ -4359,6 +4359,7 @@ class LightDesignerServer:
             "full_send",
             "set_nitelite",
             "set_britelite",
+            "set_circadian",
             "set_position",
             "circadian_adjust",
         }
@@ -4427,6 +4428,10 @@ class LightDesignerServer:
                         status=400,
                     )
                 extra_kwargs["target_brightness"] = float(value)
+            elif action == "set_circadian":
+                value = data.get("value")
+                if value is not None:
+                    extra_kwargs["brightness"] = float(value)
 
             if self.client:
                 await self.client.handle_service_event(action, area_id, **extra_kwargs)
