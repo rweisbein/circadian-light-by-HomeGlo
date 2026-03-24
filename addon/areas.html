@@ -2966,14 +2966,14 @@
     // ============================================================
 
     function colorAtPct(pct, track) {
-      // pct is slider position 0-100; use track's per-area range
+      // pct is slider position 0-100; maps to actual brightness in bMin..bMax range.
+      // Color uses the area's current kelvin (doesn't change during brightness override).
       const bMin = parseFloat(track?.dataset?.bmin) || 1;
       const bMax = parseFloat(track?.dataset?.bmax) || 100;
-      const cMin = parseFloat(track?.dataset?.cmin) || 2200;
-      const cMax = parseFloat(track?.dataset?.cmax) || 6500;
-      const frac = pct / 100;
-      const brightness = bMin + (bMax - bMin) * frac;
-      const kelvin = cMin + (cMax - cMin) * frac;
+      const brightness = bMin + (bMax - bMin) * pct / 100;
+      const areaId = track?.dataset?.areaId;
+      const status = areaId && areaStatus[areaId];
+      const kelvin = status?.kelvin || 4000;
       return { brightness, kelvin };
     }
 
