@@ -4785,16 +4785,36 @@ class CircadianLightPrimitives:
         limit_speed = self._get_limit_warning_speed()
         two_step_delay = self._get_two_step_delay()
 
-        # Read actual visible brightness from cached state (HA 0-255 scale)
-        area_lights = self.client.area_lights.get(area_id, [])
-        max_visible = 0
-        for entity_id in area_lights:
-            ls = self.client.cached_states.get(entity_id, {})
-            if ls.get("state") == "on":
-                bri = ls.get("attributes", {}).get("brightness", 0)
-                if bri > max_visible:
-                    max_visible = bri
-        visible_bri = max_visible or 1
+        # Resolve feedback target first (needed to read correct brightness)
+        feedback_target = getattr(self.client, "_active_feedback_target", None)
+        if feedback_target:
+            targets = [feedback_target]
+        else:
+            zha_groups = self.client.get_area_zha_groups(area_id)
+            has_parity = self.client.area_parity_cache.get(area_id, False)
+            if zha_groups and has_parity:
+                targets = [{"entity_id": g} for g in zha_groups]
+            else:
+                targets = [{"area_id": area_id}]
+
+        # Read visible brightness from feedback target entity (not all area lights)
+        target_entity = None
+        if feedback_target and "entity_id" in feedback_target:
+            target_entity = feedback_target["entity_id"]
+        if target_entity:
+            ls = self.client.cached_states.get(target_entity, {})
+            visible_bri = ls.get("attributes", {}).get("brightness", 0) or 1
+        else:
+            # Fallback: max brightness across all area lights
+            area_lights = self.client.area_lights.get(area_id, [])
+            max_visible = 0
+            for entity_id in area_lights:
+                ls = self.client.cached_states.get(entity_id, {})
+                if ls.get("state") == "on":
+                    bri = ls.get("attributes", {}).get("brightness", 0)
+                    if bri > max_visible:
+                        max_visible = bri
+            visible_bri = max_visible or 1
 
         # Bounce delta in visible space (0-255)
         if direction == "up":
@@ -4827,18 +4847,6 @@ class CircadianLightPrimitives:
         include_color = bounce_type in ("step", "color")
 
         # Phase 1: Bounce away via call_service (visible space, bypass pipeline)
-        # Use switch's feedback target if available (single purpose group)
-        feedback_target = getattr(self.client, "_active_feedback_target", None)
-        if feedback_target:
-            targets = [feedback_target]
-        else:
-            zha_groups = self.client.get_area_zha_groups(area_id)
-            has_parity = self.client.area_parity_cache.get(area_id, False)
-            if zha_groups and has_parity:
-                targets = [{"entity_id": g} for g in zha_groups]
-            else:
-                targets = [{"area_id": area_id}]
-
         phase1_tasks = []
         for target in targets:
             sdata = {"brightness": target_visible, "transition": limit_speed}
