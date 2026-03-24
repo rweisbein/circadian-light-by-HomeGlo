@@ -2939,6 +2939,8 @@
               if (statusRes.ok) {
                 areaStatus = await statusRes.json();
                 sliderPreviewCache = {};  // Invalidate — state changed
+                // Pre-fetch preview for the area that was just adjusted
+                if (areaId) fetchSliderPreview(areaId);
               }
               if (zsRes.ok) {
                 const zs = await zsRes.json();
