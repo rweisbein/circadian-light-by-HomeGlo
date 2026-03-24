@@ -157,8 +157,9 @@ async def _register_services(hass: HomeAssistant) -> None:
         frozen_at = call.data.get(ATTR_FROZEN_AT)
         copy_from = call.data.get(ATTR_COPY_FROM)
         is_on = call.data.get(ATTR_IS_ON)
-        _LOGGER.info("[%s] set called: area_id=%s, preset=%s, frozen_at=%s, copy_from=%s, is_on=%s",
-                     DOMAIN, area_id, preset, frozen_at, copy_from, is_on)
+        brightness = call.data.get("brightness")
+        _LOGGER.info("[%s] set called: area_id=%s, preset=%s, frozen_at=%s, copy_from=%s, is_on=%s, brightness=%s",
+                     DOMAIN, area_id, preset, frozen_at, copy_from, is_on, brightness)
 
     async def handle_broadcast(call: ServiceCall) -> None:
         area_id = call.data.get(ATTR_AREA_ID)

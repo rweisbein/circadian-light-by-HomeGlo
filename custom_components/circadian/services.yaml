@@ -238,6 +238,17 @@ set:
       required: false
       selector:
         boolean:
+    brightness:
+      name: Brightness
+      description: "Target actual brightness (0-100). Only used with preset: circadian. Adjusts via circadian curve shifting and override."
+      required: false
+      example: 60
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 1
+          mode: slider
 
 freeze_toggle:
   name: Freeze Toggle

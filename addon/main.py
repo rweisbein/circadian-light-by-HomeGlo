@@ -6648,10 +6648,11 @@ class HomeAssistantWebSocketClient:
                     is_on = service_data.get(
                         "is_on"
                     )  # Optional: None=just configure, True=configure+turn on, False=configure+turn off
+                    brightness = service_data.get("brightness")
                     if areas:
                         for area in areas:
                             logger.info(
-                                f"[{domain}] set for area: {area} (preset={preset}, frozen_at={frozen_at}, copy_from={copy_from}, is_on={is_on})"
+                                f"[{domain}] set for area: {area} (preset={preset}, frozen_at={frozen_at}, copy_from={copy_from}, is_on={is_on}, brightness={brightness})"
                             )
                             await self.primitives.set(
                                 area,
@@ -6660,6 +6661,7 @@ class HomeAssistantWebSocketClient:
                                 frozen_at=frozen_at,
                                 copy_from=copy_from,
                                 is_on=is_on,
+                                brightness=brightness,
                             )
                     elif preset:
                         # No area specified but preset given - could be a moment (applies to all areas)
