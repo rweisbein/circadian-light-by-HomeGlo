@@ -4850,14 +4850,16 @@ class CircadianLightPrimitives:
         await asyncio.gather(*phase1_tasks)
         await asyncio.sleep(limit_speed + two_step_delay)
 
-        # Phase 2: Restore via pipeline (with nudge)
-        await self._apply_circadian_lighting(
-            area_id,
-            current_brightness,
-            current_color,
-            include_color=include_color,
-            transition=limit_speed,
-        )
+        # Phase 2: Restore to same targets (same visible brightness, no pipeline)
+        phase2_tasks = []
+        for target in targets:
+            rdata = {"brightness": visible_bri, "transition": limit_speed}
+            if include_color:
+                rdata["color_temp_kelvin"] = max(2000, current_color)
+            phase2_tasks.append(
+                self.client.call_service("light", "turn_on", rdata, target=target)
+            )
+        await asyncio.gather(*phase2_tasks)
 
         logger.info(
             f"Limit bounce ({bounce_type} {direction}) for {area_id}: "

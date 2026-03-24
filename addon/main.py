@@ -2365,7 +2365,13 @@ class HomeAssistantWebSocketClient:
         """
         switch_config = switches.get_switch(switch_id)
         if not switch_config:
+            logger.debug(f"[Feedback] No switch config for {switch_id}")
             return None
+
+        logger.debug(
+            f"[Feedback] {switch_config.name}: indicator_light={switch_config.indicator_light}, "
+            f"indicator_area={switch_config.indicator_area}, indicator_filter={switch_config.indicator_filter}"
+        )
 
         # Option 1: explicit indicator light entity
         if switch_config.indicator_light:
@@ -2379,7 +2385,14 @@ class HomeAssistantWebSocketClient:
             device = self.device_registry.get(switch_config.device_id, {})
             area_id = device.get("area_id")
 
+        # Option 5: first area from first scope
+        if not area_id and switch_config.scopes:
+            scope_areas = switch_config.scopes[0].areas
+            if scope_areas:
+                area_id = scope_areas[0]
+
         if not area_id:
+            logger.debug(f"[Feedback] No area resolved for {switch_config.name}")
             return None
 
         # Find ZHA group for specified filter or most popular
