@@ -1700,16 +1700,24 @@
       el.style.display = '';
     }
 
-    function buildHorizontalGradient(cfg, currentCCT) {
+    function buildHorizontalGradient(cfg, currentCCT, thumbPct) {
       const bMin = cfg.min_brightness, bMax = cfg.max_brightness;
-      // Use current kelvin (color doesn't change with brightness override)
+      const cMin = cfg.min_color_temp;
+      // Left of thumb: warm→current (curve shift). Right of thumb: current kelvin (override).
       const stops = [];
-      const n = 6;
+      const n = 8;
       for (let i = 0; i <= n; i++) {
         const frac = i / n;
         const b = bMin + (bMax - bMin) * frac;
-        const color = tintColorByBrightness(cctToRGB(currentCCT), b);
-        stops.push(color + ' ' + Math.round(frac * 100) + '%');
+        const posPct = frac * 100;
+        let k;
+        if (posPct >= thumbPct || thumbPct < 1) {
+          k = currentCCT;
+        } else {
+          k = cMin + (currentCCT - cMin) * (posPct / thumbPct);
+        }
+        const color = tintColorByBrightness(cctToRGB(k), b);
+        stops.push(color + ' ' + Math.round(posPct) + '%');
       }
       return 'linear-gradient(to right, ' + stops.join(', ') + ')';
     }
@@ -1718,7 +1726,7 @@
       const banner = document.getElementById('area-banner-slider');
       if (!banner || banner.classList.contains('dragging')) return;
       if (cfg) {
-        banner.style.background = buildHorizontalGradient(cfg, currentCCT);
+        banner.style.background = buildHorizontalGradient(cfg, currentCCT, pct);
       }
       const thumb = banner.querySelector('.row-slider-thumb');
       if (thumb) {
@@ -1884,9 +1892,16 @@
         previewBri = currentBri;
         previewCCT = cMin + (cMax - cMin) * position / 100;
       } else {
-        // Step/banner: brightness varies, color stays at current kelvin
+        // Step/banner: below current → interpolate warm→current, above → hold current
         previewBri = bMin + (bMax - bMin) * position / 100;
-        previewCCT = currentCCT;
+        const actualBri = areaState.actual_brightness != null ? areaState.actual_brightness : currentBri;
+        const currentPct = bMax > bMin ? (actualBri - bMin) / (bMax - bMin) * 100 : 50;
+        if (position >= currentPct || currentPct < 1) {
+          previewCCT = currentCCT;
+        } else {
+          const frac = position / currentPct;
+          previewCCT = cMin + (currentCCT - cMin) * frac;
+        }
       }
 
       const briFrac = bMax > bMin ? Math.max(0, Math.min(100, (previewBri - bMin) / (bMax - bMin) * 100)) : 50;
