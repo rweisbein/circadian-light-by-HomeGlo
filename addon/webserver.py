@@ -572,6 +572,16 @@ class LightDesignerServer:
         )
         self.app.router.add_post("/api/area/action", self.handle_area_action)
 
+        # Slider preview API route
+        self.app.router.add_route(
+            "GET",
+            "/{path:.*}/api/area/slider-preview",
+            self.get_slider_preview,
+        )
+        self.app.router.add_get(
+            "/api/area/slider-preview", self.get_slider_preview
+        )
+
         # Zone action API route
         self.app.router.add_route(
             "POST", "/{path:.*}/api/zone/action", self.handle_zone_action
@@ -4406,6 +4416,136 @@ class LightDesignerServer:
             return web.json_response({"error": "Invalid JSON"}, status=400)
         except Exception as e:
             logger.error(f"Error handling area action: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def get_slider_preview(self, request: Request) -> Response:
+        """Return kelvin values at 10 brightness sample points for slider gradient.
+
+        Called on-demand (pointerdown on homepage, page load on area detail).
+        Simulates what circadian_adjust P2 would produce at each brightness.
+
+        Query params: area_id (required), points (optional, default 10)
+        Returns: {"points": [{"brightness": N, "kelvin": N}, ...]}
+        """
+        area_id = request.query.get("area_id")
+        if not area_id:
+            return web.json_response(
+                {"error": "area_id is required"}, status=400
+            )
+
+        num_points = int(request.query.get("points", 10))
+        num_points = max(3, min(20, num_points))
+
+        try:
+            from brain import (
+                CircadianLight,
+                Config,
+                AreaState,
+                SunTimes,
+                calculate_sun_times,
+            )
+
+            config_dict = glozone.get_effective_config_for_area(area_id)
+            area_config = Config.from_dict(config_dict)
+            area_state_dict = state.get_area(area_id)
+            area_state = AreaState.from_dict(area_state_dict)
+
+            hour = (
+                area_state.frozen_at
+                if area_state.frozen_at is not None
+                else get_current_hour()
+            )
+
+            # Sun times
+            sun_times = SunTimes()
+            try:
+                from zoneinfo import ZoneInfo
+
+                latitude = float(os.getenv("HASS_LATITUDE", "35.0"))
+                longitude = float(os.getenv("HASS_LONGITUDE", "-78.6"))
+                timezone = os.getenv("HASS_TIME_ZONE", "US/Eastern")
+                try:
+                    tzinfo = ZoneInfo(timezone)
+                except Exception:
+                    tzinfo = None
+                now = datetime.now(tzinfo)
+                date_str = now.strftime("%Y-%m-%d")
+                sun_dict = calculate_sun_times(latitude, longitude, date_str)
+
+                def iso_to_hour(iso_str, default):
+                    if not iso_str:
+                        return default
+                    try:
+                        dt = datetime.fromisoformat(iso_str)
+                        if tzinfo and dt.tzinfo:
+                            dt = dt.astimezone(tzinfo)
+                        return dt.hour + dt.minute / 60.0 + dt.second / 3600.0
+                    except Exception:
+                        return default
+
+                sun_times = SunTimes(
+                    sunrise=iso_to_hour(sun_dict.get("sunrise"), 6.0),
+                    sunset=iso_to_hour(sun_dict.get("sunset"), 18.0),
+                    solar_noon=iso_to_hour(sun_dict.get("noon"), 12.0),
+                    solar_mid=(
+                        iso_to_hour(sun_dict.get("noon"), 12.0) + 12.0
+                    )
+                    % 24.0,
+                )
+
+                outdoor_norm = lux_tracker.get_outdoor_normalized()
+                outdoor_source = lux_tracker.get_outdoor_source()
+                if outdoor_norm is None:
+                    outdoor_norm = 0.0
+                    outdoor_source = "none"
+                sun_times.outdoor_normalized = outdoor_norm
+                sun_times.outdoor_source = outdoor_source
+            except Exception as e:
+                logger.debug(f"[SliderPreview] Error calculating sun times: {e}")
+
+            b_min = area_config.min_brightness
+            b_max = area_config.max_brightness
+
+            # For each sample point, compute what color the curve would
+            # produce if we set midpoints to output that brightness.
+            # This is exactly what calculate_set_position(dimension="step")
+            # does — compute midpoints for target brightness, then evaluate
+            # the color curve at those midpoints.
+            points = []
+            for i in range(num_points + 1):
+                frac = i / num_points
+                target_bri = b_min + (b_max - b_min) * frac
+                position = frac * 100  # 0-100 curve position
+
+                # Use a clean state (no overrides) for curve-only preview
+                preview_state = AreaState(
+                    is_circadian=area_state.is_circadian,
+                    is_on=area_state.is_on,
+                    frozen_at=area_state.frozen_at,
+                    brightness_mid=area_state.brightness_mid,
+                    color_mid=area_state.color_mid,
+                )
+
+                result = CircadianLight.calculate_set_position(
+                    hour=hour,
+                    position=position,
+                    dimension="step",
+                    config=area_config,
+                    state=preview_state,
+                    sun_times=sun_times,
+                )
+
+                points.append(
+                    {
+                        "brightness": round(target_bri),
+                        "kelvin": round(result.color_temp),
+                    }
+                )
+
+            return web.json_response({"points": points})
+
+        except Exception as e:
+            logger.error(f"[SliderPreview] Error: {e}")
             return web.json_response({"error": str(e)}, status=500)
 
     async def handle_zone_action(self, request: Request) -> Response:

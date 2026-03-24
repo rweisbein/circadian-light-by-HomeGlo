@@ -892,6 +892,7 @@
     let tickInterval = null;
     let basePath = '';
     let sliderInteracting = false;
+    let sliderPreviewPoints = null;  // [{brightness, kelvin}, ...] from backend
     let tuneSnapshot = null;
     let alarmSnapshot = null;
 
@@ -1700,24 +1701,46 @@
       el.style.display = '';
     }
 
-    function buildHorizontalGradient(cfg, currentCCT, thumbPct) {
+    async function fetchSliderPreview(areaId) {
+      try {
+        const res = await fetch(basePath + `/api/area/slider-preview?area_id=${encodeURIComponent(areaId)}`);
+        if (res.ok) {
+          const data = await res.json();
+          sliderPreviewPoints = data.points || [];
+          return sliderPreviewPoints;
+        }
+      } catch (err) {
+        console.error('Error fetching slider preview:', err);
+      }
+      return null;
+    }
+
+    function kelvinAtBrightness(brightness, points) {
+      if (!points || points.length < 2) return 4000;
+      if (brightness <= points[0].brightness) return points[0].kelvin;
+      const last = points[points.length - 1];
+      if (brightness >= last.brightness) return last.kelvin;
+      for (let i = 1; i < points.length; i++) {
+        const prev = points[i - 1];
+        const curr = points[i];
+        if (brightness <= curr.brightness) {
+          const frac = (brightness - prev.brightness) / (curr.brightness - prev.brightness);
+          return prev.kelvin + (curr.kelvin - prev.kelvin) * frac;
+        }
+      }
+      return last.kelvin;
+    }
+
+    function buildHorizontalGradient(cfg, currentCCT) {
       const bMin = cfg.min_brightness, bMax = cfg.max_brightness;
-      const cMin = cfg.min_color_temp;
-      // Left of thumb: warm→current (curve shift). Right of thumb: current kelvin (override).
       const stops = [];
-      const n = 8;
+      const n = 10;
       for (let i = 0; i <= n; i++) {
         const frac = i / n;
         const b = bMin + (bMax - bMin) * frac;
-        const posPct = frac * 100;
-        let k;
-        if (posPct >= thumbPct || thumbPct < 1) {
-          k = currentCCT;
-        } else {
-          k = cMin + (currentCCT - cMin) * (posPct / thumbPct);
-        }
+        const k = sliderPreviewPoints ? kelvinAtBrightness(b, sliderPreviewPoints) : currentCCT;
         const color = tintColorByBrightness(cctToRGB(k), b);
-        stops.push(color + ' ' + Math.round(posPct) + '%');
+        stops.push(color + ' ' + Math.round(frac * 100) + '%');
       }
       return 'linear-gradient(to right, ' + stops.join(', ') + ')';
     }
@@ -1726,7 +1749,7 @@
       const banner = document.getElementById('area-banner-slider');
       if (!banner || banner.classList.contains('dragging')) return;
       if (cfg) {
-        banner.style.background = buildHorizontalGradient(cfg, currentCCT, pct);
+        banner.style.background = buildHorizontalGradient(cfg, currentCCT);
       }
       const thumb = banner.querySelector('.row-slider-thumb');
       if (thumb) {
@@ -1892,16 +1915,11 @@
         previewBri = currentBri;
         previewCCT = cMin + (cMax - cMin) * position / 100;
       } else {
-        // Step/banner: below current → interpolate warm→current, above → hold current
+        // Step/banner: use preview points from backend
         previewBri = bMin + (bMax - bMin) * position / 100;
-        const actualBri = areaState.actual_brightness != null ? areaState.actual_brightness : currentBri;
-        const currentPct = bMax > bMin ? (actualBri - bMin) / (bMax - bMin) * 100 : 50;
-        if (position >= currentPct || currentPct < 1) {
-          previewCCT = currentCCT;
-        } else {
-          const frac = position / currentPct;
-          previewCCT = cMin + (currentCCT - cMin) * frac;
-        }
+        previewCCT = sliderPreviewPoints
+          ? kelvinAtBrightness(previewBri, sliderPreviewPoints)
+          : currentCCT;
       }
 
       const briFrac = bMax > bMin ? Math.max(0, Math.min(100, (previewBri - bMin) / (bMax - bMin) * 100)) : 50;
@@ -2030,6 +2048,8 @@
       document.getElementById('controls-area').style.display = 'flex';
 
       updateContent();
+      // Fetch slider preview points for gradient
+      fetchSliderPreview(areaId).then(() => updateAllSliders());
       setTimeout(() => {
         renderMiniChartForArea(areaId);
         updateAllSliders();
@@ -2445,7 +2465,10 @@
         if (response.ok) {
           setTimeout(async () => {
             try {
-              const res = await fetch(basePath + `/api/area-status?area_id=${encodeURIComponent(selectedArea.area_id)}`);
+              const [res, previewRes] = await Promise.all([
+                fetch(basePath + `/api/area-status?area_id=${encodeURIComponent(selectedArea.area_id)}`),
+                fetchSliderPreview(selectedArea.area_id),
+              ]);
               if (res.ok) {
                 const singleStatus = await res.json();
                 Object.assign(areaStatus, singleStatus);
@@ -2477,7 +2500,10 @@
         if (response.ok) {
           setTimeout(async () => {
             try {
-              const res = await fetch(basePath + `/api/area-status?area_id=${encodeURIComponent(selectedArea.area_id)}`);
+              const [res, _preview] = await Promise.all([
+                fetch(basePath + `/api/area-status?area_id=${encodeURIComponent(selectedArea.area_id)}`),
+                fetchSliderPreview(selectedArea.area_id),
+              ]);
               if (res.ok) {
                 const singleStatus = await res.json();
                 Object.assign(areaStatus, singleStatus);
