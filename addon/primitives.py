@@ -1907,7 +1907,7 @@ class CircadianLightPrimitives:
             result = CircadianLight.calculate_lighting(
                 hour, config, area_state, sun_times=sun_times
             )
-            state.set_last_off_ct(area_id, result.color_temp)
+            state.set_last_sent_kelvin(area_id, result.color_temp)
         except Exception as e:
             logger.warning(f"Could not calculate CT for area {area_id}: {e}")
 
@@ -2073,9 +2073,9 @@ class CircadianLightPrimitives:
                     result = CircadianLight.calculate_lighting(
                         hour, config, area_state, sun_times=sun_times
                     )
-                    state.set_last_off_ct(area_id, result.color_temp)
+                    state.set_last_sent_kelvin(area_id, result.color_temp)
                     logger.debug(
-                        f"Stored last_off_ct={result.color_temp} for area {area_id}"
+                        f"Stored last_sent_kelvin={result.color_temp} for area {area_id}"
                     )
                 except Exception as e:
                     logger.warning(f"Could not calculate CT for area {area_id}: {e}")
@@ -2472,7 +2472,7 @@ class CircadianLightPrimitives:
                 result = CircadianLight.calculate_lighting(
                     hour, config, area_state, sun_times=sun_times
                 )
-                state.set_last_off_ct(area_id, result.color_temp)
+                state.set_last_sent_kelvin(area_id, result.color_temp)
             except Exception as e:
                 logger.warning(f"Could not store CT for area {area_id}: {e}")
 
@@ -2732,7 +2732,7 @@ class CircadianLightPrimitives:
             result = CircadianLight.calculate_lighting(
                 hour, config, area_state, sun_times=sun_times
             )
-            state.set_last_off_ct(area_id, result.color_temp)
+            state.set_last_sent_kelvin(area_id, result.color_temp)
         except Exception as e:
             logger.warning(f"Could not store CT for area {area_id}: {e}")
 
@@ -3091,7 +3091,7 @@ class CircadianLightPrimitives:
             result = CircadianLight.calculate_lighting(
                 hour, config, area_state, sun_times=sun_times
             )
-            state.set_last_off_ct(area_id, result.color_temp)
+            state.set_last_sent_kelvin(area_id, result.color_temp)
         except Exception as e:
             logger.warning(f"Could not store CT for area {area_id}: {e}")
 
@@ -4316,7 +4316,7 @@ class CircadianLightPrimitives:
             return
 
         # Check if 2-step is needed based on CT difference
-        last_ct = state.get_last_off_ct(area_id)
+        last_ct = state.get_last_sent_kelvin(area_id)
         raw_cfg = glozone.load_config_from_files()
         ct_threshold = raw_cfg.get("two_step_ct_threshold", 500)
 
@@ -4655,7 +4655,7 @@ class CircadianLightPrimitives:
                 continue
 
             # Check CT difference
-            last_ct = state.get_last_off_ct(area_id)
+            last_ct = state.get_last_sent_kelvin(area_id)
             if last_ct is not None:
                 ct_diff = abs(color_temp - last_ct)
                 if ct_diff < ct_threshold:

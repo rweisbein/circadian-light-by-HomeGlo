@@ -45,8 +45,9 @@ def _get_default_area_state() -> Dict[str, Any]:
         "brightness_override": None,  # Brightness delta in % points
         "brightness_override_set_at": None,  # Hour when set (for decay calc)
         "color_override_set_at": None,  # Hour when color override set (for decay)
-        # Last color temp when lights were turned off (for smart 2-step turn-on)
-        "last_off_ct": None,
+        # Last-sent values (for 2-step detection and state tracking)
+        "last_sent_kelvin": None,  # Kelvin we last sent (persists through on/off)
+        "last_sent_brightness": None,  # Area-level brightness % (post curve+boost+NL+area_factor+override, pre-filter)
         # Boost state
         "boost_started_from_off": False,  # If true, turn off when boost ends; else restore circadian
         "boost_expires_at": None,  # ISO timestamp string when boost expires (None = not boosted, 0 = forever)
@@ -267,17 +268,24 @@ def is_frozen(area_id: str) -> bool:
     return get_area(area_id).get("frozen_at") is not None
 
 
-def set_last_off_ct(area_id: str, color_temp: int) -> None:
-    """Store the color temperature when lights were turned off.
-
-    Used to determine if 2-step turn-on is needed (to avoid color arc).
-    """
-    update_area(area_id, {"last_off_ct": color_temp})
+def set_last_sent_kelvin(area_id: str, kelvin: int) -> None:
+    """Store the kelvin we last sent to this area (persists through on/off)."""
+    update_area(area_id, {"last_sent_kelvin": kelvin})
 
 
-def get_last_off_ct(area_id: str) -> Optional[int]:
-    """Get the color temperature from when lights were last turned off."""
-    return get_area(area_id).get("last_off_ct")
+def get_last_sent_kelvin(area_id: str) -> Optional[int]:
+    """Get the kelvin we last sent to this area."""
+    return get_area(area_id).get("last_sent_kelvin")
+
+
+def set_last_sent_brightness(area_id: str, brightness: int) -> None:
+    """Store area-level brightness (post curve+boost+NL+area_factor+override, pre-filter)."""
+    update_area(area_id, {"last_sent_brightness": brightness})
+
+
+def get_last_sent_brightness(area_id: str) -> Optional[int]:
+    """Get area-level brightness we last sent."""
+    return get_area(area_id).get("last_sent_brightness")
 
 
 def get_circadian_areas() -> List[str]:

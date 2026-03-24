@@ -3288,6 +3288,10 @@ class HomeAssistantWebSocketClient:
                 f"Natural light: skipped for {area_id} (exposure={natural_exposure})"
             )
 
+        # Track last-sent kelvin (always correct, same for phase 1 and 2)
+        if kelvin is not None:
+            state.set_last_sent_kelvin(area_id, kelvin)
+
         # Check if light filters are active for this area
         area_filters = glozone.get_area_light_filters(area_id)
         area_factor = glozone.get_area_brightness_factor(area_id)
@@ -3317,6 +3321,10 @@ class HomeAssistantWebSocketClient:
         # Apply brightness_override directly (additive delta, already decay-adjusted)
         if brightness_override is not None and brightness is not None:
             brightness = int(min(100, max(1, round(brightness + brightness_override))))
+
+        # Track area-level brightness (post override, pre CT compensation)
+        if not skip_off_threshold and brightness is not None:
+            state.set_last_sent_brightness(area_id, brightness)
 
         # Apply CT brightness compensation (for warm color temps on Hue bulbs)
         if brightness is not None and kelvin is not None:
@@ -3545,6 +3553,13 @@ class HomeAssistantWebSocketClient:
         presets = glozone.get_light_filter_presets()
         off_threshold = glozone.get_off_threshold()
 
+        # Track area-level brightness (post area_factor + override, pre-filter)
+        if not skip_off_threshold and base_brightness is not None:
+            area_base = base_brightness * area_factor
+            if brightness_override is not None:
+                area_base = max(1, min(100, area_base + brightness_override))
+            state.set_last_sent_brightness(area_id, int(round(area_base)))
+
         # Get rhythm bounds for curve position calculation
         zone_cfg = glozone.get_zone_config_for_area(area_id)
         min_bri = zone_cfg.get("min_brightness", 1)
@@ -3630,13 +3645,8 @@ class HomeAssistantWebSocketClient:
                 entity_state = self.cached_states.get(check_entity, {})
                 is_off = entity_state.get("state") == "off"
 
-                # Get current CT (from cached state if on, last_off_ct if off)
-                if is_off:
-                    current_ct = state.get_last_off_ct(area_id)
-                else:
-                    current_ct = entity_state.get("attributes", {}).get(
-                        "color_temp_kelvin"
-                    )
+                # Get current CT from our own tracking (not HA cached_states)
+                current_ct = state.get_last_sent_kelvin(area_id)
 
                 # Check CT delta — skip if color is close enough
                 if current_ct is not None:
