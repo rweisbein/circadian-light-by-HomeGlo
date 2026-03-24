@@ -4443,6 +4443,7 @@ class LightDesignerServer:
                 AreaState,
                 SunTimes,
                 calculate_sun_times,
+                calculate_natural_light_factor,
             )
 
             config_dict = glozone.get_effective_config_for_area(area_id)
@@ -4506,39 +4507,94 @@ class LightDesignerServer:
             b_min = area_config.min_brightness
             b_max = area_config.max_brightness
 
-            # For each sample point, compute what color the curve would
-            # produce if we set midpoints to output that brightness.
-            # This is exactly what calculate_set_position(dimension="step")
-            # does — compute midpoints for target brightness, then evaluate
-            # the color curve at those midpoints.
+            # Pipeline factors for inverting actual → curve brightness
+            area_nl_exposure = glozone.get_area_natural_light_exposure(
+                area_id
+            )
+            area_bri_sensitivity = glozone.get_config().get(
+                "brightness_sensitivity", 5.0
+            )
+            outdoor_norm = lux_tracker.get_outdoor_normalized() or 0.0
+            nl_factor = calculate_natural_light_factor(
+                area_nl_exposure, outdoor_norm, area_bri_sensitivity
+            )
+            area_factor = glozone.get_area_brightness_factor(area_id)
+
+            boost_amount = 0
+            if state.is_boosted(area_id):
+                boost_st = state.get_boost_state(area_id)
+                boost_amount = boost_st.get("boost_brightness") or 0
+
+            # Compute curve limits in actual-brightness space
+            denominator = max(0.01, nl_factor * area_factor)
+            curve_max_actual = (b_max + boost_amount) * denominator
+            curve_min_actual = max(0, (b_min + boost_amount) * denominator)
+
+            # Kelvin at curve limits (computed once)
+            preview_state = AreaState(
+                is_circadian=area_state.is_circadian,
+                is_on=area_state.is_on,
+                frozen_at=area_state.frozen_at,
+                brightness_mid=area_state.brightness_mid,
+                color_mid=area_state.color_mid,
+            )
+            result_max = CircadianLight.calculate_set_position(
+                hour=hour,
+                position=100,
+                dimension="step",
+                config=area_config,
+                state=preview_state,
+                sun_times=sun_times,
+            )
+            result_min = CircadianLight.calculate_set_position(
+                hour=hour,
+                position=0,
+                dimension="step",
+                config=area_config,
+                state=preview_state,
+                sun_times=sun_times,
+            )
+            kelvin_at_max = result_max.color_temp
+            kelvin_at_min = result_min.color_temp
+
+            # Sample points across the actual brightness range (b_min to b_max)
             points = []
             for i in range(num_points + 1):
                 frac = i / num_points
-                target_bri = b_min + (b_max - b_min) * frac
-                position = frac * 100  # 0-100 curve position
+                target_actual = b_min + (b_max - b_min) * frac
 
-                # Use a clean state (no overrides) for curve-only preview
-                preview_state = AreaState(
-                    is_circadian=area_state.is_circadian,
-                    is_on=area_state.is_on,
-                    frozen_at=area_state.frozen_at,
-                    brightness_mid=area_state.brightness_mid,
-                    color_mid=area_state.color_mid,
-                )
+                if target_actual >= curve_max_actual:
+                    # P3 territory (above curve max) — color holds at max
+                    kelvin = kelvin_at_max
+                elif target_actual <= curve_min_actual:
+                    # P3 territory (below curve min) — color holds at min
+                    kelvin = kelvin_at_min
+                else:
+                    # P2 territory — invert to curve brightness, get color
+                    curve_bri = target_actual / denominator - boost_amount
+                    curve_bri = max(b_min, min(b_max, curve_bri))
+                    b_range = b_max - b_min
+                    position = (
+                        ((curve_bri - b_min) / b_range * 100)
+                        if b_range > 0
+                        else 50
+                    )
+                    position = max(0, min(100, position))
 
-                result = CircadianLight.calculate_set_position(
-                    hour=hour,
-                    position=position,
-                    dimension="step",
-                    config=area_config,
-                    state=preview_state,
-                    sun_times=sun_times,
-                )
+                    result = CircadianLight.calculate_set_position(
+                        hour=hour,
+                        position=position,
+                        dimension="step",
+                        config=area_config,
+                        state=preview_state,
+                        sun_times=sun_times,
+                    )
+                    kelvin = result.color_temp
 
                 points.append(
                     {
-                        "brightness": round(target_bri),
-                        "kelvin": round(result.color_temp),
+                        "brightness": round(target_actual),
+                        "kelvin": round(kelvin),
                     }
                 )
 
