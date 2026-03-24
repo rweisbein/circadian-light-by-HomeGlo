@@ -4053,11 +4053,33 @@ class LightDesignerServer:
             counter += 1
         return f"moment_{counter}"
 
+    @staticmethod
+    def _normalize_moment(moment: dict) -> dict:
+        """Normalize moment exceptions to {action, timer} format."""
+        exceptions = moment.get("exceptions", {})
+        if exceptions:
+            normalized = {}
+            for area_id, val in exceptions.items():
+                if isinstance(val, str):
+                    normalized[area_id] = {"action": val, "timer": 0}
+                elif isinstance(val, dict):
+                    normalized[area_id] = {
+                        "action": val.get("action", "leave_alone"),
+                        "timer": val.get("timer", 0),
+                    }
+                else:
+                    normalized[area_id] = {"action": "leave_alone", "timer": 0}
+            moment = {**moment, "exceptions": normalized}
+        return moment
+
     async def get_moments(self, request: Request) -> Response:
         """Get all moments."""
         try:
             config = await self.load_raw_config()
             moments = config.get("moments", {})
+            moments = {
+                k: self._normalize_moment(v) for k, v in moments.items()
+            }
             return web.json_response({"moments": moments})
         except Exception as e:
             logger.error(f"Error getting moments: {e}")
@@ -4075,7 +4097,9 @@ class LightDesignerServer:
                     {"error": f"Moment '{moment_id}' not found"}, status=404
                 )
 
-            return web.json_response({"moment": moments[moment_id], "id": moment_id})
+            return web.json_response(
+                {"moment": self._normalize_moment(moments[moment_id]), "id": moment_id}
+            )
         except Exception as e:
             logger.error(f"Error getting moment: {e}")
             return web.json_response({"error": str(e)}, status=500)

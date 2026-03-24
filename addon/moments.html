@@ -480,7 +480,7 @@
         if (exEntries.length > 0) {
           const counts = {};
           for (const ex of exEntries) {
-            const a = ex.action || 'off';
+            const a = ex.action || 'leave_alone';
             const label = ACTION_LABELS[a] || a;
             counts[label] = (counts[label] || 0) + 1;
           }
