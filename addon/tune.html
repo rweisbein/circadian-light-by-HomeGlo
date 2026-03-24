@@ -862,18 +862,19 @@
       panelHtml += '<span class="tune-outdoor-panel-label">Override</span>';
       panelHtml += '<select id="tune-outdoor-override-cond">';
       panelHtml += '<option value="">Off</option>';
-      panelHtml += '<option value="sunny"' + (d?.override?.condition === 'sunny' ? ' selected' : '') + '>Sunny</option>';
-      panelHtml += '<option value="mixed"' + (d?.override?.condition === 'mixed' ? ' selected' : '') + '>Mixed</option>';
-      panelHtml += '<option value="cloudy"' + (d?.override?.condition === 'cloudy' ? ' selected' : '') + '>Cloudy</option>';
-      panelHtml += '<option value="dark"' + (d?.override?.condition === 'dark' ? ' selected' : '') + '>Dark</option>';
+      const groups = d?.weather_groups || [];
+      for (const g of groups) {
+        const sel = d?.override?.condition === g.key ? ' selected' : '';
+        const pct = Math.round(g.multiplier * 100);
+        panelHtml += '<option value="' + g.key + '"' + sel + '>' + g.label + ' (' + pct + '%)</option>';
+      }
       panelHtml += '</select>';
       panelHtml += '<select id="tune-outdoor-override-dur">';
       panelHtml += '<option value="30">30m</option><option value="60" selected>1h</option><option value="120">2h</option><option value="240">4h</option>';
       panelHtml += '</select>';
+      panelHtml += '<button class="tune-outdoor-panel-btn" id="tune-outdoor-apply-override">Apply</button>';
       if (hasOverride) {
         panelHtml += '<button class="tune-outdoor-panel-btn danger" id="tune-outdoor-clear-override">Clear</button>';
-      } else {
-        panelHtml += '<button class="tune-outdoor-panel-btn" id="tune-outdoor-apply-override">Apply</button>';
       }
       panelHtml += '</div>';
       panelHtml += '</div>';

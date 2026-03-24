@@ -5223,6 +5223,21 @@ class LightDesignerServer:
             illuminance_sensors.sort(key=lambda x: x["name"].lower())
 
         outdoor_norm = lux_tracker.get_outdoor_normalized()
+
+        # Build weather condition groups with effective multipliers
+        saved_map = config.get("weather_condition_map", {})
+        weather_groups = [
+            {"label": "Sunny", "key": "sunny", "multiplier": saved_map.get("sunny", 1.0)},
+            {"label": "Partly cloudy", "key": "mixed", "multiplier": saved_map.get("mixed", saved_map.get("partlycloudy", 0.6))},
+            {"label": "Cloudy", "key": "cloudy", "multiplier": saved_map.get("cloudy", 0.3)},
+            {"label": "Rainy", "key": "rainy", "multiplier": saved_map.get("rainy", 0.2)},
+            {"label": "Snow", "key": "snowy", "multiplier": saved_map.get("snowy", 0.2)},
+            {"label": "Fog", "key": "fog", "multiplier": saved_map.get("fog", 0.15)},
+            {"label": "Pouring", "key": "pouring", "multiplier": saved_map.get("pouring", 0.1)},
+            {"label": "Storm", "key": "lightning", "multiplier": saved_map.get("lightning", 0.08)},
+            {"label": "Dark", "key": "dark", "multiplier": 0.0},
+        ]
+
         return web.json_response(
             {
                 "outdoor_normalized": round(
@@ -5239,6 +5254,7 @@ class LightDesignerServer:
                 "sun_elevation": round(lux_tracker._sun_elevation, 1),
                 "sensor_entity": lux_tracker.get_sensor_entity(),
                 "illuminance_sensors": illuminance_sensors,
+                "weather_groups": weather_groups,
             }
         )
 
