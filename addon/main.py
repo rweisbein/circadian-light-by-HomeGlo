@@ -1161,7 +1161,6 @@ class HomeAssistantWebSocketClient:
         # Record last action for UI display (even if unmapped, show raw command)
         display_event = button_event if button_event else f"{command}"
         switches.set_last_action(device_ieee, display_event)
-        logger.info(f"[LastAction] Set for {device_ieee}: {display_event}")
 
         if not button_event:
             logger.debug(f"Unmapped ZHA command: {command}")
@@ -1307,7 +1306,6 @@ class HomeAssistantWebSocketClient:
             button_event if button_event else f"button_{subtype}_{event_type}"
         )
         switches.set_last_action(switch_config.id, display_event)
-        logger.info(f"[LastAction] Set for {switch_config.id}: {display_event}")
 
         if not button_event:
             logger.debug(f"Unmapped Hue event: type={event_type}, subtype={subtype}")
@@ -3261,6 +3259,8 @@ class HomeAssistantWebSocketClient:
 
         # Apply natural light reduction (outdoor intensity, per-area exposure)
         natural_exposure = glozone.get_area_natural_light_exposure(area_id)
+        pre_nl_bri = brightness
+        nl_factor = 1.0
         if natural_exposure > 0.0 and brightness is not None:
             outdoor_norm = lux_tracker.get_outdoor_normalized()
             if outdoor_norm is None:
@@ -3273,20 +3273,7 @@ class HomeAssistantWebSocketClient:
                 natural_exposure, outdoor_norm, brightness_sensitivity
             )
             if nl_factor < 1.0:
-                original_bri = brightness
                 brightness = max(1, int(round(brightness * nl_factor)))
-                if log_periodic and brightness != original_bri:
-                    logger.info(
-                        f"Natural light: {original_bri}% -> {brightness}% (exposure={natural_exposure}, outdoor_norm={outdoor_norm:.3f}, sensitivity={brightness_sensitivity})"
-                    )
-            elif log_periodic:
-                logger.info(
-                    f"Natural light: no reduction for {area_id} (exposure={natural_exposure}, outdoor_norm={outdoor_norm:.3f}, nl_factor={nl_factor:.3f})"
-                )
-        elif log_periodic and brightness is not None:
-            logger.info(
-                f"Natural light: skipped for {area_id} (exposure={natural_exposure})"
-            )
 
         # Track last-sent kelvin (always correct, same for phase 1 and 2)
         if kelvin is not None:
@@ -3310,6 +3297,7 @@ class HomeAssistantWebSocketClient:
                 area_filters,
                 area_factor,
                 rhythm_brightness=rhythm_brightness,
+                pre_nl_brightness=pre_nl_bri,
                 brightness_override=brightness_override,
                 skip_filters=skip_filters,
                 skip_two_step=skip_two_step,
@@ -3318,22 +3306,37 @@ class HomeAssistantWebSocketClient:
             return
 
         # ---- Fast path: no filters, area_factor == 1.0 ----
+        post_nl_bri = brightness
         # Apply brightness_override directly (additive delta, already decay-adjusted)
         if brightness_override is not None and brightness is not None:
             brightness = int(min(100, max(1, round(brightness + brightness_override))))
+        post_override_bri = brightness
 
         # Track area-level brightness (post override, pre CT compensation)
         if not skip_off_threshold and brightness is not None:
             state.set_last_sent_brightness(area_id, brightness)
 
         # Apply CT brightness compensation (for warm color temps on Hue bulbs)
+        ct_comp_bri = brightness
         if brightness is not None and kelvin is not None:
-            original_brightness = brightness
             brightness = self._apply_ct_brightness_compensation(brightness, kelvin)
-            if brightness != original_brightness:
-                logger.debug(
-                    f"CT compensation: {original_brightness}% -> {brightness}% at {kelvin}K"
-                )
+            ct_comp_bri = brightness
+
+        # Pipeline summary
+        if log_periodic and brightness is not None:
+            curve_bri = rhythm_brightness or pre_nl_bri
+            boost_amount = (pre_nl_bri - curve_bri) if curve_bri and pre_nl_bri and pre_nl_bri > curve_bri else 0
+            parts = [f"curve={curve_bri}%"]
+            if boost_amount > 0:
+                parts.append(f"+boost={boost_amount}→{pre_nl_bri}%")
+            if nl_factor < 1.0:
+                parts.append(f"NL×{nl_factor:.2f}={post_nl_bri}%")
+            if brightness_override:
+                parts.append(f"override={brightness_override:+.0f}→{post_override_bri}%")
+            if ct_comp_bri != post_override_bri:
+                parts.append(f"CT→{ct_comp_bri}%")
+            parts.append(f"{kelvin}K")
+            logger.info(f"[Pipeline] {area_id}: {' → '.join(parts)}")
 
         color_lights, ct_lights, brightness_lights, onoff_lights = (
             self.get_lights_by_capability(area_id)
@@ -3539,6 +3542,7 @@ class HomeAssistantWebSocketClient:
         area_filters: Dict[str, str],
         area_factor: float,
         rhythm_brightness: int = None,
+        pre_nl_brightness: int = None,
         brightness_override: float = None,
         skip_filters: set = None,
         skip_two_step: bool = False,
@@ -3851,12 +3855,24 @@ class HomeAssistantWebSocketClient:
                     filtered_bri, kelvin
                 )
 
-            if log_periodic and (
-                filtered_bri != base_brightness or filter_name != "Standard"
-            ):
-                logger.info(
-                    f"Purpose '{filter_name}': base={base_brightness}% -> filtered={filtered_bri}% (factor={area_factor}, preset={preset})"
-                )
+            if log_periodic:
+                curve_bri = rhythm_brightness or base_brightness
+                pre_nl = pre_nl_brightness or base_brightness
+                boost_amount = (pre_nl - curve_bri) if curve_bri and pre_nl > curve_bri else 0
+                parts = [f"curve={curve_bri}%"]
+                if boost_amount > 0:
+                    parts.append(f"+boost={boost_amount}→{pre_nl}%")
+                if pre_nl != base_brightness:
+                    parts.append(f"NL→{base_brightness}%")
+                if area_factor != 1.0:
+                    parts.append(f"area×{area_factor:.2f}")
+                if brightness_override:
+                    parts.append(f"override={brightness_override:+.0f}")
+                parts.append(f"{filter_name}→{filtered_bri}%")
+                if comp_brightness != filtered_bri:
+                    parts.append(f"CT→{comp_brightness}%")
+                parts.append(f"{kelvin}K")
+                logger.info(f"[Pipeline] {area_id}: {' → '.join(parts)}")
 
             filt_norm = filter_name.replace(" ", "_").lower()
 
