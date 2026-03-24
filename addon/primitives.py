@@ -1435,13 +1435,21 @@ class CircadianLightPrimitives:
                 config.min_brightness, min(config.max_brightness, target_curve)
             )
 
-            # Skip P2 if curve is already at target (avoids midpoint drift
-            # from inverse_midpoint at asymptotes, e.g., NL-crushed rooms
-            # where curve is at max but actual is low)
+            # Skip P2 when target_curve hit the clamp (curve can't help —
+            # the pipeline is the bottleneck). Also skip when curve is
+            # already at target (avoids inverse_midpoint drift).
             current_curve = CircadianLight.calculate_brightness_at_hour(
                 hour, config, area_state
             )
-            if abs(current_curve - target_curve) >= 1.0:
+            bri_margin = max(
+                1.0, (config.max_brightness - config.min_brightness) * 0.01
+            )
+            target_at_limit = (
+                target_curve >= config.max_brightness - bri_margin
+                or target_curve <= config.min_brightness + bri_margin
+            )
+            curve_needs_shift = abs(current_curve - target_curve) >= 1.0
+            if curve_needs_shift and not target_at_limit:
                 # Convert to 0-100 position on the curve
                 b_range = config.max_brightness - config.min_brightness
                 if b_range > 0:
@@ -1469,10 +1477,10 @@ class CircadianLightPrimitives:
                     f"cct={result.color_temp}K)"
                 )
             else:
-                logger.debug(
+                logger.info(
                     f"[{source}] circadian_adjust P2: skipped for {area_id} "
-                    f"(curve already at {current_curve:.0f}%, "
-                    f"target {target_curve:.0f}%)"
+                    f"(curve={current_curve:.0f}%, target_curve={target_curve:.0f}%, "
+                    f"at_limit={target_at_limit})"
                 )
 
             # Check if target reached after P2
