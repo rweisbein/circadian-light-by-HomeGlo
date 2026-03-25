@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.91
+- **Fix boost bypassing pipeline**: Boost brightness was pre-added before entering the pipeline, causing area_factor and NL to crush the boost. Now passes boost_brightness separately so it's applied after area_factor (matching periodic updater). Fixes bright_boost, _apply_current_boost, and _apply_circadian_lighting.
+
 ## 1.0.90
 - **Banner shows actual brightness**: Area detail banner now displays actual brightness (includes NL, area factor, override, boost) instead of raw curve value.
 - **Fix tune cascade order**: Area brightness computation section now matches backend pipeline order: curve → NL → area factor → override → boost. Previously boost was applied before area factor, showing incorrect values.

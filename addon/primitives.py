@@ -2527,16 +2527,29 @@ class CircadianLightPrimitives:
         state.enable_circadian_and_set_on(area_id, True)
 
         # Apply boosted brightness with circadian color temp
+        effective_override = self._get_decayed_brightness_override(area_id)
         transition = self._get_turn_on_transition()
         if lights_currently_on:
             # Lights already on - just adjust brightness
             await self._apply_lighting(
-                area_id, boosted_brightness, result.color_temp, transition=transition
+                area_id,
+                result.brightness,
+                result.color_temp,
+                transition=transition,
+                rhythm_brightness=result.brightness,
+                brightness_override=effective_override,
+                boost_brightness=boost_amount,
             )
         else:
             # Lights were off - use two-phase turn-on
             await self._apply_lighting_turn_on(
-                area_id, boosted_brightness, result.color_temp, transition=transition
+                area_id,
+                result.brightness,
+                result.color_temp,
+                transition=transition,
+                rhythm_brightness=result.brightness,
+                brightness_override=effective_override,
+                boost_brightness=boost_amount,
             )
 
         logger.info(
@@ -2562,11 +2575,17 @@ class CircadianLightPrimitives:
         result = CircadianLight.calculate_lighting(
             hour, config, area_state, sun_times=sun_times
         )
-        boosted_brightness = min(100, result.brightness + boost_amount)
+        effective_override = self._get_decayed_brightness_override(area_id)
 
         transition = self._get_turn_on_transition()
         await self._apply_lighting(
-            area_id, boosted_brightness, result.color_temp, transition=transition
+            area_id,
+            result.brightness,
+            result.color_temp,
+            transition=transition,
+            rhythm_brightness=result.brightness,
+            brightness_override=effective_override,
+            boost_brightness=boost_amount,
         )
 
     async def end_boost(self, area_id: str, source: str = "timer") -> bool:
@@ -4425,26 +4444,21 @@ class CircadianLightPrimitives:
         # Fetch brightness_override from state (same as periodic path)
         brightness_override = self._get_decayed_brightness_override(area_id)
 
-        # Apply boost if area is boosted
-        final_brightness = brightness
+        # Check boost state
+        boost_brightness = None
         if state.is_boosted(area_id):
             boost_state = state.get_boost_state(area_id)
-            boost_amount = boost_state.get("boost_brightness") or 0
-            final_brightness = (
-                brightness + boost_amount
-            )  # No cap — nl_factor/area_factor scale it down
-            logger.debug(
-                f"Boost applied: {brightness}% + {boost_amount}% = {final_brightness}%"
-            )
+            boost_brightness = boost_state.get("boost_brightness") or None
 
         await self._apply_lighting(
             area_id,
-            final_brightness,
+            brightness,
             color_temp,
             include_color,
             transition,
             rhythm_brightness=rhythm_brightness,
             brightness_override=brightness_override,
+            boost_brightness=boost_brightness,
             nudge=nudge,
         )
 
