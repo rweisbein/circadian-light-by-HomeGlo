@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.95
+- **Auto-sync reach groups on balance/exposure change**: Saving room balance or solar exposure now triggers a reach group sync, so ZHA group membership stays in sync with area_factor changes.
+
 ## 1.0.94
 - **Replace nudge with post-switch refresh**: Removed all per-command nudge infrastructure (schedule_nudge, cancel_nudge, reach nudge, off-nudge). After a switch action, schedules a delayed refresh_event that triggers a full periodic update — sequential per-area re-send using fresh calculated values. Eliminates stale-value race conditions. New "Post-switch refresh" setting in Refresh section (default 3s) replaces nudge_delay/nudge_transition.
 

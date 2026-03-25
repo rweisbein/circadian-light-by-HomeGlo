@@ -578,9 +578,7 @@ class LightDesignerServer:
             "/{path:.*}/api/area/slider-preview",
             self.get_slider_preview,
         )
-        self.app.router.add_get(
-            "/api/area/slider-preview", self.get_slider_preview
-        )
+        self.app.router.add_get("/api/area/slider-preview", self.get_slider_preview)
 
         # Zone action API route
         self.app.router.add_route(
@@ -1096,6 +1094,8 @@ class LightDesignerServer:
 
             if self.client:
                 await self.client.handle_config_refresh()
+                # Re-sync reach groups — area_factor change affects group membership
+                await self.client.sync_reach_groups()
 
             return web.json_response({"status": "ok"})
         except Exception as e:
@@ -2708,8 +2708,8 @@ class LightDesignerServer:
                     # Keep curve brightness before NL (pure circadian value)
                     curve_brightness = brightness
                     boost_amount = (
-                        boost_state.get("boost_brightness") or 0
-                    ) if is_boosted else 0
+                        (boost_state.get("boost_brightness") or 0) if is_boosted else 0
+                    )
 
                     # Get motion timer state
                     motion_expires_at = state.get_motion_expires(area_id)
@@ -2959,9 +2959,7 @@ class LightDesignerServer:
                     area_config = Config.from_dict(config_dict)
 
                     is_boosted = state.is_boosted(area_id)
-                    boost_state = (
-                        state.get_boost_state(area_id) if is_boosted else {}
-                    )
+                    boost_state = state.get_boost_state(area_id) if is_boosted else {}
 
                     last_bri = state.get_last_sent_brightness(area_id)
                     last_kelvin = state.get_last_sent_kelvin(area_id)
@@ -2975,14 +2973,10 @@ class LightDesignerServer:
                         "frozen_at": area_state.frozen_at,
                         "boosted": is_boosted,
                         "boost_brightness": (
-                            boost_state.get("boost_brightness")
-                            if is_boosted
-                            else None
+                            boost_state.get("boost_brightness") if is_boosted else None
                         ),
                         "boost_expires_at": (
-                            boost_state.get("boost_expires_at")
-                            if is_boosted
-                            else None
+                            boost_state.get("boost_expires_at") if is_boosted else None
                         ),
                         "boost_started_from_off": (
                             boost_state.get("boost_started_from_off", False)
@@ -2996,9 +2990,7 @@ class LightDesignerServer:
                         ),
                         "motion_expires_at": state.get_motion_expires(area_id),
                         "motion_warning_active": state.is_motion_warned(area_id),
-                        "zone_name": (
-                            zone_name if zone_name != "Unassigned" else None
-                        ),
+                        "zone_name": (zone_name if zone_name != "Unassigned" else None),
                         "preset_name": zone_name,
                         "min_brightness": area_config.min_brightness,
                         "max_brightness": area_config.max_brightness,
@@ -3045,7 +3037,8 @@ class LightDesignerServer:
                 return web.json_response({"error": "Client not ready"}, status=500)
 
             await self.client.call_service(
-                "homeassistant", "update_entity",
+                "homeassistant",
+                "update_entity",
                 {},
                 {"entity_id": entity},
             )
@@ -3249,9 +3242,7 @@ class LightDesignerServer:
 
                 tasks = []
                 for filter_name, lights_by_cap in filter_groups.items():
-                    preset = presets.get(
-                        filter_name, {"at_bright": 100, "at_dim": 100}
-                    )
+                    preset = presets.get(filter_name, {"at_bright": 100, "at_dim": 100})
 
                     # Calculate filtered brightness through the pipeline
                     filtered_bri, should_off = apply_light_filter_pipeline(
@@ -3269,7 +3260,8 @@ class LightDesignerServer:
                         if off_entities:
                             tasks.append(
                                 self.client.call_service(
-                                    "light", "turn_off",
+                                    "light",
+                                    "turn_off",
                                     {"transition": transition},
                                     {"entity_id": off_entities},
                                 )
@@ -3279,9 +3271,7 @@ class LightDesignerServer:
                     # Apply CT compensation to the filtered brightness
                     comp_bri = filtered_bri
                     if color_temp is not None:
-                        comp_bri = self._ct_compensate(
-                            filtered_bri, int(color_temp)
-                        )
+                        comp_bri = self._ct_compensate(filtered_bri, int(color_temp))
 
                     # Color-capable lights: use xy_color
                     if lights_by_cap["color"]:
@@ -3293,7 +3283,8 @@ class LightDesignerServer:
                             color_data["xy_color"] = xy
                         tasks.append(
                             self.client.call_service(
-                                "light", "turn_on",
+                                "light",
+                                "turn_on",
                                 color_data,
                                 {"entity_id": lights_by_cap["color"]},
                             )
@@ -3306,12 +3297,11 @@ class LightDesignerServer:
                             "brightness_pct": comp_bri,
                         }
                         if color_temp is not None:
-                            ct_data["color_temp_kelvin"] = max(
-                                2000, int(color_temp)
-                            )
+                            ct_data["color_temp_kelvin"] = max(2000, int(color_temp))
                         tasks.append(
                             self.client.call_service(
-                                "light", "turn_on",
+                                "light",
+                                "turn_on",
                                 ct_data,
                                 {"entity_id": lights_by_cap["ct"]},
                             )
@@ -3341,7 +3331,8 @@ class LightDesignerServer:
                     service_data["xy_color"] = list(xy)
 
                 await self.client.call_service(
-                    "light", "turn_on",
+                    "light",
+                    "turn_on",
                     service_data,
                     {"area_id": area_id},
                 )
@@ -3406,7 +3397,8 @@ class LightDesignerServer:
 
                     # Visual feedback: fade to off over 2 seconds
                     await self.client.call_service(
-                        "light", "turn_off",
+                        "light",
+                        "turn_off",
                         {"transition": 2},
                         {"entity_id": all_lights},
                     )
@@ -3432,7 +3424,8 @@ class LightDesignerServer:
                     # Visual feedback: fade to off over 2 seconds, then restore
                     if all_lights and self.client:
                         await self.client.call_service(
-                            "light", "turn_off",
+                            "light",
+                            "turn_off",
                             {"transition": 2},
                             {"entity_id": all_lights},
                         )
@@ -3450,7 +3443,8 @@ class LightDesignerServer:
                             elif ct:
                                 restore_data["color_temp"] = ct
                             await self.client.call_service(
-                                "light", "turn_on",
+                                "light",
+                                "turn_on",
                                 restore_data,
                                 {"entity_id": eid},
                             )
@@ -4106,7 +4100,9 @@ class LightDesignerServer:
             # Always remove from runtime state so periodic refresh stops updating it
             state.remove_area(area_id)
 
-            config_changed = removed_from or switches_cleaned or motion_cleaned or contact_cleaned
+            config_changed = (
+                removed_from or switches_cleaned or motion_cleaned or contact_cleaned
+            )
             if config_changed:
                 await self.save_config_to_file(config)
                 glozone.set_config(config)
@@ -4166,9 +4162,7 @@ class LightDesignerServer:
         try:
             config = await self.load_raw_config()
             moments = config.get("moments", {})
-            moments = {
-                k: self._normalize_moment(v) for k, v in moments.items()
-            }
+            moments = {k: self._normalize_moment(v) for k, v in moments.items()}
             return web.json_response({"moments": moments})
         except Exception as e:
             logger.error(f"Error getting moments: {e}")
@@ -4547,9 +4541,7 @@ class LightDesignerServer:
         """
         area_id = request.query.get("area_id")
         if not area_id:
-            return web.json_response(
-                {"error": "area_id is required"}, status=400
-            )
+            return web.json_response({"error": "area_id is required"}, status=400)
 
         num_points = int(request.query.get("points", 10))
         num_points = max(3, min(20, num_points))
@@ -4606,10 +4598,7 @@ class LightDesignerServer:
                     sunrise=iso_to_hour(sun_dict.get("sunrise"), 6.0),
                     sunset=iso_to_hour(sun_dict.get("sunset"), 18.0),
                     solar_noon=iso_to_hour(sun_dict.get("noon"), 12.0),
-                    solar_mid=(
-                        iso_to_hour(sun_dict.get("noon"), 12.0) + 12.0
-                    )
-                    % 24.0,
+                    solar_mid=(iso_to_hour(sun_dict.get("noon"), 12.0) + 12.0) % 24.0,
                 )
 
                 outdoor_norm = lux_tracker.get_outdoor_normalized()
@@ -4626,9 +4615,7 @@ class LightDesignerServer:
             b_max = area_config.max_brightness
 
             # Pipeline factors for inverting actual → curve brightness
-            area_nl_exposure = glozone.get_area_natural_light_exposure(
-                area_id
-            )
+            area_nl_exposure = glozone.get_area_natural_light_exposure(area_id)
             area_bri_sensitivity = glozone.get_config().get(
                 "brightness_sensitivity", 5.0
             )
@@ -4694,9 +4681,7 @@ class LightDesignerServer:
                     curve_bri = max(b_min, min(b_max, curve_bri))
                     b_range = b_max - b_min
                     position = (
-                        ((curve_bri - b_min) / b_range * 100)
-                        if b_range > 0
-                        else 50
+                        ((curve_bri - b_min) / b_range * 100) if b_range > 0 else 50
                     )
                     position = max(0, min(100, position))
 
@@ -5057,7 +5042,8 @@ class LightDesignerServer:
 
             # Flash: turn on bright
             await self.client.call_service(
-                "light", "turn_on",
+                "light",
+                "turn_on",
                 {"brightness": 255, "transition": 0},
                 {"entity_id": entity_id},
             )
@@ -5067,7 +5053,8 @@ class LightDesignerServer:
             # Restore
             if not was_on:
                 await self.client.call_service(
-                    "light", "turn_off",
+                    "light",
+                    "turn_off",
                     {"transition": 0},
                     {"entity_id": entity_id},
                 )
@@ -5080,7 +5067,8 @@ class LightDesignerServer:
                 elif ct:
                     restore_data["color_temp"] = ct
                 await self.client.call_service(
-                    "light", "turn_on",
+                    "light",
+                    "turn_on",
                     restore_data,
                     {"entity_id": entity_id},
                 )
@@ -5132,21 +5120,40 @@ class LightDesignerServer:
                     if show_all:
                         if is_group:
                             entire_area_lights.append(
-                                {"entity_id": eid, "name": f"Entire area: {area_name}", "area_id": aid, "is_group": True}
+                                {
+                                    "entity_id": eid,
+                                    "name": f"Entire area: {area_name}",
+                                    "area_id": aid,
+                                    "is_group": True,
+                                }
                             )
                         else:
-                            base_name = attrs.get("friendly_name") or eid.replace("light.", "").replace("_", " ").title()
+                            base_name = (
+                                attrs.get("friendly_name")
+                                or eid.replace("light.", "").replace("_", " ").title()
+                            )
                             lights.append(
-                                {"entity_id": eid, "name": f"{area_name}: {base_name}", "area_id": aid}
+                                {
+                                    "entity_id": eid,
+                                    "name": f"{area_name}: {base_name}",
+                                    "area_id": aid,
+                                }
                             )
                     else:
                         if is_group:
-                            name = f"Entire area: {area_name}" if area_name else "Entire area"
+                            name = (
+                                f"Entire area: {area_name}"
+                                if area_name
+                                else "Entire area"
+                            )
                             entire_area_lights.append(
                                 {"entity_id": eid, "name": name, "is_group": True}
                             )
                         else:
-                            name = attrs.get("friendly_name") or eid.replace("light.", "").replace("_", " ").title()
+                            name = (
+                                attrs.get("friendly_name")
+                                or eid.replace("light.", "").replace("_", " ").title()
+                            )
                             lights.append({"entity_id": eid, "name": name})
 
             entire_area_lights.sort(key=lambda x: x["name"].lower())
@@ -5322,14 +5329,44 @@ class LightDesignerServer:
         # Build weather condition groups with effective multipliers
         saved_map = config.get("weather_condition_map", {})
         weather_groups = [
-            {"label": "Sunny", "key": "sunny", "multiplier": saved_map.get("sunny", 1.0)},
-            {"label": "Partly cloudy", "key": "mixed", "multiplier": saved_map.get("mixed", saved_map.get("partlycloudy", 0.6))},
-            {"label": "Cloudy", "key": "cloudy", "multiplier": saved_map.get("cloudy", 0.3)},
-            {"label": "Rainy", "key": "rainy", "multiplier": saved_map.get("rainy", 0.2)},
-            {"label": "Snow", "key": "snowy", "multiplier": saved_map.get("snowy", 0.2)},
+            {
+                "label": "Sunny",
+                "key": "sunny",
+                "multiplier": saved_map.get("sunny", 1.0),
+            },
+            {
+                "label": "Partly cloudy",
+                "key": "mixed",
+                "multiplier": saved_map.get(
+                    "mixed", saved_map.get("partlycloudy", 0.6)
+                ),
+            },
+            {
+                "label": "Cloudy",
+                "key": "cloudy",
+                "multiplier": saved_map.get("cloudy", 0.3),
+            },
+            {
+                "label": "Rainy",
+                "key": "rainy",
+                "multiplier": saved_map.get("rainy", 0.2),
+            },
+            {
+                "label": "Snow",
+                "key": "snowy",
+                "multiplier": saved_map.get("snowy", 0.2),
+            },
             {"label": "Fog", "key": "fog", "multiplier": saved_map.get("fog", 0.15)},
-            {"label": "Pouring", "key": "pouring", "multiplier": saved_map.get("pouring", 0.1)},
-            {"label": "Storm", "key": "lightning", "multiplier": saved_map.get("lightning", 0.08)},
+            {
+                "label": "Pouring",
+                "key": "pouring",
+                "multiplier": saved_map.get("pouring", 0.1),
+            },
+            {
+                "label": "Storm",
+                "key": "lightning",
+                "multiplier": saved_map.get("lightning", 0.08),
+            },
             {"label": "Dark", "key": "dark", "multiplier": 0.0},
         ]
 
@@ -5907,17 +5944,14 @@ class LightDesignerServer:
                         or dc in ("door", "window", "opening", "garage_door")
                     ):
                         device_entities[device_id]["has_contact"] = True
-                elif (
-                    entity_id.startswith("sensor.") and "_battery" in entity_id
-                ):
+                elif entity_id.startswith("sensor.") and "_battery" in entity_id:
                     device_entities[device_id]["has_battery"] = True
                 elif entity_id.startswith("sensor.") and (
                     "illuminance" in entity_id or "_lux" in entity_id
                 ):
                     device_entities[device_id]["illuminance_entity"] = entity_id
                 elif (
-                    entity_id.startswith("select.")
-                    or entity_id.startswith("number.")
+                    entity_id.startswith("select.") or entity_id.startswith("number.")
                 ) and "sensitivity" in entity_id.lower():
                     device_entities[device_id]["sensitivity_entity"] = entity_id
 
@@ -6003,7 +6037,9 @@ class LightDesignerServer:
                 illum_entity = entities.get("illuminance_entity")
                 illum_info = None
                 if illum_entity:
-                    raw_val = self.client.cached_states.get(illum_entity, {}).get("state")
+                    raw_val = self.client.cached_states.get(illum_entity, {}).get(
+                        "state"
+                    )
                     try:
                         illum_val = (
                             round(float(raw_val))
@@ -6316,10 +6352,14 @@ class LightDesignerServer:
             rest_url, ws_url, token = self._get_ha_api_config()
             if ws_url and token:
                 try:
-                    async with websockets.connect(ws_url, max_size=16 * 1024 * 1024) as ws:
+                    async with websockets.connect(
+                        ws_url, max_size=16 * 1024 * 1024
+                    ) as ws:
                         msg = json.loads(await ws.recv())
                         if msg.get("type") == "auth_required":
-                            await ws.send(json.dumps({"type": "auth", "access_token": token}))
+                            await ws.send(
+                                json.dumps({"type": "auth", "access_token": token})
+                            )
                             msg = json.loads(await ws.recv())
                             if msg.get("type") == "auth_ok":
                                 await ws.send(
@@ -6417,13 +6457,15 @@ class LightDesignerServer:
                 if sensitivity_entity:
                     if sensitivity_entity.startswith("select."):
                         await self.client.call_service(
-                            "select", "select_option",
+                            "select",
+                            "select_option",
                             {"option": new_sensitivity},
                             {"entity_id": sensitivity_entity},
                         )
                     else:
                         await self.client.call_service(
-                            "number", "set_value",
+                            "number",
+                            "set_value",
                             {"value": new_sensitivity},
                             {"entity_id": sensitivity_entity},
                         )
@@ -6440,7 +6482,8 @@ class LightDesignerServer:
                 try:
                     timeout_int = int(new_timeout)
                     await self.client.call_service(
-                        "zha", "set_zigbee_cluster_attribute",
+                        "zha",
+                        "set_zigbee_cluster_attribute",
                         {
                             "ieee": device_ieee,
                             "endpoint_id": 2,
