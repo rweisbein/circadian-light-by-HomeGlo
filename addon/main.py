@@ -1642,37 +1642,6 @@ class HomeAssistantWebSocketClient:
         # Has filter-aware groups OR legacy entity_id_color/ct
         return bool(reach.filter_groups) or reach.entity_id_color or reach.entity_id_ct
 
-    def _compute_reach_value(
-        self, area_id: str, base_bri: float, color_temp: int
-    ) -> Optional[Tuple[int, int]]:
-        """Compute final (brightness, color_temp) for reach group comparison.
-
-        Applies the same pipeline as turn_on_lights_circadian fast path:
-        (base_bri + boost) * NL_factor + brightness_override.
-        CT compensation is NOT applied (reach groups handle it internally).
-
-        Returns None if area has filters (can't use reach).
-        """
-        # Filters require per-light sub-groups — can't use reach
-        area_filters = glozone.get_area_light_filters(area_id)
-        area_factor = glozone.get_area_brightness_factor(area_id)
-        if bool(area_filters) or area_factor != 1.0:
-            return None
-
-        bri = base_bri
-        if state.is_boosted(area_id):
-            boost_state = state.get_boost_state(area_id)
-            bri += boost_state.get("boost_brightness") or 0
-
-        nl_factor = self.primitives._compute_nl_factor(area_id)
-        bri = max(1, int(round(bri * nl_factor)))
-
-        override = self.primitives._get_decayed_brightness_override(area_id)
-        if override is not None:
-            bri = int(min(100, max(1, round(bri + override))))
-
-        return (bri, color_temp)
-
     async def _send_step_via_reach_or_fallback(
         self,
         areas: List[str],
@@ -2500,9 +2469,11 @@ class HomeAssistantWebSocketClient:
             if feedback_area
             else None
         ) or {}
-        was_on = not purpose_state.get("is_off", False) and state.get_is_on(
-            feedback_area
-        ) if feedback_area else True
+        was_on = (
+            not purpose_state.get("is_off", False) and state.get_is_on(feedback_area)
+            if feedback_area
+            else True
+        )
         # Convert 0-100% to HA 0-255 scale
         cached_bri = int(purpose_state.get("brightness", 50) * 2.55)
 
@@ -2531,7 +2502,9 @@ class HomeAssistantWebSocketClient:
             phase1_data = {"brightness": target_bri, "transition": limit_speed}
             if bounce_color:
                 # Shift color temp for visual effect
-                last_kelvin = state.get_last_sent_kelvin(feedback_area) if feedback_area else None
+                last_kelvin = (
+                    state.get_last_sent_kelvin(feedback_area) if feedback_area else None
+                )
                 current_ct = int(1000000 / last_kelvin) if last_kelvin else None
                 if current_ct:
                     config = Config.from_dict(glozone.get_config())
@@ -3120,6 +3093,9 @@ class HomeAssistantWebSocketClient:
             color_temp: Color temperature in Kelvin (alternative to dict)
             xy: Pre-computed CIE xy coordinates (optional, computed from color_temp if not provided)
         """
+        # Cancel any pending nudge — new command supersedes it
+        self.cancel_nudge(area_id)
+
         # Support both dict and kwargs calling conventions
         rhythm_brightness = None
         brightness_override = None
@@ -3229,7 +3205,9 @@ class HomeAssistantWebSocketClient:
             if nl_factor < 1.0:
                 parts.append(f"NL×{nl_factor:.2f}={post_nl_bri}%")
             if brightness_override:
-                parts.append(f"override={brightness_override:+.0f}→{post_override_bri}%")
+                parts.append(
+                    f"override={brightness_override:+.0f}→{post_override_bri}%"
+                )
             if boost_brightness:
                 parts.append(f"+boost={boost_brightness}→{post_boost_bri}%")
             if ct_comp_bri != post_boost_bri:
@@ -3516,7 +3494,12 @@ class HomeAssistantWebSocketClient:
         is_all_hue = self.is_all_hue_area(area_id)
         raw_cfg = glozone.load_config_from_files()
         ct_threshold = raw_cfg.get("two_step_ct_threshold", 500)
-        if not skip_two_step and not is_all_hue and kelvin is not None and ct_threshold > 0:
+        if (
+            not skip_two_step
+            and not is_all_hue
+            and kelvin is not None
+            and ct_threshold > 0
+        ):
             for filter_name, lights_by_cap in filter_groups.items():
                 filt_norm = filter_name.replace(" ", "_").lower()
                 if skip_filters and filt_norm in skip_filters:
@@ -3761,7 +3744,10 @@ class HomeAssistantWebSocketClient:
 
             # Cache per-purpose last-sent values
             state.set_last_sent_purpose(
-                area_id, filter_name, comp_brightness, kelvin or 4000,
+                area_id,
+                filter_name,
+                comp_brightness,
+                kelvin or 4000,
                 is_off=should_off,
             )
 
@@ -3982,22 +3968,30 @@ class HomeAssistantWebSocketClient:
             self.area_group_map.get(normalized_key, {}) if normalized_key else {}
         )
         # Check generic group first, then fall back to purpose-specific groups
-        zha_color_group = group_candidates.get("zha_group_color") or group_candidates.get("zha_group_standard_color")
-        zha_ct_group = group_candidates.get("zha_group_ct") or group_candidates.get("zha_group_standard_ct")
+        zha_color_group = group_candidates.get(
+            "zha_group_color"
+        ) or group_candidates.get("zha_group_standard_color")
+        zha_ct_group = group_candidates.get("zha_group_ct") or group_candidates.get(
+            "zha_group_standard_ct"
+        )
         # Also collect all purpose-specific groups for comprehensive turn-off
         all_color_groups = [
-            v for k, v in group_candidates.items()
+            v
+            for k, v in group_candidates.items()
             if k.endswith("_color") and k.startswith("zha_group_")
         ]
         all_ct_groups = [
-            v for k, v in group_candidates.items()
+            v
+            for k, v in group_candidates.items()
             if k.endswith("_ct") and k.startswith("zha_group_")
         ]
 
         service_data = {"transition": transition}
 
         # Get ungrouped lights for this area (single-purpose ZHA lights with no group)
-        ungrouped = self._ungrouped_lights.get(normalized_key, {}) if normalized_key else {}
+        ungrouped = (
+            self._ungrouped_lights.get(normalized_key, {}) if normalized_key else {}
+        )
 
         # Color-capable lights
         if color_lights:
@@ -4017,21 +4011,31 @@ class HomeAssistantWebSocketClient:
                 extra_color = non_zha_color + ungrouped.get("color", [])
                 if extra_color:
                     if log_periodic:
-                        logger.info(f"Turn off (color individual): {len(extra_color)} lights")
+                        logger.info(
+                            f"Turn off (color individual): {len(extra_color)} lights"
+                        )
                     tasks.append(
                         asyncio.create_task(
                             self.call_service(
-                                "light", "turn_off", service_data, {"entity_id": extra_color}
+                                "light",
+                                "turn_off",
+                                service_data,
+                                {"entity_id": extra_color},
                             )
                         )
                     )
             else:
                 if log_periodic:
-                    logger.info(f"Turn off (color, {area_id}): {len(color_lights)} lights")
+                    logger.info(
+                        f"Turn off (color, {area_id}): {len(color_lights)} lights"
+                    )
                 tasks.append(
                     asyncio.create_task(
                         self.call_service(
-                            "light", "turn_off", service_data, {"entity_id": color_lights}
+                            "light",
+                            "turn_off",
+                            service_data,
+                            {"entity_id": color_lights},
                         )
                     )
                 )
@@ -4057,7 +4061,10 @@ class HomeAssistantWebSocketClient:
                     tasks.append(
                         asyncio.create_task(
                             self.call_service(
-                                "light", "turn_off", service_data, {"entity_id": extra_ct}
+                                "light",
+                                "turn_off",
+                                service_data,
+                                {"entity_id": extra_ct},
                             )
                         )
                     )
@@ -5389,7 +5396,9 @@ class HomeAssistantWebSocketClient:
             result = CircadianLight.calculate_lighting(
                 hour, config, area_state, sun_times=sun_times
             )
-            effective_override = self.primitives._get_decayed_brightness_override(area_id)
+            effective_override = self.primitives._get_decayed_brightness_override(
+                area_id
+            )
             transition = self.primitives._get_turn_on_transition()
             pipeline_kwargs = {
                 "rhythm_brightness": result.brightness,
@@ -5429,10 +5438,14 @@ class HomeAssistantWebSocketClient:
             result = CircadianLight.calculate_lighting(
                 hour, config, area_state, sun_times=sun_times
             )
-            effective_override = self.primitives._get_decayed_brightness_override(area_id)
+            effective_override = self.primitives._get_decayed_brightness_override(
+                area_id
+            )
             transition = self.primitives._get_turn_on_transition()
             await self.primitives._apply_lighting(
-                area_id, result.brightness, result.color_temp,
+                area_id,
+                result.brightness,
+                result.color_temp,
                 transition=transition,
                 rhythm_brightness=result.brightness,
                 brightness_override=effective_override,
@@ -5453,8 +5466,11 @@ class HomeAssistantWebSocketClient:
         elif service == "set_circadian":
             target_bri = kwargs.get("brightness")
             await self.primitives.set(
-                area_id, "webserver", preset="circadian",
-                is_on=True, brightness=target_bri,
+                area_id,
+                "webserver",
+                preset="circadian",
+                is_on=True,
+                brightness=target_bri,
             )
         elif service and service.startswith("set_"):
             moment_id = service[4:]
@@ -6317,8 +6333,10 @@ class HomeAssistantWebSocketClient:
                     logger.warning(f"Could not load filter config for group sync: {e}")
 
                 # Sync ZHA groups with all areas (pass registry to avoid re-fetching)
-                success, areas, group_mapping = await zigbee_controller.sync_zha_groups_with_areas(
-                    filter_config=filter_config, registry=registry
+                success, areas, group_mapping = (
+                    await zigbee_controller.sync_zha_groups_with_areas(
+                        filter_config=filter_config, registry=registry
+                    )
                 )
                 if success:
                     self._zha_group_name_mapping = group_mapping
@@ -6328,13 +6346,22 @@ class HomeAssistantWebSocketClient:
                         ug = m.get("ungrouped_entities", [])
                         if ug:
                             area_name = m["area"]
-                            area_key = self._normalize_area_key(area_name) or area_name.lower().replace(" ", "_")
+                            area_key = self._normalize_area_key(
+                                area_name
+                            ) or area_name.lower().replace(" ", "_")
                             if area_key not in self._ungrouped_lights:
-                                self._ungrouped_lights[area_key] = {"color": [], "ct": []}
+                                self._ungrouped_lights[area_key] = {
+                                    "color": [],
+                                    "ct": [],
+                                }
                             self._ungrouped_lights[area_key][m["cap"]].extend(ug)
                     if self._ungrouped_lights:
-                        logger.info(f"Ungrouped lights (single-purpose): {self._ungrouped_lights}")
-                    logger.info(f"ZHA group sync completed ({len(group_mapping)} group mappings)")
+                        logger.info(
+                            f"Ungrouped lights (single-purpose): {self._ungrouped_lights}"
+                        )
+                    logger.info(
+                        f"ZHA group sync completed ({len(group_mapping)} group mappings)"
+                    )
                     # Refresh parity cache using the areas data we already have
                     await self.refresh_area_parity_cache(areas_data=areas)
 
@@ -6923,7 +6950,9 @@ class HomeAssistantWebSocketClient:
             elif event_type == "zha_event":
                 _dev_id = event_data.get("device_id", "")
                 _dev_info = self.device_registry.get(_dev_id, {})
-                _dev_name = _dev_info.get("name_by_user") or _dev_info.get("name") or _dev_id
+                _dev_name = (
+                    _dev_info.get("name_by_user") or _dev_info.get("name") or _dev_id
+                )
                 logger.info(f"ZHA event ({_dev_name}): {event_data.get('command')}")
                 await self._handle_zha_event(event_data)
 

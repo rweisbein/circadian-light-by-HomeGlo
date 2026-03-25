@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.92
+- **Fix nudge race condition**: Old nudges could fire during a new command's async execution, reverting lights to stale values. Now cancels pending nudge at the start of turn_on_lights_circadian before any sends. Fixes visible revert-then-step behavior during rapid step up/down.
+- **Remove dead code**: Removed unused _compute_reach_value method.
+
 ## 1.0.91
 - **Fix boost bypassing pipeline**: Boost brightness was pre-added before entering the pipeline, causing area_factor and NL to crush the boost. Now passes boost_brightness separately so it's applied after area_factor (matching periodic updater). Fixes bright_boost, _apply_current_boost, and _apply_circadian_lighting.
 
