@@ -5396,24 +5396,32 @@ class HomeAssistantWebSocketClient:
             result = CircadianLight.calculate_lighting(
                 hour, config, area_state, sun_times=sun_times
             )
-            boosted_brightness = result.brightness + boost_amount
+            effective_override = self.primitives._get_decayed_brightness_override(area_id)
             transition = self.primitives._get_turn_on_transition()
+            pipeline_kwargs = {
+                "rhythm_brightness": result.brightness,
+            }
+            if effective_override is not None:
+                pipeline_kwargs["brightness_override"] = effective_override
+            pipeline_kwargs["boost_brightness"] = boost_amount
             if started_from_off:
                 await self.primitives._apply_lighting_turn_on(
                     area_id,
-                    boosted_brightness,
+                    result.brightness,
                     result.color_temp,
                     transition=transition,
+                    **pipeline_kwargs,
                 )
             else:
                 await self.primitives._apply_lighting(
                     area_id,
-                    boosted_brightness,
+                    result.brightness,
                     result.color_temp,
                     transition=transition,
+                    **pipeline_kwargs,
                 )
             logger.info(
-                f"[webserver] boost_on applied: {area_id} {result.brightness}%+{boost_amount}%={boosted_brightness}%, {result.color_temp}K"
+                f"[webserver] boost_on applied: {area_id} {result.brightness}%+{boost_amount}%, {result.color_temp}K"
             )
         elif service == "boost_off":
             state.clear_all_off_enforced()
@@ -5428,9 +5436,13 @@ class HomeAssistantWebSocketClient:
             result = CircadianLight.calculate_lighting(
                 hour, config, area_state, sun_times=sun_times
             )
+            effective_override = self.primitives._get_decayed_brightness_override(area_id)
             transition = self.primitives._get_turn_on_transition()
             await self.primitives._apply_lighting(
-                area_id, result.brightness, result.color_temp, transition=transition
+                area_id, result.brightness, result.color_temp,
+                transition=transition,
+                rhythm_brightness=result.brightness,
+                brightness_override=effective_override,
             )
             logger.info(
                 f"[webserver] boost_off restored: {area_id} {result.brightness}%, {result.color_temp}K"

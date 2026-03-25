@@ -2635,10 +2635,16 @@ class CircadianLightPrimitives:
             result = CircadianLight.calculate_lighting(
                 hour, config, area_state, sun_times=sun_times
             )
-            await self._apply_lighting(area_id, result.brightness, result.color_temp)
+            effective_override = self._get_decayed_brightness_override(area_id)
+            await self._apply_lighting(
+                area_id, result.brightness, result.color_temp,
+                rhythm_brightness=result.brightness,
+                brightness_override=effective_override,
+            )
             logger.info(
                 f"[{source}] Boost ended for area {area_id}, returned to circadian: "
                 f"{result.brightness}%, {result.color_temp}K"
+                f"{f', override={effective_override:.1f}' if effective_override else ''}"
             )
             return False
 
