@@ -697,26 +697,6 @@
           </div>
         </div>
 
-        <div class="form-row">
-          <label class="form-label">
-            Post-command nudge
-            <span class="info-icon">i<span class="info-tooltip">After any light command, resend the same values after this delay to catch dropped Zigbee commands. Replaces the old third-step retry with broader coverage. 0 = disabled.</span></span>
-          </label>
-          <div class="form-control">
-            <input type="number" class="form-input" id="nudge-delay" min="0" max="30" step="1" value="10" style="width: 80px;">
-            <span class="form-hint">tenths of a second (0 = off)</span>
-          </div>
-        </div>
-        <div class="form-row">
-          <label class="form-label">
-            Nudge transition
-            <span class="info-icon">i<span class="info-tooltip">Transition time for the nudge re-send. A short fade hides the nudge if a light missed the original command, making it look like a smooth catch-up instead of a sudden pop-on.</span></span>
-          </label>
-          <div class="form-control">
-            <input type="number" class="form-input" id="nudge-transition" min="0" max="30" step="1" value="10" style="width: 80px;">
-            <span class="form-hint">tenths of a second</span>
-          </div>
-        </div>
       </div>
     </div>
 
@@ -962,6 +942,17 @@
 
         <div class="form-row">
           <label class="form-label">
+            Post-switch refresh
+            <span class="info-icon">i<span class="info-tooltip">After a switch press, delay this long then run a full circadian refresh to catch any lights that missed the initial command. Each subsequent press resets the timer. Replaces per-command nudge with a single authoritative re-send.</span></span>
+          </label>
+          <div class="form-control">
+            <input type="number" class="form-input" id="post-switch-refresh" min="10" max="100" step="5" value="30" style="width: 80px;">
+            <span class="form-hint">tenths of a second</span>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">
             Periodic transition speed
             <span class="info-icon">i<span class="info-tooltip">How smoothly lights transition during periodic circadian updates. Day speed applies when the sun is up, night speed when the sun is down. Higher values = slower, smoother transitions.</span></span>
           </label>
@@ -1059,8 +1050,7 @@
           document.getElementById('turn-off-transition').value = config.turn_off_transition ?? 3;
           document.getElementById('boost-return-transition').value = config.boost_return_transition ?? 60;
           document.getElementById('two-step-delay').value = config.two_step_delay ?? 3;
-          document.getElementById('nudge-delay').value = config.nudge_delay ?? 10;
-          document.getElementById('nudge-transition').value = config.nudge_transition ?? 10;
+          document.getElementById('post-switch-refresh').value = config.post_switch_refresh ?? 30;
           document.getElementById('multi-click-enabled').checked = config.multi_click_enabled ?? true;
           document.getElementById('multi-click-speed').value = config.multi_click_speed ?? 10;
           document.getElementById('long-press-repeat-interval').value = config.long_press_repeat_interval ?? 7;
@@ -1161,8 +1151,7 @@
         turn_off_transition: parseFloat(document.getElementById('turn-off-transition').value) || 3,
         boost_return_transition: parseFloat(document.getElementById('boost-return-transition').value) || 60,
         two_step_delay: parseFloat(document.getElementById('two-step-delay').value) || 3,
-        nudge_delay: parseInt(document.getElementById('nudge-delay').value) || 0,
-        nudge_transition: parseInt(document.getElementById('nudge-transition').value) || 0,
+        post_switch_refresh: parseInt(document.getElementById('post-switch-refresh').value) || 30,
         multi_click_enabled: document.getElementById('multi-click-enabled').checked,
         multi_click_speed: parseFloat(document.getElementById('multi-click-speed').value) || 10,
         long_press_repeat_interval: parseFloat(document.getElementById('long-press-repeat-interval').value) || 7,
@@ -1433,8 +1422,7 @@
     document.getElementById('turn-off-transition').addEventListener('blur', saveSettings);
     document.getElementById('boost-return-transition').addEventListener('blur', saveSettings);
     document.getElementById('two-step-delay').addEventListener('blur', saveSettings);
-    document.getElementById('nudge-delay').addEventListener('blur', saveSettings);
-    document.getElementById('nudge-transition').addEventListener('blur', saveSettings);
+    document.getElementById('post-switch-refresh').addEventListener('blur', saveSettings);
     document.getElementById('multi-click-enabled').addEventListener('change', () => {
       updateMultiClickState();
       saveSettings();

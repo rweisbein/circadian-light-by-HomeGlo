@@ -441,7 +441,6 @@ class CircadianLightPrimitives:
         if skip_filters:
             lighting_values["skip_filters"] = skip_filters
         await self.client.turn_on_lights_circadian(area_id, lighting_values)
-        self.client.schedule_nudge(area_id, lighting_values)
 
     def _reduce_overrides_toward_zero(
         self, area_id: str, area_state, config, direction: str
@@ -2246,9 +2245,7 @@ class CircadianLightPrimitives:
             tasks = []
             for area_id in area_ids:
                 tasks.append(
-                    self.client.turn_off_lights(
-                        area_id, transition=transition, nudge=not reach_used
-                    )
+                    self.client.turn_off_lights(area_id, transition=transition)
                 )
                 tasks.append(self.client.turn_off_switch_entities(area_id))
             await asyncio.gather(*tasks)
@@ -4361,7 +4358,6 @@ class CircadianLightPrimitives:
         brightness_override: float = None,
         boost_brightness: int = None,
         skip_filters: Set[str] = None,
-        nudge: bool = True,
         skip_two_step: bool = False,
         skip_off_threshold: bool = False,
     ):
@@ -4381,7 +4377,6 @@ class CircadianLightPrimitives:
                 If provided, brightness_override is applied post-NL in the filter pipeline.
             brightness_override: Decay-adjusted additive delta applied post-NL.
             skip_filters: Set of filter_norms to skip (already handled by reach groups).
-            nudge: Whether to schedule a post-command nudge (False for temporary Phase 1 states).
             skip_two_step: Skip inner 2-step detection (caller already handles 2-step).
             skip_off_threshold: Skip OFF commands for filters below off_threshold (phase 1 only).
         """
@@ -4408,8 +4403,6 @@ class CircadianLightPrimitives:
             transition=transition,
             include_color=include_color,
         )
-        if nudge:
-            self.client.schedule_nudge(area_id, circadian_values)
 
     async def _apply_circadian_lighting(
         self,
@@ -4418,7 +4411,6 @@ class CircadianLightPrimitives:
         color_temp: int,
         include_color: bool = True,
         transition: float = 0.4,
-        nudge: bool = True,
     ):
         """Apply circadian lighting with boost awareness and full pipeline context.
 
@@ -4436,7 +4428,6 @@ class CircadianLightPrimitives:
             color_temp: Color temperature in Kelvin
             include_color: Whether to include color in the command
             transition: Transition time in seconds
-            nudge: Whether to schedule a post-command nudge (False for temporary Phase 1 states).
         """
         # brightness parameter IS the rhythm brightness (pre-boost, pre-NL)
         rhythm_brightness = brightness
@@ -4459,7 +4450,6 @@ class CircadianLightPrimitives:
             rhythm_brightness=rhythm_brightness,
             brightness_override=brightness_override,
             boost_brightness=boost_brightness,
-            nudge=nudge,
         )
 
     async def _apply_lighting_turn_on(
@@ -4568,7 +4558,6 @@ class CircadianLightPrimitives:
         area_ids: List[str],
         area_lighting: List[Tuple],
         transition: float = 0.4,
-        nudge: bool = True,
     ) -> Dict[str, Set[str]]:
         """Try to use filter-aware reach groups for multi-area turn-on.
 
@@ -4581,7 +4570,6 @@ class CircadianLightPrimitives:
             area_ids: List of area IDs
             area_lighting: List of (area_id, brightness, color_temp, ...) tuples
             transition: Transition time in seconds
-            nudge: Whether to schedule a post-command nudge for handled areas.
 
         Returns:
             Dict of area_id -> set of filter_norms handled via reach groups.
@@ -4751,56 +4739,6 @@ class CircadianLightPrimitives:
         if tasks:
             await asyncio.gather(*tasks)
 
-        # Schedule reach-group nudge: re-send the same reach commands
-        # (synchronized, not per-area) after nudge_delay
-        if nudge and reach_commands:
-            import asyncio as _asyncio
-
-            delay = self.client._get_nudge_delay()
-            nudge_transition = self.client._get_nudge_transition()
-
-            # Capture the commands to replay
-            saved_commands = list(reach_commands)
-            saved_xy = xy
-            handled_areas = set(filters_handled.keys())
-
-            async def _reach_nudge():
-                try:
-                    await _asyncio.sleep(delay)
-                    ntasks = []
-                    for entity_id, bri, ct, filter_norm, cap in saved_commands:
-                        sdata = {
-                            "transition": nudge_transition,
-                            "brightness_pct": bri,
-                        }
-                        if cap == "color" and saved_xy is not None:
-                            sdata["xy_color"] = list(saved_xy)
-                        elif cap == "ct":
-                            sdata["color_temp_kelvin"] = max(2000, ct)
-                        ntasks.append(
-                            self.client.call_service(
-                                "light",
-                                "turn_on",
-                                sdata,
-                                {"entity_id": entity_id},
-                            )
-                        )
-                    if ntasks:
-                        await _asyncio.gather(*ntasks)
-                    logger.debug(f"Reach nudge fired: {len(saved_commands)} group(s)")
-                except _asyncio.CancelledError:
-                    pass
-                except Exception as e:
-                    logger.debug(f"Reach nudge failed: {e}")
-                finally:
-                    for aid in handled_areas:
-                        self.client._pending_nudges.pop(aid, None)
-
-            nudge_task = _asyncio.create_task(_reach_nudge())
-            for area_id in handled_areas:
-                self.client.cancel_nudge(area_id)
-                self.client._pending_nudges[area_id] = nudge_task
-
         if filters_handled:
             fully = [
                 a
@@ -4886,7 +4824,6 @@ class CircadianLightPrimitives:
                     color_temp,
                     include_color=True,
                     transition=0,
-                    nudge=False,
                     skip_two_step=True,
                     skip_off_threshold=True,
                 )
@@ -4954,12 +4891,6 @@ class CircadianLightPrimitives:
             transition=transition,
             include_color=True,
         )
-        self.client.schedule_nudge(
-            area_id,
-            brightness=None,
-            color_temp=color_temp,
-            include_color=True,
-        )
 
     async def _bounce_at_limit(
         self,
@@ -4976,7 +4907,7 @@ class CircadianLightPrimitives:
         via call_service (bypasses pipeline to avoid override interference).
 
         Phase 2 (restore) goes through the full pipeline via
-        _apply_circadian_lighting (boost, NL, filters, nudge).
+        _apply_circadian_lighting (boost, NL, filters).
 
         Args:
             area_id: The area ID

@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.94
+- **Replace nudge with post-switch refresh**: Removed all per-command nudge infrastructure (schedule_nudge, cancel_nudge, reach nudge, off-nudge). After a switch action, schedules a delayed refresh_event that triggers a full periodic update — sequential per-area re-send using fresh calculated values. Eliminates stale-value race conditions. New "Post-switch refresh" setting in Refresh section (default 3s) replaces nudge_delay/nudge_transition.
+
 ## 1.0.93
 - **Fix nudge race in reach path**: Stale nudges were firing during reach group call_service await points (before turn_on_lights_circadian cancel could run). Now cancels all area nudges at the top of _send_step_via_reach_or_fallback and _send_bright_via_reach_or_fallback before any sends.
 

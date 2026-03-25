@@ -189,8 +189,8 @@ class HomeAssistantWebSocketClient:
         # Active feedback target for visual cues (set during switch action execution)
         self._active_feedback_target: Optional[dict] = None
 
-        # Pending nudge tasks: area_id -> asyncio.Task (cancellable post-command retry)
-        self._pending_nudges: Dict[str, asyncio.Task] = {}
+        # Pending post-switch refresh: asyncio.Task (delayed refresh_event.set())
+        self._pending_switch_refresh: Optional[asyncio.Task] = None
 
         # Motion scope cooldown: scope_key -> time.time() when cooldown expires
         # In-memory only — resets on restart (no stale cooldowns)
@@ -1657,11 +1657,6 @@ class HomeAssistantWebSocketClient:
             switch_id: Switch that triggered this (for bounce feedback on all-at-limit)
             direction: "up" or "down" (for bounce feedback)
         """
-        # Cancel pending nudges for all areas before any sends —
-        # prevents stale nudges from firing during reach/per-area await points
-        for a in areas:
-            self.cancel_nudge(a)
-
         # Check if ALL areas are at limit (all results are None or lights off)
         on_areas = [a for a in areas if state.get_is_on(a)]
         at_limit = [a for a, r in zip(areas, results) if r is None and a in on_areas]
@@ -1733,10 +1728,6 @@ class HomeAssistantWebSocketClient:
             switch_id: Switch that triggered this (for bounce feedback on all-at-limit)
             direction: "up" or "down" (for bounce feedback)
         """
-        # Cancel pending nudges for all areas before any sends
-        for a in areas:
-            self.cancel_nudge(a)
-
         # Check if ALL on-areas are at limit
         on_areas = [a for a in areas if state.get_is_on(a)]
         at_limit = [a for a, r in zip(areas, results) if r is None and a in on_areas]
@@ -1816,6 +1807,7 @@ class HomeAssistantWebSocketClient:
         # Record activity for scope timeout
         switches.record_activity(switch_id)
         self._last_switch_action_time = time.time()
+        self.schedule_post_switch_refresh()
 
         # Resolve and store feedback target for visual cues (bounce, etc.)
         self._active_feedback_target = self._resolve_feedback_target(switch_id)
@@ -2971,102 +2963,44 @@ class HomeAssistantWebSocketClient:
         return groups
 
     # -------------------------------------------------------------------------
-    # Post-command nudge (cancellable retry)
+    # Post-switch refresh (delayed periodic re-send)
     # -------------------------------------------------------------------------
 
-    def _get_nudge_delay(self) -> float:
-        """Get the post-command nudge delay in seconds.
+    def schedule_post_switch_refresh(self) -> None:
+        """Schedule a delayed refresh_event after a switch action.
 
-        After any light command, resend the same values after this delay
-        to catch dropped Zigbee commands. 0 = disabled.
-
-        Returns:
-            Delay time in seconds, or 0 if disabled
+        Cancels any existing pending refresh and restarts the timer.
+        When the timer fires, it signals refresh_event which wakes
+        the circadian tick loop for a full re-send of all areas.
         """
+        if (
+            self._pending_switch_refresh is not None
+            and not self._pending_switch_refresh.done()
+        ):
+            self._pending_switch_refresh.cancel()
+
         try:
             raw_config = glozone.load_config_from_files()
-            tenths = raw_config.get("nudge_delay", 10)
-            return tenths / 10.0
+            tenths = raw_config.get("post_switch_refresh", 30)
+            delay = tenths / 10.0
         except Exception:
-            return 1.0  # Default 1.0 seconds
+            delay = 3.0
 
-    def _get_nudge_transition(self) -> float:
-        """Get the nudge transition time in seconds.
-
-        A short fade hides the nudge if a light missed the original command.
-
-        Returns:
-            Transition time in seconds
-        """
-        try:
-            raw_config = glozone.load_config_from_files()
-            tenths = raw_config.get("nudge_transition", 10)
-            return tenths / 10.0
-        except Exception:
-            return 1.0  # Default 1.0 seconds
-
-    def cancel_nudge(self, area_id: str) -> None:
-        """Cancel a pending nudge for an area (if any)."""
-        task = self._pending_nudges.pop(area_id, None)
-        if task is not None and not task.done():
-            task.cancel()
-
-    def schedule_nudge(
-        self,
-        area_id: str,
-        lighting_values: Dict[str, Any] = None,
-        *,
-        brightness: int = None,
-        color_temp: int = None,
-        include_color: bool = True,
-    ) -> None:
-        """Schedule a post-command nudge for an area.
-
-        Cancels any existing nudge for this area, then schedules a new one
-        that re-sends the same lighting values after nudge_delay seconds.
-        Accepts either a lighting_values dict (like turn_on_lights_circadian)
-        or keyword arguments.
-
-        Args:
-            area_id: The area ID
-            lighting_values: Dict with brightness, kelvin, xy keys (optional)
-            brightness: Brightness percentage (alternative to dict)
-            color_temp: Color temperature in Kelvin (alternative to dict)
-            include_color: Whether to include color data
-        """
-        # Cancel any existing nudge for this area
-        self.cancel_nudge(area_id)
-
-        delay = self._get_nudge_delay()
         if delay <= 0:
-            return  # Nudge disabled
+            return
 
-        nudge_transition = self._get_nudge_transition()
-
-        async def _nudge():
+        async def _delayed_refresh():
             try:
                 await asyncio.sleep(delay)
-                if lighting_values is not None:
-                    await self.turn_on_lights_circadian(
-                        area_id, lighting_values, transition=nudge_transition
-                    )
-                else:
-                    await self.turn_on_lights_circadian(
-                        area_id,
-                        brightness=brightness,
-                        color_temp=color_temp,
-                        transition=nudge_transition,
-                        include_color=include_color,
-                    )
-                logger.debug(f"Nudge fired for area {area_id} after {delay}s")
+                if self.refresh_event is not None:
+                    self.refresh_event.set()
+                    logger.debug(f"Post-switch refresh fired after {delay}s")
             except asyncio.CancelledError:
-                pass  # Expected when a new action supersedes
-            except Exception as e:
-                logger.debug(f"Nudge failed for area {area_id}: {e}")
+                pass
             finally:
-                self._pending_nudges.pop(area_id, None)
+                self._pending_switch_refresh = None
 
-        self._pending_nudges[area_id] = asyncio.create_task(_nudge())
+        self._pending_switch_refresh = asyncio.create_task(_delayed_refresh())
 
     async def turn_on_lights_circadian(
         self,
@@ -3102,9 +3036,6 @@ class HomeAssistantWebSocketClient:
             color_temp: Color temperature in Kelvin (alternative to dict)
             xy: Pre-computed CIE xy coordinates (optional, computed from color_temp if not provided)
         """
-        # Cancel any pending nudge — new command supersedes it
-        self.cancel_nudge(area_id)
-
         # Support both dict and kwargs calling conventions
         rhythm_brightness = None
         brightness_override = None
@@ -3936,7 +3867,6 @@ class HomeAssistantWebSocketClient:
         area_id: str,
         transition: float = 0.3,
         log_periodic: bool = True,
-        nudge: bool = True,
     ) -> None:
         """Turn off lights using ZHA groups when available.
 
@@ -4121,43 +4051,6 @@ class HomeAssistantWebSocketClient:
         if tasks:
             await asyncio.gather(*tasks)
 
-        # Schedule turn-off nudge to catch missed ZigBee commands
-        if nudge:
-            self.schedule_off_nudge(area_id, transition=transition)
-
-    def schedule_off_nudge(self, area_id: str, transition: float = 0.3) -> None:
-        """Schedule a post-turn-off nudge to catch missed ZigBee commands.
-
-        Re-sends turn_off after nudge_delay seconds to ensure all lights
-        received the off command.
-        """
-        self.cancel_nudge(area_id)
-
-        delay = self._get_nudge_delay()
-        if delay <= 0:
-            return
-
-        nudge_transition = self._get_nudge_transition()
-
-        async def _off_nudge():
-            try:
-                await asyncio.sleep(delay)
-                await self.turn_off_lights(
-                    area_id,
-                    transition=nudge_transition,
-                    log_periodic=False,
-                    nudge=False,
-                )
-                logger.debug(f"Off-nudge fired for area {area_id} after {delay}s")
-            except asyncio.CancelledError:
-                pass
-            except Exception as e:
-                logger.debug(f"Off-nudge failed for area {area_id}: {e}")
-            finally:
-                self._pending_nudges.pop(area_id, None)
-
-        self._pending_nudges[area_id] = asyncio.create_task(_off_nudge())
-
     async def turn_on_switch_entities(self, area_id: str) -> None:
         """Turn on switch.* entities (relays, smart plugs) in an area."""
         switches = self.area_switch_entities.get(area_id, [])
@@ -4267,7 +4160,6 @@ class HomeAssistantWebSocketClient:
         self,
         areas: List[str],
         transition: float = 0.3,
-        nudge: bool = True,
     ) -> bool:
         """Turn off lights via reach groups for synchronized multi-area control.
 
@@ -4278,7 +4170,6 @@ class HomeAssistantWebSocketClient:
         Args:
             areas: List of area IDs to control
             transition: Transition time in seconds
-            nudge: Whether to schedule a post-command off-nudge for each area.
 
         Returns:
             True if any reach groups were used, False otherwise
@@ -4320,45 +4211,6 @@ class HomeAssistantWebSocketClient:
             for entity_id in reach_entities
         ]
         await asyncio.gather(*tasks)
-
-        # Schedule reach-group off-nudge: re-send turn_off to the same
-        # reach group entities (synchronized, not per-area)
-        if nudge:
-            delay = self._get_nudge_delay()
-            nudge_transition = self._get_nudge_transition()
-            saved_entities = list(reach_entities)
-            nudge_areas = list(areas)
-
-            async def _reach_off_nudge():
-                try:
-                    await asyncio.sleep(delay)
-                    off_data = {"transition": nudge_transition}
-                    ntasks = [
-                        self.call_service(
-                            "light",
-                            "turn_off",
-                            off_data,
-                            {"entity_id": eid},
-                        )
-                        for eid in saved_entities
-                    ]
-                    if ntasks:
-                        await asyncio.gather(*ntasks)
-                    logger.debug(
-                        f"Reach off-nudge fired: {len(saved_entities)} group(s)"
-                    )
-                except asyncio.CancelledError:
-                    pass
-                except Exception as e:
-                    logger.debug(f"Reach off-nudge failed: {e}")
-                finally:
-                    for aid in nudge_areas:
-                        self._pending_nudges.pop(aid, None)
-
-            nudge_task = asyncio.create_task(_reach_off_nudge())
-            for area_id in nudge_areas:
-                self.cancel_nudge(area_id)
-                self._pending_nudges[area_id] = nudge_task
 
         return True
 
@@ -5535,7 +5387,6 @@ class HomeAssistantWebSocketClient:
         area_id: str,
         log_periodic: bool = False,
         periodic_transition: float = 0.5,
-        nudge: bool = True,
     ):
         """Update lights in an area with circadian lighting if Circadian Light is enabled.
 
@@ -5548,7 +5399,6 @@ class HomeAssistantWebSocketClient:
         Args:
             area_id: The area ID to update
             log_periodic: Whether to log periodic update details (controlled by settings toggle)
-            nudge: Whether to schedule a post-command nudge (False for periodic updates)
         """
         try:
             # Only update if area is under circadian control
@@ -5852,10 +5702,6 @@ class HomeAssistantWebSocketClient:
                 log_periodic=log_periodic,
             )
 
-            # Schedule post-command nudge (not for periodic updates)
-            if nudge:
-                self.schedule_nudge(area_id, lighting_values)
-
         except Exception as e:
             logger.error(f"Error updating lights in area {area_id}: {e}")
 
@@ -5939,7 +5785,7 @@ class HomeAssistantWebSocketClient:
 
             # Update all circadian areas with new values
             for area_id in state.get_circadian_areas_for_update():
-                await self.update_lights_in_circadian_mode(area_id, nudge=False)
+                await self.update_lights_in_circadian_mode(area_id)
 
         return now
 
@@ -6059,9 +5905,10 @@ class HomeAssistantWebSocketClient:
 
                 # Skip periodic update if a switch action happened recently
                 # (avoid flooding the Zigbee mesh while switch commands propagate)
+                post_switch_delay = raw_config.get("post_switch_refresh", 30) / 10.0
                 if not triggered_by_event and self._last_switch_action_time:
                     elapsed = time.time() - self._last_switch_action_time
-                    if elapsed < 3.0:
+                    if elapsed < post_switch_delay:
                         if log_periodic:
                             logger.info(
                                 f"Deferring periodic update — switch action {elapsed:.1f}s ago"
@@ -6104,7 +5951,6 @@ class HomeAssistantWebSocketClient:
                                 area_id,
                                 log_periodic=log_periodic,
                                 periodic_transition=periodic_transition,
-                                nudge=False,
                             )
                     else:
                         logger.debug(
