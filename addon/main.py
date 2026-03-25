@@ -2475,9 +2475,13 @@ class HomeAssistantWebSocketClient:
         if not self.primitives._is_limit_bounce_enabled() and cue_type == "bounce":
             return
 
-        # Read per-purpose state from our own tracking
+        # Extract metadata for state lookups, build clean HA service target
         feedback_area = target.get("area_id")
         feedback_filter = target.get("filter_name", "Standard")
+        if "entity_id" in target:
+            target = {"entity_id": target["entity_id"]}
+        else:
+            target = {"area_id": target["area_id"]}
         purpose_state = (
             state.get_last_sent_purpose(feedback_area, feedback_filter)
             if feedback_area
