@@ -790,30 +790,7 @@
       </div>
     </div>
 
-    <!-- Cooldown card (motion/contact sensors) -->
-    <div class="ctrl-card is-open" id="cooldown-section" style="display: none;">
-      <div class="ctrl-card-header" onclick="toggleCard('cooldown-section')">
-        <span class="ctrl-card-chevron">&#x203A;</span>
-        <span class="ctrl-card-title">Cooldown</span>
-        <span class="info-icon" onclick="event.stopPropagation()">i<span class="info-tooltip">After motion is detected and processed, ignore subsequent triggers for this many seconds. Useful for sensors with short hardware blind times (e.g. Hue ~10s). Set to 0 to disable.</span></span>
-      </div>
-      <div class="ctrl-card-body">
-        <div class="ctrl-card-body-inner">
-          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-            <div class="number-input-wrap">
-              <input type="number" id="motion-cooldown" style="width: 60px;" value="0" min="0" max="300" step="5"
-                onchange="editingCooldown = parseInt(this.value) || 0; autoSave();">
-              <div class="number-input-btns">
-                <button type="button" onclick="stepNumberInput('motion-cooldown', 5)">&#9650;</button>
-                <button type="button" onclick="stepNumberInput('motion-cooldown', -5)">&#9660;</button>
-              </div>
-            </div>
-            <span style="color: var(--muted); font-size: 0.85rem;">sec</span>
-            <span id="cooldown-status" style="color: var(--muted); font-size: 0.8rem; margin-left: 8px;"></span>
-          </div>
-        </div>
-      </div>
-    </div>
+    <!-- Sensor-level cooldown removed — cooldown is per-scope (reach level) -->
 
     <!-- Buttons card (cheat sheet + magic dropdowns) -->
     <div class="ctrl-card is-open" id="magic-section" style="display: none;">
@@ -1509,7 +1486,6 @@
       document.getElementById('indicator-light-section').style.display = 'none';
       document.getElementById('magic-section').style.display = 'none';
       document.getElementById('zha-settings-section').style.display = 'none';
-      document.getElementById('cooldown-section').style.display = 'none';
     }
 
     // ============================================================
@@ -1900,7 +1876,6 @@
               </div>
             </div>
             <div style="margin-top: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-              <span style="color: var(--muted); font-size: 0.85rem;">When:</span>
               <select onchange="updateMotionScope(${idx}, 'active_when', this.value)">
                 <option value="always" ${activeWhen === 'always' ? 'selected' : ''}>Always</option>
                 <option value="sunset_to_sunrise" ${activeWhen === 'sunset_to_sunrise' ? 'selected' : ''}>Sunset to Sunrise</option>
@@ -1919,9 +1894,7 @@
                 </div>
                 <span style="color: var(--muted); font-size: 0.85rem;">min</span>
               </div>
-            </div>
-            <div style="margin-top: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-              <span style="color: var(--muted); font-size: 0.85rem;">Cooldown:</span>
+              <span style="color: var(--muted); font-size: 0.85rem;">Wait</span>
               <div class="number-input-wrap">
                 <input type="number" id="cooldown-${idx}" style="width: 55px;" value="${cooldown}" min="0" max="300" step="5"
                   onchange="updateMotionScope(${idx}, 'cooldown', parseInt(this.value) || 0)">
@@ -2201,12 +2174,6 @@
         document.getElementById('magic-section').style.display = 'none';
         renderMotionScopesEditor();
 
-        // Load cooldown setting (motion/contact sensors only)
-        editingCooldown = ctrl.cooldown || 0;
-        document.getElementById('motion-cooldown').value = editingCooldown;
-        document.getElementById('cooldown-section').style.display = '';
-        startCooldownCountdown(ctrl);
-
         // Load ZHA settings for motion sensors (only for ZHA devices)
         const zhaSection = document.getElementById('zha-settings-section');
         if (ctrl.category === 'motion_sensor' && ctrl.integration === 'zha') {
@@ -2221,7 +2188,6 @@
         switchSection.style.display = '';
         motionSection.style.display = 'none';
         document.getElementById('zha-settings-section').style.display = 'none';
-        document.getElementById('cooldown-section').style.display = 'none';
 
         // Show feedback cue section for switches
         document.getElementById('indicator-light-section').style.display = '';
@@ -2274,7 +2240,6 @@
           device_id: editingDeviceId,
           inactive: inactive,
           inactive_until: inactiveUntil,
-          cooldown: editingCooldown
         };
       } else {
         // Switch config — feedback cue with separate area and target

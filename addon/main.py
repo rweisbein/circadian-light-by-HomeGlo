@@ -186,7 +186,7 @@ class HomeAssistantWebSocketClient:
         # Pending nudge tasks: area_id -> asyncio.Task (cancellable post-command retry)
         self._pending_nudges: Dict[str, asyncio.Task] = {}
 
-        # Motion sensor cooldown: sensor_id -> time.time() when cooldown expires
+        # Motion scope cooldown: scope_key -> time.time() when cooldown expires
         # In-memory only — resets on restart (no stale cooldowns)
         self._motion_cooldown_until: Dict[str, float] = {}
 
@@ -605,12 +605,10 @@ class HomeAssistantWebSocketClient:
             switches.set_last_action(device_id, "motion_detected")
 
         # Per-scope cooldown: filter out area configs whose scope is cooled down.
-        # Each area_config carries its scope's cooldown. Track per (sensor_id, scope_index).
         now = time.time()
         active_configs = []
         for i, area_config in enumerate(sensor_config.areas):
-            # Effective cooldown: per-scope if set, else sensor default
-            cd = area_config.cooldown or sensor_config.cooldown
+            cd = area_config.cooldown
             if cd > 0 and new_state == "on":
                 cd_key = f"{sensor_config.id}_scope{i}"
                 until = self._motion_cooldown_until.get(cd_key, 0)
@@ -774,14 +772,7 @@ class HomeAssistantWebSocketClient:
             logger.debug(
                 f"[ZHA Motion] {sensor_config.name}: motion cleared (command={command})"
             )
-            cooldown_until_iso = None
-            if sensor_config.cooldown > 0:
-                until = self._motion_cooldown_until.get(sensor_config.id, 0)
-                if time.time() < until:
-                    cooldown_until_iso = datetime.fromtimestamp(until).isoformat()
-            switches.set_last_action(
-                device_id, "motion_cleared", cooldown_until=cooldown_until_iso
-            )
+            switches.set_last_action(device_id, "motion_cleared")
             return
 
         if not sensor_config.areas:
@@ -800,7 +791,7 @@ class HomeAssistantWebSocketClient:
         now = time.time()
         active_configs = []
         for i, area_config in enumerate(sensor_config.areas):
-            cd = area_config.cooldown or sensor_config.cooldown
+            cd = area_config.cooldown
             if cd > 0:
                 cd_key = f"{sensor_config.id}_scope{i}"
                 until = self._motion_cooldown_until.get(cd_key, 0)

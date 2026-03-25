@@ -802,7 +802,6 @@ class MotionSensorConfig:
     device_id: Optional[str] = None  # HA device_id
     inactive: bool = False  # If True, sensor won't trigger actions
     inactive_until: Optional[str] = None  # ISO timestamp or "forever"; None = no timer
-    cooldown: int = 0  # Seconds to ignore triggers after processing one (0 = disabled)
 
     def get_area_config(self, area_id: str) -> Optional[MotionAreaConfig]:
         """Get config for a specific area."""
@@ -827,8 +826,6 @@ class MotionSensorConfig:
             result["device_id"] = self.device_id
         if self.inactive_until:
             result["inactive_until"] = self.inactive_until
-        if self.cooldown > 0:
-            result["cooldown"] = self.cooldown
         return result
 
     @classmethod
@@ -842,7 +839,6 @@ class MotionSensorConfig:
             device_id=data.get("device_id"),
             inactive=data.get("inactive", False),
             inactive_until=data.get("inactive_until"),
-            cooldown=data.get("cooldown", 0),
         )
 
 
