@@ -114,6 +114,9 @@ class HomeAssistantWebSocketClient:
         self.light_color_modes: Dict[str, Set[str]] = (
             {}
         )  # entity_id -> set of supported color modes
+        self.light_min_ct_kelvin: Dict[str, int] = (
+            {}
+        )  # entity_id -> min color temp kelvin (hardware capability)
         self.area_lights: Dict[str, List[str]] = (
             {}
         )  # area_id -> list of light entity_ids
@@ -2444,10 +2447,14 @@ class HomeAssistantWebSocketClient:
             group_entity = group_candidates.get("zha_group")
 
         if group_entity:
-            return {"entity_id": group_entity}
+            return {
+                "entity_id": group_entity,
+                "area_id": area_id,
+                "filter_name": best_filter,
+            }
 
         # No ZHA group — fall back to area target
-        return {"area_id": area_id}
+        return {"area_id": area_id, "filter_name": best_filter}
 
     async def _feedback_cue(
         self,
@@ -2477,26 +2484,19 @@ class HomeAssistantWebSocketClient:
         if not self.primitives._is_limit_bounce_enabled() and cue_type == "bounce":
             return
 
-        # Read cached state of the target entity
-        entity_id = target.get("entity_id")
-        if entity_id:
-            light_state = self.cached_states.get(entity_id, {})
-        else:
-            # Area target — read max brightness across area lights
-            area_id = target.get("area_id")
-            light_state = {}
-            max_bri = 0
-            for lid in self.area_lights.get(area_id, []):
-                ls = self.cached_states.get(lid, {})
-                if ls.get("state") == "on":
-                    bri = ls.get("attributes", {}).get("brightness", 0)
-                    if bri > max_bri:
-                        max_bri = bri
-                        light_state = ls
-
-        was_on = light_state.get("state") == "on"
-        attrs = light_state.get("attributes", {}) if was_on else {}
-        cached_bri = attrs.get("brightness") or 128
+        # Read per-purpose state from our own tracking
+        feedback_area = target.get("area_id")
+        feedback_filter = target.get("filter_name", "Standard")
+        purpose_state = (
+            state.get_last_sent_purpose(feedback_area, feedback_filter)
+            if feedback_area
+            else None
+        ) or {}
+        was_on = not purpose_state.get("is_off", False) and state.get_is_on(
+            feedback_area
+        ) if feedback_area else True
+        # Convert 0-100% to HA 0-255 scale
+        cached_bri = int(purpose_state.get("brightness", 50) * 2.55)
 
         limit_speed = self.primitives._get_limit_warning_speed()
         two_step_delay = self.primitives._get_two_step_delay()
@@ -2523,7 +2523,8 @@ class HomeAssistantWebSocketClient:
             phase1_data = {"brightness": target_bri, "transition": limit_speed}
             if bounce_color:
                 # Shift color temp for visual effect
-                current_ct = attrs.get("color_temp")
+                last_kelvin = state.get_last_sent_kelvin(feedback_area) if feedback_area else None
+                current_ct = int(1000000 / last_kelvin) if last_kelvin else None
                 if current_ct:
                     config = Config.from_dict(glozone.get_config())
                     ct_range = config.max_color_temp - config.min_color_temp
@@ -2591,129 +2592,7 @@ class HomeAssistantWebSocketClient:
     # _show_reach_all_lights_feedback, _bounce_at_limit_reach, and
     # _show_reach_single_light_feedback removed — replaced by _feedback_cue
 
-    async def _show_scope_error_feedback(self, switch_id: str) -> None:
-        """Show error feedback when can't cycle scope (flash red or rapid blink).
-
-        In non-learn mode with indicator light: rapid 5x blink on indicator.
-        Otherwise: red flash on all area lights.
-
-        Args:
-            switch_id: The switch IEEE address
-        """
-        # Check for non-learn mode + indicator light
-        switch_config = switches.get_switch(switch_id)
-        if (
-            switch_config
-            and not self._is_reach_learn_mode()
-            and switch_config.indicator_light
-        ):
-            # Rapid 5x blink on indicator light
-            indicator = switch_config.indicator_light
-            light_state = self.cached_states.get(indicator, {})
-            was_on = light_state.get("state") == "on"
-            attrs = light_state.get("attributes", {}) if was_on else {}
-            original_brightness = attrs.get("brightness", 128)
-            original_xy = attrs.get("xy_color")
-            original_color_temp = attrs.get("color_temp")
-            blink_brightness = (
-                original_brightness
-                if was_on
-                else self._get_motion_warning_blink_threshold()
-            )
-            target = {"entity_id": indicator}
-
-            for _ in range(5):
-                await self.call_service(
-                    "light", "turn_off", {"transition": 0}, target=target
-                )
-                await asyncio.sleep(0.1)
-                await self.call_service(
-                    "light",
-                    "turn_on",
-                    {"brightness": blink_brightness, "transition": 0},
-                    target=target,
-                )
-                await asyncio.sleep(0.1)
-
-            # Restore
-            if not was_on:
-                await self.call_service(
-                    "light", "turn_off", {"transition": 0}, target=target
-                )
-            else:
-                restore_data = {"brightness": original_brightness, "transition": 0}
-                if original_xy:
-                    restore_data["xy_color"] = original_xy
-                elif original_color_temp:
-                    restore_data["color_temp"] = original_color_temp
-                await self.call_service("light", "turn_on", restore_data, target=target)
-            return
-
-        # Fallback: red flash on all area lights
-        areas = switches.get_current_areas(switch_id)
-        if not areas:
-            return
-
-        # Store current state (on/off and color)
-        original_states = {}
-        for area in areas:
-            light_entity = self._get_fallback_group_entity(area)
-            if light_entity and light_entity in self.cached_states:
-                cached = self.cached_states[light_entity]
-                was_on = cached.get("state") == "on"
-                attrs = cached.get("attributes", {}) if was_on else {}
-                original_states[area] = {
-                    "was_on": was_on,
-                    "color_temp": attrs.get("color_temp"),
-                    "rgb_color": attrs.get("rgb_color"),
-                    "xy_color": attrs.get("xy_color"),
-                    "brightness": attrs.get("brightness", 128),
-                }
-            else:
-                original_states[area] = {"was_on": False}
-
-        # Determine flash brightness for lights that were off (based on sun position)
-        sun_is_up = False
-        if "sun.sun" in self.cached_states:
-            sun_state = self.cached_states["sun.sun"]
-            sun_is_up = sun_state.get("state") == "above_horizon"
-        off_flash_brightness = int(0.20 * 255) if sun_is_up else int(0.01 * 255)
-
-        # Flash red
-        for area in areas:
-            orig = original_states.get(area, {})
-            if orig.get("was_on"):
-                await self._set_area_color_quick(area, rgb_color=[255, 50, 50])
-            else:
-                await self._set_area_color_quick(
-                    area, rgb_color=[255, 50, 50], brightness=off_flash_brightness
-                )
-
-        await asyncio.sleep(0.3)
-
-        # Restore original states
-        for area, orig in original_states.items():
-            if not orig.get("was_on"):
-                target_type, target_value = await self.determine_light_target(area)
-                await self.call_service(
-                    "light", "turn_off", {}, target={target_type: target_value}
-                )
-            elif orig.get("color_temp"):
-                await self._set_area_color_quick(
-                    area,
-                    color_temp=orig["color_temp"],
-                    brightness=orig.get("brightness"),
-                )
-            elif orig.get("rgb_color"):
-                await self._set_area_color_quick(
-                    area, rgb_color=orig["rgb_color"], brightness=orig.get("brightness")
-                )
-            elif orig.get("xy_color"):
-                await self._set_area_color_quick(
-                    area, xy_color=orig["xy_color"], brightness=orig.get("brightness")
-                )
-            else:
-                await self._set_area_brightness_quick(area, orig.get("brightness", 128))
+    # _show_scope_error_feedback removed — was dead code (no callers)
 
     async def _set_area_brightness_quick(self, area: str, brightness: int) -> None:
         """Quickly set brightness for an area (no transition).
@@ -3322,6 +3201,12 @@ class HomeAssistantWebSocketClient:
             brightness = self._apply_ct_brightness_compensation(brightness, kelvin)
             ct_comp_bri = brightness
 
+        # Cache per-purpose last-sent (fast path = Standard only)
+        if brightness is not None:
+            state.set_last_sent_purpose(
+                area_id, "Standard", ct_comp_bri, kelvin or 4000
+            )
+
         # Pipeline summary
         if log_periodic and brightness is not None:
             curve_bri = rhythm_brightness or pre_nl_bri
@@ -3443,8 +3328,7 @@ class HomeAssistantWebSocketClient:
             if include_color and kelvin is not None:
                 ct_floor = 2000
                 for ct_eid in ct_lights:
-                    ct_attrs = self.cached_states.get(ct_eid, {}).get("attributes", {})
-                    min_ct = ct_attrs.get("min_color_temp_kelvin")
+                    min_ct = self.light_min_ct_kelvin.get(ct_eid)
                     if min_ct and min_ct > ct_floor:
                         ct_floor = min_ct
                 ct_data["color_temp_kelvin"] = max(ct_floor, kelvin)
@@ -3646,8 +3530,12 @@ class HomeAssistantWebSocketClient:
                 if not check_entity:
                     continue
 
-                entity_state = self.cached_states.get(check_entity, {})
-                is_off = entity_state.get("state") == "off"
+                purpose_st = state.get_last_sent_purpose(area_id, filter_name)
+                is_off = (
+                    purpose_st.get("is_off", False)
+                    if purpose_st
+                    else not state.get_is_on(area_id)
+                )
 
                 # Get current CT from our own tracking (not HA cached_states)
                 current_ct = state.get_last_sent_kelvin(area_id)
@@ -3667,11 +3555,8 @@ class HomeAssistantWebSocketClient:
                 # Off→on: always 2-step. Already-on: need >= 15% brightness delta.
                 bri_delta_threshold = 15
                 if not is_off:
-                    current_bri_raw = entity_state.get("attributes", {}).get(
-                        "brightness", 0
-                    )
                     current_bri_pct = (
-                        round(current_bri_raw / 255 * 100) if current_bri_raw else 0
+                        purpose_st.get("brightness", 0) if purpose_st else 0
                     )
                     bri_delta = abs(filtered_bri - current_bri_pct)
                     if bri_delta < bri_delta_threshold:
@@ -3855,6 +3740,12 @@ class HomeAssistantWebSocketClient:
                     filtered_bri, kelvin
                 )
 
+            # Cache per-purpose last-sent values
+            state.set_last_sent_purpose(
+                area_id, filter_name, comp_brightness, kelvin or 4000,
+                is_off=should_turn_off,
+            )
+
             if log_periodic:
                 curve_bri = rhythm_brightness or base_brightness
                 pre_nl = pre_nl_brightness or base_brightness
@@ -3936,10 +3827,7 @@ class HomeAssistantWebSocketClient:
                     # so the value is valid for all members (fallback 2000K)
                     ct_floor = 2000
                     for ct_eid in lights_by_cap["ct"]:
-                        ct_attrs = self.cached_states.get(ct_eid, {}).get(
-                            "attributes", {}
-                        )
-                        min_ct = ct_attrs.get("min_color_temp_kelvin")
+                        min_ct = self.light_min_ct_kelvin.get(ct_eid)
                         if min_ct and min_ct > ct_floor:
                             ct_floor = min_ct
                     ct_data["color_temp_kelvin"] = max(ct_floor, kelvin)
@@ -4608,6 +4496,7 @@ class HomeAssistantWebSocketClient:
 
         # Clear existing caches
         self.light_color_modes.clear()
+        self.light_min_ct_kelvin.clear()
         self.area_lights.clear()
         self.area_switch_entities.clear()
         self.hue_lights.clear()
@@ -4702,6 +4591,11 @@ class HomeAssistantWebSocketClient:
             self.area_lights[area_id].append(entity_id)
 
             self.light_color_modes[entity_id] = set(supported_modes)
+
+            # Cache min color temp for CT-only lights (static hardware attribute)
+            min_ct = attributes.get("min_color_temp_kelvin")
+            if min_ct:
+                self.light_min_ct_kelvin[entity_id] = int(min_ct)
 
         # Collect switch.* entities (relay switches, smart plugs) per area
         # Skip config/diagnostic entities (e.g. Hue sensor enable switches)

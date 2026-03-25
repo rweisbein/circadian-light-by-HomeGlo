@@ -48,6 +48,7 @@ def _get_default_area_state() -> Dict[str, Any]:
         # Last-sent values (for 2-step detection and state tracking)
         "last_sent_kelvin": None,  # Kelvin we last sent (persists through on/off)
         "last_sent_brightness": None,  # Area-level brightness % (post curve+boost+NL+area_factor+override, pre-filter)
+        "last_sent_purposes": {},  # {purpose_name: {"brightness": int, "kelvin": int, "is_off": bool}}
         # Boost state
         "boost_started_from_off": False,  # If true, turn off when boost ends; else restore circadian
         "boost_expires_at": None,  # ISO timestamp string when boost expires (None = not boosted, 0 = forever)
@@ -286,6 +287,25 @@ def set_last_sent_brightness(area_id: str, brightness: int) -> None:
 def get_last_sent_brightness(area_id: str) -> Optional[int]:
     """Get area-level brightness we last sent."""
     return get_area(area_id).get("last_sent_brightness")
+
+
+def set_last_sent_purpose(
+    area_id: str, purpose: str, brightness: int, kelvin: int, is_off: bool = False
+) -> None:
+    """Store per-purpose brightness/kelvin/off state after sending to lights."""
+    purposes = get_area(area_id).get("last_sent_purposes", {})
+    purposes[purpose] = {"brightness": brightness, "kelvin": kelvin, "is_off": is_off}
+    update_area(area_id, {"last_sent_purposes": purposes})
+
+
+def get_last_sent_purpose(area_id: str, purpose: str) -> Optional[dict]:
+    """Get per-purpose last-sent state: {brightness, kelvin, is_off}."""
+    return get_area(area_id).get("last_sent_purposes", {}).get(purpose)
+
+
+def get_last_sent_purposes(area_id: str) -> dict:
+    """Get all per-purpose last-sent states."""
+    return get_area(area_id).get("last_sent_purposes", {})
 
 
 def get_circadian_areas() -> List[str]:
