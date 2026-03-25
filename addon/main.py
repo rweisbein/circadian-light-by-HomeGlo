@@ -1829,7 +1829,7 @@ class HomeAssistantWebSocketClient:
         # Resolve and store feedback target for visual cues (bounce, etc.)
         self._active_feedback_target = self._resolve_feedback_target(switch_id)
         switch_name = getattr(switches.get_switch(switch_id), "name", switch_id)
-        logger.info(
+        logger.debug(
             f"[Switch] {switch_name} ({switch_id}): feedback_target={self._active_feedback_target}"
         )
 
