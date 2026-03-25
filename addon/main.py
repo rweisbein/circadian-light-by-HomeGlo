@@ -90,6 +90,9 @@ class HomeAssistantWebSocketClient:
         self.area_group_map: Dict[str, Dict[str, str]] = (
             {}
         )  # Normalized area key -> {"zha_group": entity, "hue_group": entity, ...}
+        self._zha_group_name_mapping: Dict[str, Dict[str, str]] = (
+            {}
+        )  # group_friendly_name -> {"area", "filter", "cap"} from sync
         self.group_entity_info: Dict[str, Dict[str, Any]] = (
             {}
         )  # Metadata for grouped light entities
@@ -439,34 +442,34 @@ class HomeAssistantWebSocketClient:
             area_name = area_name.replace("light.", "")
 
         if area_name:
-            # Detect capability and filter suffix for groups
-            # Filter format: Circadian_<area>_<filter>_color or Circadian_<area>_<filter>_ct
-            # Legacy format: Circadian_<area>_color or Circadian_<area>_ct
-            # Old format: Circadian_<area> (maps to zha_group for backwards compat)
-            group_type = "zha_group"  # Default for old format
-            area_name_lower = area_name.lower()
+            # Use stored mapping from sync if available (handles multi-word filter names)
+            mapping = self._zha_group_name_mapping.get(friendly_name)
+            if mapping:
+                filt = mapping["filter"].replace(" ", "_").lower()
+                cap = mapping["cap"]
+                group_type = f"zha_group_{filt}_{cap}"
+                area_name = mapping["area"]
+            else:
+                # Fallback: parse from name (legacy/unknown groups)
+                group_type = "zha_group"
+                area_name_lower = area_name.lower()
 
-            if area_name_lower.endswith("_color"):
-                area_name = area_name[:-6]  # Remove _color suffix
-                # Check if there's a filter name before _color
-                # e.g., "Kitchen_Overhead" -> area="Kitchen", filter="Overhead"
-                parts = area_name.rsplit("_", 1)
-                if len(parts) == 2 and parts[1]:
-                    # Could be area_filter or just area with underscore
-                    # We use a simple heuristic: if the last part matches a known
-                    # filter-like name, treat it as filter; otherwise treat whole as area
-                    group_type = f"zha_group_{parts[1].lower()}_color"
-                    area_name = parts[0]
-                else:
-                    group_type = "zha_group_color"
-            elif area_name_lower.endswith("_ct"):
-                area_name = area_name[:-3]  # Remove _ct suffix
-                parts = area_name.rsplit("_", 1)
-                if len(parts) == 2 and parts[1]:
-                    group_type = f"zha_group_{parts[1].lower()}_ct"
-                    area_name = parts[0]
-                else:
-                    group_type = "zha_group_ct"
+                if area_name_lower.endswith("_color"):
+                    area_name = area_name[:-6]
+                    parts = area_name.rsplit("_", 1)
+                    if len(parts) == 2 and parts[1]:
+                        group_type = f"zha_group_{parts[1].lower()}_color"
+                        area_name = parts[0]
+                    else:
+                        group_type = "zha_group_color"
+                elif area_name_lower.endswith("_ct"):
+                    area_name = area_name[:-3]
+                    parts = area_name.rsplit("_", 1)
+                    if len(parts) == 2 and parts[1]:
+                        group_type = f"zha_group_{parts[1].lower()}_ct"
+                        area_name = parts[0]
+                    else:
+                        group_type = "zha_group_ct"
 
             self._register_area_group_entity(
                 entity_id,
@@ -3985,49 +3988,73 @@ class HomeAssistantWebSocketClient:
 
         # Color-capable lights
         if color_lights:
-            # Send off via ZHA groups (efficient) + individual lights (comprehensive)
-            for grp in all_color_groups:
+            if all_color_groups:
+                non_zha_color = [l for l in color_lights if l not in self.zha_lights]
+                for grp in all_color_groups:
+                    if log_periodic:
+                        logger.info(f"Turn off (color via ZHA group): {grp}")
+                    tasks.append(
+                        asyncio.create_task(
+                            self.call_service(
+                                "light", "turn_off", service_data, {"entity_id": grp}
+                            )
+                        )
+                    )
+                if non_zha_color:
+                    if log_periodic:
+                        logger.info(f"Turn off (color non-ZHA): {len(non_zha_color)} lights")
+                    tasks.append(
+                        asyncio.create_task(
+                            self.call_service(
+                                "light", "turn_off", service_data, {"entity_id": non_zha_color}
+                            )
+                        )
+                    )
+            else:
                 if log_periodic:
-                    logger.info(f"Turn off (color via ZHA group): {grp}")
+                    logger.info(f"Turn off (color, {area_id}): {len(color_lights)} lights")
                 tasks.append(
                     asyncio.create_task(
                         self.call_service(
-                            "light", "turn_off", service_data, {"entity_id": grp}
+                            "light", "turn_off", service_data, {"entity_id": color_lights}
                         )
                     )
                 )
-            # Always also send individual off to catch lights not in any group
-            if log_periodic:
-                logger.info(f"Turn off (color, {area_id}): {len(color_lights)} lights")
-            tasks.append(
-                asyncio.create_task(
-                    self.call_service(
-                        "light", "turn_off", service_data, {"entity_id": color_lights}
-                    )
-                )
-            )
 
         # CT-only lights
         if ct_lights:
-            for grp in all_ct_groups:
+            if all_ct_groups:
+                non_zha_ct = [l for l in ct_lights if l not in self.zha_lights]
+                for grp in all_ct_groups:
+                    if log_periodic:
+                        logger.info(f"Turn off (CT via ZHA group): {grp}")
+                    tasks.append(
+                        asyncio.create_task(
+                            self.call_service(
+                                "light", "turn_off", service_data, {"entity_id": grp}
+                            )
+                        )
+                    )
+                if non_zha_ct:
+                    if log_periodic:
+                        logger.info(f"Turn off (CT non-ZHA): {len(non_zha_ct)} lights")
+                    tasks.append(
+                        asyncio.create_task(
+                            self.call_service(
+                                "light", "turn_off", service_data, {"entity_id": non_zha_ct}
+                            )
+                        )
+                    )
+            else:
                 if log_periodic:
-                    logger.info(f"Turn off (CT via ZHA group): {grp}")
+                    logger.info(f"Turn off (CT, {area_id}): {len(ct_lights)} lights")
                 tasks.append(
                     asyncio.create_task(
                         self.call_service(
-                            "light", "turn_off", service_data, {"entity_id": grp}
+                            "light", "turn_off", service_data, {"entity_id": ct_lights}
                         )
                     )
                 )
-            if log_periodic:
-                logger.info(f"Turn off (CT, {area_id}): {len(ct_lights)} lights")
-            tasks.append(
-                asyncio.create_task(
-                    self.call_service(
-                        "light", "turn_off", service_data, {"entity_id": ct_lights}
-                    )
-                )
-            )
 
         # Brightness-only lights (no ZHA groups for these)
         if brightness_lights:
@@ -6274,11 +6301,12 @@ class HomeAssistantWebSocketClient:
                     logger.warning(f"Could not load filter config for group sync: {e}")
 
                 # Sync ZHA groups with all areas (pass registry to avoid re-fetching)
-                success, areas = await zigbee_controller.sync_zha_groups_with_areas(
+                success, areas, group_mapping = await zigbee_controller.sync_zha_groups_with_areas(
                     filter_config=filter_config, registry=registry
                 )
                 if success:
-                    logger.info("ZHA group sync completed")
+                    self._zha_group_name_mapping = group_mapping
+                    logger.info(f"ZHA group sync completed ({len(group_mapping)} group mappings)")
                     # Refresh parity cache using the areas data we already have
                     await self.refresh_area_parity_cache(areas_data=areas)
 

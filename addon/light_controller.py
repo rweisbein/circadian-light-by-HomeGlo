@@ -919,6 +919,9 @@ class ZigBeeController(LightController):
             # Track which groups should exist
             expected_group_names = set()
 
+            # Map group_name -> {area, filter, cap} for direct registration
+            group_name_mapping = {}
+
             # Get light color modes from the main client for capability detection
             light_color_modes = getattr(self.ws_client, "light_color_modes", {})
 
@@ -1002,21 +1005,17 @@ class ZigBeeController(LightController):
                 for filt_name, caps in filter_groups.items():
                     filt_normalized = filt_name.replace(" ", "_")
                     if caps["color"]:
-                        capability_groups.append(
-                            (
-                                f"Circadian_{area_name_normalized}_{filt_normalized}_color",
-                                caps["color"],
-                                "color",
-                            )
-                        )
+                        gname = f"Circadian_{area_name_normalized}_{filt_normalized}_color"
+                        capability_groups.append((gname, caps["color"], "color"))
+                        group_name_mapping[gname] = {
+                            "area": area_name, "filter": filt_name, "cap": "color",
+                        }
                     if caps["ct"]:
-                        capability_groups.append(
-                            (
-                                f"Circadian_{area_name_normalized}_{filt_normalized}_ct",
-                                caps["ct"],
-                                "ct",
-                            )
-                        )
+                        gname = f"Circadian_{area_name_normalized}_{filt_normalized}_ct"
+                        capability_groups.append((gname, caps["ct"], "ct"))
+                        group_name_mapping[gname] = {
+                            "area": area_name, "filter": filt_name, "cap": "ct",
+                        }
 
                 if not capability_groups:
                     logger.warning(
@@ -1100,11 +1099,11 @@ class ZigBeeController(LightController):
                     )
 
             logger.info("ZHA group synchronization completed")
-            return True, areas
+            return True, areas, group_name_mapping
 
         except Exception as e:
             logger.error(f"Failed to sync ZHA groups: {e}")
-            return False, {}
+            return False, {}, {}
 
     async def create_group(self, command: GroupCommand) -> bool:
         """Create a ZHA group."""
