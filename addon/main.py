@@ -3968,31 +3968,42 @@ class HomeAssistantWebSocketClient:
         group_candidates = (
             self.area_group_map.get(normalized_key, {}) if normalized_key else {}
         )
-        zha_color_group = group_candidates.get("zha_group_color")
-        zha_ct_group = group_candidates.get("zha_group_ct")
+        # Check generic group first, then fall back to purpose-specific groups
+        zha_color_group = group_candidates.get("zha_group_color") or group_candidates.get("zha_group_standard_color")
+        zha_ct_group = group_candidates.get("zha_group_ct") or group_candidates.get("zha_group_standard_ct")
+        # Also collect all purpose-specific groups for comprehensive turn-off
+        all_color_groups = [
+            v for k, v in group_candidates.items()
+            if k.endswith("_color") and k.startswith("zha_group_")
+        ]
+        all_ct_groups = [
+            v for k, v in group_candidates.items()
+            if k.endswith("_ct") and k.startswith("zha_group_")
+        ]
 
         service_data = {"transition": transition}
 
         # Color-capable lights
         if color_lights:
-            if zha_color_group:
-                # Split into ZHA (use group) and non-ZHA (call individually)
+            if all_color_groups:
+                # Use all purpose-specific ZHA groups for comprehensive turn-off
                 non_zha_color = [l for l in color_lights if l not in self.zha_lights]
                 zha_count = len(color_lights) - len(non_zha_color)
-                if log_periodic:
-                    logger.info(
-                        f"Turn off (color via ZHA group): {zha_color_group} ({zha_count} lights)"
-                    )
-                tasks.append(
-                    asyncio.create_task(
-                        self.call_service(
-                            "light",
-                            "turn_off",
-                            service_data,
-                            {"entity_id": zha_color_group},
+                for grp in all_color_groups:
+                    if log_periodic:
+                        logger.info(
+                            f"Turn off (color via ZHA group): {grp} ({zha_count} lights)"
+                        )
+                    tasks.append(
+                        asyncio.create_task(
+                            self.call_service(
+                                "light",
+                                "turn_off",
+                                service_data,
+                                {"entity_id": grp},
+                            )
                         )
                     )
-                )
                 if non_zha_color:
                     if log_periodic:
                         logger.info(
@@ -4026,24 +4037,24 @@ class HomeAssistantWebSocketClient:
 
         # CT-only lights
         if ct_lights:
-            if zha_ct_group:
-                # Split into ZHA (use group) and non-ZHA (call individually)
+            if all_ct_groups:
                 non_zha_ct = [l for l in ct_lights if l not in self.zha_lights]
                 zha_count = len(ct_lights) - len(non_zha_ct)
-                if log_periodic:
-                    logger.info(
-                        f"Turn off (CT via ZHA group): {zha_ct_group} ({zha_count} lights)"
-                    )
-                tasks.append(
-                    asyncio.create_task(
-                        self.call_service(
-                            "light",
-                            "turn_off",
-                            service_data,
-                            {"entity_id": zha_ct_group},
+                for grp in all_ct_groups:
+                    if log_periodic:
+                        logger.info(
+                            f"Turn off (CT via ZHA group): {grp} ({zha_count} lights)"
+                        )
+                    tasks.append(
+                        asyncio.create_task(
+                            self.call_service(
+                                "light",
+                                "turn_off",
+                                service_data,
+                                {"entity_id": grp},
+                            )
                         )
                     )
-                )
                 if non_zha_ct:
                     if log_periodic:
                         logger.info(f"Turn off (CT non-ZHA): {len(non_zha_ct)} lights")
