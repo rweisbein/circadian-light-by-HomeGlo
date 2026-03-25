@@ -1480,7 +1480,7 @@
       homeRefreshTimer = setInterval(async () => {
         try {
           const [res, zsRes, gzRes] = await Promise.all([
-            fetch('./api/area-status'),
+            fetch('./api/area-status?lite=true'),
             fetch('./api/zone-states'),
             fetch('./api/glozones'),
           ]);
@@ -1515,7 +1515,7 @@
       try {
         const [areasRes, statusRes, zoneStatesRes, glozonesRes] = await Promise.all([
           fetch('./api/areas'),
-          fetch('./api/area-status'),
+          fetch('./api/area-status?lite=true'),
           fetch('./api/zone-states'),
           fetch('./api/glozones')
         ]);
@@ -1607,7 +1607,7 @@
           // Refresh after action
           setTimeout(async () => {
             const [statusRes, zsRes] = await Promise.all([
-              fetch('./api/area-status'),
+              fetch('./api/area-status?lite=true'),
               fetch('./api/zone-states')
             ]);
             if (statusRes.ok) areaStatus = await statusRes.json();
@@ -1648,7 +1648,7 @@
       setTimeout(async () => {
         try {
           const [statusRes, zsRes] = await Promise.all([
-            fetch('./api/area-status'),
+            fetch('./api/area-status?lite=true'),
             fetch('./api/zone-states')
           ]);
           if (statusRes.ok) areaStatus = await statusRes.json();
@@ -1965,7 +1965,7 @@
           // Refresh glozone + area-status data so alarm pill updates immediately
           const [gzRes, statusRes] = await Promise.all([
             fetch('./api/glozones'),
-            fetch('./api/area-status')
+            fetch('./api/area-status?lite=true')
           ]);
           if (gzRes.ok) cachedGlozones = await gzRes.json();
           if (statusRes.ok) areaStatus = await statusRes.json();
@@ -1988,7 +1988,7 @@
           closeSchedulePopover();
           const [gzRes, statusRes] = await Promise.all([
             fetch('./api/glozones'),
-            fetch('./api/area-status')
+            fetch('./api/area-status?lite=true')
           ]);
           if (gzRes.ok) cachedGlozones = await gzRes.json();
           if (statusRes.ok) areaStatus = await statusRes.json();
@@ -2080,7 +2080,7 @@
           const [gzRes, zsRes, statusRes] = await Promise.all([
             fetch('./api/glozones'),
             fetch('./api/zone-states'),
-            fetch('./api/area-status')
+            fetch('./api/area-status?lite=true')
           ]);
           if (gzRes.ok) cachedGlozones = await gzRes.json();
           if (zsRes.ok) {
@@ -2309,7 +2309,7 @@
         // Refresh
         const [gzRes, statusRes] = await Promise.all([
           fetch('./api/glozones'),
-          fetch('./api/area-status')
+          fetch('./api/area-status?lite=true')
         ]);
         if (gzRes.ok) cachedGlozones = await gzRes.json();
         if (statusRes.ok) areaStatus = await statusRes.json();
@@ -2933,7 +2933,7 @@
           setTimeout(async () => {
             try {
               const [statusRes, zsRes] = await Promise.all([
-                fetch('./api/area-status'),
+                fetch('./api/area-status?lite=true'),
                 fetch('./api/zone-states')
               ]);
               if (statusRes.ok) {

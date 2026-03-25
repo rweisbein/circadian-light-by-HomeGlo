@@ -2538,25 +2538,20 @@ class LightDesignerServer:
         return result
 
     async def get_area_status(self, request: Request) -> Response:
-        """Get status for areas using Circadian Light state (no HA polling).
+        """Get status for areas using Circadian Light state.
 
-        Supports optional ?area_id=X query param to return a single area.
+        Supports optional query params:
+            ?area_id=X — return a single area
+            ?lite=true — lightweight mode for homepage (reads stored state,
+                         skips curve/solar/NL computation)
 
-        Uses in-memory state from state.py and glozone_state.py, and calculates
-        brightness from the circadian curve. This matches what lights are set to
-        after each circadian update cycle.
-
-        Returns a dict mapping area_id to status:
-        {
-            "area_id": {
-                "is_circadian": true/false (Circadian Light controls this area),
-                "is_on": true/false (target light power state),
-                "brightness": 0-100 (calculated from circadian curve),
-                "frozen": true/false (whether zone is frozen),
-                "zone_name": "Zone Name" or null
-            }
-        }
+        Returns a dict mapping area_id to status.
         """
+        # Lite mode: pure state reads, no computation
+        is_lite = request.query.get("lite", "").lower() in ("true", "1")
+        if is_lite:
+            return await self._get_area_status_lite(request)
+
         try:
             from brain import (
                 SunTimes,
@@ -2935,6 +2930,101 @@ class LightDesignerServer:
 
         except Exception as e:
             logger.error(f"[Area Status] Error: {e}", exc_info=True)
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def _get_area_status_lite(self, request: Request) -> Response:
+        """Lightweight area status: reads stored state, no computation.
+
+        Used by homepage which refreshes every 2-3s. Returns last-sent
+        brightness/kelvin from state, plus config values and runtime flags.
+        """
+        try:
+            from brain import AreaState, Config
+
+            config = await self.load_config()
+            glozones = config.get("glozones", {})
+            area_settings = config.get("area_settings", {})
+
+            filter_area_id = request.query.get("area_id")
+            area_status = {}
+
+            for zone_name, zone_data in glozones.items():
+                for area in zone_data.get("areas", []):
+                    area_id = area.get("id") if isinstance(area, dict) else area
+                    if filter_area_id and area_id != filter_area_id:
+                        continue
+
+                    area_state_dict = state.get_area(area_id)
+                    area_state = AreaState.from_dict(area_state_dict)
+                    config_dict = glozone.get_effective_config_for_area(area_id)
+                    area_config = Config.from_dict(config_dict)
+
+                    is_boosted = state.is_boosted(area_id)
+                    boost_state = (
+                        state.get_boost_state(area_id) if is_boosted else {}
+                    )
+
+                    last_bri = state.get_last_sent_brightness(area_id)
+                    last_kelvin = state.get_last_sent_kelvin(area_id)
+
+                    area_status[area_id] = {
+                        "is_circadian": area_state.is_circadian,
+                        "is_on": area_state.is_on,
+                        "actual_brightness": last_bri if last_bri is not None else 0,
+                        "kelvin": last_kelvin if last_kelvin is not None else 4000,
+                        "frozen": area_state.frozen_at is not None,
+                        "frozen_at": area_state.frozen_at,
+                        "boosted": is_boosted,
+                        "boost_brightness": (
+                            boost_state.get("boost_brightness")
+                            if is_boosted
+                            else None
+                        ),
+                        "boost_expires_at": (
+                            boost_state.get("boost_expires_at")
+                            if is_boosted
+                            else None
+                        ),
+                        "boost_started_from_off": (
+                            boost_state.get("boost_started_from_off", False)
+                            if is_boosted
+                            else None
+                        ),
+                        "is_motion_coupled": (
+                            boost_state.get("is_motion_coupled", False)
+                            if is_boosted
+                            else False
+                        ),
+                        "motion_expires_at": state.get_motion_expires(area_id),
+                        "motion_warning_active": state.is_motion_warned(area_id),
+                        "zone_name": (
+                            zone_name if zone_name != "Unassigned" else None
+                        ),
+                        "preset_name": zone_name,
+                        "min_brightness": area_config.min_brightness,
+                        "max_brightness": area_config.max_brightness,
+                        "min_color_temp": area_config.min_color_temp,
+                        "max_color_temp": area_config.max_color_temp,
+                        # Raw state for mismatch detection
+                        "brightness_mid": area_state.brightness_mid,
+                        "color_mid": area_state.color_mid,
+                        "color_override": area_state.color_override,
+                        "brightness_override": area_state.brightness_override,
+                        "brightness_override_set_at": area_state.brightness_override_set_at,
+                        "color_override_set_at": area_state.color_override_set_at,
+                        # Wake alarm (light computation from config, not curve)
+                        "next_wake_alarm": self._compute_next_wake_alarm(
+                            area_id,
+                            area_settings,
+                            glozone.get_zone_config_for_area(area_id),
+                            zone_name,
+                        ),
+                    }
+
+            return web.json_response(area_status)
+
+        except Exception as e:
+            logger.error(f"[Area Status Lite] Error: {e}", exc_info=True)
             return web.json_response({"error": str(e)}, status=500)
 
     async def refresh_outdoor(self, request: Request) -> Response:
