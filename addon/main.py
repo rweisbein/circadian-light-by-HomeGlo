@@ -3985,99 +3985,49 @@ class HomeAssistantWebSocketClient:
 
         # Color-capable lights
         if color_lights:
-            if all_color_groups:
-                # Use all purpose-specific ZHA groups for comprehensive turn-off
-                non_zha_color = [l for l in color_lights if l not in self.zha_lights]
-                zha_count = len(color_lights) - len(non_zha_color)
-                for grp in all_color_groups:
-                    if log_periodic:
-                        logger.info(
-                            f"Turn off (color via ZHA group): {grp} ({zha_count} lights)"
-                        )
-                    tasks.append(
-                        asyncio.create_task(
-                            self.call_service(
-                                "light",
-                                "turn_off",
-                                service_data,
-                                {"entity_id": grp},
-                            )
-                        )
-                    )
-                if non_zha_color:
-                    if log_periodic:
-                        logger.info(
-                            f"Turn off (color non-ZHA): {len(non_zha_color)} lights"
-                        )
-                    tasks.append(
-                        asyncio.create_task(
-                            self.call_service(
-                                "light",
-                                "turn_off",
-                                service_data,
-                                {"entity_id": non_zha_color},
-                            )
-                        )
-                    )
-            else:
+            # Send off via ZHA groups (efficient) + individual lights (comprehensive)
+            for grp in all_color_groups:
                 if log_periodic:
-                    logger.info(
-                        f"Turn off (color, {area_id}): {len(color_lights)} lights"
-                    )
+                    logger.info(f"Turn off (color via ZHA group): {grp}")
                 tasks.append(
                     asyncio.create_task(
                         self.call_service(
-                            "light",
-                            "turn_off",
-                            service_data,
-                            {"entity_id": color_lights},
+                            "light", "turn_off", service_data, {"entity_id": grp}
                         )
                     )
                 )
+            # Always also send individual off to catch lights not in any group
+            if log_periodic:
+                logger.info(f"Turn off (color, {area_id}): {len(color_lights)} lights")
+            tasks.append(
+                asyncio.create_task(
+                    self.call_service(
+                        "light", "turn_off", service_data, {"entity_id": color_lights}
+                    )
+                )
+            )
 
         # CT-only lights
         if ct_lights:
-            if all_ct_groups:
-                non_zha_ct = [l for l in ct_lights if l not in self.zha_lights]
-                zha_count = len(ct_lights) - len(non_zha_ct)
-                for grp in all_ct_groups:
-                    if log_periodic:
-                        logger.info(
-                            f"Turn off (CT via ZHA group): {grp} ({zha_count} lights)"
-                        )
-                    tasks.append(
-                        asyncio.create_task(
-                            self.call_service(
-                                "light",
-                                "turn_off",
-                                service_data,
-                                {"entity_id": grp},
-                            )
-                        )
-                    )
-                if non_zha_ct:
-                    if log_periodic:
-                        logger.info(f"Turn off (CT non-ZHA): {len(non_zha_ct)} lights")
-                    tasks.append(
-                        asyncio.create_task(
-                            self.call_service(
-                                "light",
-                                "turn_off",
-                                service_data,
-                                {"entity_id": non_zha_ct},
-                            )
-                        )
-                    )
-            else:
+            for grp in all_ct_groups:
                 if log_periodic:
-                    logger.info(f"Turn off (CT, {area_id}): {len(ct_lights)} lights")
+                    logger.info(f"Turn off (CT via ZHA group): {grp}")
                 tasks.append(
                     asyncio.create_task(
                         self.call_service(
-                            "light", "turn_off", service_data, {"entity_id": ct_lights}
+                            "light", "turn_off", service_data, {"entity_id": grp}
                         )
                     )
                 )
+            if log_periodic:
+                logger.info(f"Turn off (CT, {area_id}): {len(ct_lights)} lights")
+            tasks.append(
+                asyncio.create_task(
+                    self.call_service(
+                        "light", "turn_off", service_data, {"entity_id": ct_lights}
+                    )
+                )
+            )
 
         # Brightness-only lights (no ZHA groups for these)
         if brightness_lights:
