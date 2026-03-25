@@ -1,5 +1,10 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.90
+- **Banner shows actual brightness**: Area detail banner now displays actual brightness (includes NL, area factor, override, boost) instead of raw curve value.
+- **Fix tune cascade order**: Area brightness computation section now matches backend pipeline order: curve → NL → area factor → override → boost. Previously boost was applied before area factor, showing incorrect values.
+- **Boost return speed setting**: Configurable transition speed when boost ends and lights return to circadian (default 6s). New "Light Effects" settings section groups power speed, boost return speed, and motion warning time.
+
 ## 1.0.61
 - **Fix spurious 2-step on already-on lights**: Color lights set via xy_color don't have `color_temp_kelvin` in HA state, causing unknown CT to trigger unnecessary 2-step on every brightness change >= 15%. Now skips 2-step for already-on lights with unknown CT (off-to-on still 2-steps as safety default).
 - **Bounce at limit uses switch indicator target**: Limit bounce now targets the switch's configured indicator purpose group (single ZHA group) instead of all lights in the area. Reduces Zigbee traffic and matches other visual feedback behavior.

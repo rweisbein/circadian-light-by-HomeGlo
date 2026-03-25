@@ -549,9 +549,9 @@
       </div>
     </div>
 
-    <!-- Feedback Cues Section -->
+    <!-- Light Effects Section -->
     <div class="settings-section">
-      <div class="section-header">Feedback Cues</div>
+      <div class="section-header">Light Effects</div>
       <div class="section-content">
         <div class="form-row">
           <label class="form-label">
@@ -569,6 +569,34 @@
 
         <div class="form-row">
           <label class="form-label">
+            Boost return speed
+            <span class="info-icon">i<span class="info-tooltip">How fast lights transition back to circadian values when a boost ends (and lights were already on before the boost).</span></span>
+          </label>
+          <div class="form-control">
+            <input type="number" class="form-input" id="boost-return-transition" min="0" max="100" step="0.1" value="60" style="width: 60px;">
+            <span class="form-hint">tenths of a second</span>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">
+            Motion warning time
+            <span class="info-icon">i<span class="info-tooltip">How long before the motion timer expires to trigger a warning dim. Set to 0 to disable motion warnings. The warning dims lights to alert you before they turn off.</span></span>
+          </label>
+          <div class="form-control">
+            <input type="number" class="form-input" id="motion-warning-time" min="0" max="120" step="5" value="0" style="width: 80px;">
+            <span class="form-hint">seconds before off (0 = disabled)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Feedback Cues Section -->
+    <div class="settings-section">
+      <div class="section-header">Feedback Cues</div>
+      <div class="section-content">
+        <div class="form-row">
+          <label class="form-label">
             Reach adjustment learn mode
             <span class="info-icon">i<span class="info-tooltip">When enabled, all lights in the reach areas fade out and back so you can see which areas are included. When disabled, only a single indicator light flashes (1x/2x/3x for each reach level). Configure the indicator light per-switch in the Controls page.</span></span>
           </label>
@@ -577,17 +605,6 @@
               <input type="checkbox" id="reach-learn-mode" checked>
             </label>
             <span class="form-hint" style="margin-left: 12px;">Flash all area lights to show reach contents</span>
-          </div>
-        </div>
-
-        <div class="form-row" style="margin-top: 20px;">
-          <label class="form-label">
-            Motion warning time
-            <span class="info-icon">i<span class="info-tooltip">How long before the motion timer expires to trigger a warning dim. Set to 0 to disable motion warnings. The warning dims lights to alert you before they turn off.</span></span>
-          </label>
-          <div class="form-control">
-            <input type="number" class="form-input" id="motion-warning-time" min="0" max="120" step="5" value="0" style="width: 80px;">
-            <span class="form-hint">seconds before off (0 = disabled)</span>
           </div>
         </div>
 
@@ -1040,6 +1057,7 @@
           document.getElementById('power-recovery').value = config.power_recovery ?? 'last_state';
           document.getElementById('turn-on-transition').value = config.turn_on_transition ?? 3;
           document.getElementById('turn-off-transition').value = config.turn_off_transition ?? 3;
+          document.getElementById('boost-return-transition').value = config.boost_return_transition ?? 60;
           document.getElementById('two-step-delay').value = config.two_step_delay ?? 3;
           document.getElementById('nudge-delay').value = config.nudge_delay ?? 10;
           document.getElementById('nudge-transition').value = config.nudge_transition ?? 10;
@@ -1141,6 +1159,7 @@
         power_recovery: document.getElementById('power-recovery').value,
         turn_on_transition: parseFloat(document.getElementById('turn-on-transition').value) || 3,
         turn_off_transition: parseFloat(document.getElementById('turn-off-transition').value) || 3,
+        boost_return_transition: parseFloat(document.getElementById('boost-return-transition').value) || 60,
         two_step_delay: parseFloat(document.getElementById('two-step-delay').value) || 3,
         nudge_delay: parseInt(document.getElementById('nudge-delay').value) || 0,
         nudge_transition: parseInt(document.getElementById('nudge-transition').value) || 0,
@@ -1412,6 +1431,7 @@
     document.getElementById('power-recovery').addEventListener('change', saveSettings);
     document.getElementById('turn-on-transition').addEventListener('blur', saveSettings);
     document.getElementById('turn-off-transition').addEventListener('blur', saveSettings);
+    document.getElementById('boost-return-transition').addEventListener('blur', saveSettings);
     document.getElementById('two-step-delay').addEventListener('blur', saveSettings);
     document.getElementById('nudge-delay').addEventListener('blur', saveSettings);
     document.getElementById('nudge-transition').addEventListener('blur', saveSettings);

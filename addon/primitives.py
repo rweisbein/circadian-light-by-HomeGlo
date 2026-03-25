@@ -138,6 +138,19 @@ class CircadianLightPrimitives:
         except Exception:
             return 0.3  # Default 0.3 seconds
 
+    def _get_boost_return_transition(self) -> float:
+        """Get the boost return transition time in seconds.
+
+        Reads from global config, defaults to 6.0 seconds (60 tenths).
+        The setting is stored as tenths of seconds in config.
+        """
+        try:
+            raw_config = glozone.load_config_from_files()
+            tenths = raw_config.get("boost_return_transition", 60)
+            return tenths / 10.0
+        except Exception:
+            return 6.0
+
     def _get_two_step_delay(self) -> float:
         """Get the two-step turn-on delay in seconds.
 
@@ -1413,9 +1426,7 @@ class CircadianLightPrimitives:
             # Invert target to curve space
             area_factor = glozone.get_area_brightness_factor(area_id)
             nl_factor = self._compute_nl_factor(area_id)
-            remaining_override = (
-                self._get_decayed_brightness_override(area_id) or 0
-            )
+            remaining_override = self._get_decayed_brightness_override(area_id) or 0
 
             # Undo pipeline: actual = curve * nl * area_factor + override + boost
             boost_amount = 0
@@ -1428,8 +1439,8 @@ class CircadianLightPrimitives:
                 denominator = 0.01  # Avoid division by zero
 
             target_curve = (
-                (target_brightness - remaining_override - boost_amount) / denominator
-            )
+                target_brightness - remaining_override - boost_amount
+            ) / denominator
             target_curve = max(
                 config.min_brightness, min(config.max_brightness, target_curve)
             )
@@ -1452,9 +1463,7 @@ class CircadianLightPrimitives:
                 # Convert to 0-100 position on the curve
                 b_range = config.max_brightness - config.min_brightness
                 if b_range > 0:
-                    position = (
-                        (target_curve - config.min_brightness) / b_range * 100
-                    )
+                    position = (target_curve - config.min_brightness) / b_range * 100
                 else:
                     position = 50
                 position = max(0, min(100, position))
@@ -2246,7 +2255,7 @@ class CircadianLightPrimitives:
 
             reach_note = " (reach + per-area)" if reach_used else ""
             logger.info(
-                f"lights_toggle_multiple: turned off {len(area_ids)} area(s){reach_note}"
+                f"[{source}] lights_toggle_multiple: turned off {len(area_ids)} area(s){reach_note}"
             )
 
         else:
@@ -2348,7 +2357,7 @@ class CircadianLightPrimitives:
             if reach_handled:
                 reach_note = f" (reach: {len(reach_handled)} areas)"
             logger.info(
-                f"lights_toggle_multiple: turned on {len(area_ids)} area(s){reach_note}"
+                f"[{source}] lights_toggle_multiple: turned on {len(area_ids)} area(s){reach_note}"
             )
 
     # -------------------------------------------------------------------------
@@ -2636,8 +2645,12 @@ class CircadianLightPrimitives:
                 hour, config, area_state, sun_times=sun_times
             )
             effective_override = self._get_decayed_brightness_override(area_id)
+            transition = self._get_boost_return_transition()
             await self._apply_lighting(
-                area_id, result.brightness, result.color_temp,
+                area_id,
+                result.brightness,
+                result.color_temp,
+                transition=transition,
                 rhythm_brightness=result.brightness,
                 brightness_override=effective_override,
             )
@@ -2645,6 +2658,7 @@ class CircadianLightPrimitives:
                 f"[{source}] Boost ended for area {area_id}, returned to circadian: "
                 f"{result.brightness}%, {result.color_temp}K"
                 f"{f', override={effective_override:.1f}' if effective_override else ''}"
+                f" (transition={transition}s)"
             )
             return False
 
@@ -3505,21 +3519,19 @@ class CircadianLightPrimitives:
                         f"(brightness={brightness})"
                     )
                     await self.circadian_adjust(
-                        area_id, brightness, source=source,
+                        area_id,
+                        brightness,
+                        source=source,
                         send_command=send_command,
                     )
                 else:
-                    logger.info(
-                        f"[{source}] Set {area_id} to circadian preset"
-                    )
+                    logger.info(f"[{source}] Set {area_id} to circadian preset")
                     if (
                         state.is_circadian(area_id)
                         and state.get_is_on(area_id)
                         and send_command
                     ):
-                        await self.client.update_lights_in_circadian_mode(
-                            area_id
-                        )
+                        await self.client.update_lights_in_circadian_mode(area_id)
                 return
 
             else:
@@ -4855,8 +4867,14 @@ class CircadianLightPrimitives:
         for area_id, brightness, color_temp, rhythm_bri, bri_override in needs_two_step:
             phase1_tasks.append(
                 self._apply_lighting(
-                    area_id, 1, color_temp, include_color=True, transition=0,
-                    nudge=False, skip_two_step=True, skip_off_threshold=True,
+                    area_id,
+                    1,
+                    color_temp,
+                    include_color=True,
+                    transition=0,
+                    nudge=False,
+                    skip_two_step=True,
+                    skip_off_threshold=True,
                 )
             )
         for area_id, brightness, color_temp, rhythm_bri, bri_override in no_two_step:

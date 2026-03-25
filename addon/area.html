@@ -2030,6 +2030,7 @@
         area_id: areaId,
         is_on: status.is_on || false,
         brightness: status.curve_brightness || status.brightness || 0,
+        actual_brightness: status.actual_brightness ?? (status.curve_brightness || status.brightness || 0),
         kelvin: status.kelvin || 4000,
         frozen: status.frozen || false,
         boosted: status.boosted || false,
@@ -2167,6 +2168,7 @@
       Object.assign(selectedArea, {
         is_on: status.is_on || false,
         brightness: status.curve_brightness || status.brightness || 0,
+        actual_brightness: status.actual_brightness ?? (status.curve_brightness || status.brightness || 0),
         kelvin: status.kelvin || 4000,
         frozen: status.frozen || false,
         boosted: status.boosted || false,
@@ -2189,9 +2191,9 @@
         stateEl.style.setProperty('--state-fill', selectedArea.is_on ? '0.08' : '0');
       } else if (selectedArea.is_on) {
         const cctColor = cctToRGB(selectedArea.kelvin);
-        const tintedColor = tintColorByBrightness(cctColor, selectedArea.brightness);
+        const tintedColor = tintColorByBrightness(cctColor, selectedArea.actual_brightness);
         stateEl.style.setProperty('--state-bg', tintedColor);
-        stateEl.style.setProperty('--state-fill', (selectedArea.brightness / 100).toFixed(3));
+        stateEl.style.setProperty('--state-fill', (selectedArea.actual_brightness / 100).toFixed(3));
       } else {
         stateEl.style.setProperty('--state-bg', 'var(--panel)');
         stateEl.style.setProperty('--state-fill', '0');
@@ -2201,12 +2203,12 @@
       const valuesEl = document.getElementById('state-values');
       if (selectedArea.is_on) {
         const cctColor = cctToRGB(selectedArea.kelvin);
-        const tintedColor = tintColorByBrightness(cctColor, selectedArea.brightness);
+        const tintedColor = tintColorByBrightness(cctColor, selectedArea.actual_brightness);
         valuesEl.style.color = readableTextColor(tintedColor);
       } else {
         valuesEl.style.color = 'var(--muted)';
       }
-      valuesEl.textContent = `${Math.round(selectedArea.brightness)}% • ${Math.round(selectedArea.kelvin)}K`;
+      valuesEl.textContent = `${Math.round(selectedArea.actual_brightness)}% • ${Math.round(selectedArea.kelvin)}K`;
 
       // Header meta: zone link + "Rhythm zone" label
       const metaZone = document.getElementById('header-meta-zone');
@@ -2904,24 +2906,9 @@
       if (!tuneState.initialized) return;
       const ts = tuneState;
 
-      // -- Brightness cascade --
+      // -- Brightness cascade (matches backend: curve → NL → area×factor → +override → +boost) --
       const baseBriPct = ts.baseBri;
       let running = baseBriPct / 100;
-
-      // Boost (additive, matching backend)
-      const boostAmount = ts.boosted ? (ts.boostBrightness || 0) : 0;
-      const beforeBoost = Math.round(running * 100);
-      running += boostAmount / 100;
-      const afterBoost = Math.round(running * 100);
-      const boostImpact = afterBoost - beforeBoost;
-
-      // Lumen adjustment
-      ts.areaFactor = 1 / LUMEN_STEPS[ts.lumenStep].intensity;
-      const areaFactorPct = Math.round(ts.areaFactor * 100);
-      const beforeLumen = Math.round(running * 100);
-      running *= ts.areaFactor;
-      const afterLumen = Math.round(running * 100);
-      const lumenImpact = afterLumen - beforeLumen;
 
       // Solar: client-side NL factor (mirrors brain.py:calculate_natural_light_factor)
       const exposure = SOLAR_STEPS[ts.solarStep].exposure;
@@ -2939,12 +2926,27 @@
       const afterSolar = Math.round(running * 100);
       const solarImpact = afterSolar - beforeSolar;
 
+      // Lumen adjustment (area_factor)
+      ts.areaFactor = 1 / LUMEN_STEPS[ts.lumenStep].intensity;
+      const areaFactorPct = Math.round(ts.areaFactor * 100);
+      const beforeLumen = Math.round(running * 100);
+      running *= ts.areaFactor;
+      const afterLumen = Math.round(running * 100);
+      const lumenImpact = afterLumen - beforeLumen;
+
       // Brightness override (additive, from slider/buttons, decaying)
       const briOverride = ts.briOverride || 0;
       if (briOverride) {
         running += briOverride / 100;
         running = Math.max(0, Math.min(1, running));
       }
+
+      // Boost (additive, after area_factor — matching backend)
+      const boostAmount = ts.boosted ? (ts.boostBrightness || 0) : 0;
+      const beforeBoost = Math.round(running * 100);
+      running += boostAmount / 100;
+      const afterBoost = Math.round(running * 100);
+      const boostImpact = afterBoost - beforeBoost;
 
       // -- Compute adjusted color temp (needed for CT compensation) --
       let adjustedK = ts.baseKelvin;
@@ -3312,15 +3314,6 @@
       bhtml += '<div class="tune-bk-row" style="padding-left:14px;"><span class="tune-bk-label primary">Circadian</span>'
         + '<span class="tune-bk-total" id="tune-det-base-total">' + baseBri + '%</span></div>';
       bhtml += '<div class="tune-group-label">Adjustments</div>';
-      bhtml += '<div class="tune-bk-row"><span class="tune-bk-label">Boost</span>'
-        + '<span class="tune-bk-total" id="tune-det-boost-val">0%</span></div>';
-      // Room Balance with inline slider
-      bhtml += '<div class="tune-control-row"><span class="tune-control-left"><span class="tune-control-label">Room balance</span>'
-        + '<span class="tune-control-reset" id="tune-reset-lumen">reset</span></span>'
-        + '<span class="tune-control-impact" id="tune-det-lumen-val"></span></div>';
-      bhtml += '<div class="tune-slider-row">'
-        + '<input type="range" class="tune-inline-slider tune-inline-slider--light" id="tune-slider-lumen" min="0" max="9" step="1" value="' + lumenStep + '">'
-        + '<span class="tune-slider-word" id="tune-lumen-word">' + LUMEN_STEPS[lumenStep].label + (function(f){ if(Math.abs(f-1)<0.005) return ''; var p=Math.round((f-1)*100); return (p>0?' +':' ')+p+'%'; })(factor) + '</span></div>';
       // Solar exposure with inline slider
       bhtml += '<div class="tune-control-row"><span class="tune-control-left"><span class="tune-control-label">Solar exposure</span>'
         + '<span class="tune-control-reset" id="tune-reset-solar">reset</span></span>'
@@ -3329,8 +3322,17 @@
       bhtml += '<div class="tune-slider-row">'
         + '<input type="range" class="tune-inline-slider tune-inline-slider--sun" id="tune-slider-solar" min="0" max="9" step="1" value="' + solarStep + '">'
         + '<span class="tune-slider-word" id="tune-solar-word"><span>' + SOLAR_STEPS[solarStep].label + '</span></span></div>';
+      // Room Balance with inline slider
+      bhtml += '<div class="tune-control-row"><span class="tune-control-left"><span class="tune-control-label">Room balance</span>'
+        + '<span class="tune-control-reset" id="tune-reset-lumen">reset</span></span>'
+        + '<span class="tune-control-impact" id="tune-det-lumen-val"></span></div>';
+      bhtml += '<div class="tune-slider-row">'
+        + '<input type="range" class="tune-inline-slider tune-inline-slider--light" id="tune-slider-lumen" min="0" max="9" step="1" value="' + lumenStep + '">'
+        + '<span class="tune-slider-word" id="tune-lumen-word">' + LUMEN_STEPS[lumenStep].label + (function(f){ if(Math.abs(f-1)<0.005) return ''; var p=Math.round((f-1)*100); return (p>0?' +':' ')+p+'%'; })(factor) + '</span></div>';
       bhtml += '<div class="tune-bk-row" id="tune-det-override-row"><span class="tune-bk-label" id="tune-det-override-label">User brightened</span>'
         + '<span class="tune-bk-total" id="tune-det-override-val">0%</span></div>';
+      bhtml += '<div class="tune-bk-row"><span class="tune-bk-label">Boost</span>'
+        + '<span class="tune-bk-total" id="tune-det-boost-val">0%</span></div>';
       bhtml += '<div class="tune-area-total"><div class="tune-bk-row" style="padding-left:14px;"><span class="tune-bk-label primary">Final</span>'
         + '<span class="tune-bk-total final" id="tune-det-final-val">--</span></div></div>';
       bhtml += '<div class="section-action-bar" id="tune-action-bar" style="display:none;">';
