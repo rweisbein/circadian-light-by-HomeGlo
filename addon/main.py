@@ -1657,6 +1657,11 @@ class HomeAssistantWebSocketClient:
             switch_id: Switch that triggered this (for bounce feedback on all-at-limit)
             direction: "up" or "down" (for bounce feedback)
         """
+        # Cancel pending nudges for all areas before any sends —
+        # prevents stale nudges from firing during reach/per-area await points
+        for a in areas:
+            self.cancel_nudge(a)
+
         # Check if ALL areas are at limit (all results are None or lights off)
         on_areas = [a for a in areas if state.get_is_on(a)]
         at_limit = [a for a, r in zip(areas, results) if r is None and a in on_areas]
@@ -1728,6 +1733,10 @@ class HomeAssistantWebSocketClient:
             switch_id: Switch that triggered this (for bounce feedback on all-at-limit)
             direction: "up" or "down" (for bounce feedback)
         """
+        # Cancel pending nudges for all areas before any sends
+        for a in areas:
+            self.cancel_nudge(a)
+
         # Check if ALL on-areas are at limit
         on_areas = [a for a in areas if state.get_is_on(a)]
         at_limit = [a for a, r in zip(areas, results) if r is None and a in on_areas]
