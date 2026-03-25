@@ -855,26 +855,20 @@
       </div>
     </div>
 
-    <!-- Sensor Settings card (ZHA) -->
+    <!-- Sensitivity card (ZHA) -->
     <div class="ctrl-card is-open" id="zha-settings-section" style="display: none;">
       <div class="ctrl-card-header" onclick="toggleCard('zha-settings-section')">
         <span class="ctrl-card-chevron">&#x203A;</span>
-        <span class="ctrl-card-title">Sensor Settings</span>
-        <span class="info-icon" onclick="event.stopPropagation()">i<span class="info-tooltip">Hardware settings for ZHA motion sensors. Sensitivity controls motion detection range.</span></span>
+        <span class="ctrl-card-title">Sensitivity</span>
+        <span class="info-icon" onclick="event.stopPropagation()">i<span class="info-tooltip">Hardware sensitivity for ZHA motion sensors. Controls motion detection range.</span></span>
       </div>
       <div class="ctrl-card-body">
         <div class="ctrl-card-body-inner">
-          <div style="display: flex; flex-wrap: wrap; gap: 16px;">
-            <div style="flex: 1; min-width: 140px;">
-              <label style="font-size: 0.8rem; color: var(--muted); display: block; margin-bottom: 4px;">Sensitivity</label>
-              <select id="zha-sensitivity-select" style="width: 100%; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.85rem;">
-                <option value="">Loading...</option>
-              </select>
-            </div>
-          </div>
-          <div style="margin-top: 10px;">
-            <button id="zha-settings-save" style="padding: 6px 16px; border-radius: 6px; border: 1px solid var(--accent); background: transparent; color: var(--accent); font-size: 0.8rem; cursor: pointer;" onclick="saveZhaSettings()">Apply</button>
-            <span id="zha-settings-status" style="margin-left: 10px; font-size: 0.8rem; color: var(--muted);"></span>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <select id="zha-sensitivity-select" onchange="saveZhaSettings()" style="padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.85rem;">
+              <option value="">Loading...</option>
+            </select>
+            <span id="zha-settings-status" style="font-size: 0.8rem; color: var(--muted);"></span>
           </div>
         </div>
       </div>
