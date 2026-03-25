@@ -3117,11 +3117,13 @@ class HomeAssistantWebSocketClient:
             xy = circadian_values.get("xy") if xy is None else xy
             rhythm_brightness = circadian_values.get("rhythm_brightness")
             brightness_override = circadian_values.get("brightness_override")
+            boost_brightness = circadian_values.get("boost_brightness")
             skip_filters = circadian_values.get("skip_filters")
             skip_two_step = circadian_values.get("skip_two_step", False)
             skip_off_threshold = circadian_values.get("skip_off_threshold", False)
         else:
             kelvin = color_temp
+            boost_brightness = None
 
         # Compute xy from kelvin if not provided (for color-capable lights)
         if xy is None and kelvin is not None and include_color:
@@ -3169,6 +3171,7 @@ class HomeAssistantWebSocketClient:
                 rhythm_brightness=rhythm_brightness,
                 pre_nl_brightness=pre_nl_bri,
                 brightness_override=brightness_override,
+                boost_brightness=boost_brightness,
                 skip_filters=skip_filters,
                 skip_two_step=skip_two_step,
                 skip_off_threshold=skip_off_threshold,
@@ -3182,7 +3185,12 @@ class HomeAssistantWebSocketClient:
             brightness = int(min(100, max(1, round(brightness + brightness_override))))
         post_override_bri = brightness
 
-        # Track area-level brightness (post override, pre CT compensation)
+        # Apply boost (after NL + override, before purpose/CT)
+        if boost_brightness and brightness is not None:
+            brightness = min(100, brightness + boost_brightness)
+        post_boost_bri = brightness
+
+        # Track area-level brightness (post override + boost, pre CT compensation)
         if not skip_off_threshold and brightness is not None:
             state.set_last_sent_brightness(area_id, brightness)
 
@@ -3200,16 +3208,14 @@ class HomeAssistantWebSocketClient:
 
         # Pipeline summary
         if log_periodic and brightness is not None:
-            curve_bri = rhythm_brightness or pre_nl_bri
-            boost_amount = (pre_nl_bri - curve_bri) if curve_bri and pre_nl_bri and pre_nl_bri > curve_bri else 0
-            parts = [f"curve={curve_bri}%"]
-            if boost_amount > 0:
-                parts.append(f"+boost={boost_amount}→{pre_nl_bri}%")
+            parts = [f"curve={rhythm_brightness or pre_nl_bri}%"]
             if nl_factor < 1.0:
                 parts.append(f"NL×{nl_factor:.2f}={post_nl_bri}%")
             if brightness_override:
                 parts.append(f"override={brightness_override:+.0f}→{post_override_bri}%")
-            if ct_comp_bri != post_override_bri:
+            if boost_brightness:
+                parts.append(f"+boost={boost_brightness}→{post_boost_bri}%")
+            if ct_comp_bri != post_boost_bri:
                 parts.append(f"CT→{ct_comp_bri}%")
             parts.append(f"{kelvin}K")
             logger.info(f"[Pipeline] {area_id}: {' → '.join(parts)}")
@@ -3419,6 +3425,7 @@ class HomeAssistantWebSocketClient:
         rhythm_brightness: int = None,
         pre_nl_brightness: int = None,
         brightness_override: float = None,
+        boost_brightness: int = None,
         skip_filters: set = None,
         skip_two_step: bool = False,
         skip_off_threshold: bool = False,
@@ -3432,11 +3439,13 @@ class HomeAssistantWebSocketClient:
         presets = glozone.get_light_filter_presets()
         off_threshold = glozone.get_off_threshold()
 
-        # Track area-level brightness (post area_factor + override, pre-filter)
+        # Track area-level brightness (post area_factor + override + boost, pre-filter)
         if not skip_off_threshold and base_brightness is not None:
             area_base = base_brightness * area_factor
             if brightness_override is not None:
                 area_base = max(1, min(100, area_base + brightness_override))
+            if boost_brightness:
+                area_base = min(100, area_base + boost_brightness)
             state.set_last_sent_brightness(area_id, int(round(area_base)))
 
         # Get rhythm bounds for curve position calculation
@@ -3505,6 +3514,7 @@ class HomeAssistantWebSocketClient:
                     off_threshold,
                     rhythm_brightness=rhythm_brightness,
                     brightness_override=brightness_override,
+                    boost_brightness=boost_brightness,
                 )
                 if should_off:
                     continue
@@ -3633,6 +3643,7 @@ class HomeAssistantWebSocketClient:
                 off_threshold,
                 rhythm_brightness=rhythm_brightness,
                 brightness_override=brightness_override,
+                boost_brightness=boost_brightness,
             )
 
             if should_off:
@@ -3734,22 +3745,21 @@ class HomeAssistantWebSocketClient:
             # Cache per-purpose last-sent values
             state.set_last_sent_purpose(
                 area_id, filter_name, comp_brightness, kelvin or 4000,
-                is_off=should_turn_off,
+                is_off=should_off,
             )
 
             if log_periodic:
                 curve_bri = rhythm_brightness or base_brightness
                 pre_nl = pre_nl_brightness or base_brightness
-                boost_amount = (pre_nl - curve_bri) if curve_bri and pre_nl > curve_bri else 0
                 parts = [f"curve={curve_bri}%"]
-                if boost_amount > 0:
-                    parts.append(f"+boost={boost_amount}→{pre_nl}%")
                 if pre_nl != base_brightness:
                     parts.append(f"NL→{base_brightness}%")
                 if area_factor != 1.0:
                     parts.append(f"area×{area_factor:.2f}")
                 if brightness_override:
                     parts.append(f"override={brightness_override:+.0f}")
+                if boost_brightness:
+                    parts.append(f"+boost={boost_brightness}")
                 parts.append(f"{filter_name}→{filtered_bri}%")
                 if comp_brightness != filtered_bri:
                     parts.append(f"CT→{comp_brightness}%")
@@ -5685,22 +5695,15 @@ class HomeAssistantWebSocketClient:
                             f"[Periodic] Area {area_id}: recalibrated color_override {old_val} -> {needed_override}"
                         )
 
-            # Check if area is boosted - if so, apply boost to brightness
+            # Check if area is boosted
             brightness = result.brightness
             boost_note = ""
+            boost_amount = 0
             is_boosted = state.is_boosted(area_id)
             if is_boosted:
-                # Get boost brightness from area's boost state (set per-sensor)
                 boost_state = state.get_boost_state(area_id)
                 boost_amount = boost_state.get("boost_brightness") or 0
-                brightness = (
-                    result.brightness + boost_amount
-                )  # No cap — nl_factor/area_factor scale it down
                 boost_note = f" (boosted +{boost_amount}%)"
-                if log_periodic:
-                    logger.info(
-                        f"[Periodic] Area {area_id}: applying boost {boost_amount}% -> {brightness}% (state={boost_state})"
-                    )
 
             # Compute decayed brightness_override for pipeline
             effective_bri_override = None
@@ -5784,6 +5787,7 @@ class HomeAssistantWebSocketClient:
                 "xy": result.xy,
                 "rhythm_brightness": result.brightness,
                 "brightness_override": effective_bri_override,
+                "boost_brightness": boost_amount if boost_amount > 0 else None,
             }
 
             # Log the calculation

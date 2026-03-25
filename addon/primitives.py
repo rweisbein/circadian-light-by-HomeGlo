@@ -411,20 +411,19 @@ class CircadianLightPrimitives:
             skip_filters: Set of filter_norms to skip (handled by reach groups)
         """
         effective_override = self._get_decayed_brightness_override(area_id)
-        # Check for boost
-        brightness = result.brightness
+        boost_amount = 0
         if state.is_boosted(area_id):
             boost_state = state.get_boost_state(area_id)
             boost_amount = boost_state.get("boost_brightness") or 0
-            brightness = result.brightness + boost_amount
 
         lighting_values = {
-            "brightness": brightness,
+            "brightness": result.brightness,
             "kelvin": result.color_temp,
             "rgb": result.rgb,
             "xy": result.xy,
             "rhythm_brightness": result.brightness,
             "brightness_override": effective_override,
+            "boost_brightness": boost_amount if boost_amount > 0 else None,
         }
         if skip_filters:
             lighting_values["skip_filters"] = skip_filters
@@ -1103,7 +1102,7 @@ class CircadianLightPrimitives:
     def _compute_current_actual(self, area_id: str) -> float:
         """Compute current actual brightness (post-pipeline approximation).
 
-        Matches webserver's actual_brightness: curve → boost → NL → area_factor + override.
+        Pipeline: curve → NL → area_factor + override + boost.
         """
         area_state = self._get_area_state(area_id)
         config = self._get_config(area_id)
@@ -1123,11 +1122,6 @@ class CircadianLightPrimitives:
         )
         brightness = result.brightness
 
-        # Boost
-        if state.is_boosted(area_id):
-            boost_state = state.get_boost_state(area_id)
-            brightness += boost_state.get("boost_brightness") or 0
-
         # Natural light
         nl_factor = self._compute_nl_factor(area_id)
         if nl_factor < 1.0:
@@ -1136,8 +1130,14 @@ class CircadianLightPrimitives:
         # Area factor + override
         area_factor = glozone.get_area_brightness_factor(area_id)
         effective_override = self._get_decayed_brightness_override(area_id) or 0
+        actual = brightness * area_factor + effective_override
 
-        return min(100, max(0, round(brightness * area_factor + effective_override)))
+        # Boost (after NL, area_factor, override)
+        if state.is_boosted(area_id):
+            boost_state = state.get_boost_state(area_id)
+            actual += boost_state.get("boost_brightness") or 0
+
+        return min(100, max(0, round(actual)))
 
     def _compute_override_decay_factor(self, area_id: str) -> float:
         """Get the current decay factor (0.0-1.0) for brightness override.
@@ -1417,7 +1417,7 @@ class CircadianLightPrimitives:
                 self._get_decayed_brightness_override(area_id) or 0
             )
 
-            # Undo pipeline: actual = (curve + boost) * nl * area_factor + override
+            # Undo pipeline: actual = curve * nl * area_factor + override + boost
             boost_amount = 0
             if state.is_boosted(area_id):
                 boost_state = state.get_boost_state(area_id)
@@ -1428,8 +1428,7 @@ class CircadianLightPrimitives:
                 denominator = 0.01  # Avoid division by zero
 
             target_curve = (
-                (target_brightness - remaining_override) / denominator
-                - boost_amount
+                (target_brightness - remaining_override - boost_amount) / denominator
             )
             target_curve = max(
                 config.min_brightness, min(config.max_brightness, target_curve)
@@ -1934,13 +1933,7 @@ class CircadianLightPrimitives:
 
         # brightness_override applied post-NL in the filter pipeline (not pre-applied)
         effective_override = self._get_decayed_brightness_override(area_id)
-
-        # Calculate final brightness (with boost if provided)
-        # Boost goes into brightness (pre-NL, same as periodic path)
-        if has_boost:
-            final_brightness = min(100, result.brightness + boost_brightness)
-        else:
-            final_brightness = result.brightness
+        final_brightness = result.brightness
 
         # Set boost state BEFORE applying lighting to prevent race condition:
         # _apply_lighting_turn_on() has an asyncio.sleep for two-step delay,
@@ -1972,6 +1965,8 @@ class CircadianLightPrimitives:
         }
         if effective_override is not None:
             pipeline_kwargs["brightness_override"] = effective_override
+        if has_boost:
+            pipeline_kwargs["boost_brightness"] = boost_brightness
 
         if lights_were_on:
             # Lights already on - just adjust, no two-step needed
@@ -4327,6 +4322,7 @@ class CircadianLightPrimitives:
         *,
         rhythm_brightness: int = None,
         brightness_override: float = None,
+        boost_brightness: int = None,
         skip_filters: Set[str] = None,
         nudge: bool = True,
         skip_two_step: bool = False,
@@ -4360,6 +4356,8 @@ class CircadianLightPrimitives:
             circadian_values["rhythm_brightness"] = rhythm_brightness
         if brightness_override is not None:
             circadian_values["brightness_override"] = brightness_override
+        if boost_brightness is not None:
+            circadian_values["boost_brightness"] = boost_brightness
         if skip_filters:
             circadian_values["skip_filters"] = skip_filters
         if skip_two_step:
@@ -4441,6 +4439,7 @@ class CircadianLightPrimitives:
         *,
         rhythm_brightness: int = None,
         brightness_override: float = None,
+        boost_brightness: int = None,
     ):
         """Turn on lights, using two-phase approach only if needed to avoid color jump.
 
@@ -4463,12 +4462,15 @@ class CircadianLightPrimitives:
             transition: Transition time for phase 2 (brightness ramp)
             rhythm_brightness: Pure curve brightness for filter curve position (pre-NL/boost).
             brightness_override: Decay-adjusted additive delta applied post-NL.
+            boost_brightness: Additive boost applied after override, before filter.
         """
         pipeline_kwargs = {}
         if rhythm_brightness is not None:
             pipeline_kwargs["rhythm_brightness"] = rhythm_brightness
         if brightness_override is not None:
             pipeline_kwargs["brightness_override"] = brightness_override
+        if boost_brightness is not None:
+            pipeline_kwargs["boost_brightness"] = boost_brightness
 
         # Hue hub handles color transitions internally - skip 2-step for all-Hue areas
         if self.client.is_all_hue_area(area_id):

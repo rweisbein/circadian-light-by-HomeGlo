@@ -472,13 +472,14 @@ def apply_light_filter_pipeline(
     off_threshold: int,
     rhythm_brightness: int = None,
     brightness_override: float = None,
+    boost_brightness: int = None,
 ) -> tuple:
     """Apply the full filter pipeline to a base brightness value.
 
-    Pipeline: (base × area_factor + brightness_override) × filter_multiplier → cap → off check.
+    Pipeline: (base × area_factor + override + boost) × filter_multiplier → cap → off check.
 
     Args:
-        base_brightness: Brightness from the circadian curve (0-100), may include NL/boost
+        base_brightness: Brightness from the circadian curve (0-100), post NL
         min_brightness: Configured min brightness for the rhythm
         max_brightness: Configured max brightness for the rhythm
         area_factor: Per-area brightness factor (e.g., 0.85, 1.2)
@@ -487,7 +488,8 @@ def apply_light_filter_pipeline(
         rhythm_brightness: Pure rhythm curve brightness for curve position (pre-NL/boost).
                           Falls back to base_brightness if not provided.
         brightness_override: Decay-adjusted additive delta (already multiplied by decay factor).
-                            Added after area_factor, before per-light filter multiplier.
+                            Added after area_factor, before boost and filter multiplier.
+        boost_brightness: Additive boost from motion (applied after override, before filter).
 
     Returns:
         Tuple of (final_brightness: int, should_turn_off: bool)
@@ -503,6 +505,9 @@ def apply_light_filter_pipeline(
     has_override = brightness_override is not None
     if has_override:
         base = max(1, min(100, base + brightness_override))
+    has_boost = boost_brightness is not None and boost_brightness > 0
+    if has_boost:
+        base = min(100, base + boost_brightness)
     result = base * multiplier
 
     preset_threshold = filter_preset.get("off_threshold", off_threshold)

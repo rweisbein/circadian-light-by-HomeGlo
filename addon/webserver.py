@@ -2705,14 +2705,11 @@ class LightDesignerServer:
                     is_boosted = state.is_boosted(area_id)
                     boost_state = state.get_boost_state(area_id) if is_boosted else {}
 
-                    # Keep curve brightness before boost/NL (pure circadian value)
+                    # Keep curve brightness before NL (pure circadian value)
                     curve_brightness = brightness
-
-                    if is_boosted:
-                        boost_amount = boost_state.get("boost_brightness") or 0
-                        brightness = (
-                            brightness + boost_amount
-                        )  # No cap — multiplicative factors scale it down
+                    boost_amount = (
+                        boost_state.get("boost_brightness") or 0
+                    ) if is_boosted else 0
 
                     # Get motion timer state
                     motion_expires_at = state.get_motion_expires(area_id)
@@ -2784,7 +2781,9 @@ class LightDesignerServer:
                             max(
                                 0,
                                 round(
-                                    brightness * area_factor + effective_bri_override
+                                    brightness * area_factor
+                                    + effective_bri_override
+                                    + boost_amount
                                 ),
                             ),
                         )
@@ -4645,9 +4644,10 @@ class LightDesignerServer:
                 boost_amount = boost_st.get("boost_brightness") or 0
 
             # Compute curve limits in actual-brightness space
+            # Pipeline: curve × NL × area_factor + override + boost
             denominator = max(0.01, nl_factor * area_factor)
-            curve_max_actual = (b_max + boost_amount) * denominator
-            curve_min_actual = max(0, (b_min + boost_amount) * denominator)
+            curve_max_actual = b_max * denominator + boost_amount
+            curve_min_actual = max(0, b_min * denominator + boost_amount)
 
             # Kelvin at curve limits (computed once)
             preview_state = AreaState(
@@ -4690,7 +4690,7 @@ class LightDesignerServer:
                     kelvin = kelvin_at_min
                 else:
                     # P2 territory — invert to curve brightness, get color
-                    curve_bri = target_actual / denominator - boost_amount
+                    curve_bri = (target_actual - boost_amount) / denominator
                     curve_bri = max(b_min, min(b_max, curve_bri))
                     b_range = b_max - b_min
                     position = (
