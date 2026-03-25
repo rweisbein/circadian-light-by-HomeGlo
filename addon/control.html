@@ -758,6 +758,37 @@
       </select>
     </div>
 
+    <!-- Pause card -->
+    <div class="ctrl-card" id="pause-section" style="display: none;">
+      <div class="ctrl-card-header" onclick="toggleCard('pause-section')">
+        <span class="ctrl-card-chevron">&#x203A;</span>
+        <span class="ctrl-card-title-muted">Pause</span>
+        <span class="info-icon" onclick="event.stopPropagation()">i<span class="info-tooltip">When paused, a control won't trigger actions. Set a timer to auto-unpause.</span></span>
+        <div class="ctrl-card-right">
+          <span id="pause-remaining" style="font-size: 0.75rem; color: var(--muted2); white-space: nowrap;"></span>
+          <label class="ctrl-toggle pause-toggle" onclick="event.stopPropagation()">
+            <input type="checkbox" id="control-pause-checkbox">
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+      <div class="ctrl-card-body" id="pause-body">
+        <div class="ctrl-card-body-inner">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 0.85rem; color: var(--muted);">Unpause after</span>
+            <select id="pause-timer-select" style="padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.85rem;">
+              <option value="forever">Never</option>
+              <option value="15m">15 min</option>
+              <option value="1h">1 hour</option>
+              <option value="4h">4 hours</option>
+              <option value="1d">1 day</option>
+              <option value="1w">1 week</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Reach card (switches) -->
     <div class="ctrl-card is-open" id="switch-config-section">
       <div class="ctrl-card-header" onclick="toggleCard('switch-config-section')">
@@ -844,37 +875,6 @@
           <div style="margin-top: 10px;">
             <button id="zha-settings-save" style="padding: 6px 16px; border-radius: 6px; border: 1px solid var(--accent); background: transparent; color: var(--accent); font-size: 0.8rem; cursor: pointer;" onclick="saveZhaSettings()">Apply</button>
             <span id="zha-settings-status" style="margin-left: 10px; font-size: 0.8rem; color: var(--muted);"></span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Pause card -->
-    <div class="ctrl-card" id="pause-section" style="display: none;">
-      <div class="ctrl-card-header" onclick="toggleCard('pause-section')">
-        <span class="ctrl-card-chevron">&#x203A;</span>
-        <span class="ctrl-card-title-muted">Pause</span>
-        <span class="info-icon" onclick="event.stopPropagation()">i<span class="info-tooltip">When paused, a control won't trigger actions. Set a timer to auto-unpause.</span></span>
-        <div class="ctrl-card-right">
-          <span id="pause-remaining" style="font-size: 0.75rem; color: var(--muted2); white-space: nowrap;"></span>
-          <label class="ctrl-toggle pause-toggle" onclick="event.stopPropagation()">
-            <input type="checkbox" id="control-pause-checkbox">
-            <span class="slider"></span>
-          </label>
-        </div>
-      </div>
-      <div class="ctrl-card-body" id="pause-body">
-        <div class="ctrl-card-body-inner">
-          <div style="display: flex; align-items: center; gap: 10px;">
-            <span style="font-size: 0.85rem; color: var(--muted);">Unpause after</span>
-            <select id="pause-timer-select" style="padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.85rem;">
-              <option value="forever">Never</option>
-              <option value="15m">15 min</option>
-              <option value="1h">1 hour</option>
-              <option value="4h">4 hours</option>
-              <option value="1d">1 day</option>
-              <option value="1w">1 week</option>
-            </select>
           </div>
         </div>
       </div>
