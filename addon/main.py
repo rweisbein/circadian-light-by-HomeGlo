@@ -446,7 +446,14 @@ class HomeAssistantWebSocketClient:
 
         if area_name:
             # Use stored mapping from sync if available (handles multi-word filter names)
+            # Try exact friendly_name match first, then check if any mapping key
+            # is contained in the friendly_name or entity_id (HA may prefix/transform)
             mapping = self._zha_group_name_mapping.get(friendly_name)
+            if not mapping:
+                for gname, m in self._zha_group_name_mapping.items():
+                    if gname in friendly_name or gname.lower() in entity_lower:
+                        mapping = m
+                        break
             if mapping:
                 filt = mapping["filter"].replace(" ", "_").lower()
                 cap = mapping["cap"]
