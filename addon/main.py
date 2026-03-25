@@ -1779,6 +1779,8 @@ class HomeAssistantWebSocketClient:
         )
 
         # Fallback: per-area update for unhandled or partially handled areas
+        # Build lookup from area_lighting for per-area sends
+        lighting_by_area = {e[0]: e for e in area_lighting}
         tasks = []
         for area_id in valid_areas:
             skip = handled.get(area_id)
@@ -1790,7 +1792,30 @@ class HomeAssistantWebSocketClient:
                 all_norms = {f.replace(" ", "_").lower() for f in all_filters}
                 if all_norms.issubset(skip):
                     continue  # Fully handled by reach
-            tasks.append(self.update_lights_in_circadian_mode(area_id))
+            # Use pre-computed values with skip_filters for partial handling
+            entry = lighting_by_area.get(area_id)
+            if entry:
+                override = self.primitives._get_decayed_brightness_override(area_id)
+                boost_amount = 0
+                if state.is_boosted(area_id):
+                    bs = state.get_boost_state(area_id)
+                    boost_amount = bs.get("boost_brightness") or 0
+                lighting_values = {
+                    "brightness": entry[1],
+                    "kelvin": entry[2],
+                    "rhythm_brightness": entry[3] if len(entry) > 3 else entry[1],
+                    "brightness_override": override,
+                    "boost_brightness": boost_amount if boost_amount > 0 else None,
+                }
+                if skip:
+                    lighting_values["skip_filters"] = skip
+                tasks.append(
+                    self.turn_on_lights_circadian(
+                        area_id, lighting_values, transition=0.5
+                    )
+                )
+            else:
+                tasks.append(self.update_lights_in_circadian_mode(area_id))
         if tasks:
             await asyncio.gather(*tasks)
 

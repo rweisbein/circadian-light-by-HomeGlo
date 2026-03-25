@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.96
+- **Fix double-send in bright_down/up reach fallback**: Partially-handled areas (e.g., kitchen with Standard + Accent) were re-sending all filters via per-area fallback, doubling Zigbee traffic for reach-handled filters. Now passes skip_filters so only unhandled filters get per-area sends.
+
 ## 1.0.95
 - **Auto-sync reach groups on balance/exposure change**: Saving room balance or solar exposure now triggers a reach group sync, so ZHA group membership stays in sync with area_factor changes.
 
