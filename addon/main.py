@@ -93,6 +93,9 @@ class HomeAssistantWebSocketClient:
         self._zha_group_name_mapping: Dict[str, Dict[str, str]] = (
             {}
         )  # group_friendly_name -> {"area", "filter", "cap"} from sync
+        self._ungrouped_lights: Dict[str, Dict[str, list]] = (
+            {}
+        )  # area_key -> {"color": [entity_ids], "ct": [entity_ids]}
         self.group_entity_info: Dict[str, Dict[str, Any]] = (
             {}
         )  # Metadata for grouped light entities
@@ -3986,6 +3989,9 @@ class HomeAssistantWebSocketClient:
 
         service_data = {"transition": transition}
 
+        # Get ungrouped lights for this area (single-purpose ZHA lights with no group)
+        ungrouped = self._ungrouped_lights.get(normalized_key, {}) if normalized_key else {}
+
         # Color-capable lights
         if color_lights:
             if all_color_groups:
@@ -4000,13 +4006,15 @@ class HomeAssistantWebSocketClient:
                             )
                         )
                     )
-                if non_zha_color:
+                # Non-ZHA lights + ungrouped ZHA lights (single-purpose, no group)
+                extra_color = non_zha_color + ungrouped.get("color", [])
+                if extra_color:
                     if log_periodic:
-                        logger.info(f"Turn off (color non-ZHA): {len(non_zha_color)} lights")
+                        logger.info(f"Turn off (color individual): {len(extra_color)} lights")
                     tasks.append(
                         asyncio.create_task(
                             self.call_service(
-                                "light", "turn_off", service_data, {"entity_id": non_zha_color}
+                                "light", "turn_off", service_data, {"entity_id": extra_color}
                             )
                         )
                     )
@@ -4035,13 +4043,14 @@ class HomeAssistantWebSocketClient:
                             )
                         )
                     )
-                if non_zha_ct:
+                extra_ct = non_zha_ct + ungrouped.get("ct", [])
+                if extra_ct:
                     if log_periodic:
-                        logger.info(f"Turn off (CT non-ZHA): {len(non_zha_ct)} lights")
+                        logger.info(f"Turn off (CT individual): {len(extra_ct)} lights")
                     tasks.append(
                         asyncio.create_task(
                             self.call_service(
-                                "light", "turn_off", service_data, {"entity_id": non_zha_ct}
+                                "light", "turn_off", service_data, {"entity_id": extra_ct}
                             )
                         )
                     )
@@ -6306,6 +6315,18 @@ class HomeAssistantWebSocketClient:
                 )
                 if success:
                     self._zha_group_name_mapping = group_mapping
+                    # Build ungrouped lights map from mappings with ungrouped_entities
+                    self._ungrouped_lights = {}
+                    for gname, m in group_mapping.items():
+                        ug = m.get("ungrouped_entities", [])
+                        if ug:
+                            area_name = m["area"]
+                            area_key = self._normalize_area_key(area_name) or area_name.lower().replace(" ", "_")
+                            if area_key not in self._ungrouped_lights:
+                                self._ungrouped_lights[area_key] = {"color": [], "ct": []}
+                            self._ungrouped_lights[area_key][m["cap"]].extend(ug)
+                    if self._ungrouped_lights:
+                        logger.info(f"Ungrouped lights (single-purpose): {self._ungrouped_lights}")
                     logger.info(f"ZHA group sync completed ({len(group_mapping)} group mappings)")
                     # Refresh parity cache using the areas data we already have
                     await self.refresh_area_parity_cache(areas_data=areas)

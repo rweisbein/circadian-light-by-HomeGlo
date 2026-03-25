@@ -995,8 +995,9 @@ class ZigBeeController(LightController):
 
                     filt = area_filters.get(entity_id, "Standard")
                     if filt not in filter_groups:
-                        filter_groups[filt] = {"color": [], "ct": []}
+                        filter_groups[filt] = {"color": [], "ct": [], "color_entities": [], "ct_entities": []}
                     filter_groups[filt][cap].append(member_entry)
+                    filter_groups[filt][f"{cap}_entities"].append(entity_id)
                     logger.debug(
                         f"  - {cap} light {entity_id}: filter={filt}, IEEE={ieee}, endpoint={endpoint_id}"
                     )
@@ -1006,13 +1007,13 @@ class ZigBeeController(LightController):
                     filt_normalized = filt_name.replace(" ", "_")
                     if caps["color"]:
                         gname = f"Circadian_{area_name_normalized}_{filt_normalized}_color"
-                        capability_groups.append((gname, caps["color"], "color"))
+                        capability_groups.append((gname, caps["color"], "color", caps["color_entities"]))
                         group_name_mapping[gname] = {
                             "area": area_name, "filter": filt_name, "cap": "color",
                         }
                     if caps["ct"]:
                         gname = f"Circadian_{area_name_normalized}_{filt_normalized}_ct"
-                        capability_groups.append((gname, caps["ct"], "ct"))
+                        capability_groups.append((gname, caps["ct"], "ct", caps["ct_entities"]))
                         group_name_mapping[gname] = {
                             "area": area_name, "filter": filt_name, "cap": "ct",
                         }
@@ -1023,11 +1024,15 @@ class ZigBeeController(LightController):
                     )
                     continue
 
-                for group_name, members, cap_type in capability_groups:
+                for group_name, members, cap_type, entities in capability_groups:
                     if len(members) < 2:
                         logger.info(
                             f"Skipping group '{group_name}' ({len(members)} member — direct control)"
                         )
+                        # Track ungrouped entity_ids in the mapping
+                        mapping = group_name_mapping.get(group_name)
+                        if mapping:
+                            mapping["ungrouped_entities"] = entities
                         continue
                     expected_group_names.add(group_name)
                     all_capability_groups.append(
