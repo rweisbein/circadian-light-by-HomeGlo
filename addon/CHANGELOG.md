@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.119
+- **Fix last reach flash cut off**: Added 300ms dwell after every flash (including last) so the light visually completes before restore/cleanup. Only affected lights that were off.
+- **Power button moved to Final column**: Off areas show brightness % with small power icon below (replacing "(off)" text). Saves horizontal space on mobile, keeps final value visible.
+
 ## 1.0.118
 - **Fix feedback cue vs periodic tick collision**: Added `_defer_periodic_tick` flag that prevents periodic light updates during feedback cue sequences (reach flashes, bounce, freeze). Flag set at cue start, cleared in `finally` block, then `record_light_action()` starts fresh burst refresh. Prevents periodic tick from overwriting flash sequence mid-animation.
 

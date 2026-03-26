@@ -348,12 +348,12 @@
     .tune-area.is-off .tune-off-label { display: block; }
     .tune-power-btn {
       background: none; border: 1px solid var(--line); color: var(--muted);
-      font-size: 0.75rem; width: 24px; height: 24px; border-radius: 6px;
+      font-size: 0.65rem; width: 20px; height: 20px; border-radius: 4px;
       cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
-      margin-right: 6px; transition: all 0.15s; flex-shrink: 0; vertical-align: middle;
+      transition: all 0.15s; margin-top: 2px;
     }
     .tune-power-btn:hover { color: var(--success); border-color: var(--success); background: rgba(34,197,94,0.1); }
-    .tune-off-label { font-size: 0.6rem; color: var(--muted2); font-weight: 400; text-transform: lowercase; }
+    .tune-off-label { display: none; text-align: right; }
     .tune-area-name {
       font-size: 0.85rem;
       color: var(--text);
@@ -1395,7 +1395,7 @@
       const baseBri = computeNowBrightness(rhythmBri, factor, exposure, outdoorNorm, sensitivity, fadeWeight);
       const nowBri = Math.max(0, Math.min(100, Math.round(baseBri + briOverride + boostBri)));
       const nowEl = tuneAreaEl.querySelector('.tune-bri-now');
-      if (nowEl) nowEl.innerHTML = nowBri + '%' + (tuneAreaEl.classList.contains('is-off') ? '<div class="tune-off-label">(off)</div>' : '');
+      if (nowEl) nowEl.innerHTML = nowBri + '%';
       // Update brightness shading
       tuneAreaEl.style.background = 'rgba(255,255,255,' + (nowBri * 0.003).toFixed(4) + ')';
       // Update impact deltas
@@ -2455,14 +2455,13 @@
           const adjText = adjVal === 0 ? '0%' : (adjIcons + (adjVal > 0 ? '+' : '') + Math.round(adjVal));
           const adjClass = adjVal !== 0 ? ' has-value' : '';
 
-          const powerBtn = !isOn ? '<button class="tune-power-btn" onclick="event.stopPropagation(); turnOnArea(\'' + area.area_id + '\')" title="Turn on">&#x23FB;</button>' : '';
-          const finalHtml = isOn ? nowBri + '%' : nowBri + '%<div class="tune-off-label">(off)</div>';
+          const finalHtml = isOn ? nowBri + '%' : nowBri + '%<div class="tune-off-label"><button class="tune-power-btn" onclick="event.stopPropagation(); turnOnArea(\'' + area.area_id + '\')" title="Turn on">&#x23FB;</button></div>';
 
           return `
             <div class="tune-area${hasLights ? ' expandable' : ''}${!isOn ? ' is-off' : ''}" data-area-id="${area.area_id}" data-rhythm-bri="${rhythmBri}" data-sensitivity="${sensitivity}" data-outdoor-norm="${outdoorNorm}" data-bri-fade-weight="${briFadeWeight}" data-zone-min-bri="${zoneMinBri}" data-zone-max-bri="${zoneMaxBri}" data-boost-bri="${isBoosted ? (tuneArea.boost_brightness || 0) : 0}" data-bri-override="${briOverride}" style="background:rgba(255,255,255,${(nowBri * 0.003).toFixed(4)});" ${hasLights ? `onclick="toggleAreaLights('${area.area_id}', event)"` : ''}>
               <div class="tune-area-inner">
                 <span class="tune-name-col">
-                  ${powerBtn}<a href="./area/${encodeURIComponent(area.area_id)}?from=tune" class="tune-area-name" onclick="event.stopPropagation()">${area.name}</a>
+                  <a href="./area/${encodeURIComponent(area.area_id)}?from=tune" class="tune-area-name" onclick="event.stopPropagation()">${area.name}</a>
                 </span>
                 <span class="tune-se-col"><span class="tune-impact-delta tune-solar-meta">${solarImpact}</span></span>
                 <span class="tune-balance-col"><span class="tune-impact-delta tune-factor-meta">${factorImpact}</span></span>

@@ -2601,8 +2601,7 @@ class HomeAssistantWebSocketClient:
                         {"brightness": cached_bri, "transition": 0},
                         target=target,
                     )
-                    if i < scope_number - 1:
-                        await asyncio.sleep(0.3)
+                    await asyncio.sleep(0.3)
 
                 # Restore (already on at cached_bri from last flash)
                 if not was_on:
