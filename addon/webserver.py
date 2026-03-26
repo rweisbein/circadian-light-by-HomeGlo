@@ -5391,6 +5391,10 @@ class LightDesignerServer:
                 "sensor_entity": lux_tracker.get_sensor_entity(),
                 "illuminance_sensors": illuminance_sensors,
                 "weather_groups": weather_groups,
+                "condition_multiplier": round(
+                    lux_tracker.get_condition_multiplier(), 2
+                ),
+                "angle_factor": round(lux_tracker.get_angle_factor(), 3),
             }
         )
 

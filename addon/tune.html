@@ -818,6 +818,17 @@
       panelHtml += '<button class="tune-outdoor-panel-btn" onclick="event.stopPropagation(); refreshOutdoorInPlace()" title="Refresh">&#x21bb;</button>';
       panelHtml += '</div>';
 
+      const condMult = d?.condition_multiplier != null ? Math.round(d.condition_multiplier * 100) + '%' : '--';
+      const angleFact = d?.angle_factor != null ? Math.round(d.angle_factor * 100) + '%' : '--';
+      panelHtml += '<div class="tune-outdoor-panel-row">';
+      panelHtml += '<span class="tune-outdoor-panel-label">Conditions</span>';
+      panelHtml += '<span class="tune-outdoor-panel-status">' + condMult + '</span>';
+      panelHtml += '</div>';
+      panelHtml += '<div class="tune-outdoor-panel-row">';
+      panelHtml += '<span class="tune-outdoor-panel-label">Angle factor</span>';
+      panelHtml += '<span class="tune-outdoor-panel-status">' + angleFact + '</span>';
+      panelHtml += '</div>';
+
       panelHtml += '<div class="tune-outdoor-panel-row">';
       panelHtml += '<span class="tune-outdoor-panel-label">Source</span>';
       panelHtml += '<select id="tune-outdoor-source">';

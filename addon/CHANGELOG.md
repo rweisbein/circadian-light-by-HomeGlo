@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.98
+- **Outdoor brightness breakdown on tune page**: Sun sensitivity popup now shows condition multiplier and angle factor as separate rows. Area detail source info simplified to just "outdoor brightness: X%".
+
 ## 1.0.97
 - **Sun saturation setting**: New "Sun saturation" setting (1-100%, default 25%) with ramp dropdown (linear/squared) in Location section. Controls at what percentage of peak sun elevation the angle factor saturates to 1.0. At 25%, full outdoor brightness is reached by mid-morning and lasts until late afternoon.
 - **Tune section shows outdoor breakdown**: Source info now shows condition multiplier (e.g., "partlycloudy 60%") and angle factor alongside outdoor_normalized.

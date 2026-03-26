@@ -3087,29 +3087,7 @@
       const sourceInfo = document.getElementById('tune-source-info');
       if (sourceInfo) {
         const sunIntPct = Math.round(ts.outdoorNormalized * 100);
-        let timeStr = '';
-        if (ts.outdoorLastUpdate) {
-          const d = new Date(ts.outdoorLastUpdate * 1000);
-          let h = d.getHours(), m = d.getMinutes();
-          const ampm = h >= 12 ? 'p' : 'a';
-          h = h % 12 || 12;
-          timeStr = h + ':' + (m < 10 ? '0' : '') + m + ampm;
-        }
-        let status = '';
-        if (ts.outdoorSource === 'lux' && ts.luxSmoothed != null) {
-          status = 'lux \u00b7 ' + Math.round(ts.luxSmoothed).toLocaleString() + ' lx';
-        } else if (ts.outdoorSource === 'weather' && ts.weatherCondition) {
-          const condPct = ts.conditionMultiplier != null ? Math.round(ts.conditionMultiplier * 100) + '%' : '';
-          status = ts.weatherCondition.replace(/-/g, ' ') + (condPct ? ' ' + condPct : '');
-        } else if (ts.outdoorSource === 'angle') {
-          status = 'sun angle';
-        }
-        const anglePct = ts.angleFactor != null ? Math.round(ts.angleFactor * 100) + '%' : '';
-        const angleStr = anglePct ? ' | angle ' + anglePct : '';
-        sourceInfo.innerHTML = sunIntPct + '%'
-          + (status ? ' | ' + status : '')
-          + angleStr
-          + (timeStr ? ' @ ' + timeStr : '')
+        sourceInfo.innerHTML = 'outdoor brightness: ' + sunIntPct + '%'
           + ' <button class="tune-refresh-btn" id="tune-refresh-outdoor" title="Refresh">&#x21bb;</button>';
         const refreshBtn = document.getElementById('tune-refresh-outdoor');
         if (refreshBtn && !refreshBtn._bound) {
