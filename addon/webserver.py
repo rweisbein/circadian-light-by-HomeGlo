@@ -1952,7 +1952,7 @@ class LightDesignerServer:
             "daylight_enabled": True,
             "daylight_cct": 5500,
             "daylight_fade": 60,
-            "color_sensitivity": 1.50,
+            "color_sensitivity": 1.0,
             # Activity preset
             "activity_preset": "adult",
             # Location (default to HA, allow override)

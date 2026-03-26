@@ -1224,7 +1224,7 @@
 
       // Daylight color blend (intensity-based)
       const daylightCct = cfg.daylight_cct || 0;
-      const colorSensitivity = cfg.color_sensitivity ?? 1.50;
+      const colorSensitivity = cfg.color_sensitivity ?? 1.0;
       if (cfg.daylight_enabled !== false && daylightCct > 0 && sunTimes) {
         let blend = Math.min(1.0, 1.0 * colorSensitivity);
         // Apply daylight window + fade using configurable start/end offsets

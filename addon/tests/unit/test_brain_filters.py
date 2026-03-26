@@ -168,10 +168,10 @@ class TestCalculateNaturalLightFactor:
         assert factor == 0.0
 
     def test_default_gain(self):
-        """Default gain is 5.0."""
+        """Default gain is 1.0."""
         factor = calculate_natural_light_factor(0.5, 0.5)
-        # 1 - 0.5 * 0.5 * 5.0 = 1 - 1.25 = -0.25 → 0.0
-        assert factor == 0.0
+        # 1 - 0.5 * 0.5 * 1.0 = 0.75
+        assert factor == 0.75
 
 
 class TestApplyLightFilterPipeline:

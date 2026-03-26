@@ -1516,12 +1516,12 @@ input[type=range]::-moz-range-thumb {
             <div class="tune-control-row">
               <span class="tune-control-left">
                 <span class="tune-control-label">Sun sensitivity</span>
-                <span class="tune-control-reset" id="reset-color-sensitivity" data-default="6">reset</span>
+                <span class="tune-control-reset" id="reset-color-sensitivity" data-default="5">reset</span>
               </span>
-              <span class="tune-control-impact" id="color-sensitivity-text">1.50: strong</span>
+              <span class="tune-control-impact" id="color-sensitivity-text">1.00: standard</span>
             </div>
             <div class="tune-slider-row">
-              <input type="range" id="color-sensitivity" min="0" max="9" step="1" value="6">
+              <input type="range" id="color-sensitivity" min="0" max="8" step="1" value="5">
             </div>
           </div>
         </div>
@@ -1591,16 +1591,15 @@ const ACTIVITY_PRESETS = {
 };
 
 const SENSITIVITY_STEPS = [
-  { label: "None",        multiplier: 0.00 },
-  { label: "Minimal",     multiplier: 0.15 },
-  { label: "Low",         multiplier: 0.35 },
-  { label: "Slight",      multiplier: 0.55 },
-  { label: "Moderate",    multiplier: 0.80 },
-  { label: "Noticeable",  multiplier: 1.10 },
-  { label: "Strong",      multiplier: 1.50 },
-  { label: "High",        multiplier: 2.00 },
-  { label: "Very high",   multiplier: 3.00 },
-  { label: "Maximum",     multiplier: 5.00 },
+  { label: "None",     multiplier: 0.00 },
+  { label: "Minimal",  multiplier: 0.10 },
+  { label: "Low",      multiplier: 0.25 },
+  { label: "Medium",   multiplier: 0.50 },
+  { label: "Moderate", multiplier: 0.75 },
+  { label: "Standard", multiplier: 1.00 },
+  { label: "High",     multiplier: 1.25 },
+  { label: "Strong",   multiplier: 1.50 },
+  { label: "Maximum",  multiplier: 2.00 },
 ];
 
 function findClosestSensitivityStep(value) {
@@ -1640,7 +1639,7 @@ let config = {
   daylight_start: 60,    // minutes offset from sunrise (positive = after)
   daylight_end: -60,     // minutes offset from sunset (negative = before)
   daylight_fade: 60,
-  color_sensitivity: 1.50,
+  color_sensitivity: 1.0,
   activity_preset: 'adult',
   use_ha_location: true,
   latitude: 35.0,
@@ -1839,7 +1838,7 @@ function applySolarRuleAtHour(baseCCT, hour) {
     const elev = getSunElevationAtHour(hour, config.latitude, config.longitude, dateStr);
     const outdoorNorm = elevationToOutdoorNorm(elev, conditionMult);
     const daylightCct = config.daylight_cct || 0;
-    const colorSensitivity = config.color_sensitivity ?? 1.50;
+    const colorSensitivity = config.color_sensitivity ?? 1.0;
     if (daylightCct > 0 && outdoorNorm > 0) {
       let blend = Math.min(1.0, outdoorNorm * colorSensitivity);
       // Apply start/end offsets and fade

@@ -67,8 +67,8 @@ SPEED_TO_SLOPE = [0.0, 0.4, 0.6, 0.8, 1.0, 1.3, 1.7, 2.3, 3.0, 4.0, 5.5]
 
 # Natural light / outdoor intensity constants
 FULL_SUN_INTENSITY = 8.4  # log2(100000 / 300) — used for lux normalization
-DEFAULT_BRIGHTNESS_SENSITIVITY = 5.0
-DEFAULT_COLOR_SENSITIVITY = 1.50
+DEFAULT_BRIGHTNESS_SENSITIVITY = 1.0
+DEFAULT_COLOR_SENSITIVITY = 1.0
 DEFAULT_DAYLIGHT_CCT = 5500
 DEFAULT_DAYLIGHT_FADE = 60  # minutes after sunrise / before sunset
 

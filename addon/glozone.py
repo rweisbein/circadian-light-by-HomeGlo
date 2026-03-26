@@ -360,7 +360,7 @@ def get_zone_config(zone_name: str) -> Dict[str, Any]:
         "bed_alt_days": [],
         "wake_brightness": 50,
         "bed_brightness": 50,
-        "color_sensitivity": 1.50,
+        "color_sensitivity": 1.0,
         "daylight_enabled": True,
         "daylight_cct": 5500,
         "daylight_fade": 60,
@@ -671,7 +671,7 @@ def _migrate_cool_day_to_natural_light(config: Dict[str, Any]) -> None:
             target["daylight_cct"] = target["cool_day_target"]
 
         # Set defaults for new keys if not present
-        target.setdefault("color_sensitivity", 1.50)
+        target.setdefault("color_sensitivity", 1.0)
 
         # Remove all cool_day keys
         for k in cool_day_keys:

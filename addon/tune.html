@@ -167,7 +167,7 @@
       border-bottom-color: var(--accent);
     }
 
-    /* Tune sensitivity — collapsible card */
+    /* Sun multiplier — collapsible card */
     .tune-sensitivity-card {
       background: var(--card);
       border: 1px solid var(--line);
@@ -183,7 +183,7 @@
       padding: 12px 14px;
       user-select: none;
     }
-    .tune-sensitivity-header:hover { background: rgba(255,255,255,0.05); }
+    .tune-sensitivity-header:hover { background: rgba(255,255,255,0.05); border-radius: 10px; }
     .tune-sensitivity-title { font-size: 1.0rem; font-weight: 600; color: var(--text); }
     .tune-sensitivity-chevron { display: inline-block; font-size: 1.1rem; line-height: 1; transition: transform 0.25s; color: var(--muted2); flex-shrink: 0; }
     .tune-sensitivity-card.is-open .tune-sensitivity-chevron { transform: rotate(90deg); }
@@ -193,25 +193,45 @@
       max-height: 0; opacity: 0; overflow: hidden;
       transition: max-height 0.3s ease, opacity 0.25s ease;
     }
-    .tune-sensitivity-card.is-open .tune-sensitivity-body { max-height: 500px; opacity: 1; overflow: visible; }
-    .tune-sensitivity-body-inner {
+    .tune-sensitivity-card.is-open .tune-sensitivity-body { max-height: 600px; opacity: 1; overflow: visible; }
+    .tune-sensitivity-section-label {
+      font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.5px;
+      color: var(--muted2); padding: 8px 14px 4px; font-weight: 600;
+    }
+    .tune-sensitivity-slider-row {
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 0 14px 12px;
+      padding: 0 14px 8px;
       flex-wrap: wrap;
     }
-    .tune-sensitivity-body-inner input[type="range"] {
+    .tune-sensitivity-slider-row input[type="range"] {
       flex: 1;
       min-width: 80px;
       max-width: 200px;
     }
-    .tune-sensitivity-explain {
-      padding: 0 14px 10px;
-      font-size: 0.75rem;
-      color: var(--muted2);
-      line-height: 1.4;
+    .tune-sun-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 3px 14px; font-size: 0.82rem;
     }
+    .tune-sun-row-label { color: var(--muted2); font-size: 0.75rem; min-width: 105px; flex-shrink: 0; }
+    .tune-sun-row-val { font-size: 0.8rem; color: var(--text); white-space: nowrap; }
+    .tune-sun-conditions-btn {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: none; border: 1px solid transparent; color: var(--text);
+      font-size: 0.8rem; padding: 2px 8px; border-radius: 4px; cursor: pointer;
+      transition: all 0.15s;
+    }
+    .tune-sun-conditions-btn:hover { border-color: var(--line); background: rgba(255,255,255,0.04); }
+    .tune-sun-conditions-icon { font-size: 0.9rem; }
+    .tune-sun-conditions-chevron { font-size: 0.7rem; color: var(--muted2); margin-left: 2px; }
+    .tune-sun-multiplier-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 14px 10px; font-size: 0.82rem;
+    }
+    .tune-sun-multiplier-label { color: var(--muted2); font-size: 0.75rem; min-width: 105px; flex-shrink: 0; }
+    .tune-sun-multiplier-val { font-size: 0.85rem; color: var(--text); font-weight: 600; white-space: nowrap; }
+    .tune-sun-multiplier-calc { font-size: 0.7rem; color: var(--muted2); white-space: nowrap; }
 
     /* Tune zone header */
     .tune-zone-header {
@@ -352,18 +372,9 @@
     .tune-slider-meta { font-size: 0.7rem; color: var(--muted2); white-space: nowrap; }
 
     /* Outdoor panel */
-    .tune-outdoor-wrapper { position: relative; display: inline-flex; align-items: center; }
-    .tune-outdoor-info {
-      display: inline-flex; align-items: center; gap: 6px;
-      font-size: 0.8rem; color: var(--muted); flex-wrap: wrap; cursor: pointer;
-      padding: 2px 8px; border-radius: 4px; border: 1px solid transparent;
-      transition: all 0.15s;
-    }
-    .tune-outdoor-info:hover { color: var(--text); border-color: var(--line); background: rgba(255,255,255,0.04); }
-    .tune-outdoor-pct { color: var(--text); font-weight: 600; white-space: nowrap; }
-    .tune-outdoor-detail { color: var(--muted2); font-size: 0.75rem; }
+    .tune-outdoor-wrapper { position: relative; }
     .tune-outdoor-panel {
-      position: absolute; top: 100%; right: 0; margin-top: 4px;
+      position: absolute; top: 100%; left: 105px; margin-top: 4px;
       min-width: 300px; background: var(--panel);
       border: 1px solid var(--line); border-radius: 8px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.4);
@@ -633,16 +644,15 @@
     ];
 
     const SENSITIVITY_STEPS = [
-      { label: "None",       multiplier: 0.00 },
-      { label: "Minimal",    multiplier: 0.15 },
-      { label: "Low",        multiplier: 0.35 },
-      { label: "Slight",     multiplier: 0.55 },
-      { label: "Moderate",   multiplier: 0.80 },
-      { label: "Noticeable", multiplier: 1.10 },
-      { label: "Strong",     multiplier: 1.50 },
-      { label: "High",       multiplier: 2.00 },
-      { label: "Very high",  multiplier: 3.00 },
-      { label: "Maximum",    multiplier: 5.00 },
+      { label: "None",     multiplier: 0.00 },
+      { label: "Minimal",  multiplier: 0.10 },
+      { label: "Low",      multiplier: 0.25 },
+      { label: "Medium",   multiplier: 0.50 },
+      { label: "Moderate", multiplier: 0.75 },
+      { label: "Standard", multiplier: 1.00 },
+      { label: "High",     multiplier: 1.25 },
+      { label: "Strong",   multiplier: 1.50 },
+      { label: "Maximum",  multiplier: 2.00 },
     ];
 
     // ============================================================
@@ -790,12 +800,8 @@
         : (d.source === 'override') ? '\u2699' : '\u2600';
     }
 
-    function buildOutdoorSection() {
+    function buildConditionsPanel() {
       const d = tuneOutdoorData;
-      const pct = d ? Math.round((d.outdoor_normalized || 0) * 100) : '--';
-      const icon = buildOutdoorIcon(d);
-      const infoHtml = '<span class="tune-outdoor-pct" id="tune-outdoor-pct">' + icon + ' ' + pct + '%</span>';
-
       const src = d?.preferred_source || 'weather';
       const sensor = d?.sensor_entity || '';
       const sensors = d?.illuminance_sensors || [];
@@ -810,89 +816,75 @@
         warn = ' (sensor NA)';
       }
 
-      let panelHtml = '<div class="tune-outdoor-panel" id="tune-outdoor-panel">';
+      let h = '<div class="tune-outdoor-panel" id="tune-outdoor-panel">';
 
-      panelHtml += '<div class="tune-outdoor-panel-row">';
-      panelHtml += '<span class="tune-outdoor-panel-label">Status</span>';
-      panelHtml += '<span class="tune-outdoor-panel-status" id="tune-outdoor-status-detail">' + detail + warn + '</span>';
-      panelHtml += '<button class="tune-outdoor-panel-btn" onclick="event.stopPropagation(); refreshOutdoorInPlace()" title="Refresh">&#x21bb;</button>';
-      panelHtml += '</div>';
+      h += '<div class="tune-outdoor-panel-row">';
+      h += '<span class="tune-outdoor-panel-label">Status</span>';
+      h += '<span class="tune-outdoor-panel-status" id="tune-outdoor-status-detail">' + detail + warn + '</span>';
+      h += '<button class="tune-outdoor-panel-btn" onclick="event.stopPropagation(); refreshOutdoorInPlace()" title="Refresh">&#x21bb;</button>';
+      h += '</div>';
 
-      const condMult = d?.condition_multiplier != null ? Math.round(d.condition_multiplier * 100) + '%' : '--';
-      const angleFact = d?.angle_factor != null ? Math.round(d.angle_factor * 100) + '%' : '--';
-      panelHtml += '<div class="tune-outdoor-panel-row">';
-      panelHtml += '<span class="tune-outdoor-panel-label">Conditions</span>';
-      panelHtml += '<span class="tune-outdoor-panel-status">' + condMult + '</span>';
-      panelHtml += '</div>';
-      panelHtml += '<div class="tune-outdoor-panel-row">';
-      panelHtml += '<span class="tune-outdoor-panel-label">Angle factor</span>';
-      panelHtml += '<span class="tune-outdoor-panel-status">' + angleFact + '</span>';
-      panelHtml += '</div>';
-
-      panelHtml += '<div class="tune-outdoor-panel-row">';
-      panelHtml += '<span class="tune-outdoor-panel-label">Source</span>';
-      panelHtml += '<select id="tune-outdoor-source">';
-      panelHtml += '<option value="lux"' + (src === 'lux' ? ' selected' : '') + '>Lux sensor</option>';
-      panelHtml += '<option value="weather"' + (src === 'weather' ? ' selected' : '') + '>HA weather</option>';
-      panelHtml += '<option value="angle"' + (src === 'angle' ? ' selected' : '') + '>Sun angle</option>';
-      panelHtml += '</select></div>';
+      h += '<div class="tune-outdoor-panel-row">';
+      h += '<span class="tune-outdoor-panel-label">Source</span>';
+      h += '<select id="tune-outdoor-source">';
+      h += '<option value="lux"' + (src === 'lux' ? ' selected' : '') + '>Lux sensor</option>';
+      h += '<option value="weather"' + (src === 'weather' ? ' selected' : '') + '>HA weather</option>';
+      h += '<option value="angle"' + (src === 'angle' ? ' selected' : '') + '>Sun angle</option>';
+      h += '</select></div>';
 
       if (showLux) {
-        panelHtml += '<div class="tune-outdoor-panel-row">';
-        panelHtml += '<span class="tune-outdoor-panel-label">Sensor</span>';
-        panelHtml += '<select id="tune-outdoor-sensor" onchange="handleSensorChange(this.value)">';
-        panelHtml += '<option value="">None</option>';
+        h += '<div class="tune-outdoor-panel-row">';
+        h += '<span class="tune-outdoor-panel-label">Sensor</span>';
+        h += '<select id="tune-outdoor-sensor" onchange="handleSensorChange(this.value)">';
+        h += '<option value="">None</option>';
         for (const s of sensors) {
           const sel = s.entity_id === sensor ? ' selected' : '';
-          panelHtml += '<option value="' + s.entity_id + '"' + sel + '>' + s.name + '</option>';
+          h += '<option value="' + s.entity_id + '"' + sel + '>' + s.name + '</option>';
         }
         if (sensor && !sensors.find(s => s.entity_id === sensor)) {
-          panelHtml += '<option value="' + sensor + '" selected>' + sensor + '</option>';
+          h += '<option value="' + sensor + '" selected>' + sensor + '</option>';
         }
-        panelHtml += '</select>';
-        panelHtml += '</div>';
+        h += '</select>';
+        h += '</div>';
         const luxVal = d.lux_smoothed != null ? Math.round(d.lux_smoothed).toLocaleString() + ' lx' : '--';
-        panelHtml += '<div class="tune-outdoor-panel-row">';
-        panelHtml += '<span class="tune-outdoor-panel-label">Reading</span>';
-        panelHtml += '<span class="tune-outdoor-panel-status" id="tune-outdoor-reading">' + luxVal + '</span>';
-        panelHtml += '<span class="tune-outdoor-panel-status" id="tune-outdoor-range" style="opacity:0.5;">' + rangeStr + '</span>';
-        panelHtml += '</div>';
+        h += '<div class="tune-outdoor-panel-row">';
+        h += '<span class="tune-outdoor-panel-label">Reading</span>';
+        h += '<span class="tune-outdoor-panel-status" id="tune-outdoor-reading">' + luxVal + '</span>';
+        h += '<span class="tune-outdoor-panel-status" id="tune-outdoor-range" style="opacity:0.5;">' + rangeStr + '</span>';
+        h += '</div>';
         const d90 = new Date(Date.now() - 90 * 86400000);
         const defaultSince = d90.toISOString().slice(0, 16);
-        panelHtml += '<div class="tune-outdoor-panel-row">';
-        panelHtml += '<span class="tune-outdoor-panel-label">Learn from</span>';
-        panelHtml += '<input type="datetime-local" id="tune-outdoor-learn-since" value="' + defaultSince + '" style="background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:4px;padding:3px 6px;font-size:0.75rem;flex:1;min-width:0;">';
-        panelHtml += '<button class="tune-outdoor-panel-btn" id="tune-outdoor-learn">Learn</button>';
-        panelHtml += '<button class="tune-outdoor-panel-btn danger" id="tune-outdoor-clear-baselines">Clear</button>';
-        panelHtml += '</div>';
-        panelHtml += '<div class="tune-outdoor-panel-row"><span class="tune-outdoor-panel-label"></span><span class="tune-outdoor-panel-status" id="tune-outdoor-learn-status"></span></div>';
+        h += '<div class="tune-outdoor-panel-row">';
+        h += '<span class="tune-outdoor-panel-label">Learn from</span>';
+        h += '<input type="datetime-local" id="tune-outdoor-learn-since" value="' + defaultSince + '" style="background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:4px;padding:3px 6px;font-size:0.75rem;flex:1;min-width:0;">';
+        h += '<button class="tune-outdoor-panel-btn" id="tune-outdoor-learn">Learn</button>';
+        h += '<button class="tune-outdoor-panel-btn danger" id="tune-outdoor-clear-baselines">Clear</button>';
+        h += '</div>';
+        h += '<div class="tune-outdoor-panel-row"><span class="tune-outdoor-panel-label"></span><span class="tune-outdoor-panel-status" id="tune-outdoor-learn-status"></span></div>';
       }
 
-      panelHtml += '<hr class="tune-outdoor-panel-divider">';
-      panelHtml += '<div class="tune-outdoor-panel-row">';
-      panelHtml += '<span class="tune-outdoor-panel-label">Override</span>';
-      panelHtml += '<select id="tune-outdoor-override-cond">';
-      panelHtml += '<option value="">Off</option>';
+      h += '<hr class="tune-outdoor-panel-divider">';
+      h += '<div class="tune-outdoor-panel-row">';
+      h += '<span class="tune-outdoor-panel-label">Override</span>';
+      h += '<select id="tune-outdoor-override-cond">';
+      h += '<option value="">Off</option>';
       const groups = d?.weather_groups || [];
       for (const g of groups) {
         const sel = d?.override?.condition === g.key ? ' selected' : '';
         const pct = Math.round(g.multiplier * 100);
-        panelHtml += '<option value="' + g.key + '"' + sel + '>' + g.label + ' (' + pct + '%)</option>';
+        h += '<option value="' + g.key + '"' + sel + '>' + g.label + ' (' + pct + '%)</option>';
       }
-      panelHtml += '</select>';
-      panelHtml += '<select id="tune-outdoor-override-dur">';
-      panelHtml += '<option value="30">30m</option><option value="60" selected>1h</option><option value="120">2h</option><option value="240">4h</option>';
-      panelHtml += '</select>';
-      panelHtml += '<button class="tune-outdoor-panel-btn" id="tune-outdoor-apply-override">Apply</button>';
+      h += '</select>';
+      h += '<select id="tune-outdoor-override-dur">';
+      h += '<option value="30">30m</option><option value="60" selected>1h</option><option value="120">2h</option><option value="240">4h</option>';
+      h += '</select>';
+      h += '<button class="tune-outdoor-panel-btn" id="tune-outdoor-apply-override">Apply</button>';
       if (hasOverride) {
-        panelHtml += '<button class="tune-outdoor-panel-btn danger" id="tune-outdoor-clear-override">Clear</button>';
+        h += '<button class="tune-outdoor-panel-btn danger" id="tune-outdoor-clear-override">Clear</button>';
       }
-      panelHtml += '</div>';
-      panelHtml += '</div>';
-
-      return '<div class="tune-outdoor-wrapper">'
-        + '<span class="tune-outdoor-info" id="tune-outdoor-toggle">' + infoHtml + '</span>'
-        + panelHtml + '</div>';
+      h += '</div>';
+      h += '</div>';
+      return h;
     }
 
     function handleSensorChange(rawVal) {
@@ -1116,13 +1108,11 @@
         const valEl = document.getElementById('tune-global-sensitivity-val');
         if (valEl) valEl.textContent = fmtVal(SENSITIVITY_STEPS[step].multiplier);
         if (tuneData) tuneData.brightness_sensitivity = SENSITIVITY_STEPS[step].multiplier;
-        const outdoorNorm = tuneData?.outdoor_normalized ?? 0.0;
         const newSensitivity = SENSITIVITY_STEPS[step].multiplier;
-        const nowEl = document.getElementById('tune-global-sun-now');
-        if (nowEl) nowEl.textContent = '\u2193' + Math.min(100, Math.round(outdoorNorm * newSensitivity * 100)) + '%';
         document.querySelectorAll('.tune-area').forEach(el => {
           el.dataset.sensitivity = newSensitivity;
         });
+        updateSunMultiplierCard();
       }
       // Restore per-area
       for (const [areaId, snap] of Object.entries(tuneSnapshot.areas)) {
@@ -1232,32 +1222,44 @@
       localStorage.setItem('tune_sensitivity_open', isOpen ? '1' : '0');
     }
 
-    function buildSensitivityExplain(step, outdoorNorm, reduction) {
-      if (SENSITIVITY_STEPS[step].multiplier === 0) {
-        return 'Sun sensitivity disabled — outdoor brightness has no effect.';
-      }
-      if (outdoorNorm <= 0.01) {
-        return 'No sun impact right now.';
-      }
-      const outdoorPct = Math.round(outdoorNorm * 100);
-      // Find which SOLAR_STEPS entry has exposure = 1.0 ("Full")
-      const fullStep = SOLAR_STEPS.find(s => Math.abs(s.exposure - 1.0) < 0.01);
-      const fullLabel = fullStep ? fullStep.label : 'Full';
-      return 'At current outdoor brightness (' + outdoorPct + '%), areas set to ' + fullLabel + ' sun exposure have brightness reduced by ' + reduction + '%.';
+    function getSunMultiplier() {
+      const sensitivity = tuneData?.brightness_sensitivity ?? 1.0;
+      const outdoorNorm = tuneData?.outdoor_normalized ?? 0.0;
+      return outdoorNorm * sensitivity;
     }
 
-    function updateSensitivitySummary() {
-      const el = document.getElementById('tune-sensitivity-summary');
-      if (!el) return;
-      const sensEl = document.getElementById('tune-global-sensitivity');
-      if (!sensEl) return;
-      const step = parseInt(sensEl.value);
-      const sensitivity = SENSITIVITY_STEPS[step].multiplier;
+    function fmtSunMultiplier(mult) {
+      return Math.round(mult * 100) + '%';
+    }
+
+    function updateSunMultiplierCard() {
+      const d = tuneOutdoorData;
+      const sensitivity = tuneData?.brightness_sensitivity ?? 1.0;
       const outdoorNorm = tuneData?.outdoor_normalized ?? 0.0;
-      const reduction = Math.min(100, Math.round(outdoorNorm * sensitivity * 100));
-      el.textContent = SENSITIVITY_STEPS[step].label + ' \u2193' + reduction + '%';
-      const explainEl = document.getElementById('tune-sensitivity-explain');
-      if (explainEl) explainEl.textContent = buildSensitivityExplain(step, outdoorNorm, reduction);
+      const anglePct = d?.angle_factor != null ? Math.round(d.angle_factor * 100) : 0;
+      const condPct = d?.condition_multiplier != null ? Math.round(d.condition_multiplier * 100) : 100;
+      const sunBriPct = Math.round(outdoorNorm * 100);
+      const mult = outdoorNorm * sensitivity;
+
+      // Closed summary
+      const summaryEl = document.getElementById('tune-sensitivity-summary');
+      if (summaryEl) summaryEl.textContent = fmtSunMultiplier(mult);
+
+      // Sun rows
+      const angleEl = document.getElementById('tune-sun-angle-val');
+      if (angleEl) angleEl.textContent = anglePct + '%';
+      const condEl = document.getElementById('tune-sun-conditions-val');
+      if (condEl) condEl.textContent = condPct + '%';
+      const condIcon = document.getElementById('tune-sun-conditions-icon');
+      if (condIcon) condIcon.textContent = buildOutdoorIcon(d);
+      const sunBriEl = document.getElementById('tune-sun-brightness-val');
+      if (sunBriEl) sunBriEl.textContent = sunBriPct + '%';
+
+      // Multiplier row
+      const multValEl = document.getElementById('tune-sun-multiplier-val');
+      if (multValEl) multValEl.textContent = fmtSunMultiplier(mult);
+      const multCalcEl = document.getElementById('tune-sun-multiplier-calc');
+      if (multCalcEl) multCalcEl.textContent = sunBriPct + '% \u00d7 ' + fmtVal(sensitivity) + ' = ' + fmtSunMultiplier(mult);
     }
 
     // ============================================================
@@ -1265,7 +1267,7 @@
     // ============================================================
     function updateTuneNowPreview(tuneAreaEl, overrides) {
       const rhythmBri = parseFloat(tuneAreaEl.dataset.rhythmBri) || 50;
-      const sensitivity = parseFloat(tuneAreaEl.dataset.sensitivity) || 5.0;
+      const sensitivity = parseFloat(tuneAreaEl.dataset.sensitivity) || 1.0;
       const outdoorNorm = parseFloat(tuneAreaEl.dataset.outdoorNorm) || 0.0;
       const fadeWeight = parseFloat(tuneAreaEl.dataset.briFadeWeight) || 1.0;
       const lumenSlider = tuneAreaEl.querySelector('.tune-lumen-slider');
@@ -1290,10 +1292,7 @@
     }
 
     function updateAllZoneSunMeta() {
-      const sensitivity = tuneData?.brightness_sensitivity ?? 5.0;
-      const outdoorNorm = tuneData?.outdoor_normalized ?? 0.0;
-      const nowEl = document.getElementById('tune-global-sun-now');
-      if (nowEl) nowEl.textContent = '\u2193' + Math.min(100, Math.round(outdoorNorm * sensitivity * 100)) + '%';
+      updateSunMultiplierCard();
     }
 
     // ============================================================
@@ -1319,8 +1318,7 @@
         tuneOutdoorData = await resp.json();
         if (tuneData) tuneData.outdoor_normalized = tuneOutdoorData.outdoor_normalized ?? 0;
         const newNorm = tuneOutdoorData.outdoor_normalized ?? 0;
-        const pctEl = document.getElementById('tune-outdoor-pct');
-        if (pctEl) pctEl.textContent = buildOutdoorIcon(tuneOutdoorData) + ' ' + Math.round(newNorm * 100) + '%';
+        // Update conditions popup details
         const statusEl = document.getElementById('tune-outdoor-status-detail');
         if (statusEl) {
           let warn = (tuneOutdoorData.preferred_source === 'lux' && tuneOutdoorData.source !== 'lux') ? ' (sensor NA)' : '';
@@ -1334,11 +1332,12 @@
           const c = tuneOutdoorData.lux_learned_ceiling, f = tuneOutdoorData.lux_learned_floor;
           rangeEl.textContent = (c != null && f != null) ? Math.round(f).toLocaleString() + ' \u2013 ' + Math.round(c).toLocaleString() : 'not learned';
         }
+        // Update area previews
         document.querySelectorAll('.tune-area').forEach(el => {
           el.dataset.outdoorNorm = newNorm;
           updateTuneNowPreview(el, {});
         });
-        updateAllZoneSunMeta();
+        updateSunMultiplierCard();
       } catch (err) {
         console.error('refreshOutdoorInPlace error:', err);
       }
@@ -1534,7 +1533,7 @@
       if (!tuneArea) return;
       const lights = tuneArea.lights || [];
       const presets = tuneData?.presets || {};
-      const sensitivity = tuneData?.brightness_sensitivity ?? 5.0;
+      const sensitivity = tuneData?.brightness_sensitivity ?? 1.0;
       const outdoorNorm = tuneData?.outdoor_normalized ?? 0.0;
       const offThresh = tuneData?.off_threshold ?? 0;
       const areaFactor = tuneArea?.brightness_factor ?? 1.0;
@@ -1618,7 +1617,7 @@
       const presets = tuneData?.presets || {};
       const presetNames = Object.keys(presets);
       if (presetNames.indexOf('Standard') < 0) presetNames.unshift('Standard');
-      const sensitivity = tuneData?.brightness_sensitivity ?? 5.0;
+      const sensitivity = tuneData?.brightness_sensitivity ?? 1.0;
       const outdoorNorm = tuneData?.outdoor_normalized ?? 0.0;
       const offThresh = tuneData?.off_threshold ?? 0;
 
@@ -1733,7 +1732,7 @@
 
       const gzZonesObj = cachedGlozones?.zones || {};
       const gzZoneNames = Object.keys(gzZonesObj);
-      const sensitivity = tuneData?.brightness_sensitivity ?? 5.0;
+      const sensitivity = tuneData?.brightness_sensitivity ?? 1.0;
       const outdoorNorm = tuneData?.outdoor_normalized ?? 0.0;
       const collapsedState = getCollapsedZones();
       // Build merged area list from glozone data
@@ -1813,28 +1812,52 @@
 
       let html = '';
 
-      // Sensitivity collapsible card
+      // Sun multiplier collapsible card
       const tuneSensStep = findClosestSensitivityStep(sensitivity);
-      const tuneSensReduction = Math.min(100, Math.round(outdoorNorm * sensitivity * 100));
-      const sensSummary = SENSITIVITY_STEPS[tuneSensStep].label + ' \u2193' + tuneSensReduction + '%';
+      const d = tuneOutdoorData;
+      const anglePct = d?.angle_factor != null ? Math.round(d.angle_factor * 100) : 0;
+      const condPct = d?.condition_multiplier != null ? Math.round(d.condition_multiplier * 100) : 100;
+      const sunBriPct = Math.round(outdoorNorm * 100);
+      const sunMult = outdoorNorm * sensitivity;
+      const condIcon = buildOutdoorIcon(d);
       const sensIsOpen = localStorage.getItem('tune_sensitivity_open') === '1';
       html += `
         <div class="tune-sensitivity-card ${sensIsOpen ? 'is-open' : ''}" id="tune-sensitivity-card">
           <div class="tune-sensitivity-header" onclick="toggleSensitivityBody()">
             <span class="tune-sensitivity-chevron" id="tune-sensitivity-chevron">&#x203A;</span>
-            <span class="tune-sensitivity-title">Sun sensitivity</span>
-            <span class="tune-sensitivity-val" id="tune-sensitivity-summary">${sensSummary}</span>
+            <span class="tune-sensitivity-title">Sun multiplier</span>
+            <span class="tune-sensitivity-val" id="tune-sensitivity-summary">${fmtSunMultiplier(sunMult)}</span>
           </div>
           <div class="tune-sensitivity-body" id="tune-sensitivity-body">
-            <div class="tune-sensitivity-body-inner">
-              <input type="range" class="tune-sensitivity-slider" id="tune-global-sensitivity" min="0" max="9" step="1" value="${tuneSensStep}" onclick="event.stopPropagation()">
+            <div class="tune-sensitivity-section-label">Sensitivity</div>
+            <div class="tune-sensitivity-slider-row">
+              <input type="range" class="tune-sensitivity-slider" id="tune-global-sensitivity" min="0" max="8" step="1" value="${tuneSensStep}" onclick="event.stopPropagation()">
               <span class="tune-zone-ctrl-word tune-sensitivity-word" id="tune-global-sensitivity-word">${SENSITIVITY_STEPS[tuneSensStep].label}</span>
               <span class="tune-zone-ctrl-val" id="tune-global-sensitivity-val">${fmtVal(sensitivity)}</span>
-              <span class="tune-zone-sun-meta tune-zone-sun-now" id="tune-global-sun-now">\u2193${tuneSensReduction}%</span>
-              <span style="flex:1;"></span>
-              ${buildOutdoorSection()}
             </div>
-            <div class="tune-sensitivity-explain" id="tune-sensitivity-explain">${buildSensitivityExplain(tuneSensStep, outdoorNorm, tuneSensReduction)}</div>
+            <div class="tune-sensitivity-section-label">Sun</div>
+            <div class="tune-sun-row">
+              <span class="tune-sun-row-label">Sun angle</span>
+              <span class="tune-sun-row-val" id="tune-sun-angle-val">${anglePct}%</span>
+            </div>
+            <div class="tune-sun-row tune-outdoor-wrapper">
+              <span class="tune-sun-row-label">Sun conditions</span>
+              <button class="tune-sun-conditions-btn" id="tune-outdoor-toggle">
+                <span class="tune-sun-conditions-icon" id="tune-sun-conditions-icon">${condIcon}</span>
+                <span id="tune-sun-conditions-val">${condPct}%</span>
+                <span class="tune-sun-conditions-chevron">&#x203A;</span>
+              </button>
+              ${buildConditionsPanel()}
+            </div>
+            <div class="tune-sun-row">
+              <span class="tune-sun-row-label">Sun brightness</span>
+              <span class="tune-sun-row-val" id="tune-sun-brightness-val">${sunBriPct}%</span>
+            </div>
+            <div class="tune-sun-multiplier-row">
+              <span class="tune-sun-multiplier-label">Sun multiplier</span>
+              <span class="tune-sun-multiplier-val" id="tune-sun-multiplier-val">${fmtSunMultiplier(sunMult)}</span>
+              <span class="tune-sun-multiplier-calc" id="tune-sun-multiplier-calc">${sunBriPct}% \u00d7 ${fmtVal(sensitivity)} = ${fmtSunMultiplier(sunMult)}</span>
+            </div>
           </div>
         </div>
       `;
@@ -2123,15 +2146,12 @@
           if (wordEl) wordEl.textContent = SENSITIVITY_STEPS[step].label;
           const valEl = document.getElementById('tune-global-sensitivity-val');
           if (valEl) valEl.textContent = fmtVal(newSensitivity);
-          const outdoorNorm = tuneData?.outdoor_normalized ?? 0.0;
-          const nowEl = document.getElementById('tune-global-sun-now');
-          if (nowEl) nowEl.textContent = '\u2193' + Math.min(100, Math.round(outdoorNorm * newSensitivity * 100)) + '%';
           if (tuneData) tuneData.brightness_sensitivity = newSensitivity;
           document.querySelectorAll('.tune-area').forEach(el => {
             el.dataset.sensitivity = newSensitivity;
             updateTuneNowPreview(el, {});
           });
-          updateSensitivitySummary();
+          updateSunMultiplierCard();
           updateTuneActionBar();
           return;
         }
