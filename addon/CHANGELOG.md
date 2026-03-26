@@ -1,5 +1,14 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.117
+- **Fix color zone base CT**: Uses unshifted area for zone reference (fixes all areas showing shift when one area has circadian slider adjustment).
+- **Brightness: off area visibility**: Removed opacity dimming — off areas now fully visible with power button + (off) label as only indicators.
+- **Brightness: rename Brightness→Intensity** in sun multiplier card to avoid confusion with page purpose.
+- **Brightness: right-align math formula** in multiplier card header.
+- **Color: sensitivity slider moved to Cool Day row**, sun brightness row removed.
+- **Color: wider target inputs** with hidden spin buttons, fits full kelvin values.
+- **Both tabs: clickable zone headers** — click anywhere on zone header to collapse/expand (except zone name link which opens rhythm page).
+
 ## 1.0.116
 - **Color tab: collapsible zones**: Chevron + animation with separate collapsed state from brightness tab.
 - **Color tab: cool/warm columns restored**: Per-area Cool Day and Warm Night columns show individual impacts (differ when areas have circadian shifts).

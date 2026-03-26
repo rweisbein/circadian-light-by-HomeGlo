@@ -182,10 +182,10 @@
     .tune-sensitivity-title { font-size: 1.0rem; font-weight: 600; color: var(--text); }
     .tune-sensitivity-chevron { display: inline-block; font-size: 1.1rem; line-height: 1; transition: transform 0.25s; color: var(--muted2); flex-shrink: 0; }
     .tune-sensitivity-card.is-open .tune-sensitivity-chevron { transform: rotate(90deg); }
-    .tune-sensitivity-math { font-size: 0.75rem; color: var(--muted2); white-space: nowrap; display: none; }
+    .tune-sensitivity-math { font-size: 0.75rem; color: var(--muted2); white-space: nowrap; display: none; margin-left: auto; }
     .tune-sensitivity-card.is-open .tune-sensitivity-math { display: inline; }
     .tune-sensitivity-val { margin-left: auto; font-size: 0.85rem; color: var(--muted); white-space: nowrap; }
-    .tune-sensitivity-card.is-open .tune-sensitivity-val { margin-left: 4px; }
+    .tune-sensitivity-card.is-open .tune-sensitivity-val { margin-left: 4px; flex-shrink: 0; }
     .tune-sensitivity-body {
       max-height: 0; opacity: 0; overflow: hidden;
       transition: max-height 0.3s ease, opacity 0.25s ease;
@@ -345,8 +345,7 @@
     .tune-area:last-child {
       border-bottom: none;
     }
-    .tune-area.is-off { opacity: 0.5; }
-    .tune-area.is-off .tune-final-now { color: var(--muted2); }
+    .tune-area.is-off .tune-off-label { display: block; }
     .tune-power-btn {
       background: none; border: 1px solid var(--line); color: var(--muted);
       font-size: 0.75rem; width: 24px; height: 24px; border-radius: 6px;
@@ -584,9 +583,12 @@
     }
     .ct-target-input {
       background: transparent; border: none; color: inherit;
-      font-size: 0.8rem; width: 38px; text-align: right; padding: 0;
+      font-size: 0.8rem; width: 44px; text-align: right; padding: 0;
       font-variant-numeric: tabular-nums; font-weight: 600;
+      -moz-appearance: textfield;
     }
+    .ct-target-input::-webkit-inner-spin-button,
+    .ct-target-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
     .ct-target-input:focus { outline: none; }
     .ct-target-unit { font-size: 0.7rem; color: inherit; opacity: 0.7; margin-left: 1px; }
     .ct-zone-actions {
@@ -1989,10 +1991,18 @@
       const warmTargetEl = document.getElementById('ct-warm-target-' + zoneName);
       const warmTarget = warmTargetEl ? parseInt(warmTargetEl.value) : 2700;
 
-      // Get zone base CT from first area
+      // Get zone base CT from unshifted area
       const areas = zoneData.areas || [];
-      const firstAreaId = typeof areas[0] === 'object' ? areas[0].id : areas[0];
-      const refArea = colorAreaData?.[firstAreaId];
+      let refArea = null;
+      for (const a of areas) {
+        const aid = typeof a === 'object' ? a.id : a;
+        const ad = colorAreaData?.[aid];
+        if (ad && ad.color_mid == null) { refArea = ad; break; }
+      }
+      if (!refArea) {
+        const aid = typeof areas[0] === 'object' ? areas[0].id : areas[0];
+        refArea = colorAreaData?.[aid];
+      }
       const zoneCurveCt = refArea?.base_kelvin || 4000;
 
       // Recompute cool day blend
@@ -2097,9 +2107,17 @@
         const areas = zoneData.areas || [];
         if (areas.length === 0) continue;
 
-        // Zone base CT = rhythm curve value (pre-solar-rules) from first unshifted area
-        const firstAreaId = typeof areas[0] === 'object' ? areas[0].id : areas[0];
-        const refArea = colorAreaData?.[firstAreaId];
+        // Zone base CT = rhythm curve value (pre-solar-rules) from an unshifted area
+        let refArea = null;
+        for (const a of areas) {
+          const aid = typeof a === 'object' ? a.id : a;
+          const aData = colorAreaData?.[aid];
+          if (aData && aData.color_mid == null) { refArea = aData; break; }
+        }
+        if (!refArea) {
+          const aid = typeof areas[0] === 'object' ? areas[0].id : areas[0];
+          refArea = colorAreaData?.[aid];
+        }
         const zoneCurveCt = refArea?.base_kelvin || zoneStates?.[zoneName]?.kelvin || 4000;
         const zoneBgColor = ctBg(zoneCurveCt, 0.08);
         const zoneTextColor = ctTextColor(zoneCurveCt);
@@ -2135,8 +2153,8 @@
         const zoneHeaderText = readableTextColor(zoneHeaderBg);
 
         // Zone header with CT color + chevron
-        html += '<div class="ct-zone-header zone-header' + (ctIsCollapsed ? ' collapsed' : '') + '" id="ct-zone-header-' + zoneName + '" data-zone="' + zoneName + '" style="background:' + zoneHeaderBg + ';">';
-        html += '<span class="zone-chevron" style="color:' + zoneHeaderText + ';" onclick="event.stopPropagation(); toggleCtZone(\'' + escapedZone + '\', this)">&#x203A;</span>';
+        html += '<div class="ct-zone-header zone-header' + (ctIsCollapsed ? ' collapsed' : '') + '" id="ct-zone-header-' + zoneName + '" data-zone="' + zoneName + '" style="background:' + zoneHeaderBg + ';cursor:pointer;" onclick="toggleCtZone(\'' + escapedZone + '\', this)">';
+        html += '<span class="zone-chevron" style="color:' + zoneHeaderText + ';">&#x203A;</span>';
         html += '<a class="ct-zone-name" href="./zone/' + escapedZone + '?back=tune" onclick="event.stopPropagation()" style="color:' + zoneHeaderText + ';">' + zoneName + '</a>';
         html += '<span class="ct-zone-base-ct" id="ct-zone-ct-' + zoneName + '" style="color:' + zoneHeaderText + ';">' + Math.round(zoneFinalCt) + 'K</span>';
         html += '</div>';
@@ -2153,7 +2171,7 @@
         html += '<span class="ct-target-badge" style="background:' + warmBadgeBg + ';color:' + warmBadgeText + ';"><input type="number" class="ct-target-input" id="ct-warm-target-' + zoneName + '" value="' + warmTarget + '" min="1500" max="4000" step="100"><span class="ct-target-unit">K</span></span>';
         html += '<span class="ct-zone-ctrl-impact" id="ct-warm-impact-' + zoneName + '">' + fmtCtDelta(zoneWarmShift) + 'K</span>';
         html += '</div>';
-        // Row 2: Cool day
+        // Row 2: Cool day + sensitivity slider
         html += '<div class="ct-zone-ctrl-row">';
         html += '<span class="ct-zone-ctrl-label" style="min-width:80px;">Cool day</span>';
         html += '<input type="checkbox" class="ct-toggle" id="ct-cool-' + zoneName + '" ' + (coolEnabled ? 'checked' : '') + '>';
@@ -2161,14 +2179,8 @@
         const coolBadgeText = readableTextColor(coolBadgeBg);
         html += '<span class="ct-target-badge" style="background:' + coolBadgeBg + ';color:' + coolBadgeText + ';"><input type="number" class="ct-target-input" id="ct-cool-target-' + zoneName + '" value="' + coolTarget + '" min="4000" max="7000" step="100"><span class="ct-target-unit">K</span></span>';
         html += '<span class="ct-zone-ctrl-impact" id="ct-cool-impact-' + zoneName + '">+' + Math.round(zoneCoolShift) + 'K</span>';
-        html += '</div>';
-        // Row 3: Sun sensitivity + sun brightness
-        html += '<div class="ct-zone-ctrl-row">';
-        html += '<span class="ct-zone-ctrl-label" style="min-width:80px;">Sun sensitivity</span>';
-        html += '<input type="range" class="ct-sensitivity-slider tune-sensitivity-slider" id="ct-sens-' + zoneName + '" min="0" max="8" step="1" value="' + sensStep + '">';
+        html += '<input type="range" class="ct-sensitivity-slider tune-sensitivity-slider" id="ct-sens-' + zoneName + '" min="0" max="8" step="1" value="' + sensStep + '" style="margin-left:8px;">';
         html += '<span class="ct-sensitivity-val" id="ct-sens-val-' + zoneName + '">' + SENSITIVITY_STEPS[sensStep].label + ' ' + fmtVal(snappedSens) + '</span>';
-        html += '<span class="ct-zone-ctrl-label" style="margin-left:12px;">Brightness</span>';
-        html += '<span class="ct-zone-ctrl-impact">' + sunBriPct + '%</span>';
         html += '</div>';
         html += '</div>';
 
@@ -2391,7 +2403,7 @@
             <hr class="tune-sun-divider">
             <div class="tune-sun-result">
               <span class="tune-sun-row-op"></span>
-              <span class="tune-sun-result-label">Brightness</span>
+              <span class="tune-sun-result-label">Intensity</span>
               <span class="tune-sun-result-val" id="tune-sun-brightness-val">${sunBriPct}%</span>
             </div>
             <div class="tune-sensitivity-section-label">Sensitivity</div>
@@ -2493,8 +2505,8 @@
 
         html += `
           <div class="zone-group">
-            <div class="zone-header tune-zone-header ${isCollapsed ? 'collapsed' : ''}" data-zone="${zoneName}">
-              <span class="zone-chevron" onclick="event.stopPropagation(); toggleZone('${escapedZoneName}', this)">&#x203A;</span>
+            <div class="zone-header tune-zone-header ${isCollapsed ? 'collapsed' : ''}" data-zone="${zoneName}" style="cursor:pointer;" onclick="toggleZone('${escapedZoneName}', this)">
+              <span class="zone-chevron">&#x203A;</span>
               <a class="zone-rhythm-link" href="./zone/${encodeURIComponent(zoneName)}?back=tune" onclick="event.stopPropagation()">${zoneName}</a>
               <span class="tune-zone-bri-group">
                 <span class="tune-zone-base-bri">${rhythmBri}%</span>
