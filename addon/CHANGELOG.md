@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.113
+- **Fix color tab crash**: Variable ordering bug (zoneCoolShift used before declaration). Color tab now loads correctly.
+- **Off area rework**: Off areas show full impacts and brightness shading as if on, with "(off)" label below the brightness %. Squared power button with green hover. Adj column shows "0%" instead of dash for zero values.
+
 ## 1.0.112
 - **Off area treatment**: Areas with lights off show power button (⏻), "OFF" in final column, "NA" for SE/Balance impacts. Power button calls lights_on primitive and triggers full refresh. Off areas dimmed at 50% opacity with 0% brightness shading. Sliders and labels remain visible (settings, not state).
 - **API**: Added `is_on` field to light-filters response per area.

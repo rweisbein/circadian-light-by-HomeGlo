@@ -347,14 +347,14 @@
     }
     .tune-area.is-off { opacity: 0.5; }
     .tune-area.is-off .tune-final-now { color: var(--muted2); }
-    .tune-area.is-off .tune-impact-delta { color: var(--muted2); font-weight: 400; }
     .tune-power-btn {
       background: none; border: 1px solid var(--line); color: var(--muted);
-      font-size: 0.8rem; width: 22px; height: 22px; border-radius: 50%;
+      font-size: 0.75rem; width: 24px; height: 24px; border-radius: 6px;
       cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
       margin-right: 6px; transition: all 0.15s; flex-shrink: 0; vertical-align: middle;
     }
-    .tune-power-btn:hover { color: var(--success); border-color: var(--success); }
+    .tune-power-btn:hover { color: var(--success); border-color: var(--success); background: rgba(34,197,94,0.1); }
+    .tune-off-label { font-size: 0.6rem; color: var(--muted2); font-weight: 400; text-transform: lowercase; }
     .tune-area-name {
       font-size: 0.85rem;
       color: var(--text);
@@ -1391,10 +1391,9 @@
       const baseBri = computeNowBrightness(rhythmBri, factor, exposure, outdoorNorm, sensitivity, fadeWeight);
       const nowBri = Math.max(0, Math.min(100, Math.round(baseBri + briOverride + boostBri)));
       const nowEl = tuneAreaEl.querySelector('.tune-bri-now');
-      if (nowEl) nowEl.textContent = nowBri + '%';
+      if (nowEl) nowEl.innerHTML = nowBri + '%' + (tuneAreaEl.classList.contains('is-off') ? '<div class="tune-off-label">(off)</div>' : '');
       // Update brightness shading
       tuneAreaEl.style.background = 'rgba(255,255,255,' + (nowBri * 0.003).toFixed(4) + ')';
-      tuneAreaEl.classList.toggle('is-off', nowBri === 0);
       // Update impact deltas
       const factorMetaEl = tuneAreaEl.querySelector('.tune-factor-meta');
       if (factorMetaEl) factorMetaEl.textContent = formatImpactDelta(computeFactorImpact(rhythmBri, factor, exposure, outdoorNorm, sensitivity, fadeWeight));
@@ -1407,7 +1406,7 @@
         const boostIcon = boostBri > 0 ? '\u26A1' : '';
         const overrideIcon = Math.abs(briOverride) >= 0.5 ? '*' : '';
         if (adjVal === 0) {
-          adjEl.textContent = '\u2013';
+          adjEl.textContent = '0%';
           adjEl.classList.remove('has-value');
         } else {
           adjEl.innerHTML = boostIcon + overrideIcon + (adjVal > 0 ? '+' : '') + Math.round(adjVal);
@@ -2064,6 +2063,17 @@
         const sensStep = findClosestSensitivityStep(rawSens);
         const snappedSens = SENSITIVITY_STEPS[sensStep].multiplier;
 
+        // Compute zone-level cool day / warm night impact from first area
+        const refSb = refArea?.solar_breakdown || {};
+        const zoneCoolShift = refSb.daylight_shift || 0;
+        const zoneWarmShift = (refSb.night_shift || 0) > 0 ? -(refSb.night_shift) : 0;
+        const warmTarget = zoneData.warm_night_target || 2700;
+        const coolTarget = zoneData.daylight_cct || 5500;
+        const outdoorNorm = tuneData?.outdoor_normalized ?? 0;
+        const sunBriPct = Math.round(outdoorNorm * 100);
+        const warmTargetColor = ctBg(warmTarget, 0.5);
+        const coolTargetColor = ctBg(coolTarget, 0.5);
+
         html += '<div class="zone-group" style="margin-bottom:8px;">';
 
         // Zone final CT (base + solar rules)
@@ -2076,17 +2086,6 @@
         html += '<a class="ct-zone-name" href="./zone/' + escapedZone + '?back=tune" onclick="event.stopPropagation()" style="color:' + zoneHeaderText + ';">' + zoneName + '</a>';
         html += '<span class="ct-zone-base-ct" id="ct-zone-ct-' + zoneName + '" style="color:' + zoneHeaderText + ';">' + Math.round(zoneFinalCt) + 'K</span>';
         html += '</div>';
-
-        // Compute zone-level cool day / warm night impact from first area
-        const refSb = refArea?.solar_breakdown || {};
-        const zoneCoolShift = refSb.daylight_shift || 0;
-        const zoneWarmShift = (refSb.night_shift || 0) > 0 ? -(refSb.night_shift) : 0;
-        const warmTarget = zoneData.warm_night_target || 2700;
-        const coolTarget = zoneData.daylight_cct || 5500;
-        const outdoorNorm = tuneData?.outdoor_normalized ?? 0;
-        const sunBriPct = Math.round(outdoorNorm * 100);
-        const warmTargetColor = ctBg(warmTarget, 0.5);
-        const coolTargetColor = ctBg(coolTarget, 0.5);
 
         // Zone controls: three rows
         html += '<div class="ct-zone-controls">';
@@ -2370,24 +2369,22 @@
           const isOn = tuneArea?.is_on !== false; // default true if not present
           const adjVal = boostBri + briOverride;
           const adjIcons = (isBoosted ? '\u26A1' : '') + (Math.abs(briOverride) >= 0.5 ? '*' : '');
-          const adjText = adjVal === 0 ? '\u2013' : (adjIcons + (adjVal > 0 ? '+' : '') + Math.round(adjVal));
+          const adjText = adjVal === 0 ? '0%' : (adjIcons + (adjVal > 0 ? '+' : '') + Math.round(adjVal));
           const adjClass = adjVal !== 0 ? ' has-value' : '';
 
-          const displaySolarImpact = isOn ? solarImpact : 'NA';
-          const displayFactorImpact = isOn ? factorImpact : 'NA';
-          const displayFinal = isOn ? nowBri + '%' : 'OFF';
           const powerBtn = !isOn ? '<button class="tune-power-btn" onclick="event.stopPropagation(); turnOnArea(\'' + area.area_id + '\')" title="Turn on">&#x23FB;</button>' : '';
+          const finalHtml = isOn ? nowBri + '%' : nowBri + '%<div class="tune-off-label">(off)</div>';
 
           return `
-            <div class="tune-area${hasLights ? ' expandable' : ''}${!isOn ? ' is-off' : ''}" data-area-id="${area.area_id}" data-rhythm-bri="${rhythmBri}" data-sensitivity="${sensitivity}" data-outdoor-norm="${outdoorNorm}" data-bri-fade-weight="${briFadeWeight}" data-zone-min-bri="${zoneMinBri}" data-zone-max-bri="${zoneMaxBri}" data-boost-bri="${isBoosted ? (tuneArea.boost_brightness || 0) : 0}" data-bri-override="${briOverride}" style="background:rgba(255,255,255,${(isOn ? nowBri * 0.003 : 0).toFixed(4)});" ${hasLights ? `onclick="toggleAreaLights('${area.area_id}', event)"` : ''}>
+            <div class="tune-area${hasLights ? ' expandable' : ''}${!isOn ? ' is-off' : ''}" data-area-id="${area.area_id}" data-rhythm-bri="${rhythmBri}" data-sensitivity="${sensitivity}" data-outdoor-norm="${outdoorNorm}" data-bri-fade-weight="${briFadeWeight}" data-zone-min-bri="${zoneMinBri}" data-zone-max-bri="${zoneMaxBri}" data-boost-bri="${isBoosted ? (tuneArea.boost_brightness || 0) : 0}" data-bri-override="${briOverride}" style="background:rgba(255,255,255,${(nowBri * 0.003).toFixed(4)});" ${hasLights ? `onclick="toggleAreaLights('${area.area_id}', event)"` : ''}>
               <div class="tune-area-inner">
                 <span class="tune-name-col">
                   ${powerBtn}<a href="./area/${encodeURIComponent(area.area_id)}?from=tune" class="tune-area-name" onclick="event.stopPropagation()">${area.name}</a>
                 </span>
-                <span class="tune-se-col"><span class="tune-impact-delta tune-solar-meta">${displaySolarImpact}</span></span>
-                <span class="tune-balance-col"><span class="tune-impact-delta tune-factor-meta">${displayFactorImpact}</span></span>
-                <span class="tune-adj-col"><span class="tune-adj-val${adjClass}">${isOn ? adjText : '\u2013'}</span></span>
-                <span class="tune-final-col tune-final-now tune-bri-now">${displayFinal}</span>
+                <span class="tune-se-col"><span class="tune-impact-delta tune-solar-meta">${solarImpact}</span></span>
+                <span class="tune-balance-col"><span class="tune-impact-delta tune-factor-meta">${factorImpact}</span></span>
+                <span class="tune-adj-col"><span class="tune-adj-val${adjClass}">${adjText}</span></span>
+                <span class="tune-final-col tune-final-now tune-bri-now">${finalHtml}</span>
                 <div class="tune-se-col" onclick="event.stopPropagation()">
                   <input type="range" class="tune-solar-slider" min="0" max="9" step="1" value="${solarStep}" data-area-id="${area.area_id}">
                 </div>
