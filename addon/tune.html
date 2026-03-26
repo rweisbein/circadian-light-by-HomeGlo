@@ -2004,8 +2004,8 @@
 
         const rowEl = document.getElementById('ct-row-' + areaId);
         if (rowEl) {
-          rowEl.style.background = ctBg(areaFinalCt, 0.06);
-          rowEl.style.borderLeftColor = ctBg(areaFinalCt, 0.4);
+          rowEl.style.background = ctBg(areaFinalCt, 0.15);
+          rowEl.style.borderLeftColor = ctBg(areaFinalCt, 0.6);
         }
         const finalEl = document.getElementById('ct-final-' + areaId);
         if (finalEl) {
@@ -2139,8 +2139,8 @@
           const adj = sliderOverride ? colorOverride : 0;
 
           // CT color shading
-          const borderColor = ctBg(finalKelvin, 0.4);
-          const rowBg = ctBg(finalKelvin, 0.06);
+          const borderColor = ctBg(finalKelvin, 0.6);
+          const rowBg = ctBg(finalKelvin, 0.15);
           const finalColor = ctTextColor(finalKelvin);
           const shiftClass = Math.abs(shift) < 1 ? ' muted' : '';
           const adjClass = Math.abs(adj) < 1 ? ' muted' : '';
