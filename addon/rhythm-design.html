@@ -5246,12 +5246,12 @@ document.addEventListener('DOMContentLoaded', () => {
       'hail': 0.1, 'pouring': 0.1,
       'lightning': 0.08, 'lightning-rainy': 0.08,
     };
-    if (_liveSource === 'weather' && _liveCondition) {
-      _liveConditionMult = COND_MAP[_liveCondition] ?? 0.6;
-    } else if (_liveSource === 'lux' && data.outdoor_normalized != null && data.sun_elevation > 0) {
-      // Derive effective multiplier from lux: outdoor_norm / clear_sky_norm
+    if (data.outdoor_normalized != null && data.sun_elevation > 0) {
+      // Derive effective multiplier from actual outdoor_normalized (matches backend)
       const clearNorm = elevationToOutdoorNorm(data.sun_elevation, 1.0);
       _liveConditionMult = clearNorm > 0 ? Math.min(1.0, data.outdoor_normalized / clearNorm) : 1.0;
+    } else if (_liveSource === 'weather' && _liveCondition) {
+      _liveConditionMult = COND_MAP[_liveCondition] ?? 0.6;
     } else {
       _liveConditionMult = 1.0;
     }

@@ -2114,6 +2114,8 @@
                 tuneState.luxCeiling = ls.lux_ceiling ?? null;
                 tuneState.luxFloor = ls.lux_floor ?? null;
                 tuneState.weatherCondition = ls.weather_condition ?? null;
+                tuneState.conditionMultiplier = ls.condition_multiplier ?? null;
+                tuneState.angleFactor = ls.angle_factor ?? null;
                 tuneState.solarBreakdown = ls.solar_breakdown ?? null;
                 tuneState.boosted = _as.boosted || false;
                 tuneState.boostBrightness = _as.boost_brightness || 0;
@@ -3097,12 +3099,16 @@
         if (ts.outdoorSource === 'lux' && ts.luxSmoothed != null) {
           status = 'lux \u00b7 ' + Math.round(ts.luxSmoothed).toLocaleString() + ' lx';
         } else if (ts.outdoorSource === 'weather' && ts.weatherCondition) {
-          status = ts.weatherCondition.replace(/-/g, ' ');
+          const condPct = ts.conditionMultiplier != null ? Math.round(ts.conditionMultiplier * 100) + '%' : '';
+          status = ts.weatherCondition.replace(/-/g, ' ') + (condPct ? ' ' + condPct : '');
         } else if (ts.outdoorSource === 'angle') {
-          status = 'sun angle \u00b7 ' + (ts.sunElev ?? 0) + '\u00b0';
+          status = 'sun angle';
         }
+        const anglePct = ts.angleFactor != null ? Math.round(ts.angleFactor * 100) + '%' : '';
+        const angleStr = anglePct ? ' | angle ' + anglePct : '';
         sourceInfo.innerHTML = sunIntPct + '%'
           + (status ? ' | ' + status : '')
+          + angleStr
           + (timeStr ? ' @ ' + timeStr : '')
           + ' <button class="tune-refresh-btn" id="tune-refresh-outdoor" title="Refresh">&#x21bb;</button>';
         const refreshBtn = document.getElementById('tune-refresh-outdoor');
@@ -3229,6 +3235,8 @@
         luxCeiling: liveStatus.lux_ceiling ?? null,
         luxFloor: liveStatus.lux_floor ?? null,
         weatherCondition: liveStatus.weather_condition ?? null,
+        conditionMultiplier: liveStatus.condition_multiplier ?? null,
+        angleFactor: liveStatus.angle_factor ?? null,
         ctEnabled: config.ct_comp_enabled || false,
         ctBegin: config.ct_comp_begin || 1650,
         ctEnd: config.ct_comp_end || 2250,

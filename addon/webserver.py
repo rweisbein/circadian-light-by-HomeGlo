@@ -2893,6 +2893,10 @@ class LightDesignerServer:
                         "brightness_fade_weight": 1.0,  # Fade applies to color only, not brightness
                         "outdoor_normalized": round(outdoor_norm, 3),
                         "outdoor_source": outdoor_source,
+                        "condition_multiplier": round(
+                            lux_tracker.get_condition_multiplier(), 2
+                        ),
+                        "angle_factor": round(lux_tracker.get_angle_factor(), 3),
                         "outdoor_source_entity": (
                             lux_tracker.get_sensor_entity()
                             if outdoor_source == "lux"

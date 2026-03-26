@@ -86,6 +86,8 @@ _override_expires_at: Optional[float] = None  # monotonic timestamp
 # ---------------------------------------------------------------------------
 _sun_elevation: float = 0.0
 _max_summer_elevation: float = 78.0  # default for ~35°N, set via set_latitude()
+_sun_saturation: int = 25  # % of max elevation at which angle factor saturates to 1.0
+_sun_saturation_ramp: str = "linear"  # "linear" or "squared"
 
 # ---------------------------------------------------------------------------
 # Module state — runtime condition map (CONDITION_MULTIPLIERS + user overrides)
@@ -185,7 +187,7 @@ def reload_config(config: Optional[dict] = None):
     _sun_elevation, etc.).
     """
     global _sensor_entity, _smoothing_interval, _learned_ceiling, _learned_floor
-    global _preferred_source, _condition_map
+    global _preferred_source, _condition_map, _sun_saturation, _sun_saturation_ramp
 
     if config is None:
         config = glozone.load_config_from_files()
@@ -222,6 +224,9 @@ def reload_config(config: Optional[dict] = None):
         }
     else:
         _condition_map = dict(CONDITION_MULTIPLIERS)
+
+    _sun_saturation = max(1, min(100, int(config.get("sun_saturation", 25))))
+    _sun_saturation_ramp = config.get("sun_saturation_ramp", "linear")
 
     logger.info(
         f"Lux tracker config reloaded: source={_preferred_source}, "
@@ -435,10 +440,40 @@ def _estimate_clear_sky_lux(elevation_deg: float) -> float:
 
 
 def _compute_elev_factor() -> float:
-    """Sun elevation → 0-1 factor, linear from 0° to max summer elevation."""
+    """Sun elevation → 0-1 factor, saturating at sun_saturation % of max elevation."""
     if _sun_elevation <= 0:
         return 0.0
-    return min(1.0, _sun_elevation / _max_summer_elevation)
+    threshold = _max_summer_elevation * _sun_saturation / 100.0
+    if threshold <= 0:
+        return 1.0
+    raw = min(1.0, _sun_elevation / threshold)
+    if _sun_saturation_ramp == "squared":
+        return raw * raw
+    return raw
+
+
+def get_angle_factor() -> float:
+    """Public accessor for sun elevation factor (0-1)."""
+    return _compute_elev_factor()
+
+
+def get_condition_multiplier() -> float:
+    """Return the current condition multiplier based on source."""
+    if (
+        _preferred_source == "lux"
+        and _sensor_entity
+        and _learned_ceiling
+        and _learned_floor
+        and _ema_lux is not None
+    ):
+        # Lux source: derive from cached sun_factor / elev_factor
+        ef = _compute_elev_factor()
+        return (_cached_sun_factor / ef) if ef > 0 else 1.0
+    if _weather_condition and _weather_condition in _condition_map:
+        return _condition_map[_weather_condition]
+    if _cloud_cover is not None:
+        return 1.0 - (_cloud_cover / 100.0) * 0.7
+    return 1.0
 
 
 def _compute_weather_outdoor_norm() -> Optional[float]:
