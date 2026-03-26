@@ -187,8 +187,7 @@
     .tune-sensitivity-title { font-size: 1.0rem; font-weight: 600; color: var(--text); }
     .tune-sensitivity-chevron { display: inline-block; font-size: 1.1rem; line-height: 1; transition: transform 0.25s; color: var(--muted2); flex-shrink: 0; }
     .tune-sensitivity-card.is-open .tune-sensitivity-chevron { transform: rotate(90deg); }
-    .tune-sensitivity-val { margin-left: auto; font-size: 0.85rem; color: var(--muted); white-space: nowrap; transition: opacity 0.25s; }
-    .tune-sensitivity-card.is-open .tune-sensitivity-val { opacity: 0; pointer-events: none; }
+    .tune-sensitivity-val { margin-left: auto; font-size: 0.85rem; color: var(--muted); white-space: nowrap; }
     .tune-sensitivity-body {
       max-height: 0; opacity: 0; overflow: hidden;
       transition: max-height 0.3s ease, opacity 0.25s ease;
@@ -212,10 +211,18 @@
     }
     .tune-sun-row {
       display: flex; align-items: center; gap: 8px;
-      padding: 3px 14px; font-size: 0.82rem;
+      padding: 3px 14px 3px 28px; font-size: 0.82rem;
     }
-    .tune-sun-row-label { color: var(--muted2); font-size: 0.75rem; min-width: 105px; flex-shrink: 0; }
+    .tune-sun-row-label { color: var(--muted2); font-size: 0.75rem; min-width: 90px; flex-shrink: 0; }
     .tune-sun-row-val { font-size: 0.8rem; color: var(--text); white-space: nowrap; }
+    .tune-sun-row-op { color: var(--muted2); font-size: 0.75rem; width: 14px; text-align: center; flex-shrink: 0; }
+    .tune-sun-divider { border: none; border-top: 1px solid var(--line); margin: 4px 28px 4px 42px; }
+    .tune-sun-result {
+      display: flex; align-items: center; gap: 8px;
+      padding: 4px 14px 10px 28px; font-size: 0.82rem;
+    }
+    .tune-sun-result-label { color: var(--text); font-size: 0.75rem; min-width: 90px; flex-shrink: 0; font-weight: 600; }
+    .tune-sun-result-val { font-size: 0.85rem; color: var(--text); font-weight: 600; white-space: nowrap; }
     .tune-sun-conditions-btn {
       display: inline-flex; align-items: center; gap: 4px;
       background: none; border: 1px solid transparent; color: var(--text);
@@ -225,13 +232,6 @@
     .tune-sun-conditions-btn:hover { border-color: var(--line); background: rgba(255,255,255,0.04); }
     .tune-sun-conditions-icon { font-size: 0.9rem; }
     .tune-sun-conditions-chevron { font-size: 0.7rem; color: var(--muted2); margin-left: 2px; }
-    .tune-sun-multiplier-row {
-      display: flex; align-items: center; gap: 8px;
-      padding: 6px 14px 10px; font-size: 0.82rem;
-    }
-    .tune-sun-multiplier-label { color: var(--muted2); font-size: 0.75rem; min-width: 105px; flex-shrink: 0; }
-    .tune-sun-multiplier-val { font-size: 0.85rem; color: var(--text); font-weight: 600; white-space: nowrap; }
-    .tune-sun-multiplier-calc { font-size: 0.7rem; color: var(--muted2); white-space: nowrap; }
 
     /* Tune zone header */
     .tune-zone-header {
@@ -1234,14 +1234,16 @@
 
     function updateSunMultiplierCard() {
       const d = tuneOutdoorData;
-      const sensitivity = tuneData?.brightness_sensitivity ?? 1.0;
+      const sensEl = document.getElementById('tune-global-sensitivity');
+      const step = sensEl ? parseInt(sensEl.value) : 5;
+      const sensitivity = SENSITIVITY_STEPS[step].multiplier;
       const outdoorNorm = tuneData?.outdoor_normalized ?? 0.0;
       const anglePct = d?.angle_factor != null ? Math.round(d.angle_factor * 100) : 0;
       const condPct = d?.condition_multiplier != null ? Math.round(d.condition_multiplier * 100) : 100;
       const sunBriPct = Math.round(outdoorNorm * 100);
       const mult = outdoorNorm * sensitivity;
 
-      // Closed summary
+      // Header summary (always visible)
       const summaryEl = document.getElementById('tune-sensitivity-summary');
       if (summaryEl) summaryEl.textContent = fmtSunMultiplier(mult);
 
@@ -1254,12 +1256,6 @@
       if (condIcon) condIcon.textContent = buildOutdoorIcon(d);
       const sunBriEl = document.getElementById('tune-sun-brightness-val');
       if (sunBriEl) sunBriEl.textContent = sunBriPct + '%';
-
-      // Multiplier row
-      const multValEl = document.getElementById('tune-sun-multiplier-val');
-      if (multValEl) multValEl.textContent = fmtSunMultiplier(mult);
-      const multCalcEl = document.getElementById('tune-sun-multiplier-calc');
-      if (multCalcEl) multCalcEl.textContent = sunBriPct + '% \u00d7 ' + fmtVal(sensitivity) + ' = ' + fmtSunMultiplier(mult);
     }
 
     // ============================================================
@@ -1818,7 +1814,8 @@
       const anglePct = d?.angle_factor != null ? Math.round(d.angle_factor * 100) : 0;
       const condPct = d?.condition_multiplier != null ? Math.round(d.condition_multiplier * 100) : 100;
       const sunBriPct = Math.round(outdoorNorm * 100);
-      const sunMult = outdoorNorm * sensitivity;
+      const snappedSens = SENSITIVITY_STEPS[tuneSensStep].multiplier;
+      const sunMult = outdoorNorm * snappedSens;
       const condIcon = buildOutdoorIcon(d);
       const sensIsOpen = localStorage.getItem('tune_sensitivity_open') === '1';
       html += `
@@ -1833,30 +1830,29 @@
             <div class="tune-sensitivity-slider-row">
               <input type="range" class="tune-sensitivity-slider" id="tune-global-sensitivity" min="0" max="8" step="1" value="${tuneSensStep}" onclick="event.stopPropagation()">
               <span class="tune-zone-ctrl-word tune-sensitivity-word" id="tune-global-sensitivity-word">${SENSITIVITY_STEPS[tuneSensStep].label}</span>
-              <span class="tune-zone-ctrl-val" id="tune-global-sensitivity-val">${fmtVal(sensitivity)}</span>
+              <span class="tune-zone-ctrl-val" id="tune-global-sensitivity-val">${fmtVal(snappedSens)}</span>
             </div>
             <div class="tune-sensitivity-section-label">Sun</div>
             <div class="tune-sun-row">
-              <span class="tune-sun-row-label">Sun angle</span>
+              <span class="tune-sun-row-op"></span>
+              <span class="tune-sun-row-label">Angle</span>
               <span class="tune-sun-row-val" id="tune-sun-angle-val">${anglePct}%</span>
             </div>
             <div class="tune-sun-row tune-outdoor-wrapper">
-              <span class="tune-sun-row-label">Sun conditions</span>
+              <span class="tune-sun-row-op">\u00d7</span>
+              <span class="tune-sun-row-label">Conditions</span>
+              <span class="tune-sun-row-val" id="tune-sun-conditions-val">${condPct}%</span>
               <button class="tune-sun-conditions-btn" id="tune-outdoor-toggle">
                 <span class="tune-sun-conditions-icon" id="tune-sun-conditions-icon">${condIcon}</span>
-                <span id="tune-sun-conditions-val">${condPct}%</span>
                 <span class="tune-sun-conditions-chevron">&#x203A;</span>
               </button>
               ${buildConditionsPanel()}
             </div>
-            <div class="tune-sun-row">
-              <span class="tune-sun-row-label">Sun brightness</span>
-              <span class="tune-sun-row-val" id="tune-sun-brightness-val">${sunBriPct}%</span>
-            </div>
-            <div class="tune-sun-multiplier-row">
-              <span class="tune-sun-multiplier-label">Sun multiplier</span>
-              <span class="tune-sun-multiplier-val" id="tune-sun-multiplier-val">${fmtSunMultiplier(sunMult)}</span>
-              <span class="tune-sun-multiplier-calc" id="tune-sun-multiplier-calc">${sunBriPct}% \u00d7 ${fmtVal(sensitivity)} = ${fmtSunMultiplier(sunMult)}</span>
+            <hr class="tune-sun-divider">
+            <div class="tune-sun-result">
+              <span class="tune-sun-row-op"></span>
+              <span class="tune-sun-result-label">Brightness</span>
+              <span class="tune-sun-result-val" id="tune-sun-brightness-val">${sunBriPct}%</span>
             </div>
           </div>
         </div>
@@ -1988,6 +1984,16 @@
         ]);
         if (filtersResp.ok) tuneData = await filtersResp.json();
         if (outdoorResp.ok) tuneOutdoorData = await outdoorResp.json();
+
+        // Snap sensitivity to nearest valid step and persist if it changed
+        if (tuneData?.brightness_sensitivity != null) {
+          const step = findClosestSensitivityStep(tuneData.brightness_sensitivity);
+          const snapped = SENSITIVITY_STEPS[step].multiplier;
+          if (Math.abs(tuneData.brightness_sensitivity - snapped) > 0.001) {
+            tuneData.brightness_sensitivity = snapped;
+            fetch('./api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ brightness_sensitivity: snapped }) });
+          }
+        }
         if (zoneStatesResp.ok) {
           const zs = await zoneStatesResp.json();
           zoneStates = zs.zone_states || {};

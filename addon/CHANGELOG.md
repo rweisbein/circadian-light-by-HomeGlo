@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.104
+- **Sun multiplier card polish**: Header value stays visible when card is open. Removed redundant bottom multiplier row. Indented sun params, dropped "Sun" prefix. Multiplication-style layout (× on conditions, divider line, bold Brightness result). Aligned percentage values across all rows. Auto-snaps and persists stored sensitivity to nearest valid step on load.
+
 ## 1.0.103
 - **Redesign sun sensitivity card as Sun multiplier**: Card now shows the sun multiplier (brightness × sensitivity) in the header. Open card has two sections: Sensitivity (slider) and Sun (angle, conditions, brightness). Conditions row opens a popup for source/override config. Sun brightness = angle × conditions shown as breakdown.
 - **New sensitivity stops (0–2)**: Replaced 10-stop 0–5 range with 9 cleaner stops: 0, 0.10, 0.25, 0.50, 0.75, 1.00, 1.25, 1.50, 2.00. Default changed to 1.0 for both brightness and color sensitivity. Existing users auto-migrate via nearest-step snapping.
