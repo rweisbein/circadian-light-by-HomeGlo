@@ -603,6 +603,35 @@
     .ct-zone-save:hover { opacity: 0.9; }
     .ct-zone-cancel { background: none; color: var(--muted); }
     .ct-zone-cancel:hover { color: var(--text); border-color: var(--muted); }
+
+    /* CT picker popup */
+    .ct-picker-popup {
+      position: absolute; z-index: 200; background: var(--panel);
+      border: 1px solid var(--line); border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5); padding: 12px 14px;
+      min-width: 220px; display: none;
+    }
+    .ct-picker-popup.visible { display: block; }
+    .ct-picker-gradient {
+      height: 16px; border-radius: 8px; margin-bottom: 8px; position: relative;
+    }
+    .ct-picker-slider {
+      width: 100%; -webkit-appearance: none; appearance: none; height: 18px;
+      background: transparent; cursor: pointer; margin: 0; padding: 0;
+    }
+    .ct-picker-slider:focus { outline: none; }
+    .ct-picker-slider::-webkit-slider-runnable-track { height: 0; }
+    .ct-picker-slider::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%;
+      background: #fff; border: 2px solid rgba(0,0,0,0.3); margin-top: -10px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+    }
+    .ct-picker-slider::-moz-range-track { height: 0; }
+    .ct-picker-slider::-moz-range-thumb {
+      width: 20px; height: 20px; border-radius: 50%;
+      background: #fff; border: 2px solid rgba(0,0,0,0.3);
+    }
+    .ct-picker-val { text-align: center; font-size: 0.85rem; font-weight: 600; margin-top: 4px; }
     .ct-col-header {
       font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.5px;
       color: var(--muted2); white-space: nowrap; cursor: pointer; transition: color 0.15s;
@@ -1822,6 +1851,68 @@
     // ============================================================
     // Render — Color tab
     // ============================================================
+    // CT gradient string for picker background
+    function ctGradientStyle(minK, maxK) {
+      const stops = [];
+      for (let i = 0; i <= 8; i++) {
+        const k = minK + (maxK - minK) * (i / 8);
+        stops.push(cctToRGB(k));
+      }
+      return 'linear-gradient(to right,' + stops.join(',') + ')';
+    }
+
+    let _activeCtPicker = null;
+    function openCtPicker(badgeEl, inputId, minK, maxK, zoneName) {
+      closeCtPicker();
+      const inputEl = document.getElementById(inputId);
+      if (!inputEl) return;
+      const currentVal = parseInt(inputEl.value) || 3000;
+
+      const popup = document.createElement('div');
+      popup.className = 'ct-picker-popup visible';
+      popup.id = 'ct-picker-active';
+      popup.innerHTML = '<div class="ct-picker-gradient" style="background:' + ctGradientStyle(minK, maxK) + ';"></div>'
+        + '<input type="range" class="ct-picker-slider" min="' + minK + '" max="' + maxK + '" step="100" value="' + currentVal + '">'
+        + '<div class="ct-picker-val" id="ct-picker-val">' + currentVal + 'K</div>';
+      popup.onclick = (e) => e.stopPropagation();
+
+      const slider = popup.querySelector('.ct-picker-slider');
+      slider.addEventListener('input', () => {
+        const v = parseInt(slider.value);
+        inputEl.value = v;
+        popup.querySelector('#ct-picker-val').textContent = v + 'K';
+        // Update badge color
+        const bg = tintColorByBrightness(cctToRGB(v), 100);
+        badgeEl.style.background = bg;
+        badgeEl.style.color = readableTextColor(bg);
+        // Trigger live update
+        liveUpdateZoneColor(zoneName);
+      });
+
+      // Position below the badge
+      badgeEl.style.position = 'relative';
+      badgeEl.appendChild(popup);
+      popup.style.top = '100%';
+      popup.style.left = '50%';
+      popup.style.transform = 'translateX(-50%)';
+      popup.style.marginTop = '4px';
+      _activeCtPicker = popup;
+    }
+
+    function closeCtPicker() {
+      if (_activeCtPicker) {
+        _activeCtPicker.remove();
+        _activeCtPicker = null;
+      }
+    }
+
+    // Close picker on outside click
+    document.addEventListener('click', (e) => {
+      if (_activeCtPicker && !e.target.closest('.ct-picker-popup') && !e.target.closest('.ct-target-badge')) {
+        closeCtPicker();
+      }
+    });
+
     function ctBg(kelvin, alpha) {
       if (!kelvin) return 'transparent';
       const c = cctToRGB(kelvin);
@@ -2170,7 +2261,7 @@
         html += '<input type="checkbox" class="ct-toggle" id="ct-warm-' + zoneName + '" ' + (warmEnabled ? 'checked' : '') + '>';
         const warmBadgeBg = tintColorByBrightness(cctToRGB(warmTarget), 100);
         const warmBadgeText = readableTextColor(warmBadgeBg);
-        html += '<span class="ct-target-badge" style="background:' + warmBadgeBg + ';color:' + warmBadgeText + ';"><input type="number" class="ct-target-input" id="ct-warm-target-' + zoneName + '" value="' + warmTarget + '" min="1500" max="4000" step="100"><span class="ct-target-unit">K</span></span>';
+        html += '<span class="ct-target-badge" style="background:' + warmBadgeBg + ';color:' + warmBadgeText + ';cursor:pointer;" onclick="event.stopPropagation(); openCtPicker(this, \'ct-warm-target-' + zoneName + '\', 1500, 4000, \'' + escapedZone + '\')"><input type="number" class="ct-target-input" id="ct-warm-target-' + zoneName + '" value="' + warmTarget + '" min="1500" max="4000" step="100" readonly><span class="ct-target-unit">K</span></span>';
         html += '<span class="ct-zone-ctrl-impact" id="ct-warm-impact-' + zoneName + '">' + fmtCtDelta(zoneWarmShift) + 'K</span>';
         html += '</div>';
         // Row 2: Cool day + sensitivity slider
@@ -2179,7 +2270,7 @@
         html += '<input type="checkbox" class="ct-toggle" id="ct-cool-' + zoneName + '" ' + (coolEnabled ? 'checked' : '') + '>';
         const coolBadgeBg = tintColorByBrightness(cctToRGB(coolTarget), 100);
         const coolBadgeText = readableTextColor(coolBadgeBg);
-        html += '<span class="ct-target-badge" style="background:' + coolBadgeBg + ';color:' + coolBadgeText + ';"><input type="number" class="ct-target-input" id="ct-cool-target-' + zoneName + '" value="' + coolTarget + '" min="4000" max="7000" step="100"><span class="ct-target-unit">K</span></span>';
+        html += '<span class="ct-target-badge" style="background:' + coolBadgeBg + ';color:' + coolBadgeText + ';cursor:pointer;" onclick="event.stopPropagation(); openCtPicker(this, \'ct-cool-target-' + zoneName + '\', 4000, 7000, \'' + escapedZone + '\')"><input type="number" class="ct-target-input" id="ct-cool-target-' + zoneName + '" value="' + coolTarget + '" min="4000" max="7000" step="100" readonly><span class="ct-target-unit">K</span></span>';
         html += '<span class="ct-zone-ctrl-impact" id="ct-cool-impact-' + zoneName + '">+' + Math.round(zoneCoolShift) + 'K</span>';
         html += '<input type="range" class="ct-sensitivity-slider tune-sensitivity-slider" id="ct-sens-' + zoneName + '" min="0" max="8" step="1" value="' + sensStep + '" style="margin-left:8px;">';
         html += '<span class="ct-sensitivity-val" id="ct-sens-val-' + zoneName + '">' + SENSITIVITY_STEPS[sensStep].label + ' ' + fmtVal(snappedSens) + '</span>';
