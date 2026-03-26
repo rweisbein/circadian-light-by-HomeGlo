@@ -2106,7 +2106,10 @@
         return;
       }
 
-      if (!colorAreaData) await fetchColorData();
+      // Use zone solar cache from zone-states (lightweight, no area-status needed)
+      // Fall back to area-status fetch only if solar cache unavailable
+      let hasSolarCache = Object.values(zoneStates || {}).some(z => z.solar_cache);
+      if (!hasSolarCache && !colorAreaData) await fetchColorData();
       if (!colorSnapshot) takeColorSnapshot();
 
       const gzZonesObj = cachedGlozones.zones || {};
@@ -2118,20 +2121,21 @@
         const areas = zoneData.areas || [];
         if (areas.length === 0) continue;
 
-        // Zone base CT = rhythm curve value (pre-solar-rules) from an unshifted area
+        // Zone solar data — prefer solar_cache (from periodic tick), fall back to area-status
+        const solarCache = zoneStates?.[zoneName]?.solar_cache;
         let refArea = null;
-        for (const a of areas) {
-          const aid = typeof a === 'object' ? a.id : a;
-          const aData = colorAreaData?.[aid];
-          if (aData && aData.color_mid == null) { refArea = aData; break; }
+        if (!solarCache) {
+          for (const a of areas) {
+            const aid = typeof a === 'object' ? a.id : a;
+            const aData = colorAreaData?.[aid];
+            if (aData && aData.color_mid == null) { refArea = aData; break; }
+          }
+          if (!refArea) {
+            const aid = typeof areas[0] === 'object' ? areas[0].id : areas[0];
+            refArea = colorAreaData?.[aid];
+          }
         }
-        if (!refArea) {
-          const aid = typeof areas[0] === 'object' ? areas[0].id : areas[0];
-          refArea = colorAreaData?.[aid];
-        }
-        const zoneCurveCt = refArea?.base_kelvin || zoneStates?.[zoneName]?.kelvin || 4000;
-        const zoneBgColor = ctBg(zoneCurveCt, 0.08);
-        const zoneTextColor = ctTextColor(zoneCurveCt);
+        const zoneCurveCt = solarCache?.base_kelvin || refArea?.base_kelvin || zoneStates?.[zoneName]?.kelvin || 4000;
         const escapedZone = encodeURIComponent(zoneName);
 
         // Zone-level settings — snap sensitivity
@@ -2141,8 +2145,8 @@
         const sensStep = findClosestSensitivityStep(rawSens);
         const snappedSens = SENSITIVITY_STEPS[sensStep].multiplier;
 
-        // Compute zone-level cool day / warm night impact from first area
-        const refSb = refArea?.solar_breakdown || {};
+        // Compute zone-level cool day / warm night impact
+        const refSb = solarCache || refArea?.solar_breakdown || {};
         const zoneCoolShift = refSb.daylight_shift || 0;
         const zoneWarmShift = (refSb.night_shift || 0) > 0 ? -(refSb.night_shift) : 0;
         const warmTarget = zoneData.warm_night_target || 2700;
@@ -2230,23 +2234,43 @@
         for (const area of sortedCtAreas) {
           const areaId = typeof area === 'object' ? area.id : area;
           const areaName = typeof area === 'object' ? (area.name || areaId) : areaId;
+          // Read from colorAreaData (expensive) or tuneData (lightweight)
           const as = colorAreaData?.[areaId];
+          const tuneArea = getTuneArea(areaId);
 
-          const finalKelvin = as?.kelvin || zoneFinalCt;
-          const baseKelvin = as?.base_kelvin || zoneCurveCt;
-          const colorOverride = as?.color_override || 0;
-          const sliderOverride = as?.color_override_set_at != null;
-          const areaSb = as?.solar_breakdown || {};
+          // Per-area color state from light-filters (tuneData) or area-status
+          const areaColorMid = tuneArea?.color_mid ?? as?.color_mid;
+          const areaColorOverride = tuneArea?.color_override ?? as?.color_override ?? 0;
+          const areaColorSetAt = tuneArea?.color_override_set_at ?? as?.color_override_set_at;
+          const lastKelvin = tuneArea?.last_sent_kelvin ?? as?.kelvin;
 
-          // Shift: area's color_mid offset from zone curve base
+          // Compute area base kelvin: if area has color_mid shift, base differs from zone
+          // Use last_sent_kelvin to derive: final = base + cool + warm + adj
+          const sliderOverride = areaColorSetAt != null;
+          const adj = sliderOverride ? areaColorOverride : 0;
+
+          // If we have solar cache, compute per-area shifts from zone factors
+          let areaCoolShift, areaWarmShift, baseKelvin, finalKelvin;
+          if (solarCache) {
+            // Estimate area base from last_sent_kelvin (reverse the pipeline)
+            const nightStr = refSb.night_strength || 0;
+            const dBlend = refSb.daylight_blend || 0;
+            const wTarget = refSb.warm_night_target || 2700;
+            const cTarget = refSb.daylight_cct || 5500;
+            // If area has no shift, use zone base
+            baseKelvin = areaColorMid != null ? (lastKelvin != null ? zoneCurveCt + Math.round(lastKelvin - zoneFinalCt) : zoneCurveCt) : zoneCurveCt;
+            areaCoolShift = (cTarget > baseKelvin && coolEnabled) ? Math.round((cTarget - baseKelvin) * dBlend) : 0;
+            areaWarmShift = warmEnabled ? -Math.round(Math.max(0, baseKelvin - wTarget) * nightStr) : 0;
+            finalKelvin = lastKelvin || (baseKelvin + areaCoolShift + areaWarmShift + adj);
+          } else {
+            baseKelvin = as?.base_kelvin || zoneCurveCt;
+            const areaSb = as?.solar_breakdown || {};
+            areaCoolShift = areaSb.daylight_shift || 0;
+            areaWarmShift = (areaSb.night_shift || 0) > 0 ? -(areaSb.night_shift) : 0;
+            finalKelvin = as?.kelvin || zoneFinalCt;
+          }
+
           const shift = baseKelvin - zoneCurveCt;
-
-          // Per-area cool/warm (may differ from zone if area has shift)
-          const areaCoolShift = areaSb.daylight_shift || 0;
-          const areaWarmShift = (areaSb.night_shift || 0) > 0 ? -(areaSb.night_shift) : 0;
-
-          // Adj: color override (slider-originated = direct additive)
-          const adj = sliderOverride ? colorOverride : 0;
 
           // CT color shading — solid bg like home page at 100% brightness
           const cctColor = cctToRGB(finalKelvin);

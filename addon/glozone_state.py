@@ -21,6 +21,11 @@ logger = logging.getLogger(__name__)
 # Sync tolerance for comparing state values (0.1 = 6 minutes)
 SYNC_TOLERANCE = 0.1
 
+# In-memory cache for zone solar breakdown (updated by periodic tick, read by webserver)
+# Keys: zone_name -> {base_kelvin, night_strength, daylight_blend, daylight_fade_weight,
+#                     warm_target, cool_target, night_shift, cool_shift}
+_zone_solar_cache: Dict[str, Dict[str, Any]] = {}
+
 # State file path - shared between main.py and webserver.py processes
 _STATE_FILE: Optional[Path] = None
 
@@ -206,6 +211,24 @@ def values_match(a: Optional[float], b: Optional[float]) -> bool:
     if a is None or b is None:
         return False
     return abs(a - b) < SYNC_TOLERANCE
+
+
+def set_zone_solar_cache(zone_name: str, data: Dict[str, Any]) -> None:
+    """Update the in-memory solar breakdown cache for a zone.
+
+    Called by the periodic tick after computing solar rules.
+    """
+    _zone_solar_cache[zone_name] = data
+
+
+def get_zone_solar_cache(zone_name: str) -> Optional[Dict[str, Any]]:
+    """Get cached solar breakdown for a zone. Returns None if not cached."""
+    return _zone_solar_cache.get(zone_name)
+
+
+def get_all_zone_solar_cache() -> Dict[str, Dict[str, Any]]:
+    """Get all zone solar breakdown caches."""
+    return dict(_zone_solar_cache)
 
 
 def is_state_synced(area_state: Dict[str, Any], zone_state: Dict[str, Any]) -> bool:

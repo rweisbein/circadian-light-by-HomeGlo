@@ -5906,6 +5906,7 @@ class HomeAssistantWebSocketClient:
 
     async def _circadian_tick_loop(self):
         """Circadian tick (configurable 5-120s): update all circadian areas with current lighting."""
+        import glozone_state
         while True:
             try:
                 # Get refresh interval, logging, and transition config
@@ -6017,8 +6018,30 @@ class HomeAssistantWebSocketClient:
                                 f"Running light update ({trigger_source}) for {len(circadian_areas)} Circadian areas"
                             )
                         self._in_periodic_tick = True
+                        _solar_cached_zones = set()
                         try:
                             for area_id in circadian_areas:
+                                # Cache zone-level solar breakdown (once per zone)
+                                _zone = glozone.get_zone_for_area(area_id)
+                                if _zone and _zone not in _solar_cached_zones:
+                                    _solar_cached_zones.add(_zone)
+                                    try:
+                                        _zcfg = Config.from_dict(glozone.get_effective_config_for_zone(_zone))
+                                        _zhour = get_current_hour()
+                                        _zsun = self._get_sun_times()
+                                        _zbase_state = AreaState(is_circadian=True, is_on=True)
+                                        _zbase_k = CircadianLight.calculate_color_at_hour(
+                                            _zhour, _zcfg, _zbase_state, apply_solar_rules=False, sun_times=_zsun
+                                        )
+                                        _zbreakdown = CircadianLight.get_solar_rule_breakdown(
+                                            _zbase_k, _zhour, _zcfg, _zbase_state, _zsun
+                                        )
+                                        glozone_state.set_zone_solar_cache(_zone, {
+                                            "base_kelvin": _zbase_k,
+                                            **_zbreakdown,
+                                        })
+                                    except Exception as _e:
+                                        logger.debug(f"Solar cache error for zone {_zone}: {_e}")
                                 logger.debug(
                                     f"Updating lights in Circadian area: {area_id}"
                                 )

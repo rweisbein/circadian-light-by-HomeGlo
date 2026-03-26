@@ -1012,6 +1012,10 @@ class LightDesignerServer:
                             ),
                             "light_filters": glozone.get_area_light_filters(area_id),
                             "is_on": state.get_is_on(area_id),
+                            "last_sent_kelvin": state.get_last_sent_kelvin(area_id),
+                            "color_mid": area_st.get("color_mid"),
+                            "color_override": area_st.get("color_override"),
+                            "color_override_set_at": area_st.get("color_override_set_at"),
                             "boosted": is_boosted,
                             "boost_brightness": boost_brightness or 0,
                             "bri_override": effective_bri_override,
@@ -1582,6 +1586,7 @@ class LightDesignerServer:
                     "min_brightness": brain_config.min_brightness,
                     "max_brightness": brain_config.max_brightness,
                     "runtime_state": runtime_state,
+                    "solar_cache": glozone_state.get_zone_solar_cache(zone_name),
                 }
                 logger.debug(
                     f"[ZoneStates] Zone '{zone_name}': {result.brightness}% {result.color_temp}K at hour {calc_hour:.2f} (sun_times: sunrise={sun_times.sunrise:.2f}, sunset={sun_times.sunset:.2f})"
