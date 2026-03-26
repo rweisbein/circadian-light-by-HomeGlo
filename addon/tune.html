@@ -211,7 +211,7 @@
     .tune-sun-row-label { color: var(--muted2); font-size: 0.75rem; min-width: 90px; flex-shrink: 0; }
     .tune-sun-row-val { font-size: 0.8rem; color: var(--text); white-space: nowrap; }
     .tune-sun-row-op { color: var(--muted2); font-size: 0.75rem; width: 14px; text-align: center; flex-shrink: 0; }
-    .tune-sun-divider { border: none; border-top: 1px solid var(--line); margin: 4px 28px 4px 42px; }
+    .tune-sun-divider { border: none; border-top: 1px solid var(--line); margin: 4px 60% 4px 42px; }
     .tune-sun-result {
       display: flex; align-items: center; gap: 8px;
       padding: 4px 14px 10px 28px; font-size: 0.82rem;
@@ -298,9 +298,9 @@
     .tune-sensitivity-slider::-moz-range-track {
       height: 3px; background: rgba(255,255,255,0.12); border-radius: 2px;
     }
-    .tune-se-col input[type=range]::-moz-range-progress { height: 3px; background: rgba(251,191,36,0.5); border-radius: 2px; }
-    .tune-balance-col input[type=range]::-moz-range-progress,
-    .tune-sensitivity-slider::-moz-range-progress { height: 3px; background: rgba(255,255,255,0.25); border-radius: 2px; }
+    .tune-se-col input[type=range]::-moz-range-progress,
+    .tune-sensitivity-slider::-moz-range-progress { height: 3px; background: rgba(251,191,36,0.5); border-radius: 2px; }
+    .tune-balance-col input[type=range]::-moz-range-progress { height: 3px; background: rgba(255,255,255,0.25); border-radius: 2px; }
     .tune-se-col input[type=range]::-webkit-slider-thumb,
     .tune-balance-col input[type=range]::-webkit-slider-thumb,
     .tune-sensitivity-slider::-webkit-slider-thumb {
@@ -335,7 +335,7 @@
     .tune-col-header-area { flex: 1; min-width: 0; text-align: left; }
     .tune-col-header-se { flex: 0 0 30%; text-align: center; }
     .tune-col-header-balance { flex: 0 0 30%; text-align: center; }
-    .tune-col-header-adj { flex: 0 0 38px; text-align: center; }
+    .tune-col-header-adj { flex: 0 0 44px; text-align: center; }
     .tune-col-header-final { flex: 0 0 40px; text-align: right; }
 
     /* Tune area */
@@ -360,7 +360,7 @@
     /* Tune area 3-row layout */
     .tune-area-header {
       display: flex;
-      align-items: baseline;
+      align-items: center;
       padding: 2px 16px 0;
       gap: 0;
     }
@@ -373,27 +373,25 @@
     .tune-area-row3 { padding-top: 0; padding-bottom: 4px; }
     .tune-name-col {
       flex: 1; min-width: 0;
-      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
     .tune-se-col, .tune-balance-col {
-      flex: 0 0 30%; display: flex; align-items: center; gap: 4px; min-width: 0;
+      flex: 0 0 30%; display: flex; align-items: center; justify-content: center; gap: 4px; min-width: 0;
       padding: 0 6px;
     }
     .tune-se-col input[type="range"], .tune-balance-col input[type="range"] {
       flex: 1; min-width: 40px;
     }
     .tune-adj-col {
-      flex: 0 0 38px; text-align: center; white-space: nowrap;
+      flex: 0 0 44px; text-align: center; white-space: nowrap;
     }
-    .tune-adj-val { font-size: 0.7rem; color: var(--muted2); }
-    .tune-adj-val.has-value { color: var(--text); }
+    .tune-adj-val { font-size: 0.75rem; color: var(--muted2); }
+    .tune-adj-val.has-value { color: var(--text); font-weight: 600; }
     .tune-final-col {
       flex: 0 0 40px; white-space: nowrap; text-align: right;
     }
     .tune-final-now { color: var(--text); font-weight: 600; font-size: 0.85rem; }
-    .tune-override-star { font-size: 0.75rem; color: var(--muted2); margin-left: 1px; }
 
-    .tune-impact-delta { font-size: 0.7rem; color: var(--muted2); white-space: nowrap; }
+    .tune-impact-delta { font-size: 0.8rem; color: var(--text); font-weight: 600; white-space: nowrap; }
 
     .tune-slider-label-row {
       display: flex; align-items: baseline; gap: 0; padding: 0 16px 4px;
@@ -1308,18 +1306,30 @@
       const exposure = overrides?.exposure ?? SOLAR_STEPS[parseInt(solarSlider.value)].exposure;
       const boostBri = parseFloat(tuneAreaEl.dataset.boostBri) || 0;
       const briOverride = parseFloat(tuneAreaEl.dataset.briOverride) || 0;
-      const nowRaw = computeNowBrightness(rhythmBri + boostBri, factor, exposure, outdoorNorm, sensitivity, fadeWeight) + briOverride;
-      const nowBri = Math.max(0, Math.min(100, Math.round(nowRaw)));
+      // Pipeline: rhythm × nlFactor × factor + override + boost
+      const baseBri = computeNowBrightness(rhythmBri, factor, exposure, outdoorNorm, sensitivity, fadeWeight);
+      const nowBri = Math.max(0, Math.min(100, Math.round(baseBri + briOverride + boostBri)));
       const nowEl = tuneAreaEl.querySelector('.tune-bri-now');
-      if (nowEl) {
-        const overrideIcon = Math.abs(briOverride) >= 0.5 ? '<span class="tune-override-star" title="Brightness adjustment applied">*</span>' : '';
-        nowEl.innerHTML = nowBri + '%' + overrideIcon;
-      }
+      if (nowEl) nowEl.textContent = nowBri + '%';
       // Update impact deltas
       const factorMetaEl = tuneAreaEl.querySelector('.tune-factor-meta');
-      if (factorMetaEl) factorMetaEl.textContent = formatImpactDelta(computeFactorImpact(rhythmBri + boostBri, factor, exposure, outdoorNorm, sensitivity, fadeWeight));
+      if (factorMetaEl) factorMetaEl.textContent = formatImpactDelta(computeFactorImpact(rhythmBri, factor, exposure, outdoorNorm, sensitivity, fadeWeight));
       const solarMetaEl = tuneAreaEl.querySelector('.tune-solar-meta');
-      if (solarMetaEl) solarMetaEl.textContent = formatImpactDelta(computeSolarImpact(rhythmBri + boostBri, factor, exposure, outdoorNorm, sensitivity, fadeWeight));
+      if (solarMetaEl) solarMetaEl.textContent = formatImpactDelta(computeSolarImpact(rhythmBri, factor, exposure, outdoorNorm, sensitivity, fadeWeight));
+      // Update adj column
+      const adjVal = boostBri + briOverride;
+      const adjEl = tuneAreaEl.querySelector('.tune-adj-val');
+      if (adjEl) {
+        const boostIcon = boostBri > 0 ? '\u26A1' : '';
+        const overrideIcon = Math.abs(briOverride) >= 0.5 ? '*' : '';
+        if (adjVal === 0) {
+          adjEl.textContent = '\u2013';
+          adjEl.classList.remove('has-value');
+        } else {
+          adjEl.innerHTML = boostIcon + overrideIcon + (adjVal > 0 ? '+' : '') + Math.round(adjVal);
+          adjEl.classList.add('has-value');
+        }
+      }
     }
 
     function updateAllZoneSunMeta() {
@@ -1821,8 +1831,9 @@
           const znA = a.zone_name, znB = b.zone_name;
           const boostA = ta?.boosted ? (ta.boost_brightness || 0) : 0;
           const boostB = tb?.boosted ? (tb.boost_brightness || 0) : 0;
-          const briA = Math.min(100, computeNowBrightness((zoneStates?.[znA]?.brightness ?? 50) + boostA, fa, ea, outdoorNorm, sensitivity));
-          const briB = Math.min(100, computeNowBrightness((zoneStates?.[znB]?.brightness ?? 50) + boostB, fb, eb, outdoorNorm, sensitivity));
+          const ovrA = ta?.bri_override || 0, ovrB = tb?.bri_override || 0;
+          const briA = Math.min(100, computeNowBrightness(zoneStates?.[znA]?.brightness ?? 50, fa, ea, outdoorNorm, sensitivity) + ovrA + boostA);
+          const briB = Math.min(100, computeNowBrightness(zoneStates?.[znB]?.brightness ?? 50, fb, eb, outdoorNorm, sensitivity) + ovrB + boostB);
           return dir * (briA - briB);
         });
       }
@@ -1919,21 +1930,22 @@
           const isBoosted = tuneArea?.boosted || false;
           const boostBri = isBoosted ? (tuneArea.boost_brightness || 0) : 0;
           const briOverride = tuneArea?.bri_override || 0;
-          const nowBri = Math.max(0, Math.min(100, Math.round(computeNowBrightness(rhythmBri + boostBri, factor, exposure, outdoorNorm, sensitivity, briFadeWeight) + briOverride)));
-          const factorImpact = formatImpactDelta(computeFactorImpact(rhythmBri + boostBri, factor, exposure, outdoorNorm, sensitivity, briFadeWeight));
-          const solarImpact = formatImpactDelta(computeSolarImpact(rhythmBri + boostBri, factor, exposure, outdoorNorm, sensitivity, briFadeWeight));
+          // Pipeline: rhythm × nlFactor × factor + override + boost
+          const baseBri = computeNowBrightness(rhythmBri, factor, exposure, outdoorNorm, sensitivity, briFadeWeight);
+          const nowBri = Math.max(0, Math.min(100, Math.round(baseBri + briOverride + boostBri)));
+          const factorImpact = formatImpactDelta(computeFactorImpact(rhythmBri, factor, exposure, outdoorNorm, sensitivity, briFadeWeight));
+          const solarImpact = formatImpactDelta(computeSolarImpact(rhythmBri, factor, exposure, outdoorNorm, sensitivity, briFadeWeight));
 
           // Annotate tuneArea with zone name for light brightness calc
           if (tuneArea) tuneArea._zoneName = zoneName;
-          const boostIcon = isBoosted ? '<span title="Boosted" style="font-size:0.75rem;">&#x26A1;</span> ' : '';
-          const overrideIcon = Math.abs(briOverride) >= 0.5 ? '<span class="tune-override-star" title="Brightness adjustment applied">*</span>' : '';
           const lights = tuneArea?.lights || [];
           const hasLights = lights.length > 0;
           const isExpanded = expandedAreas[area.area_id] || false;
           const lightsHtml = hasLights ? buildLightsSection(area.area_id, tuneArea) : '';
 
           const adjVal = boostBri + briOverride;
-          const adjText = adjVal === 0 ? '\u2013' : (boostIcon + (adjVal > 0 ? '+' : '') + Math.round(adjVal));
+          const adjIcons = (isBoosted ? '\u26A1' : '') + (Math.abs(briOverride) >= 0.5 ? '*' : '');
+          const adjText = adjVal === 0 ? '\u2013' : (adjIcons + (adjVal > 0 ? '+' : '') + Math.round(adjVal));
           const adjClass = adjVal !== 0 ? ' has-value' : '';
 
           return `
@@ -1945,7 +1957,7 @@
                 <span class="tune-se-col"><span class="tune-impact-delta tune-solar-meta">${solarImpact}</span></span>
                 <span class="tune-balance-col"><span class="tune-impact-delta tune-factor-meta">${factorImpact}</span></span>
                 <span class="tune-adj-col"><span class="tune-adj-val${adjClass}">${adjText}</span></span>
-                <span class="tune-final-col tune-final-now tune-bri-now">${nowBri}%${overrideIcon}</span>
+                <span class="tune-final-col tune-final-now tune-bri-now">${nowBri}%</span>
               </div>
               <div class="tune-area-row">
                 <span class="tune-name-col"></span>
@@ -1974,7 +1986,7 @@
           <div class="tune-zone-controls" data-zone="${zoneName}" onclick="event.stopPropagation()">
             <div class="tune-col-headers-row">
               <span class="tune-col-header tune-col-header-area ${tuneSortOrder === 'custom' ? 'active-sort' : ''}" onclick="setTuneSort('custom')">Area</span>
-              <span class="tune-col-header tune-col-header-se ${tuneSortOrder === 'sun' ? 'active-sort' : ''}" onclick="setTuneSort('sun')">SE</span>
+              <span class="tune-col-header tune-col-header-se ${tuneSortOrder === 'sun' ? 'active-sort' : ''}" onclick="setTuneSort('sun')">Sun Exposure</span>
               <span class="tune-col-header tune-col-header-balance ${tuneSortOrder === 'light' ? 'active-sort' : ''}" onclick="setTuneSort('light')">Balance</span>
               <span class="tune-col-header tune-col-header-adj ${tuneSortOrder === 'adj' ? 'active-sort' : ''}" onclick="setTuneSort('adj')">Adj</span>
               <span class="tune-col-header tune-col-header-final ${tuneSortOrder === 'bri' ? 'active-sort' : ''}" onclick="setTuneSort('bri')">Final</span>
@@ -1991,10 +2003,7 @@
           <div class="zone-group">
             <div class="zone-header tune-zone-header ${isCollapsed ? 'collapsed' : ''}" data-zone="${zoneName}">
               <span class="zone-chevron" onclick="event.stopPropagation(); toggleZone('${escapedZoneName}', this)">&#x203A;</span>
-              <div class="zone-name-group">
-                <a class="zone-rhythm-link" href="./zone/${encodeURIComponent(zoneName)}?back=tune" onclick="event.stopPropagation()">${zoneName}</a>
-                <span class="zone-label-sub">rhythm zone</span>
-              </div>
+              <a class="zone-rhythm-link" href="./zone/${encodeURIComponent(zoneName)}?back=tune" onclick="event.stopPropagation()">${zoneName}</a>
               <span class="tune-zone-bri-group">
                 <span class="tune-zone-base-bri">${rhythmBri}%</span>
               </span>

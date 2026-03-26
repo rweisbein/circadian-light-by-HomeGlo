@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.106
+- **Fix boost pipeline in tune preview**: Boost and override are now additive after NL×factor (matching brain.py), not before. Boost+override indicators moved from Final to Adj column.
+- **Tune page polish**: SE→"Sun Exposure" header. Impact deltas centered and prominent (same weight as Final). Area names wrap instead of truncate. Removed "rhythm zone" sub-label. Sensitivity slider amber to match sun exposure sliders. Sun divider line shortened. Adj column widened for icons.
+
 ## 1.0.105
 - **Redesign tune area rows**: New 3-row layout — data row (name, SE impact, balance impact, adj, final brightness), slider row, centered label row. Swapped column order: SE first, Balance second. Added Adj column showing combined boost + override. Renamed Bri to Final. Custom-styled sliders matching rhythm/area pages with amber track for SE sliders. Sortable headers: Area, SE (slider value), Balance (slider value), Adj (combined impact), Final (computed brightness).
 
