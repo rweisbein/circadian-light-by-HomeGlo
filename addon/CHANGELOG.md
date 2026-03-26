@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.100
+- **Burst refresh after light actions**: After any light command, the periodic tick fires 3 times at short intervals (post-switch refresh delay) before returning to the normal cycle. Each refresh recalculates from current state, giving 3 chances to catch missed Zigbee commands. New actions during the burst reset the counter to 3.
+
 ## 1.0.99
 - **Post-action refresh for all light commands**: Moved defer + refresh logic from switch-only into turn_on_lights_circadian and turn_off_lights. Now any light action (switch, motion, contact, HA service, webserver) automatically defers the periodic tick and schedules a follow-up refresh. Uses _in_periodic_tick flag to prevent the periodic updater from re-triggering itself.
 

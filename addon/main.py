@@ -189,8 +189,10 @@ class HomeAssistantWebSocketClient:
         # Active feedback target for visual cues (set during switch action execution)
         self._active_feedback_target: Optional[dict] = None
 
-        # Pending post-action refresh: asyncio.Task (delayed refresh_event.set())
-        self._pending_post_action_refresh: Optional[asyncio.Task] = None
+        # Post-action refresh: counter for burst refreshes after light actions
+        self._post_action_refreshes_remaining: int = 0
+        # Pending initial delay before first post-action refresh
+        self._pending_post_action_delay: Optional[asyncio.Task] = None
         # Flag to prevent periodic tick from re-triggering itself
         self._in_periodic_tick: bool = False
 
@@ -2992,20 +2994,22 @@ class HomeAssistantWebSocketClient:
     # -------------------------------------------------------------------------
 
     def record_light_action(self) -> None:
-        """Record that a light action occurred and schedule a delayed refresh.
+        """Record that a light action occurred and schedule burst refreshes.
 
         Called automatically by turn_on_lights_circadian and turn_off_lights
-        when not in a periodic tick. Defers the next periodic update and
-        schedules a refresh_event to fire after the configured delay.
-        Each call resets the timer.
+        when not in a periodic tick. Defers normal periodic updates, sets the
+        burst counter to 3, and schedules the first refresh after the configured
+        delay. Each call resets the counter and delay timer.
         """
         self._last_light_action_time = time.time()
+        self._post_action_refreshes_remaining = 3
 
+        # Cancel any pending initial delay and restart
         if (
-            self._pending_post_action_refresh is not None
-            and not self._pending_post_action_refresh.done()
+            self._pending_post_action_delay is not None
+            and not self._pending_post_action_delay.done()
         ):
-            self._pending_post_action_refresh.cancel()
+            self._pending_post_action_delay.cancel()
 
         try:
             raw_config = glozone.load_config_from_files()
@@ -3017,18 +3021,18 @@ class HomeAssistantWebSocketClient:
         if delay <= 0:
             return
 
-        async def _delayed_refresh():
+        async def _delayed_first_refresh():
             try:
                 await asyncio.sleep(delay)
                 if self.refresh_event is not None:
                     self.refresh_event.set()
-                    logger.debug(f"Post-action refresh fired after {delay}s")
+                    logger.debug(f"Post-action refresh burst started after {delay}s")
             except asyncio.CancelledError:
                 pass
             finally:
-                self._pending_post_action_refresh = None
+                self._pending_post_action_delay = None
 
-        self._pending_post_action_refresh = asyncio.create_task(_delayed_refresh())
+        self._pending_post_action_delay = asyncio.create_task(_delayed_first_refresh())
 
     async def turn_on_lights_circadian(
         self,
@@ -5928,26 +5932,37 @@ class HomeAssistantWebSocketClient:
                     periodic_transition = 2.0
                 self._log_periodic = log_periodic
 
+                # Choose wait timeout: short during burst, normal otherwise
+                post_switch_delay = raw_config.get("post_switch_refresh", 30) / 10.0
+                wait_timeout = (
+                    post_switch_delay
+                    if self._post_action_refreshes_remaining > 0
+                    else refresh_interval
+                )
+
                 # Wait for configured interval OR until refresh_event is signaled
                 triggered_by_event = False
                 try:
                     await asyncio.wait_for(
-                        self.refresh_event.wait(), timeout=refresh_interval
+                        self.refresh_event.wait(), timeout=wait_timeout
                     )
                     self.refresh_event.clear()
                     triggered_by_event = True
                 except asyncio.TimeoutError:
-                    pass  # Normal periodic tick
+                    pass  # Normal periodic tick or burst tick
 
-                # Skip periodic update if a light action happened recently
-                # (avoid flooding the Zigbee mesh while commands propagate)
-                post_switch_delay = raw_config.get("post_switch_refresh", 30) / 10.0
-                if not triggered_by_event and self._last_light_action_time:
+                # Skip normal periodic update if a light action happened recently
+                # (burst refreshes bypass this via triggered_by_event or short timeout)
+                if (
+                    not triggered_by_event
+                    and self._post_action_refreshes_remaining <= 0
+                    and self._last_light_action_time
+                ):
                     elapsed = time.time() - self._last_light_action_time
                     if elapsed < post_switch_delay:
                         if log_periodic:
                             logger.info(
-                                f"Deferring periodic update — switch action {elapsed:.1f}s ago"
+                                f"Deferring periodic update — light action {elapsed:.1f}s ago"
                             )
                         continue
 
@@ -5992,6 +6007,9 @@ class HomeAssistantWebSocketClient:
                                 )
                         finally:
                             self._in_periodic_tick = False
+                        # Decrement burst counter after processing
+                        if self._post_action_refreshes_remaining > 0:
+                            self._post_action_refreshes_remaining -= 1
                     else:
                         logger.debug(
                             f"No areas to update ({trigger_source}) - all skipped or disabled"
