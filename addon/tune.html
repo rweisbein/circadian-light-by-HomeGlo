@@ -347,6 +347,14 @@
     }
     .tune-area.is-off { opacity: 0.5; }
     .tune-area.is-off .tune-final-now { color: var(--muted2); }
+    .tune-area.is-off .tune-impact-delta { color: var(--muted2); font-weight: 400; }
+    .tune-power-btn {
+      background: none; border: 1px solid var(--line); color: var(--muted);
+      font-size: 0.8rem; width: 22px; height: 22px; border-radius: 50%;
+      cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+      margin-right: 6px; transition: all 0.15s; flex-shrink: 0; vertical-align: middle;
+    }
+    .tune-power-btn:hover { color: var(--success); border-color: var(--success); }
     .tune-area-name {
       font-size: 0.85rem;
       color: var(--text);
@@ -1030,6 +1038,17 @@
       }, 300);
     }
 
+    async function turnOnArea(areaId) {
+      try {
+        await fetch('./api/area/action', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ area_id: areaId, action: 'lights_on' })
+        });
+        // Full re-render after delay to pick up new is_on state
+        setTimeout(() => loadData(), 2000);
+      } catch (e) { console.error('turnOnArea error:', e); }
+    }
+
     function showTuneSaved() {
       const el = document.getElementById('save-status');
       if (!el) return;
@@ -1463,6 +1482,7 @@
           for (const zone of Object.values(filtersData.zones || {})) {
             for (const area of (zone.areas || [])) {
               boostByArea[area.id] = {
+                is_on: area.is_on !== false,
                 boosted: area.boosted || false,
                 boost_brightness: area.boost_brightness || 0,
                 bri_override: area.bri_override || 0,
@@ -1475,6 +1495,7 @@
               for (const area of (zone.areas || [])) {
                 const b = boostByArea[area.id];
                 if (b) {
+                  area.is_on = b.is_on;
                   area.boosted = b.boosted;
                   area.boost_brightness = b.boost_brightness;
                   area.bri_override = b.bri_override;
@@ -2346,21 +2367,27 @@
           const isExpanded = expandedAreas[area.area_id] || false;
           const lightsHtml = hasLights ? buildLightsSection(area.area_id, tuneArea) : '';
 
+          const isOn = tuneArea?.is_on !== false; // default true if not present
           const adjVal = boostBri + briOverride;
           const adjIcons = (isBoosted ? '\u26A1' : '') + (Math.abs(briOverride) >= 0.5 ? '*' : '');
           const adjText = adjVal === 0 ? '\u2013' : (adjIcons + (adjVal > 0 ? '+' : '') + Math.round(adjVal));
           const adjClass = adjVal !== 0 ? ' has-value' : '';
 
+          const displaySolarImpact = isOn ? solarImpact : 'NA';
+          const displayFactorImpact = isOn ? factorImpact : 'NA';
+          const displayFinal = isOn ? nowBri + '%' : 'OFF';
+          const powerBtn = !isOn ? '<button class="tune-power-btn" onclick="event.stopPropagation(); turnOnArea(\'' + area.area_id + '\')" title="Turn on">&#x23FB;</button>' : '';
+
           return `
-            <div class="tune-area${hasLights ? ' expandable' : ''}${nowBri === 0 ? ' is-off' : ''}" data-area-id="${area.area_id}" data-rhythm-bri="${rhythmBri}" data-sensitivity="${sensitivity}" data-outdoor-norm="${outdoorNorm}" data-bri-fade-weight="${briFadeWeight}" data-zone-min-bri="${zoneMinBri}" data-zone-max-bri="${zoneMaxBri}" data-boost-bri="${isBoosted ? (tuneArea.boost_brightness || 0) : 0}" data-bri-override="${briOverride}" style="background:rgba(255,255,255,${(nowBri * 0.003).toFixed(4)});" ${hasLights ? `onclick="toggleAreaLights('${area.area_id}', event)"` : ''}>
+            <div class="tune-area${hasLights ? ' expandable' : ''}${!isOn ? ' is-off' : ''}" data-area-id="${area.area_id}" data-rhythm-bri="${rhythmBri}" data-sensitivity="${sensitivity}" data-outdoor-norm="${outdoorNorm}" data-bri-fade-weight="${briFadeWeight}" data-zone-min-bri="${zoneMinBri}" data-zone-max-bri="${zoneMaxBri}" data-boost-bri="${isBoosted ? (tuneArea.boost_brightness || 0) : 0}" data-bri-override="${briOverride}" style="background:rgba(255,255,255,${(isOn ? nowBri * 0.003 : 0).toFixed(4)});" ${hasLights ? `onclick="toggleAreaLights('${area.area_id}', event)"` : ''}>
               <div class="tune-area-inner">
                 <span class="tune-name-col">
-                  <a href="./area/${encodeURIComponent(area.area_id)}?from=tune" class="tune-area-name" onclick="event.stopPropagation()">${area.name}</a>
+                  ${powerBtn}<a href="./area/${encodeURIComponent(area.area_id)}?from=tune" class="tune-area-name" onclick="event.stopPropagation()">${area.name}</a>
                 </span>
-                <span class="tune-se-col"><span class="tune-impact-delta tune-solar-meta">${solarImpact}</span></span>
-                <span class="tune-balance-col"><span class="tune-impact-delta tune-factor-meta">${factorImpact}</span></span>
-                <span class="tune-adj-col"><span class="tune-adj-val${adjClass}">${adjText}</span></span>
-                <span class="tune-final-col tune-final-now tune-bri-now">${nowBri}%</span>
+                <span class="tune-se-col"><span class="tune-impact-delta tune-solar-meta">${displaySolarImpact}</span></span>
+                <span class="tune-balance-col"><span class="tune-impact-delta tune-factor-meta">${displayFactorImpact}</span></span>
+                <span class="tune-adj-col"><span class="tune-adj-val${adjClass}">${isOn ? adjText : '\u2013'}</span></span>
+                <span class="tune-final-col tune-final-now tune-bri-now">${displayFinal}</span>
                 <div class="tune-se-col" onclick="event.stopPropagation()">
                   <input type="range" class="tune-solar-slider" min="0" max="9" step="1" value="${solarStep}" data-area-id="${area.area_id}">
                 </div>

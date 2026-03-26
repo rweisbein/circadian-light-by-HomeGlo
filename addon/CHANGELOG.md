@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.112
+- **Off area treatment**: Areas with lights off show power button (⏻), "OFF" in final column, "NA" for SE/Balance impacts. Power button calls lights_on primitive and triggers full refresh. Off areas dimmed at 50% opacity with 0% brightness shading. Sliders and labels remain visible (settings, not state).
+- **API**: Added `is_on` field to light-filters response per area.
+
 ## 1.0.111
 - **Color tab: per-zone save/cancel**: Each zone has its own Save/Cancel buttons that appear when changes are made. Save persists settings and triggers light refresh. Cancel restores snapshot.
 - **Color tab: live sensitivity updates**: Dragging the sensitivity slider live-updates cool day impact, zone header CT, and all area final CT values + colors. Same for toggling warm night / cool day and changing target kelvin.

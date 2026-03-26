@@ -1011,6 +1011,7 @@ class LightDesignerServer:
                                 area_id
                             ),
                             "light_filters": glozone.get_area_light_filters(area_id),
+                            "is_on": state.get_is_on(area_id),
                             "boosted": is_boosted,
                             "boost_brightness": boost_brightness or 0,
                             "bri_override": effective_bri_override,
