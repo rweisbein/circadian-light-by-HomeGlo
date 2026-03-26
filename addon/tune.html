@@ -182,7 +182,10 @@
     .tune-sensitivity-title { font-size: 1.0rem; font-weight: 600; color: var(--text); }
     .tune-sensitivity-chevron { display: inline-block; font-size: 1.1rem; line-height: 1; transition: transform 0.25s; color: var(--muted2); flex-shrink: 0; }
     .tune-sensitivity-card.is-open .tune-sensitivity-chevron { transform: rotate(90deg); }
+    .tune-sensitivity-math { font-size: 0.75rem; color: var(--muted2); white-space: nowrap; display: none; }
+    .tune-sensitivity-card.is-open .tune-sensitivity-math { display: inline; }
     .tune-sensitivity-val { margin-left: auto; font-size: 0.85rem; color: var(--muted); white-space: nowrap; }
+    .tune-sensitivity-card.is-open .tune-sensitivity-val { margin-left: 4px; }
     .tune-sensitivity-body {
       max-height: 0; opacity: 0; overflow: hidden;
       transition: max-height 0.3s ease, opacity 0.25s ease;
@@ -273,7 +276,7 @@
     .tune-zone-ctrl-word { font-size: 0.8rem; color: var(--text); white-space: nowrap; }
     .tune-zone-ctrl-val { font-size: 0.75rem; color: var(--text); white-space: nowrap; }
     .tune-sensitivity-slider { width: 80px; }
-    .tune-zone-controls .tune-col-headers-row { padding: 3px 0; }
+    .tune-zone-controls .tune-col-headers-row { padding: 3px 0; width: 100%; }
     .tune-zone-bri-group {
       display: flex; align-items: baseline; gap: 6px;
       margin-left: auto; white-space: nowrap;
@@ -355,19 +358,18 @@
     }
 
     /* Tune area 3-row layout */
-    .tune-area-header {
-      display: flex;
+    .tune-area-inner {
+      display: grid;
+      grid-template-columns: minmax(60px, 1fr) 30% 30% 44px 40px;
+      grid-template-rows: auto auto auto;
       align-items: center;
-      padding: 6px 16px 2px;
-      gap: 0;
+      padding: 6px 12px 4px;
+      gap: 0 0;
     }
-    .tune-area-row {
-      display: flex;
-      align-items: center;
-      gap: 0;
-      padding: 0 16px;
-    }
-    .tune-slider-label-row { padding-bottom: 4px; margin-top: -2px; }
+    .tune-area-inner .tune-name-col { grid-row: 1 / 4; align-self: center; }
+    .tune-area-header-cols { display: contents; }
+    .tune-area-slider-cols { display: contents; }
+    .tune-area-label-cols { display: contents; }
     .tune-name-col {
       flex: 1; min-width: 0;
     }
@@ -1316,6 +1318,8 @@
       // Header summary (always visible)
       const summaryEl = document.getElementById('tune-sensitivity-summary');
       if (summaryEl) summaryEl.textContent = fmtSunMultiplier(mult);
+      const mathEl = document.getElementById('tune-sensitivity-math');
+      if (mathEl) mathEl.textContent = sunBriPct + '% \u00d7 ' + fmtVal(sensitivity) + ' =';
 
       // Sun rows
       const angleEl = document.getElementById('tune-sun-angle-val');
@@ -1348,7 +1352,7 @@
       const nowEl = tuneAreaEl.querySelector('.tune-bri-now');
       if (nowEl) nowEl.textContent = nowBri + '%';
       // Update brightness shading
-      tuneAreaEl.style.background = 'rgba(255,255,255,' + (nowBri * 0.0008).toFixed(4) + ')';
+      tuneAreaEl.style.background = 'rgba(255,255,255,' + (nowBri * 0.003).toFixed(4) + ')';
       tuneAreaEl.classList.toggle('is-off', nowBri === 0);
       // Update impact deltas
       const factorMetaEl = tuneAreaEl.querySelector('.tune-factor-meta');
@@ -1925,10 +1929,15 @@
 
         html += '<div class="zone-group" style="margin-bottom:8px;">';
 
+        // Zone final CT (base + solar rules)
+        const zoneFinalCt = zoneCurveCt + zoneCoolShift + zoneWarmShift;
+        const zoneHeaderBg = ctBg(zoneFinalCt, 0.15);
+        const zoneHeaderText = ctTextColor(zoneFinalCt);
+
         // Zone header with CT color
-        html += '<div class="ct-zone-header" style="background:' + zoneBgColor + ';">';
-        html += '<a class="ct-zone-name" href="./zone/' + escapedZone + '?back=tune" onclick="event.stopPropagation()" style="color:' + zoneTextColor + ';">' + zoneName + '</a>';
-        html += '<span class="ct-zone-base-ct" style="color:' + zoneTextColor + ';">' + Math.round(zoneCurveCt) + 'K</span>';
+        html += '<div class="ct-zone-header" style="background:' + zoneHeaderBg + ';">';
+        html += '<a class="ct-zone-name" href="./zone/' + escapedZone + '?back=tune" onclick="event.stopPropagation()" style="color:' + zoneHeaderText + ';">' + zoneName + '</a>';
+        html += '<span class="ct-zone-base-ct" style="color:' + zoneHeaderText + ';">' + Math.round(zoneFinalCt) + 'K</span>';
         html += '</div>';
 
         // Compute zone-level cool day / warm night impact from first area
@@ -1939,35 +1948,32 @@
         const coolTarget = zoneData.daylight_cct || 5500;
         const outdoorNorm = tuneData?.outdoor_normalized ?? 0;
         const sunBriPct = Math.round(outdoorNorm * 100);
+        const warmTargetColor = ctBg(warmTarget, 0.5);
+        const coolTargetColor = ctBg(coolTarget, 0.5);
 
-        // Zone controls: two rows
+        // Zone controls: three rows
         html += '<div class="ct-zone-controls">';
-        // Row 1: Warm night + Cool day toggles with impacts
+        // Row 1: Warm night
         html += '<div class="ct-zone-ctrl-row">';
-        html += '<div class="ct-zone-ctrl">';
-        html += '<span class="ct-zone-ctrl-label">Warm night</span>';
+        html += '<span class="ct-zone-ctrl-label" style="min-width:80px;">Warm night</span>';
         html += '<input type="checkbox" class="ct-toggle" id="ct-warm-' + zoneName + '" ' + (warmEnabled ? 'checked' : '') + '>';
+        html += '<span class="ct-zone-ctrl-target" style="display:inline-block;padding:1px 8px;border-radius:4px;border:1px solid ' + warmTargetColor + ';background:' + ctBg(warmTarget, 0.1) + ';">' + warmTarget + 'K</span>';
         html += '<span class="ct-zone-ctrl-impact">' + fmtCtDelta(zoneWarmShift) + 'K</span>';
-        html += '<span class="ct-zone-ctrl-target">\u2192 ' + warmTarget + 'K</span>';
         html += '</div>';
-        html += '<div class="ct-zone-ctrl">';
-        html += '<span class="ct-zone-ctrl-label">Cool day</span>';
-        html += '<input type="checkbox" class="ct-toggle" id="ct-cool-' + zoneName + '" ' + (coolEnabled ? 'checked' : '') + '>';
-        html += '<span class="ct-zone-ctrl-impact">+' + Math.round(zoneCoolShift) + 'K</span>';
-        html += '<span class="ct-zone-ctrl-target">\u2192 ' + coolTarget + 'K</span>';
-        html += '</div>';
-        html += '</div>';
-        // Row 2: Sensitivity with sun brightness
+        // Row 2: Cool day
         html += '<div class="ct-zone-ctrl-row">';
-        html += '<div class="ct-zone-ctrl">';
-        html += '<span class="ct-zone-ctrl-label">Sun sensitivity</span>';
+        html += '<span class="ct-zone-ctrl-label" style="min-width:80px;">Cool day</span>';
+        html += '<input type="checkbox" class="ct-toggle" id="ct-cool-' + zoneName + '" ' + (coolEnabled ? 'checked' : '') + '>';
+        html += '<span class="ct-zone-ctrl-target" style="display:inline-block;padding:1px 8px;border-radius:4px;border:1px solid ' + coolTargetColor + ';background:' + ctBg(coolTarget, 0.1) + ';">' + coolTarget + 'K</span>';
+        html += '<span class="ct-zone-ctrl-impact">+' + Math.round(zoneCoolShift) + 'K</span>';
+        html += '</div>';
+        // Row 3: Sun sensitivity + sun brightness
+        html += '<div class="ct-zone-ctrl-row">';
+        html += '<span class="ct-zone-ctrl-label" style="min-width:80px;">Sun sensitivity</span>';
         html += '<input type="range" class="ct-sensitivity-slider tune-sensitivity-slider" id="ct-sens-' + zoneName + '" min="0" max="8" step="1" value="' + sensStep + '">';
         html += '<span class="ct-sensitivity-val" id="ct-sens-val-' + zoneName + '">' + SENSITIVITY_STEPS[sensStep].label + ' ' + fmtVal(snappedSens) + '</span>';
-        html += '</div>';
-        html += '<div class="ct-zone-ctrl">';
-        html += '<span class="ct-zone-ctrl-label">Sun brightness</span>';
+        html += '<span class="ct-zone-ctrl-label" style="margin-left:12px;">Brightness</span>';
         html += '<span class="ct-zone-ctrl-impact">' + sunBriPct + '%</span>';
-        html += '</div>';
         html += '</div>';
         html += '</div>';
 
@@ -1979,8 +1985,7 @@
         html += '<span class="ct-col-final ct-col-header" style="text-align:right;">Final</span>';
         html += '</div>';
 
-        // Area rows — final CT = base + shift + cool - warm + adj
-        const zoneFinalCt = zoneCurveCt + zoneCoolShift + zoneWarmShift;
+        // Area rows
         for (const area of areas) {
           const areaId = typeof area === 'object' ? area.id : area;
           const areaName = typeof area === 'object' ? (area.name || areaId) : areaId;
@@ -2148,15 +2153,10 @@
           <div class="tune-sensitivity-header" onclick="toggleSensitivityBody()">
             <span class="tune-sensitivity-chevron" id="tune-sensitivity-chevron">&#x203A;</span>
             <span class="tune-sensitivity-title">Sun multiplier</span>
+            <span class="tune-sensitivity-math" id="tune-sensitivity-math">${sunBriPct}% \u00d7 ${fmtVal(snappedSens)} =</span>
             <span class="tune-sensitivity-val" id="tune-sensitivity-summary">${fmtSunMultiplier(sunMult)}</span>
           </div>
           <div class="tune-sensitivity-body" id="tune-sensitivity-body">
-            <div class="tune-sensitivity-section-label">Sensitivity</div>
-            <div class="tune-sensitivity-slider-row">
-              <input type="range" class="tune-sensitivity-slider" id="tune-global-sensitivity" min="0" max="8" step="1" value="${tuneSensStep}" onclick="event.stopPropagation()">
-              <span class="tune-zone-ctrl-word tune-sensitivity-word" id="tune-global-sensitivity-word">${SENSITIVITY_STEPS[tuneSensStep].label}</span>
-              <span class="tune-zone-ctrl-val" id="tune-global-sensitivity-val">${fmtVal(snappedSens)}</span>
-            </div>
             <div class="tune-sensitivity-section-label">Sun</div>
             <div class="tune-sun-row">
               <span class="tune-sun-row-op"></span>
@@ -2178,6 +2178,12 @@
               <span class="tune-sun-row-op"></span>
               <span class="tune-sun-result-label">Brightness</span>
               <span class="tune-sun-result-val" id="tune-sun-brightness-val">${sunBriPct}%</span>
+            </div>
+            <div class="tune-sensitivity-section-label">Sensitivity</div>
+            <div class="tune-sensitivity-slider-row">
+              <input type="range" class="tune-sensitivity-slider" id="tune-global-sensitivity" min="0" max="8" step="1" value="${tuneSensStep}" onclick="event.stopPropagation()">
+              <span class="tune-zone-ctrl-word tune-sensitivity-word" id="tune-global-sensitivity-word">${SENSITIVITY_STEPS[tuneSensStep].label}</span>
+              <span class="tune-zone-ctrl-val" id="tune-global-sensitivity-val">${fmtVal(snappedSens)}</span>
             </div>
           </div>
         </div>
@@ -2222,8 +2228,8 @@
           const adjClass = adjVal !== 0 ? ' has-value' : '';
 
           return `
-            <div class="tune-area${hasLights ? ' expandable' : ''}${nowBri === 0 ? ' is-off' : ''}" data-area-id="${area.area_id}" data-rhythm-bri="${rhythmBri}" data-sensitivity="${sensitivity}" data-outdoor-norm="${outdoorNorm}" data-bri-fade-weight="${briFadeWeight}" data-zone-min-bri="${zoneMinBri}" data-zone-max-bri="${zoneMaxBri}" data-boost-bri="${isBoosted ? (tuneArea.boost_brightness || 0) : 0}" data-bri-override="${briOverride}" style="background:rgba(255,255,255,${(nowBri * 0.0008).toFixed(4)});" ${hasLights ? `onclick="toggleAreaLights('${area.area_id}', event)"` : ''}>
-              <div class="tune-area-header">
+            <div class="tune-area${hasLights ? ' expandable' : ''}${nowBri === 0 ? ' is-off' : ''}" data-area-id="${area.area_id}" data-rhythm-bri="${rhythmBri}" data-sensitivity="${sensitivity}" data-outdoor-norm="${outdoorNorm}" data-bri-fade-weight="${briFadeWeight}" data-zone-min-bri="${zoneMinBri}" data-zone-max-bri="${zoneMaxBri}" data-boost-bri="${isBoosted ? (tuneArea.boost_brightness || 0) : 0}" data-bri-override="${briOverride}" style="background:rgba(255,255,255,${(nowBri * 0.003).toFixed(4)});" ${hasLights ? `onclick="toggleAreaLights('${area.area_id}', event)"` : ''}>
+              <div class="tune-area-inner">
                 <span class="tune-name-col">
                   <a href="./area/${encodeURIComponent(area.area_id)}?from=tune" class="tune-area-name" onclick="event.stopPropagation()">${area.name}</a>
                 </span>
@@ -2231,9 +2237,6 @@
                 <span class="tune-balance-col"><span class="tune-impact-delta tune-factor-meta">${factorImpact}</span></span>
                 <span class="tune-adj-col"><span class="tune-adj-val${adjClass}">${adjText}</span></span>
                 <span class="tune-final-col tune-final-now tune-bri-now">${nowBri}%</span>
-              </div>
-              <div class="tune-area-row">
-                <span class="tune-name-col"></span>
                 <div class="tune-se-col" onclick="event.stopPropagation()">
                   <input type="range" class="tune-solar-slider" min="0" max="9" step="1" value="${solarStep}" data-area-id="${area.area_id}">
                 </div>
@@ -2242,9 +2245,6 @@
                 </div>
                 <span class="tune-adj-col"></span>
                 <span class="tune-final-col"></span>
-              </div>
-              <div class="tune-slider-label-row">
-                <span class="tune-name-col"></span>
                 <span class="tune-slider-label-col"><span class="tune-slider-word tune-solar-word">${SOLAR_STEPS[solarStep].label}</span> <span class="tune-slider-val tune-solar-val">(\u00d7 ${fmtVal(exposure)})</span></span>
                 <span class="tune-slider-label-col"><span class="tune-slider-word tune-lumen-word">${LUMEN_STEPS[lumenStep].label} (\u00d7 ${fmtVal(factor)})</span></span>
                 <span class="tune-adj-col"></span>
@@ -2257,12 +2257,12 @@
 
         const zoneControlsHtml = `
           <div class="tune-zone-controls" data-zone="${zoneName}" onclick="event.stopPropagation()">
-            <div class="tune-col-headers-row">
-              <span class="tune-name-col tune-col-header ${tuneSortOrder === 'custom' ? 'active-sort' : ''}" onclick="setTuneSort('custom')">Area</span>
-              <span class="tune-se-col tune-col-header ${tuneSortOrder === 'sun' ? 'active-sort' : ''}" onclick="setTuneSort('sun')">Sun Exposure</span>
-              <span class="tune-balance-col tune-col-header ${tuneSortOrder === 'light' ? 'active-sort' : ''}" onclick="setTuneSort('light')">Balance</span>
-              <span class="tune-adj-col tune-col-header ${tuneSortOrder === 'adj' ? 'active-sort' : ''}" onclick="setTuneSort('adj')">Adj</span>
-              <span class="tune-final-col tune-col-header ${tuneSortOrder === 'bri' ? 'active-sort' : ''}" onclick="setTuneSort('bri')">Final</span>
+            <div class="tune-col-headers-row" style="display:grid;grid-template-columns:minmax(60px,1fr) 30% 30% 44px 40px;padding:4px 12px 2px;">
+              <span class="tune-col-header ${tuneSortOrder === 'custom' ? 'active-sort' : ''}" onclick="setTuneSort('custom')">Area</span>
+              <span class="tune-col-header" style="text-align:center;" onclick="setTuneSort('sun')"><span class="${tuneSortOrder === 'sun' ? 'active-sort' : ''}">Sun Exposure</span></span>
+              <span class="tune-col-header" style="text-align:center;" onclick="setTuneSort('light')"><span class="${tuneSortOrder === 'light' ? 'active-sort' : ''}">Balance</span></span>
+              <span class="tune-col-header" style="text-align:center;" onclick="setTuneSort('adj')"><span class="${tuneSortOrder === 'adj' ? 'active-sort' : ''}">Adj</span></span>
+              <span class="tune-col-header" style="text-align:right;" onclick="setTuneSort('bri')"><span class="${tuneSortOrder === 'bri' ? 'active-sort' : ''}">Final</span></span>
             </div>
           </div>
         `;
