@@ -195,6 +195,8 @@ class HomeAssistantWebSocketClient:
         self._pending_post_action_delay: Optional[asyncio.Task] = None
         # Flag to prevent periodic tick from re-triggering itself
         self._in_periodic_tick: bool = False
+        # Flag to defer periodic tick (e.g., during feedback cue flash sequences)
+        self._defer_periodic_tick: bool = False
 
         # Motion scope cooldown: scope_key -> time.time() when cooldown expires
         # In-memory only — resets on restart (no stale cooldowns)
@@ -2510,95 +2512,108 @@ class HomeAssistantWebSocketClient:
         limit_speed = self.primitives._get_limit_warning_speed()
         two_step_delay = self.primitives._get_two_step_delay()
 
-        if cue_type == "bounce":
-            if direction == "up":
-                bounce_pct = self.primitives._get_limit_bounce_max_percent() / 100.0
-            else:
-                bounce_pct = self.primitives._get_limit_bounce_min_percent() / 100.0
+        # Defer periodic tick during feedback cue to prevent collisions
+        self._defer_periodic_tick = True
+        if (
+            self._pending_post_action_delay is not None
+            and not self._pending_post_action_delay.done()
+        ):
+            self._pending_post_action_delay.cancel()
 
-            bounce_bri = bounce_type in ("step", "bright")
-            bounce_color = bounce_type in ("step", "color")
-
-            # Brightness target in visible space
-            if bounce_bri:
+        try:
+            if cue_type == "bounce":
                 if direction == "up":
-                    target_bri = max(1, int(cached_bri * (1.0 - bounce_pct)))
+                    bounce_pct = self.primitives._get_limit_bounce_max_percent() / 100.0
                 else:
-                    target_bri = min(255, int(cached_bri * (1.0 + bounce_pct)))
-            else:
-                target_bri = cached_bri
+                    bounce_pct = self.primitives._get_limit_bounce_min_percent() / 100.0
 
-            # Color target
-            phase1_data = {"brightness": target_bri, "transition": limit_speed}
-            if bounce_color:
-                # Shift color temp for visual effect
-                last_kelvin = (
-                    state.get_last_sent_kelvin(feedback_area) if feedback_area else None
-                )
-                current_ct = int(1000000 / last_kelvin) if last_kelvin else None
-                if current_ct:
-                    config = Config.from_dict(glozone.get_config())
-                    ct_range = config.max_color_temp - config.min_color_temp
-                    ct_delta = int(bounce_pct * ct_range)
+                bounce_bri = bounce_type in ("step", "bright")
+                bounce_color = bounce_type in ("step", "color")
+
+                # Brightness target in visible space
+                if bounce_bri:
                     if direction == "up":
-                        phase1_data["color_temp"] = max(153, current_ct + ct_delta)
+                        target_bri = max(1, int(cached_bri * (1.0 - bounce_pct)))
                     else:
-                        phase1_data["color_temp"] = min(500, current_ct - ct_delta)
+                        target_bri = min(255, int(cached_bri * (1.0 + bounce_pct)))
+                else:
+                    target_bri = cached_bri
 
-            # Phase 1: dip/flash
-            await self.call_service("light", "turn_on", phase1_data, target=target)
-            await asyncio.sleep(limit_speed + two_step_delay)
+                # Color target
+                phase1_data = {"brightness": target_bri, "transition": limit_speed}
+                if bounce_color:
+                    # Shift color temp for visual effect
+                    last_kelvin = (
+                        state.get_last_sent_kelvin(feedback_area) if feedback_area else None
+                    )
+                    current_ct = int(1000000 / last_kelvin) if last_kelvin else None
+                    if current_ct:
+                        config = Config.from_dict(glozone.get_config())
+                        ct_range = config.max_color_temp - config.min_color_temp
+                        ct_delta = int(bounce_pct * ct_range)
+                        if direction == "up":
+                            phase1_data["color_temp"] = max(153, current_ct + ct_delta)
+                        else:
+                            phase1_data["color_temp"] = min(500, current_ct - ct_delta)
 
-            # Phase 2: restore cached
-            restore_data = {"brightness": cached_bri, "transition": limit_speed}
-            await self.call_service("light", "turn_on", restore_data, target=target)
+                # Phase 1: dip/flash
+                await self.call_service("light", "turn_on", phase1_data, target=target)
+                await asyncio.sleep(limit_speed + two_step_delay)
 
-            logger.info(
-                f"Feedback bounce ({bounce_type} {direction}): "
-                f"{cached_bri}/255 -> {target_bri}/255 -> restore"
-            )
+                # Phase 2: restore cached
+                restore_data = {"brightness": cached_bri, "transition": limit_speed}
+                await self.call_service("light", "turn_on", restore_data, target=target)
 
-        elif cue_type == "freeze":
-            # Phase 1: dim to off
-            await self.call_service(
-                "light",
-                "turn_on",
-                {"brightness": 1, "transition": limit_speed},
-                target=target,
-            )
-            await asyncio.sleep(limit_speed + two_step_delay)
-
-            # Phase 2: restore cached
-            await self.call_service(
-                "light",
-                "turn_on",
-                {"brightness": cached_bri, "transition": limit_speed},
-                target=target,
-            )
-            logger.info(f"Feedback freeze: {cached_bri}/255 -> dim -> restore")
-
-        elif cue_type == "reach":
-            # N flashes for reach 1-5
-            for i in range(scope_number):
-                await self.call_service(
-                    "light", "turn_off", {"transition": 0}, target=target
+                logger.info(
+                    f"Feedback bounce ({bounce_type} {direction}): "
+                    f"{cached_bri}/255 -> {target_bri}/255 -> restore"
                 )
-                await asyncio.sleep(0.3)
+
+            elif cue_type == "freeze":
+                # Phase 1: dim to off
                 await self.call_service(
                     "light",
                     "turn_on",
-                    {"brightness": cached_bri, "transition": 0},
+                    {"brightness": 1, "transition": limit_speed},
                     target=target,
                 )
-                if i < scope_number - 1:
-                    await asyncio.sleep(0.3)
+                await asyncio.sleep(limit_speed + two_step_delay)
 
-            # Restore (already on at cached_bri from last flash)
-            if not was_on:
+                # Phase 2: restore cached
                 await self.call_service(
-                    "light", "turn_off", {"transition": 0}, target=target
+                    "light",
+                    "turn_on",
+                    {"brightness": cached_bri, "transition": limit_speed},
+                    target=target,
                 )
-            logger.info(f"Feedback reach: {scope_number} flash(es)")
+                logger.info(f"Feedback freeze: {cached_bri}/255 -> dim -> restore")
+
+            elif cue_type == "reach":
+                # N flashes for reach 1-5
+                for i in range(scope_number):
+                    await self.call_service(
+                        "light", "turn_off", {"transition": 0}, target=target
+                    )
+                    await asyncio.sleep(0.3)
+                    await self.call_service(
+                        "light",
+                        "turn_on",
+                        {"brightness": cached_bri, "transition": 0},
+                        target=target,
+                    )
+                    if i < scope_number - 1:
+                        await asyncio.sleep(0.3)
+
+                # Restore (already on at cached_bri from last flash)
+                if not was_on:
+                    await self.call_service(
+                        "light", "turn_off", {"transition": 0}, target=target
+                    )
+                logger.info(f"Feedback reach: {scope_number} flash(es)")
+
+        finally:
+            self._defer_periodic_tick = False
+            self.record_light_action()
 
     # _show_reach_all_lights_feedback, _bounce_at_limit_reach, and
     # _show_reach_single_light_feedback removed — replaced by _feedback_cue
@@ -5967,6 +5982,12 @@ class HomeAssistantWebSocketClient:
                                 f"Deferring periodic update — light action {elapsed:.1f}s ago"
                             )
                         continue
+
+                # Skip if a feedback cue (or other deferred operation) is active
+                if self._defer_periodic_tick:
+                    if log_periodic:
+                        logger.info("Deferring periodic update — feedback cue active")
+                    continue
 
                 # Get all circadian areas from state module
                 circadian_areas = state.get_circadian_areas_for_update()

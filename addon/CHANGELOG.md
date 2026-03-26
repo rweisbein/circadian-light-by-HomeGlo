@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.118
+- **Fix feedback cue vs periodic tick collision**: Added `_defer_periodic_tick` flag that prevents periodic light updates during feedback cue sequences (reach flashes, bounce, freeze). Flag set at cue start, cleared in `finally` block, then `record_light_action()` starts fresh burst refresh. Prevents periodic tick from overwriting flash sequence mid-animation.
+
 ## 1.0.117
 - **Fix color zone base CT**: Uses unshifted area for zone reference (fixes all areas showing shift when one area has circadian slider adjustment).
 - **Brightness: off area visibility**: Removed opacity dimming — off areas now fully visible with power button + (off) label as only indicators.
