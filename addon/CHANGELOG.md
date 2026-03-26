@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.116
+- **Color tab: collapsible zones**: Chevron + animation with separate collapsed state from brightness tab.
+- **Color tab: cool/warm columns restored**: Per-area Cool Day and Warm Night columns show individual impacts (differ when areas have circadian shifts).
+- **Color tab: fix live update bug**: All areas now update colors when sensitivity slider moves (was only updating first area due to scoping bug).
+- **Color tab: solid CT target badges**: Warm night/cool day targets shown as solid CT-colored chips with readable text, updating live as values change.
+- **Color tab: per-area live cool/warm**: Sensitivity slider recalculates per-area cool/warm shifts individually.
+
 ## 1.0.115
 - **Color tab: solid CT coloring**: Area rows and zone headers now use the same solid CT-colored backgrounds as the home page (at 100% brightness). Readable text colors computed per row. Live updates maintain solid coloring.
 

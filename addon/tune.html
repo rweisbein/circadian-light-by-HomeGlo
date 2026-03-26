@@ -580,15 +580,15 @@
     .ct-sensitivity-val { font-size: 0.75rem; color: var(--text); white-space: nowrap; }
     .ct-target-badge {
       display: inline-flex; align-items: center; gap: 0;
-      padding: 1px 4px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.15);
+      padding: 2px 6px; border-radius: 6px; border: none;
     }
     .ct-target-input {
-      background: transparent; border: none; color: var(--text);
-      font-size: 0.75rem; width: 38px; text-align: right; padding: 0;
-      font-variant-numeric: tabular-nums;
+      background: transparent; border: none; color: inherit;
+      font-size: 0.8rem; width: 38px; text-align: right; padding: 0;
+      font-variant-numeric: tabular-nums; font-weight: 600;
     }
     .ct-target-input:focus { outline: none; }
-    .ct-target-unit { font-size: 0.7rem; color: var(--muted2); margin-left: 1px; }
+    .ct-target-unit { font-size: 0.7rem; color: inherit; opacity: 0.7; margin-left: 1px; }
     .ct-zone-actions {
       display: none; justify-content: flex-end; gap: 8px;
       padding: 6px 16px; border-top: 1px solid var(--line); background: var(--panel);
@@ -605,9 +605,11 @@
       color: var(--muted2); white-space: nowrap;
     }
     .ct-col-area { flex: 1; min-width: 0; }
-    .ct-col-shift { flex: 0 0 60px; text-align: center; }
-    .ct-col-adj { flex: 0 0 60px; text-align: center; }
-    .ct-col-final { flex: 0 0 70px; text-align: right; }
+    .ct-col-shift { flex: 0 0 48px; text-align: center; }
+    .ct-col-cool { flex: 0 0 52px; text-align: center; }
+    .ct-col-warm { flex: 0 0 52px; text-align: center; }
+    .ct-col-adj { flex: 0 0 44px; text-align: center; }
+    .ct-col-final { flex: 0 0 56px; text-align: right; }
     .ct-area-row {
       display: flex; align-items: center; gap: 0;
       padding: 8px 16px; border-bottom: 1px solid var(--line); transition: background 0.15s;
@@ -1942,6 +1944,37 @@
     }
     function updateColorActionBar() {}
 
+    function getCtCollapsedZones() {
+      try { return JSON.parse(localStorage.getItem('ct_collapsed_zones') || '{}'); } catch { return {}; }
+    }
+    function toggleCtZone(zoneName, el) {
+      const zoneGroup = el ? el.closest('.zone-group') : null;
+      const header = zoneGroup
+        ? zoneGroup.querySelector('[data-zone="' + zoneName + '"]')
+        : document.querySelector('[data-zone="' + zoneName + '"]');
+      const content = zoneGroup
+        ? zoneGroup.querySelector('[data-zone-table="' + zoneName + '"]')
+        : document.querySelector('[data-zone-table="' + zoneName + '"]');
+      if (!header || !content) return;
+      const willCollapse = !header.classList.contains('collapsed');
+      if (willCollapse) {
+        content.style.maxHeight = content.scrollHeight + 'px';
+        content.offsetHeight;
+        header.classList.add('collapsed');
+        content.classList.add('hidden');
+        content.style.maxHeight = '';
+      } else {
+        content.classList.remove('hidden');
+        content.style.maxHeight = content.scrollHeight + 'px';
+        header.classList.remove('collapsed');
+        const onEnd = () => { content.style.maxHeight = ''; content.removeEventListener('transitionend', onEnd); };
+        content.addEventListener('transitionend', onEnd);
+      }
+      const state = getCtCollapsedZones();
+      state[zoneName] = willCollapse;
+      localStorage.setItem('ct_collapsed_zones', JSON.stringify(state));
+    }
+
     function liveUpdateZoneColor(zoneName) {
       // Recompute cool day impact and update all area rows in this zone
       const zoneData = cachedGlozones?.zones?.[zoneName];
@@ -2003,22 +2036,25 @@
         const baseKelvin = as?.base_kelvin || zoneCurveCt;
         const shift = baseKelvin - zoneCurveCt;
         const colorOverride = as?.color_override_set_at != null ? (as.color_override || 0) : 0;
-        const areaFinalCt = baseKelvin + newCoolShift + newWarmShift + colorOverride;
+        // Per-area cool/warm shifts (may differ from zone if area has base shift)
+        const areaCool = (coolTarget > baseKelvin && coolEnabled) ? Math.round((coolTarget - baseKelvin) * effectiveBlend) : 0;
+        const areaWarm = warmEnabled ? -Math.round(Math.max(0, baseKelvin - warmTarget) * nightStrength) : 0;
+        const areaFinalCt = baseKelvin + areaCool + areaWarm + colorOverride;
 
+        const c = cctToRGB(areaFinalCt);
+        const bg = tintColorByBrightness(c, 100);
+        const txt = readableTextColor(bg);
         const rowEl = document.getElementById('ct-row-' + areaId);
         if (rowEl) {
-          const c = cctToRGB(areaFinalCt);
-          const bg = tintColorByBrightness(c, 100);
-          const txt = readableTextColor(bg);
           rowEl.style.background = bg;
           rowEl.style.color = txt;
-          rowEl.style.borderLeft = 'none';
         }
         const finalEl = document.getElementById('ct-final-' + areaId);
-        if (finalEl) {
-          finalEl.textContent = Math.round(areaFinalCt) + 'K';
-          finalEl.style.color = txt;
-        }
+        if (finalEl) finalEl.textContent = Math.round(areaFinalCt) + 'K';
+        const areaCoolEl = document.getElementById('ct-cool-' + areaId);
+        if (areaCoolEl) { areaCoolEl.textContent = fmtCtDelta(areaCool); areaCoolEl.classList.toggle('muted', Math.abs(areaCool) < 1); }
+        const areaWarmEl = document.getElementById('ct-warm-' + areaId);
+        if (areaWarmEl) { areaWarmEl.textContent = fmtCtDelta(areaWarm); areaWarmEl.classList.toggle('muted', Math.abs(areaWarm) < 1); }
       }
 
       // Update per-zone save/cancel visibility
@@ -2028,11 +2064,17 @@
       // Update target badge colors
       if (warmTargetEl) {
         const badge = warmTargetEl.closest('.ct-target-badge');
-        if (badge) { badge.style.borderColor = ctBg(warmTarget, 0.5); badge.style.background = ctBg(warmTarget, 0.1); }
+        if (badge) {
+          const wb = tintColorByBrightness(cctToRGB(warmTarget), 100);
+          badge.style.background = wb; badge.style.color = readableTextColor(wb);
+        }
       }
       if (coolTargetEl) {
         const badge = coolTargetEl.closest('.ct-target-badge');
-        if (badge) { badge.style.borderColor = ctBg(coolTarget, 0.5); badge.style.background = ctBg(coolTarget, 0.1); }
+        if (badge) {
+          const cb = tintColorByBrightness(cctToRGB(coolTarget), 100);
+          badge.style.background = cb; badge.style.color = readableTextColor(cb);
+        }
       }
     }
 
@@ -2081,6 +2123,9 @@
         const warmTargetColor = ctBg(warmTarget, 0.5);
         const coolTargetColor = ctBg(coolTarget, 0.5);
 
+        const ctCollapsed = getCtCollapsedZones();
+        const ctIsCollapsed = ctCollapsed[zoneName] || false;
+
         html += '<div class="zone-group" style="margin-bottom:8px;">';
 
         // Zone final CT (base + solar rules)
@@ -2089,11 +2134,13 @@
         const zoneHeaderBg = tintColorByBrightness(zoneHeaderColor, 100);
         const zoneHeaderText = readableTextColor(zoneHeaderBg);
 
-        // Zone header with CT color
-        html += '<div class="ct-zone-header" id="ct-zone-header-' + zoneName + '" style="background:' + zoneHeaderBg + ';">';
+        // Zone header with CT color + chevron
+        html += '<div class="ct-zone-header zone-header' + (ctIsCollapsed ? ' collapsed' : '') + '" id="ct-zone-header-' + zoneName + '" data-zone="' + zoneName + '" style="background:' + zoneHeaderBg + ';">';
+        html += '<span class="zone-chevron" style="color:' + zoneHeaderText + ';" onclick="event.stopPropagation(); toggleCtZone(\'' + escapedZone + '\', this)">&#x203A;</span>';
         html += '<a class="ct-zone-name" href="./zone/' + escapedZone + '?back=tune" onclick="event.stopPropagation()" style="color:' + zoneHeaderText + ';">' + zoneName + '</a>';
         html += '<span class="ct-zone-base-ct" id="ct-zone-ct-' + zoneName + '" style="color:' + zoneHeaderText + ';">' + Math.round(zoneFinalCt) + 'K</span>';
         html += '</div>';
+        html += '<div class="zone-content' + (ctIsCollapsed ? ' hidden' : '') + '" data-zone-table="' + zoneName + '">';
 
         // Zone controls: three rows
         html += '<div class="ct-zone-controls">';
@@ -2101,14 +2148,18 @@
         html += '<div class="ct-zone-ctrl-row">';
         html += '<span class="ct-zone-ctrl-label" style="min-width:80px;">Warm night</span>';
         html += '<input type="checkbox" class="ct-toggle" id="ct-warm-' + zoneName + '" ' + (warmEnabled ? 'checked' : '') + '>';
-        html += '<span class="ct-target-badge" style="border-color:' + warmTargetColor + ';background:' + ctBg(warmTarget, 0.1) + ';"><input type="number" class="ct-target-input" id="ct-warm-target-' + zoneName + '" value="' + warmTarget + '" min="1500" max="4000" step="100"><span class="ct-target-unit">K</span></span>';
+        const warmBadgeBg = tintColorByBrightness(cctToRGB(warmTarget), 100);
+        const warmBadgeText = readableTextColor(warmBadgeBg);
+        html += '<span class="ct-target-badge" style="background:' + warmBadgeBg + ';color:' + warmBadgeText + ';"><input type="number" class="ct-target-input" id="ct-warm-target-' + zoneName + '" value="' + warmTarget + '" min="1500" max="4000" step="100"><span class="ct-target-unit">K</span></span>';
         html += '<span class="ct-zone-ctrl-impact" id="ct-warm-impact-' + zoneName + '">' + fmtCtDelta(zoneWarmShift) + 'K</span>';
         html += '</div>';
         // Row 2: Cool day
         html += '<div class="ct-zone-ctrl-row">';
         html += '<span class="ct-zone-ctrl-label" style="min-width:80px;">Cool day</span>';
         html += '<input type="checkbox" class="ct-toggle" id="ct-cool-' + zoneName + '" ' + (coolEnabled ? 'checked' : '') + '>';
-        html += '<span class="ct-target-badge" style="border-color:' + coolTargetColor + ';background:' + ctBg(coolTarget, 0.1) + ';"><input type="number" class="ct-target-input" id="ct-cool-target-' + zoneName + '" value="' + coolTarget + '" min="4000" max="7000" step="100"><span class="ct-target-unit">K</span></span>';
+        const coolBadgeBg = tintColorByBrightness(cctToRGB(coolTarget), 100);
+        const coolBadgeText = readableTextColor(coolBadgeBg);
+        html += '<span class="ct-target-badge" style="background:' + coolBadgeBg + ';color:' + coolBadgeText + ';"><input type="number" class="ct-target-input" id="ct-cool-target-' + zoneName + '" value="' + coolTarget + '" min="4000" max="7000" step="100"><span class="ct-target-unit">K</span></span>';
         html += '<span class="ct-zone-ctrl-impact" id="ct-cool-impact-' + zoneName + '">+' + Math.round(zoneCoolShift) + 'K</span>';
         html += '</div>';
         // Row 3: Sun sensitivity + sun brightness
@@ -2122,10 +2173,12 @@
         html += '</div>';
 
         // Column headers
-        html += '<div class="ct-area-row" style="padding-top:4px;padding-bottom:2px;border-bottom:1px solid var(--line);">';
+        html += '<div class="ct-area-row" style="padding-top:4px;padding-bottom:2px;border-bottom:1px solid var(--line);background:var(--panel);">';
         html += '<span class="ct-col-area ct-col-header">Area</span>';
-        html += '<span class="ct-col-shift ct-col-header" style="text-align:center;">Shift</span>';
-        html += '<span class="ct-col-adj ct-col-header" style="text-align:center;">Adj</span>';
+        html += '<span class="ct-col-shift ct-col-header">Shift</span>';
+        html += '<span class="ct-col-cool ct-col-header">Cool</span>';
+        html += '<span class="ct-col-warm ct-col-header">Warm</span>';
+        html += '<span class="ct-col-adj ct-col-header">Adj</span>';
         html += '<span class="ct-col-final ct-col-header" style="text-align:right;">Final</span>';
         html += '</div>';
 
@@ -2139,9 +2192,14 @@
           const baseKelvin = as?.base_kelvin || zoneCurveCt;
           const colorOverride = as?.color_override || 0;
           const sliderOverride = as?.color_override_set_at != null;
+          const areaSb = as?.solar_breakdown || {};
 
           // Shift: area's color_mid offset from zone curve base
           const shift = baseKelvin - zoneCurveCt;
+
+          // Per-area cool/warm (may differ from zone if area has shift)
+          const areaCoolShift = areaSb.daylight_shift || 0;
+          const areaWarmShift = (areaSb.night_shift || 0) > 0 ? -(areaSb.night_shift) : 0;
 
           // Adj: color override (slider-originated = direct additive)
           const adj = sliderOverride ? colorOverride : 0;
@@ -2151,13 +2209,17 @@
           const rowBg = tintColorByBrightness(cctColor, 100);
           const rowText = readableTextColor(rowBg);
           const shiftClass = Math.abs(shift) < 1 ? ' muted' : '';
+          const coolClass = Math.abs(areaCoolShift) < 1 ? ' muted' : '';
+          const warmClass = Math.abs(areaWarmShift) < 1 ? ' muted' : '';
           const adjClass = Math.abs(adj) < 1 ? ' muted' : '';
 
           html += '<div class="ct-area-row" id="ct-row-' + areaId + '" style="background:' + rowBg + ';color:' + rowText + ';">';
           html += '<span class="ct-col-area"><a href="./area/' + encodeURIComponent(areaId) + '?from=tune" class="ct-area-name" style="color:' + rowText + ';">' + areaName + '</a></span>';
           html += '<span class="ct-col-shift ct-area-val' + shiftClass + '">' + fmtCtDelta(shift) + '</span>';
+          html += '<span class="ct-col-cool ct-area-val' + coolClass + '" id="ct-cool-' + areaId + '">' + fmtCtDelta(areaCoolShift) + '</span>';
+          html += '<span class="ct-col-warm ct-area-val' + warmClass + '" id="ct-warm-' + areaId + '">' + fmtCtDelta(areaWarmShift) + '</span>';
           html += '<span class="ct-col-adj ct-area-val' + adjClass + '">' + fmtCtDelta(adj) + '</span>';
-          html += '<span class="ct-col-final ct-area-final"  id="ct-final-' + areaId + '">' + Math.round(finalKelvin) + 'K</span>';
+          html += '<span class="ct-col-final ct-area-final" id="ct-final-' + areaId + '">' + Math.round(finalKelvin) + 'K</span>';
           html += '</div>';
         }
 
@@ -2168,7 +2230,8 @@
         html += '<button class="ct-zone-save" onclick="saveZoneColor(\'' + escZone + '\')">Save</button>';
         html += '</div>';
 
-        html += '</div>';
+        html += '</div>'; // close zone-content
+        html += '</div>'; // close zone-group
       }
 
       container.innerHTML = html;
