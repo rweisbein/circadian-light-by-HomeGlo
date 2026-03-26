@@ -2328,11 +2328,18 @@
             const dBlend = refSb.daylight_blend || 0;
             const wTarget = refSb.warm_night_target || 2700;
             const cTarget = refSb.daylight_cct || 5500;
-            // If area has no shift, use zone base
-            baseKelvin = areaColorMid != null ? (lastKelvin != null ? zoneCurveCt + Math.round(lastKelvin - zoneFinalCt) : zoneCurveCt) : zoneCurveCt;
+            // If area has an individual color_mid shift (different from zone), derive from last_sent_kelvin
+            const zoneColorMid = zoneStates?.[zoneName]?.runtime_state?.color_mid;
+            const hasIndividualShift = areaColorMid != null && areaColorMid !== zoneColorMid;
+            if (hasIndividualShift && lastKelvin != null) {
+              baseKelvin = zoneCurveCt + Math.round(lastKelvin - zoneFinalCt);
+            } else {
+              baseKelvin = zoneCurveCt;
+            }
             areaCoolShift = (cTarget > baseKelvin && coolEnabled) ? Math.round((cTarget - baseKelvin) * dBlend) : 0;
             areaWarmShift = warmEnabled ? -Math.round(Math.max(0, baseKelvin - wTarget) * nightStr) : 0;
-            finalKelvin = lastKelvin || (baseKelvin + areaCoolShift + areaWarmShift + adj);
+            // Always compute final from formula for consistency
+            finalKelvin = baseKelvin + areaCoolShift + areaWarmShift + adj;
           } else {
             baseKelvin = as?.base_kelvin || zoneCurveCt;
             const areaSb = as?.solar_breakdown || {};
