@@ -340,6 +340,7 @@
     .tune-area {
       background: var(--card);
       border-bottom: 1px solid var(--line);
+      box-shadow: 0 1px 0 rgba(0,0,0,0.15);
       padding: 4px 0;
     }
     .tune-area:last-child {
@@ -604,8 +605,10 @@
     .ct-zone-cancel:hover { color: var(--text); border-color: var(--muted); }
     .ct-col-header {
       font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.5px;
-      color: var(--muted2); white-space: nowrap;
+      color: var(--muted2); white-space: nowrap; cursor: pointer; transition: color 0.15s;
     }
+    .ct-col-header:hover { color: var(--text); }
+    .ct-col-header.active-sort { color: var(--accent); }
     .ct-col-area { flex: 1; min-width: 0; }
     .ct-col-shift { flex: 0 0 48px; text-align: center; }
     .ct-col-cool { flex: 0 0 52px; text-align: center; }
@@ -709,6 +712,8 @@
     let cachedGlozones = null;
     let colorAreaData = null; // from /api/area-status
     let colorSnapshot = null; // for save/restore
+    let ctSortOrder = 'custom';
+    let ctSortAsc = true;
     let tuneSortOrder = localStorage.getItem('tune_sort_order') || 'custom';
     if (tuneSortOrder === 'az') tuneSortOrder = 'custom'; // migrated
     let tuneSortAsc = localStorage.getItem('tune_sort_asc') !== '0';
@@ -1946,6 +1951,12 @@
     }
     function updateColorActionBar() {}
 
+    function setCtSort(sort) {
+      if (ctSortOrder === sort) { ctSortAsc = !ctSortAsc; }
+      else { ctSortOrder = sort; ctSortAsc = true; }
+      renderColorTab();
+    }
+
     function getCtCollapsedZones() {
       try { return JSON.parse(localStorage.getItem('ct_collapsed_zones') || '{}'); } catch { return {}; }
     }
@@ -2033,7 +2044,7 @@
       const zhBg = tintColorByBrightness(zhColor, 100);
       const zhText = readableTextColor(zhBg);
       if (zoneCtEl) {
-        zoneCtEl.textContent = Math.round(zoneFinalCt) + 'K';
+        zoneCtEl.textContent = Math.round(zoneCurveCt) + 'K';
         zoneCtEl.style.color = zhText;
       }
       const zoneHeaderEl = document.getElementById('ct-zone-header-' + zoneName);
@@ -2156,7 +2167,7 @@
         html += '<div class="ct-zone-header zone-header' + (ctIsCollapsed ? ' collapsed' : '') + '" id="ct-zone-header-' + zoneName + '" data-zone="' + zoneName + '" style="background:' + zoneHeaderBg + ';cursor:pointer;" onclick="toggleCtZone(\'' + escapedZone + '\', this)">';
         html += '<span class="zone-chevron" style="color:' + zoneHeaderText + ';">&#x203A;</span>';
         html += '<a class="ct-zone-name" href="./zone/' + escapedZone + '?back=tune" onclick="event.stopPropagation()" style="color:' + zoneHeaderText + ';">' + zoneName + '</a>';
-        html += '<span class="ct-zone-base-ct" id="ct-zone-ct-' + zoneName + '" style="color:' + zoneHeaderText + ';">' + Math.round(zoneFinalCt) + 'K</span>';
+        html += '<span class="ct-zone-base-ct" id="ct-zone-ct-' + zoneName + '" style="color:' + zoneHeaderText + ';">' + Math.round(zoneCurveCt) + 'K</span>';
         html += '</div>';
         html += '<div class="zone-content' + (ctIsCollapsed ? ' hidden' : '') + '" data-zone-table="' + zoneName + '">';
 
@@ -2186,16 +2197,37 @@
 
         // Column headers
         html += '<div class="ct-area-row" style="padding-top:4px;padding-bottom:2px;border-bottom:1px solid var(--line);background:var(--panel);">';
-        html += '<span class="ct-col-area ct-col-header">Area</span>';
-        html += '<span class="ct-col-shift ct-col-header">Shift</span>';
-        html += '<span class="ct-col-cool ct-col-header">Cool</span>';
-        html += '<span class="ct-col-warm ct-col-header">Warm</span>';
-        html += '<span class="ct-col-adj ct-col-header">Adj</span>';
-        html += '<span class="ct-col-final ct-col-header" style="text-align:right;">Final</span>';
+        html += '<span class="ct-col-area ct-col-header' + (ctSortOrder === 'custom' ? ' active-sort' : '') + '" onclick="setCtSort(\'custom\')">Area</span>';
+        html += '<span class="ct-col-shift ct-col-header' + (ctSortOrder === 'shift' ? ' active-sort' : '') + '" onclick="setCtSort(\'shift\')">Shift</span>';
+        html += '<span class="ct-col-cool ct-col-header' + (ctSortOrder === 'cool' ? ' active-sort' : '') + '" onclick="setCtSort(\'cool\')">Cool</span>';
+        html += '<span class="ct-col-warm ct-col-header' + (ctSortOrder === 'warm' ? ' active-sort' : '') + '" onclick="setCtSort(\'warm\')">Warm</span>';
+        html += '<span class="ct-col-adj ct-col-header' + (ctSortOrder === 'adj' ? ' active-sort' : '') + '" onclick="setCtSort(\'adj\')">Adj</span>';
+        html += '<span class="ct-col-final ct-col-header' + (ctSortOrder === 'final' ? ' active-sort' : '') + '" style="text-align:right;" onclick="setCtSort(\'final\')">Final</span>';
         html += '</div>';
 
+        // Sort areas
+        let sortedCtAreas = [...areas];
+        if (ctSortOrder !== 'custom') {
+          const dir = ctSortAsc ? 1 : -1;
+          sortedCtAreas.sort((a, b) => {
+            const aidA = typeof a === 'object' ? a.id : a;
+            const aidB = typeof b === 'object' ? b.id : b;
+            const asA = colorAreaData?.[aidA] || {};
+            const asB = colorAreaData?.[aidB] || {};
+            const nameA = typeof a === 'object' ? (a.name || aidA) : aidA;
+            const nameB = typeof b === 'object' ? (b.name || aidB) : aidB;
+            if (ctSortOrder === 'shift') return dir * ((asA.base_kelvin || 0) - (asB.base_kelvin || 0));
+            if (ctSortOrder === 'cool') return dir * ((asA.solar_breakdown?.daylight_shift || 0) - (asB.solar_breakdown?.daylight_shift || 0));
+            if (ctSortOrder === 'warm') return dir * ((asA.solar_breakdown?.night_shift || 0) - (asB.solar_breakdown?.night_shift || 0));
+            if (ctSortOrder === 'adj') { const ovA = asA.color_override_set_at != null ? (asA.color_override || 0) : 0; const ovB = asB.color_override_set_at != null ? (asB.color_override || 0) : 0; return dir * (ovA - ovB); }
+            if (ctSortOrder === 'final') return dir * ((asA.kelvin || 0) - (asB.kelvin || 0));
+            return 0;
+          });
+          if (ctSortOrder === 'custom' && !ctSortAsc) sortedCtAreas.reverse();
+        }
+
         // Area rows
-        for (const area of areas) {
+        for (const area of sortedCtAreas) {
           const areaId = typeof area === 'object' ? area.id : area;
           const areaName = typeof area === 'object' ? (area.name || areaId) : areaId;
           const as = colorAreaData?.[areaId];
@@ -2489,10 +2521,10 @@
           <div class="tune-zone-controls" data-zone="${zoneName}" onclick="event.stopPropagation()">
             <div class="tune-col-headers-row" style="display:grid;grid-template-columns:minmax(60px,1fr) 30% 30% 44px 40px;padding:4px 12px 2px;">
               <span class="tune-col-header ${tuneSortOrder === 'custom' ? 'active-sort' : ''}" onclick="setTuneSort('custom')">Area</span>
-              <span class="tune-col-header" style="text-align:center;" onclick="setTuneSort('sun')"><span class="${tuneSortOrder === 'sun' ? 'active-sort' : ''}">Sun Exposure</span></span>
-              <span class="tune-col-header" style="text-align:center;" onclick="setTuneSort('light')"><span class="${tuneSortOrder === 'light' ? 'active-sort' : ''}">Balance</span></span>
-              <span class="tune-col-header" style="text-align:center;" onclick="setTuneSort('adj')"><span class="${tuneSortOrder === 'adj' ? 'active-sort' : ''}">Adj</span></span>
-              <span class="tune-col-header" style="text-align:right;" onclick="setTuneSort('bri')"><span class="${tuneSortOrder === 'bri' ? 'active-sort' : ''}">Final</span></span>
+              <span class="tune-col-header ${tuneSortOrder === 'sun' ? 'active-sort' : ''}" style="text-align:center;" onclick="setTuneSort('sun')">Sun Exposure</span>
+              <span class="tune-col-header ${tuneSortOrder === 'light' ? 'active-sort' : ''}" style="text-align:center;" onclick="setTuneSort('light')">Balance</span>
+              <span class="tune-col-header ${tuneSortOrder === 'adj' ? 'active-sort' : ''}" style="text-align:center;" onclick="setTuneSort('adj')">Adj</span>
+              <span class="tune-col-header ${tuneSortOrder === 'bri' ? 'active-sort' : ''}" style="text-align:right;" onclick="setTuneSort('bri')">Final</span>
             </div>
           </div>
         `;
@@ -2591,7 +2623,8 @@
         console.error('Error loading tune data:', err);
       }
       renderTune();
-      if (localStorage.getItem('tune_active_tab') === 'color') renderColorTab();
+      const savedTab = localStorage.getItem('tune_active_tab') || 'brightness';
+      if (savedTab !== 'brightness') switchTab(savedTab);
     }
 
     // ============================================================

@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.120
+- **Tab restore on back navigation**: Color tab persists when navigating away and back (was resetting to brightness).
+- **Row dividers visible on bright rows**: Added box-shadow on area rows for visibility against brightness shading.
+- **Sort highlight fix**: Active sort column now correctly highlighted orange on brightness tab.
+- **Color tab sorting**: All columns sortable (Area, Shift, Cool, Warm, Adj, Final) with click-to-sort, click-to-reverse.
+- **Color zone header shows base CT**: Zone header displays rhythm curve base (pre-solar) so cool/warm columns read as additive from that base.
+
 ## 1.0.119
 - **Fix last reach flash cut off**: Added 300ms dwell after every flash (including last) so the light visually completes before restore/cleanup. Only affected lights that were off.
 - **Power button moved to Final column**: Off areas show brightness % with small power icon below (replacing "(off)" text). Saves horizontal space on mobile, keeps final value visible.
