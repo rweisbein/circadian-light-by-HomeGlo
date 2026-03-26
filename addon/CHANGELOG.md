@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.115
+- **Color tab: solid CT coloring**: Area rows and zone headers now use the same solid CT-colored backgrounds as the home page (at 100% brightness). Readable text colors computed per row. Live updates maintain solid coloring.
+
 ## 1.0.114
 - **Color tab: visible CT shading**: Increased row background alpha from 0.06 to 0.15 and border from 0.4 to 0.6. CT colors now clearly visible on area rows and during live updates.
 

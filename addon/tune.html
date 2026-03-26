@@ -616,7 +616,7 @@
     .ct-area-name { font-size: 0.95rem; font-weight: 600; text-decoration: none; color: var(--text); }
     .ct-area-name:hover { color: var(--accent); }
     .ct-area-val { font-size: 0.9rem; white-space: nowrap; }
-    .ct-area-val.muted { color: var(--muted2); }
+    .ct-area-val.muted { opacity: 0.4; }
     .ct-area-final { font-size: 1.0rem; font-weight: 600; white-space: nowrap; }
 
     /* Refresh button */
@@ -1986,12 +1986,15 @@
       // Update zone header CT
       const zoneFinalCt = zoneCurveCt + newCoolShift + newWarmShift;
       const zoneCtEl = document.getElementById('ct-zone-ct-' + zoneName);
+      const zhColor = cctToRGB(zoneFinalCt);
+      const zhBg = tintColorByBrightness(zhColor, 100);
+      const zhText = readableTextColor(zhBg);
       if (zoneCtEl) {
         zoneCtEl.textContent = Math.round(zoneFinalCt) + 'K';
-        zoneCtEl.style.color = ctTextColor(zoneFinalCt);
+        zoneCtEl.style.color = zhText;
       }
       const zoneHeaderEl = document.getElementById('ct-zone-header-' + zoneName);
-      if (zoneHeaderEl) zoneHeaderEl.style.background = ctBg(zoneFinalCt, 0.15);
+      if (zoneHeaderEl) zoneHeaderEl.style.background = zhBg;
 
       // Update area rows
       for (const area of areas) {
@@ -2004,13 +2007,17 @@
 
         const rowEl = document.getElementById('ct-row-' + areaId);
         if (rowEl) {
-          rowEl.style.background = ctBg(areaFinalCt, 0.15);
-          rowEl.style.borderLeftColor = ctBg(areaFinalCt, 0.6);
+          const c = cctToRGB(areaFinalCt);
+          const bg = tintColorByBrightness(c, 100);
+          const txt = readableTextColor(bg);
+          rowEl.style.background = bg;
+          rowEl.style.color = txt;
+          rowEl.style.borderLeft = 'none';
         }
         const finalEl = document.getElementById('ct-final-' + areaId);
         if (finalEl) {
           finalEl.textContent = Math.round(areaFinalCt) + 'K';
-          finalEl.style.color = ctTextColor(areaFinalCt);
+          finalEl.style.color = txt;
         }
       }
 
@@ -2078,8 +2085,9 @@
 
         // Zone final CT (base + solar rules)
         const zoneFinalCt = zoneCurveCt + zoneCoolShift + zoneWarmShift;
-        const zoneHeaderBg = ctBg(zoneFinalCt, 0.15);
-        const zoneHeaderText = ctTextColor(zoneFinalCt);
+        const zoneHeaderColor = cctToRGB(zoneFinalCt);
+        const zoneHeaderBg = tintColorByBrightness(zoneHeaderColor, 100);
+        const zoneHeaderText = readableTextColor(zoneHeaderBg);
 
         // Zone header with CT color
         html += '<div class="ct-zone-header" id="ct-zone-header-' + zoneName + '" style="background:' + zoneHeaderBg + ';">';
@@ -2138,18 +2146,18 @@
           // Adj: color override (slider-originated = direct additive)
           const adj = sliderOverride ? colorOverride : 0;
 
-          // CT color shading
-          const borderColor = ctBg(finalKelvin, 0.6);
-          const rowBg = ctBg(finalKelvin, 0.15);
-          const finalColor = ctTextColor(finalKelvin);
+          // CT color shading — solid bg like home page at 100% brightness
+          const cctColor = cctToRGB(finalKelvin);
+          const rowBg = tintColorByBrightness(cctColor, 100);
+          const rowText = readableTextColor(rowBg);
           const shiftClass = Math.abs(shift) < 1 ? ' muted' : '';
           const adjClass = Math.abs(adj) < 1 ? ' muted' : '';
 
-          html += '<div class="ct-area-row" id="ct-row-' + areaId + '" style="background:' + rowBg + ';border-left:3px solid ' + borderColor + ';">';
-          html += '<span class="ct-col-area"><a href="./area/' + encodeURIComponent(areaId) + '?from=tune" class="ct-area-name">' + areaName + '</a></span>';
+          html += '<div class="ct-area-row" id="ct-row-' + areaId + '" style="background:' + rowBg + ';color:' + rowText + ';">';
+          html += '<span class="ct-col-area"><a href="./area/' + encodeURIComponent(areaId) + '?from=tune" class="ct-area-name" style="color:' + rowText + ';">' + areaName + '</a></span>';
           html += '<span class="ct-col-shift ct-area-val' + shiftClass + '">' + fmtCtDelta(shift) + '</span>';
           html += '<span class="ct-col-adj ct-area-val' + adjClass + '">' + fmtCtDelta(adj) + '</span>';
-          html += '<span class="ct-col-final ct-area-final" id="ct-final-' + areaId + '" style="color:' + finalColor + ';">' + Math.round(finalKelvin) + 'K</span>';
+          html += '<span class="ct-col-final ct-area-final"  id="ct-final-' + areaId + '">' + Math.round(finalKelvin) + 'K</span>';
           html += '</div>';
         }
 
