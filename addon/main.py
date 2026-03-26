@@ -184,13 +184,15 @@ class HomeAssistantWebSocketClient:
         self._dial_position: Dict[str, float] = {}
         self._dial_pending: Dict[str, Dict[str, Any]] = {}
 
-        # Timestamp of the last switch action (used to defer periodic updates)
-        self._last_switch_action_time: float = 0
+        # Timestamp of the last light action (used to defer periodic updates)
+        self._last_light_action_time: float = 0
         # Active feedback target for visual cues (set during switch action execution)
         self._active_feedback_target: Optional[dict] = None
 
-        # Pending post-switch refresh: asyncio.Task (delayed refresh_event.set())
-        self._pending_switch_refresh: Optional[asyncio.Task] = None
+        # Pending post-action refresh: asyncio.Task (delayed refresh_event.set())
+        self._pending_post_action_refresh: Optional[asyncio.Task] = None
+        # Flag to prevent periodic tick from re-triggering itself
+        self._in_periodic_tick: bool = False
 
         # Motion scope cooldown: scope_key -> time.time() when cooldown expires
         # In-memory only — resets on restart (no stale cooldowns)
@@ -1831,8 +1833,6 @@ class HomeAssistantWebSocketClient:
         """
         # Record activity for scope timeout
         switches.record_activity(switch_id)
-        self._last_switch_action_time = time.time()
-        self.schedule_post_switch_refresh()
 
         # Resolve and store feedback target for visual cues (bounce, etc.)
         self._active_feedback_target = self._resolve_feedback_target(switch_id)
@@ -2991,18 +2991,21 @@ class HomeAssistantWebSocketClient:
     # Post-switch refresh (delayed periodic re-send)
     # -------------------------------------------------------------------------
 
-    def schedule_post_switch_refresh(self) -> None:
-        """Schedule a delayed refresh_event after a switch action.
+    def record_light_action(self) -> None:
+        """Record that a light action occurred and schedule a delayed refresh.
 
-        Cancels any existing pending refresh and restarts the timer.
-        When the timer fires, it signals refresh_event which wakes
-        the circadian tick loop for a full re-send of all areas.
+        Called automatically by turn_on_lights_circadian and turn_off_lights
+        when not in a periodic tick. Defers the next periodic update and
+        schedules a refresh_event to fire after the configured delay.
+        Each call resets the timer.
         """
+        self._last_light_action_time = time.time()
+
         if (
-            self._pending_switch_refresh is not None
-            and not self._pending_switch_refresh.done()
+            self._pending_post_action_refresh is not None
+            and not self._pending_post_action_refresh.done()
         ):
-            self._pending_switch_refresh.cancel()
+            self._pending_post_action_refresh.cancel()
 
         try:
             raw_config = glozone.load_config_from_files()
@@ -3019,13 +3022,13 @@ class HomeAssistantWebSocketClient:
                 await asyncio.sleep(delay)
                 if self.refresh_event is not None:
                     self.refresh_event.set()
-                    logger.debug(f"Post-switch refresh fired after {delay}s")
+                    logger.debug(f"Post-action refresh fired after {delay}s")
             except asyncio.CancelledError:
                 pass
             finally:
-                self._pending_switch_refresh = None
+                self._pending_post_action_refresh = None
 
-        self._pending_switch_refresh = asyncio.create_task(_delayed_refresh())
+        self._pending_post_action_refresh = asyncio.create_task(_delayed_refresh())
 
     async def turn_on_lights_circadian(
         self,
@@ -3061,6 +3064,10 @@ class HomeAssistantWebSocketClient:
             color_temp: Color temperature in Kelvin (alternative to dict)
             xy: Pre-computed CIE xy coordinates (optional, computed from color_temp if not provided)
         """
+        # Record non-periodic light action for defer + refresh
+        if not self._in_periodic_tick:
+            self.record_light_action()
+
         # Support both dict and kwargs calling conventions
         rhythm_brightness = None
         brightness_override = None
@@ -3904,6 +3911,10 @@ class HomeAssistantWebSocketClient:
             transition: Transition time in seconds (default 0.3)
             log_periodic: Whether to log per-group off details
         """
+        # Record non-periodic light action for defer + refresh
+        if not self._in_periodic_tick:
+            self.record_light_action()
+
         color_lights, ct_lights, brightness_lights, onoff_lights = (
             self.get_lights_by_capability(area_id)
         )
@@ -5928,11 +5939,11 @@ class HomeAssistantWebSocketClient:
                 except asyncio.TimeoutError:
                     pass  # Normal periodic tick
 
-                # Skip periodic update if a switch action happened recently
-                # (avoid flooding the Zigbee mesh while switch commands propagate)
+                # Skip periodic update if a light action happened recently
+                # (avoid flooding the Zigbee mesh while commands propagate)
                 post_switch_delay = raw_config.get("post_switch_refresh", 30) / 10.0
-                if not triggered_by_event and self._last_switch_action_time:
-                    elapsed = time.time() - self._last_switch_action_time
+                if not triggered_by_event and self._last_light_action_time:
+                    elapsed = time.time() - self._last_light_action_time
                     if elapsed < post_switch_delay:
                         if log_periodic:
                             logger.info(
@@ -5968,15 +5979,19 @@ class HomeAssistantWebSocketClient:
                             logger.info(
                                 f"Running light update ({trigger_source}) for {len(circadian_areas)} Circadian areas"
                             )
-                        for area_id in circadian_areas:
-                            logger.debug(
-                                f"Updating lights in Circadian area: {area_id}"
-                            )
-                            await self.update_lights_in_circadian_mode(
-                                area_id,
-                                log_periodic=log_periodic,
-                                periodic_transition=periodic_transition,
-                            )
+                        self._in_periodic_tick = True
+                        try:
+                            for area_id in circadian_areas:
+                                logger.debug(
+                                    f"Updating lights in Circadian area: {area_id}"
+                                )
+                                await self.update_lights_in_circadian_mode(
+                                    area_id,
+                                    log_periodic=log_periodic,
+                                    periodic_transition=periodic_transition,
+                                )
+                        finally:
+                            self._in_periodic_tick = False
                     else:
                         logger.debug(
                             f"No areas to update ({trigger_source}) - all skipped or disabled"
