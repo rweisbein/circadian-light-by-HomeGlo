@@ -846,7 +846,9 @@ class HomeAssistantWebSocketClient:
                     "mode": area_config.mode,
                     "duration": area_config.duration,
                     "boost_enabled": area_config.boost_enabled,
-                    "boost_brightness": area_config.boost_brightness,
+                    "boost_brightness": (
+                        area_config.boost_brightness if area_config.boost_enabled else 0
+                    ),
                     "active_configs": [area_config],
                 }
             else:
