@@ -193,7 +193,7 @@
     .tune-sensitivity-card.is-open .tune-sensitivity-body { max-height: 600px; opacity: 1; overflow: visible; }
     .tune-sensitivity-section-label {
       font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.5px;
-      color: var(--muted2); padding: 8px 14px 4px; font-weight: 600;
+      color: var(--muted2); padding: 6px 14px 2px; font-weight: 600;
     }
     .tune-sensitivity-slider-row {
       display: flex;
@@ -208,18 +208,18 @@
       max-width: 200px;
     }
     .tune-sun-row {
-      display: flex; align-items: center; gap: 8px;
-      padding: 3px 14px 3px 28px; font-size: 0.82rem;
+      display: flex; align-items: center; gap: 6px;
+      padding: 1px 14px 1px 120px; font-size: 0.82rem;
     }
-    .tune-sun-row-label { color: var(--muted2); font-size: 0.75rem; min-width: 90px; flex-shrink: 0; }
+    .tune-sun-row-label { color: var(--muted2); font-size: 0.75rem; min-width: 70px; flex-shrink: 0; }
     .tune-sun-row-val { font-size: 0.8rem; color: var(--text); white-space: nowrap; }
     .tune-sun-row-op { color: var(--muted2); font-size: 0.75rem; width: 14px; text-align: center; flex-shrink: 0; }
-    .tune-sun-divider { border: none; border-top: 1px solid var(--line); margin: 4px auto 4px 42px; width: 100px; }
+    .tune-sun-divider { border: none; border-top: 1px solid var(--line); margin: 2px 14px 2px 134px; width: 80px; }
     .tune-sun-result {
-      display: flex; align-items: center; gap: 8px;
-      padding: 4px 14px 10px 28px; font-size: 0.82rem;
+      display: flex; align-items: center; gap: 6px;
+      padding: 1px 14px 6px 120px; font-size: 0.82rem;
     }
-    .tune-sun-result-label { color: var(--text); font-size: 0.75rem; min-width: 90px; flex-shrink: 0; font-weight: 600; }
+    .tune-sun-result-label { color: var(--text); font-size: 0.75rem; min-width: 70px; flex-shrink: 0; font-weight: 600; }
     .tune-sun-result-val { font-size: 0.85rem; color: var(--text); font-weight: 600; white-space: nowrap; }
     .tune-sun-conditions-btn {
       display: inline-flex; align-items: center; gap: 4px;
@@ -2105,12 +2105,6 @@
       const nightStrength = refSb.night_strength ?? 0;
       const newWarmShift = warmEnabled ? -Math.round(Math.max(0, zoneCurveCt - warmTarget) * nightStrength) : 0;
 
-      // Update cool day impact display
-      const coolImpactEl = document.getElementById('ct-cool-impact-' + zoneName);
-      if (coolImpactEl) coolImpactEl.textContent = '+' + newCoolShift + 'K';
-      const warmImpactEl = document.getElementById('ct-warm-impact-' + zoneName);
-      if (warmImpactEl) warmImpactEl.textContent = fmtCtDelta(newWarmShift) + 'K';
-
       // Update sensitivity display
       const sensValEl = document.getElementById('ct-sens-val-' + zoneName);
       if (sensValEl) sensValEl.textContent = SENSITIVITY_STEPS[sensEl ? parseInt(sensEl.value) : 5].label + ' ' + fmtVal(sensitivity);
@@ -2262,7 +2256,6 @@
         const warmBadgeBg = tintColorByBrightness(cctToRGB(warmTarget), 100);
         const warmBadgeText = readableTextColor(warmBadgeBg);
         html += '<span class="ct-target-badge" style="background:' + warmBadgeBg + ';color:' + warmBadgeText + ';cursor:pointer;" onclick="event.stopPropagation(); openCtPicker(this, \'ct-warm-target-' + zoneName + '\', 1500, 4000, \'' + escapedZone + '\')"><input type="number" class="ct-target-input" id="ct-warm-target-' + zoneName + '" value="' + warmTarget + '" min="1500" max="4000" step="100" readonly><span class="ct-target-unit">K</span></span>';
-        html += '<span class="ct-zone-ctrl-impact" id="ct-warm-impact-' + zoneName + '">' + fmtCtDelta(zoneWarmShift) + 'K</span>';
         html += '</div>';
         // Row 2: Cool day + sensitivity slider
         html += '<div class="ct-zone-ctrl-row">';
@@ -2271,8 +2264,8 @@
         const coolBadgeBg = tintColorByBrightness(cctToRGB(coolTarget), 100);
         const coolBadgeText = readableTextColor(coolBadgeBg);
         html += '<span class="ct-target-badge" style="background:' + coolBadgeBg + ';color:' + coolBadgeText + ';cursor:pointer;" onclick="event.stopPropagation(); openCtPicker(this, \'ct-cool-target-' + zoneName + '\', 4000, 7000, \'' + escapedZone + '\')"><input type="number" class="ct-target-input" id="ct-cool-target-' + zoneName + '" value="' + coolTarget + '" min="4000" max="7000" step="100" readonly><span class="ct-target-unit">K</span></span>';
-        html += '<span class="ct-zone-ctrl-impact" id="ct-cool-impact-' + zoneName + '">+' + Math.round(zoneCoolShift) + 'K</span>';
-        html += '<input type="range" class="ct-sensitivity-slider tune-sensitivity-slider" id="ct-sens-' + zoneName + '" min="0" max="8" step="1" value="' + sensStep + '" style="margin-left:8px;">';
+        html += '<span class="ct-zone-ctrl-label" style="margin-left:12px;">Sun sensitivity</span>';
+        html += '<input type="range" class="ct-sensitivity-slider tune-sensitivity-slider" id="ct-sens-' + zoneName + '" min="0" max="8" step="1" value="' + sensStep + '">';
         html += '<span class="ct-sensitivity-val" id="ct-sens-val-' + zoneName + '">' + SENSITIVITY_STEPS[sensStep].label + ' ' + fmtVal(snappedSens) + '</span>';
         html += '</div>';
         html += '</div>';

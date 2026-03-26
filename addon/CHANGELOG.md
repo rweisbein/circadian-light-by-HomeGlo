@@ -1,5 +1,10 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.124
+- **CT picker popup**: Warm night and cool day target badges open gradient slider popup on click.
+- **Color zone header cleanup**: Removed redundant impact values (shown per-area). Added "Sun sensitivity" label before slider.
+- **Sun multiplier card compact**: Indented angle/conditions/intensity formula to 120px, tightened vertical spacing.
+
 ## 1.0.123
 - **CT picker popup**: Warm night and cool day target badges now open a popup slider with CT gradient background on click. Slider updates badge color, kelvin display, and all area CTs live. Closes on outside click.
 
