@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.109
+- **Brightness tab**: Row shading based on final brightness (black→white). Off rooms dimmed at 50% opacity. Fix column header alignment (use same flex classes as data rows). Tighter slider-to-label spacing. Fixed-width sun divider line. Purpose dropdown in light list now works (removed stopPropagation that blocked clicks).
+- **Color tab restructure**: Removed Cool Day/Warm Night columns from area rows — their impact values now shown in zone controls next to toggles with target kelvin (→ 2700K). Only 3 area columns: Shift, Adj, Final (larger, less spreadsheet). Sensitivity on its own row with sun brightness factor. CT-colored left border accent on rows.
+
 ## 1.0.108
 - **Fix color tab**: Zone base CT now uses rhythm curve value (pre-solar-rules) not post-solar final. Fixes shift column showing wrong values. Column headers aligned with data rows. Subtle CT color shading with left border accent instead of full blue tint. Area names use standard text color. Snap color_sensitivity on load.
 - **Brightness tab polish**: Alternating row shading. Column headers hidden when zone collapsed. More spacing between data row and sliders. Slider labels show multiplier in parens: "Moderate (× 0.5)", "Soft (× 0.75)".
