@@ -358,19 +358,20 @@
     }
 
     /* Tune area 3-row layout */
+    .tune-area:nth-child(even) { background: rgba(255,255,255,0.02); }
     .tune-area-header {
       display: flex;
       align-items: center;
-      padding: 2px 16px 0;
+      padding: 6px 16px 2px;
       gap: 0;
     }
     .tune-area-row {
       display: flex;
       align-items: center;
       gap: 0;
-      padding: 2px 16px 0;
+      padding: 0 16px;
     }
-    .tune-area-row3 { padding-top: 0; padding-bottom: 4px; }
+    .tune-slider-label-row { padding-bottom: 6px; }
     .tune-name-col {
       flex: 1; min-width: 0;
     }
@@ -568,9 +569,6 @@
     .ct-toggle { width: 13px; height: 13px; accent-color: var(--accent); cursor: pointer; }
     .ct-sensitivity-slider { width: 80px; }
     .ct-sensitivity-val { font-size: 0.75rem; color: var(--text); white-space: nowrap; }
-    .ct-col-headers {
-      display: flex; align-items: baseline; padding: 3px 16px; gap: 0;
-    }
     .ct-col-header {
       font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.5px;
       color: var(--muted2); white-space: nowrap; text-align: center;
@@ -586,8 +584,8 @@
       padding: 6px 16px; border-bottom: 1px solid var(--line); transition: background 0.15s;
     }
     .ct-area-row:last-child { border-bottom: none; }
-    .ct-area-name { font-size: 0.85rem; font-weight: 600; text-decoration: none; }
-    .ct-area-name:hover { opacity: 0.8; }
+    .ct-area-name { font-size: 0.85rem; font-weight: 600; text-decoration: none; color: var(--text); }
+    .ct-area-name:hover { color: var(--accent); }
     .ct-area-val { font-size: 0.8rem; white-space: nowrap; }
     .ct-area-val.muted { color: var(--muted2); }
     .ct-area-final { font-size: 0.85rem; font-weight: 600; white-space: nowrap; }
@@ -1196,9 +1194,10 @@
         if (lumen) {
           lumen.value = snap.lumenStep;
           const word = el.querySelector('.tune-lumen-word');
-          if (word) word.textContent = LUMEN_STEPS[snap.lumenStep].label;
+          const restoreFactor = 1 / LUMEN_STEPS[snap.lumenStep].intensity;
+          if (word) word.textContent = LUMEN_STEPS[snap.lumenStep].label + ' (\u00d7 ' + fmtVal(restoreFactor) + ')';
           const factorMeta = el.querySelector('.tune-factor-meta');
-          if (factorMeta) factorMeta.textContent = formatFactorMeta(1 / LUMEN_STEPS[snap.lumenStep].intensity);
+          if (factorMeta) factorMeta.textContent = formatFactorMeta(restoreFactor);
         }
         const solar = el.querySelector('.tune-solar-slider');
         if (solar) {
@@ -1206,7 +1205,7 @@
           const word = el.querySelector('.tune-solar-word');
           if (word) word.textContent = SOLAR_STEPS[snap.solarStep].label;
           const valEl = el.querySelector('.tune-solar-val');
-          if (valEl) valEl.textContent = fmtVal(SOLAR_STEPS[snap.solarStep].exposure);
+          if (valEl) valEl.textContent = '(\u00d7 ' + fmtVal(SOLAR_STEPS[snap.solarStep].exposure) + ')';
         }
         // Restore light filters in model
         const tuneArea = getTuneArea(areaId);
@@ -1907,24 +1906,27 @@
         const areas = zoneData.areas || [];
         if (areas.length === 0) continue;
 
-        const zoneKelvin = zoneStates?.[zoneName]?.kelvin;
-        const baseCt = zoneKelvin || 4000;
-        const zoneBgColor = ctBg(baseCt, 0.15);
-        const zoneTextColor = ctTextColor(baseCt);
+        // Zone base CT = rhythm curve value (pre-solar-rules) from first unshifted area
+        const firstAreaId = typeof areas[0] === 'object' ? areas[0].id : areas[0];
+        const refArea = colorAreaData?.[firstAreaId];
+        const zoneCurveCt = refArea?.base_kelvin || zoneStates?.[zoneName]?.kelvin || 4000;
+        const zoneBgColor = ctBg(zoneCurveCt, 0.08);
+        const zoneTextColor = ctTextColor(zoneCurveCt);
         const escapedZone = encodeURIComponent(zoneName);
 
-        // Zone-level settings
+        // Zone-level settings — snap sensitivity
         const warmEnabled = zoneData.warm_night_enabled ?? false;
         const coolEnabled = zoneData.daylight_enabled ?? true;
-        const colorSens = zoneData.color_sensitivity ?? 1.0;
-        const sensStep = findClosestSensitivityStep(colorSens);
+        const rawSens = zoneData.color_sensitivity ?? 1.0;
+        const sensStep = findClosestSensitivityStep(rawSens);
+        const snappedSens = SENSITIVITY_STEPS[sensStep].multiplier;
 
         html += '<div class="zone-group" style="margin-bottom:8px;">';
 
         // Zone header with CT color
         html += '<div class="ct-zone-header" style="background:' + zoneBgColor + ';">';
         html += '<a class="ct-zone-name" href="./zone/' + escapedZone + '?back=tune" onclick="event.stopPropagation()" style="color:' + zoneTextColor + ';">' + zoneName + '</a>';
-        html += '<span class="ct-zone-base-ct" style="color:' + zoneTextColor + ';">' + Math.round(baseCt) + 'K</span>';
+        html += '<span class="ct-zone-base-ct" style="color:' + zoneTextColor + ';">' + Math.round(zoneCurveCt) + 'K</span>';
         html += '</div>';
 
         // Zone controls: toggles + sensitivity
@@ -1940,18 +1942,18 @@
         html += '<div class="ct-zone-ctrl">';
         html += '<span class="ct-zone-ctrl-label">Sensitivity</span>';
         html += '<input type="range" class="ct-sensitivity-slider tune-sensitivity-slider" id="ct-sens-' + zoneName + '" min="0" max="8" step="1" value="' + sensStep + '">';
-        html += '<span class="ct-sensitivity-val" id="ct-sens-val-' + zoneName + '">' + SENSITIVITY_STEPS[sensStep].label + ' ' + fmtVal(colorSens) + '</span>';
+        html += '<span class="ct-sensitivity-val" id="ct-sens-val-' + zoneName + '">' + SENSITIVITY_STEPS[sensStep].label + ' ' + fmtVal(snappedSens) + '</span>';
+        html += '</div>';
         html += '</div>';
 
-        // Column headers
-        html += '<div class="ct-col-headers">';
-        html += '<span class="ct-col-header ct-col-area">Area</span>';
-        html += '<span class="ct-col-header ct-col-shift">Shift</span>';
-        html += '<span class="ct-col-header ct-col-cool">Cool Day</span>';
-        html += '<span class="ct-col-header ct-col-warm">Warm Night</span>';
-        html += '<span class="ct-col-header ct-col-adj">Adj</span>';
-        html += '<span class="ct-col-header ct-col-final">Final</span>';
-        html += '</div>';
+        // Column headers (outside controls div, matching area row padding)
+        html += '<div class="ct-area-row" style="padding-top:4px;padding-bottom:2px;border-bottom:1px solid var(--line);">';
+        html += '<span class="ct-col-area ct-col-header">Area</span>';
+        html += '<span class="ct-col-shift ct-col-header">Shift</span>';
+        html += '<span class="ct-col-cool ct-col-header">Cool Day</span>';
+        html += '<span class="ct-col-warm ct-col-header">Warm Night</span>';
+        html += '<span class="ct-col-adj ct-col-header">Adj</span>';
+        html += '<span class="ct-col-final ct-col-header" style="text-align:right;">Final</span>';
         html += '</div>';
 
         // Area rows
@@ -1960,33 +1962,35 @@
           const areaName = typeof area === 'object' ? (area.name || areaId) : areaId;
           const as = colorAreaData?.[areaId];
 
-          const finalKelvin = as?.kelvin || baseCt;
-          const baseKelvin = as?.base_kelvin || baseCt;
+          const finalKelvin = as?.kelvin || zoneCurveCt;
+          const baseKelvin = as?.base_kelvin || zoneCurveCt;
           const sb = as?.solar_breakdown || {};
           const colorOverride = as?.color_override || 0;
           const sliderOverride = as?.color_override_set_at != null;
 
-          // Shift: difference between area base CT and zone base CT (from color_mid shift)
-          const shift = baseKelvin - baseCt;
+          // Shift: area's color_mid offset from zone curve base
+          const shift = baseKelvin - zoneCurveCt;
 
-          // Cool day: daylight_shift from solar breakdown
-          const coolShift = coolEnabled ? (sb.daylight_shift || 0) : 0;
+          // Cool day: daylight_shift from solar breakdown (positive = pushed cooler)
+          const coolShift = sb.daylight_shift || 0;
 
-          // Warm night: night_shift from solar breakdown (as negative delta)
-          const warmShift = warmEnabled ? -(sb.night_shift || 0) : 0;
+          // Warm night: night_shift as negative delta (warmer)
+          const warmShift = (sb.night_shift || 0) > 0 ? -(sb.night_shift) : 0;
 
           // Adj: color override (slider-originated = direct additive)
           const adj = sliderOverride ? colorOverride : 0;
 
-          const rowBg = ctBg(finalKelvin, 0.10);
+          // Color shading — subtle border accent instead of full bg tint
+          const borderColor = ctBg(finalKelvin, 0.35);
+          const rowBg = ctBg(finalKelvin, 0.04);
           const finalColor = ctTextColor(finalKelvin);
           const shiftClass = Math.abs(shift) < 1 ? ' muted' : '';
           const coolClass = Math.abs(coolShift) < 1 ? ' muted' : '';
           const warmClass = Math.abs(warmShift) < 1 ? ' muted' : '';
           const adjClass = Math.abs(adj) < 1 ? ' muted' : '';
 
-          html += '<div class="ct-area-row" style="background:' + rowBg + ';">';
-          html += '<span class="ct-col-area"><a href="./area/' + encodeURIComponent(areaId) + '?from=tune" class="ct-area-name" style="color:' + finalColor + ';">' + areaName + '</a></span>';
+          html += '<div class="ct-area-row" style="background:' + rowBg + ';border-left:3px solid ' + borderColor + ';">';
+          html += '<span class="ct-col-area"><a href="./area/' + encodeURIComponent(areaId) + '?from=tune" class="ct-area-name">' + areaName + '</a></span>';
           html += '<span class="ct-col-shift ct-area-val' + shiftClass + '">' + fmtCtDelta(shift) + '</span>';
           html += '<span class="ct-col-cool ct-area-val' + coolClass + '">' + fmtCtDelta(coolShift) + '</span>';
           html += '<span class="ct-col-warm ct-area-val' + warmClass + '">' + fmtCtDelta(warmShift) + '</span>';
@@ -2228,8 +2232,8 @@
               </div>
               <div class="tune-slider-label-row">
                 <span class="tune-name-col"></span>
-                <span class="tune-slider-label-col"><span class="tune-slider-word tune-solar-word">${SOLAR_STEPS[solarStep].label}</span> <span class="tune-slider-val tune-solar-val">${fmtVal(exposure)}</span></span>
-                <span class="tune-slider-label-col"><span class="tune-slider-word tune-lumen-word">${LUMEN_STEPS[lumenStep].label}${factorSuffix(factor)}</span></span>
+                <span class="tune-slider-label-col"><span class="tune-slider-word tune-solar-word">${SOLAR_STEPS[solarStep].label}</span> <span class="tune-slider-val tune-solar-val">(\u00d7 ${fmtVal(exposure)})</span></span>
+                <span class="tune-slider-label-col"><span class="tune-slider-word tune-lumen-word">${LUMEN_STEPS[lumenStep].label} (\u00d7 ${fmtVal(factor)})</span></span>
                 <span class="tune-adj-col"></span>
                 <span class="tune-final-col"></span>
               </div>
@@ -2263,9 +2267,9 @@
               <span class="tune-zone-bri-group">
                 <span class="tune-zone-base-bri">${rhythmBri}%</span>
               </span>
-              ${zoneControlsHtml}
             </div>
             <div class="zone-content ${isCollapsed ? 'hidden' : ''}" data-zone-table="${zoneName}">
+              ${zoneControlsHtml}
               ${areaRows}
               ${boostLegend}
               ${overrideLegend}
@@ -2308,6 +2312,23 @@
           zoneStates = zs.zone_states || {};
         }
         if (glozonesResp.ok) cachedGlozones = await glozonesResp.json();
+
+        // Snap zone color_sensitivity values to valid steps
+        if (cachedGlozones?.zones) {
+          for (const [zoneName, zd] of Object.entries(cachedGlozones.zones)) {
+            if (zd.color_sensitivity != null) {
+              const step = findClosestSensitivityStep(zd.color_sensitivity);
+              const snapped = SENSITIVITY_STEPS[step].multiplier;
+              if (Math.abs(zd.color_sensitivity - snapped) > 0.001) {
+                zd.color_sensitivity = snapped;
+                fetch('./api/glozones/' + encodeURIComponent(zoneName) + '/settings', {
+                  method: 'POST', headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ color_sensitivity: snapped })
+                });
+              }
+            }
+          }
+        }
 
         // Merge area_lights into zone area objects
         if (tuneData?.area_lights && tuneData?.zones) {
@@ -2478,7 +2499,7 @@
           const step = parseInt(e.target.value);
           const newFactor = 1 / LUMEN_STEPS[step].intensity;
           const word = tuneArea.querySelector('.tune-lumen-word');
-          if (word) word.textContent = LUMEN_STEPS[step].label + factorSuffix(newFactor);
+          if (word) word.textContent = LUMEN_STEPS[step].label + ' (\u00d7 ' + fmtVal(newFactor) + ')';
           updateTuneNowPreview(tuneArea, { factor: newFactor });
           updateTuneActionBar();
         }
@@ -2488,7 +2509,7 @@
           if (word) word.textContent = SOLAR_STEPS[step].label;
           const newExposure = SOLAR_STEPS[step].exposure;
           const valEl = tuneArea.querySelector('.tune-solar-val');
-          if (valEl) valEl.textContent = fmtVal(newExposure);
+          if (valEl) valEl.textContent = '(\u00d7 ' + fmtVal(newExposure) + ')';
           updateTuneNowPreview(tuneArea, { exposure: newExposure });
           updateTuneActionBar();
         }
