@@ -6175,7 +6175,6 @@ class LightDesignerServer:
                     device_id=device_id,
                     inactive=data.get("inactive", False),
                     inactive_until=data.get("inactive_until"),
-                    cooldown=data.get("cooldown", 0),
                 )
 
                 switches.add_motion_sensor(motion_config)

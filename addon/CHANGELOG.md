@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.102
+- **Fix motion sensor config save error**: Removed invalid `cooldown` kwarg passed to MotionSensorConfig (cooldown is per-scope on MotionAreaConfig, not per-sensor).
+
 ## 1.0.101
 - **Fix ZHA motion boost using wrong amount**: ZHA motion path didn't zero out boost_brightness when boost was disabled, so the default 50% leaked through the max() merge when an area appeared in multiple motion scopes.
 
