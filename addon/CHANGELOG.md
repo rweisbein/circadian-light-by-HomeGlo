@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.105
+- **Redesign tune area rows**: New 3-row layout — data row (name, SE impact, balance impact, adj, final brightness), slider row, centered label row. Swapped column order: SE first, Balance second. Added Adj column showing combined boost + override. Renamed Bri to Final. Custom-styled sliders matching rhythm/area pages with amber track for SE sliders. Sortable headers: Area, SE (slider value), Balance (slider value), Adj (combined impact), Final (computed brightness).
+
 ## 1.0.104
 - **Sun multiplier card polish**: Header value stays visible when card is open. Removed redundant bottom multiplier row. Indented sun params, dropped "Sun" prefix. Multiplication-style layout (× on conditions, divider line, bold Brightness result). Aligned percentage values across all rows. Auto-snaps and persists stored sensitivity to nearest valid step on load.
 

@@ -115,12 +115,7 @@
       padding: 60px 0;
     }
 
-    /* Name-column sort pair (area · a-z) */
-    .tune-name-sort { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.5px; flex: 0 0 auto; margin-right: 6px; }
-    .tune-name-sort-item { color: var(--muted2); cursor: pointer; transition: color 0.15s; }
-    .tune-name-sort-item:hover { color: var(--text); }
-    .tune-name-sort-item.active-sort { color: var(--accent); }
-    .tune-name-sort-dot { color: var(--muted2); margin: 0 2px; }
+    /* Name-column header */
 
     /* Zone structure */
     .zone-group { background: var(--card); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin-bottom: 8px; }
@@ -260,13 +255,11 @@
     }
     .tune-zone-header .tune-col-headers-row {
       width: 100%;
-      padding: 4px 16px 2px 40px;
+      padding: 4px 16px 2px 16px;
       background: none;
       border-bottom: none;
-      gap: 6px;
+      gap: 0;
     }
-    .tune-col-headers-row .tune-col-header-balance { margin-right: 12px; }
-    .tune-col-headers-row .tune-col-header-sun { margin-right: 48px; }
 
     /* Tune zone controls */
     .tune-zone-controls {
@@ -279,8 +272,8 @@
     .tune-zone-ctrl-label { font-size: 0.7rem; color: var(--muted2); text-transform: uppercase; white-space: nowrap; }
     .tune-zone-ctrl-word { font-size: 0.8rem; color: var(--text); white-space: nowrap; }
     .tune-zone-ctrl-val { font-size: 0.75rem; color: var(--text); white-space: nowrap; }
-    .tune-sensitivity-slider { width: 80px; accent-color: var(--accent); }
-    .tune-zone-controls .tune-col-headers-row { padding-top: 3px; padding-bottom: 3px; }
+    .tune-sensitivity-slider { width: 80px; }
+    .tune-zone-controls .tune-col-headers-row { padding: 3px 0; }
     .tune-zone-bri-group {
       display: flex; align-items: baseline; gap: 6px;
       margin-left: auto; white-space: nowrap;
@@ -289,18 +282,46 @@
     .tune-zone-sun-meta { font-size: 0.75rem; color: var(--muted2); white-space: nowrap; }
     .tune-zone-sun-times { font-size: 0.7rem; color: var(--muted2); margin-left: 2px; line-height: 1.4; }
 
+    /* Custom slider styling (matching rhythm-design/area pages) */
+    .tune-se-col input[type=range], .tune-balance-col input[type=range], .tune-sensitivity-slider {
+      -webkit-appearance: none; appearance: none;
+      height: 18px; padding: 0; margin: 0; background: transparent; cursor: pointer;
+    }
+    .tune-se-col input[type=range]:focus, .tune-balance-col input[type=range]:focus, .tune-sensitivity-slider:focus { outline: none; }
+    .tune-se-col input[type=range]::-webkit-slider-runnable-track,
+    .tune-balance-col input[type=range]::-webkit-slider-runnable-track,
+    .tune-sensitivity-slider::-webkit-slider-runnable-track {
+      height: 3px; background: rgba(255,255,255,0.12); border-radius: 2px;
+    }
+    .tune-se-col input[type=range]::-moz-range-track,
+    .tune-balance-col input[type=range]::-moz-range-track,
+    .tune-sensitivity-slider::-moz-range-track {
+      height: 3px; background: rgba(255,255,255,0.12); border-radius: 2px;
+    }
+    .tune-se-col input[type=range]::-moz-range-progress { height: 3px; background: rgba(251,191,36,0.5); border-radius: 2px; }
+    .tune-balance-col input[type=range]::-moz-range-progress,
+    .tune-sensitivity-slider::-moz-range-progress { height: 3px; background: rgba(255,255,255,0.25); border-radius: 2px; }
+    .tune-se-col input[type=range]::-webkit-slider-thumb,
+    .tune-balance-col input[type=range]::-webkit-slider-thumb,
+    .tune-sensitivity-slider::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 24px; height: 14px; border-radius: 7px;
+      background: #fff; border: 1px solid rgba(0,0,0,0.15); margin-top: -6px;
+    }
+    .tune-se-col input[type=range]::-moz-range-thumb,
+    .tune-balance-col input[type=range]::-moz-range-thumb,
+    .tune-sensitivity-slider::-moz-range-thumb {
+      width: 24px; height: 14px; border-radius: 7px;
+      background: #fff; border: 1px solid rgba(0,0,0,0.15);
+    }
+
     /* Column headers */
     .tune-col-headers-row {
       display: flex;
       align-items: baseline;
       padding: 6px 16px 4px;
-      gap: 8px;
-    }
-    .tune-col-headers-row .tune-col-header {
-      text-align: left;
+      gap: 0;
     }
     .tune-col-header {
-      flex: 0 1 38%;
       font-size: 0.65rem;
       text-transform: uppercase;
       letter-spacing: 0.5px;
@@ -311,7 +332,11 @@
     }
     .tune-col-header:hover { color: var(--text); }
     .tune-col-header.active-sort { color: var(--accent); }
-    .tune-bri-col.tune-col-header { flex: 0 0 auto; }
+    .tune-col-header-area { flex: 1; min-width: 0; text-align: left; }
+    .tune-col-header-se { flex: 0 0 30%; text-align: center; }
+    .tune-col-header-balance { flex: 0 0 30%; text-align: center; }
+    .tune-col-header-adj { flex: 0 0 38px; text-align: center; }
+    .tune-col-header-final { flex: 0 0 40px; text-align: right; }
 
     /* Tune area */
     .tune-area {
@@ -335,41 +360,49 @@
     /* Tune area 3-row layout */
     .tune-area-header {
       display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 16px;
+      align-items: baseline;
+      padding: 2px 16px 0;
+      gap: 0;
     }
     .tune-area-row {
       display: flex;
       align-items: center;
-      gap: 6px;
-      padding: 0 16px 0 40px;
+      gap: 0;
+      padding: 2px 16px 0;
     }
-    .tune-area-row3 { padding-top: 1px; padding-bottom: 4px; }
+    .tune-area-row3 { padding-top: 0; padding-bottom: 4px; }
     .tune-name-col {
       flex: 1; min-width: 0;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
-    .tune-fixture-col, .tune-sun-col {
-      flex: 0 1 38%; display: flex; align-items: center; gap: 4px; min-width: 0;
-      margin-right: 12px;
+    .tune-se-col, .tune-balance-col {
+      flex: 0 0 30%; display: flex; align-items: center; gap: 4px; min-width: 0;
+      padding: 0 6px;
     }
-    .tune-sun-col {
-      margin-right: 48px;
+    .tune-se-col input[type="range"], .tune-balance-col input[type="range"] {
+      flex: 1; min-width: 40px;
     }
-    .tune-fixture-col input[type="range"], .tune-sun-col input[type="range"] {
-      flex: 1; min-width: 40px; accent-color: var(--accent);
+    .tune-adj-col {
+      flex: 0 0 38px; text-align: center; white-space: nowrap;
     }
-    .tune-sun-col input[type="range"] { accent-color: #fbbf24; }
+    .tune-adj-val { font-size: 0.7rem; color: var(--muted2); }
+    .tune-adj-val.has-value { color: var(--text); }
+    .tune-final-col {
+      flex: 0 0 40px; white-space: nowrap; text-align: right;
+    }
+    .tune-final-now { color: var(--text); font-weight: 600; font-size: 0.85rem; }
     .tune-override-star { font-size: 0.75rem; color: var(--muted2); margin-left: 1px; }
-    .tune-bri-col {
-      flex-shrink: 0; white-space: nowrap; text-align: right;
-    }
-    .tune-bri-now { color: var(--text); font-weight: 600; font-size: 0.85rem; }
 
+    .tune-impact-delta { font-size: 0.7rem; color: var(--muted2); white-space: nowrap; }
+
+    .tune-slider-label-row {
+      display: flex; align-items: baseline; gap: 0; padding: 0 16px 4px;
+    }
+    .tune-slider-label-col {
+      flex: 0 0 30%; text-align: center; padding: 0 6px; min-width: 0;
+    }
     .tune-slider-word { font-size: 0.72rem; color: var(--muted); white-space: nowrap; }
     .tune-slider-val { font-size: 0.7rem; color: var(--muted); white-space: nowrap; }
-    .tune-slider-meta { font-size: 0.7rem; color: var(--muted2); white-space: nowrap; }
 
     /* Outdoor panel */
     .tune-outdoor-wrapper { position: relative; }
@@ -538,8 +571,10 @@
     @media (max-width: 600px) {
       .tune-slider-word { font-size: 0.65rem; }
       .tune-col-header { font-size: 0.55rem; }
-      .tune-slider-meta { font-size: 0.65rem; }
+      .tune-impact-delta { font-size: 0.6rem; }
       .tune-sensitivity-slider { width: 60px; }
+      .tune-col-header-se, .tune-col-header-balance { font-size: 0.55rem; }
+      .tune-se-col, .tune-balance-col, .tune-slider-label-col { flex-basis: 28%; }
       .tune-zone-ctrl-label { font-size: 0.6rem; }
       .tune-zone-ctrl-word { font-size: 0.7rem; }
       .tune-zone-ctrl-val { font-size: 0.65rem; }
@@ -608,6 +643,7 @@
     let zoneStates = {};
     let cachedGlozones = null;
     let tuneSortOrder = localStorage.getItem('tune_sort_order') || 'custom';
+    if (tuneSortOrder === 'az') tuneSortOrder = 'custom'; // migrated
     let tuneSortAsc = localStorage.getItem('tune_sort_asc') !== '0';
     let tuneDebounceTimers = {};
     let pendingSensorSave = Promise.resolve();
@@ -1276,9 +1312,8 @@
       const nowBri = Math.max(0, Math.min(100, Math.round(nowRaw)));
       const nowEl = tuneAreaEl.querySelector('.tune-bri-now');
       if (nowEl) {
-        const boostIcon = boostBri > 0 ? '\u26A1 ' : '';
         const overrideIcon = Math.abs(briOverride) >= 0.5 ? '<span class="tune-override-star" title="Brightness adjustment applied">*</span>' : '';
-        nowEl.innerHTML = boostIcon + nowBri + '%' + overrideIcon;
+        nowEl.innerHTML = nowBri + '%' + overrideIcon;
       }
       // Update impact deltas
       const factorMetaEl = tuneAreaEl.querySelector('.tune-factor-meta');
@@ -1755,8 +1790,6 @@
       let sortedAreas = [...allAreas];
       if (tuneSortOrder === 'custom') {
         if (!tuneSortAsc) sortedAreas.reverse();
-      } else if (tuneSortOrder === 'az') {
-        sortedAreas.sort((a, b) => dir * a.name.localeCompare(b.name));
       } else if (tuneSortOrder === 'light') {
         sortedAreas.sort((a, b) => {
           const fa = getTuneArea(a.area_id)?.brightness_factor ?? 1.0;
@@ -1768,6 +1801,14 @@
           const ea = getTuneArea(a.area_id)?.natural_light_exposure ?? 0.0;
           const eb = getTuneArea(b.area_id)?.natural_light_exposure ?? 0.0;
           return dir * (eb - ea);
+        });
+      } else if (tuneSortOrder === 'adj') {
+        sortedAreas.sort((a, b) => {
+          const ta = getTuneArea(a.area_id);
+          const tb = getTuneArea(b.area_id);
+          const adjA = (ta?.boosted ? (ta.boost_brightness || 0) : 0) + (ta?.bri_override || 0);
+          const adjB = (tb?.boosted ? (tb.boost_brightness || 0) : 0) + (tb?.bri_override || 0);
+          return dir * (adjA - adjB);
         });
       } else if (tuneSortOrder === 'bri') {
         sortedAreas.sort((a, b) => {
@@ -1891,32 +1932,38 @@
           const isExpanded = expandedAreas[area.area_id] || false;
           const lightsHtml = hasLights ? buildLightsSection(area.area_id, tuneArea) : '';
 
+          const adjVal = boostBri + briOverride;
+          const adjText = adjVal === 0 ? '\u2013' : (boostIcon + (adjVal > 0 ? '+' : '') + Math.round(adjVal));
+          const adjClass = adjVal !== 0 ? ' has-value' : '';
+
           return `
             <div class="tune-area${hasLights ? ' expandable' : ''}" data-area-id="${area.area_id}" data-rhythm-bri="${rhythmBri}" data-sensitivity="${sensitivity}" data-outdoor-norm="${outdoorNorm}" data-bri-fade-weight="${briFadeWeight}" data-zone-min-bri="${zoneMinBri}" data-zone-max-bri="${zoneMaxBri}" data-boost-bri="${isBoosted ? (tuneArea.boost_brightness || 0) : 0}" data-bri-override="${briOverride}" ${hasLights ? `onclick="toggleAreaLights('${area.area_id}')"` : ''}>
               <div class="tune-area-header">
                 <span class="tune-name-col">
                   <a href="./area/${encodeURIComponent(area.area_id)}?from=tune" class="tune-area-name" onclick="event.stopPropagation()">${area.name}</a>
                 </span>
-                <span class="tune-bri-col tune-bri-now">${boostIcon}${nowBri}%${overrideIcon}</span>
+                <span class="tune-se-col"><span class="tune-impact-delta tune-solar-meta">${solarImpact}</span></span>
+                <span class="tune-balance-col"><span class="tune-impact-delta tune-factor-meta">${factorImpact}</span></span>
+                <span class="tune-adj-col"><span class="tune-adj-val${adjClass}">${adjText}</span></span>
+                <span class="tune-final-col tune-final-now tune-bri-now">${nowBri}%${overrideIcon}</span>
               </div>
               <div class="tune-area-row">
-                <div class="tune-fixture-col" onclick="event.stopPropagation()">
-                  <input type="range" class="tune-lumen-slider" min="0" max="9" step="1" value="${lumenStep}" data-area-id="${area.area_id}">
-                  <span class="tune-slider-meta tune-factor-meta">${factorImpact}</span>
-                </div>
-                <div class="tune-sun-col" onclick="event.stopPropagation()">
+                <span class="tune-name-col"></span>
+                <div class="tune-se-col" onclick="event.stopPropagation()">
                   <input type="range" class="tune-solar-slider" min="0" max="9" step="1" value="${solarStep}" data-area-id="${area.area_id}">
-                  <span class="tune-slider-meta tune-solar-meta">${solarImpact}</span>
                 </div>
+                <div class="tune-balance-col" onclick="event.stopPropagation()">
+                  <input type="range" class="tune-lumen-slider" min="0" max="9" step="1" value="${lumenStep}" data-area-id="${area.area_id}">
+                </div>
+                <span class="tune-adj-col"></span>
+                <span class="tune-final-col"></span>
               </div>
-              <div class="tune-area-row tune-area-row3">
-                <div class="tune-fixture-col">
-                  <span class="tune-slider-word tune-lumen-word">${LUMEN_STEPS[lumenStep].label}${factorSuffix(factor)}</span>
-                </div>
-                <div class="tune-sun-col">
-                  <span class="tune-slider-word tune-solar-word">${SOLAR_STEPS[solarStep].label}</span>
-                  <span class="tune-slider-val tune-solar-val">${fmtVal(exposure)}</span>
-                </div>
+              <div class="tune-slider-label-row">
+                <span class="tune-name-col"></span>
+                <span class="tune-slider-label-col"><span class="tune-slider-word tune-solar-word">${SOLAR_STEPS[solarStep].label}</span> <span class="tune-slider-val tune-solar-val">${fmtVal(exposure)}</span></span>
+                <span class="tune-slider-label-col"><span class="tune-slider-word tune-lumen-word">${LUMEN_STEPS[lumenStep].label}${factorSuffix(factor)}</span></span>
+                <span class="tune-adj-col"></span>
+                <span class="tune-final-col"></span>
               </div>
               ${hasLights ? '<div class="tune-area-lights" id="tune-lights-' + area.area_id + '" style="display:' + (isExpanded ? 'block' : 'none') + ';" onclick="event.stopPropagation()">' + lightsHtml + '</div>' : ''}
             </div>
@@ -1926,14 +1973,11 @@
         const zoneControlsHtml = `
           <div class="tune-zone-controls" data-zone="${zoneName}" onclick="event.stopPropagation()">
             <div class="tune-col-headers-row">
-              <span class="tune-name-sort" onclick="event.stopPropagation()">
-                <span class="tune-name-sort-item ${tuneSortOrder === 'custom' ? 'active-sort' : ''}" onclick="setTuneSort('custom')">area</span>
-                <span class="tune-name-sort-dot">&middot;</span>
-                <span class="tune-name-sort-item ${tuneSortOrder === 'az' ? 'active-sort' : ''}" onclick="setTuneSort('az')">a-z</span>
-              </span>
-              <span class="tune-col-header tune-col-header-balance ${tuneSortOrder === 'light' ? 'active-sort' : ''}" onclick="setTuneSort('light')">Room Balance</span>
-              <span class="tune-col-header tune-col-header-sun ${tuneSortOrder === 'sun' ? 'active-sort' : ''}" onclick="setTuneSort('sun')">Sun Exposure</span>
-              <span class="tune-bri-col tune-col-header ${tuneSortOrder === 'bri' ? 'active-sort' : ''}" onclick="setTuneSort('bri')">Bri</span>
+              <span class="tune-col-header tune-col-header-area ${tuneSortOrder === 'custom' ? 'active-sort' : ''}" onclick="setTuneSort('custom')">Area</span>
+              <span class="tune-col-header tune-col-header-se ${tuneSortOrder === 'sun' ? 'active-sort' : ''}" onclick="setTuneSort('sun')">SE</span>
+              <span class="tune-col-header tune-col-header-balance ${tuneSortOrder === 'light' ? 'active-sort' : ''}" onclick="setTuneSort('light')">Balance</span>
+              <span class="tune-col-header tune-col-header-adj ${tuneSortOrder === 'adj' ? 'active-sort' : ''}" onclick="setTuneSort('adj')">Adj</span>
+              <span class="tune-col-header tune-col-header-final ${tuneSortOrder === 'bri' ? 'active-sort' : ''}" onclick="setTuneSort('bri')">Final</span>
             </div>
           </div>
         `;
