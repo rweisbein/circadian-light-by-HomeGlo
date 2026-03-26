@@ -1,5 +1,10 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.111
+- **Color tab: per-zone save/cancel**: Each zone has its own Save/Cancel buttons that appear when changes are made. Save persists settings and triggers light refresh. Cancel restores snapshot.
+- **Color tab: live sensitivity updates**: Dragging the sensitivity slider live-updates cool day impact, zone header CT, and all area final CT values + colors. Same for toggling warm night / cool day and changing target kelvin.
+- **Color tab: target kelvin inputs**: Warm night and cool day targets are now editable number inputs with CT-colored badges. Changes update impact and area colors in real-time.
+
 ## 1.0.110
 - **Brightness area grid layout**: CSS grid for area rows — name vertically centered across all 3 rows, columns perfectly aligned with headers. Stronger brightness shading. Less left padding. Sun/Sensitivity sections swapped in multiplier card. Math formula shown in header when open (80% × 1.0 =).
 - **Color tab CT shading**: Zone header and area rows now CT-color-shaded. Warm night and cool day on separate rows with colored target badges and impact values. Sun sensitivity on its own row with brightness factor.
