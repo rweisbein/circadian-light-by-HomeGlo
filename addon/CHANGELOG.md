@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.107
+- **Color tab diagnostic view**: Full CT pipeline breakdown per area — Shift (area offset from zone base), Cool Day (daylight shift), Warm Night (ceiling shift), Adj (color override), Final CT. Zone headers show base CT with color shading. Per-zone controls: warm night toggle, cool day toggle, cool day sensitivity slider. All rows color-shaded by CT value. Save/cancel with shared action bar.
+
 ## 1.0.106
 - **Fix boost pipeline in tune preview**: Boost and override are now additive after NL×factor (matching brain.py), not before. Boost+override indicators moved from Final to Adj column.
 - **Tune page polish**: SE→"Sun Exposure" header. Impact deltas centered and prominent (same weight as Final). Area names wrap instead of truncate. Removed "rhythm zone" sub-label. Sensitivity slider amber to match sun exposure sliders. Sun divider line shortened. Adj column widened for icons.

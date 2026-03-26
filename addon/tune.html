@@ -549,12 +549,48 @@
     .section-save-btn:hover { opacity: 0.9; }
 
     /* Color tab */
-    .color-tab-message { padding: 32px 24px; text-align: center; }
-    .color-tab-message p { font-size: 0.9rem; color: var(--muted); margin-bottom: 16px; }
-    .color-zone-list { display: flex; flex-direction: column; gap: 6px; max-width: 320px; margin: 0 auto; }
-    .color-zone-link { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; text-decoration: none; color: var(--text); font-weight: 500; font-size: 0.9rem; transition: all 0.15s; }
-    .color-zone-link:hover { border-color: var(--muted2); background: rgba(255,255,255,0.04); }
-    .color-zone-link .cz-arrow { margin-left: auto; color: var(--muted2); font-size: 0.8rem; }
+    .ct-zone-header {
+      display: flex; align-items: center; gap: 8px;
+      padding: 12px 14px; cursor: pointer; user-select: none;
+      transition: background 0.2s; border-radius: 10px 10px 0 0;
+    }
+    .ct-zone-header:hover { filter: brightness(1.1); }
+    .ct-zone-name { font-weight: 700; font-size: 1.05rem; color: var(--text); text-decoration: none; }
+    .ct-zone-name:hover { opacity: 0.8; }
+    .ct-zone-base-ct { margin-left: auto; font-size: 0.9rem; font-weight: 600; }
+    .ct-zone-controls {
+      display: flex; align-items: center; gap: 12px;
+      padding: 6px 16px; background: var(--panel);
+      border-bottom: 1px solid var(--line); flex-wrap: wrap;
+    }
+    .ct-zone-ctrl { display: flex; align-items: center; gap: 6px; }
+    .ct-zone-ctrl-label { font-size: 0.7rem; color: var(--muted2); text-transform: uppercase; white-space: nowrap; }
+    .ct-toggle { width: 13px; height: 13px; accent-color: var(--accent); cursor: pointer; }
+    .ct-sensitivity-slider { width: 80px; }
+    .ct-sensitivity-val { font-size: 0.75rem; color: var(--text); white-space: nowrap; }
+    .ct-col-headers {
+      display: flex; align-items: baseline; padding: 3px 16px; gap: 0;
+    }
+    .ct-col-header {
+      font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.5px;
+      color: var(--muted2); white-space: nowrap; text-align: center;
+    }
+    .ct-col-area { flex: 1; min-width: 0; text-align: left; }
+    .ct-col-shift { flex: 0 0 50px; text-align: center; }
+    .ct-col-cool { flex: 0 0 60px; text-align: center; }
+    .ct-col-warm { flex: 0 0 60px; text-align: center; }
+    .ct-col-adj { flex: 0 0 44px; text-align: center; }
+    .ct-col-final { flex: 0 0 52px; text-align: right; }
+    .ct-area-row {
+      display: flex; align-items: center; gap: 0;
+      padding: 6px 16px; border-bottom: 1px solid var(--line); transition: background 0.15s;
+    }
+    .ct-area-row:last-child { border-bottom: none; }
+    .ct-area-name { font-size: 0.85rem; font-weight: 600; text-decoration: none; }
+    .ct-area-name:hover { opacity: 0.8; }
+    .ct-area-val { font-size: 0.8rem; white-space: nowrap; }
+    .ct-area-val.muted { color: var(--muted2); }
+    .ct-area-final { font-size: 0.85rem; font-weight: 600; white-space: nowrap; }
 
     /* Refresh button */
     .tune-refresh-btn {
@@ -640,6 +676,8 @@
     let tuneOutdoorData = null;
     let zoneStates = {};
     let cachedGlozones = null;
+    let colorAreaData = null; // from /api/area-status
+    let colorSnapshot = null; // for save/restore
     let tuneSortOrder = localStorage.getItem('tune_sort_order') || 'custom';
     if (tuneSortOrder === 'az') tuneSortOrder = 'custom'; // migrated
     let tuneSortAsc = localStorage.getItem('tune_sort_asc') !== '0';
@@ -1081,7 +1119,7 @@
 
     function updateTuneActionBar() {
       const bar = document.getElementById('tune-page-action-bar');
-      if (bar) bar.style.display = isTuneDirty() ? 'flex' : 'none';
+      if (bar) bar.style.display = (isTuneDirty() || hasColorChanges()) ? 'flex' : 'none';
     }
 
     async function saveAllTuneChanges() {
@@ -1125,12 +1163,14 @@
         }
       }
       await Promise.all(promises);
+      if (hasColorChanges()) await saveColorChanges();
       captureTuneSnapshot();
       updateTuneActionBar();
       showTuneSaved();
     }
 
     function cancelAllTuneChanges() {
+      cancelColorChanges();
       if (!tuneSnapshot) return;
       // Restore global sensitivity
       const sensEl = document.getElementById('tune-global-sensitivity');
@@ -1737,28 +1777,244 @@
     }
 
     // ============================================================
-    // Render — Color tab (signpost to Rhythm page)
+    // Render — Color tab
     // ============================================================
-    function renderColorTab() {
-      const container = document.getElementById('tune-color-tab');
-      const gzZonesObj = cachedGlozones?.zones || {};
-      const zoneNames = Object.keys(gzZonesObj);
+    function ctBg(kelvin, alpha) {
+      if (!kelvin) return 'transparent';
+      const c = cctToRGB(kelvin);
+      return 'rgba(' + c.r + ',' + c.g + ',' + c.b + ',' + (alpha || 0.12) + ')';
+    }
+    function ctTextColor(kelvin) {
+      if (!kelvin) return 'var(--text)';
+      const c = cctToRGB(kelvin);
+      // Lighten the CT color for readable text on dark bg
+      const mix = (v) => Math.min(255, Math.round(v * 0.6 + 255 * 0.4));
+      return 'rgb(' + mix(c.r) + ',' + mix(c.g) + ',' + mix(c.b) + ')';
+    }
+    function fmtCtDelta(val) {
+      if (val == null || Math.abs(val) < 1) return '\u2013';
+      return (val > 0 ? '+' : '') + Math.round(val);
+    }
 
-      let linksHtml = '';
-      for (const zoneName of zoneNames) {
-        const escapedZone = encodeURIComponent(zoneName);
-        linksHtml += '<a class="color-zone-link" href="./zone/' + escapedZone + '?back=tune">'
-          + zoneName
-          + '<span class="cz-arrow">&#x203A;</span>'
-          + '</a>';
+    async function fetchColorData() {
+      try {
+        const resp = await fetch('./api/area-status');
+        if (resp.ok) colorAreaData = await resp.json();
+      } catch (e) { console.error('fetchColorData error:', e); }
+    }
+
+    function takeColorSnapshot() {
+      if (!cachedGlozones) return;
+      const snap = {};
+      for (const [zoneName, zoneData] of Object.entries(cachedGlozones.zones || {})) {
+        snap[zoneName] = {
+          warm_night_enabled: zoneData.warm_night_enabled ?? false,
+          daylight_enabled: zoneData.daylight_enabled ?? true,
+          color_sensitivity: zoneData.color_sensitivity ?? 1.0,
+        };
+      }
+      colorSnapshot = snap;
+    }
+
+    function hasColorChanges() {
+      if (!colorSnapshot || !cachedGlozones) return false;
+      for (const [zoneName, snap] of Object.entries(colorSnapshot)) {
+        const zd = cachedGlozones.zones?.[zoneName];
+        if (!zd) continue;
+        if ((zd.warm_night_enabled ?? false) !== snap.warm_night_enabled) return true;
+        if ((zd.daylight_enabled ?? true) !== snap.daylight_enabled) return true;
+        const step = document.getElementById('ct-sens-' + zoneName);
+        if (step) {
+          const newSens = SENSITIVITY_STEPS[parseInt(step.value)].multiplier;
+          if (Math.abs(newSens - snap.color_sensitivity) > 0.001) return true;
+        }
+      }
+      return false;
+    }
+
+    async function saveColorChanges() {
+      const promises = [];
+      for (const [zoneName, snap] of Object.entries(colorSnapshot || {})) {
+        const zd = cachedGlozones.zones?.[zoneName];
+        if (!zd) continue;
+        const changes = {};
+        const warmEl = document.getElementById('ct-warm-' + zoneName);
+        if (warmEl) changes.warm_night_enabled = warmEl.checked;
+        const coolEl = document.getElementById('ct-cool-' + zoneName);
+        if (coolEl) changes.daylight_enabled = coolEl.checked;
+        const sensEl = document.getElementById('ct-sens-' + zoneName);
+        if (sensEl) changes.color_sensitivity = SENSITIVITY_STEPS[parseInt(sensEl.value)].multiplier;
+        if (Object.keys(changes).length > 0) {
+          promises.push(fetch('./api/glozones/' + encodeURIComponent(zoneName) + '/settings', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(changes)
+          }));
+        }
+      }
+      await Promise.all(promises);
+      // Refresh data
+      const [gzResp] = await Promise.all([fetch('./api/glozones'), fetchColorData()]);
+      if (gzResp.ok) cachedGlozones = await gzResp.json();
+      takeColorSnapshot();
+      renderColorTab();
+      showTuneSaved();
+    }
+
+    function cancelColorChanges() {
+      if (!colorSnapshot || !cachedGlozones) return;
+      for (const [zoneName, snap] of Object.entries(colorSnapshot)) {
+        const zd = cachedGlozones.zones?.[zoneName];
+        if (zd) {
+          zd.warm_night_enabled = snap.warm_night_enabled;
+          zd.daylight_enabled = snap.daylight_enabled;
+          zd.color_sensitivity = snap.color_sensitivity;
+        }
+        const warmEl = document.getElementById('ct-warm-' + zoneName);
+        if (warmEl) warmEl.checked = snap.warm_night_enabled;
+        const coolEl = document.getElementById('ct-cool-' + zoneName);
+        if (coolEl) coolEl.checked = snap.daylight_enabled;
+        const sensEl = document.getElementById('ct-sens-' + zoneName);
+        if (sensEl) {
+          const step = findClosestSensitivityStep(snap.color_sensitivity);
+          sensEl.value = step;
+          const valEl = document.getElementById('ct-sens-val-' + zoneName);
+          if (valEl) valEl.textContent = SENSITIVITY_STEPS[step].label + ' ' + fmtVal(snap.color_sensitivity);
+        }
+      }
+      updateColorActionBar();
+    }
+
+    function updateColorActionBar() {
+      updateTuneActionBar();
+    }
+
+    async function renderColorTab() {
+      const container = document.getElementById('tune-color-tab');
+      if (!cachedGlozones) {
+        container.innerHTML = '<div style="padding:32px;text-align:center;color:var(--muted);">Loading...</div>';
+        return;
       }
 
-      container.innerHTML = '<div class="color-tab-message">'
-        + '<p>Color temperature is tuned per zone in the Rhythm Designer</p>'
-        + (zoneNames.length
-          ? '<div class="color-zone-list">' + linksHtml + '</div>'
-          : '<p style="color:var(--muted2);font-size:0.85rem;">No zones configured</p>')
-        + '</div>';
+      if (!colorAreaData) await fetchColorData();
+      if (!colorSnapshot) takeColorSnapshot();
+
+      const gzZonesObj = cachedGlozones.zones || {};
+      const zoneNames = Object.keys(gzZonesObj);
+      let html = '';
+
+      for (const zoneName of zoneNames) {
+        const zoneData = gzZonesObj[zoneName];
+        const areas = zoneData.areas || [];
+        if (areas.length === 0) continue;
+
+        const zoneKelvin = zoneStates?.[zoneName]?.kelvin;
+        const baseCt = zoneKelvin || 4000;
+        const zoneBgColor = ctBg(baseCt, 0.15);
+        const zoneTextColor = ctTextColor(baseCt);
+        const escapedZone = encodeURIComponent(zoneName);
+
+        // Zone-level settings
+        const warmEnabled = zoneData.warm_night_enabled ?? false;
+        const coolEnabled = zoneData.daylight_enabled ?? true;
+        const colorSens = zoneData.color_sensitivity ?? 1.0;
+        const sensStep = findClosestSensitivityStep(colorSens);
+
+        html += '<div class="zone-group" style="margin-bottom:8px;">';
+
+        // Zone header with CT color
+        html += '<div class="ct-zone-header" style="background:' + zoneBgColor + ';">';
+        html += '<a class="ct-zone-name" href="./zone/' + escapedZone + '?back=tune" onclick="event.stopPropagation()" style="color:' + zoneTextColor + ';">' + zoneName + '</a>';
+        html += '<span class="ct-zone-base-ct" style="color:' + zoneTextColor + ';">' + Math.round(baseCt) + 'K</span>';
+        html += '</div>';
+
+        // Zone controls: toggles + sensitivity
+        html += '<div class="ct-zone-controls">';
+        html += '<div class="ct-zone-ctrl">';
+        html += '<span class="ct-zone-ctrl-label">Warm night</span>';
+        html += '<input type="checkbox" class="ct-toggle" id="ct-warm-' + zoneName + '" ' + (warmEnabled ? 'checked' : '') + '>';
+        html += '</div>';
+        html += '<div class="ct-zone-ctrl">';
+        html += '<span class="ct-zone-ctrl-label">Cool day</span>';
+        html += '<input type="checkbox" class="ct-toggle" id="ct-cool-' + zoneName + '" ' + (coolEnabled ? 'checked' : '') + '>';
+        html += '</div>';
+        html += '<div class="ct-zone-ctrl">';
+        html += '<span class="ct-zone-ctrl-label">Sensitivity</span>';
+        html += '<input type="range" class="ct-sensitivity-slider tune-sensitivity-slider" id="ct-sens-' + zoneName + '" min="0" max="8" step="1" value="' + sensStep + '">';
+        html += '<span class="ct-sensitivity-val" id="ct-sens-val-' + zoneName + '">' + SENSITIVITY_STEPS[sensStep].label + ' ' + fmtVal(colorSens) + '</span>';
+        html += '</div>';
+
+        // Column headers
+        html += '<div class="ct-col-headers">';
+        html += '<span class="ct-col-header ct-col-area">Area</span>';
+        html += '<span class="ct-col-header ct-col-shift">Shift</span>';
+        html += '<span class="ct-col-header ct-col-cool">Cool Day</span>';
+        html += '<span class="ct-col-header ct-col-warm">Warm Night</span>';
+        html += '<span class="ct-col-header ct-col-adj">Adj</span>';
+        html += '<span class="ct-col-header ct-col-final">Final</span>';
+        html += '</div>';
+        html += '</div>';
+
+        // Area rows
+        for (const area of areas) {
+          const areaId = typeof area === 'object' ? area.id : area;
+          const areaName = typeof area === 'object' ? (area.name || areaId) : areaId;
+          const as = colorAreaData?.[areaId];
+
+          const finalKelvin = as?.kelvin || baseCt;
+          const baseKelvin = as?.base_kelvin || baseCt;
+          const sb = as?.solar_breakdown || {};
+          const colorOverride = as?.color_override || 0;
+          const sliderOverride = as?.color_override_set_at != null;
+
+          // Shift: difference between area base CT and zone base CT (from color_mid shift)
+          const shift = baseKelvin - baseCt;
+
+          // Cool day: daylight_shift from solar breakdown
+          const coolShift = coolEnabled ? (sb.daylight_shift || 0) : 0;
+
+          // Warm night: night_shift from solar breakdown (as negative delta)
+          const warmShift = warmEnabled ? -(sb.night_shift || 0) : 0;
+
+          // Adj: color override (slider-originated = direct additive)
+          const adj = sliderOverride ? colorOverride : 0;
+
+          const rowBg = ctBg(finalKelvin, 0.10);
+          const finalColor = ctTextColor(finalKelvin);
+          const shiftClass = Math.abs(shift) < 1 ? ' muted' : '';
+          const coolClass = Math.abs(coolShift) < 1 ? ' muted' : '';
+          const warmClass = Math.abs(warmShift) < 1 ? ' muted' : '';
+          const adjClass = Math.abs(adj) < 1 ? ' muted' : '';
+
+          html += '<div class="ct-area-row" style="background:' + rowBg + ';">';
+          html += '<span class="ct-col-area"><a href="./area/' + encodeURIComponent(areaId) + '?from=tune" class="ct-area-name" style="color:' + finalColor + ';">' + areaName + '</a></span>';
+          html += '<span class="ct-col-shift ct-area-val' + shiftClass + '">' + fmtCtDelta(shift) + '</span>';
+          html += '<span class="ct-col-cool ct-area-val' + coolClass + '">' + fmtCtDelta(coolShift) + '</span>';
+          html += '<span class="ct-col-warm ct-area-val' + warmClass + '">' + fmtCtDelta(warmShift) + '</span>';
+          html += '<span class="ct-col-adj ct-area-val' + adjClass + '">' + fmtCtDelta(adj) + '</span>';
+          html += '<span class="ct-col-final ct-area-final" style="color:' + finalColor + ';">' + Math.round(finalKelvin) + 'K</span>';
+          html += '</div>';
+        }
+
+        html += '</div>';
+      }
+
+      container.innerHTML = html;
+
+      // Wire up toggle/slider events
+      container.addEventListener('change', (e) => {
+        if (e.target.classList.contains('ct-toggle')) {
+          updateColorActionBar();
+        }
+      });
+      container.addEventListener('input', (e) => {
+        if (e.target.classList.contains('ct-sensitivity-slider')) {
+          const zoneName = e.target.id.replace('ct-sens-', '');
+          const step = parseInt(e.target.value);
+          const valEl = document.getElementById('ct-sens-val-' + zoneName);
+          if (valEl) valEl.textContent = SENSITIVITY_STEPS[step].label + ' ' + fmtVal(SENSITIVITY_STEPS[step].multiplier);
+          updateColorActionBar();
+        }
+      });
     }
 
     // ============================================================
@@ -2257,7 +2513,7 @@
     });
 
     window.addEventListener('beforeunload', (e) => {
-      if (isTuneDirty()) {
+      if (isTuneDirty() || hasColorChanges()) {
         e.preventDefault();
         e.returnValue = '';
       }
