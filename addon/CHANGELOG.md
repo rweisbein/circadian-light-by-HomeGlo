@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.122
+- **Tune page auto-refresh**: Automatic periodic refresh using home page refresh interval setting (default 3s). Only refreshes the active tab. Pauses when user has unsaved changes. Removed manual refresh button.
+
 ## 1.0.121
 - **Zone solar cache**: Periodic tick now caches zone-level solar breakdown (base_kelvin, night_strength, daylight_blend, warm_target, cool_target) in memory. Zone-states API includes solar_cache. Color tab reads cached data — no expensive area-status recomputation on refresh.
 - **Light-filters API extended**: Added last_sent_kelvin, color_mid, color_override, color_override_set_at per area for client-side CT computation.

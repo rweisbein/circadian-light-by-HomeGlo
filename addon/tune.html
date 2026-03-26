@@ -626,15 +626,6 @@
     .ct-area-val.muted { opacity: 0.4; }
     .ct-area-final { font-size: 1.0rem; font-weight: 600; white-space: nowrap; }
 
-    /* Refresh button */
-    .tune-refresh-btn {
-      display: flex; align-items: center; justify-content: center;
-      width: 32px; height: 32px; border-radius: 8px;
-      border: 1px solid var(--line); background: var(--card);
-      color: var(--muted); cursor: pointer; transition: all 0.2s; flex-shrink: 0;
-      opacity: 0.5;
-    }
-    .tune-refresh-btn:hover { background: var(--panel); border-color: var(--muted2); opacity: 1; }
 
     @media (max-width: 600px) {
       .tune-slider-word { font-size: 0.65rem; }
@@ -674,10 +665,6 @@
     <div class="tune-tabs">
       <button class="tune-tab active" data-tab="brightness" onclick="switchTab('brightness')">Brightness</button>
       <button class="tune-tab" data-tab="color" onclick="switchTab('color')">Color</button>
-      <span style="flex:1;"></span>
-      <button class="tune-refresh-btn" onclick="refreshTuneBrightness()" title="Refresh">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
-      </button>
     </div>
 
     <!-- Brightness Tab -->
@@ -2828,12 +2815,67 @@
     // ============================================================
     // Init
     // ============================================================
+    let _autoRefreshTimer = null;
+
+    async function autoRefresh() {
+      const activeTab = localStorage.getItem('tune_active_tab') || 'brightness';
+      // Don't auto-refresh if user has unsaved changes
+      if (isTuneDirty() || hasColorChanges()) return;
+      try {
+        if (activeTab === 'brightness') {
+          await refreshTuneBrightness();
+        } else {
+          // Refresh shared data, then re-render color tab
+          const [zsResp, filtersResp] = await Promise.all([
+            fetch('./api/zone-states'),
+            fetch('./api/light-filters'),
+            refreshOutdoorInPlace(),
+          ]);
+          if (zsResp.ok) { const zs = await zsResp.json(); zoneStates = zs.zone_states || {}; }
+          if (filtersResp.ok) {
+            const fd = await filtersResp.json();
+            // Update tuneData areas with fresh color state
+            if (tuneData?.zones && fd.zones) {
+              for (const zone of Object.values(fd.zones)) {
+                for (const area of (zone.areas || [])) {
+                  const ta = getTuneArea(area.id);
+                  if (ta) {
+                    ta.is_on = area.is_on !== false;
+                    ta.last_sent_kelvin = area.last_sent_kelvin;
+                    ta.color_mid = area.color_mid;
+                    ta.color_override = area.color_override;
+                    ta.color_override_set_at = area.color_override_set_at;
+                  }
+                }
+              }
+            }
+          }
+          renderColorTab();
+        }
+      } catch (e) { console.error('autoRefresh error:', e); }
+    }
+
+    async function startAutoRefresh() {
+      try {
+        const resp = await fetch('./api/config');
+        if (resp.ok) {
+          const cfg = await resp.json();
+          const interval = Math.max(2, Math.min(60, cfg.home_refresh_interval || 3));
+          _autoRefreshTimer = setInterval(autoRefresh, interval * 1000);
+        }
+      } catch (e) {
+        // Default to 3s if config fetch fails
+        _autoRefreshTimer = setInterval(autoRefresh, 3000);
+      }
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
       setupEventListeners();
-      loadData();
+      loadData().then(() => startAutoRefresh());
     });
 
     window.addEventListener('beforeunload', (e) => {
+      if (_autoRefreshTimer) clearInterval(_autoRefreshTimer);
       if (isTuneDirty() || hasColorChanges()) {
         e.preventDefault();
         e.returnValue = '';
