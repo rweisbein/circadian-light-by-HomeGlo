@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.131
+- **Sync bundled integration to 3.10.3**: The addon's bundled copy of `custom_components/circadian` was stale at 3.10.2, preventing the integration from updating on restart.
+
 ## 1.0.130
 - **Green toggle buttons on area detail**: Circadian, power, freeze, and boost buttons use green border on hover and active state.
 
