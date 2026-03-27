@@ -326,6 +326,10 @@ def get_categorized_actions() -> Dict[str, List[Dict[str, Any]]]:
         Dict of category name -> list of {id, label, supports_when_off} dicts
     """
     categories = {
+        "_top": [
+            {"id": None, "label": "No Action"},
+            {"id": "magic", "label": "Magic"},
+        ],
         "Adjust areas in Reach": [
             {"id": "circadian_on", "label": "On"},
             {"id": "circadian_off", "label": "Off"},
@@ -386,10 +390,6 @@ def get_categorized_actions() -> Dict[str, List[Dict[str, Any]]]:
             {"id": "set_position_step", "label": "Circadian (brightness + color)"},
             {"id": "set_position_brightness", "label": "Bright only"},
             {"id": "set_position_color", "label": "Color only"},
-        ],
-        "Special": [
-            {"id": None, "label": "No Action"},
-            {"id": "magic", "label": "Magic"},
         ],
     }
 

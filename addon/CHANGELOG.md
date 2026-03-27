@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.133
+- **Action dropdowns**: "No Action" and "Magic" appear at top without a section header. Removed "Special" category.
+
 ## 1.0.132
 - **Green toggle buttons on area detail**: Circadian, power, freeze, boost buttons use green border on hover/active.
 - **Rhythm cursor stays put**: Cursor on rhythm detail page no longer auto-advances to "now" when user has navigated to a different time. Resets on page load or clicking "Now".

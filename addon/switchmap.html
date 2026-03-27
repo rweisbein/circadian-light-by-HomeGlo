@@ -1039,13 +1039,14 @@
       for (const [category, actions] of Object.entries(actionCategories)) {
         if (dialOnly && category !== 'Dial') continue;
         if (!dialOnly && category === 'Dial') continue;
-        html += `<optgroup label="${category}">`;
+        const isTop = category === '_top';
+        if (!isTop) html += `<optgroup label="${category}">`;
         for (const action of actions) {
           const value = action.id === null ? '' : action.id;
           const selected = (selectedValue === action.id || (selectedValue === null && action.id === null)) ? 'selected' : '';
           html += `<option value="${value}" ${selected}>${action.label}</option>`;
         }
-        html += '</optgroup>';
+        if (!isTop) html += '</optgroup>';
       }
       return html;
     }

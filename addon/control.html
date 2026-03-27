@@ -1597,13 +1597,14 @@
               if (cat === 'Dial') continue;
               const filtered = actions.filter(a => a.id !== 'magic');
               if (!filtered.length) continue;
-              magicOpts += `<optgroup label="${cat}">`;
+              const isTop = cat === '_top';
+              if (!isTop) magicOpts += `<optgroup label="${cat}">`;
               for (const action of filtered) {
                 const value = action.id === null ? '' : action.id;
                 const selected = (currentValue === action.id || (currentValue === '' && action.id === null)) ? ' selected' : '';
                 magicOpts += `<option value="${value}"${selected}>${action.label}</option>`;
               }
-              magicOpts += '</optgroup>';
+              if (!isTop) magicOpts += '</optgroup>';
             }
             actionRows += `
               <div class="btn-map-row">
