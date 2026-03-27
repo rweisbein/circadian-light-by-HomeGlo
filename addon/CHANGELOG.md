@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.135
+- **Integration logo**: Added icon.png and logo.png to the custom integration so it shows the Circadian Light logo in HA integrations list.
+
 ## 1.0.134
 - **Fix controls page auto-refresh**: Poll URL used undefined `basePath` variable, causing silent fetch failures. This bug predates v1.0.132 — the old last-actions poll never worked either.
 
