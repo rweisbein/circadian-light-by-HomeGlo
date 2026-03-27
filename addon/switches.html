@@ -1272,7 +1272,7 @@
     // Background poll — lightweight refresh (last_actions + pause states)
     setInterval(async () => {
       try {
-        const res = await fetch(basePath + `/api/controls/refresh`);
+        const res = await fetch(`./api/controls/refresh`);
         if (!res.ok) return;
         const data = await res.json();
         const actions = data.last_actions || {};
