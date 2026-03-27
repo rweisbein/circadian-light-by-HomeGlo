@@ -716,7 +716,7 @@
       <span style="flex:1;"></span>
       <div class="tune-outdoor-wrapper" style="display:inline-flex;">
         <button class="tune-sun-info-btn" id="tune-sun-info-toggle">
-          <span id="tune-sun-info-icon">\u2600</span>
+          <span id="tune-sun-info-icon">&#x2600;</span>
           <span class="tune-sun-info-pct" id="tune-sun-info-pct"></span>
         </button>
         <div id="tune-sun-info-panel"></div>
@@ -1427,7 +1427,8 @@
           + '<div class="tune-sun-info-row"><span class="tune-sun-info-op">\u00d7</span><span class="tune-sun-info-label">Conditions</span><span class="tune-sun-info-val">' + buildOutdoorIcon(d) + ' ' + condPct + '%</span></div>'
           + '<hr class="tune-sun-info-divider">'
           + '<div class="tune-sun-info-row"><span class="tune-sun-info-op"></span><span class="tune-sun-info-label">Intensity</span><span class="tune-sun-info-val tune-sun-info-result">' + sunBriPct + '%</span></div>'
-          + buildConditionsPanel();
+          + '<hr class="tune-sun-info-divider" style="width:100%;margin:6px 0;">'
+          + '<div class="tune-sun-info-row"><span class="tune-sun-info-label">Status</span><span class="tune-sun-info-val" id="tune-sun-info-detail">' + buildOutdoorDetailText(d) + '</span></div>';
       }
     }
 
