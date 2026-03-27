@@ -504,6 +504,91 @@
       </div>
     </div>
 
+    <!-- Refresh Section -->
+    <div class="settings-section">
+      <div class="section-header">Refresh</div>
+      <div class="section-content">
+        <div class="form-row">
+          <label class="form-label">
+            Circadian refresh
+            <span class="info-icon">i<span class="info-tooltip">How often Circadian Light updates lights to match the current sun position. Timers (motion, boost) are checked every second regardless of this setting. Lower values give smoother light transitions but increase Home Assistant API calls.</span></span>
+          </label>
+          <div class="form-control">
+            <input type="number" class="form-input" id="circadian-refresh" min="5" max="120" step="5" value="30" style="width: 80px;">
+            <span class="form-hint">seconds (5-120)</span>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">
+            Post-switch refresh
+            <span class="info-icon">i<span class="info-tooltip">After a switch press, delay this long then run a full circadian refresh to catch any lights that missed the initial command. Each subsequent press resets the timer. Replaces per-command nudge with a single authoritative re-send.</span></span>
+          </label>
+          <div class="form-control">
+            <input type="number" class="form-input" id="post-switch-refresh" min="10" max="100" step="5" value="30" style="width: 80px;">
+            <span class="form-hint">tenths of a second</span>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">
+            Periodic transition speed
+            <span class="info-icon">i<span class="info-tooltip">How smoothly lights transition during periodic circadian updates. Day speed applies when the sun is up, night speed when the sun is down. Higher values = slower, smoother transitions.</span></span>
+          </label>
+          <div class="form-control">
+            <span class="form-hint" style="margin-left: 0;">day</span>
+            <input type="number" class="form-input" id="periodic-transition-day" min="0" max="120" step="1" style="width: 60px;">
+            <span class="form-hint">night</span>
+            <input type="number" class="form-input" id="periodic-transition-night" min="0" max="120" step="1" value="1" style="width: 60px;">
+            <span class="form-hint">seconds</span>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">
+            Home page refresh
+            <span class="info-icon">i<span class="info-tooltip">How often the home page area cards refresh to show current brightness, color temperature, and on/off state. Lower values show changes faster but increase browser network activity. The area modal always refreshes every 1 second regardless of this setting.</span></span>
+          </label>
+          <div class="form-control">
+            <input type="number" class="form-input" id="home-refresh-interval" min="2" max="60" step="1" value="10" style="width: 80px;">
+            <span class="form-hint">seconds (2-60)</span>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">
+            Advanced logging
+            <span class="info-icon">i<span class="info-tooltip">When enabled, logs detailed info about every periodic light update cycle (per-area brightness/color values, group breakdowns, off enforcement). Useful for debugging but very verbose. Auto-disables after the selected duration.</span></span>
+          </label>
+          <div class="form-control">
+            <select class="form-input" id="advanced-logging" style="width: 140px;">
+              <option value="">Off</option>
+              <option value="1h">1 hour</option>
+              <option value="4h">4 hours</option>
+              <option value="1d">1 day</option>
+              <option value="1w">1 week</option>
+              <option value="1m">1 month</option>
+              <option value="forever">Forever</option>
+            </select>
+            <span class="form-hint" id="advanced-logging-remaining"></span>
+          </div>
+        </div>
+
+        <div class="form-row" style="margin-top: 10px;">
+          <label class="form-label">
+            Sync devices
+            <span class="info-icon">i<span class="info-tooltip">Re-scans Home Assistant for new or moved lights, areas, and ZHA devices. Runs automatically at the scheduled time daily. Click Sync now to run immediately.</span></span>
+          </label>
+          <div class="form-control" style="display:flex; align-items:center; gap:10px;">
+            <button type="button" class="btn" id="sync-devices-btn" onclick="syncDevices()" style="padding: 6px 16px; cursor: pointer;">Sync now</button>
+            <span style="color:#888;">daily at</span>
+            <input type="time" class="form-input" id="daily-sync-time" value="04:00" style="width: 100px;">
+            <span class="form-hint" id="sync-status"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Controls Section -->
     <div class="settings-section">
       <div class="section-header">Controls</div>
@@ -935,91 +1020,6 @@
             <label class="checkbox-label">
               <input type="checkbox" id="confirm-zone-pushes">
             </label>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Refresh Section -->
-    <div class="settings-section">
-      <div class="section-header">Refresh</div>
-      <div class="section-content">
-        <div class="form-row">
-          <label class="form-label">
-            Circadian refresh
-            <span class="info-icon">i<span class="info-tooltip">How often Circadian Light updates lights to match the current sun position. Timers (motion, boost) are checked every second regardless of this setting. Lower values give smoother light transitions but increase Home Assistant API calls.</span></span>
-          </label>
-          <div class="form-control">
-            <input type="number" class="form-input" id="circadian-refresh" min="5" max="120" step="5" value="30" style="width: 80px;">
-            <span class="form-hint">seconds (5-120)</span>
-          </div>
-        </div>
-
-        <div class="form-row">
-          <label class="form-label">
-            Post-switch refresh
-            <span class="info-icon">i<span class="info-tooltip">After a switch press, delay this long then run a full circadian refresh to catch any lights that missed the initial command. Each subsequent press resets the timer. Replaces per-command nudge with a single authoritative re-send.</span></span>
-          </label>
-          <div class="form-control">
-            <input type="number" class="form-input" id="post-switch-refresh" min="10" max="100" step="5" value="30" style="width: 80px;">
-            <span class="form-hint">tenths of a second</span>
-          </div>
-        </div>
-
-        <div class="form-row">
-          <label class="form-label">
-            Periodic transition speed
-            <span class="info-icon">i<span class="info-tooltip">How smoothly lights transition during periodic circadian updates. Day speed applies when the sun is up, night speed when the sun is down. Higher values = slower, smoother transitions.</span></span>
-          </label>
-          <div class="form-control">
-            <span class="form-hint" style="margin-left: 0;">day</span>
-            <input type="number" class="form-input" id="periodic-transition-day" min="0" max="120" step="1" style="width: 60px;">
-            <span class="form-hint">night</span>
-            <input type="number" class="form-input" id="periodic-transition-night" min="0" max="120" step="1" value="1" style="width: 60px;">
-            <span class="form-hint">seconds</span>
-          </div>
-        </div>
-
-        <div class="form-row">
-          <label class="form-label">
-            Home page refresh
-            <span class="info-icon">i<span class="info-tooltip">How often the home page area cards refresh to show current brightness, color temperature, and on/off state. Lower values show changes faster but increase browser network activity. The area modal always refreshes every 1 second regardless of this setting.</span></span>
-          </label>
-          <div class="form-control">
-            <input type="number" class="form-input" id="home-refresh-interval" min="2" max="60" step="1" value="10" style="width: 80px;">
-            <span class="form-hint">seconds (2-60)</span>
-          </div>
-        </div>
-
-        <div class="form-row">
-          <label class="form-label">
-            Advanced logging
-            <span class="info-icon">i<span class="info-tooltip">When enabled, logs detailed info about every periodic light update cycle (per-area brightness/color values, group breakdowns, off enforcement). Useful for debugging but very verbose. Auto-disables after the selected duration.</span></span>
-          </label>
-          <div class="form-control">
-            <select class="form-input" id="advanced-logging" style="width: 140px;">
-              <option value="">Off</option>
-              <option value="1h">1 hour</option>
-              <option value="4h">4 hours</option>
-              <option value="1d">1 day</option>
-              <option value="1w">1 week</option>
-              <option value="1m">1 month</option>
-              <option value="forever">Forever</option>
-            </select>
-            <span class="form-hint" id="advanced-logging-remaining"></span>
-          </div>
-        </div>
-
-        <div class="form-row" style="margin-top: 10px;">
-          <label class="form-label">
-            Sync devices
-            <span class="info-icon">i<span class="info-tooltip">Re-scans Home Assistant for new or moved lights, areas, and ZHA devices. Runs automatically at the scheduled time daily. Click Sync now to run immediately.</span></span>
-          </label>
-          <div class="form-control" style="display:flex; align-items:center; gap:10px;">
-            <button type="button" class="btn" id="sync-devices-btn" onclick="syncDevices()" style="padding: 6px 16px; cursor: pointer;">Sync now</button>
-            <span style="color:#888;">daily at</span>
-            <input type="time" class="form-input" id="daily-sync-time" value="04:00" style="width: 100px;">
-            <span class="form-hint" id="sync-status"></span>
           </div>
         </div>
       </div>

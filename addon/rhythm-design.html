@@ -1624,18 +1624,18 @@ let config = {
   wake_speed: 6,
   bed_speed: 4,
   min_color_temp: 500,
-  max_color_temp: 6500,
+  max_color_temp: 3600,
   min_brightness: 1,
   max_brightness: 100,
   max_dim_steps: 10,  // home-wide setting, read from config
-  warm_night_enabled: true,  // default matches adult preset
+  warm_night_enabled: true,
   warm_night_mode: 'all',
-  warm_night_target: 2700,
+  warm_night_target: 2300,
   warm_night_start: -60,  // minutes offset from sunset (negative = before)
   warm_night_end: 60,     // minutes offset from sunrise (positive = after)
-  warm_night_fade: 60,    // fade duration in minutes
+  warm_night_fade: 120,   // fade duration in minutes
   daylight_enabled: true,
-  daylight_cct: 5500,
+  daylight_cct: 5000,
   daylight_start: 60,    // minutes offset from sunrise (positive = after)
   daylight_end: -60,     // minutes offset from sunset (negative = before)
   daylight_fade: 60,
@@ -1683,6 +1683,7 @@ let _liveSource = null;
 // Cursor state — always present, initialized to current time
 const _nowInit = new Date();
 let cursorHour = _nowInit.getHours() + _nowInit.getMinutes() / 60;
+let cursorTrackingNow = true;  // auto-advance cursor with clock
 let graphData = null;
 
 // Live Design state
@@ -3191,6 +3192,7 @@ function initChartInteractivity() {
     const ratio = (ev.clientX - rect.left) / rect.width;
     const xVal = xRange[0] + ratio * (xRange[1] - xRange[0]);
 
+    cursorTrackingNow = false;
     cursorHour = xVal;
     applyCursor();
   }, true);  // Use capture phase
@@ -3358,6 +3360,7 @@ function updateScheduleToggles() {
  * Snap cursor to current time and re-render.
  */
 function snapCursorToNow() {
+  cursorTrackingNow = true;
   const now = new Date();
   cursorHour = now.getHours() + now.getMinutes() / 60;
   renderChart();
@@ -3684,7 +3687,7 @@ function syncUIFromConfig() {
   const wakeAltDays = config.wake_alt_days || [];
   const wakePrimary = wakeAltDays.length > 0
     ? ALL_DAYS_UI.filter(d => !wakeAltDays.includes(d))
-    : [];  // none selected = all primary (no alt)
+    : ALL_DAYS_UI;  // all selected = all primary (no alt)
   setSelectedDays('wake-days', wakePrimary);
   if (wakeAltDays.length > 0 && config.wake_alt_time != null) {
     let wakeAltSlider = config.wake_alt_time;
@@ -3702,7 +3705,7 @@ function syncUIFromConfig() {
   const bedAltDays = config.bed_alt_days || [];
   const bedPrimary = bedAltDays.length > 0
     ? ALL_DAYS_UI.filter(d => !bedAltDays.includes(d))
-    : [];  // none selected = all primary (no alt)
+    : ALL_DAYS_UI;  // all selected = all primary (no alt)
   setSelectedDays('bed-days', bedPrimary);
   if (bedAltDays.length > 0 && config.bed_alt_time != null) {
     let bedAltSlider = config.bed_alt_time;
@@ -4172,27 +4175,32 @@ function setupEventListeners() {
 
   // Time navigation buttons — always active
   document.getElementById('cursor-time-now')?.addEventListener('click', () => {
+    cursorTrackingNow = true;
     const now = new Date();
     cursorHour = now.getHours() + now.getMinutes() / 60;
     renderChart();
     applyCursor();
   });
   document.getElementById('cursor-time-plus')?.addEventListener('click', () => {
+    cursorTrackingNow = false;
     cursorHour = (cursorHour + 5/60) % 24;  // +5 minutes, wrap at 24
     renderChart();
     applyCursor();
   });
   document.getElementById('cursor-time-minus')?.addEventListener('click', () => {
+    cursorTrackingNow = false;
     cursorHour = (cursorHour - 5/60 + 24) % 24;
     renderChart();
     applyCursor();
   });
   document.getElementById('cursor-time-plus-30')?.addEventListener('click', () => {
+    cursorTrackingNow = false;
     cursorHour = (cursorHour + 30/60) % 24;
     renderChart();
     applyCursor();
   });
   document.getElementById('cursor-time-minus-30')?.addEventListener('click', () => {
+    cursorTrackingNow = false;
     cursorHour = (cursorHour - 30/60 + 24) % 24;
     renderChart();
     applyCursor();
@@ -5278,9 +5286,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }).catch(() => {});
 
-  // Keep cursor at "now" when not in Live Design mode (tick every 30s)
+  // Keep cursor at "now" when tracking now and not in Live Design mode (tick every 30s)
   setInterval(() => {
-    if (!liveDesignEnabled) {
+    if (!liveDesignEnabled && cursorTrackingNow) {
       snapCursorToNow();
     }
   }, 30000);

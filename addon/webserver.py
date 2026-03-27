@@ -616,11 +616,11 @@ class LightDesignerServer:
         )
         self.app.router.add_route(
             "GET",
-            "/{path:.*}/api/controls/last-actions",
-            self.get_controls_last_actions,
+            "/{path:.*}/api/controls/refresh",
+            self.get_controls_refresh,
         )
         self.app.router.add_get(
-            "/api/controls/last-actions", self.get_controls_last_actions
+            "/api/controls/refresh", self.get_controls_refresh
         )
         self.app.router.add_get("/api/area-lights", self.get_area_lights)
         self.app.router.add_route(
@@ -4081,51 +4081,23 @@ class LightDesignerServer:
                     zone_config["areas"] = new_areas
                     removed_from.append(zone_name)
 
-            # Remove area from switch scopes
-            switches_cleaned = 0
-            for switch_data in config.get("switches", []):
-                for scope in switch_data.get("scopes", []):
-                    if area_id in scope.get("areas", []):
-                        scope["areas"].remove(area_id)
-                        switches_cleaned += 1
-
-            # Remove area from motion sensor configs
-            motion_cleaned = 0
-            for sensor_data in config.get("motion_sensors", []):
-                areas = sensor_data.get("areas", [])
-                new_areas = [a for a in areas if a.get("area_id") != area_id]
-                if len(new_areas) < len(areas):
-                    sensor_data["areas"] = new_areas
-                    motion_cleaned += 1
-
-            # Remove area from contact sensor configs
-            contact_cleaned = 0
-            for sensor_data in config.get("contact_sensors", []):
-                areas = sensor_data.get("areas", [])
-                new_areas = [a for a in areas if a.get("area_id") != area_id]
-                if len(new_areas) < len(areas):
-                    sensor_data["areas"] = new_areas
-                    contact_cleaned += 1
+            # Remove area from switch scopes, motion sensors, and contact sensors
+            # These are stored in switches_config.json, not designer_config
+            controls_cleaned = switches.purge_area(area_id)
 
             # Always remove from runtime state so periodic refresh stops updating it
             state.remove_area(area_id)
 
-            config_changed = (
-                removed_from or switches_cleaned or motion_cleaned or contact_cleaned
-            )
-            if config_changed:
+            config_changed = removed_from or controls_cleaned
+            if removed_from:
                 await self.save_config_to_file(config)
                 glozone.set_config(config)
-                parts = []
-                if removed_from:
-                    parts.append(f"zones: {removed_from}")
-                if switches_cleaned:
-                    parts.append(f"{switches_cleaned} switch scope(s)")
-                if motion_cleaned:
-                    parts.append(f"{motion_cleaned} motion sensor(s)")
-                if contact_cleaned:
-                    parts.append(f"{contact_cleaned} contact sensor(s)")
+                parts = [f"zones: {removed_from}"]
+                if controls_cleaned:
+                    parts.append(f"{controls_cleaned} control config(s)")
                 logger.info(f"Purged area {area_id} from {', '.join(parts)}")
+            elif controls_cleaned:
+                logger.info(f"Purged area {area_id} from {controls_cleaned} control config(s)")
 
             if self.client:
                 await self.client.handle_service_event("purge_area", area_id)
@@ -5660,7 +5632,7 @@ class LightDesignerServer:
                 configured_motion = switches.get_all_motion_sensors()
 
             # Pre-load last actions once (avoids N file reads in the loop)
-            all_last_actions = switches._load_last_actions()
+            all_last_actions = switches.get_all_last_actions()
 
             # Merge and determine status
             controls = []
@@ -6092,17 +6064,21 @@ class LightDesignerServer:
             logger.error(f"Error fetching HA controls: {e}", exc_info=True)
             return []
 
-    async def get_controls_last_actions(self, request: Request) -> Response:
-        """Lightweight endpoint for polling last_action data.
+    async def get_controls_refresh(self, request: Request) -> Response:
+        """Lightweight refresh endpoint for controls page polling.
 
-        No WebSocket calls — reads from in-memory/disk last_actions file.
-        Used by the controls page background poll (every 15s).
+        Returns only last_actions and pause_states — no HA registry
+        iteration, no config merge, no stale detection. All in-memory.
         """
         try:
-            all_actions = switches._load_last_actions()
-            return web.json_response({"actions": all_actions})
-        except Exception as e:
-            return web.json_response({"actions": {}})
+            all_actions = switches.get_all_last_actions()
+            pause_states = switches.get_all_pause_states()
+            return web.json_response({
+                "last_actions": all_actions,
+                "pause_states": pause_states,
+            })
+        except Exception:
+            return web.json_response({"last_actions": {}, "pause_states": {}})
 
     async def configure_control(self, request: Request) -> Response:
         """Configure a control (add/update scopes for switches, areas for motion sensors)."""

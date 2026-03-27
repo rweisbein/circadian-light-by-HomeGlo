@@ -1497,7 +1497,7 @@
       'arrow_left': '\u25C0', 'arrow_right': '\u25B6', 'dial': '\u27F3'
     };
     const actionTypeShort = {
-      'short_release': '1\u00d7', 'press': '1\u00d7',
+      'short_release': 'Short', 'press': 'Short',
       'double_press': '2\u00d7', 'triple_press': '3\u00d7',
       'quadruple_press': '4\u00d7', 'quintuple_press': '5\u00d7',
       'hold': 'Long', 'rotate': 'Rotate'
@@ -1533,7 +1533,7 @@
 
     function formatMagicButtonEvent(key) {
       const magicActionLabels = {
-        'hold': 'Long press', 'short_release': 'Press', 'press': 'Press',
+        'hold': 'Long press', 'short_release': 'Short press', 'press': 'Short press',
         'double_press': '2\u00d7 press', 'triple_press': '3\u00d7 press',
         'quadruple_press': '4\u00d7 press', 'quintuple_press': '5\u00d7 press',
         'rotate': 'Rotate'
@@ -1589,21 +1589,29 @@
           const isMagic = actionValue === 'magic';
 
           if (isMagic) {
-            // Magic slot: show ✦ + dropdown
+            // Magic slot: show ✦ + dropdown with all actions (except magic and dial)
             const currentValue = editingMagicButtons[eventKey] || '';
+            const cats = window._switchmapActions || {};
+            let magicOpts = '';
+            for (const [cat, actions] of Object.entries(cats)) {
+              if (cat === 'Dial') continue;
+              const filtered = actions.filter(a => a.id !== 'magic');
+              if (!filtered.length) continue;
+              magicOpts += `<optgroup label="${cat}">`;
+              for (const action of filtered) {
+                const value = action.id === null ? '' : action.id;
+                const selected = (currentValue === action.id || (currentValue === '' && action.id === null)) ? ' selected' : '';
+                magicOpts += `<option value="${value}"${selected}>${action.label}</option>`;
+              }
+              magicOpts += '</optgroup>';
+            }
             actionRows += `
               <div class="btn-map-row">
                 <span class="btn-map-type">${typeLabel}</span>
                 <div class="btn-map-magic">
                   <span class="magic-star" title="Assignable">&#10022;</span>
                   <select onchange="updateMagicButton('${eventKey}', this.value)">
-                    <option value="">None</option>
-                    ${Object.entries(allMoments).map(([id, m]) => {
-                      const val = 'set_' + id;
-                      const sel = currentValue === val ? ' selected' : '';
-                      const icon = m.icon ? m.icon + ' ' : '';
-                      return `<option value="${val}"${sel}>${icon}${m.name || id}</option>`;
-                    }).join('')}
+                    ${magicOpts}
                   </select>
                 </div>
               </div>
@@ -1646,13 +1654,7 @@
       for (const key of orphanedKeys) {
         const label = formatMagicButtonEvent(key);
         const momentAction = editingMagicButtons[key];
-        let momentName = momentAction;
-        if (momentAction && momentAction.startsWith('set_')) {
-          const momentId = momentAction.slice(4);
-          const momentObj = allMoments[momentId];
-          momentName = momentObj?.name || momentId;
-          if (momentObj?.icon) momentName = momentObj.icon + ' ' + momentName;
-        }
+        const momentName = getActionLabel(momentAction) || momentAction;
         html += `<div class="magic-row-orphan">
           <span class="magic-row-label">${label} (removed)</span>
           <span style="flex:1; font-size:0.85rem;">${momentName}</span>

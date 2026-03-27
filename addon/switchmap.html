@@ -663,7 +663,7 @@
 
     // Action type labels
     const actionTypeLabels = {
-      'short_release': '1\u00D7 press', 'press': '1\u00D7 press',
+      'short_release': 'Short press', 'press': 'Short press',
       'double_press': '2\u00D7 press', 'triple_press': '3\u00D7 press',
       'quadruple_press': '4\u00D7 press', 'quintuple_press': '5\u00D7 press',
       'hold': 'Long press', 'rotate': 'Rotate'
@@ -671,7 +671,7 @@
 
     // Short labels for cheat sheet
     const actionTypeShort = {
-      'short_release': '1\u00D7', 'press': '1\u00D7',
+      'short_release': 'Short', 'press': 'Short',
       'double_press': '2\u00D7', 'triple_press': '3\u00D7',
       'quadruple_press': '4\u00D7', 'quintuple_press': '5\u00D7',
       'hold': 'Long', 'rotate': 'Rotate'
@@ -961,7 +961,7 @@
           let btnName = buttonNames[btnKey] || (btnKey.charAt(0).toUpperCase() + btnKey.slice(1));
           btnName = btnName.replace(/ Button$/, '');
           const eventLabel = {
-            'press': '1\u00D7', 'short_release': '1\u00D7', 'double_press': '2\u00D7',
+            'press': 'Short', 'short_release': 'Short', 'double_press': '2\u00D7',
             'triple_press': '3\u00D7', 'hold': 'Long'
           }[eventType] || eventType;
 
@@ -1011,16 +1011,13 @@
 
     function formatMagicAction(actionValue) {
       if (!actionValue) return '';
-      if (actionValue.startsWith('set_')) {
-        const momentId = actionValue.replace('set_', '');
-        const moment = allMoments[momentId];
-        if (moment) {
-          const icon = moment.icon || '';
-          return `${icon ? icon + ' ' : ''}${moment.name}`;
+      // Look up label from categorized actions
+      for (const actions of Object.values(actionCategories)) {
+        for (const a of actions) {
+          if (a.id === actionValue) return a.label;
         }
-        return momentId;
       }
-      return actionValue;
+      return actionValue.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
     }
 
     function formatMagicLabel(label) {
@@ -1178,6 +1175,7 @@
           document.getElementById('unsaved-indicator').classList.remove('visible');
           document.getElementById('save-btn').disabled = true;
           document.getElementById('cancel-btn').disabled = true;
+          setMode('cheatsheet');
           showStatus('Mappings saved', 'success');
         } else {
           const data = await res.json();
@@ -1272,7 +1270,7 @@
           let btnName = buttonNames[btnKey] || (btnKey.charAt(0).toUpperCase() + btnKey.slice(1));
           btnName = btnName.replace(/ Button$/, '');
           const eventLabel = {
-            'press': '1\u00D7', 'short_release': '1\u00D7', 'double_press': '2\u00D7',
+            'press': 'Short', 'short_release': 'Short', 'double_press': '2\u00D7',
             'triple_press': '3\u00D7', 'hold': 'Long'
           }[eventType] || eventType;
           const momentText = formatMagicActionPlain(actionValue);
@@ -1322,13 +1320,7 @@
 
     function formatMagicActionPlain(actionValue) {
       if (!actionValue) return '';
-      if (actionValue.startsWith('set_')) {
-        const momentId = actionValue.replace('set_', '');
-        const moment = allMoments[momentId];
-        if (moment) return moment.name;
-        return momentId;
-      }
-      return actionValue;
+      return formatMagicAction(actionValue);
     }
 
     function showStatus(message, type = 'success') {

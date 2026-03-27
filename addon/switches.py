@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 _LAST_ACTION_FILE: Optional[Path] = None
+_last_actions_cache: Optional[Dict[str, Any]] = None
 
 
 def _get_last_action_file() -> Path:
@@ -66,6 +67,40 @@ def _save_last_actions(actions: Dict[str, str]) -> None:
         os.replace(tmp_file, action_file)
     except IOError as e:
         logger.error(f"Failed to save last actions file: {e}")
+
+
+def get_all_last_actions() -> Dict[str, Any]:
+    """Return all last actions from in-memory cache (no disk I/O)."""
+    global _last_actions_cache
+    if _last_actions_cache is None:
+        _last_actions_cache = _load_last_actions()
+    return _last_actions_cache
+
+
+def get_all_pause_states() -> Dict[str, Dict[str, Any]]:
+    """Return pause state for all paused controls (no disk I/O)."""
+    result = {}
+    for switch_id, switch in _switches.items():
+        if switch.inactive or switch.inactive_until:
+            result[switch_id] = {
+                "inactive": switch.inactive,
+                "inactive_until": switch.inactive_until,
+            }
+    for sensor_id, sensor in _motion_sensors.items():
+        key = sensor.device_id or sensor_id
+        if sensor.inactive or sensor.inactive_until:
+            result[key] = {
+                "inactive": sensor.inactive,
+                "inactive_until": sensor.inactive_until,
+            }
+    for sensor_id, sensor in _contact_sensors.items():
+        key = sensor.device_id or sensor_id
+        if sensor.inactive or sensor.inactive_until:
+            result[key] = {
+                "inactive": sensor.inactive,
+                "inactive_until": sensor.inactive_until,
+            }
+    return result
 
 
 # =============================================================================
@@ -241,7 +276,7 @@ def get_all_available_actions() -> list:
 
     # Add moment actions dynamically
     try:
-        from . import glozone
+        import glozone
 
         raw_config = glozone.load_config_from_files()
         moments = raw_config.get("moments", {})
@@ -348,7 +383,7 @@ def get_categorized_actions() -> Dict[str, List[Dict[str, Any]]]:
             {"id": "cycle_scope", "label": "Advance to next Reach"},
         ],
         "Dial": [
-            {"id": "set_position_step", "label": "Glo (brightness + color)"},
+            {"id": "set_position_step", "label": "Circadian (brightness + color)"},
             {"id": "set_position_brightness", "label": "Bright only"},
             {"id": "set_position_color", "label": "Color only"},
         ],
@@ -360,7 +395,7 @@ def get_categorized_actions() -> Dict[str, List[Dict[str, Any]]]:
 
     # Add moment actions dynamically
     try:
-        from . import glozone
+        import glozone
 
         raw_config = glozone.load_config_from_files()
         moments = raw_config.get("moments", {})
@@ -1033,7 +1068,7 @@ def _get_data_directory() -> str:
 
 def init(config_file: Optional[str] = None) -> None:
     """Initialize the switches module and load config from disk."""
-    global _config_file_path, _switches, _motion_sensors, _contact_sensors, _runtime_state
+    global _config_file_path, _switches, _motion_sensors, _contact_sensors, _runtime_state, _last_actions_cache
 
     data_dir = _get_data_directory()
 
@@ -1076,6 +1111,9 @@ def init(config_file: Optional[str] = None) -> None:
     else:
         logger.info(f"No switches config found at {_config_file_path}, starting fresh")
 
+    # Seed last_actions cache from disk (one-time read)
+    _last_actions_cache = _load_last_actions()
+
 
 def _save() -> None:
     """Save current switch, motion sensor, and contact sensor config to disk."""
@@ -1096,6 +1134,42 @@ def _save() -> None:
         logger.debug(f"Saved switches config to {_config_file_path}")
     except Exception as e:
         logger.error(f"Failed to save switches config to {_config_file_path}: {e}")
+
+
+def purge_area(area_id: str) -> int:
+    """Remove an area from all switch scopes, motion sensors, and contact sensors.
+
+    Args:
+        area_id: The area ID to remove
+
+    Returns:
+        Number of configs modified
+    """
+    cleaned = 0
+
+    for switch in _switches.values():
+        for scope in switch.scopes:
+            if area_id in scope.areas:
+                scope.areas.remove(area_id)
+                cleaned += 1
+
+    for motion in _motion_sensors.values():
+        before = len(motion.areas)
+        motion.areas = [a for a in motion.areas if a.area_id != area_id]
+        if len(motion.areas) < before:
+            cleaned += 1
+
+    for contact in _contact_sensors.values():
+        before = len(contact.areas)
+        contact.areas = [a for a in contact.areas if a.area_id != area_id]
+        if len(contact.areas) < before:
+            cleaned += 1
+
+    if cleaned:
+        _save()
+        logger.info(f"Purged area {area_id} from {cleaned} control config(s)")
+
+    return cleaned
 
 
 # =============================================================================
@@ -1542,28 +1616,29 @@ def set_last_action(switch_id: str, action: str, cooldown_until: str = None) -> 
         state = SwitchRuntimeState(last_action=action)
         _runtime_state[switch_id] = state
 
-    # Persist to file for webserver to read (with timestamp)
-    all_actions = _load_last_actions()
+    # Update in-memory cache and persist to disk
+    global _last_actions_cache
+    if _last_actions_cache is None:
+        _last_actions_cache = _load_last_actions()
     entry = {"action": action, "timestamp": datetime.now().isoformat()}
     if cooldown_until:
         entry["cooldown_until"] = cooldown_until
-    all_actions[switch_id] = entry
-    _save_last_actions(all_actions)
+    _last_actions_cache[switch_id] = entry
+    _save_last_actions(_last_actions_cache)
     logger.debug(f"[LastAction] SET '{switch_id}': {action}")
 
 
 def get_last_action(switch_id: str) -> Optional[dict]:
     """Get the last button action for a switch with timestamp.
 
-    Reads from file to get cross-process state.
-
     Returns:
         dict with 'action' and 'timestamp' keys, or None if not found.
         For backwards compatibility, handles old format (plain string).
     """
-    # Read from file (cross-process)
-    all_actions = _load_last_actions()
-    result = all_actions.get(switch_id)
+    global _last_actions_cache
+    if _last_actions_cache is None:
+        _last_actions_cache = _load_last_actions()
+    result = _last_actions_cache.get(switch_id)
 
     # Handle backwards compatibility (old format was just a string)
     if isinstance(result, str):

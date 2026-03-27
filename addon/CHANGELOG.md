@@ -1,5 +1,16 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.132
+- **Green toggle buttons on area detail**: Circadian, power, freeze, boost buttons use green border on hover/active.
+- **Rhythm cursor stays put**: Cursor on rhythm detail page no longer auto-advances to "now" when user has navigated to a different time. Resets on page load or clicking "Now".
+- **New zone defaults**: Wake/bed brightness 30%, warm night on (2300K, 2hr fade), no-sun max 3600K, coolest 5000K, primary days selected by default.
+- **Controls page filters**: Status and Pause columns get filter dropdowns. Switching field clears prior filter.
+- **Switch map save returns to cheat sheet**: After saving switch map edits, view returns to cheat sheet mode.
+- **Area purge fixes**: Purge now removes areas from switches_config.json (was incorrectly targeting designer config). Prevents deleted areas from reappearing.
+- **Settings page**: Refresh section moved below General.
+- **Controls page optimization**: In-memory cache for last_actions (no disk reads on poll). New `/api/controls/refresh` endpoint returns only last_actions + pause states. Auto-refresh uses home_refresh_interval setting. Switch Map promoted to top-right, removed menu.
+- **Unified action lists**: Magic button assignments on switch detail page now show all actions (not just moments). Fixed moments not appearing on switch map (import bug). Renamed "1×" to "Short", "Glo" to "Circadian". Consistent "No Action" label.
+
 ## 1.0.131
 - **Sync bundled integration to 3.10.3**: The addon's bundled copy of `custom_components/circadian` was stale at 3.10.2, preventing the integration from updating on restart.
 
