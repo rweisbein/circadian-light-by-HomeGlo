@@ -6304,9 +6304,9 @@ class HomeAssistantWebSocketClient:
                         ug = m.get("ungrouped_entities", [])
                         if ug:
                             area_name = m["area"]
-                            area_key = self._normalize_area_key(
-                                area_name
-                            ) or area_name.lower().replace(" ", "_")
+                            normalized_name = area_name.lower().replace(" ", "_")
+                            area_id = self.area_name_to_id.get(normalized_name, normalized_name)
+                            area_key = self._normalize_area_key(area_id)
                             if area_key not in self._ungrouped_lights:
                                 self._ungrouped_lights[area_key] = {
                                     "color": [],

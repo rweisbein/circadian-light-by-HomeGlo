@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.129
+- **Fix ungrouped light turn-off for mismatched area name/id**: `_ungrouped_lights` was keyed by area name (e.g., `sunoffice`) but looked up by area id (e.g., `test_1`). Resolve name → id via `area_name_to_id` so ungrouped ZHA lights are found during turn-off.
+
 ## 1.0.128
 - **Fix sun info panel auto-opening**: Panel div was missing its CSS class, so `display:none` wasn't applied. Content rendered visibly on auto-refresh.
 
