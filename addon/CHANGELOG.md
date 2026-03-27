@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.128
+- **Fix sun info panel auto-opening**: Panel div was missing its CSS class, so `display:none` wasn't applied. Content rendered visibly on auto-refresh.
+
 ## 1.0.127
 - **Fix sun info icon**: Use HTML entity (&#x2600;) instead of JS unicode escape for initial render. Remove buildConditionsPanel from panel content (was rendering inline). Panel shows angle/conditions/intensity + status.
 
