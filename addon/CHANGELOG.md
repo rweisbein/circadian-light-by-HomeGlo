@@ -1,5 +1,11 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.126
+- **Sun info persistent icon**: Sun/cloud icon with intensity % in top-right corner, visible on both tabs. Click opens popup with angle × conditions = intensity breakdown + conditions config. Replaces the Sun section in the multiplier card.
+- **Sun multiplier card simplified**: Now just sensitivity slider + math formula in header.
+- **Color tab: removed cool/warm columns**: Warm night and cool day are now part of the rhythm CT (baked into zone header). Zone header shows final CT from zone-states (matches rhythm page). Area rows show only Shift, Adj, Final.
+- **Sun divider 2x longer**: 80px → 180px.
+
 ## 1.0.125
 - **Fix color tab CT math**: Always compute final CT from formula (base + cool + warm + adj) instead of using stale `last_sent_kelvin`. Fixes wrong final values for off rooms. Zone-synced areas (full send/reset) correctly use zone base, only individually shifted areas derive from last_sent_kelvin.
 

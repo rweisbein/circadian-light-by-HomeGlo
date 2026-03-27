@@ -214,13 +214,34 @@
     .tune-sun-row-label { color: var(--muted2); font-size: 0.75rem; min-width: 70px; flex-shrink: 0; }
     .tune-sun-row-val { font-size: 0.8rem; color: var(--text); white-space: nowrap; }
     .tune-sun-row-op { color: var(--muted2); font-size: 0.75rem; width: 14px; text-align: center; flex-shrink: 0; }
-    .tune-sun-divider { border: none; border-top: 1px solid var(--line); margin: 2px 14px 2px 134px; width: 80px; }
+    .tune-sun-divider { border: none; border-top: 1px solid var(--line); margin: 2px 14px 2px 134px; width: 180px; }
     .tune-sun-result {
       display: flex; align-items: center; gap: 6px;
       padding: 1px 14px 6px 120px; font-size: 0.82rem;
     }
     .tune-sun-result-label { color: var(--text); font-size: 0.75rem; min-width: 70px; flex-shrink: 0; font-weight: 600; }
     .tune-sun-result-val { font-size: 0.85rem; color: var(--text); font-weight: 600; white-space: nowrap; }
+    .tune-sun-info-btn {
+      background: none; border: 1px solid var(--line); color: var(--muted);
+      font-size: 0.8rem; padding: 4px 10px; border-radius: 6px; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 4px; transition: all 0.15s;
+    }
+    .tune-sun-info-btn:hover { color: var(--text); border-color: var(--muted2); background: rgba(255,255,255,0.04); }
+    .tune-sun-info-pct { font-size: 0.75rem; font-weight: 600; }
+    .tune-sun-info-panel {
+      position: absolute; top: 100%; right: 0; margin-top: 4px;
+      min-width: 220px; background: var(--panel);
+      border: 1px solid var(--line); border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      z-index: 150; padding: 10px 14px; display: none;
+    }
+    .tune-sun-info-panel.visible { display: block; }
+    .tune-sun-info-row { display: flex; align-items: center; gap: 6px; padding: 2px 0; font-size: 0.8rem; }
+    .tune-sun-info-label { color: var(--muted2); font-size: 0.72rem; min-width: 70px; }
+    .tune-sun-info-val { color: var(--text); font-weight: 500; }
+    .tune-sun-info-op { color: var(--muted2); font-size: 0.72rem; width: 12px; text-align: center; }
+    .tune-sun-info-divider { border: none; border-top: 1px solid var(--line); margin: 4px 0; width: 120px; }
+    .tune-sun-info-result { font-weight: 600; }
     .tune-sun-conditions-btn {
       display: inline-flex; align-items: center; gap: 4px;
       background: none; border: 1px solid transparent; color: var(--text);
@@ -640,8 +661,6 @@
     .ct-col-header.active-sort { color: var(--accent); }
     .ct-col-area { flex: 1; min-width: 0; }
     .ct-col-shift { flex: 0 0 48px; text-align: center; }
-    .ct-col-cool { flex: 0 0 52px; text-align: center; }
-    .ct-col-warm { flex: 0 0 52px; text-align: center; }
     .ct-col-adj { flex: 0 0 44px; text-align: center; }
     .ct-col-final { flex: 0 0 56px; text-align: right; }
     .ct-area-row {
@@ -694,6 +713,14 @@
     <div class="tune-tabs">
       <button class="tune-tab active" data-tab="brightness" onclick="switchTab('brightness')">Brightness</button>
       <button class="tune-tab" data-tab="color" onclick="switchTab('color')">Color</button>
+      <span style="flex:1;"></span>
+      <div class="tune-outdoor-wrapper" style="display:inline-flex;">
+        <button class="tune-sun-info-btn" id="tune-sun-info-toggle">
+          <span id="tune-sun-info-icon">\u2600</span>
+          <span class="tune-sun-info-pct" id="tune-sun-info-pct"></span>
+        </button>
+        <div id="tune-sun-info-panel"></div>
+      </div>
     </div>
 
     <!-- Brightness Tab -->
@@ -1387,15 +1414,21 @@
       const mathEl = document.getElementById('tune-sensitivity-math');
       if (mathEl) mathEl.textContent = sunBriPct + '% \u00d7 ' + fmtVal(sensitivity) + ' =';
 
-      // Sun rows
-      const angleEl = document.getElementById('tune-sun-angle-val');
-      if (angleEl) angleEl.textContent = anglePct + '%';
-      const condEl = document.getElementById('tune-sun-conditions-val');
-      if (condEl) condEl.textContent = condPct + '%';
-      const condIcon = document.getElementById('tune-sun-conditions-icon');
-      if (condIcon) condIcon.textContent = buildOutdoorIcon(d);
-      const sunBriEl = document.getElementById('tune-sun-brightness-val');
-      if (sunBriEl) sunBriEl.textContent = sunBriPct + '%';
+      // Persistent sun info icon
+      const sunIconEl = document.getElementById('tune-sun-info-icon');
+      if (sunIconEl) sunIconEl.textContent = buildOutdoorIcon(d);
+      const sunPctEl = document.getElementById('tune-sun-info-pct');
+      if (sunPctEl) sunPctEl.textContent = sunBriPct + '%';
+
+      // Sun info panel content
+      const panel = document.getElementById('tune-sun-info-panel');
+      if (panel) {
+        panel.innerHTML = '<div class="tune-sun-info-row"><span class="tune-sun-info-op"></span><span class="tune-sun-info-label">Angle</span><span class="tune-sun-info-val">' + anglePct + '%</span></div>'
+          + '<div class="tune-sun-info-row"><span class="tune-sun-info-op">\u00d7</span><span class="tune-sun-info-label">Conditions</span><span class="tune-sun-info-val">' + buildOutdoorIcon(d) + ' ' + condPct + '%</span></div>'
+          + '<hr class="tune-sun-info-divider">'
+          + '<div class="tune-sun-info-row"><span class="tune-sun-info-op"></span><span class="tune-sun-info-label">Intensity</span><span class="tune-sun-info-val tune-sun-info-result">' + sunBriPct + '%</span></div>'
+          + buildConditionsPanel();
+      }
     }
 
     // ============================================================
@@ -2233,8 +2266,8 @@
 
         html += '<div class="zone-group" style="margin-bottom:8px;">';
 
-        // Zone final CT (base + solar rules)
-        const zoneFinalCt = zoneCurveCt + zoneCoolShift + zoneWarmShift;
+        // Zone final CT — use zone-states kelvin (authoritative, includes warm/cool)
+        const zoneFinalCt = zoneStates?.[zoneName]?.kelvin || (zoneCurveCt + zoneCoolShift + zoneWarmShift);
         const zoneHeaderColor = cctToRGB(zoneFinalCt);
         const zoneHeaderBg = tintColorByBrightness(zoneHeaderColor, 100);
         const zoneHeaderText = readableTextColor(zoneHeaderBg);
@@ -2243,7 +2276,7 @@
         html += '<div class="ct-zone-header zone-header' + (ctIsCollapsed ? ' collapsed' : '') + '" id="ct-zone-header-' + zoneName + '" data-zone="' + zoneName + '" style="background:' + zoneHeaderBg + ';cursor:pointer;" onclick="toggleCtZone(\'' + escapedZone + '\', this)">';
         html += '<span class="zone-chevron" style="color:' + zoneHeaderText + ';">&#x203A;</span>';
         html += '<a class="ct-zone-name" href="./zone/' + escapedZone + '?back=tune" onclick="event.stopPropagation()" style="color:' + zoneHeaderText + ';">' + zoneName + '</a>';
-        html += '<span class="ct-zone-base-ct" id="ct-zone-ct-' + zoneName + '" style="color:' + zoneHeaderText + ';">' + Math.round(zoneCurveCt) + 'K</span>';
+        html += '<span class="ct-zone-base-ct" id="ct-zone-ct-' + zoneName + '" style="color:' + zoneHeaderText + ';">' + Math.round(zoneFinalCt) + 'K</span>';
         html += '</div>';
         html += '<div class="zone-content' + (ctIsCollapsed ? ' hidden' : '') + '" data-zone-table="' + zoneName + '">';
 
@@ -2274,8 +2307,6 @@
         html += '<div class="ct-area-row" style="padding-top:4px;padding-bottom:2px;border-bottom:1px solid var(--line);background:var(--panel);">';
         html += '<span class="ct-col-area ct-col-header' + (ctSortOrder === 'custom' ? ' active-sort' : '') + '" onclick="setCtSort(\'custom\')">Area</span>';
         html += '<span class="ct-col-shift ct-col-header' + (ctSortOrder === 'shift' ? ' active-sort' : '') + '" onclick="setCtSort(\'shift\')">Shift</span>';
-        html += '<span class="ct-col-cool ct-col-header' + (ctSortOrder === 'cool' ? ' active-sort' : '') + '" onclick="setCtSort(\'cool\')">Cool</span>';
-        html += '<span class="ct-col-warm ct-col-header' + (ctSortOrder === 'warm' ? ' active-sort' : '') + '" onclick="setCtSort(\'warm\')">Warm</span>';
         html += '<span class="ct-col-adj ct-col-header' + (ctSortOrder === 'adj' ? ' active-sort' : '') + '" onclick="setCtSort(\'adj\')">Adj</span>';
         html += '<span class="ct-col-final ct-col-header' + (ctSortOrder === 'final' ? ' active-sort' : '') + '" style="text-align:right;" onclick="setCtSort(\'final\')">Final</span>';
         html += '</div>';
@@ -2362,8 +2393,6 @@
           html += '<div class="ct-area-row" id="ct-row-' + areaId + '" style="background:' + rowBg + ';color:' + rowText + ';">';
           html += '<span class="ct-col-area"><a href="./area/' + encodeURIComponent(areaId) + '?from=tune" class="ct-area-name" style="color:' + rowText + ';">' + areaName + '</a></span>';
           html += '<span class="ct-col-shift ct-area-val' + shiftClass + '">' + fmtCtDelta(shift) + '</span>';
-          html += '<span class="ct-col-cool ct-area-val' + coolClass + '" id="ct-cool-' + areaId + '">' + fmtCtDelta(areaCoolShift) + '</span>';
-          html += '<span class="ct-col-warm ct-area-val' + warmClass + '" id="ct-warm-' + areaId + '">' + fmtCtDelta(areaWarmShift) + '</span>';
           html += '<span class="ct-col-adj ct-area-val' + adjClass + '">' + fmtCtDelta(adj) + '</span>';
           html += '<span class="ct-col-final ct-area-final" id="ct-final-' + areaId + '">' + Math.round(finalKelvin) + 'K</span>';
           html += '</div>';
@@ -2518,30 +2547,8 @@
             <span class="tune-sensitivity-val" id="tune-sensitivity-summary">${fmtSunMultiplier(sunMult)}</span>
           </div>
           <div class="tune-sensitivity-body" id="tune-sensitivity-body">
-            <div class="tune-sensitivity-section-label">Sun</div>
-            <div class="tune-sun-row">
-              <span class="tune-sun-row-op"></span>
-              <span class="tune-sun-row-label">Angle</span>
-              <span class="tune-sun-row-val" id="tune-sun-angle-val">${anglePct}%</span>
-            </div>
-            <div class="tune-sun-row tune-outdoor-wrapper">
-              <span class="tune-sun-row-op">\u00d7</span>
-              <span class="tune-sun-row-label">Conditions</span>
-              <span class="tune-sun-row-val" id="tune-sun-conditions-val">${condPct}%</span>
-              <button class="tune-sun-conditions-btn" id="tune-outdoor-toggle">
-                <span class="tune-sun-conditions-icon" id="tune-sun-conditions-icon">${condIcon}</span>
-                <span class="tune-sun-conditions-chevron">&#x203A;</span>
-              </button>
-              ${buildConditionsPanel()}
-            </div>
-            <hr class="tune-sun-divider">
-            <div class="tune-sun-result">
-              <span class="tune-sun-row-op"></span>
-              <span class="tune-sun-result-label">Intensity</span>
-              <span class="tune-sun-result-val" id="tune-sun-brightness-val">${sunBriPct}%</span>
-            </div>
-            <div class="tune-sensitivity-section-label">Sensitivity</div>
             <div class="tune-sensitivity-slider-row">
+              <span class="tune-zone-ctrl-label" style="margin-right:4px;">Sensitivity</span>
               <input type="range" class="tune-sensitivity-slider" id="tune-global-sensitivity" min="0" max="8" step="1" value="${tuneSensStep}" onclick="event.stopPropagation()">
               <span class="tune-zone-ctrl-word tune-sensitivity-word" id="tune-global-sensitivity-word">${SENSITIVITY_STEPS[tuneSensStep].label}</span>
               <span class="tune-zone-ctrl-val" id="tune-global-sensitivity-val">${fmtVal(snappedSens)}</span>
@@ -2959,6 +2966,20 @@
         _autoRefreshTimer = setInterval(autoRefresh, 3000);
       }
     }
+
+    // Sun info panel toggle
+    document.addEventListener('click', (e) => {
+      const toggle = e.target.closest('#tune-sun-info-toggle');
+      const panel = document.getElementById('tune-sun-info-panel');
+      if (toggle && panel) {
+        e.stopPropagation();
+        panel.classList.toggle('visible');
+        return;
+      }
+      if (panel && !e.target.closest('#tune-sun-info-panel') && !e.target.closest('.tune-outdoor-panel')) {
+        panel.classList.remove('visible');
+      }
+    });
 
     document.addEventListener('DOMContentLoaded', () => {
       setupEventListeners();
