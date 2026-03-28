@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.146
+- **Fix double bounce on reach path**: Non-reach all-at-limit check was outside the else block, causing it to run after the reach path bounce too. Fixed indentation for step and bright. Added all-at-limit bounce for color up/down multi-area.
+
 ## 1.0.145
 - **Fix multi-area bounce**: Per-area bounce now suppressed for multi-area reaches; only bounces when ALL areas hit the limit. Prevents false bounces when one area maxes out but others still adjust.
 - **Remove dead color_up/color_down code**: Old midpoint-shift versions were shadowed by override+decay versions. Removed ~200 lines of dead code.

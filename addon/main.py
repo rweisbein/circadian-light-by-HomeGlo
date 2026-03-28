@@ -1935,14 +1935,14 @@ class HomeAssistantWebSocketClient:
                             for area in areas
                         ]
                     )
-                on_areas = [a for a in areas if state.get_is_on(a)]
-                at_limit = on_areas and all(
-                    r is None for a, r in zip(areas, results) if a in on_areas
-                )
-                if at_limit:
-                    if switch_id:
-                        await self._feedback_cue(switch_id, "bounce", direction="up", bounce_type="step")
-                    return "at_limit"
+                    on_areas = [a for a in areas if state.get_is_on(a)]
+                    at_limit = on_areas and all(
+                        r is None for a, r in zip(areas, results) if a in on_areas
+                    )
+                    if at_limit:
+                        if switch_id:
+                            await self._feedback_cue(switch_id, "bounce", direction="up", bounce_type="step")
+                        return "at_limit"
             else:
                 await execute_when_off()
 
@@ -1975,14 +1975,14 @@ class HomeAssistantWebSocketClient:
                             for area in areas
                         ]
                     )
-                on_areas = [a for a in areas if state.get_is_on(a)]
-                at_limit = on_areas and all(
-                    r is None for a, r in zip(areas, results) if a in on_areas
-                )
-                if at_limit:
-                    if switch_id:
-                        await self._feedback_cue(switch_id, "bounce", direction="down", bounce_type="step")
-                    return "at_limit"
+                    on_areas = [a for a in areas if state.get_is_on(a)]
+                    at_limit = on_areas and all(
+                        r is None for a, r in zip(areas, results) if a in on_areas
+                    )
+                    if at_limit:
+                        if switch_id:
+                            await self._feedback_cue(switch_id, "bounce", direction="down", bounce_type="step")
+                        return "at_limit"
             else:
                 await execute_when_off()
 
@@ -2017,14 +2017,14 @@ class HomeAssistantWebSocketClient:
                             for area in areas
                         ]
                     )
-                on_areas = [a for a in areas if state.get_is_on(a)]
-                at_limit = on_areas and all(
-                    r is None for a, r in zip(areas, results) if a in on_areas
-                )
-                if at_limit:
-                    if switch_id:
-                        await self._feedback_cue(switch_id, "bounce", direction="up", bounce_type="bright")
-                    return "at_limit"
+                    on_areas = [a for a in areas if state.get_is_on(a)]
+                    at_limit = on_areas and all(
+                        r is None for a, r in zip(areas, results) if a in on_areas
+                    )
+                    if at_limit:
+                        if switch_id:
+                            await self._feedback_cue(switch_id, "bounce", direction="up", bounce_type="bright")
+                        return "at_limit"
             else:
                 await execute_when_off()
 
@@ -2059,14 +2059,14 @@ class HomeAssistantWebSocketClient:
                             for area in areas
                         ]
                     )
-                on_areas = [a for a in areas if state.get_is_on(a)]
-                at_limit = on_areas and all(
-                    r is None for a, r in zip(areas, results) if a in on_areas
-                )
-                if at_limit:
-                    if switch_id:
-                        await self._feedback_cue(switch_id, "bounce", direction="down", bounce_type="bright")
-                    return "at_limit"
+                    on_areas = [a for a in areas if state.get_is_on(a)]
+                    at_limit = on_areas and all(
+                        r is None for a, r in zip(areas, results) if a in on_areas
+                    )
+                    if at_limit:
+                        if switch_id:
+                            await self._feedback_cue(switch_id, "bounce", direction="down", bounce_type="bright")
+                        return "at_limit"
             else:
                 await execute_when_off()
 
@@ -2088,9 +2088,16 @@ class HomeAssistantWebSocketClient:
                     )
                 else:
                     multi = len(areas) > 1
-                    await asyncio.gather(
+                    results = await asyncio.gather(
                         *[self.primitives.color_up(area, "switch", skip_bounce=multi) for area in areas]
                     )
+                    if multi:
+                        on_areas = [a for a in areas if state.get_is_on(a)]
+                        at_limit = on_areas and all(
+                            r is None for a, r in zip(areas, results) if a in on_areas
+                        )
+                        if at_limit and switch_id:
+                            await self._feedback_cue(switch_id, "bounce", direction="up", bounce_type="color")
             else:
                 await execute_when_off()
 
@@ -2112,9 +2119,16 @@ class HomeAssistantWebSocketClient:
                     )
                 else:
                     multi = len(areas) > 1
-                    await asyncio.gather(
+                    results = await asyncio.gather(
                         *[self.primitives.color_down(area, "switch", skip_bounce=multi) for area in areas]
                     )
+                    if multi:
+                        on_areas = [a for a in areas if state.get_is_on(a)]
+                        at_limit = on_areas and all(
+                            r is None for a, r in zip(areas, results) if a in on_areas
+                        )
+                        if at_limit and switch_id:
+                            await self._feedback_cue(switch_id, "bounce", direction="down", bounce_type="color")
             else:
                 await execute_when_off()
 
