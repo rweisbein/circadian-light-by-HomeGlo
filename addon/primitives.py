@@ -4964,12 +4964,13 @@ class CircadianLightPrimitives:
         bounce_bri = bounce_type in ("step", "bright")
         bounce_color = bounce_type in ("step", "color")
 
-        # Brightness bounce target in HA 0-255 space
+        # Brightness bounce target in HA 0-255 space (% of full range, not % of current)
         if bounce_bri:
+            delta = int(bounce_percent * 255)
             if direction == "up":
-                target_visible = max(1, int(visible_bri * (1.0 - bounce_percent)))
+                target_visible = max(1, visible_bri - delta)
             else:
-                target_visible = min(255, int(visible_bri * (1.0 + bounce_percent)))
+                target_visible = min(255, visible_bri + delta)
         else:
             target_visible = visible_bri
 

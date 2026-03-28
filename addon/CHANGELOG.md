@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.143
+- **Fix limit bounce at low brightness**: Bounce math was using "% of current brightness" instead of "% of full range", making bounces invisible at low levels (e.g., 1-unit change at 5/255). Now uses range-based delta. Regression from v1.0.85.
+- **Fix sun saturation settings not saving**: `sun_saturation` and `sun_saturation_ramp` were missing from GLOBAL_SETTINGS, causing them to be silently dropped on save.
+
 ## 1.0.142
 - **Fix tick suppression after light actions**: The 3-second quiet period after button presses was bypassed when burst refreshes were active, allowing ticks to fire immediately after switch actions. Now ALL ticks (burst and periodic) are unconditionally suppressed for the full post_switch_refresh delay after any light action.
 

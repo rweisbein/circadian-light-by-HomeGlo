@@ -1765,6 +1765,8 @@ class LightDesignerServer:
         "use_ha_location",
         "month",
         "brightness_sensitivity",
+        "sun_saturation",  # Sun intensity saturation cap (1-100, default 25)
+        "sun_saturation_ramp",  # Ramp curve: 'linear' or 'squared' (default linear)
         "turn_on_transition",  # Transition time in tenths of seconds for turn-on operations
         "turn_off_transition",  # Transition time in tenths of seconds for turn-off operations
         "two_step_delay",  # Delay between two-step phases in tenths of seconds (default 3 = 300ms)

@@ -2537,12 +2537,13 @@ class HomeAssistantWebSocketClient:
                 bounce_bri = bounce_type in ("step", "bright")
                 bounce_color = bounce_type in ("step", "color")
 
-                # Brightness target in visible space
+                # Brightness target in visible space (% of full range, not % of current)
                 if bounce_bri:
+                    delta = int(bounce_pct * 255)
                     if direction == "up":
-                        target_bri = max(1, int(cached_bri * (1.0 - bounce_pct)))
+                        target_bri = max(1, cached_bri - delta)
                     else:
-                        target_bri = min(255, int(cached_bri * (1.0 + bounce_pct)))
+                        target_bri = min(255, cached_bri + delta)
                 else:
                     target_bri = cached_bri
 
