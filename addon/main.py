@@ -3065,7 +3065,13 @@ class HomeAssistantWebSocketClient:
         delay. Each call resets the counter and delay timer.
         """
         self._last_light_action_time = time.time()
-        self._post_action_refreshes_remaining = 3
+        try:
+            raw_config = glozone.load_config_from_files()
+            burst_count = int(raw_config.get("post_action_burst_count", 3))
+            burst_count = max(0, min(3, burst_count))
+        except Exception:
+            burst_count = 3
+        self._post_action_refreshes_remaining = burst_count
 
         # Cancel any pending initial delay and restart
         if (

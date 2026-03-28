@@ -532,6 +532,17 @@
 
         <div class="form-row">
           <label class="form-label">
+            Post-switch burst count
+            <span class="info-icon">i<span class="info-tooltip">Number of shortened tick refreshes after a switch action. These catch lights that missed the initial command. Set to 0 to disable burst refreshes entirely (only the normal periodic tick will refresh).</span></span>
+          </label>
+          <div class="form-control">
+            <input type="number" class="form-input" id="post-action-burst-count" min="0" max="3" step="1" value="3" style="width: 80px;">
+            <span class="form-hint">0-3 refreshes</span>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">
             Periodic transition speed
             <span class="info-icon">i<span class="info-tooltip">How smoothly lights transition during periodic circadian updates. Day speed applies when the sun is up, night speed when the sun is down. Higher values = slower, smoother transitions.</span></span>
           </label>
@@ -1080,6 +1091,7 @@
           document.getElementById('boost-return-transition').value = config.boost_return_transition ?? 60;
           document.getElementById('two-step-delay').value = config.two_step_delay ?? 3;
           document.getElementById('post-switch-refresh').value = config.post_switch_refresh ?? 30;
+          document.getElementById('post-action-burst-count').value = config.post_action_burst_count ?? 3;
           document.getElementById('multi-click-enabled').checked = config.multi_click_enabled ?? true;
           document.getElementById('multi-click-speed').value = config.multi_click_speed ?? 10;
           document.getElementById('long-press-repeat-interval').value = config.long_press_repeat_interval ?? 7;
@@ -1185,6 +1197,7 @@
         boost_return_transition: parseFloat(document.getElementById('boost-return-transition').value) || 60,
         two_step_delay: parseFloat(document.getElementById('two-step-delay').value) || 3,
         post_switch_refresh: parseInt(document.getElementById('post-switch-refresh').value) || 30,
+        post_action_burst_count: parseInt(document.getElementById('post-action-burst-count').value) ?? 3,
         multi_click_enabled: document.getElementById('multi-click-enabled').checked,
         multi_click_speed: parseFloat(document.getElementById('multi-click-speed').value) || 10,
         long_press_repeat_interval: parseFloat(document.getElementById('long-press-repeat-interval').value) || 7,
@@ -1472,6 +1485,7 @@
     document.getElementById('boost-return-transition').addEventListener('blur', saveSettings);
     document.getElementById('two-step-delay').addEventListener('blur', saveSettings);
     document.getElementById('post-switch-refresh').addEventListener('blur', saveSettings);
+    document.getElementById('post-action-burst-count').addEventListener('blur', saveSettings);
     document.getElementById('multi-click-enabled').addEventListener('change', () => {
       updateMultiClickState();
       saveSettings();

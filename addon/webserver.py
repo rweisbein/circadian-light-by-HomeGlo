@@ -1781,6 +1781,7 @@ class LightDesignerServer:
         "limit_warning_speed",  # Transition time in tenths of seconds for limit bounce animation (default 3 = 0.3s)
         "limit_bounce_max_percent",  # Percentage of range to dip when hitting max limit (default 30)
         "limit_bounce_min_percent",  # Percentage of range to flash when hitting min limit (default 10)
+        "post_action_burst_count",  # Number of burst refreshes after switch actions (0-3, default 3)
         "reach_daytime_threshold",  # Brightness % below which reach feedback flashes UP when NL > 0 (default 50)
         "reach_feedback_enabled",  # Whether reach scope changes flash lights (default true)
         "boost_default",  # Default boost percentage (10-100, default 30)
@@ -1997,6 +1998,7 @@ class LightDesignerServer:
             "limit_bounce_max_percent": 30,  # % of range (hitting max)
             "limit_bounce_min_percent": 10,  # % of range (hitting min)
             # Reach feedback
+            "post_action_burst_count": 3,  # 0-3 burst refreshes after actions
             "reach_feedback_enabled": True,  # Flash lights on reach change
             "reach_daytime_threshold": 50,  # % brightness
             "reach_learn_mode": True,  # Use single indicator light for reach feedback
@@ -2097,6 +2099,7 @@ class LightDesignerServer:
             "limit_warning_speed": 3,  # tenths of seconds (0.3s)
             "limit_bounce_max_percent": 30,  # % of range (hitting max)
             "limit_bounce_min_percent": 10,  # % of range (hitting min)
+            "post_action_burst_count": 3,
             # Reach feedback
             "reach_feedback_enabled": True,
             "reach_daytime_threshold": 50,  # % brightness
