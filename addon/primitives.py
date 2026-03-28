@@ -4771,17 +4771,20 @@ class CircadianLightPrimitives:
         else:
             target_visible = visible_bri
 
-        # Color bounce target
-        color_range = config.max_color_temp - config.min_color_temp
-        color_delta = (bounce_percent * color_range) if bounce_color else 0
-        if direction == "up":
-            target_color = max(config.min_color_temp, int(current_color - color_delta))
-        else:
-            target_color = min(config.max_color_temp, int(current_color + color_delta))
-        if not bounce_color:
-            target_color = current_color
-
+        # Color bounce target using xy (works across full Kelvin range)
+        from brain import CircadianLight as CL
         include_color = bounce_type in ("step", "color")
+        phase1_xy = None
+        restore_xy = None
+        if include_color and bounce_color:
+            color_range = config.max_color_temp - config.min_color_temp
+            color_delta = int(bounce_percent * color_range)
+            if direction == "up":
+                target_color = max(config.min_color_temp, int(current_color - color_delta))
+            else:
+                target_color = min(config.max_color_temp, int(current_color + color_delta))
+            phase1_xy = list(CL.color_temperature_to_xy(target_color))
+            restore_xy = list(CL.color_temperature_to_xy(current_color))
 
         # Build clean HA targets (strip metadata like filter_name)
         ha_targets = []
@@ -4800,8 +4803,8 @@ class CircadianLightPrimitives:
             phase1_tasks = []
             for target in ha_targets:
                 sdata = {"brightness": target_visible, "transition": limit_speed}
-                if include_color:
-                    sdata["color_temp_kelvin"] = max(2000, target_color)
+                if phase1_xy:
+                    sdata["xy_color"] = phase1_xy
                 phase1_tasks.append(
                     self.client.call_service("light", "turn_on", sdata, target=target)
                 )
@@ -4812,8 +4815,8 @@ class CircadianLightPrimitives:
             phase2_tasks = []
             for target in ha_targets:
                 rdata = {"brightness": visible_bri, "transition": limit_speed}
-                if include_color:
-                    rdata["color_temp_kelvin"] = max(2000, current_color)
+                if restore_xy:
+                    rdata["xy_color"] = restore_xy
                 phase2_tasks.append(
                     self.client.call_service("light", "turn_on", rdata, target=target)
                 )

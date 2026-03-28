@@ -2583,20 +2583,23 @@ class HomeAssistantWebSocketClient:
 
                 # Color target
                 phase1_data = {"brightness": target_bri, "transition": limit_speed}
+                restore_xy = None
                 if bounce_color:
-                    # Shift color temp for visual effect
+                    # Shift color for visual effect using xy (works across full Kelvin range)
                     last_kelvin = (
                         state.get_last_sent_kelvin(feedback_area) if feedback_area else None
                     )
-                    current_ct = int(1000000 / last_kelvin) if last_kelvin else None
-                    if current_ct:
+                    if last_kelvin:
+                        from brain import CircadianLight as CL
                         config = Config.from_dict(glozone.get_config())
                         ct_range = config.max_color_temp - config.min_color_temp
-                        ct_delta = int(bounce_pct * ct_range)
+                        kelvin_delta = int(bounce_pct * ct_range)
                         if direction == "up":
-                            phase1_data["color_temp"] = max(153, current_ct + ct_delta)
+                            shifted_kelvin = max(500, last_kelvin - kelvin_delta)
                         else:
-                            phase1_data["color_temp"] = min(500, current_ct - ct_delta)
+                            shifted_kelvin = min(6500, last_kelvin + kelvin_delta)
+                        phase1_data["xy_color"] = list(CL.color_temperature_to_xy(shifted_kelvin))
+                        restore_xy = list(CL.color_temperature_to_xy(last_kelvin))
 
                 # Phase 1: dip/flash
                 await self.call_service("light", "turn_on", phase1_data, target=target)
@@ -2604,8 +2607,8 @@ class HomeAssistantWebSocketClient:
 
                 # Phase 2: restore cached (brightness + color)
                 restore_data = {"brightness": cached_bri, "transition": limit_speed}
-                if bounce_color and current_ct:
-                    restore_data["color_temp"] = current_ct
+                if restore_xy:
+                    restore_data["xy_color"] = restore_xy
                 await self.call_service("light", "turn_on", restore_data, target=target)
 
                 logger.info(
