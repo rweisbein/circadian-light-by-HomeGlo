@@ -5008,8 +5008,10 @@ class CircadianLightPrimitives:
             )
         await asyncio.gather(*phase2_tasks)
 
+        target_entity = feedback_target.get("entity_id", feedback_target.get("area_id", "?")) if feedback_target else "none"
         logger.info(
             f"Limit bounce ({bounce_type} {direction}) for {area_id}: "
+            f"target={target_entity}, "
             f"visible {visible_bri}/255 -> {target_visible}/255 -> restore"
         )
 

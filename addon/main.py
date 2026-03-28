@@ -1843,7 +1843,7 @@ class HomeAssistantWebSocketClient:
         # Resolve and store feedback target for visual cues (bounce, etc.)
         self._active_feedback_target = self._resolve_feedback_target(switch_id)
         switch_name = getattr(switches.get_switch(switch_id), "name", switch_id)
-        logger.debug(
+        logger.info(
             f"[Switch] {switch_name} ({switch_id}): feedback_target={self._active_feedback_target}"
         )
 
@@ -2573,6 +2573,7 @@ class HomeAssistantWebSocketClient:
 
                 logger.info(
                     f"Feedback bounce ({bounce_type} {direction}): "
+                    f"area={feedback_area}, purpose={feedback_filter}, "
                     f"{cached_bri}/255 -> {target_bri}/255 -> restore"
                 )
 
@@ -2593,7 +2594,10 @@ class HomeAssistantWebSocketClient:
                     {"brightness": cached_bri, "transition": limit_speed},
                     target=target,
                 )
-                logger.info(f"Feedback freeze: {cached_bri}/255 -> dim -> restore")
+                logger.info(
+                    f"Feedback freeze: area={feedback_area}, purpose={feedback_filter}, "
+                    f"{cached_bri}/255 -> dim -> restore"
+                )
 
             elif cue_type == "reach":
                 # Check global reach feedback setting
@@ -2649,6 +2653,7 @@ class HomeAssistantWebSocketClient:
                     )
                 logger.info(
                     f"Feedback reach: {scope_number} flash(es), "
+                    f"area={feedback_area}, purpose={feedback_filter}, "
                     f"flash_up={flash_up}, bri={bri_pct:.0f}%"
                 )
 

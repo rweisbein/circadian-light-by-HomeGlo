@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.138
+- **Improved feedback logging**: All feedback cues (bounce, freeze, reach) now log area and purpose. Feedback target resolution logged at info level instead of invisible debug level. Bounce logs target entity.
+
 ## 1.0.137
 - **Feedback always in target reach**: All feedback cues (reach, bounce, freeze) now flash in the active reach's starred feedback area, not the switch's physical location.
 - **Star on all reaches**: Feedback star shows on single-area reaches too for visual consistency.
