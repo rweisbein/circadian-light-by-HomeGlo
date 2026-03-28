@@ -1,5 +1,11 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.152
+- **Tune page: sort preserves unsaved changes**: Slider positions captured and restored across sort re-renders.
+- **Tune page: sticky zone headers**: Zone headers with column labels stick to top while scrolling.
+- **Fix zone K on color page**: Zone header was showing curve CT instead of final CT (missing warm night/cool day shifts).
+- **Tune page: save button feedback**: Shows "Saving..." immediately on click, reverts when done.
+
 ## 1.0.151
 - **Standardized balance and solar sliders**: Area balance now uses 9 direct factor steps (0.60–1.40) with rounder numbers and tighter range. Solar exposure aligned to 9 steps (0–2.0) matching sun sensitivity ticks. Both on area detail and tune pages. Existing values convert to closest tick.
 - **Fix bright bounce cancelled by hold release**: All bounce cues now run as detached tasks so button release can't cancel them mid-flash.

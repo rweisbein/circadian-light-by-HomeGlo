@@ -258,6 +258,9 @@
       flex-wrap: wrap;
       padding-bottom: 2px;
       cursor: default;
+      position: sticky;
+      top: 56px;
+      z-index: 10;
     }
     .tune-zone-header:hover {
       background: var(--panel);
@@ -742,7 +745,7 @@
 
   <div class="page-action-bar" id="tune-page-action-bar" style="display:none;">
     <button class="section-cancel-btn" onclick="cancelAllTuneChanges()">Cancel</button>
-    <button class="section-save-btn" onclick="saveAllTuneChanges()">Save</button>
+    <button class="section-save-btn" id="tune-save-btn" onclick="saveAllTuneChanges()">Save</button>
   </div>
 
   <script>
@@ -1212,6 +1215,8 @@
 
     async function saveAllTuneChanges() {
       if (!tuneSnapshot) return;
+      const btn = document.getElementById('tune-save-btn');
+      if (btn) { btn.textContent = 'Saving...'; btn.disabled = true; btn.style.opacity = '0.6'; }
       const promises = [];
       const sensEl = document.getElementById('tune-global-sensitivity');
       if (sensEl && parseInt(sensEl.value) !== tuneSnapshot.sensitivityStep) {
@@ -1253,6 +1258,7 @@
       await Promise.all(promises);
       if (hasColorChanges()) await saveColorChanges();
       captureTuneSnapshot();
+      if (btn) { btn.textContent = 'Save'; btn.disabled = false; btn.style.opacity = ''; }
       updateTuneActionBar();
       showTuneSaved();
     }
@@ -1318,6 +1324,19 @@
     // Sort
     // ============================================================
     function setTuneSort(sort) {
+      // Capture unsaved slider positions before re-render
+      const sliderState = {};
+      document.querySelectorAll('.tune-area').forEach(el => {
+        const areaId = el.dataset.areaId;
+        const lumen = el.querySelector('.tune-lumen-slider');
+        const solar = el.querySelector('.tune-solar-slider');
+        if (lumen || solar) {
+          sliderState[areaId] = {
+            lumen: lumen ? parseInt(lumen.value) : null,
+            solar: solar ? parseInt(solar.value) : null,
+          };
+        }
+      });
       if (tuneSortOrder === sort) {
         tuneSortAsc = !tuneSortAsc;
       } else {
@@ -1327,6 +1346,20 @@
       localStorage.setItem('tune_sort_order', sort);
       localStorage.setItem('tune_sort_asc', tuneSortAsc ? '1' : '0');
       renderTune();
+      // Restore slider positions after re-render
+      for (const [areaId, vals] of Object.entries(sliderState)) {
+        const el = document.querySelector(`.tune-area[data-area-id="${areaId}"]`);
+        if (!el) continue;
+        if (vals.lumen !== null) {
+          const lumen = el.querySelector('.tune-lumen-slider');
+          if (lumen) lumen.value = vals.lumen;
+        }
+        if (vals.solar !== null) {
+          const solar = el.querySelector('.tune-solar-slider');
+          if (solar) solar.value = vals.solar;
+        }
+      }
+      updateTuneActionBar();
     }
 
     // ============================================================
@@ -2148,7 +2181,7 @@
       const zhBg = tintColorByBrightness(zhColor, 100);
       const zhText = readableTextColor(zhBg);
       if (zoneCtEl) {
-        zoneCtEl.textContent = Math.round(zoneCurveCt) + 'K';
+        zoneCtEl.textContent = Math.round(zoneFinalCt) + 'K';
         zoneCtEl.style.color = zhText;
       }
       const zoneHeaderEl = document.getElementById('ct-zone-header-' + zoneName);
