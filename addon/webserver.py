@@ -1156,6 +1156,9 @@ class LightDesignerServer:
 
             if self.client:
                 await self.client.handle_config_refresh()
+                # Re-sync ZHA groups — purpose change affects group membership
+                await self.client.run_manual_sync()
+                logger.info("Device sync triggered after purpose change")
 
             return web.json_response({"status": "ok"})
         except Exception as e:

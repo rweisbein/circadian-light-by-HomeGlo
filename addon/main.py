@@ -2639,15 +2639,21 @@ class HomeAssistantWebSocketClient:
                             "light", "turn_off", {"transition": 0}, target=target
                         )
                     await asyncio.sleep(0.3)
-                    await self.call_service(
-                        "light",
-                        "turn_on",
-                        {"brightness": cached_bri, "transition": 0},
-                        target=target,
-                    )
+                    # Restore: if lights were off, go back to off between flashes
+                    if was_on:
+                        await self.call_service(
+                            "light",
+                            "turn_on",
+                            {"brightness": cached_bri, "transition": 0},
+                            target=target,
+                        )
+                    else:
+                        await self.call_service(
+                            "light", "turn_off", {"transition": 0}, target=target
+                        )
                     await asyncio.sleep(0.3)
 
-                # Restore final state
+                # Restore final state (if was on, already at cached_bri from last loop)
                 if not was_on:
                     await self.call_service(
                         "light", "turn_off", {"transition": 0}, target=target

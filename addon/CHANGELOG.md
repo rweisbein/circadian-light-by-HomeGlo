@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.144
+- **Fix reach flash when lights off**: Between-flash restore now goes to off (not cached brightness) when lights were off, preventing visible brightness between flashes.
+- **Sync ZHA groups on purpose change**: Changing a light's purpose now triggers a full device sync so ZHA group membership updates immediately.
+
 ## 1.0.143
 - **Fix limit bounce at low brightness**: Bounce math was using "% of current brightness" instead of "% of full range", making bounces invisible at low levels (e.g., 1-unit change at 5/255). Now uses range-based delta. Regression from v1.0.85.
 - **Fix sun saturation settings not saving**: `sun_saturation` and `sun_saturation_ramp` were missing from GLOBAL_SETTINGS, causing them to be silently dropped on save.
