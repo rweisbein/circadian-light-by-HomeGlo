@@ -5012,7 +5012,8 @@ class CircadianLightPrimitives:
         logger.info(
             f"Limit bounce ({bounce_type} {direction}) for {area_id}: "
             f"target={target_entity}, "
-            f"visible {visible_bri}/255 -> {target_visible}/255 -> restore"
+            f"visible {visible_bri}/255 -> {target_visible}/255 -> restore, "
+            f"speed={limit_speed}s, delay={two_step_delay}s"
         )
 
     async def _standard_brightness_step(

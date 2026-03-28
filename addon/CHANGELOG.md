@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.139
+- **Debug bounce timing**: Bounce log now includes speed and delay values to diagnose invisible bounces.
+
 ## 1.0.138
 - **Improved feedback logging**: All feedback cues (bounce, freeze, reach) now log area and purpose. Feedback target resolution logged at info level instead of invisible debug level. Bounce logs target entity.
 
