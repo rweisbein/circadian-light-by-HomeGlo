@@ -584,6 +584,8 @@
       display: flex; align-items: center; gap: 8px;
       padding: 12px 14px; cursor: pointer; user-select: none;
       transition: background 0.2s; border-radius: 10px 10px 0 0;
+      position: sticky; top: 56px; z-index: 10;
+      flex-wrap: wrap;
     }
     .ct-zone-header:hover { filter: brightness(1.1); }
     .ct-zone-name { font-weight: 700; font-size: 1.05rem; color: var(--text); text-decoration: none; }
@@ -2314,6 +2316,15 @@
         html += '<span class="zone-chevron" style="color:' + zoneHeaderText + ';">&#x203A;</span>';
         html += '<a class="ct-zone-name" href="./zone/' + escapedZone + '?back=tune" onclick="event.stopPropagation()" style="color:' + zoneHeaderText + ';">' + zoneName + '</a>';
         html += '<span class="ct-zone-base-ct" id="ct-zone-ct-' + zoneName + '" style="color:' + zoneHeaderText + ';">' + Math.round(zoneFinalCt) + 'K</span>';
+        if (!ctIsCollapsed) {
+        // Column headers inside sticky zone header
+        html += '<div class="ct-area-row" style="padding-top:4px;padding-bottom:2px;border-bottom:1px solid var(--line);width:100;" onclick="event.stopPropagation()">';
+        html += '<span class="ct-col-area ct-col-header' + (ctSortOrder === 'custom' ? ' active-sort' : '') + '" onclick="setCtSort(\'custom\')">Area</span>';
+        html += '<span class="ct-col-shift ct-col-header' + (ctSortOrder === 'shift' ? ' active-sort' : '') + '" onclick="setCtSort(\'shift\')">Shift</span>';
+        html += '<span class="ct-col-adj ct-col-header' + (ctSortOrder === 'adj' ? ' active-sort' : '') + '" onclick="setCtSort(\'adj\')">Adj</span>';
+        html += '<span class="ct-col-final ct-col-header' + (ctSortOrder === 'final' ? ' active-sort' : '') + '" style="text-align:right;" onclick="setCtSort(\'final\')">Final</span>';
+        html += '</div>';
+        }
         html += '</div>';
         html += '<div class="zone-content' + (ctIsCollapsed ? ' hidden' : '') + '" data-zone-table="' + zoneName + '">';
 
@@ -2338,14 +2349,6 @@
         html += '<input type="range" class="ct-sensitivity-slider tune-sensitivity-slider" id="ct-sens-' + zoneName + '" min="0" max="8" step="1" value="' + sensStep + '">';
         html += '<span class="ct-sensitivity-val" id="ct-sens-val-' + zoneName + '">' + SENSITIVITY_STEPS[sensStep].label + ' ' + fmtVal(snappedSens) + '</span>';
         html += '</div>';
-        html += '</div>';
-
-        // Column headers
-        html += '<div class="ct-area-row" style="padding-top:4px;padding-bottom:2px;border-bottom:1px solid var(--line);background:var(--panel);">';
-        html += '<span class="ct-col-area ct-col-header' + (ctSortOrder === 'custom' ? ' active-sort' : '') + '" onclick="setCtSort(\'custom\')">Area</span>';
-        html += '<span class="ct-col-shift ct-col-header' + (ctSortOrder === 'shift' ? ' active-sort' : '') + '" onclick="setCtSort(\'shift\')">Shift</span>';
-        html += '<span class="ct-col-adj ct-col-header' + (ctSortOrder === 'adj' ? ' active-sort' : '') + '" onclick="setCtSort(\'adj\')">Adj</span>';
-        html += '<span class="ct-col-final ct-col-header' + (ctSortOrder === 'final' ? ' active-sort' : '') + '" style="text-align:right;" onclick="setCtSort(\'final\')">Final</span>';
         html += '</div>';
 
         // Sort areas
@@ -2406,8 +2409,8 @@
             }
             areaCoolShift = (cTarget > baseKelvin && coolEnabled) ? Math.round((cTarget - baseKelvin) * dBlend) : 0;
             areaWarmShift = warmEnabled ? -Math.round(Math.max(0, baseKelvin - wTarget) * nightStr) : 0;
-            // Always compute final from formula for consistency
-            finalKelvin = baseKelvin + areaCoolShift + areaWarmShift + adj;
+            // Use API kelvin as authoritative final (solar cache may be stale)
+            finalKelvin = as?.kelvin || (baseKelvin + areaCoolShift + areaWarmShift + adj);
           } else {
             baseKelvin = as?.base_kelvin || zoneCurveCt;
             const areaSb = as?.solar_breakdown || {};

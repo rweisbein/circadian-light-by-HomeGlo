@@ -1,5 +1,10 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.155
+- **Fix color tab area K values**: Area rows now use authoritative `kelvin` from API instead of recomputing from solar cache (which could be stale for warm night timing). Aligns with area detail page.
+- **Sticky color tab headers**: Color tab zone header + column headers now sticky on scroll.
+- **Fix Live Design fade**: Added 2.2s delay after fade-to-off before applying live values, so the fade is visible.
+
 ## 1.0.154
 - **Fix sun saturation not loaded on startup**: `init()` in lux_tracker wasn't reading `sun_saturation` and `sun_saturation_ramp` from config, always using default 25%. Caused lights to be too dim on restart until settings were touched.
 - **Fix sticky column headers on tune page**: Column headers moved inside the sticky zone header so they persist during scroll.

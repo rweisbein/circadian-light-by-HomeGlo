@@ -4449,6 +4449,8 @@ function setupLiveDesign() {
           statusEl.classList.add('active');
         }
         await setCircadianMode(newAreaId, false);
+        // Wait for fade-to-off to complete before applying live values
+        await new Promise(r => setTimeout(r, 2200));
         // Apply current cursor position if set with 3s transition
         liveDesignFirstApply = true;
         if (cursorHour !== null) {
