@@ -1739,6 +1739,7 @@ class HomeAssistantWebSocketClient:
         # Check if ALL on-areas are at limit
         on_areas = [a for a in areas if state.get_is_on(a)]
         at_limit = [a for a, r in zip(areas, results) if r is None and a in on_areas]
+        logger.info(f"[bright reach bounce check] on_areas={on_areas}, at_limit={at_limit}, switch_id={switch_id}")
         if on_areas and len(at_limit) == len(on_areas):
             if switch_id:
                 await self._feedback_cue(
