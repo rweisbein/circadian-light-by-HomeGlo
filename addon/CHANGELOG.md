@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.156
+- **Fix color tab column header width**: Missing `%` in `width:100` caused truncated column headers.
+
 ## 1.0.155
 - **Fix color tab area K values**: Area rows now use authoritative `kelvin` from API instead of recomputing from solar cache (which could be stale for warm night timing). Aligns with area detail page.
 - **Sticky color tab headers**: Color tab zone header + column headers now sticky on scroll.

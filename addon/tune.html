@@ -2318,7 +2318,7 @@
         html += '<span class="ct-zone-base-ct" id="ct-zone-ct-' + zoneName + '" style="color:' + zoneHeaderText + ';">' + Math.round(zoneFinalCt) + 'K</span>';
         if (!ctIsCollapsed) {
         // Column headers inside sticky zone header
-        html += '<div class="ct-area-row" style="padding-top:4px;padding-bottom:2px;border-bottom:1px solid var(--line);width:100;" onclick="event.stopPropagation()">';
+        html += '<div class="ct-area-row" style="padding-top:4px;padding-bottom:2px;border-bottom:1px solid var(--line);width:100%;" onclick="event.stopPropagation()">';
         html += '<span class="ct-col-area ct-col-header' + (ctSortOrder === 'custom' ? ' active-sort' : '') + '" onclick="setCtSort(\'custom\')">Area</span>';
         html += '<span class="ct-col-shift ct-col-header' + (ctSortOrder === 'shift' ? ' active-sort' : '') + '" onclick="setCtSort(\'shift\')">Shift</span>';
         html += '<span class="ct-col-adj ct-col-header' + (ctSortOrder === 'adj' ? ' active-sort' : '') + '" onclick="setCtSort(\'adj\')">Adj</span>';
