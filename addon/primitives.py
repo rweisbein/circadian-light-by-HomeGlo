@@ -4985,28 +4985,43 @@ class CircadianLightPrimitives:
 
         include_color = bounce_type in ("step", "color")
 
-        # Phase 1: Bounce away via call_service (visible space, bypass pipeline)
-        phase1_tasks = []
-        for target in targets:
-            sdata = {"brightness": target_visible, "transition": limit_speed}
-            if include_color:
-                sdata["color_temp_kelvin"] = max(2000, target_color)
-            phase1_tasks.append(
-                self.client.call_service("light", "turn_on", sdata, target=target)
-            )
-        await asyncio.gather(*phase1_tasks)
-        await asyncio.sleep(limit_speed + two_step_delay)
+        # Build clean HA targets (strip metadata like filter_name)
+        ha_targets = []
+        for t in targets:
+            if "entity_id" in t:
+                ha_targets.append({"entity_id": t["entity_id"]})
+            elif "area_id" in t:
+                ha_targets.append({"area_id": t["area_id"]})
+            else:
+                ha_targets.append(t)
 
-        # Phase 2: Restore to same targets (same visible brightness, no pipeline)
-        phase2_tasks = []
-        for target in targets:
-            rdata = {"brightness": visible_bri, "transition": limit_speed}
-            if include_color:
-                rdata["color_temp_kelvin"] = max(2000, current_color)
-            phase2_tasks.append(
-                self.client.call_service("light", "turn_on", rdata, target=target)
-            )
-        await asyncio.gather(*phase2_tasks)
+        # Defer periodic tick during bounce to prevent overwriting
+        self.client._defer_periodic_tick = True
+        try:
+            # Phase 1: Bounce away via call_service (visible space, bypass pipeline)
+            phase1_tasks = []
+            for target in ha_targets:
+                sdata = {"brightness": target_visible, "transition": limit_speed}
+                if include_color:
+                    sdata["color_temp_kelvin"] = max(2000, target_color)
+                phase1_tasks.append(
+                    self.client.call_service("light", "turn_on", sdata, target=target)
+                )
+            await asyncio.gather(*phase1_tasks)
+            await asyncio.sleep(limit_speed + two_step_delay)
+
+            # Phase 2: Restore to same targets (same visible brightness, no pipeline)
+            phase2_tasks = []
+            for target in ha_targets:
+                rdata = {"brightness": visible_bri, "transition": limit_speed}
+                if include_color:
+                    rdata["color_temp_kelvin"] = max(2000, current_color)
+                phase2_tasks.append(
+                    self.client.call_service("light", "turn_on", rdata, target=target)
+                )
+            await asyncio.gather(*phase2_tasks)
+        finally:
+            self.client._defer_periodic_tick = False
 
         target_entity = feedback_target.get("entity_id", feedback_target.get("area_id", "?")) if feedback_target else "none"
         logger.info(

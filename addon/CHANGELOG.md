@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.140
+- **Fix invisible limit bounce**: Target dict passed to HA contained extra keys (filter_name, area_id) that HA doesn't accept, causing silent call rejection. Now strips to clean entity_id/area_id only. Also defers periodic tick during bounce to prevent overwriting.
+
 ## 1.0.139
 - **Debug bounce timing**: Bounce log now includes speed and delay values to diagnose invisible bounces.
 
