@@ -6021,26 +6021,23 @@ class HomeAssistantWebSocketClient:
                 except asyncio.TimeoutError:
                     pass  # Normal periodic tick or burst tick
 
-                # Skip normal periodic update if a light action happened recently
-                # (burst refreshes bypass this via triggered_by_event or short timeout)
-                if (
-                    not triggered_by_event
-                    and self._post_action_refreshes_remaining <= 0
-                    and self._last_light_action_time
-                ):
-                    elapsed = time.time() - self._last_light_action_time
-                    if elapsed < post_switch_delay:
-                        if log_periodic:
-                            logger.info(
-                                f"Deferring periodic update — light action {elapsed:.1f}s ago"
-                            )
-                        continue
-
                 # Skip if a feedback cue (or other deferred operation) is active
                 if self._defer_periodic_tick:
                     if log_periodic:
                         logger.info("Deferring periodic update — feedback cue active")
                     continue
+
+                # ALWAYS enforce quiet period after any light action.
+                # No tick of any kind (burst or periodic) runs within
+                # post_switch_delay seconds of the last action.
+                if self._last_light_action_time:
+                    elapsed = time.time() - self._last_light_action_time
+                    if elapsed < post_switch_delay:
+                        if log_periodic:
+                            logger.info(
+                                f"Deferring tick — light action {elapsed:.1f}s ago (need {post_switch_delay}s)"
+                            )
+                        continue
 
                 # Get all circadian areas from state module
                 circadian_areas = state.get_circadian_areas_for_update()

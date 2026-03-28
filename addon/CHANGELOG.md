@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.142
+- **Fix tick suppression after light actions**: The 3-second quiet period after button presses was bypassed when burst refreshes were active, allowing ticks to fire immediately after switch actions. Now ALL ticks (burst and periodic) are unconditionally suppressed for the full post_switch_refresh delay after any light action.
+
 ## 1.0.141
 - **Post-switch burst count setting**: Configurable 0-3 burst refreshes after switch actions (Settings → Refresh). Set to 0 to disable burst refreshes for Zigbee troubleshooting.
 
