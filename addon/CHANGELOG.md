@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.151
+- **Standardized balance and solar sliders**: Area balance now uses 9 direct factor steps (0.60–1.40) with rounder numbers and tighter range. Solar exposure aligned to 9 steps (0–2.0) matching sun sensitivity ticks. Both on area detail and tune pages. Existing values convert to closest tick.
+- **Fix bright bounce cancelled by hold release**: All bounce cues now run as detached tasks so button release can't cancel them mid-flash.
+
 ## 1.0.149
 - **Fix bounce color using xy instead of mireds**: Both bounce paths (`_feedback_cue` and `_bounce_at_limit`) now use `xy_color` for color shift and restore, matching the pipeline. Fixes wrong color on restore for sub-2000K values where mireds were out of range.
 - **Controls page default sort**: After session expiry, defaults to Last Action descending (most recent first).

@@ -1670,9 +1670,9 @@ class HomeAssistantWebSocketClient:
         at_limit = [a for a, r in zip(areas, results) if r is None and a in on_areas]
         if on_areas and len(at_limit) == len(on_areas):
             if switch_id:
-                await self._feedback_cue(
+                asyncio.create_task(self._feedback_cue(
                     switch_id, "bounce", direction=direction, bounce_type="step"
-                )
+                ))
             return
 
         # Build area_lighting tuples from step results
@@ -1742,9 +1742,9 @@ class HomeAssistantWebSocketClient:
         logger.info(f"[bright reach bounce check] on_areas={on_areas}, at_limit={at_limit}, switch_id={switch_id}")
         if on_areas and len(at_limit) == len(on_areas):
             if switch_id:
-                await self._feedback_cue(
+                asyncio.create_task(self._feedback_cue(
                     switch_id, "bounce", direction=direction, bounce_type="bright"
-                )
+                ))
             return
 
         sun_times = self._get_sun_times()
@@ -1942,7 +1942,7 @@ class HomeAssistantWebSocketClient:
                     )
                     if at_limit:
                         if switch_id:
-                            await self._feedback_cue(switch_id, "bounce", direction="up", bounce_type="step")
+                            asyncio.create_task(self._feedback_cue(switch_id, "bounce", direction="up", bounce_type="step"))
                         return "at_limit"
             else:
                 await execute_when_off()
@@ -1982,7 +1982,7 @@ class HomeAssistantWebSocketClient:
                     )
                     if at_limit:
                         if switch_id:
-                            await self._feedback_cue(switch_id, "bounce", direction="down", bounce_type="step")
+                            asyncio.create_task(self._feedback_cue(switch_id, "bounce", direction="down", bounce_type="step"))
                         return "at_limit"
             else:
                 await execute_when_off()
@@ -2025,7 +2025,7 @@ class HomeAssistantWebSocketClient:
                     )
                     if at_limit:
                         if switch_id:
-                            await self._feedback_cue(switch_id, "bounce", direction="up", bounce_type="bright")
+                            asyncio.create_task(self._feedback_cue(switch_id, "bounce", direction="up", bounce_type="bright"))
                         return "at_limit"
             else:
                 await execute_when_off()
@@ -2068,7 +2068,7 @@ class HomeAssistantWebSocketClient:
                     )
                     if at_limit:
                         if switch_id:
-                            await self._feedback_cue(switch_id, "bounce", direction="down", bounce_type="bright")
+                            asyncio.create_task(self._feedback_cue(switch_id, "bounce", direction="down", bounce_type="bright"))
                         return "at_limit"
             else:
                 await execute_when_off()
@@ -2100,7 +2100,7 @@ class HomeAssistantWebSocketClient:
                             r is None for a, r in zip(areas, results) if a in on_areas
                         )
                         if at_limit and switch_id:
-                            await self._feedback_cue(switch_id, "bounce", direction="up", bounce_type="color")
+                            asyncio.create_task(self._feedback_cue(switch_id, "bounce", direction="up", bounce_type="color"))
             else:
                 await execute_when_off()
 
@@ -2131,7 +2131,7 @@ class HomeAssistantWebSocketClient:
                             r is None for a, r in zip(areas, results) if a in on_areas
                         )
                         if at_limit and switch_id:
-                            await self._feedback_cue(switch_id, "bounce", direction="down", bounce_type="color")
+                            asyncio.create_task(self._feedback_cue(switch_id, "bounce", direction="down", bounce_type="color"))
             else:
                 await execute_when_off()
 

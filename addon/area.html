@@ -2550,29 +2550,27 @@
     let tuneDebounceTimers = {};
 
     const LUMEN_STEPS = [
-      { label: "Very Low",    intensity: 2.00 },
-      { label: "Low",         intensity: 1.54 },
-      { label: "Soft",        intensity: 1.33 },
-      { label: "Gentle",      intensity: 1.14 },
-      { label: "Normal",      intensity: 1.00 },
-      { label: "Balanced",    intensity: 0.91 },
-      { label: "Bright",      intensity: 0.80 },
-      { label: "Strong",      intensity: 0.71 },
-      { label: "Very Bright", intensity: 0.61 },
-      { label: "Maximum",     intensity: 0.50 },
+      { label: "Min",       factor: 0.60 },
+      { label: "Very Dim",  factor: 0.75 },
+      { label: "Dim",       factor: 0.85 },
+      { label: "Subtle",    factor: 0.95 },
+      { label: "Normal",    factor: 1.00 },
+      { label: "Lifted",    factor: 1.05 },
+      { label: "Bright",    factor: 1.15 },
+      { label: "Strong",    factor: 1.25 },
+      { label: "Max",       factor: 1.40 },
     ];
 
     const SOLAR_STEPS = [
-      { label: "None",           exposure: 0.00 },
-      { label: "Minimal",        exposure: 0.15 },
-      { label: "Low",            exposure: 0.30 },
-      { label: "Moderate",       exposure: 0.50 },
-      { label: "Significant",    exposure: 0.70 },
-      { label: "High",           exposure: 0.85 },
-      { label: "Full",           exposure: 1.00 },
-      { label: "Amplified",      exposure: 1.30 },
-      { label: "Very amplified", exposure: 1.65 },
-      { label: "Sun room",       exposure: 2.00 },
+      { label: "None",      exposure: 0.00 },
+      { label: "Minimal",   exposure: 0.10 },
+      { label: "Low",       exposure: 0.25 },
+      { label: "Moderate",  exposure: 0.50 },
+      { label: "High",      exposure: 0.75 },
+      { label: "Full",      exposure: 1.00 },
+      { label: "Amplified", exposure: 1.25 },
+      { label: "Strong",    exposure: 1.50 },
+      { label: "Sun room",  exposure: 2.00 },
     ];
 
     function formatImpact(val) {
@@ -2741,7 +2739,7 @@
     async function saveBrightnessChanges() {
       const areaId = tuneState.areaId;
       if (!areaId) return;
-      const factor = 1 / LUMEN_STEPS[tuneState.lumenStep].intensity;
+      const factor = LUMEN_STEPS[tuneState.lumenStep].factor;
       const exposure = SOLAR_STEPS[tuneState.solarStep].exposure;
       await fetch(basePath + '/api/light-filters/area-brightness', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -2778,7 +2776,7 @@
     function cancelBrightnessChanges() {
       if (!tuneSnapshot) return;
       tuneState.lumenStep = tuneSnapshot.lumenStep;
-      tuneState.areaFactor = 1 / LUMEN_STEPS[tuneSnapshot.lumenStep].intensity;
+      tuneState.areaFactor = LUMEN_STEPS[tuneSnapshot.lumenStep].factor;
       tuneState.solarStep = tuneSnapshot.solarStep;
       const lumenSlider = document.getElementById('tune-slider-lumen');
       if (lumenSlider) lumenSlider.value = tuneSnapshot.lumenStep;
@@ -2937,7 +2935,7 @@
       const solarImpact = afterSolar - beforeSolar;
 
       // Lumen adjustment (area_factor)
-      ts.areaFactor = 1 / LUMEN_STEPS[ts.lumenStep].intensity;
+      ts.areaFactor = LUMEN_STEPS[ts.lumenStep].factor;
       const areaFactorPct = Math.round(ts.areaFactor * 100);
       const beforeLumen = Math.round(running * 100);
       running *= ts.areaFactor;
@@ -2987,7 +2985,7 @@
       // -- Brightness card: slider word labels --
       const elLumenWord = document.getElementById('tune-lumen-word');
       if (elLumenWord) {
-        const lf = 1 / LUMEN_STEPS[ts.lumenStep].intensity;
+        const lf = LUMEN_STEPS[ts.lumenStep].factor;
         const lfSuffix = Math.abs(lf - 1.0) < 0.005 ? '' : (Math.round((lf - 1.0) * 100) > 0 ? ' +' : ' ') + Math.round((lf - 1.0) * 100) + '%';
         elLumenWord.textContent = LUMEN_STEPS[ts.lumenStep].label + lfSuffix;
       }
@@ -3171,11 +3169,10 @@
       const storedExposure = areaInfo.natural_light_exposure ?? 0.0;
 
       // Find closest lumen step from stored factor
-      const currentIntensity = 1 / factor;
       let lumenStep = 4;
       let closestDist = Infinity;
       for (let i = 0; i < LUMEN_STEPS.length; i++) {
-        const dist = Math.abs(LUMEN_STEPS[i].intensity - currentIntensity);
+        const dist = Math.abs(LUMEN_STEPS[i].factor - factor);
         if (dist < closestDist) { closestDist = dist; lumenStep = i; }
       }
 
@@ -3231,7 +3228,7 @@
         backendNlFactor: liveStatus.nl_factor ?? null,
         brightnessFadeWeight: liveStatus.brightness_fade_weight ?? null,
         solarBreakdown: liveStatus.solar_breakdown ?? null,
-        areaFactor: 1 / LUMEN_STEPS[lumenStep].intensity,
+        areaFactor: LUMEN_STEPS[lumenStep].factor,
         lumenStep: lumenStep,
         solarStep: solarStep,
         lights: lightsArr,
@@ -3314,14 +3311,14 @@
         + '<span class="tune-control-impact" id="tune-det-solar-val"></span></div>';
       bhtml += '<div class="tune-source-info" id="tune-source-info"></div>';
       bhtml += '<div class="tune-slider-row">'
-        + '<input type="range" class="tune-inline-slider tune-inline-slider--sun" id="tune-slider-solar" min="0" max="9" step="1" value="' + solarStep + '">'
+        + '<input type="range" class="tune-inline-slider tune-inline-slider--sun" id="tune-slider-solar" min="0" max="8" step="1" value="' + solarStep + '">'
         + '<span class="tune-slider-word" id="tune-solar-word"><span>' + SOLAR_STEPS[solarStep].label + '</span></span></div>';
       // Room Balance with inline slider
       bhtml += '<div class="tune-control-row"><span class="tune-control-left"><span class="tune-control-label">Room balance</span>'
         + '<span class="tune-control-reset" id="tune-reset-lumen">reset</span></span>'
         + '<span class="tune-control-impact" id="tune-det-lumen-val"></span></div>';
       bhtml += '<div class="tune-slider-row">'
-        + '<input type="range" class="tune-inline-slider tune-inline-slider--light" id="tune-slider-lumen" min="0" max="9" step="1" value="' + lumenStep + '">'
+        + '<input type="range" class="tune-inline-slider tune-inline-slider--light" id="tune-slider-lumen" min="0" max="8" step="1" value="' + lumenStep + '">'
         + '<span class="tune-slider-word" id="tune-lumen-word">' + LUMEN_STEPS[lumenStep].label + (function(f){ if(Math.abs(f-1)<0.005) return ''; var p=Math.round((f-1)*100); return (p>0?' +':' ')+p+'%'; })(factor) + '</span></div>';
       bhtml += '<div class="tune-bk-row" id="tune-det-override-row"><span class="tune-bk-label" id="tune-det-override-label">User brightened</span>'
         + '<span class="tune-bk-total" id="tune-det-override-val">0%</span></div>';
@@ -3382,7 +3379,7 @@
           e.stopPropagation();
           const savedStep = tuneSnapshot ? tuneSnapshot.lumenStep : 4;
           tuneState.lumenStep = savedStep;
-          tuneState.areaFactor = 1 / LUMEN_STEPS[savedStep].intensity;
+          tuneState.areaFactor = LUMEN_STEPS[savedStep].factor;
           if (lumenSlider) { lumenSlider.value = savedStep; updateSliderFill(lumenSlider); }
           recalcTune();
           updateTuneButtons();

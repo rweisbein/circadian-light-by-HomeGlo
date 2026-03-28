@@ -769,29 +769,27 @@
     // Constants
     // ============================================================
     const LUMEN_STEPS = [
-      { label: "Very Low",    intensity: 2.00 },
-      { label: "Low",         intensity: 1.54 },
-      { label: "Soft",        intensity: 1.33 },
-      { label: "Gentle",      intensity: 1.14 },
-      { label: "Normal",      intensity: 1.00 },
-      { label: "Balanced",    intensity: 0.91 },
-      { label: "Bright",      intensity: 0.80 },
-      { label: "Strong",      intensity: 0.71 },
-      { label: "Very Bright", intensity: 0.61 },
-      { label: "Maximum",     intensity: 0.50 },
+      { label: "Min",       factor: 0.60 },
+      { label: "Very Dim",  factor: 0.75 },
+      { label: "Dim",       factor: 0.85 },
+      { label: "Subtle",    factor: 0.95 },
+      { label: "Normal",    factor: 1.00 },
+      { label: "Lifted",    factor: 1.05 },
+      { label: "Bright",    factor: 1.15 },
+      { label: "Strong",    factor: 1.25 },
+      { label: "Max",       factor: 1.40 },
     ];
 
     const SOLAR_STEPS = [
-      { label: "None",           exposure: 0.00 },
-      { label: "Minimal",        exposure: 0.15 },
-      { label: "Low",            exposure: 0.30 },
-      { label: "Moderate",       exposure: 0.50 },
-      { label: "Significant",    exposure: 0.70 },
-      { label: "High",           exposure: 0.85 },
-      { label: "Full",           exposure: 1.00 },
-      { label: "Amplified",      exposure: 1.30 },
-      { label: "Very amplified", exposure: 1.65 },
-      { label: "Sun room",       exposure: 2.00 },
+      { label: "None",      exposure: 0.00 },
+      { label: "Minimal",   exposure: 0.10 },
+      { label: "Low",       exposure: 0.25 },
+      { label: "Moderate",  exposure: 0.50 },
+      { label: "High",      exposure: 0.75 },
+      { label: "Full",      exposure: 1.00 },
+      { label: "Amplified", exposure: 1.25 },
+      { label: "Strong",    exposure: 1.50 },
+      { label: "Sun room",  exposure: 2.00 },
     ];
 
     const SENSITIVITY_STEPS = [
@@ -1231,7 +1229,7 @@
         const lumenChanged = lumen && parseInt(lumen.value) !== snap.lumenStep;
         const solarChanged = solar && parseInt(solar.value) !== snap.solarStep;
         if (lumenChanged || solarChanged) {
-          const factor = 1 / LUMEN_STEPS[parseInt(lumen.value)].intensity;
+          const factor = LUMEN_STEPS[parseInt(lumen.value)].factor;
           const exposure = SOLAR_STEPS[parseInt(solar.value)].exposure;
           promises.push(fetch('./api/light-filters/area-brightness', {
             method: 'POST', headers: {'Content-Type':'application/json'},
@@ -1286,7 +1284,7 @@
         if (lumen) {
           lumen.value = snap.lumenStep;
           const word = el.querySelector('.tune-lumen-word');
-          const restoreFactor = 1 / LUMEN_STEPS[snap.lumenStep].intensity;
+          const restoreFactor = LUMEN_STEPS[snap.lumenStep].factor;
           if (word) word.textContent = LUMEN_STEPS[snap.lumenStep].label + ' (\u00d7 ' + fmtVal(restoreFactor) + ')';
           const factorMeta = el.querySelector('.tune-factor-meta');
           if (factorMeta) factorMeta.textContent = formatFactorMeta(restoreFactor);
@@ -1442,7 +1440,7 @@
       const fadeWeight = parseFloat(tuneAreaEl.dataset.briFadeWeight) || 1.0;
       const lumenSlider = tuneAreaEl.querySelector('.tune-lumen-slider');
       const solarSlider = tuneAreaEl.querySelector('.tune-solar-slider');
-      const factor = overrides?.factor ?? (1 / LUMEN_STEPS[parseInt(lumenSlider.value)].intensity);
+      const factor = overrides?.factor ?? (LUMEN_STEPS[parseInt(lumenSlider.value)].factor);
       const exposure = overrides?.exposure ?? SOLAR_STEPS[parseInt(solarSlider.value)].exposure;
       const boostBri = parseFloat(tuneAreaEl.dataset.boostBri) || 0;
       const briOverride = parseFloat(tuneAreaEl.dataset.briOverride) || 0;
@@ -2573,7 +2571,7 @@
           const tuneArea = getTuneArea(area.area_id);
           const factor = tuneArea?.brightness_factor ?? 1.0;
           const exposure = tuneArea?.natural_light_exposure ?? 0.0;
-          const lumenStep = findClosestStep(LUMEN_STEPS, 'intensity', 1 / factor);
+          const lumenStep = findClosestStep(LUMEN_STEPS, 'factor', factor);
           const solarStep = findClosestStep(SOLAR_STEPS, 'exposure', exposure);
           const isBoosted = tuneArea?.boosted || false;
           const boostBri = isBoosted ? (tuneArea.boost_brightness || 0) : 0;
@@ -2610,10 +2608,10 @@
                 <span class="tune-adj-col"><span class="tune-adj-val${adjClass}">${adjText}</span></span>
                 <span class="tune-final-col tune-final-now tune-bri-now">${finalHtml}</span>
                 <div class="tune-se-col" onclick="event.stopPropagation()">
-                  <input type="range" class="tune-solar-slider" min="0" max="9" step="1" value="${solarStep}" data-area-id="${area.area_id}">
+                  <input type="range" class="tune-solar-slider" min="0" max="8" step="1" value="${solarStep}" data-area-id="${area.area_id}">
                 </div>
                 <div class="tune-balance-col" onclick="event.stopPropagation()">
-                  <input type="range" class="tune-lumen-slider" min="0" max="9" step="1" value="${lumenStep}" data-area-id="${area.area_id}">
+                  <input type="range" class="tune-lumen-slider" min="0" max="8" step="1" value="${lumenStep}" data-area-id="${area.area_id}">
                 </div>
                 <span class="tune-adj-col"></span>
                 <span class="tune-final-col"></span>
@@ -2883,7 +2881,7 @@
 
         if (e.target.classList.contains('tune-lumen-slider')) {
           const step = parseInt(e.target.value);
-          const newFactor = 1 / LUMEN_STEPS[step].intensity;
+          const newFactor = LUMEN_STEPS[step].factor;
           const word = tuneArea.querySelector('.tune-lumen-word');
           if (word) word.textContent = LUMEN_STEPS[step].label + ' (\u00d7 ' + fmtVal(newFactor) + ')';
           updateTuneNowPreview(tuneArea, { factor: newFactor });
