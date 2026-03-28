@@ -1674,6 +1674,7 @@ function isAnyDirty() {
 
 // Current sun times (cached for solar rules)
 let sunTimes = { sunrise: 6, sunset: 18, solarNoon: 12, solarMid: 0 };
+let _apiSunTimesCache = {};  // Backend sun times cache keyed by dateStr
 
 // Live outdoor data for "Current" condition option
 let _liveConditionMult = null;
@@ -1797,37 +1798,40 @@ function applySolarRuleAtHour(baseCCT, hour) {
   let cct = baseCCT;
   const { sunrise, sunset, solarMid } = sunTimes;
 
+  // Compute warm night and cool day effects from original cct,
+  // then apply simultaneously (matches backend brain.py _apply_solar_rules)
+  let nightEffect = 0;
+  let nightStrength = 0;
+  const warmTarget = config.warm_night_target;
+
   // Warm night — ceiling
-  if (config.warm_night_enabled) {
-    const warmTarget = config.warm_night_target;
+  if (config.warm_night_enabled && cct > warmTarget) {
+    const fadeHrs = config.warm_night_fade / 60;
+    const startOffsetHrs = config.warm_night_start / 60;
+    const endOffsetHrs = config.warm_night_end / 60;
+    const mode = config.warm_night_mode;
 
-    if (cct > warmTarget) {
-      const fadeHrs = config.warm_night_fade / 60;
-      const startOffsetHrs = config.warm_night_start / 60;
-      const endOffsetHrs = config.warm_night_end / 60;
-      const mode = config.warm_night_mode;
+    let ws, we;
+    if (mode === 'sunrise') {
+      ws = wrap24(solarMid);
+      we = wrap24(sunrise + endOffsetHrs);
+    } else if (mode === 'sunset') {
+      ws = wrap24(sunset + startOffsetHrs);
+      we = wrap24(solarMid);
+    } else {
+      ws = wrap24(sunset + startOffsetHrs);
+      we = wrap24(sunrise + endOffsetHrs);
+    }
 
-      let ws, we;
-      if (mode === 'sunrise') {
-        ws = wrap24(solarMid);
-        we = wrap24(sunrise + endOffsetHrs);
-      } else if (mode === 'sunset') {
-        ws = wrap24(sunset + startOffsetHrs);
-        we = wrap24(solarMid);
-      } else {
-        ws = wrap24(sunset + startOffsetHrs);
-        we = wrap24(sunrise + endOffsetHrs);
-      }
-
-      const { inWindow, weight } = getWindowWeight(hour, ws, we, fadeHrs);
-      if (inWindow && weight > 0) {
-        cct = cct + (warmTarget - cct) * weight;
-      }
+    const { inWindow, weight } = getWindowWeight(hour, ws, we, fadeHrs);
+    if (inWindow && weight > 0) {
+      nightStrength = weight;
+      nightEffect = Math.max(0, cct - warmTarget);
     }
   }
 
   // Cool day color blend (intensity-based)
-  // Condition multiplier from dropdown modulates clear-sky lux at this hour's sun elevation
+  let dayShift = 0;
   if (config.daylight_enabled !== false) {
     const condDropdown = document.getElementById('modeled-conditions')?.value ?? '1.0';
     let conditionMult;
@@ -1843,7 +1847,6 @@ function applySolarRuleAtHour(baseCCT, hour) {
     const colorSensitivity = config.color_sensitivity ?? 1.0;
     if (daylightCct > 0 && outdoorNorm > 0) {
       let blend = Math.min(1.0, outdoorNorm * colorSensitivity);
-      // Apply start/end offsets and fade
       const startOffsetHrs = (config.daylight_start ?? 60) / 60;
       const endOffsetHrs = (config.daylight_end ?? -60) / 60;
       const fadeHrs = (config.daylight_fade || 60) / 60;
@@ -1853,10 +1856,13 @@ function applySolarRuleAtHour(baseCCT, hour) {
       blend *= weight;
       const daylightTarget = daylightCct;
       if (daylightTarget > cct && blend > 0) {
-        cct += (daylightTarget - cct) * blend;
+        dayShift = (daylightTarget - cct) * blend;
       }
     }
   }
+
+  // Apply both simultaneously (matches backend)
+  cct = cct - nightEffect * nightStrength + dayShift;
 
   return cct;
 }
@@ -2850,7 +2856,25 @@ function calculateCurveData() {
 
 function renderChart() {
   const dateStr = getSelectedDateISO();
-  const { sunrise, sunset, solarNoon, solarMid } = getSunTimes(config.latitude, config.longitude, dateStr);
+  let sunrise, sunset, solarNoon, solarMid;
+
+  if (_apiSunTimesCache[dateStr]) {
+    // Use backend sun times (astral library — matches what drives the lights)
+    ({ sunrise, sunset, solarNoon, solarMid } = _apiSunTimesCache[dateStr]);
+  } else {
+    // Fallback to JS calculation; fetch from API and re-render when ready
+    ({ sunrise, sunset, solarNoon, solarMid } = getSunTimes(config.latitude, config.longitude, dateStr));
+    fetch(`./api/sun_times?date=${dateStr}`).then(r => r.json()).then(data => {
+      _apiSunTimesCache[dateStr] = {
+        sunrise: data.sunrise_hour,
+        sunset: data.sunset_hour,
+        solarNoon: data.noon_hour,
+        solarMid: data.midnight_hour,
+      };
+      renderChart();
+      applyCursor();
+    }).catch(() => {});
+  }
 
   // Cache sun times for color rules
   sunTimes = { sunrise, sunset, solarNoon, solarMid };

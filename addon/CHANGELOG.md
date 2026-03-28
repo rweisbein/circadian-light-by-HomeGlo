@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.158
+- **Fix rhythm page sun times**: Fetch sunrise/sunset from backend API (astral library) instead of computing with simplified JS solar math. Eliminates warm night window timing discrepancy between rhythm page and actual light control.
+- **Fix solar rule application order**: Warm night and cool day effects now computed from original base K and applied simultaneously, matching backend brain.py. Previously JS applied warm night first, making cool day overcompensate.
+
 ## 1.0.157
 - **Fix rhythm page K mismatch**: Replaced log-lux outdoor normalization formula with backend's elev_factor model (linear/squared ramp with sun saturation). "Current conditions" now uses condition_multiplier directly from API instead of reverse-engineering it. Rhythm page K values now match backend/color tab.
 
