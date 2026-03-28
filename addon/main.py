@@ -2365,16 +2365,11 @@ class HomeAssistantWebSocketClient:
 
         await self._feedback_cue(switch_id, "reach", scope_number=scope_number)
 
-    def _resolve_feedback_target(
-        self, switch_id: str, cue_type: str = "bounce"
-    ) -> Optional[dict]:
+    def _resolve_feedback_target(self, switch_id: str) -> Optional[dict]:
         """Resolve the feedback cue target for a switch.
 
-        Resolution varies by cue_type:
-        - "reach": Use switch's HA device area (feedback in the room you're in)
-        - "bounce"/"freeze": Use active reach's feedback_area (feedback in target room)
-
-        Both then resolve to the area's configured feedback_target (purpose or light).
+        Uses the active reach's feedback_area (starred area, or first area).
+        Resolves to the area's configured feedback_target (purpose or light).
 
         Returns:
             Dict with 'entity_id' and metadata for call_service target, or None.
@@ -2384,29 +2379,17 @@ class HomeAssistantWebSocketClient:
             logger.debug(f"[Feedback] No switch config for {switch_id}")
             return None
 
-        if cue_type == "reach":
-            # Use the switch's own HA device area
-            area_id = None
-            if switch_config.device_id:
-                device = self.device_registry.get(switch_config.device_id, {})
-                area_id = device.get("area_id")
-            # Fallback: first area from first scope
-            if not area_id and switch_config.scopes:
-                scope_areas = switch_config.scopes[0].areas
-                if scope_areas:
-                    area_id = scope_areas[0]
-        else:
-            # "bounce" or "freeze": Use the active scope's feedback_area
-            scope_idx = switches.get_current_scope(switch_id)
-            scope = (
-                switch_config.scopes[scope_idx]
-                if scope_idx < len(switch_config.scopes)
-                else None
-            )
-            area_id = scope.feedback_area if scope else None
-            # Default: first area in the active scope
-            if not area_id and scope and scope.areas:
-                area_id = scope.areas[0]
+        # All cue types use the active scope's feedback_area
+        scope_idx = switches.get_current_scope(switch_id)
+        scope = (
+            switch_config.scopes[scope_idx]
+            if scope_idx < len(switch_config.scopes)
+            else None
+        )
+        area_id = scope.feedback_area if scope else None
+        # Default: first area in the active scope
+        if not area_id and scope and scope.areas:
+            area_id = scope.areas[0]
 
         if not area_id:
             logger.debug(f"[Feedback] No area resolved for {switch_config.name}")
@@ -2505,7 +2488,7 @@ class HomeAssistantWebSocketClient:
             bounce_type: "step", "bright", or "color" (for bounce cue)
             scope_number: 1-5 (for reach cue — number of flashes)
         """
-        target = self._resolve_feedback_target(switch_id, cue_type=cue_type)
+        target = self._resolve_feedback_target(switch_id)
         if not target:
             logger.debug(f"No feedback target for switch {switch_id}")
             return

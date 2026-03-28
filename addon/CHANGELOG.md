@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.137
+- **Feedback always in target reach**: All feedback cues (reach, bounce, freeze) now flash in the active reach's starred feedback area, not the switch's physical location.
+- **Star on all reaches**: Feedback star shows on single-area reaches too for visual consistency.
+
 ## 1.0.136
 - **Feedback cue revamp**: Feedback routing now varies by cue type — reach indicator uses switch's own area, action feedback (bounce/freeze) uses active reach's feedback area. Per-reach feedback area selectable via star icon on switch detail. Removed per-switch indicator_light/area/filter fields.
 - **NL-aware reach flashing**: When natural light is active and brightness is below the daytime threshold, reach feedback flashes UP to 100% instead of off, ensuring visibility in bright rooms.

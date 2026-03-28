@@ -1689,7 +1689,7 @@
           const areaName = area ? area.name : areaId;
           const isFeedback = areaId === feedbackArea;
           const starClass = isFeedback ? 'feedback-star active' : 'feedback-star';
-          const starHtml = scope.areas.length > 1 ? `<span class="${starClass}" onclick="event.stopPropagation(); setFeedbackArea(${idx}, '${areaId}')" title="Feedback target">&#9733;</span>` : '';
+          const starHtml = `<span class="${starClass}" onclick="event.stopPropagation(); setFeedbackArea(${idx}, '${areaId}')" title="Feedback target">&#9733;</span>`;
           return `
             <span class="area-chip">
               ${starHtml}${areaName}
