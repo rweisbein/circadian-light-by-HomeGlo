@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.154
+- **Fix sun saturation not loaded on startup**: `init()` in lux_tracker wasn't reading `sun_saturation` and `sun_saturation_ramp` from config, always using default 25%. Caused lights to be too dim on restart until settings were touched.
+- **Fix sticky column headers on tune page**: Column headers moved inside the sticky zone header so they persist during scroll.
+
 ## 1.0.153
 - **Fix per-light brightness on tune page**: Was missing override and boost in per-light calculation, showing ~57% instead of ~96%. Now matches area detail page.
 - **Fix sticky zone headers**: Changed `overflow: hidden` to `overflow: clip` on zone-group so `position: sticky` works.

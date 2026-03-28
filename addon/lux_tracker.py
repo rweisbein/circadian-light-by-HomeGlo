@@ -113,6 +113,7 @@ def init(config: Optional[dict] = None):
     global _ema_lux, _last_update_time, _cached_sun_factor
     global _preferred_source, _cloud_cover, _weather_condition
     global _sun_elevation, _last_outdoor_update, _condition_map
+    global _sun_saturation, _sun_saturation_ramp
 
     if config is None:
         config = glozone.load_config_from_files()
@@ -154,6 +155,10 @@ def init(config: Optional[dict] = None):
         }
     else:
         _condition_map = dict(CONDITION_MULTIPLIERS)
+
+    # Sun saturation settings
+    _sun_saturation = max(1, min(100, int(config.get("sun_saturation", 25))))
+    _sun_saturation_ramp = config.get("sun_saturation_ramp", "linear")
 
     # Reset runtime state (re-seeded by _seed_outdoor_from_ha)
     # Note: override is NOT reset — it's user-initiated and time-limited

@@ -2688,9 +2688,9 @@
               <span class="tune-zone-bri-group">
                 <span class="tune-zone-base-bri">${rhythmBri}%</span>
               </span>
+              ${isCollapsed ? '' : zoneControlsHtml}
             </div>
             <div class="zone-content ${isCollapsed ? 'hidden' : ''}" data-zone-table="${zoneName}">
-              ${zoneControlsHtml}
               ${areaRows}
               ${boostLegend}
               ${overrideLegend}
