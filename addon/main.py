@@ -1928,16 +1928,20 @@ class HomeAssistantWebSocketClient:
                         areas, results, switch_id=switch_id, direction="up"
                     )
                 else:
+                    multi = len(areas) > 1
                     results = await asyncio.gather(
                         *[
-                            self.primitives.step_up(area, "switch", steps=step_count)
+                            self.primitives.step_up(area, "switch", steps=step_count, skip_bounce=multi)
                             for area in areas
                         ]
                     )
                 on_areas = [a for a in areas if state.get_is_on(a)]
-                if on_areas and all(
+                at_limit = on_areas and all(
                     r is None for a, r in zip(areas, results) if a in on_areas
-                ):
+                )
+                if at_limit:
+                    if switch_id:
+                        await self._feedback_cue(switch_id, "bounce", direction="up", bounce_type="step")
                     return "at_limit"
             else:
                 await execute_when_off()
@@ -1964,16 +1968,20 @@ class HomeAssistantWebSocketClient:
                         areas, results, switch_id=switch_id, direction="down"
                     )
                 else:
+                    multi = len(areas) > 1
                     results = await asyncio.gather(
                         *[
-                            self.primitives.step_down(area, "switch", steps=step_count)
+                            self.primitives.step_down(area, "switch", steps=step_count, skip_bounce=multi)
                             for area in areas
                         ]
                     )
                 on_areas = [a for a in areas if state.get_is_on(a)]
-                if on_areas and all(
+                at_limit = on_areas and all(
                     r is None for a, r in zip(areas, results) if a in on_areas
-                ):
+                )
+                if at_limit:
+                    if switch_id:
+                        await self._feedback_cue(switch_id, "bounce", direction="down", bounce_type="step")
                     return "at_limit"
             else:
                 await execute_when_off()
@@ -2000,18 +2008,22 @@ class HomeAssistantWebSocketClient:
                         areas, results, switch_id=switch_id, direction="up"
                     )
                 else:
+                    multi = len(areas) > 1
                     results = await asyncio.gather(
                         *[
                             self.primitives.brightness_up(
-                                area, "switch", steps=step_count
+                                area, "switch", steps=step_count, skip_bounce=multi
                             )
                             for area in areas
                         ]
                     )
                 on_areas = [a for a in areas if state.get_is_on(a)]
-                if on_areas and all(
+                at_limit = on_areas and all(
                     r is None for a, r in zip(areas, results) if a in on_areas
-                ):
+                )
+                if at_limit:
+                    if switch_id:
+                        await self._feedback_cue(switch_id, "bounce", direction="up", bounce_type="bright")
                     return "at_limit"
             else:
                 await execute_when_off()
@@ -2038,18 +2050,22 @@ class HomeAssistantWebSocketClient:
                         areas, results, switch_id=switch_id, direction="down"
                     )
                 else:
+                    multi = len(areas) > 1
                     results = await asyncio.gather(
                         *[
                             self.primitives.brightness_down(
-                                area, "switch", steps=step_count
+                                area, "switch", steps=step_count, skip_bounce=multi
                             )
                             for area in areas
                         ]
                     )
                 on_areas = [a for a in areas if state.get_is_on(a)]
-                if on_areas and all(
+                at_limit = on_areas and all(
                     r is None for a, r in zip(areas, results) if a in on_areas
-                ):
+                )
+                if at_limit:
+                    if switch_id:
+                        await self._feedback_cue(switch_id, "bounce", direction="down", bounce_type="bright")
                     return "at_limit"
             else:
                 await execute_when_off()
@@ -2071,8 +2087,9 @@ class HomeAssistantWebSocketClient:
                         areas, [True for _ in areas]
                     )
                 else:
+                    multi = len(areas) > 1
                     await asyncio.gather(
-                        *[self.primitives.color_up(area, "switch") for area in areas]
+                        *[self.primitives.color_up(area, "switch", skip_bounce=multi) for area in areas]
                     )
             else:
                 await execute_when_off()
@@ -2094,8 +2111,9 @@ class HomeAssistantWebSocketClient:
                         areas, [True for _ in areas]
                     )
                 else:
+                    multi = len(areas) > 1
                     await asyncio.gather(
-                        *[self.primitives.color_down(area, "switch") for area in areas]
+                        *[self.primitives.color_down(area, "switch", skip_bounce=multi) for area in areas]
                     )
             else:
                 await execute_when_off()

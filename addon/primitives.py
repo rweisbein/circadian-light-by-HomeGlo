@@ -516,6 +516,7 @@ class CircadianLightPrimitives:
         source: str = "service_call",
         steps: int = 1,
         send_command: bool = True,
+        skip_bounce: bool = False,
     ):
         """Step up or down via circadian_adjust.
 
@@ -561,8 +562,8 @@ class CircadianLightPrimitives:
 
             if result is None:
                 if step_i == 0:
-                    # First step at limit → bounce
-                    if send_command and area_state.is_on:
+                    # First step at limit → bounce (unless suppressed for multi-area)
+                    if send_command and not skip_bounce and area_state.is_on:
                         hour = get_current_hour()
                         sun_times = (
                             self.client._get_sun_times()
@@ -600,6 +601,7 @@ class CircadianLightPrimitives:
         source: str = "service_call",
         steps: int = 1,
         send_command: bool = True,
+        skip_bounce: bool = False,
     ):
         """Step up along the circadian curve (brighter and cooler).
 
@@ -610,12 +612,14 @@ class CircadianLightPrimitives:
             source: Source of the action
             steps: Number of steps to take (each computed from updated state)
             send_command: Whether to send light commands (False for reach group batching)
+            skip_bounce: Whether to skip per-area bounce (True for multi-area, caller handles)
 
         Returns:
             The last result applied, or None if at limit / not circadian.
         """
         return await self._step_circadian(
-            area_id, "up", source=source, steps=steps, send_command=send_command
+            area_id, "up", source=source, steps=steps, send_command=send_command,
+            skip_bounce=skip_bounce,
         )
 
     async def step_down(
@@ -624,6 +628,7 @@ class CircadianLightPrimitives:
         source: str = "service_call",
         steps: int = 1,
         send_command: bool = True,
+        skip_bounce: bool = False,
     ):
         """Step down along the circadian curve (dimmer and warmer).
 
@@ -634,19 +639,21 @@ class CircadianLightPrimitives:
             source: Source of the action
             steps: Number of steps to take (each computed from updated state)
             send_command: Whether to send light commands (False for reach group batching)
+            skip_bounce: Whether to skip per-area bounce (True for multi-area, caller handles)
 
         Returns:
             The last result applied, or None if at limit / not circadian.
         """
         return await self._step_circadian(
-            area_id, "down", source=source, steps=steps, send_command=send_command
+            area_id, "down", source=source, steps=steps, send_command=send_command,
+            skip_bounce=skip_bounce,
         )
 
     # -------------------------------------------------------------------------
     # Bright Up / Bright Down (brightness only)
     # -------------------------------------------------------------------------
 
-    async def bright_up(self, area_id: str, source: str = "service_call"):
+    async def bright_up(self, area_id: str, source: str = "service_call", skip_bounce: bool = False):
         """Increase brightness only, color unchanged.
 
         Only works when is_circadian=True. Updates midpoints always, but only
@@ -675,7 +682,7 @@ class CircadianLightPrimitives:
             )
             if frozen_bri >= config.max_brightness - safe_margin:
                 logger.info(f"Bright up at limit for area {area_id} (frozen at max)")
-                if area_state.is_on:
+                if area_state.is_on and not skip_bounce:
                     sun_times = (
                         self.client._get_sun_times()
                         if hasattr(self.client, "_get_sun_times")
@@ -720,7 +727,7 @@ class CircadianLightPrimitives:
 
         if result is None:
             logger.info(f"Bright up at limit for area {area_id}")
-            if area_state.is_on:
+            if area_state.is_on and not skip_bounce:
                 current_bri = CircadianLight.calculate_brightness_at_hour(
                     hour, config, area_state
                 )
@@ -752,7 +759,7 @@ class CircadianLightPrimitives:
         else:
             logger.info(f"Bright up state updated (lights off): {result.brightness}%")
 
-    async def bright_down(self, area_id: str, source: str = "service_call"):
+    async def bright_down(self, area_id: str, source: str = "service_call", skip_bounce: bool = False):
         """Decrease brightness only, color unchanged.
 
         Only works when is_circadian=True. Updates midpoints always, but only
@@ -781,7 +788,7 @@ class CircadianLightPrimitives:
             )
             if frozen_bri <= config.min_brightness + safe_margin:
                 logger.info(f"Bright down at limit for area {area_id} (frozen at min)")
-                if area_state.is_on:
+                if area_state.is_on and not skip_bounce:
                     sun_times = (
                         self.client._get_sun_times()
                         if hasattr(self.client, "_get_sun_times")
@@ -826,7 +833,7 @@ class CircadianLightPrimitives:
 
         if result is None:
             logger.info(f"Bright down at limit for area {area_id}")
-            if area_state.is_on:
+            if area_state.is_on and not skip_bounce:
                 current_bri = CircadianLight.calculate_brightness_at_hour(
                     hour, config, area_state
                 )
@@ -859,242 +866,15 @@ class CircadianLightPrimitives:
             logger.info(f"Bright down state updated (lights off): {result.brightness}%")
 
     # -------------------------------------------------------------------------
-    # Color Up / Color Down (color only)
+    # Color Up / Color Down (color only) — old midpoint-shift versions removed,
+    # now handled by _color_step with override+decay model below.
     # -------------------------------------------------------------------------
 
-    async def color_up(
-        self, area_id: str, source: str = "service_call", send_command: bool = True
-    ):
-        """Increase color temperature (cooler), brightness unchanged.
+    # (intentionally blank — see color_up/color_down near _color_step)
 
-        Only works when is_circadian=True. Updates midpoints always, but only
-        applies to lights if is_on=True and send_command=True.
-
-        Args:
-            area_id: The area ID to control
-            source: Source of the action
-            send_command: Whether to send light commands (False for reach group batching)
-        """
-        area_state = self._get_area_state(area_id)
-
-        if not area_state.is_circadian:
-            logger.debug(
-                f"[{source}] color_up ignored for area {area_id} (not in circadian mode)"
-            )
-            return
-
-        # If frozen, check if already at limit before unfreezing
-        if area_state.frozen_at is not None:
-            config = self._get_config(area_id)
-            sun_times = (
-                self.client._get_sun_times()
-                if hasattr(self.client, "_get_sun_times")
-                else None
-            )
-            frozen_cct = CircadianLight.calculate_color_at_hour(
-                area_state.frozen_at,
-                config,
-                area_state,
-                apply_solar_rules=True,
-                sun_times=sun_times,
-            )
-            safe_margin = max(
-                10, (config.max_color_temp - config.min_color_temp) * 0.01
-            )
-            if frozen_cct >= config.max_color_temp - safe_margin:
-                logger.info(f"Color up at limit for area {area_id} (frozen at max)")
-                if area_state.is_on:
-                    frozen_bri = CircadianLight.calculate_brightness_at_hour(
-                        area_state.frozen_at, config, area_state
-                    )
-                    await self._bounce_at_limit(
-                        area_id,
-                        frozen_bri,
-                        frozen_cct,
-                        direction="up",
-                        bounce_type="color",
-                    )
-                return
-            self._unfreeze_internal(area_id, source)
-            area_state = self._get_area_state(area_id)
-        else:
-            config = self._get_config(area_id)
-
-        logger.info(f"[{source}] Color up for area {area_id}")
-
-        hour = get_current_hour()
-        sun_times = (
-            self.client._get_sun_times()
-            if hasattr(self.client, "_get_sun_times")
-            else None
-        )
-
-        result = CircadianLight.calculate_color_step(
-            hour=hour,
-            direction="up",
-            config=config,
-            state=area_state,
-            sun_times=sun_times,
-        )
-
-        if result is None:
-            logger.info(f"Color up at limit for area {area_id}")
-            if area_state.is_on:
-                current_bri = CircadianLight.calculate_brightness_at_hour(
-                    hour, config, area_state
-                )
-                current_cct = CircadianLight.calculate_color_at_hour(
-                    hour,
-                    config,
-                    area_state,
-                    apply_solar_rules=True,
-                    sun_times=sun_times,
-                )
-                await self._bounce_at_limit(
-                    area_id,
-                    current_bri,
-                    current_cct,
-                    direction="up",
-                    bounce_type="color",
-                )
-            return
-
-        # Update state (always, even if is_on=False)
-        self._update_area_state(area_id, result.state_updates)
-
-        # Apply to lights only if is_on=True and send_command=True
-        if area_state.is_on and send_command:
-            # Calculate current brightness to include in command (needed for CT compensation)
-            current_bri = CircadianLight.calculate_brightness_at_hour(
-                hour, config, area_state
-            )
-            await self._apply_circadian_lighting(
-                area_id, current_bri, result.color_temp
-            )
-            logger.info(f"Color up applied: {result.color_temp}K, {current_bri}%")
-        elif not area_state.is_on:
-            logger.info(f"Color up state updated (lights off): {result.color_temp}K")
-
-        return result
-
-    async def color_down(
-        self, area_id: str, source: str = "service_call", send_command: bool = True
-    ):
-        """Decrease color temperature (warmer), brightness unchanged.
-
-        Only works when is_circadian=True. Updates midpoints always, but only
-        applies to lights if is_on=True and send_command=True.
-
-        Args:
-            area_id: The area ID to control
-            source: Source of the action
-            send_command: Whether to send light commands (False for reach group batching)
-        """
-        area_state = self._get_area_state(area_id)
-
-        if not area_state.is_circadian:
-            logger.debug(
-                f"[{source}] color_down ignored for area {area_id} (not in circadian mode)"
-            )
-            return
-
-        # If frozen, check if already at limit before unfreezing
-        if area_state.frozen_at is not None:
-            config = self._get_config(area_id)
-            sun_times = (
-                self.client._get_sun_times()
-                if hasattr(self.client, "_get_sun_times")
-                else None
-            )
-            frozen_cct = CircadianLight.calculate_color_at_hour(
-                area_state.frozen_at,
-                config,
-                area_state,
-                apply_solar_rules=True,
-                sun_times=sun_times,
-            )
-            safe_margin = max(
-                10, (config.max_color_temp - config.min_color_temp) * 0.01
-            )
-            if frozen_cct <= config.min_color_temp + safe_margin:
-                logger.info(f"Color down at limit for area {area_id} (frozen at min)")
-                if area_state.is_on:
-                    frozen_bri = CircadianLight.calculate_brightness_at_hour(
-                        area_state.frozen_at, config, area_state
-                    )
-                    await self._bounce_at_limit(
-                        area_id,
-                        frozen_bri,
-                        frozen_cct,
-                        direction="down",
-                        bounce_type="color",
-                    )
-                return
-            self._unfreeze_internal(area_id, source)
-            area_state = self._get_area_state(area_id)
-        else:
-            config = self._get_config(area_id)
-
-        logger.info(f"[{source}] Color down for area {area_id}")
-
-        hour = get_current_hour()
-        sun_times = (
-            self.client._get_sun_times()
-            if hasattr(self.client, "_get_sun_times")
-            else None
-        )
-
-        result = CircadianLight.calculate_color_step(
-            hour=hour,
-            direction="down",
-            config=config,
-            state=area_state,
-            sun_times=sun_times,
-        )
-
-        if result is None:
-            logger.info(f"Color down at limit for area {area_id}")
-            if area_state.is_on:
-                current_bri = CircadianLight.calculate_brightness_at_hour(
-                    hour, config, area_state
-                )
-                current_cct = CircadianLight.calculate_color_at_hour(
-                    hour,
-                    config,
-                    area_state,
-                    apply_solar_rules=True,
-                    sun_times=sun_times,
-                )
-                await self._bounce_at_limit(
-                    area_id,
-                    current_bri,
-                    current_cct,
-                    direction="down",
-                    bounce_type="color",
-                )
-            return
-
-        # Update state (always, even if is_on=False)
-        self._update_area_state(area_id, result.state_updates)
-
-        # Apply to lights only if is_on=True and send_command=True
-        if area_state.is_on and send_command:
-            # Calculate current brightness to include in command (needed for CT compensation)
-            current_bri = CircadianLight.calculate_brightness_at_hour(
-                hour, config, area_state
-            )
-            await self._apply_circadian_lighting(
-                area_id, current_bri, result.color_temp
-            )
-            logger.info(f"Color down applied: {result.color_temp}K, {current_bri}%")
-        elif not area_state.is_on:
-            logger.info(f"Color down state updated (lights off): {result.color_temp}K")
-
-        return result
-
-    # -------------------------------------------------------------------------
-    # Set Position - Slider-based absolute positioning
-    # -------------------------------------------------------------------------
+    # (Old midpoint-shift color_up/color_down removed — were shadowed by
+    #  _color_step override+decay versions below. See color_up/color_down
+    #  near _color_step for the active implementations.)
 
     def _compute_nl_factor(self, area_id: str) -> float:
         """Compute current natural light factor for an area (matches main.py pipeline)."""
@@ -1573,6 +1353,7 @@ class CircadianLightPrimitives:
         source: str = "service_call",
         steps: int = 1,
         send_command: bool = True,
+        skip_bounce: bool = False,
     ):
         """Bump brightness override up by one step. Uses override+decay model."""
         return await self._brightness_step(
@@ -1581,6 +1362,7 @@ class CircadianLightPrimitives:
             source=source,
             steps=steps,
             send_command=send_command,
+            skip_bounce=skip_bounce,
         )
 
     async def brightness_down(
@@ -1589,6 +1371,7 @@ class CircadianLightPrimitives:
         source: str = "service_call",
         steps: int = 1,
         send_command: bool = True,
+        skip_bounce: bool = False,
     ):
         """Bump brightness override down by one step. Uses override+decay model."""
         return await self._brightness_step(
@@ -1597,6 +1380,7 @@ class CircadianLightPrimitives:
             source=source,
             steps=steps,
             send_command=send_command,
+            skip_bounce=skip_bounce,
         )
 
     async def _brightness_step(
@@ -1606,6 +1390,7 @@ class CircadianLightPrimitives:
         source: str,
         steps: int = 1,
         send_command: bool = True,
+        skip_bounce: bool = False,
     ):
         """Bump brightness override by one or more step increments.
 
@@ -1678,7 +1463,7 @@ class CircadianLightPrimitives:
                         f"brightness_{direction} at limit for {area_id} "
                         f"(effective={effective_bri:.1f}, nl={nl_factor:.2f})"
                     )
-                    if send_command and area_state.is_on:
+                    if send_command and not skip_bounce and area_state.is_on:
                         current_cct = CircadianLight.calculate_color_at_hour(
                             hour,
                             config,
@@ -1715,7 +1500,7 @@ class CircadianLightPrimitives:
                         f"brightness_{direction} clamped at limit for {area_id} "
                         f"(effective={scaled_base + new_override:.1f}, nl={nl_factor:.2f})"
                     )
-                    if send_command and area_state.is_on:
+                    if send_command and not skip_bounce and area_state.is_on:
                         current_cct = CircadianLight.calculate_color_at_hour(
                             hour,
                             config,
@@ -1757,19 +1542,28 @@ class CircadianLightPrimitives:
         return True if applied else None
 
     async def color_up(
-        self, area_id: str, source: str = "service_call", steps: int = 1
+        self, area_id: str, source: str = "service_call", steps: int = 1,
+        send_command: bool = True, skip_bounce: bool = False,
     ):
         """Bump color override up (cooler) by one step. Uses override+decay model."""
-        await self._color_step(area_id, direction="up", source=source, steps=steps)
+        await self._color_step(
+            area_id, direction="up", source=source, steps=steps,
+            send_command=send_command, skip_bounce=skip_bounce,
+        )
 
     async def color_down(
-        self, area_id: str, source: str = "service_call", steps: int = 1
+        self, area_id: str, source: str = "service_call", steps: int = 1,
+        send_command: bool = True, skip_bounce: bool = False,
     ):
         """Bump color override down (warmer) by one step. Uses override+decay model."""
-        await self._color_step(area_id, direction="down", source=source, steps=steps)
+        await self._color_step(
+            area_id, direction="down", source=source, steps=steps,
+            send_command=send_command, skip_bounce=skip_bounce,
+        )
 
     async def _color_step(
-        self, area_id: str, direction: str, source: str, steps: int = 1
+        self, area_id: str, direction: str, source: str, steps: int = 1,
+        send_command: bool = True, skip_bounce: bool = False,
     ):
         """Bump color override by one Kelvin step increment."""
         area_state = self._get_area_state(area_id)
@@ -1833,7 +1627,7 @@ class CircadianLightPrimitives:
             logger.info(
                 f"color_{direction} at limit for {area_id} (effective={effective_cct:.0f}K)"
             )
-            if area_state.is_on:
+            if area_state.is_on and not skip_bounce:
                 current_bri = CircadianLight.calculate_brightness_at_hour(
                     hour, config, area_state
                 )
@@ -1865,11 +1659,14 @@ class CircadianLightPrimitives:
             f"[{source}] color_{direction} for {area_id}: "
             f"override {current_override:.1f}K -> {new_override}K"
         )
-        if area_state.is_on:
+        if area_state.is_on and send_command:
             await self.client.update_lights_in_circadian_mode(area_id)
 
         if steps > 1:
-            await self._color_step(area_id, direction, source, steps - 1)
+            await self._color_step(
+                area_id, direction, source, steps - 1,
+                send_command=send_command, skip_bounce=skip_bounce,
+            )
 
     # -------------------------------------------------------------------------
     # Lights On / Off / Toggle - Control light state under Circadian management
