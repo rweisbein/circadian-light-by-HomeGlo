@@ -118,7 +118,7 @@
     /* Name-column header */
 
     /* Zone structure */
-    .zone-group { background: var(--card); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin-bottom: 8px; }
+    .zone-group { background: var(--card); border: 1px solid var(--line); border-radius: 10px; overflow: clip; margin-bottom: 8px; }
     .zone-header {
       display: flex;
       align-items: center;
@@ -1767,7 +1767,10 @@
       const curvePos = briRange > 0 ? Math.max(0, Math.min(1, (rhythmBri - zoneMinBri) / briRange)) : 0;
       let hasCapped = false;
 
-      const base = rhythmBri * nlFactor * areaFactor;
+      const tuneAreaEl = document.querySelector(`.tune-area[data-area-id="${areaId}"]`);
+      const briOverride = tuneAreaEl ? (parseFloat(tuneAreaEl.dataset.briOverride) || 0) : 0;
+      const boostBri = tuneAreaEl ? (parseFloat(tuneAreaEl.dataset.boostBri) || 0) : 0;
+      const base = Math.max(0, Math.min(100, rhythmBri * nlFactor * areaFactor + briOverride + boostBri));
       for (let i = 0; i < lights.length; i++) {
         const light = lights[i];
         const filterName = light.filter || 'Standard';
@@ -1868,7 +1871,9 @@
         + '</div>';
 
       // Items
-      const base = rhythmBri * nlFactor * areaFactor;
+      const briOverride = tuneArea?.bri_override || 0;
+      const boostBri = tuneArea?.boosted ? (tuneArea.boost_brightness || 0) : 0;
+      const base = Math.max(0, Math.min(100, rhythmBri * nlFactor * areaFactor + briOverride + boostBri));
       html += '<div id="tune-lights-list-' + areaId + '">';
       for (let i = 0; i < lights.length; i++) {
         const light = lights[i];

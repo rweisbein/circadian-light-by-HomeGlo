@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.153
+- **Fix per-light brightness on tune page**: Was missing override and boost in per-light calculation, showing ~57% instead of ~96%. Now matches area detail page.
+- **Fix sticky zone headers**: Changed `overflow: hidden` to `overflow: clip` on zone-group so `position: sticky` works.
+
 ## 1.0.152
 - **Tune page: sort preserves unsaved changes**: Slider positions captured and restored across sort re-renders.
 - **Tune page: sticky zone headers**: Zone headers with column labels stick to top while scrolling.
