@@ -663,6 +663,13 @@
           </div>
         </div>
 
+      </div>
+    </div>
+
+    <!-- Feedback Cues Section -->
+    <div class="settings-section">
+      <div class="section-header">Feedback Cues</div>
+      <div class="section-content">
         <div class="form-row">
           <label class="form-label">
             Motion warning time
@@ -673,17 +680,22 @@
             <span class="form-hint">seconds before off (0 = disabled)</span>
           </div>
         </div>
-      </div>
-    </div>
 
-    <!-- Feedback Cues Section -->
-    <div class="settings-section">
-      <div class="section-header">Feedback Cues</div>
-      <div class="section-content">
+        <div class="form-row">
+          <label class="form-label">
+            Motion blink threshold
+            <span class="info-icon">i<span class="info-tooltip">At low brightness levels, a simple dim may not be noticeable. Below this threshold, the motion warning will briefly blink off (0% for 300ms) before dimming to ensure you notice. Formula: above threshold dims to 50% of current; below threshold blinks then dims to 3%.</span></span>
+          </label>
+          <div class="form-control">
+            <input type="number" class="form-input" id="motion-blink-threshold" min="5" max="50" step="1" value="15" style="width: 80px;">
+            <span class="form-hint">% brightness</span>
+          </div>
+        </div>
+
         <div class="form-row">
           <label class="form-label">
             Reach adjustment learn mode
-            <span class="info-icon">i<span class="info-tooltip">When enabled, all lights in the reach areas fade out and back so you can see which areas are included. When disabled, only a single indicator light flashes (1x/2x/3x for each reach level). Configure the indicator light per-switch in the Controls page.</span></span>
+            <span class="info-icon">i<span class="info-tooltip">When enabled, all lights in the reach areas fade out and back so you can see which areas are included. When disabled, only a single indicator light flashes (1x/2x/3x for each reach level).</span></span>
           </label>
           <div class="form-control">
             <label class="checkbox-label">
@@ -695,11 +707,23 @@
 
         <div class="form-row">
           <label class="form-label">
-            Warning blink threshold
-            <span class="info-icon">i<span class="info-tooltip">At low brightness levels, a simple dim may not be noticeable. Below this threshold, the warning will briefly blink off (0% for 300ms) before dimming to ensure you notice. Formula: above threshold dims to 50% of current; below threshold blinks then dims to 3%.</span></span>
+            Reach feedback
+            <span class="info-icon">i<span class="info-tooltip">When enabled, changing reach scope flashes lights to indicate the new scope number. When disabled, reach changes are silent.</span></span>
           </label>
           <div class="form-control">
-            <input type="number" class="form-input" id="motion-warning-blink-threshold" min="5" max="50" step="1" value="15" style="width: 80px;">
+            <label class="checkbox-label">
+              <input type="checkbox" id="reach-feedback-enabled" checked>
+            </label>
+          </div>
+        </div>
+
+        <div class="form-row" id="reach-daytime-threshold-row">
+          <label class="form-label">
+            Reach daytime threshold
+            <span class="info-icon">i<span class="info-tooltip">Below this brightness during daytime (when natural light is active), reach feedback flashes UP to 100% instead of dimming OFF, ensuring visibility in bright rooms.</span></span>
+          </label>
+          <div class="form-control">
+            <input type="number" class="form-input" id="reach-daytime-threshold" min="5" max="80" step="5" value="50" style="width: 80px;">
             <span class="form-hint">% brightness</span>
           </div>
         </div>
@@ -754,16 +778,6 @@
           </div>
         </div>
 
-        <div class="form-row">
-          <label class="form-label">
-            Reach feedback dip
-            <span class="info-icon">i<span class="info-tooltip">How much lights dip during reach change feedback. Expressed as a percentage of current brightness.</span></span>
-          </label>
-          <div class="form-control">
-            <input type="number" class="form-input" id="reach-dip-percent" min="10" max="80" step="5" value="50" style="width: 80px;">
-            <span class="form-hint">% of current</span>
-          </div>
-        </div>
       </div>
     </div>
 
@@ -1103,14 +1117,16 @@
           }
           updateLoggingRemaining();
           document.getElementById('motion-warning-time').value = config.motion_warning_time ?? 0;
-          document.getElementById('motion-warning-blink-threshold').value = config.motion_warning_blink_threshold ?? 15;
+          document.getElementById('motion-blink-threshold').value = config.motion_blink_threshold ?? 15;
+          document.getElementById('reach-feedback-enabled').checked = config.reach_feedback_enabled ?? true;
+          document.getElementById('reach-daytime-threshold').value = config.reach_daytime_threshold ?? 50;
+          updateReachFeedbackState();
           document.getElementById('freeze-off-rise').value = config.freeze_off_rise ?? 10;
           document.getElementById('limit-bounce-enabled').checked = config.limit_bounce_enabled ?? true;
           document.getElementById('limit-warning-speed').value = config.limit_warning_speed ?? 3;
           updateLimitBounceState();
           document.getElementById('limit-bounce-max-percent').value = config.limit_bounce_max_percent ?? 30;
           document.getElementById('limit-bounce-min-percent').value = config.limit_bounce_min_percent ?? 10;
-          document.getElementById('reach-dip-percent').value = config.reach_dip_percent ?? 50;
           // Outdoor brightness source selector
           const sourceSelect = document.getElementById('outdoor-brightness-source');
           const savedSource = config.outdoor_brightness_source ?? (config.outdoor_lux_sensor ? 'lux' : 'weather');
@@ -1182,13 +1198,14 @@
         daily_sync_hour: parseInt(document.getElementById('daily-sync-time').value.split(':')[0]) || 4,
         daily_sync_minute: parseInt(document.getElementById('daily-sync-time').value.split(':')[1]) || 0,
         motion_warning_time: parseInt(document.getElementById('motion-warning-time').value) || 0,
-        motion_warning_blink_threshold: parseInt(document.getElementById('motion-warning-blink-threshold').value) || 15,
+        motion_blink_threshold: parseInt(document.getElementById('motion-blink-threshold').value) || 15,
+        reach_feedback_enabled: document.getElementById('reach-feedback-enabled').checked,
+        reach_daytime_threshold: parseInt(document.getElementById('reach-daytime-threshold').value) || 50,
         freeze_off_rise: parseFloat(document.getElementById('freeze-off-rise').value) || 10,
         limit_bounce_enabled: document.getElementById('limit-bounce-enabled').checked,
         limit_warning_speed: parseFloat(document.getElementById('limit-warning-speed').value) || 3,
         limit_bounce_max_percent: parseInt(document.getElementById('limit-bounce-max-percent').value) || 30,
         limit_bounce_min_percent: parseInt(document.getElementById('limit-bounce-min-percent').value) || 10,
-        reach_dip_percent: parseInt(document.getElementById('reach-dip-percent').value) || 50,
         outdoor_brightness_source: document.getElementById('outdoor-brightness-source').value,
         outdoor_lux_sensor: document.getElementById('outdoor-lux-sensor').value.trim() || null,
         lux_smoothing_interval: parseInt(document.getElementById('lux-smoothing-interval').value || '300'),
@@ -1228,6 +1245,19 @@
       } else {
         speedGroup.style.opacity = '0.4';
         speedInput.disabled = true;
+      }
+    }
+
+    function updateReachFeedbackState() {
+      const enabled = document.getElementById('reach-feedback-enabled').checked;
+      const row = document.getElementById('reach-daytime-threshold-row');
+      const input = document.getElementById('reach-daytime-threshold');
+      if (enabled) {
+        row.style.opacity = '1';
+        input.disabled = false;
+      } else {
+        row.style.opacity = '0.4';
+        input.disabled = true;
       }
     }
 
@@ -1476,7 +1506,9 @@
       showSaveStatus();
     });
     document.getElementById('motion-warning-time').addEventListener('blur', saveSettings);
-    document.getElementById('motion-warning-blink-threshold').addEventListener('blur', saveSettings);
+    document.getElementById('motion-blink-threshold').addEventListener('blur', saveSettings);
+    document.getElementById('reach-feedback-enabled').addEventListener('change', () => { updateReachFeedbackState(); saveSettings(); });
+    document.getElementById('reach-daytime-threshold').addEventListener('blur', saveSettings);
     document.getElementById('freeze-off-rise').addEventListener('blur', saveSettings);
     document.getElementById('limit-bounce-enabled').addEventListener('change', () => {
       updateLimitBounceState();
@@ -1485,7 +1517,6 @@
     document.getElementById('limit-warning-speed').addEventListener('blur', saveSettings);
     document.getElementById('limit-bounce-max-percent').addEventListener('blur', saveSettings);
     document.getElementById('limit-bounce-min-percent').addEventListener('blur', saveSettings);
-    document.getElementById('reach-dip-percent').addEventListener('blur', saveSettings);
     document.getElementById('outdoor-brightness-source').addEventListener('change', () => {
       updateOutdoorSourceState();
       saveSettings();

@@ -1084,6 +1084,12 @@ class LightDesignerServer:
                             area["natural_light_exposure"] = round(
                                 float(data["natural_light_exposure"]), 2
                             )
+                        if "feedback_target" in data:
+                            val = data["feedback_target"]
+                            if val:
+                                area["feedback_target"] = val
+                            elif "feedback_target" in area:
+                                del area["feedback_target"]
                         found = True
                         break
                 if found:
@@ -1769,13 +1775,14 @@ class LightDesignerServer:
         "log_periodic",  # Whether to log periodic update details (default false)
         "home_refresh_interval",  # How often to refresh home page cards (seconds, default 10)
         "motion_warning_time",  # Seconds before motion timer expires to trigger warning dim
-        "motion_warning_blink_threshold",  # Brightness % below which warning blinks instead of dims
+        "motion_blink_threshold",  # Brightness % below which motion warning blinks instead of dims
         "freeze_off_rise",  # Transition time in tenths of seconds for unfreeze rise (default 10 = 1.0s)
         "limit_bounce_enabled",  # Whether to show visual bounce when hitting step limits (default true)
         "limit_warning_speed",  # Transition time in tenths of seconds for limit bounce animation (default 3 = 0.3s)
         "limit_bounce_max_percent",  # Percentage of range to dip when hitting max limit (default 30)
         "limit_bounce_min_percent",  # Percentage of range to flash when hitting min limit (default 10)
-        "reach_dip_percent",  # Percentage of current brightness to dip for reach feedback (default 50)
+        "reach_daytime_threshold",  # Brightness % below which reach feedback flashes UP when NL > 0 (default 50)
+        "reach_feedback_enabled",  # Whether reach scope changes flash lights (default true)
         "boost_default",  # Default boost percentage (10-100, default 30)
         "reach_learn_mode",  # Reach feedback uses single indicator light (default true)
         "long_press_repeat_interval",  # Long-press repeat interval in tenths of seconds (default 3 = 300ms)
@@ -1982,15 +1989,16 @@ class LightDesignerServer:
             "home_refresh_interval": 3,  # seconds (home page card refresh)
             # Motion warning settings
             "motion_warning_time": 30,  # seconds (0 = disabled)
-            "motion_warning_blink_threshold": 15,  # percent brightness
+            "motion_blink_threshold": 15,  # percent brightness
             # Visual feedback settings
             "freeze_off_rise": 10,  # tenths of seconds (1.0s)
             "limit_bounce_enabled": True,  # Show visual bounce at step limits
             "limit_warning_speed": 3,  # tenths of seconds (0.3s)
             "limit_bounce_max_percent": 30,  # % of range (hitting max)
             "limit_bounce_min_percent": 10,  # % of range (hitting min)
-            "reach_dip_percent": 50,  # % of current brightness
             # Reach feedback
+            "reach_feedback_enabled": True,  # Flash lights on reach change
+            "reach_daytime_threshold": 50,  # % brightness
             "reach_learn_mode": True,  # Use single indicator light for reach feedback
         }
 
@@ -2020,6 +2028,16 @@ class LightDesignerServer:
         # so reduce from old default to 3s for faster UI updates
         if config.get("home_refresh_interval", 3) > 3:
             config["home_refresh_interval"] = 3
+
+        # Migrate renamed settings
+        if "motion_warning_blink_threshold" in config and "motion_blink_threshold" not in config:
+            config["motion_blink_threshold"] = config.pop("motion_warning_blink_threshold")
+        elif "motion_warning_blink_threshold" in config:
+            del config["motion_warning_blink_threshold"]
+        if "reach_dip_percent" in config and "reach_daytime_threshold" not in config:
+            config["reach_daytime_threshold"] = config.pop("reach_dip_percent")
+        elif "reach_dip_percent" in config:
+            del config["reach_dip_percent"]
 
         # Migrate to GloZone format if needed
         config = self._migrate_to_glozone_format(config)
@@ -2072,15 +2090,16 @@ class LightDesignerServer:
             "home_refresh_interval": 3,  # seconds (home page card refresh)
             # Motion warning settings
             "motion_warning_time": 30,  # seconds (0 = disabled)
-            "motion_warning_blink_threshold": 15,  # percent brightness
+            "motion_blink_threshold": 15,  # percent brightness
             # Visual feedback settings
             "freeze_off_rise": 10,  # tenths of seconds (1.0s)
             "limit_bounce_enabled": True,  # Show visual bounce at step limits
             "limit_warning_speed": 3,  # tenths of seconds (0.3s)
             "limit_bounce_max_percent": 30,  # % of range (hitting max)
             "limit_bounce_min_percent": 10,  # % of range (hitting min)
-            "reach_dip_percent": 50,  # % of current brightness
             # Reach feedback
+            "reach_feedback_enabled": True,
+            "reach_daytime_threshold": 50,  # % brightness
             "reach_learn_mode": True,
         }
 
@@ -5728,9 +5747,6 @@ class LightDesignerServer:
                     control_data["cooldown"] = config.get("cooldown", 0)
                 else:
                     control_data["scopes"] = config.get("scopes", [])
-                    control_data["indicator_light"] = config.get("indicator_light")
-                    control_data["indicator_area"] = config.get("indicator_area")
-                    control_data["indicator_filter"] = config.get("indicator_filter")
                     control_data["magic_buttons"] = config.get("magic_buttons", {})
 
                 controls.append(control_data)
@@ -5764,7 +5780,6 @@ class LightDesignerServer:
                             "inactive": sw_config.get("inactive", False),
                             "inactive_until": sw_config.get("inactive_until"),
                             "scopes": sw_config.get("scopes", []),
-                            "indicator_light": sw_config.get("indicator_light"),
                             "magic_buttons": sw_config.get("magic_buttons", {}),
                         }
                     )
@@ -6226,15 +6241,15 @@ class LightDesignerServer:
                 scopes = []
                 for scope_data in scopes_data:
                     scope_areas = scope_data.get("areas", [])
-                    scopes.append(switches.SwitchScope(areas=scope_areas))
+                    feedback_area = scope_data.get("feedback_area")
+                    scopes.append(switches.SwitchScope(
+                        areas=scope_areas, feedback_area=feedback_area
+                    ))
 
                 if not scopes:
                     scopes = [switches.SwitchScope(areas=[])]
 
                 # Create/update switch config
-                indicator_light = data.get("indicator_light") or None
-                indicator_area = data.get("indicator_area") or None
-                indicator_filter = data.get("indicator_filter") or None
                 switch_config = switches.SwitchConfig(
                     id=control_id,
                     name=name,
@@ -6242,9 +6257,6 @@ class LightDesignerServer:
                     scopes=scopes,
                     magic_buttons=data.get("magic_buttons", {}),
                     device_id=device_id,
-                    indicator_light=indicator_light,
-                    indicator_area=indicator_area,
-                    indicator_filter=indicator_filter,
                     inactive=data.get("inactive", False),
                     inactive_until=data.get("inactive_until"),
                 )

@@ -2277,14 +2277,22 @@ class HomeAssistantWebSocketClient:
         except Exception:
             return True
 
-    def _get_motion_warning_blink_threshold(self) -> int:
-        """Get the motion warning blink threshold as brightness 0-255."""
+    def _get_motion_blink_threshold(self) -> int:
+        """Get the motion blink threshold as brightness 0-255."""
         try:
             raw_config = glozone.load_config_from_files()
-            pct = raw_config.get("motion_warning_blink_threshold", 15)
+            pct = raw_config.get("motion_blink_threshold", 15)
             return int(pct / 100.0 * 255)
         except Exception:
             return int(0.15 * 255)
+
+    def _is_reach_feedback_enabled(self) -> bool:
+        """Check if reach feedback is enabled globally."""
+        try:
+            raw_config = glozone.load_config_from_files()
+            return raw_config.get("reach_feedback_enabled", True)
+        except Exception:
+            return True
 
     def _apply_ct_brightness_compensation(
         self, brightness: int, color_temp: int
@@ -2357,67 +2365,83 @@ class HomeAssistantWebSocketClient:
 
         await self._feedback_cue(switch_id, "reach", scope_number=scope_number)
 
-    def _resolve_feedback_target(self, switch_id: str) -> Optional[dict]:
+    def _resolve_feedback_target(
+        self, switch_id: str, cue_type: str = "bounce"
+    ) -> Optional[dict]:
         """Resolve the feedback cue target for a switch.
 
-        Resolution order:
-        1. indicator_light (entity_id) → use directly
-        2. indicator_area + indicator_filter → ZHA group for that filter
-        3. indicator_area (no filter) → ZHA group for most popular filter
-        4. Switch's device area → ZHA group for most popular filter
+        Resolution varies by cue_type:
+        - "reach": Use switch's HA device area (feedback in the room you're in)
+        - "bounce"/"freeze": Use active reach's feedback_area (feedback in target room)
+
+        Both then resolve to the area's configured feedback_target (purpose or light).
 
         Returns:
-            Dict with 'entity_id' key for call_service target, or None.
+            Dict with 'entity_id' and metadata for call_service target, or None.
         """
         switch_config = switches.get_switch(switch_id)
         if not switch_config:
             logger.debug(f"[Feedback] No switch config for {switch_id}")
             return None
 
-        logger.debug(
-            f"[Feedback] {switch_config.name}: indicator_light={switch_config.indicator_light}, "
-            f"indicator_area={switch_config.indicator_area}, indicator_filter={switch_config.indicator_filter}"
-        )
-
-        # Option 1: explicit indicator light entity
-        if switch_config.indicator_light:
-            return {"entity_id": switch_config.indicator_light}
-
-        # Option 2/3: explicit indicator area (with optional filter)
-        area_id = switch_config.indicator_area
-
-        # Option 4: switch's own device area
-        if not area_id and switch_config.device_id:
-            device = self.device_registry.get(switch_config.device_id, {})
-            area_id = device.get("area_id")
-
-        # Option 5: first area from first scope
-        if not area_id and switch_config.scopes:
-            scope_areas = switch_config.scopes[0].areas
-            if scope_areas:
-                area_id = scope_areas[0]
+        if cue_type == "reach":
+            # Use the switch's own HA device area
+            area_id = None
+            if switch_config.device_id:
+                device = self.device_registry.get(switch_config.device_id, {})
+                area_id = device.get("area_id")
+            # Fallback: first area from first scope
+            if not area_id and switch_config.scopes:
+                scope_areas = switch_config.scopes[0].areas
+                if scope_areas:
+                    area_id = scope_areas[0]
+        else:
+            # "bounce" or "freeze": Use the active scope's feedback_area
+            scope_idx = switches.get_current_scope(switch_id)
+            scope = (
+                switch_config.scopes[scope_idx]
+                if scope_idx < len(switch_config.scopes)
+                else None
+            )
+            area_id = scope.feedback_area if scope else None
+            # Default: first area in the active scope
+            if not area_id and scope and scope.areas:
+                area_id = scope.areas[0]
 
         if not area_id:
             logger.debug(f"[Feedback] No area resolved for {switch_config.name}")
             return None
 
-        # Find ZHA group for specified filter or most popular
-        return self._get_feedback_group_for_area(
-            area_id, filter_name=switch_config.indicator_filter
-        )
+        return self._get_feedback_group_for_area(area_id)
 
     def _get_feedback_group_for_area(
         self, area_id: str, filter_name: str = None
     ) -> Optional[dict]:
-        """Get the ZHA group entity for a filter in an area.
+        """Get the ZHA group entity for feedback in an area.
 
-        If filter_name is specified, uses that filter's ZHA group.
-        Otherwise picks the most popular filter in the area.
-        Falls back to the general area ZHA group or area_id target.
+        Resolution: area's feedback_target config → filter_name arg → most popular purpose.
+        If feedback_target is a specific entity_id, returns it directly.
 
         Returns:
             Dict with 'entity_id' or 'area_id' key for call_service target.
         """
+        # Check area-level feedback_target config
+        if not filter_name:
+            area_feedback = glozone.get_area_feedback_target(area_id)
+            if area_feedback:
+                if area_feedback.startswith("light."):
+                    # Specific entity — find its purpose for brightness lookup
+                    area_filters = glozone.get_area_light_filters(area_id)
+                    entity_filter = area_filters.get(area_feedback, "Standard")
+                    return {
+                        "entity_id": area_feedback,
+                        "area_id": area_id,
+                        "filter_name": entity_filter,
+                    }
+                else:
+                    # Purpose name
+                    filter_name = area_feedback
+
         if filter_name:
             best_filter = filter_name
         else:
@@ -2481,7 +2505,7 @@ class HomeAssistantWebSocketClient:
             bounce_type: "step", "bright", or "color" (for bounce cue)
             scope_number: 1-5 (for reach cue — number of flashes)
         """
-        target = self._resolve_feedback_target(switch_id)
+        target = self._resolve_feedback_target(switch_id, cue_type=cue_type)
         if not target:
             logger.debug(f"No feedback target for switch {switch_id}")
             return
@@ -2589,11 +2613,43 @@ class HomeAssistantWebSocketClient:
                 logger.info(f"Feedback freeze: {cached_bri}/255 -> dim -> restore")
 
             elif cue_type == "reach":
+                # Check global reach feedback setting
+                if not self._is_reach_feedback_enabled():
+                    logger.debug("Reach feedback disabled, skipping")
+                    return
+
+                # Determine flash direction based on NL and brightness
+                # NL = 0: flash OFF → restore (normal)
+                # NL > 0, brightness ≥ threshold: flash OFF → restore (normal)
+                # NL > 0, brightness < threshold: flash UP to 100% → restore
+                flash_up = False
+                bri_pct = cached_bri / 2.55
+                if feedback_area:
+                    nl_exposure = glozone.get_area_natural_light_exposure(
+                        feedback_area
+                    )
+                    if nl_exposure > 0:
+                        outdoor_norm = lux_tracker.get_outdoor_normalized() or 0.0
+                        if outdoor_norm > 0:
+                            threshold = (
+                                self.primitives._get_reach_daytime_threshold()
+                            )
+                            if bri_pct < threshold:
+                                flash_up = True
+
                 # N flashes for reach 1-5
                 for i in range(scope_number):
-                    await self.call_service(
-                        "light", "turn_off", {"transition": 0}, target=target
-                    )
+                    if flash_up:
+                        await self.call_service(
+                            "light",
+                            "turn_on",
+                            {"brightness": 255, "transition": 0},
+                            target=target,
+                        )
+                    else:
+                        await self.call_service(
+                            "light", "turn_off", {"transition": 0}, target=target
+                        )
                     await asyncio.sleep(0.3)
                     await self.call_service(
                         "light",
@@ -2603,12 +2659,15 @@ class HomeAssistantWebSocketClient:
                     )
                     await asyncio.sleep(0.3)
 
-                # Restore (already on at cached_bri from last flash)
+                # Restore final state
                 if not was_on:
                     await self.call_service(
                         "light", "turn_off", {"transition": 0}, target=target
                     )
-                logger.info(f"Feedback reach: {scope_number} flash(es)")
+                logger.info(
+                    f"Feedback reach: {scope_number} flash(es), "
+                    f"flash_up={flash_up}, bri={bri_pct:.0f}%"
+                )
 
         finally:
             self._defer_periodic_tick = False

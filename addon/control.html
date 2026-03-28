@@ -587,6 +587,9 @@
       background: rgba(239, 68, 68, 0.2);
       color: var(--danger);
     }
+    .feedback-star { cursor: pointer; color: var(--muted2); font-size: 0.7rem; transition: color 0.2s; margin-right: 2px; }
+    .feedback-star.active { color: var(--accent); }
+    .feedback-star:hover { color: var(--accent-hover); }
 
     .area-chips-empty {
       color: var(--muted2);
@@ -832,25 +835,6 @@
       <div class="ctrl-card-body">
         <div class="ctrl-card-body-inner">
           <div id="magic-editor"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Feedback Cues card -->
-    <div class="ctrl-card is-open" id="indicator-light-section" style="display: none;">
-      <div class="ctrl-card-header" onclick="toggleCard('indicator-light-section')">
-        <span class="ctrl-card-chevron">&#x203A;</span>
-        <span class="ctrl-card-title">Feedback Cues</span>
-        <span class="info-icon" onclick="event.stopPropagation()">i<span class="info-tooltip">Choose which area and light(s) show visual feedback for actions like freeze, step limit bounce, and reach changes.</span></span>
-      </div>
-      <div class="ctrl-card-body">
-        <div class="ctrl-card-body-inner">
-          <label style="font-size: 0.8rem; color: var(--muted); margin-bottom: 4px; display: block;">Area</label>
-          <select class="modal-select" id="indicator-area-select" onchange="onIndicatorAreaChanged()" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.9rem; margin-bottom: 12px;">
-          </select>
-          <label style="font-size: 0.8rem; color: var(--muted); margin-bottom: 4px; display: block;">Lights</label>
-          <select class="modal-select" id="indicator-light-select" onchange="onIndicatorTargetChanged()" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.9rem;">
-          </select>
         </div>
       </div>
     </div>
@@ -1477,7 +1461,6 @@
       document.getElementById('switch-config-section').style.display = 'none';
       document.getElementById('motion-config-section').style.display = 'none';
       document.getElementById('pause-section').style.display = 'none';
-      document.getElementById('indicator-light-section').style.display = 'none';
       document.getElementById('magic-section').style.display = 'none';
       document.getElementById('zha-settings-section').style.display = 'none';
     }
@@ -1568,7 +1551,16 @@
       }
 
       const buttons = typeData.buttons || [];
-      const actionTypes = typeData.action_types || ['short_release', 'hold'];
+      const supported = typeData.action_types || ['short_release', 'hold'];
+      const actionTypes = [];
+      if (supported.includes('short_release')) actionTypes.push('short_release');
+      else if (supported.includes('press')) actionTypes.push('press');
+      if (supported.includes('double_press')) actionTypes.push('double_press');
+      if (supported.includes('triple_press')) actionTypes.push('triple_press');
+      if (supported.includes('quadruple_press')) actionTypes.push('quadruple_press');
+      if (supported.includes('quintuple_press')) actionTypes.push('quintuple_press');
+      if (supported.includes('hold')) actionTypes.push('hold');
+      if (supported.includes('rotate')) actionTypes.push('rotate');
       const mapping = typeData.effective_mapping;
       const magicSlots = new Set(getMagicSlots(switchType));
 
@@ -1691,12 +1683,16 @@
     function renderScopesEditor() {
       const container = document.getElementById('scopes-editor');
       container.innerHTML = editingScopes.map((scope, idx) => {
+        const feedbackArea = scope.feedback_area || (scope.areas.length > 0 ? scope.areas[0] : null);
         const areaChips = scope.areas.map(areaId => {
           const area = allAreas.find(a => a.area_id === areaId);
           const areaName = area ? area.name : areaId;
+          const isFeedback = areaId === feedbackArea;
+          const starClass = isFeedback ? 'feedback-star active' : 'feedback-star';
+          const starHtml = scope.areas.length > 1 ? `<span class="${starClass}" onclick="event.stopPropagation(); setFeedbackArea(${idx}, '${areaId}')" title="Feedback target">&#9733;</span>` : '';
           return `
             <span class="area-chip">
-              ${areaName}
+              ${starHtml}${areaName}
               <button class="area-chip-remove" onclick="removeAreaFromScope(${idx}, '${areaId}')">&times;</button>
             </span>
           `;
@@ -1726,12 +1722,18 @@
       }).join('');
     }
 
+    function setFeedbackArea(scopeIdx, areaId) {
+      editingScopes[scopeIdx].feedback_area = areaId;
+      renderScopesEditor();
+      autoSave();
+    }
+
     function addScope() {
       if (editingScopes.length >= 5) {
         alert('Maximum 5 reaches allowed');
         return;
       }
-      editingScopes.push({ areas: [] });
+      editingScopes.push({ areas: [], feedback_area: null });
       renderScopesEditor();
       autoSave();
     }
@@ -2095,8 +2097,8 @@
       } else {
         // Load switch scopes
         editingScopes = ctrl.scopes && ctrl.scopes.length > 0
-          ? ctrl.scopes.map(s => ({ areas: [...(s.areas || [])] }))
-          : [{ areas: [] }];
+          ? ctrl.scopes.map(s => ({ areas: [...(s.areas || [])], feedback_area: s.feedback_area || null }))
+          : [{ areas: [], feedback_area: null }];
         editingMotionScopes = [];
       }
 
@@ -2167,8 +2169,7 @@
         if (typeSectionEl) typeSectionEl.style.display = 'none';
         switchSection.style.display = 'none';
         motionSection.style.display = '';
-        document.getElementById('indicator-light-section').style.display = 'none';
-        document.getElementById('magic-section').style.display = 'none';
+          document.getElementById('magic-section').style.display = 'none';
         renderMotionScopesEditor();
 
         // Load ZHA settings for motion sensors (only for ZHA devices)
@@ -2186,16 +2187,6 @@
         motionSection.style.display = 'none';
         document.getElementById('zha-settings-section').style.display = 'none';
 
-        // Show feedback cue section for switches
-        document.getElementById('indicator-light-section').style.display = '';
-        // Determine current target value for the target dropdown
-        let currentTarget = '';
-        if (ctrl.indicator_light) {
-          currentTarget = ctrl.indicator_light;
-        } else if (ctrl.indicator_filter) {
-          currentTarget = 'filter:' + ctrl.indicator_filter;
-        }
-        loadFeedbackCueDropdowns(ctrl.indicator_area || '', currentTarget);
 
         // Load magic buttons and show section if switch type has magic slots
         editingMagicButtons = { ...(ctrl.magic_buttons || {}) };
@@ -2239,25 +2230,12 @@
           inactive_until: inactiveUntil,
         };
       } else {
-        // Switch config — feedback cue with separate area and target
-        const areaValue = document.getElementById('indicator-area-select').value;
-        const targetValue = document.getElementById('indicator-light-select').value;
-        let indicatorLight = '';
-        let indicatorArea = areaValue || '';
-        let indicatorFilter = '';
-        if (targetValue.startsWith('filter:')) {
-          indicatorFilter = targetValue.substring(7);
-        } else if (targetValue) {
-          indicatorLight = targetValue;
-        }
+        // Switch config
         payload = {
           name: editingControl?.name,
           type: editingControl?.type,
           scopes: editingScopes,
           device_id: editingDeviceId,
-          indicator_light: indicatorLight,
-          indicator_area: indicatorArea,
-          indicator_filter: indicatorFilter,
           magic_buttons: editingMagicButtons,
           inactive: inactive,
           inactive_until: inactiveUntil

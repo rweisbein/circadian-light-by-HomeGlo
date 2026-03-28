@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.136
+- **Feedback cue revamp**: Feedback routing now varies by cue type — reach indicator uses switch's own area, action feedback (bounce/freeze) uses active reach's feedback area. Per-reach feedback area selectable via star icon on switch detail. Removed per-switch indicator_light/area/filter fields.
+- **NL-aware reach flashing**: When natural light is active and brightness is below the daytime threshold, reach feedback flashes UP to 100% instead of off, ensuring visibility in bright rooms.
+- **Settings reorganized**: Motion warning time moved to Feedback Cues section. Renamed "Warning blink threshold" → "Motion blink threshold", "Reach feedback dip" → "Reach daytime threshold". Added "Reach feedback" on/off toggle.
+- **Area-level feedback target**: Areas can store a feedback target (purpose or light). Defaults to most popular purpose dynamically.
+- **Green power buttons on home page**: Power button hover/active uses green border.
+- **Control detail action order**: Hue switch actions now display in order: Short, 2×, 3×, 4×, 5×, Long (matching switch map).
+
 ## 1.0.135
 - **Integration logo**: Added icon.png and logo.png to the custom integration so it shows the Circadian Light logo in HA integrations list.
 

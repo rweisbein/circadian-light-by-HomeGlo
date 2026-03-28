@@ -241,18 +241,18 @@ class CircadianLightPrimitives:
         except Exception:
             return 10
 
-    def _get_reach_dip_percent(self) -> float:
-        """Get the reach feedback dip percentage (% of current brightness).
+    def _get_reach_daytime_threshold(self) -> float:
+        """Get the reach daytime threshold (brightness % below which flash goes UP).
 
-        Controls how much lights dip during reach change feedback.
-        Reads from global config, defaults to 50 (%).
+        When NL > 0 and brightness is below this threshold, reach feedback
+        flashes UP to 100% instead of off to ensure visibility.
 
         Returns:
-            Dip percentage (0-100)
+            Threshold percentage (0-100)
         """
         try:
             raw_config = glozone.load_config_from_files()
-            return raw_config.get("reach_dip_percent", 50)
+            return raw_config.get("reach_daytime_threshold", 50)
         except Exception:
             return 50
 
@@ -3087,7 +3087,7 @@ class CircadianLightPrimitives:
         try:
             raw_config = glozone.load_config_from_files()
             warning_time = raw_config.get("motion_warning_time", 0)
-            blink_threshold = raw_config.get("motion_warning_blink_threshold", 15)
+            blink_threshold = raw_config.get("motion_blink_threshold", 15)
             return (warning_time, blink_threshold)
         except Exception:
             return (0, 15)  # Defaults: disabled, 15%

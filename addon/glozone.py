@@ -575,6 +575,18 @@ def get_area_light_filters(area_id: str) -> Dict[str, str]:
     return {}
 
 
+def get_area_feedback_target(area_id: str) -> Optional[str]:
+    """Get the feedback target for an area.
+
+    Returns a purpose name (e.g., 'Standard') or entity_id (e.g., 'light.foo').
+    Returns None if not set (caller should default to most-popular purpose).
+    """
+    entry = get_area_entry(area_id)
+    if entry is None:
+        return None
+    return entry.get("feedback_target")
+
+
 # Settings that are per-zone rhythm settings (not global)
 RHYTHM_SETTINGS = {
     "color_mode",

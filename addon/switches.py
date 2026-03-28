@@ -640,6 +640,7 @@ class SwitchScope:
     """A scope defines which areas a switch controls."""
 
     areas: List[str] = field(default_factory=list)
+    feedback_area: Optional[str] = None  # Area in this scope for feedback cues
 
 
 @dataclass
@@ -652,9 +653,6 @@ class SwitchConfig:
     scopes: List[SwitchScope] = field(default_factory=list)
     magic_buttons: Dict[str, Optional[str]] = field(default_factory=dict)
     device_id: Optional[str] = None  # HA device_id for area lookup
-    indicator_light: Optional[str] = None  # Entity ID for feedback cue light
-    indicator_area: Optional[str] = None  # Area ID for feedback cue
-    indicator_filter: Optional[str] = None  # Filter/purpose name for feedback cue
     inactive: bool = False  # If True, switch won't trigger actions
     inactive_until: Optional[str] = None  # ISO timestamp or "forever"; None = no timer
 
@@ -687,17 +685,17 @@ class SwitchConfig:
             "id": self.id,
             "name": self.name,
             "type": self.type,
-            "scopes": [{"areas": s.areas} for s in self.scopes],
+            "scopes": [
+                {
+                    "areas": s.areas,
+                    **({"feedback_area": s.feedback_area} if s.feedback_area else {}),
+                }
+                for s in self.scopes
+            ],
             "magic_buttons": self.magic_buttons,
         }
         if self.device_id:
             result["device_id"] = self.device_id
-        if self.indicator_light:
-            result["indicator_light"] = self.indicator_light
-        if self.indicator_area:
-            result["indicator_area"] = self.indicator_area
-        if self.indicator_filter:
-            result["indicator_filter"] = self.indicator_filter
         if self.inactive:
             result["inactive"] = True
         if self.inactive_until:
@@ -707,7 +705,10 @@ class SwitchConfig:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "SwitchConfig":
         """Create from dictionary."""
-        scopes = [SwitchScope(areas=s.get("areas", [])) for s in data.get("scopes", [])]
+        scopes = [
+            SwitchScope(areas=s.get("areas", []), feedback_area=s.get("feedback_area"))
+            for s in data.get("scopes", [])
+        ]
         # Migrate old type names to new names
         switch_type = data.get("type", "hue_dimmer")
         type_migrations = {
@@ -722,9 +723,6 @@ class SwitchConfig:
             scopes=scopes,
             magic_buttons=data.get("magic_buttons", data.get("button_overrides", {})),
             device_id=data.get("device_id"),
-            indicator_light=data.get("indicator_light"),
-            indicator_area=data.get("indicator_area"),
-            indicator_filter=data.get("indicator_filter"),
             inactive=data.get("inactive", False),
             inactive_until=data.get("inactive_until"),
         )
@@ -1756,9 +1754,14 @@ def get_switches_summary() -> List[Dict[str, Any]]:
                 "type_name": SWITCH_TYPES.get(switch.type, {}).get("name", switch.type),
                 "current_scope": state.current_scope + 1,  # 1-indexed for display
                 "total_scopes": valid_scopes,
-                "scopes": [{"areas": s.areas} for s in switch.scopes],
+                "scopes": [
+                    {
+                        "areas": s.areas,
+                        **({"feedback_area": s.feedback_area} if s.feedback_area else {}),
+                    }
+                    for s in switch.scopes
+                ],
                 "device_id": switch.device_id,
-                "indicator_light": switch.indicator_light,
                 "inactive": switch.inactive,
                 "inactive_until": switch.inactive_until,
                 "magic_buttons": switch.magic_buttons,
