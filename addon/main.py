@@ -2600,8 +2600,10 @@ class HomeAssistantWebSocketClient:
                 await self.call_service("light", "turn_on", phase1_data, target=target)
                 await asyncio.sleep(limit_speed + two_step_delay)
 
-                # Phase 2: restore cached
+                # Phase 2: restore cached (brightness + color)
                 restore_data = {"brightness": cached_bri, "transition": limit_speed}
+                if bounce_color and current_ct:
+                    restore_data["color_temp"] = current_ct
                 await self.call_service("light", "turn_on", restore_data, target=target)
 
                 logger.info(
