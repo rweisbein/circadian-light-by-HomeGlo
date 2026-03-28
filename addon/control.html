@@ -1724,6 +1724,13 @@
 
     function setFeedbackArea(scopeIdx, areaId) {
       editingScopes[scopeIdx].feedback_area = areaId;
+      // Move starred area to front
+      const areas = editingScopes[scopeIdx].areas;
+      const idx = areas.indexOf(areaId);
+      if (idx > 0) {
+        areas.splice(idx, 1);
+        areas.unshift(areaId);
+      }
       renderScopesEditor();
       autoSave();
     }

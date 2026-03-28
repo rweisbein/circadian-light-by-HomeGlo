@@ -2004,6 +2004,7 @@ class HomeAssistantWebSocketClient:
                             for a in areas
                         ]
                     )
+                    logger.info(f"[bright_up reach] results={results}, areas={areas}")
                     await self._send_bright_via_reach_or_fallback(
                         areas, results, switch_id=switch_id, direction="up"
                     )
@@ -2046,6 +2047,7 @@ class HomeAssistantWebSocketClient:
                             for a in areas
                         ]
                     )
+                    logger.info(f"[bright_down reach] results={results}, areas={areas}")
                     await self._send_bright_via_reach_or_fallback(
                         areas, results, switch_id=switch_id, direction="down"
                     )
@@ -2609,7 +2611,7 @@ class HomeAssistantWebSocketClient:
                 logger.info(
                     f"Feedback bounce ({bounce_type} {direction}): "
                     f"area={feedback_area}, purpose={feedback_filter}, "
-                    f"{cached_bri}/255 -> {target_bri}/255 -> restore"
+                    f"phase1={phase1_data}, phase2={restore_data}"
                 )
 
             elif cue_type == "freeze":

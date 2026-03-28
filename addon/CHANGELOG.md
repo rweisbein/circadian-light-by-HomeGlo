@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.148
+- **Debug logging**: Bounce logs now show full phase1/phase2 payloads (brightness + color). Bright reach path logs results for all-at-limit diagnosis. Star feedback area moves to front of chip list.
+
 ## 1.0.147
 - **Fix bounce restore missing color**: Multi-area bounce (via `_feedback_cue`) restored brightness but not color temp, leaving lights at wrong color until next periodic tick. Now restores both.
 
