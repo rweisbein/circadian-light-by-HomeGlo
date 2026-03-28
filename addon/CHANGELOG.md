@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.157
+- **Fix rhythm page K mismatch**: Replaced log-lux outdoor normalization formula with backend's elev_factor model (linear/squared ramp with sun saturation). "Current conditions" now uses condition_multiplier directly from API instead of reverse-engineering it. Rhythm page K values now match backend/color tab.
+
 ## 1.0.156
 - **Fix color tab column header width**: Missing `%` in `width:100` caused truncated column headers.
 

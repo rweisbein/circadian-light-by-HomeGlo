@@ -1679,6 +1679,7 @@ let sunTimes = { sunrise: 6, sunset: 18, solarNoon: 12, solarMid: 0 };
 let _liveConditionMult = null;
 let _liveCondition = null;
 let _liveSource = null;
+let _outdoorParams = {};
 
 // Cursor state — always present, initialized to current time
 const _nowInit = new Date();
@@ -2115,15 +2116,18 @@ function getSunElevationAtHour(hour, lat, lon, dateStr) {
 
 /**
  * Convert sun elevation to outdoor_normalized (0-1) with condition multiplier.
- * Models: clear_sky_lux = 120000 * sin(elev), then log-scale to 0-1.
+ * Matches backend lux_tracker._compute_elev_factor() × condition_mult.
  */
 function elevationToOutdoorNorm(elevDeg, conditionMultiplier) {
   if (elevDeg <= 0 || conditionMultiplier <= 0) return 0;
-  const FULL_SUN_INTENSITY = 8.4;
-  const clearSkyLux = 120000 * Math.sin(elevDeg * Math.PI / 180);
-  const estimatedLux = clearSkyLux * conditionMultiplier;
-  if (estimatedLux <= 300) return 0;
-  return Math.min(1.0, Math.log2(estimatedLux / 300) / FULL_SUN_INTENSITY);
+  const maxElev = _outdoorParams.maxSummerElevation || 78;
+  const satPct = _outdoorParams.sunSaturation || 25;
+  const ramp = _outdoorParams.sunSaturationRamp || 'linear';
+  const threshold = maxElev * satPct / 100;
+  if (threshold <= 0) return conditionMultiplier;
+  let raw = Math.min(1.0, elevDeg / threshold);
+  if (ramp === 'squared') raw = raw * raw;
+  return raw * conditionMultiplier;
 }
 
 function getSelectedDateISO() {
@@ -5245,25 +5249,14 @@ document.addEventListener('DOMContentLoaded', () => {
   fetch('./api/outdoor-status').then(r => r.json()).then(data => {
     _liveCondition = data.weather_condition ?? null;
     _liveSource = data.source ?? null;
-    // Map condition to multiplier (same values as CONDITION_MULTIPLIERS in lux_tracker.py)
-    const COND_MAP = {
-      'sunny': 1.0, 'clear-night': 1.0, 'windy': 1.0, 'windy-variant': 1.0,
-      'partlycloudy': 0.6, 'partly_cloudy': 0.6,
-      'cloudy': 0.3,
-      'rainy': 0.2, 'snowy': 0.2, 'exceptional': 0.2,
-      'fog': 0.15, 'snowy-rainy': 0.15,
-      'hail': 0.1, 'pouring': 0.1,
-      'lightning': 0.08, 'lightning-rainy': 0.08,
+    // Store backend params so elevationToOutdoorNorm matches backend formula
+    _outdoorParams = {
+      maxSummerElevation: data.max_summer_elevation || 78,
+      sunSaturation: data.sun_saturation || 25,
+      sunSaturationRamp: data.sun_saturation_ramp || 'linear',
     };
-    if (data.outdoor_normalized != null && data.sun_elevation > 0) {
-      // Derive effective multiplier from actual outdoor_normalized (matches backend)
-      const clearNorm = elevationToOutdoorNorm(data.sun_elevation, 1.0);
-      _liveConditionMult = clearNorm > 0 ? Math.min(1.0, data.outdoor_normalized / clearNorm) : 1.0;
-    } else if (_liveSource === 'weather' && _liveCondition) {
-      _liveConditionMult = COND_MAP[_liveCondition] ?? 0.6;
-    } else {
-      _liveConditionMult = 1.0;
-    }
+    // Use condition_multiplier directly from backend (no reverse-engineering)
+    _liveConditionMult = data.condition_multiplier ?? 1.0;
     // Format condition name for display
     function fmtCondition(c) {
       if (!c) return '';

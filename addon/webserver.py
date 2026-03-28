@@ -5400,6 +5400,11 @@ class LightDesignerServer:
                     lux_tracker.get_condition_multiplier(), 2
                 ),
                 "angle_factor": round(lux_tracker.get_angle_factor(), 3),
+                "sun_saturation": lux_tracker._sun_saturation,
+                "sun_saturation_ramp": lux_tracker._sun_saturation_ramp,
+                "max_summer_elevation": round(
+                    lux_tracker._max_summer_elevation, 1
+                ),
             }
         )
 
