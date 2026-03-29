@@ -1597,8 +1597,16 @@ class LightDesignerServer:
                     "runtime_state": runtime_state,
                     "solar_cache": glozone_state.get_zone_solar_cache(zone_name),
                 }
-                logger.debug(
-                    f"[ZoneStates] Zone '{zone_name}': {result.brightness}% {result.color_temp}K at hour {calc_hour:.2f} (sun_times: sunrise={sun_times.sunrise:.2f}, sunset={sun_times.sunset:.2f})"
+                logger.info(
+                    f"[ZoneStates] Zone '{zone_name}': {result.brightness}% {result.color_temp}K | "
+                    f"hour={calc_hour:.2f} outdoor_norm={sun_times.outdoor_normalized:.3f} "
+                    f"elev={lux_tracker.compute_sun_elevation():.1f}° "
+                    f"elev_factor={lux_tracker.get_angle_factor():.3f} "
+                    f"cond_mult={lux_tracker.get_condition_multiplier():.2f} "
+                    f"weather={lux_tracker._weather_condition} "
+                    f"cloud={lux_tracker._cloud_cover} "
+                    f"color_sens={brain_config.color_sensitivity:.2f} "
+                    f"daylight_cct={brain_config.daylight_cct}"
                 )
 
             logger.debug(f"[ZoneStates] Returning {len(zone_states)} zone states")

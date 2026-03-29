@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.162
+- **Debug zone-states K computation**: Added info-level log showing outdoor_norm, elev_factor, condition_multiplier, weather condition, cloud cover, and color sensitivity for each zone-states request.
+
 ## 1.0.161
 - **Revert toggle buttons to orange**: Changed power/circadian/freeze/boost toggle borders from green back to orange accent color on home, tune, and area detail pages.
 
