@@ -158,7 +158,7 @@ class CircadianLightPrimitives:
         then transitions to target brightness. This delay between steps prevents
         some ZigBee lights from dropping the second command.
 
-        Reads from global config, defaults to 0.3 seconds (3 tenths).
+        Reads from global config, defaults to 0.2 seconds (2 tenths).
         The setting is stored as tenths of seconds in config.
 
         Returns:
@@ -166,10 +166,10 @@ class CircadianLightPrimitives:
         """
         try:
             raw_config = glozone.load_config_from_files()
-            tenths = raw_config.get("two_step_delay", 3)
+            tenths = raw_config.get("two_step_delay", 2)
             return tenths / 10.0  # Convert tenths to seconds
         except Exception:
-            return 0.3  # Default 0.3 seconds
+            return 0.2  # Default 0.2 seconds
 
     def _get_freeze_off_rise(self) -> float:
         """Get the freeze-off rise transition time in seconds.
@@ -215,31 +215,31 @@ class CircadianLightPrimitives:
         """Get the bounce percentage when hitting max limit (% of range).
 
         Controls how much lights dip when hitting the upper limit.
-        Reads from global config, defaults to 30 (%).
+        Reads from global config, defaults to 25 (%).
 
         Returns:
             Bounce percentage (0-100)
         """
         try:
             raw_config = glozone.load_config_from_files()
-            return raw_config.get("limit_bounce_max_percent", 30)
+            return raw_config.get("limit_bounce_max_percent", 25)
         except Exception:
-            return 30
+            return 25
 
     def _get_limit_bounce_min_percent(self) -> float:
         """Get the bounce percentage when hitting min limit (% of range).
 
         Controls how much lights flash when hitting the lower limit.
-        Reads from global config, defaults to 10 (%).
+        Reads from global config, defaults to 13 (%).
 
         Returns:
             Bounce percentage (0-100)
         """
         try:
             raw_config = glozone.load_config_from_files()
-            return raw_config.get("limit_bounce_min_percent", 10)
+            return raw_config.get("limit_bounce_min_percent", 13)
         except Exception:
-            return 10
+            return 13
 
     def _get_reach_daytime_threshold(self) -> float:
         """Get the reach daytime threshold (brightness % below which flash goes UP).
@@ -2883,11 +2883,11 @@ class CircadianLightPrimitives:
         """
         try:
             raw_config = glozone.load_config_from_files()
-            warning_time = raw_config.get("motion_warning_time", 0)
+            warning_time = raw_config.get("motion_warning_time", 20)
             blink_threshold = raw_config.get("motion_blink_threshold", 15)
             return (warning_time, blink_threshold)
         except Exception:
-            return (0, 15)  # Defaults: disabled, 15%
+            return (20, 15)  # Defaults: 20s warning, 15%
 
     async def check_motion_warnings(self, log_periodic: bool = False):
         """Check for areas that need motion warnings and trigger them.

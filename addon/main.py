@@ -272,17 +272,17 @@ class HomeAssistantWebSocketClient:
         """Get the multi-click detection window in seconds.
 
         The setting is stored as tenths of seconds in config.
-        Default is 0.2 seconds (2 tenths).
+        Default is 1.5 seconds (15 tenths).
 
         Returns:
             Multi-click window in seconds
         """
         try:
             raw_config = glozone.load_config_from_files()
-            tenths = raw_config.get("multi_click_speed", 10)
+            tenths = raw_config.get("multi_click_speed", 15)
             return tenths / 10.0  # Convert tenths to seconds
         except Exception:
-            return 0.2  # Default 0.2 seconds
+            return 1.5  # Default 1.5 seconds
 
     def _normalize_area_key(self, value: Optional[str]) -> Optional[str]:
         """Normalize area identifiers to a lowercase underscore-delimited key."""
@@ -2356,7 +2356,7 @@ class HomeAssistantWebSocketClient:
                 "ct_comp_begin", 1650
             )  # Warmer end (lower K)
             handover_end = raw_config.get("ct_comp_end", 2250)  # Cooler end (higher K)
-            max_factor = raw_config.get("ct_comp_factor", 1.4)
+            max_factor = raw_config.get("ct_comp_factor", 1.7)
 
             # No compensation above handover zone
             if color_temp >= handover_end:
@@ -3114,10 +3114,10 @@ class HomeAssistantWebSocketClient:
         self._last_light_action_time = time.time()
         try:
             raw_config = glozone.load_config_from_files()
-            burst_count = int(raw_config.get("post_action_burst_count", 3))
+            burst_count = int(raw_config.get("post_action_burst_count", 1))
             burst_count = max(0, min(3, burst_count))
         except Exception:
-            burst_count = 3
+            burst_count = 1
         self._post_action_refreshes_remaining = burst_count
 
         # Cancel any pending initial delay and restart
@@ -6007,7 +6007,7 @@ class HomeAssistantWebSocketClient:
                 # Get refresh interval, logging, and transition config
                 try:
                     raw_config = glozone.load_config_from_files()
-                    refresh_interval = raw_config.get("circadian_refresh", 30)
+                    refresh_interval = raw_config.get("circadian_refresh", 20)
                     refresh_interval = max(5, min(120, refresh_interval))
                     # Advanced logging with auto-expiry
                     logging_until = raw_config.get("advanced_logging_until")
@@ -6027,7 +6027,7 @@ class HomeAssistantWebSocketClient:
                         log_periodic = False
                     # Periodic transition speed (day/night) — values in seconds
                     periodic_transition_day = float(
-                        raw_config.get("periodic_transition_day", refresh_interval)
+                        raw_config.get("periodic_transition_day", 1)
                     )
                     periodic_transition_night = float(
                         raw_config.get("periodic_transition_night", 1)

@@ -5280,8 +5280,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Store backend params so elevationToOutdoorNorm matches backend formula
     _outdoorParams = {
       maxSummerElevation: data.max_summer_elevation || 78,
-      sunSaturation: data.sun_saturation || 25,
-      sunSaturationRamp: data.sun_saturation_ramp || 'linear',
+      sunSaturation: data.sun_saturation || 40,
+      sunSaturationRamp: data.sun_saturation_ramp || 'squared',
     };
     // Use condition_multiplier directly from backend (no reverse-engineering)
     _liveConditionMult = data.condition_multiplier ?? 1.0;

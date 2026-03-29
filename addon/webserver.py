@@ -1769,11 +1769,11 @@ class LightDesignerServer:
         "use_ha_location",
         "month",
         "brightness_sensitivity",
-        "sun_saturation",  # Sun intensity saturation cap (1-100, default 25)
-        "sun_saturation_ramp",  # Ramp curve: 'linear' or 'squared' (default linear)
+        "sun_saturation",  # Sun intensity saturation cap (1-100, default 40)
+        "sun_saturation_ramp",  # Ramp curve: 'linear' or 'squared' (default squared)
         "turn_on_transition",  # Transition time in tenths of seconds for turn-on operations
         "turn_off_transition",  # Transition time in tenths of seconds for turn-off operations
-        "two_step_delay",  # Delay between two-step phases in tenths of seconds (default 3 = 300ms)
+        "two_step_delay",  # Delay between two-step phases in tenths of seconds (default 2 = 200ms)
         "nudge_delay",  # Post-command nudge delay in tenths of seconds (default 10 = 1.0s, 0 = disabled)
         "multi_click_enabled",  # Enable multi-click detection for Hue Hub switches
         "multi_click_speed",  # Multi-click window in tenths of seconds
@@ -1785,14 +1785,14 @@ class LightDesignerServer:
         "freeze_off_rise",  # Transition time in tenths of seconds for unfreeze rise (default 10 = 1.0s)
         "limit_bounce_enabled",  # Whether to show visual bounce when hitting step limits (default true)
         "limit_warning_speed",  # Transition time in tenths of seconds for limit bounce animation (default 3 = 0.3s)
-        "limit_bounce_max_percent",  # Percentage of range to dip when hitting max limit (default 30)
-        "limit_bounce_min_percent",  # Percentage of range to flash when hitting min limit (default 10)
+        "limit_bounce_max_percent",  # Percentage of range to dip when hitting max limit (default 25)
+        "limit_bounce_min_percent",  # Percentage of range to flash when hitting min limit (default 13)
         "post_action_burst_count",  # Number of burst refreshes after switch actions (0-3, default 3)
         "reach_daytime_threshold",  # Brightness % below which reach feedback flashes UP when NL > 0 (default 50)
         "reach_feedback_enabled",  # Whether reach scope changes flash lights (default true)
         "boost_default",  # Default boost percentage (10-100, default 30)
         "reach_learn_mode",  # Reach feedback uses single indicator light (default true)
-        "long_press_repeat_interval",  # Long-press repeat interval in tenths of seconds (default 3 = 300ms)
+        "long_press_repeat_interval",  # Long-press repeat interval in tenths of seconds (default 7 = 700ms)
         "controls_ui",  # Controls page UI preferences (sort, filter)
         "areas_ui",  # Areas page UI preferences (sort, filter)
         "area_settings",  # Per-area settings (motion_function, motion_duration)
@@ -1808,7 +1808,7 @@ class LightDesignerServer:
         "lux_learned_ceiling",  # Learned bright-day lux baseline (85th percentile)
         "lux_learned_floor",  # Learned dark-day lux baseline (5th percentile)
         "outdoor_brightness_source",  # Preferred outdoor brightness source: "lux", "weather", or "angle"
-        "periodic_transition_day",  # Periodic transition speed during day (tenths of seconds, default 20)
+        "periodic_transition_day",  # Periodic transition speed during day (tenths of seconds, default 1)
         "periodic_transition_night",  # Periodic transition speed at night (tenths of seconds, default 1)
         "power_recovery",  # Power failure recovery: "bright" or "last_state" (default "last_state")
         "advanced_logging_until",  # ISO timestamp or "forever" for advanced logging expiry
@@ -1987,24 +1987,24 @@ class LightDesignerServer:
             # Advanced timing settings (tenths of seconds unless noted)
             "turn_on_transition": 3,
             "turn_off_transition": 3,
-            "two_step_delay": 3,
+            "two_step_delay": 2,
             "nudge_delay": 10,
             "multi_click_enabled": True,
-            "multi_click_speed": 2,
-            "circadian_refresh": 30,  # seconds
+            "multi_click_speed": 15,
+            "circadian_refresh": 20,  # seconds
             "log_periodic": False,  # log periodic update details
             "home_refresh_interval": 3,  # seconds (home page card refresh)
             # Motion warning settings
-            "motion_warning_time": 30,  # seconds (0 = disabled)
+            "motion_warning_time": 20,  # seconds (0 = disabled)
             "motion_blink_threshold": 15,  # percent brightness
             # Visual feedback settings
             "freeze_off_rise": 10,  # tenths of seconds (1.0s)
             "limit_bounce_enabled": True,  # Show visual bounce at step limits
             "limit_warning_speed": 3,  # tenths of seconds (0.3s)
-            "limit_bounce_max_percent": 30,  # % of range (hitting max)
-            "limit_bounce_min_percent": 10,  # % of range (hitting min)
+            "limit_bounce_max_percent": 25,  # % of range (hitting max)
+            "limit_bounce_min_percent": 13,  # % of range (hitting min)
             # Reach feedback
-            "post_action_burst_count": 3,  # 0-3 burst refreshes after actions
+            "post_action_burst_count": 1,  # 0-3 burst refreshes after actions
             "reach_feedback_enabled": True,  # Flash lights on reach change
             "reach_daytime_threshold": 50,  # % brightness
             "reach_learn_mode": True,  # Use single indicator light for reach feedback
@@ -2089,23 +2089,23 @@ class LightDesignerServer:
             # Advanced timing settings (tenths of seconds unless noted)
             "turn_on_transition": 3,
             "turn_off_transition": 3,
-            "two_step_delay": 3,
+            "two_step_delay": 2,
             "nudge_delay": 10,
             "multi_click_enabled": True,
-            "multi_click_speed": 2,
-            "circadian_refresh": 30,  # seconds
+            "multi_click_speed": 15,
+            "circadian_refresh": 20,  # seconds
             "log_periodic": False,  # log periodic update details
             "home_refresh_interval": 3,  # seconds (home page card refresh)
             # Motion warning settings
-            "motion_warning_time": 30,  # seconds (0 = disabled)
+            "motion_warning_time": 20,  # seconds (0 = disabled)
             "motion_blink_threshold": 15,  # percent brightness
             # Visual feedback settings
             "freeze_off_rise": 10,  # tenths of seconds (1.0s)
             "limit_bounce_enabled": True,  # Show visual bounce at step limits
             "limit_warning_speed": 3,  # tenths of seconds (0.3s)
-            "limit_bounce_max_percent": 30,  # % of range (hitting max)
-            "limit_bounce_min_percent": 10,  # % of range (hitting min)
-            "post_action_burst_count": 3,
+            "limit_bounce_max_percent": 25,  # % of range (hitting max)
+            "limit_bounce_min_percent": 13,  # % of range (hitting min)
+            "post_action_burst_count": 1,
             # Reach feedback
             "reach_feedback_enabled": True,
             "reach_daytime_threshold": 50,  # % brightness
@@ -3211,7 +3211,7 @@ class LightDesignerServer:
                 return brightness
             handover_begin = raw_config.get("ct_comp_begin", 1650)
             handover_end = raw_config.get("ct_comp_end", 2250)
-            max_factor = raw_config.get("ct_comp_factor", 1.4)
+            max_factor = raw_config.get("ct_comp_factor", 1.7)
             if color_temp >= handover_end:
                 return brightness
             if color_temp <= handover_begin:

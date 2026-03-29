@@ -143,11 +143,11 @@ class TestGetOutdoorNormalized:
 
     def test_angle_fallback_with_elevation(self):
         """Angle fallback should return positive value with sun up."""
-        # threshold = 78 * 25% = 19.5°; 10 / 19.5 ≈ 0.51
+        # threshold = 78 * 40% = 31.2°; 10 / 31.2 ≈ 0.32, squared → ~0.10
         lux_tracker._elev_override = 10.0
         result = lux_tracker.get_outdoor_normalized()
         assert result is not None
-        assert 0.4 < result < 0.7
+        assert 0.05 < result < 0.2
 
     def test_active_sensor_returns_float(self):
         """When sensor + baselines + data are all present, returns sun_factor."""
@@ -784,6 +784,7 @@ class TestElevFactor:
         _reset_all()
         # Use 100% saturation so threshold = max_summer_elevation (simple linear)
         lux_tracker._sun_saturation = 100
+        lux_tracker._sun_saturation_ramp = "linear"
 
     def test_negative_elevation_zero(self):
         """Negative elevation should give 0."""

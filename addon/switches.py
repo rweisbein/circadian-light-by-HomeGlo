@@ -1665,7 +1665,7 @@ def get_repeat_interval(switch_id: str) -> int:
     """Get the repeat interval for hold actions (in ms).
 
     Reads from global config setting (tenths of a second), falls back to
-    switch type default (300ms).
+    switch type default (700ms).
     """
     try:
         raw_config = glozone.load_config_from_files()
@@ -1679,8 +1679,8 @@ def get_repeat_interval(switch_id: str) -> int:
     if switch:
         switch_type = SWITCH_TYPES.get(switch.type)
         if switch_type:
-            return switch_type.get("repeat_interval_ms", 300)
-    return 300
+            return switch_type.get("repeat_interval_ms", 700)
+    return 700
 
 
 def should_repeat_on_hold(switch_id: str, button_event: str) -> bool:

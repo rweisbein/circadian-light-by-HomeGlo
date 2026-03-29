@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.165
+- **Rename cooldown label**: "Wait" → "Cooloff" on control details page.
+- **Update default settings**: Circadian refresh 30→20s, burst count 3→1, periodic transition day →1, multi-click speed →15 tenths, long-press repeat →7 (synced backend), motion warning →20s, limit bounce max 30→25%, min 10→13%, two-step delay 3→2, CT comp max 1.4→1.7, sun saturation 25→40% squared.
+
 ## 1.0.164
 - **Fix cooldown not persisting**: Cooldown was saved to disk correctly but not mapped back into the editing state when the control page loaded. Added `cooldown` to both scope-mapping paths.
 

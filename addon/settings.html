@@ -514,7 +514,7 @@
             <span class="info-icon">i<span class="info-tooltip">How often Circadian Light updates lights to match the current sun position. Timers (motion, boost) are checked every second regardless of this setting. Lower values give smoother light transitions but increase Home Assistant API calls.</span></span>
           </label>
           <div class="form-control">
-            <input type="number" class="form-input" id="circadian-refresh" min="5" max="120" step="5" value="30" style="width: 80px;">
+            <input type="number" class="form-input" id="circadian-refresh" min="5" max="120" step="5" value="20" style="width: 80px;">
             <span class="form-hint">seconds (5-120)</span>
           </div>
         </div>
@@ -536,7 +536,7 @@
             <span class="info-icon">i<span class="info-tooltip">Number of shortened tick refreshes after a switch action. These catch lights that missed the initial command. Set to 0 to disable burst refreshes entirely (only the normal periodic tick will refresh).</span></span>
           </label>
           <div class="form-control">
-            <input type="number" class="form-input" id="post-action-burst-count" min="0" max="3" step="1" value="3" style="width: 80px;">
+            <input type="number" class="form-input" id="post-action-burst-count" min="0" max="3" step="1" value="1" style="width: 80px;">
             <span class="form-hint">0-3 refreshes</span>
           </div>
         </div>
@@ -615,7 +615,7 @@
             </label>
             <span id="multi-click-speed-group" style="display: flex; align-items: center; gap: 8px; margin-left: 12px;">
               <span class="form-hint" style="margin-left: 0;">Speed</span>
-              <input type="number" class="form-input" id="multi-click-speed" min="1" max="100" step="0.1" value="10" style="width: 60px;">
+              <input type="number" class="form-input" id="multi-click-speed" min="1" max="100" step="0.1" value="15" style="width: 60px;">
               <span class="form-hint">tenths of a second</span>
             </span>
           </div>
@@ -627,7 +627,7 @@
             <span class="info-icon">i<span class="info-tooltip">How fast brightness changes when holding up/down buttons on a switch. Lower values = faster ramping.</span></span>
           </label>
           <div class="form-control">
-            <input type="number" class="form-input" id="long-press-repeat-interval" min="1" max="100" step="0.1" value="3" style="width: 80px;">
+            <input type="number" class="form-input" id="long-press-repeat-interval" min="1" max="100" step="0.1" value="7" style="width: 80px;">
             <span class="form-hint">tenths of a second</span>
           </div>
         </div>
@@ -687,7 +687,7 @@
             <span class="info-icon">i<span class="info-tooltip">How long before the motion timer expires to trigger a warning dim. Set to 0 to disable motion warnings. The warning dims lights to alert you before they turn off.</span></span>
           </label>
           <div class="form-control">
-            <input type="number" class="form-input" id="motion-warning-time" min="0" max="120" step="5" value="0" style="width: 80px;">
+            <input type="number" class="form-input" id="motion-warning-time" min="0" max="120" step="5" value="20" style="width: 80px;">
             <span class="form-hint">seconds before off (0 = disabled)</span>
           </div>
         </div>
@@ -773,7 +773,7 @@
             <span class="info-icon">i<span class="info-tooltip">How much to dip when hitting the upper limit. Expressed as a percentage of the brightness or color range.</span></span>
           </label>
           <div class="form-control">
-            <input type="number" class="form-input" id="limit-bounce-max-percent" min="5" max="50" step="1" value="30" style="width: 80px;">
+            <input type="number" class="form-input" id="limit-bounce-max-percent" min="5" max="50" step="1" value="25" style="width: 80px;">
             <span class="form-hint">% of range</span>
           </div>
         </div>
@@ -784,7 +784,7 @@
             <span class="info-icon">i<span class="info-tooltip">How much to flash when hitting the lower limit. Expressed as a percentage of the brightness or color range.</span></span>
           </label>
           <div class="form-control">
-            <input type="number" class="form-input" id="limit-bounce-min-percent" min="5" max="50" step="1" value="10" style="width: 80px;">
+            <input type="number" class="form-input" id="limit-bounce-min-percent" min="5" max="50" step="1" value="13" style="width: 80px;">
             <span class="form-hint">% of range</span>
           </div>
         </div>
@@ -802,7 +802,7 @@
             <span class="info-icon">i<span class="info-tooltip">When turning on lights, a two-step process sets color at 1% then transitions to target brightness. This delay between steps prevents some ZigBee lights from dropping the second command. Increase if lights stay dim after turn-on.</span></span>
           </label>
           <div class="form-control">
-            <input type="number" class="form-input" id="two-step-delay" min="0" max="20" step="0.1" value="3" style="width: 80px;">
+            <input type="number" class="form-input" id="two-step-delay" min="0" max="20" step="0.1" value="2" style="width: 80px;">
             <span class="form-hint">tenths of a second</span>
           </div>
         </div>
@@ -951,7 +951,7 @@
             <span class="info-icon">i<span class="info-tooltip">The brightness multiplier applied at and below the handover begin temperature. 1.4 means brightness is boosted by 40% to counteract the perceived dimming.</span></span>
           </label>
           <div class="form-control">
-            <input type="number" class="form-input" id="ct-comp-factor" min="1.0" max="2.0" step="0.05" value="1.4" style="width: 100px;">
+            <input type="number" class="form-input" id="ct-comp-factor" min="1.0" max="2.0" step="0.05" value="1.7" style="width: 100px;">
             <span class="form-hint">× (1.0 = none, 1.4 = 40% boost)</span>
           </div>
         </div>
@@ -1021,11 +1021,11 @@
             <span class="info-icon">i<span class="info-tooltip">At what percentage of peak sun elevation does outdoor brightness reach 100%? Lower values mean full brightness is reached earlier in the morning and lasts later in the afternoon. At 25%, once the sun reaches 25% of its peak elevation, the angle factor is fully saturated.</span></span>
           </label>
           <div class="form-control">
-            <input type="number" class="form-input" id="sun-saturation" min="1" max="100" step="5" value="25" style="width: 80px;">
+            <input type="number" class="form-input" id="sun-saturation" min="1" max="100" step="5" value="40" style="width: 80px;">
             <span class="form-hint">% of peak elevation</span>
             <select class="form-input" id="sun-saturation-ramp" style="width: 100px; margin-left: 8px;">
               <option value="linear">Linear</option>
-              <option value="squared">Squared</option>
+              <option value="squared" selected>Squared</option>
             </select>
           </div>
         </div>
@@ -1089,18 +1089,18 @@
           document.getElementById('turn-on-transition').value = config.turn_on_transition ?? 3;
           document.getElementById('turn-off-transition').value = config.turn_off_transition ?? 3;
           document.getElementById('boost-return-transition').value = config.boost_return_transition ?? 60;
-          document.getElementById('two-step-delay').value = config.two_step_delay ?? 3;
+          document.getElementById('two-step-delay').value = config.two_step_delay ?? 2;
           document.getElementById('post-switch-refresh').value = config.post_switch_refresh ?? 30;
-          document.getElementById('post-action-burst-count').value = config.post_action_burst_count ?? 3;
+          document.getElementById('post-action-burst-count').value = config.post_action_burst_count ?? 1;
           document.getElementById('multi-click-enabled').checked = config.multi_click_enabled ?? true;
-          document.getElementById('multi-click-speed').value = config.multi_click_speed ?? 10;
+          document.getElementById('multi-click-speed').value = config.multi_click_speed ?? 15;
           document.getElementById('long-press-repeat-interval').value = config.long_press_repeat_interval ?? 7;
           document.getElementById('max-dim-steps').value = config.max_dim_steps ?? 10;
           document.getElementById('reach-learn-mode').checked = config.reach_learn_mode ?? true;
           document.getElementById('confirm-zone-pushes').checked = config.confirm_zone_pushes ?? false;
-          document.getElementById('circadian-refresh').value = config.circadian_refresh ?? 30;
-          const refreshDefault = config.circadian_refresh ?? 30;
-          document.getElementById('periodic-transition-day').value = config.periodic_transition_day ?? refreshDefault;
+          document.getElementById('circadian-refresh').value = config.circadian_refresh ?? 20;
+          const refreshDefault = config.circadian_refresh ?? 20;
+          document.getElementById('periodic-transition-day').value = config.periodic_transition_day ?? 1;
           document.getElementById('periodic-transition-night').value = config.periodic_transition_night ?? 1;
           document.getElementById('home-refresh-interval').value = config.home_refresh_interval ?? 3;
           // Daily sync time
@@ -1128,7 +1128,7 @@
             }
           }
           updateLoggingRemaining();
-          document.getElementById('motion-warning-time').value = config.motion_warning_time ?? 0;
+          document.getElementById('motion-warning-time').value = config.motion_warning_time ?? 20;
           document.getElementById('motion-blink-threshold').value = config.motion_blink_threshold ?? 15;
           document.getElementById('reach-feedback-enabled').checked = config.reach_feedback_enabled ?? true;
           document.getElementById('reach-daytime-threshold').value = config.reach_daytime_threshold ?? 50;
@@ -1137,8 +1137,8 @@
           document.getElementById('limit-bounce-enabled').checked = config.limit_bounce_enabled ?? true;
           document.getElementById('limit-warning-speed').value = config.limit_warning_speed ?? 3;
           updateLimitBounceState();
-          document.getElementById('limit-bounce-max-percent').value = config.limit_bounce_max_percent ?? 30;
-          document.getElementById('limit-bounce-min-percent').value = config.limit_bounce_min_percent ?? 10;
+          document.getElementById('limit-bounce-max-percent').value = config.limit_bounce_max_percent ?? 25;
+          document.getElementById('limit-bounce-min-percent').value = config.limit_bounce_min_percent ?? 13;
           // Outdoor brightness source selector
           const sourceSelect = document.getElementById('outdoor-brightness-source');
           const savedSource = config.outdoor_brightness_source ?? (config.outdoor_lux_sensor ? 'lux' : 'weather');
@@ -1176,12 +1176,12 @@
           document.getElementById('ct-comp-enabled').checked = config.ct_comp_enabled ?? false;
           document.getElementById('ct-comp-begin').value = config.ct_comp_begin ?? 1650;
           document.getElementById('ct-comp-end').value = config.ct_comp_end ?? 2250;
-          document.getElementById('ct-comp-factor').value = config.ct_comp_factor ?? 1.4;
+          document.getElementById('ct-comp-factor').value = config.ct_comp_factor ?? 1.7;
           updateMultiClickState();
           updateCtCompState();
           updateLocationSection(config);
-          document.getElementById('sun-saturation').value = config.sun_saturation ?? 25;
-          document.getElementById('sun-saturation-ramp').value = config.sun_saturation_ramp ?? 'linear';
+          document.getElementById('sun-saturation').value = config.sun_saturation ?? 40;
+          document.getElementById('sun-saturation-ramp').value = config.sun_saturation_ramp ?? 'squared';
         }
       } catch (err) {
         console.error('Error loading settings:', err);
@@ -1195,30 +1195,30 @@
         turn_on_transition: parseFloat(document.getElementById('turn-on-transition').value) || 3,
         turn_off_transition: parseFloat(document.getElementById('turn-off-transition').value) || 3,
         boost_return_transition: parseFloat(document.getElementById('boost-return-transition').value) || 60,
-        two_step_delay: parseFloat(document.getElementById('two-step-delay').value) || 3,
+        two_step_delay: parseFloat(document.getElementById('two-step-delay').value) || 2,
         post_switch_refresh: parseInt(document.getElementById('post-switch-refresh').value) || 30,
-        post_action_burst_count: parseInt(document.getElementById('post-action-burst-count').value) ?? 3,
+        post_action_burst_count: parseInt(document.getElementById('post-action-burst-count').value) ?? 1,
         multi_click_enabled: document.getElementById('multi-click-enabled').checked,
-        multi_click_speed: parseFloat(document.getElementById('multi-click-speed').value) || 10,
+        multi_click_speed: parseFloat(document.getElementById('multi-click-speed').value) || 15,
         long_press_repeat_interval: parseFloat(document.getElementById('long-press-repeat-interval').value) || 7,
         max_dim_steps: parseInt(document.getElementById('max-dim-steps').value) || 10,
         reach_learn_mode: document.getElementById('reach-learn-mode').checked,
         confirm_zone_pushes: document.getElementById('confirm-zone-pushes').checked,
-        circadian_refresh: parseInt(document.getElementById('circadian-refresh').value) || 30,
-        periodic_transition_day: parseInt(document.getElementById('periodic-transition-day').value) || (parseInt(document.getElementById('circadian-refresh').value) || 30),
+        circadian_refresh: parseInt(document.getElementById('circadian-refresh').value) || 20,
+        periodic_transition_day: parseInt(document.getElementById('periodic-transition-day').value) || 1,
         periodic_transition_night: parseInt(document.getElementById('periodic-transition-night').value) || 1,
         home_refresh_interval: parseInt(document.getElementById('home-refresh-interval').value) || 3,
         daily_sync_hour: parseInt(document.getElementById('daily-sync-time').value.split(':')[0]) || 4,
         daily_sync_minute: parseInt(document.getElementById('daily-sync-time').value.split(':')[1]) || 0,
-        motion_warning_time: parseInt(document.getElementById('motion-warning-time').value) || 0,
+        motion_warning_time: parseInt(document.getElementById('motion-warning-time').value) || 20,
         motion_blink_threshold: parseInt(document.getElementById('motion-blink-threshold').value) || 15,
         reach_feedback_enabled: document.getElementById('reach-feedback-enabled').checked,
         reach_daytime_threshold: parseInt(document.getElementById('reach-daytime-threshold').value) || 50,
         freeze_off_rise: parseFloat(document.getElementById('freeze-off-rise').value) || 10,
         limit_bounce_enabled: document.getElementById('limit-bounce-enabled').checked,
         limit_warning_speed: parseFloat(document.getElementById('limit-warning-speed').value) || 3,
-        limit_bounce_max_percent: parseInt(document.getElementById('limit-bounce-max-percent').value) || 30,
-        limit_bounce_min_percent: parseInt(document.getElementById('limit-bounce-min-percent').value) || 10,
+        limit_bounce_max_percent: parseInt(document.getElementById('limit-bounce-max-percent').value) || 25,
+        limit_bounce_min_percent: parseInt(document.getElementById('limit-bounce-min-percent').value) || 13,
         outdoor_brightness_source: document.getElementById('outdoor-brightness-source').value,
         outdoor_lux_sensor: document.getElementById('outdoor-lux-sensor').value.trim() || null,
         lux_smoothing_interval: parseInt(document.getElementById('lux-smoothing-interval').value || '300'),
@@ -1227,9 +1227,9 @@
         ct_comp_enabled: document.getElementById('ct-comp-enabled').checked,
         ct_comp_begin: parseInt(document.getElementById('ct-comp-begin').value) || 1650,
         ct_comp_end: parseInt(document.getElementById('ct-comp-end').value) || 2250,
-        ct_comp_factor: parseFloat(document.getElementById('ct-comp-factor').value) || 1.4,
-        sun_saturation: parseInt(document.getElementById('sun-saturation').value) || 25,
-        sun_saturation_ramp: document.getElementById('sun-saturation-ramp').value || 'linear'
+        ct_comp_factor: parseFloat(document.getElementById('ct-comp-factor').value) || 1.7,
+        sun_saturation: parseInt(document.getElementById('sun-saturation').value) || 40,
+        sun_saturation_ramp: document.getElementById('sun-saturation-ramp').value || 'squared'
       };
 
       try {

@@ -918,7 +918,7 @@
       if (!tuneData?.ct_comp_enabled || kelvin == null) return 1.0;
       const begin = tuneData.ct_comp_begin ?? 1650;
       const end = tuneData.ct_comp_end ?? 2250;
-      const maxF = tuneData.ct_comp_factor ?? 1.4;
+      const maxF = tuneData.ct_comp_factor ?? 1.7;
       if (kelvin <= begin) return maxF;
       if (kelvin < end) return 1.0 + ((end - kelvin) / (end - begin)) * (maxF - 1.0);
       return 1.0;
