@@ -5041,7 +5041,11 @@ async function loadZoneFromData() {
       Object.assign(config, zoneData);
 
       syncUIFromConfig();
-      syncConfigFromUI();  // Round-trip ensures all derived fields exist in config
+      // Round-trip ensures all derived fields exist — but preserve
+      // color_sensitivity since the discrete slider snaps to nearest step
+      const storedColorSens = config.color_sensitivity;
+      syncConfigFromUI();
+      if (storedColorSens != null) config.color_sensitivity = storedColorSens;
       takeConfigSnapshot();
       renderChart();
 

@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.163
+- **Fix rhythm page color_sensitivity snapping**: The discrete sensitivity slider was snapping stored values (e.g. 1.10) to the nearest step (1.00) on page load, causing a K mismatch vs backend. Now preserves the stored value through the UI round-trip.
+- **Remove zone-states debug spam**: Demoted v1.0.162 diagnostic log back to debug level.
+
 ## 1.0.162
 - **Debug zone-states K computation**: Added info-level log showing outdoor_norm, elev_factor, condition_multiplier, weather condition, cloud cover, and color sensitivity for each zone-states request.
 
