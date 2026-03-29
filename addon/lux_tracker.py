@@ -82,9 +82,10 @@ _override_condition: Optional[str] = None  # "sunny", "partly_cloudy", etc.
 _override_expires_at: Optional[float] = None  # monotonic timestamp
 
 # ---------------------------------------------------------------------------
-# Module state — sun elevation cache
+# Module state — sun elevation (computed from lat/lon/time, no HA dependency)
 # ---------------------------------------------------------------------------
-_sun_elevation: float = 0.0
+_latitude: float = 35.0
+_longitude: float = -78.6
 _max_summer_elevation: float = 78.0  # default for ~35°N, set via set_latitude()
 _sun_saturation: int = 25  # % of max elevation at which angle factor saturates to 1.0
 _sun_saturation_ramp: str = "linear"  # "linear" or "squared"
@@ -112,7 +113,7 @@ def init(config: Optional[dict] = None):
     global _sensor_entity, _smoothing_interval, _learned_ceiling, _learned_floor
     global _ema_lux, _last_update_time, _cached_sun_factor
     global _preferred_source, _cloud_cover, _weather_condition
-    global _sun_elevation, _last_outdoor_update, _condition_map
+    global _last_outdoor_update, _condition_map
     global _sun_saturation, _sun_saturation_ramp
 
     if config is None:
@@ -167,7 +168,6 @@ def init(config: Optional[dict] = None):
     _cached_sun_factor = 1.0
     _cloud_cover = None
     _weather_condition = None
-    _sun_elevation = 0.0
     _last_outdoor_update = None
 
     logger.info(
@@ -349,9 +349,12 @@ def set_weather_entity(entity_id: str):
     _weather_entity = entity_id
 
 
-def set_latitude(latitude: float):
-    """Compute max summer solstice elevation for this latitude."""
-    global _max_summer_elevation
+def set_latitude(latitude: float, longitude: float = None):
+    """Store lat/lon and compute max summer solstice elevation."""
+    global _latitude, _longitude, _max_summer_elevation
+    _latitude = latitude
+    if longitude is not None:
+        _longitude = longitude
     # Summer solstice: sun declination = +23.44°
     # Max elevation = 90 - |latitude - 23.44|
     _max_summer_elevation = max(20.0, 90.0 - abs(abs(latitude) - 23.44))
@@ -381,11 +384,43 @@ def update_weather(cloud_cover: float, condition: Optional[str] = None):
     _last_outdoor_update = time.time()
 
 
-def update_sun_elevation(elevation: float):
-    """Cache sun elevation (degrees) for angle-based fallback."""
-    global _sun_elevation, _last_outdoor_update
-    _sun_elevation = elevation
-    _last_outdoor_update = time.time()
+_elev_override: Optional[float] = None  # test hook — set to bypass real computation
+
+
+def compute_sun_elevation(latitude: float = None, longitude: float = None) -> float:
+    """Compute current sun elevation (degrees) from lat/lon and system clock.
+
+    Uses the same solar geometry as the rhythm page JS, ensuring consistency.
+    """
+    if _elev_override is not None:
+        return max(0.0, _elev_override)
+    from datetime import datetime
+
+    lat = latitude if latitude is not None else _latitude
+    lon = longitude if longitude is not None else _longitude
+    now = datetime.now()
+    doy = now.timetuple().tm_yday
+    # Solar declination
+    decl = math.radians(23.44) * math.sin(2 * math.pi * (284 + doy) / 365)
+    lat_rad = math.radians(lat)
+    # Equation of time
+    j = doy + ((lon + 360 if lon < 0 else lon) / 360)
+    m_deg = (357.5291 + 0.9856 * j) % 360
+    m = math.radians(m_deg)
+    c = 1.9148 * math.sin(m) + 0.02 * math.sin(2 * m) + 0.0003 * math.sin(3 * m)
+    l_deg = (m_deg + 102.9372 + c + 180) % 360
+    l = math.radians(l_deg)
+    eot = (0.0053 * math.sin(m) - 0.0069 * math.sin(2 * l)) * 24  # hours
+    # Timezone offset
+    tz_offset = now.astimezone().utcoffset().total_seconds() / 3600
+    solar_noon = 12 + tz_offset - (lon / 15) + eot
+    hour = now.hour + now.minute / 60 + now.second / 3600
+    hour_angle = math.radians((hour - solar_noon) * 15)
+    sin_elev = (
+        math.sin(lat_rad) * math.sin(decl)
+        + math.cos(lat_rad) * math.cos(decl) * math.cos(hour_angle)
+    )
+    return max(0.0, math.degrees(math.asin(sin_elev)))
 
 
 # ---------------------------------------------------------------------------
@@ -446,12 +481,13 @@ def _estimate_clear_sky_lux(elevation_deg: float) -> float:
 
 def _compute_elev_factor() -> float:
     """Sun elevation → 0-1 factor, saturating at sun_saturation % of max elevation."""
-    if _sun_elevation <= 0:
+    elev = compute_sun_elevation()
+    if elev <= 0:
         return 0.0
     threshold = _max_summer_elevation * _sun_saturation / 100.0
     if threshold <= 0:
         return 1.0
-    raw = min(1.0, _sun_elevation / threshold)
+    raw = min(1.0, elev / threshold)
     if _sun_saturation_ramp == "squared":
         return raw * raw
     return raw

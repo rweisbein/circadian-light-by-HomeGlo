@@ -2,6 +2,7 @@
 """Tests for lux_tracker module."""
 
 import math
+
 import pytest
 
 import lux_tracker
@@ -123,7 +124,7 @@ def _reset_all():
     lux_tracker._cloud_cover = None
     lux_tracker._override_condition = None
     lux_tracker._override_expires_at = None
-    lux_tracker._sun_elevation = 0.0
+    lux_tracker._elev_override = None
     lux_tracker._max_summer_elevation = 78.0
     lux_tracker._condition_map = dict(lux_tracker.CONDITION_MULTIPLIERS)
 
@@ -136,17 +137,17 @@ class TestGetOutdoorNormalized:
 
     def test_no_sources_returns_angle_fallback(self):
         """When nothing configured, falls through to angle (0.0 at deep night)."""
-        lux_tracker._sun_elevation = -10.0
+        lux_tracker._elev_override = -10.0
         result = lux_tracker.get_outdoor_normalized()
         assert result == 0.0
 
     def test_angle_fallback_with_elevation(self):
         """Angle fallback should return positive value with sun up."""
-        lux_tracker._sun_elevation = 45.0
+        # threshold = 78 * 25% = 19.5°; 10 / 19.5 ≈ 0.51
+        lux_tracker._elev_override = 10.0
         result = lux_tracker.get_outdoor_normalized()
         assert result is not None
-        # 45 / 78 ≈ 0.577
-        assert 0.5 < result < 0.7
+        assert 0.4 < result < 0.7
 
     def test_active_sensor_returns_float(self):
         """When sensor + baselines + data are all present, returns sun_factor."""
@@ -234,10 +235,8 @@ class TestFallback:
         lux_tracker._cloud_cover = 50.0
         lux_tracker._override_condition = "cloudy"
         lux_tracker._override_expires_at = 9999.0
-        lux_tracker._sun_elevation = 30.0
         lux_tracker.init(config={})
         assert lux_tracker._cloud_cover is None
-        assert lux_tracker._sun_elevation == 0.0
         # Override is user-initiated and time-limited; must survive init()
         assert lux_tracker._override_condition == "cloudy"
         assert lux_tracker._override_expires_at == 9999.0
@@ -265,7 +264,7 @@ class TestWeatherEstimation:
         """0% cloud with high elevation should give high value."""
         lux_tracker._weather_entity = "weather.home"
         lux_tracker._cloud_cover = 0.0
-        lux_tracker._sun_elevation = 60.0
+        lux_tracker._elev_override = 60.0
         result = lux_tracker._compute_weather_outdoor_norm()
         assert result is not None
         # 60/78 * 1.0 ≈ 0.769
@@ -276,17 +275,17 @@ class TestWeatherEstimation:
         lux_tracker._weather_entity = "weather.home"
         lux_tracker._cloud_cover = 100.0
         lux_tracker._weather_condition = None
-        lux_tracker._sun_elevation = 60.0
+        lux_tracker._elev_override = 10.0  # below saturation threshold (19.5°)
         result = lux_tracker._compute_weather_outdoor_norm()
         assert result is not None
-        # 60/78 * 0.3 ≈ 0.231
-        assert result < 0.3
+        # 10/19.5 * 0.3 ≈ 0.154
+        assert result < 0.2
 
     def test_compute_weather_condition_rainy(self):
         """Rainy condition should use CONDITION_MULTIPLIERS and give lower value."""
         lux_tracker._weather_entity = "weather.home"
         lux_tracker._cloud_cover = 100.0
-        lux_tracker._sun_elevation = 60.0
+        lux_tracker._elev_override = 60.0
         # Without condition
         lux_tracker._weather_condition = None
         no_condition = lux_tracker._compute_weather_outdoor_norm()
@@ -299,7 +298,7 @@ class TestWeatherEstimation:
         """Weather 'cloudy' condition uses same multiplier as override 'cloudy'."""
         lux_tracker._weather_entity = "weather.home"
         lux_tracker._cloud_cover = 50.0  # doesn't matter when condition is set
-        lux_tracker._sun_elevation = 45.0
+        lux_tracker._elev_override = 45.0
         lux_tracker._weather_condition = "cloudy"
         result_weather = lux_tracker._compute_weather_outdoor_norm()
         # Override uses same multiplier via CONDITION_MULTIPLIERS["cloudy"] = 0.3
@@ -309,7 +308,7 @@ class TestWeatherEstimation:
         """Unknown condition falls back to cloud-cover formula."""
         lux_tracker._weather_entity = "weather.home"
         lux_tracker._cloud_cover = 80.0
-        lux_tracker._sun_elevation = 50.0
+        lux_tracker._elev_override = 50.0
         lux_tracker._weather_condition = "unknown_thing"
         result_unknown = lux_tracker._compute_weather_outdoor_norm()
         lux_tracker._weather_condition = None
@@ -330,7 +329,7 @@ class TestWeatherEstimation:
         """Elevation well below civil twilight should give 0.0."""
         lux_tracker._weather_entity = "weather.home"
         lux_tracker._cloud_cover = 0.0
-        lux_tracker._sun_elevation = -10.0
+        lux_tracker._elev_override = -10.0
         result = lux_tracker._compute_weather_outdoor_norm()
         assert result == 0.0
 
@@ -338,7 +337,7 @@ class TestWeatherEstimation:
         """Elevation at horizon should give 0.0 (elev_factor = 0 at 0°)."""
         lux_tracker._weather_entity = "weather.home"
         lux_tracker._cloud_cover = 0.0
-        lux_tracker._sun_elevation = 0.0
+        lux_tracker._elev_override = 0.0
         result = lux_tracker._compute_weather_outdoor_norm()
         assert result is not None
         assert result == 0.0
@@ -363,7 +362,7 @@ class TestOverride:
 
     def setup_method(self):
         _reset_all()
-        lux_tracker._sun_elevation = 45.0  # daytime
+        lux_tracker._elev_override = 45.0  # daytime
 
     def test_set_override_stores_condition(self):
         """set_override() should store condition and expiry."""
@@ -419,7 +418,7 @@ class TestFallbackChain:
 
     def setup_method(self):
         _reset_all()
-        lux_tracker._sun_elevation = 45.0
+        lux_tracker._elev_override = 45.0
 
     def test_override_beats_lux(self):
         """Override should take priority over lux sensor."""
@@ -536,7 +535,7 @@ class TestFallbackChain:
     def test_weather_value_differs_from_angle(self):
         """Weather source should produce different value than angle for cloudy days."""
         lux_tracker._preferred_source = "weather"
-        lux_tracker._sun_elevation = 45.0
+        lux_tracker._elev_override = 45.0
         angle_val = lux_tracker._compute_angle_outdoor_norm()
 
         lux_tracker._weather_entity = "weather.home"
@@ -550,7 +549,7 @@ class TestGetOutdoorSource:
 
     def setup_method(self):
         _reset_all()
-        lux_tracker._sun_elevation = 30.0
+        lux_tracker._elev_override = 30.0
 
     def test_source_angle_when_nothing_configured(self):
         assert lux_tracker.get_outdoor_source() == "angle"
@@ -585,19 +584,23 @@ class TestGetOutdoorSource:
         assert lux_tracker.get_outdoor_source() == "weather"
 
 
-class TestSunElevationCache:
-    """Test sun elevation caching."""
+class TestComputeSunElevation:
+    """Test computed sun elevation."""
 
-    def setup_method(self):
-        lux_tracker._sun_elevation = 0.0
+    def test_returns_float(self):
+        result = lux_tracker.compute_sun_elevation(35.0, -78.6)
+        assert isinstance(result, float)
+        assert result >= 0.0
 
-    def test_update_sun_elevation(self):
-        lux_tracker.update_sun_elevation(42.5)
-        assert lux_tracker._sun_elevation == 42.5
+    def test_override_wins(self):
+        lux_tracker._elev_override = 42.5
+        assert lux_tracker.compute_sun_elevation() == 42.5
+        lux_tracker._elev_override = None
 
-    def test_negative_elevation(self):
-        lux_tracker.update_sun_elevation(-10.0)
-        assert lux_tracker._sun_elevation == -10.0
+    def test_negative_override_clamped(self):
+        lux_tracker._elev_override = -10.0
+        assert lux_tracker.compute_sun_elevation() == 0.0
+        lux_tracker._elev_override = None
 
 
 class TestSetWeatherEntity:
@@ -709,28 +712,28 @@ class TestTwilightModel:
 
     def test_angle_norm_at_minus6_is_zero(self):
         """outdoor_norm at -6° should be 0.0."""
-        lux_tracker._sun_elevation = -6.0
+        lux_tracker._elev_override = -6.0
         assert lux_tracker._compute_angle_outdoor_norm() == 0.0
 
     def test_angle_norm_at_minus3_zero(self):
         """outdoor_norm at -3° is 0.0 (elev_factor = 0 for negative elevation)."""
-        lux_tracker._sun_elevation = -3.0
+        lux_tracker._elev_override = -3.0
         result = lux_tracker._compute_angle_outdoor_norm()
         assert result == 0.0
 
     def test_angle_norm_at_horizon_zero(self):
         """outdoor_norm at 0° should be 0.0 (elev_factor = 0 at horizon)."""
-        lux_tracker._sun_elevation = 0.0
+        lux_tracker._elev_override = 0.0
         result = lux_tracker._compute_angle_outdoor_norm()
         assert result == 0.0
 
     def test_angle_norm_at_2deg(self):
         """outdoor_norm at 2° should be small positive."""
-        lux_tracker._sun_elevation = 2.0
+        lux_tracker._elev_override = 2.0
         result = lux_tracker._compute_angle_outdoor_norm()
-        # 2 / 78 ≈ 0.026
+        # 2 / 19.5 (saturation threshold) ≈ 0.103
         assert result > 0.0
-        assert result < 0.1
+        assert result < 0.15
 
 
 class TestSetLatitude:
@@ -779,43 +782,45 @@ class TestElevFactor:
 
     def setup_method(self):
         _reset_all()
+        # Use 100% saturation so threshold = max_summer_elevation (simple linear)
+        lux_tracker._sun_saturation = 100
 
     def test_negative_elevation_zero(self):
         """Negative elevation should give 0."""
-        lux_tracker._sun_elevation = -10.0
+        lux_tracker._elev_override = -10.0
         assert lux_tracker._compute_elev_factor() == 0.0
 
     def test_zero_elevation_zero(self):
         """Zero elevation should give 0."""
-        lux_tracker._sun_elevation = 0.0
+        lux_tracker._elev_override = 0.0
         assert lux_tracker._compute_elev_factor() == 0.0
 
     def test_max_elevation_one(self):
         """Elevation at max_summer_elevation should give 1.0."""
         lux_tracker._max_summer_elevation = 78.0
-        lux_tracker._sun_elevation = 78.0
+        lux_tracker._elev_override = 78.0
         assert lux_tracker._compute_elev_factor() == 1.0
 
     def test_above_max_clamped(self):
         """Elevation above max should be clamped to 1.0."""
         lux_tracker._max_summer_elevation = 78.0
-        lux_tracker._sun_elevation = 90.0
+        lux_tracker._elev_override = 90.0
         assert lux_tracker._compute_elev_factor() == 1.0
 
     def test_midpoint(self):
         """Half of max should give 0.5."""
         lux_tracker._max_summer_elevation = 78.0
-        lux_tracker._sun_elevation = 39.0
+        lux_tracker._elev_override = 39.0
         assert lux_tracker._compute_elev_factor() == 0.5
 
     def test_linear_scaling(self):
         """Factor should scale linearly with elevation."""
         lux_tracker._max_summer_elevation = 80.0
-        lux_tracker._sun_elevation = 20.0
+        lux_tracker._elev_override = 20.0
         assert lux_tracker._compute_elev_factor() == 0.25
-        lux_tracker._sun_elevation = 40.0
+        lux_tracker._elev_override = 40.0
         assert lux_tracker._compute_elev_factor() == 0.5
-        lux_tracker._sun_elevation = 60.0
+        lux_tracker._elev_override = 60.0
         assert lux_tracker._compute_elev_factor() == 0.75
 
 
@@ -852,7 +857,7 @@ class TestConditionMap:
         """_compute_weather_outdoor_norm uses _condition_map, not CONDITION_MULTIPLIERS."""
         lux_tracker._weather_entity = "weather.home"
         lux_tracker._cloud_cover = 0.0
-        lux_tracker._sun_elevation = 78.0  # max → elev_factor = 1.0
+        lux_tracker._elev_override = 78.0  # max → elev_factor = 1.0
         lux_tracker._weather_condition = "cloudy"
         # Default: cloudy = 0.3
         result_default = lux_tracker._compute_weather_outdoor_norm()
@@ -865,7 +870,7 @@ class TestConditionMap:
 
     def test_override_uses_condition_map(self):
         """Override path should use _condition_map."""
-        lux_tracker._sun_elevation = 78.0  # max → elev_factor = 1.0
+        lux_tracker._elev_override = 78.0  # max → elev_factor = 1.0
         lux_tracker._condition_map["cloudy"] = 0.4
         lux_tracker.set_override("cloudy", 60)
         result = lux_tracker.get_outdoor_normalized()

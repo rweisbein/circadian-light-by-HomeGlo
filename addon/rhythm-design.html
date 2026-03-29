@@ -1615,14 +1615,6 @@ function findClosestSensitivityStep(value) {
 let chartWakeMode = 'primary';
 let chartBedMode = 'primary';
 
-/** Parse int from input element, return fallback if NaN/missing. */
-function parseSafe(id, fallback) {
-  const el = document.getElementById(id);
-  if (!el) return fallback;
-  const v = parseInt(el.value);
-  return isNaN(v) ? fallback : v;
-}
-
 // State
 let config = {
   ascend_start: 3.0,
@@ -3249,24 +3241,10 @@ function applyCursor() {
   // Get cursor point data using core calculation functions (exact values, no interpolation)
   let cursorPoint = null;
   if (config) {
-    const baseCct = calculateColorAtHour(cursorHour, false);
-    const finalCct = calculateColorAtHour(cursorHour, true);
-    console.log('[rhythm cursor]', {
-      hour: cursorHour?.toFixed(2),
-      baseCct: Math.round(baseCct),
-      finalCct: Math.round(finalCct),
-      warmEnabled: config.warm_night_enabled,
-      warmStart: config.warm_night_start,
-      warmEnd: config.warm_night_end,
-      warmFade: config.warm_night_fade,
-      warmTarget: config.warm_night_target,
-      sunset: sunTimes?.sunset?.toFixed(2),
-      sunrise: sunTimes?.sunrise?.toFixed(2),
-    });
     cursorPoint = {
       x: cursorHour,
       y: calculateBrightnessAtHour(cursorHour) * 100,  // Convert 0-1 to 0-100
-      cct: finalCct,
+      cct: calculateColorAtHour(cursorHour, true),     // With solar rules
       phase: getPhaseAtHour(cursorHour)
     };
   }
@@ -3689,9 +3667,9 @@ function syncConfigFromUI() {
   config.warm_night_enabled = document.getElementById('warm-night-enabled').checked;
   config.warm_night_mode = document.getElementById('warm-night-mode').value;
   config.warm_night_target = parseInt(document.getElementById('warm-night-target').value) || 2300;
-  config.warm_night_start = parseSafe('warm-night-start', -60);
-  config.warm_night_end = parseSafe('warm-night-end', 60);
-  config.warm_night_fade = parseSafe('warm-night-fade', 120);
+  config.warm_night_start = parseInt(document.getElementById('warm-night-start')?.value || -60);
+  config.warm_night_end = parseInt(document.getElementById('warm-night-end')?.value || 60);
+  config.warm_night_fade = parseInt(document.getElementById('warm-night-fade')?.value || 60);
 
   config.daylight_enabled = document.getElementById('daylight-enabled').checked;
   config.daylight_cct = parseInt(document.getElementById('daylight-cct').value);
@@ -5061,18 +5039,9 @@ async function loadZoneFromData() {
 
       // Merge zone rhythm settings into config object
       Object.assign(config, zoneData);
-      console.log('[rhythm] Zone data warm night:', {
-        start: zoneData.warm_night_start, end: zoneData.warm_night_end,
-        fade: zoneData.warm_night_fade, enabled: zoneData.warm_night_enabled,
-        mode: zoneData.warm_night_mode, target: zoneData.warm_night_target,
-      });
 
       syncUIFromConfig();
       syncConfigFromUI();  // Round-trip ensures all derived fields exist in config
-      console.log('[rhythm] After round-trip:', {
-        start: config.warm_night_start, end: config.warm_night_end,
-        fade: config.warm_night_fade, sunset: sunTimes?.sunset,
-      });
       takeConfigSnapshot();
       renderChart();
 

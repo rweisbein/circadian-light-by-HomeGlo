@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.160
+- **Compute sun elevation locally**: Replaced HA `sun.sun` entity dependency with geometric solar computation matching the rhythm page JS formula. Both frontend and backend now use identical math for sun elevation, eliminating the outdoor normalization discrepancy. Removed `update_sun_elevation()`, HA sun entity elevation tracking/logging.
+- **Remove diagnostic logging**: Cleaned up console.log statements and parseSafe band-aid from v1.0.159.
+
 ## 1.0.159
 - **Debug rhythm page K**: Added console logging for warm night config values, sun times, and cursor computation. Added defensive NaN handling for warm night slider parsing.
 

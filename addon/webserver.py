@@ -2920,7 +2920,7 @@ class LightDesignerServer:
                         "adjusted_wake_time": adjusted_wake_time,
                         "adjusted_bed_time": adjusted_bed_time,
                         # Solar / natural light
-                        "sun_elevation": round(lux_tracker._sun_elevation, 1),
+                        "sun_elevation": round(lux_tracker.compute_sun_elevation(), 1),
                         "natural_light_exposure": area_nl_exposure,
                         "nl_factor": round(nl_factor, 3),
                         "brightness_fade_weight": 1.0,  # Fade applies to color only, not brightness
@@ -5392,7 +5392,7 @@ class LightDesignerServer:
                 "lux_smoothed": lux_tracker._ema_lux,
                 "lux_learned_ceiling": lux_tracker._learned_ceiling,
                 "lux_learned_floor": lux_tracker._learned_floor,
-                "sun_elevation": round(lux_tracker._sun_elevation, 1),
+                "sun_elevation": round(lux_tracker.compute_sun_elevation(), 1),
                 "sensor_entity": lux_tracker.get_sensor_entity(),
                 "illuminance_sensors": illuminance_sensors,
                 "weather_groups": weather_groups,

@@ -4387,12 +4387,9 @@ class HomeAssistantWebSocketClient:
                 if entity_id:
                     self.cached_states[entity_id] = state
 
-                    # Extract sun data while we're here
+                    # Cache sun.sun attributes (for sunrise/sunset)
                     if entity_id == "sun.sun":
                         self.sun_data = state.get("attributes", {})
-                        logger.debug(
-                            f"Found sun data: elevation={self.sun_data.get('elevation')}"
-                        )
 
             logger.info(f"✓ Loaded {len(result)} entity states")
             return result
@@ -4882,7 +4879,7 @@ class HomeAssistantWebSocketClient:
                 # Set environment variables for brain.py to use as defaults
                 if self.latitude:
                     os.environ["HASS_LATITUDE"] = str(self.latitude)
-                    lux_tracker.set_latitude(self.latitude)
+                    lux_tracker.set_latitude(self.latitude, self.longitude)
                 if self.longitude:
                     os.environ["HASS_LONGITUDE"] = str(self.longitude)
                 if self.timezone:
@@ -5285,8 +5282,6 @@ class HomeAssistantWebSocketClient:
         config = glozone.get_config()
         lux_tracker.reload_config(config)
 
-        if self.sun_data:
-            lux_tracker.update_sun_elevation(self.sun_data.get("elevation", 0.0))
         lux_entity = lux_tracker.get_sensor_entity()
         if lux_entity and lux_entity in self.cached_states:
             try:
@@ -6037,7 +6032,7 @@ class HomeAssistantWebSocketClient:
                     periodic_transition_night = float(
                         raw_config.get("periodic_transition_night", 1)
                     )
-                    sun_elev = self.sun_data.get("elevation", 0) if self.sun_data else 0
+                    sun_elev = lux_tracker.compute_sun_elevation()
                     periodic_transition = (
                         periodic_transition_day
                         if sun_elev > 0
@@ -6770,10 +6765,6 @@ class HomeAssistantWebSocketClient:
                 lux_tracker.reload_config(config)
 
                 # Re-seed outdoor data from cached_states for the (possibly new) source
-                if self.sun_data:
-                    lux_tracker.update_sun_elevation(
-                        self.sun_data.get("elevation", 0.0)
-                    )
                 lux_entity = lux_tracker.get_sensor_entity()
                 if lux_entity and lux_entity in self.cached_states:
                     try:
@@ -6895,12 +6886,9 @@ class HomeAssistantWebSocketClient:
                             entity_id, friendly_name, attributes
                         )
 
-                # Update sun data if it's the sun entity
+                # Cache sun.sun attributes (sunrise/sunset timing)
                 if entity_id == "sun.sun" and isinstance(new_state, dict):
                     self.sun_data = new_state.get("attributes", {})
-                    elev = self.sun_data.get("elevation", 0.0)
-                    lux_tracker.update_sun_elevation(elev)
-                    logger.info(f"Updated sun data: elevation={elev}")
 
                 # Update outdoor lux tracker
                 if (
@@ -7034,12 +7022,9 @@ class HomeAssistantWebSocketClient:
 
                         attributes = entity_state.get("attributes", {})
 
-                        # Store initial sun data
+                        # Cache sun.sun attributes
                         if entity_id == "sun.sun":
                             self.sun_data = attributes
-                            logger.info(
-                                f"Initial sun data: elevation={self.sun_data.get('elevation')}"
-                            )
 
                         # Detect ZHA group light entities (Circadian_AREA pattern)
                         if entity_id.startswith("light."):
@@ -7111,7 +7096,7 @@ class HomeAssistantWebSocketClient:
                     # Set environment variables for brain.py to use as defaults
                     if self.latitude:
                         os.environ["HASS_LATITUDE"] = str(self.latitude)
-                        lux_tracker.set_latitude(self.latitude)
+                        lux_tracker.set_latitude(self.latitude, self.longitude)
                     if self.longitude:
                         os.environ["HASS_LONGITUDE"] = str(self.longitude)
                     if self.timezone:
@@ -7383,13 +7368,9 @@ class HomeAssistantWebSocketClient:
                 lux_tracker.init()
                 await lux_tracker.learn_baseline(self)
 
-                # Seed sun data from cached states (sun_data is empty until first state_changed)
+                # Seed sun data from cached states (for sunrise/sunset attributes)
                 if not self.sun_data and "sun.sun" in self.cached_states:
                     self.sun_data = self.cached_states["sun.sun"].get("attributes", {})
-                if self.sun_data:
-                    lux_tracker.update_sun_elevation(
-                        self.sun_data.get("elevation", 0.0)
-                    )
 
                 # Seed lux sensor from cached states so source activates immediately
                 lux_entity = lux_tracker.get_sensor_entity()
