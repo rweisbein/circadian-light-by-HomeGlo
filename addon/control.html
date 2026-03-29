@@ -2070,6 +2070,7 @@
             areas: [...(s.areas || [])],
             mode: s.mode || 'on_off',
             duration: s.duration || 60,
+            cooldown: s.cooldown || 0,
             boost_enabled: s.boost_enabled || false,
             boost_brightness: s.boost_brightness || 50,
             active_when: s.active_when || 'always',
@@ -2081,6 +2082,7 @@
             const settings = {
               mode: a.mode || 'on_off',
               duration: a.duration || 60,
+              cooldown: a.cooldown || 0,
               boost_enabled: a.boost_enabled || false,
               boost_brightness: a.boost_brightness || 50,
               active_when: a.active_when || 'always',
