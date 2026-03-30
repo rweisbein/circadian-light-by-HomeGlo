@@ -1808,7 +1808,7 @@
         const baseWake = areaState.eff_wake_time ?? cfg.wake_time;
         const adjusted = areaState.adjusted_wake_time;
         if (adjusted != null) {
-          el.innerHTML = '<span style="color:#5cb3ff">Adjusted wake* ' + formatHourToTime(adjusted) + '</span>';
+          el.innerHTML = '<span style="color:#5cb3ff">User-adjusted brightness* ' + formatHourToTime(adjusted) + '</span>';
         } else {
           el.innerHTML = '<span style="color:#5cb3ff">Wake ' + formatHourToTime(baseWake) + '</span>';
         }
@@ -1816,7 +1816,7 @@
         const baseBed = areaState.eff_bed_time ?? cfg.bed_time;
         const adjusted = areaState.adjusted_bed_time;
         if (adjusted != null) {
-          el.innerHTML = '<span style="color:#ffe680">Adjusted bed* ' + formatHourToTime(adjusted) + '</span>';
+          el.innerHTML = '<span style="color:#ffe680">User-adjusted brightness* ' + formatHourToTime(adjusted) + '</span>';
         } else {
           el.innerHTML = '<span style="color:#ffe680">Bed ' + formatHourToTime(baseBed) + '</span>';
         }
@@ -3426,7 +3426,7 @@
       const lightsExpanded = localStorage.getItem('tune_lights_expanded') !== 'false';
       let lhtml = '<div class="tune-lights-header" onclick="toggleLightsBody()">';
       lhtml += '<span class="tune-lights-chevron" id="tune-lights-chevron">&#x203A;</span>';
-      lhtml += '<span class="tune-lights-title">Light brightness</span>';
+      lhtml += '<span class="tune-lights-title">Lights</span>';
       lhtml += '</div>';
       lhtml += '<div class="tune-lights-body" id="tune-lights-body">';
       lhtml += '<div id="tune-lights-list">';
@@ -3475,7 +3475,7 @@
       const briExpanded = false; // always start collapsed
       let bhtml = '<div class="tune-brightness-header" onclick="toggleBrightnessBody()">';
       bhtml += '<span class="tune-brightness-chevron" id="tune-brightness-chevron">&#x203A;</span>';
-      bhtml += '<span class="tune-brightness-title">Area brightness</span>';
+      bhtml += '<span class="tune-brightness-title">Brightness</span>';
       bhtml += '<span class="tune-brightness-val" id="tune-brightness-header-val">--</span>';
       bhtml += '</div>';
       bhtml += '<div class="tune-brightness-body" id="tune-brightness-body">';

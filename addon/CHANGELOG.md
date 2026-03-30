@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.177
+- **Home page: single auto pill**: Show only the nearest auto-on or auto-off pill per area card (saves horizontal space on mobile).
+- **Home page: up/down arrows**: Replace sun/moon icons with chevron arrows matching the area detail brightness step buttons; tighter icon-to-time spacing and reduced pill padding.
+- **Home page: compact date**: Remove space between month and date in date_short labels (e.g. "Mar30" not "Mar 30").
+- **Area detail: rename cards**: "Area Brightness" → "Brightness", "Light Brightness" → "Lights".
+- **Area detail: asterisk label**: "Adjusted wake/bed*" → "User-adjusted brightness*".
+
 ## 1.0.176
 - **Future-date sun times**: Auto schedules with sunrise/sunset source now compute sun times for the actual fire date instead of today. At seasonal latitudes, this fixes significant drift when the next fire day is days/months away. Date-keyed cache avoids repeated calculations on 3-second refreshes.
 - **Live header preview**: Auto schedule "next time" in the card header now updates live as you change source, offset, or days — no save required. Cancel restores the saved value; Save fetches the server-authoritative value.

@@ -309,7 +309,7 @@
     .timer-alarm {
       color: #e2e8f0;
       opacity: 0.9;
-      padding: 1px 3px;
+      padding: 1px 1px;
       border-radius: 3px;
     }
 
@@ -1423,11 +1423,13 @@
       if (offset != null && offset >= 0) {
         if (offset <= 1) day = '';
         else if (offset <= 6) day = nxt.day_abbr || '';
-        else day = nxt.date_short || '';
+        else day = (nxt.date_short || '').replace(' ', '');
       }
       const text = day ? t + ' ' + day : t;
-      const icon = type === 'on' ? '\u2600' : '\u263E';
-      return `<span class="timer-alarm">${icon} ${text}</span>`;
+      const arrow = type === 'on'
+        ? '<svg style="width:10px;height:10px;vertical-align:-1px;margin-right:1px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 15 12 9 18 15"/></svg>'
+        : '<svg style="width:10px;height:10px;vertical-align:-1px;margin-right:1px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
+      return `<span class="timer-alarm">${arrow}${text}</span>`;
     }
 
     function updateHomeTimers() {
@@ -1442,12 +1444,16 @@
 
         const parts = [];
 
-        // Auto schedule pills
-        if (status.next_auto_on) {
-          parts.push(formatAutoSchedulePill(status.next_auto_on, 'on'));
-        }
-        if (status.next_auto_off) {
-          parts.push(formatAutoSchedulePill(status.next_auto_off, 'off'));
+        // Auto schedule pill — show only the nearest one
+        const nxtOn = status.next_auto_on;
+        const nxtOff = status.next_auto_off;
+        if (nxtOn && nxtOff) {
+          const onOff = (nxtOn.offset ?? 999) <= (nxtOff.offset ?? 999) ? ['on', nxtOn] : ['off', nxtOff];
+          parts.push(formatAutoSchedulePill(onOff[1], onOff[0]));
+        } else if (nxtOn) {
+          parts.push(formatAutoSchedulePill(nxtOn, 'on'));
+        } else if (nxtOff) {
+          parts.push(formatAutoSchedulePill(nxtOff, 'off'));
         }
 
         // Motion + boost (combined or separate)
