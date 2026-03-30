@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.171
+- **Fix fade-in starting at full brightness**: Auto On with fade was calling `glo_reset` with `send_command=True`, blasting full brightness to lights before the fade timer started. Now uses `send_command=False` so the periodic tick handles the first light command with the fade multiplier applied from near-zero.
+
 ## 1.0.170
 - **Fix tune section collapse**: Restored `toggleBrightnessBody` and `toggleLightsBody` functions that were accidentally removed during wake alarm → auto schedule replacement.
 

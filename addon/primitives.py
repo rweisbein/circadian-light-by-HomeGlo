@@ -2835,7 +2835,9 @@ class CircadianLightPrimitives:
                         if not skip:
                             fade_minutes = settings.get("auto_on_fade", 0)
                             if fade_minutes > 0:
-                                await self.glo_reset(area_id, source="auto_on")
+                                # Reset state without sending light command —
+                                # periodic tick will apply fade from near-zero
+                                await self.glo_reset(area_id, source="auto_on", send_command=False)
                                 state.enable_circadian_and_set_on(area_id, True)
                                 state.set_fade(area_id, "in", fade_minutes * 60)
                                 logger.info(f"[auto_on] Starting {fade_minutes}min fade-in for {area_id}")
