@@ -2781,14 +2781,15 @@
 
     function captureAutoSnapshot(type) {
       const s = autoState[type];
+      const readDays = (sel) => { const d = []; document.querySelectorAll(sel).forEach(b => d.push(parseInt(b.dataset.day))); d.sort(); return d; };
       s.snapshot = {
         source: s.source,
         offset: s.offset,
-        days: [...s.days],
+        days: readDays('#auto-' + type + '-days .auto-sched-day-btn.active'),
         time1: document.getElementById('auto-' + type + '-time-1')?.value || '',
-        days1: [...s.days1],
+        days1: readDays('#auto-' + type + '-days-1 .auto-sched-day-btn.active'),
         time2: document.getElementById('auto-' + type + '-time-2')?.value || '',
-        days2: [...s.days2],
+        days2: readDays('#auto-' + type + '-days-2 .auto-sched-day-btn.active'),
         fade: parseInt(document.getElementById('auto-' + type + '-fade')?.value || '0'),
         skip: type === 'on' ? (document.getElementById('auto-on-skip')?.checked || false) : false,
       };
