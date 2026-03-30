@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.176
+- **Future-date sun times**: Auto schedules with sunrise/sunset source now compute sun times for the actual fire date instead of today. At seasonal latitudes, this fixes significant drift when the next fire day is days/months away. Date-keyed cache avoids repeated calculations on 3-second refreshes.
+- **Live header preview**: Auto schedule "next time" in the card header now updates live as you change source, offset, or days — no save required. Cancel restores the saved value; Save fetches the server-authoritative value.
+
 ## 1.0.175
 - **Remove per-day times under day bubbles**: Sunrise/sunset times were redundant (all identical) and the resolved next time is already shown in the card header.
 - **Fix "6:60a" time display**: `formatAutoTime` minute rounding overflow now rolls to next hour correctly.

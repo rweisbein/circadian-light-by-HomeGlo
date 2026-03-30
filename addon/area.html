@@ -1109,8 +1109,8 @@
       return Math.min(1.0, Math.log2(clearSkyLux / 300) / FULL_SUN_INTENSITY);
     }
 
-    function getSunTimes(lat, lon) {
-      const date = new Date();
+    function getSunTimes(lat, lon, forDate) {
+      const date = forDate || new Date();
       const n = Math.floor((date - new Date(date.getFullYear(), 0, 0)) / 86400000);
       const J = n + ((lon < 0 ? 360 + lon : lon) / 360);
       const M = (357.5291 + 0.9856 * J) % 360;
@@ -2810,6 +2810,7 @@
         days2: readDays('#auto-' + type + '-days-2 .auto-sched-day-btn.active'),
         fade: parseInt(document.getElementById('auto-' + type + '-fade')?.value || '0'),
         skip: type === 'on' ? (document.getElementById('auto-on-skip')?.checked || false) : false,
+        headerText: document.getElementById('auto-' + type + '-next')?.textContent || '',
       };
     }
 
@@ -2968,6 +2969,9 @@
         const skipEl = document.getElementById('auto-on-skip');
         if (skipEl) skipEl.checked = s.snapshot.skip;
       }
+      // Restore header text from snapshot
+      const nextEl = document.getElementById('auto-' + type + '-next');
+      if (nextEl && s.snapshot.headerText !== undefined) nextEl.textContent = s.snapshot.headerText;
       updateAutoButtons(type);
     }
 
@@ -2985,6 +2989,9 @@
     function onAutoFieldChanged(type) {
       showResolvedAutoTime(type);
       updateAutoButtons(type);
+      // Live preview: update header with client-computed next time
+      const nextEl = document.getElementById('auto-' + type + '-next');
+      if (nextEl) nextEl.textContent = computeNextAutoTime(type) || '';
     }
 
     // ---- Custom behaviour dropdown ----
@@ -3837,7 +3844,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
-        fetchNextAutoSchedule(type);
+        await fetchNextAutoSchedule(type);
       } catch (err) {
         console.error('Error saving auto schedule settings:', err);
       }
@@ -3905,6 +3912,68 @@
         return source === 'sunrise' ? cachedSunTimes.sunrise : cachedSunTimes.sunset;
       }
       return source === 'sunrise' ? 6.0 : 18.0;
+    }
+
+    function computeNextAutoTime(type) {
+      const s = autoState[type];
+      const source = s.source;
+      const enabled = document.getElementById('auto-' + type + '-enabled')?.checked;
+      if (!enabled) return null;
+
+      const now = new Date();
+      const todayWd = (now.getDay() + 6) % 7; // JS Sun=0 → Python Mon=0
+      const nowDecimal = now.getHours() + now.getMinutes() / 60;
+      const lat = cachedConfig?.latitude || 35.0;
+      const lon = cachedConfig?.longitude || -78.6;
+
+      const dayAbbrs = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      const monthAbbrs = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+      // Read active days from current UI state
+      const readActiveDays = (sel) => {
+        const d = [];
+        document.querySelectorAll(sel).forEach(b => { if (b.classList.contains('active')) d.push(parseInt(b.dataset.day)); });
+        return d;
+      };
+
+      function getTimeForDay(pyDay, dateObj) {
+        if (source === 'sunrise' || source === 'sunset') {
+          const activeDays = readActiveDays('#auto-' + type + '-days .auto-sched-day-btn');
+          if (!activeDays.includes(pyDay)) return null;
+          const sun = getSunTimes(lat, lon, dateObj);
+          const base = source === 'sunrise' ? sun.sunrise : sun.sunset;
+          return base + s.offset / 60.0;
+        } else if (source === 'custom') {
+          const days1 = readActiveDays('#auto-' + type + '-days-1 .auto-sched-day-btn');
+          const days2 = readActiveDays('#auto-' + type + '-days-2 .auto-sched-day-btn');
+          if (days1.includes(pyDay)) {
+            const v = document.getElementById('auto-' + type + '-time-1')?.value;
+            if (v) { const [h, m] = v.split(':').map(Number); return h + m / 60.0; }
+          } else if (days2.includes(pyDay)) {
+            const v = document.getElementById('auto-' + type + '-time-2')?.value;
+            if (v) { const [h, m] = v.split(':').map(Number); return h + m / 60.0; }
+          }
+        }
+        return null;
+      }
+
+      for (let i = 0; i < 14; i++) {
+        const pyDay = (todayWd + i) % 7;
+        const dateObj = new Date(now);
+        dateObj.setDate(dateObj.getDate() + i);
+        const at = getTimeForDay(pyDay, dateObj);
+        if (at === null) continue;
+        if (i === 0 && nowDecimal >= at) continue;
+
+        const timeStr = formatAutoTime(at);
+        let dayLabel;
+        if (i === 0) dayLabel = 'today';
+        else if (i === 1) dayLabel = 'tom (' + dayAbbrs[pyDay] + ')';
+        else if (i > 5) dayLabel = dayAbbrs[pyDay] + ' (' + monthAbbrs[dateObj.getMonth()] + ' ' + dateObj.getDate() + ')';
+        else dayLabel = dayAbbrs[pyDay];
+        return timeStr + ' ' + dayLabel;
+      }
+      return null;
     }
 
     function showResolvedAutoTime(type) {

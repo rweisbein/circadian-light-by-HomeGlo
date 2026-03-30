@@ -2373,9 +2373,13 @@ class LightDesignerServer:
             logger.error(f"Error fetching areas: {e}")
             return web.json_response({"error": str(e)}, status=500)
 
+    _sun_hours_cache = {}  # "YYYY-MM-DD" -> (sunrise_h, sunset_h)
+
     @staticmethod
-    def _get_sun_hours():
-        """Get today's sunrise/sunset as decimal hours."""
+    def _get_sun_hours_for_date(date_str):
+        """Get sunrise/sunset as decimal hours for an arbitrary date (cached)."""
+        if date_str in LightDesignerServer._sun_hours_cache:
+            return LightDesignerServer._sun_hours_cache[date_str]
         try:
             from brain import calculate_sun_times
             from zoneinfo import ZoneInfo
@@ -2387,8 +2391,7 @@ class LightDesignerServer:
                 tzinfo = ZoneInfo(timezone)
             except Exception:
                 tzinfo = None
-            now = datetime.now(tzinfo)
-            date_str = now.strftime("%Y-%m-%d")
+
             sun_dict = calculate_sun_times(latitude, longitude, date_str)
 
             def iso_to_hour(iso_str, default):
@@ -2402,12 +2405,34 @@ class LightDesignerServer:
                 except Exception:
                     return default
 
-            return (
+            result = (
                 iso_to_hour(sun_dict.get("sunrise"), 6.0),
                 iso_to_hour(sun_dict.get("sunset"), 18.0),
             )
+
+            # Prune stale entries (dates before today)
+            today_str = datetime.now().strftime("%Y-%m-%d")
+            for k in list(LightDesignerServer._sun_hours_cache):
+                if k < today_str:
+                    del LightDesignerServer._sun_hours_cache[k]
+
+            LightDesignerServer._sun_hours_cache[date_str] = result
+            return result
         except Exception:
             return (6.0, 18.0)
+
+    @staticmethod
+    def _get_sun_hours():
+        """Get today's sunrise/sunset as decimal hours."""
+        from zoneinfo import ZoneInfo
+
+        timezone = os.getenv("HASS_TIME_ZONE", "US/Eastern")
+        try:
+            tzinfo = ZoneInfo(timezone)
+        except Exception:
+            tzinfo = None
+        now = datetime.now(tzinfo)
+        return LightDesignerServer._get_sun_hours_for_date(now.strftime("%Y-%m-%d"))
 
     @staticmethod
     def _compute_next_auto_time(settings, prefix, sunrise_hour=6.0, sunset_hour=18.0):
@@ -2542,6 +2567,19 @@ class LightDesignerServer:
 
         if fire_time is None:
             return None
+
+        # Re-resolve sun times for the actual fire date when it's in the future
+        if fire_offset > 0 and source in ("sunrise", "sunset"):
+            try:
+                fire_date = today_date + timedelta(days=fire_offset)
+                sr_h, ss_h = LightDesignerServer._get_sun_hours_for_date(
+                    fire_date.isoformat()
+                )
+                base = sr_h if source == "sunrise" else ss_h
+                offset_min = settings.get(f"{prefix}_offset", 0)
+                fire_time = base + offset_min / 60.0
+            except Exception:
+                pass  # keep already-computed fire_time
 
         time_str = fmt_time(fire_time)
         display_offset = fire_offset
