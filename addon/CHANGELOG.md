@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.178
+- **Remove dead schedule override popover**: Deleted ~280 lines of unused alarm override popover code (CSS, JS functions, click-outside listener) from home page — no longer wired to any UI element.
+
 ## 1.0.177
 - **Home page: single auto pill**: Show only the nearest auto-on or auto-off pill per area card (saves horizontal space on mobile).
 - **Home page: up/down arrows**: Replace sun/moon icons with chevron arrows matching the area detail brightness step buttons; tighter icon-to-time spacing and reduced pill padding.
