@@ -3108,6 +3108,11 @@ class LightDesignerServer:
                             if state.is_fading(area_id)
                             else None
                         ),
+                        "fade_start": (
+                            state.get_fade_state(area_id).get("fade_start")
+                            if state.is_fading(area_id)
+                            else None
+                        ),
                         "zone_name": (zone_name if zone_name != "Unassigned" else None),
                         "preset_name": zone_name,
                         "min_brightness": area_config.min_brightness,

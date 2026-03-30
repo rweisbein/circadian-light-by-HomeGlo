@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.182
+- **Fade pill shows trigger time**: Home page fade pill now shows the time the fade started (e.g. "▲ 7:06a") instead of brightness percentage, matching the normal auto pill format.
+
 ## 1.0.181
 - **Fix home page fade pill showing 0%**: Was displaying `fade_progress` (a 0–1 fraction) rounded to integer. Now shows `actual_brightness` instead, matching what the area detail page displays.
 

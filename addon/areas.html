@@ -1343,8 +1343,17 @@
         const fadeDir = status.fade_direction;  // 'in' or 'out' or null
         if (fadeDir) {
           const fadeIcon = fadeDir === 'in' ? '\u25B2' : '\u25BC';
-          const pct = status.actual_brightness != null ? Math.round(status.actual_brightness) + '%' : '';
-          parts.push(`<span class="timer-fade">${fadeIcon} ${pct}</span>`);
+          let fadeTime = '';
+          if (status.fade_start) {
+            try {
+              const d = new Date(status.fade_start);
+              let h = d.getHours(), m = d.getMinutes();
+              const suffix = h < 12 ? 'a' : 'p';
+              if (h === 0) h = 12; else if (h > 12) h -= 12;
+              fadeTime = m === 0 ? h + suffix : h + ':' + String(m).padStart(2, '0') + suffix;
+            } catch (e) {}
+          }
+          parts.push(`<span class="timer-fade">${fadeIcon} ${fadeTime}</span>`);
         }
 
         // Auto schedule pill — show only the nearest one, skip type that's currently fading
