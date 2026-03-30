@@ -1414,25 +1414,20 @@
       return 3;
     }
 
-    function formatNextWakeAlarm(nwa, zoneName) {
-      if (!nwa) return '';
-      // Compact time: strip :00
-      let t = nwa.time;
+    function formatAutoSchedulePill(nxt, type) {
+      if (!nxt) return '';
+      let t = nxt.time;
       if (t && t !== 'paused') t = t.replace(/:00([ap])$/, '$1');
-      // Compact day based on offset
       let day = '';
-      const offset = nwa.offset;
+      const offset = nxt.offset;
       if (offset != null && offset >= 0) {
         if (offset <= 1) day = '';
-        else if (offset <= 6) day = nwa.day_abbr || '';
-        else day = nwa.date_short || '';
+        else if (offset <= 6) day = nxt.day_abbr || '';
+        else day = nxt.date_short || '';
       }
       const text = day ? t + ' ' + day : t;
-      if (zoneName) {
-        const escapedZone = zoneName.replace(/'/g, "\\'");
-        return `<span class="timer-alarm" style="cursor:pointer;" onclick="event.stopPropagation(); openSchedulePopover('${escapedZone}', this)">⏰ ${text}</span>`;
-      }
-      return `<span class="timer-alarm">⏰ ${text}</span>`;
+      const icon = type === 'on' ? '\u2600' : '\u263E';
+      return `<span class="timer-alarm">${icon} ${text}</span>`;
     }
 
     function updateHomeTimers() {
@@ -1447,10 +1442,12 @@
 
         const parts = [];
 
-        // Alarm (backend returns effective time, accounting for any schedule override)
-        const zoneName = el.getAttribute('data-zone-name');
-        if (status.next_wake_alarm) {
-          parts.push(formatNextWakeAlarm(status.next_wake_alarm, zoneName));
+        // Auto schedule pills
+        if (status.next_auto_on) {
+          parts.push(formatAutoSchedulePill(status.next_auto_on, 'on'));
+        }
+        if (status.next_auto_off) {
+          parts.push(formatAutoSchedulePill(status.next_auto_off, 'off'));
         }
 
         // Motion + boost (combined or separate)
@@ -1757,10 +1754,10 @@
     let activePopoverZone = null;
 
     function getNextAlarmForZone(zoneName) {
-      // Find next_wake_alarm from any area in the given zone
+      // Find next_auto_on from any area in the given zone
       for (const [areaId, status] of Object.entries(areaStatus)) {
-        if ((status.zone_name || '') === zoneName && status.next_wake_alarm) {
-          return status.next_wake_alarm;
+        if ((status.zone_name || '') === zoneName && status.next_auto_on) {
+          return status.next_auto_on;
         }
       }
       return null;

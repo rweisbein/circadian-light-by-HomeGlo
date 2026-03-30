@@ -2364,30 +2364,58 @@ class LightDesignerServer:
             return web.json_response({"error": str(e)}, status=500)
 
     @staticmethod
-    def _compute_next_wake_alarm(area_id, area_settings, rhythm_cfg, zone_name=None):
-        """Compute next upcoming wake alarm for an area.
+    def _get_sun_hours():
+        """Get today's sunrise/sunset as decimal hours."""
+        try:
+            from brain import calculate_sun_times
+            from zoneinfo import ZoneInfo
 
-        Returns {"time": "8:15a", "day": "Wed"} or {"time": "8:15a", "day": ""}
-        day is only set when the next chronological occurrence of the alarm time
-        would be skipped (not in schedule), showing which day it actually fires.
+            latitude = float(os.getenv("HASS_LATITUDE", "35.0"))
+            longitude = float(os.getenv("HASS_LONGITUDE", "-78.6"))
+            timezone = os.getenv("HASS_TIME_ZONE", "US/Eastern")
+            try:
+                tzinfo = ZoneInfo(timezone)
+            except Exception:
+                tzinfo = None
+            now = datetime.now(tzinfo)
+            date_str = now.strftime("%Y-%m-%d")
+            sun_dict = calculate_sun_times(latitude, longitude, date_str)
 
-        When a schedule override is active for the zone:
-        - mode main/alt/custom: alarm reflects the overridden wake time
-        - mode off: alarm is suppressed during override; shows next alarm after
+            def iso_to_hour(iso_str, default):
+                if not iso_str:
+                    return default
+                try:
+                    dt = datetime.fromisoformat(iso_str)
+                    if tzinfo and dt.tzinfo:
+                        dt = dt.astimezone(tzinfo)
+                    return dt.hour + dt.minute / 60.0 + dt.second / 3600.0
+                except Exception:
+                    return default
+
+            return (
+                iso_to_hour(sun_dict.get("sunrise"), 6.0),
+                iso_to_hour(sun_dict.get("sunset"), 18.0),
+            )
+        except Exception:
+            return (6.0, 18.0)
+
+    @staticmethod
+    def _compute_next_auto_time(settings, prefix, sunrise_hour=6.0, sunset_hour=18.0):
+        """Compute next auto schedule trigger for auto_on or auto_off.
+
+        Args:
+            settings: Per-area settings dict
+            prefix: "auto_on" or "auto_off"
+            sunrise_hour: Decimal hour of today's sunrise
+            sunset_hour: Decimal hour of today's sunset
+
+        Returns: {"time": "7:15a", "day": "today", "offset": 0, ...} or None
         """
-        settings = area_settings.get(area_id, {})
-        if not settings.get("wake_alarm"):
+        if not settings.get(f"{prefix}_enabled"):
             return None
-
-        days = settings.get("wake_alarm_days", [0, 1, 2, 3, 4, 5, 6])
-        if not days:
-            return None
-
-        mode = settings.get("wake_alarm_mode", "rhythm")
-        offset = settings.get("wake_alarm_offset", 0)
-        custom_time = settings.get("wake_alarm_time")
 
         from zoneinfo import ZoneInfo
+        from datetime import date as date_cls, timedelta
 
         timezone = os.getenv("HASS_TIME_ZONE", "US/Eastern")
         try:
@@ -2395,47 +2423,15 @@ class LightDesignerServer:
         except Exception:
             tzinfo = None
         now = datetime.now(tzinfo)
-        today_wd = now.weekday()  # Mon=0..Sun=6
+        today_wd = now.weekday()
         now_decimal = now.hour + now.minute / 60.0
         today_date = now.date()
 
         day_abbrs = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
-        # Get schedule override for alarm suppression / time adjustment
-        override = None
-        override_until_date = None
-        if zone_name:
-            zone_gz = glozone.get_glozones().get(zone_name, {})
-            override = zone_gz.get("schedule_override")
-            if override:
-                from datetime import date as date_cls
-
-                until_str = override.get("until_date")
-                if until_str:
-                    try:
-                        override_until_date = date_cls.fromisoformat(until_str)
-                    except ValueError:
-                        pass
-
-        # Build effective rhythm config (with override applied)
-        effective_cfg = dict(rhythm_cfg)
-        if zone_name and override:
-            glozone.apply_schedule_override(zone_name, effective_cfg)
-
-        def get_alarm_time_for_day(py_day, use_override=True):
-            if mode == "custom":
-                return custom_time
-            cfg = effective_cfg if use_override else rhythm_cfg
-            wake_time = cfg.get("wake_time", 7.0)
-            alt_time = cfg.get("wake_alt_time")
-            alt_days = cfg.get("wake_alt_days", [])
-            if alt_time is not None and py_day in alt_days:
-                wake_time = alt_time
-            return wake_time + offset / 60.0
-
-        def fmt_time(alarm_time):
-            h_raw = int(alarm_time % 24)
-            m_raw = round((alarm_time - int(alarm_time)) * 60)
+        def fmt_time(decimal_hours):
+            h_raw = int(decimal_hours % 24)
+            m_raw = round((decimal_hours - int(decimal_hours)) * 60)
             suffix = "a" if h_raw < 12 else "p"
             h_display = h_raw
             if h_display == 0:
@@ -2444,54 +2440,91 @@ class LightDesignerServer:
                 h_display -= 12
             return f"{h_display}:{m_raw:02d}{suffix}"
 
-        # For mode="off" override: determine how many days to skip
-        # (alarm is suppressed until the override expires)
-        override_is_off = (
-            override
-            and override.get("mode") == "off"
-            and override_until_date
-            and override_until_date >= today_date
-        )
-        # Non-off override active: alarm fires every day (ignores day restriction)
-        override_active = (
-            override
-            and override.get("mode") != "off"
-            and override_until_date
-            and override_until_date >= today_date
-        )
-        if override_is_off:
-            from datetime import timedelta
+        # Override handling
+        override = settings.get(f"{prefix}_override")
+        override_is_pause = False
+        override_time = None
+        override_until_date = None
 
-            skip_days = (override_until_date - today_date).days + 1
-            if skip_days > 365:
-                # "Forever" pause — no alarm will fire
-                return {"time": "paused", "day": "", "offset": -1}
-        else:
-            skip_days = 0
+        if override:
+            mode = override.get("mode")
+            until_str = override.get("until_date")
+            if until_str:
+                try:
+                    override_until_date = date_cls.fromisoformat(until_str)
+                except ValueError:
+                    pass
 
-        # Find next alarm day
-        fire_offset = None  # days from today
+            expired = (
+                override_until_date is not None and override_until_date < today_date
+            )
+            if not expired:
+                if mode == "pause":
+                    override_is_pause = True
+                    if not override_until_date or (
+                        override_until_date - today_date
+                    ).days > 365:
+                        return {"time": "paused", "day": "", "offset": -1}
+                else:
+                    override_time = override.get("time")
+
+        source = settings.get(
+            f"{prefix}_source", "sunrise" if prefix == "auto_on" else "sunset"
+        )
+
+        def get_normal_time(py_day):
+            """Get trigger time from normal schedule (no override)."""
+            if source in ("sunrise", "sunset"):
+                active_days = settings.get(
+                    f"{prefix}_days", [0, 1, 2, 3, 4, 5, 6]
+                )
+                if py_day not in active_days:
+                    return None
+                base = sunrise_hour if source == "sunrise" else sunset_hour
+                offset_min = settings.get(f"{prefix}_offset", 0)
+                return base + offset_min / 60.0
+            elif source == "custom":
+                days_1 = settings.get(f"{prefix}_days_1", [])
+                days_2 = settings.get(f"{prefix}_days_2", [])
+                if py_day in days_1:
+                    return settings.get(f"{prefix}_time_1")
+                elif py_day in days_2:
+                    return settings.get(f"{prefix}_time_2")
+            return None
+
+        # Calculate pause skip days
+        pause_skip = 0
+        if override_is_pause and override_until_date:
+            pause_skip = (override_until_date - today_date).days + 1
+
+        # Scan forward for next fire day
+        fire_offset = None
         fire_day = None
         fire_time = None
-        scan_range = max(7, skip_days + 7)  # scan past override window
+        scan_range = max(14, pause_skip + 7)
+
         for i in range(scan_range):
             py_day = (today_wd + i) % 7
-            # While a non-off override is active, alarm fires every day
-            # (ignoring normal day restrictions). After override expires,
-            # revert to normal day schedule.
-            from datetime import timedelta as _td
+            day_date = today_date + timedelta(days=i)
 
-            day_date = today_date + _td(days=i)
-            day_in_override = override_active and day_date <= override_until_date
-            if not day_in_override and py_day not in days:
+            if override_is_pause and i < pause_skip:
                 continue
-            if override_is_off and i < skip_days:
-                continue  # alarm suppressed during override
-            at = get_alarm_time_for_day(py_day, use_override=day_in_override)
+
+            # During active non-pause override, use override time every day
+            if (
+                override_time is not None
+                and override_until_date
+                and day_date <= override_until_date
+            ):
+                at = override_time
+            else:
+                at = get_normal_time(py_day)
+
             if at is None:
                 continue
             if i == 0 and now_decimal >= at:
-                continue  # today but already passed
+                continue
+
             fire_offset = i
             fire_day = py_day
             fire_time = at
@@ -2501,39 +2534,19 @@ class LightDesignerServer:
             return None
 
         time_str = fmt_time(fire_time)
-
-        # For pill: when fire_offset==1 but alarm time < now, it's imminent
         display_offset = fire_offset
         if fire_offset == 1 and fire_time < now_decimal:
             display_offset = 0
 
-        # Determine if the next chronological occurrence of the alarm time is
-        # being skipped.  The "next chronological" occurrence is:
-        #   - today, if the time hasn't passed yet
-        #   - tomorrow, if the time already passed today
-        # If the alarm actually fires on that day → no day label needed.
-        # Otherwise show the abbreviated day name so the user sees it's deferred.
         if fire_offset == 0:
             day_label = "today"
         elif fire_offset == 1:
             day_label = f"tom ({day_abbrs[fire_day]})"
         elif fire_offset > 5:
-            from datetime import timedelta
-
             fire_date = today_date + timedelta(days=fire_offset)
             month_abbrs = [
-                "Jan",
-                "Feb",
-                "Mar",
-                "Apr",
-                "May",
-                "Jun",
-                "Jul",
-                "Aug",
-                "Sep",
-                "Oct",
-                "Nov",
-                "Dec",
+                "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
             ]
             day_label = (
                 f"{day_abbrs[fire_day]} "
@@ -2549,25 +2562,13 @@ class LightDesignerServer:
             "day_abbr": day_abbrs[fire_day],
         }
         if fire_offset > 6:
-            from datetime import timedelta
-
             fire_date_r = today_date + timedelta(days=fire_offset)
-            month_abbrs_r = [
-                "Jan",
-                "Feb",
-                "Mar",
-                "Apr",
-                "May",
-                "Jun",
-                "Jul",
-                "Aug",
-                "Sep",
-                "Oct",
-                "Nov",
-                "Dec",
+            month_abbrs = [
+                "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
             ]
             result["date_short"] = (
-                f"{month_abbrs_r[fire_date_r.month - 1]} {fire_date_r.day}"
+                f"{month_abbrs[fire_date_r.month - 1]} {fire_date_r.day}"
             )
         return result
 
@@ -2955,11 +2956,13 @@ class LightDesignerServer:
                         "base_kelvin": base_kelvin,
                         "solar_breakdown": solar_breakdown,
                         "weather_condition": lux_tracker._weather_condition,
-                        "next_wake_alarm": self._compute_next_wake_alarm(
-                            area_id,
-                            config.get("area_settings", {}),
-                            rhythm_cfg,
-                            glozone.get_zone_for_area(area_id),
+                        "next_auto_on": self._compute_next_auto_time(
+                            config.get("area_settings", {}).get(area_id, {}),
+                            "auto_on", sun_times.sunrise, sun_times.sunset,
+                        ),
+                        "next_auto_off": self._compute_next_auto_time(
+                            config.get("area_settings", {}).get(area_id, {}),
+                            "auto_off", sun_times.sunrise, sun_times.sunset,
                         ),
                     }
 
@@ -2981,6 +2984,7 @@ class LightDesignerServer:
             config = await self.load_config()
             glozones = config.get("glozones", {})
             area_settings = config.get("area_settings", {})
+            _sunrise_h, _sunset_h = self._get_sun_hours()
 
             filter_area_id = request.query.get("area_id")
             area_status = {}
@@ -3041,12 +3045,13 @@ class LightDesignerServer:
                         "brightness_override": area_state.brightness_override,
                         "brightness_override_set_at": area_state.brightness_override_set_at,
                         "color_override_set_at": area_state.color_override_set_at,
-                        # Wake alarm (light computation from config, not curve)
-                        "next_wake_alarm": self._compute_next_wake_alarm(
-                            area_id,
-                            area_settings,
-                            glozone.get_zone_config_for_area(area_id),
-                            zone_name,
+                        "next_auto_on": self._compute_next_auto_time(
+                            area_settings.get(area_id, {}),
+                            "auto_on", _sunrise_h, _sunset_h,
+                        ),
+                        "next_auto_off": self._compute_next_auto_time(
+                            area_settings.get(area_id, {}),
+                            "auto_off", _sunrise_h, _sunset_h,
                         ),
                     }
 

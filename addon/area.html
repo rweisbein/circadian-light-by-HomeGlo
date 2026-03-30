@@ -434,87 +434,72 @@
       }
     }
 
-    /* Wake alarm section */
-    .wake-alarm-section { margin: 16px 0 8px; }
-    .wake-alarm-card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; transition: border-color 0.2s; }
-    .wake-alarm-header { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 12px 14px; user-select: none; }
-    .wake-alarm-title { font-size: 1.0rem; font-weight: 600; color: var(--text); }
-    .wake-alarm-toggle { position: relative; width: 32px; height: 16px; }
-    .wake-alarm-toggle input { opacity: 0; width: 0; height: 0; }
-    .wake-alarm-toggle .slider { position: absolute; inset: 0; background: var(--line); border-radius: 8px; cursor: pointer; transition: background 0.2s; }
-    .wake-alarm-toggle .slider::before { content: ''; position: absolute; left: 3px; top: 3px; width: 10px; height: 10px; border-radius: 50%; background: var(--muted); transition: all 0.2s; }
-    .wake-alarm-toggle input:checked + .slider { background: var(--text); }
-    .wake-alarm-toggle input:checked + .slider::before { transform: translateX(16px); background: #000; }
-    .wake-alarm-body { max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.3s ease, opacity 0.25s ease; }
-    .wake-alarm-card.is-open .wake-alarm-body { max-height: 500px; opacity: 1; }
-    .wake-alarm-body-inner { padding: 4px 0 14px 0; }
-    .wake-alarm-row { display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
-    .wake-day-bubbles { display: flex; gap: 6px; justify-content: center; margin-bottom: 10px; }
-    .wake-day-col { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-    .wake-day-bubble { width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid var(--line); background: transparent; color: var(--muted); font-size: 0.55rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; line-height: 1; transition: all 0.15s; }
-    .wake-day-bubble:hover { border-color: var(--text); color: var(--text); }
-    .wake-day-bubble.active { background: #eef1f5; border-color: #eef1f5; color: #000; }
-    .wake-day-time { font-size: 0.6rem; color: var(--muted2); height: 0.75rem; line-height: 0.75rem; font-variant-numeric: tabular-nums; }
-    .wake-time-input { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; font-size: 0.85rem; outline: none; }
-    .wake-time-input:focus { border-color: var(--accent); }
-    .wake-offset-control { display: flex; align-items: center; gap: 6px; }
-    .wake-offset-btn { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line); background: transparent; color: var(--text); font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
-    .wake-offset-btn:hover { border-color: var(--accent); color: var(--accent); }
-    .wake-offset-value { font-size: 0.85rem; color: var(--text); min-width: 3em; text-align: center; font-variant-numeric: tabular-nums; }
-    .wake-next-alarm { font-size: 1.1rem; color: var(--text); font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
-    .wake-alarm-chevron { display: inline-block; font-size: 1.1rem; line-height: 1; transition: transform 0.25s; color: var(--muted2); flex-shrink: 0; }
-    .wake-alarm-card.is-open .wake-alarm-chevron { transform: rotate(90deg); }
-    .tune-light-impact { font-size: 0.75rem; color: var(--muted2); white-space: nowrap; min-width: 2.5em; text-align: right; font-variant-numeric: tabular-nums; }
+    /* Auto schedule section */
+    .auto-sched-section { margin: 16px 0 8px; display: flex; flex-direction: column; gap: 8px; }
+    .auto-sched-card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; transition: border-color 0.2s; }
+    .auto-sched-header { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 12px 14px; user-select: none; }
+    .auto-sched-title { font-size: 1.0rem; font-weight: 600; color: var(--text); }
+    .auto-sched-toggle { position: relative; width: 32px; height: 16px; }
+    .auto-sched-toggle input { opacity: 0; width: 0; height: 0; }
+    .auto-sched-toggle .slider { position: absolute; inset: 0; background: var(--line); border-radius: 8px; cursor: pointer; transition: background 0.2s; }
+    .auto-sched-toggle .slider::before { content: ''; position: absolute; left: 3px; top: 3px; width: 10px; height: 10px; border-radius: 50%; background: var(--muted); transition: all 0.2s; }
+    .auto-sched-toggle input:checked + .slider { background: var(--text); }
+    .auto-sched-toggle input:checked + .slider::before { transform: translateX(16px); background: #000; }
+    .auto-sched-body { max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.3s ease, opacity 0.25s ease; }
+    .auto-sched-card.is-open .auto-sched-body { max-height: 600px; opacity: 1; }
+    .auto-sched-body-inner { padding: 4px 0 14px 0; }
+    .auto-sched-row { display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
+    .auto-sched-days { display: flex; gap: 6px; justify-content: center; margin-bottom: 10px; }
+    .auto-sched-day-col { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+    .auto-sched-day-btn { width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid var(--line); background: transparent; color: var(--muted); font-size: 0.55rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; line-height: 1; transition: all 0.15s; }
+    .auto-sched-day-btn:hover { border-color: var(--text); color: var(--text); }
+    .auto-sched-day-btn.active { background: #eef1f5; border-color: #eef1f5; color: #000; }
+    .auto-sched-day-time { font-size: 0.6rem; color: var(--muted2); height: 0.75rem; line-height: 0.75rem; font-variant-numeric: tabular-nums; }
+    .auto-sched-time-input { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; font-size: 0.85rem; outline: none; }
+    .auto-sched-time-input:focus { border-color: var(--accent); }
+    .auto-sched-offset { display: flex; align-items: center; gap: 6px; }
+    .auto-sched-offset-btn { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line); background: transparent; color: var(--text); font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+    .auto-sched-offset-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .auto-sched-offset-val { font-size: 0.85rem; color: var(--text); min-width: 3em; text-align: center; font-variant-numeric: tabular-nums; }
+    .auto-sched-next { font-size: 1.1rem; color: var(--text); font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .auto-sched-chevron { display: inline-block; font-size: 1.1rem; line-height: 1; transition: transform 0.25s; color: var(--muted2); flex-shrink: 0; }
+    .auto-sched-card.is-open .auto-sched-chevron { transform: rotate(90deg); }
 
+    .auto-sched-layout { display: flex; gap: 12px; align-items: flex-start; padding: 0 14px 0 30px; }
+    .auto-sched-radios { display: flex; flex-direction: column; gap: 6px; padding-top: 2px; padding-left: 0; }
+    .auto-sched-radios label { display: flex; align-items: center; gap: 5px; font-size: 0.82rem; color: var(--muted); cursor: pointer; white-space: nowrap; }
+    .auto-sched-radios input[type="radio"] { accent-color: var(--muted); margin: 0; cursor: pointer; }
+    .auto-sched-content { flex: 1; min-width: 0; }
 
-    /* Scheduled tab: radio column + content */
-    .alarm-scheduled-layout { display: flex; gap: 12px; align-items: flex-start; padding: 0 14px 0 30px; }
-    .alarm-mode-radios { display: flex; flex-direction: column; gap: 6px; padding-top: 2px; padding-left: 0; }
-    .alarm-mode-radios label { display: flex; align-items: center; gap: 5px; font-size: 0.82rem; color: var(--muted); cursor: pointer; white-space: nowrap; }
-    .alarm-mode-radios input[type="radio"] { accent-color: var(--muted); margin: 0; cursor: pointer; }
-    .alarm-scheduled-content { flex: 1; min-width: 0; }
+    .auto-sched-custom-group { margin-bottom: 8px; }
+    .auto-sched-custom-label { font-size: 0.7rem; font-weight: 500; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; text-align: center; }
 
-    /* Temporary tab: inline override controls */
-    .alarm-temp-content { font-size: 0.85rem; }
-    .alarm-temp-content .spo-grid { display: grid; grid-template-columns: 20px 1fr; gap: 0 12px; align-items: center; }
-    .alarm-temp-content .spo-radio-row { display: contents; cursor: pointer; }
-    .alarm-temp-content .spo-radio-row input[type="radio"] { accent-color: var(--muted); margin: 0; cursor: pointer; }
-    .alarm-temp-content .spo-time-cell { text-align: left; padding: 6px 0; font-size: 0.88rem; cursor: pointer; }
-    .alarm-temp-content .spo-days { display: block; font-size: 0.65rem; opacity: 0.4; margin-top: 1px; }
-    .alarm-temp-content .spo-slider-cell { display: flex; flex-direction: column; align-items: stretch; padding: 10px 0 4px; }
-    .alarm-temp-content .spo-slider-cell input[type="range"] { width: 100%; }
-    .alarm-temp-content .spo-slider-cell .spo-slider-val { font-size: 0.75rem; opacity: 0.6; margin-top: 4px; }
-    .alarm-temp-content .spo-info { font-size: 0.85rem; color: var(--text); margin-bottom: 8px; }
-    .alarm-temp-apply-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 0.8rem; }
-    .alarm-temp-apply-row label { opacity: 0.7; }
-    .alarm-temp-apply-row input[type="date"] { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; color: var(--text); padding: 5px 6px; font-size: 0.8rem; height: 30px; box-sizing: border-box; }
-    .alarm-temp-apply-row button { padding: 5px 14px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.8rem; height: 30px; box-sizing: border-box; cursor: pointer; }
-    .alarm-temp-apply-row button:hover { background: rgba(255,255,255,0.08); }
-    .alarm-temp-apply-row button.primary { background: var(--accent); color: #000; border-color: var(--accent); }
-    .alarm-temp-apply-row button.primary:hover { opacity: 0.9; }
-    .alarm-temp-clear { margin-top: 8px; text-align: center; }
-    .alarm-temp-clear button { background: none; border: none; color: #ef4444; font-size: 0.75rem; cursor: pointer; opacity: 0.7; padding: 4px 8px; }
-    .alarm-temp-clear button:hover { opacity: 1; }
+    .auto-sched-fade-row { display: flex; align-items: center; gap: 8px; padding: 6px 14px 2px 30px; }
+    .auto-sched-fade-label { font-size: 0.78rem; color: var(--muted); min-width: 4em; }
+    .auto-sched-fade-slider { flex: 1; accent-color: var(--muted); }
+    .auto-sched-fade-val { font-size: 0.78rem; color: var(--muted); min-width: 3em; text-align: right; font-variant-numeric: tabular-nums; }
 
-    /* Temp override popover (area detail page) */
-    .area-override-popover { position: fixed; z-index: 200; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 0; min-width: 260px; max-width: 320px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); overflow: hidden; }
-    .area-override-popover .spo-next-alarm { background: rgba(255,255,255,0.04); padding: 12px 14px; font-size: 1.4rem; font-weight: 700; color: var(--text); border-bottom: 1px solid var(--line); }
-    .area-override-popover .schedule-popover-title { font-weight: 600; font-size: 0.9rem; padding: 10px 14px 4px; }
-    .area-override-popover .spo-section-label { font-size: 0.7rem; font-weight: 500; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 14px 4px; }
-    .area-override-popover .spo-options { padding: 0 14px 0 22px; }
-    .area-override-popover .spo-option { display: flex; align-items: center; gap: 6px; padding: 5px 0; font-size: 0.82rem; color: var(--muted); cursor: pointer; }
-    .area-override-popover .spo-option input[type="radio"] { accent-color: var(--muted); margin: 0; cursor: pointer; flex-shrink: 0; }
-    .area-override-popover .spo-info { font-size: 0.88rem; font-weight: 600; padding: 6px 14px; text-align: center; }
-    .area-override-popover .schedule-popover-clear { padding: 6px 14px 10px; text-align: center; }
-    .area-override-popover .schedule-popover-clear button { background: none; border: none; color: #ef4444; font-size: 0.75rem; cursor: pointer; opacity: 0.7; padding: 4px 8px; }
-    .area-override-popover .schedule-popover-clear button:hover { opacity: 1; }
-    .area-override-popover .spo-buttons { display: flex; justify-content: flex-end; gap: 8px; padding: 8px 14px 10px; border-top: 1px solid var(--line); margin-top: 6px; }
-    .area-override-popover .spo-btn-cancel { padding: 6px 14px; border-radius: 6px; border: 1px solid var(--line); background: transparent; color: var(--muted); font-size: 0.8rem; cursor: pointer; }
-    .area-override-popover .spo-btn-cancel:hover { background: rgba(255,255,255,0.05); color: var(--text); }
-    .area-override-popover .spo-btn-save { padding: 6px 14px; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent); color: #000; font-size: 0.8rem; font-weight: 600; cursor: pointer; }
-    .area-override-popover .spo-btn-save:hover { opacity: 0.9; }
+    .auto-sched-skip-row { display: flex; align-items: center; gap: 6px; padding: 4px 14px 2px 30px; font-size: 0.78rem; color: var(--muted); cursor: pointer; }
+    .auto-sched-skip-row input { accent-color: var(--muted); margin: 0; cursor: pointer; }
 
-    /* Tune section — shared */
+    /* Temp override popover (auto schedule) */
+    .auto-override-popover { position: fixed; z-index: 200; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 0; min-width: 260px; max-width: 320px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); overflow: hidden; }
+    .auto-override-popover .aop-title { font-weight: 600; font-size: 0.9rem; padding: 10px 14px 4px; }
+    .auto-override-popover .aop-section-label { font-size: 0.7rem; font-weight: 500; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 14px 4px; }
+    .auto-override-popover .aop-options { padding: 0 14px 0 22px; }
+    .auto-override-popover .aop-option { display: flex; align-items: center; gap: 6px; padding: 5px 0; font-size: 0.82rem; color: var(--muted); cursor: pointer; }
+    .auto-override-popover .aop-option input[type="radio"] { accent-color: var(--muted); margin: 0; cursor: pointer; flex-shrink: 0; }
+    .auto-override-popover .aop-info { font-size: 0.88rem; font-weight: 600; padding: 6px 14px; text-align: center; }
+    .auto-override-popover .aop-clear { padding: 6px 14px 10px; text-align: center; }
+    .auto-override-popover .aop-clear button { background: none; border: none; color: #ef4444; font-size: 0.75rem; cursor: pointer; opacity: 0.7; padding: 4px 8px; }
+    .auto-override-popover .aop-clear button:hover { opacity: 1; }
+    .auto-override-popover .aop-buttons { display: flex; justify-content: flex-end; gap: 8px; padding: 8px 14px 10px; border-top: 1px solid var(--line); margin-top: 6px; }
+    .auto-override-popover .aop-btn-cancel { padding: 6px 14px; border-radius: 6px; border: 1px solid var(--line); background: transparent; color: var(--muted); font-size: 0.8rem; cursor: pointer; }
+    .auto-override-popover .aop-btn-cancel:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+    .auto-override-popover .aop-btn-save { padding: 6px 14px; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent); color: #000; font-size: 0.8rem; font-weight: 600; cursor: pointer; }
+    .auto-override-popover .aop-btn-save:hover { opacity: 0.9; }
+
+        /* Tune section — shared */
     .tune-card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 8px; overflow: hidden; font-size: 13px; }
     .tune-card-title { padding: 10px 16px 2px; font-size: 0.75rem; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
     .tune-section-header { padding: 10px 16px 6px; font-size: 0.75rem; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
@@ -814,69 +799,192 @@
     </button>
     </div>
 
-    <!-- Alarm Section -->
-    <div id="wake-alarm-section" class="wake-alarm-section" style="display:none;">
-      <div class="wake-alarm-card">
-        <div class="wake-alarm-header" onclick="toggleAlarmBody()">
-          <span class="wake-alarm-chevron" id="wake-alarm-chevron">&#x203A;</span>
-          <span class="wake-alarm-title">Alarm</span>
-          <label class="wake-alarm-toggle" onclick="event.stopPropagation()">
-            <input type="checkbox" id="wake-alarm-enabled" onchange="onAlarmToggleChanged()">
+    <!-- Auto Schedule Section -->
+    <div id="auto-sched-section" class="auto-sched-section" style="display:none;">
+    <div class="auto-sched-card" id="auto-on-card">
+        <div class="auto-sched-header" onclick="toggleAutoBody('on')">
+          <span class="auto-sched-chevron" id="auto-on-chevron">&#x203A;</span>
+          <span class="auto-sched-title">Auto On</span>
+          <label class="auto-sched-toggle" onclick="event.stopPropagation()">
+            <input type="checkbox" id="auto-on-enabled" onchange="onAutoToggleChanged('on')">
             <span class="slider"></span>
           </label>
           <span style="margin-left:auto; display:flex; flex-direction:column; align-items:flex-end;">
-            <span class="wake-next-alarm" id="wake-next-alarm"></span>
-            <a id="wake-override-clear" href="#" onclick="event.preventDefault(); event.stopPropagation(); clearOverrideFromHeader();" style="display:none; font-size:0.65rem; color:var(--muted2); text-decoration:underline; line-height:1;">clear temp override</a>
+            <span class="auto-sched-next" id="auto-on-next"></span>
+            <a id="auto-on-override-clear" href="#" onclick="event.preventDefault(); event.stopPropagation(); clearAutoOverride('on');" style="display:none; font-size:0.65rem; color:var(--muted2); text-decoration:underline; line-height:1;">clear override</a>
           </span>
         </div>
-        <div class="wake-alarm-body" id="wake-alarm-body">
-         <div class="wake-alarm-body-inner">
-          <div class="tune-group-label" style="padding-top:4px; margin-bottom:6px;">Schedule</div>
-
-          <div>
-            <div class="alarm-scheduled-layout">
-              <div class="alarm-mode-radios">
-                <label onclick="setWakeAlarmMode('rhythm')"><input type="radio" name="wake-mode" id="wake-mode-rhythm" checked> Rhythm</label>
-                <label onclick="setWakeAlarmMode('custom')"><input type="radio" name="wake-mode" id="wake-mode-custom"> Custom</label>
-                <a id="alarm-temp-override-link" href="#" onclick="event.preventDefault(); event.stopPropagation(); openAreaTempOverridePopup(this);" style="display:none; font-size:0.75rem; color:var(--muted2); text-decoration:underline;">create temp override</a>
-              </div>
-              <div class="alarm-scheduled-content">
-                <div class="wake-day-bubbles" id="wake-alarm-days">
-                  <div class="wake-day-col"><button class="wake-day-bubble" data-day="0" onclick="toggleWakeDay(this)">Mo</button><span class="wake-day-time" data-daytime="0"></span></div>
-                  <div class="wake-day-col"><button class="wake-day-bubble" data-day="1" onclick="toggleWakeDay(this)">Tu</button><span class="wake-day-time" data-daytime="1"></span></div>
-                  <div class="wake-day-col"><button class="wake-day-bubble" data-day="2" onclick="toggleWakeDay(this)">We</button><span class="wake-day-time" data-daytime="2"></span></div>
-                  <div class="wake-day-col"><button class="wake-day-bubble" data-day="3" onclick="toggleWakeDay(this)">Th</button><span class="wake-day-time" data-daytime="3"></span></div>
-                  <div class="wake-day-col"><button class="wake-day-bubble" data-day="4" onclick="toggleWakeDay(this)">Fr</button><span class="wake-day-time" data-daytime="4"></span></div>
-                  <div class="wake-day-col"><button class="wake-day-bubble" data-day="5" onclick="toggleWakeDay(this)">Sa</button><span class="wake-day-time" data-daytime="5"></span></div>
-                  <div class="wake-day-col"><button class="wake-day-bubble" data-day="6" onclick="toggleWakeDay(this)">Su</button><span class="wake-day-time" data-daytime="6"></span></div>
+        <div class="auto-sched-body" id="auto-on-body">
+         <div class="auto-sched-body-inner">
+          <div class="tune-group-label" style="padding-top:4px; margin-bottom:6px;">Source</div>
+          <div class="auto-sched-layout">
+            <div class="auto-sched-radios">
+              <label onclick="setAutoSource('on','sunrise')"><input type="radio" name="auto-on-source" id="auto-on-src-sunrise"> Sunrise</label>
+              <label onclick="setAutoSource('on','sunset')"><input type="radio" name="auto-on-source" id="auto-on-src-sunset"> Sunset</label>
+              <label onclick="setAutoSource('on','custom')"><input type="radio" name="auto-on-source" id="auto-on-src-custom"> Custom</label>
+              <a id="auto-on-override-link" href="#" onclick="event.preventDefault(); event.stopPropagation(); openAutoOverridePopup('on', this);" style="display:none; font-size:0.75rem; color:var(--muted2); text-decoration:underline;">override</a>
+            </div>
+            <div class="auto-sched-content">
+              <div id="auto-on-sun-controls">
+                <div class="auto-sched-days" id="auto-on-days">
+                  <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="0" onclick="toggleAutoDay('on',this)">Mo</button><span class="auto-sched-day-time" data-daytime="0"></span></div>
+                  <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="1" onclick="toggleAutoDay('on',this)">Tu</button><span class="auto-sched-day-time" data-daytime="1"></span></div>
+                  <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="2" onclick="toggleAutoDay('on',this)">We</button><span class="auto-sched-day-time" data-daytime="2"></span></div>
+                  <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="3" onclick="toggleAutoDay('on',this)">Th</button><span class="auto-sched-day-time" data-daytime="3"></span></div>
+                  <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="4" onclick="toggleAutoDay('on',this)">Fr</button><span class="auto-sched-day-time" data-daytime="4"></span></div>
+                  <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="5" onclick="toggleAutoDay('on',this)">Sa</button><span class="auto-sched-day-time" data-daytime="5"></span></div>
+                  <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="6" onclick="toggleAutoDay('on',this)">Su</button><span class="auto-sched-day-time" data-daytime="6"></span></div>
                 </div>
-                <div id="wake-rhythm-controls">
-                  <div class="wake-alarm-row">
-                    <div class="wake-offset-control">
-                      <button class="wake-offset-btn" onclick="adjustWakeOffset(-5)">-</button>
-                      <span class="wake-offset-value" id="wake-offset-value">0 min</span>
-                      <button class="wake-offset-btn" onclick="adjustWakeOffset(5)">+</button>
-                    </div>
+                <div class="auto-sched-row">
+                  <div class="auto-sched-offset">
+                    <button class="auto-sched-offset-btn" onclick="adjustAutoOffset('on',-5)">-</button>
+                    <span class="auto-sched-offset-val" id="auto-on-offset-val">0 min</span>
+                    <button class="auto-sched-offset-btn" onclick="adjustAutoOffset('on',5)">+</button>
                   </div>
                 </div>
-                <div id="wake-custom-controls" style="display:none;">
-                  <div class="wake-alarm-row">
-                    <input type="time" class="wake-time-input" id="wake-custom-time" value="07:00" onchange="onAlarmFieldChanged()">
+              </div>
+              <div id="auto-on-custom-controls" style="display:none;">
+                <div class="auto-sched-custom-group">
+                  <div class="auto-sched-custom-label">Schedule 1</div>
+                  <div class="auto-sched-row">
+                    <input type="time" class="auto-sched-time-input" id="auto-on-time-1" value="07:00" onchange="onAutoFieldChanged('on')">
+                  </div>
+                  <div class="auto-sched-days" id="auto-on-days-1">
+                    <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="0" onclick="toggleAutoCustomDay('on',1,this)">Mo</button></div>
+                    <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="1" onclick="toggleAutoCustomDay('on',1,this)">Tu</button></div>
+                    <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="2" onclick="toggleAutoCustomDay('on',1,this)">We</button></div>
+                    <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="3" onclick="toggleAutoCustomDay('on',1,this)">Th</button></div>
+                    <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="4" onclick="toggleAutoCustomDay('on',1,this)">Fr</button></div>
+                    <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="5" onclick="toggleAutoCustomDay('on',1,this)">Sa</button></div>
+                    <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="6" onclick="toggleAutoCustomDay('on',1,this)">Su</button></div>
+                  </div>
+                </div>
+                <div class="auto-sched-custom-group">
+                  <div class="auto-sched-custom-label">Schedule 2</div>
+                  <div class="auto-sched-row">
+                    <input type="time" class="auto-sched-time-input" id="auto-on-time-2" value="09:00" onchange="onAutoFieldChanged('on')">
+                  </div>
+                  <div class="auto-sched-days" id="auto-on-days-2">
+                    <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="0" onclick="toggleAutoCustomDay('on',2,this)">Mo</button></div>
+                    <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="1" onclick="toggleAutoCustomDay('on',2,this)">Tu</button></div>
+                    <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="2" onclick="toggleAutoCustomDay('on',2,this)">We</button></div>
+                    <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="3" onclick="toggleAutoCustomDay('on',2,this)">Th</button></div>
+                    <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="4" onclick="toggleAutoCustomDay('on',2,this)">Fr</button></div>
+                    <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="5" onclick="toggleAutoCustomDay('on',2,this)">Sa</button></div>
+                    <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="6" onclick="toggleAutoCustomDay('on',2,this)">Su</button></div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-          <div class="section-action-bar" id="alarm-action-bar" style="display:none;">
-            <button class="section-cancel-btn" onclick="cancelAlarmChanges()">Cancel</button>
-            <button class="section-save-btn" onclick="saveAlarmChanges()">Save</button>
+          <div class="auto-sched-fade-row">
+            <span class="auto-sched-fade-label">Fade in</span>
+            <input type="range" class="auto-sched-fade-slider" id="auto-on-fade" min="0" max="60" step="5" value="0" oninput="onAutoFieldChanged('on'); updateAutoFadeDisplay('on')">
+            <span class="auto-sched-fade-val" id="auto-on-fade-val">0 min</span>
+          </div>
+          <label class="auto-sched-skip-row" id="auto-on-skip-row">
+            <input type="checkbox" id="auto-on-skip" onchange="onAutoFieldChanged('on')">
+            <span>Skip if already brighter</span>
+          </label>
+          <div class="section-action-bar" id="auto-on-action-bar" style="display:none;">
+            <button class="section-cancel-btn" onclick="cancelAutoChanges('on')">Cancel</button>
+            <button class="section-save-btn" onclick="saveAutoChanges('on')">Save</button>
+          </div>
+         </div>
+        </div>
+      </div>
+
+    <div class="auto-sched-card" id="auto-off-card">
+        <div class="auto-sched-header" onclick="toggleAutoBody('off')">
+          <span class="auto-sched-chevron" id="auto-off-chevron">&#x203A;</span>
+          <span class="auto-sched-title">Auto Off</span>
+          <label class="auto-sched-toggle" onclick="event.stopPropagation()">
+            <input type="checkbox" id="auto-off-enabled" onchange="onAutoToggleChanged('off')">
+            <span class="slider"></span>
+          </label>
+          <span style="margin-left:auto; display:flex; flex-direction:column; align-items:flex-end;">
+            <span class="auto-sched-next" id="auto-off-next"></span>
+            <a id="auto-off-override-clear" href="#" onclick="event.preventDefault(); event.stopPropagation(); clearAutoOverride('off');" style="display:none; font-size:0.65rem; color:var(--muted2); text-decoration:underline; line-height:1;">clear override</a>
+          </span>
+        </div>
+        <div class="auto-sched-body" id="auto-off-body">
+         <div class="auto-sched-body-inner">
+          <div class="tune-group-label" style="padding-top:4px; margin-bottom:6px;">Source</div>
+          <div class="auto-sched-layout">
+            <div class="auto-sched-radios">
+              <label onclick="setAutoSource('off','sunrise')"><input type="radio" name="auto-off-source" id="auto-off-src-sunrise"> Sunrise</label>
+              <label onclick="setAutoSource('off','sunset')"><input type="radio" name="auto-off-source" id="auto-off-src-sunset"> Sunset</label>
+              <label onclick="setAutoSource('off','custom')"><input type="radio" name="auto-off-source" id="auto-off-src-custom"> Custom</label>
+              <a id="auto-off-override-link" href="#" onclick="event.preventDefault(); event.stopPropagation(); openAutoOverridePopup('off', this);" style="display:none; font-size:0.75rem; color:var(--muted2); text-decoration:underline;">override</a>
+            </div>
+            <div class="auto-sched-content">
+              <div id="auto-off-sun-controls">
+                <div class="auto-sched-days" id="auto-off-days">
+                  <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="0" onclick="toggleAutoDay('off',this)">Mo</button><span class="auto-sched-day-time" data-daytime="0"></span></div>
+                  <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="1" onclick="toggleAutoDay('off',this)">Tu</button><span class="auto-sched-day-time" data-daytime="1"></span></div>
+                  <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="2" onclick="toggleAutoDay('off',this)">We</button><span class="auto-sched-day-time" data-daytime="2"></span></div>
+                  <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="3" onclick="toggleAutoDay('off',this)">Th</button><span class="auto-sched-day-time" data-daytime="3"></span></div>
+                  <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="4" onclick="toggleAutoDay('off',this)">Fr</button><span class="auto-sched-day-time" data-daytime="4"></span></div>
+                  <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="5" onclick="toggleAutoDay('off',this)">Sa</button><span class="auto-sched-day-time" data-daytime="5"></span></div>
+                  <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="6" onclick="toggleAutoDay('off',this)">Su</button><span class="auto-sched-day-time" data-daytime="6"></span></div>
+                </div>
+                <div class="auto-sched-row">
+                  <div class="auto-sched-offset">
+                    <button class="auto-sched-offset-btn" onclick="adjustAutoOffset('off',-5)">-</button>
+                    <span class="auto-sched-offset-val" id="auto-off-offset-val">0 min</span>
+                    <button class="auto-sched-offset-btn" onclick="adjustAutoOffset('off',5)">+</button>
+                  </div>
+                </div>
+              </div>
+              <div id="auto-off-custom-controls" style="display:none;">
+                <div class="auto-sched-custom-group">
+                  <div class="auto-sched-custom-label">Schedule 1</div>
+                  <div class="auto-sched-row">
+                    <input type="time" class="auto-sched-time-input" id="auto-off-time-1" value="22:00" onchange="onAutoFieldChanged('off')">
+                  </div>
+                  <div class="auto-sched-days" id="auto-off-days-1">
+                    <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="0" onclick="toggleAutoCustomDay('off',1,this)">Mo</button></div>
+                    <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="1" onclick="toggleAutoCustomDay('off',1,this)">Tu</button></div>
+                    <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="2" onclick="toggleAutoCustomDay('off',1,this)">We</button></div>
+                    <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="3" onclick="toggleAutoCustomDay('off',1,this)">Th</button></div>
+                    <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="4" onclick="toggleAutoCustomDay('off',1,this)">Fr</button></div>
+                    <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="5" onclick="toggleAutoCustomDay('off',1,this)">Sa</button></div>
+                    <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="6" onclick="toggleAutoCustomDay('off',1,this)">Su</button></div>
+                  </div>
+                </div>
+                <div class="auto-sched-custom-group">
+                  <div class="auto-sched-custom-label">Schedule 2</div>
+                  <div class="auto-sched-row">
+                    <input type="time" class="auto-sched-time-input" id="auto-off-time-2" value="23:00" onchange="onAutoFieldChanged('off')">
+                  </div>
+                  <div class="auto-sched-days" id="auto-off-days-2">
+                    <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="0" onclick="toggleAutoCustomDay('off',2,this)">Mo</button></div>
+                    <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="1" onclick="toggleAutoCustomDay('off',2,this)">Tu</button></div>
+                    <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="2" onclick="toggleAutoCustomDay('off',2,this)">We</button></div>
+                    <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="3" onclick="toggleAutoCustomDay('off',2,this)">Th</button></div>
+                    <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="4" onclick="toggleAutoCustomDay('off',2,this)">Fr</button></div>
+                    <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="5" onclick="toggleAutoCustomDay('off',2,this)">Sa</button></div>
+                    <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="6" onclick="toggleAutoCustomDay('off',2,this)">Su</button></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="auto-sched-fade-row">
+            <span class="auto-sched-fade-label">Fade out</span>
+            <input type="range" class="auto-sched-fade-slider" id="auto-off-fade" min="0" max="60" step="5" value="0" oninput="onAutoFieldChanged('off'); updateAutoFadeDisplay('off')">
+            <span class="auto-sched-fade-val" id="auto-off-fade-val">0 min</span>
+          </div>
+          <div class="section-action-bar" id="auto-off-action-bar" style="display:none;">
+            <button class="section-cancel-btn" onclick="cancelAutoChanges('off')">Cancel</button>
+            <button class="section-save-btn" onclick="saveAutoChanges('off')">Save</button>
           </div>
          </div>
         </div>
       </div>
     </div>
 
-    <!-- Tune Section -->
+        <!-- Tune Section -->
     <div id="area-tune-section" style="display:none; margin: 0 0 16px;">
       <div class="tune-card tune-brightness-card" id="tune-brightness-card"></div>
       <div class="tune-card tune-lights-card" id="tune-lights-card"></div>
@@ -901,7 +1009,6 @@
     let sliderInteracting = false;
     let sliderPreviewPoints = null;  // [{brightness, kelvin}, ...] from backend
     let tuneSnapshot = null;
-    let alarmSnapshot = null;
 
     // ============================================================
     // Circadian Curve Calculation (from areas.html modal)
@@ -2066,7 +2173,7 @@
         updateAllSliders();
       }, 50);
       loadTuneSection();
-      loadWakeAlarmSettings();
+      loadAutoScheduleSettings();
     }
 
 
@@ -2154,7 +2261,7 @@
     // Navigation
     // ============================================================
     function goBack() {
-      if (isTuneDirty() || isAlarmDirty()) {
+      if (isTuneDirty() || isAutoSchedDirty()) {
         if (!confirm('You have unsaved changes. Discard and leave?')) return;
       }
       stopRefresh();
@@ -2672,18 +2779,19 @@
       }
     }
 
-    function captureAlarmSnapshot() {
-      alarmSnapshot = {
-        enabled: document.getElementById('wake-alarm-enabled').checked,
-        mode: wakeAlarmMode,
-        offset: wakeAlarmOffset,
-        customTime: document.getElementById('wake-custom-time')?.value || '07:00',
-        days: []
+    function captureAutoSnapshot(type) {
+      const s = autoState[type];
+      s.snapshot = {
+        source: s.source,
+        offset: s.offset,
+        days: [...s.days],
+        time1: document.getElementById('auto-' + type + '-time-1')?.value || '',
+        days1: [...s.days1],
+        time2: document.getElementById('auto-' + type + '-time-2')?.value || '',
+        days2: [...s.days2],
+        fade: parseInt(document.getElementById('auto-' + type + '-fade')?.value || '0'),
+        skip: type === 'on' ? (document.getElementById('auto-on-skip')?.checked || false) : false,
       };
-      document.querySelectorAll('#wake-alarm-days .wake-day-bubble.active').forEach(btn => {
-        alarmSnapshot.days.push(parseInt(btn.dataset.day));
-      });
-      alarmSnapshot.days.sort();
     }
 
     function isBrightnessDirty() {
@@ -2705,18 +2813,24 @@
       return isBrightnessDirty() || isLightsDirty();
     }
 
-    function isAlarmDirty() {
-      if (!alarmSnapshot) return false;
-      if (wakeAlarmMode !== alarmSnapshot.mode) return true;
-      if (wakeAlarmOffset !== alarmSnapshot.offset) return true;
-      if ((document.getElementById('wake-custom-time')?.value || '07:00') !== alarmSnapshot.customTime) return true;
-      const currentDays = [];
-      document.querySelectorAll('#wake-alarm-days .wake-day-bubble.active').forEach(btn => {
-        currentDays.push(parseInt(btn.dataset.day));
-      });
-      currentDays.sort();
-      return JSON.stringify(currentDays) !== JSON.stringify(alarmSnapshot.days);
+    function isAutoDirty(type) {
+      const s = autoState[type];
+      if (!s.snapshot) return false;
+      if (s.source !== s.snapshot.source) return true;
+      if (s.offset !== s.snapshot.offset) return true;
+      const getDays = () => { const d = []; document.querySelectorAll('#auto-' + type + '-days .auto-sched-day-btn.active').forEach(b => d.push(parseInt(b.dataset.day))); d.sort(); return d; };
+      if (JSON.stringify(getDays()) !== JSON.stringify(s.snapshot.days)) return true;
+      if ((document.getElementById('auto-' + type + '-time-1')?.value || '') !== s.snapshot.time1) return true;
+      if ((document.getElementById('auto-' + type + '-time-2')?.value || '') !== s.snapshot.time2) return true;
+      const getDays1 = () => { const d = []; document.querySelectorAll('#auto-' + type + '-days-1 .auto-sched-day-btn.active').forEach(b => d.push(parseInt(b.dataset.day))); d.sort(); return d; };
+      const getDays2 = () => { const d = []; document.querySelectorAll('#auto-' + type + '-days-2 .auto-sched-day-btn.active').forEach(b => d.push(parseInt(b.dataset.day))); d.sort(); return d; };
+      if (JSON.stringify(getDays1()) !== JSON.stringify(s.snapshot.days1)) return true;
+      if (JSON.stringify(getDays2()) !== JSON.stringify(s.snapshot.days2)) return true;
+      if (parseInt(document.getElementById('auto-' + type + '-fade')?.value || '0') !== s.snapshot.fade) return true;
+      if (type === 'on' && (document.getElementById('auto-on-skip')?.checked || false) !== s.snapshot.skip) return true;
+      return false;
     }
+    function isAutoSchedDirty() { return isAutoDirty('on') || isAutoDirty('off'); }
 
     function updateTuneButtons() {
       const briBar = document.getElementById('tune-action-bar');
@@ -2730,9 +2844,9 @@
       if (rs) rs.classList.toggle('is-dirty', tuneSnapshot != null && tuneState.solarStep !== tuneSnapshot.solarStep);
     }
 
-    function updateAlarmButtons() {
-      const bar = document.getElementById('alarm-action-bar');
-      if (bar) bar.style.display = isAlarmDirty() ? 'flex' : 'none';
+    function updateAutoButtons(type) {
+      const bar = document.getElementById('auto-' + type + '-action-bar');
+      if (bar) bar.style.display = isAutoDirty(type) ? 'flex' : 'none';
     }
 
     async function saveBrightnessChanges() {
@@ -2766,10 +2880,10 @@
       showTuneSave();
     }
 
-    async function saveAlarmChanges() {
-      await saveWakeAlarmSettings();
-      captureAlarmSnapshot();
-      updateAlarmButtons();
+    async function saveAutoChanges(type) {
+      await saveAutoScheduleSettings(type);
+      captureAutoSnapshot(type);
+      updateAutoButtons(type);
     }
 
     function cancelBrightnessChanges() {
@@ -2805,33 +2919,53 @@
       updateTuneButtons();
     }
 
-    function cancelAlarmChanges() {
-      if (!alarmSnapshot) return;
-      document.getElementById('wake-alarm-enabled').checked = alarmSnapshot.enabled;
-      wakeAlarmMode = alarmSnapshot.mode;
-      setWakeAlarmModeUI(alarmSnapshot.mode);
-      wakeAlarmOffset = alarmSnapshot.offset;
-      document.getElementById('wake-offset-value').textContent = formatOffset(alarmSnapshot.offset);
-      const customTimeEl = document.getElementById('wake-custom-time');
-      if (customTimeEl) customTimeEl.value = alarmSnapshot.customTime;
-      document.querySelectorAll('#wake-alarm-days .wake-day-bubble').forEach(btn => {
-        const d = parseInt(btn.dataset.day);
-        btn.classList.toggle('active', alarmSnapshot.days.includes(d));
+    function cancelAutoChanges(type) {
+      const s = autoState[type];
+      if (!s.snapshot) return;
+      s.source = s.snapshot.source;
+      s.offset = s.snapshot.offset;
+      setAutoSourceUI(type, s.source);
+      document.getElementById('auto-' + type + '-offset-val').textContent = formatOffset(s.offset);
+      document.querySelectorAll('#auto-' + type + '-days .auto-sched-day-btn').forEach(btn => {
+        btn.classList.toggle('active', s.snapshot.days.includes(parseInt(btn.dataset.day)));
       });
-      showResolvedWakeTime();
-      updateAlarmButtons();
+      s.days = [...s.snapshot.days];
+      const t1 = document.getElementById('auto-' + type + '-time-1');
+      if (t1) t1.value = s.snapshot.time1;
+      const t2 = document.getElementById('auto-' + type + '-time-2');
+      if (t2) t2.value = s.snapshot.time2;
+      document.querySelectorAll('#auto-' + type + '-days-1 .auto-sched-day-btn').forEach(btn => {
+        btn.classList.toggle('active', s.snapshot.days1.includes(parseInt(btn.dataset.day)));
+      });
+      s.days1 = [...s.snapshot.days1];
+      document.querySelectorAll('#auto-' + type + '-days-2 .auto-sched-day-btn').forEach(btn => {
+        btn.classList.toggle('active', s.snapshot.days2.includes(parseInt(btn.dataset.day)));
+      });
+      s.days2 = [...s.snapshot.days2];
+      const fadeEl = document.getElementById('auto-' + type + '-fade');
+      if (fadeEl) fadeEl.value = s.snapshot.fade;
+      updateAutoFadeDisplay(type);
+      if (type === 'on') {
+        const skipEl = document.getElementById('auto-on-skip');
+        if (skipEl) skipEl.checked = s.snapshot.skip;
+      }
+      updateAutoButtons(type);
     }
 
-    async function onAlarmToggleChanged() {
-      showResolvedWakeTime();
-      await saveWakeAlarmSettings();
-      captureAlarmSnapshot();
-      updateAlarmButtons();
+    async function onAutoToggleChanged(type) {
+      const enabled = document.getElementById('auto-' + type + '-enabled').checked;
+      await fetch(basePath + '/api/area-settings/' + encodeURIComponent(selectedArea.area_id), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ['auto_' + type + '_enabled']: enabled })
+      });
+      fetchNextAutoSchedule(type);
+      captureAutoSnapshot(type);
     }
 
-    function onAlarmFieldChanged() {
-      showResolvedWakeTime();
-      updateAlarmButtons();
+    function onAutoFieldChanged(type) {
+      showResolvedAutoTime(type);
+      updateAutoButtons(type);
     }
 
     // ---- Custom behaviour dropdown ----
@@ -3469,153 +3603,180 @@
     }
 
     // ============================================================
-    // Wake Alarm
+    // Auto Schedule (On / Off)
     // ============================================================
-    let wakeAlarmOffset = 0;
-    let wakeAlarmMode = 'rhythm';
+    const autoState = {
+      on:  { source: 'sunrise', offset: 0, days: [0,1,2,3,4,5,6], days1: [], days2: [], snapshot: null },
+      off: { source: 'sunset',  offset: 0, days: [0,1,2,3,4,5,6], days1: [], days2: [], snapshot: null },
+    };
 
-    function toggleAlarmBody() {
-      const card = document.querySelector('.wake-alarm-card');
+    function toggleAutoBody(type) {
+      const card = document.getElementById('auto-' + type + '-card');
       if (!card) return;
       const isOpen = card.classList.toggle('is-open');
-      localStorage.setItem('wake_alarm_collapsed', isOpen ? 'false' : 'true');
-      // Update override/link visibility based on expand state
-      const zoneName = selectedArea?.zone_name;
-      const hasOverride = !!(zoneName && cachedGlozones?.zones?.[zoneName]?.schedule_override);
-      updateOverrideIndicator(hasOverride);
+      localStorage.setItem('auto_' + type + '_collapsed', isOpen ? 'false' : 'true');
+      updateAutoOverrideIndicator(type);
     }
 
-    function toggleBrightnessBody() {
-      const card = document.querySelector('.tune-brightness-card');
-      if (!card) return;
-      const isOpen = card.classList.toggle('is-open');
-      localStorage.setItem('tune_details_expanded', isOpen ? 'true' : 'false');
-    }
-
-    function toggleLightsBody() {
-      const card = document.querySelector('.tune-lights-card');
-      if (!card) return;
-      const isOpen = card.classList.toggle('is-open');
-      localStorage.setItem('tune_lights_expanded', isOpen ? 'true' : 'false');
-    }
-
-    async function loadWakeAlarmSettings() {
+    async function loadAutoScheduleSettings() {
       if (!selectedArea) return;
-      const section = document.getElementById('wake-alarm-section');
-      section.style.display = 'block';
+      const section = document.getElementById('auto-sched-section');
+      section.style.display = 'flex';
 
       try {
         const res = await fetch(basePath + '/api/area-settings/' + encodeURIComponent(selectedArea.area_id));
         if (!res.ok) return;
         const settings = await res.json();
 
-        const enabled = settings.wake_alarm || false;
-        document.getElementById('wake-alarm-enabled').checked = enabled;
+        for (const type of ['on', 'off']) {
+          const s = autoState[type];
+          const prefix = 'auto_' + type;
 
-        // Always start alarm card closed when entering area details
-        const card = document.querySelector('.wake-alarm-card');
-        card?.classList.remove('is-open');
+          // Enabled toggle
+          document.getElementById('auto-' + type + '-enabled').checked = settings[prefix + '_enabled'] || false;
 
-        // Days
-        const days = settings.wake_alarm_days || [0, 1, 2, 3, 4, 5, 6];
-        document.querySelectorAll('#wake-alarm-days .wake-day-bubble').forEach(btn => {
-          const d = parseInt(btn.dataset.day);
-          btn.classList.toggle('active', days.includes(d));
-        });
+          // Always start closed
+          const card = document.getElementById('auto-' + type + '-card');
+          card?.classList.remove('is-open');
 
-        // Mode
-        wakeAlarmMode = settings.wake_alarm_mode || 'rhythm';
-        setWakeAlarmModeUI(wakeAlarmMode);
+          // Source
+          s.source = settings[prefix + '_source'] || (type === 'on' ? 'sunrise' : 'sunset');
+          setAutoSourceUI(type, s.source);
 
-        // Offset
-        wakeAlarmOffset = settings.wake_alarm_offset || 0;
-        document.getElementById('wake-offset-value').textContent = formatOffset(wakeAlarmOffset);
+          // Sun days
+          s.days = settings[prefix + '_days'] || [0,1,2,3,4,5,6];
+          document.querySelectorAll('#auto-' + type + '-days .auto-sched-day-btn').forEach(btn => {
+            btn.classList.toggle('active', s.days.includes(parseInt(btn.dataset.day)));
+          });
 
-        // Custom time
-        if (settings.wake_alarm_time != null) {
-          const h = Math.floor(settings.wake_alarm_time);
-          const m = Math.round((settings.wake_alarm_time - h) * 60);
-          document.getElementById('wake-custom-time').value =
-            String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+          // Offset
+          s.offset = settings[prefix + '_offset'] || 0;
+          document.getElementById('auto-' + type + '-offset-val').textContent = formatOffset(s.offset);
+
+          // Custom time 1
+          if (settings[prefix + '_time_1'] != null) {
+            const h = Math.floor(settings[prefix + '_time_1']);
+            const m = Math.round((settings[prefix + '_time_1'] - h) * 60);
+            document.getElementById('auto-' + type + '-time-1').value =
+              String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+          }
+
+          // Custom days 1
+          s.days1 = settings[prefix + '_days_1'] || [];
+          document.querySelectorAll('#auto-' + type + '-days-1 .auto-sched-day-btn').forEach(btn => {
+            btn.classList.toggle('active', s.days1.includes(parseInt(btn.dataset.day)));
+          });
+
+          // Custom time 2
+          if (settings[prefix + '_time_2'] != null) {
+            const h = Math.floor(settings[prefix + '_time_2']);
+            const m = Math.round((settings[prefix + '_time_2'] - h) * 60);
+            document.getElementById('auto-' + type + '-time-2').value =
+              String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+          }
+
+          // Custom days 2
+          s.days2 = settings[prefix + '_days_2'] || [];
+          document.querySelectorAll('#auto-' + type + '-days-2 .auto-sched-day-btn').forEach(btn => {
+            btn.classList.toggle('active', s.days2.includes(parseInt(btn.dataset.day)));
+          });
+
+          // Fade
+          const fadeEl = document.getElementById('auto-' + type + '-fade');
+          if (fadeEl) fadeEl.value = settings[prefix + '_fade'] || 0;
+          updateAutoFadeDisplay(type);
+
+          // Skip if brighter (on only)
+          if (type === 'on') {
+            const skipEl = document.getElementById('auto-on-skip');
+            if (skipEl) skipEl.checked = settings.auto_on_skip_if_brighter || false;
+          }
+
+          // Override indicator
+          const hasOverride = !!(settings[prefix + '_override']);
+          updateAutoOverrideIndicator(type, hasOverride);
+
+          showResolvedAutoTime(type);
+          captureAutoSnapshot(type);
+          fetchNextAutoSchedule(type);
         }
-
-        showResolvedWakeTime();
-        captureAlarmSnapshot();
-
-        // Fetch backend next_wake_alarm (accounts for overrides)
-        fetchNextWakeAlarm();
       } catch (err) {
-        console.error('Error loading wake alarm settings:', err);
+        console.error('Error loading auto schedule settings:', err);
       }
     }
 
-    async function fetchNextWakeAlarm() {
+    async function fetchNextAutoSchedule(type) {
       if (!selectedArea) return;
       try {
-        const res = await fetch(basePath + `/api/area-status?area_id=${encodeURIComponent(selectedArea.area_id)}`);
+        const res = await fetch(basePath + '/api/area-status?area_id=' + encodeURIComponent(selectedArea.area_id));
         if (!res.ok) return;
         const data = await res.json();
         const status = data[selectedArea.area_id];
-        const nextEl = document.getElementById('wake-next-alarm');
+        const nextEl = document.getElementById('auto-' + type + '-next');
         if (!nextEl) return;
-        const alarmEnabled = document.getElementById('wake-alarm-enabled')?.checked;
-        if (!alarmEnabled) { nextEl.textContent = ''; updateOverrideIndicator(false); return; }
-        const nwa = status?.next_wake_alarm;
-        if (nwa) {
-          nextEl.textContent = nwa.time + (nwa.day ? ' ' + nwa.day : '');
+        const enabled = document.getElementById('auto-' + type + '-enabled')?.checked;
+        if (!enabled) { nextEl.textContent = ''; return; }
+        const nxt = status?.['next_auto_' + type];
+        if (nxt) {
+          nextEl.textContent = nxt.time + (nxt.day ? ' ' + nxt.day : '');
         } else {
           nextEl.textContent = '';
         }
-        // Check for override
-        const zoneName = selectedArea?.zone_name;
-        const hasOverride = !!(zoneName && cachedGlozones?.zones?.[zoneName]?.schedule_override);
-        updateOverrideIndicator(hasOverride);
       } catch (err) {
-        // fall back to client-side display (already set by showResolvedWakeTime)
+        // fall back to client-side display
       }
     }
 
-    function updateOverrideIndicator(hasOverride) {
-      const clearEl = document.getElementById('wake-override-clear');
-      const overrideLink = document.getElementById('alarm-temp-override-link');
-      const bodyVisible = document.querySelector('.wake-alarm-card')?.classList.contains('is-open');
-      // "clear temp override" shown in header when override exists (always visible, not just when expanded)
+    function updateAutoOverrideIndicator(type, hasOverride) {
+      // If hasOverride not passed, check from settings cache
+      if (hasOverride === undefined) hasOverride = false;
+      const clearEl = document.getElementById('auto-' + type + '-override-clear');
+      const overrideLink = document.getElementById('auto-' + type + '-override-link');
+      const bodyVisible = document.getElementById('auto-' + type + '-card')?.classList.contains('is-open');
       if (clearEl) clearEl.style.display = hasOverride ? '' : 'none';
-      // "create temp override" link shown in body when expanded and no override
       if (overrideLink) overrideLink.style.display = (!hasOverride && bodyVisible) ? '' : 'none';
     }
 
-    async function clearOverrideFromHeader() {
-      await clearTempAlarm();
-      updateOverrideIndicator(false);
-    }
-
-    async function saveWakeAlarmSettings() {
+    async function saveAutoScheduleSettings(type) {
       if (!selectedArea) return;
+      const s = autoState[type];
+      const prefix = 'auto_' + type;
 
-      const enabled = document.getElementById('wake-alarm-enabled').checked;
-
-      const days = [];
-      document.querySelectorAll('#wake-alarm-days .wake-day-bubble.active').forEach(btn => {
-        days.push(parseInt(btn.dataset.day));
+      // Gather sun days
+      const sunDays = [];
+      document.querySelectorAll('#auto-' + type + '-days .auto-sched-day-btn.active').forEach(btn => {
+        sunDays.push(parseInt(btn.dataset.day));
       });
 
-      let customTime = null;
-      if (wakeAlarmMode === 'custom') {
-        const val = document.getElementById('wake-custom-time').value;
-        if (val) {
-          const [h, m] = val.split(':').map(Number);
-          customTime = h + m / 60.0;
-        }
-      }
+      // Gather custom days
+      const cDays1 = [];
+      document.querySelectorAll('#auto-' + type + '-days-1 .auto-sched-day-btn.active').forEach(btn => {
+        cDays1.push(parseInt(btn.dataset.day));
+      });
+      const cDays2 = [];
+      document.querySelectorAll('#auto-' + type + '-days-2 .auto-sched-day-btn.active').forEach(btn => {
+        cDays2.push(parseInt(btn.dataset.day));
+      });
 
-      const payload = {
-        wake_alarm: enabled,
-        wake_alarm_mode: wakeAlarmMode,
-        wake_alarm_offset: wakeAlarmOffset,
-        wake_alarm_time: customTime,
-        wake_alarm_days: days
-      };
+      // Parse custom times
+      let time1 = null, time2 = null;
+      const t1Val = document.getElementById('auto-' + type + '-time-1')?.value;
+      if (t1Val) { const [h, m] = t1Val.split(':').map(Number); time1 = h + m / 60.0; }
+      const t2Val = document.getElementById('auto-' + type + '-time-2')?.value;
+      if (t2Val) { const [h, m] = t2Val.split(':').map(Number); time2 = h + m / 60.0; }
+
+      const payload = {};
+      payload[prefix + '_source'] = s.source;
+      payload[prefix + '_offset'] = s.offset;
+      payload[prefix + '_days'] = sunDays;
+      payload[prefix + '_time_1'] = time1;
+      payload[prefix + '_days_1'] = cDays1;
+      payload[prefix + '_time_2'] = time2;
+      payload[prefix + '_days_2'] = cDays2;
+      payload[prefix + '_fade'] = parseInt(document.getElementById('auto-' + type + '-fade')?.value || '0');
+      if (type === 'on') {
+        payload.auto_on_skip_if_brighter = document.getElementById('auto-on-skip')?.checked || false;
+      }
 
       try {
         await fetch(basePath + '/api/area-settings/' + encodeURIComponent(selectedArea.area_id), {
@@ -3623,37 +3784,49 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
-        fetchNextWakeAlarm();
+        fetchNextAutoSchedule(type);
       } catch (err) {
-        console.error('Error saving wake alarm settings:', err);
+        console.error('Error saving auto schedule settings:', err);
       }
     }
 
-    function toggleWakeDay(btn) {
+    function setAutoSource(type, source) {
+      autoState[type].source = source;
+      setAutoSourceUI(type, source);
+      showResolvedAutoTime(type);
+      updateAutoButtons(type);
+    }
+
+    function setAutoSourceUI(type, source) {
+      document.getElementById('auto-' + type + '-src-sunrise').checked = (source === 'sunrise');
+      document.getElementById('auto-' + type + '-src-sunset').checked = (source === 'sunset');
+      document.getElementById('auto-' + type + '-src-custom').checked = (source === 'custom');
+      document.getElementById('auto-' + type + '-sun-controls').style.display = source !== 'custom' ? 'block' : 'none';
+      document.getElementById('auto-' + type + '-custom-controls').style.display = source === 'custom' ? 'block' : 'none';
+    }
+
+    function adjustAutoOffset(type, delta) {
+      autoState[type].offset += delta;
+      document.getElementById('auto-' + type + '-offset-val').textContent = formatOffset(autoState[type].offset);
+      showResolvedAutoTime(type);
+      updateAutoButtons(type);
+    }
+
+    function toggleAutoDay(type, btn) {
       btn.classList.toggle('active');
-      showResolvedWakeTime();
-      updateAlarmButtons();
+      showResolvedAutoTime(type);
+      updateAutoButtons(type);
     }
 
-    function setWakeAlarmMode(mode) {
-      wakeAlarmMode = mode;
-      setWakeAlarmModeUI(mode);
-      showResolvedWakeTime();
-      updateAlarmButtons();
-    }
-
-    function setWakeAlarmModeUI(mode) {
-      document.getElementById('wake-mode-rhythm').checked = (mode === 'rhythm');
-      document.getElementById('wake-mode-custom').checked = (mode === 'custom');
-      document.getElementById('wake-rhythm-controls').style.display = mode === 'rhythm' ? 'block' : 'none';
-      document.getElementById('wake-custom-controls').style.display = mode === 'custom' ? 'block' : 'none';
-    }
-
-    function adjustWakeOffset(delta) {
-      wakeAlarmOffset += delta;
-      document.getElementById('wake-offset-value').textContent = formatOffset(wakeAlarmOffset);
-      showResolvedWakeTime();
-      updateAlarmButtons();
+    function toggleAutoCustomDay(type, schedNum, btn) {
+      const day = parseInt(btn.dataset.day);
+      const otherSched = schedNum === 1 ? 2 : 1;
+      // Mutual exclusivity: remove from other schedule
+      const otherBtn = document.querySelector('#auto-' + type + '-days-' + otherSched + ' .auto-sched-day-btn[data-day="' + day + '"]');
+      if (otherBtn) otherBtn.classList.remove('active');
+      btn.classList.toggle('active');
+      showResolvedAutoTime(type);
+      updateAutoButtons(type);
     }
 
     function formatOffset(minutes) {
@@ -3661,8 +3834,7 @@
       return (minutes > 0 ? '+' : '') + minutes + ' min';
     }
 
-    function formatAlarmTime(decimalHours) {
-      // Format decimal hours to "8:15a" style — no leading zero, lowercase a/p, no space
+    function formatAutoTime(decimalHours) {
       let h = Math.floor(((decimalHours % 24) + 24) % 24);
       const m = Math.round((decimalHours - Math.floor(decimalHours)) * 60);
       const suffix = h < 12 ? 'a' : 'p';
@@ -3671,255 +3843,97 @@
       return h + ':' + String(m).padStart(2, '0') + suffix;
     }
 
-    function getResolvedWakeTimeForDay(pyDay) {
-      // Returns resolved alarm time (decimal hours) for a given Python-weekday (Mon=0..Sun=6)
-      if (wakeAlarmMode === 'custom') {
-        const val = document.getElementById('wake-custom-time').value;
-        if (val) {
-          const [h, m] = val.split(':').map(Number);
-          return h + m / 60.0;
-        }
-        return null;
+    function getAutoSunBase(type) {
+      const source = autoState[type].source;
+      if (source === 'custom') return null;
+      // Use cachedSunTimes if available (computed from lat/lon)
+      if (cachedSunTimes) {
+        return source === 'sunrise' ? cachedSunTimes.sunrise : cachedSunTimes.sunset;
       }
-      // Rhythm mode - read from zone data
-      const areaZoneName = selectedArea && selectedArea.zone_name;
-      const zoneData = areaZoneName ? (cachedGlozones?.zones?.[areaZoneName] || null) : null;
-      if (!zoneData) return null;
-
-      let wakeTime = zoneData.wake_time || 7.0;
-      const altTime = zoneData.wake_alt_time;
-      const altDays = zoneData.wake_alt_days || [];
-      if (altTime != null && altDays.includes(pyDay)) {
-        wakeTime = altTime;
-      }
-      return wakeTime + wakeAlarmOffset / 60.0;
+      return source === 'sunrise' ? 6.0 : 18.0;
     }
 
-    function showResolvedWakeTime() {
-      // Get active days
-      const activeDays = [];
-      document.querySelectorAll('#wake-alarm-days .wake-day-bubble.active').forEach(btn => {
-        activeDays.push(parseInt(btn.dataset.day));
-      });
-
-      // Update per-day time labels
-      for (let d = 0; d < 7; d++) {
-        const span = document.querySelector(`.wake-day-time[data-daytime="${d}"]`);
-        if (!span) continue;
-        if (activeDays.includes(d)) {
-          const t = getResolvedWakeTimeForDay(d);
-          span.textContent = t != null ? formatAlarmTime(t) : '';
-        } else {
-          span.textContent = '';
-        }
-      }
-
-      // Compute next alarm (only shown when alarm is enabled)
-      const nextEl = document.getElementById('wake-next-alarm');
-      if (!nextEl) return;
-
-      const alarmEnabled = document.getElementById('wake-alarm-enabled')?.checked;
-      if (!alarmEnabled) { nextEl.textContent = ''; return; }
-
-      const dayAbbrs = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-      const monthAbbrs = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      const now = new Date();
-      const jsToday = now.getDay(); // JS: Sun=0
-      const pyToday = jsToday === 0 ? 6 : jsToday - 1; // Python: Mon=0
-      const nowDecimal = now.getHours() + now.getMinutes() / 60.0;
-
-      for (let i = 0; i < 14; i++) {
-        const pyDay = (pyToday + i) % 7;
-        if (!activeDays.includes(pyDay)) continue;
-        const t = getResolvedWakeTimeForDay(pyDay);
-        if (t == null) continue;
-        if (i === 0 && nowDecimal >= t) continue; // today but already passed
-        let dayLabel;
-        if (i === 0) {
-          dayLabel = 'today';
-        } else if (i === 1) {
-          dayLabel = 'tom (' + dayAbbrs[pyDay] + ')';
-        } else if (i > 5) {
-          const alarmDate = new Date(now);
-          alarmDate.setDate(alarmDate.getDate() + i);
-          dayLabel = dayAbbrs[pyDay] + ' (' + monthAbbrs[alarmDate.getMonth()] + ' ' + alarmDate.getDate() + ')';
-        } else {
-          dayLabel = dayAbbrs[pyDay];
-        }
-        nextEl.textContent = formatAlarmTime(t) + ' ' + dayLabel;
+    function showResolvedAutoTime(type) {
+      const s = autoState[type];
+      if (s.source === 'custom') {
+        // Show times under custom day buttons for schedule 1 and 2
+        const t1Val = document.getElementById('auto-' + type + '-time-1')?.value;
+        const t2Val = document.getElementById('auto-' + type + '-time-2')?.value;
+        let t1 = null, t2 = null;
+        if (t1Val) { const [h, m] = t1Val.split(':').map(Number); t1 = h + m / 60.0; }
+        if (t2Val) { const [h, m] = t2Val.split(':').map(Number); t2 = h + m / 60.0; }
+        // No per-day times to show for sun mode when in custom
+        document.querySelectorAll('#auto-' + type + '-days .auto-sched-day-time').forEach(sp => sp.textContent = '');
         return;
       }
-      nextEl.textContent = '';
-    }
-
-    function formatDecimalHour(h) {
-      const hrs = Math.floor(h);
-      const mins = Math.round((h - hrs) * 60);
-      return String(hrs).padStart(2, '0') + ':' + String(mins).padStart(2, '0');
-    }
-
-    function fmtRelativeDate(isoDateStr) {
-      const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-      const SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-      const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-      const target = new Date(isoDateStr + 'T00:00:00');
-      const today = new Date(); today.setHours(0,0,0,0);
-      const diff = Math.round((target - today) / 86400000);
-      if (diff > 730) return '';  // "forever" override — no through text
-      if (diff <= 0) return 'today (' + SHORT[target.getDay()] + ')';
-      if (diff === 1) return 'tom (' + SHORT[target.getDay()] + ')';
-      if (diff <= 5) return DAYS[target.getDay()];
-      return DAYS[target.getDay()] + ' (' + MONTHS[target.getMonth()] + ' ' + target.getDate() + ')';
-    }
-
-    async function applyTempAlarm() {
-      if (!selectedArea) return;
-      const zoneName = selectedArea.zone_name;
-      if (!zoneName) return;
-
-      const mode = document.querySelector('input[name="spo-mode"]:checked')?.value;
-      if (!mode) { alert('Please select an alarm option.'); return; }
-
-      const body = {
-        mode: mode,
-        until_date: document.getElementById('spo-until-date').value,
-        until_event: 'wake',
-      };
-      if (mode === 'custom') {
-        body.custom_wake = parseFloat(document.getElementById('spo-custom-wake').value) % 24;
-      }
-
-      try {
-        const res = await fetch(basePath + '/api/glozones/' + encodeURIComponent(zoneName) + '/schedule-override', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        });
-        if (res.ok) {
-          const gzRes = await fetch(basePath + '/api/glozones');
-          if (gzRes.ok) cachedGlozones = await gzRes.json();
-          closeAreaTempOverridePopup();
-          updateOverrideIndicator(true);
-          fetchNextWakeAlarm();
-        }
-      } catch (err) {
-        console.error('Error applying temp alarm:', err);
+      // Sun mode: show resolved time per active day
+      const base = getAutoSunBase(type);
+      if (base == null) return;
+      const resolvedTime = base + s.offset / 60.0;
+      const activeDays = [];
+      document.querySelectorAll('#auto-' + type + '-days .auto-sched-day-btn.active').forEach(btn => {
+        activeDays.push(parseInt(btn.dataset.day));
+      });
+      for (let d = 0; d < 7; d++) {
+        const span = document.querySelector('#auto-' + type + '-days .auto-sched-day-time[data-daytime="' + d + '"]');
+        if (!span) continue;
+        span.textContent = activeDays.includes(d) ? formatAutoTime(resolvedTime) : '';
       }
     }
 
-    function openAreaTempOverridePopup(anchorEl) {
-      closeAreaTempOverridePopup();
-      if (!selectedArea) return;
-      const zoneName = selectedArea.zone_name;
-      if (!zoneName) return;
-      const zoneData = cachedGlozones?.zones?.[zoneName];
-      if (!zoneData) return;
+    function updateAutoFadeDisplay(type) {
+      const val = document.getElementById('auto-' + type + '-fade')?.value || '0';
+      document.getElementById('auto-' + type + '-fade-val').textContent = val + ' min';
+    }
 
-      const mainWake = zoneData.wake_time ?? 7;
-      const altWake = zoneData.wake_alt_time;
-      const hasAlt = altWake != null;
-      const override = zoneData.schedule_override;
+    // ---- Override popover ----
+    function openAutoOverridePopup(type, anchorEl) {
+      closeAutoOverridePopup();
+      if (!selectedArea) return;
 
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
       const untilDate = tomorrow.toISOString().split('T')[0];
+      const customTime = type === 'on' ? 7.0 : 22.0;
 
       const popover = document.createElement('div');
-      popover.className = 'area-override-popover';
-      popover.id = 'area-override-popover';
+      popover.className = 'auto-override-popover';
+      popover.id = 'auto-override-popover';
       popover.onclick = (e) => e.stopPropagation();
 
-      // Get next alarm info from area status
-      const areaStatusData = areaStatus[selectedArea.area_id] || {};
-      const nwa = areaStatusData.next_wake_alarm;
-      let nextAlarmStr = '';
-      if (nwa) {
-        nextAlarmStr = nwa.time + (nwa.day ? ' ' + nwa.day : '');
-      }
-
-      if (override) {
-        let desc = '';
-        if (override.mode === 'main') desc = formatAlarmTime(mainWake);
-        else if (override.mode === 'alt' && altWake != null) desc = formatAlarmTime(altWake);
-        else if (override.mode === 'custom' && override.custom_wake != null) desc = formatAlarmTime(override.custom_wake);
-        else if (override.mode === 'off') desc = 'paused';
-
-        const throughLabel = fmtRelativeDate(override.until_date || '');
-        const untilStr = throughLabel ? ' through ' + throughLabel : '';
-
-        popover.innerHTML = `
-          ${nextAlarmStr ? '<div class="spo-next-alarm">\u23f0 next: ' + nextAlarmStr + '</div>' : ''}
-          <div class="schedule-popover-title">Alarm temp. override</div>
-          <div class="spo-info">${desc}${untilStr}</div>
-          <div class="schedule-popover-clear"><button onclick="clearTempAlarm()">Clear override</button></div>
-        `;
-      } else {
-        const wakeAltDays = zoneData.wake_alt_days || [];
-        let nextIsPrimary = true;
-        if (hasAlt && wakeAltDays.length > 0) {
-          const now = new Date();
-          const currentHour = now.getHours() + now.getMinutes() / 60;
-          let checkDay = now.getDay() === 0 ? 6 : now.getDay() - 1;
-          const todayAlarm = wakeAltDays.includes(checkDay) ? altWake : mainWake;
-          if (currentHour >= todayAlarm) checkDay = (checkDay + 1) % 7;
-          nextIsPrimary = !wakeAltDays.includes(checkDay);
-        }
-
-        let otherTimeHtml = '';
-        if (hasAlt) {
-          if (nextIsPrimary) {
-            otherTimeHtml = `
-            <label class="spo-option" onclick="document.getElementById('spo-alt').checked=true">
-              <input type="radio" id="spo-alt" name="spo-mode" value="alt">
-              <span>${formatAlarmTime(altWake)}</span>
-            </label>`;
-          } else {
-            otherTimeHtml = `
-            <label class="spo-option" onclick="document.getElementById('spo-main').checked=true">
-              <input type="radio" id="spo-main" name="spo-mode" value="main">
-              <span>${formatAlarmTime(mainWake)}</span>
-            </label>`;
-          }
-        }
-
-        const customWake = 12;
-
-        popover.innerHTML = `
-          ${nextAlarmStr ? '<div class="spo-next-alarm">\u23f0 next: ' + nextAlarmStr + '</div>' : ''}
-          <div class="schedule-popover-title">Alarm temp. override</div>
-          <div class="spo-section-label">Temp. time</div>
-          <div class="spo-options">
-            <label class="spo-option" onclick="document.getElementById('spo-off').checked=true">
-              <input type="radio" id="spo-off" name="spo-mode" value="off">
-              <span>pause (no alarm)</span>
-            </label>
-            ${otherTimeHtml}
-            <label class="spo-option" onclick="document.getElementById('spo-custom').checked=true">
-              <input type="radio" id="spo-custom" name="spo-mode" value="custom">
-              <span style="display:flex; align-items:center; gap:8px; flex:1;">
-                <span id="spo-wake-display" style="min-width:3.5em;">${formatAlarmTime(customWake)}</span>
-                <input type="range" id="spo-custom-wake" min="0" max="24" step="0.25" value="${customWake}" style="flex:1;">
-              </span>
-            </label>
-          </div>
-          <div class="spo-section-label">Daily through</div>
-          <div class="spo-options">
-            <label class="spo-option"><input type="radio" name="spo-through" value="today" onchange="areaPopoverThroughChanged()"> <span>today</span></label>
-            <label class="spo-option"><input type="radio" name="spo-through" value="tomorrow" checked onchange="areaPopoverThroughChanged()"> <span>tomorrow</span></label>
-            <label class="spo-option"><input type="radio" name="spo-through" value="forever" onchange="areaPopoverThroughChanged()"> <span>forever</span></label>
-            <label class="spo-option"><input type="radio" name="spo-through" value="pick" onchange="areaPopoverThroughChanged()"> <span>pick date</span></label>
-            <input type="date" id="spo-until-date" value="${untilDate}" style="display:none; margin-left:22px; margin-top:2px; width:130px;">
-          </div>
-          <div class="spo-buttons">
-            <button class="spo-btn-cancel" onclick="closeAreaTempOverridePopup()">Cancel</button>
-            <button class="spo-btn-save" onclick="applyTempAlarm()">Save</button>
-          </div>
-        `;
-      }
+      popover.innerHTML = `
+        <div class="aop-title">Override: Auto ${type === 'on' ? 'On' : 'Off'}</div>
+        <div class="aop-section-label">Temp. time</div>
+        <div class="aop-options">
+          <label class="aop-option" onclick="document.getElementById('aop-pause').checked=true">
+            <input type="radio" id="aop-pause" name="aop-mode" value="pause">
+            <span>pause (skip)</span>
+          </label>
+          <label class="aop-option" onclick="document.getElementById('aop-custom').checked=true">
+            <input type="radio" id="aop-custom" name="aop-mode" value="custom" checked>
+            <span style="display:flex; align-items:center; gap:8px; flex:1;">
+              <span id="aop-time-display" style="min-width:3.5em;">${formatAutoTime(customTime)}</span>
+              <input type="range" id="aop-time-slider" min="0" max="24" step="0.25" value="${customTime}" style="flex:1;">
+            </span>
+          </label>
+        </div>
+        <div class="aop-section-label">Through</div>
+        <div class="aop-options">
+          <label class="aop-option"><input type="radio" name="aop-through" value="today" onchange="aopThroughChanged()"> <span>today</span></label>
+          <label class="aop-option"><input type="radio" name="aop-through" value="tomorrow" checked onchange="aopThroughChanged()"> <span>tomorrow</span></label>
+          <label class="aop-option"><input type="radio" name="aop-through" value="forever" onchange="aopThroughChanged()"> <span>forever</span></label>
+          <label class="aop-option"><input type="radio" name="aop-through" value="pick" onchange="aopThroughChanged()"> <span>pick date</span></label>
+          <input type="date" id="aop-until-date" value="${untilDate}" style="display:none; margin-left:22px; margin-top:2px; width:130px;">
+        </div>
+        <div class="aop-buttons">
+          <button class="aop-btn-cancel" onclick="closeAutoOverridePopup()">Cancel</button>
+          <button class="aop-btn-save" onclick="applyAutoOverride('${type}')">Save</button>
+        </div>
+      `;
 
       document.body.appendChild(popover);
 
-      // Position relative to anchor
+      // Position
       const rect = anchorEl.getBoundingClientRect();
       const popW = popover.offsetWidth;
       const popH = popover.offsetHeight;
@@ -3931,43 +3945,39 @@
       popover.style.left = left + 'px';
       popover.style.top = top + 'px';
 
-      // Wire up custom slider
-      const customWakeInput = document.getElementById('spo-custom-wake');
-      if (customWakeInput) {
-        const wakeDisplay = document.getElementById('spo-wake-display');
-        const selectCustom = () => { document.getElementById('spo-custom').checked = true; };
-        updateSliderFill(customWakeInput);
-        customWakeInput.addEventListener('input', () => {
-          selectCustom();
-          wakeDisplay.textContent = formatAlarmTime(parseFloat(customWakeInput.value) % 24);
-          updateSliderFill(customWakeInput);
+      // Wire slider
+      const slider = document.getElementById('aop-time-slider');
+      if (slider) {
+        const display = document.getElementById('aop-time-display');
+        updateSliderFill(slider);
+        slider.addEventListener('input', () => {
+          document.getElementById('aop-custom').checked = true;
+          display.textContent = formatAutoTime(parseFloat(slider.value) % 24);
+          updateSliderFill(slider);
         });
-        customWakeInput.addEventListener('mousedown', (e) => e.stopPropagation());
-        customWakeInput.addEventListener('pointerdown', (e) => { e.stopPropagation(); selectCustom(); });
+        slider.addEventListener('pointerdown', (e) => {
+          e.stopPropagation();
+          document.getElementById('aop-custom').checked = true;
+        });
       }
 
-      // Close on outside click
-      setTimeout(() => {
-        document.addEventListener('click', closeAreaTempOverridePopupOnOutsideClick);
-      }, 0);
+      setTimeout(() => document.addEventListener('click', closeAutoOverrideOnOutsideClick), 0);
     }
 
-    function closeAreaTempOverridePopup() {
-      const existing = document.getElementById('area-override-popover');
-      if (existing) existing.remove();
-      document.removeEventListener('click', closeAreaTempOverridePopupOnOutsideClick);
+    function closeAutoOverridePopup() {
+      const el = document.getElementById('auto-override-popover');
+      if (el) el.remove();
+      document.removeEventListener('click', closeAutoOverrideOnOutsideClick);
     }
 
-    function closeAreaTempOverridePopupOnOutsideClick(e) {
-      const popover = document.getElementById('area-override-popover');
-      if (popover && !popover.contains(e.target)) {
-        closeAreaTempOverridePopup();
-      }
+    function closeAutoOverrideOnOutsideClick(e) {
+      const popover = document.getElementById('auto-override-popover');
+      if (popover && !popover.contains(e.target)) closeAutoOverridePopup();
     }
 
-    function areaPopoverThroughChanged() {
-      const val = document.querySelector('input[name="spo-through"]:checked')?.value;
-      const datePicker = document.getElementById('spo-until-date');
+    function aopThroughChanged() {
+      const val = document.querySelector('input[name="aop-through"]:checked')?.value;
+      const datePicker = document.getElementById('aop-until-date');
       if (!datePicker) return;
       const today = new Date();
       if (val === 'today') {
@@ -3986,25 +3996,62 @@
       }
     }
 
-    async function clearTempAlarm() {
+    async function applyAutoOverride(type) {
       if (!selectedArea) return;
-      const zoneName = selectedArea.zone_name;
-      if (!zoneName) return;
+      const prefix = 'auto_' + type;
+      const mode = document.querySelector('input[name="aop-mode"]:checked')?.value;
+      if (!mode) return;
+
+      const throughVal = document.querySelector('input[name="aop-through"]:checked')?.value || 'tomorrow';
+      let untilDate;
+      const today = new Date();
+      if (throughVal === 'today') untilDate = today.toISOString().split('T')[0];
+      else if (throughVal === 'tomorrow') { today.setDate(today.getDate() + 1); untilDate = today.toISOString().split('T')[0]; }
+      else if (throughVal === 'forever') untilDate = '2099-12-31';
+      else untilDate = document.getElementById('aop-until-date').value;
+
+      const override = { mode: mode, until_date: untilDate };
+      if (mode !== 'pause') {
+        override.mode = throughVal;  // today/tomorrow/forever/date
+        override.time = parseFloat(document.getElementById('aop-time-slider').value) % 24;
+      }
+
+      const payload = {};
+      payload[prefix + '_override'] = override;
 
       try {
-        const res = await fetch(basePath + '/api/glozones/' + encodeURIComponent(zoneName) + '/schedule-override', {
-          method: 'DELETE',
+        await fetch(basePath + '/api/area-settings/' + encodeURIComponent(selectedArea.area_id), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
         });
-        if (res.ok) {
-          const gzRes = await fetch(basePath + '/api/glozones');
-          if (gzRes.ok) cachedGlozones = await gzRes.json();
-          closeAreaTempOverridePopup();
-          fetchNextWakeAlarm();
-        }
+        closeAutoOverridePopup();
+        updateAutoOverrideIndicator(type, true);
+        fetchNextAutoSchedule(type);
       } catch (err) {
-        console.error('Error clearing temp alarm:', err);
+        console.error('Error applying auto override:', err);
       }
     }
-  </script>
+
+    async function clearAutoOverride(type) {
+      if (!selectedArea) return;
+      const prefix = 'auto_' + type;
+      const payload = {};
+      payload[prefix + '_override'] = null;
+
+      try {
+        await fetch(basePath + '/api/area-settings/' + encodeURIComponent(selectedArea.area_id), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        updateAutoOverrideIndicator(type, false);
+        fetchNextAutoSchedule(type);
+      } catch (err) {
+        console.error('Error clearing auto override:', err);
+      }
+    }
+
+    </script>
 </body>
 </html>

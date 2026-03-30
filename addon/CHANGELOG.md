@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.168
+- **Auto On/Off UI (Phase 2)**: Replaced wake alarm card with two collapsible Auto On / Auto Off cards on area detail page. Each card has source selection (Sunrise/Sunset/Custom), day-of-week bubbles, offset controls, fade slider (0-60 min), and override popover (pause/custom time with through-date). Auto On includes "Skip if already brighter" option. Custom mode supports two sub-schedules with mutually exclusive days. Home page pills updated with sun/moon icons for auto on/off times. Backend `_compute_next_auto_time` replaces `_compute_next_wake_alarm`.
+
 ## 1.0.167
 - **Auto On/Off backend (Phase 1)**: Replaced wake alarm system with per-area Auto On and Auto Off schedule infrastructure. New config schema (`auto_on_*`, `auto_off_*`), schedule checker with sunrise/sunset/custom modes, fade-in/fade-out support via periodic tick multiplier, skip-if-brighter logic, per-area override support. Migrates existing wake alarm configs automatically. UI update pending.
 
