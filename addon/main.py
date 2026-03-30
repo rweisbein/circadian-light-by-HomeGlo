@@ -1064,13 +1064,11 @@ class HomeAssistantWebSocketClient:
             f"ZHA event: device={device_ieee}, device_id={device_id}, command={command}, args={args}, cluster={cluster_id}"
         )
 
-        # Check if this is a ZHA motion sensor (they fire ZHA events, not state_changed)
+        # Motion sensors: handled exclusively via binary_sensor state_changed
+        # (not ZHA events) to avoid triple-trigger. See _handle_motion_event.
         if device_id:
             motion_config = switches.get_motion_sensor_by_device_id(device_id)
             if motion_config:
-                await self._handle_zha_motion_event(
-                    motion_config, command, args, device_id
-                )
                 return
 
         # Check if this switch is configured

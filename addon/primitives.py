@@ -2532,12 +2532,14 @@ class CircadianLightPrimitives:
 
         # Turn on with circadian values (enables circadian control if needed)
         # Pass boost params so we go directly to final brightness (no intermediate step)
+        # from_motion=False: on_only doesn't create a motion timer, so the "motion"
+        # sentinel would never clear — use a real timestamp expiry instead.
         await self.lights_on(
             area_id,
             source=source,
             boost_brightness=boost_brightness,
             boost_duration=boost_duration,
-            from_motion=True,
+            from_motion=False,
         )
 
     async def motion_on_off(
