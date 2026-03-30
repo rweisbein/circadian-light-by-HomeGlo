@@ -1,5 +1,10 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.179
+- **Fade indicator on home page**: During an auto fade, area cards show a subtly pulsing filled triangle (▲ fade-in / ▼ fade-out) with progress percentage. The matching auto pill (on/off) is suppressed during its fade so it doesn't jump to the next occurrence.
+- **Fade indicator on area detail header**: Filled triangle icon appears alongside freeze/boost buttons during an active fade, with the same subtle pulse animation.
+- **Fix auto pill icons**: Replaced SVG chevrons with filled triangles (▲/▼) matching the tune page fade legend convention.
+
 ## 1.0.178
 - **Remove dead schedule override popover**: Deleted ~280 lines of unused alarm override popover code (CSS, JS functions, click-outside listener) from home page — no longer wired to any UI element.
 

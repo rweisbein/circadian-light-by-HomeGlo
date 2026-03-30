@@ -223,6 +223,8 @@
     #controls-left .toggle-btn.active {
       border-color: var(--accent);
     }
+    @keyframes fade-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+    .fade-indicator { pointer-events: none; border-color: rgba(255,255,255,0.25); animation: fade-pulse 2.5s ease-in-out infinite; font-size: 14px; }
 
     .toggle-btn:disabled {
       opacity: 0.3;
@@ -698,6 +700,9 @@
               <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
             </svg>
           </button>
+          <span class="toggle-btn fade-indicator" id="fade-indicator" style="display:none;" title="Fade in progress">
+            <span id="fade-indicator-icon"></span>
+          </span>
         </div>
         <div class="area-state-controls" id="controls-area">
           <button class="toggle-btn" id="toggle-full-send" onclick="confirmFullSend()" title="Full Send: push to entire Rhythm Zone">
@@ -2162,7 +2167,8 @@
         boost_started_from_off: status.boost_started_from_off || false,
         is_motion_coupled: status.is_motion_coupled || false,
         motion_expires_at: status.motion_expires_at || null,
-        motion_warning_active: status.motion_warning_active || false
+        motion_warning_active: status.motion_warning_active || false,
+        fade_direction: status.fade_direction || null
       };
 
       document.getElementById('page-title').innerHTML = '<span style="color:var(--muted);font-weight:500;">Area:</span> ' + area.name;
@@ -2305,7 +2311,8 @@
         boost_started_from_off: status.boost_started_from_off || false,
         is_motion_coupled: status.is_motion_coupled || false,
         motion_expires_at: status.motion_expires_at || null,
-        motion_warning_active: status.motion_warning_active || false
+        motion_warning_active: status.motion_warning_active || false,
+        fade_direction: status.fade_direction || null
       });
 
       // Header shading based on CCT and brightness
@@ -2359,6 +2366,20 @@
       if (powerBtn) powerBtn.classList.toggle('active', selectedArea.is_on);
       if (freezeBtn) freezeBtn.classList.toggle('active', selectedArea.frozen);
       if (boostBtn) boostBtn.classList.toggle('active', selectedArea.boosted);
+
+      // Fade indicator
+      const fadeInd = document.getElementById('fade-indicator');
+      const fadeIcon = document.getElementById('fade-indicator-icon');
+      const fadeDir = selectedArea.fade_direction;
+      if (fadeInd) {
+        if (fadeDir) {
+          fadeInd.style.display = '';
+          fadeInd.title = fadeDir === 'in' ? 'Fade in' : 'Fade out';
+          if (fadeIcon) fadeIcon.textContent = fadeDir === 'in' ? '\u25B2' : '\u25BC';
+        } else {
+          fadeInd.style.display = 'none';
+        }
+      }
 
       // Dynamic tooltips with zone/rhythm names
       const zoneName = selectedArea.zone_name;
