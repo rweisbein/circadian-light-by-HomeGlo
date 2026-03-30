@@ -3603,6 +3603,20 @@
       }
     }
 
+    function toggleBrightnessBody() {
+      const card = document.querySelector('.tune-brightness-card');
+      if (!card) return;
+      const isOpen = card.classList.toggle('is-open');
+      localStorage.setItem('tune_details_expanded', isOpen ? 'true' : 'false');
+    }
+
+    function toggleLightsBody() {
+      const card = document.querySelector('.tune-lights-card');
+      if (!card) return;
+      const isOpen = card.classList.toggle('is-open');
+      localStorage.setItem('tune_lights_expanded', isOpen ? 'true' : 'false');
+    }
+
     // ============================================================
     // Auto Schedule (On / Off)
     // ============================================================

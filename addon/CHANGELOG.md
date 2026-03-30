@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.170
+- **Fix tune section collapse**: Restored `toggleBrightnessBody` and `toggleLightsBody` functions that were accidentally removed during wake alarm → auto schedule replacement.
+
 ## 1.0.169
 - **Fix auto schedule save button**: Snapshot capture was reading stale `autoState.days` instead of current DOM state, so dirty check always returned true after save. Now reads day button state from DOM to match the dirty check.
 
