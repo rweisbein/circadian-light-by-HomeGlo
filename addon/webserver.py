@@ -3265,11 +3265,36 @@ class LightDesignerServer:
             # Clear fired state when auto schedule settings change
             # so edited schedules can re-trigger
             if self.client and hasattr(self.client, "primitives"):
+                prims = self.client.primitives
                 for prefix in ("auto_on", "auto_off"):
                     if any(k.startswith(prefix + "_") for k in data):
-                        self.client.primitives.clear_auto_fired_for(
-                            area_id, prefix
+                        prims.clear_auto_fired_for(area_id, prefix)
+
+                # When enabling a schedule, mark as fired for today if
+                # the trigger time has already passed — prevents immediate
+                # catch-up fire when user is just configuring the schedule
+                for prefix in ("auto_on", "auto_off"):
+                    enabled_key = f"{prefix}_enabled"
+                    if data.get(enabled_key) is True:
+                        _sr, _ss = self._get_sun_hours()
+                        trigger = self._compute_next_auto_time(
+                            area_cfg, prefix, _sr, _ss
                         )
+                        # If next fire is not today, the trigger time for
+                        # today already passed — mark as fired to prevent
+                        # catch-up
+                        if trigger and trigger.get("offset", 0) > 0:
+                            from datetime import date as _date
+
+                            today_str = _date.today().isoformat()
+                            prims._auto_fired.setdefault(area_id, {})[
+                                prefix
+                            ] = {"date": today_str, "time": -1}
+                            prims._save_auto_fired()
+                            logger.info(
+                                f"[Area Settings] Marked {prefix} as fired "
+                                f"for {area_id} (trigger time already passed)"
+                            )
 
             logger.info(
                 f"[Area Settings] Saved settings for {area_id}: {config['area_settings'][area_id]}"

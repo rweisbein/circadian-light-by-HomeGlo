@@ -3889,7 +3889,8 @@
 
     function formatAutoTime(decimalHours) {
       let h = Math.floor(((decimalHours % 24) + 24) % 24);
-      const m = Math.round((decimalHours - Math.floor(decimalHours)) * 60);
+      let m = Math.round((decimalHours - Math.floor(decimalHours)) * 60);
+      if (m >= 60) { h = (h + 1) % 24; m = 0; }
       const suffix = h < 12 ? 'a' : 'p';
       if (h === 0) h = 12;
       else if (h > 12) h -= 12;
@@ -3907,31 +3908,9 @@
     }
 
     function showResolvedAutoTime(type) {
-      const s = autoState[type];
-      if (s.source === 'custom') {
-        // Show times under custom day buttons for schedule 1 and 2
-        const t1Val = document.getElementById('auto-' + type + '-time-1')?.value;
-        const t2Val = document.getElementById('auto-' + type + '-time-2')?.value;
-        let t1 = null, t2 = null;
-        if (t1Val) { const [h, m] = t1Val.split(':').map(Number); t1 = h + m / 60.0; }
-        if (t2Val) { const [h, m] = t2Val.split(':').map(Number); t2 = h + m / 60.0; }
-        // No per-day times to show for sun mode when in custom
-        document.querySelectorAll('#auto-' + type + '-days .auto-sched-day-time').forEach(sp => sp.textContent = '');
-        return;
-      }
-      // Sun mode: show resolved time per active day
-      const base = getAutoSunBase(type);
-      if (base == null) return;
-      const resolvedTime = base + s.offset / 60.0;
-      const activeDays = [];
-      document.querySelectorAll('#auto-' + type + '-days .auto-sched-day-btn.active').forEach(btn => {
-        activeDays.push(parseInt(btn.dataset.day));
-      });
-      for (let d = 0; d < 7; d++) {
-        const span = document.querySelector('#auto-' + type + '-days .auto-sched-day-time[data-daytime="' + d + '"]');
-        if (!span) continue;
-        span.textContent = activeDays.includes(d) ? formatAutoTime(resolvedTime) : '';
-      }
+      // Per-day times are redundant for sun mode (all identical, and the
+      // resolved next time is already shown in the card header). Clear all.
+      document.querySelectorAll('#auto-' + type + '-days .auto-sched-day-time').forEach(sp => sp.textContent = '');
     }
 
     function updateAutoFadeDisplay(type) {
