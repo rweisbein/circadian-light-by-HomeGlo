@@ -1882,6 +1882,9 @@ class CircadianLightPrimitives:
         """
         logger.info(f"[{source}] circadian_off for area {area_id}")
 
+        # Cancel any active fade
+        self.cancel_fade(area_id, source=source or "circadian_off")
+
         # Clear boost state if boosted
         if state.is_boosted(area_id):
             state.clear_boost(area_id)
@@ -2005,6 +2008,10 @@ class CircadianLightPrimitives:
                 if hasattr(self.client, "_get_sun_times")
                 else None
             )
+            # Cancel any active fades before turning off
+            for area_id in area_ids:
+                self.cancel_fade(area_id, source=source or "toggle_off")
+
             # Phase 1: State updates (synchronous, no I/O)
             for area_id in area_ids:
                 # Calculate current CT before turning off
@@ -2069,6 +2076,10 @@ class CircadianLightPrimitives:
                 if hasattr(self.client, "_get_sun_times")
                 else None
             )
+
+            # Cancel any active fades before turning on
+            for area_id in area_ids:
+                self.cancel_fade(area_id, source=source or "toggle_on")
 
             # Collect lighting values for all areas first
             area_lighting: List[Tuple[str, int, int]] = []

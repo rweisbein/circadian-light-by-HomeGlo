@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.180
+- **Fix fade not cancelled on power toggle**: `lights_toggle_multiple` did its own inline state management without calling `cancel_fade()`, so toggling power during an active fade left the fade state running. Now cancels fade in both the turn-off and turn-on branches.
+- **Fix fade not cancelled on circadian_off**: `circadian_off()` cleared boost and motion but not fade state, so disabling Circadian during a fade left the fade ghost-running. Now calls `cancel_fade()`.
+
 ## 1.0.179
 - **Fade indicator on home page**: During an auto fade, area cards show a subtly pulsing filled triangle (▲ fade-in / ▼ fade-out) with progress percentage. The matching auto pill (on/off) is suppressed during its fade so it doesn't jump to the next occurrence.
 - **Fade indicator on area detail header**: Filled triangle icon appears alongside freeze/boost buttons during an active fade, with the same subtle pulse animation.
