@@ -1019,6 +1019,16 @@ class LightDesignerServer:
                             "boosted": is_boosted,
                             "boost_brightness": boost_brightness or 0,
                             "bri_override": effective_bri_override,
+                            "fade_direction": (
+                                state.get_fade_state(area_id).get("fade_direction")
+                                if state.is_fading(area_id)
+                                else None
+                            ),
+                            "fade_progress": (
+                                state.get_fade_progress(area_id)
+                                if state.is_fading(area_id)
+                                else None
+                            ),
                         }
                     )
                 zone_cfg = glozone.get_zone_config(zone_name)
@@ -2902,6 +2912,16 @@ class LightDesignerServer:
                         ),
                         "motion_expires_at": motion_expires_at,
                         "motion_warning_active": motion_warning_active,
+                        "fade_direction": (
+                            state.get_fade_state(area_id).get("fade_direction")
+                            if state.is_fading(area_id)
+                            else None
+                        ),
+                        "fade_progress": (
+                            state.get_fade_progress(area_id)
+                            if state.is_fading(area_id)
+                            else None
+                        ),
                         "zone_name": zone_name if zone_name != "Unassigned" else None,
                         "preset_name": zone_name,
                         # Effective brightness/CCT range for this area's rhythm
@@ -3040,6 +3060,16 @@ class LightDesignerServer:
                         ),
                         "motion_expires_at": state.get_motion_expires(area_id),
                         "motion_warning_active": state.is_motion_warned(area_id),
+                        "fade_direction": (
+                            state.get_fade_state(area_id).get("fade_direction")
+                            if state.is_fading(area_id)
+                            else None
+                        ),
+                        "fade_progress": (
+                            state.get_fade_progress(area_id)
+                            if state.is_fading(area_id)
+                            else None
+                        ),
                         "zone_name": (zone_name if zone_name != "Unassigned" else None),
                         "preset_name": zone_name,
                         "min_brightness": area_config.min_brightness,

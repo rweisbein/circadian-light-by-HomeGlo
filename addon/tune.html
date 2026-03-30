@@ -1479,9 +1479,22 @@
       const exposure = overrides?.exposure ?? SOLAR_STEPS[parseInt(solarSlider.value)].exposure;
       const boostBri = parseFloat(tuneAreaEl.dataset.boostBri) || 0;
       const briOverride = parseFloat(tuneAreaEl.dataset.briOverride) || 0;
+      const fadeDir = tuneAreaEl.dataset.fadeDirection || '';
+      const fadeProg = tuneAreaEl.dataset.fadeProgress !== '' ? parseFloat(tuneAreaEl.dataset.fadeProgress) : null;
       // Pipeline: rhythm × nlFactor × factor + override + boost
       const baseBri = computeNowBrightness(rhythmBri, factor, exposure, outdoorNorm, sensitivity, fadeWeight);
-      const nowBri = Math.max(0, Math.min(100, Math.round(baseBri + briOverride + boostBri)));
+      const unfadedBri = Math.max(0, Math.min(100, Math.round(baseBri + briOverride + boostBri)));
+      // Apply fade multiplier
+      let nowBri = unfadedBri;
+      let fadeDelta = 0;
+      if (fadeDir && fadeProg != null) {
+        if (fadeDir === 'in') {
+          nowBri = Math.max(1, Math.round(unfadedBri * fadeProg));
+        } else if (fadeDir === 'out') {
+          nowBri = Math.max(1, Math.round(unfadedBri * (1.0 - fadeProg)));
+        }
+        fadeDelta = nowBri - unfadedBri;
+      }
       const nowEl = tuneAreaEl.querySelector('.tune-bri-now');
       if (nowEl) nowEl.innerHTML = nowBri + '%';
       // Update brightness shading
@@ -1491,17 +1504,18 @@
       if (factorMetaEl) factorMetaEl.textContent = formatImpactDelta(computeFactorImpact(rhythmBri, factor, exposure, outdoorNorm, sensitivity, fadeWeight));
       const solarMetaEl = tuneAreaEl.querySelector('.tune-solar-meta');
       if (solarMetaEl) solarMetaEl.textContent = formatImpactDelta(computeSolarImpact(rhythmBri, factor, exposure, outdoorNorm, sensitivity, fadeWeight));
-      // Update adj column
-      const adjVal = boostBri + briOverride;
+      // Update adj column (boost + override + fade)
+      const adjVal = boostBri + briOverride + fadeDelta;
       const adjEl = tuneAreaEl.querySelector('.tune-adj-val');
       if (adjEl) {
         const boostIcon = boostBri > 0 ? '\u26A1' : '';
         const overrideIcon = Math.abs(briOverride) >= 0.5 ? '*' : '';
-        if (adjVal === 0) {
+        const fadeIcon = fadeDir === 'in' ? '\u25B2' : fadeDir === 'out' ? '\u25BC' : '';
+        if (adjVal === 0 && !fadeDir) {
           adjEl.textContent = '0%';
           adjEl.classList.remove('has-value');
         } else {
-          adjEl.innerHTML = boostIcon + overrideIcon + (adjVal > 0 ? '+' : '') + Math.round(adjVal);
+          adjEl.innerHTML = boostIcon + overrideIcon + fadeIcon + (adjVal > 0 ? '+' : '') + Math.round(adjVal);
           adjEl.classList.add('has-value');
         }
       }
@@ -1577,6 +1591,8 @@
                 boosted: area.boosted || false,
                 boost_brightness: area.boost_brightness || 0,
                 bri_override: area.bri_override || 0,
+                fade_direction: area.fade_direction || null,
+                fade_progress: area.fade_progress ?? null,
               };
             }
           }
@@ -1590,6 +1606,8 @@
                   area.boosted = b.boosted;
                   area.boost_brightness = b.boost_brightness;
                   area.bri_override = b.bri_override;
+                  area.fade_direction = b.fade_direction;
+                  area.fade_progress = b.fade_progress;
                 }
               }
             }
@@ -1615,6 +1633,8 @@
             const b = boostByArea[areaId];
             el.dataset.boostBri = (b?.boosted ? (b.boost_brightness || 0) : 0);
             el.dataset.briOverride = b?.bri_override || 0;
+            el.dataset.fadeDirection = b?.fade_direction || '';
+            el.dataset.fadeProgress = b?.fade_progress ?? '';
             updateTuneNowPreview(el, {});
             rebuildTuneLightValues(areaId);
           });
@@ -1623,7 +1643,7 @@
             const zoneBri = zoneStates?.[zoneName]?.brightness;
             if (zoneBri != null) el.textContent = Math.round(zoneBri) + '%';
           });
-          // Update boost and override legends
+          // Update boost, override, and fade legends
           document.querySelectorAll('.zone-group').forEach(zoneEl => {
             const legendEl = zoneEl.querySelector('.tune-boost-legend');
             const anyBoosted = Array.from(zoneEl.querySelectorAll('.tune-area')).some(
@@ -1635,6 +1655,11 @@
               el => Math.abs(parseFloat(el.dataset.briOverride) || 0) >= 0.5
             );
             if (overrideLegendEl) overrideLegendEl.style.display = anyOverride ? '' : 'none';
+            const fadeLegendEl = zoneEl.querySelector('.tune-fade-legend');
+            const anyFade = Array.from(zoneEl.querySelectorAll('.tune-area')).some(
+              el => !!el.dataset.fadeDirection
+            );
+            if (fadeLegendEl) fadeLegendEl.style.display = anyFade ? '' : 'none';
           });
         }
       } catch (err) {
@@ -2680,8 +2705,10 @@
 
         const hasAnyBoosted = areasInZone.some(a => getTuneArea(a.area_id)?.boosted);
         const hasAnyOverride = areasInZone.some(a => Math.abs(getTuneArea(a.area_id)?.bri_override || 0) >= 0.5);
+        const hasAnyFade = areasInZone.some(a => !!(getTuneArea(a.area_id)?.fade_direction));
         const boostLegend = '<div class="tune-boost-legend" style="padding:4px 16px 6px;font-size:0.65rem;color:var(--muted2);' + (hasAnyBoosted ? '' : 'display:none;') + '">&#x26A1; includes boost</div>';
         const overrideLegend = '<div class="tune-override-legend" style="padding:4px 16px 6px;font-size:0.65rem;color:var(--muted2);' + (hasAnyOverride ? '' : 'display:none;') + '">* brightness adjustment applied</div>';
+        const fadeLegend = '<div class="tune-fade-legend" style="padding:4px 16px 6px;font-size:0.65rem;color:var(--muted2);' + (hasAnyFade ? '' : 'display:none;') + '">&#x25B2;&#x25BC; auto fade in progress</div>';
 
         html += `
           <div class="zone-group">
@@ -2697,6 +2724,7 @@
               ${areaRows}
               ${boostLegend}
               ${overrideLegend}
+              ${fadeLegend}
             </div>
           </div>
         `;

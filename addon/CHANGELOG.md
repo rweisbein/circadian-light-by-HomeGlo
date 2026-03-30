@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.174
+- **Fade visibility across all pages**: Added `fade_direction` and `fade_progress` to all status API endpoints (full, lite, light-filters). **Tune page**: ADJ column now includes fade delta with ▲/▼ icons alongside existing ⚡ (boost) and * (override); "now" brightness reflects faded value; fade legend shown when active. **Area detail brightness cascade**: Added permanent "Auto-on fade" / "Auto-off fade" row showing fade delta (0% when inactive). **Area detail circadian slider**: Now uses `actual_brightness` (matching home page behavior) so it reflects fade, NL, and all pipeline stages.
+
 ## 1.0.173
 - **Fix area detail brightness during fade**: Full area-status endpoint was computing `actual_brightness` from the curve (ignoring fade), while only the lite endpoint used `last_sent_brightness`. Now the full endpoint falls back to `last_sent_brightness` when a fade is active, so the area detail header and brightness slider reflect the actual faded brightness.
 

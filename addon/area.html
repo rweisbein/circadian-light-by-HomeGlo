@@ -1720,6 +1720,8 @@
           frozen_at: status.frozen_at ?? null,
           actual_brightness: status.actual_brightness ?? null,
           area_factor: status.area_factor ?? 1.0,
+          fade_direction: status.fade_direction ?? null,
+          fade_progress: status.fade_progress ?? null,
           eff_wake_time: status.eff_wake_time ?? null,
           eff_bed_time: status.eff_bed_time ?? null,
           adjusted_wake_time: status.adjusted_wake_time ?? null,
@@ -1751,8 +1753,12 @@
       // Color slider: prefer API kelvin (handles direct additive override + decay)
       const effectiveCCT = areaState.api_kelvin != null ? areaState.api_kelvin : currentCCT;
       const cctFrac = cMax > cMin ? Math.max(0, Math.min(100, (effectiveCCT - cMin) / (cMax - cMin) * 100)) : 50;
-      const gloFrac = curveFrac;
-      // Brightness slider uses actual_brightness (includes area_factor + override decay)
+      // Circadian slider uses actual_brightness (same as home page — reflects fade, NL, etc.)
+      const actualBriMapped = areaState.actual_brightness != null
+        ? (bMax > bMin ? Math.max(0, Math.min(100, (areaState.actual_brightness - bMin) / (bMax - bMin) * 100)) : 50)
+        : curveFrac;
+      const gloFrac = actualBriMapped;
+      // Brightness slider uses actual_brightness raw (0-100 scale)
       const briFrac = areaState.actual_brightness != null ? areaState.actual_brightness : curveFrac;
 
       const effRange = getEffectiveColorRange(cfg, currentHour, areaState.color_override);
@@ -2234,6 +2240,9 @@
                 tuneState.boosted = _as.boosted || false;
                 tuneState.boostBrightness = _as.boost_brightness || 0;
                 tuneState.briOverride = _as.effective_bri_override || 0;
+                tuneState.fadeDirection = _as.fade_direction || null;
+                tuneState.fadeProgress = _as.fade_progress ?? null;
+                tuneState.actualBrightness = _as.actual_brightness ?? null;
 
                 // Update base row display in details card
                 const elDetBase = document.getElementById('tune-det-base-total');
@@ -2547,6 +2556,9 @@
                 tuneState.boosted = _as.boosted || false;
                 tuneState.boostBrightness = _as.boost_brightness || 0;
                 tuneState.briOverride = _as.effective_bri_override || 0;
+                tuneState.fadeDirection = _as.fade_direction || null;
+                tuneState.fadeProgress = _as.fade_progress ?? null;
+                tuneState.actualBrightness = _as.actual_brightness ?? null;
                 const elDetBase = document.getElementById('tune-det-base-total');
                 if (elDetBase) elDetBase.textContent = tuneState.baseBri + '%';
                 recalcTune();
@@ -2636,6 +2648,9 @@
                 tuneState.boosted = _as.boosted || false;
                 tuneState.boostBrightness = _as.boost_brightness || 0;
                 tuneState.briOverride = _as.effective_bri_override || 0;
+                tuneState.fadeDirection = _as.fade_direction || null;
+                tuneState.fadeProgress = _as.fade_progress ?? null;
+                tuneState.actualBrightness = _as.actual_brightness ?? null;
                 const elDetBase = document.getElementById('tune-det-base-total');
                 if (elDetBase) elDetBase.textContent = tuneState.baseBri + '%';
                 recalcTune();
@@ -2714,6 +2729,9 @@
       boosted: false,
       boostBrightness: 0,
       briOverride: 0,
+      fadeDirection: null,
+      fadeProgress: null,
+      actualBrightness: null,
     };
 
     function tunePresetMeta(presets, filterName, nowPct) {
@@ -3090,6 +3108,14 @@
       const afterBoost = Math.round(running * 100);
       const boostImpact = afterBoost - beforeBoost;
 
+      // Fade (uses actual_brightness from API to compute delta)
+      const unfadedBri = Math.round(running * 100);
+      let fadeDelta = 0;
+      if (ts.fadeDirection && ts.actualBrightness != null) {
+        fadeDelta = ts.actualBrightness - unfadedBri;
+        running = ts.actualBrightness / 100;
+      }
+
       // -- Compute adjusted color temp (needed for CT compensation) --
       let adjustedK = ts.baseKelvin;
       const sb = ts.solarBreakdown;
@@ -3215,6 +3241,16 @@
         const rounded = Math.round(briOverride);
         if (elOverrideLabel) elOverrideLabel.textContent = rounded < 0 ? 'User dimmed' : 'User brightened';
         if (elOverrideVal) elOverrideVal.textContent = formatImpact(rounded) + '%';
+      }
+
+      // Fade row
+      const elFadeLabel = document.getElementById('tune-det-fade-label');
+      const elFadeVal = document.getElementById('tune-det-fade-val');
+      if (elFadeLabel) {
+        elFadeLabel.textContent = ts.fadeDirection === 'out' ? 'Auto-off fade' : 'Auto-on fade';
+      }
+      if (elFadeVal) {
+        elFadeVal.textContent = formatImpact(fadeDelta) + '%';
       }
 
       const elBriHeader = document.getElementById('tune-brightness-header-val');
@@ -3458,6 +3494,8 @@
         + '<span class="tune-bk-total" id="tune-det-override-val">0%</span></div>';
       bhtml += '<div class="tune-bk-row"><span class="tune-bk-label">Boost</span>'
         + '<span class="tune-bk-total" id="tune-det-boost-val">0%</span></div>';
+      bhtml += '<div class="tune-bk-row"><span class="tune-bk-label" id="tune-det-fade-label">Auto-on fade</span>'
+        + '<span class="tune-bk-total" id="tune-det-fade-val">0%</span></div>';
       bhtml += '<div class="tune-area-total"><div class="tune-bk-row" style="padding-left:14px;"><span class="tune-bk-label primary">Final</span>'
         + '<span class="tune-bk-total final" id="tune-det-final-val">--</span></div></div>';
       bhtml += '<div class="section-action-bar" id="tune-action-bar" style="display:none;">';
