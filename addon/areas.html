@@ -1343,7 +1343,7 @@
         const fadeDir = status.fade_direction;  // 'in' or 'out' or null
         if (fadeDir) {
           const fadeIcon = fadeDir === 'in' ? '\u25B2' : '\u25BC';
-          const pct = status.fade_progress != null ? Math.round(status.fade_progress) + '%' : '';
+          const pct = status.actual_brightness != null ? Math.round(status.actual_brightness) + '%' : '';
           parts.push(`<span class="timer-fade">${fadeIcon} ${pct}</span>`);
         }
 

@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.181
+- **Fix home page fade pill showing 0%**: Was displaying `fade_progress` (a 0–1 fraction) rounded to integer. Now shows `actual_brightness` instead, matching what the area detail page displays.
+
 ## 1.0.180
 - **Fix fade not cancelled on power toggle**: `lights_toggle_multiple` did its own inline state management without calling `cancel_fade()`, so toggling power during an active fade left the fade state running. Now cancels fade in both the turn-off and turn-on branches.
 - **Fix fade not cancelled on circadian_off**: `circadian_off()` cleared boost and motion but not fade state, so disabling Circadian during a fade left the fade ghost-running. Now calls `cancel_fade()`.
