@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.173
+- **Fix area detail brightness during fade**: Full area-status endpoint was computing `actual_brightness` from the curve (ignoring fade), while only the lite endpoint used `last_sent_brightness`. Now the full endpoint falls back to `last_sent_brightness` when a fade is active, so the area detail header and brightness slider reflect the actual faded brightness.
+
 ## 1.0.172
 - **Fix auto schedule not re-firing after edit**: `save_area_settings` was writing to disk but not updating the in-memory glozone config cache, so `check_auto_schedules` never saw the new settings. Now calls `glozone.set_config()` after save. Also clears the per-area fired state when auto schedule settings are saved, so edited schedules re-trigger immediately.
 

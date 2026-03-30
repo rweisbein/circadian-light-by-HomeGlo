@@ -2824,6 +2824,14 @@ class LightDesignerServer:
                         )
                     )
 
+                    # During fade, use last_sent_brightness (reflects fade
+                    # multiplier applied by periodic tick) instead of
+                    # computed curve value
+                    if state.is_fading(area_id):
+                        last_bri = state.get_last_sent_brightness(area_id)
+                        if last_bri is not None:
+                            actual_brightness = last_bri
+
                     # --- Adjusted bed/wake time from midpoint shift ---
                     weekday = datetime.now().weekday()
                     eff_wake, eff_bed = resolve_effective_timing(
