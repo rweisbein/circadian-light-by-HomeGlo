@@ -3101,12 +3101,34 @@ class LightDesignerServer:
             defaults = {
                 "motion_function": "disabled",
                 "motion_duration": 60,
-                "wake_alarm": False,
-                "wake_alarm_mode": "rhythm",
-                "wake_alarm_offset": 0,
-                "wake_alarm_time": None,
-                "wake_alarm_days": [0, 1, 2, 3, 4, 5, 6],
+                # Auto On
+                "auto_on_enabled": False,
+                "auto_on_source": "sunrise",
+                "auto_on_offset": 0,
+                "auto_on_days": [0, 1, 2, 3, 4, 5, 6],
+                "auto_on_time_1": None,
+                "auto_on_days_1": [],
+                "auto_on_time_2": None,
+                "auto_on_days_2": [],
+                "auto_on_fade": 0,
+                "auto_on_skip_if_brighter": False,
+                "auto_on_override": None,
+                # Auto Off
+                "auto_off_enabled": False,
+                "auto_off_source": "sunset",
+                "auto_off_offset": 0,
+                "auto_off_days": [0, 1, 2, 3, 4, 5, 6],
+                "auto_off_time_1": None,
+                "auto_off_days_1": [],
+                "auto_off_time_2": None,
+                "auto_off_days_2": [],
+                "auto_off_fade": 0,
+                "auto_off_override": None,
             }
+            # Migrate old wake_alarm keys if present
+            area_data = area_settings.get(area_id, {})
+            if "wake_alarm" in area_data:
+                self._migrate_wake_alarm(area_data)
             settings = {**defaults, **area_settings.get(area_id, {})}
             return web.json_response(settings)
 
@@ -3151,43 +3173,47 @@ class LightDesignerServer:
                 config["area_settings"][area_id] = {
                     "motion_function": "disabled",
                     "motion_duration": 60,
-                    "wake_alarm": False,
-                    "wake_alarm_mode": "rhythm",
-                    "wake_alarm_offset": 0,
-                    "wake_alarm_time": None,
-                    "wake_alarm_days": [0, 1, 2, 3, 4, 5, 6],
                 }
+
+            area_cfg = config["area_settings"][area_id]
+
+            # Migrate old wake_alarm keys if present
+            if "wake_alarm" in area_cfg:
+                self._migrate_wake_alarm(area_cfg)
 
             # Update with provided values
             if "motion_function" in data:
-                config["area_settings"][area_id]["motion_function"] = data[
-                    "motion_function"
-                ]
+                area_cfg["motion_function"] = data["motion_function"]
             if "motion_duration" in data:
-                config["area_settings"][area_id]["motion_duration"] = int(
-                    data["motion_duration"]
-                )
-            if "wake_alarm" in data:
-                config["area_settings"][area_id]["wake_alarm"] = bool(
-                    data["wake_alarm"]
-                )
-            if "wake_alarm_mode" in data:
-                config["area_settings"][area_id]["wake_alarm_mode"] = data[
-                    "wake_alarm_mode"
-                ]
-            if "wake_alarm_offset" in data:
-                config["area_settings"][area_id]["wake_alarm_offset"] = int(
-                    data["wake_alarm_offset"]
-                )
-            if "wake_alarm_time" in data:
-                val = data["wake_alarm_time"]
-                config["area_settings"][area_id]["wake_alarm_time"] = (
-                    float(val) if val is not None else None
-                )
-            if "wake_alarm_days" in data:
-                config["area_settings"][area_id]["wake_alarm_days"] = list(
-                    data["wake_alarm_days"]
-                )
+                area_cfg["motion_duration"] = int(data["motion_duration"])
+
+            # Auto On/Off fields
+            for prefix in ("auto_on", "auto_off"):
+                for key in ("enabled", "skip_if_brighter"):
+                    full = f"{prefix}_{key}"
+                    if full in data:
+                        area_cfg[full] = bool(data[full])
+                for key in ("source",):
+                    full = f"{prefix}_{key}"
+                    if full in data:
+                        area_cfg[full] = str(data[full])
+                for key in ("offset", "fade"):
+                    full = f"{prefix}_{key}"
+                    if full in data:
+                        area_cfg[full] = int(data[full])
+                for key in ("days", "days_1", "days_2"):
+                    full = f"{prefix}_{key}"
+                    if full in data:
+                        area_cfg[full] = list(data[full])
+                for key in ("time_1", "time_2"):
+                    full = f"{prefix}_{key}"
+                    if full in data:
+                        val = data[full]
+                        area_cfg[full] = float(val) if val is not None else None
+                for key in ("override",):
+                    full = f"{prefix}_{key}"
+                    if full in data:
+                        area_cfg[full] = data[full]  # dict or None
 
             # Save config
             await self.save_config_to_file(config)
@@ -3202,6 +3228,33 @@ class LightDesignerServer:
         except Exception as e:
             logger.error(f"[Area Settings] Error saving settings for {area_id}: {e}")
             return web.json_response({"error": str(e)}, status=500)
+
+    @staticmethod
+    def _migrate_wake_alarm(settings: dict) -> None:
+        """Migrate old wake_alarm keys to auto_on equivalents."""
+        if settings.get("wake_alarm"):
+            settings["auto_on_enabled"] = True
+            mode = settings.get("wake_alarm_mode", "rhythm")
+            if mode == "custom":
+                settings["auto_on_source"] = "custom"
+                settings["auto_on_time_1"] = settings.get("wake_alarm_time")
+                settings["auto_on_days_1"] = settings.get(
+                    "wake_alarm_days", [0, 1, 2, 3, 4, 5, 6]
+                )
+            else:
+                # Rhythm mode used zone wake time + offset — migrate to sunrise
+                # with the offset preserved. User may need to adjust.
+                settings["auto_on_source"] = "sunrise"
+                settings["auto_on_offset"] = settings.get("wake_alarm_offset", 0)
+                settings["auto_on_days"] = settings.get(
+                    "wake_alarm_days", [0, 1, 2, 3, 4, 5, 6]
+                )
+        # Clean up old keys
+        for old_key in (
+            "wake_alarm", "wake_alarm_mode", "wake_alarm_offset",
+            "wake_alarm_time", "wake_alarm_days",
+        ):
+            settings.pop(old_key, None)
 
     def _ct_compensate(self, brightness: int, color_temp: int) -> int:
         """Apply CT brightness compensation for warm color temperatures."""

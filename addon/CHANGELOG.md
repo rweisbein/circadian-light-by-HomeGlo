@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.167
+- **Auto On/Off backend (Phase 1)**: Replaced wake alarm system with per-area Auto On and Auto Off schedule infrastructure. New config schema (`auto_on_*`, `auto_off_*`), schedule checker with sunrise/sunset/custom modes, fade-in/fade-out support via periodic tick multiplier, skip-if-brighter logic, per-area override support. Migrates existing wake alarm configs automatically. UI update pending.
+
 ## 1.0.166
 - **Fix motion boost stuck forever**: `motion_on_only` with boost was setting `from_motion=True` which uses the "motion" sentinel for expiry, but on_only mode never creates a motion timer to clear it. Changed to `from_motion=False` so the boost gets a real timestamp-based expiry.
 - **Eliminate triple motion trigger**: ZHA motion events (`attribute_updated`, `on_with_timed_off`) are now skipped — motion sensors are handled exclusively via `binary_sensor` state changes. Eliminates redundant triple-processing of each motion detection.

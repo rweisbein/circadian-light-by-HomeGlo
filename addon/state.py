@@ -60,6 +60,11 @@ def _get_default_area_state() -> Dict[str, Any]:
         # Off enforcement (periodic loop optimization)
         "off_enforced": False,  # True once we've verified all lights are off; skip re-sending off commands
         "off_confirm_count": 0,  # Counter for consecutive off confirmations before setting off_enforced
+        # Fade state (auto on/off gradual transitions)
+        "fade_start": None,  # ISO timestamp when fade began
+        "fade_duration": None,  # Duration in seconds
+        "fade_direction": None,  # "in" or "out"
+        "fade_start_brightness": None,  # For fade-out: brightness % at start
     }
 
 
@@ -400,6 +405,11 @@ def get_all_areas() -> Dict[str, Dict[str, Any]]:
         Dict mapping area_id to state dict
     """
     return {area_id: get_area(area_id) for area_id in _state}
+
+
+def get_all_area_ids() -> List[str]:
+    """Return all tracked area IDs."""
+    return list(_state.keys())
 
 
 def get_runtime_state(area_id: str) -> Dict[str, Any]:
@@ -780,6 +790,79 @@ def get_areas_needing_warning(warning_seconds: int) -> List[str]:
                 pass
 
     return needs_warning
+
+
+# ============================================================================
+# Fade State (auto on/off gradual transitions)
+# ============================================================================
+
+def set_fade(area_id: str, direction: str, duration_seconds: int,
+             start_brightness: int = None) -> None:
+    """Start a fade for an area.
+
+    Args:
+        area_id: The area ID
+        direction: "in" (0→circadian) or "out" (current→0)
+        duration_seconds: Fade duration in seconds
+        start_brightness: For fade-out, the brightness at start
+    """
+    from datetime import datetime
+
+    update_area(area_id, {
+        "fade_start": datetime.now().isoformat(),
+        "fade_duration": duration_seconds,
+        "fade_direction": direction,
+        "fade_start_brightness": start_brightness,
+    })
+    logger.info(
+        f"Fade {direction} started for area {area_id} ({duration_seconds}s)"
+    )
+
+
+def clear_fade(area_id: str) -> bool:
+    """Clear fade state. Returns True if a fade was active."""
+    area = get_area(area_id)
+    if area.get("fade_start") is None:
+        return False
+    update_area(area_id, {
+        "fade_start": None,
+        "fade_duration": None,
+        "fade_direction": None,
+        "fade_start_brightness": None,
+    })
+    return True
+
+
+def is_fading(area_id: str) -> bool:
+    """Check if an area has an active fade."""
+    return get_area(area_id).get("fade_start") is not None
+
+
+def get_fade_progress(area_id: str) -> Optional[float]:
+    """Return fade progress 0.0-1.0, or None if not fading."""
+    from datetime import datetime
+
+    area = get_area(area_id)
+    fade_start = area.get("fade_start")
+    if fade_start is None:
+        return None
+    start = datetime.fromisoformat(fade_start)
+    elapsed = (datetime.now() - start).total_seconds()
+    duration = area.get("fade_duration") or 1
+    return min(1.0, max(0.0, elapsed / duration))
+
+
+def get_fade_state(area_id: str) -> Optional[Dict[str, Any]]:
+    """Get active fade state, or None if no fade active."""
+    area = get_area(area_id)
+    if area.get("fade_start") is None:
+        return None
+    return {
+        "fade_start": area["fade_start"],
+        "fade_duration": area.get("fade_duration"),
+        "fade_direction": area.get("fade_direction"),
+        "fade_start_brightness": area.get("fade_start_brightness"),
+    }
 
 
 # ============================================================================

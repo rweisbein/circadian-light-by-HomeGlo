@@ -56,10 +56,8 @@ class CircadianLightPrimitives:
         """
         self.client = websocket_client
         self._config_loader = config_loader
-        self._wake_alarm_fired: dict = (
-            {}
-        )  # area_id -> {"date": "YYYY-MM-DD", "time": float}
-        self._load_wake_alarm_fired()
+        self._auto_fired: dict = {}  # area_id -> {auto_on: {date, time}, auto_off: {date, time}}
+        self._load_auto_fired()
 
     def _get_config(self, area_id: Optional[str] = None) -> Config:
         """Load config, optionally zone-aware for a specific area.
@@ -617,6 +615,8 @@ class CircadianLightPrimitives:
         Returns:
             The last result applied, or None if at limit / not circadian.
         """
+        if source not in ("auto_on", "auto_off", "auto_off_fade_complete", "wake_alarm"):
+            self.cancel_fade(area_id, source=source or "unknown")
         return await self._step_circadian(
             area_id, "up", source=source, steps=steps, send_command=send_command,
             skip_bounce=skip_bounce,
@@ -644,6 +644,8 @@ class CircadianLightPrimitives:
         Returns:
             The last result applied, or None if at limit / not circadian.
         """
+        if source not in ("auto_on", "auto_off", "auto_off_fade_complete", "wake_alarm"):
+            self.cancel_fade(area_id, source=source or "unknown")
         return await self._step_circadian(
             area_id, "down", source=source, steps=steps, send_command=send_command,
             skip_bounce=skip_bounce,
@@ -1698,6 +1700,9 @@ class CircadianLightPrimitives:
             from_motion: If True, couple boost timer to motion timer (boost ends
                 when motion timer ends, not independently).
         """
+        if source not in ("auto_on", "auto_off", "auto_off_fade_complete", "wake_alarm"):
+            self.cancel_fade(area_id, source=source or "unknown")
+
         has_boost = boost_brightness is not None and boost_duration is not None
         if has_boost:
             logger.info(
@@ -1817,6 +1822,9 @@ class CircadianLightPrimitives:
             area_id: The area ID to control
             source: Source of the action
         """
+        if source not in ("auto_on", "auto_off", "auto_off_fade_complete", "wake_alarm"):
+            self.cancel_fade(area_id, source=source or "unknown")
+
         logger.info(f"[{source}] lights_off for area {area_id}")
 
         # Clear boost state if boosted
@@ -2726,152 +2734,207 @@ class CircadianLightPrimitives:
             await self.end_motion_on_off(area_id, source="timer_expired")
 
     # -------------------------------------------------------------------------
-    # Wake Alarm
+    # Auto On/Off Schedules
     # -------------------------------------------------------------------------
 
-    async def check_wake_alarms(self):
-        """Check for and fire any due wake alarms.
+    def _resolve_auto_time(self, settings: dict, prefix: str, current_weekday: int) -> Optional[float]:
+        """Resolve trigger time for auto_on or auto_off.
 
-        Called every second from the fast tick loop. For each area with
-        wake_alarm enabled, fires glo_reset + lights_on once per day at
-        the configured time.
+        Args:
+            settings: Area settings dict
+            prefix: "auto_on" or "auto_off"
+            current_weekday: Python weekday (0=Mon..6=Sun)
+
+        Returns:
+            Decimal hour (e.g. 7.5) or None if not firing today.
         """
+        from datetime import date
+
+        # Check override first
+        override = settings.get(f"{prefix}_override")
+        if override:
+            mode = override.get("mode")
+            if mode == "pause":
+                return None
+            until_date = override.get("until_date")
+            today = date.today().isoformat()
+            if until_date and until_date < today:
+                pass  # Expired, fall through to normal
+            elif mode in ("today", "tomorrow", "forever", "date"):
+                return override.get("time")
+
+        source = settings.get(f"{prefix}_source", "sunrise")
+
+        if source in ("sunrise", "sunset"):
+            active_days = settings.get(f"{prefix}_days", [0, 1, 2, 3, 4, 5, 6])
+            if current_weekday not in active_days:
+                return None
+            sun_times = self.client._get_sun_times() if hasattr(self.client, '_get_sun_times') else None
+            if sun_times is None:
+                sun_times = SunTimes()
+            base_time = sun_times.sunrise if source == "sunrise" else sun_times.sunset
+            offset = settings.get(f"{prefix}_offset", 0)
+            return base_time + offset / 60.0
+
+        elif source == "custom":
+            days_1 = settings.get(f"{prefix}_days_1", [])
+            days_2 = settings.get(f"{prefix}_days_2", [])
+            if current_weekday in days_1:
+                return settings.get(f"{prefix}_time_1")
+            elif current_weekday in days_2:
+                return settings.get(f"{prefix}_time_2")
+            return None
+
+        return None
+
+    async def check_auto_schedules(self):
+        """Check and fire any due auto-on or auto-off schedules.
+
+        Called every second from the fast tick loop.
+        """
+        from datetime import date
+
         try:
-            raw_config = glozone.load_config_from_files()
+            config = glozone.get_config()
         except Exception:
             return
 
-        area_settings = raw_config.get("area_settings", {})
+        area_settings = config.get("area_settings", {})
         now = datetime.now()
-        today_str = now.strftime("%Y-%m-%d")
-        current_weekday = now.weekday()  # 0=Mon..6=Sun
-        current_hour = now.hour + now.minute / 60.0
+        current_hour = now.hour + now.minute / 60.0 + now.second / 3600.0
+        current_weekday = now.weekday()
+        today_str = date.today().isoformat()
 
         for area_id, settings in area_settings.items():
-            if not settings.get("wake_alarm"):
-                continue
+            # Check auto_on
+            if settings.get("auto_on_enabled"):
+                trigger_time = self._resolve_auto_time(settings, "auto_on", current_weekday)
+                if trigger_time is not None and current_hour >= trigger_time:
+                    # Check if already fired today at this time
+                    fired = self._auto_fired.get(area_id, {}).get("auto_on", {})
+                    if fired.get("date") == today_str and fired.get("time") == trigger_time:
+                        pass  # Already fired
+                    else:
+                        # Skip if brighter check
+                        skip = False
+                        if settings.get("auto_on_skip_if_brighter", False):
+                            if state.is_circadian(area_id) and state.get_is_on(area_id):
+                                current_bri = state.get_area(area_id).get("last_sent_brightness")
+                                if current_bri is not None:
+                                    area_config = self._get_config(area_id)
+                                    area_state = self._get_area_state(area_id)
+                                    result = CircadianLight.calculate_lighting(
+                                        current_hour, area_config, area_state
+                                    )
+                                    if current_bri > result.brightness:
+                                        skip = True
+                                        logger.info(
+                                            f"[auto_on] Skipping {area_id}: current {current_bri}% > target {result.brightness}%"
+                                        )
 
-            # Skip if not an active day
-            active_days = settings.get("wake_alarm_days", [0, 1, 2, 3, 4, 5, 6])
-            if current_weekday not in active_days:
-                continue
+                        if not skip:
+                            fade_minutes = settings.get("auto_on_fade", 0)
+                            if fade_minutes > 0:
+                                await self.glo_reset(area_id, source="auto_on")
+                                state.enable_circadian_and_set_on(area_id, True)
+                                state.set_fade(area_id, "in", fade_minutes * 60)
+                                logger.info(f"[auto_on] Starting {fade_minutes}min fade-in for {area_id}")
+                            else:
+                                await self.glo_reset(area_id, source="auto_on")
+                                await self.lights_on(area_id, source="auto_on")
+                                logger.info(f"[auto_on] Fired for {area_id}")
 
-            # Resolve alarm time
-            mode = settings.get("wake_alarm_mode", "rhythm")
-            alarm_time = None
+                        # Mark as fired (even if skipped)
+                        if area_id not in self._auto_fired:
+                            self._auto_fired[area_id] = {}
+                        self._auto_fired[area_id]["auto_on"] = {"date": today_str, "time": trigger_time}
+                        self._save_auto_fired()
 
-            if mode == "custom":
-                alarm_time = settings.get("wake_alarm_time")
-            else:
-                # Rhythm mode: look up zone's rhythm wake time
-                try:
-                    zone_name = glozone.get_zone_for_area(area_id)
-
-                    # Check if schedule override mode is "off" (alarm paused)
-                    glozones = glozone.get_glozones()
-                    zone_gz = glozones.get(zone_name, {})
-                    override = zone_gz.get("schedule_override")
-                    if override and override.get("mode") == "off":
-                        until_date_str = override.get("until_date")
-                        if until_date_str:
-                            from datetime import date as date_cls
-
-                            try:
-                                until_date = date_cls.fromisoformat(until_date_str)
-                                if now.date() <= until_date:
-                                    continue  # Alarm suppressed by "off" override
-                            except ValueError:
-                                pass
+            # Check auto_off
+            if settings.get("auto_off_enabled"):
+                trigger_time = self._resolve_auto_time(settings, "auto_off", current_weekday)
+                if trigger_time is not None and current_hour >= trigger_time:
+                    fired = self._auto_fired.get(area_id, {}).get("auto_off", {})
+                    if fired.get("date") == today_str and fired.get("time") == trigger_time:
+                        pass  # Already fired
+                    else:
+                        fade_minutes = settings.get("auto_off_fade", 0)
+                        if fade_minutes > 0:
+                            current_bri = state.get_area(area_id).get("last_sent_brightness") or 50
+                            state.set_fade(area_id, "out", fade_minutes * 60, start_brightness=current_bri)
+                            logger.info(f"[auto_off] Starting {fade_minutes}min fade-out for {area_id}")
                         else:
-                            # No until_date = forever pause
-                            continue
+                            await self.lights_off(area_id, source="auto_off")
+                            logger.info(f"[auto_off] Fired for {area_id}")
 
-                    zone_cfg = glozone.get_effective_config_for_zone(zone_name)
-                    # Check alt days for today
-                    wake_time = zone_cfg.get("wake_time", 7.0)
-                    wake_alt_time = zone_cfg.get("wake_alt_time")
-                    wake_alt_days = zone_cfg.get("wake_alt_days", [])
-                    if wake_alt_time is not None and current_weekday in wake_alt_days:
-                        wake_time = wake_alt_time
-                    offset = settings.get("wake_alarm_offset", 0)
-                    alarm_time = wake_time + offset / 60.0
-                except Exception as e:
-                    logger.warning(
-                        f"[wake_alarm] Failed to resolve rhythm wake time "
-                        f"for {area_id}: {e}"
-                    )
-                    continue
+                        if area_id not in self._auto_fired:
+                            self._auto_fired[area_id] = {}
+                        self._auto_fired[area_id]["auto_off"] = {"date": today_str, "time": trigger_time}
+                        self._save_auto_fired()
 
-            if alarm_time is None:
-                continue
+    def clear_auto_fired(self):
+        """Clear auto schedule fired tracking (called at phase change)."""
+        self._auto_fired = {}
+        self._save_auto_fired()
+        logger.info("[auto] Cleared fired state for all areas")
 
-            # Skip if already fired today for this exact alarm time
-            # (re-arms if user changes alarm time after it fired)
-            fired = self._wake_alarm_fired.get(area_id)
-            if fired and fired["date"] == today_str and fired["time"] == alarm_time:
-                continue
-
-            if current_hour >= alarm_time:
-                self._wake_alarm_fired[area_id] = {
-                    "date": today_str,
-                    "time": alarm_time,
-                }
-                self._save_wake_alarm_fired()
-                logger.info(
-                    f"[wake_alarm] Firing wake alarm for area {area_id} "
-                    f"(time={alarm_time:.2f}, now={current_hour:.2f})"
-                )
-                await self.glo_reset(area_id, source="wake_alarm")
-                await self.lights_on(area_id, source="wake_alarm")
-
-    def clear_wake_alarm_fired(self):
-        """Clear wake alarm fired tracking, arming alarms for the next day."""
-        if self._wake_alarm_fired:
-            logger.info(
-                f"[wake_alarm] Clearing fired state for "
-                f"{len(self._wake_alarm_fired)} area(s)"
-            )
-            self._wake_alarm_fired.clear()
-            self._save_wake_alarm_fired()
-
-    def _get_wake_alarm_file(self) -> str:
-        """Get the path to the wake alarm fired state file."""
-        import os
-
+    def _get_auto_fired_file(self) -> str:
         data_dir = os.environ.get("CIRCADIAN_DATA_DIR", "/config/circadian-light")
-        return os.path.join(data_dir, "wake_alarm_fired.json")
+        return os.path.join(data_dir, "auto_fired.json")
 
-    def _save_wake_alarm_fired(self):
-        """Persist wake alarm fired state to disk."""
-        import json
-        import os
+    def _save_auto_fired(self):
+        import tempfile
 
-        path = self._get_wake_alarm_file()
+        path = self._get_auto_fired_file()
         try:
             os.makedirs(os.path.dirname(path), exist_ok=True)
-            with open(path, "w") as f:
-                json.dump(self._wake_alarm_fired, f)
-            logger.info(f"[wake_alarm] Saved fired state to {path}")
+            fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path), suffix=".tmp")
+            try:
+                with os.fdopen(fd, "w") as f:
+                    json.dump(self._auto_fired, f)
+                os.replace(tmp, path)
+            except BaseException:
+                try:
+                    os.unlink(tmp)
+                except OSError:
+                    pass
+                raise
         except Exception as e:
-            logger.warning(f"[wake_alarm] Failed to save fired state: {e}")
+            logger.debug(f"[auto] Error saving fired state: {e}")
 
-    def _load_wake_alarm_fired(self):
-        """Load wake alarm fired state from disk."""
-        import json
-        import os
-
-        path = self._get_wake_alarm_file()
-        if not os.path.exists(path):
-            logger.info(f"[wake_alarm] No fired state file at {path}")
-            return
+    def _load_auto_fired(self):
+        path = self._get_auto_fired_file()
         try:
             with open(path) as f:
-                self._wake_alarm_fired = json.load(f)
-            logger.info(
-                f"[wake_alarm] Loaded fired state: {len(self._wake_alarm_fired)} area(s)"
-            )
-        except Exception as e:
-            logger.warning(f"[wake_alarm] Failed to load fired state: {e}")
+                self._auto_fired = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            self._auto_fired = {}
+
+    # -------------------------------------------------------------------------
+    # Fade Management
+    # -------------------------------------------------------------------------
+
+    def cancel_fade(self, area_id: str, source: str = ""):
+        """Cancel any active fade for an area (called on user actions)."""
+        if state.clear_fade(area_id):
+            logger.info(f"[{source}] Cancelled active fade for area {area_id}")
+
+    async def check_fade_completions(self):
+        """Check for completed fades and finalize them."""
+        for area_id in list(state.get_all_areas().keys()):
+            if not state.is_fading(area_id):
+                continue
+            progress = state.get_fade_progress(area_id)
+            if progress is None or progress < 1.0:
+                continue
+            fade = state.get_fade_state(area_id)
+            direction = fade["fade_direction"]
+            state.clear_fade(area_id)
+            if direction == "out":
+                await self.lights_off(area_id, source="auto_off")
+                logger.info(f"[auto_off] Fade-out complete for {area_id}, lights off")
+            else:
+                logger.info(f"[auto_on] Fade-in complete for {area_id}, normal circadian")
 
     # -------------------------------------------------------------------------
     # Motion Warning
@@ -3580,6 +3643,9 @@ class CircadianLightPrimitives:
             source: Source of the action
             send_command: Whether to send light commands (False for reach group batching)
         """
+        if source not in ("auto_on", "auto_off", "auto_off_fade_complete", "wake_alarm"):
+            self.cancel_fade(area_id, source=source or "unknown")
+
         logger.info(f"[{source}] glo_reset for area {area_id}")
 
         # Reset state (clears midpoints/bounds/frozen_at, preserves only enabled)

@@ -5739,8 +5739,22 @@ class HomeAssistantWebSocketClient:
                             f"[Periodic] Area {area_id}: recalibrated color_override {old_val} -> {needed_override}"
                         )
 
-            # Check if area is boosted
+            # Apply fade multiplier (auto on/off gradual transitions)
             brightness = result.brightness
+            fade_note = ""
+            if state.is_fading(area_id):
+                progress = state.get_fade_progress(area_id)
+                if progress is not None:
+                    fade_state = state.get_fade_state(area_id)
+                    if fade_state and fade_state["fade_direction"] == "in":
+                        brightness = max(1, int(round(brightness * progress)))
+                        fade_note = f" (fade-in {progress:.0%})"
+                    elif fade_state and fade_state["fade_direction"] == "out":
+                        start_bri = fade_state.get("fade_start_brightness") or brightness
+                        brightness = max(1, int(round(start_bri * (1.0 - progress))))
+                        fade_note = f" (fade-out {1.0 - progress:.0%})"
+
+            # Check if area is boosted
             boost_note = ""
             boost_amount = 0
             is_boosted = state.is_boosted(area_id)
@@ -5840,7 +5854,7 @@ class HomeAssistantWebSocketClient:
             )
             if log_periodic:
                 logger.info(
-                    f"Periodic update for area {area_id}{frozen_note}{boost_note}: {result.color_temp}K, {brightness}%"
+                    f"Periodic update for area {area_id}{frozen_note}{boost_note}{fade_note}: {result.color_temp}K, {brightness}%"
                 )
 
             # Use the centralized light control function
@@ -5922,9 +5936,9 @@ class HomeAssistantWebSocketClient:
             # Clear expired per-zone schedule overrides
             glozone.clear_expired_overrides(phase)
 
-            # Clear wake alarm fired state at descend (well after any wake time)
+            # Clear auto schedule fired state at descend (well after any wake time)
             if crossed_descend:
-                self.primitives.clear_wake_alarm_fired()
+                self.primitives.clear_auto_fired()
 
             # Reset all GloZone runtime state (preserves frozen zones)
             glozone_state.reset_all_zones()
@@ -5989,8 +6003,11 @@ class HomeAssistantWebSocketClient:
                 await self.primitives.check_expired_boosts(log_periodic=log_periodic)
                 await self.primitives.check_expired_motion(log_periodic=log_periodic)
 
-                # Check for wake alarms
-                await self.primitives.check_wake_alarms()
+                # Check for auto on/off schedules
+                await self.primitives.check_auto_schedules()
+
+                # Check for completed fades
+                await self.primitives.check_fade_completions()
 
             except asyncio.CancelledError:
                 raise
