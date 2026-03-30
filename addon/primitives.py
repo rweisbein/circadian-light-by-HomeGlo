@@ -2880,6 +2880,14 @@ class CircadianLightPrimitives:
         self._save_auto_fired()
         logger.info("[auto] Cleared fired state for all areas")
 
+    def clear_auto_fired_for(self, area_id: str, prefix: str):
+        """Clear fired state for a specific area/prefix (called when settings change)."""
+        area_fired = self._auto_fired.get(area_id)
+        if area_fired and prefix in area_fired:
+            del area_fired[prefix]
+            self._save_auto_fired()
+            logger.info(f"[auto] Cleared {prefix} fired state for {area_id}")
+
     def _get_auto_fired_file(self) -> str:
         data_dir = os.environ.get("CIRCADIAN_DATA_DIR", "/config/circadian-light")
         return os.path.join(data_dir, "auto_fired.json")

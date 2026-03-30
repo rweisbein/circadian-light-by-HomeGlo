@@ -3220,8 +3220,18 @@ class LightDesignerServer:
                     if full in data:
                         area_cfg[full] = data[full]  # dict or None
 
-            # Save config
+            # Save config and update in-memory cache
             await self.save_config_to_file(config)
+            glozone.set_config(config)
+
+            # Clear fired state when auto schedule settings change
+            # so edited schedules can re-trigger
+            if self.client and hasattr(self.client, "primitives"):
+                for prefix in ("auto_on", "auto_off"):
+                    if any(k.startswith(prefix + "_") for k in data):
+                        self.client.primitives.clear_auto_fired_for(
+                            area_id, prefix
+                        )
 
             logger.info(
                 f"[Area Settings] Saved settings for {area_id}: {config['area_settings'][area_id]}"
