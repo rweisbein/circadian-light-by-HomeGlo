@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.191
+- **Fix auto schedule catch-up at phase change**: The noon descend phase crossing blanket-cleared all fired states, causing any auto_on that already fired this morning to re-fire (e.g. master turning on at noon). Now after clearing, immediately re-marks any schedules whose trigger time already passed today.
+
 ## 1.0.190
 - **Fix solar rules missing on glo_reset, glo_down, preset apply, and toggle-on**: Four `calculate_lighting` calls were missing the `sun_times` parameter, so solar rules (e.g. Cool Day clamping CT to 5000K) weren't applied. The periodic tick 3 seconds later would correct it. Now all calls pass `sun_times`.
 

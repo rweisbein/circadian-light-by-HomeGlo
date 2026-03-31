@@ -2958,10 +2958,43 @@ class CircadianLightPrimitives:
                         self._save_auto_fired()
 
     def clear_auto_fired(self):
-        """Clear auto schedule fired tracking (called at phase change)."""
+        """Clear auto schedule fired tracking (called at phase change).
+
+        After clearing, re-marks any schedules whose trigger time already
+        passed today to prevent catch-up fires.
+        """
         self._auto_fired = {}
-        self._save_auto_fired()
         logger.info("[auto] Cleared fired state for all areas")
+
+        # Re-mark already-passed triggers to prevent catch-up
+        try:
+            from datetime import date as date_cls
+            config = glozone.get_config()
+            area_settings = config.get("area_settings", {})
+            now = datetime.now()
+            current_hour = now.hour + now.minute / 60.0 + now.second / 3600.0
+            current_weekday = now.weekday()
+            today_str = date_cls.today().isoformat()
+
+            for area_id, settings in area_settings.items():
+                for prefix in ("auto_on", "auto_off"):
+                    if not settings.get(f"{prefix}_enabled"):
+                        continue
+                    trigger_time = self._resolve_auto_time(
+                        settings, prefix, current_weekday
+                    )
+                    if trigger_time is not None and current_hour >= trigger_time:
+                        self._auto_fired.setdefault(area_id, {})[prefix] = {
+                            "date": today_str, "time": trigger_time
+                        }
+                        logger.info(
+                            f"[auto] Pre-marked {prefix} as fired for {area_id} "
+                            f"(trigger {trigger_time:.2f} already passed)"
+                        )
+        except Exception as e:
+            logger.warning(f"[auto] Error pre-marking fired state: {e}")
+
+        self._save_auto_fired()
 
     def clear_auto_fired_for(self, area_id: str, prefix: str):
         """Clear fired state for a specific area/prefix (called when settings change)."""
