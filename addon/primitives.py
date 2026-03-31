@@ -667,6 +667,7 @@ class CircadianLightPrimitives:
             area_id: The area ID to control
             source: Source of the action
         """
+        state.mark_user_action(area_id)
         area_state = self._get_area_state(area_id)
 
         if not area_state.is_circadian:
@@ -773,6 +774,7 @@ class CircadianLightPrimitives:
             area_id: The area ID to control
             source: Source of the action
         """
+        state.mark_user_action(area_id)
         area_state = self._get_area_state(area_id)
 
         if not area_state.is_circadian:
@@ -1550,6 +1552,7 @@ class CircadianLightPrimitives:
         send_command: bool = True, skip_bounce: bool = False,
     ):
         """Bump color override up (cooler) by one step. Uses override+decay model."""
+        state.mark_user_action(area_id)
         await self._color_step(
             area_id, direction="up", source=source, steps=steps,
             send_command=send_command, skip_bounce=skip_bounce,
@@ -1560,6 +1563,7 @@ class CircadianLightPrimitives:
         send_command: bool = True, skip_bounce: bool = False,
     ):
         """Bump color override down (warmer) by one step. Uses override+decay model."""
+        state.mark_user_action(area_id)
         await self._color_step(
             area_id, direction="down", source=source, steps=steps,
             send_command=send_command, skip_bounce=skip_bounce,
@@ -2203,6 +2207,8 @@ class CircadianLightPrimitives:
         - boost % = MAX(current %, new %)
         - If current timer is forever: stays forever
         - If current timer is motion-coupled: stays motion-coupled
+
+        Note: mark_user_action only for non-motion sources.
         - If current timer is timed: timer = MAX(remaining, new duration)
 
         Args:
@@ -2217,6 +2223,8 @@ class CircadianLightPrimitives:
                 when motion timer ends, not independently).
         """
         is_forever = duration_seconds == 0
+        if not from_motion:
+            state.mark_user_action(area_id)
         logger.info(
             f"[{source}] bright_boost for area {area_id}, duration={'forever' if is_forever else f'{duration_seconds}s'}, boost={boost_amount}%"
         )
@@ -3663,6 +3671,7 @@ class CircadianLightPrimitives:
             area_id: The area ID
             source: Source of the action
         """
+        state.mark_user_action(area_id)
         await self.freeze_toggle_multiple([area_id], source)
 
     async def freeze_toggle_multiple(

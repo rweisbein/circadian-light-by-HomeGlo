@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.186
+- **Fix live preview not updating**: Source radio, offset +/- buttons, and day toggles were calling `showResolvedAutoTime` directly instead of `onAutoFieldChanged`, so the header time never updated. Now all auto schedule controls route through `onAutoFieldChanged`.
+- **Auto-save on collapse**: Auto schedule cards save dirty state when collapsed — no more hidden save buttons or lost changes on back navigation.
+- **Fix fade indicator styling**: Moved from a button-like element in the header to a pill in the timer-status bar (matching freeze/boost presentation), with pulsing "▲ Fade in" / "▼ Fade out" text.
+- **Optimistic button toggle**: Power and freeze buttons update immediately on click instead of waiting 500ms for server refresh.
+- **Fix trigger mode and untouched not saving**: Backend save handler now accepts `auto_on_trigger_mode` and `auto_off_only_untouched` fields.
+- **Broader user action tracking**: Added `mark_user_action` to `bright_up`, `bright_down`, `color_up`, `color_down`, `freeze_toggle`, and `bright_boost` for proper "only if untouched" detection.
+
 ## 1.0.185
 - **Fix "only if untouched" detection**: Previous check only looked for brightness override/boost/midpoint shift, missing the most common interaction — turning lights on/off. Now tracks `last_user_action_at` timestamp in area state, set on any user-initiated action (toggle, on, off, step, boost, reset). Auto-off compares this against auto-on fire timestamp.
 

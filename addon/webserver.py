@@ -3198,6 +3198,7 @@ class LightDesignerServer:
                 "auto_on_days_2": [],
                 "auto_on_fade": 0,
                 "auto_on_skip_if_brighter": False,
+                "auto_on_trigger_mode": "always",
                 "auto_on_override": None,
                 # Auto Off
                 "auto_off_enabled": False,
@@ -3209,6 +3210,7 @@ class LightDesignerServer:
                 "auto_off_time_2": None,
                 "auto_off_days_2": [],
                 "auto_off_fade": 0,
+                "auto_off_only_untouched": False,
                 "auto_off_override": None,
             }
             # Migrate old wake_alarm keys if present
@@ -3275,11 +3277,11 @@ class LightDesignerServer:
 
             # Auto On/Off fields
             for prefix in ("auto_on", "auto_off"):
-                for key in ("enabled", "skip_if_brighter"):
+                for key in ("enabled", "skip_if_brighter", "only_untouched"):
                     full = f"{prefix}_{key}"
                     if full in data:
                         area_cfg[full] = bool(data[full])
-                for key in ("source",):
+                for key in ("source", "trigger_mode"):
                     full = f"{prefix}_{key}"
                     if full in data:
                         area_cfg[full] = str(data[full])

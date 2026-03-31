@@ -223,8 +223,8 @@
     #controls-left .toggle-btn.active {
       border-color: var(--accent);
     }
-    @keyframes fade-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
-    .fade-indicator { pointer-events: none; border-color: rgba(255,255,255,0.25); animation: fade-pulse 2.5s ease-in-out infinite; font-size: 14px; }
+    @keyframes fade-pulse { 0%,100% { opacity: 0.9; } 50% { opacity: 0.3; } }
+    .timer-fade { animation: fade-pulse 2.5s ease-in-out infinite; }
 
     .toggle-btn:disabled {
       opacity: 0.3;
@@ -700,9 +700,6 @@
               <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
             </svg>
           </button>
-          <span class="toggle-btn fade-indicator" id="fade-indicator" style="display:none;" title="Fade in progress">
-            <span id="fade-indicator-icon"></span>
-          </span>
         </div>
         <div class="area-state-controls" id="controls-area">
           <button class="toggle-btn" id="toggle-full-send" onclick="confirmFullSend()" title="Full Send: push to entire Rhythm Zone">
@@ -2375,19 +2372,6 @@
       if (freezeBtn) freezeBtn.classList.toggle('active', selectedArea.frozen);
       if (boostBtn) boostBtn.classList.toggle('active', selectedArea.boosted);
 
-      // Fade indicator
-      const fadeInd = document.getElementById('fade-indicator');
-      const fadeIcon = document.getElementById('fade-indicator-icon');
-      const fadeDir = selectedArea.fade_direction;
-      if (fadeInd) {
-        if (fadeDir) {
-          fadeInd.style.display = '';
-          fadeInd.title = fadeDir === 'in' ? 'Fade in' : 'Fade out';
-          if (fadeIcon) fadeIcon.textContent = fadeDir === 'in' ? '\u25B2' : '\u25BC';
-        } else {
-          fadeInd.style.display = 'none';
-        }
-      }
 
       // Dynamic tooltips with zone/rhythm names
       const zoneName = selectedArea.zone_name;
@@ -2482,6 +2466,12 @@
           }
         }
 
+        if (selectedArea.fade_direction) {
+          const fadeIcon = selectedArea.fade_direction === 'in' ? '\u25B2' : '\u25BC';
+          const fadeLabel = selectedArea.fade_direction === 'in' ? 'Fade in' : 'Fade out';
+          parts.push(`<span class="timer-fade">${fadeIcon} ${fadeLabel}</span>`);
+        }
+
         if (selectedArea.frozen) {
           parts.push(`<span class="timer-frozen">❄</span>`);
         }
@@ -2569,6 +2559,16 @@
         });
 
         if (response.ok) {
+          // Optimistic UI: toggle button state immediately
+          if (action === 'lights_toggle') {
+            selectedArea.is_on = !selectedArea.is_on;
+            const pb = document.getElementById('toggle-power');
+            if (pb) pb.classList.toggle('active', selectedArea.is_on);
+          } else if (action === 'freeze_toggle') {
+            selectedArea.frozen = !selectedArea.frozen;
+            const fb = document.getElementById('toggle-freeze');
+            if (fb) fb.classList.toggle('active', selectedArea.frozen);
+          }
           setTimeout(async () => {
             try {
               const areaId = selectedArea.area_id;
@@ -3705,10 +3705,16 @@
       off: { source: 'sunset',  offset: 0, days: [0,1,2,3,4,5,6], days1: [], days2: [], snapshot: null },
     };
 
-    function toggleAutoBody(type) {
+    async function toggleAutoBody(type) {
       const card = document.getElementById('auto-' + type + '-card');
       if (!card) return;
-      const isOpen = card.classList.toggle('is-open');
+      const wasOpen = card.classList.contains('is-open');
+      // Auto-save on collapse if dirty
+      if (wasOpen && isAutoDirty(type)) {
+        await saveAutoChanges(type);
+      }
+      card.classList.toggle('is-open');
+      const isOpen = card.classList.contains('is-open');
       localStorage.setItem('auto_' + type + '_collapsed', isOpen ? 'false' : 'true');
       updateAutoOverrideIndicator(type);
     }
@@ -3908,8 +3914,7 @@
     function setAutoSource(type, source) {
       autoState[type].source = source;
       setAutoSourceUI(type, source);
-      showResolvedAutoTime(type);
-      updateAutoButtons(type);
+      onAutoFieldChanged(type);
     }
 
     function setAutoSourceUI(type, source) {
@@ -3923,14 +3928,12 @@
     function adjustAutoOffset(type, delta) {
       autoState[type].offset += delta;
       document.getElementById('auto-' + type + '-offset-val').textContent = formatOffset(autoState[type].offset);
-      showResolvedAutoTime(type);
-      updateAutoButtons(type);
+      onAutoFieldChanged(type);
     }
 
     function toggleAutoDay(type, btn) {
       btn.classList.toggle('active');
-      showResolvedAutoTime(type);
-      updateAutoButtons(type);
+      onAutoFieldChanged(type);
     }
 
     function toggleAutoCustomDay(type, schedNum, btn) {
@@ -3940,8 +3943,7 @@
       const otherBtn = document.querySelector('#auto-' + type + '-days-' + otherSched + ' .auto-sched-day-btn[data-day="' + day + '"]');
       if (otherBtn) otherBtn.classList.remove('active');
       btn.classList.toggle('active');
-      showResolvedAutoTime(type);
-      updateAutoButtons(type);
+      onAutoFieldChanged(type);
     }
 
     function formatOffset(minutes) {
