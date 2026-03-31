@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.188
+- **Bright Up/Down 4x and 5x**: Added `bright_up_4`, `bright_up_5`, `bright_down_4`, `bright_down_5` to action dropdowns. Dynamic step count parsing in main.py already handles them.
+- **New Hue 4-button default mapping**: On: 1x toggle, 2x cycle scope, 3x magic, hold full send. Up: 1x–5x bright_up 1–5x (1x when_off: nitelite), hold step_up (when_off: britelite). Down: mirror of up with bright_down/step_down (hold when_off: nitelite). Hue: 1x glo_reset, 2x glozone_reset_full, 3x magic, hold magic.
+
 ## 1.0.187
 - **Fix custom time inputs not showing dirty state**: Added `oninput` alongside `onchange` on all 4 time inputs so save/cancel buttons appear immediately while typing, not just on blur.
 - **Fix auto schedule catch-up on settings change**: Previously, catch-up prevention only ran when toggling the enabled switch. Now any auto schedule save (including auto-save on collapse) marks today's trigger as fired if the time already passed, preventing accidental immediate fire.

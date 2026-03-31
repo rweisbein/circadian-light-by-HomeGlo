@@ -359,6 +359,16 @@ def get_categorized_actions() -> Dict[str, List[Dict[str, Any]]]:
                 "label": "Bright Up 3\u00d7",
                 "supports_when_off": True,
             },
+            {
+                "id": "bright_up_4",
+                "label": "Bright Up 4\u00d7",
+                "supports_when_off": True,
+            },
+            {
+                "id": "bright_up_5",
+                "label": "Bright Up 5\u00d7",
+                "supports_when_off": True,
+            },
             {"id": "bright_down", "label": "Bright Down", "supports_when_off": True},
             {
                 "id": "bright_down_2",
@@ -368,6 +378,16 @@ def get_categorized_actions() -> Dict[str, List[Dict[str, Any]]]:
             {
                 "id": "bright_down_3",
                 "label": "Bright Down 3\u00d7",
+                "supports_when_off": True,
+            },
+            {
+                "id": "bright_down_4",
+                "label": "Bright Down 4\u00d7",
+                "supports_when_off": True,
+            },
+            {
+                "id": "bright_down_5",
+                "label": "Bright Down 5\u00d7",
                 "supports_when_off": True,
             },
             {"id": "color_up", "label": "Color Up", "supports_when_off": True},
@@ -450,35 +470,35 @@ BUTTON_ACTION_TYPES = [
 _HUE_4BUTTON_MAPPING = {
     # On button (top)
     "on_short_release": "circadian_toggle",  # 1x - on/off
-    "on_double_press": "full_send",  # 2x - push to zone + all areas
-    "on_triple_press": "freeze_toggle",  # 3x - freeze
+    "on_double_press": "cycle_scope",  # 2x - advance to next reach
+    "on_triple_press": "magic",  # 3x - magic
     "on_quadruple_press": None,  # 4x - not used
-    "on_quintuple_press": None,  # 5x - coming soon: emergency toggle
-    "on_hold": None,  # long - RESERVED for magic button
+    "on_quintuple_press": None,  # 5x - not used
+    "on_hold": "full_send",  # long - push to whole rhythm zone
     "on_long_release": None,
     # Up button
-    "up_short_release": {"action": "step_up", "when_off": "set_nitelite"},
-    "up_double_press": {"action": "color_up", "when_off": None},
-    "up_triple_press": "set_britelite",  # 3x
-    "up_quadruple_press": None,  # 4x - not used
-    "up_quintuple_press": None,  # 5x - not used
-    "up_hold": {"action": "bright_up", "when_off": None},
+    "up_short_release": {"action": "bright_up", "when_off": "set_nitelite"},
+    "up_double_press": {"action": "bright_up_2", "when_off": None},
+    "up_triple_press": {"action": "bright_up_3", "when_off": None},
+    "up_quadruple_press": {"action": "bright_up_4", "when_off": None},
+    "up_quintuple_press": {"action": "bright_up_5", "when_off": None},
+    "up_hold": {"action": "step_up", "when_off": "set_britelite"},
     "up_long_release": None,
     # Down button
-    "down_short_release": {"action": "step_down", "when_off": "set_nitelite"},
-    "down_double_press": {"action": "color_down", "when_off": None},
-    "down_triple_press": "set_nitelite",  # 3x
-    "down_quadruple_press": None,  # 4x - not used
-    "down_quintuple_press": None,  # 5x - not used
-    "down_hold": {"action": "bright_down", "when_off": None},
+    "down_short_release": {"action": "bright_down", "when_off": "set_nitelite"},
+    "down_double_press": {"action": "bright_down_2", "when_off": None},
+    "down_triple_press": {"action": "bright_down_3", "when_off": None},
+    "down_quadruple_press": {"action": "bright_down_4", "when_off": None},
+    "down_quintuple_press": {"action": "bright_down_5", "when_off": None},
+    "down_hold": {"action": "step_down", "when_off": "set_nitelite"},
     "down_long_release": None,
     # Hue button (bottom)
-    "off_short_release": "cycle_scope",  # 1x - change controlled areas
-    "off_double_press": "glo_down",  # 2x - pull zone state
-    "off_triple_press": "glozone_reset_full",  # 3x - reset zone + push to all
+    "off_short_release": "glo_reset",  # 1x - reset to rhythm zone
+    "off_double_press": "glozone_reset_full",  # 2x - reset whole rhythm zone
+    "off_triple_press": "magic",  # 3x - magic
     "off_quadruple_press": None,  # 4x - not used
-    "off_quintuple_press": None,  # 5x - coming soon: Sleep
-    "off_hold": None,  # long - RESERVED for magic button
+    "off_quintuple_press": None,  # 5x - not used
+    "off_hold": "magic",  # long - magic
     "off_long_release": None,
 }
 
