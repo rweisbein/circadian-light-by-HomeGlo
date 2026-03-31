@@ -2504,7 +2504,7 @@ class LightDesignerServer:
                     override_time = override.get("time")
 
         source = settings.get(
-            f"{prefix}_source", "sunrise" if prefix == "auto_on" else "sunset"
+            f"{prefix}_source", "sunset" if prefix == "auto_on" else "sunrise"
         )
 
         def get_normal_time(py_day):
@@ -3189,7 +3189,7 @@ class LightDesignerServer:
                 "motion_duration": 60,
                 # Auto On
                 "auto_on_enabled": False,
-                "auto_on_source": "sunrise",
+                "auto_on_source": "sunset",
                 "auto_on_offset": 0,
                 "auto_on_days": [0, 1, 2, 3, 4, 5, 6],
                 "auto_on_time_1": None,
@@ -3201,7 +3201,7 @@ class LightDesignerServer:
                 "auto_on_override": None,
                 # Auto Off
                 "auto_off_enabled": False,
-                "auto_off_source": "sunset",
+                "auto_off_source": "sunrise",
                 "auto_off_offset": 0,
                 "auto_off_days": [0, 1, 2, 3, 4, 5, 6],
                 "auto_off_time_1": None,

@@ -884,13 +884,17 @@
           </div>
           <div class="auto-sched-fade-row">
             <span class="auto-sched-fade-label">Fade in</span>
-            <input type="range" class="auto-sched-fade-slider" id="auto-on-fade" min="0" max="60" step="5" value="0" oninput="onAutoFieldChanged('on'); updateAutoFadeDisplay('on')">
+            <input type="range" class="auto-sched-fade-slider" id="auto-on-fade" min="0" max="7" step="1" value="0" oninput="onAutoFieldChanged('on'); updateAutoFadeDisplay('on')">
             <span class="auto-sched-fade-val" id="auto-on-fade-val">0 min</span>
           </div>
-          <label class="auto-sched-skip-row" id="auto-on-skip-row">
-            <input type="checkbox" id="auto-on-skip" onchange="onAutoFieldChanged('on')">
-            <span>Skip if already brighter</span>
-          </label>
+          <div class="auto-sched-skip-row" id="auto-on-skip-row">
+            <span>Trigger:</span>
+            <select id="auto-on-trigger-mode" onchange="onAutoFieldChanged('on')" style="background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:4px;padding:2px 4px;font-size:0.78rem;">
+              <option value="always">Always</option>
+              <option value="skip_brighter">Skip if already brighter</option>
+              <option value="skip_on">Skip if on at all</option>
+            </select>
+          </div>
           <div class="section-action-bar" id="auto-on-action-bar" style="display:none;">
             <button class="section-cancel-btn" onclick="cancelAutoChanges('on')">Cancel</button>
             <button class="section-save-btn" onclick="saveAutoChanges('on')">Save</button>
@@ -977,9 +981,13 @@
           </div>
           <div class="auto-sched-fade-row">
             <span class="auto-sched-fade-label">Fade out</span>
-            <input type="range" class="auto-sched-fade-slider" id="auto-off-fade" min="0" max="60" step="5" value="0" oninput="onAutoFieldChanged('off'); updateAutoFadeDisplay('off')">
+            <input type="range" class="auto-sched-fade-slider" id="auto-off-fade" min="0" max="7" step="1" value="0" oninput="onAutoFieldChanged('off'); updateAutoFadeDisplay('off')">
             <span class="auto-sched-fade-val" id="auto-off-fade-val">0 min</span>
           </div>
+          <label class="auto-sched-skip-row" id="auto-off-untouched-row">
+            <input type="checkbox" id="auto-off-untouched" onchange="onAutoFieldChanged('off')">
+            <span>Only if not touched since auto on</span>
+          </label>
           <div class="section-action-bar" id="auto-off-action-bar" style="display:none;">
             <button class="section-cancel-btn" onclick="cancelAutoChanges('off')">Cancel</button>
             <button class="section-save-btn" onclick="saveAutoChanges('off')">Save</button>
@@ -2830,7 +2838,8 @@
         time2: document.getElementById('auto-' + type + '-time-2')?.value || '',
         days2: readDays('#auto-' + type + '-days-2 .auto-sched-day-btn.active'),
         fade: parseInt(document.getElementById('auto-' + type + '-fade')?.value || '0'),
-        skip: type === 'on' ? (document.getElementById('auto-on-skip')?.checked || false) : false,
+        triggerMode: type === 'on' ? (document.getElementById('auto-on-trigger-mode')?.value || 'always') : 'always',
+        untouched: type === 'off' ? (document.getElementById('auto-off-untouched')?.checked || false) : false,
         headerText: document.getElementById('auto-' + type + '-next')?.textContent || '',
       };
     }
@@ -2868,7 +2877,8 @@
       if (JSON.stringify(getDays1()) !== JSON.stringify(s.snapshot.days1)) return true;
       if (JSON.stringify(getDays2()) !== JSON.stringify(s.snapshot.days2)) return true;
       if (parseInt(document.getElementById('auto-' + type + '-fade')?.value || '0') !== s.snapshot.fade) return true;
-      if (type === 'on' && (document.getElementById('auto-on-skip')?.checked || false) !== s.snapshot.skip) return true;
+      if (type === 'on' && (document.getElementById('auto-on-trigger-mode')?.value || 'always') !== s.snapshot.triggerMode) return true;
+      if (type === 'off' && (document.getElementById('auto-off-untouched')?.checked || false) !== s.snapshot.untouched) return true;
       return false;
     }
     function isAutoSchedDirty() { return isAutoDirty('on') || isAutoDirty('off'); }
@@ -2987,8 +2997,12 @@
       if (fadeEl) fadeEl.value = s.snapshot.fade;
       updateAutoFadeDisplay(type);
       if (type === 'on') {
-        const skipEl = document.getElementById('auto-on-skip');
-        if (skipEl) skipEl.checked = s.snapshot.skip;
+        const trigEl = document.getElementById('auto-on-trigger-mode');
+        if (trigEl) trigEl.value = s.snapshot.triggerMode || 'always';
+      }
+      if (type === 'off') {
+        const untEl = document.getElementById('auto-off-untouched');
+        if (untEl) untEl.checked = s.snapshot.untouched || false;
       }
       // Restore header text from snapshot
       const nextEl = document.getElementById('auto-' + type + '-next');
@@ -3721,7 +3735,7 @@
           card?.classList.remove('is-open');
 
           // Source
-          s.source = settings[prefix + '_source'] || (type === 'on' ? 'sunrise' : 'sunset');
+          s.source = settings[prefix + '_source'] || (type === 'on' ? 'sunset' : 'sunrise');
           setAutoSourceUI(type, s.source);
 
           // Sun days
@@ -3762,15 +3776,29 @@
             btn.classList.toggle('active', s.days2.includes(parseInt(btn.dataset.day)));
           });
 
-          // Fade
+          // Fade (stored as minutes, slider uses index)
           const fadeEl = document.getElementById('auto-' + type + '-fade');
-          if (fadeEl) fadeEl.value = settings[prefix + '_fade'] || 0;
+          if (fadeEl) fadeEl.value = fadeMinutesToIndex(settings[prefix + '_fade'] || 0);
           updateAutoFadeDisplay(type);
 
-          // Skip if brighter (on only)
+          // Trigger mode (on only)
           if (type === 'on') {
-            const skipEl = document.getElementById('auto-on-skip');
-            if (skipEl) skipEl.checked = settings.auto_on_skip_if_brighter || false;
+            const trigEl = document.getElementById('auto-on-trigger-mode');
+            if (trigEl) {
+              // Migrate old boolean to new mode
+              if (settings.auto_on_trigger_mode) {
+                trigEl.value = settings.auto_on_trigger_mode;
+              } else if (settings.auto_on_skip_if_brighter) {
+                trigEl.value = 'skip_brighter';
+              } else {
+                trigEl.value = 'always';
+              }
+            }
+          }
+          // Untouched (off only)
+          if (type === 'off') {
+            const untEl = document.getElementById('auto-off-untouched');
+            if (untEl) untEl.checked = settings.auto_off_only_untouched || false;
           }
 
           // Override indicator
@@ -3854,9 +3882,15 @@
       payload[prefix + '_days_1'] = cDays1;
       payload[prefix + '_time_2'] = time2;
       payload[prefix + '_days_2'] = cDays2;
-      payload[prefix + '_fade'] = parseInt(document.getElementById('auto-' + type + '-fade')?.value || '0');
+      payload[prefix + '_fade'] = fadeIndexToMinutes(parseInt(document.getElementById('auto-' + type + '-fade')?.value || '0'));
       if (type === 'on') {
-        payload.auto_on_skip_if_brighter = document.getElementById('auto-on-skip')?.checked || false;
+        const mode = document.getElementById('auto-on-trigger-mode')?.value || 'always';
+        payload.auto_on_trigger_mode = mode;
+        // Keep backward-compat field
+        payload.auto_on_skip_if_brighter = (mode === 'skip_brighter');
+      }
+      if (type === 'off') {
+        payload.auto_off_only_untouched = document.getElementById('auto-off-untouched')?.checked || false;
       }
 
       try {
@@ -4003,9 +4037,18 @@
       document.querySelectorAll('#auto-' + type + '-days .auto-sched-day-time').forEach(sp => sp.textContent = '');
     }
 
+    const FADE_STEPS = [0, 1, 2, 3, 5, 10, 15, 30];
+
+    function fadeIndexToMinutes(idx) { return FADE_STEPS[idx] || 0; }
+    function fadeMinutesToIndex(min) {
+      for (let i = FADE_STEPS.length - 1; i >= 0; i--) { if (FADE_STEPS[i] <= min) return i; }
+      return 0;
+    }
+
     function updateAutoFadeDisplay(type) {
-      const val = document.getElementById('auto-' + type + '-fade')?.value || '0';
-      document.getElementById('auto-' + type + '-fade-val').textContent = val + ' min';
+      const idx = parseInt(document.getElementById('auto-' + type + '-fade')?.value || '0');
+      const min = fadeIndexToMinutes(idx);
+      document.getElementById('auto-' + type + '-fade-val').textContent = min + ' min';
     }
 
     // ---- Override popover ----

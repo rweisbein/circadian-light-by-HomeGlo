@@ -2841,9 +2841,18 @@ class CircadianLightPrimitives:
                     if fired.get("date") == today_str and fired.get("time") == trigger_time:
                         pass  # Already fired
                     else:
-                        # Skip if brighter check
+                        # Trigger mode check
                         skip = False
-                        if settings.get("auto_on_skip_if_brighter", False):
+                        trigger_mode = settings.get("auto_on_trigger_mode", "always")
+                        # Backward compat: old boolean overrides if new field absent
+                        if trigger_mode == "always" and settings.get("auto_on_skip_if_brighter", False):
+                            trigger_mode = "skip_brighter"
+
+                        if trigger_mode == "skip_on":
+                            if state.is_circadian(area_id) and state.get_is_on(area_id):
+                                skip = True
+                                logger.info(f"[auto_on] Skipping {area_id}: already on (skip_on mode)")
+                        elif trigger_mode == "skip_brighter":
                             if state.is_circadian(area_id) and state.get_is_on(area_id):
                                 current_bri = state.get_area(area_id).get("last_sent_brightness")
                                 if current_bri is not None:
@@ -2886,6 +2895,28 @@ class CircadianLightPrimitives:
                     if fired.get("date") == today_str and fired.get("time") == trigger_time:
                         pass  # Already fired
                     else:
+                        # "Only if untouched" check — skip if user interacted since auto_on
+                        if settings.get("auto_off_only_untouched", False):
+                            area_data = state.get_area(area_id)
+                            # Check for signs of user interaction: brightness override or boost
+                            has_override = area_data.get("brightness_override_set_at") is not None
+                            has_boost = state.is_boosted(area_id)
+                            has_mid_shift = (
+                                area_data.get("brightness_mid") is not None
+                                or area_data.get("color_mid") is not None
+                            )
+                            if has_override or has_boost or has_mid_shift:
+                                logger.info(
+                                    f"[auto_off] Skipping {area_id}: user touched since auto_on "
+                                    f"(override={has_override}, boost={has_boost}, mid={has_mid_shift})"
+                                )
+                                # Mark as fired so we don't re-check every second
+                                if area_id not in self._auto_fired:
+                                    self._auto_fired[area_id] = {}
+                                self._auto_fired[area_id]["auto_off"] = {"date": today_str, "time": trigger_time}
+                                self._save_auto_fired()
+                                continue
+
                         fade_minutes = settings.get("auto_off_fade", 0)
                         if fade_minutes > 0:
                             current_bri = state.get_area(area_id).get("last_sent_brightness") or 50

@@ -1,5 +1,11 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.184
+- **Auto schedule defaults**: Auto On defaults to sunset, Auto Off defaults to sunrise (was reversed).
+- **Fade slider non-linear steps**: 0, 1, 2, 3, 5, 10, 15, 30 minutes (was linear 0-60 in 5-min steps).
+- **Auto On trigger mode dropdown**: Replaces "Skip if already brighter" checkbox with 3-option dropdown: Always, Skip if already brighter, Skip if on at all. Backward-compatible with old boolean setting.
+- **Auto Off "only if untouched"**: New checkbox skips auto-off if user has interacted since auto-on (brightness override, boost, or midpoint shift). Useful for vacation mode.
+
 ## 1.0.183
 - **Fix on_only + boost turning off lights**: When an area appeared in both an `on_only` reach and an `on_off` boost reach, the merged mode correctly picked `on_only`, but the boost timer still had `started_from_off=True`. When boost expired after 60s, it turned lights off — defeating the `on_only` intent. Now `motion_on_only` overrides `started_from_off=False` after setting boost, so boost expiry just removes the extra brightness instead of powering off.
 
