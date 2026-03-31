@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.192
+- **Bulk purpose save**: New `/api/light-filters/bulk` endpoint accepts all changed filters for an area in a single request. Config is saved once, refreshed once, device sync runs once — instead of N times for N purpose changes. Updated both area detail page and tune page.
+
 ## 1.0.191
 - **Fix auto schedule catch-up at phase change**: The noon descend phase crossing blanket-cleared all fired states, causing any auto_on that already fired this morning to re-fire (e.g. master turning on at noon). Now after clearing, immediately re-marks any schedules whose trigger time already passed today.
 

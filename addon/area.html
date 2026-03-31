@@ -2917,14 +2917,18 @@
     async function saveLightsChanges() {
       const areaId = tuneState.areaId;
       if (!areaId) return;
+      const changed = [];
       for (const light of tuneState.lights) {
         const orig = tuneSnapshot?.lightFilters[light.entity_id] || 'Standard';
         if (light.filterName !== orig) {
-          await fetch(basePath + '/api/light-filters/light-filter', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ area_id: areaId, entity_id: light.entity_id, filter: light.filterName })
-          });
+          changed.push({ entity_id: light.entity_id, filter: light.filterName });
         }
+      }
+      if (changed.length > 0) {
+        await fetch(basePath + '/api/light-filters/bulk', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ area_id: areaId, filters: changed })
+        });
       }
       captureTuneSnapshot();
       updateTuneButtons();

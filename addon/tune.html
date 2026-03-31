@@ -1245,15 +1245,19 @@
         }
         const tuneArea = getTuneArea(areaId);
         if (tuneArea) {
+          const changedFilters = [];
           for (const light of (tuneArea.lights || [])) {
             const current = light.filter || 'Standard';
             const orig = snap.lightFilters[light.entity_id] || 'Standard';
             if (current !== orig) {
-              promises.push(fetch('./api/light-filters/light-filter', {
-                method: 'POST', headers: {'Content-Type':'application/json'},
-                body: JSON.stringify({ area_id: areaId, entity_id: light.entity_id, filter: current })
-              }));
+              changedFilters.push({ entity_id: light.entity_id, filter: current });
             }
+          }
+          if (changedFilters.length > 0) {
+            promises.push(fetch('./api/light-filters/bulk', {
+              method: 'POST', headers: {'Content-Type':'application/json'},
+              body: JSON.stringify({ area_id: areaId, filters: changedFilters })
+            }));
           }
         }
       }

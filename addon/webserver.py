@@ -699,6 +699,12 @@ class LightDesignerServer:
         self.app.router.add_post(
             "/api/light-filters/light-filter", self.save_light_filter
         )
+        self.app.router.add_route(
+            "POST", "/{path:.*}/api/light-filters/bulk", self.save_light_filters_bulk
+        )
+        self.app.router.add_post(
+            "/api/light-filters/bulk", self.save_light_filters_bulk
+        )
         self.app.router.add_post(
             "/api/light-filters/reassign-preset", self.reassign_preset
         )
@@ -1173,6 +1179,70 @@ class LightDesignerServer:
             return web.json_response({"status": "ok"})
         except Exception as e:
             logger.error(f"Error saving light filter: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def save_light_filters_bulk(self, request: Request) -> Response:
+        """Save filter assignments for multiple lights in one area.
+
+        Expects JSON: {"area_id": "...", "filters": [{"entity_id": "...", "filter": "..."}, ...]}
+        Saves config once, refreshes once, syncs once.
+        """
+        try:
+            data = await request.json()
+            area_id = data.get("area_id")
+            filters = data.get("filters", [])
+
+            if not area_id or not filters:
+                return web.json_response(
+                    {"error": "area_id and filters required"}, status=400
+                )
+
+            config = await self.load_raw_config()
+            glozones = config.get("glozones", {})
+            area_cfg = None
+            for zone_config in glozones.values():
+                for area in zone_config.get("areas", []):
+                    if isinstance(area, dict) and area.get("id") == area_id:
+                        area_cfg = area
+                        break
+                if area_cfg:
+                    break
+
+            if not area_cfg:
+                return web.json_response(
+                    {"error": f"Area {area_id} not found"}, status=404
+                )
+
+            if "light_filters" not in area_cfg:
+                area_cfg["light_filters"] = {}
+
+            for entry in filters:
+                entity_id = entry.get("entity_id")
+                filter_name = entry.get("filter", "Standard")
+                if not entity_id:
+                    continue
+                if filter_name == "Standard":
+                    area_cfg["light_filters"].pop(entity_id, None)
+                else:
+                    area_cfg["light_filters"][entity_id] = filter_name
+
+            if not area_cfg["light_filters"]:
+                area_cfg.pop("light_filters", None)
+
+            await self.save_config_to_file(config)
+            glozone.set_config(config)
+
+            if self.client:
+                await self.client.handle_config_refresh()
+                await self.client.run_manual_sync()
+                logger.info(
+                    f"Device sync triggered after bulk purpose change "
+                    f"({len(filters)} lights in {area_id})"
+                )
+
+            return web.json_response({"status": "ok"})
+        except Exception as e:
+            logger.error(f"Error saving bulk light filters: {e}")
             return web.json_response({"error": str(e)}, status=500)
 
     async def reassign_preset(self, request: Request) -> Response:
