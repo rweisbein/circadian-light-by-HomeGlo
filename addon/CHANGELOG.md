@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.187
+- **Fix custom time inputs not showing dirty state**: Added `oninput` alongside `onchange` on all 4 time inputs so save/cancel buttons appear immediately while typing, not just on blur.
+- **Fix auto schedule catch-up on settings change**: Previously, catch-up prevention only ran when toggling the enabled switch. Now any auto schedule save (including auto-save on collapse) marks today's trigger as fired if the time already passed, preventing accidental immediate fire.
+
 ## 1.0.186
 - **Fix live preview not updating**: Source radio, offset +/- buttons, and day toggles were calling `showResolvedAutoTime` directly instead of `onAutoFieldChanged`, so the header time never updated. Now all auto schedule controls route through `onAutoFieldChanged`.
 - **Auto-save on collapse**: Auto schedule cards save dirty state when collapsed — no more hidden save buttons or lost changes on back navigation.

@@ -3315,12 +3315,11 @@ class LightDesignerServer:
                     if any(k.startswith(prefix + "_") for k in data):
                         prims.clear_auto_fired_for(area_id, prefix)
 
-                # When enabling a schedule, mark as fired for today if
+                # After any auto schedule change, mark as fired for today if
                 # the trigger time has already passed — prevents immediate
                 # catch-up fire when user is just configuring the schedule
                 for prefix in ("auto_on", "auto_off"):
-                    enabled_key = f"{prefix}_enabled"
-                    if data.get(enabled_key) is True:
+                    if any(k.startswith(prefix + "_") for k in data):
                         _sr, _ss = self._get_sun_hours()
                         trigger = self._compute_next_auto_time(
                             area_cfg, prefix, _sr, _ss
