@@ -1944,7 +1944,12 @@ class CircadianLightPrimitives:
                 if area_state.frozen_at is not None
                 else get_current_hour()
             )
-            result = CircadianLight.calculate_lighting(hour, config, area_state)
+            sun_times = (
+                self.client._get_sun_times()
+                if hasattr(self.client, "_get_sun_times")
+                else None
+            )
+            result = CircadianLight.calculate_lighting(hour, config, area_state, sun_times=sun_times)
             transition = self._get_turn_on_transition()
             # Apply brightness_override (from step_up/down or zone sync)
             final_brightness = result.brightness
@@ -3306,7 +3311,12 @@ class CircadianLightPrimitives:
                         if area_state.frozen_at is not None
                         else current_hour
                     )
-                    result = CircadianLight.calculate_lighting(hour, config, area_state)
+                    sun_times = (
+                        self.client._get_sun_times()
+                        if hasattr(self.client, "_get_sun_times")
+                        else None
+                    )
+                    result = CircadianLight.calculate_lighting(hour, config, area_state, sun_times=sun_times)
                     await self._apply_circadian_lighting(
                         area_id, result.brightness, result.color_temp
                     )
@@ -3519,7 +3529,12 @@ class CircadianLightPrimitives:
                 logger.info(
                     f"[{source}] Preset apply: area_state.frozen_at={area_state.frozen_at}, using hour={hour}"
                 )
-                result = CircadianLight.calculate_lighting(hour, config, area_state)
+                sun_times = (
+                    self.client._get_sun_times()
+                    if hasattr(self.client, "_get_sun_times")
+                    else None
+                )
+                result = CircadianLight.calculate_lighting(hour, config, area_state, sun_times=sun_times)
                 logger.info(
                     f"[{source}] Preset calculated: brightness={result.brightness}%, color_temp={result.color_temp}K at hour={hour}"
                 )
@@ -3747,7 +3762,12 @@ class CircadianLightPrimitives:
             area_state = self._get_area_state(area_id)
             hour = get_current_hour()
 
-            result = CircadianLight.calculate_lighting(hour, config, area_state)
+            sun_times = (
+                self.client._get_sun_times()
+                if hasattr(self.client, "_get_sun_times")
+                else None
+            )
+            result = CircadianLight.calculate_lighting(hour, config, area_state, sun_times=sun_times)
             if send_command:
                 await self._apply_circadian_lighting(
                     area_id, result.brightness, result.color_temp

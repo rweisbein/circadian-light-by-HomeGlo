@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.190
+- **Fix solar rules missing on glo_reset, glo_down, preset apply, and toggle-on**: Four `calculate_lighting` calls were missing the `sun_times` parameter, so solar rules (e.g. Cool Day clamping CT to 5000K) weren't applied. The periodic tick 3 seconds later would correct it. Now all calls pass `sun_times`.
+
 ## 1.0.189
 - **Fix bright_up/down 4x/5x not recognized**: Action dispatch in main.py had a hardcoded tuple that only included up to 3x. Added 4x and 5x.
 
