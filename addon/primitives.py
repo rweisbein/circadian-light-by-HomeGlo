@@ -2561,6 +2561,21 @@ class CircadianLightPrimitives:
             from_motion=False,
         )
 
+        # on_only means lights stay on — override started_from_off so boost
+        # expiry just removes the boost instead of turning lights off.
+        if has_boost and state.is_boosted(area_id):
+            boost_st = state.get_boost_state(area_id)
+            if boost_st and boost_st.get("boost_started_from_off"):
+                state.set_boost(
+                    area_id,
+                    started_from_off=False,
+                    expires_at=boost_st["boost_expires_at"],
+                    brightness=boost_st["boost_brightness"],
+                )
+                logger.info(
+                    f"[{source}] on_only: overrode started_from_off=False for area {area_id}"
+                )
+
     async def motion_on_off(
         self,
         area_id: str,

@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.183
+- **Fix on_only + boost turning off lights**: When an area appeared in both an `on_only` reach and an `on_off` boost reach, the merged mode correctly picked `on_only`, but the boost timer still had `started_from_off=True`. When boost expired after 60s, it turned lights off — defeating the `on_only` intent. Now `motion_on_only` overrides `started_from_off=False` after setting boost, so boost expiry just removes the extra brightness instead of powering off.
+
 ## 1.0.182
 - **Fade pill shows trigger time**: Home page fade pill now shows the time the fade started (e.g. "▲ 7:06a") instead of brightness percentage, matching the normal auto pill format.
 
