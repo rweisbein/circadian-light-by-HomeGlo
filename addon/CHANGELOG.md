@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.193
+- **Home page: hide auto pill during fade**: During an active fade, only the fade pill is shown — the other type's auto pill is now also suppressed to avoid showing two pills.
+
 ## 1.0.192
 - **Bulk purpose save**: New `/api/light-filters/bulk` endpoint accepts all changed filters for an area in a single request. Config is saved once, refreshed once, device sync runs once — instead of N times for N purpose changes. Updated both area detail page and tune page.
 

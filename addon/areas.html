@@ -1356,9 +1356,9 @@
           parts.push(`<span class="timer-fade">${fadeIcon} ${fadeTime}</span>`);
         }
 
-        // Auto schedule pill — show only the nearest one, skip type that's currently fading
-        const nxtOn = (fadeDir === 'in') ? null : status.next_auto_on;
-        const nxtOff = (fadeDir === 'out') ? null : status.next_auto_off;
+        // Auto schedule pill — show only the nearest one, skip entirely during fade
+        const nxtOn = fadeDir ? null : status.next_auto_on;
+        const nxtOff = fadeDir ? null : status.next_auto_off;
         if (nxtOn && nxtOff) {
           const onOff = (nxtOn.offset ?? 999) <= (nxtOff.offset ?? 999) ? ['on', nxtOn] : ['off', nxtOff];
           parts.push(formatAutoSchedulePill(onOff[1], onOff[0]));
