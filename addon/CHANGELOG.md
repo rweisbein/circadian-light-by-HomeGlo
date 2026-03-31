@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.185
+- **Fix "only if untouched" detection**: Previous check only looked for brightness override/boost/midpoint shift, missing the most common interaction — turning lights on/off. Now tracks `last_user_action_at` timestamp in area state, set on any user-initiated action (toggle, on, off, step, boost, reset). Auto-off compares this against auto-on fire timestamp.
+
 ## 1.0.184
 - **Auto schedule defaults**: Auto On defaults to sunset, Auto Off defaults to sunrise (was reversed).
 - **Fade slider non-linear steps**: 0, 1, 2, 3, 5, 10, 15, 30 minutes (was linear 0-60 in 5-min steps).

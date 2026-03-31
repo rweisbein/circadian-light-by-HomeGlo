@@ -617,6 +617,7 @@ class CircadianLightPrimitives:
         """
         if source not in ("auto_on", "auto_off", "auto_off_fade_complete", "wake_alarm"):
             self.cancel_fade(area_id, source=source or "unknown")
+            state.mark_user_action(area_id)
         return await self._step_circadian(
             area_id, "up", source=source, steps=steps, send_command=send_command,
             skip_bounce=skip_bounce,
@@ -646,6 +647,7 @@ class CircadianLightPrimitives:
         """
         if source not in ("auto_on", "auto_off", "auto_off_fade_complete", "wake_alarm"):
             self.cancel_fade(area_id, source=source or "unknown")
+            state.mark_user_action(area_id)
         return await self._step_circadian(
             area_id, "down", source=source, steps=steps, send_command=send_command,
             skip_bounce=skip_bounce,
@@ -1702,6 +1704,7 @@ class CircadianLightPrimitives:
         """
         if source not in ("auto_on", "auto_off", "auto_off_fade_complete", "wake_alarm"):
             self.cancel_fade(area_id, source=source or "unknown")
+            state.mark_user_action(area_id)
 
         has_boost = boost_brightness is not None and boost_duration is not None
         if has_boost:
@@ -1824,6 +1827,7 @@ class CircadianLightPrimitives:
         """
         if source not in ("auto_on", "auto_off", "auto_off_fade_complete", "wake_alarm"):
             self.cancel_fade(area_id, source=source or "unknown")
+            state.mark_user_action(area_id)
 
         logger.info(f"[{source}] lights_off for area {area_id}")
 
@@ -2008,9 +2012,10 @@ class CircadianLightPrimitives:
                 if hasattr(self.client, "_get_sun_times")
                 else None
             )
-            # Cancel any active fades before turning off
+            # Cancel any active fades and mark user action before turning off
             for area_id in area_ids:
                 self.cancel_fade(area_id, source=source or "toggle_off")
+                state.mark_user_action(area_id)
 
             # Phase 1: State updates (synchronous, no I/O)
             for area_id in area_ids:
@@ -2077,9 +2082,10 @@ class CircadianLightPrimitives:
                 else None
             )
 
-            # Cancel any active fades before turning on
+            # Cancel any active fades and mark user action before turning on
             for area_id in area_ids:
                 self.cancel_fade(area_id, source=source or "toggle_on")
+                state.mark_user_action(area_id)
 
             # Collect lighting values for all areas first
             area_lighting: List[Tuple[str, int, int]] = []
@@ -2897,25 +2903,32 @@ class CircadianLightPrimitives:
                     else:
                         # "Only if untouched" check — skip if user interacted since auto_on
                         if settings.get("auto_off_only_untouched", False):
-                            area_data = state.get_area(area_id)
-                            # Check for signs of user interaction: brightness override or boost
-                            has_override = area_data.get("brightness_override_set_at") is not None
-                            has_boost = state.is_boosted(area_id)
-                            has_mid_shift = (
-                                area_data.get("brightness_mid") is not None
-                                or area_data.get("color_mid") is not None
-                            )
-                            if has_override or has_boost or has_mid_shift:
-                                logger.info(
-                                    f"[auto_off] Skipping {area_id}: user touched since auto_on "
-                                    f"(override={has_override}, boost={has_boost}, mid={has_mid_shift})"
-                                )
-                                # Mark as fired so we don't re-check every second
-                                if area_id not in self._auto_fired:
-                                    self._auto_fired[area_id] = {}
-                                self._auto_fired[area_id]["auto_off"] = {"date": today_str, "time": trigger_time}
-                                self._save_auto_fired()
-                                continue
+                            last_action = state.get_last_user_action(area_id)
+                            auto_on_fired = self._auto_fired.get(area_id, {}).get("auto_on", {})
+                            auto_on_date = auto_on_fired.get("date")
+                            if last_action and auto_on_date:
+                                try:
+                                    from datetime import datetime as dt_cls
+                                    action_dt = dt_cls.fromisoformat(last_action)
+                                    # auto_on stores date + time; reconstruct a datetime
+                                    auto_on_time = auto_on_fired.get("time", 0)
+                                    auto_on_h = int(auto_on_time)
+                                    auto_on_m = int((auto_on_time - auto_on_h) * 60)
+                                    auto_on_dt = dt_cls.fromisoformat(
+                                        f"{auto_on_date}T{auto_on_h:02d}:{auto_on_m:02d}:00"
+                                    )
+                                    if action_dt > auto_on_dt:
+                                        logger.info(
+                                            f"[auto_off] Skipping {area_id}: user action at "
+                                            f"{last_action} after auto_on at {auto_on_date} {auto_on_time}"
+                                        )
+                                        if area_id not in self._auto_fired:
+                                            self._auto_fired[area_id] = {}
+                                        self._auto_fired[area_id]["auto_off"] = {"date": today_str, "time": trigger_time}
+                                        self._save_auto_fired()
+                                        continue
+                                except Exception:
+                                    pass  # On parse error, don't skip
 
                         fade_minutes = settings.get("auto_off_fade", 0)
                         if fade_minutes > 0:
@@ -3712,6 +3725,7 @@ class CircadianLightPrimitives:
         """
         if source not in ("auto_on", "auto_off", "auto_off_fade_complete", "wake_alarm"):
             self.cancel_fade(area_id, source=source or "unknown")
+            state.mark_user_action(area_id)
 
         logger.info(f"[{source}] glo_reset for area {area_id}")
 

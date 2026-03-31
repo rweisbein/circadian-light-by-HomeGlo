@@ -65,6 +65,8 @@ def _get_default_area_state() -> Dict[str, Any]:
         "fade_duration": None,  # Duration in seconds
         "fade_direction": None,  # "in" or "out"
         "fade_start_brightness": None,  # For fade-out: brightness % at start
+        # User interaction tracking (for auto-off "only if untouched" guard)
+        "last_user_action_at": None,  # ISO timestamp of last user-initiated action
     }
 
 
@@ -863,6 +865,22 @@ def get_fade_state(area_id: str) -> Optional[Dict[str, Any]]:
         "fade_direction": area.get("fade_direction"),
         "fade_start_brightness": area.get("fade_start_brightness"),
     }
+
+
+# ============================================================================
+# User Action Tracking
+# ============================================================================
+
+
+def mark_user_action(area_id: str) -> None:
+    """Record that a user-initiated action occurred on this area."""
+    from datetime import datetime
+    update_area(area_id, {"last_user_action_at": datetime.now().isoformat()})
+
+
+def get_last_user_action(area_id: str):
+    """Get ISO timestamp of last user action, or None."""
+    return get_area(area_id).get("last_user_action_at")
 
 
 # ============================================================================
