@@ -1985,7 +1985,7 @@ class HomeAssistantWebSocketClient:
             else:
                 await execute_when_off()
 
-        elif main_action in ("bright_up", "bright_up_2", "bright_up_3"):
+        elif main_action in ("bright_up", "bright_up_2", "bright_up_3", "bright_up_4", "bright_up_5"):
             # Bright up only if lights are on AND in circadian mode
             step_count = (
                 int(main_action.split("_")[-1]) if main_action[-1].isdigit() else 1
@@ -2028,7 +2028,7 @@ class HomeAssistantWebSocketClient:
             else:
                 await execute_when_off()
 
-        elif main_action in ("bright_down", "bright_down_2", "bright_down_3"):
+        elif main_action in ("bright_down", "bright_down_2", "bright_down_3", "bright_down_4", "bright_down_5"):
             # Bright down only if lights are on AND in circadian mode
             step_count = (
                 int(main_action.split("_")[-1]) if main_action[-1].isdigit() else 1
