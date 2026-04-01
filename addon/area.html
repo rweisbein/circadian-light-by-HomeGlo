@@ -3492,13 +3492,17 @@
       lhtml += '<span>Feedback light:</span>';
       lhtml += '<select id="tune-feedback-target" onchange="saveFeedbackTarget()" style="background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:4px;padding:2px 4px;font-size:0.78rem;">';
       lhtml += '<option value=""' + (!currentFeedback ? ' selected' : '') + '>Auto (' + mostPopular + ')</option>';
+      lhtml += '<optgroup label="Purposes">';
       for (const p of purposes) {
         lhtml += '<option value="' + p + '"' + (currentFeedback === p ? ' selected' : '') + '>' + p + '</option>';
       }
+      lhtml += '</optgroup>';
+      lhtml += '<optgroup label="Individual lights">';
       for (const light of lightsArr) {
         const isSelected = currentFeedback === light.entity_id;
         lhtml += '<option value="' + light.entity_id + '"' + (isSelected ? ' selected' : '') + '>' + light.name + '</option>';
       }
+      lhtml += '</optgroup>';
       lhtml += '</select></div>';
 
       lhtml += '<div id="tune-lights-list">';

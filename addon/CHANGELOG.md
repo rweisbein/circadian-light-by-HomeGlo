@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.197
+- **Feedback selector: section groups**: Dropdown now uses `<optgroup>` labels "Purposes" and "Individual lights" for clearer organization.
+
 ## 1.0.196
 - **Feedback light selector in area details**: Dropdown at top of Lights card lets you choose which purpose or specific light receives visual feedback cues (bounce, reach flash). Defaults to "Auto" which picks the most popular purpose dynamically. Saves on change, no save button needed.
 
