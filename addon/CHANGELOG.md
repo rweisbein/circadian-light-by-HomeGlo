@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.195
+- **Fix bright_down false bounce when override is large**: When override was +9.9 (from bright_up) and one step down would cross the floor, the clamp engaged and the code treated it as "at limit" — bouncing instead of applying the partial step. Now only bounces if the clamped value didn't actually move from the current override. So bright_up → bright_down correctly undoes the override.
+
 ## 1.0.194
 - **Debug: brightness override limit logging**: Added raw_override, set_at, decayed value, base, and scaled_base to the brightness limit/clamped log lines to diagnose the bright_down false-limit bug.
 

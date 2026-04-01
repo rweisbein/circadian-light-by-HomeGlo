@@ -1500,10 +1500,13 @@ class CircadianLightPrimitives:
             unclamped = new_override
             new_override = round(max(min_override, min(max_override, new_override)), 1)
 
-            # If the clamp prevented movement, we're at the limit
-            clamped_at_limit = (direction == "down" and unclamped < new_override) or (
-                direction == "up" and unclamped > new_override
-            )
+            # Only treat as "at limit" if the clamped value didn't move
+            # meaningfully from current override (not just that clamp engaged)
+            actually_moved = abs(new_override - current_override) >= 0.5
+            clamped_at_limit = (
+                (direction == "down" and unclamped < new_override)
+                or (direction == "up" and unclamped > new_override)
+            ) and not actually_moved
             if clamped_at_limit:
                 if step_i == 0:
                     logger.info(
