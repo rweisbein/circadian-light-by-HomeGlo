@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.194
+- **Debug: brightness override limit logging**: Added raw_override, set_at, decayed value, base, and scaled_base to the brightness limit/clamped log lines to diagnose the bright_down false-limit bug.
+
 ## 1.0.193
 - **Home page: hide auto pill during fade**: During an active fade, only the fade pill is shown — the other type's auto pill is now also suppressed to avoid showing two pills.
 

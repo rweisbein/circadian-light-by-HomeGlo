@@ -1467,7 +1467,11 @@ class CircadianLightPrimitives:
                 if step_i == 0:
                     logger.info(
                         f"brightness_{direction} at limit for {area_id} "
-                        f"(effective={effective_bri:.1f}, nl={nl_factor:.2f})"
+                        f"(effective={effective_bri:.1f}, nl={nl_factor:.2f}, "
+                        f"raw_override={area_state.brightness_override}, "
+                        f"set_at={area_state.brightness_override_set_at}, "
+                        f"decayed={current_override:.2f}, base={base_bri:.1f}, "
+                        f"scaled_base={scaled_base:.2f})"
                     )
                     if send_command and not skip_bounce and area_state.is_on:
                         current_cct = CircadianLight.calculate_color_at_hour(
@@ -1504,7 +1508,11 @@ class CircadianLightPrimitives:
                 if step_i == 0:
                     logger.info(
                         f"brightness_{direction} clamped at limit for {area_id} "
-                        f"(effective={scaled_base + new_override:.1f}, nl={nl_factor:.2f})"
+                        f"(effective={scaled_base + new_override:.1f}, nl={nl_factor:.2f}, "
+                        f"raw_override={area_state.brightness_override}, "
+                        f"set_at={area_state.brightness_override_set_at}, "
+                        f"decayed={current_override:.2f}, base={base_bri:.1f}, "
+                        f"scaled_base={scaled_base:.2f})"
                     )
                     if send_command and not skip_bounce and area_state.is_on:
                         current_cct = CircadianLight.calculate_color_at_hour(
