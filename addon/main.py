@@ -2498,7 +2498,20 @@ class HomeAssistantWebSocketClient:
                 "filter_name": best_filter,
             }
 
-        # No ZHA group — fall back to area target
+        # No ZHA group — fall back to individual light for this purpose
+        area_filters = glozone.get_area_light_filters(area_id)
+        area_lights = self.area_lights.get(area_id, [])
+        purpose_lights = [
+            eid for eid in area_lights
+            if (area_filters.get(eid, "Standard") == best_filter)
+        ]
+        if len(purpose_lights) == 1:
+            return {
+                "entity_id": purpose_lights[0],
+                "area_id": area_id,
+                "filter_name": best_filter,
+            }
+        # Multiple lights but no group, or no lights — fall back to area
         return {"area_id": area_id, "filter_name": best_filter}
 
     async def _feedback_cue(

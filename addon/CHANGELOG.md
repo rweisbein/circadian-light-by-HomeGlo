@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.198
+- **Fix bounce hitting all lights instead of feedback target**: When the feedback purpose has only 1 light (no ZHA group), the bounce fallback was targeting the entire area. Now resolves to the individual light entity for single-light purposes.
+
 ## 1.0.197
 - **Feedback selector: section groups**: Dropdown now uses `<optgroup>` labels "Purposes" and "Individual lights" for clearer organization.
 
