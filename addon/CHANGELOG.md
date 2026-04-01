@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.202
+- **Fix double bounce on step_up/down too**: Same issue as bright_up/down — single-area step_up/step_down also had both primitive and caller bouncing. Now skip_bounce=True for all switch-dispatched step/bright actions; caller's `_feedback_cue` is the single bounce source. Color was already correct (caller bounce guarded by `if multi:`).
+
 ## 1.0.201
 - **Fix double bounce on bright_up/down**: Single-area bright_up/down was bouncing twice — once inside `_brightness_step` and again from the caller's `_feedback_cue`. Now always passes `skip_bounce=True` to the primitive and lets the caller handle bounce via `_feedback_cue` (consistent with multi-area path). Reverted unnecessary phase 2 sleep from v1.0.200.
 
