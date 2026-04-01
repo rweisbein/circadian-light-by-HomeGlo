@@ -2914,6 +2914,16 @@
       showTuneSave();
     }
 
+    async function saveFeedbackTarget() {
+      const areaId = tuneState.areaId;
+      if (!areaId) return;
+      const val = document.getElementById('tune-feedback-target')?.value || '';
+      await fetch(basePath + '/api/light-filters/area-brightness', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ area_id: areaId, feedback_target: val || null })
+      });
+    }
+
     async function saveLightsChanges() {
       const areaId = tuneState.areaId;
       if (!areaId) return;
@@ -3468,6 +3478,29 @@
       lhtml += '<span class="tune-lights-title">Lights</span>';
       lhtml += '</div>';
       lhtml += '<div class="tune-lights-body" id="tune-lights-body">';
+
+      // Feedback target selector
+      const currentFeedback = areaInfo.feedback_target || null;
+      const purposeCounts = {};
+      for (const light of lightsArr) {
+        purposeCounts[light.filterName] = (purposeCounts[light.filterName] || 0) + 1;
+      }
+      const mostPopular = Object.keys(purposeCounts).sort((a, b) => purposeCounts[b] - purposeCounts[a])[0] || 'Standard';
+      const purposes = [...new Set(lightsArr.map(l => l.filterName))].sort();
+
+      lhtml += '<div style="display:flex;align-items:center;gap:6px;padding:6px 14px;font-size:0.78rem;color:var(--muted);">';
+      lhtml += '<span>Feedback light:</span>';
+      lhtml += '<select id="tune-feedback-target" onchange="saveFeedbackTarget()" style="background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:4px;padding:2px 4px;font-size:0.78rem;">';
+      lhtml += '<option value=""' + (!currentFeedback ? ' selected' : '') + '>Auto (' + mostPopular + ')</option>';
+      for (const p of purposes) {
+        lhtml += '<option value="' + p + '"' + (currentFeedback === p ? ' selected' : '') + '>' + p + '</option>';
+      }
+      for (const light of lightsArr) {
+        const isSelected = currentFeedback === light.entity_id;
+        lhtml += '<option value="' + light.entity_id + '"' + (isSelected ? ' selected' : '') + '>' + light.name + '</option>';
+      }
+      lhtml += '</select></div>';
+
       lhtml += '<div id="tune-lights-list">';
       if (sortedLights.length === 0) {
         lhtml += '<div style="padding:10px 14px;color:var(--muted2);font-size:0.82rem;">No lights found</div>';

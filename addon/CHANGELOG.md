@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.196
+- **Feedback light selector in area details**: Dropdown at top of Lights card lets you choose which purpose or specific light receives visual feedback cues (bounce, reach flash). Defaults to "Auto" which picks the most popular purpose dynamically. Saves on change, no save button needed.
+
 ## 1.0.195
 - **Fix bright_down false bounce when override is large**: When override was +9.9 (from bright_up) and one step down would cross the floor, the clamp engaged and the code treated it as "at limit" — bouncing instead of applying the partial step. Now only bounces if the clamped value didn't actually move from the current override. So bright_up → bright_down correctly undoes the override.
 

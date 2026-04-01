@@ -1017,6 +1017,7 @@ class LightDesignerServer:
                                 area_id
                             ),
                             "light_filters": glozone.get_area_light_filters(area_id),
+                            "feedback_target": glozone.get_area_feedback_target(area_id),
                             "is_on": state.get_is_on(area_id),
                             "last_sent_kelvin": state.get_last_sent_kelvin(area_id),
                             "color_mid": area_st.get("color_mid"),
