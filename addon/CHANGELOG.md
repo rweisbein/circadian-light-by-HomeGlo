@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.199
+- **Fix feedback fallback targeting all area lights**: When a purpose has multiple lights but no ZHA group (e.g. Hue hub lights), the bounce now targets each light in the purpose individually instead of the entire area. Eliminates cross-purpose bounce bleed.
+
 ## 1.0.198
 - **Fix bounce hitting all lights instead of feedback target**: When the feedback purpose has only 1 light (no ZHA group), the bounce fallback was targeting the entire area. Now resolves to the individual light entity for single-light purposes.
 

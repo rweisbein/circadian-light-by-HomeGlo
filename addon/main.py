@@ -2505,13 +2505,16 @@ class HomeAssistantWebSocketClient:
             eid for eid in area_lights
             if (area_filters.get(eid, "Standard") == best_filter)
         ]
-        if len(purpose_lights) == 1:
+        if len(purpose_lights) >= 1:
+            # Return first light as primary target; bounce handler
+            # will target all purpose lights via the entity_ids list
             return {
                 "entity_id": purpose_lights[0],
+                "entity_ids": purpose_lights,
                 "area_id": area_id,
                 "filter_name": best_filter,
             }
-        # Multiple lights but no group, or no lights — fall back to area
+        # No lights found for purpose — shouldn't happen, but safe fallback
         return {"area_id": area_id, "filter_name": best_filter}
 
     async def _feedback_cue(

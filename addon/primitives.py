@@ -5011,7 +5011,11 @@ class CircadianLightPrimitives:
         # Build clean HA targets (strip metadata like filter_name)
         ha_targets = []
         for t in targets:
-            if "entity_id" in t:
+            if "entity_ids" in t:
+                # Multiple lights for a purpose without a ZHA group
+                for eid in t["entity_ids"]:
+                    ha_targets.append({"entity_id": eid})
+            elif "entity_id" in t:
                 ha_targets.append({"entity_id": t["entity_id"]})
             elif "area_id" in t:
                 ha_targets.append({"area_id": t["area_id"]})
