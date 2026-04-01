@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.201
+- **Fix double bounce on bright_up/down**: Single-area bright_up/down was bouncing twice — once inside `_brightness_step` and again from the caller's `_feedback_cue`. Now always passes `skip_bounce=True` to the primitive and lets the caller handle bounce via `_feedback_cue` (consistent with multi-area path). Reverted unnecessary phase 2 sleep from v1.0.200.
+
 ## 1.0.200
 - **Fix bounce wobble**: Periodic tick was released immediately after phase 2 dispatch, before the 0.3s transition completed on the bulb. The tick then sent a competing brightness command mid-transition, causing extra visual pulses. Now holds the defer for the transition duration after phase 2.
 

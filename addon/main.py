@@ -2008,11 +2008,10 @@ class HomeAssistantWebSocketClient:
                         areas, results, switch_id=switch_id, direction="up"
                     )
                 else:
-                    multi = len(areas) > 1
                     results = await asyncio.gather(
                         *[
                             self.primitives.brightness_up(
-                                area, "switch", steps=step_count, skip_bounce=multi
+                                area, "switch", steps=step_count, skip_bounce=True
                             )
                             for area in areas
                         ]
@@ -2051,11 +2050,10 @@ class HomeAssistantWebSocketClient:
                         areas, results, switch_id=switch_id, direction="down"
                     )
                 else:
-                    multi = len(areas) > 1
                     results = await asyncio.gather(
                         *[
                             self.primitives.brightness_down(
-                                area, "switch", steps=step_count, skip_bounce=multi
+                                area, "switch", steps=step_count, skip_bounce=True
                             )
                             for area in areas
                         ]

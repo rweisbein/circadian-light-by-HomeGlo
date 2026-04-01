@@ -5047,10 +5047,6 @@ class CircadianLightPrimitives:
                     self.client.call_service("light", "turn_on", rdata, target=target)
                 )
             await asyncio.gather(*phase2_tasks)
-            # Wait for phase 2 transition to complete on the bulb before
-            # releasing the tick — otherwise the tick sends a competing
-            # brightness command mid-transition
-            await asyncio.sleep(limit_speed)
         finally:
             self.client._defer_periodic_tick = False
 
