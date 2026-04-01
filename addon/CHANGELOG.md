@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.200
+- **Fix bounce wobble**: Periodic tick was released immediately after phase 2 dispatch, before the 0.3s transition completed on the bulb. The tick then sent a competing brightness command mid-transition, causing extra visual pulses. Now holds the defer for the transition duration after phase 2.
+
 ## 1.0.199
 - **Fix feedback fallback targeting all area lights**: When a purpose has multiple lights but no ZHA group (e.g. Hue hub lights), the bounce now targets each light in the purpose individually instead of the entire area. Eliminates cross-purpose bounce bleed.
 
