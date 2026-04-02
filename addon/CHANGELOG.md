@@ -1,5 +1,11 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.203
+- **New solar exposure steps**: 0, 0.25, 0.40, 0.60, 0.75, 0.90, 1.00, 1.25, 1.60, 2.00 (10 stops). Existing saved values auto-migrate to closest step. Updated on both area detail and tune pages.
+- **Fix exposure display rounding**: Was `.toFixed(1)` which showed 0.25 as "0.3". Now `.toFixed(2)`.
+- **Prominent slider readouts**: Solar exposure and room balance label+value text changed from muted to full text color on both area detail and tune pages.
+- **Fix area detail wake/bed label**: Reverted "User-adjusted brightness*" back to "Adjusted wake" / "Adjusted bed" (no asterisk). The asterisk footnote change was for the tune page override legend only.
+
 ## 1.0.202
 - **Fix double bounce on step_up/down too**: Same issue as bright_up/down — single-area step_up/step_down also had both primitive and caller bouncing. Now skip_bounce=True for all switch-dispatched step/bright actions; caller's `_feedback_cue` is the single bounce source. Color was already correct (caller bounce guarded by `if multi:`).
 

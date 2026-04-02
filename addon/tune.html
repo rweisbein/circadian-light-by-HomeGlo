@@ -430,8 +430,8 @@
     .tune-slider-label-col {
       flex: 0 0 30%; text-align: center; padding: 0 6px; min-width: 0;
     }
-    .tune-slider-word { font-size: 0.72rem; color: var(--muted); white-space: nowrap; }
-    .tune-slider-val { font-size: 0.7rem; color: var(--muted); white-space: nowrap; }
+    .tune-slider-word { font-size: 0.72rem; color: var(--text); white-space: nowrap; }
+    .tune-slider-val { font-size: 0.7rem; color: var(--text); white-space: nowrap; }
 
     /* Outdoor panel */
     .tune-outdoor-wrapper { position: relative; }
@@ -787,13 +787,14 @@
 
     const SOLAR_STEPS = [
       { label: "None",      exposure: 0.00 },
-      { label: "Minimal",   exposure: 0.10 },
       { label: "Low",       exposure: 0.25 },
-      { label: "Moderate",  exposure: 0.50 },
+      { label: "Moderate",  exposure: 0.40 },
+      { label: "Medium",    exposure: 0.60 },
       { label: "High",      exposure: 0.75 },
+      { label: "Strong",    exposure: 0.90 },
       { label: "Full",      exposure: 1.00 },
       { label: "Amplified", exposure: 1.25 },
-      { label: "Strong",    exposure: 1.50 },
+      { label: "Intense",   exposure: 1.60 },
       { label: "Sun room",  exposure: 2.00 },
     ];
 
@@ -2678,7 +2679,7 @@
                 <span class="tune-adj-col"><span class="tune-adj-val${adjClass}">${adjText}</span></span>
                 <span class="tune-final-col tune-final-now tune-bri-now">${finalHtml}</span>
                 <div class="tune-se-col" onclick="event.stopPropagation()">
-                  <input type="range" class="tune-solar-slider" min="0" max="8" step="1" value="${solarStep}" data-area-id="${area.area_id}">
+                  <input type="range" class="tune-solar-slider" min="0" max="9" step="1" value="${solarStep}" data-area-id="${area.area_id}">
                 </div>
                 <div class="tune-balance-col" onclick="event.stopPropagation()">
                   <input type="range" class="tune-lumen-slider" min="0" max="8" step="1" value="${lumenStep}" data-area-id="${area.area_id}">
@@ -2711,7 +2712,7 @@
         const hasAnyOverride = areasInZone.some(a => Math.abs(getTuneArea(a.area_id)?.bri_override || 0) >= 0.5);
         const hasAnyFade = areasInZone.some(a => !!(getTuneArea(a.area_id)?.fade_direction));
         const boostLegend = '<div class="tune-boost-legend" style="padding:4px 16px 6px;font-size:0.65rem;color:var(--muted2);' + (hasAnyBoosted ? '' : 'display:none;') + '">&#x26A1; includes boost</div>';
-        const overrideLegend = '<div class="tune-override-legend" style="padding:4px 16px 6px;font-size:0.65rem;color:var(--muted2);' + (hasAnyOverride ? '' : 'display:none;') + '">* brightness adjustment applied</div>';
+        const overrideLegend = '<div class="tune-override-legend" style="padding:4px 16px 6px;font-size:0.65rem;color:var(--muted2);' + (hasAnyOverride ? '' : 'display:none;') + '">* user-adjusted brightness</div>';
         const fadeLegend = '<div class="tune-fade-legend" style="padding:4px 16px 6px;font-size:0.65rem;color:var(--muted2);' + (hasAnyFade ? '' : 'display:none;') + '">&#x25B2;&#x25BC; auto fade in progress</div>';
 
         html += `

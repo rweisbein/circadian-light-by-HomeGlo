@@ -569,7 +569,7 @@
     .tune-control-reset:hover { color: var(--accent); }
     .tune-slider-row { padding: 0px 22px 2px 52px; max-width: 70%; }
     .tune-slider-row input[type=range] { }
-    .tune-slider-word { font-size: 0.75rem; color: var(--muted2); white-space: nowrap; display: flex; justify-content: space-between; margin-top: 0; }
+    .tune-slider-word { font-size: 0.75rem; color: var(--text); white-space: nowrap; display: flex; justify-content: space-between; margin-top: 0; }
     .tune-inline-slider { width: 100%; cursor: pointer; min-width: 80px; }
     .tune-inline-slider--light { }
     .tune-inline-slider--sun { }
@@ -1818,7 +1818,7 @@
         const baseWake = areaState.eff_wake_time ?? cfg.wake_time;
         const adjusted = areaState.adjusted_wake_time;
         if (adjusted != null) {
-          el.innerHTML = '<span style="color:#5cb3ff">User-adjusted brightness* ' + formatHourToTime(adjusted) + '</span>';
+          el.innerHTML = '<span style="color:#5cb3ff">Adjusted wake ' + formatHourToTime(adjusted) + '</span>';
         } else {
           el.innerHTML = '<span style="color:#5cb3ff">Wake ' + formatHourToTime(baseWake) + '</span>';
         }
@@ -1826,7 +1826,7 @@
         const baseBed = areaState.eff_bed_time ?? cfg.bed_time;
         const adjusted = areaState.adjusted_bed_time;
         if (adjusted != null) {
-          el.innerHTML = '<span style="color:#ffe680">User-adjusted brightness* ' + formatHourToTime(adjusted) + '</span>';
+          el.innerHTML = '<span style="color:#ffe680">Adjusted bed ' + formatHourToTime(adjusted) + '</span>';
         } else {
           el.innerHTML = '<span style="color:#ffe680">Bed ' + formatHourToTime(baseBed) + '</span>';
         }
@@ -2713,13 +2713,14 @@
 
     const SOLAR_STEPS = [
       { label: "None",      exposure: 0.00 },
-      { label: "Minimal",   exposure: 0.10 },
       { label: "Low",       exposure: 0.25 },
-      { label: "Moderate",  exposure: 0.50 },
+      { label: "Moderate",  exposure: 0.40 },
+      { label: "Medium",    exposure: 0.60 },
       { label: "High",      exposure: 0.75 },
+      { label: "Strong",    exposure: 0.90 },
       { label: "Full",      exposure: 1.00 },
       { label: "Amplified", exposure: 1.25 },
-      { label: "Strong",    exposure: 1.50 },
+      { label: "Intense",   exposure: 1.60 },
       { label: "Sun room",  exposure: 2.00 },
     ];
 
@@ -3209,7 +3210,7 @@
       if (elSolarWord) {
         const sLabel = SOLAR_STEPS[ts.solarStep].label;
         const sExposure = SOLAR_STEPS[ts.solarStep].exposure;
-        let leftText = sExposure > 0 ? sLabel + ' ' + sExposure.toFixed(1) : sLabel;
+        let leftText = sExposure > 0 ? sLabel + ' ' + sExposure.toFixed(2) : sLabel;
         let rightText = '';
         if (sExposure > 0) {
           const peakNl = Math.max(0.0, 1.0 - sExposure * 1.0 * ts.brightnessSensitivity);
@@ -3564,7 +3565,7 @@
         + '<span class="tune-control-impact" id="tune-det-solar-val"></span></div>';
       bhtml += '<div class="tune-source-info" id="tune-source-info"></div>';
       bhtml += '<div class="tune-slider-row">'
-        + '<input type="range" class="tune-inline-slider tune-inline-slider--sun" id="tune-slider-solar" min="0" max="8" step="1" value="' + solarStep + '">'
+        + '<input type="range" class="tune-inline-slider tune-inline-slider--sun" id="tune-slider-solar" min="0" max="9" step="1" value="' + solarStep + '">'
         + '<span class="tune-slider-word" id="tune-solar-word"><span>' + SOLAR_STEPS[solarStep].label + '</span></span></div>';
       // Room Balance with inline slider
       bhtml += '<div class="tune-control-row"><span class="tune-control-left"><span class="tune-control-label">Room balance</span>'
