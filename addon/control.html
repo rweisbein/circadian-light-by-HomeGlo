@@ -1879,7 +1879,9 @@
       if (Object.keys(categories).length === 0 && uncategorized.length === 0) return '';
 
       const selected = scope.trigger_entities || [];
-      const anyMotionSelected = categories.any_motion && _isCategorySelected(selected, categories.any_motion.own);
+      // Empty trigger_entities = "any motion" (no filter). Treat as Any Motion selected.
+      const isEmptyMeansAny = selected.length === 0;
+      const anyMotionSelected = isEmptyMeansAny || (categories.any_motion && _isCategorySelected(selected, categories.any_motion.own));
 
       let html = '<div style="margin-top:8px;">';
 
@@ -1889,7 +1891,7 @@
         html += '<div style="font-size:0.72rem;color:var(--muted2);margin-bottom:3px;">Presence</div>';
         html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">';
         for (const cat of presenceCats) {
-          const isSelected = _isCategorySelected(selected, categories[cat.id].own);
+          const isSelected = cat.isAll ? anyMotionSelected : _isCategorySelected(selected, categories[cat.id].own);
           const greyed = !cat.isAll && anyMotionSelected && !isSelected ? ' greyed' : '';
           const sel = isSelected ? ' selected' : '';
           html += `<span class="trigger-chip${sel}${greyed}" onclick="toggleTriggerCategory(${idx}, '${cat.id}')">${cat.label}</span>`;
@@ -1938,22 +1940,42 @@
       const catData = categories[catId];
       if (!catData) return;
 
-      const isSelected = _isCategorySelected(scope.trigger_entities, catData.own);
+      const cat = [...TRIGGER_CATEGORIES.presence, ...TRIGGER_CATEGORIES.events].find(c => c.id === catId);
+      const isEmptyMeansAny = scope.trigger_entities.length === 0;
 
-      if (isSelected) {
-        // Remove all entities for this category (use .all to clean up everything)
-        scope.trigger_entities = scope.trigger_entities.filter(e => !catData.all.includes(e));
-      } else {
-        // Add all entities for this category
-        for (const e of catData.all) {
-          if (!scope.trigger_entities.includes(e)) scope.trigger_entities.push(e);
+      if (cat && cat.isAll) {
+        // "Any motion" toggle
+        if (isEmptyMeansAny) {
+          // Already "any" via empty list — deselecting is a no-op (must pick specifics instead)
+          return;
         }
-        // If selecting "any_motion", remove specific presence entities (redundant)
-        const cat = [...TRIGGER_CATEGORIES.presence, ...TRIGGER_CATEGORIES.events].find(c => c.id === catId);
-        if (cat && cat.isAll) {
-          const specificPresence = TRIGGER_CATEGORIES.presence.filter(c => !c.isAll && categories[c.id]);
-          for (const sp of specificPresence) {
-            scope.trigger_entities = scope.trigger_entities.filter(e => !categories[sp.id].own.includes(e));
+        // Selecting "Any motion" — clear to empty (= no filter)
+        const isSelected = _isCategorySelected(scope.trigger_entities, catData.own);
+        if (isSelected) {
+          // Deselect: remove any_motion entities but keep other selections
+          scope.trigger_entities = scope.trigger_entities.filter(e => !catData.all.includes(e));
+        } else {
+          // Select: clear to empty = accept everything
+          scope.trigger_entities = [];
+        }
+      } else {
+        // Specific category toggle (Person, Pet, Vehicle, Package, Doorbell)
+        if (isEmptyMeansAny) {
+          // Transitioning from "any" to specific: we need to NOT be empty anymore.
+          // Don't add the "any_motion" entities — just add this specific category.
+          scope.trigger_entities = [...catData.all];
+        } else {
+          const isSelected = _isCategorySelected(scope.trigger_entities, catData.own);
+          if (isSelected) {
+            scope.trigger_entities = scope.trigger_entities.filter(e => !catData.all.includes(e));
+            // If nothing left, revert to empty (= any motion)
+            if (scope.trigger_entities.length === 0) {
+              // stays empty = any
+            }
+          } else {
+            for (const e of catData.all) {
+              if (!scope.trigger_entities.includes(e)) scope.trigger_entities.push(e);
+            }
           }
         }
       }
@@ -1970,11 +1992,17 @@
     function toggleTriggerEntity(scopeIdx, entityId) {
       const scope = editingMotionScopes[scopeIdx];
       if (!scope.trigger_entities) scope.trigger_entities = [];
-      const idx = scope.trigger_entities.indexOf(entityId);
-      if (idx >= 0) {
-        scope.trigger_entities.splice(idx, 1);
+      if (scope.trigger_entities.length === 0) {
+        // Transitioning from "any" to specific: start with just this entity
+        scope.trigger_entities = [entityId];
       } else {
-        scope.trigger_entities.push(entityId);
+        const idx = scope.trigger_entities.indexOf(entityId);
+        if (idx >= 0) {
+          scope.trigger_entities.splice(idx, 1);
+          // If empty after removal, stays empty = any
+        } else {
+          scope.trigger_entities.push(entityId);
+        }
       }
       // Preserve show-all state
       const showAllEl = document.getElementById('trigger-showall-' + scopeIdx);

@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.220
+- **"Any motion" shows selected by default**: Empty `trigger_entities` (= no filter, triggers on anything) now renders with the "Any motion" chip visually selected, matching actual behavior. Selecting "Any motion" stores as empty list. Picking a specific type (Person, Pet, etc.) transitions from "any" to that specific filter. Deselecting all specifics reverts to "any".
+
 ## 1.0.219
 - **Fix trigger entity selections not persisting**: The control detail page's areas→scopes grouping path was dropping `trigger_entities` from loaded configs. Selections (Person, Pet, Vehicle, etc.) now correctly round-trip through save/reload.
 
