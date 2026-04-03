@@ -705,19 +705,6 @@
 
         <div class="form-row">
           <label class="form-label">
-            Reach adjustment learn mode
-            <span class="info-icon">i<span class="info-tooltip">When enabled, all lights in the reach areas fade out and back so you can see which areas are included. When disabled, only a single indicator light flashes (1x/2x/3x for each reach level).</span></span>
-          </label>
-          <div class="form-control">
-            <label class="checkbox-label">
-              <input type="checkbox" id="reach-learn-mode" checked>
-            </label>
-            <span class="form-hint" style="margin-left: 12px;">Flash all area lights to show reach contents</span>
-          </div>
-        </div>
-
-        <div class="form-row">
-          <label class="form-label">
             Reach feedback
             <span class="info-icon">i<span class="info-tooltip">When enabled, changing reach scope flashes lights to indicate the new scope number. When disabled, reach changes are silent.</span></span>
           </label>
@@ -1096,7 +1083,6 @@
           document.getElementById('multi-click-speed').value = config.multi_click_speed ?? 15;
           document.getElementById('long-press-repeat-interval').value = config.long_press_repeat_interval ?? 7;
           document.getElementById('max-dim-steps').value = config.max_dim_steps ?? 10;
-          document.getElementById('reach-learn-mode').checked = config.reach_learn_mode ?? true;
           document.getElementById('confirm-zone-pushes').checked = config.confirm_zone_pushes ?? true;
           document.getElementById('circadian-refresh').value = config.circadian_refresh ?? 20;
           const refreshDefault = config.circadian_refresh ?? 20;
@@ -1202,7 +1188,6 @@
         multi_click_speed: parseFloat(document.getElementById('multi-click-speed').value) || 15,
         long_press_repeat_interval: parseFloat(document.getElementById('long-press-repeat-interval').value) || 7,
         max_dim_steps: parseInt(document.getElementById('max-dim-steps').value) || 10,
-        reach_learn_mode: document.getElementById('reach-learn-mode').checked,
         confirm_zone_pushes: document.getElementById('confirm-zone-pushes').checked,
         circadian_refresh: parseInt(document.getElementById('circadian-refresh').value) || 20,
         periodic_transition_day: parseInt(document.getElementById('periodic-transition-day').value) || 1,
@@ -1493,7 +1478,6 @@
     document.getElementById('multi-click-speed').addEventListener('blur', saveSettings);
     document.getElementById('long-press-repeat-interval').addEventListener('blur', saveSettings);
     document.getElementById('max-dim-steps').addEventListener('blur', saveSettings);
-    document.getElementById('reach-learn-mode').addEventListener('change', saveSettings);
     document.getElementById('confirm-zone-pushes').addEventListener('change', saveSettings);
     document.getElementById('circadian-refresh').addEventListener('blur', saveSettings);
     document.getElementById('periodic-transition-day').addEventListener('blur', saveSettings);

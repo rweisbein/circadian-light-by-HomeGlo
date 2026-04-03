@@ -2301,14 +2301,6 @@ class HomeAssistantWebSocketClient:
         except Exception:
             return {}
 
-    def _is_reach_learn_mode(self) -> bool:
-        """Check if reach learn mode is enabled (single indicator light feedback)."""
-        try:
-            raw_config = glozone.load_config_from_files()
-            return raw_config.get("reach_learn_mode", True)
-        except Exception:
-            return True
-
     def _get_motion_blink_threshold(self) -> int:
         """Get the motion blink threshold as brightness 0-255."""
         try:

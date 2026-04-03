@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.217
+- **Remove dead "Reach adjustment learn mode" setting**: Was never wired up — `_is_reach_learn_mode()` defined but never called. Removed from settings UI, backend defaults, and config keys.
+
 ## 1.0.216
 - **"Add control" moved to bottom of controls list**: Keeps filter bar clean; "Cheatsheet" link replaces "Switch Map" in filter bar.
 - **Rename Switch Map → Cheatsheet**: Page title, link, and `<title>` tag updated. Cheatsheet/Edit toggle collapsed to just an "Edit" button (always in cheatsheet mode unless editing).

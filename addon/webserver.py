@@ -1880,7 +1880,6 @@ class LightDesignerServer:
         "reach_daytime_threshold",  # Brightness % below which reach feedback flashes UP when NL > 0 (default 50)
         "reach_feedback_enabled",  # Whether reach scope changes flash lights (default true)
         "boost_default",  # Default boost percentage (10-100, default 30)
-        "reach_learn_mode",  # Reach feedback uses single indicator light (default true)
         "long_press_repeat_interval",  # Long-press repeat interval in tenths of seconds (default 7 = 700ms)
         "controls_ui",  # Controls page UI preferences (sort, filter)
         "areas_ui",  # Areas page UI preferences (sort, filter)
@@ -2096,7 +2095,6 @@ class LightDesignerServer:
             "post_action_burst_count": 1,  # 0-3 burst refreshes after actions
             "reach_feedback_enabled": True,  # Flash lights on reach change
             "reach_daytime_threshold": 50,  # % brightness
-            "reach_learn_mode": True,  # Use single indicator light for reach feedback
         }
 
         # Merge supervisor-managed options.json (if present)
@@ -2198,7 +2196,6 @@ class LightDesignerServer:
             # Reach feedback
             "reach_feedback_enabled": True,
             "reach_daytime_threshold": 50,  # % brightness
-            "reach_learn_mode": True,
         }
 
         # Merge options.json
