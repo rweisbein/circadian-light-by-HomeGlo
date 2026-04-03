@@ -444,14 +444,13 @@
       flex-shrink: 0;
     }
 
-    /* Horizontal slider track — margin for horizontal inset, padding for vertical touch */
+    /* Horizontal slider track — display-only, not interactive */
     .row-slider-track {
       height: 0;
       position: relative;
-      cursor: pointer;
-      touch-action: none;
-      padding: 12px 0;
-      margin: 0 16px;
+      pointer-events: none;
+      padding: 14px 0 13px;
+      margin: 0 6px;
     }
 
     .row-slider-track::before {
@@ -483,10 +482,6 @@
       box-shadow: 0 1px 4px rgba(0,0,0,0.4);
       pointer-events: none;
       transition: left 0.15s;
-    }
-
-    .row-slider-track.dragging .row-slider-thumb {
-      transition: none;
     }
 
     /* Row control buttons - dark container like modal header */
@@ -990,7 +985,7 @@
     let cachedGlozones = null; // raw glozone data for edit mode ordering
     let homeRefreshTimer = null;     // Home page card refresh timer
     let homeTickTimer = null;        // 1s home page timer countdown tick
-    let sliderDragging = false;      // Suppress renderAreas during slider drag
+    let sliderDragging = false;      // Guards renderAreas during row button actions
 
     // ============================================================
     // Circadian Calculation Functions (for row shading)
@@ -2576,9 +2571,6 @@
               ]);
               if (statusRes.ok) {
                 areaStatus = await statusRes.json();
-                sliderPreviewCache = {};  // Invalidate — state changed
-                // Pre-fetch preview for the area that was just adjusted
-                if (areaId) fetchSliderPreview(areaId);
               }
               if (zsRes.ok) {
                 const zs = await zsRes.json();
@@ -2602,126 +2594,8 @@
       }
     }
 
-    // ============================================================
-    // Row Slider Pointer Handlers (with live row color preview)
-    // ============================================================
-
-    // Slider preview cache: { areaId: [{brightness, kelvin}, ...] }
-    let sliderPreviewCache = {};
-
-    async function fetchSliderPreview(areaId) {
-      if (sliderPreviewCache[areaId]) return sliderPreviewCache[areaId];
-      try {
-        const res = await fetch(`./api/area/slider-preview?area_id=${encodeURIComponent(areaId)}`);
-        if (res.ok) {
-          const data = await res.json();
-          sliderPreviewCache[areaId] = data.points || [];
-          return sliderPreviewCache[areaId];
-        }
-      } catch (err) {
-        console.error('Error fetching slider preview:', err);
-      }
-      return null;
-    }
-
-    function kelvinAtBrightness(brightness, previewPoints) {
-      // Interpolate kelvin from preview points at given brightness
-      if (!previewPoints || previewPoints.length < 2) return 4000;
-      if (brightness <= previewPoints[0].brightness) return previewPoints[0].kelvin;
-      const last = previewPoints[previewPoints.length - 1];
-      if (brightness >= last.brightness) return last.kelvin;
-      for (let i = 1; i < previewPoints.length; i++) {
-        const prev = previewPoints[i - 1];
-        const curr = previewPoints[i];
-        if (brightness <= curr.brightness) {
-          const frac = (brightness - prev.brightness) / (curr.brightness - prev.brightness);
-          return prev.kelvin + (curr.kelvin - prev.kelvin) * frac;
-        }
-      }
-      return last.kelvin;
-    }
-
-    function colorAtPct(pct, track) {
-      // Map slider pct to brightness in bMin..bMax, look up kelvin from preview
-      const bMin = parseFloat(track?.dataset?.bmin) || 1;
-      const bMax = parseFloat(track?.dataset?.bmax) || 100;
-      const brightness = bMin + (bMax - bMin) * pct / 100;
-      const areaId = track?.dataset?.areaId;
-      const preview = sliderPreviewCache[areaId];
-      const kelvin = preview ? kelvinAtBrightness(brightness, preview)
-        : (areaStatus[areaId]?.kelvin || 4000);
-      return { brightness, kelvin };
-    }
-
-    function previewRowColor(row, pct, track) {
-      const { brightness, kelvin } = colorAtPct(pct, track);
-      const cctColor = cctToRGB(kelvin);
-      const tinted = tintColorByBrightness(cctColor, brightness);
-      const textColor = readableTextColor(tinted);
-      row.style.setProperty('--row-bg', tinted);
-      row.style.setProperty('--row-text', textColor);
-      row.style.setProperty('--row-fill', (brightness / 100).toFixed(3));
-      row.style.color = textColor;
-    }
-
     function initRowSliders() {
-      document.querySelectorAll('.row-slider-track').forEach(track => {
-        const row = track.closest('.area-row');
-        if (!row) return;
-
-        track.addEventListener('pointerdown', (e) => {
-          e.stopPropagation();
-          e.preventDefault();
-          sliderDragging = true;
-          track.setPointerCapture(e.pointerId);
-          track.classList.add('dragging');
-          // Fetch preview points on drag start (async, preview uses cache once loaded)
-          const areaId = track.dataset.areaId;
-          if (areaId) fetchSliderPreview(areaId);
-          updateSliderFromPointer(track, e);
-          previewRowColor(row, getSliderPctFromPointer(track, e), track);
-        });
-        track.addEventListener('pointermove', (e) => {
-          if (!track.hasPointerCapture(e.pointerId)) return;
-          e.stopPropagation();
-          updateSliderFromPointer(track, e);
-          previewRowColor(row, getSliderPctFromPointer(track, e), track);
-        });
-        track.addEventListener('pointerup', (e) => {
-          if (!track.hasPointerCapture(e.pointerId)) return;
-          e.stopPropagation();
-          // sliderDragging stays true — cleared by rowAction's refresh callback
-          // so periodic refreshes don't snap the slider back to stale data
-          track.classList.remove('dragging');
-          const pct = getSliderPctFromPointer(track, e);
-          const areaId = track.dataset.areaId;
-          if (areaId) {
-            const bMin = parseFloat(track.dataset.bmin) || 1;
-            const bMax = parseFloat(track.dataset.bmax) || 100;
-            const targetActual = Math.round(bMin + (bMax - bMin) * pct / 100);
-            rowAction(areaId, 'set_circadian', targetActual);
-          }
-          else sliderDragging = false; // no action to clear it, clear now
-        });
-        track.addEventListener('pointercancel', (e) => {
-          sliderDragging = false;
-          track.classList.remove('dragging');
-        });
-        // Prevent click from bubbling to row's onclick (which opens detail page)
-        track.addEventListener('click', (e) => {
-          e.stopPropagation();
-        });
-      });
-    }
-
-    function getSliderPctFromPointer(track, e) {
-      const rect = track.getBoundingClientRect();
-      return Math.max(0, Math.min(100, (e.clientX - rect.left) / rect.width * 100));
-    }
-
-    function updateSliderFromPointer(track, e) {
-      const pct = getSliderPctFromPointer(track, e);
-      track.querySelector('.row-slider-thumb').style.left = pct + '%';
+      // Sliders are display-only — no interaction handlers needed
     }
 
   </script>

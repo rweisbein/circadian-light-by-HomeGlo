@@ -1901,7 +1901,7 @@ class LightDesignerServer:
         "periodic_transition_night",  # Periodic transition speed at night (tenths of seconds, default 1)
         "power_recovery",  # Power failure recovery: "bright" or "last_state" (default "last_state")
         "advanced_logging_until",  # ISO timestamp or "forever" for advanced logging expiry
-        "confirm_zone_pushes",  # Show confirmation dialogs for zone push actions (default false)
+        "confirm_zone_pushes",  # Show confirmation dialogs for zone push actions (default true)
     }
 
     def _migrate_to_glozone_format(self, config: dict) -> dict:

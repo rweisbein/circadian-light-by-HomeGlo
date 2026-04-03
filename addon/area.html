@@ -206,9 +206,14 @@
       font-size: 1.1rem;
     }
 
-    .toggle-btn:hover {
-      border-color: rgba(255,255,255,0.4);
-      background: rgba(50,50,50,0.9);
+    @media (hover: hover) {
+      .toggle-btn:hover {
+        border-color: rgba(255,255,255,0.4);
+        background: rgba(50,50,50,0.9);
+      }
+      #controls-left .toggle-btn:hover {
+        border-color: var(--accent);
+      }
     }
 
     .toggle-btn.active {
@@ -217,9 +222,6 @@
       border-color: var(--accent);
     }
 
-    #controls-left .toggle-btn:hover {
-      border-color: var(--accent);
-    }
     #controls-left .toggle-btn.active {
       border-color: var(--accent);
     }

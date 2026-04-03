@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.216
+- **"Add control" moved to bottom of controls list**: Keeps filter bar clean; "Cheatsheet" link replaces "Switch Map" in filter bar.
+- **Rename Switch Map → Cheatsheet**: Page title, link, and `<title>` tag updated. Cheatsheet/Edit toggle collapsed to just an "Edit" button (always in cheatsheet mode unless editing).
+- **"Confirm zone pushes" defaults to on**: New installs and unset configs now default to showing confirmation dialogs.
+- **Fix power button stuck orange on mobile**: Wrapped `:hover` styles in `@media (hover: hover)` so iOS sticky-hover doesn't keep the accent border after tapping power off.
+- **Home page sliders are display-only**: Removed touch/pointer interaction to prevent accidental brightness changes. Sliders are now 3px taller and 20px wider (reduced margin) for better visibility.
+
 ## 1.0.215
 - **Opt-in allowlist for controls discovery**: Replaced heuristic entity scanning (has_motion, has_battery, has_trigger, etc.) with curated manufacturer/model allowlists. Only verified devices auto-appear on the controls page — everything else via "Add control source". Eliminates false positives (phones, shades, Sonos, etc.).
 - **New allowlist dicts**: MOTION_SENSOR_MODELS (Hue SML001-004, SwitchBot Hub 3, Lafaer), CONTACT_SENSOR_MODELS (Hue SOC001), CAMERA_MODELS (Eufy T8162, T8214 with trigger patterns).

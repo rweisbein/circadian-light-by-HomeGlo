@@ -572,14 +572,16 @@
           <input type="checkbox" id="active-filter"> Active
         </label>
         <a href="#" id="clear-filters-link" style="display: none; margin-left: 8px; font-size: 0.75rem; color: var(--accent); text-decoration: none;" onclick="clearFilters(); return false;">Clear filters</a>
-        <button id="add-control-btn" onclick="openAddControlPicker()" style="margin-left:auto;padding:4px 10px;border-radius:6px;border:1px solid var(--line);background:transparent;color:var(--muted);font-size:0.78rem;cursor:pointer;">+ Add control</button>
-        <a href="./switchmap" style="margin-left: 8px; font-size: 0.8rem; color: var(--muted); text-decoration: none;">Switch Map</a>
+        <a href="./switchmap" style="margin-left:auto; font-size: 0.8rem; color: var(--muted); text-decoration: none;">Cheatsheet</a>
       </div>
     </div>
 
     <!-- Controls Table -->
     <div id="controls-container">
       <div class="loading">Loading controls...</div>
+    </div>
+    <div style="text-align:center;padding:12px 0 4px;">
+      <button id="add-control-btn" onclick="openAddControlPicker()" style="padding:4px 10px;border-radius:6px;border:1px solid var(--line);background:transparent;color:var(--muted);font-size:0.78rem;cursor:pointer;">+ Add control</button>
     </div>
   </main>
 

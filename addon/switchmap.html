@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Circadian Light - Switch Map</title>
+  <title>Circadian Light - Cheatsheet</title>
   <style>
     :root {
       --bg: #000;
@@ -600,7 +600,7 @@
   <main class="main">
     <div class="page-header">
       <a href="./switches" title="Back to Controls">&larr;</a>
-      <span class="page-title">Switch Map</span>
+      <span class="page-title">Cheatsheet</span>
       <span class="unsaved-indicator" id="unsaved-indicator"></span>
     </div>
 
@@ -611,12 +611,9 @@
     </div>
 
     <div class="mode-bar">
-      <div class="mode-toggle">
-        <button class="mode-btn active" id="mode-cheatsheet" onclick="setMode('cheatsheet')">Cheat Sheet</button>
-        <button class="mode-btn" id="mode-edit" onclick="setMode('edit')">Edit</button>
-      </div>
-      <div class="mode-bar-right">
+      <div class="mode-bar-right" style="margin-left:auto;display:flex;gap:6px;">
         <button class="copy-btn" id="copy-btn" onclick="copyCheatSheet()">Copy</button>
+        <button class="mode-btn" id="mode-edit" onclick="setMode(currentMode === 'edit' ? 'cheatsheet' : 'edit')">Edit</button>
       </div>
     </div>
 
@@ -772,7 +769,6 @@
     function setMode(mode) {
       currentMode = mode;
       document.getElementById('mode-edit').classList.toggle('active', mode === 'edit');
-      document.getElementById('mode-cheatsheet').classList.toggle('active', mode === 'cheatsheet');
       document.getElementById('copy-btn').style.display = mode === 'cheatsheet' ? '' : 'none';
       document.getElementById('save-bar').style.display = mode === 'edit' ? '' : 'none';
       render();
