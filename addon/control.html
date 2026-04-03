@@ -1830,8 +1830,13 @@
       ],
     };
 
-    function _matchCategory(cat, sensors) {
-      // If isAll (any_motion), also match all other presence category keywords
+    function _matchCategoryOwn(cat, sensors) {
+      // Match only this category's own keywords (for selection checking)
+      return sensors.filter(s => cat.keywords.some(kw => s.entity_id.includes(kw)));
+    }
+
+    function _matchCategoryAll(cat, sensors) {
+      // If isAll (any_motion), also match all other presence category keywords (for toggling on)
       let kws = [...cat.keywords];
       if (cat.isAll) {
         for (const pc of TRIGGER_CATEGORIES.presence) {
@@ -1842,15 +1847,19 @@
     }
 
     function _getCategoryEntities(sensors) {
-      // Returns { categoryId: [entity_ids], ... } and uncategorized list
+      // Returns { categoryId: { own: [...], all: [...] }, ... } and uncategorized list
       const result = {};
       const categorized = new Set();
       for (const group of ['presence', 'events']) {
         for (const cat of TRIGGER_CATEGORIES[group]) {
-          const matched = _matchCategory(cat, sensors);
-          if (matched.length > 0) {
-            result[cat.id] = matched.map(s => s.entity_id);
-            matched.forEach(s => categorized.add(s.entity_id));
+          const ownMatched = _matchCategoryOwn(cat, sensors);
+          const allMatched = _matchCategoryAll(cat, sensors);
+          if (allMatched.length > 0) {
+            result[cat.id] = {
+              own: ownMatched.map(s => s.entity_id),
+              all: allMatched.map(s => s.entity_id),
+            };
+            allMatched.forEach(s => categorized.add(s.entity_id));
           }
         }
       }
@@ -1870,7 +1879,7 @@
       if (Object.keys(categories).length === 0 && uncategorized.length === 0) return '';
 
       const selected = scope.trigger_entities || [];
-      const anyMotionSelected = categories.any_motion && _isCategorySelected(selected, categories.any_motion);
+      const anyMotionSelected = categories.any_motion && _isCategorySelected(selected, categories.any_motion.own);
 
       let html = '<div style="margin-top:8px;">';
 
@@ -1880,7 +1889,7 @@
         html += '<div style="font-size:0.72rem;color:var(--muted2);margin-bottom:3px;">Presence</div>';
         html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">';
         for (const cat of presenceCats) {
-          const isSelected = _isCategorySelected(selected, categories[cat.id]);
+          const isSelected = _isCategorySelected(selected, categories[cat.id].own);
           const greyed = !cat.isAll && anyMotionSelected && !isSelected ? ' greyed' : '';
           const sel = isSelected ? ' selected' : '';
           html += `<span class="trigger-chip${sel}${greyed}" onclick="toggleTriggerCategory(${idx}, '${cat.id}')">${cat.label}</span>`;
@@ -1894,7 +1903,7 @@
         html += '<div style="font-size:0.72rem;color:var(--muted2);margin-bottom:3px;">Events</div>';
         html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">';
         for (const cat of eventCats) {
-          const isSelected = _isCategorySelected(selected, categories[cat.id]);
+          const isSelected = _isCategorySelected(selected, categories[cat.id].own);
           html += `<span class="trigger-chip${isSelected ? ' selected' : ''}" onclick="toggleTriggerCategory(${idx}, '${cat.id}')">${cat.label}</span>`;
         }
         html += '</div>';
@@ -1903,8 +1912,12 @@
       // Show all toggle for uncategorized
       if (uncategorized.length > 0) {
         const showAllId = 'trigger-showall-' + idx;
-        html += `<a href="#" style="font-size:0.7rem;color:var(--muted2);text-decoration:underline;" onclick="event.preventDefault();document.getElementById('${showAllId}').style.display=document.getElementById('${showAllId}').style.display==='none'?'flex':'none'">show all</a>`;
-        html += `<div id="${showAllId}" style="display:none;flex-wrap:wrap;gap:4px;margin-top:4px;">`;
+        const linkId = 'trigger-showall-link-' + idx;
+        // Keep expanded if any uncategorized entity is selected or user expanded it
+        const anyUncatSelected = uncategorized.some(s => selected.includes(s.entity_id));
+        const startOpen = anyUncatSelected || _triggerShowAllExpanded.has(idx);
+        html += `<a href="#" id="${linkId}" style="font-size:0.7rem;color:var(--muted2);text-decoration:underline;" onclick="event.preventDefault();var el=document.getElementById('${showAllId}');var lk=document.getElementById('${linkId}');if(el.style.display==='none'){el.style.display='flex';lk.textContent='hide others';_triggerShowAllExpanded.add(${idx});}else{el.style.display='none';lk.textContent='show all';_triggerShowAllExpanded.delete(${idx});}">${startOpen ? 'hide others' : 'show all'}</a>`;
+        html += `<div id="${showAllId}" style="display:${startOpen ? 'flex' : 'none'};flex-wrap:wrap;gap:4px;margin-top:4px;">`;
         for (const s of uncategorized) {
           const label = s.name || s.entity_id.split('.')[1].replace(/_/g, ' ');
           const sel = selected.includes(s.entity_id) ? ' selected' : '';
@@ -1922,17 +1935,17 @@
       if (!scope.trigger_entities) scope.trigger_entities = [];
       const sensors = _getDeviceBinarySensors();
       const { categories } = _getCategoryEntities(sensors);
-      const catEntities = categories[catId] || [];
-      if (catEntities.length === 0) return;
+      const catData = categories[catId];
+      if (!catData) return;
 
-      const isSelected = _isCategorySelected(scope.trigger_entities, catEntities);
+      const isSelected = _isCategorySelected(scope.trigger_entities, catData.own);
 
       if (isSelected) {
-        // Remove all entities for this category
-        scope.trigger_entities = scope.trigger_entities.filter(e => !catEntities.includes(e));
+        // Remove all entities for this category (use .all to clean up everything)
+        scope.trigger_entities = scope.trigger_entities.filter(e => !catData.all.includes(e));
       } else {
         // Add all entities for this category
-        for (const e of catEntities) {
+        for (const e of catData.all) {
           if (!scope.trigger_entities.includes(e)) scope.trigger_entities.push(e);
         }
         // If selecting "any_motion", remove specific presence entities (redundant)
@@ -1940,13 +1953,19 @@
         if (cat && cat.isAll) {
           const specificPresence = TRIGGER_CATEGORIES.presence.filter(c => !c.isAll && categories[c.id]);
           for (const sp of specificPresence) {
-            scope.trigger_entities = scope.trigger_entities.filter(e => !categories[sp.id].includes(e));
+            scope.trigger_entities = scope.trigger_entities.filter(e => !categories[sp.id].own.includes(e));
           }
         }
       }
+      // Preserve show-all state
+      const showAllEl = document.getElementById('trigger-showall-' + scopeIdx);
+      if (showAllEl && showAllEl.style.display !== 'none') _triggerShowAllExpanded.add(scopeIdx);
       autoSave();
       renderMotionScopesEditor();
     }
+
+    // Track which scopes have "show all" expanded (survives re-render)
+    const _triggerShowAllExpanded = new Set();
 
     function toggleTriggerEntity(scopeIdx, entityId) {
       const scope = editingMotionScopes[scopeIdx];
@@ -1957,6 +1976,9 @@
       } else {
         scope.trigger_entities.push(entityId);
       }
+      // Preserve show-all state
+      const showAllEl = document.getElementById('trigger-showall-' + scopeIdx);
+      if (showAllEl && showAllEl.style.display !== 'none') _triggerShowAllExpanded.add(scopeIdx);
       autoSave();
       renderMotionScopesEditor();
     }

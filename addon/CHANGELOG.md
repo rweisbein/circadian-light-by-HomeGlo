@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.209
+- **Fix trigger selection: "Any motion" no longer auto-selects when picking Person/Pet/Vehicle**. Selection checking now uses category's own keywords, not the expanded "all" set. Toggling "Any motion" on still correctly adds all presence entities and greys out specific types.
+- **Fix "show all" collapsing on selection**: Expanded state is now preserved across re-renders. Toggle text changes to "hide others" when expanded. Auto-expands if any uncategorized entity is selected.
+
 ## 1.0.208
 - **Categorized trigger selector**: Per-reach trigger chips organized into Presence (Any motion, Person, Pet, Vehicle) and Events (Package, Doorbell). "Any motion" greys out specific presence types when selected. Uncategorized entities available via "show all" toggle.
 - **Dismiss X for unsupported devices**: Same remove button that stale devices have, now also shown on unsupported devices in the controls list.
