@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.219
+- **Fix trigger entity selections not persisting**: The control detail page's areas→scopes grouping path was dropping `trigger_entities` from loaded configs. Selections (Person, Pet, Vehicle, etc.) now correctly round-trip through save/reload.
+
 ## 1.0.218
 - **Feedback cues settings hierarchy**: Reach daytime threshold indented under reach feedback and greyed out when disabled. Limit bounce max/min indented under limit bounce and greyed out when disabled. New "Freeze feedback" checkbox controls whether freeze/unfreeze shows visual dip cue; freeze off rise speed indented underneath and greyed out when disabled.
 

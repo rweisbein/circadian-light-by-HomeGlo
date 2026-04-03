@@ -2279,13 +2279,20 @@
               boost_enabled: a.boost_enabled || false,
               boost_brightness: a.boost_brightness || 50,
               active_when: a.active_when || 'always',
-              active_offset: a.active_offset || 0
+              active_offset: a.active_offset || 0,
+              trigger_entities: [...(a.trigger_entities || [])],
             };
-            const key = JSON.stringify(settings);
-            if (scopeMap.has(key)) {
-              scopeMap.get(key).areas.push(a.area_id);
+            // Group by settings excluding trigger_entities (those are per-scope, not per-area)
+            const groupKey = JSON.stringify({
+              mode: settings.mode, duration: settings.duration, cooldown: settings.cooldown,
+              boost_enabled: settings.boost_enabled, boost_brightness: settings.boost_brightness,
+              active_when: settings.active_when, active_offset: settings.active_offset,
+              trigger_entities: settings.trigger_entities,
+            });
+            if (scopeMap.has(groupKey)) {
+              scopeMap.get(groupKey).areas.push(a.area_id);
             } else {
-              scopeMap.set(key, {
+              scopeMap.set(groupKey, {
                 areas: [a.area_id],
                 ...settings
               });
